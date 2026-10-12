@@ -9,6 +9,9 @@ while read -r _ _ remote_ref _; do
       exit 1 ;;
   esac
 done
+# Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);
+# limpa para que nada rodado aqui escreva em outro repositório.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
 python3 -m unittest discover -s tests -q >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }

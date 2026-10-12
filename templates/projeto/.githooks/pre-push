@@ -8,6 +8,9 @@ while read -r _ _ remote_ref _; do
   fi
 done
 
+# Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);
+# limpa para que nada rodado aqui escreva em outro repositório.
+unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
