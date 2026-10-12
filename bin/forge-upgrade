@@ -1,0 +1,89 @@
+#!/usr/bin/env python3
+"""Forge: traz um projeto para a versão atual do plugin (ADR 0005). Rode NO projeto, quando quiser.
+Uso: forge-upgrade [--simular] [--ate VERSAO] [DIRETORIO]
+Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commit cada) e sugere o PR.
+Nunca faz push nem merge."""
+import argparse
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+
+
+def versao(texto):
+    return tuple(int(p) for p in texto.strip().split("."))
+
+
+def git(projeto, *args, check=True):
+    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
+    if check and r.returncode:
+        sair(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout.strip()
+
+
+def sair(msg, codigo=1):
+    print(f"forge-upgrade: {msg}", file=sys.stderr)
+    sys.exit(codigo)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Traz um projeto para a versão atual do Forge.")
+    ap.add_argument("diretorio", nargs="?", default=".")
+    ap.add_argument("--simular", action="store_true", help="mostra o que mudaria, sem gravar")
+    ap.add_argument("--ate", help="versão-alvo (padrão: a do plugin)")
+    a = ap.parse_args()
+
+    projeto = Path(a.diretorio).resolve()
+    if git(projeto, "rev-parse", "--is-inside-work-tree", check=False) != "true":
+        sair(f"{projeto} não é um repositório git", 2)
+    if git(projeto, "status", "--porcelain"):
+        sair("a cópia de trabalho não está limpa; commite ou guarde as mudanças antes", 2)
+
+    alvo = a.ate or json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+    arq_versao = projeto / ".forge/versao"
+    atual = arq_versao.read_text(encoding="utf-8").strip() if arq_versao.exists() else "0.0.0"
+    pendentes = sorted(
+        (p for p in (RAIZ / "migrations").glob("*/migrar") if versao(atual) < versao(p.parent.name) <= versao(alvo)),
+        key=lambda p: versao(p.parent.name))
+    if not pendentes and versao(atual) >= versao(alvo):
+        print(f"forge-upgrade: projeto já está na versão {atual}; nada a fazer.")
+        return
+
+    atual_branch = git(projeto, "branch", "--show-current")
+    base = "develop" if git(projeto, "rev-parse", "--verify", "-q", "refs/heads/develop", check=False) else atual_branch
+    if base in ("main", "master", ""):
+        sair(f"branch de integração seria '{base or 'HEAD solto'}'; entre numa branch de trabalho ou crie a develop", 2)
+    nova = f"forge/upgrade-{alvo}"
+    if git(projeto, "rev-parse", "--verify", "-q", f"refs/heads/{nova}", check=False):
+        sair(f"a branch {nova} já existe", 2)
+
+    print(f"Projeto {projeto}\n  versão atual {atual} -> {alvo}; branch {nova} a partir de {base}")
+    for p in pendentes:
+        resumo = (p.parent / "LEIA.md").read_text(encoding="utf-8").splitlines()[2:3]
+        print(f"  migração {p.parent.name}: {resumo[0].split('. ')[0] if resumo else ''}")
+    if a.simular:
+        print("(--simular: nada foi gravado)")
+        return
+
+    git(projeto, "switch", "-c", nova, base)
+    for p in pendentes:
+        r = subprocess.run([sys.executable, str(p), str(projeto)], capture_output=True, text=True)
+        if r.returncode:
+            sair(f"a migração {p.parent.name} parou:\n{r.stdout}{r.stderr}\nResolva à mão na branch {nova}.")
+        git(projeto, "add", "-A")
+        if git(projeto, "status", "--porcelain"):
+            git(projeto, "commit", "-q", "-m", f"chore(forge): migração {p.parent.name}")
+            print(f"  commit   migração {p.parent.name}")
+    arq_versao.parent.mkdir(exist_ok=True)
+    arq_versao.write_text(alvo + "\n", encoding="utf-8")
+    git(projeto, "add", ".forge/versao")
+    if git(projeto, "status", "--porcelain"):
+        git(projeto, "commit", "-q", "-m", f"chore(forge): registra versão {alvo}")
+    print(f"\nPronto na branch {nova}. Revise o diff (git log {base}..{nova}) e abra o PR; o merge é seu:")
+    print(f"  gh pr create --base {base} --title 'chore(forge): atualiza para {alvo}'")
+
+
+if __name__ == "__main__":
+    main()

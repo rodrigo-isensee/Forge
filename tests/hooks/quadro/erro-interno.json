@@ -1,0 +1,30 @@
+{
+  "descricao": "Config corrompida: libera e registra em erros.log.",
+  "config_bruta": "{",
+  "arquivos": {
+    "KANBAN.md": [
+      "# Quadro",
+      "",
+      "## QA (WIP 2)",
+      "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |",
+      "|---|---|---|---|---|---|---|",
+      "| C1 | a | p1 | forge:qa-engineer | d | d | |",
+      "| C2 | b | p1 | forge:qa-engineer | d | d | |",
+      "| C3 | c | p1 | forge:qa-engineer | d | d | |"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/KANBAN.md",
+      "old_string": "a",
+      "new_string": "b"
+    },
+    "tool_response": {}
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "quadro JSONDecodeError"
+  }
+}

@@ -1,0 +1,560 @@
+#!/usr/bin/env python3
+"""Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
+
+Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]   (--raiz também depois do subcomando)
+     forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
+     forge-check transcricao verificar <arquivo.jsonl> [--teto N]
+`transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007).
+`pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
+Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
+Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
+"""
+import argparse
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+PLUGIN = Path(__file__).resolve().parent.parent
+GIT_TIMEOUT_S = 5  # os hooks que usam este módulo têm 10 s no total
+DATA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+INTEIRO = re.compile(r"^\d+$")
+PARECER = {"aprovado", "reprovado"}
+# Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
+LIVRES = ("docs/reviews/", "docs/qa/", "KANBAN.md", "docs/kanban/")
+COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
+ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
+
+# tipo -> (pasta, ID da regra, campos obrigatórios)
+CONTRATOS = {
+    "review": ("docs/reviews", "R-REVIEW", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
+    "qa": ("docs/qa", "R-QA", ["pedido", "branch", "commit", "parecer", "escopo", "bugs_criticos",
+                               "bugs_altos", "bugs_medios", "bugs_baixos", "data"]),
+    "plano-tecnico": ("docs/architecture/features", "ADR-0004",
+                      ["pedido", "estado", "ux", "adrs", "agentes"]),
+}
+
+
+def ler_frontmatter(texto):
+    """Devolve (campos, erros). Formato restrito: `chave: valor` por linha; listas `[a, b]`; sem aninhamento."""
+    linhas = texto.split("\n")
+    if linhas[0].strip() != "---":
+        return None, ["sem frontmatter no topo"]
+    campos, erros = {}, []
+    for n, linha in enumerate(linhas[1:], 2):
+        if linha.strip() == "---":
+            return campos, erros
+        if not linha.strip():
+            continue
+        m = re.match(r"^([a-z_][a-z0-9_]*): ?(.*)$", linha)
+        if not m:
+            erros.append(f"linha {n}: só `chave: valor` numa linha, sem aninhamento")
+            continue
+        chave, valor = m.group(1), m.group(2).strip()
+        if chave in campos:
+            erros.append(f"linha {n}: chave repetida `{chave}`")
+        if valor.startswith("[") != valor.endswith("]"):
+            erros.append(f"linha {n}: lista malformada em `{chave}`")
+        campos[chave] = valor
+    return campos, erros + ["frontmatter sem fechamento `---`"]
+
+
+def validar_documento(rel, texto):
+    """Devolve (campos ou None se ignorado, violações)."""
+    campos, erros = ler_frontmatter(texto)
+    if campos is None:
+        return None, [f"{rel}: frontmatter: {erros[0]} (ADR-0004)"]
+    saida = [f"{rel}: frontmatter: {e} (ADR-0004)" for e in erros]
+    if campos.get("contrato") == "0":
+        return None, saida  # documento anterior ao contrato
+    if campos.get("contrato") != "1":
+        saida.append(f"{rel}: contrato: esperado `1` (ADR-0004)")
+    tipo = campos.get("tipo")
+    if tipo not in CONTRATOS:
+        return campos, saida + [f"{rel}: tipo: esperado um de {', '.join(CONTRATOS)} (ADR-0004)"]
+    pasta, rid, obrigatorios = CONTRATOS[tipo]
+    if not rel.startswith(pasta + "/"):
+        saida.append(f"{rel}: tipo: `{tipo}` pertence a {pasta}/ ({rid})")
+
+    def erro(campo, problema):
+        saida.append(f"{rel}: {campo}: {problema} ({rid})")
+
+    for c in obrigatorios:
+        if not campos.get(c):
+            erro(c, "obrigatório e vazio ou ausente")
+    if tipo in ("review", "qa"):
+        if campos.get("parecer") and campos["parecer"] not in PARECER:
+            erro("parecer", "use aprovado ou reprovado")
+        if campos.get("commit") and not COMMIT.match(campos["commit"]):
+            erro("commit", "hash hexadecimal de 7 a 40 caracteres")
+        if campos.get("data") and not DATA.match(campos["data"]):
+            erro("data", "use AAAA-MM-DD")
+    if tipo == "qa":
+        if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
+            erro("escopo", "use completo ou incremental")
+        n = {}
+        for c in ("bugs_criticos", "bugs_altos", "bugs_medios", "bugs_baixos"):
+            if campos.get(c):
+                if INTEIRO.match(campos[c]):
+                    n[c] = int(campos[c])
+                else:
+                    erro(c, "número inteiro")
+        if campos.get("parecer") == "aprovado":
+            for c in ("bugs_criticos", "bugs_altos"):
+                if n.get(c, 0) > 0:
+                    erro(c, "parecer aprovado exige 0 bugs abertos")
+            if (n.get("bugs_medios", 0) or n.get("bugs_baixos", 0)) and campos.get("aceite_usuario") != "sim":
+                erro("aceite_usuario", "bugs médios ou baixos abertos exigem `aceite_usuario: sim`")
+    if tipo == "plano-tecnico" and campos.get("estado") and campos["estado"] not in ("proposta", "vigente"):
+        erro("estado", "use proposta ou vigente")
+    return campos, saida
+
+
+def documentos(raiz, tipo=None, ref=None):
+    """Gera (caminho relativo, texto) dos documentos do contrato: do disco, ou da `ref` do git se dada."""
+    for t, (pasta, _, _) in CONTRATOS.items():
+        if tipo and t != tipo:
+            continue
+        if ref is None:
+            base = raiz / pasta
+            nomes = sorted(p.name for p in base.glob("*.md")) if base.is_dir() else []
+        else:
+            cod, saida = git(raiz, "ls-tree", "--name-only", ref, pasta + "/")
+            nomes = sorted(Path(n).name for n in saida.splitlines() if n.endswith(".md")) if not cod else []
+        for nome in nomes:
+            if nome == "README.md" or nome.startswith("_"):
+                continue
+            rel = f"{pasta}/{nome}"
+            if ref is None:
+                yield rel, (raiz / rel).read_text(encoding="utf-8")
+            else:
+                yield rel, git(raiz, "show", f"{ref}:{rel}")[1]
+
+
+def cmd_docs(raiz):
+    saida = []
+    for rel, texto in documentos(raiz):
+        saida += validar_documento(rel, texto)[1]
+    return saida
+
+
+def cmd_kanban(raiz):
+    arq = raiz / "KANBAN.md"
+    if not arq.is_file():
+        return ["KANBAN.md: arquivo: não encontrado (R-WIP)"]
+    saida, ids, secao, wip, linhas, cabecalho = [], {}, None, None, [], False
+
+    def fechar():
+        if secao is None:
+            return
+        if wip and wip[1] == "total" and len(linhas) > wip[0]:
+            saida.append(f"KANBAN.md: {secao}: {len(linhas)} cartões, limite {wip[0]} (R-WIP)")
+        if wip and wip[1] == "agente":
+            por = {}
+            for r in linhas:
+                por[r[3]] = por.get(r[3], 0) + 1
+            for quem, q in por.items():
+                if q > wip[0]:
+                    saida.append(f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {wip[0]} por agente (R-WIP)")
+
+    for n, linha in enumerate(arq.read_text(encoding="utf-8").split("\n"), 1):
+        if linha.startswith("## "):
+            fechar()
+            secao, linhas, cabecalho = linha[3:].strip(), [], False
+            m = re.search(r"\(WIP (\d+)( por agente)?\)", secao)
+            wip = (int(m.group(1)), "agente" if m.group(2) else "total") if m else None
+            continue
+        if secao is None or not linha.startswith("|"):
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if not cabecalho:
+            cabecalho = True
+            if celulas != COLUNAS:
+                saida.append(f"KANBAN.md: {secao}: colunas diferentes do modelo na linha {n} (R-WIP)")
+            continue
+        if all(re.fullmatch(r":?-+:?", c) for c in celulas):
+            continue
+        if len(celulas) != len(COLUNAS):
+            saida.append(f"KANBAN.md: {secao}: linha {n} com {len(celulas)} colunas, esperado {len(COLUNAS)} (R-WIP)")
+            continue
+        if not celulas[0]:
+            saida.append(f"KANBAN.md: ID: vazio na linha {n} (R-WIP)")
+        elif celulas[0] in ids:
+            saida.append(f"KANBAN.md: ID: `{celulas[0]}` repetido nas linhas {ids[celulas[0]]} e {n} (R-WIP)")
+        else:
+            ids[celulas[0]] = n
+        if not ID_RESP.match(celulas[3]):
+            saida.append(f"KANBAN.md: Responsável: `{celulas[3]}` na linha {n}; use forge:<agente> ou usuário (R-WIP)")
+        linhas.append(celulas)
+    fechar()
+    return saida
+
+
+def git(raiz, *args):
+    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
+    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno, que libera). Devolve (código, stdout)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env,
+                       timeout=GIT_TIMEOUT_S)
+    return r.returncode, r.stdout.strip()
+
+
+def commit_vale(raiz, commit, ate="HEAD"):
+    """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo."""
+    cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
+    if cod:
+        return "commit não existe no repositório"
+    cod, saida = git(raiz, "diff", "--name-only", commit, ate)
+    if cod:
+        return f"não foi possível comparar com {ate}"
+    fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
+    if fora:
+        return f"desatualizado: {fora[0]} mudou depois do parecer; peça novo parecer"
+    return None
+
+
+def pedidos_da_branch(raiz, branch, ref=None):
+    """Pedidos cujos pareceres (review ou QA) declaram `branch: <branch>`."""
+    pedidos = set()
+    for tipo in ("review", "qa"):
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos = ler_frontmatter(texto)[0] or {}
+            if campos.get("branch") == branch and campos.get("pedido"):
+                pedidos.add(campos["pedido"])
+    return sorted(pedidos)
+
+
+def cmd_pr(raiz, pedido, ref=None):
+    saida = []
+    for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
+        achados = []
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos, viol = validar_documento(rel, texto)
+            if campos is not None and campos.get("pedido") == pedido:
+                achados.append((campos.get("data", ""), rel, campos, viol))
+        if not achados:
+            saida.append(f"docs/{'reviews' if tipo == 'review' else 'qa'}: {tipo}: sem parecer para o pedido `{pedido}` ({rid})")
+            continue
+        _, rel, campos, viol = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
+        saida += viol
+        if campos.get("parecer") != "aprovado":
+            saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
+        elif campos.get("commit") and COMMIT.match(campos["commit"]):
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD")
+            if motivo:
+                saida.append(f"{rel}: commit: {motivo} ({rid})")
+    return saida
+
+
+# --- Transcrições (ADR 0007) ---------------------------------------------------------------------
+FORMATO = "forge-transcricao/1"
+SECOES = {"Objetivo": r"Objetivo", "Ler": r"Ler", "Entregar": r"Entregar",
+          "Decisões e restrições": r"Decis(?:ões|oes) e restri", "Pronto quando": r"Pronto quando",
+          "Relatório": r"Relat[óo]rio"}
+SECAO_RE = {n: re.compile(r"^\s*(?:#{1,6}\s*|\d+\.\s*)?\**\s*" + p, re.I | re.M) for n, p in SECOES.items()}
+AGENTES_GENERICOS = {"general-purpose", "Explore", "Plan"}
+RAMOS_FIXOS = {"main", "develop", "homolog"}
+GIT_MUDA = {"commit", "merge", "push", "rebase", "reset", "cherry-pick"}
+TETO_PADRAO = 3  # R-TETO
+ISO8601 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$")
+CAMPOS_DO_EVENTO = {"agente": {"id": str, "tipo": str, "bg": bool, "secoes": dict}, "fim": {"id": str},
+                    "cmd": {"cmd": str, "branch": str}}
+
+
+def marcar_ramo(nome):
+    """Só `main`, `develop`, `homolog` e `HEAD` sobrevivem; qualquer outro nome vira marcador."""
+    nome = re.sub(r"^\+|^refs/heads/", "", (nome or "").strip())
+    base = nome[len("origin/"):] if nome.startswith("origin/") else nome
+    return base if base in RAMOS_FIXOS or base == "HEAD" else "<branch>"
+
+
+def marcar_agente(tipo):
+    tipo = str(tipo or "general-purpose")
+    return tipo if tipo.startswith("forge:") and re.fullmatch(r"forge:[a-z0-9-]+", tipo) or tipo in AGENTES_GENERICOS else "<agente>"
+
+
+def comandos_de(texto):
+    """Divide um comando de shell em segmentos de palavras (aspas e heredocs respeitados, sem executar nada)."""
+    linhas, fim_heredoc, limpo = texto.split("\n"), None, []
+    for linha in linhas:
+        if fim_heredoc is not None:
+            if linha.strip() == fim_heredoc:
+                fim_heredoc = None
+            continue
+        limpo.append(linha)
+        m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?", linha)
+        if m:
+            fim_heredoc = m.group(1)
+    segmentos, palavras, atual, aspas, i, s = [], [], "", None, 0, "\n".join(limpo)
+    tem = False
+
+    def fecha_palavra():
+        nonlocal atual, tem
+        if tem:
+            palavras.append(atual)
+        atual, tem = "", False
+
+    def fecha_segmento():
+        nonlocal palavras
+        fecha_palavra()
+        if palavras:
+            segmentos.append(palavras)
+        palavras = []
+
+    while i < len(s):
+        c = s[i]
+        if aspas:
+            if c == aspas:
+                aspas = None
+            elif c == "\\" and aspas == '"' and i + 1 < len(s):
+                i += 1
+                atual += s[i]
+            else:
+                atual += c
+        elif c in "'\"":
+            aspas, tem = c, True
+        elif c == "\\" and i + 1 < len(s):
+            i += 1
+            atual, tem = atual + s[i], True
+        elif c in " \t":
+            fecha_palavra()
+        elif c in "\n;|&":
+            fecha_segmento()
+        else:
+            atual, tem = atual + c, True
+        i += 1
+    fecha_segmento()
+    return segmentos
+
+
+def reduzir_comando(texto, ramo):
+    """Reduz um comando Bash aos tokens que as propriedades usam. Devolve [(token, ramo_atual)]."""
+    saida = []
+    for pal in comandos_de(texto):
+        while pal and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", pal[0]):
+            pal = pal[1:]
+        if not pal:
+            continue
+        if pal[0] == "gh" and pal[1:3] in (["pr", "create"], ["pr", "merge"]):
+            saida.append((f"gh pr {pal[2]}", ramo))
+        if pal[0] != "git":
+            continue
+        resto, i = pal[1:], 0
+        while i < len(resto) and resto[i].startswith("-"):  # opções globais: -C dir, -c k=v, --no-pager
+            i += 2 if resto[i] in ("-C", "-c") else 1
+        if i >= len(resto):
+            continue
+        sub, args = resto[i], resto[i + 1:]
+        if sub in ("checkout", "switch"):
+            alvo = [a for a in args if not a.startswith("-")]
+            if alvo and not any(a in ("-b", "-B", "-c", "-C") for a in args):
+                ramo = marcar_ramo(alvo[0])
+            elif alvo:
+                ramo = "<branch>"
+        elif sub == "push":
+            forca = any(a in ("-f", "--force") or a.startswith("--force") for a in args)
+            pos = [a for a in args if not a.startswith("-")]
+            refs = [marcar_ramo(a.split(":")[-1]) for a in pos[1:]] or [ramo]
+            for r in refs:
+                saida.append((f"git push{' --force' if forca else ''} {r}", ramo))
+        elif sub == "merge":
+            pos = [a for a in args if not a.startswith("-")]
+            saida.append((f"git merge {marcar_ramo(pos[0])}" if pos else "git merge", ramo))
+        elif sub in GIT_MUDA:
+            saida.append((f"git {sub}", ramo))
+    return saida
+
+
+def ler_eventos_brutos(linhas):
+    """ÚNICO ponto que conhece o formato `.jsonl` do Claude Code. Gera dicts neutros e já sem texto livre:
+    {ev: agente|fim|cmd, t, ...}. Tudo fora desta lista de permissão é descartado aqui."""
+    agentes, terminados, versao = {}, set(), None
+    for linha in linhas:
+        try:
+            o = json.loads(linha)
+        except ValueError:
+            continue
+        if not isinstance(o, dict) or o.get("isSidechain"):
+            continue
+        t, ramo = str(o.get("timestamp") or ""), marcar_ramo(o.get("gitBranch"))
+        t = t if ISO8601.match(t) else ""  # só data e hora passam; qualquer outro texto é descartado
+        if versao is None and re.fullmatch(r"[0-9][0-9.]*", str(o.get("version") or "")):
+            versao = o["version"]
+            yield {"ev": "origem", "versao": versao}
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        blocos = msg.get("content") if isinstance(msg.get("content"), list) else []
+        if o.get("type") == "queue-operation" and isinstance(o.get("content"), str):
+            blocos = [{"type": "text", "text": o["content"]}]
+        for b in blocos:
+            if not isinstance(b, dict):
+                continue
+            entrada = b.get("input") if isinstance(b.get("input"), dict) else {}
+            if b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task"):
+                n = f"a{len(agentes) + 1}"
+                agentes[b.get("id")] = n
+                prompt = str(entrada.get("prompt") or "")
+                yield {"ev": "agente", "t": t, "id": n, "tipo": marcar_agente(entrada.get("subagent_type")),
+                       "bg": str(entrada.get("run_in_background")).lower() == "true",
+                       "secoes": {nome: bool(r.search(prompt)) for nome, r in SECAO_RE.items()}}
+            elif b.get("type") == "tool_use" and b.get("name") == "Bash":
+                for token, r in reduzir_comando(str(entrada.get("command") or ""), ramo):
+                    yield {"ev": "cmd", "t": t, "cmd": token, "branch": r}
+            elif b.get("type") == "tool_result" and b.get("tool_use_id") in agentes:
+                if "Async agent launched" not in json.dumps(b.get("content"), ensure_ascii=False)[:200]:
+                    ids = [b["tool_use_id"]]
+                else:
+                    ids = []
+            elif b.get("type") == "text" and "<task-notification>" in str(b.get("text")):
+                ids = re.findall(r"<tool-use-id>([^<]+)</tool-use-id>", b["text"])
+            else:
+                continue
+            if b.get("type") != "tool_use":
+                for i in ids:
+                    if i in agentes and i not in terminados:
+                        terminados.add(i)
+                        yield {"ev": "fim", "t": t, "id": agentes[i]}
+
+
+def cmd_transcricao_anonimizar(entrada, saida):
+    with open(entrada, encoding="utf-8", errors="replace") as f:
+        eventos = list(ler_eventos_brutos(f))
+    origem = next((e["versao"] for e in eventos if e["ev"] == "origem"), "desconhecida")
+    with open(saida, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"formato": FORMATO, "origem": f"claude-code {origem}"}) + "\n")
+        for e in eventos:
+            if e["ev"] != "origem":
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    return []
+
+
+def problema_do_evento(texto):
+    """(evento, None) se a linha é um evento válido; senão (None, motivo)."""
+    try:
+        e = json.loads(texto)
+    except ValueError:
+        return None, "não é JSON"
+    if not isinstance(e, dict) or e.get("ev") not in CAMPOS_DO_EVENTO:
+        return None, f"`ev` deve ser um de {', '.join(CAMPOS_DO_EVENTO)}"
+    if not isinstance(e.get("t", ""), str) or e.get("t") and not ISO8601.match(e["t"]):
+        return None, "`t` deve ser data e hora ISO 8601 ou vazio"
+    for campo, tipo in CAMPOS_DO_EVENTO[e["ev"]].items():
+        if not isinstance(e.get(campo), tipo) or tipo is str and campo == "cmd" and not e[campo].split():
+            return None, f"`{campo}` ausente ou de tipo errado"
+    return e, None
+
+
+def cmd_transcricao_verificar(arquivo, teto=TETO_PADRAO):
+    saida, vistos, ativos = [], set(), set()
+    with open(arquivo, encoding="utf-8", errors="replace") as f:
+        brutas = [l for l in f if l.strip()]
+    try:
+        cabecalho = json.loads(brutas[0]) if brutas else None
+    except ValueError:
+        cabecalho = None
+    if not isinstance(cabecalho, dict) or cabecalho.get("formato") != FORMATO:
+        return [f"transcricao: formato: esperado `{FORMATO}`; anonimize com `forge-check transcricao anonimizar`"]
+    for i, texto in enumerate(brutas[1:], 1):
+        e, motivo = problema_do_evento(texto)
+        if motivo:
+            saida.append(f"transcricao: formato: evento {i} inválido: {motivo}")
+            continue
+        if e["ev"] == "agente":
+            tipo = e["tipo"].split(":")[-1]
+            vistos.add(tipo)
+            if e["bg"]:
+                ativos.add(e["id"])
+                if len(ativos) > teto:
+                    saida.append(f"transcricao: R-TETO: {len(ativos)} agentes em segundo plano, teto {teto} (evento {i})")
+            faltam = [n for n, ok in e["secoes"].items() if not ok]
+            if faltam:
+                saida.append(f"transcricao: PROMPT-PADRAO: delegação a {tipo} sem as seções {', '.join(faltam)} (evento {i})")
+        elif e["ev"] == "fim":
+            ativos.discard(e["id"])
+        elif e["ev"] == "cmd":
+            c, partes = e["cmd"], e["cmd"].split()
+            main = (partes[:2] == ["git", "push"] and partes[-1] == "main") or (
+                e["branch"] == "main" and partes[0] == "git" and partes[1] in GIT_MUDA)
+            if main:
+                saida.append(f"transcricao: R-MAIN: `{c}` com a main (evento {i})")
+            if c == "gh pr create":
+                for papel, rid in (("tech-lead", "R-REVIEW"), ("qa-engineer", "R-QA")):
+                    if papel not in vistos:
+                        saida.append(f"transcricao: {rid}: gh pr create sem delegação prévia ao {papel} (evento {i})")
+    return saida
+
+
+def versao(texto):
+    try:
+        return tuple(int(p) for p in texto.strip().split("."))
+    except ValueError:
+        return None
+
+
+def migracao_pendente(raiz):
+    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+    try:
+        atual = versao((raiz / ".forge" / "versao").read_text(encoding="utf-8"))
+        plugin = versao(json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return []
+    if not atual or not plugin or atual >= plugin:
+        return []
+    return sorted((p.parent.name for p in (PLUGIN / "migrations").glob("*/migrar")
+                   if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
+    ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
+    comum = argparse.ArgumentParser(add_help=False)  # aceita --raiz também depois do subcomando
+    comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("docs", parents=[comum])
+    sub.add_parser("kanban", parents=[comum])
+    pr = sub.add_parser("pr", parents=[comum])
+    pr.add_argument("pedido")
+    pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
+    tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
+    tsub = tr.add_subparsers(dest="acao", required=True)
+    an = tsub.add_parser("anonimizar")
+    an.add_argument("entrada")
+    an.add_argument("saida")
+    ve = tsub.add_parser("verificar")
+    ve.add_argument("arquivo")
+    ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
+    a = ap.parse_args()
+    raiz = Path(a.raiz).resolve()
+    try:
+        return executar(a, raiz)
+    except subprocess.TimeoutExpired as e:
+        print(f"git: tempo esgotado ({GIT_TIMEOUT_S} s) em `{' '.join(map(str, e.cmd[3:5]))}`; tente de novo")
+        return 1
+
+
+def executar(a, raiz):
+    if a.cmd == "transcricao":
+        try:
+            violacoes = (cmd_transcricao_anonimizar(a.entrada, a.saida) if a.acao == "anonimizar"
+                         else cmd_transcricao_verificar(a.arquivo, a.teto))
+        except OSError as e:
+            print(f"transcricao: arquivo: {e.strerror}: {e.filename}")
+            return 1
+        for v in violacoes:
+            print(v)
+        return 1 if violacoes else 0
+    pendentes = migracao_pendente(raiz)
+    if pendentes:
+        print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
+              file=sys.stderr)
+    violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
+                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))}[a.cmd]()
+    for v in violacoes:
+        print(v)
+    return 1 if violacoes else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

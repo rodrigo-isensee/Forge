@@ -1,0 +1,35 @@
+{
+  "descricao": "git pull origin feature/x na develop (ref remota conhecida): bloqueia como merge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "ref": "refs/remotes/origin/feature/x"
+    },
+    {
+      "checkout": "develop"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "git pull --no-rebase origin feature/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`branch: feature/x`"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "descricao": "Trava de outra sessão com mais de 10 min sem o Post: libera.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-700}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "docker compose up -d"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "pesado.json": {
+        "contem": [
+          "toolu_9"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "descricao": "cd, switch para a develop e merge com -C: a branch atual acompanha a linha; bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "sub/LEIAME.md": "x\n"
+      },
+      "commit": "docs: sub"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd sub; git switch -q develop; cd .. && git -C . merge --no-ff feature/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`branch: feature/x`"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "descricao": "Registros com mais de 2 h expiram (SubagentStop perdido não trava o teto).",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-7300}"
+        },
+        {
+          "id": "a2",
+          "tipo": "x",
+          "descricao": "y",
+          "desde": "{agora-7300}"
+        },
+        {
+          "id": "a3",
+          "tipo": "z",
+          "descricao": "w",
+          "desde": "{agora-7300}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "ausente": [
+          "a1",
+          "a2",
+          "a3"
+        ]
+      }
+    }
+  }
+}

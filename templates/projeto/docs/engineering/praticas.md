@@ -9,5 +9,5 @@ As práticas padrão vêm da skill `engineering-practices` do Forge. Este arquiv
 <!-- pronto, testes, lint, migrações -->
 
 ## Commits e branches
-Padrão da fábrica: Conventional Commits em português; branch de trabalho a partir da branch de integração; PR para a `main` validado pelo usuário.
+Padrão da fábrica: Conventional Commits em português; `R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário.
 <!-- exceções deste projeto -->

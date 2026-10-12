@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
-# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--pronto COMANDO] [--forcar] [DIRETORIO]
+# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
-# substitui os marcadores {{PROJETO}}, {{DESCRICAO}} e {{COMANDO_PRONTO}} e ativa o hook de git.
+# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git.
 set -euo pipefail
 
 raiz_forge="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 modelo="$raiz_forge/templates/projeto"
 
-nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto="npm run pronto"; forcar=0; destino="."
+nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; destino="."
 while [ $# -gt 0 ]; do
   case "$1" in
     --nome) nome="$2"; shift 2 ;;
     --descricao) descricao="$2"; shift 2 ;;
+    --stack) stack="$2"; shift 2 ;;
     --pronto) pronto="$2"; shift 2 ;;
     --forcar) forcar=1; shift ;;
     -h|--help) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -25,8 +26,17 @@ done
 destino="$(cd "$destino" && pwd)"
 [ -n "$nome" ] || nome="$(basename "$destino")"
 
+[[ "$stack" =~ ^[a-z0-9-]+$ && -f "$raiz_forge/stacks/$stack/pronto.md" ]] || {
+  echo "forge-init: stack desconhecida: $stack (disponíveis: $(find "$raiz_forge/stacks" -mindepth 1 -maxdepth 1 -type d -printf '%f ' | sort | tr -s " "))" >&2; exit 2; }
+# Comando "pronto" padrão: o sugerido pela stack ("Comando sugerido: `...`" em stacks/<stack>/pronto.md).
+if [ -z "$pronto" ]; then
+  # shellcheck disable=SC2016  # as crases são literais da expressão
+  pronto="$(sed -n 's/^Comando sugerido: `\(.*\)`.*/\1/p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1)"
+  [ -n "$pronto" ] || pronto="a definir"
+fi
+
 escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
-n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"
+n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Preenche agent, marketplace e plugin do Forge e une as listas de permissões; não apaga nada do projeto.
@@ -49,6 +59,10 @@ with open(sys.argv[2], "w", encoding="utf-8") as f:
 PY
 }
 
+# Projeto que já usa o Forge mas é anterior ao .forge/ (ADR 0005): a versão real é desconhecida.
+antigo=0
+if [ ! -e "$destino/.forge/versao" ] && { [ -e "$destino/CLAUDE.md" ] || [ -e "$destino/KANBAN.md" ]; }; then antigo=1; fi
+
 criados=0; mantidos=0
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
@@ -61,10 +75,26 @@ while IFS= read -r -d '' arq; do
     echo "  mantido  $rel"; mantidos=$((mantidos + 1)); continue
   fi
   mkdir -p "$(dirname "$alvo")"
-  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
+  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
   echo "  criado   $rel"; criados=$((criados + 1))
 done < <(find "$modelo" -type f -print0 | sort -z)
+
+# Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo;
+# no projeto antigo grava 0.0.0, e o forge-upgrade aplica as migrações.
+versao_forge="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$raiz_forge/.claude-plugin/plugin.json")"
+if [ "$antigo" -eq 1 ] && [ "$forcar" -eq 0 ]; then
+  mkdir -p "$destino/.forge"; printf '0.0.0\n' > "$destino/.forge/versao"
+  echo "  criado   .forge/versao (0.0.0: projeto anterior ao .forge/)"
+  echo "  aviso    rode 'forge-upgrade' neste projeto para aplicar as migrações do Forge"
+elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
+  mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
+  echo "  criado   .forge/versao ($versao_forge)"
+fi
+# Estado de execução local não é versionado.
+if ! grep -qxF '.forge/run/' "$destino/.gitignore" 2>/dev/null; then
+  echo '.forge/run/' >> "$destino/.gitignore"; echo "  gitignore .forge/run/"
+fi
 
 if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$destino" config core.hooksPath .githooks

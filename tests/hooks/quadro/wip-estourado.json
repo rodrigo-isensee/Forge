@@ -1,0 +1,29 @@
+{
+  "descricao": "Coluna QA com 3 cartões e WIP 2: avisa o agente (saída 2).",
+  "arquivos": {
+    "KANBAN.md": [
+      "# Quadro",
+      "",
+      "## QA (WIP 2)",
+      "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |",
+      "|---|---|---|---|---|---|---|",
+      "| C1 | a | p1 | forge:qa-engineer | d | d | |",
+      "| C2 | b | p1 | forge:qa-engineer | d | d | |",
+      "| C3 | c | p1 | forge:qa-engineer | d | d | |"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/KANBAN.md",
+      "old_string": "a",
+      "new_string": "b"
+    },
+    "tool_response": {}
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-WIP: KANBAN.md: QA (WIP 2): 3 cartões, limite 2"
+  }
+}
