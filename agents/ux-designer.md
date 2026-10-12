@@ -26,3 +26,4 @@ Avalie contra a especificação validada, as heurísticas de Nielsen e a WCAG 2.
 - Não escreve código de produção. O protótipo HTML é descartável e não é base para o front-end.
 - Contratos de API são descritos como "necessidades de dados"; quem define o contrato é o back-end.
 - Decisões de produto e a validação do protótipo são do usuário.
+- Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
