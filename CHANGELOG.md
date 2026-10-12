@@ -6,9 +6,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 ### Adicionado
 - Skill `contribuir-com-o-forge` e `scripts/verificar-contribuicao.sh`: qualquer agente de qualquer projeto contribui com o Forge por PR na `develop` (branch ou fork, clone em `~/.forge-contrib/<projeto>`), com varredura de segredos e caminhos pessoais no diff (ADR 0006).
 - `CONTRIBUTING.md` e `.github/pull_request_template.md`.
+- `docs/regras/`: uma fonte por regra, com ID (`R-MAIN`, `R-FLUXO`, `R-WIP`, `R-TETO`, `R-QA`, `R-REVIEW`, `R-DISCOVERY`, `R-CUSTO`, `R-NEUTRO`, `R-COPIA`, `R-VERIFY`) e índice (ADR 0002).
+- Testes `AntiDuplicacao` (trecho de 12 palavras de uma regra fora da fonte falha) e `RegrasComId` (ID citado existe, frontmatter com `verificada_por`, índice completo).
 ### Alterado
 - Job `versao` do CI: PR para a `develop` exige linha nova em `[Não publicado]` em vez de subir a versão; PR para a `main` exige versão maior e changelog fechado.
 - Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.
+- Agentes, skills e modelo de projeto citam as regras pelo ID em vez de repetir o texto (`jarvis.md` 99 → 90 linhas). **Invariantes** de `tests/config.json`: os trechos protegidos passam a ser verificados em `docs/regras/`, e os agentes precisam citar os IDs; nenhum trecho deixou de ser verificado.
+- Divergências resolvidas pela redação mais restritiva: QA com WIP 2 no modelo de `KANBAN.md` (era 3); cartão de correção passa por QA com suíte completa; `--force` proibido em qualquer push; branch de trabalho a partir da branch de integração.
 
 ## [0.4.1] - 2026-10-12
 ### Adicionado
