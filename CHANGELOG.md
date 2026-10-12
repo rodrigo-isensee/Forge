@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-10-12
+### Alterado
+- Higiene (onda 1): neutralidade da skill `cyber-security` e da regra de cobertura; escolha de modelo numa só fonte (`docs/economia-de-tokens.md`); fim da instrução de copiar agentes para o projeto; Telegram documentado como opcional; assimetria dos hooks pre-push documentada.
+### Adicionado
+- Ações do CI fixadas por SHA, Dependabot semanal e teste que exige SHA.
+- Orçamento de linhas por agente (110) e por skill (133), verificado por teste.
+
 ## [0.2.1] - 2026-10-12
 ### Alterado
 - **Sem custo de dinheiro real:** removidas as avaliações de comportamento com IA (`evals/` e o workflow), que exigiam API paga. A `homolog` repete a bateria rápida sobre o conjunto da release. O CI não usa mais o segredo `ANTHROPIC_API_KEY`. Nada que custe dinheiro entra no Forge sem autorização expressa do dono.
