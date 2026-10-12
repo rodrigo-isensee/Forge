@@ -225,5 +225,20 @@ class HookPrePush(unittest.TestCase):
         self.assertNotEqual(self.push("HEAD:feature/y").returncode, 0)
 
 
+class CI(unittest.TestCase):
+    def test_acoes_fixadas_por_sha(self):
+        """Toda ação de terceiros usa SHA completo (40 hex); Dependabot atualiza."""
+        for wf in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+            for n, linha in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+                m = re.search(r"\buses:\s*(\S+)", linha)
+                if m and not m.group(1).startswith("./"):
+                    with self.subTest(arquivo=wf.name, linha=n):
+                        self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
+
+    def test_dependabot_para_actions(self):
+        texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        self.assertIn("github-actions", texto)
+
+
 if __name__ == "__main__":
     unittest.main()

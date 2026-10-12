@@ -1,0 +1,7 @@
+# Mantém as ações do CI (fixadas por SHA) atualizadas por pull request semanal.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
