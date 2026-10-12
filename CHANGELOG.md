@@ -25,6 +25,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.
 - Agentes, skills e modelo de projeto citam as regras pelo ID em vez de repetir o texto (`jarvis.md` 99 → 90 linhas). **Invariantes** de `tests/config.json`: os trechos protegidos passam a ser verificados em `docs/regras/`, e os agentes precisam citar os IDs; nenhum trecho deixou de ser verificado.
 - Divergências resolvidas pela redação mais restritiva: QA com WIP 2 no modelo de `KANBAN.md` (era 3); cartão de correção passa por QA com suíte completa; `--force` proibido em qualquer push; branch de trabalho a partir da branch de integração.
+### Corrigido
+- Hook `pesado`: a trava não bloqueia a própria sessão e o próprio agente; sem o `PostToolUse` ela expira em 10 minutos, o `PermissionDenied` também a solta e a mensagem diz como liberar. Os itens de `pesados` casam no início de um comando simples (depois de variáveis e lançadores), e só citar a ferramenta não conta mais.
+- Hook `parecer`: acompanha `git checkout`/`git switch` na mesma linha e trata `git pull <remoto> <branch>` na integração como merge; o que continua fora está em `docs/hooks.md`, "Limites conhecidos".
+- Migração 0.5.0: marca com `contrato: 0` os documentos de `docs/reviews/`, `docs/qa/` e `docs/architecture/features/` sem frontmatter (ADR 0004) e só acrescenta ao `.gitignore`, preservando CRLF.
+- `hooks/hooks.json`: `timeout` de 10 s conferido por teste e fontes oficiais do formato registradas em `docs/hooks.md`.
+- `forge-check`: um só `git`, com limite de tempo e sem `GIT_*` herdadas, para validador e hooks; `--raiz` também depois do subcomando; aviso de migração pendente; linha malformada em `transcricao verificar` vira violação e o anonimizador só copia `t` em ISO 8601.
+- `forge-init` em projeto antigo (com `CLAUDE.md` ou `KANBAN.md` e sem `.forge/versao`) grava `0.0.0` e orienta rodar o `forge-upgrade`.
+- `R-WIP`, `R-TETO`, `R-QA` e `R-REVIEW` registram que também são verificadas por hook.
+- Release: checkout com `persist-credentials: false`.
+- `jarvis` e `jarvis-forge` aceitam `-h`/`--help` e recusam opção desconhecida com saída 2.
 
 ## [0.4.1] - 2026-10-12
 ### Adicionado
