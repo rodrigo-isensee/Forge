@@ -184,6 +184,38 @@ class AntiDuplicacao(unittest.TestCase):
                     self.assertFalse(comum, f"texto da regra copiado; cite o ID. Ex.: \"{min(comum, default='')}\"")
 
 
+class RegrasComId(unittest.TestCase):
+    """ADR 0002: toda regra citada existe e diz como é verificada; o índice lista todas."""
+
+    def setUp(self):
+        self.regras = {p.stem: p for p in sorted(REGRAS.glob("R-*.md"))}
+
+    def test_frontmatter_restrito(self):
+        for nome, p in self.regras.items():
+            with self.subTest(regra=p.name):
+                fm = frontmatter(p)
+                self.assertEqual(set(fm), {"id", "titulo", "verificada_por"}, "frontmatter só com id, titulo, verificada_por")
+                self.assertEqual(fm["id"], nome, "id deve ser igual ao nome do arquivo")
+                self.assertRegex(nome, r"^R-[A-Z]+$")
+                self.assertTrue(fm["titulo"], "titulo vazio")
+                self.assertTrue(fm["verificada_por"], "verificada_por vazio")
+
+    def test_indice_lista_todas(self):
+        indice = (REGRAS / "README.md").read_text(encoding="utf-8")
+        for nome in self.regras:
+            with self.subTest(regra=nome):
+                self.assertIn(f"[`{nome}`]({nome}.md)", indice)
+
+    def test_ids_citados_existem(self):
+        origens = [RAIZ / ".claude" / "CLAUDE.md", *sorted(REGRAS.glob("*.md"))]
+        for pasta in ("agents", "skills", "templates"):
+            origens += [p for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        for p in origens:
+            for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
+                with self.subTest(arquivo=str(p.relative_to(RAIZ)), regra=rid):
+                    self.assertTrue(rid in self.regras, f"{rid} não existe em docs/regras/")
+
+
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda."""
