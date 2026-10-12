@@ -9,13 +9,13 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 
 ## 1. Classifique: fábrica ou projeto
 - **Fábrica (vai ao Forge):** o que melhora como o time trabalha em qualquer projeto: agentes, skills, fluxo, práticas gerais, hooks, modelos, testes e CI do Forge.
-- **Projeto (fica no projeto):** código, regras de negócio, ADRs, `CLAUDE.md` e exceções locais do sistema.
+- **Projeto (fica no projeto):** o que é do sistema (`R-NEUTRO` neutralidade da fábrica).
 - Misturou os dois: são dois PRs, um em cada repositório. Na dúvida, pergunte ao usuário com a sua recomendação.
 - No projeto atual nada muda por causa da melhoria de fábrica. Avise o usuário, sem parar a entrega.
 
 ## 2. Prepare um clone próprio
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
-- **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório) e **nunca** edite o cache do plugin em `~/.claude/plugins/`.
+- **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório); `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
 - Ative o hook: `git config core.hooksPath .githooks`.
 
@@ -24,11 +24,10 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 - **`WRITE`, `MAINTAIN` ou `ADMIN`:** `git switch -c melhoria/<assunto> origin/develop`; envie a branch ao próprio repositório.
 - **`READ` (sem escrita):** `gh repo fork rodrigo-isensee/Forge --clone=false`, adicione o fork como remoto, crie a branch a partir de `origin/develop` e envie ao fork; o PR vai para a `develop` do Forge.
 - **Sem `gh` autenticado:** registre a proposta em `docs/kanban/melhorias.md` do projeto (situação, mudança, como medir) e avise o usuário.
-- Nunca envie para `develop`, `homolog` ou `main`; a `main` é do usuário.
+- Nunca envie para `develop`, `homolog` ou `main` (`R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário).
 
 ## 4. Faça a mudança
-- Siga o `.claude/CLAUDE.md` do Forge: neutralidade (nada de nome, regra de negócio, dado pessoal ou trecho de código do projeto de origem), regras invioláveis preservadas.
-- Nada que custe dinheiro (API paga, serviço cobrado) sem autorização expressa do usuário.
+- Siga o `.claude/CLAUDE.md` do Forge e as regras em `docs/regras/`: `R-NEUTRO` neutralidade da fábrica, `R-CUSTO` nada que custe dinheiro sem autorização; regras invioláveis preservadas.
 - Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão em `.claude-plugin/plugin.json`: a versão é decidida na release pelo `tech-lead`.
 
 ## 5. Antes do PR, no clone de contribuição
@@ -49,4 +48,4 @@ Use `.github/pull_request_template.md` e preencha:
 Comando: `gh pr create --base develop --title "<tipo>: <resumo>" --body-file <texto>` (de um fork: `--repo rodrigo-isensee/Forge`).
 
 ## 7. Depois
-Acompanhe o CI e responda ao review do `tech-lead`, que mescla na `develop` e promove até a `homolog`. O PR `homolog` → `main` é mesclado só pelo usuário. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release.
+Acompanhe o CI e responda ao review do `tech-lead`; a promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release.

@@ -29,4 +29,4 @@ description: Revisão de cibersegurança e boas práticas de um sistema Node/Typ
 **Regras invioláveis do projeto como requisito de segurança:** trate cada regra do `CLAUDE.md` do projeto (ex.: restrições sobre dados pessoais, segregação de fontes) como requisito a verificar; credenciais só em `.env`.
 
 ## Limites
-Não altera código de produção: propõe o que mudar e o agente dono implementa; correção de segurança passa por code review e QA como qualquer outra. Dúvida de regra de negócio ou de risco aceito vai ao usuário, com insumos.
+Não altera código de produção: propõe o que mudar e o agente dono implementa; correção de segurança passa por code review e QA como qualquer outra (`R-REVIEW`, `R-QA`). Dúvida de regra de negócio ou de risco aceito vai ao usuário, com insumos.
