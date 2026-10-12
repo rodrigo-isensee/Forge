@@ -9,7 +9,7 @@ Decisão: [ADR 0003](adr/0003-hooks-deterministicos-e-silenciosos.md). Os hooks 
 | Hook (script) | Quando roda | Bloqueia quando | Regra |
 |---|---|---|---|
 | `agentes` | antes da ferramenta de agentes (`Agent`, ou `Task` em versões antigas); `SubagentStart` e `SubagentStop` mantêm a contagem | os agentes ativos já somam `teto_agentes`, ou já há um ativo com o mesmo tipo e a mesma descrição | `R-TETO` |
-| `parecer` | antes de `gh pr create`, e de `git merge <branch>` feito numa branch de integração (`develop`, `homolog`, `main`, `master`) | a branch não tem parecer de review e de QA aprovado e válido para o commit atual (`forge-check pr`) | `R-REVIEW`, `R-QA` |
+| `parecer` | antes de `gh pr create`, e de `git merge <branch>` ou `git pull <remoto> <branch>` feito numa branch de integração (`develop`, `homolog`, `main`, `master`); a branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha | a branch não tem parecer de review e de QA aprovado e válido para o commit atual (`forge-check pr`) | `R-REVIEW`, `R-QA` |
 | `pesado` | antes e depois de comandos `Bash` com um comando simples que começa com um item de `pesados` | outra sessão, worktree ou subagente tem tarefa pesada ativa (trava com PID vivo, há menos de 10 minutos) | `R-TETO` |
 | `quadro` | depois de `Write`/`Edit` do `KANBAN.md` da raiz | o quadro fere o formato ou o WIP (`forge-check kanban`); a edição já foi feita, o agente recebe o motivo | `R-WIP` |
 
@@ -38,6 +38,7 @@ Chave ausente ou com valor inválido usa o padrão do modelo de projeto (`templa
 
 ## Limites conhecidos
 - Guarda de processo, não de segurança: comando pesado com outro nome, `gh pr merge` e merges feitos fora do `Bash` do Claude Code passam. A fronteira continua sendo o hook de git, o CI e a proteção de branch.
+- O `parecer` lê só a linha de comando: merge dentro de `bash -c`, `eval`, script, alias ou função, `git pull` sem branch explícita (usa o upstream) e `git checkout -` seguido de merge passam.
 - Tarefa pesada em segundo plano (`run_in_background`) solta a trava quando o comando é disparado, não quando termina; a que passa de 10 minutos deixa de travar as outras sessões.
 - Se o `SubagentStop` não chegar, a vaga só volta quando o registro expira.
 
