@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    name: testes estruturais
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Testes do Forge
+        run: python3 -m unittest discover -s tests -v
+
+  shell:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scripts e hooks
+        run: shellcheck bin/forge-init scripts/jarvis scripts/instalar-atalho.sh .githooks/pre-push templates/projeto/.githooks/pre-push
+
+  plugin:
+    name: validação do plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Claude Code CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: claude plugin validate --strict
+        run: claude plugin validate . --strict
+
+  versao:
+    name: versão e changelog
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Mudança na fábrica exige versão nova
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mudou=$(git diff --name-only "$BASE" HEAD -- agents skills templates bin scripts docs .claude-plugin hooks | wc -l)
+          atual=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          base=$(git show "$BASE:.claude-plugin/plugin.json" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "0.0.0")
+          echo "arquivos da fábrica alterados: $mudou | versão base: $base | versão do PR: $atual"
+          if [ "$mudou" -gt 0 ]; then
+            python3 - "$base" "$atual" <<'PY'
+          import sys
+          b, a = (tuple(map(int, v.split("."))) for v in sys.argv[1:3])
+          if a <= b:
+              sys.exit(f"Suba a versão em .claude-plugin/plugin.json (base {sys.argv[1]}, PR {sys.argv[2]}) e registre no CHANGELOG.md.")
+          PY
+          fi

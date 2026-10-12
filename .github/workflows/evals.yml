@@ -1,0 +1,56 @@
+name: Avaliações de comportamento
+
+# Rodam os cenários de evals/ (custam uso de IA): em PRs que mexem nos agentes, skills ou nas próprias
+# avaliações, toda noite e sob demanda. Precisam do segredo ANTHROPIC_API_KEY no repositório;
+# sem ele, o job avisa e termina sem falhar.
+on:
+  pull_request:
+    paths: ["agents/**", "skills/**", "evals/**"]
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Segredo configurado?
+        id: chave
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::ANTHROPIC_API_KEY não configurada; avaliações de comportamento puladas."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v4
+        if: steps.chave.outputs.ok == 'true'
+        with:
+          node-version: "24"
+      - name: Claude Code CLI
+        if: steps.chave.outputs.ok == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: claude plugin eval
+        if: steps.chave.outputs.ok == 'true'
+        run: |
+          claude plugin eval . --trust-plugin --no-publish --ablation none \
+            --threshold 0.75 --max-cost-usd 10 --json evals-resultado.json
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.chave.outputs.ok == 'true'
+        with:
+          name: evals-resultado
+          path: |
+            evals-resultado.json
+            evals/results/
+          if-no-files-found: ignore
