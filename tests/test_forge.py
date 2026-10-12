@@ -647,6 +647,18 @@ class PrepararEstacao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
+    def test_atalhos_do_jarvis_com_ajuda(self):
+        """--help mostra o uso e sai com 0; opção desconhecida sai com 2, sem abrir nada."""
+        for script in ("jarvis", "jarvis-forge"):
+            with self.subTest(script=script):
+                r = subprocess.run(["bash", str(RAIZ / "scripts" / script), "--help"], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn(f"Uso: {script} [--sem-tmux]", r.stdout)
+                self.assertNotIn("set -", r.stdout)
+                r = subprocess.run(["bash", str(RAIZ / "scripts" / script), "--xpto"], capture_output=True, text=True)
+                self.assertEqual((r.returncode, r.stdout), (2, ""))
+                self.assertIn("--help", r.stderr)
+
 
 class VerificarContribuicao(unittest.TestCase):
     """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""

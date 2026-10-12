@@ -3,9 +3,19 @@
 # retomando a última conversa do Forge, com chat remoto e, se instalado, o canal do Telegram.
 # Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
 # Uso: jarvis-forge [--sem-tmux]
+#   --sem-tmux   abre direto no terminal, sem criar ou anexar a sessão do tmux
+#   -h, --help   mostra esta ajuda
 set -euo pipefail
+sem_tmux=0
+for a in "$@"; do
+  case "$a" in
+    --sem-tmux) sem_tmux=1 ;;
+    -h|--help) sed -n '2,7p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "jarvis-forge: argumento desconhecido: $a (veja jarvis-forge --help)" >&2; exit 2 ;;
+  esac
+done
 cd "$HOME/Forge"
-if [ "${1:-}" != "--sem-tmux" ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
+if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
   eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   exec tmux new-session -A -s jarvis-Forge -c "$PWD" "$(printf '%q' "$eu")"
 fi

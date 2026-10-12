@@ -3,12 +3,19 @@
 # e, se o plugin estiver instalado, o canal do Telegram.
 # Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
 # Uso: jarvis [--sem-tmux] [projeto]   (diretório em $HOME; padrão: diretório atual)
+#   --sem-tmux   abre direto no terminal, sem criar ou anexar a sessão do tmux
+#   -h, --help   mostra esta ajuda
 # Instale com: scripts/instalar-atalho.sh
 set -euo pipefail
 sem_tmux=0
 posicionais=()
 for a in "$@"; do
-  if [ "$a" = "--sem-tmux" ]; then sem_tmux=1; else posicionais+=("$a"); fi
+  case "$a" in
+    --sem-tmux) sem_tmux=1 ;;
+    -h|--help) sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "jarvis: opção desconhecida: $a (veja jarvis --help)" >&2; exit 2 ;;
+    *) posicionais+=("$a") ;;
+  esac
 done
 if [ ${#posicionais[@]} -gt 0 ]; then cd "$HOME/${posicionais[0]}"; fi
 projeto="$(basename "$PWD")"
