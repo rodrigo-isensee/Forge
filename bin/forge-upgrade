@@ -62,7 +62,7 @@ def main():
     print(f"Projeto {projeto}\n  versão atual {atual} -> {alvo}; branch {nova} a partir de {base}")
     for p in pendentes:
         resumo = (p.parent / "LEIA.md").read_text(encoding="utf-8").splitlines()[2:3]
-        print(f"  migração {p.parent.name}: {resumo[0].split(". ")[0] if resumo else ''}")
+        print(f"  migração {p.parent.name}: {resumo[0].split('. ')[0] if resumo else ''}")
     if a.simular:
         print("(--simular: nada foi gravado)")
         return
