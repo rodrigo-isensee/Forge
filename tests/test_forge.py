@@ -596,6 +596,11 @@ class CI(unittest.TestCase):
                     with self.subTest(arquivo=wf.name, linha=n):
                         self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
 
+    def test_release_sem_credencial_no_checkout(self):
+        """Com `contents: write`, o token não fica gravado no .git enquanto os testes rodam."""
+        texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertIn("persist-credentials: false", texto)
+
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
