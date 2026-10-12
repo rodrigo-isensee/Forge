@@ -2,11 +2,27 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [0.3.0] - 2026-10-12
+## [0.5.0] - 2026-10-12
 ### Alterado
 - Teto de agentes adaptativo à carga da máquina (2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes dos testes ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio.
 ### Adicionado
-- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/diario.jsonl` por projeto, hooks de sessão e de subagente, skill `retomada`. A implementação vem na 0.4.0.
+- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/diario.jsonl` por projeto, hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
+
+## [0.4.0] - 2026-10-12
+### Adicionado
+- `scripts/preparar-estacao.sh`: prepara do zero uma estação WSL (Ubuntu 24.04) para o Forge: pacotes, Node 24 via nvm, pnpm, Claude Code, clone, plugin e atalhos; idempotente, com `--simular`.
+- `scripts/jarvis-forge`: atalho versionado para abrir o Jarvis no próprio `~/Forge`; `instalar-atalho.sh` instala os dois.
+### Alterado
+- Os atalhos `jarvis` e `jarvis-forge` rodam dentro do tmux (sessão `jarvis-<projeto>`), que sobrevive ao fechamento do terminal e se acessa pelo claude.ai/code; `--sem-tmux` mantém o comportamento antigo.
+
+## [0.3.0] - 2026-10-12
+### Alterado
+- Higiene (onda 1): neutralidade da skill `cyber-security` e da regra de cobertura; escolha de modelo numa só fonte (`docs/economia-de-tokens.md`); fim da instrução de copiar agentes para o projeto; Telegram documentado como opcional; assimetria dos hooks pre-push documentada.
+### Adicionado
+- Ações do CI fixadas por SHA, Dependabot semanal e teste que exige SHA.
+- Orçamento de linhas por agente (110) e por skill (133), verificado por teste.
+### Corrigido
+- Testes rodados dentro do hook pre-push numa worktree herdavam `GIT_DIR` e alteravam o repositório real (`core.bare=true`, `user.name=t`, commit "inicio"). Os testes agora rodam o git com ambiente limpo, os hooks descartam as variáveis `GIT_*` e um teste de regressão protege isso.
 
 ## [0.2.1] - 2026-10-12
 ### Alterado

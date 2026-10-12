@@ -1,11 +1,22 @@
 #!/usr/bin/env bash
 # Forge: abre o Jarvis num projeto, retomando a última conversa, com o chat remoto (claude.ai/code)
 # e, se o plugin estiver instalado, o canal do Telegram.
-# Uso: jarvis [projeto]   (diretório em $HOME; padrão: diretório atual)
+# Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# Uso: jarvis [--sem-tmux] [projeto]   (diretório em $HOME; padrão: diretório atual)
 # Instale com: scripts/instalar-atalho.sh
 set -euo pipefail
-if [ $# -gt 0 ]; then cd "$HOME/$1"; fi
+sem_tmux=0
+posicionais=()
+for a in "$@"; do
+  if [ "$a" = "--sem-tmux" ]; then sem_tmux=1; else posicionais+=("$a"); fi
+done
+if [ ${#posicionais[@]} -gt 0 ]; then cd "$HOME/${posicionais[0]}"; fi
 projeto="$(basename "$PWD")"
+if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
+  sessao="jarvis-${projeto//[.:]/_}"
+  eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' "$eu" "${posicionais[@]}")"
+fi
 args=(--continue --remote-control "Jarvis - $projeto")
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then

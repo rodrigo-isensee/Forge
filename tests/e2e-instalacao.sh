@@ -4,6 +4,10 @@
 # Uso: tests/e2e-instalacao.sh   (na raiz do Forge; exige o Claude Code CLI no PATH)
 set -euo pipefail
 raiz="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Um hook do git (ex.: pre-push numa worktree) exporta GIT_DIR e afins; sem limpar, o git abaixo
+# escreveria no repositório real em vez do temporário.
+while IFS= read -r var; do unset "$var"; done < <(compgen -e | grep '^GIT_' || true)
+export GIT_CONFIG_NOSYSTEM=1
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 export HOME="$tmp/home"; mkdir -p "$HOME"   # isola a configuração do Claude Code deste teste

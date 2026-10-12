@@ -9,6 +9,7 @@
     "qa-engineer",
     "agile-coach"
   ],
+  "limite_linhas": { "agente": 110, "skill": 133 },
   "termos_proibidos": [
     "Metricas ?DSPD",
     "\\bDSPD\\b",
