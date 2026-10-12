@@ -2,7 +2,7 @@
 
 Propósito: desenhar o diário de retomada que deixa o Jarvis continuar de onde parou depois de uma queda ou do fechamento da sessão, em qualquer projeto. Público: usuário, Jarvis, `tech-lead`, `software-architect`, `qa-engineer`. Revisão: 2026-10-12.
 
-Estado: proposta. Para destravar, faltam as respostas do usuário na seção 14.
+Estado: vigente → especificada em [docs/retomada-de-sessao.md](../retomada-de-sessao.md). As respostas P1 a P5 estão registradas na seção 14; em caso de conflito, vale a especificação.
 
 Legenda das marcas: **[DOC]** está confirmado na documentação oficial do Claude Code (consultada em 2026-10-12: hooks, sessions, memory, sub-agents, plugins-reference) ou no código do Forge; **[INF]** é inferência ou decisão de desenho que ainda precisa ser verificada na implementação.
 
@@ -275,7 +275,7 @@ Decisões do esboço:
 - **P4. Aviso pelo Telegram** quando o Jarvis detectar um encerramento não registrado? *Recomendação: sim, uma linha.*
 - **P5. Adoção.** Depois da release, atualizo o plugin no projeto atual por PR logo em seguida, ou espero a próxima entrega dele? *Recomendação: logo em seguida, porque o problema nasceu lá.*
 
-**Respostas (2026-10-12, Jarvis com a autorização do usuário "aprovado, pode fazer tudo só desta vez"; reversíveis):** P1 só local por agora; P2 autônomo, exceto o destrutivo; P3 sem commits `wip:`; P4 aviso de uma linha pelo Telegram; P5 atualizar o MetricasDSPD logo depois da release.
+**Respostas (2026-10-12, Jarvis com a autorização do usuário "aprovado, pode fazer tudo só desta vez"; reversíveis):** P1 só local por agora; P2 autônomo, exceto o destrutivo; P3 sem commits `wip:`; P4 aviso de uma linha pelo Telegram; P5 atualizar o projeto de origem logo depois da release.
 
 ## 15. Cartões de implementação (no repositório Forge, branch `melhoria/retomada-de-sessao`)
 
