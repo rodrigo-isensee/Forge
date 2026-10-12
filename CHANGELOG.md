@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.4.1] - 2026-10-12
+### Adicionado
+- `docs/adr/`: sete ADRs que guiam a evolução da fábrica: núcleo neutro e pacotes de stack (0001), uma fonte por regra com IDs (0002), hooks determinísticos e silenciosos (0003), contrato verificável entre agentes e `forge-check` (0004), migração iniciada pelo projeto (0005), contribuição de qualquer projeto com versão só na release (0006) e verificação de comportamento sem custo (0007).
+
 ## [0.4.0] - 2026-10-12
 ### Adicionado
 - `scripts/preparar-estacao.sh`: prepara do zero uma estação WSL (Ubuntu 24.04) para o Forge: pacotes, Node 24 via nvm, pnpm, Claude Code, clone, plugin e atalhos; idempotente, com `--simular`.
