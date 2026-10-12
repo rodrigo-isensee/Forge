@@ -8,6 +8,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - `CONTRIBUTING.md` e `.github/pull_request_template.md`.
 - `docs/regras/`: uma fonte por regra, com ID (`R-MAIN`, `R-FLUXO`, `R-WIP`, `R-TETO`, `R-QA`, `R-REVIEW`, `R-DISCOVERY`, `R-CUSTO`, `R-NEUTRO`, `R-COPIA`, `R-VERIFY`) e índice (ADR 0002).
 - Testes `AntiDuplicacao` (trecho de 12 palavras de uma regra fora da fonte falha) e `RegrasComId` (ID citado existe, frontmatter com `verificada_por`, índice completo).
+- **Requer migração (0.5.0):** `bin/forge-upgrade` e `migrations/0.5.0/`: o projeto traz a si mesmo para a versão atual, numa branch `forge/upgrade-<versão>` com um commit por migração, sem push nem merge (ADR 0005). Projetos anteriores (sem `.forge/`) ganham `.forge/versao`, `.forge/config.json` e `.forge/run/` no `.gitignore`.
+- `forge-init` grava `.forge/versao` e `.forge/config.json` e ignora `.forge/run/`.
 ### Alterado
 - Job `versao` do CI: PR para a `develop` exige linha nova em `[Não publicado]` em vez de subir a versão; PR para a `main` exige versão maior e changelog fechado.
 - Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.

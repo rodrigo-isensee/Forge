@@ -37,8 +37,11 @@ Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápid
 
 **Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
 
-## Atualizar
-Cada versão está no `CHANGELOG.md`. Num projeto: `claude plugin update forge@forge` (numa branch, com PR se houver ajuste local).
+## Atualizar um projeto
+O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No projeto, com a árvore limpa:
+1. `claude plugin update forge@forge`
+2. `forge-upgrade` (`--simular` mostra o que faria): cria a branch `forge/upgrade-<versão>`, aplica as migrações pendentes (um commit cada) e sugere o `gh pr create`.
+3. Revise o PR e mescle; o `forge-upgrade` nunca faz push nem merge.
 
 ## Desenvolver o Forge
 Ver [`.claude/CLAUDE.md`](.claude/CLAUDE.md): regras, testes, avaliações e versionamento.

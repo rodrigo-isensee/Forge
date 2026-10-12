@@ -15,3 +15,4 @@ description: Prepara um repositório para ser desenvolvido pela fábrica Forge -
 5. Se o projeto tiver `.claude/agents/` ou `.claude/skills/` com cópias de agentes do time (jarvis, tech-lead, ux-designer...), aplique `R-COPIA` não copiar agentes e skills para o projeto.
 6. Preencha com o usuário as seções "Regras invioláveis do sistema" e "Fonte da verdade" do `CLAUDE.md`.
 7. Commit (`chore: adota a fábrica Forge`) na branch de trabalho e PR para o usuário validar.
+8. O `forge-init` grava `.forge/versao`; projetos antigos (sem ela) se atualizam depois com `forge-upgrade` (ver README, "Atualizar um projeto").

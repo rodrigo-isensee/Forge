@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -283,6 +284,84 @@ class ForgeInit(unittest.TestCase):
         self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
         self.rodar("--forcar")
         self.assertIn("# Demo", (self.tmp / "CLAUDE.md").read_text(encoding="utf-8"))
+
+
+    def test_grava_versao_e_config_idempotente(self):
+        self.rodar()
+        plugin = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8").strip(), plugin)
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.rodar()
+        self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
+
+    def test_nao_mexe_na_versao_existente(self):
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge/versao").write_text("0.1.0\n", encoding="utf-8")
+        self.rodar()
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.1.0\n")
+
+
+class ForgeUpgrade(unittest.TestCase):
+    """Projeto "antes" (sem .forge/, como criado por um forge-init antigo) migrado pelo projeto (ADR 0005)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-upgrade-"))
+        git("init", "-q", "-b", "develop", cwd=self.tmp)
+        git("config", "user.name", "t", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        (self.tmp / ".gitignore").write_text("node_modules/", encoding="utf-8")
+        (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "antes", cwd=self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def upgrade(self, *args):
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.5.0", *args, str(self.tmp)],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_migra_e_segunda_vez_nao_muda_nada(self):
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("gh pr create --base develop", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "forge/upgrade-0.5.0")
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.5.0\n")
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.forge/run/\n")
+        self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
+        self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
+                         "chore(forge): migração 0.5.0")
+        antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
+        r2 = self.upgrade()
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.tmp).stdout, antes)
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+        # a própria migração é idempotente quando rodada direto sobre o resultado
+        subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_recusa_arvore_suja(self):
+        (self.tmp / "sujeira.txt").write_text("x", encoding="utf-8")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("não está limpa", r.stderr)
+        self.assertEqual(git("branch", "--list", "forge/*", cwd=self.tmp).stdout, "")
+
+    def test_simular_nao_grava(self):
+        r = self.upgrade("--simular")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("migração 0.5.0", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "develop")
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+        self.assertFalse((self.tmp / ".forge").exists())
+
+    def test_nunca_parte_da_main(self):
+        git("branch", "-m", "main", cwd=self.tmp)
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertEqual(git("branch", "--list", "forge/*", cwd=self.tmp).stdout, "")
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "main")
 
 
 class HookPrePush(unittest.TestCase):
