@@ -1,6 +1,6 @@
 ---
 name: cyber-security
-description: Revisão de cibersegurança e boas práticas de um sistema Node/TypeScript + React + banco relacional + Docker + GitHub Actions - modelagem de ameaças, OWASP Top 10 e API Security Top 10, ASVS, cadeia de suprimentos, segredos, LGPD e endurecimento. Use ao revisar o projeto, uma mudança sensível (autenticação, webhook quando houver, banco, CI, Docker, dados pessoais) ou uma dependência nova.
+description: Revisão de cibersegurança e boas práticas de um sistema (checklists da stack do projeto, mais Docker e CI) - modelagem de ameaças, OWASP Top 10 e API Security Top 10, ASVS, cadeia de suprimentos, segredos, LGPD e endurecimento. Use ao revisar o projeto, uma mudança sensível (autenticação, webhook quando houver, banco, CI, Docker, dados pessoais) ou uma dependência nova.
 ---
 
 # Cibersegurança e boas práticas
@@ -18,15 +18,13 @@ description: Revisão de cibersegurança e boas práticas de um sistema Node/Typ
 5. **Saída:** `docs/security/revisao-de-seguranca.md` (resumo executivo, modelo de ameaças, achados, plano em cartões, riscos aceitos). Atualizar, não duplicar.
 
 ## Checklists
-**API Node/Fastify:** validação de toda entrada com Zod (corpo, query, parâmetros, cabeçalhos) com `additionalProperties` negado; limites de corpo e de tempo; `@fastify/helmet`, CORS restritivo, rate limit nas rotas públicas e nos webhooks, quando houver; erros sem stack nem detalhes internos; autenticação de webhook, quando houver, por segredo com comparação em tempo constante e checagem **antes** de ler o corpo; sem `eval`/`child_process` com entrada externa; IDs não enumeráveis quando fizer sentido; autorização por rota e por recurso (OWASP API1/API5); logs com **redaction** de dados pessoais e segredos; desligamento limpo; respeito às regras invioláveis de dados do `CLAUDE.md` do projeto.
-**Banco (exemplos em PostgreSQL; adapte ao banco do projeto):** papéis com privilégio mínimo (cada componente só com o acesso de que precisa, por exemplo leitura apenas onde só lê), `GRANT` por coluna para dados pessoais, `security_invoker` nas views, `search_path` fixo, consultas parametrizadas (nenhuma concatenação), transações e `SECURITY DEFINER` revisados, backups e dados de teste sem dado real.
-**Front/React:** sem `dangerouslySetInnerHTML` com conteúdo não sanitizado; CSP; nada de segredo no bundle (`VITE_*` é público); armazenamento local sem dado sensível; links externos com `rel="noopener"`; geração de documentos (PDF etc.), quando houver, sem injeção; dependências do navegador mínimas.
+**Da stack do projeto:** leia a stack no `CLAUDE.md` do projeto (seção "Stack") e aplique `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/seguranca.md` (API, front, banco e cadeia de suprimentos do gerenciador de pacotes). Stack sem esse arquivo: aplique OWASP Top 10 e API Security Top 10 às camadas que o projeto tem e registre a lacuna.
 **Docker/Compose:** imagens com versão fixa (idealmente digest), usuário não root, sistema de arquivos somente leitura quando possível, sem segredo na imagem nem no `Dockerfile`, portas expostas só em `127.0.0.1`, healthchecks, `.dockerignore`.
 **GitHub Actions/CI:** `permissions:` mínimas por job, ações fixadas por SHA (ou revisadas via Dependabot), nenhuma `pull_request_target` com checkout de código de fork, segredos só onde necessário, cache sem envenenamento, proteção de branch e revisão obrigatória.
-**Cadeia de suprimentos:** `pnpm audit`, lockfile versionado e `--frozen-lockfile`, Dependabot, `overrides` justificados, licenças permissivas, scripts de instalação (`onlyBuiltDependencies`), pacotes recém-publicados ou com um mantenedor só; plugins de terceiros no Claude Code (código que executa na máquina: licença, auditoria, auto-update).
+**Cadeia de suprimentos:** auditoria de dependências, lockfile versionado e instalação congelada, atualização automática (Dependabot), licenças permissivas, scripts de instalação revisados, pacotes recém-publicados ou com um mantenedor só; plugins de terceiros no Claude Code (código que executa na máquina: licença, auditoria, auto-update). Comandos exatos na `seguranca.md` da stack.
 **Segredos e configuração:** `.env` fora do git, `.env.example` sem valores reais, varredura de histórico por segredos, configuração validada na partida, rotação possível.
 **LGPD:** base legal e minimização; dado pessoal só onde a regra de negócio exige; acesso restrito e registrado; retenção; direito de eliminação viável com tabelas append-only (documentar a estratégia).
 **Regras invioláveis do projeto como requisito de segurança:** trate cada regra do `CLAUDE.md` do projeto (ex.: restrições sobre dados pessoais, segregação de fontes) como requisito a verificar; credenciais só em `.env`.
 
 ## Limites
-Não altera código de produção: propõe o que mudar e o agente dono implementa; correção de segurança passa por code review e QA como qualquer outra. Dúvida de regra de negócio ou de risco aceito vai ao usuário, com insumos.
+Não altera código de produção: propõe o que mudar e o agente dono implementa; correção de segurança passa por code review e QA como qualquer outra (`R-REVIEW`, `R-QA`). Dúvida de regra de negócio ou de risco aceito vai ao usuário, com insumos.

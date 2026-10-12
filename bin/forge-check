@@ -1,0 +1,237 @@
+#!/usr/bin/env python3
+"""Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
+
+Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido>
+Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
+"""
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+DATA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
+INTEIRO = re.compile(r"^\d+$")
+PARECER = {"aprovado", "reprovado"}
+# Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
+LIVRES = ("docs/reviews/", "docs/qa/", "KANBAN.md", "docs/kanban/")
+COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
+ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
+
+# tipo -> (pasta, ID da regra, campos obrigatórios)
+CONTRATOS = {
+    "review": ("docs/reviews", "R-REVIEW", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
+    "qa": ("docs/qa", "R-QA", ["pedido", "branch", "commit", "parecer", "escopo", "bugs_criticos",
+                               "bugs_altos", "bugs_medios", "bugs_baixos", "data"]),
+    "plano-tecnico": ("docs/architecture/features", "ADR-0004",
+                      ["pedido", "estado", "ux", "adrs", "agentes"]),
+}
+
+
+def ler_frontmatter(texto):
+    """Devolve (campos, erros). Formato restrito: `chave: valor` por linha; listas `[a, b]`; sem aninhamento."""
+    linhas = texto.split("\n")
+    if linhas[0].strip() != "---":
+        return None, ["sem frontmatter no topo"]
+    campos, erros = {}, []
+    for n, linha in enumerate(linhas[1:], 2):
+        if linha.strip() == "---":
+            return campos, erros
+        if not linha.strip():
+            continue
+        m = re.match(r"^([a-z_][a-z0-9_]*): ?(.*)$", linha)
+        if not m:
+            erros.append(f"linha {n}: só `chave: valor` numa linha, sem aninhamento")
+            continue
+        chave, valor = m.group(1), m.group(2).strip()
+        if chave in campos:
+            erros.append(f"linha {n}: chave repetida `{chave}`")
+        if valor.startswith("[") != valor.endswith("]"):
+            erros.append(f"linha {n}: lista malformada em `{chave}`")
+        campos[chave] = valor
+    return campos, erros + ["frontmatter sem fechamento `---`"]
+
+
+def validar_documento(rel, texto):
+    """Devolve (campos ou None se ignorado, violações)."""
+    campos, erros = ler_frontmatter(texto)
+    if campos is None:
+        return None, [f"{rel}: frontmatter: {erros[0]} (ADR-0004)"]
+    saida = [f"{rel}: frontmatter: {e} (ADR-0004)" for e in erros]
+    if campos.get("contrato") == "0":
+        return None, saida  # documento anterior ao contrato
+    if campos.get("contrato") != "1":
+        saida.append(f"{rel}: contrato: esperado `1` (ADR-0004)")
+    tipo = campos.get("tipo")
+    if tipo not in CONTRATOS:
+        return campos, saida + [f"{rel}: tipo: esperado um de {', '.join(CONTRATOS)} (ADR-0004)"]
+    pasta, rid, obrigatorios = CONTRATOS[tipo]
+    if not rel.startswith(pasta + "/"):
+        saida.append(f"{rel}: tipo: `{tipo}` pertence a {pasta}/ ({rid})")
+
+    def erro(campo, problema):
+        saida.append(f"{rel}: {campo}: {problema} ({rid})")
+
+    for c in obrigatorios:
+        if not campos.get(c):
+            erro(c, "obrigatório e vazio ou ausente")
+    if tipo in ("review", "qa"):
+        if campos.get("parecer") and campos["parecer"] not in PARECER:
+            erro("parecer", "use aprovado ou reprovado")
+        if campos.get("commit") and not COMMIT.match(campos["commit"]):
+            erro("commit", "hash hexadecimal de 7 a 40 caracteres")
+        if campos.get("data") and not DATA.match(campos["data"]):
+            erro("data", "use AAAA-MM-DD")
+    if tipo == "qa":
+        if campos.get("escopo") and campos["escopo"] not in ("completo", "incremental"):
+            erro("escopo", "use completo ou incremental")
+        n = {}
+        for c in ("bugs_criticos", "bugs_altos", "bugs_medios", "bugs_baixos"):
+            if campos.get(c):
+                if INTEIRO.match(campos[c]):
+                    n[c] = int(campos[c])
+                else:
+                    erro(c, "número inteiro")
+        if campos.get("parecer") == "aprovado":
+            for c in ("bugs_criticos", "bugs_altos"):
+                if n.get(c, 0) > 0:
+                    erro(c, "parecer aprovado exige 0 bugs abertos")
+            if (n.get("bugs_medios", 0) or n.get("bugs_baixos", 0)) and campos.get("aceite_usuario") != "sim":
+                erro("aceite_usuario", "bugs médios ou baixos abertos exigem `aceite_usuario: sim`")
+    if tipo == "plano-tecnico" and campos.get("estado") and campos["estado"] not in ("proposta", "vigente"):
+        erro("estado", "use proposta ou vigente")
+    return campos, saida
+
+
+def documentos(raiz, tipo=None):
+    for t, (pasta, _, _) in CONTRATOS.items():
+        if tipo and t != tipo:
+            continue
+        base = raiz / pasta
+        if base.is_dir():
+            for p in sorted(base.glob("*.md")):
+                if p.name != "README.md" and not p.name.startswith("_"):
+                    yield p
+
+
+def cmd_docs(raiz):
+    saida = []
+    for p in documentos(raiz):
+        rel = p.relative_to(raiz).as_posix()
+        saida += validar_documento(rel, p.read_text(encoding="utf-8"))[1]
+    return saida
+
+
+def cmd_kanban(raiz):
+    arq = raiz / "KANBAN.md"
+    if not arq.is_file():
+        return ["KANBAN.md: arquivo: não encontrado (R-WIP)"]
+    saida, ids, secao, wip, linhas, cabecalho = [], {}, None, None, [], False
+
+    def fechar():
+        if secao is None:
+            return
+        if wip and wip[1] == "total" and len(linhas) > wip[0]:
+            saida.append(f"KANBAN.md: {secao}: {len(linhas)} cartões, limite {wip[0]} (R-WIP)")
+        if wip and wip[1] == "agente":
+            por = {}
+            for r in linhas:
+                por[r[3]] = por.get(r[3], 0) + 1
+            for quem, q in por.items():
+                if q > wip[0]:
+                    saida.append(f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {wip[0]} por agente (R-WIP)")
+
+    for n, linha in enumerate(arq.read_text(encoding="utf-8").split("\n"), 1):
+        if linha.startswith("## "):
+            fechar()
+            secao, linhas, cabecalho = linha[3:].strip(), [], False
+            m = re.search(r"\(WIP (\d+)( por agente)?\)", secao)
+            wip = (int(m.group(1)), "agente" if m.group(2) else "total") if m else None
+            continue
+        if secao is None or not linha.startswith("|"):
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if not cabecalho:
+            cabecalho = True
+            if celulas != COLUNAS:
+                saida.append(f"KANBAN.md: {secao}: colunas diferentes do modelo na linha {n} (R-WIP)")
+            continue
+        if all(re.fullmatch(r":?-+:?", c) for c in celulas):
+            continue
+        if len(celulas) != len(COLUNAS):
+            saida.append(f"KANBAN.md: {secao}: linha {n} com {len(celulas)} colunas, esperado {len(COLUNAS)} (R-WIP)")
+            continue
+        if not celulas[0]:
+            saida.append(f"KANBAN.md: ID: vazio na linha {n} (R-WIP)")
+        elif celulas[0] in ids:
+            saida.append(f"KANBAN.md: ID: `{celulas[0]}` repetido nas linhas {ids[celulas[0]]} e {n} (R-WIP)")
+        else:
+            ids[celulas[0]] = n
+        if not ID_RESP.match(celulas[3]):
+            saida.append(f"KANBAN.md: Responsável: `{celulas[3]}` na linha {n}; use forge:<agente> ou usuário (R-WIP)")
+        linhas.append(celulas)
+    fechar()
+    return saida
+
+
+def git(raiz, *args):
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
+
+
+def commit_vale(raiz, commit):
+    """None se o parecer vale para o HEAD; senão o motivo."""
+    cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
+    if cod:
+        return "commit não existe no repositório"
+    cod, saida = git(raiz, "diff", "--name-only", commit, "HEAD")
+    if cod:
+        return "não foi possível comparar com o HEAD"
+    fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
+    if fora:
+        return f"desatualizado: {fora[0]} mudou depois do parecer; peça novo parecer"
+    return None
+
+
+def cmd_pr(raiz, pedido):
+    saida = []
+    for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
+        achados = []
+        for p in documentos(raiz, tipo):
+            rel = p.relative_to(raiz).as_posix()
+            campos, viol = validar_documento(rel, p.read_text(encoding="utf-8"))
+            if campos is not None and campos.get("pedido") == pedido:
+                achados.append((campos.get("data", ""), rel, campos, viol))
+        if not achados:
+            saida.append(f"docs/{'reviews' if tipo == 'review' else 'qa'}: {tipo}: sem parecer para o pedido `{pedido}` ({rid})")
+            continue
+        _, rel, campos, viol = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
+        saida += viol
+        if campos.get("parecer") != "aprovado":
+            saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
+        elif campos.get("commit") and COMMIT.match(campos["commit"]):
+            motivo = commit_vale(raiz, campos["commit"])
+            if motivo:
+                saida.append(f"{rel}: commit: {motivo} ({rid})")
+    return saida
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
+    ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("docs")
+    sub.add_parser("kanban")
+    sub.add_parser("pr").add_argument("pedido")
+    a = ap.parse_args()
+    raiz = Path(a.raiz).resolve()
+    violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
+                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""))}[a.cmd]()
+    for v in violacoes:
+        print(v)
+    return 1 if violacoes else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

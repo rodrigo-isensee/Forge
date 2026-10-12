@@ -1,6 +1,6 @@
 # Como a fábrica registra e retoma o trabalho em voo? (especificação v1)
 
-Propósito: especificar o diário de retomada (contrato do evento, CLIs, hooks, skill `retomada`, segurança e critérios de aceite) para os cartões R-3 a R-7. Público: `node-backend`, `qa-engineer`, `software-architect`, `agile-coach`, `tech-lead`. Revisão: 2026-10-12.
+Propósito: especificar o diário de retomada (contrato do evento, CLIs, hooks, skill `retomada`, segurança e critérios de aceite) para os cartões R-3 a R-7. Público: desenvolvedores da stack, `qa-engineer`, `software-architect`, `agile-coach`, `tech-lead`. Revisão: 2026-10-12.
 
 Estado: vigente. A justificativa, as alternativas e as respostas P1 a P5 estão em [a proposta](propostas/retomada-de-sessao.md); em caso de conflito, vale este documento. Marcas: **[DOC]** confirmado na documentação do Claude Code ou no código do Forge; **[INF]** inferência a verificar na implementação (cada uma tem critério de aceite que a verifica).
 
@@ -16,13 +16,13 @@ Estado: vigente. A justificativa, as alternativas e as respostas P1 a P5 estão 
 
 ## 2. Arquitetura em uma página
 
-Três peças: o diário append-only `.forge/diario.jsonl`; o resumo derivado, calculado pelo `forge-retomada` a partir do diário e do git local; e o procedimento do Jarvis (skill `retomada`) para reconciliar com worktrees, git, PRs e CI. Nada depende de hook de encerramento: grava-se antes de agir (write-ahead), então uma queda abrupta deixa a intenção registrada.
+Três peças: o diário append-only `.forge/run/diario.jsonl`; o resumo derivado, calculado pelo `forge-retomada` a partir do diário e do git local; e o procedimento do Jarvis (skill `retomada`) para reconciliar com worktrees, git, PRs e CI. Nada depende de hook de encerramento: grava-se antes de agir (write-ahead), então uma queda abrupta deixa a intenção registrada.
 
 ### Fluxo de escrita e leitura
 
 ```mermaid
 flowchart LR
-  J["Jarvis (agente)"] -->|forge-diario| D[".forge/diario.jsonl (arquivo local)"]
+  J["Jarvis (agente)"] -->|forge-diario| D[".forge/run/diario.jsonl (arquivo local)"]
   S["Subagentes (agente)"] -->|forge-diario| D
   H["Hooks (processo)"] -->|eventos| D
   D --> R["forge-retomada (script)"]
@@ -47,7 +47,7 @@ Premissas operacionais: o projeto é um repositório git no sistema de arquivos 
 ## 3. Localização do diário
 
 - Pasta `.forge/` na raiz do **checkout principal**, resolvida por `git rev-parse --path-format=absolute --git-common-dir` (o diretório pai dele, quando o nome é `.git`). Um subagente numa worktree ligada grava no mesmo diário do Jarvis [INF: verificar com worktree ligada; em repositório com submódulo, vale o repositório que contém o diretório de trabalho atual].
-- `.forge/.gitignore` com o conteúdo `*`: a pasta se ignora sozinha.
+- `.forge/run/.gitignore` com o conteúdo `*`: a pasta se ignora sozinha.
 - Permissões: pasta `0700`, diário e lock `0600` [INF]. Se `.forge` ou `diario.jsonl` for link simbólico, o escritor recusa (abre com `O_NOFOLLOW`).
 - Arquivos: `diario.jsonl` (corrente), `diario.lock` (trava), `diario-AAAA-MM.jsonl` (arquivados), `estado.md` (cache opcional do último resumo, só para leitura humana, regenerado a cada `SessionStart`).
 - Rotação: quando `diario.jsonl` passa de 2 MB, sob a trava, é renomeado para `diario-AAAA-MM.jsonl` (se já existir, sufixo `-2`, `-3`...) e um novo é criado. O resumo lê só o corrente.
@@ -64,7 +64,7 @@ Uma linha JSON por evento, UTF-8, sem quebra de linha interna, **no máximo 1.02
 | `v` | inteiro | `1` | CLI |
 | `ts` | texto | ISO 8601 com deslocamento, segundos (ex.: `2026-10-12T14:05:09-03:00`) | CLI |
 | `sessao` | texto | `^[0-9a-f]{8}$` ou `sem-sessao`; primeiros 8 caracteres do `session_id` nos hooks; no CLI: `FORGE_SESSAO`, senão a `sessao` do último `sessao.inicio` do diário, senão `sem-sessao` [INF] | CLI/hook |
-| `autor` | texto | `^[a-z0-9:_-]{1,40}$`: `jarvis`, `hook`, ou o nome do agente (`forge:node-backend`); CLI usa `--autor`, padrão `jarvis` | CLI |
+| `autor` | texto | `^[a-z0-9:_-]{1,40}$`: `jarvis`, `hook`, ou o nome do agente (`forge:qa-engineer`); CLI usa `--autor`, padrão `jarvis` | CLI |
 | `tipo` | texto | um dos tipos da seção 4.2 | quem grava |
 | `cartao` | texto | `^[A-Za-z]{1,5}-[0-9]{1,6}$` | quem grava |
 | `pedido` | texto | `^[0-9A-Za-z_-]{1,20}$` | quem grava |
@@ -124,8 +124,8 @@ Um fim sem início é aceito e ignorado. O evento `retomada` não fecha pendênc
 ### 4.3 Exemplos
 
 ```json
-{"v":1,"ts":"2026-10-12T14:05:09-03:00","sessao":"a1b2c3d4","autor":"hook","tipo":"delegacao.inicio","agente":"forge:react-frontend","cartao":"K-056","worktree":"../proj-k056","branch":"feature/k056","commit":"1b9b291"}
-{"v":1,"ts":"2026-10-12T14:20:41-03:00","sessao":"a1b2c3d4","autor":"forge:react-frontend","tipo":"operacao.inicio","cartao":"K-056","arquivos":["src/a.py"],"resumo":"mutação de teste"}
+{"v":1,"ts":"2026-10-12T14:05:09-03:00","sessao":"a1b2c3d4","autor":"hook","tipo":"delegacao.inicio","agente":"forge:ux-designer","cartao":"K-056","worktree":"../proj-k056","branch":"feature/k056","commit":"1b9b291"}
+{"v":1,"ts":"2026-10-12T14:20:41-03:00","sessao":"a1b2c3d4","autor":"forge:ux-designer","tipo":"operacao.inicio","cartao":"K-056","arquivos":["src/a.py"],"resumo":"mutação de teste"}
 {"v":1,"ts":"2026-10-12T14:31:02-03:00","sessao":"a1b2c3d4","autor":"jarvis","tipo":"decisao.pendente","decisao":"P-escopo-02","ref":"docs/pedidos/001.md","resumo":"escolha de escopo"}
 {"v":1,"ts":"2026-10-12T14:33:10-03:00","sessao":"a1b2c3d4","autor":"jarvis","tipo":"ci","ci":"1234567:pendente","pr":42}
 ```
@@ -165,7 +165,7 @@ Comportamento:
 
 1. Se `FORGE_DIARIO=0`: sai com 0 sem fazer nada.
 2. Valida tipo, campos obrigatórios (seção 4.2) e regras (4.1); preenche `v`, `ts`, `sessao`, `branch` e `commit`; aplica a redação (seção 5).
-3. Resolve o diário (seção 3), cria `.forge/` e `.forge/.gitignore` se faltarem (modo `0700`).
+3. Resolve o diário (seção 3), cria `.forge/` e `.forge/run/.gitignore` se faltarem (modo `0700`).
 4. Toma `flock` exclusivo em `diario.lock` com espera máxima de 2 s, faz a rotação se preciso e grava a linha inteira numa única chamada `write` com `O_APPEND`; libera a trava.
 5. Sem saída em stdout quando bem-sucedido.
 
@@ -240,7 +240,7 @@ Todos ficam em `hooks/hooks.json` do Forge (subagentes de plugin ignoram `hooks`
 
 Regras específicas:
 
-- **Criação preguiçosa de `.forge/`:** o `SessionStart` cria `.forge/` e `.forge/.gitignore` se a pasta não existe e (a) o `agent_type` do payload é `forge:jarvis`, ou (b) o `.claude/settings.json` do projeto contém `"agent": "forge:jarvis"`. Fora disso e sem `.forge/`, não faz nada. Sem git, não faz nada.
+- **Criação preguiçosa de `.forge/`:** o `SessionStart` cria `.forge/` e `.forge/run/.gitignore` se a pasta não existe e (a) o `agent_type` do payload é `forge:jarvis`, ou (b) o `.claude/settings.json` do projeto contém `"agent": "forge:jarvis"`. Fora disso e sem `.forge/`, não faz nada. Sem git, não faz nada.
 - **`PreToolUse(Agent|Task)`:** extrai do `tool_input` só IDs, dos primeiros 1.500 caracteres do prompt (seção 1 do prompt-padrão do Jarvis): o primeiro `cartao` no padrão da seção 4.1, e os valores após os rótulos `worktree:` e `branch:`; cada valor só é aceito se passar na regra do campo, senão é omitido. `agente` vem de `subagent_type`. **O texto do prompt nunca é gravado.** `commit` é o HEAD da worktree citada, se existir.
 - **`SubagentStart`:** `agente` vem de `agent_type`; `agent_id` do payload [DOC].
 - **Saída do `SessionStart`:** o JSON `{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"..."}}`, com o texto limitado a 1.200 caracteres (7.2). Falha em qualquer etapa (stdin inválido, sem git, sem `.forge/`, erro de E/S, estouro do tempo interno de 8 s) resulta em `exit 0` sem saída.
@@ -349,7 +349,7 @@ Cada critério vira um teste de `tests/` (biblioteca padrão), salvo os marcados
 | R5-01 | `hooks/hooks.json` é JSON válido, tem `SessionStart`, `SessionEnd`, `PreCompact`, `PreToolUse`, `SubagentStart` e `SubagentStop` com os matchers e timeouts da seção 8, e `claude plugin validate . --strict` passa |
 | R5-02 | A saída do `SessionStart` é exatamente o formato `hookSpecificOutput.additionalContext`, com texto de até 1.200 caracteres; sem o que dizer, não há saída |
 | R5-03 | stdin inválido, JSON vazio, entrada acima de 1 MB, ausência de git, ausência de `.forge/` e `FORGE_DIARIO=0`: `exit 0` sem saída e sem arquivo criado |
-| R5-04 | Criação preguiçosa: com `agent_type=forge:jarvis` (ou o `settings.json` com o agente), `.forge/` e `.forge/.gitignore` nascem; sem isso e sem `.forge/`, nada nasce |
+| R5-04 | Criação preguiçosa: com `agent_type=forge:jarvis` (ou o `settings.json` com o agente), `.forge/` e `.forge/run/.gitignore` nascem; sem isso e sem `.forge/`, nada nasce |
 | R5-05 | `SubagentStop` não grava `last_assistant_message`: o texto do payload não aparece em nenhum byte do diário |
 | R5-06 | `PreToolUse` grava só `cartao`, `worktree`, `branch`, `agente`, `commit`; nenhum trecho do prompt aparece no diário; valor fora da regra é omitido |
 | R5-07 | `SubagentStart` injeta o lembrete de até 300 caracteres e grava `subagente.inicio` com `agent_id` |

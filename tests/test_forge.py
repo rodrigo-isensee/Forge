@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -16,6 +17,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
 SKILLS = RAIZ / "skills"
+STACKS = RAIZ / "stacks"
 MODELOS_VALIDOS = {"opus", "sonnet", "haiku", "inherit"}
 CONFIG = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8"))
 
@@ -33,8 +35,17 @@ def frontmatter(caminho: Path) -> dict:
     return campos
 
 
+def agentes_do_plugin():
+    """Todo .md de agents/ e de stacks/*/agents/ (ADR 0001)."""
+    return sorted(AGENTES.glob("*.md")) + sorted(STACKS.glob("*/agents/*.md"))
+
+
+def skills_do_plugin():
+    return sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md"))
+
+
 def arquivos_texto():
-    for pasta in ("agents", "skills", "docs", "templates", "bin", "scripts"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts"):
         for p in (RAIZ / pasta).rglob("*"):
             if p.is_file():
                 yield p
@@ -55,19 +66,79 @@ class Manifestos(unittest.TestCase):
     def test_changelog_tem_a_versao_atual(self):
         versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
         changelog = (RAIZ / "CHANGELOG.md").read_text(encoding="utf-8")
+        # "## [Não publicado]" pode vir no topo (ADR 0006); vale a primeira entrada numerada.
         primeira = re.search(r"^## \[?(\d+\.\d+\.\d+)", changelog, re.M)
         self.assertIsNotNone(primeira, "CHANGELOG.md sem entrada de versão")
         self.assertEqual(primeira.group(1), versao, "versão do plugin.json difere da última do CHANGELOG")
 
 
+class ManifestoDoPlugin(unittest.TestCase):
+    """ADR 0001: `agents` do plugin.json substitui a varredura de agents/; tudo precisa estar listado."""
+
+    def setUp(self):
+        self.manifesto = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+
+    def test_agentes_listados_existem_e_vice_versa(self):
+        listados = {(RAIZ / a).resolve() for a in self.manifesto["agents"]}
+        for a in self.manifesto["agents"]:
+            with self.subTest(agente=a):
+                self.assertTrue(a.startswith("./") and a.endswith(".md"))
+                self.assertTrue((RAIZ / a).is_file(), f"{a} listado e inexistente")
+        existentes = {p.resolve() for p in agentes_do_plugin()}
+        self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listados}, set(), "agente fora do manifesto")
+        self.assertEqual(len(listados), len(self.manifesto["agents"]), "agente listado duas vezes")
+
+    def test_skills_de_stack_listadas_e_vice_versa(self):
+        listadas = {(RAIZ / s).resolve() for s in self.manifesto["skills"]}
+        for s in self.manifesto["skills"]:
+            with self.subTest(skill=s):
+                self.assertTrue((RAIZ / s / "SKILL.md").is_file(), f"{s} sem SKILL.md")
+        existentes = {p.parent.resolve() for p in STACKS.glob("*/skills/*/SKILL.md")}
+        self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listadas}, set(), "skill de stack fora do manifesto")
+
+
+class PacotesDeStack(unittest.TestCase):
+    """ADR 0001: todo pacote em stacks/<nome>/ tem a mesma forma."""
+
+    def test_stacks_esperadas_existem(self):
+        for nome, itens in CONFIG["stacks_obrigatorias"].items():
+            with self.subTest(stack=nome):
+                self.assertEqual({p.stem for p in (STACKS / nome).glob("agents/*.md")}, set(itens["agentes"]))
+                self.assertEqual({p.parent.name for p in (STACKS / nome).glob("skills/*/SKILL.md")}, set(itens["skills"]))
+
+    def test_forma_do_pacote(self):
+        pacotes = sorted(p for p in STACKS.iterdir() if p.is_dir())
+        self.assertTrue(pacotes, "stacks/ vazia")
+        for pacote in pacotes:
+            with self.subTest(stack=pacote.name):
+                self.assertRegex(pacote.name, r"^[a-z0-9-]+$")
+                self.assertTrue(list(pacote.glob("skills/*/SKILL.md")), "stack sem skills")
+                self.assertTrue((pacote / "seguranca.md").is_file(), "falta seguranca.md")
+                self.assertTrue((pacote / "pronto.md").is_file(), "falta pronto.md")
+                pronto = (pacote / "pronto.md").read_text(encoding="utf-8")
+                self.assertRegex(pronto, r"(?m)^Comando sugerido: `[^`]+`", "pronto.md sem 'Comando sugerido: `...`'")
+                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md"}
+                self.assertEqual(extras, set(), "arquivo fora da forma do pacote")
+
+    def test_nomes_de_agente_nao_colidem(self):
+        nomes = [p.stem for p in agentes_do_plugin()]
+        self.assertEqual(len(nomes), len(set(nomes)), "dois agentes com o mesmo nome")
+
+    def test_nucleo_aponta_para_a_seguranca_da_stack(self):
+        texto = (SKILLS / "cyber-security/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("stacks/<stack>/seguranca.md", texto)
+
+
 class Agentes(unittest.TestCase):
     def setUp(self):
-        self.agentes = sorted(AGENTES.glob("*.md"))
-        self.skills = {p.parent.name for p in SKILLS.glob("*/SKILL.md")}
+        self.agentes = agentes_do_plugin()
+        self.skills = {p.parent.name for p in skills_do_plugin()}
 
     def test_time_completo(self):
-        nomes = {p.stem for p in self.agentes}
-        self.assertEqual(nomes, set(CONFIG["agentes_obrigatorios"]))
+        esperados = set(CONFIG["agentes_obrigatorios"])
+        for itens in CONFIG["stacks_obrigatorias"].values():
+            esperados |= set(itens["agentes"])
+        self.assertEqual({p.stem for p in self.agentes}, esperados)
 
     def test_frontmatter_valido(self):
         for p in self.agentes:
@@ -89,12 +160,14 @@ class Agentes(unittest.TestCase):
         texto = (AGENTES / "jarvis.md").read_text(encoding="utf-8")
         tabela = re.search(r"## Time\n(.*?)\n## ", texto, re.S).group(1)
         citados = set(re.findall(r"^\| `(?:forge:)?([a-z-]+)` \|", tabela, re.M))
-        self.assertEqual(citados, {p.stem for p in self.agentes} - {"jarvis"})
+        # Os agentes de stack não ficam na tabela (o núcleo não os cita): o Jarvis os lê de stacks/<stack>/agents/.
+        self.assertEqual(citados, {p.stem for p in AGENTES.glob("*.md")} - {"jarvis"})
+        self.assertIn("stacks/<stack>/agents/", tabela)
 
 
 class Skills(unittest.TestCase):
     def test_frontmatter_valido(self):
-        for p in sorted(SKILLS.glob("*/SKILL.md")):
+        for p in skills_do_plugin():
             with self.subTest(skill=p.parent.name):
                 fm = frontmatter(p)
                 self.assertEqual(fm.get("name"), p.parent.name)
@@ -122,6 +195,36 @@ class Neutralidade(unittest.TestCase):
                     self.assertIsNone(t.search(texto))
 
 
+class NeutralidadeDoNucleo(unittest.TestCase):
+    """ADR 0001: linguagem, framework e ferramenta só em stacks/ (e nas exceções explícitas do config)."""
+
+    def setUp(self):
+        self.cfg = CONFIG["neutralidade_nucleo"]
+
+    def test_detector_acha_termo_de_stack(self):
+        termos = [re.compile(t) for t in self.cfg["termos"]]
+        self.assertTrue(any(t.search("Use React com TypeScript") for t in termos))
+        self.assertFalse(any(t.search("Verifique o nó da árvore; reagir ao evento") for t in termos))
+
+    def test_nucleo_sem_termos_de_stack(self):
+        termos = [re.compile(t) for t in self.cfg["termos"]]
+        for pasta in self.cfg["pastas"]:
+            for p in sorted((RAIZ / pasta).rglob("*")):
+                rel = p.relative_to(RAIZ).as_posix()
+                if not p.is_file() or any(rel.startswith(i) for i in self.cfg["ignorar"]):
+                    continue
+                texto = p.read_text(encoding="utf-8", errors="ignore")
+                for t in termos:
+                    if t.pattern in self.cfg["excecoes"].get(rel, []):
+                        continue
+                    with self.subTest(arquivo=rel, termo=t.pattern):
+                        achado = t.search(texto)
+                        self.assertIsNone(achado, f"{rel}: stack no núcleo ({achado and achado.group(0)}); mova para stacks/ ou registre exceção em tests/config.json")
+
+    def test_stack_declarada_no_modelo_e_no_init(self):
+        self.assertIn("{{STACK}}", (RAIZ / "templates/projeto/CLAUDE.md").read_text(encoding="utf-8"))
+
+
 class RegrasInviolaveis(unittest.TestCase):
     """Se alguém apagar uma regra da fábrica por engano, o CI quebra."""
 
@@ -131,6 +234,88 @@ class RegrasInviolaveis(unittest.TestCase):
             for t in trechos:
                 with self.subTest(arquivo=rel, trecho=t):
                     self.assertRegex(texto, re.compile(t, re.S))
+
+
+REGRAS = RAIZ / "docs" / "regras"
+
+
+def palavras(texto: str) -> list:
+    """Normaliza para comparar redações: minúsculas, sem pontuação nem marcação."""
+    return re.findall(r"\w+", texto.lower())
+
+
+def corpo_da_regra(caminho: Path) -> str:
+    """Texto da regra sem frontmatter, título e linha de propósito (iguais em todas por formato)."""
+    texto = re.sub(r"^---\n.*?\n---\n", "", caminho.read_text(encoding="utf-8"), flags=re.S)
+    return "\n".join(l for l in texto.splitlines() if not l.startswith(("# ", "Propósito:")))
+
+
+def sequencias(texto: str, n: int) -> set:
+    p = palavras(texto)
+    return {" ".join(p[i:i + n]) for i in range(len(p) - n + 1)}
+
+
+class AntiDuplicacao(unittest.TestCase):
+    """ADR 0002: o texto de cada regra vive só em docs/regras/R-<ID>.md; os outros arquivos citam o ID."""
+
+    def setUp(self):
+        cfg = CONFIG["anti_duplicacao"]
+        self.n = cfg["palavras"]
+        self.pastas = cfg["pastas"]
+        self.excecoes = {" ".join(palavras(e)) for e in cfg["excecoes"]}
+
+    def test_detector_acha_copia(self):
+        fonte = "Nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push na main do projeto."
+        copia = "Lembrete: nenhum agente faz COMMIT merge rebase reset cherry-pick ou push na `main` do projeto!"
+        self.assertTrue(sequencias(fonte, self.n) & sequencias(copia, self.n))
+        self.assertFalse(sequencias(fonte, self.n) & sequencias("`R-MAIN` a main é do usuário", self.n))
+
+    def test_regra_so_na_fonte(self):
+        fontes = sorted(REGRAS.glob("R-*.md"))
+        self.assertTrue(fontes, "docs/regras sem regras")
+        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
+                 for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
+        for fonte in fontes:
+            trechos = sequencias(corpo_da_regra(fonte), self.n) - self.excecoes
+            for alvo, seqs in textos.items():
+                if alvo == fonte:
+                    continue
+                comum = trechos & seqs
+                with self.subTest(regra=fonte.name, arquivo=str(alvo.relative_to(RAIZ))):
+                    self.assertFalse(comum, f"texto da regra copiado; cite o ID. Ex.: \"{min(comum, default='')}\"")
+
+
+class RegrasComId(unittest.TestCase):
+    """ADR 0002: toda regra citada existe e diz como é verificada; o índice lista todas."""
+
+    def setUp(self):
+        self.regras = {p.stem: p for p in sorted(REGRAS.glob("R-*.md"))}
+
+    def test_frontmatter_restrito(self):
+        for nome, p in self.regras.items():
+            with self.subTest(regra=p.name):
+                fm = frontmatter(p)
+                self.assertEqual(set(fm), {"id", "titulo", "verificada_por"}, "frontmatter só com id, titulo, verificada_por")
+                self.assertEqual(fm["id"], nome, "id deve ser igual ao nome do arquivo")
+                self.assertRegex(nome, r"^R-[A-Z]+$")
+                self.assertTrue(fm["titulo"], "titulo vazio")
+                self.assertTrue(fm["verificada_por"], "verificada_por vazio")
+
+    def test_indice_lista_todas(self):
+        indice = (REGRAS / "README.md").read_text(encoding="utf-8")
+        for nome in self.regras:
+            with self.subTest(regra=nome):
+                self.assertIn(f"[`{nome}`]({nome}.md)", indice)
+
+    def test_ids_citados_existem(self):
+        origens = [RAIZ / ".claude" / "CLAUDE.md", *sorted(REGRAS.glob("*.md"))]
+        for pasta in ("agents", "skills", "templates"):
+            origens += [p for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        for p in origens:
+            for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
+                with self.subTest(arquivo=str(p.relative_to(RAIZ)), regra=rid):
+                    self.assertTrue(rid in self.regras, f"{rid} não existe em docs/regras/")
 
 
 def ambiente_limpo():
@@ -179,6 +364,19 @@ class ForgeInit(unittest.TestCase):
         settings = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
         self.assertEqual(settings["agent"], "forge:jarvis")
         self.assertTrue(settings["enabledPlugins"]["forge@forge"])
+        self.assertRegex(claude_md, r"## Stack\n- Pacote do Forge: `node-react`")
+
+    def test_stack_padrao_define_o_pronto_sugerido(self):
+        forge_init("--nome", "Demo", str(self.tmp), cwd=self.tmp)
+        claude_md = (self.tmp / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("`npm run pronto`", claude_md)
+
+    def test_stack_desconhecida_ou_invalida_e_recusada(self):
+        for ruim in ("inexistente", "../templates"):
+            with self.subTest(stack=ruim):
+                with self.assertRaises(subprocess.CalledProcessError) as erro:
+                    forge_init("--stack", ruim, str(self.tmp), cwd=self.tmp)
+                self.assertIn("stack desconhecida", erro.exception.stderr)
 
     def test_mescla_settings_existente(self):
         (self.tmp / ".claude").mkdir()
@@ -200,6 +398,84 @@ class ForgeInit(unittest.TestCase):
         self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
         self.rodar("--forcar")
         self.assertIn("# Demo", (self.tmp / "CLAUDE.md").read_text(encoding="utf-8"))
+
+
+    def test_grava_versao_e_config_idempotente(self):
+        self.rodar()
+        plugin = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8").strip(), plugin)
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.rodar()
+        self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
+
+    def test_nao_mexe_na_versao_existente(self):
+        (self.tmp / ".forge").mkdir()
+        (self.tmp / ".forge/versao").write_text("0.1.0\n", encoding="utf-8")
+        self.rodar()
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.1.0\n")
+
+
+class ForgeUpgrade(unittest.TestCase):
+    """Projeto "antes" (sem .forge/, como criado por um forge-init antigo) migrado pelo projeto (ADR 0005)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-upgrade-"))
+        git("init", "-q", "-b", "develop", cwd=self.tmp)
+        git("config", "user.name", "t", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        (self.tmp / ".gitignore").write_text("node_modules/", encoding="utf-8")
+        (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "antes", cwd=self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def upgrade(self, *args):
+        return subprocess.run([str(RAIZ / "bin/forge-upgrade"), "--ate", "0.5.0", *args, str(self.tmp)],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_migra_e_segunda_vez_nao_muda_nada(self):
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("gh pr create --base develop", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "forge/upgrade-0.5.0")
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.5.0\n")
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.forge/run/\n")
+        self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
+        self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
+                         "chore(forge): migração 0.5.0")
+        antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
+        r2 = self.upgrade()
+        self.assertEqual(r2.returncode, 0, r2.stderr)
+        self.assertEqual(git("rev-parse", "HEAD", cwd=self.tmp).stdout, antes)
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+        # a própria migração é idempotente quando rodada direto sobre o resultado
+        subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_recusa_arvore_suja(self):
+        (self.tmp / "sujeira.txt").write_text("x", encoding="utf-8")
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("não está limpa", r.stderr)
+        self.assertEqual(git("branch", "--list", "forge/*", cwd=self.tmp).stdout, "")
+
+    def test_simular_nao_grava(self):
+        r = self.upgrade("--simular")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("migração 0.5.0", r.stdout)
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "develop")
+        self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+        self.assertFalse((self.tmp / ".forge").exists())
+
+    def test_nunca_parte_da_main(self):
+        git("branch", "-m", "main", cwd=self.tmp)
+        r = self.upgrade()
+        self.assertEqual(r.returncode, 2)
+        self.assertEqual(git("branch", "--list", "forge/*", cwd=self.tmp).stdout, "")
+        self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "main")
 
 
 class HookPrePush(unittest.TestCase):
@@ -276,6 +552,12 @@ class CI(unittest.TestCase):
                     with self.subTest(arquivo=wf.name, linha=n):
                         self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
 
+    def test_job_versao_cobre_develop_e_main(self):
+        """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        for trecho in ("base_ref == 'develop' || github.base_ref == 'main'", "[Não publicado]", "a <= b"):
+            self.assertIn(trecho, texto)
+
     def test_dependabot_para_actions(self):
         texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("github-actions", texto)
@@ -317,13 +599,218 @@ class PrepararEstacao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
 
+class VerificarContribuicao(unittest.TestCase):
+    """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-contrib-"))
+        git("init", "-q", "-b", "trabalho", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        git("config", "user.name", "teste", cwd=self.tmp)
+        (self.tmp / "base.txt").write_text("base\n")
+        git("add", "base.txt", cwd=self.tmp)
+        git("commit", "-q", "-m", "base", cwd=self.tmp)
+        git("update-ref", "refs/remotes/origin/develop", "HEAD", cwd=self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def verificar(self, nome, conteudo):
+        (self.tmp / nome).write_text(conteudo)
+        git("add", nome, cwd=self.tmp)
+        git("commit", "-q", "-m", "muda", cwd=self.tmp)
+        return subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh")], cwd=self.tmp,
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_diff_limpo_passa(self):
+        r = self.verificar("nota.md", "Melhoria sem dados.\nExemplo: /home/<usuario>/x\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_exemplo_marcado_passa(self):
+        r = self.verificar("nota.md", "caminho /home/" + "fulano/x forge:exemplo\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_segredos_e_caminhos_falham(self):
+        casos = {
+            "chave sk": "k = sk" + "-" + "a" * 24,
+            "token ghp": "t = ghp" + "_" + "b" * 24,
+            "pat": "t = github" + "_pat_" + "c" * 24,
+            "aws": "a = AKIA" + "D" * 16,
+            "chave privada": "-----" + "BEGIN RSA PRIVATE KEY-----",
+            "senha": "pass" + "word=" + "hunter22",
+            "caminho pessoal": "cd /home/" + "fulano/projeto",
+        }
+        for rotulo, linha in casos.items():
+            with self.subTest(caso=rotulo):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:1", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
+    def test_arquivo_env_falha(self):
+        r = self.verificar(".env", "X=1\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".env", r.stdout)
+
+    def test_base_inexistente(self):
+        r = subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh"), "nao-existe"],
+                           cwd=self.tmp, env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+
+
+class ForgeCheck(unittest.TestCase):
+    """ADR 0004: validador do contrato entre agentes, em um projeto git temporário."""
+
+    REVIEW = ("tipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\n"
+              "parecer: {p}\nrevisor: forge:tech-lead\ndata: 2026-10-12\n")
+    QA = ("tipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\n"
+          "escopo: completo\nbugs_criticos: 0\nbugs_altos: {a}\nbugs_medios: {m}\nbugs_baixos: 0\n"
+          "data: 2026-10-12\n{extra}")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-check-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        git("init", "-q", "-b", "melhoria/x", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        git("config", "user.name", "Teste", cwd=self.tmp)
+        self.escrever("src/app.txt", "v1\n")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "base", cwd=self.tmp)
+
+    def escrever(self, rel, texto):
+        p = self.tmp / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(texto, encoding="utf-8")
+
+    def head(self):
+        return git("rev-parse", "HEAD", cwd=self.tmp).stdout.strip()
+
+    def commitar(self):
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "mudanca", cwd=self.tmp)
+
+    def pareceres(self, commit, p="aprovado", a=0, m=0, extra=""):
+        self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
+        self.escrever("docs/qa/p1.md", "---\n" + self.QA.format(c=commit, p=p, a=a, m=m, extra=extra) + "---\n# q\n")
+
+    def check(self, *args):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
+                           env=ambiente_limpo(), capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def test_docs_validos_e_ignorados(self):
+        self.pareceres(self.head())
+        self.escrever("docs/qa/antigo.md", "---\ntipo: qa\ncontrato: 0\n---\nsem campos\n")
+        self.escrever("docs/reviews/_modelo.md", "sem frontmatter\n")
+        self.escrever("docs/architecture/features/f.md", "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p1\n"
+                      "estado: vigente\nux: docs/ux/f.md\nadrs: [0001, 0002]\nagentes: [node-backend]\n---\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def test_docs_invalidos(self):
+        casos = {
+            "sem frontmatter": ("docs/reviews/a.md", "texto\n", "frontmatter"),
+            "aninhamento": ("docs/reviews/a.md", "---\ntipo: review\ncontrato: 1\n  filho: x\n---\n", "frontmatter"),
+            "campo ausente": ("docs/reviews/a.md", "---\ntipo: review\ncontrato: 1\n---\n", "pedido: obrigatório"),
+            "parecer inválido": ("docs/reviews/a.md", "---\n" + self.REVIEW.format(c="abc1234", p="talvez") + "---\n",
+                                 "parecer: use aprovado"),
+            "qa com bug alto": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=1, m=0, extra="") + "---\n",
+                                "bugs_altos: parecer aprovado exige 0"),
+            "qa médio sem aceite": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=0, m=2, extra="") + "---\n",
+                                    "aceite_usuario"),
+            "plano com estado ruim": ("docs/architecture/features/a.md",
+                                      "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p\nestado: x\nux: u\nadrs: []\nagentes: [a]\n---\n",
+                                      "estado: use proposta"),
+        }
+        for nome, (rel, texto, trecho) in casos.items():
+            with self.subTest(nome):
+                self.escrever(rel, texto)
+                codigo, saida = self.check("docs")
+                self.assertEqual(codigo, 1)
+                self.assertIn(trecho, saida)
+                self.assertRegex(saida, r"^\S+\.md: \S+: .+ \((R-[A-Z]+|ADR-0004)\)$".replace("^", "(?m)^", 1))
+                (self.tmp / rel).unlink()
+
+    def test_qa_medio_com_aceite_vale(self):
+        self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def kanban(self, corpo):
+        cab = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+        self.escrever("KANBAN.md", "# Quadro\n\n" + corpo.format(cab=cab))
+
+    def test_kanban_modelo_do_forge_e_valido(self):
+        self.assertEqual(subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz",
+                                         str(RAIZ / "templates/projeto"), "kanban"], capture_output=True, text=True).returncode, 0)
+
+    def test_kanban_valido(self):
+        self.kanban("## QA (WIP 2)\n{cab}| C1 | a | p1 | forge:qa-engineer | d | d | |\n| C2 | b | p1 | usuário | d | d | |\n"
+                    "## Em andamento (WIP 1 por agente)\n{cab}| C3 | c | p1 | forge:node-backend | d | d | |\n")
+        self.assertEqual(self.check("kanban"), (0, ""))
+
+    def test_kanban_invalido(self):
+        casos = {
+            "id repetido": ("## Pronto\n{cab}| C1 | a | p | usuário | d | d | |\n| C1 | b | p | usuário | d | d | |\n", "repetido"),
+            "responsável": ("## Pronto\n{cab}| C1 | a | p | Fulano | d | d | |\n", "Responsável"),
+            "wip da coluna": ("## QA (WIP 1)\n{cab}| C1 | a | p | usuário | d | d | |\n| C2 | b | p | usuário | d | d | |\n", "limite 1"),
+            "wip por agente": ("## Em andamento (WIP 1 por agente)\n{cab}| C1 | a | p | forge:node-backend | d | d | |\n"
+                               "| C2 | b | p | forge:node-backend | d | d | |\n", "por agente"),
+            "colunas": ("## Pronto\n| ID | Cartão |\n|---|---|\n", "colunas diferentes"),
+        }
+        for nome, (corpo, trecho) in casos.items():
+            with self.subTest(nome):
+                self.kanban(corpo)
+                codigo, saida = self.check("kanban")
+                self.assertEqual(codigo, 1)
+                self.assertIn(trecho, saida)
+                self.assertIn("(R-WIP)", saida)
+
+    def test_pr_aprovado_no_head(self):
+        self.pareceres(self.head())
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_sem_pareceres(self):
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("(R-REVIEW)", saida)
+        self.assertIn("(R-QA)", saida)
+
+    def test_pr_commit_valido_se_so_parecer_e_quadro_mudaram(self):
+        base = self.head()
+        self.pareceres(base)
+        self.escrever("KANBAN.md", "# Quadro\n")
+        self.commitar()
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_commit_desatualizado(self):
+        base = self.head()
+        self.pareceres(base)
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar()
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("src/app.txt mudou depois do parecer", saida)
+        self.assertIn("(R-QA)", saida)
+
+    def test_pr_parecer_reprovado_ou_commit_inexistente(self):
+        self.pareceres(self.head(), p="reprovado")
+        self.assertIn("não é aprovado", self.check("pr", "p1")[1])
+        self.pareceres("deadbeef")
+        self.assertIn("commit não existe", self.check("pr", "p1")[1])
+
+    def test_pr_qa_com_bug_alto_falha(self):
+        self.pareceres(self.head(), a=1)
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("bugs_altos", saida)
+
+
 class Orcamento(unittest.TestCase):
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
-        for p in sorted(AGENTES.glob("*.md")):
+        for p in agentes_do_plugin():
             with self.subTest(agente=p.name):
                 self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["agente"])
-        for p in sorted(SKILLS.glob("*/SKILL.md")):
+        for p in skills_do_plugin():
             with self.subTest(skill=p.parent.name):
                 self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["skill"])
 

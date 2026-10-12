@@ -2,11 +2,32 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [0.5.0] - 2026-10-12
-### Alterado
-- Teto de agentes adaptativo à carga da máquina (2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes dos testes ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio.
+## [Não publicado]
 ### Adicionado
-- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/diario.jsonl` por projeto, hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
+- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/run/diario.jsonl` por projeto (alinhado a ADR 0003 e 0005: só age em projeto com `.forge/versao`), hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
+- Núcleo neutro e pacotes de stack (ADR 0001): `stacks/node-react/` com os agentes `node-backend` e `react-frontend` (mesmos nomes, `forge:node-backend` e `forge:react-frontend` continuam valendo), as skills de mesmo nome, `seguranca.md` (checklists de API Node, front React, banco e cadeia de suprimentos) e `pronto.md` (comando "pronto" sugerido, convenções de código, pirâmide de testes e arquitetura de referência). Sem migração: projeto sem a seção "Stack" no `CLAUDE.md` é tratado como `node-react`.
+- `plugin.json` lista cada agente (`agents`) e cada skill de stack (`skills`); a lista de `agents` substitui a varredura de `agents/`, e um teste confere que nada fica de fora.
+- `forge-init --stack <nome>` (padrão `node-react`): preenche a seção "Stack" do `CLAUDE.md` e usa o "pronto" sugerido pela stack quando `--pronto` não é informado.
+- Testes `ManifestoDoPlugin`, `PacotesDeStack` e `NeutralidadeDoNucleo` (sem linguagem, framework ou ferramenta fora de `stacks/`, com exceções explícitas em `tests/config.json`).
+- Skill `contribuir-com-o-forge` e `scripts/verificar-contribuicao.sh`: qualquer agente de qualquer projeto contribui com o Forge por PR na `develop` (branch ou fork, clone em `~/.forge-contrib/<projeto>`), com varredura de segredos e caminhos pessoais no diff (ADR 0006).
+- `CONTRIBUTING.md` e `.github/pull_request_template.md`.
+- `docs/regras/`: uma fonte por regra, com ID (`R-MAIN`, `R-FLUXO`, `R-WIP`, `R-TETO`, `R-QA`, `R-REVIEW`, `R-DISCOVERY`, `R-CUSTO`, `R-NEUTRO`, `R-COPIA`, `R-VERIFY`) e índice (ADR 0002).
+- Testes `AntiDuplicacao` (trecho de 12 palavras de uma regra fora da fonte falha) e `RegrasComId` (ID citado existe, frontmatter com `verificada_por`, índice completo).
+- **Requer migração (0.5.0):** `bin/forge-upgrade` e `migrations/0.5.0/`: o projeto traz a si mesmo para a versão atual, numa branch `forge/upgrade-<versão>` com um commit por migração, sem push nem merge (ADR 0005). Projetos anteriores (sem `.forge/`) ganham `.forge/versao`, `.forge/config.json` e `.forge/run/` no `.gitignore`.
+- `forge-init` grava `.forge/versao` e `.forge/config.json` e ignora `.forge/run/`.
+- `bin/forge-check` (`docs`, `kanban`, `pr <pedido>`): valida o contrato entre agentes; modelos com frontmatter para review, QA e plano técnico em `templates/projeto/docs/` e nas instruções do `tech-lead`, `qa-engineer` e `software-architect` (ADR 0004). Testes `ForgeCheck`.
+### Alterado
+- Teto de agentes adaptativo à carga da máquina (`R-TETO`: 2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes de `tests/config.json` ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio.
+- Núcleo sem stack: `cyber-security`, `engineering-practices`, `software-architecture`, `qa-testing`, `iniciar-projeto`, `qa-engineer`, `software-architect`, o modelo de projeto e `R-TETO` dizem "conforme a stack do projeto" e apontam para `stacks/<stack>/`. O Jarvis lê a stack declarada e delega só aos agentes do pacote. Nenhuma regra, invariante ou termo proibido foi afrouxado.
+- `tests/e2e-instalacao.sh` confere os agentes pela lista de `--agent` (o `plugin details` não lista agentes registrados no manifesto).
+- Job `versao` do CI: PR para a `develop` exige linha nova em `[Não publicado]` em vez de subir a versão; PR para a `main` exige versão maior e changelog fechado.
+- Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.
+- Agentes, skills e modelo de projeto citam as regras pelo ID em vez de repetir o texto (`jarvis.md` 99 → 90 linhas). **Invariantes** de `tests/config.json`: os trechos protegidos passam a ser verificados em `docs/regras/`, e os agentes precisam citar os IDs; nenhum trecho deixou de ser verificado.
+- Divergências resolvidas pela redação mais restritiva: QA com WIP 2 no modelo de `KANBAN.md` (era 3); cartão de correção passa por QA com suíte completa; `--force` proibido em qualquer push; branch de trabalho a partir da branch de integração.
+
+## [0.4.1] - 2026-10-12
+### Adicionado
+- `docs/adr/`: sete ADRs que guiam a evolução da fábrica: núcleo neutro e pacotes de stack (0001), uma fonte por regra com IDs (0002), hooks determinísticos e silenciosos (0003), contrato verificável entre agentes e `forge-check` (0004), migração iniciada pelo projeto (0005), contribuição de qualquer projeto com versão só na release (0006) e verificação de comportamento sem custo (0007).
 
 ## [0.4.0] - 2026-10-12
 ### Adicionado

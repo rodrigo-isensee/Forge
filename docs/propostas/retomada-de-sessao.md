@@ -54,7 +54,7 @@ Hoje o Forge depende só de três coisas: do `--continue` do atalho `jarvis` (`s
 
 ```mermaid
 flowchart LR
-  J["Jarvis (agente principal)"] -->|forge-diario| D[".forge/diario.jsonl (arquivo local, append-only)"]
+  J["Jarvis (agente principal)"] -->|forge-diario| D[".forge/run/diario.jsonl (arquivo local, append-only)"]
   S["Subagentes forge:* (processo)"] -->|forge-diario checkpoint| D
   H["Hooks do plugin (processo)"] -->|eventos automáticos| D
   D --> R["forge-retomada (script)"]
@@ -81,13 +81,13 @@ Legenda: retângulos são processos ou arquivos, com o tipo no rótulo; as setas
 </details>
 
 **Três peças:**
-1. **`.forge/diario.jsonl`**: diário append-only, uma linha JSON por evento, gravada **antes** da ação (intenção) e **depois** (resultado). Uma intenção sem resultado é, por definição, trabalho interrompido.
+1. **`.forge/run/diario.jsonl`**: diário append-only, uma linha JSON por evento, gravada **antes** da ação (intenção) e **depois** (resultado). Uma intenção sem resultado é, por definição, trabalho interrompido.
 2. **Resumo derivado**: `forge-retomada` lê o fim do diário e o estado git ao vivo e gera o resumo. Ele não é um arquivo mantido à mão. O `.forge/estado.md` é só cache do último resumo, regenerado a cada `SessionStart`, para humanos lerem [INF: opcional].
 3. **Procedimento de reconciliação do Jarvis** (skill nova `retomada`, carregada só quando o resumo indica algo em voo).
 
 ## 5. Onde fica e por quê
 
-**Decisão:** a pasta `.forge/` fica na raiz do **checkout principal**, com um `.forge/.gitignore` contendo `*`. A pasta se ignora sozinha, sem mexer no `.gitignore` do projeto. Todo escritor resolve o caminho por `git rev-parse --path-format=absolute --git-common-dir`. Assim, um subagente numa worktree grava no **mesmo** diário do Jarvis [INF: a verificar o comportamento com worktrees ligadas e repositórios com submódulos].
+**Decisão:** a pasta `.forge/` fica na raiz do **checkout principal**, com um `.forge/run/.gitignore` contendo `*`. A pasta se ignora sozinha, sem mexer no `.gitignore` do projeto. Todo escritor resolve o caminho por `git rev-parse --path-format=absolute --git-common-dir`. Assim, um subagente numa worktree grava no **mesmo** diário do Jarvis [INF: a verificar o comportamento com worktrees ligadas e repositórios com submódulos].
 
 | Alternativa | Prós | Contras | Veredito |
 |---|---|---|---|
@@ -106,7 +106,7 @@ Uma linha por evento, em UTF-8, com no máximo 1 KB. Os campos seguem uma **allo
 
 ```json
 {"v":1,"ts":"2026-10-12T14:05:09-03:00","sessao":"a1b2c3d4","autor":"jarvis",
- "tipo":"delegacao.inicio","cartao":"K-056","pedido":"001","agente":"forge:react-frontend",
+ "tipo":"delegacao.inicio","cartao":"K-056","pedido":"001","agente":"forge:ux-designer",
  "agent_id":null,"worktree":"../proj-k056","branch":"feature/k056","commit":"1b9b291",
  "pr":null,"ci":null,"arquivos":[],"resumo":"Cobertura 100% do web","proximo":null,"ref":"docs/pedidos/001.md"}
 ```
@@ -130,7 +130,7 @@ A instrução de desfazer de uma operação **não é texto livre**. O `forge-re
 
 ## 7. CLIs e hooks a criar no Forge
 
-- `bin/forge-diario <tipo> [--cartao K-NNN] [--agente ...] [--worktree ...] [--branch ...] [--commit ...] [--pr N] [--ci ID:conclusao] [--arquivos a,b] [--resumo "..."] [--proximo "..."] [--ref caminho]`. Valida o tipo e os campos, preenche `ts`, `sessao`, `branch` e `commit` quando omitidos, aplica a redação (seção 10), trava com `flock` em `.forge/diario.lock` e grava a linha numa única chamada `write` com `O_APPEND`. O comando fica disponível no `PATH` de todos os agentes [DOC].
+- `bin/forge-diario <tipo> [--cartao K-NNN] [--agente ...] [--worktree ...] [--branch ...] [--commit ...] [--pr N] [--ci ID:conclusao] [--arquivos a,b] [--resumo "..."] [--proximo "..."] [--ref caminho]`. Valida o tipo e os campos, preenche `ts`, `sessao`, `branch` e `commit` quando omitidos, aplica a redação (seção 10), trava com `flock` em `.forge/run/diario.lock` e grava a linha numa única chamada `write` com `O_APPEND`. O comando fica disponível no `PATH` de todos os agentes [DOC].
 - `bin/forge-retomada [--curto | --detalhe K-NNN | --json]` monta o resumo a partir do diário e do git local (`git worktree list --porcelain`; em cada worktree, `git status --porcelain` e a contagem de commits à frente do upstream). Não usa rede.
 - `hooks/forge-hook <evento>` é o despachante: lê o JSON do stdin, chama o módulo Python, **sempre** sai com `exit 0` e não grava fora de `.forge/`. O núcleo fica num módulo Python único (`hooks/forge_estado.py`), testável e com cobertura.
 - `hooks/hooks.json`, esboço:
@@ -165,7 +165,7 @@ Decisões do esboço:
 
 ## 8. Como acontece a retomada
 
-1. **Automático (hook `SessionStart`):** se existe `.forge/diario.jsonl`, o hook grava `sessao.inicio` e injeta o resumo, só quando há algo em voo, pendente ou um encerramento não registrado. Sem nada disso, injeta nada ou uma linha só.
+1. **Automático (hook `SessionStart`):** se existe `.forge/run/diario.jsonl`, o hook grava `sessao.inicio` e injeta o resumo, só quando há algo em voo, pendente ou um encerramento não registrado. Sem nada disso, injeta nada ou uma linha só.
 2. **Detecção de queda:** a sessão anterior tem `sessao.inicio` sem `sessao.fim`. O resumo diz "encerramento não registrado (queda ou janela fechada)" [INF: fechar o terminal pode não disparar `SessionEnd`, por isso a redação não afirma que houve queda]. No `resume`, o hook usa `seconds_since_last_response` [DOC] para informar há quanto tempo a sessão parou.
 3. **Reconciliação (skill `retomada`, pelo Jarvis):**
 
@@ -198,7 +198,7 @@ Decisões do esboço:
 **Controles (proporcionais):**
 - Allow-list de campos e de tipos; limite de tamanho por campo e por linha.
 - Redação na fronteira, no `forge-diario`: rejeita a linha (com aviso no stderr) se o resumo casar com padrões de segredo (`sk-ant-`, `ghp_`, `gho_`, `github_pat_`, `AKIA`, `-----BEGIN`, `password=`, `token=`); mascara e-mails. Rejeitar é melhor que mascarar segredo, porque a máscara pode falhar parcialmente.
-- `.forge/` com permissão 700 e o diário com 600 [INF]; a pasta se ignora no git (`.forge/.gitignore` com `*`) e nunca vai ao remoto.
+- `.forge/` com permissão 700 e o diário com 600 [INF]; a pasta se ignora no git (`.forge/run/.gitignore` com `*`) e nunca vai ao remoto.
 - **Injeção de instrução:** o resumo vai para o contexto do Jarvis como *system reminder* [DOC], o que torna o diário um vetor possível. Mitigações:
   - o resumo é montado só a partir de campos estruturados;
   - caracteres de controle, crases e quebras de linha são removidos;
@@ -223,7 +223,7 @@ Decisões do esboço:
 ## 12. Portabilidade para projetos novos e existentes
 
 - `templates/projeto/.forge/.gitignore` (conteúdo `*`): o `forge-init` copia, e o diretório passa a existir.
-- Projetos já adotados: na primeira sessão, se o diretório é um repositório git e a sessão é do `forge:jarvis` (`agent_type` [DOC: presente quando a sessão usa `--agent`; com a configuração `agent` do `settings.json` é INF]), o hook cria `.forge/` e `.forge/.gitignore`. Não é preciso rodar o `forge-init` de novo.
+- Projetos já adotados: na primeira sessão, se o diretório é um repositório git e a sessão é do `forge:jarvis` (`agent_type` [DOC: presente quando a sessão usa `--agent`; com a configuração `agent` do `settings.json` é INF]), o hook cria `.forge/` e `.forge/run/.gitignore`. Não é preciso rodar o `forge-init` de novo.
 - Nada muda no `CLAUDE.md` do projeto. Um projeto que quiser desligar o diário usa `FORGE_DIARIO=0` no `settings.json` (`env`) [INF].
 - A versão sobe para **0.3.0** (melhoria compatível). A chegada aos projetos segue o fluxo normal (`claude plugin update forge@forge` numa branch, com PR).
 
@@ -250,7 +250,7 @@ Decisões do esboço:
   - stdin inválido, ausência de git ou ausência de `.forge/` resultam em `exit 0` sem saída;
   - `SubagentStop` não grava `last_assistant_message`;
   - `PreToolUse` extrai só os IDs do prompt-padrão.
-- `ForgeInit`: cria `.forge/.gitignore`, e `git status --porcelain` não mostra nada de `.forge/`.
+- `ForgeInit`: cria `.forge/run/.gitignore`, e `git status --porcelain` não mostra nada de `.forge/`.
 - `RegrasInviolaveis`: novos invariantes em `tests/config.json`:
   - `agents/jarvis.md` contém a seção "Retomada" e a frase sobre ações destrutivas com confirmação;
   - `hooks/hooks.json` tem `SessionStart`.
@@ -283,9 +283,9 @@ Decisões do esboço:
 |---|---|---|---|---|
 | R-1 | Respostas P1 a P5 e aprovação desta proposta | usuário | — | — |
 | R-2 | Especificação final: `docs/retomada-de-sessao.md` (contrato v1 do evento, CLIs, hooks, skill `retomada`); esta proposta passa a "vigente" | software-architect | R-1 | — |
-| R-3 | `hooks/forge_estado.py`, `bin/forge-diario`, `bin/forge-retomada` (gravar, redigir, travar, resumir, resolver o checkout principal) | node-backend | R-2 | R-4, R-6 |
+| R-3 | `hooks/forge_estado.py`, `bin/forge-diario`, `bin/forge-retomada` (gravar, redigir, travar, resumir, resolver o checkout principal) | desenvolvedor da stack | R-2 | R-4, R-6 |
 | R-4 | Testes unitários e o cenário `QuedaSimulada`, escritos a partir da especificação; `coverage` no CI | qa-engineer | R-2 | R-3, R-6 |
-| R-5 | `hooks/hooks.json`, `hooks/forge-hook`, criação preguiçosa de `.forge/`, `templates/projeto/.forge/.gitignore`, `forge-init`, `shellcheck` no CI | node-backend | R-3 (mesmo agente, WIP 1) | R-6 |
+| R-5 | `hooks/hooks.json`, `hooks/forge-hook`, `forge-init`/`forge-upgrade` (`.forge/versao`, `.forge/run/`), `shellcheck` no CI | desenvolvedor da stack | R-3 (mesmo agente, WIP 1) | R-6 |
 | R-6 | Texto: seção "Retomada" no `jarvis.md`, skill `skills/retomada/SKILL.md`, lembrete do `SubagentStart`, invariantes em `tests/config.json`, métricas em `docs/melhoria-continua.md` | software-architect (texto) + agile-coach (métricas) | R-2 | R-3, R-4 |
 | R-7 | Cenário scriptado `tests/retomada/` (sem IA) | qa-engineer | R-6 | R-5 |
 | R-8 | Revisão de código de R-3, R-5 e R-6 (neutralidade, segurança da seção 10, custo) e revisão de segurança registrada | tech-lead + software-architect | R-5, R-6 | — |
