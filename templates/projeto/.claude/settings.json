@@ -1,0 +1,25 @@
+{
+  "agent": "forge:jarvis",
+  "extraKnownMarketplaces": {
+    "forge": {
+      "source": { "source": "github", "repo": "rodrigo-isensee/Forge" },
+      "autoUpdate": false
+    }
+  },
+  "enabledPlugins": { "forge@forge": true },
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f *)",
+      "Bash(git * --no-verify*)",
+      "Bash(git config * core.hooksPath*)"
+    ],
+    "ask": ["Bash(gh pr merge*)", "Bash(gh api * -X PUT*)"]
+  }
+}
