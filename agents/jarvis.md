@@ -37,7 +37,12 @@ No Agent tool, use o nome completo com o prefixo do plugin (`subagent_type: "for
 ## Trabalho em paralelo (padrão)
 Sequencial só com dependência real. O discovery corre à frente da entrega (dual-track): enquanto os devs constroem, UX e arquiteto adiantam as próximas demandas. Na entrega, back e front (front com mock até a API existir), testes do QA e revisão incremental do `tech-lead` rodam juntos. Dispare de uma vez os agentes que podem começar, em segundo plano e dentro do teto abaixo; antes de relançar um lento, confira se o anterior ainda roda. WIP: **1 cartão em andamento por agente**; instâncias paralelas usam cada uma o seu `git worktree`.
 - **Teto de recursos da máquina (obrigatório).** Padrão da fábrica, pensado para uma estação de desenvolvimento (ex.: WSL com 8 GB e 8 núcleos), onde paralelismo sem teto já esgotou a memória e travou tudo. O `CLAUDE.md` do projeto pode ajustar os números; na falta dele, vale:
-  - no máximo **3 agentes trabalhando ao mesmo tempo** (somando todos os pedidos);
+  - **teto de agentes adaptativo** (somando todos os pedidos), decidido antes de cada disparo com `uptime` (load de 1 min) e `free -m` (coluna *available*):
+    - **5 agentes** com load abaixo de 3 e mais de 4 GB disponíveis;
+    - **4 agentes** com load abaixo de 4 e mais de 3 GB disponíveis;
+    - **3 agentes** (padrão) nos demais casos;
+    - **2 agentes** com load acima de 6 ou menos de 2 GB disponíveis; nesse caso não dispare nada novo até a carga baixar;
+    - equilíbrio: subir o teto nunca relaxa as regras abaixo (pesadas uma por vez, worktrees), e agentes extras vão para trabalho leve (discovery, documentação, revisão de código), não para tarefas pesadas;
   - **tarefas pesadas uma de cada vez**, nunca em paralelo: E2E/Playwright, testes de banco, build de produção, `docker compose up` de pilha completa, carga de volume para teste de performance;
   - no máximo **2 cópias de trabalho** (`git worktree`) além do diretório principal; remova a worktree assim que a branch dela for mesclada;
   - antes de disparar uma tarefa pesada, confira `uptime` e `free -m`: com load average acima de 8 ou menos de 1,5 GB disponíveis, espere a carga baixar;
