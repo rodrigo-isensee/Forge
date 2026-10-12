@@ -25,7 +25,7 @@ jarvis            # no diretório do projeto
 ```
 
 ## Branches
-Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápidos), passam pela `homolog` (bateria completa, com avaliações de comportamento) e chegam à `main` por PR mesclado pelo dono do Forge.
+Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápidos), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
 
 ## Atualizar
 Cada versão está no `CHANGELOG.md`. Num projeto: `claude plugin update forge@forge` (numa branch, com PR se houver ajuste local).
