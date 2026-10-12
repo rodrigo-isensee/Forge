@@ -317,6 +317,65 @@ class PrepararEstacao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
 
+class VerificarContribuicao(unittest.TestCase):
+    """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-contrib-"))
+        git("init", "-q", "-b", "trabalho", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        git("config", "user.name", "teste", cwd=self.tmp)
+        (self.tmp / "base.txt").write_text("base\n")
+        git("add", "base.txt", cwd=self.tmp)
+        git("commit", "-q", "-m", "base", cwd=self.tmp)
+        git("update-ref", "refs/remotes/origin/develop", "HEAD", cwd=self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def verificar(self, nome, conteudo):
+        (self.tmp / nome).write_text(conteudo)
+        git("add", nome, cwd=self.tmp)
+        git("commit", "-q", "-m", "muda", cwd=self.tmp)
+        return subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh")], cwd=self.tmp,
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_diff_limpo_passa(self):
+        r = self.verificar("nota.md", "Melhoria sem dados.\nExemplo: /home/<usuario>/x\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_exemplo_marcado_passa(self):
+        r = self.verificar("nota.md", "caminho /home/" + "fulano/x forge:exemplo\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_segredos_e_caminhos_falham(self):
+        casos = {
+            "chave sk": "k = sk" + "-" + "a" * 24,
+            "token ghp": "t = ghp" + "_" + "b" * 24,
+            "pat": "t = github" + "_pat_" + "c" * 24,
+            "aws": "a = AKIA" + "D" * 16,
+            "chave privada": "-----" + "BEGIN RSA PRIVATE KEY-----",
+            "senha": "pass" + "word=" + "hunter22",
+            "caminho pessoal": "cd /home/" + "fulano/projeto",
+        }
+        for rotulo, linha in casos.items():
+            with self.subTest(caso=rotulo):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:1", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
+    def test_arquivo_env_falha(self):
+        r = self.verificar(".env", "X=1\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".env", r.stdout)
+
+    def test_base_inexistente(self):
+        r = subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh"), "nao-existe"],
+                           cwd=self.tmp, env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+
+
 class Orcamento(unittest.TestCase):
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
