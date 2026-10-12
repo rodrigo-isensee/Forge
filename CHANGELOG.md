@@ -4,7 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [0.2.1] - 2026-10-12
 ### Alterado
-- **Sem custo de dinheiro real:** as avaliações de comportamento com IA deixam de ser portão da `homolog` e da `main` e não rodam mais toda noite; só por disparo manual do dono do Forge. A `homolog` repete a bateria rápida sobre o conjunto da release. O CI não precisa mais do segredo `ANTHROPIC_API_KEY`.
+- **Sem custo de dinheiro real:** removidas as avaliações de comportamento com IA (`evals/` e o workflow), que exigiam API paga. A `homolog` repete a bateria rápida sobre o conjunto da release. O CI não usa mais o segredo `ANTHROPIC_API_KEY`. Nada que custe dinheiro entra no Forge sem autorização expressa do dono.
 
 ## [0.2.0] - 2026-10-12
 ### Adicionado
