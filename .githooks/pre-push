@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
-# Forge: develop, homolog e main só mudam por pull request (develop e homolog mesclados pelo tech-lead
-# com os testes verdes; main mesclada pelo usuário). Ninguém envia direto para elas.
+# Forge: bloqueia envio para a main — ela só muda por pull request validado e mesclado pelo usuário.
 while read -r _ _ remote_ref _; do
-  case "$remote_ref" in
-    refs/heads/main|refs/heads/homolog|refs/heads/develop)
-      echo "pre-push: envio direto para ${remote_ref#refs/heads/} bloqueado. Abra um pull request (fluxo: branch -> develop -> homolog -> main)." >&2
-      exit 1 ;;
-  esac
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    echo "pre-push: envio para a main bloqueado. Abra um pull request; o usuário valida e faz o merge." >&2
+    exit 1
+  fi
 done
-# Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
-cd "$(git rev-parse --show-toplevel)" || exit 1
-python3 -m unittest discover -s tests -q >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+
+# Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
+local_hook="$(dirname "$0")/pre-push.local"
+if [ -x "$local_hook" ]; then
+  "$local_hook" || exit 1
+fi
 exit 0

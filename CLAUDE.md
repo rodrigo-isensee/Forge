@@ -1,6 +1,6 @@
-# {{PROJETO}}
+# H
 
-{{DESCRICAO}}
+Descreva aqui o objetivo do sistema.
 
 Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, https://github.com/rodrigo-isensee/Forge). O time de agentes, o fluxo, as skills e as práticas gerais vêm do Forge; este arquivo guarda só o que é **deste sistema**.
 
@@ -13,7 +13,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 - 
 
 ## Comandos do projeto
-- **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
+- **Pronto** (critério de entrega dos agentes): `npm run pronto`
 - **Testes rápidos**: <!-- ex.: npm test -->
 
 ## Exceções locais às regras da fábrica
