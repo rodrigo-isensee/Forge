@@ -1,0 +1,15 @@
+{
+  "descricao": "Comando comum: sai sem chamar git.",
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "ls -la && npm test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

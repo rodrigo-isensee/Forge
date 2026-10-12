@@ -1,0 +1,31 @@
+{
+  "descricao": "Promoção entre branches de integração não exige parecer por branch.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "main"
+    },
+    {
+      "checkout": "develop"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base main --head develop --title release"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

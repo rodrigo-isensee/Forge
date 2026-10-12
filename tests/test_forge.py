@@ -45,7 +45,7 @@ def skills_do_plugin():
 
 
 def arquivos_texto():
-    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks"):
         for p in (RAIZ / pasta).rglob("*"):
             if p.is_file():
                 yield p

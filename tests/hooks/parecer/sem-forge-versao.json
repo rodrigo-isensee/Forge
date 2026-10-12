@@ -1,0 +1,30 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age.",
+  "forge": false,
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'feat: app' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "descricao": "Reserva sem SubagentStart (lançamento negado) expira em 5 min.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": null,
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-400}"
+        },
+        {
+          "id": null,
+          "tipo": "x",
+          "descricao": "y",
+          "desde": "{agora-400}"
+        },
+        {
+          "id": null,
+          "tipo": "z",
+          "descricao": "w",
+          "desde": "{agora-400}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

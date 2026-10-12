@@ -1,0 +1,23 @@
+{
+  "descricao": "Outra tarefa pesada com PID vivo: bloqueia.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_vivo}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "docker compose up -d"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "tarefa pesada em andamento há 2 min"
+  }
+}
