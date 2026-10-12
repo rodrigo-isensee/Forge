@@ -2,6 +2,15 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.0] - 2026-10-12
+### Adicionado
+- Fluxo de branches `melhoria/*` → `develop` → `homolog` → `main` com baterias crescentes: develop (testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta) e homolog (+ avaliações de comportamento obrigatórias, também toda noite). Todos os projetos usam só a `main`.
+- Retroalimentação: melhorias descobertas em qualquer projeto viram PR na `develop` do Forge; o `tech-lead` mescla na develop e promove para a homolog; a `main` só pelo usuário.
+- CI confere que nada pula degrau; hook do Forge bloqueia envio direto para `develop`, `homolog` e `main`.
+- Teste de instalação de ponta a ponta (`tests/e2e-instalacao.sh`).
+### Corrigido
+- `forge-init` mescla um `.claude/settings.json` existente (o `claude plugin install --scope project` cria um) em vez de pulá-lo, garantindo o Jarvis como agente principal.
+
 ## [0.1.0] - 2026-10-12
 ### Adicionado
 - Plugin `forge` e marketplace no próprio repositório.

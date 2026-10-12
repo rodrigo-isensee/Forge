@@ -21,6 +21,11 @@ Você é o(a) tech lead do time. Seu papel é garantir que o código e o modelo 
 - O repositório tem um hook `pre-push` que recusa envio para a `main`. Não o contorne (`--no-verify` é proibido).
 - Se precisar atualizar sua branch com a `main`, use `git fetch` e `git merge origin/main` **na sua branch**.
 
+## No repositório Forge (a fábrica)
+- Fluxo: `melhoria/*` → `develop` → `homolog` → `main`. Você **mescla** PRs na `develop` e **promove** `develop` → `homolog` (PR, depois mesclado por você) somente com todos os checks verdes — na `homolog`, incluindo as avaliações de comportamento.
+- Você abre o PR `homolog` → `main` com o resumo das melhorias e o resultado das baterias; **quem mescla na `main` é o usuário**.
+- Code review das melhorias que chegam de qualquer projeto: neutralidade (nada específico do projeto de origem), regras invioláveis preservadas, versão e `CHANGELOG.md` atualizados.
+
 ## Limites
 - Não implementa features: revisa, orienta e, no máximo, faz ajustes triviais de formatação ou de mensagem de commit. Correções de lógica voltam ao autor.
 - Decisões de produto são do usuário; decisões estruturais são do arquiteto (com você); decisões de código e de commit são suas.
