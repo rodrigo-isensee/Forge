@@ -265,7 +265,7 @@ Decisões do esboço:
 6. Rodar o hook `SessionStart` com `source=startup` e afirmar que o resumo cita o encerramento não registrado, a K-900 em voo com 1 arquivo não commitado, e a operação interrompida em `src/a.py` com a instrução de restauração.
 7. Rodar com `source=resume`: o resumo inclui o tempo parado.
 
-**Comportamento** (`evals/retoma-apos-queda/`, roda na `homolog`): o prompt dá ao Jarvis um diário com uma delegação em voo e trabalho não commitado. Os graders conferem que ele (a) inspeciona worktree e `git status` antes de relançar, (b) não descarta mudança sem perguntar e (c) reporta em até 8 linhas.
+**Comportamento** (cenário scriptado sem IA em `tests/retomada/`, custo zero, pela regra da 0.2.1; substitui o eval previsto): o prompt dá ao Jarvis um diário com uma delegação em voo e trabalho não commitado. Os graders conferem que ele (a) inspeciona worktree e `git status` antes de relançar, (b) não descarta mudança sem perguntar e (c) reporta em até 8 linhas.
 
 ## 14. Perguntas que só o usuário responde
 
@@ -287,10 +287,10 @@ Decisões do esboço:
 | R-4 | Testes unitários e o cenário `QuedaSimulada`, escritos a partir da especificação; `coverage` no CI | qa-engineer | R-2 | R-3, R-6 |
 | R-5 | `hooks/hooks.json`, `hooks/forge-hook`, criação preguiçosa de `.forge/`, `templates/projeto/.forge/.gitignore`, `forge-init`, `shellcheck` no CI | node-backend | R-3 (mesmo agente, WIP 1) | R-6 |
 | R-6 | Texto: seção "Retomada" no `jarvis.md`, skill `skills/retomada/SKILL.md`, lembrete do `SubagentStart`, invariantes em `tests/config.json`, métricas em `docs/melhoria-continua.md` | software-architect (texto) + agile-coach (métricas) | R-2 | R-3, R-4 |
-| R-7 | Eval `evals/retoma-apos-queda/` | qa-engineer | R-6 | R-5 |
+| R-7 | Cenário scriptado `tests/retomada/` (sem IA) | qa-engineer | R-6 | R-5 |
 | R-8 | Revisão de código de R-3, R-5 e R-6 (neutralidade, segurança da seção 10, custo) e revisão de segurança registrada | tech-lead + software-architect | R-5, R-6 | — |
 | R-9 | QA: suíte completa, `claude plugin validate . --strict`, `tests/e2e-instalacao.sh` e uma queda real provocada (`kill -9` da sessão com um agente em segundo plano) | qa-engineer | R-8 | — |
-| R-10 | Versão 0.3.0, `CHANGELOG.md`, PR para a `develop` e promoção para a `homolog` (com evals) | tech-lead | R-9 | — |
+| R-10 | Versão 0.3.0, `CHANGELOG.md`, PR para a `develop` e promoção para a `homolog` | tech-lead | R-9 | — |
 | R-11 | Release para a `main` (merge pelo usuário); atualização do plugin nos projetos por PR (P5) | usuário → tech-lead | R-10 | — |
 
 Teto de recursos: no máximo 3 agentes ao mesmo tempo (R-3, R-4 e R-6), e nenhuma tarefa pesada. O próprio PR desta proposta, se for enviado sozinho, também precisa subir a versão: o job `versao` do CI conta mudanças em `docs/` [DOC: `.github/workflows/ci.yml`].
