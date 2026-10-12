@@ -1,20 +1,24 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
-Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]
+Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]   (--raiz também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007).
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
+Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
+PLUGIN = Path(__file__).resolve().parent.parent
+GIT_TIMEOUT_S = 5  # os hooks que usam este módulo têm 10 s no total
 DATA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 INTEIRO = re.compile(r"^\d+$")
@@ -190,7 +194,11 @@ def cmd_kanban(raiz):
 
 
 def git(raiz, *args):
-    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True)
+    """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
+    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno, que libera). Devolve (código, stdout)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env,
+                       timeout=GIT_TIMEOUT_S)
     return r.returncode, r.stdout.strip()
 
 
@@ -251,6 +259,9 @@ AGENTES_GENERICOS = {"general-purpose", "Explore", "Plan"}
 RAMOS_FIXOS = {"main", "develop", "homolog"}
 GIT_MUDA = {"commit", "merge", "push", "rebase", "reset", "cherry-pick"}
 TETO_PADRAO = 3  # R-TETO
+ISO8601 = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?$")
+CAMPOS_DO_EVENTO = {"agente": {"id": str, "tipo": str, "bg": bool, "secoes": dict}, "fim": {"id": str},
+                    "cmd": {"cmd": str, "branch": str}}
 
 
 def marcar_ramo(nome):
@@ -369,6 +380,7 @@ def ler_eventos_brutos(linhas):
         if not isinstance(o, dict) or o.get("isSidechain"):
             continue
         t, ramo = str(o.get("timestamp") or ""), marcar_ramo(o.get("gitBranch"))
+        t = t if ISO8601.match(t) else ""  # só data e hora passam; qualquer outro texto é descartado
         if versao is None and re.fullmatch(r"[0-9][0-9.]*", str(o.get("version") or "")):
             versao = o["version"]
             yield {"ev": "origem", "versao": versao}
@@ -418,13 +430,37 @@ def cmd_transcricao_anonimizar(entrada, saida):
     return []
 
 
+def problema_do_evento(texto):
+    """(evento, None) se a linha é um evento válido; senão (None, motivo)."""
+    try:
+        e = json.loads(texto)
+    except ValueError:
+        return None, "não é JSON"
+    if not isinstance(e, dict) or e.get("ev") not in CAMPOS_DO_EVENTO:
+        return None, f"`ev` deve ser um de {', '.join(CAMPOS_DO_EVENTO)}"
+    if not isinstance(e.get("t", ""), str) or e.get("t") and not ISO8601.match(e["t"]):
+        return None, "`t` deve ser data e hora ISO 8601 ou vazio"
+    for campo, tipo in CAMPOS_DO_EVENTO[e["ev"]].items():
+        if not isinstance(e.get(campo), tipo) or tipo is str and campo == "cmd" and not e[campo].split():
+            return None, f"`{campo}` ausente ou de tipo errado"
+    return e, None
+
+
 def cmd_transcricao_verificar(arquivo, teto=TETO_PADRAO):
-    saida, vistos, ativos, i = [], set(), set(), 0
-    with open(arquivo, encoding="utf-8") as f:
-        linhas = [json.loads(l) for l in f if l.strip()]
-    if not linhas or linhas[0].get("formato") != FORMATO:
+    saida, vistos, ativos = [], set(), set()
+    with open(arquivo, encoding="utf-8", errors="replace") as f:
+        brutas = [l for l in f if l.strip()]
+    try:
+        cabecalho = json.loads(brutas[0]) if brutas else None
+    except ValueError:
+        cabecalho = None
+    if not isinstance(cabecalho, dict) or cabecalho.get("formato") != FORMATO:
         return [f"transcricao: formato: esperado `{FORMATO}`; anonimize com `forge-check transcricao anonimizar`"]
-    for i, e in enumerate(linhas[1:], 1):
+    for i, texto in enumerate(brutas[1:], 1):
+        e, motivo = problema_do_evento(texto)
+        if motivo:
+            saida.append(f"transcricao: formato: evento {i} inválido: {motivo}")
+            continue
         if e["ev"] == "agente":
             tipo = e["tipo"].split(":")[-1]
             vistos.add(tipo)
@@ -450,13 +486,35 @@ def cmd_transcricao_verificar(arquivo, teto=TETO_PADRAO):
     return saida
 
 
+def versao(texto):
+    try:
+        return tuple(int(p) for p in texto.strip().split("."))
+    except ValueError:
+        return None
+
+
+def migracao_pendente(raiz):
+    """Versões de migração do Forge (ADR 0005) acima da `.forge/versao` do projeto e até a do plugin."""
+    try:
+        atual = versao((raiz / ".forge" / "versao").read_text(encoding="utf-8"))
+        plugin = versao(json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return []
+    if not atual or not plugin or atual >= plugin:
+        return []
+    return sorted((p.parent.name for p in (PLUGIN / "migrations").glob("*/migrar")
+                   if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
+
+
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
+    comum = argparse.ArgumentParser(add_help=False)  # aceita --raiz também depois do subcomando
+    comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("docs")
-    sub.add_parser("kanban")
-    pr = sub.add_parser("pr")
+    sub.add_parser("docs", parents=[comum])
+    sub.add_parser("kanban", parents=[comum])
+    pr = sub.add_parser("pr", parents=[comum])
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
     tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
@@ -469,6 +527,14 @@ def main():
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
     raiz = Path(a.raiz).resolve()
+    try:
+        return executar(a, raiz)
+    except subprocess.TimeoutExpired as e:
+        print(f"git: tempo esgotado ({GIT_TIMEOUT_S} s) em `{' '.join(map(str, e.cmd[3:5]))}`; tente de novo")
+        return 1
+
+
+def executar(a, raiz):
     if a.cmd == "transcricao":
         try:
             violacoes = (cmd_transcricao_anonimizar(a.entrada, a.saida) if a.acao == "anonimizar"
@@ -479,6 +545,10 @@ def main():
         for v in violacoes:
             print(v)
         return 1 if violacoes else 0
+    pendentes = migracao_pendente(raiz)
+    if pendentes:
+        print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
+              file=sys.stderr)
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))}[a.cmd]()
     for v in violacoes:

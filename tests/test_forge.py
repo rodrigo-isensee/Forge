@@ -3,6 +3,8 @@
 Garantem a integridade da fábrica a cada mudança: manifestos, agentes, skills, referências,
 neutralidade (nada específico de um projeto), regras invioláveis, inicializador e hook de git.
 """
+import importlib.machinery
+import importlib.util
 import json
 import os
 import re
@@ -692,6 +694,13 @@ class VerificarContribuicao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
 
+def carregar_forge_check():
+    carregador = importlib.machinery.SourceFileLoader("forge_check_teste", str(RAIZ / "bin/forge-check"))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
+
+
 class ForgeCheck(unittest.TestCase):
     """ADR 0004: validador do contrato entre agentes, em um projeto git temporário."""
 
@@ -801,6 +810,29 @@ class ForgeCheck(unittest.TestCase):
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
         self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_raiz_depois_do_subcomando_e_git_isolado(self):
+        self.pareceres(self.head())
+        self.commitar()
+        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
+                           env=env, capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_aviso_de_migracao_pendente(self):
+        fc = carregar_forge_check()
+        plugin = self.tmp / "plugin"
+        (plugin / ".claude-plugin").mkdir(parents=True)
+        (plugin / ".claude-plugin/plugin.json").write_text('{"version": "0.6.0"}', encoding="utf-8")
+        for v in ("0.5.0", "0.6.0", "0.7.0"):
+            (plugin / "migrations" / v).mkdir(parents=True)
+            (plugin / "migrations" / v / "migrar").write_text("", encoding="utf-8")
+        fc.PLUGIN = plugin
+        self.assertEqual(fc.migracao_pendente(self.tmp), [])  # sem .forge/versao: não é projeto do Forge
+        self.escrever(".forge/versao", "0.5.0\n")
+        self.assertEqual(fc.migracao_pendente(self.tmp), ["0.6.0"])
+        self.escrever(".forge/versao", "0.6.0\n")
+        self.assertEqual(fc.migracao_pendente(self.tmp), [])
 
     def test_pr_sem_pareceres(self):
         codigo, saida = self.check("pr", "p1")
@@ -922,7 +954,7 @@ class Transcricoes(unittest.TestCase):
                 {"type": "tool_use", "id": "u3", "name": "Read", "input": {"file_path": "/home/ana/Zephyrus/segredo.txt"}}]}},
             {"type": "user", "timestamp": "t2", "message": {"content": [
                 {"type": "tool_result", "tool_use_id": "u1", "content": "Async agent launched /home/ana/Zephyrus"}]}},
-            {"type": "queue-operation", "timestamp": "t3", "content":
+            {"type": "queue-operation", "timestamp": "2026-01-01T10:00:00.123Z", "content":
                 "<task-notification><tool-use-id>u1</tool-use-id><summary>ana.silva@exemplo.org</summary></task-notification>"},
         ]
         entrada, saida = tmp / "e.jsonl", tmp / "s.jsonl"
@@ -936,3 +968,22 @@ class Transcricoes(unittest.TestCase):
         self.assertEqual(eventos[0]["tipo"], "<agente>")
         self.assertEqual([e["cmd"] for e in eventos[1:3]], ["git push <branch>", "gh pr create"])
         self.assertTrue(all(eventos[0]["secoes"].values()))
+        self.assertEqual([e["t"] for e in eventos], ["", "", "", "2026-01-01T10:00:00.123Z"])  # "t1" não é ISO 8601
+
+    def test_linha_malformada_vira_violacao(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "t.jsonl"
+        arq.write_text("\n".join([json.dumps({"formato": "forge-transcricao/1", "origem": "x"}), "{quebrado",
+                                  json.dumps({"t": ""}), json.dumps({"ev": "fim", "t": "ontem", "id": "a1"}),
+                                  json.dumps({"ev": "cmd", "t": "", "branch": "main"}),
+                                  json.dumps({"ev": "fim", "t": "2026-01-01T10:00:00Z", "id": "a1"})]), encoding="utf-8")
+        cod, saida = self.rodar("verificar", str(arq))
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.splitlines(), [
+            "transcricao: formato: evento 1 inválido: não é JSON",
+            "transcricao: formato: evento 2 inválido: `ev` deve ser um de agente, fim, cmd",
+            "transcricao: formato: evento 3 inválido: `t` deve ser data e hora ISO 8601 ou vazio",
+            "transcricao: formato: evento 4 inválido: `cmd` ausente ou de tipo errado"])
+        arq.write_text("não é json\n", encoding="utf-8")
+        self.assertEqual(self.rodar("verificar", str(arq))[0], 1)
