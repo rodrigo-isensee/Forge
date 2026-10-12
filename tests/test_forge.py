@@ -55,6 +55,7 @@ class Manifestos(unittest.TestCase):
     def test_changelog_tem_a_versao_atual(self):
         versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
         changelog = (RAIZ / "CHANGELOG.md").read_text(encoding="utf-8")
+        # "## [Não publicado]" pode vir no topo (ADR 0006); vale a primeira entrada numerada.
         primeira = re.search(r"^## \[?(\d+\.\d+\.\d+)", changelog, re.M)
         self.assertIsNotNone(primeira, "CHANGELOG.md sem entrada de versão")
         self.assertEqual(primeira.group(1), versao, "versão do plugin.json difere da última do CHANGELOG")
@@ -276,6 +277,12 @@ class CI(unittest.TestCase):
                     with self.subTest(arquivo=wf.name, linha=n):
                         self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
 
+    def test_job_versao_cobre_develop_e_main(self):
+        """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        for trecho in ("base_ref == 'develop' || github.base_ref == 'main'", "[Não publicado]", "a <= b"):
+            self.assertIn(trecho, texto)
+
     def test_dependabot_para_actions(self):
         texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
         self.assertIn("github-actions", texto)
@@ -314,6 +321,65 @@ class PrepararEstacao(unittest.TestCase):
     def test_argumento_invalido(self):
         r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--x"],
                            capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+
+
+class VerificarContribuicao(unittest.TestCase):
+    """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-contrib-"))
+        git("init", "-q", "-b", "trabalho", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        git("config", "user.name", "teste", cwd=self.tmp)
+        (self.tmp / "base.txt").write_text("base\n")
+        git("add", "base.txt", cwd=self.tmp)
+        git("commit", "-q", "-m", "base", cwd=self.tmp)
+        git("update-ref", "refs/remotes/origin/develop", "HEAD", cwd=self.tmp)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def verificar(self, nome, conteudo):
+        (self.tmp / nome).write_text(conteudo)
+        git("add", nome, cwd=self.tmp)
+        git("commit", "-q", "-m", "muda", cwd=self.tmp)
+        return subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh")], cwd=self.tmp,
+                              env=ambiente_limpo(), capture_output=True, text=True)
+
+    def test_diff_limpo_passa(self):
+        r = self.verificar("nota.md", "Melhoria sem dados.\nExemplo: /home/<usuario>/x\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_exemplo_marcado_passa(self):
+        r = self.verificar("nota.md", "caminho /home/" + "fulano/x forge:exemplo\n")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_segredos_e_caminhos_falham(self):
+        casos = {
+            "chave sk": "k = sk" + "-" + "a" * 24,
+            "token ghp": "t = ghp" + "_" + "b" * 24,
+            "pat": "t = github" + "_pat_" + "c" * 24,
+            "aws": "a = AKIA" + "D" * 16,
+            "chave privada": "-----" + "BEGIN RSA PRIVATE KEY-----",
+            "senha": "pass" + "word=" + "hunter22",
+            "caminho pessoal": "cd /home/" + "fulano/projeto",
+        }
+        for rotulo, linha in casos.items():
+            with self.subTest(caso=rotulo):
+                r = self.verificar("n.md", linha + "\n")
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("n.md:1", r.stdout)
+                self.assertNotIn(linha, r.stdout + r.stderr, "o valor não pode ser impresso")
+
+    def test_arquivo_env_falha(self):
+        r = self.verificar(".env", "X=1\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".env", r.stdout)
+
+    def test_base_inexistente(self):
+        r = subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh"), "nao-existe"],
+                           cwd=self.tmp, env=ambiente_limpo(), capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
 
 

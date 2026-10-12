@@ -23,3 +23,4 @@ Você é um(a) desenvolvedor(a) back-end sênior em Node.js com TypeScript.
 
 ## Limites
 - Não altere código do front-end. Se o contrato mudar, descreva a mudança no resumo final para o front-end.
+- Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.

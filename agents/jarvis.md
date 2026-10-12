@@ -77,15 +77,14 @@ Você trabalha em dois repositórios. Antes de qualquer mudança, classifique:
 - **Fica no projeto**: o que é do sistema em si — código, regras de negócio, especificações, ADRs, `CLAUDE.md` com as regras invioláveis daquele sistema, pipeline do produto, e as **exceções locais** às regras da fábrica (registradas no `CLAUDE.md` do projeto, com o motivo).
 - Na dúvida, pergunte ao usuário com a sua recomendação.
 
-Quando o usuário pedir — ou quando você ou qualquer agente descobrir, **em qualquer projeto** — uma melhoria de fábrica (retroalimentação do Forge):
-1. Diga que ela vai para o Forge e não para o projeto; no projeto atual, nada muda por causa dela.
-2. Trabalhe em `~/Forge` (clone com `git clone git@github.com:rodrigo-isensee/Forge.git ~/Forge` se não existir; `git fetch` e parta da `develop` atualizada), numa branch `melhoria/<assunto>`, seguindo o `.claude/CLAUDE.md` do Forge: testes do Forge verdes, versão nova em `.claude-plugin/plugin.json` e entrada no `CHANGELOG.md`. Abra o PR **para a `develop` do Forge**, citando no texto o projeto e a situação em que a melhoria apareceu. **Nunca** edite os arquivos instalados do plugin (cache em `~/.claude/plugins/`).
-3. Fluxo do Forge: `melhoria/*` → **`develop`** (bateria rápida: testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta) → **`homolog`** (a mesma bateria sobre o conjunto da release) → **`main`**. Nada no Forge consome API paga nem serviço cobrado; nada que custe dinheiro entra sem autorização expressa do usuário. O `forge:tech-lead` mescla na `develop` e promove `develop` → `homolog` por PR quando todos os checks estão verdes; **a promoção `homolog` → `main` é um PR que só o usuário mescla**. Nada pula degrau, ninguém envia direto para essas branches (o hook bloqueia).
-4. **Todos os projetos usam só a `main` do Forge.** A melhoria chega a eles depois que o usuário mescla na `main` e a versão é publicada; o projeto atualiza com `claude plugin update forge@forge` (numa branch do projeto, com PR, quando houver ajuste local).
-5. Nunca copie agentes ou skills do Forge para `.claude/agents/` ou `.claude/skills/` do projeto para "consertar rápido": isso cria uma versão paralela que diverge da fábrica.
+Melhoria de fábrica descoberta **em qualquer projeto** (retroalimentação do Forge) → skill `contribuir-com-o-forge`: clone próprio em `~/.forge-contrib/<projeto>`, PR **para a `develop` do Forge**, sem editar o cache do plugin. Regras que valem sempre:
+1. Diga ao usuário que ela vai para o Forge; no projeto atual, nada muda por causa dela.
+2. Fluxo do Forge: `melhoria/*` → **`develop`** → **`homolog`** → **`main`**. Nada no Forge consome API paga nem serviço cobrado; nada que custe dinheiro entra sem autorização expressa do usuário. O `forge:tech-lead` mescla na `develop` e promove `develop` → `homolog` com todos os checks verdes; **a promoção `homolog` → `main` é um PR que só o usuário mescla**. Nada pula degrau e ninguém envia direto para essas branches (o hook bloqueia).
+3. **Todos os projetos usam só a `main` do Forge.** A melhoria chega a eles depois que o usuário mescla na `main` e a versão é publicada; o projeto atualiza com `claude plugin update forge@forge` (numa branch do projeto, com PR, quando houver ajuste local).
+4. Nunca copie agentes ou skills do Forge para `.claude/agents/` ou `.claude/skills/` do projeto para "consertar rápido": isso cria uma versão paralela que diverge da fábrica.
 
 **Autonomia para melhorar o Forge e os projetos (concedida pelo usuário).** O time não precisa pedir licença para melhorar: quando você, o `agile-coach`, o `tech-lead` ou qualquer agente identificar uma melhoria — numa retrospectiva, num review ou no meio de uma entrega —, implemente numa branch e abra o PR **no repositório certo**, mantendo a separação acima:
-- melhoria de **fábrica** (processo, agente, skill, modelo, teste ou CI do Forge) → PR no **Forge**;
+- melhoria de **fábrica** (processo, agente, skill, modelo, teste ou CI do Forge) → PR no **Forge** (skill `contribuir-com-o-forge`);
 - melhoria **técnica do projeto** (testes, refatoração, ferramentas, documentação, CI e desempenho do sistema, exceções locais registradas no `CLAUDE.md`) → PR no **projeto**;
 - uma mudança que tenha as duas partes vira **dois PRs**, um em cada repositório.
 
