@@ -2,8 +2,8 @@
 tipo: review
 contrato: 1
 pedido: release-0.5.0
-branch: develop
-commit: 0c19c90
+branch: melhoria/correcoes-release-0.5.0
+commit: d054993
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-12
@@ -45,3 +45,45 @@ Nenhum.
 11. `docs/regras/README.md:11-14`: `R-WIP`, `R-TETO`, `R-QA` e `R-REVIEW` aparecem como "Verificada por: revisão", mas agora também são verificadas por hook. Sugestão: atualizar a coluna e o `verificada_por` das páginas.
 12. `templates/projeto/.forge/config.json:3` e `hooks/_comum.py:134`: os padrões de `pesados` citam ferramentas específicas (`playwright`, `pytest`) no núcleo. Isso é aceitável como exemplo neutro de "comando pesado", mas pela ADR 0001 o lugar mais coerente seria o `pronto.md` de cada stack. Sugestão: deixar a lista padrão vir do pacote da stack no `forge-init`.
 13. `.github/workflows/release.yml:9`: `contents: write` com `persist-credentials` padrão enquanto os testes rodam. Roda só na `main`, com código já revisado, mas `persist-credentials: false` no checkout custa pouco.
+
+## Revalidação (d054993)
+
+Escopo: `git diff b20c2cc..d054993` na branch `melhoria/correcoes-release-0.5.0`, só as correções dos achados 1-11 e 13 (o 12 ficou fora do pedido e segue para a próxima versão). Leitura do código, 82 testes verdes, `shellcheck` verde nos scripts alterados e sondas manuais dos hooks `parecer` e `pesado` num repositório temporário (15 linhas de comando no `parecer`, 10 eventos no `pesado`).
+
+Parecer: **aprovado**. Nenhum achado crítico, alto ou médio novo, nenhuma regressão. O achado 4 continua como condição para o PR `homolog` → `main`.
+
+### Achados anteriores
+| # | Situação | Observação |
+|---|---|---|
+| 1 | corrigido | A trava não bloqueia a mesma sessão e o mesmo agente (`mesma_sessao`). Sem o `Post`, expira em 10 min (`TRAVA_S`), o `PermissionDenied` também solta e a mensagem diz como liberar. Fixtures cobrem os quatro casos. |
+| 2 | corrigido | `checkout`/`switch` na mesma linha (inclusive com `-q`, `-C` e `;`) e `git pull <remoto> <branch>`, também com `--rebase`, bloqueiam sem parecer (sondado). Os limites restantes estão em `docs/hooks.md`. |
+| 3 | corrigido | A migração marca com `contrato: 0` só os documentos sem frontmatter das três pastas, preserva CRLF e é idempotente, com teste. |
+| 4 | parcial | As fontes oficiais do formato exec e dos eventos estão em `docs/hooks.md`, e o `timeout` é verificado por teste. Continua faltando a conferência numa sessão real (`.forge/run/agentes.json` criado, e agora também o `PermissionDenied` soltando a trava). Ela fica como condição do PR `homolog` → `main`. |
+| 5 | corrigido | Um só `git` no `forge-check`, com `timeout` e sem `GIT_*`. Os hooks delegam a ele (`lru_cache` no carregamento), e o `TimeoutExpired` vira mensagem no CLI e liberação nos hooks. |
+| 6 | corrigido | Num projeto antigo, o `forge-init` grava `0.0.0` e orienta rodar o `forge-upgrade`, que aplica as migrações acima de `0.0.0`. Tem teste. |
+| 7 | corrigido | O padrão casa no início de um comando simples, depois de variáveis e lançadores. `grep playwright` e `npm i -D @playwright/test` liberam, e `cd web && VAR=1 npx playwright test` conta. |
+| 8 | corrigido | `--raiz` funciona depois do subcomando, e o aviso de migração pendente vai para o stderr sem mudar o código de saída. |
+| 9 | corrigido | Uma linha malformada vira violação legível, e o `t` só é copiado quando está em ISO 8601. |
+| 10 | corrigido | O `.gitignore` só recebe acréscimos (`"ab"`), com a quebra de linha do arquivo. |
+| 11 | corrigido | A tabela de `docs/regras/README.md` e as quatro páginas registram "revisão, hook". |
+| 13 | corrigido | `persist-credentials: false` no checkout da release. |
+
+### Exceção de neutralidade (`tests/config.json`)
+Ela é aceitável. `docs/reviews/` e `docs/qa/` são registros históricos de uma entrega e citam ferramentas porque descrevem o que foi revisado (o achado 12 cita `playwright` de propósito). Não são instrução para agente nem modelo de projeto, e seguem o mesmo raciocínio de `docs/adr/`, que já era ignorada. Nomes de projeto continuam barrados nessas pastas, porque `termos_proibidos` é outro teste e não usa esse `ignorar`. Condição: nenhum agente, skill ou modelo deve apontar para um parecer como referência de prática. Uma regra que nascer de um parecer vai para `docs/regras/` ou para uma skill, onde a neutralidade vale.
+
+### Achados novos
+
+#### Crítico
+Nenhum.
+
+#### Alto
+Nenhum.
+
+#### Médio
+Nenhum.
+
+#### Baixo
+14. `hooks/parecer.py` (`troca_de_branch`): `git checkout develop app.js` restaura um arquivo e não troca de branch, mas é tratado como troca. Na sequência, `&& git merge feature/x` é bloqueado mesmo a partir de uma branch de trabalho (sondado: exit 2). O erro é de falso bloqueio, que é o lado seguro. Sugestão: tratar como troca de branch só quando houver um único posicional, ou quando houver `--` (o caso que já existe).
+15. `hooks/parecer.py` (`merge`): `git pull <remoto> <branch>` de uma branch que ainda não foi buscada (sem `refs/remotes/<remoto>/<branch>` local) libera, porque `existe` falha e o hook não tem o que validar (sondado: exit 0). `git rebase`, `git reset --hard <branch>` e `git cherry-pick` na branch de integração também passam. Os dois casos estão fora de "Limites conhecidos". Sugestão: registrá-los em `docs/hooks.md` (a fronteira continua sendo o pre-push, o CI e a proteção de branch).
+16. `hooks/pesado.py` (`mesma_sessao`): como a trava não bloqueia a própria sessão, a mesma sessão pode disparar várias tarefas pesadas em paralelo, por exemplo duas em `run_in_background`. Cada `Pre` também sobrescreve a trava com o `tool_use_id` mais recente, e o `Post` do último solta a trava enquanto um anterior ainda roda. É a escolha sugerida no achado 1 e o risco é pequeno. Sugestão: registrar em "Limites conhecidos" que `R-TETO`, dentro da mesma sessão, continua sendo responsabilidade do agente.
+17. `docs/hooks.md` ("Formato e fontes"): o próprio texto diz que o `PermissionDenied` cobre a negação do modo automático. Quando o usuário nega no diálogo interativo, a trava continua sem par e só é contida pelos 10 min e pela regra da mesma sessão. Isso basta, mas vale deixar explícito na seção de estado.

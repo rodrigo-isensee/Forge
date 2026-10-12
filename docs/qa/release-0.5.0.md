@@ -3,14 +3,13 @@ tipo: qa
 contrato: 1
 pedido: release-0.5.0
 branch: develop
-commit: 0c19c90
+commit: d054993
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 1
-aceite_usuario: nao
+bugs_baixos: 0
 data: 2026-10-12
 ---
 # QA: release 0.5.0 (develop 0c19c90 para main 0.2.1)
@@ -44,7 +43,7 @@ Execução real em diretórios temporários (nenhum projeto da máquina tocado, 
 | CT-14 | `verificar-contribuicao.sh` em clone descartável | OK: branch limpa exit 0; com sk-, ghp_, AKIA, `senha =`, `.env` (forçado), `/home/<usuario>/` exit 1, sem imprimir os valores; `forge:exemplo` ignorado; base inexistente exit 2. |
 
 ## Bugs
-### B-01 (baixa, responsável: node-backend/qualquer mantenedor de scripts) `jarvis --help` não existe
+### B-01 (baixa, corrigido e revalidado em d054993) `jarvis --help` não existe
 Passos: `scripts/jarvis --help`. Esperado: uso do atalho (o cabeçalho documenta `jarvis [--sem-tmux] [projeto]`). Obtido: `--help` é tratado como nome de projeto e falha com `cd: /home/<usuario>/--help: No such file or directory`, exit 1. Sem dano; contorno simples (ler o cabeçalho). Observação: o README não promete `--help`.
 
 ## Observações (não são bugs)
@@ -53,4 +52,31 @@ Passos: `scripts/jarvis --help`. Esperado: uso do atalho (o cabeçalho documenta
 - O hook `pesado` trata duas chamadas sem `tool_use_id` como a mesma; no Claude Code o campo sempre existe.
 
 ## Veredito
-Aprovado: nenhum bug crítico, alto ou médio; 1 baixo aberto, que pede `aceite_usuario: sim` do usuário para entrar na release (por isso o campo está `nao`).
+Aprovado na execução completa em 0c19c90 com 1 bug baixo (B-01), corrigido em d054993 e revalidado abaixo. Sem bugs abertos.
+
+## Revalidação (d054993)
+Escopo incremental: B-01 e o que as correções do review tocam. Tudo em diretórios temporários, `claude` e `tmux` substituídos por stubs (nenhuma sessão aberta, sem custo), git isolado.
+
+| Cenário | Resultado real |
+|---|---|
+| Suíte: `python3 -m unittest discover -s tests` | 82 testes, OK |
+| `shellcheck` na lista do CI | sem achados |
+| `claude plugin validate . --strict` | Validation passed |
+| `bash tests/e2e-instalacao.sh` | ok (8 agentes, 9 skills, projeto inicializado) |
+| B-01: `jarvis --help` e `-h` | exit 0, imprime o uso; stub do `claude` não chamado. B-01 corrigido. |
+| B-01: `jarvis --foo` | exit 2, "opção desconhecida: --foo (veja jarvis --help)"; `jarvis-forge --help` exit 0 e `--foo` exit 2 |
+| Pesado: mesma sessão sem `Post` | `npx playwright test` e depois `docker compose up -d` na mesma sessão: exit 0 nos dois (trava não prende a própria sessão); `grep -r playwright` e `npm i -D @playwright/test` exit 0 |
+| Pesado: outra sessão com PID vivo, 2 min | `npx playwright test` exit 2 `R-TETO` (outra sessão ainda é bloqueada) |
+| Pesado: trava de outra sessão sem `Post`, 700 s | exit 0 (expirou, limite de 600 s) |
+| Pesado: outra sessão viva, comandos leves | `grep playwright x` e `npm i -D @playwright/test` exit 0 (não contam como pesado) |
+| Parecer: `git checkout develop && git merge feature/x` sem parecer | exit 2 `R-REVIEW` |
+| Parecer: `git pull origin feature/x` na develop sem parecer | exit 2 `R-REVIEW` |
+| Parecer: os dois comandos com review e QA aprovados e `forge-check pr` limpo | exit 0 nos dois |
+| Migração 0.5.0 em projeto antigo (sem `.forge/`, review sem frontmatter, `.gitignore` CRLF) | `forge-upgrade --ate 0.5.0` ok: o review ganhou `contrato: 0` com o corpo intacto; o `.gitignore` manteve CRLF e só ganhou `.forge/run/`; `forge-check docs` exit 0 |
+| Migração: idempotência | 2ª execução "já está na versão 0.5.0", sem commit novo nem diff; rodar `migrar` direto de novo deixa `.gitignore` e reviews idênticos (sha1) |
+| Migração: review com frontmatter incompleto (caso extra) | não é alterado e `forge-check docs` o acusa com mensagem legível (esperado) |
+| `forge-init` de novo em projeto antigo sem `.forge/versao` | grava `0.0.0`; `forge-upgrade --simular` o trata como pendente; projeto novo continua com a versão do plugin (0.4.1) |
+| `forge-check docs --raiz X` (depois do subcomando) | exit 0, igual a `--raiz X docs` |
+| `transcricao verificar` com linha não JSON, JSON sem `ev` e JSON que não é objeto | exit 1 com 3 mensagens legíveis ("evento N inválido: ..."), sem traceback |
+
+Veredito da revalidação: aprovado. Nenhum bug novo; 0 críticos, 0 altos, 0 médios, 0 baixos abertos. Os itens 4 (`args` e `${CLAUDE_PLUGIN_ROOT}` no Claude Code real), 5, 12 e 13 do review não foram revalidados aqui: dependem de sessão real ou não mudam comportamento.
