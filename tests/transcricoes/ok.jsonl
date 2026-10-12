@@ -1,0 +1,7 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code 2.0.0"}
+{"ev": "agente", "t": "2026-01-01T10:00:01Z", "id": "a1", "tipo": "forge:tech-lead", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "fim", "t": "2026-01-01T10:05:00Z", "id": "a1"}
+{"ev": "agente", "t": "2026-01-01T10:00:02Z", "id": "a2", "tipo": "forge:qa-engineer", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "fim", "t": "2026-01-01T10:06:00Z", "id": "a2"}
+{"ev": "cmd", "t": "2026-01-01T11:00:01Z", "cmd": "git push <branch>", "branch": "<branch>"}
+{"ev": "cmd", "t": "2026-01-01T11:00:02Z", "cmd": "gh pr create", "branch": "<branch>"}

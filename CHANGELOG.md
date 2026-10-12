@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- `forge-check transcricao anonimizar|verificar` (ADR 0007): anonimiza por lista de permissão uma sessão gravada e confere `R-TETO`, `R-MAIN`, `R-REVIEW`, `R-QA` e o prompt-padrão de delegação, sem IA e sem rede. Casos sintéticos em `tests/transcricoes/`, testes `Transcricoes`, neutralidade estendida a essa pasta e guia em `docs/transcricoes.md`.
 - Núcleo neutro e pacotes de stack (ADR 0001): `stacks/node-react/` com os agentes `node-backend` e `react-frontend` (mesmos nomes, `forge:node-backend` e `forge:react-frontend` continuam valendo), as skills de mesmo nome, `seguranca.md` (checklists de API Node, front React, banco e cadeia de suprimentos) e `pronto.md` (comando "pronto" sugerido, convenções de código, pirâmide de testes e arquitetura de referência). Sem migração: projeto sem a seção "Stack" no `CLAUDE.md` é tratado como `node-react`.
 - `plugin.json` lista cada agente (`agents`) e cada skill de stack (`skills`); a lista de `agents` substitui a varredura de `agents/`, e um teste confere que nada fica de fora.
 - `forge-init --stack <nome>` (padrão `node-react`): preenche a seção "Stack" do `CLAUDE.md` e usa o "pronto" sugerido pela stack quando `--pronto` não é informado.

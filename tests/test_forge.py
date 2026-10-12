@@ -45,7 +45,7 @@ def skills_do_plugin():
 
 
 def arquivos_texto():
-    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "tests/transcricoes"):
         for p in (RAIZ / pasta).rglob("*"):
             if p.is_file():
                 yield p
@@ -828,3 +828,77 @@ class Orcamento(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Transcricoes(unittest.TestCase):
+    """ADR 0007: verificador offline de sessões gravadas, sem IA e sem rede."""
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", *args],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def caso(self, nome, *args):
+        return self.rodar("verificar", str(RAIZ / "tests/transcricoes" / nome), *args)
+
+    def test_sessao_correta_passa(self):
+        self.assertEqual(self.caso("ok.jsonl"), (0, ""))
+
+    def test_viola_teto(self):
+        cod, saida = self.caso("viola-teto.jsonl")
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.strip(), "transcricao: R-TETO: 4 agentes em segundo plano, teto 3 (evento 4)")
+
+    def test_teto_configuravel(self):
+        self.assertEqual(self.caso("viola-teto.jsonl", "--teto", "4")[0], 0)
+
+    def test_viola_main(self):
+        cod, saida = self.caso("viola-main.jsonl")
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.count("R-MAIN"), 2)
+
+    def test_pr_sem_review_nem_qa_e_prompt_incompleto(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "t.jsonl"
+        secoes = {n: n != "Ler" for n in ("Objetivo", "Ler", "Entregar", "Decisões e restrições", "Pronto quando", "Relatório")}
+        linhas = [{"formato": "forge-transcricao/1", "origem": "x"},
+                  {"ev": "agente", "t": "", "id": "a1", "tipo": "forge:node-backend", "bg": False, "secoes": secoes},
+                  {"ev": "cmd", "t": "", "cmd": "gh pr create", "branch": "<branch>"}]
+        arq.write_text("\n".join(json.dumps(l) for l in linhas) + "\n", encoding="utf-8")
+        cod, saida = self.rodar("verificar", str(arq))
+        self.assertEqual(cod, 1)
+        for rid in ("PROMPT-PADRAO", "R-REVIEW", "R-QA"):
+            self.assertIn(rid, saida)
+
+    def test_anonimizador_so_deixa_a_lista_de_permissao(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        prompt = ("## Objetivo\nProjeto Zephyrus de ana.silva@exemplo.org em /home/ana/Zephyrus\n## Ler\nx\n"
+                  "## Entregar\nx\n## Decisões e restrições\nx\n## Pronto quando\nx\n## Relatório\nx")
+        brutos = [
+            {"type": "user", "timestamp": "t0", "version": "9.9.9", "message": {"content": "segredo do usuario Zephyrus"}},
+            {"type": "assistant", "timestamp": "t1", "gitBranch": "melhoria/zephyrus-x", "message": {"content": [
+                {"type": "text", "text": "texto livre do assistente em /home/ana/"},
+                {"type": "tool_use", "id": "u1", "name": "Agent", "input": {
+                    "subagent_type": "zephyrus-dev", "run_in_background": "true", "prompt": prompt}},
+                {"type": "tool_use", "id": "u2", "name": "Bash", "input": {
+                    "command": "cd /home/ana/Zephyrus && git -C /home/ana/Zephyrus push origin melhoria/zephyrus-x "
+                               "&& git config user.email ana.silva@exemplo.org && gh pr create --body 'Zephyrus'"}},
+                {"type": "tool_use", "id": "u3", "name": "Read", "input": {"file_path": "/home/ana/Zephyrus/segredo.txt"}}]}},
+            {"type": "user", "timestamp": "t2", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "u1", "content": "Async agent launched /home/ana/Zephyrus"}]}},
+            {"type": "queue-operation", "timestamp": "t3", "content":
+                "<task-notification><tool-use-id>u1</tool-use-id><summary>ana.silva@exemplo.org</summary></task-notification>"},
+        ]
+        entrada, saida = tmp / "e.jsonl", tmp / "s.jsonl"
+        entrada.write_text("\n".join(json.dumps(b) for b in brutos), encoding="utf-8")
+        self.assertEqual(self.rodar("anonimizar", str(entrada), str(saida))[0], 0)
+        texto = saida.read_text(encoding="utf-8")
+        for proibido in ("ana", "@", "/home", "Zephyrus", "zephyrus", "segredo", "texto livre", "Read"):
+            self.assertNotIn(proibido, texto)
+        eventos = [json.loads(l) for l in texto.splitlines()][1:]
+        self.assertEqual([e["ev"] for e in eventos], ["agente", "cmd", "cmd", "fim"])
+        self.assertEqual(eventos[0]["tipo"], "<agente>")
+        self.assertEqual([e["cmd"] for e in eventos[1:3]], ["git push <branch>", "gh pr create"])
+        self.assertTrue(all(eventos[0]["secoes"].values()))
