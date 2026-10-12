@@ -544,6 +544,152 @@ class VerificarContribuicao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
 
 
+class ForgeCheck(unittest.TestCase):
+    """ADR 0004: validador do contrato entre agentes, em um projeto git temporário."""
+
+    REVIEW = ("tipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\n"
+              "parecer: {p}\nrevisor: forge:tech-lead\ndata: 2026-10-12\n")
+    QA = ("tipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: {p}\n"
+          "escopo: completo\nbugs_criticos: 0\nbugs_altos: {a}\nbugs_medios: {m}\nbugs_baixos: 0\n"
+          "data: 2026-10-12\n{extra}")
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-check-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        git("init", "-q", "-b", "melhoria/x", cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=self.tmp)
+        git("config", "user.name", "Teste", cwd=self.tmp)
+        self.escrever("src/app.txt", "v1\n")
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "base", cwd=self.tmp)
+
+    def escrever(self, rel, texto):
+        p = self.tmp / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(texto, encoding="utf-8")
+
+    def head(self):
+        return git("rev-parse", "HEAD", cwd=self.tmp).stdout.strip()
+
+    def commitar(self):
+        git("add", "-A", cwd=self.tmp)
+        git("commit", "-q", "-m", "mudanca", cwd=self.tmp)
+
+    def pareceres(self, commit, p="aprovado", a=0, m=0, extra=""):
+        self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
+        self.escrever("docs/qa/p1.md", "---\n" + self.QA.format(c=commit, p=p, a=a, m=m, extra=extra) + "---\n# q\n")
+
+    def check(self, *args):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
+                           env=ambiente_limpo(), capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def test_docs_validos_e_ignorados(self):
+        self.pareceres(self.head())
+        self.escrever("docs/qa/antigo.md", "---\ntipo: qa\ncontrato: 0\n---\nsem campos\n")
+        self.escrever("docs/reviews/_modelo.md", "sem frontmatter\n")
+        self.escrever("docs/architecture/features/f.md", "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p1\n"
+                      "estado: vigente\nux: docs/ux/f.md\nadrs: [0001, 0002]\nagentes: [node-backend]\n---\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def test_docs_invalidos(self):
+        casos = {
+            "sem frontmatter": ("docs/reviews/a.md", "texto\n", "frontmatter"),
+            "aninhamento": ("docs/reviews/a.md", "---\ntipo: review\ncontrato: 1\n  filho: x\n---\n", "frontmatter"),
+            "campo ausente": ("docs/reviews/a.md", "---\ntipo: review\ncontrato: 1\n---\n", "pedido: obrigatório"),
+            "parecer inválido": ("docs/reviews/a.md", "---\n" + self.REVIEW.format(c="abc1234", p="talvez") + "---\n",
+                                 "parecer: use aprovado"),
+            "qa com bug alto": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=1, m=0, extra="") + "---\n",
+                                "bugs_altos: parecer aprovado exige 0"),
+            "qa médio sem aceite": ("docs/qa/a.md", "---\n" + self.QA.format(c="abc1234", p="aprovado", a=0, m=2, extra="") + "---\n",
+                                    "aceite_usuario"),
+            "plano com estado ruim": ("docs/architecture/features/a.md",
+                                      "---\ntipo: plano-tecnico\ncontrato: 1\npedido: p\nestado: x\nux: u\nadrs: []\nagentes: [a]\n---\n",
+                                      "estado: use proposta"),
+        }
+        for nome, (rel, texto, trecho) in casos.items():
+            with self.subTest(nome):
+                self.escrever(rel, texto)
+                codigo, saida = self.check("docs")
+                self.assertEqual(codigo, 1)
+                self.assertIn(trecho, saida)
+                self.assertRegex(saida, r"^\S+\.md: \S+: .+ \((R-[A-Z]+|ADR-0004)\)$".replace("^", "(?m)^", 1))
+                (self.tmp / rel).unlink()
+
+    def test_qa_medio_com_aceite_vale(self):
+        self.pareceres(self.head(), m=2, extra="aceite_usuario: sim\n")
+        self.assertEqual(self.check("docs"), (0, ""))
+
+    def kanban(self, corpo):
+        cab = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+        self.escrever("KANBAN.md", "# Quadro\n\n" + corpo.format(cab=cab))
+
+    def test_kanban_modelo_do_forge_e_valido(self):
+        self.assertEqual(subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz",
+                                         str(RAIZ / "templates/projeto"), "kanban"], capture_output=True, text=True).returncode, 0)
+
+    def test_kanban_valido(self):
+        self.kanban("## QA (WIP 2)\n{cab}| C1 | a | p1 | forge:qa-engineer | d | d | |\n| C2 | b | p1 | usuário | d | d | |\n"
+                    "## Em andamento (WIP 1 por agente)\n{cab}| C3 | c | p1 | forge:node-backend | d | d | |\n")
+        self.assertEqual(self.check("kanban"), (0, ""))
+
+    def test_kanban_invalido(self):
+        casos = {
+            "id repetido": ("## Pronto\n{cab}| C1 | a | p | usuário | d | d | |\n| C1 | b | p | usuário | d | d | |\n", "repetido"),
+            "responsável": ("## Pronto\n{cab}| C1 | a | p | Fulano | d | d | |\n", "Responsável"),
+            "wip da coluna": ("## QA (WIP 1)\n{cab}| C1 | a | p | usuário | d | d | |\n| C2 | b | p | usuário | d | d | |\n", "limite 1"),
+            "wip por agente": ("## Em andamento (WIP 1 por agente)\n{cab}| C1 | a | p | forge:node-backend | d | d | |\n"
+                               "| C2 | b | p | forge:node-backend | d | d | |\n", "por agente"),
+            "colunas": ("## Pronto\n| ID | Cartão |\n|---|---|\n", "colunas diferentes"),
+        }
+        for nome, (corpo, trecho) in casos.items():
+            with self.subTest(nome):
+                self.kanban(corpo)
+                codigo, saida = self.check("kanban")
+                self.assertEqual(codigo, 1)
+                self.assertIn(trecho, saida)
+                self.assertIn("(R-WIP)", saida)
+
+    def test_pr_aprovado_no_head(self):
+        self.pareceres(self.head())
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_sem_pareceres(self):
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("(R-REVIEW)", saida)
+        self.assertIn("(R-QA)", saida)
+
+    def test_pr_commit_valido_se_so_parecer_e_quadro_mudaram(self):
+        base = self.head()
+        self.pareceres(base)
+        self.escrever("KANBAN.md", "# Quadro\n")
+        self.commitar()
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_commit_desatualizado(self):
+        base = self.head()
+        self.pareceres(base)
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar()
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("src/app.txt mudou depois do parecer", saida)
+        self.assertIn("(R-QA)", saida)
+
+    def test_pr_parecer_reprovado_ou_commit_inexistente(self):
+        self.pareceres(self.head(), p="reprovado")
+        self.assertIn("não é aprovado", self.check("pr", "p1")[1])
+        self.pareceres("deadbeef")
+        self.assertIn("commit não existe", self.check("pr", "p1")[1])
+
+    def test_pr_qa_com_bug_alto_falha(self):
+        self.pareceres(self.head(), a=1)
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("bugs_altos", saida)
+
+
 class Orcamento(unittest.TestCase):
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
