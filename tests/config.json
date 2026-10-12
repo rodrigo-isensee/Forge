@@ -8,6 +8,11 @@
     "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
     "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
   ],
+  "anti_duplicacao": {
+    "palavras": 12,
+    "pastas": ["agents", "skills", "stacks", "templates", "docs"],
+    "excecoes": []
+  },
   "invariantes": {
     "agents/jarvis.md": [
       "## Fábrica × projeto: onde cada mudança vai",

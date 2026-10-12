@@ -2,7 +2,7 @@
 
 Propósito: índice das regras com ID; cada uma tem um texto só, na sua página. Público: todo o time e quem mantém o Forge. Revisão: 2026-10-12.
 
-Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos citam o ID com o nome curto (ex.: "`R-MAIN` a main é do usuário"); o texto completo fica só aqui. IDs estáveis, nunca reaproveitados; regra nova ganha o próximo ID livre. O teste `AntiDuplicacao` falha se um trecho de 12 palavras de uma regra aparecer fora da sua página.
+Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos citam o ID com o nome curto (ex.: "`R-MAIN` a main é do usuário"); o texto completo fica só aqui. IDs estáveis, nunca reaproveitados; regra nova ganha o próximo ID livre. O teste `AntiDuplicacao` falha se um trecho de 12 palavras de uma regra aparecer fora da sua página; exceções (falso positivo em frase genérica) ficam em `anti_duplicacao.excecoes` de `tests/config.json`, revisadas no PR.
 
 | ID | Regra | Verificada por |
 |---|---|---|

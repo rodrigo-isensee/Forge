@@ -134,6 +134,56 @@ class RegrasInviolaveis(unittest.TestCase):
                     self.assertRegex(texto, re.compile(t, re.S))
 
 
+REGRAS = RAIZ / "docs" / "regras"
+
+
+def palavras(texto: str) -> list:
+    """Normaliza para comparar redações: minúsculas, sem pontuação nem marcação."""
+    return re.findall(r"\w+", texto.lower())
+
+
+def corpo_da_regra(caminho: Path) -> str:
+    """Texto da regra sem frontmatter, título e linha de propósito (iguais em todas por formato)."""
+    texto = re.sub(r"^---\n.*?\n---\n", "", caminho.read_text(encoding="utf-8"), flags=re.S)
+    return "\n".join(l for l in texto.splitlines() if not l.startswith(("# ", "Propósito:")))
+
+
+def sequencias(texto: str, n: int) -> set:
+    p = palavras(texto)
+    return {" ".join(p[i:i + n]) for i in range(len(p) - n + 1)}
+
+
+class AntiDuplicacao(unittest.TestCase):
+    """ADR 0002: o texto de cada regra vive só em docs/regras/R-<ID>.md; os outros arquivos citam o ID."""
+
+    def setUp(self):
+        cfg = CONFIG["anti_duplicacao"]
+        self.n = cfg["palavras"]
+        self.pastas = cfg["pastas"]
+        self.excecoes = {" ".join(palavras(e)) for e in cfg["excecoes"]}
+
+    def test_detector_acha_copia(self):
+        fonte = "Nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push na main do projeto."
+        copia = "Lembrete: nenhum agente faz COMMIT merge rebase reset cherry-pick ou push na `main` do projeto!"
+        self.assertTrue(sequencias(fonte, self.n) & sequencias(copia, self.n))
+        self.assertFalse(sequencias(fonte, self.n) & sequencias("`R-MAIN` a main é do usuário", self.n))
+
+    def test_regra_so_na_fonte(self):
+        fontes = sorted(REGRAS.glob("R-*.md"))
+        self.assertTrue(fontes, "docs/regras sem regras")
+        alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
+                 for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
+        for fonte in fontes:
+            trechos = sequencias(corpo_da_regra(fonte), self.n) - self.excecoes
+            for alvo, seqs in textos.items():
+                if alvo == fonte:
+                    continue
+                comum = trechos & seqs
+                with self.subTest(regra=fonte.name, arquivo=str(alvo.relative_to(RAIZ))):
+                    self.assertFalse(comum, f"texto da regra copiado; cite o ID. Ex.: \"{min(comum, default='')}\"")
+
+
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda."""
