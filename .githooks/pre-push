@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Forge: develop, homolog e main só mudam por pull request (develop e homolog mesclados pelo tech-lead
 # com os testes verdes; main mesclada pelo usuário). Ninguém envia direto para elas.
+# Diferente do hook do modelo de projeto (só main): a fábrica tem três degraus protegidos.
 while read -r _ _ remote_ref _; do
   case "$remote_ref" in
     refs/heads/main|refs/heads/homolog|refs/heads/develop)
