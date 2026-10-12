@@ -33,7 +33,7 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 
 ## Checklist de code review
 1. Faz o que o cartão/especificação pede — nem mais, nem menos?
-2. Segue a arquitetura e os ADRs? Respeita as regras invioláveis do `CLAUDE.md`?
+2. Segue a arquitetura e os ADRs? Respeita as regras invioláveis do `CLAUDE.md` e as regras da fábrica (`docs/regras/`)?
 3. Legível sem explicação? Nomes, tamanho das funções, duplicação.
 4. Tipos corretos, entradas validadas, erros tratados?
 5. Segurança: segredos, injeção, autorização, dados pessoais.
@@ -45,13 +45,12 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · sugestão · severidade: bloqueia / recomendado).
 
 ## Git e commits
-- Branches a partir da `main` atualizada: `feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug.
+- Branches: `R-FLUXO` branches e promoção (prefixos `feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug).
 - Conventional Commits em português: `tipo(escopo): descrição no imperativo`. Tipos: feat, fix, docs, test, refactor, perf, chore, ci.
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, `node_modules`, builds, relatórios de teste.
-- Para trazer a `main`: `git fetch` + `git merge origin/main` na branch. Sem `--force` em branch compartilhada.
+- Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main
-- **A `main` só muda por pull request validado e mesclado pelo usuário.** Nenhum agente faz commit, merge ou push na `main`.
-- Hook `pre-push` em `.githooks/` recusa envio para a `main`; o repositório usa `git config core.hooksPath .githooks`.
+- `R-MAIN` a main é do usuário (hook `pre-push` em `.githooks/` incluído).
 - Descrição do PR: objetivo e link do pedido · o que mudou · decisões técnicas e ADRs · como testar · parecer do QA (link) · parecer de code review (link) · riscos e pendências.

@@ -6,36 +6,35 @@ description: Práticas de Kanban e Scrum do time - estrutura do quadro KANBAN.md
 # Kanban e Scrum do time
 
 ## Quadro (`KANBAN.md`, na raiz)
-Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**.
+Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`).
 
 **Upstream — descoberta (Design Thinking, conduzido pelo `ux-designer`)**
 
-| Coluna | Entra quando | Limite de WIP |
-|---|---|---|
-| **Entrada** | Pedido registrado em `docs/pedidos/` | — |
-| **Empatizar e definir** | UX e arquiteto começaram o discovery | 2 |
-| **Idear e prototipar** | Problema definido e aceito | 2 |
-| **Validação do usuário** | Protótipo pronto, aguardando o usuário | — |
+| Coluna | Entra quando |
+|---|---|
+| **Entrada** | Pedido registrado em `docs/pedidos/` |
+| **Empatizar e definir** | UX e arquiteto começaram o discovery |
+| **Idear e prototipar** | Problema definido e aceito |
+| **Validação do usuário** | Protótipo pronto, aguardando o usuário |
 
-▶ **Ponto de compromisso:** protótipo validado pelo usuário. Correções e tarefas técnicas sem interface entram direto em "Pronto para fazer".
+▶ **Ponto de compromisso:** protótipo validado pelo usuário (`R-DISCOVERY` todo pedido começa com discovery; lá está o que entra direto em "Pronto para fazer").
 
 **Downstream — entrega**
 
-| Coluna | Entra quando | Limite de WIP |
-|---|---|---|
-| **Pronto para fazer** | Validado, quebrado em cartões, critério de pronto claro | 5 |
-| **Em andamento** | Um agente começou a implementar | 1 por agente |
-| **Code review** | Implementação entregue ao `tech-lead` | 2 |
-| **QA** | Code review aprovado | 2 |
-| **Aguardando sua validação** | QA aprovado, branch enviada, PR pronto para o usuário | 2 |
-| **Pronto** | Usuário validou e fez o merge na `main` | — |
-| **Bloqueado** | Dependência externa ou decisão pendente (registrar motivo e coluna de origem) | conta no WIP da origem (exceção: cartão pai aguardando bugs, ver "Bugs e retrabalho") |
+| Coluna | Entra quando |
+|---|---|
+| **Pronto para fazer** | Validado, quebrado em cartões, critério de pronto claro |
+| **Em andamento** | Um agente começou a implementar |
+| **Code review** | Implementação entregue ao `tech-lead` |
+| **QA** | Code review aprovado |
+| **Aguardando sua validação** | QA aprovado, branch enviada, PR pronto para o usuário |
+| **Pronto** | Usuário validou e fez o merge na `main` |
+| **Bloqueado** | Dependência externa ou decisão pendente (registrar motivo e coluna de origem) |
 
 Políticas:
-- Puxar, não empurrar: só entra numa coluna se houver vaga no WIP.
-- Terminar antes de começar: com WIP cheio, o time ajuda a destravar o que existe.
-- Nenhuma coluna é pulada no downstream: todo cartão passa por Code review e QA.
-- Só o usuário move um cartão para "Pronto" (ao fazer o merge).
+- Puxar, não empurrar; terminar antes de começar (`R-WIP`).
+- Nenhuma coluna é pulada no downstream (`R-REVIEW` code review antes do QA; `R-QA` portão de QA).
+- "Pronto" só com o merge do usuário (`R-MAIN` a main é do usuário).
 - Bloqueio: o cartão vai para "Bloqueado" com a coluna de origem anotada e volta para ela.
 - Cartão devolvido no code review ou no QA volta para "Em andamento" e conta como retrabalho.
 
@@ -82,16 +81,16 @@ Todo achado de code review, revisão de UX e bug do QA volta ao autor por este p
 Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloqueantes/críticos de code review num cartão; altos de UX noutro; médios e baixos de UX juntos. Nunca um cartão por achado. Achado novo de severidade maior que a do grupo, ou de outra área, vira cartão próprio. Tamanho máximo: o que o autor entrega e o revisor lê em uma sessão; senão dividir por área.
 
 **3. Fluxo**
-- Entra em "Em andamento" com o autor original, sem passar por "Pronto para fazer". Depois: Code review, QA, e revisão de UX se houver interface (nenhuma coluna pulada; o QA roda a suíte completa).
+- Entra em "Em andamento" com o autor original, sem passar por "Pronto para fazer". Depois: Code review, QA, e revisão de UX se houver interface (nenhuma coluna pulada, `R-QA`).
 - Conta como retrabalho (métrica: cartão devolvido). O histórico registra `Code review -> Em andamento` no pai e `Entrada -> Em andamento` nos cartões de bug.
-- O cartão pai vai para "Bloqueado" (motivo: "aguardando bugs K-xxx", origem Em andamento) até todos os bugs bloqueantes, críticos e altos fecharem; só então volta e segue o fluxo com os bugs. **Exceção de WIP:** o pai aguardando bugs não conta no WIP (senão o mesmo trabalho conta duas vezes); contam os cartões de bug. A idade do pai continua correndo (cycle time não para).
+- O cartão pai vai para "Bloqueado" (motivo: "aguardando bugs K-xxx", origem Em andamento) até todos os bugs bloqueantes, críticos e altos fecharem; só então volta e segue o fluxo com os bugs. Exceção de WIP do pai: `R-WIP` (senão o mesmo trabalho conta duas vezes). A idade do pai continua correndo (cycle time não para).
 - Bug aprovado em code review e QA fecha junto com o pai: não tem "Pronto" próprio, vai com o pai para "Aguardando sua validação"; o histórico registra "Fechado com K-xxx".
 
 **4. Limites e prioridade**
-- Máximo de 3 voltas por bug (rodadas de review/QA que o reabrem). Na 3ª reprovação o Jarvis leva a decisão ao usuário; registrar no cartão "voltas: n".
+- Limite de voltas por bug: `R-QA`; registrar no cartão "voltas: n".
 - Bloqueante, crítico e alto são puxados antes de qualquer trabalho novo ("terminar antes de começar"): nada em "Pronto para fazer" ou "Entrada" é puxado enquanto houver bug dessas severidades aberto.
-- Cartões de retrabalho do mesmo autor podem ocupar até a vaga cheia do WIP (3); o agente trabalha em ordem de severidade. É a única exceção a "um cartão em Em andamento por agente".
-- Médio e baixo abertos só acompanham uma entrega ao usuário com aprovação explícita dele (portão de QA em `.claude/agents/jarvis.md`), listados no PR como pendências. Bloqueante, crítico e alto nunca seguem abertos.
+- Cartões de retrabalho do mesmo autor: exceção de `R-WIP`; o agente trabalha em ordem de severidade.
+- Quais severidades podem seguir abertas numa entrega: `R-QA` portão de QA.
 
 **5. Medição** (a partir de `historico.md`, sempre do processo, nunca de pessoa ou agente)
 - Taxa de retrabalho: pais devolvidos / cartões que chegaram ao Code review.

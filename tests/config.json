@@ -14,11 +14,28 @@
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
       "\\*\\*em qualquer projeto\\*\\*",
       "\\*\\*Autonomia para melhorar o Forge e os projetos",
-      "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*"
+      "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
+      "`R-MAIN`",
+      "`R-FLUXO`",
+      "`R-WIP`",
+      "`R-TETO`",
+      "`R-QA`",
+      "`R-REVIEW`",
+      "`R-DISCOVERY`",
+      "`R-CUSTO`",
+      "`R-NEUTRO`",
+      "`R-COPIA`",
+      "`R-VERIFY`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
-      "quem mescla na `main` é o usuário"
+      "quem mescla na `main` é o usuário",
+      "`R-MAIN`",
+      "`R-VERIFY`",
+      "`R-FLUXO`",
+      "`R-REVIEW`",
+      "`R-CUSTO`",
+      "`R-NEUTRO`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -69,10 +86,23 @@
     ],
     "agents/agile-coach.md": [
       "nunca para avaliar um agente ou uma pessoa individualmente",
-      "vira PR no repositório \\*\\*Forge\\*\\*"
+      "vira PR no repositório \\*\\*Forge\\*\\*",
+      "`R-WIP`"
     ],
     "agents/ux-designer.md": [
-      "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*"
+      "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*",
+      "`R-DISCOVERY`"
+    ],
+    "agents/qa-engineer.md": [
+      "`R-QA`"
+    ],
+    "agents/software-architect.md": [
+      "`R-DISCOVERY`"
+    ],
+    "templates/projeto/CLAUDE.md": [
+      "`R-MAIN`",
+      "`R-VERIFY`",
+      "`R-COPIA`"
     ],
     "templates/projeto/.githooks/pre-push": [
       "refs/heads/main",
