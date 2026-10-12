@@ -1,8 +1,8 @@
 {
-  "descricao": "Trava com mais de 2 h expira.",
+  "descricao": "Trava com mais de 2 h (expiracao_horas) expira.",
   "estado": {
     "pesado.json": {
-      "pid": "{pid_vivo}",
+      "pid": "{pid_outro}",
       "comando": "npx playwright test",
       "desde": "{agora-7300}",
       "tool_use_id": "toolu_1"

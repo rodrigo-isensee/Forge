@@ -6,36 +6,16 @@ e válido para a branch (validado pelo forge-check, ADR 0004). Libera mudança s
 atualização a partir de uma branch de integração e promoção entre branches de integração.
 """
 import re
-import shlex
 from pathlib import Path
 
-from _comum import INTEGRACAO, bloquear, executar, forge_check, git, nome_da_branch, separar_regra
+from _comum import (INTEGRACAO, bloquear, executar, forge_check, git, nome_da_branch, segmentos, sem_atribuicoes,
+                     separar_regra)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\bcreate\b|\bgit\b.*\bmerge\b", re.S)
-SEPARADORES = set("();|&\n")
-REDIRECIONAMENTO = set("<>")
 MERGE_COM_VALOR = {"-m", "-F", "-s", "-X", "--message", "--file", "--strategy", "--strategy-option", "--into-name"}
 MERGE_SEM_ALVO = {"--abort", "--continue", "--quit", "--skip"}
 GIT_COM_VALOR = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
-
-
-def segmentos(comando):
-    """Divide a linha do shell em comandos simples (listas de palavras), sem executar nada."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
-    lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, pular = [], False
-    for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
-            yield atual
-            atual = []
-        elif tok and set(tok) <= REDIRECIONAMENTO:
-            pular = True
-        elif pular:
-            pular = False
-        else:
-            atual.append(tok)
-    yield atual
 
 
 def opcao(args, longa, curta):
@@ -49,8 +29,7 @@ def opcao(args, longa, curta):
 
 def analisar(toks):
     """('cd', dir) | ('pr', dir, base, head) | ('merge', dir, [refs]) | None."""
-    while toks and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[0]):
-        toks = toks[1:]
+    toks = sem_atribuicoes(toks)
     if not toks:
         return None
     if toks[0] == "cd":
