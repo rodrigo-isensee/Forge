@@ -2,6 +2,14 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Adicionado
+- Skill `contribuir-com-o-forge` e `scripts/verificar-contribuicao.sh`: qualquer agente de qualquer projeto contribui com o Forge por PR na `develop` (branch ou fork, clone em `~/.forge-contrib/<projeto>`), com varredura de segredos e caminhos pessoais no diff (ADR 0006).
+- `CONTRIBUTING.md` e `.github/pull_request_template.md`.
+### Alterado
+- Job `versao` do CI: PR para a `develop` exige linha nova em `[Não publicado]` em vez de subir a versão; PR para a `main` exige versão maior e changelog fechado.
+- Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.
+
 ## [0.4.1] - 2026-10-12
 ### Adicionado
 - `docs/adr/`: sete ADRs que guiam a evolução da fábrica: núcleo neutro e pacotes de stack (0001), uma fonte por regra com IDs (0002), hooks determinísticos e silenciosos (0003), contrato verificável entre agentes e `forge-check` (0004), migração iniciada pelo projeto (0005), contribuição de qualquer projeto com versão só na release (0006) e verificação de comportamento sem custo (0007).
