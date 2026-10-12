@@ -27,6 +27,8 @@ jarvis            # no diretório do projeto
 ## Branches
 Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápidos), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
 
+**Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
+
 ## Atualizar
 Cada versão está no `CHANGELOG.md`. Num projeto: `claude plugin update forge@forge` (numa branch, com PR se houver ajuste local).
 

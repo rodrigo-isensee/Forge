@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -132,8 +133,22 @@ class RegrasInviolaveis(unittest.TestCase):
                     self.assertRegex(texto, re.compile(t, re.S))
 
 
+def ambiente_limpo():
+    """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
+    global/de sistema: o git dos testes só enxerga o repositório temporário em que roda."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return env
+
+
 def git(*args, cwd):
-    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True)
+    return subprocess.run(["git", "-C", str(cwd), *args], cwd=cwd, env=ambiente_limpo(),
+                          check=True, capture_output=True, text=True)
+
+
+def forge_init(*args, cwd):
+    return subprocess.run(["bash", str(RAIZ / "bin/forge-init"), *args], cwd=cwd, env=ambiente_limpo(),
+                          check=True, capture_output=True, text=True)
 
 
 class ForgeInit(unittest.TestCase):
@@ -145,8 +160,7 @@ class ForgeInit(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def rodar(self, *extra):
-        return subprocess.run(["bash", str(RAIZ / "bin/forge-init"), "--nome", "Demo", "--pronto", "make pronto", *extra, str(self.tmp)],
-                              capture_output=True, text=True, check=True)
+        return forge_init("--nome", "Demo", "--pronto", "make pronto", *extra, str(self.tmp), cwd=self.tmp)
 
     def test_cria_estrutura_completa(self):
         self.rodar()
@@ -199,7 +213,7 @@ class HookPrePush(unittest.TestCase):
         git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp)
         for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
             git("config", k, v, cwd=self.repo)
-        subprocess.run(["bash", str(RAIZ / "bin/forge-init"), "--nome", "H", str(self.repo)], check=True, capture_output=True)
+        forge_init("--nome", "H", str(self.repo), cwd=self.repo)
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "inicio", cwd=self.repo)
         git("remote", "add", "origin", str(self.remoto), cwd=self.repo)
@@ -208,7 +222,8 @@ class HookPrePush(unittest.TestCase):
         shutil.rmtree(self.tmp)
 
     def push(self, ref):
-        return subprocess.run(["git", "push", "origin", ref], cwd=self.repo, capture_output=True, text=True)
+        return subprocess.run(["git", "-C", str(self.repo), "push", "origin", ref], cwd=self.repo,
+                              env=ambiente_limpo(), capture_output=True, text=True)
 
     def test_bloqueia_main(self):
         r = self.push("HEAD:main")
@@ -223,6 +238,58 @@ class HookPrePush(unittest.TestCase):
         local.write_text("#!/usr/bin/env bash\necho falhou >&2\nexit 1\n", encoding="utf-8")
         local.chmod(0o755)
         self.assertNotEqual(self.push("HEAD:feature/y").returncode, 0)
+
+
+class IsolamentoDoGit(unittest.TestCase):
+    """Regressão: dentro de um hook (ex.: pre-push numa worktree) o git exporta GIT_DIR e afins.
+    Os testes não podem herdá-los, senão escrevem no repositório real em vez do temporário."""
+
+    def test_variaveis_git_herdadas_nao_afetam_outro_repositorio(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-sentinela-"))
+        self.addCleanup(shutil.rmtree, tmp)
+        sentinela = tmp / "sentinela"
+        git("init", "-q", "-b", "trabalho", str(sentinela), cwd=tmp)
+        git("-c", "user.name=s", "-c", "user.email=s@s", "commit", "-q", "--allow-empty", "-m", "s", cwd=sentinela)
+        config = (sentinela / ".git/config").read_bytes()
+        head = git("rev-parse", "HEAD", cwd=sentinela).stdout
+        herdadas = {"GIT_DIR": str(sentinela / ".git"), "GIT_WORK_TREE": str(sentinela),
+                    "GIT_INDEX_FILE": str(sentinela / ".git/index")}
+        with mock.patch.dict(os.environ, herdadas):
+            for classe, metodo in ((ForgeInit, "test_cria_estrutura_completa"), (HookPrePush, "test_permite_outra_branch")):
+                caso = classe(metodo)
+                caso.setUp()
+                try:
+                    getattr(caso, metodo)()
+                finally:
+                    caso.tearDown()
+        self.assertEqual((sentinela / ".git/config").read_bytes(), config, "config da sentinela mudou")
+        self.assertEqual(git("rev-parse", "HEAD", cwd=sentinela).stdout, head, "HEAD da sentinela mudou")
+
+
+class CI(unittest.TestCase):
+    def test_acoes_fixadas_por_sha(self):
+        """Toda ação de terceiros usa SHA completo (40 hex); Dependabot atualiza."""
+        for wf in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+            for n, linha in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
+                m = re.search(r"\buses:\s*(\S+)", linha)
+                if m and not m.group(1).startswith("./"):
+                    with self.subTest(arquivo=wf.name, linha=n):
+                        self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
+
+    def test_dependabot_para_actions(self):
+        texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+        self.assertIn("github-actions", texto)
+
+
+class Orcamento(unittest.TestCase):
+    def test_tamanho_dos_prompts(self):
+        lim = CONFIG["limite_linhas"]
+        for p in sorted(AGENTES.glob("*.md")):
+            with self.subTest(agente=p.name):
+                self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["agente"])
+        for p in sorted(SKILLS.glob("*/SKILL.md")):
+            with self.subTest(skill=p.parent.name):
+                self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["skill"])
 
 
 if __name__ == "__main__":

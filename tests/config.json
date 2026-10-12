@@ -3,6 +3,7 @@
     "jarvis", "tech-lead", "software-architect", "ux-designer",
     "node-backend", "react-frontend", "qa-engineer", "agile-coach"
   ],
+  "limite_linhas": { "agente": 110, "skill": 133 },
   "termos_proibidos": [
     "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
     "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
