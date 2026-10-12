@@ -21,8 +21,16 @@ Na sessão, peça: *"inicie este projeto no Forge"* (skill `forge:iniciar-projet
 Atalho opcional para abrir o Jarvis retomando a conversa, com chat remoto e Telegram (se instalado):
 ```bash
 bash ~/.claude/plugins/marketplaces/forge/scripts/instalar-atalho.sh   # ou a partir de um clone do Forge
-jarvis            # no diretório do projeto
+jarvis            # no diretório do projeto (roda no tmux; --sem-tmux para o modo antigo)
 ```
+A sessão fica num tmux `jarvis-<projeto>`: sobrevive ao fechamento do terminal (volte com o mesmo comando) e aparece em claude.ai/code como "Jarvis - <projeto>".
+
+## Preparar uma estação nova (WSL)
+1. No PowerShell: `wsl --install -d Ubuntu-24.04 --location <unidade>:\WSL\<nome>`
+2. No Ubuntu novo: `sudo apt-get install -y gh && gh auth login && gh repo clone rodrigo-isensee/Forge ~/Forge`
+3. `~/Forge/scripts/preparar-estacao.sh` (use `--simular` para só ver o que faria; pode repetir à vontade).
+
+O script instala pacotes, Node 24, pnpm, Claude Code, o plugin e os atalhos `jarvis`/`jarvis-forge`. Credenciais **não** são copiadas entre máquinas: em cada estação faça `gh auth login` e, no `claude`, `/login`.
 
 ## Branches
 Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápidos), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
