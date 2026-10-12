@@ -42,5 +42,8 @@ Chave ausente ou com valor inválido usa o padrão do modelo de projeto (`templa
 - Tarefa pesada em segundo plano (`run_in_background`) solta a trava quando o comando é disparado, não quando termina; a que passa de 10 minutos deixa de travar as outras sessões.
 - Se o `SubagentStop` não chegar, a vaga só volta quando o registro expira.
 
+## Formato e fontes
+`hooks/hooks.json` é carregado pelo Claude Code sem declaração no `plugin.json`. Cada hook usa a forma exec (`command` + `args`, sem shell; `${CLAUDE_PLUGIN_ROOT}` é expandido em cada item de `args`) e `timeout` de 10 s (o padrão seria 600 s). O que os hooks usam está na documentação oficial: matcher `Agent|Task` (só letras e `|`: nomes exatos), eventos `PostToolUseFailure`, `PermissionDenied` (negação no modo automático, com `tool_use_id`), `SubagentStart`/`SubagentStop` com `agent_id` e `agent_type`, `agent_id` também nos eventos de ferramenta dentro de um subagente e saída 2 que bloqueia no `PreToolUse`. Fontes: [hooks](https://code.claude.com/docs/en/hooks.md) e [referência do manifesto](https://code.claude.com/docs/en/plugins/manifest-reference.md), consultadas em 2026-10-12.
+
 ## Testar
 Cada caso é um fixture em `tests/hooks/<hook>/<caso>.json` (entrada, estado inicial, código e trecho do stderr esperados), rodado por `tests/test_hooks.py`.

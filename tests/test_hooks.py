@@ -191,6 +191,7 @@ class Hooks(unittest.TestCase):
                 for h in g["hooks"]:
                     with self.subTest(evento=evento, matcher=g.get("matcher")):
                         self.assertEqual(h["command"], "python3", "forma exec, sem shell")
+                        self.assertEqual(h.get("timeout"), 10, "sem timeout, o padrão do Claude Code é 600 s")
                         self.assertEqual(len(h["args"]), 1)
                         rel = h["args"][0].replace("${CLAUDE_PLUGIN_ROOT}/", "")
                         self.assertTrue((RAIZ / rel).is_file(), rel)
