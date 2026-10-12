@@ -797,6 +797,17 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres("deadbeef")
         self.assertIn("commit não existe", self.check("pr", "p1")[1])
 
+    def test_pr_com_ref_le_os_pareceres_da_branch(self):
+        git("switch", "-q", "-c", "develop", cwd=self.tmp)
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar()
+        self.pareceres(self.head())
+        self.commitar()
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertIn("sem parecer", self.check("pr", "p1")[1])
+
     def test_pr_qa_com_bug_alto_falha(self):
         self.pareceres(self.head(), a=1)
         codigo, saida = self.check("pr", "p1")

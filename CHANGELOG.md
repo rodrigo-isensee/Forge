@@ -15,6 +15,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - **Requer migração (0.5.0):** `bin/forge-upgrade` e `migrations/0.5.0/`: o projeto traz a si mesmo para a versão atual, numa branch `forge/upgrade-<versão>` com um commit por migração, sem push nem merge (ADR 0005). Projetos anteriores (sem `.forge/`) ganham `.forge/versao`, `.forge/config.json` e `.forge/run/` no `.gitignore`.
 - `forge-init` grava `.forge/versao` e `.forge/config.json` e ignora `.forge/run/`.
 - `bin/forge-check` (`docs`, `kanban`, `pr <pedido>`): valida o contrato entre agentes; modelos com frontmatter para review, QA e plano técnico em `templates/projeto/docs/` e nas instruções do `tech-lead`, `qa-engineer` e `software-architect` (ADR 0004). Testes `ForgeCheck`.
+- `forge-check pr <pedido> --ref <ref>`: lê os pareceres de uma ref do git e compara o commit deles com ela (usado pelo hook de parecer no `git merge`).
 ### Alterado
 - Núcleo sem stack: `cyber-security`, `engineering-practices`, `software-architecture`, `qa-testing`, `iniciar-projeto`, `qa-engineer`, `software-architect`, o modelo de projeto e `R-TETO` dizem "conforme a stack do projeto" e apontam para `stacks/<stack>/`. O Jarvis lê a stack declarada e delega só aos agentes do pacote. Nenhuma regra, invariante ou termo proibido foi afrouxado.
 - `tests/e2e-instalacao.sh` confere os agentes pela lista de `--agent` (o `plugin details` não lista agentes registrados no manifesto).
