@@ -166,6 +166,19 @@ class ForgeInit(unittest.TestCase):
         self.assertEqual(settings["agent"], "forge:jarvis")
         self.assertTrue(settings["enabledPlugins"]["forge@forge"])
 
+    def test_mescla_settings_existente(self):
+        (self.tmp / ".claude").mkdir()
+        existente = {"enabledPlugins": {"outro@mkt": True}, "permissions": {"deny": ["Read(./segredo)"]}}
+        (self.tmp / ".claude/settings.json").write_text(json.dumps(existente), encoding="utf-8")
+        self.assertIn("mesclado .claude/settings.json", self.rodar().stdout)
+        s = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(s["agent"], "forge:jarvis")
+        self.assertTrue(s["enabledPlugins"]["outro@mkt"], "não pode apagar plugin do projeto")
+        self.assertTrue(s["enabledPlugins"]["forge@forge"])
+        self.assertIn("forge", s["extraKnownMarketplaces"])
+        self.assertIn("Read(./segredo)", s["permissions"]["deny"])
+        self.assertIn("Bash(git * --no-verify*)", s["permissions"]["deny"])
+
     def test_nao_sobrescreve_sem_forcar(self):
         (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
         saida = self.rodar().stdout

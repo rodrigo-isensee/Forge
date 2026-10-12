@@ -11,4 +11,6 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - Modelo de projeto (`templates/projeto`) e inicializador `bin/forge-init`.
 - Atalho `jarvis` (retoma a conversa, chat remoto e Telegram opcional).
 - Documentos de processo: melhoria contínua, economia de tokens, padrão de documentação, pesquisa de práticas com agentes.
-- Testes estruturais, avaliações de comportamento e CI/CD.
+- Fluxo de branches `develop` → `homolog` → `main` com baterias crescentes de testes; todos os projetos usam a `main`.
+- Retroalimentação: melhorias descobertas em qualquer projeto viram PR na `develop` do Forge.
+- Testes estruturais, teste de instalação de ponta a ponta, avaliações de comportamento e CI/CD.

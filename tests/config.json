@@ -20,6 +20,9 @@
       "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega",
       "## Fábrica × projeto: onde cada mudança vai",
       "Nunca copie agentes ou skills do Forge",
+      "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
+      "\\*\\*em qualquer projeto\\*\\*",
       "\\*\\*Autonomia para melhorar o Forge e os projetos",
       "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
       "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário"
@@ -28,7 +31,11 @@
       "## A main é do usuário",
       "\\*\\*Nunca\\*\\* faça commit, merge, rebase, reset, cherry-pick ou push na `main`",
       "`--no-verify` é proibido",
-      "\\*\\*Code review obrigatório\\*\\*"
+      "\\*\\*Code review obrigatório\\*\\*",
+      "quem mescla na `main` é o usuário"
+    ],
+    ".githooks/pre-push": [
+      "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
     ],
     "agents/agile-coach.md": [
       "nunca para avaliar um agente ou uma pessoa individualmente",
