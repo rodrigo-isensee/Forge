@@ -2,6 +2,13 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.4.0] - 2026-10-12
+### Adicionado
+- `scripts/preparar-estacao.sh`: prepara do zero uma estação WSL (Ubuntu 24.04) para o Forge: pacotes, Node 24 via nvm, pnpm, Claude Code, clone, plugin e atalhos; idempotente, com `--simular`.
+- `scripts/jarvis-forge`: atalho versionado para abrir o Jarvis no próprio `~/Forge`; `instalar-atalho.sh` instala os dois.
+### Alterado
+- Os atalhos `jarvis` e `jarvis-forge` rodam dentro do tmux (sessão `jarvis-<projeto>`), que sobrevive ao fechamento do terminal e se acessa pelo claude.ai/code; `--sem-tmux` mantém o comportamento antigo.
+
 ## [0.3.0] - 2026-10-12
 ### Alterado
 - Higiene (onda 1): neutralidade da skill `cyber-security` e da regra de cobertura; escolha de modelo numa só fonte (`docs/economia-de-tokens.md`); fim da instrução de copiar agentes para o projeto; Telegram documentado como opcional; assimetria dos hooks pre-push documentada.

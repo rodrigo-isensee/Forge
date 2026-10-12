@@ -281,6 +281,42 @@ class CI(unittest.TestCase):
         self.assertIn("github-actions", texto)
 
 
+class PrepararEstacao(unittest.TestCase):
+    def test_scripts_existem_e_sao_executaveis(self):
+        for nome in ("preparar-estacao.sh", "jarvis-forge", "jarvis", "instalar-atalho.sh"):
+            with self.subTest(script=nome):
+                caminho = RAIZ / "scripts" / nome
+                self.assertTrue(caminho.is_file())
+                self.assertTrue(os.access(caminho, os.X_OK))
+
+    def test_simular_nao_instala_nada(self):
+        """--simular sai 0, imprime o plano e não cria nada no HOME nem chama sudo/rede."""
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "home"
+            home.mkdir()
+            bin_falso = Path(tmp) / "bin"
+            bin_falso.mkdir()
+            registro = Path(tmp) / "chamadas"
+            for nome in ("sudo", "curl", "apt-get", "gh"):
+                falso = bin_falso / nome
+                falso.write_text(f'#!/bin/sh\necho "{nome} $*" >> "{registro}"\nexit 1\n')
+                falso.chmod(0o755)
+            env = ambiente_limpo()
+            env.update(HOME=str(home), PATH=f"{bin_falso}:{env['PATH']}")
+            r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--simular"],
+                               env=env, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn("[simular]", r.stdout)
+            self.assertFalse(registro.exists(), "chamou comando que altera o sistema")
+            for criado in (".nvm", "Forge", ".local/bin/jarvis", ".local/bin/jarvis-forge"):
+                self.assertFalse((home / criado).exists(), f"criou {criado} no HOME")
+
+    def test_argumento_invalido(self):
+        r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--x"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 2)
+
+
 class Orcamento(unittest.TestCase):
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]

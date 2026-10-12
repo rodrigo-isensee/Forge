@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Scripts e hooks
-        run: shellcheck bin/forge-init scripts/jarvis scripts/instalar-atalho.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
+        run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
 
   plugin:
     name: validação do plugin
