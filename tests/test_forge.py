@@ -410,6 +410,14 @@ class ForgeInit(unittest.TestCase):
         self.rodar()
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
 
+    def test_projeto_antigo_fica_com_versao_zero(self):
+        (self.tmp / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")
+        saida = self.rodar().stdout
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.0.0\n")
+        self.assertIn("forge-upgrade", saida)
+        self.rodar()
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.0.0\n")
+
     def test_nao_mexe_na_versao_existente(self):
         (self.tmp / ".forge").mkdir()
         (self.tmp / ".forge/versao").write_text("0.1.0\n", encoding="utf-8")
