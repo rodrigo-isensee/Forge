@@ -5,7 +5,7 @@ pedido: <id-do-pedido>
 estado: proposta
 ux: docs/ux/<feature>.md
 adrs: [0001]
-agentes: [node-backend, react-frontend]
+agentes: [<agente-da-stack>, <agente-da-stack>]
 ---
 # Plano técnico: <feature>
 

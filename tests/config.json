@@ -1,8 +1,23 @@
 {
   "agentes_obrigatorios": [
-    "jarvis", "tech-lead", "software-architect", "ux-designer",
-    "node-backend", "react-frontend", "qa-engineer", "agile-coach"
+    "jarvis", "tech-lead", "software-architect", "ux-designer", "qa-engineer", "agile-coach"
   ],
+  "stacks_obrigatorias": {
+    "node-react": { "agentes": ["node-backend", "react-frontend"], "skills": ["node-backend", "react-frontend"] }
+  },
+  "neutralidade_nucleo": {
+    "pastas": ["agents", "skills", "docs", "templates", "bin", "scripts", ".github"],
+    "ignorar": ["docs/adr/"],
+    "termos": [
+      "\\bNode(\\.js)?\\b", "\\bReact\\b", "TypeScript", "\\bpnpm\\b", "\\bnpm\\b", "Playwright",
+      "\\bzod\\b", "\\bVitest\\b", "\\bESLint\\b", "\\bPrettier\\b", "\\bFastify\\b",
+      "\\bPrisma\\b", "node-backend", "react-frontend", "node_modules"
+    ],
+    "excecoes": {
+      ".github/workflows/ci.yml": ["\\bnpm\\b"],
+      "scripts/preparar-estacao.sh": ["\\bNode(\\.js)?\\b", "\\bpnpm\\b"]
+    }
+  },
   "limite_linhas": { "agente": 110, "skill": 133 },
   "termos_proibidos": [
     "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",

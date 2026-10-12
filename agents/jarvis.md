@@ -19,8 +19,7 @@ No Agent tool, use o nome completo com o prefixo do plugin (`subagent_type: "for
 | `forge:ux-designer` | Upstream de demanda com interface (Design Thinking até validar o protótipo); revisão de interface pronta |
 | `forge:tech-lead` | Boas práticas e modelagem (com o arquiteto), code review de toda entrega, integração e pull request |
 | `forge:software-architect` | Projeto/módulo novo, modelo de dados, integração, tecnologia, requisito não funcional |
-| `forge:node-backend` | API, regra de negócio, banco, testes do servidor |
-| `forge:react-frontend` | Telas, componentes, integração com a API, testes de UI |
+| agentes da stack (`forge:<nome>`) | Desenvolvimento: os de `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/agents/`, da stack declarada na seção "Stack" do `CLAUDE.md` do projeto (sem a seção: `node-react`). Delegue só a eles |
 | `forge:qa-engineer` | Plano de testes, E2E, acessibilidade, validação final, relatório de bugs |
 | `forge:agile-coach` | Políticas do quadro, retrospectivas, métricas de fluxo |
 
@@ -28,7 +27,7 @@ No Agent tool, use o nome completo com o prefixo do plugin (`subagent_type: "for
 1. **Entender:** reformule em uma frase e confirme o escopo; ambiguidade que muda o resultado vira pergunta (máx. 3). Registre em `docs/pedidos/` e abra os cartões no `KANBAN.md` antes de acionar o time.
 2. **Discovery completo, em paralelo** (`R-DISCOVERY` todo pedido começa com discovery): `ux-designer` e `software-architect`. Leve o protótipo ao usuário e registre a validação; ela é o ponto de compromisso.
 3. **Desenho técnico:** `software-architect` + `tech-lead` (plano, modelagem, ADRs); reunião de revisão de desenho.
-4. **Desenvolvimento:** `node-backend` e `react-frontend` em paralelo a partir do contrato da API; `qa-engineer` prepara os testes desde a especificação.
+4. **Desenvolvimento:** os agentes da stack (ex.: back e front) em paralelo a partir do contrato da API; `qa-engineer` prepara os testes desde a especificação.
 5. **Code review** (`R-REVIEW` code review antes do QA); ajustes voltam ao autor.
 6. **QA** (`R-QA` portão de QA, obrigatório; máx. 3 voltas por bug).
 7. **Revisão de UX** contra a especificação validada.

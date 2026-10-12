@@ -17,6 +17,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
 SKILLS = RAIZ / "skills"
+STACKS = RAIZ / "stacks"
 MODELOS_VALIDOS = {"opus", "sonnet", "haiku", "inherit"}
 CONFIG = json.loads((RAIZ / "tests" / "config.json").read_text(encoding="utf-8"))
 
@@ -34,8 +35,17 @@ def frontmatter(caminho: Path) -> dict:
     return campos
 
 
+def agentes_do_plugin():
+    """Todo .md de agents/ e de stacks/*/agents/ (ADR 0001)."""
+    return sorted(AGENTES.glob("*.md")) + sorted(STACKS.glob("*/agents/*.md"))
+
+
+def skills_do_plugin():
+    return sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md"))
+
+
 def arquivos_texto():
-    for pasta in ("agents", "skills", "docs", "templates", "bin", "scripts"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts"):
         for p in (RAIZ / pasta).rglob("*"):
             if p.is_file():
                 yield p
@@ -62,14 +72,73 @@ class Manifestos(unittest.TestCase):
         self.assertEqual(primeira.group(1), versao, "versão do plugin.json difere da última do CHANGELOG")
 
 
+class ManifestoDoPlugin(unittest.TestCase):
+    """ADR 0001: `agents` do plugin.json substitui a varredura de agents/; tudo precisa estar listado."""
+
+    def setUp(self):
+        self.manifesto = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+
+    def test_agentes_listados_existem_e_vice_versa(self):
+        listados = {(RAIZ / a).resolve() for a in self.manifesto["agents"]}
+        for a in self.manifesto["agents"]:
+            with self.subTest(agente=a):
+                self.assertTrue(a.startswith("./") and a.endswith(".md"))
+                self.assertTrue((RAIZ / a).is_file(), f"{a} listado e inexistente")
+        existentes = {p.resolve() for p in agentes_do_plugin()}
+        self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listados}, set(), "agente fora do manifesto")
+        self.assertEqual(len(listados), len(self.manifesto["agents"]), "agente listado duas vezes")
+
+    def test_skills_de_stack_listadas_e_vice_versa(self):
+        listadas = {(RAIZ / s).resolve() for s in self.manifesto["skills"]}
+        for s in self.manifesto["skills"]:
+            with self.subTest(skill=s):
+                self.assertTrue((RAIZ / s / "SKILL.md").is_file(), f"{s} sem SKILL.md")
+        existentes = {p.parent.resolve() for p in STACKS.glob("*/skills/*/SKILL.md")}
+        self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listadas}, set(), "skill de stack fora do manifesto")
+
+
+class PacotesDeStack(unittest.TestCase):
+    """ADR 0001: todo pacote em stacks/<nome>/ tem a mesma forma."""
+
+    def test_stacks_esperadas_existem(self):
+        for nome, itens in CONFIG["stacks_obrigatorias"].items():
+            with self.subTest(stack=nome):
+                self.assertEqual({p.stem for p in (STACKS / nome).glob("agents/*.md")}, set(itens["agentes"]))
+                self.assertEqual({p.parent.name for p in (STACKS / nome).glob("skills/*/SKILL.md")}, set(itens["skills"]))
+
+    def test_forma_do_pacote(self):
+        pacotes = sorted(p for p in STACKS.iterdir() if p.is_dir())
+        self.assertTrue(pacotes, "stacks/ vazia")
+        for pacote in pacotes:
+            with self.subTest(stack=pacote.name):
+                self.assertRegex(pacote.name, r"^[a-z0-9-]+$")
+                self.assertTrue(list(pacote.glob("skills/*/SKILL.md")), "stack sem skills")
+                self.assertTrue((pacote / "seguranca.md").is_file(), "falta seguranca.md")
+                self.assertTrue((pacote / "pronto.md").is_file(), "falta pronto.md")
+                pronto = (pacote / "pronto.md").read_text(encoding="utf-8")
+                self.assertRegex(pronto, r"(?m)^Comando sugerido: `[^`]+`", "pronto.md sem 'Comando sugerido: `...`'")
+                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md"}
+                self.assertEqual(extras, set(), "arquivo fora da forma do pacote")
+
+    def test_nomes_de_agente_nao_colidem(self):
+        nomes = [p.stem for p in agentes_do_plugin()]
+        self.assertEqual(len(nomes), len(set(nomes)), "dois agentes com o mesmo nome")
+
+    def test_nucleo_aponta_para_a_seguranca_da_stack(self):
+        texto = (SKILLS / "cyber-security/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("stacks/<stack>/seguranca.md", texto)
+
+
 class Agentes(unittest.TestCase):
     def setUp(self):
-        self.agentes = sorted(AGENTES.glob("*.md"))
-        self.skills = {p.parent.name for p in SKILLS.glob("*/SKILL.md")}
+        self.agentes = agentes_do_plugin()
+        self.skills = {p.parent.name for p in skills_do_plugin()}
 
     def test_time_completo(self):
-        nomes = {p.stem for p in self.agentes}
-        self.assertEqual(nomes, set(CONFIG["agentes_obrigatorios"]))
+        esperados = set(CONFIG["agentes_obrigatorios"])
+        for itens in CONFIG["stacks_obrigatorias"].values():
+            esperados |= set(itens["agentes"])
+        self.assertEqual({p.stem for p in self.agentes}, esperados)
 
     def test_frontmatter_valido(self):
         for p in self.agentes:
@@ -91,12 +160,14 @@ class Agentes(unittest.TestCase):
         texto = (AGENTES / "jarvis.md").read_text(encoding="utf-8")
         tabela = re.search(r"## Time\n(.*?)\n## ", texto, re.S).group(1)
         citados = set(re.findall(r"^\| `(?:forge:)?([a-z-]+)` \|", tabela, re.M))
-        self.assertEqual(citados, {p.stem for p in self.agentes} - {"jarvis"})
+        # Os agentes de stack não ficam na tabela (o núcleo não os cita): o Jarvis os lê de stacks/<stack>/agents/.
+        self.assertEqual(citados, {p.stem for p in AGENTES.glob("*.md")} - {"jarvis"})
+        self.assertIn("stacks/<stack>/agents/", tabela)
 
 
 class Skills(unittest.TestCase):
     def test_frontmatter_valido(self):
-        for p in sorted(SKILLS.glob("*/SKILL.md")):
+        for p in skills_do_plugin():
             with self.subTest(skill=p.parent.name):
                 fm = frontmatter(p)
                 self.assertEqual(fm.get("name"), p.parent.name)
@@ -122,6 +193,36 @@ class Neutralidade(unittest.TestCase):
             for t in termos:
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), termo=t.pattern):
                     self.assertIsNone(t.search(texto))
+
+
+class NeutralidadeDoNucleo(unittest.TestCase):
+    """ADR 0001: linguagem, framework e ferramenta só em stacks/ (e nas exceções explícitas do config)."""
+
+    def setUp(self):
+        self.cfg = CONFIG["neutralidade_nucleo"]
+
+    def test_detector_acha_termo_de_stack(self):
+        termos = [re.compile(t) for t in self.cfg["termos"]]
+        self.assertTrue(any(t.search("Use React com TypeScript") for t in termos))
+        self.assertFalse(any(t.search("Verifique o nó da árvore; reagir ao evento") for t in termos))
+
+    def test_nucleo_sem_termos_de_stack(self):
+        termos = [re.compile(t) for t in self.cfg["termos"]]
+        for pasta in self.cfg["pastas"]:
+            for p in sorted((RAIZ / pasta).rglob("*")):
+                rel = p.relative_to(RAIZ).as_posix()
+                if not p.is_file() or any(rel.startswith(i) for i in self.cfg["ignorar"]):
+                    continue
+                texto = p.read_text(encoding="utf-8", errors="ignore")
+                for t in termos:
+                    if t.pattern in self.cfg["excecoes"].get(rel, []):
+                        continue
+                    with self.subTest(arquivo=rel, termo=t.pattern):
+                        achado = t.search(texto)
+                        self.assertIsNone(achado, f"{rel}: stack no núcleo ({achado and achado.group(0)}); mova para stacks/ ou registre exceção em tests/config.json")
+
+    def test_stack_declarada_no_modelo_e_no_init(self):
+        self.assertIn("{{STACK}}", (RAIZ / "templates/projeto/CLAUDE.md").read_text(encoding="utf-8"))
 
 
 class RegrasInviolaveis(unittest.TestCase):
@@ -263,6 +364,19 @@ class ForgeInit(unittest.TestCase):
         settings = json.loads((self.tmp / ".claude/settings.json").read_text(encoding="utf-8"))
         self.assertEqual(settings["agent"], "forge:jarvis")
         self.assertTrue(settings["enabledPlugins"]["forge@forge"])
+        self.assertRegex(claude_md, r"## Stack\n- Pacote do Forge: `node-react`")
+
+    def test_stack_padrao_define_o_pronto_sugerido(self):
+        forge_init("--nome", "Demo", str(self.tmp), cwd=self.tmp)
+        claude_md = (self.tmp / "CLAUDE.md").read_text(encoding="utf-8")
+        self.assertIn("`npm run pronto`", claude_md)
+
+    def test_stack_desconhecida_ou_invalida_e_recusada(self):
+        for ruim in ("inexistente", "../templates"):
+            with self.subTest(stack=ruim):
+                with self.assertRaises(subprocess.CalledProcessError) as erro:
+                    forge_init("--stack", ruim, str(self.tmp), cwd=self.tmp)
+                self.assertIn("stack desconhecida", erro.exception.stderr)
 
     def test_mescla_settings_existente(self):
         (self.tmp / ".claude").mkdir()
@@ -693,10 +807,10 @@ class ForgeCheck(unittest.TestCase):
 class Orcamento(unittest.TestCase):
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
-        for p in sorted(AGENTES.glob("*.md")):
+        for p in agentes_do_plugin():
             with self.subTest(agente=p.name):
                 self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["agente"])
-        for p in sorted(SKILLS.glob("*/SKILL.md")):
+        for p in skills_do_plugin():
             with self.subTest(skill=p.parent.name):
                 self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["skill"])
 

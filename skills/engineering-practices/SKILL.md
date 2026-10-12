@@ -1,25 +1,25 @@
 ---
 name: engineering-practices
-description: Boas práticas de desenvolvimento e modelagem do time (TypeScript, Node, React, banco relacional) - padrões de código, checklist de code review, modelagem e migrações, git e commits, pull request e proteção da main. Use ao escrever, revisar ou commitar código e ao modelar ou migrar banco.
+description: Boas práticas de desenvolvimento e modelagem do time (conforme a stack do projeto, banco relacional) - padrões de código, checklist de code review, modelagem e migrações, git e commits, pull request e proteção da main. Use ao escrever, revisar ou commitar código e ao modelar ou migrar banco.
 ---
 
 # Boas práticas de engenharia
 
 Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do projeto ficam em `docs/engineering/praticas.md` e prevalecem sobre este arquivo; decisões estruturais ficam em ADR.
 
-## Código (TypeScript em todo o projeto)
-- `strict: true`, sem `any` (use `unknown` + validação); sem `@ts-ignore` sem comentário explicando.
-- Tipos e schemas (zod) compartilhados entre front e back num pacote único; nada de tipo duplicado à mão.
+## Código (conforme a stack do projeto)
+- Linguagem, tipagem, lint e formatação seguem a stack declarada no `CLAUDE.md` (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`); tipagem no modo mais estrito, sem escapes sem comentário explicando.
+- Tipos e contratos compartilhados entre as camadas numa fonte única; nada de tipo duplicado à mão.
 - Funções pequenas, com um propósito; nomes que dizem o que fazem; sem abreviação obscura.
 - Regra de negócio isolada de framework (services puros, testáveis sem HTTP nem banco).
 - Erros explícitos: nada de `catch` vazio; erro de domínio tipado; log com contexto.
-- Sem código morto, sem `console.log` esquecido, sem TODO sem cartão no quadro.
+- Sem código morto, sem depuração esquecida, sem TODO sem cartão no quadro.
 - Dependência nova só com motivo: tamanho, manutenção ativa, licença; registrar no PR.
-- Lint e formatação automáticos (ESLint + Prettier); o CI falha se não passar.
+- Lint e formatação automáticos; o CI falha se não passar.
 
 ## Modelagem e banco (relacional; o banco do projeto é decidido em ADR)
 - `snake_case`; tabelas no plural ou com prefixo de camada (`stg_`, `dim_`, `fato_`, `ref_`); chave primária `id` ou chave natural explícita.
-- InnoDB, `utf8mb4`, datas em UTC (`DATETIME(3)` ou `TIMESTAMP` conforme ADR).
+- Motor, codificação de caracteres e tipo de data conforme a ADR do banco; datas em UTC.
 - Toda chave estrangeira com índice; todo filtro de painel coberto por índice; `EXPLAIN` registrado para consultas principais.
 - Idempotência por restrição única na chave natural da origem.
 - Histórico nunca sobrescrito: eventos append-only ou versões (SCD2).
@@ -48,7 +48,7 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Branches: `R-FLUXO` branches e promoção (prefixos `feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug).
 - Conventional Commits em português: `tipo(escopo): descrição no imperativo`. Tipos: feat, fix, docs, test, refactor, perf, chore, ci.
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
-- Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, `node_modules`, builds, relatórios de teste.
+- Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
 - Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main

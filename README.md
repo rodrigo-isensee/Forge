@@ -1,6 +1,6 @@
 # Forge
 
-Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** (orquestrador) e o time completo — tech lead, arquiteto, UX, back-end Node, front-end React, QA e agile coach —, o processo de desenvolvimento e os modelos para iniciar projetos.
+Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** (orquestrador) e o time completo — tech lead, arquiteto, UX, desenvolvedores por stack (pacote inicial: Node + React), QA e agile coach —, o processo de desenvolvimento e os modelos para iniciar projetos.
 
 ## O que vem na fábrica
 - **Fluxo:** discovery com Design Thinking (UX + arquiteto) → validação do protótipo pelo usuário → desenho técnico → desenvolvimento em paralelo → code review → QA obrigatório → revisão de UX → PR validado pelo usuário → retrospectiva.

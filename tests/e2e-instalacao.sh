@@ -21,8 +21,11 @@ claude plugin install forge@forge --scope project >/dev/null || falha "plugin in
 claude plugin list 2>&1 | grep -q 'forge@forge' || falha "forge@forge não aparece em 'claude plugin list'"
 
 detalhes="$(claude plugin details forge@forge 2>&1)" || falha "plugin details"
-for agente in jarvis tech-lead software-architect ux-designer node-backend react-frontend qa-engineer agile-coach; do
-  grep -q "$agente" <<<"$detalhes" || falha "agente $agente não carregado"
+# `plugin details` não lista os agentes registrados no manifesto (ADR 0001); a lista de agentes
+# disponíveis vem da mensagem de erro de um --agent inexistente, que não chama a API.
+agentes="$(claude --agent forge:inexistente -p oi </dev/null 2>&1 || true)"
+for agente in $(python3 -c 'import json,sys; c=json.load(open(sys.argv[1])); print(*c["agentes_obrigatorios"], *[a for s in c["stacks_obrigatorias"].values() for a in s["agentes"]])' "$raiz/tests/config.json"); do
+  grep -q "forge:$agente" <<<"$agentes" || falha "agente forge:$agente não carregado"
 done
 for skill in engineering-practices software-architecture ux-design node-backend react-frontend qa-testing kanban-scrum cyber-security iniciar-projeto; do
   grep -q "$skill" <<<"$detalhes" || falha "skill $skill não carregada"
