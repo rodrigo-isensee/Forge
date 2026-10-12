@@ -63,7 +63,7 @@ Cada agente começa sem contexto. Use sempre estas seções, nesta ordem, e nada
 5. **Pronto quando:** critérios verificáveis (comando de pronto do projeto verde — ver `CLAUDE.md` —, cobertura exigida, testes unitários e E2E, premissas do usuário); commits conforme a seção de commits do `praticas.md`, `git add` explícito por caminho, sem push.
 6. **Relatório:** até 8 linhas, resultado real (não prometido), mudanças de contrato, pendências.
 
-Modelo: haiku para mecânico (quadro, atas), sonnet para implementar, testar e revisar UX, opus para arquitetura, review principal e bugs de regra. Registre os tokens do relatório de cada agente em `docs/kanban/entregas.md`.
+Modelo: escolha conforme a regra 2 de `docs/economia-de-tokens.md` (haiku para o mecânico, sonnet para implementar, opus só para decisão e review principal). Registre os tokens do relatório de cada agente em `docs/kanban/entregas.md`.
 
 ## Versionamento (git)
 - Quem commita e como: seção de commits do `docs/engineering/praticas.md` do projeto (padrão: skill `engineering-practices`). Devs, UX e QA commitam o que produzem na `develop`; você, só quadro e configuração do time; o `tech-lead` revisa, integra e prepara o PR. **Só se commita o que está pronto.**
