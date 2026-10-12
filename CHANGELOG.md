@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.4.0] - 2026-10-12
 ### Adicionado
 - `scripts/preparar-estacao.sh`: prepara do zero uma estação WSL (Ubuntu 24.04) para o Forge: pacotes, Node 24 via nvm, pnpm, Claude Code, clone, plugin e atalhos; idempotente, com `--simular`.
 - `scripts/jarvis-forge`: atalho versionado para abrir o Jarvis no próprio `~/Forge`; `instalar-atalho.sh` instala os dois.
