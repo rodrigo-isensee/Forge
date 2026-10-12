@@ -1,14 +1,9 @@
 name: Avaliações de comportamento
 
-# Bateria completa com IA (custa uso): obrigatória para entrar em homolog e em main; em PRs para a develop
-# roda quando agentes, skills ou avaliações mudam, como aviso. Toda noite roda sobre a homolog.
-# Precisa do segredo ANTHROPIC_API_KEY. Sem ele: aviso na develop; falha na homolog e na main.
+# Avaliações com IA custam uso de API (dinheiro real). Por decisão do dono do Forge, nunca rodam sozinhas:
+# não são portão de nenhuma branch nem rodam agendadas. Só por disparo manual (Actions > Run workflow),
+# e só se o segredo ANTHROPIC_API_KEY existir; sem ele, o job avisa e termina verde.
 on:
-  pull_request:
-  push:
-    branches: [homolog]
-  schedule:
-    - cron: "0 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -24,11 +19,10 @@ jobs:
     timeout-minutes: 45
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      OBRIGATORIA: ${{ github.event_name == 'schedule' || github.ref == 'refs/heads/homolog' || github.base_ref == 'homolog' || github.base_ref == 'main' }}
+      OBRIGATORIA: "false"
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'schedule' && 'homolog' || '' }}
           fetch-depth: 0
       - name: Precisa rodar?
         id: decide
@@ -44,7 +38,7 @@ jobs:
               echo "::error::Bateria completa exige o segredo ANTHROPIC_API_KEY (Settings > Secrets and variables > Actions)."
               exit 1
             fi
-            echo "::warning::ANTHROPIC_API_KEY não configurada; avaliações puladas na develop."
+            echo "::warning::ANTHROPIC_API_KEY não configurada; avaliações puladas (nenhum custo)."
             rodar=false
           fi
           echo "rodar=$rodar" >> "$GITHUB_OUTPUT"

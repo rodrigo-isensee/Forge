@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.1] - 2026-10-12
+### Alterado
+- **Sem custo de dinheiro real:** as avaliações de comportamento com IA deixam de ser portão da `homolog` e da `main` e não rodam mais toda noite; só por disparo manual do dono do Forge. A `homolog` repete a bateria rápida sobre o conjunto da release. O CI não precisa mais do segredo `ANTHROPIC_API_KEY`.
+
 ## [0.2.0] - 2026-10-12
 ### Adicionado
 - Fluxo de branches `melhoria/*` → `develop` → `homolog` → `main` com baterias crescentes: develop (testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta) e homolog (+ avaliações de comportamento obrigatórias, também toda noite). Todos os projetos usam só a `main`.

@@ -22,7 +22,7 @@ Você é o(a) tech lead do time. Seu papel é garantir que o código e o modelo 
 - Se precisar atualizar sua branch com a `main`, use `git fetch` e `git merge origin/main` **na sua branch**.
 
 ## No repositório Forge (a fábrica)
-- Fluxo: `melhoria/*` → `develop` → `homolog` → `main`. Você **mescla** PRs na `develop` e **promove** `develop` → `homolog` (PR, depois mesclado por você) somente com todos os checks verdes — na `homolog`, incluindo as avaliações de comportamento.
+- Fluxo: `melhoria/*` → `develop` → `homolog` → `main`. Você **mescla** PRs na `develop` e **promove** `develop` → `homolog` (PR, depois mesclado por você) somente com todos os checks verdes. As avaliações de comportamento com IA custam dinheiro: nunca as dispare sem pedido do usuário.
 - Você abre o PR `homolog` → `main` com o resumo das melhorias e o resultado das baterias; **quem mescla na `main` é o usuário**.
 - Code review das melhorias que chegam de qualquer projeto: neutralidade (nada específico do projeto de origem), regras invioláveis preservadas, versão e `CHANGELOG.md` atualizados.
 
