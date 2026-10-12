@@ -240,5 +240,16 @@ class CI(unittest.TestCase):
         self.assertIn("github-actions", texto)
 
 
+class Orcamento(unittest.TestCase):
+    def test_tamanho_dos_prompts(self):
+        lim = CONFIG["limite_linhas"]
+        for p in sorted(AGENTES.glob("*.md")):
+            with self.subTest(agente=p.name):
+                self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["agente"])
+        for p in sorted(SKILLS.glob("*/SKILL.md")):
+            with self.subTest(skill=p.parent.name):
+                self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["skill"])
+
+
 if __name__ == "__main__":
     unittest.main()
