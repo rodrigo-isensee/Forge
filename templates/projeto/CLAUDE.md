@@ -4,6 +4,9 @@
 
 Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, https://github.com/rodrigo-isensee/Forge). O time de agentes, o fluxo, as skills e as práticas gerais vêm do Forge; este arquivo guarda só o que é **deste sistema**.
 
+## Stack
+- Pacote do Forge: `{{STACK}}` (`stacks/{{STACK}}/` no Forge: agentes de desenvolvimento, skills, `seguranca.md` e `pronto.md`). O Jarvis delega o desenvolvimento só aos agentes desse pacote; sem esta seção vale `node-react`.
+
 ## Fonte da verdade
 <!-- Documentos de referência do sistema (briefing, especificações, contratos). Aponte caminho e o que cada um decide. -->
 - `docs/pedidos/`: pedidos do usuário, um arquivo por pedido.
@@ -14,7 +17,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 
 ## Comandos do projeto
 - **Pronto** (critério de entrega dos agentes): `{{COMANDO_PRONTO}}`
-- **Testes rápidos**: <!-- ex.: npm test -->
+- **Testes rápidos**: <!-- comando de testes da stack -->
 
 ## Exceções locais às regras da fábrica
 <!-- Só o que diverge do Forge, com o motivo. Ex.: teto de recursos diferente, outro banco, outra branch de integração. -->

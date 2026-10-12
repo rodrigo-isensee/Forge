@@ -21,6 +21,7 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
 | `.claude-plugin/` | `plugin.json` (manifesto e versão) e `marketplace.json` (o próprio repo é o marketplace) |
 | `agents/` | Jarvis e o time (`forge:<nome>`) |
 | `skills/` | Skills do time e `iniciar-projeto` |
+| `stacks/<nome>/` | Pacote de stack (`agents/`, `skills/`, `seguranca.md`, `pronto.md`), listado em `plugin.json`; só aqui entra linguagem ou framework (ADR 0001) |
 | `docs/` | Processo da fábrica: regras com ID (`docs/regras/`), ADRs, melhoria contínua, economia de tokens, padrão de documentação, pesquisa de práticas |
 | `templates/projeto/` | Modelo copiado para cada projeto pelo `bin/forge-init` |
 | `bin/` | `forge-init` (fica no PATH enquanto o plugin está ativo) |

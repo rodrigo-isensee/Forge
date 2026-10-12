@@ -44,7 +44,7 @@ Uma linha de tabela por cartão, em cada coluna:
 ```markdown
 | ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |
 |---|---|---|---|---|---|---|
-| K-012 | Tela de login - fluxo principal | 001 | react-frontend | 2026-10-09 | 2026-10-10 | — |
+| K-012 | Tela de login - fluxo principal | 001 | <agente-dev> | 2026-10-09 | 2026-10-10 | — |
 ```
 
 - ID sequencial `K-NNN`, nunca reutilizado.

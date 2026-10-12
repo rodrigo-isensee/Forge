@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
 # Forge: prepara um projeto para ser desenvolvido pela fábrica.
-# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--pronto COMANDO] [--forcar] [DIRETORIO]
+# Uso: forge-init [--nome NOME] [--descricao TEXTO] [--stack NOME] [--pronto COMANDO] [--forcar] [DIRETORIO]
 # Copia templates/projeto para o diretório sem sobrescrever o que já existe (salvo --forcar),
-# substitui os marcadores {{PROJETO}}, {{DESCRICAO}} e {{COMANDO_PRONTO}} e ativa o hook de git.
+# substitui os marcadores {{PROJETO}}, {{DESCRICAO}}, {{STACK}} e {{COMANDO_PRONTO}} e ativa o hook de git.
 set -euo pipefail
 
 raiz_forge="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 modelo="$raiz_forge/templates/projeto"
 
-nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto="npm run pronto"; forcar=0; destino="."
+nome=""; descricao="Descreva aqui o objetivo do sistema."; pronto=""; stack="node-react"; forcar=0; destino="."
 while [ $# -gt 0 ]; do
   case "$1" in
     --nome) nome="$2"; shift 2 ;;
     --descricao) descricao="$2"; shift 2 ;;
+    --stack) stack="$2"; shift 2 ;;
     --pronto) pronto="$2"; shift 2 ;;
     --forcar) forcar=1; shift ;;
     -h|--help) sed -n '2,5p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
@@ -25,8 +26,17 @@ done
 destino="$(cd "$destino" && pwd)"
 [ -n "$nome" ] || nome="$(basename "$destino")"
 
+[[ "$stack" =~ ^[a-z0-9-]+$ && -f "$raiz_forge/stacks/$stack/pronto.md" ]] || {
+  echo "forge-init: stack desconhecida: $stack (disponíveis: $(find "$raiz_forge/stacks" -mindepth 1 -maxdepth 1 -type d -printf '%f ' | sort | tr -s " "))" >&2; exit 2; }
+# Comando "pronto" padrão: o sugerido pela stack ("Comando sugerido: `...`" em stacks/<stack>/pronto.md).
+if [ -z "$pronto" ]; then
+  # shellcheck disable=SC2016  # as crases são literais da expressão
+  pronto="$(sed -n 's/^Comando sugerido: `\(.*\)`.*/\1/p' "$raiz_forge/stacks/$stack/pronto.md" | head -n1)"
+  [ -n "$pronto" ] || pronto="a definir"
+fi
+
 escapar() { printf '%s' "$1" | sed -e 's/[\/&|]/\\&/g'; }
-n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"
+n_esc="$(escapar "$nome")"; d_esc="$(escapar "$descricao")"; p_esc="$(escapar "$pronto")"; s_esc="$(escapar "$stack")"
 
 # .claude/settings.json existente (o próprio `claude plugin install --scope project` cria um): mescla em vez de pular.
 # Preenche agent, marketplace e plugin do Forge e une as listas de permissões; não apaga nada do projeto.
@@ -61,7 +71,7 @@ while IFS= read -r -d '' arq; do
     echo "  mantido  $rel"; mantidos=$((mantidos + 1)); continue
   fi
   mkdir -p "$(dirname "$alvo")"
-  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
+  sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
   echo "  criado   $rel"; criados=$((criados + 1))
 done < <(find "$modelo" -type f -print0 | sort -z)

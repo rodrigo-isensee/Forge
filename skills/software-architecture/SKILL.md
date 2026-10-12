@@ -6,20 +6,17 @@ description: Padrões de arquitetura do projeto - visão C4 em Mermaid, modelo d
 # Arquitetura de Software
 
 ## Arquitetura de referência (até haver motivo para mudar)
-- Monólito modular: `server/` (Node + TypeScript, módulos por domínio) e `web/` (React SPA).
-- Banco relacional (PostgreSQL por padrão; o projeto decide em ADR) com camada de acesso tipada.
-- Comunicação front ↔ back via REST/JSON versionado (`/api/v1`).
-- Autenticação com sessão em cookie httpOnly (ou JWT de curta duração + refresh, via ADR).
-- Monorepo com pnpm workspaces: `server/`, `web/`, `e2e/`, `packages/shared` (tipos e schemas zod compartilhados).
+- Monólito modular, módulos por domínio; banco relacional com camada de acesso tipada (o projeto decide em ADR); comunicação entre camadas por contrato versionado.
+- Estrutura, autenticação e organização do repositório da stack: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`, seção "Arquitetura de referência" (a stack vem do `CLAUDE.md` do projeto).
 
 ## Visão geral (`docs/architecture/overview.md`)
 Diagramas C4 nível 1 (contexto) e 2 (containers) em Mermaid:
 
 ```mermaid
 flowchart LR
-  user([Usuário]) --> web[Web SPA - React]
-  web -->|REST/JSON| api[API - Node.js]
-  api --> db[(PostgreSQL)]
+  user([Usuário]) --> web[Interface web]
+  web -->|REST/JSON| api[API]
+  api --> db[(Banco)]
 ```
 
 ## ADR (`docs/architecture/adr/NNNN-titulo.md`)
@@ -45,9 +42,9 @@ O que fica mais fácil, o que fica mais difícil, riscos.
 1. Resumo e link para a especificação de UX.
 2. Módulos afetados (back e front).
 3. Mudanças no modelo de dados (entidades, relacionamentos, migrações).
-4. Endpoints necessários em alto nível (o detalhe fica com `node-backend`).
+4. Endpoints necessários em alto nível (o detalhe fica com o agente de back-end da stack).
 5. Riscos, dependências e decisões em aberto.
-6. Divisão de tarefas: `node-backend`, `react-frontend`, `qa-engineer`, com a ordem e o que pode rodar em paralelo.
+6. Divisão de tarefas: agentes da stack do projeto e `qa-engineer`, com a ordem e o que pode rodar em paralelo.
 
 ## Modelo de dados (`docs/architecture/data-model.md`)
 Diagrama ER em Mermaid (`erDiagram`) e, para cada entidade: campos, chaves, índices e regras de integridade.
