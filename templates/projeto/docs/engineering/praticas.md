@@ -1,4 +1,4 @@
-# Práticas de engenharia — H
+# Práticas de engenharia — {{PROJETO}}
 
 As práticas padrão vêm da skill `engineering-practices` do Forge. Este arquivo registra só o que é **específico deste projeto** e prevalece sobre a skill. Decisões estruturais ficam em ADR.
 

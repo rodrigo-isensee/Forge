@@ -1,0 +1,71 @@
+{
+  "agentes_obrigatorios": [
+    "jarvis",
+    "tech-lead",
+    "software-architect",
+    "ux-designer",
+    "node-backend",
+    "react-frontend",
+    "qa-engineer",
+    "agile-coach"
+  ],
+  "termos_proibidos": [
+    "Metricas ?DSPD",
+    "\\bDSPD\\b",
+    "BusinessMap",
+    "Acelerato",
+    "SistemaPonto",
+    "\\bSSSC\\b",
+    "Siegard",
+    "\\bFL[123]\\b"
+  ],
+  "invariantes": {
+    "agents/jarvis.md": [
+      "\\*\\*`main` é do usuário\\*\\*",
+      "nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push nela",
+      "nunca `--no-verify` nem `--force`",
+      "## Portão de QA \\(obrigatório\\)",
+      "Nenhum código sai sem aprovação do `qa-engineer`",
+      "Teto de recursos da máquina \\(obrigatório\\)",
+      "teto de agentes adaptativo",
+      "\\*\\*Todo pedido começa com discovery\\.\\*\\*",
+      "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega",
+      "## Fábrica × projeto: onde cada mudança vai",
+      "Nunca copie agentes ou skills do Forge",
+      "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
+      "\\*\\*em qualquer projeto\\*\\*",
+      "\\*\\*Autonomia para melhorar o Forge e os projetos",
+      "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
+      "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário",
+      "tarefas pesadas uma de cada vez",
+      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "nunca relaxa as regras abaixo"
+    ],
+    "agents/tech-lead.md": [
+      "## A main é do usuário",
+      "\\*\\*Nunca\\*\\* faça commit, merge, rebase, reset, cherry-pick ou push na `main`",
+      "`--no-verify` é proibido",
+      "\\*\\*Code review obrigatório\\*\\*",
+      "quem mescla na `main` é o usuário"
+    ],
+    ".githooks/pre-push": [
+      "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
+    ],
+    "agents/agile-coach.md": [
+      "nunca para avaliar um agente ou uma pessoa individualmente",
+      "vira PR no repositório \\*\\*Forge\\*\\*"
+    ],
+    "agents/ux-designer.md": [
+      "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*"
+    ],
+    "templates/projeto/.githooks/pre-push": [
+      "refs/heads/main",
+      "exit 1"
+    ],
+    "templates/projeto/.claude/settings.json": [
+      "\"agent\": \"forge:jarvis\"",
+      "Bash\\(git \\* --no-verify\\*\\)"
+    ]
+  }
+}

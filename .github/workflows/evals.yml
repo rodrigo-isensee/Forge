@@ -1,0 +1,70 @@
+name: Avaliações de comportamento
+
+# Bateria completa com IA (custa uso): obrigatória para entrar em homolog e em main; em PRs para a develop
+# roda quando agentes, skills ou avaliações mudam, como aviso. Toda noite roda sobre a homolog.
+# Precisa do segredo ANTHROPIC_API_KEY. Sem ele: aviso na develop; falha na homolog e na main.
+on:
+  pull_request:
+  push:
+    branches: [homolog]
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OBRIGATORIA: ${{ github.event_name == 'schedule' || github.ref == 'refs/heads/homolog' || github.base_ref == 'homolog' || github.base_ref == 'main' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'homolog' || '' }}
+          fetch-depth: 0
+      - name: Precisa rodar?
+        id: decide
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          rodar=true
+          if [ "$OBRIGATORIA" != "true" ] && [ -n "$BASE_SHA" ]; then
+            git diff --quiet "$BASE_SHA" HEAD -- agents skills evals && rodar=false
+          fi
+          if [ "$rodar" = "true" ] && [ -z "$ANTHROPIC_API_KEY" ]; then
+            if [ "$OBRIGATORIA" = "true" ]; then
+              echo "::error::Bateria completa exige o segredo ANTHROPIC_API_KEY (Settings > Secrets and variables > Actions)."
+              exit 1
+            fi
+            echo "::warning::ANTHROPIC_API_KEY não configurada; avaliações puladas na develop."
+            rodar=false
+          fi
+          echo "rodar=$rodar" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@v4
+        if: steps.decide.outputs.rodar == 'true'
+        with:
+          node-version: "24"
+      - name: Claude Code CLI
+        if: steps.decide.outputs.rodar == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+      - name: claude plugin eval
+        if: steps.decide.outputs.rodar == 'true'
+        run: |
+          claude plugin eval . --trust-plugin --no-publish --ablation none \
+            --threshold 0.75 --max-cost-usd 10 --json evals-resultado.json
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.decide.outputs.rodar == 'true'
+        with:
+          name: evals-resultado
+          path: |
+            evals-resultado.json
+            evals/results/
+          if-no-files-found: ignore
