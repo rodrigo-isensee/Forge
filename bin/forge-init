@@ -66,6 +66,17 @@ while IFS= read -r -d '' arq; do
   echo "  criado   $rel"; criados=$((criados + 1))
 done < <(find "$modelo" -type f -print0 | sort -z)
 
+# Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo.
+versao_forge="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$raiz_forge/.claude-plugin/plugin.json")"
+if [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
+  mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
+  echo "  criado   .forge/versao ($versao_forge)"
+fi
+# Estado de execução local não é versionado.
+if ! grep -qxF '.forge/run/' "$destino/.gitignore" 2>/dev/null; then
+  echo '.forge/run/' >> "$destino/.gitignore"; echo "  gitignore .forge/run/"
+fi
+
 if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$destino" config core.hooksPath .githooks
   echo "  hook     core.hooksPath=.githooks"
