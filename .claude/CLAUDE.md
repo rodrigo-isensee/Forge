@@ -3,10 +3,14 @@
 Este repositório **é** a fábrica: o plugin `forge` do Claude Code com o Jarvis, o time de agentes, as skills, o processo e os modelos de projeto. Ele é usado por N projetos; qualquer mudança aqui afeta todos eles.
 
 ## Regras invioláveis
-- **A `main` é do usuário.** Nenhum agente faz commit, merge ou push na `main`; tudo chega por PR validado e mesclado pelo usuário. O hook `.githooks/pre-push` bloqueia envios para a `main` (ative com `git config core.hooksPath .githooks`).
+- **Fluxo de branches:** `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau (o CI confere) e ninguém envia direto para essas três branches (o hook `.githooks/pre-push` bloqueia; ative com `git config core.hooksPath .githooks`).
+  - **`develop`:** bateria rápida — testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta. O `tech-lead` mescla com tudo verde.
+  - **`homolog`:** bateria completa — a rápida + avaliações de comportamento com IA (obrigatórias; precisam do segredo `ANTHROPIC_API_KEY`), também toda noite. O `tech-lead` promove `develop` → `homolog` por PR com tudo verde.
+  - **`main`:** a versão usada por **todos os projetos**. Só muda pelo PR `homolog` → `main`, **mesclado pelo usuário**. Depois do merge, a release `vX.Y.Z` é publicada.
+- **Retroalimentação:** melhorias descobertas em qualquer projeto chegam aqui por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
 - **Neutralidade:** nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos` em `tests/config.json` garantem isso.
 - **Regras da fábrica protegidas por teste:** os trechos em `invariantes` (`tests/config.json`) não podem sumir. Afrouxar ou remover um item exige destaque no título do PR e o motivo.
-- **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`claude plugin validate . --strict`). Mudança em `agents/` ou `skills/` também roda as avaliações de comportamento (`evals/`) no CI.
+- **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`claude plugin validate . --strict`). As avaliações de comportamento (`evals/`) rodam na entrada da `homolog` e da `main`, toda noite, e na `develop` quando agentes ou skills mudam.
 - **Versão:** toda mudança que chega à `main` sobe a versão em `.claude-plugin/plugin.json` (SemVer: correção → patch, melhoria compatível → minor, quebra para os projetos → major) e ganha entrada no `CHANGELOG.md`. O CI confere que as duas batem.
 
 ## Estrutura
