@@ -8,6 +8,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 ### Adicionado
 - Ações do CI fixadas por SHA, Dependabot semanal e teste que exige SHA.
 - Orçamento de linhas por agente (110) e por skill (133), verificado por teste.
+### Corrigido
+- Testes rodados dentro do hook pre-push numa worktree herdavam `GIT_DIR` e alteravam o repositório real (`core.bare=true`, `user.name=t`, commit "inicio"). Os testes agora rodam o git com ambiente limpo, os hooks descartam as variáveis `GIT_*` e um teste de regressão protege isso.
 
 ## [0.2.1] - 2026-10-12
 ### Alterado
