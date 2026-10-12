@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Migração 0.5.0 (ADR 0005): cria .forge/versao, .forge/config.json e a linha .forge/run/ no .gitignore.
-Uso: migrar DIRETORIO_DO_PROJETO. Idempotente; não sobrescreve nada que exista."""
+"""Migração 0.5.0 (ADR 0005): cria .forge/versao, .forge/config.json, a linha .forge/run/ no .gitignore e marca
+os documentos do contrato sem frontmatter como anteriores a ele (`contrato: 0`, ADR 0004).
+Uso: migrar DIRETORIO_DO_PROJETO. Idempotente; não sobrescreve nada que exista, só acrescenta."""
 import shutil
 import sys
 from pathlib import Path
+
+PASTAS_DO_CONTRATO = ("docs/reviews", "docs/qa", "docs/architecture/features")  # as do forge-check (ADR 0004)
 
 raiz_forge = Path(__file__).resolve().parents[2]
 projeto = Path(sys.argv[1]).resolve()
@@ -16,8 +19,28 @@ if not (forge / "versao").exists():
 if not (forge / "config.json").exists():
     shutil.copy(raiz_forge / "templates/projeto/.forge/config.json", forge / "config.json")
     print("criado .forge/config.json")
+
+
+def quebra_de_linha(dados):
+    return b"\r\n" if b"\r\n" in dados else b"\n"
+
+
 gitignore = projeto / ".gitignore"
-linhas = gitignore.read_text(encoding="utf-8").splitlines() if gitignore.exists() else []
-if ".forge/run/" not in linhas:
-    gitignore.write_text("\n".join(linhas + [".forge/run/"]) + "\n", encoding="utf-8")
+dados = gitignore.read_bytes() if gitignore.exists() else b""
+if ".forge/run/" not in (linha.strip() for linha in dados.decode("utf-8", "replace").splitlines()):
+    nl = quebra_de_linha(dados)
+    with open(gitignore, "ab") as f:  # só acrescenta: preserva o conteúdo, o CRLF e o resto do arquivo
+        f.write((nl if dados and not dados.endswith(b"\n") else b"") + b".forge/run/" + nl)
     print("acrescentado .forge/run/ ao .gitignore")
+
+for pasta in PASTAS_DO_CONTRATO:
+    base = projeto / pasta
+    for doc in sorted(base.glob("*.md")) if base.is_dir() else []:
+        if doc.name == "README.md" or doc.name.startswith("_") or not doc.is_file():
+            continue
+        dados = doc.read_bytes()
+        if dados.split(b"\n", 1)[0].strip() == b"---":  # o mesmo critério do forge-check
+            continue  # já tem frontmatter
+        nl = quebra_de_linha(dados)
+        doc.write_bytes(b"---" + nl + b"contrato: 0" + nl + b"---" + nl + dados)
+        print(f"marcado {pasta}/{doc.name} como anterior ao contrato (contrato: 0)")

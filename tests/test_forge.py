@@ -415,6 +415,23 @@ class ForgeInit(unittest.TestCase):
         self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.1.0\n")
 
 
+# Documentos de um projeto antigo: só os do contrato sem frontmatter ganham `contrato: 0` (ADR 0004).
+DOCS_ANTES = {
+    "docs/reviews/p1-1.md": "# Review antigo\nparecer: aprovado\n",
+    "docs/qa/p1.md": "# QA antigo\r\nok\r\n",
+    "docs/architecture/features/p1.md": "# Plano antigo\n",
+    "docs/reviews/p2-1.md": "---\ncontrato: 0\ntitulo: já marcado\n---\n# Review\n",
+    "docs/reviews/README.md": "# Pareceres\n",
+    "docs/qa/_modelo.md": "# Modelo\n",
+    "docs/outro.md": "# Fora do contrato\n",
+}
+DOCS_DEPOIS = dict(DOCS_ANTES, **{
+    "docs/reviews/p1-1.md": "---\ncontrato: 0\n---\n# Review antigo\nparecer: aprovado\n",
+    "docs/qa/p1.md": "---\r\ncontrato: 0\r\n---\r\n# QA antigo\r\nok\r\n",
+    "docs/architecture/features/p1.md": "---\ncontrato: 0\n---\n# Plano antigo\n",
+})
+
+
 class ForgeUpgrade(unittest.TestCase):
     """Projeto "antes" (sem .forge/, como criado por um forge-init antigo) migrado pelo projeto (ADR 0005)."""
 
@@ -425,6 +442,9 @@ class ForgeUpgrade(unittest.TestCase):
         git("config", "user.email", "t@example.com", cwd=self.tmp)
         (self.tmp / ".gitignore").write_text("node_modules/", encoding="utf-8")
         (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
+        for rel, texto in DOCS_ANTES.items():
+            (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.tmp / rel).write_bytes(texto.encode("utf-8"))
         git("add", "-A", cwd=self.tmp)
         git("commit", "-q", "-m", "antes", cwd=self.tmp)
 
@@ -444,6 +464,11 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.forge/run/\n")
         self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
+        for rel, texto in DOCS_DEPOIS.items():
+            self.assertEqual((self.tmp / rel).read_bytes().decode("utf-8"), texto, rel)
+        docs = subprocess.run([str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), "docs"],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual((docs.returncode, docs.stdout), (0, ""))
         self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
                          "chore(forge): migração 0.5.0")
         antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
@@ -454,6 +479,15 @@ class ForgeUpgrade(unittest.TestCase):
         # a própria migração é idempotente quando rodada direto sobre o resultado
         subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
         self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_migracao_so_acrescenta_ao_gitignore(self):
+        for antes, depois in (("a/\r\nb/\r\n", "a/\r\nb/\r\n.forge/run/\r\n"), ("a/\r\nb/", "a/\r\nb/\r\n.forge/run/\r\n"),
+                              ("a/\n", "a/\n.forge/run/\n"), ("a/\n.forge/run/\n", "a/\n.forge/run/\n")):
+            with self.subTest(antes=antes):
+                (self.tmp / ".gitignore").write_bytes(antes.encode())
+                subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)],
+                               check=True, capture_output=True)
+                self.assertEqual((self.tmp / ".gitignore").read_bytes().decode(), depois)
 
     def test_recusa_arvore_suja(self):
         (self.tmp / "sujeira.txt").write_text("x", encoding="utf-8")
