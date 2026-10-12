@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Forge: bloqueia envio para a main — ela só muda por pull request validado e mesclado pelo usuário.
-while read -r local_ref local_sha remote_ref remote_sha; do
+while read -r _ _ remote_ref _; do
   if [ "$remote_ref" = "refs/heads/main" ]; then
     echo "pre-push: envio para a main bloqueado. Abra um pull request; o usuário valida e faz o merge." >&2
     exit 1
