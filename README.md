@@ -37,6 +37,9 @@ Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápid
 
 **Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
 
+## Hooks
+Em projeto com `.forge/versao`, o plugin garante por código, sem gastar contexto, o teto de agentes, o parecer antes de PR e merge, uma tarefa pesada por vez e o quadro válido (ADR 0003). Ajustes e como desligar um hook: [`docs/hooks.md`](docs/hooks.md).
+
 ## Atualizar um projeto
 O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No projeto, com a árvore limpa:
 1. `claude plugin update forge@forge`

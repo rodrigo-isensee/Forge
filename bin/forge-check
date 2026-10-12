@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
-Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido>
+Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]
+`pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 """
 import argparse
@@ -104,22 +105,31 @@ def validar_documento(rel, texto):
     return campos, saida
 
 
-def documentos(raiz, tipo=None):
+def documentos(raiz, tipo=None, ref=None):
+    """Gera (caminho relativo, texto) dos documentos do contrato: do disco, ou da `ref` do git se dada."""
     for t, (pasta, _, _) in CONTRATOS.items():
         if tipo and t != tipo:
             continue
-        base = raiz / pasta
-        if base.is_dir():
-            for p in sorted(base.glob("*.md")):
-                if p.name != "README.md" and not p.name.startswith("_"):
-                    yield p
+        if ref is None:
+            base = raiz / pasta
+            nomes = sorted(p.name for p in base.glob("*.md")) if base.is_dir() else []
+        else:
+            cod, saida = git(raiz, "ls-tree", "--name-only", ref, pasta + "/")
+            nomes = sorted(Path(n).name for n in saida.splitlines() if n.endswith(".md")) if not cod else []
+        for nome in nomes:
+            if nome == "README.md" or nome.startswith("_"):
+                continue
+            rel = f"{pasta}/{nome}"
+            if ref is None:
+                yield rel, (raiz / rel).read_text(encoding="utf-8")
+            else:
+                yield rel, git(raiz, "show", f"{ref}:{rel}")[1]
 
 
 def cmd_docs(raiz):
     saida = []
-    for p in documentos(raiz):
-        rel = p.relative_to(raiz).as_posix()
-        saida += validar_documento(rel, p.read_text(encoding="utf-8"))[1]
+    for rel, texto in documentos(raiz):
+        saida += validar_documento(rel, texto)[1]
     return saida
 
 
@@ -180,27 +190,37 @@ def git(raiz, *args):
     return r.returncode, r.stdout.strip()
 
 
-def commit_vale(raiz, commit):
-    """None se o parecer vale para o HEAD; senão o motivo."""
+def commit_vale(raiz, commit, ate="HEAD"):
+    """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo."""
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
-    cod, saida = git(raiz, "diff", "--name-only", commit, "HEAD")
+    cod, saida = git(raiz, "diff", "--name-only", commit, ate)
     if cod:
-        return "não foi possível comparar com o HEAD"
+        return f"não foi possível comparar com {ate}"
     fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
     if fora:
         return f"desatualizado: {fora[0]} mudou depois do parecer; peça novo parecer"
     return None
 
 
-def cmd_pr(raiz, pedido):
+def pedidos_da_branch(raiz, branch, ref=None):
+    """Pedidos cujos pareceres (review ou QA) declaram `branch: <branch>`."""
+    pedidos = set()
+    for tipo in ("review", "qa"):
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos = ler_frontmatter(texto)[0] or {}
+            if campos.get("branch") == branch and campos.get("pedido"):
+                pedidos.add(campos["pedido"])
+    return sorted(pedidos)
+
+
+def cmd_pr(raiz, pedido, ref=None):
     saida = []
     for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
         achados = []
-        for p in documentos(raiz, tipo):
-            rel = p.relative_to(raiz).as_posix()
-            campos, viol = validar_documento(rel, p.read_text(encoding="utf-8"))
+        for rel, texto in documentos(raiz, tipo, ref):
+            campos, viol = validar_documento(rel, texto)
             if campos is not None and campos.get("pedido") == pedido:
                 achados.append((campos.get("data", ""), rel, campos, viol))
         if not achados:
@@ -211,7 +231,7 @@ def cmd_pr(raiz, pedido):
         if campos.get("parecer") != "aprovado":
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            motivo = commit_vale(raiz, campos["commit"])
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD")
             if motivo:
                 saida.append(f"{rel}: commit: {motivo} ({rid})")
     return saida
@@ -223,11 +243,13 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs")
     sub.add_parser("kanban")
-    sub.add_parser("pr").add_argument("pedido")
+    pr = sub.add_parser("pr")
+    pr.add_argument("pedido")
+    pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
     a = ap.parse_args()
     raiz = Path(a.raiz).resolve()
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
-                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""))}[a.cmd]()
+                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))}[a.cmd]()
     for v in violacoes:
         print(v)
     return 1 if violacoes else 0

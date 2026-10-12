@@ -1,0 +1,16 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age.",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

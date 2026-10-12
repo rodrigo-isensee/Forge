@@ -1,0 +1,16 @@
+{
+  "descricao": "Comando fora da lista de pesados: não lê nem grava estado.",
+  "estado": {},
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npm test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

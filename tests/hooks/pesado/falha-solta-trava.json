@@ -1,0 +1,25 @@
+{
+  "descricao": "PostToolUseFailure do mesmo comando também solta a trava.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_vivo}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_9"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PostToolUseFailure",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "npx playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "pesado.json"
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "descricao": "Mesmo tipo com outra descrição não é duplicado.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:node-backend",
+      "description": "Corrigir o bug 12",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

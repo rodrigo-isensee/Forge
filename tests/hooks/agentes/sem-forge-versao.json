@@ -1,0 +1,18 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age nem cria estado.",
+  "forge": false,
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}
