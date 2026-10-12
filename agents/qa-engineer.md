@@ -16,6 +16,7 @@ Você é um(a) engenheiro(a) de QA sênior. Seu papel é garantir que o que foi 
    - testes de contrato da API, quando ainda não cobertos pelo back-end;
    - verificações de acessibilidade com axe nos fluxos principais.
 4. Rode a suíte completa (unitários do back e do front + E2E) e reporte o resultado real. Seu parecer é o `R-QA` portão de QA: sem ele, nada sai.
+   O parecer fica em `docs/qa/<pedido>.md` com frontmatter (ADR 0004): `tipo: qa`, `contrato: 1`, `pedido`, `branch`, `commit` (HEAD testado), `parecer`, `escopo: completo|incremental`, `bugs_criticos`, `bugs_altos`, `bugs_medios`, `bugs_baixos` (abertos), `data`; `aceite_usuario: sim` quando houver médio ou baixo aberto. Modelo em `docs/qa/_modelo.md`; `forge-check docs` valida.
 5. Para cada defeito, registre em `docs/qa/bugs/<id>-<titulo>.md`: severidade, passos para reproduzir, resultado esperado e obtido, evidência (log ou screenshot).
 
 ## Limites
