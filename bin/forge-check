@@ -2,10 +2,14 @@
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
 Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]
+     forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
+     forge-check transcricao verificar <arquivo.jsonl> [--teto N]
+`transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007).
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 """
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -237,6 +241,215 @@ def cmd_pr(raiz, pedido, ref=None):
     return saida
 
 
+# --- Transcrições (ADR 0007) ---------------------------------------------------------------------
+FORMATO = "forge-transcricao/1"
+SECOES = {"Objetivo": r"Objetivo", "Ler": r"Ler", "Entregar": r"Entregar",
+          "Decisões e restrições": r"Decis(?:ões|oes) e restri", "Pronto quando": r"Pronto quando",
+          "Relatório": r"Relat[óo]rio"}
+SECAO_RE = {n: re.compile(r"^\s*(?:#{1,6}\s*|\d+\.\s*)?\**\s*" + p, re.I | re.M) for n, p in SECOES.items()}
+AGENTES_GENERICOS = {"general-purpose", "Explore", "Plan"}
+RAMOS_FIXOS = {"main", "develop", "homolog"}
+GIT_MUDA = {"commit", "merge", "push", "rebase", "reset", "cherry-pick"}
+TETO_PADRAO = 3  # R-TETO
+
+
+def marcar_ramo(nome):
+    """Só `main`, `develop`, `homolog` e `HEAD` sobrevivem; qualquer outro nome vira marcador."""
+    nome = re.sub(r"^\+|^refs/heads/", "", (nome or "").strip())
+    base = nome[len("origin/"):] if nome.startswith("origin/") else nome
+    return base if base in RAMOS_FIXOS or base == "HEAD" else "<branch>"
+
+
+def marcar_agente(tipo):
+    tipo = str(tipo or "general-purpose")
+    return tipo if tipo.startswith("forge:") and re.fullmatch(r"forge:[a-z0-9-]+", tipo) or tipo in AGENTES_GENERICOS else "<agente>"
+
+
+def comandos_de(texto):
+    """Divide um comando de shell em segmentos de palavras (aspas e heredocs respeitados, sem executar nada)."""
+    linhas, fim_heredoc, limpo = texto.split("\n"), None, []
+    for linha in linhas:
+        if fim_heredoc is not None:
+            if linha.strip() == fim_heredoc:
+                fim_heredoc = None
+            continue
+        limpo.append(linha)
+        m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?", linha)
+        if m:
+            fim_heredoc = m.group(1)
+    segmentos, palavras, atual, aspas, i, s = [], [], "", None, 0, "\n".join(limpo)
+    tem = False
+
+    def fecha_palavra():
+        nonlocal atual, tem
+        if tem:
+            palavras.append(atual)
+        atual, tem = "", False
+
+    def fecha_segmento():
+        nonlocal palavras
+        fecha_palavra()
+        if palavras:
+            segmentos.append(palavras)
+        palavras = []
+
+    while i < len(s):
+        c = s[i]
+        if aspas:
+            if c == aspas:
+                aspas = None
+            elif c == "\\" and aspas == '"' and i + 1 < len(s):
+                i += 1
+                atual += s[i]
+            else:
+                atual += c
+        elif c in "'\"":
+            aspas, tem = c, True
+        elif c == "\\" and i + 1 < len(s):
+            i += 1
+            atual, tem = atual + s[i], True
+        elif c in " \t":
+            fecha_palavra()
+        elif c in "\n;|&":
+            fecha_segmento()
+        else:
+            atual, tem = atual + c, True
+        i += 1
+    fecha_segmento()
+    return segmentos
+
+
+def reduzir_comando(texto, ramo):
+    """Reduz um comando Bash aos tokens que as propriedades usam. Devolve [(token, ramo_atual)]."""
+    saida = []
+    for pal in comandos_de(texto):
+        while pal and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", pal[0]):
+            pal = pal[1:]
+        if not pal:
+            continue
+        if pal[0] == "gh" and pal[1:3] in (["pr", "create"], ["pr", "merge"]):
+            saida.append((f"gh pr {pal[2]}", ramo))
+        if pal[0] != "git":
+            continue
+        resto, i = pal[1:], 0
+        while i < len(resto) and resto[i].startswith("-"):  # opções globais: -C dir, -c k=v, --no-pager
+            i += 2 if resto[i] in ("-C", "-c") else 1
+        if i >= len(resto):
+            continue
+        sub, args = resto[i], resto[i + 1:]
+        if sub in ("checkout", "switch"):
+            alvo = [a for a in args if not a.startswith("-")]
+            if alvo and not any(a in ("-b", "-B", "-c", "-C") for a in args):
+                ramo = marcar_ramo(alvo[0])
+            elif alvo:
+                ramo = "<branch>"
+        elif sub == "push":
+            forca = any(a in ("-f", "--force") or a.startswith("--force") for a in args)
+            pos = [a for a in args if not a.startswith("-")]
+            refs = [marcar_ramo(a.split(":")[-1]) for a in pos[1:]] or [ramo]
+            for r in refs:
+                saida.append((f"git push{' --force' if forca else ''} {r}", ramo))
+        elif sub == "merge":
+            pos = [a for a in args if not a.startswith("-")]
+            saida.append((f"git merge {marcar_ramo(pos[0])}" if pos else "git merge", ramo))
+        elif sub in GIT_MUDA:
+            saida.append((f"git {sub}", ramo))
+    return saida
+
+
+def ler_eventos_brutos(linhas):
+    """ÚNICO ponto que conhece o formato `.jsonl` do Claude Code. Gera dicts neutros e já sem texto livre:
+    {ev: agente|fim|cmd, t, ...}. Tudo fora desta lista de permissão é descartado aqui."""
+    agentes, terminados, versao = {}, set(), None
+    for linha in linhas:
+        try:
+            o = json.loads(linha)
+        except ValueError:
+            continue
+        if not isinstance(o, dict) or o.get("isSidechain"):
+            continue
+        t, ramo = str(o.get("timestamp") or ""), marcar_ramo(o.get("gitBranch"))
+        if versao is None and re.fullmatch(r"[0-9][0-9.]*", str(o.get("version") or "")):
+            versao = o["version"]
+            yield {"ev": "origem", "versao": versao}
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        blocos = msg.get("content") if isinstance(msg.get("content"), list) else []
+        if o.get("type") == "queue-operation" and isinstance(o.get("content"), str):
+            blocos = [{"type": "text", "text": o["content"]}]
+        for b in blocos:
+            if not isinstance(b, dict):
+                continue
+            entrada = b.get("input") if isinstance(b.get("input"), dict) else {}
+            if b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task"):
+                n = f"a{len(agentes) + 1}"
+                agentes[b.get("id")] = n
+                prompt = str(entrada.get("prompt") or "")
+                yield {"ev": "agente", "t": t, "id": n, "tipo": marcar_agente(entrada.get("subagent_type")),
+                       "bg": str(entrada.get("run_in_background")).lower() == "true",
+                       "secoes": {nome: bool(r.search(prompt)) for nome, r in SECAO_RE.items()}}
+            elif b.get("type") == "tool_use" and b.get("name") == "Bash":
+                for token, r in reduzir_comando(str(entrada.get("command") or ""), ramo):
+                    yield {"ev": "cmd", "t": t, "cmd": token, "branch": r}
+            elif b.get("type") == "tool_result" and b.get("tool_use_id") in agentes:
+                if "Async agent launched" not in json.dumps(b.get("content"), ensure_ascii=False)[:200]:
+                    ids = [b["tool_use_id"]]
+                else:
+                    ids = []
+            elif b.get("type") == "text" and "<task-notification>" in str(b.get("text")):
+                ids = re.findall(r"<tool-use-id>([^<]+)</tool-use-id>", b["text"])
+            else:
+                continue
+            if b.get("type") != "tool_use":
+                for i in ids:
+                    if i in agentes and i not in terminados:
+                        terminados.add(i)
+                        yield {"ev": "fim", "t": t, "id": agentes[i]}
+
+
+def cmd_transcricao_anonimizar(entrada, saida):
+    with open(entrada, encoding="utf-8", errors="replace") as f:
+        eventos = list(ler_eventos_brutos(f))
+    origem = next((e["versao"] for e in eventos if e["ev"] == "origem"), "desconhecida")
+    with open(saida, "w", encoding="utf-8") as f:
+        f.write(json.dumps({"formato": FORMATO, "origem": f"claude-code {origem}"}) + "\n")
+        for e in eventos:
+            if e["ev"] != "origem":
+                f.write(json.dumps(e, ensure_ascii=False) + "\n")
+    return []
+
+
+def cmd_transcricao_verificar(arquivo, teto=TETO_PADRAO):
+    saida, vistos, ativos, i = [], set(), set(), 0
+    with open(arquivo, encoding="utf-8") as f:
+        linhas = [json.loads(l) for l in f if l.strip()]
+    if not linhas or linhas[0].get("formato") != FORMATO:
+        return [f"transcricao: formato: esperado `{FORMATO}`; anonimize com `forge-check transcricao anonimizar`"]
+    for i, e in enumerate(linhas[1:], 1):
+        if e["ev"] == "agente":
+            tipo = e["tipo"].split(":")[-1]
+            vistos.add(tipo)
+            if e["bg"]:
+                ativos.add(e["id"])
+                if len(ativos) > teto:
+                    saida.append(f"transcricao: R-TETO: {len(ativos)} agentes em segundo plano, teto {teto} (evento {i})")
+            faltam = [n for n, ok in e["secoes"].items() if not ok]
+            if faltam:
+                saida.append(f"transcricao: PROMPT-PADRAO: delegação a {tipo} sem as seções {', '.join(faltam)} (evento {i})")
+        elif e["ev"] == "fim":
+            ativos.discard(e["id"])
+        elif e["ev"] == "cmd":
+            c, partes = e["cmd"], e["cmd"].split()
+            main = (partes[:2] == ["git", "push"] and partes[-1] == "main") or (
+                e["branch"] == "main" and partes[0] == "git" and partes[1] in GIT_MUDA)
+            if main:
+                saida.append(f"transcricao: R-MAIN: `{c}` com a main (evento {i})")
+            if c == "gh pr create":
+                for papel, rid in (("tech-lead", "R-REVIEW"), ("qa-engineer", "R-QA")):
+                    if papel not in vistos:
+                        saida.append(f"transcricao: {rid}: gh pr create sem delegação prévia ao {papel} (evento {i})")
+    return saida
+
+
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
@@ -246,8 +459,26 @@ def main():
     pr = sub.add_parser("pr")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
+    tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
+    tsub = tr.add_subparsers(dest="acao", required=True)
+    an = tsub.add_parser("anonimizar")
+    an.add_argument("entrada")
+    an.add_argument("saida")
+    ve = tsub.add_parser("verificar")
+    ve.add_argument("arquivo")
+    ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
     raiz = Path(a.raiz).resolve()
+    if a.cmd == "transcricao":
+        try:
+            violacoes = (cmd_transcricao_anonimizar(a.entrada, a.saida) if a.acao == "anonimizar"
+                         else cmd_transcricao_verificar(a.arquivo, a.teto))
+        except OSError as e:
+            print(f"transcricao: arquivo: {e.strerror}: {e.filename}")
+            return 1
+        for v in violacoes:
+            print(v)
+        return 1 if violacoes else 0
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))}[a.cmd]()
     for v in violacoes:
