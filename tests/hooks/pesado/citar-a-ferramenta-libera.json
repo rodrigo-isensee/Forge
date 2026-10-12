@@ -1,0 +1,32 @@
+{
+  "descricao": "Comando que só cita a ferramenta (argumento, pacote) não é pesado nem disputa a trava.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "grep -r playwright package.json && npm i -D @playwright/test"
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "pesado.json": {
+        "contem": [
+          "toolu_1"
+        ],
+        "ausente": [
+          "toolu_9"
+        ]
+      }
+    }
+  }
+}

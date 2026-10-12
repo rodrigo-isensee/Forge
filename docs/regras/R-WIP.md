@@ -1,7 +1,7 @@
 ---
 id: R-WIP
 titulo: Um cartão por agente e limites de coluna
-verificada_por: revisão (auditoria do quadro pelo agile-coach)
+verificada_por: revisão (auditoria do quadro pelo agile-coach) e hook `quadro` (forge-check kanban)
 ---
 # R-WIP: Um cartão por agente e limites de coluna
 

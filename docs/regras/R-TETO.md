@@ -1,7 +1,7 @@
 ---
 id: R-TETO
 titulo: Teto de recursos da máquina
-verificada_por: revisão
+verificada_por: revisão e hooks `agentes` e `pesado`
 ---
 # R-TETO: Teto de recursos da máquina
 

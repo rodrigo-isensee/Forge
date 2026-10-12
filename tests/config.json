@@ -7,7 +7,7 @@
   },
   "neutralidade_nucleo": {
     "pastas": ["agents", "skills", "docs", "templates", "bin", "scripts", ".github"],
-    "ignorar": ["docs/adr/"],
+    "ignorar": ["docs/adr/", "docs/reviews/", "docs/qa/"],
     "termos": [
       "\\bNode(\\.js)?\\b", "\\bReact\\b", "TypeScript", "\\bpnpm\\b", "\\bnpm\\b", "Playwright",
       "\\bzod\\b", "\\bVitest\\b", "\\bESLint\\b", "\\bPrettier\\b", "\\bFastify\\b",

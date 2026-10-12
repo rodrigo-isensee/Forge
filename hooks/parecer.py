@@ -1,41 +1,25 @@
 #!/usr/bin/env python3
 """Forge: parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA).
 
-PreToolUse (Bash) com `gh pr create` ou `git merge <branch>` na branch de integração: exige parecer aprovado
-e válido para a branch (validado pelo forge-check, ADR 0004). Libera mudança só de documentação (.md),
+PreToolUse (Bash) com `gh pr create`, ou `git merge <branch>` e `git pull <remoto> <branch>` na branch de
+integração: exige parecer aprovado e válido para a branch (validado pelo forge-check, ADR 0004). A branch atual
+acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha. Libera mudança só de documentação (.md),
 atualização a partir de uma branch de integração e promoção entre branches de integração.
 """
 import re
-import shlex
 from pathlib import Path
 
-from _comum import INTEGRACAO, bloquear, executar, forge_check, git, nome_da_branch, separar_regra
+from _comum import (INTEGRACAO, bloquear, executar, forge_check, git, nome_da_branch, raiz_do_projeto, segmentos,
+                     sem_atribuicoes, separar_regra)
 
-PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\bcreate\b|\bgit\b.*\bmerge\b", re.S)
-SEPARADORES = set("();|&\n")
-REDIRECIONAMENTO = set("<>")
+PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\bcreate\b|\bgit\b.*\b(merge|pull)\b", re.S)
 MERGE_COM_VALOR = {"-m", "-F", "-s", "-X", "--message", "--file", "--strategy", "--strategy-option", "--into-name"}
+PULL_COM_VALOR = {"-s", "-X", "--strategy", "--strategy-option", "--depth", "--deepen", "--shallow-since",
+                  "--shallow-exclude", "-j", "--jobs", "--upload-pack", "-o", "--server-option"}
+CRIA_BRANCH = {"-b", "-B", "-c", "-C", "--create", "--force-create", "--orphan"}
 MERGE_SEM_ALVO = {"--abort", "--continue", "--quit", "--skip"}
 GIT_COM_VALOR = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
-
-
-def segmentos(comando):
-    """Divide a linha do shell em comandos simples (listas de palavras), sem executar nada."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
-    lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, pular = [], False
-    for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
-            yield atual
-            atual = []
-        elif tok and set(tok) <= REDIRECIONAMENTO:
-            pular = True
-        elif pular:
-            pular = False
-        else:
-            atual.append(tok)
-    yield atual
 
 
 def opcao(args, longa, curta):
@@ -47,10 +31,37 @@ def opcao(args, longa, curta):
     return None
 
 
+def posicionais(args, com_valor):
+    saida, j = [], 0
+    while j < len(args):
+        if args[j] in com_valor:
+            j += 2
+            continue
+        if not args[j].startswith("-"):
+            saida.append(args[j])
+        j += 1
+    return saida
+
+
+def troca_de_branch(args):
+    """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
+    if "--" in args:
+        return None  # restaura arquivos
+    for k, a in enumerate(args):
+        if a in CRIA_BRANCH:
+            return args[k + 1] if k + 1 < len(args) else None
+        if a in ("-d", "--detach"):
+            return ""
+    pos = posicionais(args, set())
+    if not pos:
+        return None
+    return "" if pos[0] == "-" else pos[0]
+
+
 def analisar(toks):
-    """('cd', dir) | ('pr', dir, base, head) | ('merge', dir, [refs]) | None."""
-    while toks and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[0]):
-        toks = toks[1:]
+    """('cd', dir) | ('pr', None, base, head) | ('merge', dir, [(branch, [refs candidatas])])
+    | ('branch', dir, nome) | None."""
+    toks = sem_atribuicoes(toks)
     if not toks:
         return None
     if toks[0] == "cd":
@@ -70,19 +81,17 @@ def analisar(toks):
             i += 2
         else:
             i += 1
-    if toks[i: i + 1] != ["merge"]:
+    sub, args = (toks[i], toks[i + 1:]) if i < len(toks) else (None, [])
+    if sub in ("checkout", "switch"):
+        nome = troca_de_branch(args)
+        return None if nome is None else ("branch", pasta, nome)
+    if sub == "pull":  # `git pull <remoto> <branch>` mescla a branch na atual, como o merge
+        pos = posicionais(args, PULL_COM_VALOR)
+        alvos = [s.split(":")[0].lstrip("+") for s in pos[1:]]
+        return ("merge", pasta, [(nome_da_branch(a), [f"{pos[0]}/{a}", a]) for a in alvos if a])
+    if sub != "merge" or MERGE_SEM_ALVO & set(args):
         return None
-    args, refs, j = toks[i + 1:], [], 0
-    if MERGE_SEM_ALVO & set(args):
-        return None
-    while j < len(args):
-        if args[j] in MERGE_COM_VALOR:
-            j += 2
-            continue
-        if not args[j].startswith("-"):
-            refs.append(args[j])
-        j += 1
-    return ("merge", pasta, refs)
+    return ("merge", pasta, [(nome_da_branch(r), [r]) for r in posicionais(args, MERGE_COM_VALOR)])
 
 
 def existe(raiz, ref):
@@ -125,22 +134,27 @@ def pull_request(hook, pasta, base, head):
     verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None))
 
 
-def merge(hook, pasta, refs):
+def merge(hook, pasta, alvos, branches):
     raiz = hook.projeto(pasta)
-    if not raiz or git(raiz, "branch", "--show-current")[1] not in INTEGRACAO:
+    if not raiz:
+        return
+    chave = raiz.resolve()
+    atual = branches[chave] if chave in branches else git(raiz, "branch", "--show-current")[1]
+    if atual not in INTEGRACAO:
         return  # atualizar uma branch de trabalho é livre; o portão é a entrada na integração
-    for ref in refs:
-        branch = nome_da_branch(ref)
-        if branch in INTEGRACAO or ref in ("HEAD", "FETCH_HEAD") or not existe(raiz, ref):
+    for branch, candidatas in alvos:
+        if branch in INTEGRACAO or branch in ("HEAD", "FETCH_HEAD"):
             continue
-        verificar(hook, raiz, branch, ref, "HEAD")
+        ref = next((r for r in candidatas if existe(raiz, r)), None)
+        if ref:  # base: a branch de integração (o HEAD ainda não trocou se o checkout veio na mesma linha)
+            verificar(hook, raiz, branch, ref, atual if chave in branches else "HEAD")
 
 
 def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
         return
-    pasta = hook.cwd()
+    pasta, branches = hook.cwd(), {}  # branches: raiz do projeto -> branch depois de checkout/switch na linha
     try:
         partes = [analisar(s) for s in segmentos(comando)]
     except ValueError:
@@ -152,8 +166,12 @@ def principal(hook):
             pasta = pasta / Path(parte[1]).expanduser() if parte[1] else Path.home()
         elif parte[0] == "pr":
             pull_request(hook, pasta, parte[2], parte[3])
+        elif parte[0] == "branch":
+            raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
+            if raiz:
+                branches[raiz.resolve()] = parte[2]
         else:
-            merge(hook, pasta / parte[1] if parte[1] else pasta, parte[2])
+            merge(hook, pasta / parte[1] if parte[1] else pasta, parte[2], branches)
 
 
 if __name__ == "__main__":

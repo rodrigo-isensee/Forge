@@ -59,6 +59,10 @@ with open(sys.argv[2], "w", encoding="utf-8") as f:
 PY
 }
 
+# Projeto que já usa o Forge mas é anterior ao .forge/ (ADR 0005): a versão real é desconhecida.
+antigo=0
+if [ ! -e "$destino/.forge/versao" ] && { [ -e "$destino/CLAUDE.md" ] || [ -e "$destino/KANBAN.md" ]; }; then antigo=1; fi
+
 criados=0; mantidos=0
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
@@ -76,9 +80,14 @@ while IFS= read -r -d '' arq; do
   echo "  criado   $rel"; criados=$((criados + 1))
 done < <(find "$modelo" -type f -print0 | sort -z)
 
-# Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo.
+# Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo;
+# no projeto antigo grava 0.0.0, e o forge-upgrade aplica as migrações.
 versao_forge="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$raiz_forge/.claude-plugin/plugin.json")"
-if [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
+if [ "$antigo" -eq 1 ] && [ "$forcar" -eq 0 ]; then
+  mkdir -p "$destino/.forge"; printf '0.0.0\n' > "$destino/.forge/versao"
+  echo "  criado   .forge/versao (0.0.0: projeto anterior ao .forge/)"
+  echo "  aviso    rode 'forge-upgrade' neste projeto para aplicar as migrações do Forge"
+elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
   mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
   echo "  criado   .forge/versao ($versao_forge)"
 fi

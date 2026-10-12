@@ -2,7 +2,7 @@
   "descricao": "Outra tarefa pesada com PID vivo: bloqueia.",
   "estado": {
     "pesado.json": {
-      "pid": "{pid_vivo}",
+      "pid": "{pid_outro}",
       "comando": "npx playwright test",
       "desde": "{agora-120}",
       "tool_use_id": "toolu_1"
@@ -18,6 +18,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "tarefa pesada em andamento há 2 min"
+    "stderr": "de outra sessão ou agente há 2 min"
   }
 }

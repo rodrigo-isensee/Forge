@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false  # o token só serve ao `gh release`, não aos testes
       - name: Testes antes de publicar
         run: python3 -m unittest discover -s tests -q
       - name: Tag e release

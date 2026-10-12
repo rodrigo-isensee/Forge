@@ -4,12 +4,13 @@ Silenciosos (sem saída quando tudo está certo), determinísticos (só estado e
 só agem em projeto com `.forge/versao` e liberam em erro interno (registrado em `.forge/run/erros.log`).
 Só biblioteca padrão; nada vindo da entrada é executado.
 """
+import functools
 import importlib.machinery
 import importlib.util
 import json
 import os
 import re
-import subprocess
+import shlex
 import sys
 import time
 from contextlib import contextmanager
@@ -21,6 +22,8 @@ LIMITE_LOG = 256 * 1024
 # Usados só se o modelo do projeto (templates/projeto/.forge/config.json) não puder ser lido.
 RESERVA = {"teto_agentes": 3, "pesados": ["playwright", "docker compose up"]}
 INTEGRACAO = {"main", "master", "develop", "homolog"}
+SEPARADORES = set("();|&\n")
+REDIRECIONAMENTO = set("<>")
 
 
 def raiz_do_projeto(inicio):
@@ -34,12 +37,38 @@ def raiz_do_projeto(inicio):
 
 
 def git(raiz, *args):
-    """Roda git na raiz sem as variáveis GIT_* herdadas. Devolve (código, stdout sem espaços nas pontas)."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env, timeout=5)
-    return r.returncode, r.stdout.strip()
+    """O git do forge-check (sem GIT_* herdadas, com limite de tempo): uma função só para hooks e validador."""
+    return forge_check().git(raiz, *args)
 
 
+def segmentos(comando):
+    """Divide a linha do shell em comandos simples (listas de palavras), sem executar nada.
+    Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando)."""
+    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
+    lex.whitespace, lex.whitespace_split = " \t\r", True
+    atual, pular = [], False
+    for tok in lex:
+        if tok and set(tok) <= SEPARADORES:
+            yield atual
+            atual = []
+        elif tok and set(tok) <= REDIRECIONAMENTO:
+            pular = True
+        elif pular:
+            pular = False
+        else:
+            atual.append(tok)
+    yield atual
+
+
+def sem_atribuicoes(palavras):
+    """Tira as atribuições de variáveis do início de um comando simples (`A=1 B=2 git ...`)."""
+    i = 0
+    while i < len(palavras) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", palavras[i]):
+        i += 1
+    return palavras[i:]
+
+
+@functools.lru_cache(maxsize=1)
 def forge_check():
     """Carrega bin/forge-check como módulo, para reaproveitar a validação (ADR 0004) sem duplicá-la."""
     caminho = str(PLUGIN / "bin" / "forge-check")

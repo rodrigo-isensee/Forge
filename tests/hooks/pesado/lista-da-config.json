@@ -7,7 +7,7 @@
   },
   "estado": {
     "pesado.json": {
-      "pid": "{pid_vivo}",
+      "pid": "{pid_outro}",
       "comando": "pnpm build",
       "desde": "{agora-120}",
       "tool_use_id": "toolu_1"

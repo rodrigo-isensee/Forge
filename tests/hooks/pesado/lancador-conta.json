@@ -1,0 +1,23 @@
+{
+  "descricao": "Ferramenta depois de variável e lançador (`pnpm exec`) no início do segmento: bloqueia.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd web; CI=1 pnpm exec playwright test"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO"
+  }
+}

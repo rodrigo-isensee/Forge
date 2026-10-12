@@ -7,9 +7,11 @@ Formato do fixture:
   arquivos    {caminho: texto ou lista de linhas} gravados antes do commit inicial (branch develop)
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
+              | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
-  entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}", "{pid_vivo}", "{pid_morto}" viram números)
+  entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
+              sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   esperado    codigo, stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
@@ -46,7 +48,7 @@ def substituir(valor, mapa, agora):
         m = re.fullmatch(r"\{agora-(\d+)\}", valor)
         if m:
             return agora - int(m.group(1))
-        if valor in ("{pid_vivo}", "{pid_morto}"):
+        if valor in ("{pid_vivo}", "{pid_outro}", "{pid_morto}"):
             return mapa[valor]
         for chave, texto in mapa.items():
             if isinstance(texto, str):
@@ -64,11 +66,11 @@ class Fixture:
         self.dados = json.loads(caminho.read_text(encoding="utf-8"))
         self.hook = caminho.parent.name
 
-    def montar(self, tmp):
+    def montar(self, tmp, outro):
         raiz = tmp / "proj"
         raiz.mkdir()
         d = self.dados
-        mapa = {"{tmp}": str(tmp), "{raiz}": str(raiz), "{pid_vivo}": os.getpid(),
+        mapa = {"{tmp}": str(tmp), "{raiz}": str(raiz), "{pid_vivo}": os.getpid(), "{pid_outro}": outro,
                 "{pid_morto}": pid_morto()}
         git("init", "-q", "-b", "develop", cwd=raiz)
         git("config", "user.email", "t@example.com", cwd=raiz)
@@ -92,6 +94,8 @@ class Fixture:
                 git("switch", "-q", "-c", passo["branch"], cwd=raiz)
             elif "checkout" in passo:
                 git("switch", "-q", passo["checkout"], cwd=raiz)
+            elif "ref" in passo:  # ex.: refs/remotes/origin/x apontando para o HEAD, como depois de um fetch
+                git("update-ref", passo["ref"], "HEAD", cwd=raiz)
             if "arquivos" in passo:
                 mapa["{HEAD}"] = git("rev-parse", "HEAD", cwd=raiz).stdout.strip()
                 self.gravar(raiz, passo["arquivos"], mapa)
@@ -129,11 +133,14 @@ class Hooks(unittest.TestCase):
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
+        outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
+        self.addCleanup(outro.wait)
+        self.addCleanup(outro.kill)
         for f in self.fixtures:
             with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
                 self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-                raiz, entrada = f.montar(tmp)
+                raiz, entrada = f.montar(tmp, outro.pid)
                 r = rodar(f.hook, entrada, raiz)
                 esperado = f.dados["esperado"]
                 self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
@@ -184,6 +191,7 @@ class Hooks(unittest.TestCase):
                 for h in g["hooks"]:
                     with self.subTest(evento=evento, matcher=g.get("matcher")):
                         self.assertEqual(h["command"], "python3", "forma exec, sem shell")
+                        self.assertEqual(h.get("timeout"), 10, "sem timeout, o padrão do Claude Code é 600 s")
                         self.assertEqual(len(h["args"]), 1)
                         rel = h["args"][0].replace("${CLAUDE_PLUGIN_ROOT}/", "")
                         self.assertTrue((RAIZ / rel).is_file(), rel)
