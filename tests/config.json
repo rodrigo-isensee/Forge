@@ -1,11 +1,23 @@
 {
   "agentes_obrigatorios": [
-    "jarvis", "tech-lead", "software-architect", "ux-designer",
-    "node-backend", "react-frontend", "qa-engineer", "agile-coach"
+    "jarvis",
+    "tech-lead",
+    "software-architect",
+    "ux-designer",
+    "node-backend",
+    "react-frontend",
+    "qa-engineer",
+    "agile-coach"
   ],
   "termos_proibidos": [
-    "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
-    "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
+    "Metricas ?DSPD",
+    "\\bDSPD\\b",
+    "BusinessMap",
+    "Acelerato",
+    "SistemaPonto",
+    "\\bSSSC\\b",
+    "Siegard",
+    "\\bFL[123]\\b"
   ],
   "invariantes": {
     "agents/jarvis.md": [
@@ -15,7 +27,7 @@
       "## Portão de QA \\(obrigatório\\)",
       "Nenhum código sai sem aprovação do `qa-engineer`",
       "Teto de recursos da máquina \\(obrigatório\\)",
-      "no máximo \\*\\*3 agentes trabalhando ao mesmo tempo\\*\\*",
+      "teto de agentes adaptativo",
       "\\*\\*Todo pedido começa com discovery\\.\\*\\*",
       "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega",
       "## Fábrica × projeto: onde cada mudança vai",
@@ -25,7 +37,10 @@
       "\\*\\*em qualquer projeto\\*\\*",
       "\\*\\*Autonomia para melhorar o Forge e os projetos",
       "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
-      "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário"
+      "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário",
+      "tarefas pesadas uma de cada vez",
+      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "nunca relaxa as regras abaixo"
     ],
     "agents/tech-lead.md": [
       "## A main é do usuário",
