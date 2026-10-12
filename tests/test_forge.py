@@ -55,6 +55,7 @@ class Manifestos(unittest.TestCase):
     def test_changelog_tem_a_versao_atual(self):
         versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
         changelog = (RAIZ / "CHANGELOG.md").read_text(encoding="utf-8")
+        # "## [Não publicado]" pode vir no topo (ADR 0006); vale a primeira entrada numerada.
         primeira = re.search(r"^## \[?(\d+\.\d+\.\d+)", changelog, re.M)
         self.assertIsNotNone(primeira, "CHANGELOG.md sem entrada de versão")
         self.assertEqual(primeira.group(1), versao, "versão do plugin.json difere da última do CHANGELOG")
@@ -275,6 +276,12 @@ class CI(unittest.TestCase):
                 if m and not m.group(1).startswith("./"):
                     with self.subTest(arquivo=wf.name, linha=n):
                         self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
+
+    def test_job_versao_cobre_develop_e_main(self):
+        """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        for trecho in ("base_ref == 'develop' || github.base_ref == 'main'", "[Não publicado]", "a <= b"):
+            self.assertIn(trecho, texto)
 
     def test_dependabot_para_actions(self):
         texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
