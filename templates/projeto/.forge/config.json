@@ -1,0 +1,4 @@
+{
+  "teto_agentes": 3,
+  "pesados": ["playwright", "docker compose up", "pytest -m integration"]
+}
