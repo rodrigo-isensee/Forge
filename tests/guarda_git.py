@@ -5,6 +5,7 @@ teste ou um agente deixou `user.name` no clone principal). Cada módulo de teste
 `tearDownModule` daqui: comparam o arquivo antes e depois e falham com a diferença."""
 import difflib
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -23,9 +24,25 @@ def ler(caminho):
     return caminho.read_text(encoding="utf-8") if caminho and caminho.is_file() else None
 
 
+_SECAO = re.compile(r"^\s*\[")
+_SECAO_BRANCH = re.compile(r'^\s*\[branch[\s."]', re.IGNORECASE)
+
+
+def sem_branch(texto):
+    """O config sem as seções `branch.*`: o git grava o rastreamento de branch (remote, merge) por conta própria quando
+    outros agentes criam ou enviam branches em paralelo; isso não é identidade nem configuração alterada."""
+    saida, dentro = [], False
+    for linha in (texto or "").splitlines(True):
+        if _SECAO.match(linha):
+            dentro = bool(_SECAO_BRANCH.match(linha))
+        if not dentro:
+            saida.append(linha)
+    return "".join(saida)
+
+
 def diferenca(antes, depois):
-    """Texto da diferença entre os dois conteúdos, ou "" se iguais."""
-    return "".join(difflib.unified_diff((antes or "").splitlines(True), (depois or "").splitlines(True),
+    """Texto da diferença entre os dois conteúdos (ignorando `branch.*`), ou "" se iguais."""
+    return "".join(difflib.unified_diff(sem_branch(antes).splitlines(True), sem_branch(depois).splitlines(True),
                                         "antes", "depois"))
 
 

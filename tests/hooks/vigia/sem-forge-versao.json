@@ -1,0 +1,19 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age (nem cria .forge/run).",
+  "forge": false,
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}
+

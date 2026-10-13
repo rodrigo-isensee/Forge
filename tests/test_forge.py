@@ -738,6 +738,194 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertIn("--help", r.stderr)
 
 
+class JarvisForgeVigente(unittest.TestCase):
+    """ADR 0009, seção 4: o jarvis-forge carrega a cópia vigente (clone da origin/develop), não a de trabalho."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        tmp = Path(self._tmp.name)
+        self.home = tmp / "home"
+        (self.home / "Forge").mkdir(parents=True)
+        self.vigente = self.home / ".local/share/forge/vigente"
+        self.registro = tmp / "chamadas"
+        bin_falso = tmp / "bin"
+        bin_falso.mkdir()
+        corpos = {
+            "claude": 'exit 0',
+            "tmux": 'exit 0',
+            "git": ('case "$*" in\n'
+                    '  *"remote get-url"*) [ -z "${STUB_GIT_SEM_ORIGIN:-}" ] || exit 2; echo https://exemplo.invalido/Forge.git ;;\n'
+                    '  "clone "*) mkdir -p "${@: -1}/.git" ;;\n'
+                    '  *"rev-parse HEAD"*) [ -n "${STUB_GIT_HEAD_FIXO:-}" ] && echo fixo || wc -l < "$REGISTRO" ;;\n'
+                    '  *"rev-list"*) printf "%s" "${STUB_GIT_ADIANTE:-}" ;;\n'
+                    '  *"status --porcelain"*) printf "%s" "${STUB_GIT_SUJO:-}" ;;\n'
+                    'esac'),
+        }
+        for nome, corpo in corpos.items():
+            falso = bin_falso / nome
+            falso.write_text(f'#!/usr/bin/env bash\necho "{nome} $*" >> "{self.registro}"\n{corpo}\n')
+            falso.chmod(0o755)
+        self.env = ambiente_limpo()
+        self.env.update(HOME=str(self.home), PATH=f"{bin_falso}:{self.env['PATH']}")
+        self.env["REGISTRO"] = str(self.registro)
+        self.env.pop("XDG_DATA_HOME", None)
+        self.env.pop("TMUX", None)
+
+    def rodar(self, *args, **env):
+        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis-forge"), *args], env={**self.env, **env},
+                           capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        return r
+
+    def chamadas(self):
+        return self.registro.read_text().splitlines() if self.registro.exists() else []
+
+    def test_cria_a_copia_vigente_uma_vez_e_nao_toca_depois(self):
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        clones = [c for c in self.chamadas() if c.startswith("git clone")]
+        self.assertEqual(len(clones), 1)
+        self.assertIn("--branch develop", clones[0])
+        self.assertIn(str(self.vigente), clones[0])
+        claude = [c for c in self.chamadas() if c.startswith("claude --")]
+        self.assertIn(f"--plugin-dir {self.vigente} ", claude[0] + " ")
+        self.registro.unlink()
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse([c for c in self.chamadas() if c.startswith("git ") and "remote get-url" not in c],
+                         "alterou a cópia vigente")
+        self.assertIn(f"--plugin-dir {self.vigente} ", [c for c in self.chamadas() if c.startswith("claude --")][0] + " ")
+
+    def test_respeita_xdg_data_home(self):
+        outro = Path(self._tmp.name) / "dados"
+        r = self.rodar("--sem-tmux", XDG_DATA_HOME=str(outro))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((outro / "forge/vigente/.git").is_dir())
+        self.assertFalse(self.vigente.exists())
+
+    def test_atualizar_vigente_limpa_faz_fetch_e_reset_so_nela(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        git = [c for c in self.chamadas() if c.startswith("git ")]
+        self.assertTrue(all(f"-C {self.vigente} " in c or "remote get-url" in c for c in git), git)
+        self.assertTrue(any(" fetch " in c for c in git))
+        self.assertTrue(any("reset --quiet --hard origin/develop" in c for c in git))
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux")) and "has-session" not in c],
+                         "abriu sessão")
+
+    def test_atualizar_vigente_recusa_mudancas_locais(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente", STUB_GIT_SUJO=" M hooks/conformidade.py\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("mudanças locais", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
+
+    def test_nunca_apaga_diretorio_que_nao_e_clone_do_forge(self):
+        """JFV-01: diretório do usuário no caminho da cópia vigente fica intacto, nos dois modos."""
+        self.vigente.mkdir(parents=True)
+        arquivo = self.vigente / "nao-apagar.txt"
+        arquivo.write_text("importante\n")
+        for args in (("--sem-tmux",), ("--atualizar-vigente",)):
+            with self.subTest(args=args):
+                r = self.rodar(*args)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn("não é um clone do Forge", r.stderr)
+                self.assertEqual(arquivo.read_text(), "importante\n")
+                self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux"))])
+                self.assertFalse([c for c in self.chamadas() if " clone " in c or " reset " in c])
+
+    def test_recusa_clone_de_outra_origem(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        (self.vigente / "x.txt").write_text("x")
+        # o stub responde a mesma URL para qualquer pasta; força a diferença só na cópia vigente
+        git_falso = Path(self.env["PATH"].split(":")[0]) / "git"
+        corpo = git_falso.read_text().replace('*"remote get-url"*)',
+                                              f'*"-C {self.vigente} remote get-url"*) echo https://outro.invalido/x.git ;;\n  *"remote get-url"*)')
+        git_falso.write_text(corpo)
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertTrue((self.vigente / "x.txt").exists())
+        self.assertFalse([c for c in self.chamadas() if c.startswith("claude")])
+
+    def test_atualizar_vigente_recusa_commits_locais(self):
+        """JFV-02: commit local que não está na origin/develop não é descartado pelo reset."""
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente", STUB_GIT_ADIANTE="a2e58b5 local\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("commits locais", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
+
+    def test_sem_origin_sugere_dev(self):
+        """JFV-03: mensagem do próprio script, sem criar nada."""
+        r = self.rodar("--sem-tmux", STUB_GIT_SEM_ORIGIN="1")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("não tem o remoto 'origin'", r.stderr)
+        self.assertIn("--dev", r.stderr)
+        self.assertFalse(self.vigente.exists())
+
+    def test_atualizar_avisa_sessao_aberta_so_se_a_copia_mudou(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("tmux has-session -t jarvis-Forge", "\n".join(self.chamadas()))
+        self.assertIn("reinicie", r.stderr)
+        self.registro.unlink()
+        r = self.rodar("--atualizar-vigente", STUB_GIT_HEAD_FIXO="1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("reinicie", r.stderr)
+
+    def test_dev_com_atualizar_vigente_sai_com_2(self):
+        r = self.rodar("--dev", "--atualizar-vigente")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("não combinam", r.stderr)
+        self.assertFalse(self.chamadas())
+
+    def test_xdg_data_home_com_espaco(self):
+        outro = Path(self._tmp.name) / "meus dados"
+        r = self.rodar("--sem-tmux", XDG_DATA_HOME=str(outro))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((outro / "forge/vigente/.git").is_dir())
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertIn(f"--plugin-dir {outro}/forge/vigente ", claude)
+
+    def test_xdg_data_home_relativo_e_recusado(self):
+        r = self.rodar("--sem-tmux", XDG_DATA_HOME="dados")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("absoluto", r.stderr)
+        self.assertFalse(self.chamadas())
+
+    def test_sessao_e_chat_remoto_por_modo(self):
+        self.rodar("--dev")
+        self.rodar()
+        tmux = [c for c in self.chamadas() if c.startswith("tmux new-session")]
+        self.assertIn("-s jarvis-Forge-dev ", tmux[0] + " ")
+        self.assertIn("-s jarvis-Forge ", tmux[1] + " ")
+        self.registro.unlink()
+        self.rodar("--sem-tmux", "--dev")
+        self.rodar("--sem-tmux")
+        claude = [c for c in self.chamadas() if c.startswith("claude --")]
+        self.assertIn("--remote-control Jarvis - Forge (dev)", claude[0])
+        self.assertIn("--remote-control Jarvis - Forge", claude[1])
+        self.assertNotIn("(dev)", claude[1])
+
+    def test_dev_usa_a_copia_de_trabalho_com_aviso(self):
+        r = self.rodar("--sem-tmux", "--dev")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("AVISO", r.stderr)
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertIn("--plugin-dir . ", claude)
+        self.assertFalse(self.vigente.exists())
+        self.assertFalse([c for c in self.chamadas() if c.startswith("git ")])
+
+    def test_dev_atravessa_o_tmux(self):
+        r = self.rodar("--dev")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        tmux = [c for c in self.chamadas() if c.startswith("tmux ")][0]
+        self.assertIn("jarvis-Forge", tmux)
+        self.assertIn("--dev", tmux)
+
+
 class VerificarContribuicao(unittest.TestCase):
     """scripts/verificar-contribuicao.sh barra segredo e caminho pessoal no diff contra a base."""
 

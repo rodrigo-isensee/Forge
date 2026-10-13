@@ -39,6 +39,39 @@ jobs:
       - name: Scripts e hooks
         run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
 
+  workflows:
+    name: workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ACTIONLINT_VERSAO: "1.7.12"
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      ZIZMOR_VERSAO: "1.30.1"
+      ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Baixa actionlint e zizmor em versão fixa e confere o checksum
+        run: |
+          set -euo pipefail
+          ferramentas="$RUNNER_TEMP/ferramentas"
+          mkdir -p "$ferramentas"
+          base_a="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSAO}"
+          base_z="https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSAO}"
+          curl -fsSL -o "$ferramentas/actionlint.tgz" "$base_a/actionlint_${ACTIONLINT_VERSAO}_linux_amd64.tar.gz"
+          curl -fsSL -o "$ferramentas/zizmor.tgz" "$base_z/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$ACTIONLINT_SHA256  $ferramentas/actionlint.tgz" | sha256sum -c -
+          echo "$ZIZMOR_SHA256  $ferramentas/zizmor.tgz" | sha256sum -c -
+          tar -xzf "$ferramentas/actionlint.tgz" -C "$ferramentas" actionlint
+          tar -xzf "$ferramentas/zizmor.tgz" -C "$ferramentas" zizmor
+          echo "$ferramentas" >> "$GITHUB_PATH"
+      - name: actionlint
+        run: actionlint -color
+      - name: zizmor (offline, sem token; falha em severidade média ou maior)
+        run: zizmor --offline --no-progress --min-severity medium .github/workflows
+
   plugin:
     name: validação do plugin
     runs-on: ubuntu-latest
