@@ -2,8 +2,8 @@
 tipo: review
 contrato: 1
 pedido: hook-vigia
-branch: melhoria/hook-vigia
-commit: 1146e65
+branch: melhoria/hook-vigia-v2
+commit: 8b1c77d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -102,3 +102,19 @@ Escopo: `f98b082..0d74071` (correções do autor) mais o ajuste da guarda da su�
 
 ### Ajuste da guarda da suíte (`tests/guarda_git.py`)
 `diferenca` passa a ignorar as seções `branch.*` (o git grava o rastreamento ao criar ou enviar branches em paralelo) e continua acusando `user.*`, `core.*`, `commit.*`, `include*`, `alias.*`, `remote.*.url` e qualquer chave nova. Testes: mudar `branch.x.remote` não falha; mudar cada uma das chaves vigiadas falha; a seção depois de um `[branch]` continua vigiada.
+
+## Revalidação (8b1c77d)
+
+Escopo: `fd27ded..e74b287` (correção do N1: `hooks/vigia.py` e o fixture `merge-main-na-branch-de-trabalho`). `e74b287..8b1c77d` não toca `hooks/vigia.py`, `hooks/hooks.json` nem `tests/hooks/vigia/` (diff de nomes vazio), então o código avaliado é o mesmo revisado e testado. Suíte: 187 testes verdes. Parecer: **aprovado**.
+
+| Achado | Situação | Evidência |
+|---|---|---|
+| N1 falso positivo em `R-MAIN` com `merge` | corrigido | `eh_contorno` exige, para `merge`, `rebase` e `gh pr merge`, os mesmos argumentos do bloqueio (`perfil_da_chamada` agora grava `args`); `git merge main` depois de `git merge x main` barrado não conta. `push` mantém a regra anterior, mas só conta com a `main` no alvo, então um `git push origin feature/x` após o barrado não é acusado |
+
+### Verificações
+- Fixture `merge-main-na-branch-de-trabalho` falha com o `hooks/vigia.py` de `fd27ded` (o aviso `contorno` é emitido) e passa com o atual: o teste de regressão cobre o bug.
+- Caso repetido com os mesmos argumentos (`git merge x main` barrado e de novo) continua acusado como contorno (fixture `contorno-repetido` e o caminho `args` iguais).
+- Bloqueios gravados por versões anteriores no `vigia.json` não têm `args`: `bloqueio.get("args")` vira `None` e nunca bate, então o pior caso é deixar de avisar um contorno de merge/rebase antigo, não acusar uma correção. Aceitável.
+
+### Pendências (não bloqueiam)
+- Continuam as pendências já registradas em `docs/hooks.md` e no CHANGELOG (R6, formato real do bloqueio; R7, hook ausente; hash por `(tamanho, mtime)`).
