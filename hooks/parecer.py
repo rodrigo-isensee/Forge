@@ -13,8 +13,8 @@ import json
 import re
 from pathlib import Path
 
-from _comum import (INTEGRACAO, PLUGIN, bloquear, executar, forge_check, git, nome_da_branch, raiz_do_projeto,
-                    segmentos, sem_atribuicoes, separar_regra)
+from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
+                    raiz_do_projeto, segmentos, sem_atribuicoes, separar_regra)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -178,14 +178,6 @@ def slug_do_forge():
     """`dono/repo` do Forge, do `repository` do plugin.json (nada fixo no código)."""
     url = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("repository", "")
     return re.sub(r"^.*github\.com[/:]", "", url).removesuffix(".git").strip("/").lower()
-
-
-def e_clone_do_forge(raiz):
-    """A raiz é um clone do próprio Forge (tem `.claude-plugin/plugin.json` de nome `forge`)."""
-    try:
-        return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
-    except (OSError, ValueError):
-        return False
 
 
 def aponta_para_o_forge(texto):

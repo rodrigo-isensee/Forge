@@ -1,0 +1,35 @@
+{
+  "descricao": "Remoto com apelido (url.<base>.insteadOf) que vira o Forge: o push alheio bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/acme/proj.git"
+      }
+    },
+    {
+      "config": {
+        "remote.fg.url": "fg:rodrigo-isensee/Forge",
+        "url.https://github.com/.insteadOf": "fg:"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push fg melhoria/outra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}

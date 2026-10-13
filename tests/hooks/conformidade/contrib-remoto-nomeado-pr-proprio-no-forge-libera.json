@@ -1,0 +1,33 @@
+{
+  "descricao": "Projeto com remoto `forge`: push da própria melhoria/<projeto>-* para ele libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/acme/proj.git"
+      }
+    },
+    {
+      "config": {
+        "remote.forge.url": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push forge HEAD:melhoria/proj-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

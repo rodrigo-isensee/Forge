@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Corrigido
+- **`R-CONTRIB`, trava de contribuição sem brechas da review do #84 (exige o rótulo `afrouxa-regra` do dono):** raiz com `.forge/versao` é sempre projeto, mesmo com um `plugin.json` do Forge (só a sessão do Forge escreve em `.claude-plugin/`); a falha fechada por erro interno decide pela raiz da sessão, não pela pasta; o Forge é alvo em qualquer pasta (clone de contribuição, clone sem `.forge/versao` ou repositório com remoto apontando para ele, resolvido por `git remote get-url`); `bash -c`, `sh -c`, `eval` e `env -S` são analisados, e o aninhado ilegível que aponta para o Forge falha fechado.
+
 ## [0.10.1] - 2026-10-13
 ### Corrigido
 - **`R-CONTRIB`, identidade da sessão:** quem é a sessão vem sempre de `CLAUDE_PROJECT_DIR`, em qualquer pasta corrente e também no Write e no Edit (sem a variável, pela pasta; em `~/.forge-contrib`, falha fechado). `~/.forge-contrib/wt/*` fica só para a sessão do Forge; a de projeto usa `~/.forge-contrib/<projeto>` e `<projeto>-wt/*`. `GH_REPO` vale também por `declare -x`, `typeset -x` e `env VAR=...`. Fecha os desvios da re-review do #78 (altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono).

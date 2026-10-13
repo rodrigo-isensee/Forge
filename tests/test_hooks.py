@@ -11,6 +11,8 @@ Formato do fixture:
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
               | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
+  repos       {pasta relativa a {tmp}: {"arquivos": {...}, "branch": b, "remotos": {nome: url}}} outros repositórios git
+              (ex.: um clone do Forge em {tmp}/home/Forge), com um commit inicial
   proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": número} ou {"ausente": true}
               (padrão: load 5, 3 GB livres, ou seja, teto adaptativo 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
@@ -124,6 +126,8 @@ class Fixture:
             if "commit" in passo:
                 git("add", "-A", cwd=raiz)
                 git("commit", "-q", "-m", passo["commit"], cwd=raiz)
+        for pasta, conf in d.get("repos", {}).items():
+            self.repositorio(tmp / pasta, conf, mapa)
         agora = time.time()
         if d.get("estado"):
             run = raiz / ".forge" / "run"
@@ -151,6 +155,18 @@ class Fixture:
                     alvo.parent.mkdir(parents=True, exist_ok=True)
                     with open(alvo, modo, encoding="utf-8") as f:
                         f.write(substituir(texto(conteudo), self.mapa, 0))
+
+    def repositorio(self, pasta, conf, mapa):
+        """Outro repositório git do fixture (`repos`): arquivos, um commit e os remotos."""
+        pasta.mkdir(parents=True)
+        git("init", "-q", "-b", conf.get("branch", "develop"), cwd=pasta)
+        git("config", "user.email", "t@example.com", cwd=pasta)
+        git("config", "user.name", "Teste", cwd=pasta)
+        self.gravar(pasta, {"README.md": "repo\n", **conf.get("arquivos", {})}, mapa)
+        git("add", "-A", cwd=pasta)
+        git("commit", "-q", "-m", "base", cwd=pasta)
+        for nome, url in conf.get("remotos", {}).items():
+            git("remote", "add", nome, url, cwd=pasta)
 
     @staticmethod
     def gravar(raiz, arquivos, mapa):

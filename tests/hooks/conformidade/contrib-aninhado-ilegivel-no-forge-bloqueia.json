@@ -1,0 +1,22 @@
+{
+  "descricao": "Comando aninhado que não dá para analisar (aspas abertas) e aponta para o Forge: falha fechado.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bash -c \"gh pr merge 70 -R rodrigo-isensee/Forge '\""
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: comando aninhado"
+  }
+}

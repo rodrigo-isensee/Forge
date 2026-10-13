@@ -1,0 +1,24 @@
+{
+  "descricao": "Projeto com manifesto `forge` forjado, cwd no clone: push alheio bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/outra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}
