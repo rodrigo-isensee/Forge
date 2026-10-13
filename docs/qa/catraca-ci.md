@@ -38,7 +38,7 @@ Ambiente: clone descartável da branch no commit 57b77c1; cada cenário é um co
 | CT-09 | Remover hook de `hooks/hooks.json` | barra | barra |
 | CT-10 | Remover uma fixture de `tests/hooks/` | barra | barra (77 para 76) |
 | CT-11 | Mudar `dono` | barra | barra |
-| CT-12 | Remover item de `termos_proibidos` | barra | barra |
+| CT-12 | Remover item de `termos_proibidos_hash` | barra | barra |
 | CT-13 | Texto de doc neutro | passa | passa (exit 0) |
 | CT-14 | PR de release (versão 0.7.0 e fecha `[Não publicado]`) | passa | passa |
 | CT-15 | Renomear `tests/catraca.py` | barra | exit 0 (BUG-01; no CI o job falha só porque o script some e devolve 2) |

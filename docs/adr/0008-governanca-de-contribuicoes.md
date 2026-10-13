@@ -29,7 +29,7 @@ Jobs em `ci.yml` (e `catraca.yml`, para `catraca` e `pr-texto`), só biblioteca 
 
 | Job | O que barra | Como |
 |---|---|---|
-| `catraca` | Regras que somem ou afrouxam: padrão de `invariantes`, `termos_proibidos` ou termos de neutralidade que existiam na base e sumiram; aumento de `limite_linhas`; exceções novas de neutralidade ou anti-duplicação; hook removido de `hooks/hooks.json`; mudança da chave `dono` | Comparação de conjuntos base × PR. Exceção só com o rótulo `afrouxa-regra` aplicado **pelo dono depois do último push** (eventos da issue: `actor.login` = `dono` de `tests/config.json`) |
+| `catraca` | Regras que somem ou afrouxam: padrão de `invariantes`, `termos_proibidos_hash` ou termos de neutralidade que existiam na base e sumiram; aumento de `limite_linhas`; exceções novas de neutralidade ou anti-duplicação; hook removido de `hooks/hooks.json`; mudança da chave `dono` | Comparação de conjuntos base × PR. Exceção só com o rótulo `afrouxa-regra` aplicado **pelo dono depois do último push** (eventos da issue: `actor.login` = `dono` de `tests/config.json`) |
 | `catraca` | Testes que somem: contagem de `def test_*` (AST) e de fixtures em `tests/hooks/**` cai em relação à base | Contagem estática nas duas versões; o mesmo rótulo é a única exceção |
 | `catraca` | Hooks que engordam: linhas de `hooks/*.py` acima de `limite_linhas.hooks`; mediana por fixture acima de 100 ms (ADR 0003) com margem de CI de 3× | Linhas no PR; tempo medido nos fixtures |
 | `catraca` | Custo: `secrets.*` diferente de `GITHUB_TOKEN` em workflows; chave de API paga, `claude plugin eval`, `claude -p` ou URL de API paga em `hooks/`, `bin/`, `scripts/` e `.github/` | Busca por padrões, com lista de permissão em `tests/config.json` |
@@ -60,7 +60,7 @@ Limite conhecido: no evento `pull_request`, o workflow roda na versão do PR, qu
 ### 5. Transição enquanto o repositório é privado e gratuito
 - **Vale já:** camada 1 (conta de máquina é gratuita também em repositório privado); camada 3 inteira (os checks rodam e aparecem, só não são obrigatórios no servidor); camada 4; limite de gasto do Actions em US$ 0; nenhum colaborador com escrita além do dono e da conta de máquina.
 - **Não vale:** camada 2. O merge com check vermelho fica barrado só pelos agentes e pelos hooks.
-- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos` sem os termos em claro (hash SHA-256 de cada termo normalizado); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença MIT (decidida; `LICENSE` na raiz); (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
+- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos_hash` no lugar de termos em claro (hash SHA-256 de cada termo normalizado); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença MIT (decidida; `LICENSE` na raiz); (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
 - Até o gatilho, contribuição de outra pessoa entra como proposta ao dono, nunca como acesso.
 
 ## Alternativas consideradas
