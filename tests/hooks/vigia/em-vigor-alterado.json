@@ -1,0 +1,47 @@
+{
+  "descricao": "Arquivo em vigor muda depois do SessionStart: aviso ao usuário e registro.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        ".githooks/pre-push": "exit 0\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "1 mudança(s) — em-vigor: .githooks/pre-push alterado",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "\"tipo\": \"em-vigor\"",
+          ".githooks/pre-push alterado"
+        ],
+        "ausente": [
+          "\"tipo\": \"git\""
+        ]
+      }
+    }
+  }
+}
