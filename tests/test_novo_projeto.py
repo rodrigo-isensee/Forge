@@ -19,7 +19,9 @@ echo "gh $*" >> "$FAKE_DIR/gh.log"
 remoto() { echo "$FAKE_DIR/remotos/$1.git"; }
 case "$1 $2" in
   "auth status") [ ! -e "$FAKE_DIR/sem-auth" ] || { echo "You are not logged into any GitHub hosts." >&2; exit 1; } ;;
-  "api user") if [ -e "$FAKE_DIR/conta" ]; then cat "$FAKE_DIR/conta"; else echo "pessoa-teste"; fi ;;
+  "api user")
+    [ ! -e "$FAKE_DIR/sem-rede" ] || { echo "error connecting to api.github.com" >&2; exit 1; }
+    if [ -e "$FAKE_DIR/conta" ]; then cat "$FAKE_DIR/conta"; else echo "pessoa-teste"; fi ;;
   "repo view")
     [ -d "$(remoto "$3")" ] || exit 1
     if [ "${4:-}" = "--json" ]; then
@@ -28,6 +30,7 @@ case "$1 $2" in
       echo "$privado $vazio"
     fi ;;
   "repo create")
+    [ ! -e "$FAKE_DIR/sem-permissao" ] || { echo "HTTP 403: Forbidden (https://api.github.com/user/repos)" >&2; exit 1; }
     [ ! -d "$(remoto "$3")" ] || { echo "GraphQL: Name already exists on this account" >&2; exit 1; }
     mkdir -p "$(dirname "$(remoto "$3")")"; git init -q --bare -b main "$(remoto "$3")" ;;
   "repo clone")
@@ -259,6 +262,76 @@ class NovoProjeto(unittest.TestCase):
         self.assertIn("outra-pessoa", r.stdout + r.stderr)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
         self.assertEqual(self.log("claude.log"), "")
+
+    def _saida(self, r):
+        return r.stdout + r.stderr
+
+    def test_sem_rede_explica_em_portugues_e_nao_cria_nada(self):  # BUG-01
+        (self.fake / "sem-rede").write_text("")
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\n")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("forge novo-projeto:", r.stderr)
+        self.assertRegex(r.stderr, r"(?i)conex|internet|rede")
+        self.assertNotIn("repo create", self.log("gh.log"))
+
+    def test_enter_no_nome_usa_o_nome_da_pasta_atual(self):  # BUG-02, CA-4
+        r = self.forge("novo-projeto", "--sim", entrada="\n\n")
+        self.assertEqual(r.returncode, 0, self._saida(r))
+        esperado = self.tmp.name
+        self.assertIn(f"repo create pessoa-teste/{esperado} ", self.log("gh.log"))
+        self.assertTrue((self.home / esperado / ".git").is_dir(), "a pasta padrão é ~/<nome>")
+
+    def test_403_oferece_as_opcoes_do_roteiro(self):  # BUG-04, CA-7
+        (self.fake / "sem-permissao").write_text("")
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{self.tmp / 'meu-app'}\n")
+        self.assertNotEqual(r.returncode, 0)
+        saida = self._saida(r)
+        for opcao in ("A)", "B)", "C)"):
+            self.assertIn(opcao, saida)
+        self.assertIn("gh auth refresh", saida)
+        self.assertIn("github.com/new", saida)
+        self.assertEqual(self.log("claude.log"), "")
+
+    def test_apresentacao_vem_antes_da_primeira_pergunta(self):  # CA-1
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\n\n")
+        saida = self._saida(r)
+        self.assertIn("minutos", saida)
+        self.assertLess(saida.index("minutos"), saida.index("Qual o nome do projeto?"))
+        self.assertLess(saida.index("Nada é criado"), saida.index("Qual o nome do projeto?"))
+
+    def test_mensagens_sem_jargao_cru(self):  # BUG-06
+        pasta = self.tmp / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        saida = self._saida(r)
+        self.assertNotIn("main, develop e homolog", saida)
+        self.assertNotIn("commit inicial", saida)
+        self.assertRegex(saida, r"versão principal \(main\)")
+
+    def test_retomada_mostra_os_passos_em_texto_e_nao_lista_python(self):  # BUG-06
+        (self.fake / "falha-clone").write_text("")
+        pasta = self.tmp / "meu-app"
+        entrada = f"meu-app\n{pasta}\n"
+        self.forge("novo-projeto", "--sim", entrada=entrada)
+        r = self.forge("novo-projeto", "--sim", entrada=entrada)
+        saida = self._saida(r)
+        self.assertIn("repositório criado", saida)
+        self.assertNotIn("['", saida)
+        self.assertNotIn("repo_criado", saida)
+
+    def test_nome_com_acento_espaco_e_maiuscula_e_normalizado(self):  # BUG-05
+        pasta = self.tmp / "app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"Meu Aplicação Útil\n{pasta}\n")
+        self.assertEqual(r.returncode, 0, self._saida(r))
+        self.assertIn("meu-aplicacao-util", self._saida(r))
+        self.assertIn("repo create pessoa-teste/meu-aplicacao-util ", self.log("gh.log"))
+
+    def test_normalizacao_pede_confirmacao_e_aceita_recusa(self):  # BUG-05
+        pasta = self.tmp / "app"
+        r = self.forge("novo-projeto", entrada=f"MeuApp\nn\nmeu-app\n{pasta}\ns\n")
+        self.assertEqual(r.returncode, 0, self._saida(r))
+        self.assertIn("meuapp", self._saida(r))
+        self.assertIn("repo create pessoa-teste/meu-app ", self.log("gh.log"))
+        self.assertNotIn("pessoa-teste/meuapp", self.log("gh.log"))
 
 
 class Despachante(unittest.TestCase):
