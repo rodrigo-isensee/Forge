@@ -213,5 +213,15 @@
       "`gh pr checks`"
     ]
   },
-  "custo_permitido": {}
+  "custo_permitido": {},
+  "padroes_custo_transcricao": [
+    {"token": "custo claude -p", "regex": "^claude\\b.*\\s(?:-p|--print)\\b"},
+    {"token": "custo plugin eval", "regex": "^claude\\s+plugin\\b.*\\beval\\b"},
+    {"token": "custo api api.anthropic.com", "regex": "api\\.anthropic\\.com"},
+    {"token": "custo api api.openai.com", "regex": "api\\.openai\\.com"},
+    {"token": "custo api generativelanguage.googleapis.com", "regex": "generativelanguage\\.googleapis\\.com"},
+    {"token": "custo api api.cohere.com", "regex": "api\\.cohere\\.com"},
+    {"token": "custo api api.mistral.ai", "regex": "api\\.mistral\\.ai"},
+    {"token": "custo api api.groq.com", "regex": "api\\.groq\\.com"}
+  ]
 }

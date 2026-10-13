@@ -307,8 +307,6 @@ FLAGS_PROIBIDAS = {"--no-verify": re.compile(r"--no-verify\b"),
                    "core.hooksPath": re.compile(r"core\.hooksPath")}
 EXT_SCRIPT = {".sh", ".bash", ".zsh", ".py", ".rb", ".pl", ""}
 INTERPRETES = {"bash", "sh", "zsh", "python", "python3", "ruby", "perl", "source", "."}
-DOMINIOS_PAGOS = ("api.anthropic.com", "api.openai.com", "generativelanguage.googleapis.com",
-                  "api.cohere.com", "api.mistral.ai", "api.groq.com")
 FERRAMENTAS_ESCRITA = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 BLOQUEIO_HOOK = re.compile(r"blocking error|exit code 2|(?:PreToolUse|hook)[^\n]{0,80}(?:block|den(?:y|ied))", re.I)
 BLOQUEIO_PERMISSAO = re.compile(r"permission[^\n]{0,60}(?:denied|not allowed)|was denied|doesn't want to proceed|"
@@ -323,6 +321,16 @@ def carregar_politica():
     except (OSError, ValueError):
         return {}
     return pol if isinstance(pol, dict) else {}
+
+
+def carregar_padroes_custo():
+    """Padrões de comando pago de `tests/config.json` (`padroes_custo_transcricao`): (token, regex). Ficam lá, e não
+    aqui, porque a catraca (R-CUSTO) procura esses mesmos literais em `bin/`. Sem o arquivo, não há detecção de custo."""
+    try:
+        itens = json.loads((PLUGIN / "tests" / "config.json").read_text(encoding="utf-8")).get("padroes_custo_transcricao", [])
+        return [(i["token"], re.compile(i["regex"])) for i in itens if isinstance(i, dict) and i.get("token") and i.get("regex")]
+    except (OSError, ValueError, re.error, AttributeError):
+        return []
 
 
 def marcar_ramo(nome):
@@ -466,6 +474,7 @@ def reduzir_comando(texto, ramo, politica=None, scripts=None, cwd=""):
     scripts = scripts if scripts is not None else {}
     saida = []
     heredoc = corpos_heredoc(texto)
+    padroes_custo = carregar_padroes_custo()
 
     def cmd(token, r, via=None):
         e = {"ev": "cmd", "cmd": token, "branch": r}
@@ -498,13 +507,9 @@ def reduzir_comando(texto, ramo, politica=None, scripts=None, cwd=""):
             if alvo_p or copia or flags:
                 arq = registrar_script(scripts, caminho, flags) if flags else ""
                 saida.append({"ev": "escrita", "alvo": alvo_p, "copia": copia, "arq": arq, "flags": flags, "via": "Bash"})
-        if pal[0] == "claude" and ("-p" in pal[1:] or "--print" in pal[1:]):
-            cmd("custo claude -p", ramo)
-        if pal[0] == "claude" and pal[1:2] == ["plugin"] and "eval" in pal[2:]:
-            cmd("custo plugin eval", ramo)
-        for dominio in DOMINIOS_PAGOS:
-            if any(dominio in a for a in pal):
-                cmd(f"custo api {dominio}", ramo)
+        for token, padrao in padroes_custo:
+            if padrao.search(" ".join(pal)):
+                cmd(token, ramo)
         pacote = token_pacote(pal, politica)
         if pacote:
             cmd(pacote, ramo)
