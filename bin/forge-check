@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
-Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]   (--raiz também depois do subcomando)
+Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (--raiz também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007).
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
+`pr --base` aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 Se existir `.forge/run/autoria.jsonl` (hook `conformidade`, ADR 0009), `pr` também exige que o parecer atual tenha
 sido gravado pelo papel certo (review: tech-lead; QA: qa); sem o arquivo, como antes (o CI não o tem).
@@ -205,8 +206,32 @@ def git(raiz, *args):
     return r.returncode, r.stdout.strip()
 
 
-def commit_vale(raiz, commit, ate="HEAD"):
-    """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo."""
+def diff_efetivo(raiz, base, commit, ignorar):
+    """Patch de `commit` sobre o merge-base com `base`, sem os caminhos de `ignorar` (prefixos) e sem as linhas
+    `index` (o hash do blob muda quando a base muda o arquivo; o conteúdo do patch, não). None se o git falhar."""
+    cod, mb = git(raiz, "merge-base", base, commit)
+    if cod or not mb:
+        return None
+    fora = [f":(exclude){p.rstrip('/')}" for p in ignorar]
+    cod, saida = git(raiz, "diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--binary",
+                     mb, commit, "--", ".", *fora)
+    if cod:
+        return None
+    return "\n".join(l for l in saida.splitlines() if not l.startswith("index "))
+
+
+def mesmo_diff(raiz, base, a, b, ignorar):
+    """True se `a` e `b` trazem o mesmo patch sobre a base (cada um sobre o seu merge-base), fora de `ignorar`.
+    Qualquer diferença de texto, contexto ou número de linha conta (estrito); falha do git é False."""
+    da = diff_efetivo(raiz, base, a, ignorar)
+    return da is not None and da == diff_efetivo(raiz, base, b, ignorar)
+
+
+def commit_vale(raiz, commit, ate="HEAD", base=None):
+    """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
+
+    Com `base`, também vale se o diff efetivo de `ate` sobre a base, fora de LIVRES, for igual ao do `commit`:
+    merge da base depois do parecer não o invalida (ADR 0004, item 3)."""
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
@@ -214,7 +239,7 @@ def commit_vale(raiz, commit, ate="HEAD"):
     if cod:
         return f"não foi possível comparar com {ate}"
     fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
-    if fora:
+    if fora and not (base and mesmo_diff(raiz, base, commit, ate, LIVRES)):
         return f"desatualizado: {fora[0]} mudou depois do parecer; peça novo parecer"
     return None
 
@@ -254,7 +279,7 @@ def autorias(raiz):
     return registros
 
 
-def cmd_pr(raiz, pedido, ref=None):
+def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
     for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
@@ -277,7 +302,7 @@ def cmd_pr(raiz, pedido, ref=None):
         if campos.get("parecer") != "aprovado":
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD")
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base)
             if motivo:
                 saida.append(f"{rel}: commit: {motivo} ({rid})")
     return saida
@@ -885,6 +910,7 @@ def main():
     pr = sub.add_parser("pr", parents=[comum])
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
+    pr.add_argument("--base", help="branch de destino: merge dela depois do parecer não o invalida (diff efetivo)")
     tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
     tsub = tr.add_subparsers(dest="acao", required=True)
     an = tsub.add_parser("anonimizar")
@@ -918,7 +944,7 @@ def executar(a, raiz):
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
-                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))}[a.cmd]()
+                 "pr": lambda: cmd_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
     for v in violacoes:
         print(v)
     return 1 if violacoes else 0

@@ -8,6 +8,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 ### Alterado
 - **`env` sai do `.claude/settings.json` versionado:** caches e configuração de credencial do git (`GIT_CONFIG_*`) passam ao `.claude/settings.local.json` de cada máquina, gerado por `scripts/configurar-ambiente-local.sh` (idempotente, mescla sem perder o que existe, caminhos por `${TMPDIR:-/tmp}` e UID). Testes barram a volta do `env` ao arquivo versionado. Cada máquina precisa rodar o script uma vez; o job `shellcheck` do CI ainda não lista o script novo (pendência em `.github/`, protegido).
 - **Pareceres:** o review independente do passo "Depois do merge" (`R-FLUXO`) fica registrado em `docs/reviews/limpeza-pos-merge.md`.
+### Corrigido
+- **Rótulo `afrouxa-regra` e pareceres sobrevivem a merge da base e a commit de parecer (ADR 0008, ADR 0004):** a catraca aceita o rótulo do dono também quando o diff efetivo do PR (sobre o merge-base, fora de `docs/reviews/` e `docs/qa/`) é idêntico ao do head no instante do rótulo, que vem das execuções `pull_request` do PR (falha fechada se o head for incerto ou a branch reescrita); `forge-check pr --base` e o modo `pareceres` aceitam o parecer cujo diff efetivo não mudou. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
 
 ## [0.8.0] - 2026-10-13
 ### Adicionado
