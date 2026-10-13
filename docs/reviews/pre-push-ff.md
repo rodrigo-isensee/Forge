@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: pre-push-ff
 branch: melhoria/pre-push-ff
-commit: 2910e1e
+commit: 148a676
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -39,3 +39,6 @@ Executados em repositório temporário (bare + cópia de trabalho, hook do model
 
 ## Parecer
 Aprovado. Os ajustes recomendados podem entrar neste PR ou em seguida; nenhum bloqueia.
+
+## Revalidação (148a676)
+Merge da develop; diff próprio inalterado (patch de `.githooks`, `templates/projeto/.githooks` e `tests` equivalente antes e depois). Conflito só no `CHANGELOG.md`, resolvido mantendo as linhas da develop e a do PR. Parecer segue aprovado.
