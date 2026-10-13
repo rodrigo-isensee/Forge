@@ -4,8 +4,10 @@
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
   },
+  "forge": false,
   "env": {
-    "HOME": "{tmp}/home"
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
   },
   "entrada": {
     "tool_name": "Bash",

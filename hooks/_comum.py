@@ -37,6 +37,60 @@ def raiz_do_projeto(inicio):
     return None
 
 
+def e_projeto(raiz):
+    """A raiz (ou a cópia de trabalho que a contém) tem `.forge/versao`: é projeto, e nunca o Forge (R-CONTRIB)."""
+    raiz = Path(raiz)
+    return (raiz / ".forge" / "versao").is_file() or raiz_do_projeto(raiz) is not None
+
+
+def tem_manifesto_do_forge(raiz):
+    """A raiz tem `.claude-plugin/plugin.json` de nome `forge`. Sozinho não prova nada (o projeto pode escrever o
+    arquivo): serve para PROTEGER mais (caminhos `so_forge`, alvo do Forge), nunca para dar poder."""
+    try:
+        dados = json.loads((Path(raiz) / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
+        return isinstance(dados, dict) and dados.get("name") == "forge"
+    except (OSError, ValueError):
+        return False
+
+
+def e_clone_do_forge(raiz):
+    """A raiz é um clone do próprio Forge: tem o manifesto do Forge e não é projeto (sem `.forge/versao`). O projeto
+    vem antes do Forge, então escrever o manifesto num projeto não o torna o Forge (R-CONTRIB)."""
+    return raiz is not None and not e_projeto(raiz) and tem_manifesto_do_forge(raiz)
+
+
+def raiz_declarada():
+    """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
+    subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
+    raiz = os.environ.get("CLAUDE_PROJECT_DIR")
+    return Path(raiz) if raiz and Path(raiz).is_absolute() else None
+
+
+def contrib():
+    """`~/.forge-contrib`, onde o projeto trabalha o Forge (clone e worktrees)."""
+    return Path(os.path.realpath(Path.home() / ".forge-contrib"))
+
+
+def em_contrib(pasta):
+    alvo = Path(os.path.realpath(pasta))
+    return contrib() in (alvo, *alvo.parents)
+
+
+def sessao_vigiada(hook):
+    """Os hooks que falham fechado agem nesta sessão? A mesma decisão de `identificar_sessao` (conformidade), pela
+    raiz da sessão e não pela pasta corrente: raiz em projeto, em qualquer pasta; raiz no Forge, só dentro de um
+    projeto; sem raiz, num projeto ou em `~/.forge-contrib`. Se nem isso der para decidir, vigia (falha fechado)."""
+    try:
+        cwd, raiz = hook.cwd(), raiz_declarada()
+        if raiz is not None and e_projeto(raiz):
+            return True
+        if raiz_do_projeto(cwd) is not None:
+            return True
+        return not e_clone_do_forge(raiz) and em_contrib(cwd)
+    except Exception:  # noqa: BLE001 - na dúvida, a ação crítica fica barrada (ADR 0009, seção 7)
+        return True
+
+
 def git(raiz, *args):
     """O git do forge-check (sem GIT_* herdadas, com limite de tempo): uma função só para hooks e validador."""
     return forge_check().git(raiz, *args)
@@ -271,9 +325,10 @@ def texto_da_acao(hook, bruto):
 
 def falhar_fechado(hook, critico, bruto):
     """ADR 0009, seção 7: em erro interno, bloqueia só se o comando ou o caminho da ação tem marcador crítico e o
-    projeto é do Forge (e nunca depois da ferramenta, quando já não há o que impedir)."""
+    a sessão é vigiada (`sessao_vigiada`: pela raiz da sessão, não pela pasta corrente), e nunca depois da
+    ferramenta, quando já não há o que impedir."""
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse"
-            or not critico.search(texto_da_acao(hook, bruto)) or raiz_do_projeto(hook.cwd()) is None):
+            or not critico.search(texto_da_acao(hook, bruto)) or not sessao_vigiada(hook)):
         return
     bloquear("R-CONFORMIDADE", f"erro interno do hook {hook.nome} diante de uma ação crítica; ele não pôde "
                                "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")

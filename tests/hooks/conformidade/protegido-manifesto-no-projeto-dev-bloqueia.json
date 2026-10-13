@@ -1,0 +1,24 @@
+{
+  "descricao": "Sessão de projeto: Write em .claude-plugin/ do projeto (forjar o manifesto do Forge) bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.claude-plugin/plugin.json",
+      "content": "{}\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: manifesto"
+  }
+}

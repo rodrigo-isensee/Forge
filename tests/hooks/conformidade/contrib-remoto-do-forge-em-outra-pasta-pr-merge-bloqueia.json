@@ -1,0 +1,30 @@
+{
+  "descricao": "Sessão de projeto: gh pr merge em repositório com remoto `upstream` no Forge bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "repos": {
+    "outra": {
+      "remotos": {
+        "origin": "https://github.com/acme/fork.git",
+        "upstream": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd {tmp}/outra && gh pr merge 70"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh pr merge"
+  }
+}

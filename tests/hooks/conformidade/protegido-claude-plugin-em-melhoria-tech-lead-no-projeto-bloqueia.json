@@ -1,5 +1,5 @@
 {
-  "descricao": ".claude-plugin/plugin.json: tech-lead em melhoria/*: libera.",
+  "descricao": ".claude-plugin/plugin.json num projeto (tem .forge/versao, mesmo com o manifesto do Forge): nem o tech-lead em melhoria/* escreve.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
@@ -19,6 +19,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: manifesto"
   }
 }
