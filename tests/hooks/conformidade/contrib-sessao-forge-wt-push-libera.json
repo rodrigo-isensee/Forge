@@ -1,0 +1,24 @@
+{
+  "descricao": "Sessão do Forge (raiz sem .forge/versao) em wt/*: push e merge liberam.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/qualquer && gh pr merge 70 --squash"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

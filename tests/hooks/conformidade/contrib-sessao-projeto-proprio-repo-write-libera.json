@@ -1,0 +1,24 @@
+{
+  "descricao": "Sessão de projeto: Write no código do projeto, de qualquer cwd, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/src/app.js",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev",
+    "cwd": "{tmp}/home"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
