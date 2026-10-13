@@ -1,4 +1,5 @@
 # SBX-02 - `tmux ls` e `tmux has-session` falham com "Operation not permitted"
+- Status: limite documentado (rodada 1 de correção; o QA revalida). `excludedCommands` só vale com o comando exato e sozinho: pipe, redirecionamento, `cd` ou encadeamento devolvem a chamada ao sandbox. `tmux ls` puro funciona (README, "Sandbox do Bash").
 - Severidade: média (funcionalidade secundária; contorno simples: rodar `tmux ls` no terminal fora do Claude)
 - Responsável sugerido: dono do Forge (`excludedCommands` está em `.claude/settings.json`, protegido); revisão pelo `tech-lead`
 - Ambiente: branch `melhoria/sandbox-bash`, commit 4b9a502, Linux/WSL2, tmux 3.4, sessão tmux ativa (`TMUX=/tmp/tmux-1000/default,1566,1`)

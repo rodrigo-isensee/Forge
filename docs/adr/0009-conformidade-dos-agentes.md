@@ -57,7 +57,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 - Os atalhos `jarvis` e `jarvis-forge` passam `--settings` estrito; `scripts/preparar-estacao.sh` instala `bubblewrap` e `socat` (gratuitos).
 - `docker compose` é o único comando fora do sandbox previsto, liberado pelo hook só para `dev`/`qa` [B].
 
-**Andamento da seção 5.** Etapa 1 aplicada no Forge (`.claude/settings.json` com sandbox obrigatório, rede restrita e `denyWrite` dos arquivos em vigor). Etapa 2: `denyRead` das credenciais do dono (`~/.config/gh` etc.), depois que existir o token do bot, pois o `gh` ainda depende delas. Etapa 3: modelo de projeto, migração e `--settings` estrito nos atalhos.
+**Andamento da seção 5.** Etapa 1 aplicada no Forge (`.claude/settings.json` com sandbox obrigatório, rede restrita e `denyWrite` dos arquivos em vigor). Limites de escopo (QA, SBX-01 e SBX-02): `allowedDomains` do projeto só pré-libera; a rede só fica restrita com `strictAllowlist` no `~/.claude/settings.json` do dono ou em configuração gerenciada (o repositório não controla); `excludedCommands` só vale para o comando exato e sozinho. Etapa 2: `denyRead` das credenciais do dono (`~/.config/gh` etc.), depois que existir o token do bot, pois o `gh` ainda depende delas. Etapa 3: modelo de projeto, migração e `--settings` estrito nos atalhos.
 
 ### 6. Hook `conformidade` (`PreToolUse` em `Bash|Write|Edit|MultiEdit|NotebookEdit`)
 1. Política em `hooks/conformidade.json`; o código só aplica. Mensagens no padrão da ADR 0003.

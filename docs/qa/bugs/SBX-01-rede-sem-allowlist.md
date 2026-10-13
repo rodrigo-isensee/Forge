@@ -1,4 +1,5 @@
 # SBX-01 - Sandbox do Bash acessa qualquer host, a allowlist de rede não é aplicada
+- Status: limite documentado (rodada 1 de correção; o QA revalida). `network.allowedDomains` no projeto só pré-libera; restringir a rede exige `sandbox.network.strictAllowlist: true`, que só vale em `~/.claude/settings.json` ou em configuração gerenciada. Não é defeito do arquivo do projeto; decisão de ligar é do dono (README, "Sandbox do Bash").
 - Severidade: crítica (falha de segurança: a contenção de rede prometida no README não se sustenta)
 - Responsável sugerido: dono do Forge (`.claude/settings.json` é protegido e a mudança é decisão do usuário, R-DECISAO); revisão pelo `tech-lead`
 - Ambiente: branch `melhoria/sandbox-bash`, commit 4b9a502 (HEAD da sessão de teste), Linux/WSL2, Bash com sandbox ativo
