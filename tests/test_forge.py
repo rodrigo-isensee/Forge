@@ -801,7 +801,8 @@ class SandboxDoBash(unittest.TestCase):
     def test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados(self):
         linhas = {l.strip() for l in (RAIZ / ".gitignore").read_text().splitlines()}
         raiz = [".bash_profile", ".bashrc", ".profile", ".zprofile", ".zshrc", ".gitconfig", ".gitmodules",
-                ".ripgreprc", ".mcp.json", ".idea", ".vscode", ".forge", "tests/neutralidade.py"]
+                ".ripgreprc", ".mcp.json", ".idea", ".vscode", ".forge"]
+        # tests/neutralidade.py é versionado (develop, #42): não é ponto de montagem, então não entra aqui.
         claude = ["agents", "commands", "hooks", "skills", "workflows", "output-styles", "routines",
                   "launch.json", "loop.md", "scheduled_tasks.json", "settings.local.json"]
         for padrao in [f"/{n}" for n in raiz] + [f"/.claude/{n}" for n in claude]:
