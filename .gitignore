@@ -2,3 +2,30 @@ __pycache__/
 *.pyc
 .env
 .env.*
+
+# Pontos de montagem do sandbox do Bash (bubblewrap): arquivos e pastas vazios,
+# somente leitura, criados na raiz do diretório de trabalho para cobrir os
+# caminhos protegidos que não existem no repositório. Nada disso é versionado.
+/.bash_profile
+/.bashrc
+/.profile
+/.zprofile
+/.zshrc
+/.gitconfig
+/.gitmodules
+/.ripgreprc
+/.mcp.json
+/.idea
+/.vscode
+/.forge
+/.claude/agents
+/.claude/commands
+/.claude/hooks
+/.claude/skills
+/.claude/workflows
+/.claude/output-styles
+/.claude/routines
+/.claude/launch.json
+/.claude/loop.md
+/.claude/scheduled_tasks.json
+/.claude/settings.local.json

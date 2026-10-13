@@ -10,7 +10,9 @@ do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. 
 """
 import argparse
 import ast
+import hashlib
 import importlib.util
+import itertools
 import json
 import os
 import re
@@ -21,9 +23,12 @@ from datetime import datetime
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from neutralidade import normalizar  # noqa: E402
+
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py")
+PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py", "tests/neutralidade.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -75,6 +80,59 @@ def base_efetiva(raiz, base, head):
 
 
 # --- Regras de configuração ------------------------------------------------------------------------------
+def _prefixo(texto):
+    return hashlib.sha256(texto.encode("utf-8")).hexdigest()[:8]
+
+
+def _chave(e):
+    return (e.get("tipo"), json.dumps(e.get("n")), e.get("sha256"))
+
+
+def entradas_da_regex(regex):
+    """Entradas de `termos_proibidos_hash` que cobrem uma regex em claro da base, ou None se a regex não é simples.
+
+    Só entende o que a lista antiga usava: literal, `\\bliteral\\b`, classes `[abc]` e `parte1 ?parte2`. Em memória; nada é impresso.
+    """
+    forma = normalizar(regex)
+    if re.search(r"[().*+|{}^$]", forma.replace("\\b", "")) or "\\" in forma.replace("\\b", ""):
+        return None
+    sha = lambda t: hashlib.sha256(t.encode("utf-8")).hexdigest()
+    if " ?" in forma:
+        p1, _, p2 = forma.partition(" ?")
+        if any(c in x for x in (p1, p2) for c in "[]? \\") or not p1 or not p2:
+            return None
+        return [{"tipo": "par", "n": [len(p1), len(p2)], "sha256": sha(p1 + p2)},
+                {"tipo": "trecho", "n": len(p1 + p2), "sha256": sha(p1 + p2)}]
+    palavra = forma.startswith("\\b") and forma.endswith("\\b") and len(forma) > 4
+    corpo = forma[2:-2] if palavra else forma
+    if "\\b" in corpo or "?" in corpo or " " in corpo or not corpo:
+        return None
+    partes = re.split(r"\[([^\]]+)\]", corpo)  # texto, classe, texto, classe, ...
+    if any("[" in x or "]" in x for x in partes[::2]):
+        return None
+    formas = ["".join(c) for c in itertools.product(*[[x] if i % 2 == 0 else list(x) for i, x in enumerate(partes)])]
+    return [{"tipo": "palavra" if palavra else "trecho", "n": len(f), "sha256": sha(f)} for f in formas]
+
+
+def regra_termos_proibidos(b, h):
+    """Nada de nome em claro nas mensagens: só índice e prefixo do hash. Transição claro -> hash só se a nova lista cobrir tudo."""
+    v, ids = [], {_chave(e) for e in h.get("termos_proibidos_hash", [])}
+    por = "a lista impede que dados de projeto vazem para a fábrica"
+    for i, e in enumerate(b.get("termos_proibidos_hash", []), 1):
+        if _chave(e) not in ids:
+            v.append(msg("R-NEUTRO", f"termo nº {i} (sha256 {str(e.get('sha256'))[:8]}…) removido ou alterado em termos_proibidos_hash",
+                         por, "restaure a entrada", "docs/regras/R-NEUTRO.md"))
+    claros = h.get("termos_proibidos", [])
+    for i, p in enumerate(b.get("termos_proibidos", []), 1):
+        if p in claros:
+            continue
+        cobertura = entradas_da_regex(p)
+        if cobertura is None or any(_chave(e) not in ids for e in cobertura):
+            v.append(msg("R-NEUTRO", f"termo nº {i} (sha256 {_prefixo(p)}…) removido ou alterado sem cobertura em termos_proibidos_hash",
+                         por, "restaure o termo ou inclua as entradas de hash que o cobrem", "docs/regras/R-NEUTRO.md"))
+    return v
+
+
 def regras_de_config(b, h):
     if b is None:
         return []
@@ -85,9 +143,7 @@ def regras_de_config(b, h):
             v.append(msg("R-CONFORMIDADE", f"invariante removido de {arq}: {p}",
                          "os trechos de `invariantes` protegem as regras da fábrica",
                          f"restaure o padrão ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
-    for p in sorted(set(b.get("termos_proibidos", [])) - set(h.get("termos_proibidos", []))):
-        v.append(msg("R-NEUTRO", f"termo proibido removido ou alterado: {p}", "a lista impede que dados de projeto vazem para a fábrica",
-                     "restaure o termo", "docs/regras/R-NEUTRO.md"))
+    v += regra_termos_proibidos(b, h)
     nb, nh = b.get("neutralidade_nucleo", {}), h.get("neutralidade_nucleo", {})
     for p in sorted(set(nb.get("termos", [])) - set(nh.get("termos", []))):
         v.append(msg("R-NEUTRO", f"termo de neutralidade removido ou alterado: {p}", "o núcleo não pode citar stack ou projeto",
