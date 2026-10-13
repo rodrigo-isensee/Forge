@@ -181,6 +181,50 @@ def regra_testes(raiz, b, h):
     return v
 
 
+PULOS = {"skip", "skipIf", "skipUnless", "expectedFailure", "skipTest"}
+
+
+def _nome(no):
+    return no.attr if isinstance(no, ast.Attribute) else getattr(no, "id", "")
+
+
+def forca_dos_testes(raiz, ref):
+    """(asserções, pulos, testes vazios) somados em tests/**/*.py, exceto a própria catraca (AST, sem executar nada)."""
+    asserts = pulos = vazios = 0
+    for arq in listar(raiz, ref, "tests"):
+        if not arq.endswith(".py") or arq == "tests/catraca.py":
+            continue
+        try:
+            arvore = ast.parse(ler(raiz, ref, arq) or "")
+        except SyntaxError:
+            continue
+        for n in ast.walk(arvore):
+            if isinstance(n, ast.Assert):
+                asserts += 1
+            elif isinstance(n, ast.Call):
+                nome = _nome(n.func)
+                asserts += nome.startswith("assert") and nome != "assert"
+                pulos += nome in PULOS
+            elif isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                pulos += sum(_nome(d.func if isinstance(d, ast.Call) else d) in PULOS for d in n.decorator_list)
+                corpo = [c for c in n.body if not (isinstance(c, ast.Expr) and isinstance(c.value, ast.Constant))]
+                vazios += n.name.startswith("test_") and all(isinstance(c, ast.Pass) for c in corpo)
+    return asserts, pulos, vazios
+
+
+def regra_testes_enfraquecidos(raiz, b, h):
+    """Teste existente que perde asserção, ganha skip/expectedFailure ou vira `pass` continua contando em `def test_*`."""
+    (ab, pb, vb), (ah, ph, vh) = forca_dos_testes(raiz, b), forca_dos_testes(raiz, h)
+    v = []
+    for cond, oque in ((ah < ab, f"asserções em tests/ caíram de {ab} para {ah}"),
+                       (ph > pb, f"skip/skipIf/skipUnless/expectedFailure em tests/ subiram de {pb} para {ph}"),
+                       (vh > vb, f"testes vazios (só `pass`) em tests/ subiram de {vb} para {vh}")):
+        if cond:
+            v.append(msg("R-CONFORMIDADE", oque, "teste esvaziado ou pulado deixa a regra sem proteção mantendo a contagem de testes",
+                         f"restaure as asserções ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
+    return v
+
+
 def regra_custo(raiz, ref, permitido):
     v = []
     for arq in sorted(a for p in PASTAS_CUSTO for a in listar(raiz, ref, p)):
@@ -224,6 +268,7 @@ def violacoes_das_regras(raiz, base, head="HEAD"):
     cb, ch = json_de(raiz, b, "tests/config.json"), json_de(raiz, head, "tests/config.json")
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
+            + regra_testes_enfraquecidos(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head))
 
 

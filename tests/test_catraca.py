@@ -208,7 +208,7 @@ class Hooks(Base):
 
 class Testes(Base):
     def test_testes_novos_passam_e_queda_barra(self):
-        self.repo.escreve("tests/test_y.py", TESTE)
+        self.repo.escreve("tests/test_y.py", TESTE.replace("pass", "self.assertTrue(True)"))
         self.passa()
         self.repo.escreve("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
         self.repo.escreve("tests/test_y.py", "")
@@ -226,6 +226,50 @@ class Testes(Base):
     def test_fixture_nova_passa(self):
         self.repo.escreve("tests/hooks/p/tres.json", "{}")
         self.passa()
+
+
+class TestesEnfraquecidos(Base):
+    """Review 4: esvaziar, pular ou tirar asserção de teste existente barra, mesmo com a contagem de `def test_*` igual."""
+
+    def com_asserts(self):
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+                          "        self.assertEqual(1, 1)\n        assert True\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "com asserções")
+        self.repo.git("tag", "-f", "base")
+
+    def test_remover_assert_barra(self):
+        self.com_asserts()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertEqual(1, 1)\n")
+        self.barra("asserções em tests/ caíram de 2 para 1", "R-CONFORMIDADE")
+
+    def test_esvaziar_o_teste_barra(self):
+        self.com_asserts()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n")
+        self.repo.commit()
+        achadas = self.repo.violacoes()
+        self.assertTrue(any("asserções em tests/ caíram" in v for v in achadas), achadas)
+        self.assertTrue(any("testes vazios" in v for v in achadas), achadas)
+
+    def test_acrescentar_skip_ou_expected_failure_barra(self):
+        for dec in ("@unittest.skip('x')", "@unittest.skipIf(True, 'x')", "@unittest.expectedFailure"):
+            with self.subTest(dec):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve("tests/test_x.py", TESTE.replace("    def test_a", f"    {dec}\n    def test_a"))
+                repo.commit()
+                self.assertTrue(any("skip/skipIf/skipUnless/expectedFailure" in v for v in repo.violacoes()), dec)
+        self.repo.escreve("tests/test_x.py", TESTE.replace("def test_a(self): pass", "def test_a(self):\n        self.skipTest('x')"))
+        self.barra("subiram de 0 para 1")
+
+    def test_acrescentar_asserts_e_testes_com_corpo_passa(self):
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(True)\n")
+        self.passa()
+
+    def test_catraca_py_fica_fora_da_contagem(self):
+        self.repo.escreve("tests/catraca.py", "assert True\n")
+        self.repo.commit()
+        self.assertFalse(any("asserções" in v for v in self.repo.violacoes()))
 
 
 class Custo(Base):
