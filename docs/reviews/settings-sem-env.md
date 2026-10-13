@@ -3,12 +3,14 @@ tipo: review
 contrato: 1
 pedido: settings-sem-env
 branch: melhoria/settings-sem-env
-commit: bf706f7
+commit: 983472c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
 # Parecer de autor: env sai do settings.json versionado
+
+Revalidado após merge da develop (só CHANGELOG): o diff do script, do `.claude/settings.json`, do README e dos testes não mudou desde `bf706f7`.
 
 Escopo: `.claude/settings.json`, `scripts/configurar-ambiente-local.sh`, `tests/test_forge.py`, `README.md`, `CHANGELOG.md`.
 
