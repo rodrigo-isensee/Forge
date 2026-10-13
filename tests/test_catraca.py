@@ -406,6 +406,15 @@ class Protegidos(Base):
                     repo.commit()
                     self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()), repo.violacoes())
 
+    def test_detector_de_neutralidade_e_protegido(self):
+        """Review termos-hash 1: enfraquecer `normalizar` ou `termos_achados` sem rótulo barra."""
+        self.repo.escreve("tests/neutralidade.py", "def normalizar(t):\n    return t\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "detector")
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("tests/neutralidade.py", "def normalizar(t):\n    return t.lower()\n")
+        self.barra("mudança em tests/neutralidade.py", "R-CONFORMIDADE")
+
     def test_githooks_e_dependabot_sao_protegidos(self):
         for rel in (".githooks/pre-push", ".github/dependabot.yml"):
             with self.subTest(rel):
