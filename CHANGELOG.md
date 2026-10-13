@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- **Catraca confere `hooks/conformidade.json` (R-CONFORMIDADE), por lista branca:** a única mudança que passa sem o rótulo é acrescentar entrada nova em `caminhos` (JSON carregado, não texto), com `quem` sem `dev` nem papel inexistente e `caminho` que não seja igual nem prefixo de um já existente; todo o resto acusa (remover ou alterar entrada, mudar `papeis`, `acoes`, flags e pacotes, `papel_padrao`, `sem_agent_type`, quebrar o esquema, JSON inválido, arquivo removido ou movido). O rótulo `afrouxa-regra` do dono libera. `hooks/conformidade.py` entra em `PROTEGIDOS`. Testes em `tests/test_catraca.py`. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
 - **Hook `conformidade` cobre `.claude-plugin/`, `.github/` e `tests/neutralidade.py`:** três entradas novas em `hooks/conformidade.json` (só `tech-lead` e `doc`, em `melhoria/*`), fechando a lacuna de Write/Edit nesses caminhos (ADR 0009, N6); fixtures novas em `tests/hooks/conformidade/`. Altera `hooks/conformidade.json`: exige o rótulo `afrouxa-regra` do dono.
 - **Fontes de práticas:** processo para acompanhar repositórios externos de boas práticas (`docs/fontes-de-praticas.md`), com fontes citadas por código e URL no registro local do dono (`R-NEUTRO`), e o primeiro estudo comparativo (`docs/propostas/fonte-f1-5.19.0.md`).
 
