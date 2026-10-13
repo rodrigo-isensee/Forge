@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 647af0d
+commit: a26c1bf
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -231,3 +231,23 @@ Sem mudança de código do sandbox desde `0432563`. O delta `0432563..efc63e5` t
 ## Revalidação (647af0d)
 
 Merge da develop (#42) em b68febf, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Depois do merge, a suíte acusou dois pontos e o tech-lead fez dois ajustes, que mudam o diff próprio do PR só nesses pontos: `a77b134` tira `/tests/neutralidade.py` do `.gitignore` (o arquivo passou a ser versionado pela develop e o teste de versionados ignorados falhava); `647af0d` tira `tests/neutralidade.py` da lista de pontos de montagem do teste `test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados`. Diff próprio dos demais arquivos inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio).
+
+## Revalidação QA (a26c1bf)
+Escopo incremental: dois ajustes do tech-lead depois do merge da develop (#42). `a77b134` tira `/tests/neutralidade.py` do `.gitignore`; `647af0d` tira `tests/neutralidade.py` da lista de pontos de montagem do teste `test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados`. HEAD testado: `a26c1bf`. Os commits `cd9aea3` e `a26c1bf` só alteram pareceres (ADR 0004, regra 2).
+
+### Verificações
+| Verificação | Comando | Resultado real |
+|---|---|---|
+| Arquivo versionado | `git ls-files tests/neutralidade.py` | lista `tests/neutralidade.py` |
+| Não ignorado | `git check-ignore -v tests/neutralidade.py` | sem saída, rc 1 |
+| Pontos de montagem | conferência por linha: 12 da raiz e 11 de `.claude/` | todos presentes no `.gitignore` (23 de 23) |
+| Versionados ignorados | `git ls-files -ci --exclude-standard` | vazio |
+| Suíte unitária | `python3 -m unittest discover -s tests` | `Ran 219 tests ... OK` (142 s), rc 0. Os `deny network-outbound api.anthropic.com:443` são esperados (R-CUSTO) |
+| Teste do .gitignore, no HEAD | `python3 -m unittest tests.test_forge.SandboxDoBash.test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados` | `OK` |
+| Mutação do guarda | acrescentar `/tests/neutralidade.py` ao `.gitignore` (temporário) e rodar o mesmo teste | `FAILED (failures=1)`, rc 1; `git ls-files -ci` lista o arquivo. O `.gitignore` foi restaurado com `git checkout` e a árvore ficou limpa |
+
+### Bugs
+Nenhum bug novo. SBX-01 e SBX-02 seguem como limites documentados; SBX-03 segue como limite por decisão N6. Bugs abertos: 0 em todas as severidades.
+
+### Veredito (a26c1bf)
+**Aprovado**, escopo incremental. Bugs abertos: 0 críticos, 0 altos, 0 médios, 0 baixos; `aceite_usuario` não é exigido. Mesma ressalva de `0432563`: as verificações ao vivo do sandbox dependem do merge e do reinício, e a decisão N6 é do dono.
