@@ -519,6 +519,114 @@ class InstanteDoServidor(unittest.TestCase):
         self.assertEqual(catraca.eventos_do_github(), (None, None))
 
 
+class PoliticaDeConformidade(Base):
+    """hooks/conformidade.json: afrouxar acusa R-CONFORMIDADE; acrescentar ou restringir não."""
+
+    POLITICA = {
+        "papeis": {"tech-lead": ["forge:tech-lead"], "doc": ["forge:software-architect"]},
+        "sem_agent_type": "jarvis",
+        "papel_padrao": "dev",
+        "acoes": {"merge_integracao": ["tech-lead"], "instalar_pacote": ["dev"]},
+        "caminhos": [
+            {"caminho": ".claude/", "quem": [], "motivo": "x"},
+            {"caminho": "docs/regras/", "quem": ["tech-lead"], "so_forge": True, "branch": "melhoria/", "motivo": "y"},
+        ],
+        "pacotes": {"npm": {"adicionam": ["install", "add"], "congelados": ["ci"]}},
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("hooks/conformidade.json", json.dumps(self.POLITICA))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "politica")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+
+    def muda(self, f):
+        pol = copy.deepcopy(self.POLITICA)
+        f(pol)
+        self.repo.escreve("hooks/conformidade.json", json.dumps(pol))
+        self.repo.commit()
+        return [v for v in self.repo.violacoes() if "conformidade.json" in v]
+
+    def test_sem_mudanca_nao_acusa(self):
+        self.assertEqual(self.muda(lambda p: None), [])
+
+    def test_remover_entrada_de_caminhos_acusa(self):
+        v = self.muda(lambda p: p["caminhos"].pop(0))
+        self.assertEqual(len(v), 1)
+        self.assertIn("R-CONFORMIDADE:", v[0])
+        self.assertIn(".claude/", v[0])
+
+    def test_ampliar_quem_acusa(self):
+        v = self.muda(lambda p: p["caminhos"][1]["quem"].append("doc"))
+        self.assertEqual(len(v), 1)
+        self.assertIn("doc", v[0])
+
+    def test_quem_de_vazio_para_lista_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][0].update(quem=["jarvis"]))), 1)
+
+    def test_remover_branch_acusa(self):
+        v = self.muda(lambda p: p["caminhos"][1].pop("branch"))
+        self.assertEqual(len(v), 1)
+        self.assertIn("branch", v[0])
+
+    def test_alterar_branch_ou_remover_so_forge_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][1].update(branch="feature/"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][1].pop("so_forge"))), 1)
+
+    def test_acao_ganha_papel_ou_some_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["acoes"]["merge_integracao"].append("dev"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p["acoes"].pop("merge_integracao"))), 1)
+
+    def test_papel_ganha_agent_type_ou_padrao_muda_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["papeis"]["tech-lead"].append("forge:dev"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p.update(papel_padrao="tech-lead"))), 1)
+
+    def test_bloqueio_de_pacote_removido_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["pacotes"]["npm"]["adicionam"].remove("add"))), 1)
+
+    def test_acrescentar_entrada_nao_acusa(self):
+        self.assertEqual(self.muda(lambda p: p["caminhos"].append({"caminho": "novo/", "quem": [], "motivo": "z"})), [])
+
+    def test_restringir_nao_acusa(self):
+        def aperta(p):
+            p["caminhos"][1]["quem"] = []
+            p["caminhos"][0]["so_forge"] = True
+            p["acoes"]["merge_integracao"] = []
+            p["pacotes"]["npm"]["adicionam"].append("up")
+        self.assertEqual(self.muda(aperta), [])
+
+    def test_politica_ausente_na_base_nao_acusa(self):
+        self.repo.git("rm", "-q", "hooks/conformidade.json")
+        self.repo.git("commit", "-q", "-m", "tira")
+        self.repo.git("tag", "-f", "base", "HEAD")
+        self.repo.escreve("hooks/conformidade.json", json.dumps(self.POLITICA))
+        self.repo.commit()
+        self.assertEqual([v for v in self.repo.violacoes() if "conformidade.json" in v], [])
+
+    def roda(self, eventos):
+        pol = copy.deepcopy(self.POLITICA)
+        pol["caminhos"].pop(0)
+        self.repo.escreve("hooks/conformidade.json", json.dumps(pol))
+        self.repo.commit()
+        arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+        arq.write_text(json.dumps(eventos), encoding="utf-8")
+        self.addCleanup(arq.unlink, missing_ok=True)
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        return subprocess.run(["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(arq),
+                               "--ultimo-push", "2026-01-02T09:00:00Z"], capture_output=True, text=True, env=env)
+
+    def evento(self, quem):
+        return {"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": quem}, "created_at": "2026-01-02T10:00:00Z"}
+
+    def test_sem_rotulo_sai_1_e_rotulo_do_dono_libera(self):
+        self.assertEqual(self.roda([]).returncode, 1)
+        self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
+
+
 class LinhaDeComando(Base):
     """A saída e o código de saída do script, com e sem o rótulo."""
 

@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- **Catraca confere `hooks/conformidade.json` (R-CONFORMIDADE):** nova checagem compara base e head e acusa quando a política afrouxa (caminho removido, papéis novos em `quem`/`acoes`/`papeis`, perda ou troca de `so_forge`/`branch`, ação ou verbo de instalação removido); acrescentar entradas ou restringir não acusa. O rótulo `afrouxa-regra` do dono libera. Testes em `tests/test_catraca.py`. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
 - **Hook `conformidade` cobre `.claude-plugin/`, `.github/` e `tests/neutralidade.py`:** três entradas novas em `hooks/conformidade.json` (só `tech-lead` e `doc`, em `melhoria/*`), fechando a lacuna de Write/Edit nesses caminhos (ADR 0009, N6); fixtures novas em `tests/hooks/conformidade/`. Altera `hooks/conformidade.json`: exige o rótulo `afrouxa-regra` do dono.
 
 ## [0.7.0] - 2026-10-13 — requer migração (`forge-upgrade`)

@@ -213,6 +213,58 @@ def regra_hooks(raiz, b, h):
             for ev, mt, cm, ar in sorted(chaves_de_hooks(antes) - chaves_de_hooks(depois))]
 
 
+POLITICA = "hooks/conformidade.json"
+CAMPOS_DE_ESCOPO = ("so_forge", "branch")
+
+
+def _conf(oque, porque):
+    return msg("R-CONFORMIDADE", f"{POLITICA} afrouxou: {oque}", porque, f"restaure o trecho ou peça o rótulo `{ROTULO}` ao dono",
+               "docs/regras/R-CONFORMIDADE.md")
+
+
+def _novos(antes, depois):
+    return sorted(set(depois or []) - set(antes or []))
+
+
+def afrouxamentos_da_politica(b, h):
+    """Mudanças em `hooks/conformidade.json` que dão mais poder ou tiram um bloqueio. Acrescentar entrada e restringir não contam."""
+    v = []
+    for nome, ant in (b.get("papeis") or {}).items():
+        if _novos(ant, (h.get("papeis") or {}).get(nome)):
+            v.append(_conf(f"papel `{nome}` ganhou agent_type: {', '.join(_novos(ant, h['papeis'][nome]))}", "o agent_type define quem age como esse papel"))
+    for chave in ("sem_agent_type", "papel_padrao"):
+        if chave in b and b[chave] != h.get(chave):
+            v.append(_conf(f"`{chave}` mudou de {b[chave]!r} para {h.get(chave)!r}", "define o papel de quem não se identifica"))
+    for nome, ant in (b.get("acoes") or {}).items():
+        if nome not in (h.get("acoes") or {}):
+            v.append(_conf(f"ação `{nome}` removida", "sem a ação ela deixa de ser restrita"))
+        elif _novos(ant, h["acoes"][nome]):
+            v.append(_conf(f"ação `{nome}` ganhou papéis: {', '.join(_novos(ant, h['acoes'][nome]))}", "mais papéis podem executar a ação crítica"))
+    atuais = {c.get("caminho"): c for c in h.get("caminhos") or []}
+    for c in b.get("caminhos") or []:
+        n, novo = c.get("caminho"), atuais.get(c.get("caminho"))
+        if novo is None:
+            v.append(_conf(f"caminho protegido removido: {n}", "o caminho deixa de ser protegido"))
+            continue
+        if _novos(c.get("quem"), novo.get("quem")):
+            v.append(_conf(f"{n} ganhou papéis em `quem`: {', '.join(_novos(c.get('quem'), novo.get('quem')))}", "mais papéis podem alterar o caminho"))
+        for campo in CAMPOS_DE_ESCOPO:
+            if campo in c and c[campo] != novo.get(campo):
+                v.append(_conf(f"{n} perdeu ou alterou `{campo}` ({c[campo]!r} -> {novo.get(campo)!r})", "o escopo restrito do caminho foi ampliado"))
+    for nome, ant in (b.get("pacotes") or {}).items():
+        gerente = (h.get("pacotes") or {}).get(nome)
+        if gerente is None or set(ant.get("adicionam", [])) - set(gerente.get("adicionam", [])):
+            v.append(_conf(f"verbo de instalação deixou de ser detectado em pacotes.{nome}", "instalação sem detecção escapa da regra de dependências"))
+    return v
+
+
+def regra_politica(raiz, b, h):
+    antes = json_de(raiz, b, POLITICA)
+    if antes is None:
+        return []
+    return afrouxamentos_da_politica(antes, json_de(raiz, h, POLITICA) or {})
+
+
 def contar_testes(raiz, ref):
     testes = fixtures = 0
     for arq in listar(raiz, ref, "tests"):
@@ -327,7 +379,7 @@ def violacoes_das_regras(raiz, base, head="HEAD"):
     cb, ch = json_de(raiz, b, "tests/config.json"), json_de(raiz, head, "tests/config.json")
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
-            + regra_testes_enfraquecidos(raiz, b, head)
+            + regra_testes_enfraquecidos(raiz, b, head) + regra_politica(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head))
 
 
