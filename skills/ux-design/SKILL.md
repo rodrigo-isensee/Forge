@@ -53,8 +53,27 @@ O que a tela precisa ler/gravar (para o back-end).
 Textos de botões, títulos, mensagens de erro e confirmação.
 
 ## Critérios de aceite
-Lista verificável usada pelo front-end e pelos testes.
+Em EARS (seção abaixo), numerados `CA-1`, `CA-2`...; usados pelo front-end e pelos testes.
 ```
+
+## Critérios de aceite em EARS
+Cada critério é uma frase verificável, com identificador estável: `QUANDO <evento> O SISTEMA DEVE <comportamento>`. Variantes: `ENQUANTO <estado>`, `SE <condição indesejada> ENTÃO O SISTEMA DEVE <resposta>`, `ONDE <opção existe>`. Um comportamento por critério, sem termos vagos ("rápido", "amigável"); inclua o resultado observável.
+- `CA-1` QUANDO a pessoa envia o formulário com todos os campos válidos O SISTEMA DEVE gravar o registro e exibir a mensagem "Cadastro salvo".
+- `CA-2` SE o e-mail informado já existe ENTÃO O SISTEMA DEVE manter o formulário preenchido e indicar o erro junto ao campo, sem gravar.
+
+**Rastreabilidade:** o `qa-engineer` converte cada critério em pelo menos um teste (nome ou comentário com o `CA-n`) e o parecer de QA traz a tabela critério → teste → resultado; critério sem teste é achado.
+
+## Especificação de bug (`docs/ux/<demanda>/bug-<id>.md` ou no cartão)
+```markdown
+# Bug <id> - <título>
+## Comportamento atual
+O que acontece, com passos para reproduzir e evidência.
+## Comportamento esperado
+Em EARS, com `CA-n`.
+## O que não deve mudar
+Comportamentos vizinhos que precisam continuar iguais (viram testes de regressão).
+```
+O teste do bug falha antes da correção e passa depois.
 
 ## Checklist de acessibilidade (WCAG 2.2 AA)
 - Contraste mínimo 4.5:1 para texto, 3:1 para texto grande e elementos de UI.

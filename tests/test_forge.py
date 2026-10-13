@@ -1304,3 +1304,29 @@ class Transcricoes(unittest.TestCase):
             "transcricao: formato: evento 4 inválido: `cmd` ausente ou de tipo errado"])
         arq.write_text("não é json\n", encoding="utf-8")
         self.assertEqual(self.rodar("verificar", str(arq))[0], 1)
+
+
+class PraticasDeEspecificacao(unittest.TestCase):
+    """Critérios EARS, bug, constituição e DORA presentes nos lugares certos."""
+
+    def texto(self, rel: str) -> str:
+        return (RAIZ / rel).read_text(encoding="utf-8")
+
+    def test_ux_design_tem_ears_e_bug(self):
+        t = self.texto("skills/ux-design/SKILL.md")
+        for trecho in ("QUANDO <evento> O SISTEMA DEVE", "## Especificação de bug", "O que não deve mudar", "critério → teste"):
+            self.assertIn(trecho, t)
+
+    def test_constituicao_no_modelo_e_no_plano_tecnico(self):
+        self.assertTrue((RAIZ / "templates/projeto/docs/constituicao.md").is_file())
+        self.assertIn("constituicao.md", self.texto("skills/software-architecture/SKILL.md"))
+        self.assertIn("constituicao.md", self.texto("templates/projeto/CLAUDE.md"))
+
+    def test_dora_na_skill_e_no_agile_coach(self):
+        for rel in ("skills/kanban-scrum/SKILL.md", "agents/agile-coach.md"):
+            t = self.texto(rel)
+            for m in ("DORA", "lead time de mudança", "taxa de falha", "recuperação"):
+                self.assertIn(m, t.lower() if m.islower() else t, rel)
+
+    def test_qa_converte_criterio_em_teste(self):
+        self.assertIn("critério → teste", self.texto("agents/qa-engineer.md"))
