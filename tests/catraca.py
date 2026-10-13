@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", "tests/catraca.py")
+PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -60,6 +60,12 @@ def json_de(raiz, ref, caminho):
         return {}
 
 
+def alterados(raiz, base, head):
+    """Caminhos tocados entre base e head. `--no-renames`: mover ou apagar conta como mudança do caminho antigo também."""
+    cod, saida = git(raiz, "diff", "--no-renames", "--name-only", "-z", base, head)
+    return [] if cod else [a for a in saida.split("\0") if a]
+
+
 def base_efetiva(raiz, base, head):
     cod, saida = git(raiz, "merge-base", base, head)
     return saida.strip() if not cod and saida.strip() else base
@@ -97,7 +103,10 @@ def regras_de_config(b, h):
     for e in sorted(set(map(str, ah.get("excecoes", []))) - set(map(str, ab.get("excecoes", [])))):
         v.append(msg("R-CONFORMIDADE", f"exceção nova de anti-duplicação: {e[:60]}", "exceção permite regra repetida fora do texto único",
                      "remova a exceção ou peça o rótulo ao dono", "docs/regras/R-CONFORMIDADE.md"))
-    if ah.get("palavras", 0) > ab.get("palavras", 0):
+    if "palavras" in ab and "palavras" not in ah:
+        v.append(msg("R-CONFORMIDADE", "anti_duplicacao.palavras removido", "sem a chave a detecção deixa de valer",
+                     "restaure a chave", "docs/regras/R-CONFORMIDADE.md"))
+    elif ah.get("palavras", 0) > ab.get("palavras", 0):
         v.append(msg("R-CONFORMIDADE", "anti-duplicação exige mais palavras iguais", "trecho menor passa a não ser detectado",
                      "volte ao valor anterior", "docs/regras/R-CONFORMIDADE.md"))
     for p in sorted(set(ab.get("pastas", [])) - set(ah.get("pastas", []))):
@@ -105,7 +114,10 @@ def regras_de_config(b, h):
                      "restaure a pasta", "docs/regras/R-CONFORMIDADE.md"))
     lh = h.get("limite_linhas", {})
     for k, n in b.get("limite_linhas", {}).items():
-        if lh.get(k, 0) > n:
+        if k not in lh:
+            v.append(msg("R-CONFORMIDADE", f"limite_linhas.{k} removido", "sem a chave o limite deixa de valer",
+                         "restaure a chave", "docs/engineering/praticas.md"))
+        elif lh[k] > n:
             v.append(msg("R-CONFORMIDADE", f"limite_linhas.{k} subiu de {n} para {lh[k]}", "o limite mantém agentes e skills curtos",
                          "reduza o arquivo em vez de subir o limite", "docs/engineering/praticas.md"))
     if "dono" in b and b["dono"] != h.get("dono"):
@@ -192,17 +204,26 @@ def regra_custo(raiz, ref, permitido):
 def regra_protegidos(raiz, b, h):
     if ler(raiz, b, "tests/catraca.py") is None:  # introdução da própria catraca
         return []
-    cod, saida = git(raiz, "diff", "--name-only", b, h)
-    return [msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS e a catraca são os próprios controles",
+    return [msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS, hooks do git, dependabot e a catraca são os próprios controles",
                 f"só passa com o rótulo `{ROTULO}` do dono, aplicado depois do último push", ADR)
-            for a in saida.splitlines() if a.startswith(PROTEGIDOS) and not cod]
+            for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
+
+
+def regra_arquivos_de_regras(raiz, b, h, cfg_base):
+    """Apagar ou mover arquivo com `invariantes` ou de `docs/regras/` tira a regra do alcance dos testes."""
+    v = []
+    for a in alterados(raiz, b, h):
+        if ler(raiz, h, a) is None and ler(raiz, b, a) is not None and (a in cfg_base.get("invariantes", {}) or a.startswith("docs/regras/")):
+            v.append(msg("R-CONFORMIDADE", f"arquivo de regra apagado ou movido: {a}", "as regras da fábrica vivem nestes arquivos e os testes os procuram pelo caminho",
+                         f"restaure o arquivo ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md"))
+    return v
 
 
 def violacoes_das_regras(raiz, base, head="HEAD"):
     b = base_efetiva(raiz, base, head)
     cb, ch = json_de(raiz, b, "tests/config.json"), json_de(raiz, head, "tests/config.json")
     permitido = (ch or {}).get("custo_permitido", {})
-    return (regras_de_config(cb, ch or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
+    return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head))
 
 
@@ -276,8 +297,7 @@ def pedidos_da_branch(raiz, ramo):
 
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     b = base_efetiva(raiz, base, head)
-    cod, saida = git(raiz, "diff", "--name-only", b, head)
-    tocados = [a for a in saida.splitlines() if a.startswith(SENSIVEIS) and not cod]
+    tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     if not tocados:
         return []
     pedidos, achados = pedidos_da_branch(raiz, ramo), []

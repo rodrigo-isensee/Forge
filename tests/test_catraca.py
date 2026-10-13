@@ -152,6 +152,44 @@ class RegrasDeConfig(Base):
         self.barra("permissão nova", "R-CUSTO")
 
 
+class ArquivosDeRegras(Base):
+    """QA BUG-02: apagar ou renomear arquivo com invariantes (ou de docs/regras/) barra."""
+
+    def prepara(self):
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve("docs/regra.md", "nunca sem teste\n")
+        repo.escreve("docs/regras/R-X.md", "regra\n")
+        repo.git("add", "-A")
+        repo.git("commit", "-q", "-m", "regras")
+        repo.git("tag", "-f", "base")
+        return repo
+
+    def test_apagar_ou_mover_barra(self):
+        for rel in ("docs/regra.md", "docs/regras/R-X.md"):
+            for como in ("mv", "rm"):
+                with self.subTest(rel=rel, como=como):
+                    repo = self.prepara()
+                    repo.git(como, rel, *(["novo.md"] if como == "mv" else []))
+                    repo.commit()
+                    self.assertTrue(any(f"arquivo de regra apagado ou movido: {rel}" in v for v in repo.violacoes()), repo.violacoes())
+
+    def test_editar_o_arquivo_passa(self):
+        repo = self.prepara()
+        repo.escreve("docs/regras/R-X.md", "regra melhor\n")
+        repo.commit()
+        self.assertEqual(repo.violacoes(), [])
+
+    def test_remover_chave_de_limite_ou_de_palavras_barra(self):
+        self.repo.config(limite_linhas=lambda d: {})
+        self.barra("limite_linhas.agente removido")
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.config(anti_duplicacao=lambda d: {k: x for k, x in d.items() if k != "palavras"})
+        repo.commit()
+        self.assertTrue(any("anti_duplicacao.palavras removido" in v for v in repo.violacoes()))
+
+
 class Hooks(Base):
     def test_hook_removido_barra_e_novo_passa(self):
         novo = copy.deepcopy(HOOKS)
@@ -242,6 +280,26 @@ class Protegidos(Base):
                 repo.escreve(rel, "mudou\n")
                 repo.commit()
                 self.assertTrue(any(v.startswith("R-CONFORMIDADE") and f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_mover_ou_apagar_arquivo_protegido_barra(self):
+        """QA BUG-01: mover (desligar o CI) ou apagar conta como mudança do caminho antigo."""
+        for rel in (".github/workflows/ci.yml", "tests/catraca.py"):
+            for como in ("mv", "rm"):
+                with self.subTest(rel=rel, como=como):
+                    repo = Repo()
+                    self.addCleanup(repo.fecha)
+                    repo.git(como, rel, *(["desligado.txt"] if como == "mv" else []))
+                    repo.commit()
+                    self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()), repo.violacoes())
+
+    def test_githooks_e_dependabot_sao_protegidos(self):
+        for rel in (".githooks/pre-push", ".github/dependabot.yml"):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "mudou\n")
+                repo.commit()
+                self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
 
     def test_outros_arquivos_passam(self):
         self.repo.escreve(".github/pull_request_template.md", "x\n")
