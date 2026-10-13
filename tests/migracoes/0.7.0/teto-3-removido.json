@@ -1,0 +1,17 @@
+{
+  "descricao": "teto-3-removido",
+  "antes": {
+    "teto_agentes": 3,
+    "pesados": [
+      "x"
+    ],
+    "expiracao_horas": 4
+  },
+  "depois": {
+    "pesados": [
+      "x"
+    ],
+    "expiracao_horas": 4
+  },
+  "saida": "removido teto_agentes"
+}

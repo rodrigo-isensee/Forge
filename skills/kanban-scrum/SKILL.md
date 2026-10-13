@@ -70,6 +70,14 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 - **Escape:** bugs encontrados depois do parecer do QA.
 - Percentis P50/P85 só com 20+ itens; abaixo disso, mostrar os valores individuais. Nunca média sozinha.
 
+## Métricas DORA (sem serviço pago)
+Calculadas por período, a partir do git (`git log`, tags de release), dos PRs (`gh pr list --state merged`) e de `docs/kanban/historico.md`:
+- **Frequência de entrega:** PRs mesclados na branch de integração (ou releases) por semana.
+- **Lead time de mudança:** do primeiro commit da branch até o merge.
+- **Taxa de falha:** % das entregas que exigiram correção, reversão ou hotfix (cartões `[bug]` ligados a um pai já em Pronto, `revert`, `fix` urgente).
+- **Tempo de recuperação:** da detecção da falha (cartão `[bug]` ou issue) até a correção mesclada.
+Mesma regra de amostra das métricas de fluxo. Taxa de falha e tempo de recuperação (estabilidade) pesam tanto quanto frequência e lead time (velocidade): velocidade que sobe com estabilidade em queda não é melhoria.
+
 ## Bugs e retrabalho
 Todo achado de code review, revisão de UX e bug do QA volta ao autor por este processo (pedido do usuário). O Jarvis cria os cartões no mesmo dia do parecer; o agile-coach audita.
 
@@ -106,7 +114,7 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 5. Pede ao agile-coach a auditoria do quadro e inclui as métricas de retrabalho na retrospectiva.
 
 ## Retrospectiva (`docs/retrospectivas/AAAA-MM-DD-<pedido>.md`)
-1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios.
+1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas.
 2. O que funcionou.
 3. O que atrapalhou (fatos, não pessoas).
 4. Até 3 ações — cada uma com responsável, mudança exata e como medir.

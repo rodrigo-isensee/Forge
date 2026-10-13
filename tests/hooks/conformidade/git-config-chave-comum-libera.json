@@ -1,0 +1,17 @@
+{
+  "descricao": "git config de chave fora da lista libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config pull.rebase false"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "descricao": "teto-4-mantido",
+  "antes": {
+    "teto_agentes": 4,
+    "pesados": [
+      "x"
+    ]
+  },
+  "depois": {
+    "teto_agentes": 4,
+    "pesados": [
+      "x"
+    ]
+  },
+  "saida": ""
+}

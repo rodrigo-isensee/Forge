@@ -1,0 +1,12 @@
+{
+  "descricao": "sem-teto-igual",
+  "antes": {
+    "teto_maximo": 3,
+    "pesados": []
+  },
+  "depois": {
+    "teto_maximo": 3,
+    "pesados": []
+  },
+  "saida": ""
+}

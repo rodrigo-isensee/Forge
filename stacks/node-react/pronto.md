@@ -20,6 +20,11 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 | E2E | Playwright | `qa-engineer` | `e2e/` |
 | Acessibilidade | @axe-core/playwright | `qa-engineer` | `e2e/` |
 
+## Vermelho antes do verde, mutação e contrato
+- Vermelho: `git stash push -- <arquivos de produção>` e `pnpm vitest run <teste>` precisa falhar; depois `git stash pop`.
+- Mutação (Stryker, gratuito): só nos arquivos do diff, `pnpm stryker run --mutate "$(git diff --name-only origin/develop -- '*.ts' '*.tsx' | grep -v '\.test\.' | paste -sd,)"`; a meta fica em `docs/engineering/praticas.md`.
+- Contrato back-front: o esquema (zod em `packages/shared`, ou o OpenAPI gerado dele) é a fonte única; um teste no `server/` valida as respostas reais da rota contra ele e outro no `web/` valida os mocks do MSW contra o mesmo esquema. Sem serviço pago: Pact só com os arquivos de contrato versionados no repositório, sem broker.
+
 ## Playwright
 - Seletores por papel e texto acessível (`getByRole`, `getByLabel`); `data-testid` só em último caso.
 - Nada de `waitForTimeout`; use as esperas automáticas e `expect(...).toBeVisible()`.

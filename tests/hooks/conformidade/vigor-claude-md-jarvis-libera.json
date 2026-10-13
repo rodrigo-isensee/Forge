@@ -1,0 +1,17 @@
+{
+  "descricao": "CLAUDE.md do projeto: o jarvis edita (iniciar-projeto, exceções locais aprovadas).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/CLAUDE.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,31 +1,93 @@
 {
+  "dono": "rodrigo-isensee",
   "agentes_obrigatorios": [
-    "jarvis", "tech-lead", "software-architect", "ux-designer", "qa-engineer", "agile-coach"
+    "jarvis",
+    "tech-lead",
+    "software-architect",
+    "ux-designer",
+    "qa-engineer",
+    "agile-coach"
   ],
   "stacks_obrigatorias": {
-    "node-react": { "agentes": ["node-backend", "react-frontend"], "skills": ["node-backend", "react-frontend"] }
-  },
-  "neutralidade_nucleo": {
-    "pastas": ["agents", "skills", "docs", "templates", "bin", "scripts", ".github"],
-    "ignorar": ["docs/adr/", "docs/reviews/", "docs/qa/"],
-    "termos": [
-      "\\bNode(\\.js)?\\b", "\\bReact\\b", "TypeScript", "\\bpnpm\\b", "\\bnpm\\b", "Playwright",
-      "\\bzod\\b", "\\bVitest\\b", "\\bESLint\\b", "\\bPrettier\\b", "\\bFastify\\b",
-      "\\bPrisma\\b", "node-backend", "react-frontend", "node_modules"
-    ],
-    "excecoes": {
-      ".github/workflows/ci.yml": ["\\bnpm\\b"],
-      "scripts/preparar-estacao.sh": ["\\bNode(\\.js)?\\b", "\\bpnpm\\b"]
+    "node-react": {
+      "agentes": [
+        "node-backend",
+        "react-frontend"
+      ],
+      "skills": [
+        "node-backend",
+        "react-frontend"
+      ]
     }
   },
-  "limite_linhas": { "agente": 110, "skill": 133 },
-  "termos_proibidos": [
-    "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
-    "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
+  "neutralidade_nucleo": {
+    "pastas": [
+      "agents",
+      "skills",
+      "docs",
+      "templates",
+      "bin",
+      "scripts",
+      ".github"
+    ],
+    "ignorar": [
+      "docs/adr/",
+      "docs/reviews/",
+      "docs/qa/"
+    ],
+    "termos": [
+      "\\bNode(\\.js)?\\b",
+      "\\bReact\\b",
+      "TypeScript",
+      "\\bpnpm\\b",
+      "\\bnpm\\b",
+      "Playwright",
+      "\\bzod\\b",
+      "\\bVitest\\b",
+      "\\bESLint\\b",
+      "\\bPrettier\\b",
+      "\\bFastify\\b",
+      "\\bPrisma\\b",
+      "node-backend",
+      "react-frontend",
+      "node_modules"
+    ],
+    "excecoes": {
+      ".github/workflows/ci.yml": [
+        "\\bnpm\\b"
+      ],
+      "scripts/preparar-estacao.sh": [
+        "\\bNode(\\.js)?\\b",
+        "\\bpnpm\\b"
+      ]
+    }
+  },
+  "limite_linhas": {
+    "agente": 110,
+    "skill": 133
+  },
+  "termos_proibidos_hash": [
+    {"tipo": "trecho", "n": 12, "sha256": "6a11a20159d5eba95840b858daa284b017c5f08574766b1c23b934a37fe76abb"},
+    {"tipo": "par", "n": [8, 4], "sha256": "6a11a20159d5eba95840b858daa284b017c5f08574766b1c23b934a37fe76abb"},
+    {"tipo": "palavra", "n": 4, "sha256": "91a59d959ff9cf9935f9b3d23e00a43c927e3e03e31e834c7cd61eb18af0a9ab"},
+    {"tipo": "trecho", "n": 11, "sha256": "0c17e21c783a18021c905f9616ed8bc86880d956a3c6999ee8903404e6343196"},
+    {"tipo": "trecho", "n": 9, "sha256": "a29cbd4b18898d45e8959793789c15b25229547bc79b991a37f54ac6afd7de67"},
+    {"tipo": "trecho", "n": 12, "sha256": "8657c17bb38c7ac2380b831835c62728a1d8ad6d7252e34e4c0076582339c5ba"},
+    {"tipo": "palavra", "n": 4, "sha256": "d05b77f108bc8c95e2cdb960a2ef1b071088a21f3f53e9d1c46bc4977ef9ac34"},
+    {"tipo": "trecho", "n": 7, "sha256": "6bff709e40e583c408e0585e149a68b4f368268b384189bce6194ebcf3800684"},
+    {"tipo": "palavra", "n": 3, "sha256": "887539ae032b612757c3db85abb59a5021d6258e6238fe40556103f404d33dc0"},
+    {"tipo": "palavra", "n": 3, "sha256": "227467f082ea66c3f9419cc76615ad680d56c5c167a7accbee3b4a9c94cb196e"},
+    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"}
   ],
   "anti_duplicacao": {
     "palavras": 12,
-    "pastas": ["agents", "skills", "stacks", "templates", "docs"],
+    "pastas": [
+      "agents",
+      "skills",
+      "stacks",
+      "templates",
+      "docs"
+    ],
     "excecoes": []
   },
   "invariantes": {
@@ -45,7 +107,10 @@
       "`R-CUSTO`",
       "`R-NEUTRO`",
       "`R-COPIA`",
-      "`R-VERIFY`"
+      "`R-VERIFY`",
+      "`R-DECISAO`",
+      "`R-CONFORMIDADE`",
+      "`R-CONTRIB`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
@@ -55,7 +120,9 @@
       "`R-FLUXO`",
       "`R-REVIEW`",
       "`R-CUSTO`",
-      "`R-NEUTRO`"
+      "`R-NEUTRO`",
+      "`R-CONFORMIDADE`",
+      "`R-CONTRIB`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -133,6 +200,31 @@
     "templates/projeto/.claude/settings.json": [
       "\"agent\": \"forge:jarvis\"",
       "Bash\\(git \\* --no-verify\\*\\)"
+    ],
+    "docs/regras/R-DECISAO.md": [
+      "\\*\\*uma de cada vez\\*\\*",
+      "\\*\\*as opções\\*\\*",
+      "\\*\\*a recomendação\\*\\*"
+    ],
+    "docs/regras/R-CONFORMIDADE.md": [
+      "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
+      "\\*\\*Arquivos em vigor\\*\\*"
+    ],
+    "docs/regras/R-CONTRIB.md": [
+      "projeto abre PR para a `develop` do Forge e nunca o mescla",
+      "Nenhum portão tem exceção, nem para o dono",
+      "`gh pr checks`"
     ]
-  }
+  },
+  "custo_permitido": {},
+  "padroes_custo_transcricao": [
+    {"token": "custo claude -p", "regex": "^claude\\b.*\\s(?:-p|--print)\\b"},
+    {"token": "custo plugin eval", "regex": "^claude\\s+plugin\\b.*\\beval\\b"},
+    {"token": "custo api api.anthropic.com", "regex": "api\\.anthropic\\.com"},
+    {"token": "custo api api.openai.com", "regex": "api\\.openai\\.com"},
+    {"token": "custo api generativelanguage.googleapis.com", "regex": "generativelanguage\\.googleapis\\.com"},
+    {"token": "custo api api.cohere.com", "regex": "api\\.cohere\\.com"},
+    {"token": "custo api api.mistral.ai", "regex": "api\\.mistral\\.ai"},
+    {"token": "custo api api.groq.com", "regex": "api\\.groq\\.com"}
+  ]
 }

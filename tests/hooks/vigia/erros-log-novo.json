@@ -1,0 +1,52 @@
+{
+  "descricao": "Linha nova em erros.log (hook com erro interno) vira violação; linha anterior ao SessionStart e do próprio vigia não.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "estado": {
+    "erros.log": "2026-01-01T00:00:00 parecer ValueError: antigo\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{raiz}/.forge/run/erros.log": [
+          "2026-01-01T00:01:00 conformidade KeyError: x",
+          "2026-01-01T00:01:01 vigia OSError: y"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "1 aviso(s) — erro-hook: 2026-01-01T00:01:00 conformidade KeyError: x",
+    "estado": {
+      "violacoes.jsonl": {
+        "ausente": [
+          "antigo",
+          "vigia OSError"
+        ]
+      }
+    },
+    "erros_log": "conformidade KeyError"
+  }
+}
+

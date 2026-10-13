@@ -1,18 +1,29 @@
 #!/usr/bin/env python3
 """Forge: parecer de review e de QA antes de PR e de merge (ADR 0003, R-REVIEW, R-QA).
 
-PreToolUse (Bash) com `gh pr create`, ou `git merge <branch>` e `git pull <remoto> <branch>` na branch de
-integração: exige parecer aprovado e válido para a branch (validado pelo forge-check, ADR 0004). A branch atual
-acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha. Libera mudança só de documentação (.md),
-atualização a partir de uma branch de integração e promoção entre branches de integração.
+PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge`, ou `git merge <branch>` e
+`git pull <remoto> <branch>` na branch de integração: exige parecer aprovado e válido para a branch (validado pelo
+forge-check, ADR 0004). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha.
+Libera mudança só de documentação (.md), atualização a partir de uma branch de integração e promoção entre
+branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
+PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
+Falha fechado nas ações críticas (ADR 0009, seção 7).
 """
+import json
 import re
 from pathlib import Path
 
-from _comum import (INTEGRACAO, bloquear, executar, forge_check, git, nome_da_branch, raiz_do_projeto, segmentos,
-                     sem_atribuicoes, separar_regra)
+from _comum import (INTEGRACAO, PLUGIN, bloquear, executar, forge_check, git, nome_da_branch, raiz_do_projeto,
+                    segmentos, sem_atribuicoes, separar_regra)
 
-PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\bcreate\b|\bgit\b.*\b(merge|pull)\b", re.S)
+PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
+CRITICO = re.compile(r"\bpr\b.*\b(create|merge)\b|\bapi\b|\b(merge|pull)\b", re.S)
+MERGE_PR_COM_VALOR = {"-b", "--body", "-F", "--body-file", "-t", "--subject", "-A", "--author-email",
+                      "--match-head-commit", "-R", "--repo"}
+API_COM_VALOR = {"-X", "--method", "-H", "--header", "-f", "--raw-field", "-F", "--field", "--input", "-q", "--jq",
+                 "-t", "--template", "--hostname", "--cache", "-p", "--preview"}
+ENDPOINT_MERGE = re.compile(r"pulls/\d+/merge\b")
+NUMERO_OU_URL = re.compile(r"^(#?\d+|https?://\S+)$")
 MERGE_COM_VALOR = {"-m", "-F", "-s", "-X", "--message", "--file", "--strategy", "--strategy-option", "--into-name"}
 PULL_COM_VALOR = {"-s", "-X", "--strategy", "--strategy-option", "--depth", "--deepen", "--shallow-since",
                   "--shallow-exclude", "-j", "--jobs", "--upload-pack", "-o", "--server-option"}
@@ -46,31 +57,44 @@ def posicionais(args, com_valor):
 def troca_de_branch(args):
     """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
     if "--" in args:
-        return None  # restaura arquivos
+        k = args.index("--")
+        if k + 1 < len(args):
+            return None  # restaura arquivos
+        args = args[:k]  # `--` sem caminho depois não restaura nada: é troca de branch
     for k, a in enumerate(args):
         if a in CRIA_BRANCH:
             return args[k + 1] if k + 1 < len(args) else None
         if a in ("-d", "--detach"):
             return ""
     pos = posicionais(args, set())
-    if not pos:
-        return None
+    if not pos or len(pos) > 1:
+        return None  # `git checkout <ref> <arquivo>...` restaura arquivos; trocar de branch leva um só nome
     return "" if pos[0] == "-" else pos[0]
 
 
 def analisar(toks):
-    """('cd', dir) | ('pr', None, base, head) | ('merge', dir, [(branch, [refs candidatas])])
-    | ('branch', dir, nome) | None."""
-    toks = sem_atribuicoes(toks)
+    """('cd', dir) | ('pr', None, base, head) | ('prmerge', repo, alvo) | ('api', args)
+    | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
+    sem = sem_atribuicoes(toks)
+    atribuicoes, toks = toks[: len(toks) - len(sem)], sem
     if not toks:
         return None
     if toks[0] == "cd":
         return ("cd", toks[1] if len(toks) > 1 else None)
-    if toks[0] == "gh" and "pr" in toks:
+    if toks[0] == "gh":
+        if toks[1:2] == ["api"]:
+            return ("api", toks[2:])
+        if "pr" not in toks:
+            return None
         i = toks.index("pr")
+        args = toks[i + 2:]
         if toks[i + 1: i + 2] == ["create"]:
-            args = toks[i + 2:]
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"))
+        if toks[i + 1: i + 2] == ["merge"]:
+            repo = opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
+                                                        if a.startswith("GH_REPO=")), None)
+            alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
+            return ("prmerge", repo, alvo)
         return None
     if toks[0] != "git":
         return None
@@ -150,6 +174,94 @@ def merge(hook, pasta, alvos, branches):
             verificar(hook, raiz, branch, ref, atual if chave in branches else "HEAD")
 
 
+def slug_do_forge():
+    """`dono/repo` do Forge, do `repository` do plugin.json (nada fixo no código)."""
+    url = json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("repository", "")
+    return re.sub(r"^.*github\.com[/:]", "", url).removesuffix(".git").strip("/").lower()
+
+
+def e_clone_do_forge(raiz):
+    """A raiz é um clone do próprio Forge (tem `.claude-plugin/plugin.json` de nome `forge`)."""
+    try:
+        return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
+    except (OSError, ValueError):
+        return False
+
+
+def aponta_para_o_forge(texto):
+    slug = slug_do_forge()
+    return bool(texto) and bool(slug) and slug in texto.lower().removesuffix(".git")
+
+
+def metodo_mutante(args):
+    """True se o `gh api` altera algo: método diferente de GET, ou campos (que viram POST)."""
+    metodo = opcao(args, "--method", "-X")
+    if metodo:
+        return metodo.upper() != "GET"
+    return any(a in ("-f", "-F", "--field", "--raw-field", "--input") or a.startswith(("--field=", "--raw-field="))
+               for a in args)
+
+
+def endpoint_da_api(args):
+    return (posicionais(args, API_COM_VALOR) or [""])[0]
+
+
+def base_do_pr(raiz, branch):
+    """Base do PR da branch, sem rede: a que o `gh pr create` guardou no git; senão, pelo fluxo do Forge."""
+    cod, base = git(raiz, "config", "--get", f"branch.{branch}.gh-merge-base")
+    if not cod and base:
+        return nome_da_branch(base)
+    if branch == "homolog":
+        return "main"
+    if branch == "develop":
+        return "homolog"
+    return "develop" if any(existe(raiz, r) for r in ("develop", "origin/develop")) else "main"
+
+
+def branch_do_pr(raiz, alvo):
+    """Branch do PR indicado em `gh pr merge [<alvo>]` (sem alvo, a atual); None se só há número ou URL."""
+    if alvo is None:
+        return git(raiz, "branch", "--show-current")[1] or None
+    return None if NUMERO_OU_URL.match(alvo) else nome_da_branch(alvo.split(":")[-1])
+
+
+def merge_de_pr(hook, pasta, repo, alvo):
+    raiz = hook.projeto(pasta)
+    if not raiz:
+        return
+    if aponta_para_o_forge(repo) and not e_clone_do_forge(raiz):
+        bloquear("R-CONTRIB", "projeto não mescla no Forge. Corrigir: abra o PR e deixe o tech-lead mesclar "
+                              "a partir de um clone do Forge (~/.forge-contrib).")
+    branch = branch_do_pr(raiz, alvo)
+    if not branch:
+        bloquear("R-CONTRIB", "PR indicado só por número, sem branch. Corrigir: use o nome da branch "
+                              "(gh pr merge <branch>).")
+    base = base_do_pr(raiz, branch)
+    if base in ("main", "master"):
+        bloquear("R-MAIN", f"gh pr merge de `{branch}` (base {base}) é do usuário. Corrigir: deixe o PR "
+                           "aberto e peça ao usuário que o mescle.")
+    if branch in INTEGRACAO:
+        return  # promoção entre branches de integração
+    ref = next((r for r in (branch, f"origin/{branch}") if existe(raiz, r)), None)
+    if ref is None:
+        bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem parecer a conferir. Corrigir: "
+                             "git fetch e tente de novo.")
+    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None))
+
+
+def merge_por_api(hook, pasta, args):
+    if not (ENDPOINT_MERGE.search(endpoint_da_api(args)) and metodo_mutante(args)):
+        return
+    raiz = hook.projeto(pasta)
+    if not raiz:
+        return
+    if aponta_para_o_forge(endpoint_da_api(args)) and not e_clone_do_forge(raiz):
+        bloquear("R-CONTRIB", "projeto não mescla no Forge. Corrigir: abra o PR e deixe o tech-lead mesclar "
+                              "a partir de um clone do Forge (~/.forge-contrib).")
+    bloquear("R-CONTRIB", "merge por gh api não informa a branch, então não há parecer a conferir. "
+                          "Corrigir: use gh pr merge <branch>.")
+
+
 def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
@@ -166,6 +278,10 @@ def principal(hook):
             pasta = pasta / Path(parte[1]).expanduser() if parte[1] else Path.home()
         elif parte[0] == "pr":
             pull_request(hook, pasta, parte[2], parte[3])
+        elif parte[0] == "prmerge":
+            merge_de_pr(hook, pasta, parte[1], parte[2])
+        elif parte[0] == "api":
+            merge_por_api(hook, pasta, parte[1])
         elif parte[0] == "branch":
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
@@ -175,4 +291,4 @@ def principal(hook):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal)
+    executar("parecer", principal, CRITICO)

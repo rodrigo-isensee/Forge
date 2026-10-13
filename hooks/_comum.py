@@ -2,7 +2,8 @@
 
 Silenciosos (sem saída quando tudo está certo), determinísticos (só estado em disco e git local),
 só agem em projeto com `.forge/versao` e liberam em erro interno (registrado em `.forge/run/erros.log`).
-Só biblioteca padrão; nada vindo da entrada é executado.
+Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
+bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
 import functools
 import importlib.machinery
@@ -20,7 +21,7 @@ PLUGIN = Path(__file__).resolve().parent.parent
 LIMITE_MENSAGEM = 200
 LIMITE_LOG = 256 * 1024
 # Usados só se o modelo do projeto (templates/projeto/.forge/config.json) não puder ser lido.
-RESERVA = {"teto_agentes": 3, "pesados": ["playwright", "docker compose up"]}
+RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (forge-init)
 INTEGRACAO = {"main", "master", "develop", "homolog"}
 SEPARADORES = set("();|&\n")
 REDIRECIONAMENTO = set("<>")
@@ -58,6 +59,27 @@ def segmentos(comando):
         else:
             atual.append(tok)
     yield atual
+
+
+def comandos(comando):
+    """Como `segmentos`, mas devolve (palavras, destinos) por comando simples: `destinos` são os alvos dos
+    redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos."""
+    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
+    lex.whitespace, lex.whitespace_split = " \t\r", True
+    atual, destinos, modo = [], [], None  # modo: None | "saida" | "entrada"
+    for tok in lex:
+        if tok and set(tok) <= SEPARADORES:
+            yield atual, destinos
+            atual, destinos, modo = [], [], None
+        elif tok and set(tok) <= REDIRECIONAMENTO | set("|&") and set(tok) & REDIRECIONAMENTO:
+            modo = "saida" if ">" in tok else "entrada"
+        elif modo:
+            if modo == "saida" and not re.fullmatch(r"\d+|-", tok):
+                destinos.append(tok)
+            modo = None
+        else:
+            atual.append(tok)
+    yield atual, destinos
 
 
 def sem_atribuicoes(palavras):
@@ -236,14 +258,40 @@ class Hook:
             pass
 
 
-def executar(nome, funcao):
-    """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2."""
+def texto_da_acao(hook, bruto):
+    """O que a ação tem de crítico: o comando do Bash e o caminho do arquivo, nunca o conteúdo gravado (`content`,
+    `new_string`...). Se o JSON não abriu, só resta a entrada crua."""
+    entrada = hook.campo("tool_input")
+    if not hook.entrada:
+        return bruto
+    if not isinstance(entrada, dict):
+        return ""
+    return "\n".join(v for k in ("command", "file_path", "notebook_path") if isinstance(v := entrada.get(k), str))
+
+
+def falhar_fechado(hook, critico, bruto):
+    """ADR 0009, seção 7: em erro interno, bloqueia só se o comando ou o caminho da ação tem marcador crítico e o
+    projeto é do Forge (e nunca depois da ferramenta, quando já não há o que impedir)."""
+    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse"
+            or not critico.search(texto_da_acao(hook, bruto)) or raiz_do_projeto(hook.cwd()) is None):
+        return
+    bloquear("R-CONFORMIDADE", f"erro interno do hook {hook.nome} diante de uma ação crítica; ele não pôde "
+                               "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")
+
+
+def executar(nome, funcao, critico=None):
+    """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
+    fechada seletiva; `FORGE_GUARDA_ABERTA=1` no ambiente do processo (só o dono) abre a guarda desses hooks."""
     hook = Hook(nome)
+    bruto = sys.stdin.read()
+    if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
+        sys.exit(0)
     try:
-        entrada = json.loads(sys.stdin.read() or "{}")
+        entrada = json.loads(bruto or "{}")
         if isinstance(entrada, dict):
             hook.entrada = entrada
             funcao(hook)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)
+        falhar_fechado(hook, critico, bruto)
     sys.exit(0)

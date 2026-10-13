@@ -1,0 +1,19 @@
+{
+  "descricao": "Projeto sem .forge/versao: o hook não age.",
+  "forge": false,
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push --force origin develop"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

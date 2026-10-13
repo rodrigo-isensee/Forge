@@ -6,15 +6,19 @@ Formato do fixture:
   forge       false para projeto sem .forge/versao (padrão: true)
   arquivos    {caminho: texto ou lista de linhas} gravados antes do commit inicial (branch develop)
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
+  links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
+  env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
-              | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD)
+              | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": número} ou {"ausente": true}
               (padrão: load 5, 3 GB livres, ou seja, teto adaptativo 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
-  esperado    codigo, stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+  passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
+              {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
 import json
@@ -30,9 +34,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
+PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
 def pid_morto():
@@ -43,7 +49,7 @@ def pid_morto():
 
 def substituir(valor, mapa, agora):
     if isinstance(valor, dict):
-        return {k: substituir(v, mapa, agora) for k, v in valor.items()}
+        return {substituir(k, mapa, agora): substituir(v, mapa, agora) for k, v in valor.items()}
     if isinstance(valor, list):
         return [substituir(v, mapa, agora) for v in valor]
     if isinstance(valor, str):
@@ -60,6 +66,13 @@ def substituir(valor, mapa, agora):
 
 def texto(conteudo):
     return "\n".join(conteudo) + "\n" if isinstance(conteudo, list) else conteudo
+
+
+def conferir_passo(entrada, r):
+    """Saída dos `passos`: sempre código 0; no SessionStart o stdout vira contexto do modelo, então tem de ser vazio."""
+    assert r.returncode == 0, f"passo {entrada.get('hook_event_name')} saiu com {r.returncode}: {r.stderr}"
+    if entrada.get("hook_event_name") == "SessionStart":
+        assert r.stdout == "", f"SessionStart não escreve no stdout (ADR 0003, item 1): {r.stdout!r}"
 
 
 class Fixture:
@@ -81,12 +94,16 @@ class Fixture:
         arquivos.setdefault("README.md", "projeto\n")
         if d.get("forge", True):
             arquivos[".forge/versao"] = "0.5.0\n"
+        arquivos[".forge/config.json"] = json.dumps({"pesados": PESADOS_DA_STACK})  # como o forge-init grava
         if "config" in d:
             arquivos[".forge/config.json"] = json.dumps(d["config"])
         if "config_bruta" in d:
             arquivos[".forge/config.json"] = d["config_bruta"]
         arquivos[".gitignore"] = ".forge/run/\n"
         self.gravar(raiz, arquivos, mapa)
+        for rel, alvo in d.get("links", {}).items():
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).symlink_to(substituir(alvo, mapa, 0))
         git("add", "-A", cwd=raiz)
         git("commit", "-q", "-m", "base", cwd=raiz)
         for passo in d.get("git", []):
@@ -96,6 +113,9 @@ class Fixture:
                 git("switch", "-q", "-c", passo["branch"], cwd=raiz)
             elif "checkout" in passo:
                 git("switch", "-q", passo["checkout"], cwd=raiz)
+            elif "config" in passo:
+                for chave, valor in passo["config"].items():
+                    git("config", chave, valor, cwd=raiz)
             elif "ref" in passo:  # ex.: refs/remotes/origin/x apontando para o HEAD, como depois de um fetch
                 git("update-ref", passo["ref"], "HEAD", cwd=raiz)
             if "arquivos" in passo:
@@ -112,9 +132,25 @@ class Fixture:
                 conteudo = substituir(conteudo, mapa, agora)
                 (run / nome).write_text(conteudo if isinstance(conteudo, str) else json.dumps(conteudo),
                                         encoding="utf-8")
+        self.passos = d.get("passos", [])
+        self.mapa, self.agora = mapa, agora
         entrada = substituir(d["entrada"], mapa, agora)
         entrada.setdefault("cwd", str(raiz))
         return raiz, entrada
+
+    def executar_passos(self, raiz, rodar_hook):
+        """Roda os `passos` (ver o cabeçalho) antes da entrada principal."""
+        for passo in self.passos:
+            if "entrada" in passo:
+                entrada = substituir(passo["entrada"], self.mapa, self.agora)
+                entrada.setdefault("cwd", str(raiz))
+                conferir_passo(entrada, rodar_hook(entrada))
+            for modo, chave in (("w", "gravar"), ("a", "anexar")):
+                for caminho, conteudo in passo.get(chave, {}).items():
+                    alvo = raiz / substituir(caminho, self.mapa, 0)
+                    alvo.parent.mkdir(parents=True, exist_ok=True)
+                    with open(alvo, modo, encoding="utf-8") as f:
+                        f.write(substituir(texto(conteudo), self.mapa, 0))
 
     @staticmethod
     def gravar(raiz, arquivos, mapa):
@@ -137,8 +173,10 @@ def montar_proc(tmp, proc):
     return pasta
 
 
-def rodar(hook, entrada, cwd, proc=None):
+def rodar(hook, entrada, cwd, proc=None, extra=None):
     env = ambiente_limpo()
+    env.pop("FORGE_GUARDA_ABERTA", None)
+    env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
     return subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=json.dumps(entrada), cwd=cwd,
@@ -159,9 +197,21 @@ class Hooks(unittest.TestCase):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
                 self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
                 raiz, entrada = f.montar(tmp, outro.pid)
-                r = rodar(f.hook, entrada, raiz, montar_proc(tmp, f.dados.get("proc")))
+                proc = montar_proc(tmp, f.dados.get("proc"))
+                extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
+                f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
+                r = rodar(f.hook, entrada, raiz, proc, extra)
                 esperado = f.dados["esperado"]
-                self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
+                if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
+                    self.assertEqual(f.hook, "vigia")
+                    self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
+                    saida = json.loads(r.stdout)
+                    self.assertEqual(list(saida), ["systemMessage"])
+                    self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
+                    self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+                    self.assertIn(esperado["saida"], saida["systemMessage"])
+                else:
+                    self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
                 self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
                 if esperado["codigo"] == 0:
                     self.assertEqual(r.stderr, "", "sem violação, sem saída")
@@ -196,13 +246,18 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0, 2})
+                self.assertEqual(codigos, {0} if hook == "vigia" else {0, 2})  # o vigia avisa, nunca bloqueia
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
 
     def test_hooks_json(self):
         d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
-        self.assertFalse({"SessionStart", "UserPromptSubmit"} & set(d["hooks"]), "hook não injeta contexto")
+        self.assertNotIn("UserPromptSubmit", d["hooks"], "hook não injeta contexto")
+        self.assertNotIn("additionalContext", (HOOKS / "vigia.py").read_text(encoding="utf-8").replace(
+            "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
+        for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
+            comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
+            self.assertLessEqual(comandos, {"vigia.py"}, f"só o vigia (silencioso, sem stdout) fica em {evento}")
         usados = set()
         for evento, grupos in d["hooks"].items():
             for g in grupos:
@@ -239,12 +294,79 @@ class Hooks(unittest.TestCase):
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-        for hook in ("agentes", "parecer", "pesado", "quadro"):
+        for hook in ("agentes", "conformidade", "parecer", "pesado", "quadro", "vigia"):
             for entrada in ("", "não é json", "[1, 2]"):
                 with self.subTest(hook=hook, entrada=entrada):
                     r = subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=entrada, cwd=tmp,
                                        env=ambiente_limpo(), capture_output=True, text=True, timeout=30)
                     self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_varredura_do_vigia_nao_desce_em_pastas_ignoradas(self):
+        sys.path.insert(0, str(HOOKS))
+        import vigia
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        raiz = tmp / "proj"
+        (raiz / ".git").mkdir(parents=True)
+        (raiz / ".forge").mkdir()
+        (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        (raiz / ".claude").mkdir()
+        (raiz / ".claude" / "settings.json").write_text("{}\n", encoding="utf-8")
+        (raiz / ".gitignore").write_text(".forge/run/\n.claude/worktrees/\n", encoding="utf-8")
+        for i in range(60):  # 6000 arquivos numa worktree do Claude Code, com node_modules
+            pasta = raiz / ".claude" / "worktrees" / f"w{i % 3}" / "node_modules" / f"p{i}"
+            pasta.mkdir(parents=True)
+            for j in range(100):
+                (pasta / f"f{j}.js").write_text("x", encoding="utf-8")
+        visitadas = []
+        original = os.walk
+
+        def espiao(*a, **k):
+            for pasta, dirs, nomes in original(*a, **k):
+                visitadas.append(pasta)
+                yield pasta, dirs, nomes
+        vigia.os.walk = espiao
+        try:
+            self.assertEqual(sorted(vigia.hashes(raiz)), [".claude/settings.json", ".forge/versao"])
+        finally:
+            vigia.os.walk = original
+        self.assertLess(len(visitadas), 10, "não desce em .claude/worktrees")
+        git("init", "-q", "-b", "develop", cwd=raiz)
+        git("-c", "user.email=t@example.com", "-c", "user.name=T", "add", "-A", cwd=raiz)
+        git("-c", "user.email=t@example.com", "-c", "user.name=T", "commit", "-q", "-m", "base", cwd=raiz)
+        entrada = {"cwd": str(raiz), "session_id": "s"}
+        rodar("vigia", {**entrada, "hook_event_name": "SessionStart", "source": "startup"}, raiz)
+        tempos = []
+        for _ in range(3):
+            t0 = time.perf_counter()
+            r = rodar("vigia", {**entrada, "hook_event_name": "Stop"}, raiz)
+            tempos.append(time.perf_counter() - t0)
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        self.assertLess(sorted(tempos)[1], 1.0, "mediana do Stop com 6000 arquivos em worktrees")
+
+    def test_vigia_estado_e_leitura_do_git_status(self):
+        sys.path.insert(0, str(HOOKS))
+        import vigia
+        self.assertEqual(vigia.caminho_da_linha("R  .githooks/a -> .githooks/b"), ".githooks/b")
+        self.assertEqual(vigia.caminho_da_linha('?? ".claude/novo arquivo.md"'), ".claude/novo arquivo.md")
+        self.assertEqual(vigia.caminho_da_linha(" M .githooks/pre-push"), ".githooks/pre-push")
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        log = tmp / "violacoes.jsonl"
+        log.write_text("x" * (vigia.LIMITE_LOG + 1), encoding="utf-8")
+        vigia.rotacionar(log)
+        self.assertFalse(log.exists())
+        self.assertTrue((tmp / "violacoes.jsonl.1").exists())
+        (tmp / "t.jsonl").write_text("", encoding="utf-8")
+        agora = time.time()
+        estado = {"raizes": {str(tmp): {}, "/nao/existe": {}}, "git": {"/nao/existe": ["x"]},
+                  "transcricoes": {str(tmp / "t.jsonl"): 0, "/nao/existe.jsonl": 0},
+                  "bloqueios": [{"em": agora}, {"em": agora - 10_000}]}
+        vigia.podar(estado, agora, 7200)
+        self.assertEqual(list(estado["raizes"]), [str(tmp)])
+        self.assertEqual(estado["git"], {})
+        self.assertEqual(list(estado["transcricoes"]), [str(tmp / "t.jsonl")])
+        self.assertEqual(len(estado["bloqueios"]), 1)
 
 
 if __name__ == "__main__":

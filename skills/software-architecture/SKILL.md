@@ -39,6 +39,7 @@ O que fica mais fácil, o que fica mais difícil, riscos.
 ```
 
 ## Plano técnico de feature (`docs/architecture/features/<feature>.md`)
+0. **Conferência com a constituição** (`docs/constituicao.md`, se existir): antes de seguir, cada princípio inegociável e portão de qualidade é conferido contra o plano; conflito é resolvido no plano ou vira ADR pedindo emenda à constituição, nunca é ignorado. Registre "conforme" ou o desvio no topo do plano.
 1. Resumo e link para a especificação de UX.
 2. Módulos afetados (back e front).
 3. Mudanças no modelo de dados (entidades, relacionamentos, migrações).

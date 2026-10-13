@@ -1,0 +1,60 @@
+{
+  "descricao": "Máquina folgada (teto 5) com teto_maximo 5: o máximo só empata, a mensagem não diz que limitou.",
+  "config": {
+    "teto_maximo": 5
+  },
+  "proc": {
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 6
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 2",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 3",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a4",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 4",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "5 agentes ativos, teto 5 (adaptativo: load 1.0, 6.0 GB disponíveis)"
+  }
+}

@@ -10,6 +10,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Fonte da verdade
 <!-- Documentos de referência do sistema (briefing, especificações, contratos). Aponte caminho e o que cada um decide. -->
 - `docs/pedidos/`: pedidos do usuário, um arquivo por pedido.
+- `docs/constituicao.md`: princípios e portões do projeto; o plano técnico é conferido contra ela.
 
 ## Regras invioláveis do sistema
 <!-- Regras de negócio, de segurança e de dados que nenhum agente pode quebrar. Uma por linha, objetivas. -->
@@ -25,6 +26,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 
 ## Regras da fábrica
 Valem aqui; o texto completo de cada uma está em `docs/regras/` do Forge (https://github.com/rodrigo-isensee/Forge/tree/main/docs/regras). Exceções só na seção acima, com o motivo.
+- `R-DECISAO` decisões levadas ao usuário uma de cada vez, com opções e a recomendação do time.
 - `R-MAIN` a main é do usuário (hook `.githooks/pre-push`; ative com `git config core.hooksPath .githooks`).
 - `R-VERIFY` nunca `--no-verify` nem `--force`.
 - `R-FLUXO` branches e promoção · `R-WIP` 1 cartão por agente e limites de coluna · `R-TETO` teto de recursos da máquina.

@@ -1,0 +1,11 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code 2.0.0 (sintética)"}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a1", "tipo": "forge:tech-lead", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a2", "tipo": "forge:qa-engineer", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "flag --no-verify", "branch": "<branch>", "c": "c1"}
+{"ev": "bloqueio", "t": "2026-01-01T10:00:00Z", "c": "c1", "causa": "hook"}
+{"ev": "escrita", "t": "2026-01-01T10:00:00Z", "alvo": "", "copia": false, "arq": "f1", "flags": ["--no-verify"], "via": "Write", "c": "c2"}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "executa f1", "branch": "<branch>", "c": "c3", "via": "script"}
+{"ev": "escrita", "t": "2026-01-01T10:00:00Z", "alvo": "docs/regras/", "copia": false, "arq": "", "flags": [], "via": "Write", "c": "c4", "ator": "forge:tech-lead"}
+{"ev": "bloqueio", "t": "2026-01-01T10:00:00Z", "c": "c4", "causa": "permissao", "ator": "forge:tech-lead"}
+{"ev": "escrita", "t": "2026-01-01T10:00:00Z", "alvo": "docs/regras/", "copia": false, "arq": "", "flags": [], "via": "Bash", "c": "c5", "ator": "forge:tech-lead"}
+{"ev": "escrita", "t": "2026-01-01T10:00:00Z", "alvo": "docs/regras/", "copia": false, "arq": "", "flags": [], "via": "Write", "c": "c6", "ator": "<agente>"}

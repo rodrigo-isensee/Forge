@@ -1,0 +1,17 @@
+{
+  "descricao": "Read não é decidido por este hook.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Read",
+    "tool_input": {
+      "file_path": "{raiz}/.env"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

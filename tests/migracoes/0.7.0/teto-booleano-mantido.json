@@ -1,0 +1,10 @@
+{
+  "descricao": "teto-booleano-mantido",
+  "antes": {
+    "teto_agentes": true
+  },
+  "depois": {
+    "teto_agentes": true
+  },
+  "saida": ""
+}

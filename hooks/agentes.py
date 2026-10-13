@@ -59,12 +59,12 @@ def calcular_teto(config, proc=None):
     carga, memoria = medir(proc)
     teto = teto_adaptativo(carga, memoria)
     maximo = config.get("teto_maximo")
-    if maximo and teto > maximo:
+    limitado = bool(maximo) and teto > maximo
+    if limitado:
         teto = maximo
-    if carga is None or memoria is None:
-        return teto, "adaptativo sem leitura de /proc: usa o padrão 3"
-    return teto, f"adaptativo: load {carga:.1f}, {memoria:.1f} GB disponíveis" + \
-        (f", limitado por teto_maximo {maximo}" if maximo == teto else "")
+    origem = "adaptativo sem leitura de /proc: padrão 3" if carga is None or memoria is None \
+        else f"adaptativo: load {carga:.1f}, {memoria:.1f} GB disponíveis"
+    return teto, origem + (f", limitado por teto_maximo {maximo}" if limitado else "")
 
 
 def vigentes(agentes, agora, expira_s):
