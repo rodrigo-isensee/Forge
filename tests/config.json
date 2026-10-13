@@ -104,7 +104,9 @@
       "`R-NEUTRO`",
       "`R-COPIA`",
       "`R-VERIFY`",
-      "`R-DECISAO`"
+      "`R-DECISAO`",
+      "`R-CONFORMIDADE`",
+      "`R-CONTRIB`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
@@ -114,7 +116,9 @@
       "`R-FLUXO`",
       "`R-REVIEW`",
       "`R-CUSTO`",
-      "`R-NEUTRO`"
+      "`R-NEUTRO`",
+      "`R-CONFORMIDADE`",
+      "`R-CONTRIB`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -197,6 +201,15 @@
       "\\*\\*uma de cada vez\\*\\*",
       "\\*\\*as opções\\*\\*",
       "\\*\\*a recomendação\\*\\*"
+    ],
+    "docs/regras/R-CONFORMIDADE.md": [
+      "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
+      "\\*\\*Arquivos em vigor\\*\\*"
+    ],
+    "docs/regras/R-CONTRIB.md": [
+      "projeto abre PR para a `develop` do Forge e nunca o mescla",
+      "Nenhum portão tem exceção, nem para o dono",
+      "`gh pr checks`"
     ]
   }
 }

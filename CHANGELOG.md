@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado] — requer migração (0.7.0, `forge-upgrade`)
 ### Adicionado
+- Regras `R-CONFORMIDADE` (ADR 0009: controles não se contornam; bloqueio vira decisão ao usuário) e `R-CONTRIB` (ADR 0008: projeto abre PR, nunca mescla; checklist de merge). Citadas pelo Jarvis, `tech-lead` e skill `contribuir-com-o-forge` (que ativa `core.hooksPath` no clone); `R-CONFORMIDADE` também nos demais agentes. Invariantes só com acréscimos.
 - ADR 0009 (proposta): conformidade dos agentes por construção — o que fica impossível (sandbox do Bash, permissões, hook por papel), barrado, detectado (vigia, transcrições) e o risco residual.
 - Licença MIT (`LICENSE`, `plugin.json`), decidida pelo dono para quando o repositório for público.
 - ADR 0008 vigente, com as decisões do dono: conta de máquina para os agentes; preparar já e tornar público quando chegar o primeiro colaborador.
