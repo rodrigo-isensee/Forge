@@ -10,9 +10,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - Regra `R-DECISAO` (pedido do usuário): toda decisão do usuário vem uma de cada vez, com opções e a recomendação do time; ações pendentes ficam numa lista à parte. Citada pelo Jarvis, `tech-lead` e `ux-designer`; protegida por invariantes.
 - **Requer migração (0.7.0):** `migrations/0.7.0/` remove `teto_agentes` de `.forge/config.json` só quando vale exatamente `3` (o padrão que o modelo da 0.5.0 gravava e que impedia o teto adaptativo); outro valor e as demais chaves ficam intactos, e rodar de novo não muda nada. Fixtures antes/depois em `tests/migracoes/0.7.0/`.
 ### Alterado
-- Lista padrão de comandos pesados (hook `pesado`) sai do núcleo e passa para o pacote da stack: `stacks/node-react/pesados.json`, gravado em `.forge/config.json` pelo `forge-init`; o modelo de projeto traz `"pesados": []`. Projetos já criados mantêm a lista que têm; projeto antigo que migrar da 0.0.0 fica sem lista até preencher `pesados`.
+- Lista padrão de comandos pesados (hook `pesado`) sai do núcleo e passa para o pacote da stack: `stacks/node-react/pesados.json`, gravado em `.forge/config.json` pelo `forge-init`; o modelo de projeto traz `"pesados": []`. Projetos já criados mantêm a lista que têm; projeto antigo que migrar da 0.0.0 fica sem lista até preencher `pesados`, e projeto cuja config não tem a chave `pesados` também fica sem lista.
 ### Corrigido
-- Hook de parecer: `git checkout <ref> <arquivo>` (sem `--`) deixa de ser tratado como troca de branch.
+- Hook de parecer: `git checkout <ref> <arquivo>` (sem `--`) deixa de ser tratado como troca de branch; `git checkout <ref> --` sem caminho continua sendo troca de branch.
 - Hook de teto: "padrão 3" só no fallback sem `/proc`; "limitado por teto_maximo" só quando o máximo de fato reduziu o teto; `docs/hooks.md` sem a menção desatualizada a `teto_agentes`.
 - `docs/hooks.md`, "Limites conhecidos": pull de branch não buscada, `rebase`/`reset`/`cherry-pick` na integração, várias tarefas pesadas na mesma sessão e negação interativa sem `PermissionDenied`.
 
