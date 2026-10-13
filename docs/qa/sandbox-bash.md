@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: b68febf
+commit: 647af0d
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -228,6 +228,6 @@ Bugs abertos: 0 críticos, 0 altos, 0 médios, 0 baixos. Nenhum bug novo. Observ
 ## Nota de revalidação (efc63e5)
 Sem mudança de código do sandbox desde `0432563`. O delta `0432563..efc63e5` tem só: N10 (rótulo da matriz da ADR 0009), o status do SBX-03 (limite documentado) e o merge da `develop` (`ff3101d`), cujos arquivos são idênticos à `origin/develop`. Suíte unitária (212 testes) e `scripts/validar-plugin.sh` verdes em `efc63e5`. Bugs abertos: 0 em todas as severidades, sem alteração. O veredito de `0432563` vale para `efc63e5`, com a mesma ressalva de N6 e SBX-03 (decisão do dono).
 
-## Revalidação (b68febf)
+## Revalidação (647af0d)
 
-Merge da develop (#42) na branch, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Diff próprio inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio); o que mudou no PR veio só da develop.
+Merge da develop (#42) em b68febf, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Depois do merge, a suíte acusou dois pontos e o tech-lead fez dois ajustes, que mudam o diff próprio do PR só nesses pontos: `a77b134` tira `/tests/neutralidade.py` do `.gitignore` (o arquivo passou a ser versionado pela develop e o teste de versionados ignorados falhava); `647af0d` tira `tests/neutralidade.py` da lista de pontos de montagem do teste `test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados`. Diff próprio dos demais arquivos inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio).

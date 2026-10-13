@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: b68febf
+commit: 647af0d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -102,6 +102,6 @@ Ambiente de execução: `validar-plugin.sh` e a suíte geraram avisos `deny netw
 ## Veredito da revalidação (efc63e5)
 **Aprovado.** Sem bloqueio nem achado novo. N10 foi aplicado com o rótulo honesto; o restante do delta é o merge da `develop` sem alteração. Quem mescla é o tech-lead depois do parecer do QA.
 
-## Revalidação (b68febf)
+## Revalidação (647af0d)
 
-Merge da develop (#42) na branch, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Diff próprio inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio); o que mudou no PR veio só da develop.
+Merge da develop (#42) em b68febf, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Depois do merge, a suíte acusou dois pontos e o tech-lead fez dois ajustes, que mudam o diff próprio do PR só nesses pontos: `a77b134` tira `/tests/neutralidade.py` do `.gitignore` (o arquivo passou a ser versionado pela develop e o teste de versionados ignorados falhava); `647af0d` tira `tests/neutralidade.py` da lista de pontos de montagem do teste `test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados`. Diff próprio dos demais arquivos inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio).
