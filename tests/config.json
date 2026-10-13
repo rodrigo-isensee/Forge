@@ -155,7 +155,10 @@
     ],
     "docs/regras/R-FLUXO.md": [
       "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
-      "Nada pula degrau"
+      "Nada pula degrau",
+      "\\*\\*Depois do merge, limpe tudo\\*\\*",
+      "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
+      "`git worktree prune`"
     ],
     "docs/regras/R-COPIA.md": [
       "Nunca copie agentes ou skills do Forge"

@@ -49,4 +49,4 @@ Use `.github/pull_request_template.md` e preencha:
 Comando: `gh pr create --base develop --title "<tipo>: <resumo>" --body-file <texto>` (de um fork: `--repo rodrigo-isensee/Forge`).
 
 ## 7. Depois
-Acompanhe o CI e responda ao review do `tech-lead`; a promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release.
+Acompanhe o CI e responda ao review do `tech-lead`; a promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release. Depois do merge do PR, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").
