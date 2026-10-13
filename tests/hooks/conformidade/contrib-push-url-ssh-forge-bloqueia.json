@@ -1,0 +1,21 @@
+{
+  "descricao": "Push por URL ssh do Forge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push git@github.com:rodrigo-isensee/Forge.git HEAD:refs/heads/develop2"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "descricao": "--input arquivo com mutação perigosa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "q.json": "{\"query\": \"mutation { addLabelsToLabelable(input:{labelableId:\\\"X\\\",labelIds:[\\\"Y\\\"]}) { clientMutationId } }\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api graphql --input q.json"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api"
+  }
+}

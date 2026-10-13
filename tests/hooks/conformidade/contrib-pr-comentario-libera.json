@@ -1,0 +1,20 @@
+{
+  "descricao": "Comentar no próprio PR continua livre.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd {tmp}/home/.forge-contrib/proj && gh pr comment 5 --body-file x.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

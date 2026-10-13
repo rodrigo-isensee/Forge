@@ -1,0 +1,21 @@
+{
+  "descricao": "Sessão cuja raiz é o próprio Forge (tech-lead/Jarvis) empurra qualquer melhoria/*: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C {tmp}/home/.forge-contrib/proj push origin melhoria/qualquer"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

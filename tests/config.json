@@ -216,7 +216,12 @@
     "docs/regras/R-CONTRIB.md": [
       "projeto abre PR para a `develop` do Forge e nunca o mescla",
       "Nenhum portão tem exceção, nem para o dono",
-      "`gh pr checks`"
+      "`gh pr checks`",
+      "Sessão de outro projeto só propõe",
+      "criar \\*\\*uma\\*\\* branch própria `melhoria/<projeto>-<tema>`",
+      "resolver conflitos nem revalidar pareceres de PR alheio",
+      "fechar ou editar PR alheio; aplicar rótulos",
+      "avisa o usuário e \\*\\*para\\*\\*"
     ]
   },
   "custo_permitido": {},
