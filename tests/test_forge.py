@@ -638,6 +638,31 @@ class HookPrePush(unittest.TestCase):
                 self.assertNotEqual(r.returncode, 0)
                 self.assertIn("R-VERIFY", r.stderr)
 
+    def test_remoto_com_commit_desconhecido_pede_fetch(self):
+        self.assertEqual(self.push("HEAD:feature/u").returncode, 0)
+        outro = self.tmp / "outro"
+        git("clone", "-q", str(self.remoto), str(outro), cwd=self.tmp)
+        for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
+            git("config", k, v, cwd=outro)
+        git("checkout", "-q", "feature/u", cwd=outro)
+        git("commit", "-q", "--allow-empty", "-m", "de outro clone", cwd=outro)
+        self.assertEqual(subprocess.run(["git", "-C", str(outro), "push", "origin", "feature/u"], cwd=outro,
+                                        env=ambiente_limpo(), capture_output=True).returncode, 0)
+        self.commit_novo("local")  # o remoto avançou e este clone não fez fetch
+        r = self.push("HEAD:feature/u")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("git fetch", r.stderr)
+        self.assertNotIn("R-VERIFY", r.stderr)
+
+    def test_apagar_branch_passa(self):
+        self.assertEqual(self.push("HEAD:feature/del").returncode, 0)
+        self.assertEqual(self.push(":feature/del").returncode, 0)
+
+    def test_apagar_tag_passa(self):
+        git("tag", "v0", cwd=self.repo)
+        self.assertEqual(self.push("v0").returncode, 0)
+        self.assertEqual(self.push(":refs/tags/v0").returncode, 0)
+
     def test_branch_nova_passa(self):
         self.assertEqual(self.push("HEAD:feature/nova").returncode, 0)
 
