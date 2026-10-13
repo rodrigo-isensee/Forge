@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.9.0] - 2026-10-13
 ### Adicionado
 - **`R-FLUXO`, "Depois do merge":** branch remota, branch local e worktree são sempre apagadas após o merge (nunca `develop`, `homolog` nem `main`); se o sandbox recusar ("Device or resource busy"), o dono recebe o `git worktree prune` para rodar. Citada em `tech-lead`, `jarvis` e `contribuir-com-o-forge`; invariante novo em `tests/config.json`.
 ### Alterado
