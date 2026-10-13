@@ -1,0 +1,21 @@
+{
+  "descricao": "PATCH em issues/N (fecha ou edita PR): bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PATCH repos/rodrigo-isensee/Forge/issues/5 -f state=closed"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api"
+  }
+}

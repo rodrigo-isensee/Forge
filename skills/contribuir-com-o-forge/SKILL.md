@@ -5,7 +5,7 @@ description: Use quando você, em qualquer projeto, perceber uma melhoria de fá
 
 # Contribuir com o Forge a partir de qualquer projeto
 
-Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente de qualquer projeto contribui, como colaborador do GitHub. **Uma melhoria por PR.** `R-CONTRIB`: o projeto abre o PR e nunca o mescla.
+Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente de qualquer projeto contribui, como colaborador do GitHub. **Uma melhoria por PR.** `R-CONTRIB`: o projeto abre o PR e nunca o mescla; a sugestão vai no corpo do PR e, depois de aberto, a sessão para.
 
 ## 1. Classifique: fábrica ou projeto
 - **Fábrica (vai ao Forge):** o que melhora como o time trabalha em qualquer projeto: agentes, skills, fluxo, práticas gerais, hooks, modelos, testes e CI do Forge.
@@ -22,7 +22,7 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 
 ## 3. Cheque o acesso
 `gh repo view rodrigo-isensee/Forge --json viewerPermission`
-- **`WRITE`, `MAINTAIN` ou `ADMIN`:** `git switch --no-track -c melhoria/<assunto> origin/develop`; envie com `git push origin melhoria/<assunto>` (sem `-u`, que grava no `.git/config`, protegido pelo sandbox).
+- **`WRITE`, `MAINTAIN` ou `ADMIN`:** `git switch --no-track -c melhoria/<projeto>-<tema> origin/develop` (única branch que a sessão cria e envia, `R-CONTRIB`); envie com `git push origin melhoria/<projeto>-<tema>` (sem `-u`, que grava no `.git/config`, protegido pelo sandbox).
 - **`READ` (sem escrita):** `gh repo fork rodrigo-isensee/Forge --clone=false`, adicione o fork como remoto, crie a branch a partir de `origin/develop` e envie ao fork; o PR vai para a `develop` do Forge.
 - **Sem `gh` autenticado:** registre a proposta em `docs/kanban/melhorias.md` do projeto (situação, mudança, como medir) e avise o usuário.
 - Nunca envie para `develop`, `homolog` ou `main` (`R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário).
@@ -49,4 +49,4 @@ Use `.github/pull_request_template.md` e preencha:
 Comando: `gh pr create --base develop --title "<tipo>: <resumo>" --body-file <texto>` (de um fork: `--repo rodrigo-isensee/Forge`).
 
 ## 7. Depois
-Acompanhe o CI e responda ao review do `tech-lead`; a promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release. Depois do merge do PR, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").
+**Pare.** `R-CONTRIB`: sessão de outro projeto só propõe. Avise o usuário com o link do PR e não toque em mais nada no Forge: não commite em branch que não criou, não resolva conflito nem revalide parecer de PR alheio, não mescle, não feche, não edite, não rotule. Pedido de ajuste do review vira commit novo na sua própria branch `melhoria/<projeto>-<tema>`, só quando o usuário pedir; quem integra é a sessão do Forge (`tech-lead` ou Jarvis), com a aprovação do dono. A promoção até a `main` segue `R-FLUXO`. O projeto recebe a melhoria com `claude plugin update forge@forge` depois da release. Depois do merge do PR, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").

@@ -1,0 +1,21 @@
+{
+  "descricao": "GH_REPO exportado vale para gh api com placeholders.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "export GH_REPO=rodrigo-isensee/Forge; gh api -X PATCH 'repos/{owner}/{repo}/pulls/70' -f state=closed"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh api"
+  }
+}

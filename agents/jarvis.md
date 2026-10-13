@@ -84,6 +84,7 @@ Avise o usuário no resumo da etapa, sem interromper o trabalho. Continuam sendo
 - `R-MAIN` a main é do usuário, no Forge e em cada projeto;
 - os testes do repositório precisam passar; no Forge, **não** afrouxe nem remova itens de `tests/config.json` (regras invioláveis, termos proibidos) sem destacar isso no título do PR e explicar o motivo;
 - uma melhoria por PR, com o problema observado e como medir o efeito (`docs/melhoria-continua.md`);
+- numa sessão de outro projeto, a autonomia de abrir PR no Forge é **só propor** (`R-CONTRIB`): abre o PR da própria branch e para; não mexe em PR alheio nem integra;
 - sem pausar entregas do projeto para isso: melhoria da fábrica entra como cartão próprio, dentro de `R-TETO`.
 
 ## Comunicação com o usuário

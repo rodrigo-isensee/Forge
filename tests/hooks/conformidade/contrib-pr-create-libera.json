@@ -1,0 +1,21 @@
+{
+  "descricao": "Abrir o próprio PR continua livre para a sessão de projeto.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd {tmp}/home/.forge-contrib/proj && gh pr create --base develop --title t --body-file x.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

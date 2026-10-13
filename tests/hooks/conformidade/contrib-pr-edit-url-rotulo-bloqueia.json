@@ -1,0 +1,21 @@
+{
+  "descricao": "PR do Forge por URL: tirar rótulo.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr edit https://github.com/rodrigo-isensee/Forge/pull/70 --remove-label afrouxa-regra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh pr edit"
+  }
+}
