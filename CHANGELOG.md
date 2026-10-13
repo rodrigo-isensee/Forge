@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Corrigido
+- **Rótulo `afrouxa-regra` e pareceres sobrevivem a merge da base e a commit de parecer (ADR 0008, ADR 0004):** a catraca aceita o rótulo do dono também quando o diff efetivo do PR (sobre o merge-base, fora de `docs/reviews/` e `docs/qa/`) é idêntico ao do head no instante do rótulo, que vem das execuções `pull_request` do PR (falha fechada se o head for incerto ou a branch reescrita); `forge-check pr --base` e o modo `pareceres` aceitam o parecer cujo diff efetivo não mudou. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
+
 ## [0.8.0] - 2026-10-13
 ### Adicionado
 - **Catraca confere `hooks/conformidade.json` (R-CONFORMIDADE), por lista branca:** a única mudança que passa sem o rótulo é acrescentar entrada nova em `caminhos` (JSON carregado, não texto), com `quem` sem `dev` nem papel inexistente e `caminho` que não seja igual nem prefixo de um já existente; todo o resto acusa (remover ou alterar entrada, mudar `papeis`, `acoes`, flags e pacotes, `papel_padrao`, `sem_agent_type`, quebrar o esquema, JSON inválido, arquivo removido ou movido). O rótulo `afrouxa-regra` do dono libera. `hooks/conformidade.py` entra em `PROTEGIDOS`. Testes em `tests/test_catraca.py`. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.

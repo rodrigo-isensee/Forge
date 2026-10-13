@@ -861,6 +861,194 @@ class Pareceres(Base):
         self.parecer("review", ramo="outra")
         self.assertEqual(len(self.roda()), 1)
 
+    # --- O parecer sobrevive a merge da base e a commit de parecer (diff efetivo, ADR 0004 item 3) ---
+    def mescla_base(self, rel="scripts/da-base.sh"):
+        """A base (`develop`) ganha um commit depois do parecer e ele é mesclado na branch do PR."""
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve(rel, "echo base\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+
+    def roda_sobre_develop(self):
+        self.repo.commit()
+        return catraca.violacoes_de_pareceres(self.repo.dir, "develop", "HEAD", "pr", "develop")
+
+    def test_merge_da_base_depois_do_parecer_mantem_o_parecer(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.mescla_base()
+        self.assertEqual(self.roda_sobre_develop(), [])
+
+    def test_mudanca_de_codigo_depois_do_merge_da_base_invalida_o_parecer(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.mescla_base()
+        self.repo.escreve("hooks/novo.py", "x = 2\n")
+        achadas = self.roda_sobre_develop()
+        self.assertEqual(len(achadas), 1)
+        self.assertIn("desatualizado", achadas[0])
+
+    def test_veredito_trocado_no_parecer_depois_do_merge_continua_conferido(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.mescla_base()
+        texto = (self.repo.dir / "docs/reviews/ped.md").read_text(encoding="utf-8")
+        self.repo.escreve("docs/reviews/ped.md", texto.replace("parecer: aprovado", "parecer: reprovado"))
+        achadas = self.roda_sobre_develop()
+        self.assertEqual(len(achadas), 1)
+        self.assertIn("não é aprovado", achadas[0])
+
+    def test_sem_base_o_merge_da_base_continua_invalidando(self):
+        """`forge-check pr` sem `--base` mantém a regra estrita (diff direto entre o commit e o head)."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.mescla_base()
+        self.repo.commit()
+        fc = catraca.forge_check()
+        self.assertTrue(any("desatualizado" in l for l in fc.cmd_pr(self.repo.dir, "ped")))
+        self.assertFalse(any("desatualizado" in l for l in fc.cmd_pr(self.repo.dir, "ped", None, "develop")))
+
+
+def execucao(sha, quando, numero=7, evento="pull_request"):
+    return {"event": evento, "head_sha": sha, "created_at": quando, "pull_requests": [{"number": numero}]}
+
+
+def rotulo(quem="dona", quando="2026-01-02T10:00:00Z", tipo="labeled"):
+    return {"event": tipo, "label": {"name": catraca.ROTULO}, "actor": {"login": quem}, "created_at": quando}
+
+
+class CommitDoRotulo(unittest.TestCase):
+    """O head do PR quando o dono aplicou o rótulo, pelas execuções do Actions (instante do servidor); senão None."""
+
+    def test_head_vigente_e_a_ultima_execucao_antes_do_rotulo(self):
+        execs = [execucao("a", "2026-01-02T08:00:00Z"), execucao("b", "2026-01-02T09:00:00Z"), execucao("b", "2026-01-02T10:00:03Z"),
+                 execucao("c", "2026-01-02T11:00:00Z")]
+        self.assertEqual(catraca.commit_do_rotulo([rotulo()], execs, "7", "dona"), "b")
+
+    def test_execucao_de_outro_pr_ou_de_outro_evento_nao_conta(self):
+        execs = [execucao("b", "2026-01-02T09:00:00Z"), execucao("x", "2026-01-02T09:30:00Z", numero=8),
+                 execucao("y", "2026-01-02T09:40:00Z", evento="push"), execucao("b", "2026-01-02T10:00:03Z")]
+        self.assertEqual(catraca.commit_do_rotulo([rotulo()], execs, 7, "dona"), "b")
+
+    def test_sem_execucao_do_mesmo_head_depois_do_rotulo_falha_fechado(self):
+        """Head sem execução no instante do rótulo ([skip ci], workflow desligado): a atribuição seria de um head anterior."""
+        execs = [execucao("a", "2026-01-02T09:00:00Z"), execucao("c", "2026-01-02T10:00:03Z")]
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo()], execs, 7, "dona"))
+
+    def test_force_push_depois_do_head_vigente_falha_fechado(self):
+        execs = [execucao("b", "2026-01-02T09:00:00Z"), execucao("b", "2026-01-02T10:00:03Z")]
+        forca = {"event": "head_ref_force_pushed", "created_at": "2026-01-02T09:30:00Z"}
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo(), forca], execs, 7, "dona"))
+
+    def test_rotulo_de_outra_pessoa_removido_ou_ausente_nao_vale(self):
+        execs = [execucao("b", "2026-01-02T09:00:00Z"), execucao("b", "2026-01-02T10:00:03Z")]
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo("intrusa")], execs, 7, "dona"))
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo(), rotulo(quando="2026-01-02T10:01:00Z", tipo="unlabeled")], execs, 7, "dona"))
+        self.assertIsNone(catraca.commit_do_rotulo([], execs, 7, "dona"))
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo()], execs, 7, None))
+        self.assertIsNone(catraca.commit_do_rotulo([rotulo()], [], 7, "dona"))
+
+
+class RotuloSobreviveAoConteudo(Base):
+    """O rótulo vale para o diff efetivo do PR no instante em que foi aplicado (sem pareceres e sem o que veio da base)."""
+
+    def setUp(self):
+        super().setUp()
+        self.repo.escreve("tests/catraca.py", "# mudou no PR\n")  # protegido: só passa com o rótulo
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+
+    def roda(self, execs=None):
+        self.repo.commit()
+        entrada = tempfile.TemporaryDirectory()
+        self.addCleanup(entrada.cleanup)
+        pasta = Path(entrada.name)
+        (pasta / "eventos.json").write_text(json.dumps([rotulo()]), encoding="utf-8")
+        execs = execs if execs is not None else [execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]
+        (pasta / "execucoes.json").write_text(json.dumps(execs), encoding="utf-8")
+        args = ["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "develop",
+                "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7"]
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        return subprocess.run(args, capture_output=True, text=True, env=env)
+
+    def mescla_base(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("docs/da-base.md", "veio da base\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+
+    def test_merge_da_base_depois_do_rotulo_mantem_o_rotulo(self):
+        self.mescla_base()
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("liberada", r.stdout)
+
+    def test_commit_so_de_parecer_mantem_o_rotulo(self):
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.repo.escreve("docs/qa/ped.md", "parecer\n")
+        self.assertEqual(self.roda().returncode, 0)
+
+    def test_mudanca_de_codigo_depois_do_rotulo_invalida(self):
+        for rel, texto in (("tests/catraca.py", "# mudou de novo\n"), ("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n")):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, texto)
+                r = self.roda()
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertIn("R-CONFORMIDADE:", r.stdout)
+
+    def test_mudanca_de_codigo_junto_com_merge_da_base_invalida(self):
+        self.mescla_base()
+        self.repo.escreve("scripts/novo.sh", "echo\n")
+        self.assertEqual(self.roda().returncode, 1)
+
+    def test_sem_execucoes_ou_commit_desconhecido_falha_fechado(self):
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.assertEqual(self.roda([]).returncode, 1)
+        fantasma = "0" * 40
+        self.assertEqual(self.roda([execucao(fantasma, "2026-01-02T09:00:00Z"), execucao(fantasma, "2026-01-02T10:00:03Z")]).returncode, 1)
+
+    def test_rotulo_nao_libera_custo_nem_pelo_conteudo(self):
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("R-CUSTO:", r.stdout)
+
+
+class ExecucoesDoPr(unittest.TestCase):
+    """Execuções do PR pela API (gratuita, só leitura): `pull_request` da branch do PR; sem dados ou com falha, None."""
+
+    def setUp(self):
+        self.antigo = dict(os.environ)
+        os.environ.update({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7"})
+        self.originais = (catraca.api, catraca.api_objeto)
+        self.addCleanup(lambda: (setattr(catraca, "api", self.originais[0]), setattr(catraca, "api_objeto", self.originais[1])))
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(self.antigo)))
+
+    def test_consulta_as_execucoes_pull_request_da_branch_do_pr(self):
+        chamadas = []
+        catraca.api_objeto = lambda caminho, token: chamadas.append(caminho) or {"head": {"ref": "melhoria/a b"}}
+        catraca.api = lambda caminho, token, chave=None: chamadas.append((caminho, chave)) or [execucao("b", "2026-01-02T09:00:00Z")]
+        self.assertEqual(catraca.execucoes_do_pr(), [execucao("b", "2026-01-02T09:00:00Z")])
+        self.assertEqual(chamadas[0], "/repos/o/r/pulls/7")
+        self.assertEqual(chamadas[1], ("/repos/o/r/actions/runs?event=pull_request&branch=melhoria%2Fa%20b", "workflow_runs"))
+
+    def test_sem_token_ou_com_falha_da_api_e_none(self):
+        def falha(*a, **k):
+            raise OSError("sem rede")
+        catraca.api_objeto = falha
+        self.assertIsNone(catraca.execucoes_do_pr())
+        del os.environ["GITHUB_TOKEN"]
+        self.assertIsNone(catraca.execucoes_do_pr())
+
 
 class Workflows(unittest.TestCase):
     """Reviews 3, 6, 9, 10 e 14: o que os workflows prometem, conferido no texto (sem rede)."""
