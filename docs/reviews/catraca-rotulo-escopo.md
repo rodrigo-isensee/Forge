@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: catraca-rotulo-escopo
 branch: melhoria/catraca-rotulo-escopo
-commit: 199290b
+commit: 0dc9ce9
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -39,3 +39,23 @@ Os testes foram escritos antes da mudança. Sem ela, 10 falhas: 3 subtestes de p
 - Os pareceres do QA em `docs/qa/bugs/` não casam pelo nome da branch, só se o PR já os tocava.
 
 Parecer de autor: **aprovado**, com a pendência da review independente e do rótulo do dono.
+
+## Review independente
+Revisor: forge:tech-lead (sessão separada da do autor). Escopo: `origin/develop..0dc9ce9`.
+
+**Testes:** `python3 -m unittest discover -s tests` no checkout de `0dc9ce9`: 278 testes, OK (178 s). Sondas extras, fora do repositório, sobre o harness `RotuloSobreviveAoConteudo`, com os resultados abaixo.
+
+### Desvios tentados
+1. **Nome da branch casando com o parecer de outro pedido: confirmado, gravidade baixa, recomendado.** A base tem `docs/reviews/antigo.md`. Rotulado sem tocá-lo, o PR na branch `qualquer/antigo` reescreve o arquivo depois do rótulo e a catraca dá rc 0. Basta o último segmento da branch, com qualquer prefixo. O alcance é só o texto de pareceres (`docs/reviews/`, `docs/qa/`, incluindo `_modelo.md` com a branch `x/_modelo`). Qualquer violação de regra continua recalculada e barrada: na sonda, parecer junto com `invariantes` esvaziado dá rc 1. O nome é fixado antes do rótulo, e a renomeação depois dele cai no modo estrito (desvio 4).
+2. **Parecer tocado de fachada: confirmado, gravidade baixa, recomendado.** O PR acrescenta uma linha em branco em `docs/reviews/antigo.md`, que já existe na base, antes do rótulo. Depois do rótulo, reescreve o arquivo inteiro e a catraca dá rc 0. O toque aparece no diff que o dono viu, e o alcance é o mesmo do item 1. **Sugestão para os itens 1 e 2**, em `pareceres_do_pedido`: ignorar só os pareceres **ausentes no merge-base do head rotulado**, ou seja, criados pelo PR. O histórico de outros pedidos fica sempre comparado, e o fluxo legítimo (parecer de autor e review independente no arquivo novo do pedido) não muda.
+3. **Normalização dos números: risco residual, gravidade baixa, recomendado.** `\b\d+\b` troca também (a) números dentro do texto dos invariantes (`invariante removido de f: até 3 tentativas` e `... 5 tentativas` viram a mesma chave), (b) o prefixo do sha256 em `termos_proibidos_hash` quando ele sai só com dígitos (cerca de 2% dos hashes) e (c) números de ADR no caminho (`0008-...`). Para esconder uma violação, é preciso que a antiga suma e outra, com a mesma chave, apareça só pela base, com o patch do PR idêntico byte a byte. Como `mesmo_diff` é estrito no texto do patch, não encontrei sequência prática. A contagem de multiconjunto pega a violação acrescentada. **Sugestão:** normalizar só as contagens conhecidas (`de N para N`, `nº N`) e preservar padrão e caminho.
+4. **Branch vinda da API: seguro.** Num PR de fork, `pull_requests` das execuções vem vazio, então `commit_do_rotulo` dá None e só vale o caminho "depois do último push". Na renomeação da branch depois do rótulo, as execuções antigas mantêm o `head_branch` antigo, a consulta pelo nome novo não acha a execução do rótulo, dá None e cai no modo estrito. Quando a API falha, `ramo_do_pr` devolve `""` e `execucoes_do_pr` devolve None, então o caminho pelo conteúdo nem é avaliado: é de fato o modo mais estrito. Na sonda, `--execucoes []` dá rc 1. Ponto menor: `ramo_do_pr` é chamado duas vezes (dentro de `execucoes_do_pr` e no `main`). Uma corrida com renomeação entre as chamadas só torna o resultado mais estrito. Sugiro chamar uma vez só (higiene).
+5. **Rótulo depois do último push: seguro quanto ao head, com risco residual anterior a este PR.** O head é o que o dono viu. O que sobra: se a base mudar depois do rótulo, sem push no PR (por exemplo, a base passa a proteger um arquivo que o PR apaga), uma nova execução por `edited` ou `reopened` roda sobre o merge commit novo e libera também a violação vinda da base, sem a contenção. Sem nova execução, o check verde antigo continua valendo do mesmo jeito: os rulesets não estão ativos no plano atual (a API responde 403), então "exigir branch atualizada" não é imposto. Não é regressão. **Sugestão:** aplicar `violacoes_novas` também nesse caminho, comparando com as violações de `HEAD_SHA` sobre o merge-base dele, o que custa uma chamada a `violacoes_das_regras`.
+
+### Regressão
+- As regras do #57 (protegidos, falha fechada, custo fora do rótulo) e do #65 (rótulo pelo conteúdo, instante do servidor, reescrita, `[skip ci]`) continuam com os testes de antes. O único teste alterado (`test_commit_so_de_parecer_mantem_o_rotulo`) passou a informar a branch, e o caso sem branch ficou mais estrito (`test_sem_ramo_parecer_novo_depois_do_rotulo_invalida`).
+- Release (`plugin.json`, `CHANGELOG.md`), sincronização da `main` e PR só de docs não tocam `PROTEGIDOS` e seguem sem exigir rótulo. O atrito novo é previsível: mudanças em `bin/forge-check`, `hooks/parecer.py` e `hooks/_comum.py` (9 commits recentes) passam a pedir o rótulo do dono no PR da `develop` e de novo nas promoções, porque a regra roda em todo PR, como já acontece com `tests/catraca.py`.
+- R-CUSTO: só a mesma API gratuita e somente leitura. R-NEUTRO: nada específico de projeto.
+
+### Veredito
+**Aprovado com recomendações.** Nenhum desvio permite passar violação de regra que o dono não viu com o rótulo. Os itens 1 e 2 permitem reescrever o texto de pareceres de outros pedidos depois do rótulo (baixa). O item 3 é teórico (baixa), e o resíduo do item 5 é anterior a este PR. Os três ficam como recomendações para um PR seguinte, sem bloquear este. Pendência para o merge: o rótulo `afrouxa-regra` do dono, porque o PR muda `tests/catraca.py`.
