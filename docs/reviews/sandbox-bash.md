@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 8348d61
+commit: 49df362
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -51,3 +51,23 @@ Diff `5de4705..8348d61`. `scripts/validar-plugin.sh` rodou na worktree e passou 
 
 ## Veredito da rodada 1
 **Aprovado**, com N1 a N3 como recomendados (podem entrar nesta branch ou virar cartão da etapa 3). Quem mescla é o tech-lead depois do parecer do QA.
+
+## Revalidação (49df362)
+Diff `901bc91..49df362` (etapa 2 do sandbox e SBX-03). `SandboxDoBash` passa (11 testes) e `forge-check docs` não reclama. Não executei o git com token em rede (QA em paralelo); a análise abaixo é do desenho e do texto dos arquivos.
+
+| Foco | Situação | Nota |
+|---|---|---|
+| `GIT_CONFIG_*` | correto | `insteadOf` só reescreve `git@github.com:` (outros hosts e outras formas de URL não mudam). O helper vazio (`KEY_1`) zera os helpers herdados do `~/.gitconfig` do dono (por exemplo `gh auth setup-git` apontando para as credenciais dele) e só depois entra `!gh auth git-credential` (`KEY_2`), restrito a `https://github.com`. Sem `GH_TOKEN` do bot e com `~/.config/gh` ilegível o helper falha: o push fica negado, não cai nas credenciais do dono (falha fechada). Nenhuma credencial literal; o teste barra `ghp_`, `github_pat_`, `GH_TOKEN` e chave privada. `GIT_TERMINAL_PROMPT=0` evita pedido interativo. Escopo no `env` do projeto, sem gravar `.git/config`. |
+| `denyRead` | ok | `~/.ssh`, `~/.config/gh` e `~/.git-credentials` não são usados por testes, `gh` (com `GH_TOKEN`), `git fetch` e `git push` por HTTPS. O README informa que fora do Claude a chave SSH do dono segue valendo. |
+| `denyWrite` novo | ok, com ressalva | Coerente com a ADR 0009 e com `hooks/conformidade.json` (`docs/reviews/` só `tech-lead`, `docs/qa/` só `qa`, pela ferramenta Write/Edit, que o hook de autoria registra). O commit pelo `git` não grava nesses caminhos, então `git add`/`commit` seguem funcionando. Ver N5 e N6. |
+| Documentação | ok | README e ADR 0009 descrevem a identidade (commit com autor do dono, push do bot), o PR `homolog` → `main` aberto e mesclado pelo dono (o squash leva o autor dele) e a parada em "classifier gave no verdict". CHANGELOG registra as duas entradas e as pendências de `.github/`. Testes cobrem `denyRead`, os três caminhos de `denyWrite` e a configuração do git. |
+
+### Achados novos (não bloqueiam)
+- **N5 · `denyWrite` só vale no checkout do Forge, não nas worktrees.** Os caminhos relativos são resolvidos a partir do projeto; as worktrees em `~/.forge-contrib/wt/<nome>` ficam sob `allowWrite` e, nesta sessão (iniciada antes da mudança), o `mountinfo` não mostra `docs/reviews/`, `docs/qa/` nem `.github/` como somente leitura. Se for assim, quem trabalha em worktree consegue gravar parecer pelo shell, e o ganho do SBX-03 vale só para a cópia principal. Confirmar com o QA numa sessão nova e, se confirmado, documentar o limite no README (a barreira real é o hook de autoria e o PR revisado) ou acrescentar `~/.forge-contrib/wt/*/docs/reviews` etc. ao `denyWrite`.
+- **N6 · `git checkout`, `merge`, `rebase` e `pull` que alterem esses caminhos falham no sandbox.** Eles passam pelo Bash, e `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md` são somente leitura no checkout principal: trocar de branch ou mesclar com mudança de parecer dá "somente leitura". Documentar no README (usar a worktree para isso ou pedir ao dono) ou cobrir com um teste do QA.
+- **N7 · Outras credenciais do dono seguem legíveis.** `~/.netrc`, `~/.config/git/credentials`, `~/.npmrc`, `~/.gnupg`, `~/.aws`, `~/.docker/config.json` e o `~/.claude/settings.json` (onde está o token do bot) não estão em `denyRead`. O token do bot é aceito (é a identidade dos agentes), mas o resto das chaves do dono, não. Avaliar acrescentar os que existirem na estação; é decisão do dono quanto ao `~/.claude/.credentials.json`.
+- **N8 · Ordem dos pares `GIT_CONFIG_*` não é testada.** O teste monta um conjunto e perde a ordem; se alguém trocar `KEY_1` e `KEY_2`, o helper vazio apagaria o do bot e os testes ficariam verdes. Recomendado conferir que o índice do valor vazio é menor que o do `!gh auth git-credential`.
+- **N9 · `insteadOf` não cobre `ssh://git@github.com/`.** Esse formato continua indo por SSH e falha de forma fechada por causa do `denyRead` de `~/.ssh`; só registrar.
+
+## Veredito da revalidação
+**Aprovado** para a etapa 2 e a correção do SBX-03. N5 e N6 devem ser confirmados pelo QA antes do merge (podem virar texto no README ou cartão); N7 a N9 são recomendados. Quem mescla é o tech-lead depois do parecer do QA.
