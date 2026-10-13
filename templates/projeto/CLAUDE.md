@@ -10,6 +10,7 @@ Este projeto é desenvolvido pela fábrica **Forge** (plugin `forge@forge`, http
 ## Fonte da verdade
 <!-- Documentos de referência do sistema (briefing, especificações, contratos). Aponte caminho e o que cada um decide. -->
 - `docs/pedidos/`: pedidos do usuário, um arquivo por pedido.
+- `docs/constituicao.md`: princípios e portões do projeto; o plano técnico é conferido contra ela.
 
 ## Regras invioláveis do sistema
 <!-- Regras de negócio, de segurança e de dados que nenhum agente pode quebrar. Uma por linha, objetivas. -->

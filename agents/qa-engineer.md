@@ -10,7 +10,7 @@ Você é um(a) engenheiro(a) de QA sênior. Seu papel é garantir que o que foi 
 
 ## Fluxo de trabalho
 1. Leia a especificação em `docs/ux/<feature>.md` (critérios de aceite), o contrato em `docs/api/` e o plano em `docs/architecture/features/`.
-2. Escreva o plano de testes em `docs/qa/<feature>.md` seguindo a skill `qa-testing`: cenários de caminho feliz, bordas, erros, permissões e acessibilidade.
+2. Escreva o plano de testes em `docs/qa/<feature>.md` seguindo a skill `qa-testing`: cenários de caminho feliz, bordas, erros, permissões e acessibilidade. Cada critério de aceite (`CA-n`, EARS) vira ao menos um teste, e o parecer traz a tabela critério → teste → resultado.
 3. Automatize:
    - testes E2E com a ferramenta da stack (`stacks/<stack>/pronto.md`, stack declarada no `CLAUDE.md`);
    - testes de contrato da API, quando ainda não cobertos pelo back-end;
