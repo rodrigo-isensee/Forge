@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Alterado
+- **`env` sai do `.claude/settings.json` versionado:** caches e configuração de credencial do git (`GIT_CONFIG_*`) passam ao `.claude/settings.local.json` de cada máquina, gerado por `scripts/configurar-ambiente-local.sh` (idempotente, mescla sem perder o que existe, caminhos por `${TMPDIR:-/tmp}` e UID). Testes barram a volta do `env` ao arquivo versionado. Cada máquina precisa rodar o script uma vez; o job `shellcheck` do CI ainda não lista o script novo (pendência em `.github/`, protegido).
+
 ## [0.8.0] - 2026-10-13
 ### Adicionado
 - **Catraca confere `hooks/conformidade.json` (R-CONFORMIDADE), por lista branca:** a única mudança que passa sem o rótulo é acrescentar entrada nova em `caminhos` (JSON carregado, não texto), com `quem` sem `dev` nem papel inexistente e `caminho` que não seja igual nem prefixo de um já existente; todo o resto acusa (remover ou alterar entrada, mudar `papeis`, `acoes`, flags e pacotes, `papel_padrao`, `sem_agent_type`, quebrar o esquema, JSON inválido, arquivo removido ou movido). O rótulo `afrouxa-regra` do dono libera. `hooks/conformidade.py` entra em `PROTEGIDOS`. Testes em `tests/test_catraca.py`. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
