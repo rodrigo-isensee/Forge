@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: catraca-ci
 branch: melhoria/catraca-ci
-commit: 57b77c1
-parecer: reprovado
+commit: 7f68c57
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -88,3 +88,33 @@ Conferido: 41 testes de `tests/test_catraca.py` verdes. `python3 tests/catraca.p
 
 ## Parecer
 **Reprovado.** Os itens 1 e 2 bloqueiam: o primeiro torna a única exceção da catraca contornável e o segundo trava a promoção. Os itens 3 a 8 entram nesta mesma branch ou viram cartão com dono antes da promoção para a `homolog`. Os itens 9 a 14 ficam a critério do autor. Correções de lógica voltam ao autor; novo parecer sobre o commit corrigido.
+
+## Revalidação (7f68c57)
+Diff `57b77c1..7f68c57`. 156 testes verdes; `python3 tests/catraca.py --base origin/develop` sai 0.
+
+| # | Achado | Situação |
+|---|---|---|
+| 1 | Último push pela data do commit | **Corrigido.** O instante é o `created_at` mais antigo das execuções do Actions com o `head_sha` (`actions: read`); sem execução ou sem `HEAD_SHA`, o rótulo não vale. |
+| 2 | `pareceres` reprovava promoções | **Corrigido**, por outro caminho que o sugerido: `(develop, homolog)` e `(homolog, main)` ficam fora do job, e a ADR 0008 e `docs/hooks.md` registram que o parecer é exigido na entrada de cada PR na `develop`. Aceito. |
+| 3 | Base do evento × merge commit | **Corrigido.** `BASE=$(git rev-parse HEAD^1)` nos três jobs. |
+| 4 | Teste esvaziado ou pulado | **Parcial.** A catraca conta asserções, `skip*`/`expectedFailure` e `test_*` só com `pass` por AST, e barra o que piora. Fica fora o caso de trocar a lógica sob a mesma contagem de asserções (ex.: `lim.get("agente", 10**6)`), e `tests/` não entrou em `SENSIVEIS`. Limite inerente, baixa. |
+| 5 | Rótulo liberava `R-CUSTO`; `tojson(secrets)` | **Corrigido.** Só `custo_permitido` abre exceção; `re.I` e `\bsecrets\b(?!\.GITHUB_TOKEN\b)`. |
+| 6 | Scripts do PR no próprio CI | **Corrigido** para `catraca` e `pareceres`: rodam `tests/catraca.py` e `bin/forge-check` da base em worktree, e usam o do PR só na introdução. |
+| 7 | Dependabot | **Corrigido.** `target-branch: develop` e isenção só para troca de SHA e comentário de `uses:` em workflows, com o login do autor vindo do evento. |
+| 8 | Pendências da ADR no CHANGELOG | **Corrigido.** Revisor diferente do autor, "hooks que engordam" e comentário único estão listados. |
+| 9 | `persist-credentials` | **Corrigido** em todos os checkouts do `ci.yml` e do `catraca.yml`. |
+| 10 | Workflow inteiro em `labeled`/`edited` | **Corrigido.** `catraca` e `pr-texto` foram para `catraca.yml`; o `ci.yml` só reage a `opened`, `synchronize` e `reopened`. |
+| 11 | `PROTEGIDOS` | **Corrigido** para `.githooks/` e `dependabot.yml`; o campo `hooks` do `plugin.json` segue de fora (baixa). |
+| 12 | Chave removida de `limite_linhas` / `palavras` | **Corrigido.** |
+| 13 | `pedidos_da_branch` duplicada | **Corrigido.** Usa `bin/forge-check` ao lado do script, com `--ref`. |
+| 14 | `--ramo=` | **Corrigido.** |
+
+Achados novos (nenhum crítico ou alto):
+- **Baixa:** o primeiro item do CHANGELOG ainda diz "jobs novos em `ci.yml`" e "o CI passa a reagir a `labeled`..."; o segundo item corrige, mas vale ajustar o texto antes da promoção.
+- **Baixa:** o job `segredos` ainda roda `scripts/verificar-contribuicao.sh` na versão do PR; o limite cabe na nota da ADR.
+- **Baixa:** a isenção do dependabot confere o formato da linha, não a origem do novo SHA; quem mescla confere o PR.
+- **Baixa:** `\bsecrets\b` casa a palavra em comentários de `hooks/`, `bin/`, `scripts/` e `.github/`. Hoje não há ocorrência; se surgir, usar `custo_permitido`.
+- **Baixa, ainda aberta (B4 do parecer do hook):** 7 commits da branch têm autor `t <t@t>` por causa do `[user]` do `.git/config` comum. Reescrever a autoria antes do push, depois de o usuário limpar o `.git/config`.
+
+## Parecer da revalidação
+**Aprovado**: os dois bloqueios (1 e 2) e os itens 3, 5 a 14 estão corrigidos; o item 4 ficou parcial, sem risco alto. Pendente só a reescrita de autoria antes do envio.
