@@ -10,6 +10,7 @@ do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. 
 """
 import argparse
 import ast
+from collections import Counter
 import hashlib
 import importlib.util
 import itertools
@@ -28,7 +29,7 @@ from neutralidade import normalizar  # noqa: E402
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py", "tests/neutralidade.py")
+PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -214,55 +215,64 @@ def regra_hooks(raiz, b, h):
 
 
 POLITICA = "hooks/conformidade.json"
-CAMPOS_DE_ESCOPO = ("so_forge", "branch")
 
 
-def _conf(oque, porque):
-    return msg("R-CONFORMIDADE", f"{POLITICA} afrouxou: {oque}", porque, f"restaure o trecho ou peça o rótulo `{ROTULO}` ao dono",
-               "docs/regras/R-CONFORMIDADE.md")
+def _chave(entrada):
+    return json.dumps(entrada, sort_keys=True)
 
 
-def _novos(antes, depois):
-    return sorted(set(depois or []) - set(antes or []))
+def _rotulo(entrada):
+    return entrada.get("caminho") if isinstance(entrada, dict) else repr(entrada)
 
 
-def afrouxamentos_da_politica(b, h):
-    """Mudanças em `hooks/conformidade.json` que dão mais poder ou tiram um bloqueio. Acrescentar entrada e restringir não contam."""
-    v = []
-    for nome, ant in (b.get("papeis") or {}).items():
-        if _novos(ant, (h.get("papeis") or {}).get(nome)):
-            v.append(_conf(f"papel `{nome}` ganhou agent_type: {', '.join(_novos(ant, h['papeis'][nome]))}", "o agent_type define quem age como esse papel"))
-    for chave in ("sem_agent_type", "papel_padrao"):
-        if chave in b and b[chave] != h.get(chave):
-            v.append(_conf(f"`{chave}` mudou de {b[chave]!r} para {h.get(chave)!r}", "define o papel de quem não se identifica"))
-    for nome, ant in (b.get("acoes") or {}).items():
-        if nome not in (h.get("acoes") or {}):
-            v.append(_conf(f"ação `{nome}` removida", "sem a ação ela deixa de ser restrita"))
-        elif _novos(ant, h["acoes"][nome]):
-            v.append(_conf(f"ação `{nome}` ganhou papéis: {', '.join(_novos(ant, h['acoes'][nome]))}", "mais papéis podem executar a ação crítica"))
-    atuais = {c.get("caminho"): c for c in h.get("caminhos") or []}
-    for c in b.get("caminhos") or []:
-        n, novo = c.get("caminho"), atuais.get(c.get("caminho"))
-        if novo is None:
-            v.append(_conf(f"caminho protegido removido: {n}", "o caminho deixa de ser protegido"))
-            continue
-        if _novos(c.get("quem"), novo.get("quem")):
-            v.append(_conf(f"{n} ganhou papéis em `quem`: {', '.join(_novos(c.get('quem'), novo.get('quem')))}", "mais papéis podem alterar o caminho"))
-        for campo in CAMPOS_DE_ESCOPO:
-            if campo in c and c[campo] != novo.get(campo):
-                v.append(_conf(f"{n} perdeu ou alterou `{campo}` ({c[campo]!r} -> {novo.get(campo)!r})", "o escopo restrito do caminho foi ampliado"))
-    for nome, ant in (b.get("pacotes") or {}).items():
-        gerente = (h.get("pacotes") or {}).get(nome)
-        if gerente is None or set(ant.get("adicionam", [])) - set(gerente.get("adicionam", [])):
-            v.append(_conf(f"verbo de instalação deixou de ser detectado em pacotes.{nome}", "instalação sem detecção escapa da regra de dependências"))
-    return v
+def _entrada_nova_invalida(entrada, base, papeis):
+    """Por que uma entrada acrescentada em `caminhos` não é aceita sem o rótulo; `None` se é aceitável."""
+    if not isinstance(entrada, dict) or not isinstance(entrada.get("caminho"), str) or not entrada["caminho"]:
+        return "entrada sem `caminho` textual"
+    quem = entrada.get("quem")
+    if not isinstance(quem, list) or not all(isinstance(q, str) for q in quem):
+        return "`quem` ausente ou fora da forma (lista de papéis)"
+    if "dev" in quem:
+        return "`quem` contém `dev`"
+    if [q for q in quem if q not in papeis]:
+        return f"`quem` com papel inexistente: {', '.join(q for q in quem if q not in papeis)}"
+    if any(isinstance(c, dict) and str(c.get("caminho", "")).startswith(entrada["caminho"]) for c in base):
+        return "caminho igual ou prefixo de um caminho já protegido (muda o casamento com o que existe)"
+    return None
+
+
+def mudancas_da_politica(b, h):
+    """Lista branca: a única mudança aceita em `hooks/conformidade.json` é acrescentar entradas válidas em `caminhos`.
+    Devolve o motivo de cada diferença fora disso (lista vazia se a política é a mesma ou só ganhou entradas aceitáveis)."""
+    if not isinstance(h, dict):
+        return ["o arquivo deixou de ser um objeto JSON ou foi removido"]
+    motivos = [f"`{k}` mudou ou foi removido" for k in sorted(b) if k != "caminhos" and b[k] != h.get(k)]
+    motivos += [f"chave nova `{k}`" for k in sorted(h) if k != "caminhos" and k not in b]
+    base, atual = b.get("caminhos"), h.get("caminhos")
+    if not isinstance(base, list) or not isinstance(atual, list):
+        return motivos + ["`caminhos` ausente ou fora da forma (lista)"]
+    ck_base, ck_atual = Counter(_chave(c) for c in base), Counter(_chave(c) for c in atual)
+    novas = [json.loads(k) for k in (ck_atual - ck_base).elements()]
+    for k in (ck_base - ck_atual).elements():
+        motivos.append(f"entrada de `caminhos` removida ou alterada: {_rotulo(json.loads(k))}")
+    papeis = set(h.get("papeis") or {}) if isinstance(h.get("papeis"), dict) else set()
+    for c in novas:
+        porque = _entrada_nova_invalida(c, base, papeis)
+        if porque:
+            motivos.append(f"entrada nova {_rotulo(c)}: {porque}")
+    return motivos
 
 
 def regra_politica(raiz, b, h):
     antes = json_de(raiz, b, POLITICA)
     if antes is None:
         return []
-    return afrouxamentos_da_politica(antes, json_de(raiz, h, POLITICA) or {})
+    motivos = mudancas_da_politica(antes, json_de(raiz, h, POLITICA))
+    if not motivos:
+        return []
+    return [msg("R-CONFORMIDADE", f"{POLITICA} mudou além de acrescentar caminhos protegidos: {'; '.join(motivos)}",
+                "a política só cresce por entrada nova válida; o resto pode dar mais poder ou desligar um bloqueio",
+                f"restaure o trecho ou peça o rótulo `{ROTULO}` ao dono", "docs/regras/R-CONFORMIDADE.md")]
 
 
 def contar_testes(raiz, ref):
