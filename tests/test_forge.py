@@ -743,6 +743,20 @@ class SandboxDoBash(unittest.TestCase):
                         "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.json"):
             self.assertIn(caminho, deny)
 
+    def test_credenciais_do_dono_ilegiveis(self):
+        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
+        for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):
+            self.assertIn(caminho, deny)
+
+    def test_git_dos_agentes_pelo_https_do_bot_sem_credencial_literal(self):
+        texto = (RAIZ / ".claude/settings.json").read_text()
+        env = json.loads(texto)["env"]
+        self.assertEqual(env["GIT_CONFIG_COUNT"], str(len([k for k in env if k.startswith("GIT_CONFIG_KEY_")])))
+        pares = {env[f"GIT_CONFIG_KEY_{i}"] + "=" + env[f"GIT_CONFIG_VALUE_{i}"] for i in range(int(env["GIT_CONFIG_COUNT"]))}
+        self.assertIn("url.https://github.com/.insteadOf=git@github.com:", pares)
+        self.assertIn("credential.https://github.com.helper=!gh auth git-credential", pares)
+        self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|GH_TOKEN|-----BEGIN")
+
     def test_excluded_commands_so_leitura_de_tmux(self):
         excluidos = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["excludedCommands"]
         self.assertTrue(excluidos)
