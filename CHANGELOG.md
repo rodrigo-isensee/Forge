@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.10.1] - 2026-10-13
 ### Corrigido
 - **`R-CONTRIB`, identidade da sessão:** quem é a sessão vem sempre de `CLAUDE_PROJECT_DIR`, em qualquer pasta corrente e também no Write e no Edit (sem a variável, pela pasta; em `~/.forge-contrib`, falha fechado). `~/.forge-contrib/wt/*` fica só para a sessão do Forge; a de projeto usa `~/.forge-contrib/<projeto>` e `<projeto>-wt/*`. `GH_REPO` vale também por `declare -x`, `typeset -x` e `env VAR=...`. Fecha os desvios da re-review do #78 (altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono).
 
