@@ -1,31 +1,89 @@
 {
   "agentes_obrigatorios": [
-    "jarvis", "tech-lead", "software-architect", "ux-designer", "qa-engineer", "agile-coach"
+    "jarvis",
+    "tech-lead",
+    "software-architect",
+    "ux-designer",
+    "qa-engineer",
+    "agile-coach"
   ],
   "stacks_obrigatorias": {
-    "node-react": { "agentes": ["node-backend", "react-frontend"], "skills": ["node-backend", "react-frontend"] }
-  },
-  "neutralidade_nucleo": {
-    "pastas": ["agents", "skills", "docs", "templates", "bin", "scripts", ".github"],
-    "ignorar": ["docs/adr/", "docs/reviews/", "docs/qa/"],
-    "termos": [
-      "\\bNode(\\.js)?\\b", "\\bReact\\b", "TypeScript", "\\bpnpm\\b", "\\bnpm\\b", "Playwright",
-      "\\bzod\\b", "\\bVitest\\b", "\\bESLint\\b", "\\bPrettier\\b", "\\bFastify\\b",
-      "\\bPrisma\\b", "node-backend", "react-frontend", "node_modules"
-    ],
-    "excecoes": {
-      ".github/workflows/ci.yml": ["\\bnpm\\b"],
-      "scripts/preparar-estacao.sh": ["\\bNode(\\.js)?\\b", "\\bpnpm\\b"]
+    "node-react": {
+      "agentes": [
+        "node-backend",
+        "react-frontend"
+      ],
+      "skills": [
+        "node-backend",
+        "react-frontend"
+      ]
     }
   },
-  "limite_linhas": { "agente": 110, "skill": 133 },
+  "neutralidade_nucleo": {
+    "pastas": [
+      "agents",
+      "skills",
+      "docs",
+      "templates",
+      "bin",
+      "scripts",
+      ".github"
+    ],
+    "ignorar": [
+      "docs/adr/",
+      "docs/reviews/",
+      "docs/qa/"
+    ],
+    "termos": [
+      "\\bNode(\\.js)?\\b",
+      "\\bReact\\b",
+      "TypeScript",
+      "\\bpnpm\\b",
+      "\\bnpm\\b",
+      "Playwright",
+      "\\bzod\\b",
+      "\\bVitest\\b",
+      "\\bESLint\\b",
+      "\\bPrettier\\b",
+      "\\bFastify\\b",
+      "\\bPrisma\\b",
+      "node-backend",
+      "react-frontend",
+      "node_modules"
+    ],
+    "excecoes": {
+      ".github/workflows/ci.yml": [
+        "\\bnpm\\b"
+      ],
+      "scripts/preparar-estacao.sh": [
+        "\\bNode(\\.js)?\\b",
+        "\\bpnpm\\b"
+      ]
+    }
+  },
+  "limite_linhas": {
+    "agente": 110,
+    "skill": 133
+  },
   "termos_proibidos": [
-    "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
-    "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
+    "Metricas ?DSPD",
+    "\\bDSPD\\b",
+    "BusinessMap",
+    "Acelerato",
+    "SistemaPonto",
+    "\\bSSSC\\b",
+    "Siegard",
+    "\\bFL[123]\\b"
   ],
   "anti_duplicacao": {
     "palavras": 12,
-    "pastas": ["agents", "skills", "stacks", "templates", "docs"],
+    "pastas": [
+      "agents",
+      "skills",
+      "stacks",
+      "templates",
+      "docs"
+    ],
     "excecoes": []
   },
   "invariantes": {
@@ -45,7 +103,8 @@
       "`R-CUSTO`",
       "`R-NEUTRO`",
       "`R-COPIA`",
-      "`R-VERIFY`"
+      "`R-VERIFY`",
+      "`R-DECISAO`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
@@ -133,6 +192,11 @@
     "templates/projeto/.claude/settings.json": [
       "\"agent\": \"forge:jarvis\"",
       "Bash\\(git \\* --no-verify\\*\\)"
+    ],
+    "docs/regras/R-DECISAO.md": [
+      "\\*\\*uma de cada vez\\*\\*",
+      "\\*\\*as opções\\*\\*",
+      "\\*\\*a recomendação\\*\\*"
     ]
   }
 }
