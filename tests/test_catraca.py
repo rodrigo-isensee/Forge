@@ -1,0 +1,659 @@
+"""Testes da catraca (tests/catraca.py) em repositório git temporário: cada regra com um caso que passa e um que barra."""
+import copy
+import importlib.util
+import json
+import os
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+AQUI = Path(__file__).resolve().parent
+spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")
+catraca = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(catraca)
+
+CONFIG = {
+    "dono": "dona",
+    "neutralidade_nucleo": {"pastas": ["agents"], "ignorar": [], "termos": ["\\bReact\\b"], "excecoes": {}},
+    "limite_linhas": {"agente": 10},
+    "termos_proibidos": ["Segredo1"],
+    "anti_duplicacao": {"palavras": 12, "pastas": ["docs"], "excecoes": []},
+    "invariantes": {"docs/regra.md": ["nunca sem teste"]},
+    "custo_permitido": {},
+}
+HOOKS = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python3", "args": ["a.py"]},
+                                                                  {"type": "command", "command": "python3", "args": ["b.py"]}]}]}}
+TESTE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n    def test_b(self): pass\n"
+
+
+class Repo:
+    """Repositório temporário com um commit `base` (tag) e a branch `pr` por cima."""
+
+    def __init__(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dir = Path(self.tmp.name)
+        self.git("init", "-q", "-b", "develop")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "Teste")
+        self.escreve("tests/config.json", json.dumps(CONFIG))
+        self.escreve("hooks/hooks.json", json.dumps(HOOKS))
+        self.escreve("tests/test_x.py", TESTE)
+        self.escreve("tests/hooks/p/um.json", "{}")
+        self.escreve("tests/hooks/p/dois.json", "{}")
+        self.escreve("tests/catraca.py", "# presente na base\n")
+        self.escreve(".github/workflows/ci.yml", "name: CI\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "base")
+        self.git("tag", "base")
+        self.git("checkout", "-q", "-b", "pr")
+
+    def git(self, *args):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        return subprocess.run(["git", "-C", str(self.dir), *args], check=True, capture_output=True, text=True, env=env).stdout
+
+    def escreve(self, rel, texto):
+        p = self.dir / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(texto, encoding="utf-8")
+
+    def config(self, **mudancas):
+        cfg = copy.deepcopy(CONFIG)
+        for chave, valor in mudancas.items():
+            cfg[chave] = valor(cfg[chave]) if callable(valor) else valor
+        self.escreve("tests/config.json", json.dumps(cfg))
+
+    def commit(self):
+        self.git("add", "-A")
+        self.git("commit", "-q", "--allow-empty", "-m", "pr")
+
+    def violacoes(self):
+        return catraca.violacoes_das_regras(self.dir, "base", "HEAD")
+
+    def fecha(self):
+        self.tmp.cleanup()
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.repo = Repo()
+        self.addCleanup(self.repo.fecha)
+
+    def barra(self, trecho, rid=None):
+        self.repo.commit()
+        achadas = self.repo.violacoes()
+        self.assertTrue(any(trecho in v for v in achadas), achadas)
+        if rid:
+            self.assertTrue(any(v.startswith(rid + ":") and trecho in v for v in achadas), achadas)
+        for v in achadas:  # formato único de mensagem
+            self.assertRegex(v, r"^R-[A-Z]+: .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def passa(self):
+        self.repo.commit()
+        self.assertEqual(self.repo.violacoes(), [])
+
+
+class RegrasDeConfig(Base):
+    def test_sem_mudanca_passa(self):
+        self.passa()
+
+    def test_invariante_removido_barra_e_acrescimo_passa(self):
+        self.repo.config(invariantes=lambda i: {**i, "docs/nova.md": ["x"]})
+        self.passa()
+        self.repo.config(invariantes=lambda i: {"docs/regra.md": []})
+        self.barra("nunca sem teste", "R-CONFORMIDADE")
+
+    def test_invariante_alterado_barra(self):
+        self.repo.config(invariantes=lambda i: {"docs/regra.md": ["nunca sem testes"]})
+        self.barra("nunca sem teste")
+
+    def test_termo_proibido_removido_barra_e_acrescimo_passa(self):
+        self.repo.config(termos_proibidos=lambda t: t + ["Outro"])
+        self.passa()
+        self.repo.config(termos_proibidos=[])
+        self.barra("Segredo1", "R-NEUTRO")
+
+    def test_termo_de_neutralidade_removido_ou_mudado_barra(self):
+        self.repo.config(neutralidade_nucleo=lambda n: {**n, "termos": ["\\bReact\\b", "\\bVue\\b"]})
+        self.passa()
+        self.repo.config(neutralidade_nucleo=lambda n: {**n, "termos": ["\\bReact\\s"]})
+        self.barra("termo de neutralidade", "R-NEUTRO")
+
+    def test_limite_de_linhas(self):
+        self.repo.config(limite_linhas={"agente": 9})
+        self.passa()
+        self.repo.config(limite_linhas={"agente": 11})
+        self.barra("limite_linhas.agente", "R-CONFORMIDADE")
+
+    def test_excecao_nova_de_neutralidade(self):
+        self.repo.config(neutralidade_nucleo=lambda n: {**n, "excecoes": {"agents/a.md": ["\\bReact\\b"]}})
+        self.barra("exceção nova de neutralidade", "R-NEUTRO")
+
+    def test_excecao_nova_de_anti_duplicacao(self):
+        self.repo.config(anti_duplicacao=lambda a: {**a, "excecoes": ["um trecho qualquer"]})
+        self.barra("anti-duplicação", "R-CONFORMIDADE")
+
+    def test_dono_mudou(self):
+        self.repo.config(dono="outra")
+        self.barra("`dono`", "R-CONTRIB")
+
+    def test_dono_novo_na_introducao_passa(self):
+        cfg = copy.deepcopy(CONFIG)
+        del cfg["dono"]
+        self.repo.escreve("tests/config.json", json.dumps(cfg))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "sem dono")
+        self.repo.git("tag", "-f", "base")
+        self.repo.config()
+        self.passa()
+
+    def test_permissao_de_custo_nova_barra(self):
+        self.repo.config(custo_permitido={"bin/x": ["chave-de-api"]})
+        self.barra("permissão nova", "R-CUSTO")
+
+
+class ArquivosDeRegras(Base):
+    """QA BUG-02: apagar ou renomear arquivo com invariantes (ou de docs/regras/) barra."""
+
+    def prepara(self):
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve("docs/regra.md", "nunca sem teste\n")
+        repo.escreve("docs/regras/R-X.md", "regra\n")
+        repo.git("add", "-A")
+        repo.git("commit", "-q", "-m", "regras")
+        repo.git("tag", "-f", "base")
+        return repo
+
+    def test_apagar_ou_mover_barra(self):
+        for rel in ("docs/regra.md", "docs/regras/R-X.md"):
+            for como in ("mv", "rm"):
+                with self.subTest(rel=rel, como=como):
+                    repo = self.prepara()
+                    repo.git(como, rel, *(["novo.md"] if como == "mv" else []))
+                    repo.commit()
+                    self.assertTrue(any(f"arquivo de regra apagado ou movido: {rel}" in v for v in repo.violacoes()), repo.violacoes())
+
+    def test_editar_o_arquivo_passa(self):
+        repo = self.prepara()
+        repo.escreve("docs/regras/R-X.md", "regra melhor\n")
+        repo.commit()
+        self.assertEqual(repo.violacoes(), [])
+
+    def test_remover_chave_de_limite_ou_de_palavras_barra(self):
+        self.repo.config(limite_linhas=lambda d: {})
+        self.barra("limite_linhas.agente removido")
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.config(anti_duplicacao=lambda d: {k: x for k, x in d.items() if k != "palavras"})
+        repo.commit()
+        self.assertTrue(any("anti_duplicacao.palavras removido" in v for v in repo.violacoes()))
+
+
+class Hooks(Base):
+    def test_hook_removido_barra_e_novo_passa(self):
+        novo = copy.deepcopy(HOOKS)
+        novo["hooks"]["PreToolUse"][0]["hooks"].append({"type": "command", "command": "python3", "args": ["c.py"]})
+        self.repo.escreve("hooks/hooks.json", json.dumps(novo))
+        self.passa()
+        antigo = copy.deepcopy(HOOKS)
+        del antigo["hooks"]["PreToolUse"][0]["hooks"][1]
+        self.repo.escreve("hooks/hooks.json", json.dumps(antigo))
+        self.barra("b.py", "R-CONFORMIDADE")
+
+    def test_arquivo_de_hooks_apagado_barra(self):
+        (self.repo.dir / "hooks/hooks.json").unlink()
+        self.barra("hook removido")
+
+
+class Testes(Base):
+    def test_testes_novos_passam_e_queda_barra(self):
+        self.repo.escreve("tests/test_y.py", TESTE.replace("pass", "self.assertTrue(True)"))
+        self.passa()
+        self.repo.escreve("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
+        self.repo.escreve("tests/test_y.py", "")
+        self.barra("`test_*` caíram de 2 para 1", "R-CONFORMIDADE")
+
+    def test_mover_teste_entre_arquivos_passa(self):
+        self.repo.escreve("tests/test_x.py", "")
+        self.repo.escreve("tests/test_y.py", TESTE)
+        self.passa()
+
+    def test_fixture_removida_barra(self):
+        (self.repo.dir / "tests/hooks/p/dois.json").unlink()
+        self.barra("fixtures de tests/hooks caíram de 2 para 1")
+
+    def test_fixture_nova_passa(self):
+        self.repo.escreve("tests/hooks/p/tres.json", "{}")
+        self.passa()
+
+
+class TestesEnfraquecidos(Base):
+    """Review 4: esvaziar, pular ou tirar asserção de teste existente barra, mesmo com a contagem de `def test_*` igual."""
+
+    def com_asserts(self):
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n"
+                          "        self.assertEqual(1, 1)\n        assert True\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "com asserções")
+        self.repo.git("tag", "-f", "base")
+
+    def test_remover_assert_barra(self):
+        self.com_asserts()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertEqual(1, 1)\n")
+        self.barra("asserções em tests/ caíram de 2 para 1", "R-CONFORMIDADE")
+
+    def test_esvaziar_o_teste_barra(self):
+        self.com_asserts()
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        pass\n")
+        self.repo.commit()
+        achadas = self.repo.violacoes()
+        self.assertTrue(any("asserções em tests/ caíram" in v for v in achadas), achadas)
+        self.assertTrue(any("testes vazios" in v for v in achadas), achadas)
+
+    def test_acrescentar_skip_ou_expected_failure_barra(self):
+        for dec in ("@unittest.skip('x')", "@unittest.skipIf(True, 'x')", "@unittest.expectedFailure"):
+            with self.subTest(dec):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve("tests/test_x.py", TESTE.replace("    def test_a", f"    {dec}\n    def test_a"))
+                repo.commit()
+                self.assertTrue(any("skip/skipIf/skipUnless/expectedFailure" in v for v in repo.violacoes()), dec)
+        self.repo.escreve("tests/test_x.py", TESTE.replace("def test_a(self): pass", "def test_a(self):\n        self.skipTest('x')"))
+        self.barra("subiram de 0 para 1")
+
+    def test_acrescentar_asserts_e_testes_com_corpo_passa(self):
+        self.repo.escreve("tests/test_y.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self):\n        self.assertTrue(True)\n")
+        self.passa()
+
+    def test_catraca_py_fica_fora_da_contagem(self):
+        self.repo.escreve("tests/catraca.py", "assert True\n")
+        self.repo.commit()
+        self.assertFalse(any("asserções" in v for v in self.repo.violacoes()))
+
+
+class Custo(Base):
+    def test_github_token_passa(self):
+        self.repo.escreve(".github/workflows/ci.yml", "env:\n  T: ${{ secrets.GITHUB_TOKEN }}\n")
+        self.passa_exceto_protegido()
+
+    def passa_exceto_protegido(self):
+        self.repo.commit()
+        self.assertEqual([v for v in self.repo.violacoes() if v.startswith("R-CUSTO")], [])
+
+    def test_segredo_diferente_barra(self):
+        self.repo.escreve(".github/workflows/ci.yml", "env:\n  T: ${{ secrets.OUTRO }}\n")
+        self.barra("segredo-do-workflow em .github/workflows/ci.yml:2", "R-CUSTO")
+
+    def test_padroes_pagos_barram_em_cada_pasta(self):
+        for rel, texto, nome in (("hooks/h.py", "x = 'ANTHROPIC_API_KEY'\n", "chave-de-api"),
+                                 ("bin/f", "claude plugin eval .\n", "claude-plugin-eval"),
+                                 ("scripts/s.sh", "claude -p 'oi'\n", "claude-print"),
+                                 (".github/x.yml", "url: https://api.anthropic.com/v1\n", "url-de-api-paga")):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, texto)
+                repo.commit()
+                self.assertTrue(any(v.startswith("R-CUSTO") and nome in v for v in repo.violacoes()))
+
+    def test_lista_de_permissao_libera_so_o_padrao_do_arquivo(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.config(custo_permitido={"bin/f": ["claude-plugin-eval"]})
+        self.repo.escreve("bin/f", "claude plugin eval .\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "permite")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+        self.repo.escreve("bin/g", "claude plugin eval .\n")
+        self.barra("bin/g")
+        self.assertFalse(any("bin/f" in v for v in self.repo.violacoes()))
+
+    def test_segredo_sem_distincao_de_maiusculas_e_em_expressoes(self):
+        """Review 5: GitHub Expressions não diferenciam maiúsculas; tojson(secrets) e secrets[...] também são segredo."""
+        for trecho in ("${{ tojson(secrets) }}", "${{ secrets['X'] }}", "${{ SECRETS.FOO }}", "${{ toJSON(Secrets) }}", "secrets: inherit"):
+            with self.subTest(trecho):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(".github/workflows/x.yml", f"run: echo {trecho}\n")
+                repo.commit()
+                self.assertTrue(any(v.startswith("R-CUSTO:") for v in repo.violacoes()), trecho)
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve(".github/pull_request_template.md", "claude PLUGIN eval\nanthropic_api_key\n")
+        repo.escreve("scripts/x.sh", "claude PLUGIN eval\n")
+        repo.commit()
+        self.assertTrue(any("claude-plugin-eval em scripts/x.sh" in v for v in repo.violacoes()))
+
+    def test_claude_code_no_npm_nao_e_custo(self):
+        self.repo.escreve("scripts/i.sh", "npm install -g @anthropic-ai/claude-code\n")
+        self.passa()
+
+
+class Protegidos(Base):
+    def test_mudanca_em_arquivo_protegido_barra(self):
+        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py"):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "mudou\n")
+                repo.commit()
+                self.assertTrue(any(v.startswith("R-CONFORMIDADE") and f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_mover_ou_apagar_arquivo_protegido_barra(self):
+        """QA BUG-01: mover (desligar o CI) ou apagar conta como mudança do caminho antigo."""
+        for rel in (".github/workflows/ci.yml", "tests/catraca.py"):
+            for como in ("mv", "rm"):
+                with self.subTest(rel=rel, como=como):
+                    repo = Repo()
+                    self.addCleanup(repo.fecha)
+                    repo.git(como, rel, *(["desligado.txt"] if como == "mv" else []))
+                    repo.commit()
+                    self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()), repo.violacoes())
+
+    def test_githooks_e_dependabot_sao_protegidos(self):
+        for rel in (".githooks/pre-push", ".github/dependabot.yml"):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "mudou\n")
+                repo.commit()
+                self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_outros_arquivos_passam(self):
+        self.repo.escreve(".github/pull_request_template.md", "x\n")
+        self.passa()
+
+    def test_introducao_da_catraca_e_ignorada(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.git("rm", "-q", "tests/catraca.py")
+        self.repo.git("commit", "-q", "-m", "sem catraca")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+        self.repo.escreve("tests/catraca.py", "# nova\n")
+        self.repo.escreve(".github/workflows/ci.yml", "name: CI com catraca\n")
+        self.passa()
+
+
+class Rotulo(unittest.TestCase):
+    def evento(self, quem, quando, tipo="labeled", rotulo=catraca.ROTULO):
+        return {"event": tipo, "label": {"name": rotulo}, "actor": {"login": quem}, "created_at": quando}
+
+    def test_dono_depois_do_push_libera(self):
+        self.assertTrue(catraca.rotulo_liberado([self.evento("dona", "2026-01-02T10:00:00Z")], "dona", "2026-01-02T09:00:00Z"))
+
+    def test_dono_antes_do_push_nao_libera(self):
+        self.assertFalse(catraca.rotulo_liberado([self.evento("dona", "2026-01-02T08:00:00Z")], "dona", "2026-01-02T09:00:00Z"))
+
+    def test_outra_pessoa_nao_libera(self):
+        self.assertFalse(catraca.rotulo_liberado([self.evento("intrusa", "2026-01-02T10:00:00Z")], "dona", "2026-01-02T09:00:00Z"))
+
+    def test_rotulo_removido_depois_nao_libera(self):
+        eventos = [self.evento("dona", "2026-01-02T10:00:00Z"), self.evento("dona", "2026-01-02T11:00:00Z", "unlabeled")]
+        self.assertFalse(catraca.rotulo_liberado(eventos, "dona", "2026-01-02T09:00:00Z"))
+
+    def test_outro_rotulo_e_sem_eventos_nao_liberam(self):
+        self.assertFalse(catraca.rotulo_liberado([self.evento("dona", "2026-01-02T10:00:00Z", rotulo="bug")], "dona", "2026-01-02T09:00:00Z"))
+        self.assertFalse(catraca.rotulo_liberado([], "dona", "2026-01-02T09:00:00Z"))
+
+    def test_sem_token_trata_como_sem_rotulo(self):
+        antigo = {k: os.environ.pop(k, None) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER", "HEAD_SHA")}
+        try:
+            self.assertEqual(catraca.eventos_do_github(), (None, None))
+        finally:
+            os.environ.update({k: v for k, v in antigo.items() if v is not None})
+
+
+class InstanteDoServidor(unittest.TestCase):
+    """Review 1: o "último push" vem do servidor (execuções do head), nunca da data do commit."""
+
+    def setUp(self):
+        self.antigo = dict(os.environ)
+        os.environ.update({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7", "HEAD_SHA": "abc"})
+        self.original = catraca.api
+        self.addCleanup(lambda: setattr(catraca, "api", self.original))
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(self.antigo)))
+
+    def api_falsa(self, execucoes):
+        eventos = [{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]
+
+        def falsa(caminho, token, chave=None):
+            if "/actions/runs" in caminho:
+                self.assertEqual(chave, "workflow_runs")
+                self.assertIn("head_sha=abc", caminho)
+                return execucoes
+            if "/commits" in caminho:  # a data do commit não pode ser consultada
+                return [{"commit": {"committer": {"date": "2026-01-02T08:00:00Z"}}}]
+            return eventos
+        catraca.api = falsa
+
+    def test_usa_a_execucao_mais_antiga_do_head(self):
+        self.api_falsa([{"head_sha": "abc", "created_at": "2026-01-02T11:00:00Z"}, {"head_sha": "abc", "created_at": "2026-01-02T09:30:00Z"}])
+        eventos, push = catraca.eventos_do_github()
+        self.assertEqual(push, "2026-01-02T09:30:00Z")
+        self.assertTrue(catraca.rotulo_liberado(eventos, "dona", push))
+
+    def test_commit_com_data_antiga_mas_push_depois_do_rotulo_nao_libera(self):
+        self.api_falsa([{"head_sha": "abc", "created_at": "2026-01-02T10:30:00Z"}])
+        eventos, push = catraca.eventos_do_github()
+        self.assertEqual(push, "2026-01-02T10:30:00Z")
+        self.assertFalse(catraca.rotulo_liberado(eventos, "dona", push))
+
+    def test_sem_execucao_do_head_ou_sem_head_sha_trata_como_sem_rotulo(self):
+        self.api_falsa([])
+        self.assertEqual(catraca.eventos_do_github()[1], None)
+        self.api_falsa([{"head_sha": "outro", "created_at": "2026-01-02T09:00:00Z"}])
+        self.assertEqual(catraca.eventos_do_github()[1], None)
+        del os.environ["HEAD_SHA"]
+        self.assertEqual(catraca.eventos_do_github(), (None, None))
+
+    def test_falha_da_api_trata_como_sem_rotulo(self):
+        def falha(*a, **k):
+            raise OSError("sem rede")
+        catraca.api = falha
+        self.assertEqual(catraca.eventos_do_github(), (None, None))
+
+
+class LinhaDeComando(Base):
+    """A saída e o código de saída do script, com e sem o rótulo."""
+
+    def roda(self, eventos=None, push="2026-01-02T09:00:00Z"):
+        self.repo.config(dono="outra")
+        self.repo.commit()
+        args = ["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base"]
+        if eventos is not None:
+            arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+            arq.write_text(json.dumps(eventos), encoding="utf-8")
+            self.addCleanup(arq.unlink)
+            args += ["--eventos", str(arq), "--ultimo-push", push]
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        return subprocess.run(args, capture_output=True, text=True, env=env)
+
+    def evento(self, quem):
+        return {"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": quem}, "created_at": "2026-01-02T10:00:00Z"}
+
+    def test_sem_rotulo_sai_1(self):
+        r = self.roda()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("R-CONTRIB:", r.stdout)
+
+    def test_rotulo_do_dono_da_base_depois_do_push_sai_0(self):
+        self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
+
+    def test_rotulo_do_novo_dono_da_pr_nao_vale(self):
+        self.assertEqual(self.roda([self.evento("outra")]).returncode, 1)
+
+    def test_rotulo_nao_libera_violacao_de_custo(self):
+        """Review 5: o custo tem outra exceção (`custo_permitido`, com autorização do usuário); o rótulo não vale."""
+        self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        r = self.roda([self.evento("dona")])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("R-CUSTO:", r.stdout)
+
+
+class Dependabot(Base):
+    """Review 7: PR do dependabot que só troca SHA de ação passa sem rótulo e sem parecer; qualquer outra coisa, não."""
+    SHA1, SHA2 = "a" * 40, "b" * 40
+
+    def workflow(self, sha, versao, extra=""):
+        return f"name: CI\njobs:\n  j:\n    steps:\n      - uses: actions/checkout@{sha} # {versao}\n{extra}"
+
+    def prepara(self, depois, autor="dependabot[bot]", modo="regras"):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", self.workflow(self.SHA1, "v4"))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "ci")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", depois)
+        self.repo.commit()
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        args = ["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", "--modo", modo,
+                "--autor", autor, "--ramo", "dependabot/x", "--base-ref", "develop"]
+        return subprocess.run(args, capture_output=True, text=True, env=env).returncode
+
+    def test_so_troca_de_sha_passa(self):
+        for modo in ("regras", "pareceres"):
+            with self.subTest(modo):
+                self.setUp()
+                self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5"), modo=modo), 0)
+
+    def test_outro_autor_com_o_mesmo_diff_barra(self):
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5"), autor="alguem"), 1)
+
+    def test_mudanca_alem_do_sha_barra(self):
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5", "      - run: curl x | sh\n")), 1)
+        self.setUp()
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5").replace("checkout", "outra")), 1)
+        self.setUp()
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5").replace("name: CI", "name: X")), 1)
+
+    def test_funcao_nao_aceita_arquivo_fora_de_workflows(self):
+        self.repo.escreve("scripts/x.sh", "uses: a/b@" + self.SHA1 + "\n")
+        self.repo.commit()
+        self.assertFalse(catraca.so_troca_sha_de_acoes(self.repo.dir, "base", "HEAD"))
+
+
+class TextoDoPr(unittest.TestCase):
+    def test_preenchido_passa(self):
+        corpo = "## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\nmenos retrabalho nas revisões\n\n## Checklist\n- [ ] x\n"
+        self.assertEqual(catraca.violacoes_do_texto(corpo), [])
+
+    def test_vazio_ou_so_comentario_barra(self):
+        corpo = "## Projeto de origem\n<!-- tipo -->\n\n## Como medir\n\n## Checklist\n"
+        achadas = catraca.violacoes_do_texto(corpo)
+        self.assertEqual(len(achadas), 2)
+        self.assertTrue(all(v.startswith("R-CONTRIB:") for v in achadas))
+
+    def test_secao_ausente_e_corpo_nulo_barram(self):
+        self.assertEqual(len(catraca.violacoes_do_texto(None)), 2)
+        self.assertEqual(len(catraca.violacoes_do_texto("## Como medir\nmenos retrabalho nas revisões\n")), 1)
+
+    def test_texto_curto_demais_barra_e_comentario_nao_conta(self):
+        """QA BUG-03: 'ok' não basta; o mínimo é de 20 caracteres fora de comentários HTML."""
+        for texto in ("ok", "x" * 19, "<!-- " + "x" * 40 + " -->curto"):
+            with self.subTest(texto=texto[:12]):
+                corpo = f"## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\n{texto}\n"
+                self.assertEqual(len(catraca.violacoes_do_texto(corpo)), 1)
+        corpo = "## Projeto de origem\n" + "x" * 20 + "\n\n## Como medir\n" + "y" * 20 + "\n"
+        self.assertEqual(catraca.violacoes_do_texto(corpo), [])
+
+
+class Pareceres(Base):
+    def parecer(self, tipo, ramo="pr", parecer="aprovado"):
+        self.repo.commit()
+        commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
+        pasta = "reviews" if tipo == "review" else "qa"
+        extra = "revisor: forge:tech-lead" if tipo == "review" else "qa: forge:qa-engineer"
+        self.repo.escreve(f"docs/{pasta}/ped.md",
+                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: ped\nbranch: {ramo}\ncommit: {commit}\n"
+                          f"parecer: {parecer}\n{extra}\ndata: 2026-01-01\n---\n# parecer\n")
+
+    def roda(self, base_ref="develop"):
+        self.repo.commit()
+        return catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", base_ref)
+
+    def test_pr_que_nao_toca_codigo_sensivel_passa(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.assertEqual(self.roda(), [])
+
+    def test_toca_hooks_sem_parecer_barra(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1)
+        self.assertTrue(achadas[0].startswith("R-REVIEW:"))
+
+    def test_toca_hooks_com_review_aprovado_passa_na_develop_e_exige_qa_na_homolog(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.assertEqual(self.roda("develop"), [])
+        self.assertEqual(len(self.roda("homolog")), 1)
+
+    def test_promocao_fica_fora_do_job(self):
+        """Review 2: develop -> homolog e homolog -> main não exigem parecer novo (foi exigido na entrada na develop)."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.repo.commit()
+        for ramo, base_ref in (("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref), [])
+        for ramo, base_ref in (("melhoria/x", "homolog"), ("develop", "main"), ("melhoria/x", "develop")):
+            with self.subTest(ramo=ramo, base_ref=base_ref):
+                self.assertEqual(len(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref)), 1)
+
+    def test_usa_o_forge_check_do_proprio_script(self):
+        """Review 13: uma fonte só para ler os pareceres (ADR 0002)."""
+        fc = catraca.forge_check()
+        self.assertTrue(callable(fc.pedidos_da_branch) and callable(fc.cmd_pr))
+        self.assertFalse(hasattr(catraca, "pedidos_da_branch"))
+
+    def test_parecer_reprovado_ou_de_outra_branch_barra(self):
+        self.repo.escreve("scripts/novo.sh", "echo\n")
+        self.parecer("review", parecer="ajustes")
+        self.assertEqual(len(self.roda()), 1)
+        self.parecer("review", ramo="outra")
+        self.assertEqual(len(self.roda()), 1)
+
+
+class Workflows(unittest.TestCase):
+    """Reviews 3, 6, 9, 10 e 14: o que os workflows prometem, conferido no texto (sem rede)."""
+    RAIZ = AQUI.parent / ".github"
+
+    def texto(self, nome):
+        return (self.RAIZ / "workflows" / nome).read_text(encoding="utf-8")
+
+    def test_rotulo_e_edicao_so_disparam_a_catraca(self):
+        ci, ct = self.texto("ci.yml"), self.texto("catraca.yml")
+        self.assertIn("types: [opened, synchronize, reopened]", ci)
+        for evento in ("labeled", "unlabeled", "edited"):
+            self.assertNotIn(evento, ci.split("jobs:")[0].replace("rótulo e edição", ""))
+            self.assertIn(evento, ct.split("jobs:")[0])
+        self.assertRegex(ct, r"(?m)^  catraca:")
+        self.assertRegex(ct, r"(?m)^  pr-texto:")
+        self.assertNotRegex(ci, r"(?m)^  (catraca|pr-texto):")
+
+    def test_checkout_sem_credencial_e_sem_pull_request_target(self):
+        for nome in ("ci.yml", "catraca.yml"):
+            texto = self.texto(nome)
+            self.assertNotIn("pull_request_target", texto)
+            self.assertEqual(texto.count("actions/checkout@"), texto.count("persist-credentials: false"), nome)
+
+    def test_catraca_e_pareceres_usam_a_base_do_merge_e_o_script_da_base(self):
+        for nome, trecho in (("ci.yml", "--modo pareceres"), ("catraca.yml", 'python3 "$script" --base')):
+            texto = self.texto(nome)
+            self.assertIn("BASE=$(git rev-parse HEAD^1)", texto)
+            self.assertIn('git cat-file -e "$BASE:tests/catraca.py"', texto)
+            self.assertIn('script="$RUNNER_TEMP/base/tests/catraca.py"', texto)
+            self.assertIn(trecho, texto)
+        self.assertNotIn("base.sha", self.texto("catraca.yml"))
+        self.assertIn('--ramo="$HEAD_REF"', self.texto("ci.yml"))
+        self.assertIn("HEAD_SHA:", self.texto("catraca.yml"))
+
+    def test_dependabot_vai_para_a_develop(self):
+        self.assertIn("target-branch: develop", (self.RAIZ / "dependabot.yml").read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    unittest.main()
