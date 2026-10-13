@@ -1,6 +1,6 @@
 # 0008 - Governança de contribuições: portões para todos
 
-Estado: proposta. Data: 2026-10-12.
+Estado: vigente. Data: 2026-10-12. Decisões do dono em 2026-10-13: conta de máquina para os agentes (A); preparar já e tornar público quando chegar o primeiro colaborador (A); licença MIT (A).
 Propósito: impedir que contribuições, de qualquer pessoa ou agente e inclusive do dono, piorem a fábrica. Público: quem mantém o Forge e quem contribui de um projeto. Revisão: 2026-10-12.
 
 ## Contexto
@@ -52,7 +52,7 @@ Limite conhecido: no evento `pull_request`, o workflow roda na versão do PR, qu
 ### 5. Transição enquanto o repositório é privado e gratuito
 - **Vale já:** camada 1 (conta de máquina é gratuita também em repositório privado); camada 3 inteira (os checks rodam e aparecem, só não são obrigatórios no servidor); camada 4; limite de gasto do Actions em US$ 0; nenhum colaborador com escrita além do dono e da conta de máquina.
 - **Não vale:** camada 2. O merge com check vermelho fica barrado só pelos agentes e pelos hooks.
-- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos` sem os termos em claro (hash SHA-256 de cada termo normalizado); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença escolhida pelo dono; (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
+- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos` sem os termos em claro (hash SHA-256 de cada termo normalizado); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença MIT (decidida; `LICENSE` na raiz); (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
 - Até o gatilho, contribuição de outra pessoa entra como proposta ao dono, nunca como acesso.
 
 ## Alternativas consideradas
