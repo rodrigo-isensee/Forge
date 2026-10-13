@@ -63,7 +63,7 @@ PY
 antigo=0
 if [ ! -e "$destino/.forge/versao" ] && { [ -e "$destino/CLAUDE.md" ] || [ -e "$destino/KANBAN.md" ]; }; then antigo=1; fi
 
-criados=0; mantidos=0
+criados=0; mantidos=0; config_nova=0
 while IFS= read -r -d '' arq; do
   rel="${arq#"$modelo"/}"
   alvo="$destino/$rel"
@@ -78,7 +78,23 @@ while IFS= read -r -d '' arq; do
   sed -e "s|{{PROJETO}}|$n_esc|g" -e "s|{{DESCRICAO}}|$d_esc|g" -e "s|{{STACK}}|$s_esc|g" -e "s|{{COMANDO_PRONTO}}|$p_esc|g" "$arq" > "$alvo"
   [ -x "$arq" ] && chmod +x "$alvo"
   echo "  criado   $rel"; criados=$((criados + 1))
+  if [ "$rel" = ".forge/config.json" ]; then config_nova=1; fi
 done < <(find "$modelo" -type f -print0 | sort -z)
+
+# Tarefas pesadas padrão (hook `pesado`): vêm do pacote da stack (stacks/<stack>/pesados.json, uma lista JSON), não do núcleo.
+# Só no .forge/config.json criado agora; a config que o projeto já tinha não é tocada.
+if [ "$config_nova" -eq 1 ] && [ -f "$raiz_forge/stacks/$stack/pesados.json" ]; then
+  python3 - "$raiz_forge/stacks/$stack/pesados.json" "$destino/.forge/config.json" <<'PY'
+import json, sys
+lista, alvo = sys.argv[1:3]
+config = json.load(open(alvo, encoding="utf-8"))
+config["pesados"] = json.load(open(lista, encoding="utf-8"))
+with open(alvo, "w", encoding="utf-8") as f:
+    json.dump(config, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+  echo "  pesados  .forge/config.json (padrão da stack $stack)"
+fi
 
 # Versão do Forge usada (ADR 0005): só grava se ausente, para não esconder migração pendente de projeto antigo;
 # no projeto antigo grava 0.0.0, e o forge-upgrade aplica as migrações.

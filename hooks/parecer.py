@@ -53,8 +53,8 @@ def troca_de_branch(args):
         if a in ("-d", "--detach"):
             return ""
     pos = posicionais(args, set())
-    if not pos:
-        return None
+    if not pos or len(pos) > 1:
+        return None  # `git checkout <ref> <arquivo>...` restaura arquivos; trocar de branch leva um só nome
     return "" if pos[0] == "-" else pos[0]
 
 

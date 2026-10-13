@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+"""Migração 0.7.0: remove `teto_agentes` de .forge/config.json quando vale exatamente 3 (o padrão que o modelo da
+0.5.0 gravava), para o projeto adotar o teto adaptativo (R-TETO). Não toca em nenhuma outra chave nem em outro valor.
+Uso: migrar DIRETORIO_DO_PROJETO. Idempotente; config ausente ou ilegível não é alterada."""
+import json
+import sys
+from pathlib import Path
+
+arquivo = Path(sys.argv[1]).resolve() / ".forge" / "config.json"
+if not arquivo.is_file():
+    sys.exit(0)
+try:
+    config = json.loads(arquivo.read_text(encoding="utf-8"))
+except (OSError, ValueError):
+    print("aviso: .forge/config.json ilegível; não alterado (apague `teto_agentes` à mão se valer 3)")
+    sys.exit(0)
+
+valor = config.get("teto_agentes") if isinstance(config, dict) else None
+if type(valor) is int and valor == 3:  # só o inteiro 3 exato: não confunde com true, 3.0 ou "3"
+    del config["teto_agentes"]
+    arquivo.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print("removido teto_agentes (3) de .forge/config.json: o teto passa a ser adaptativo (R-TETO)")

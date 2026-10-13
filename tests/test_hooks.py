@@ -33,6 +33,7 @@ from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
+PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
 def pid_morto():
@@ -81,6 +82,7 @@ class Fixture:
         arquivos.setdefault("README.md", "projeto\n")
         if d.get("forge", True):
             arquivos[".forge/versao"] = "0.5.0\n"
+        arquivos[".forge/config.json"] = json.dumps({"pesados": PESADOS_DA_STACK})  # como o forge-init grava
         if "config" in d:
             arquivos[".forge/config.json"] = json.dumps(d["config"])
         if "config_bruta" in d:

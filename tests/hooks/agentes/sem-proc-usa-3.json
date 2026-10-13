@@ -39,6 +39,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "teto 3 (adaptativo sem leitura de /proc: usa o padrão 3)"
+    "stderr": "teto 3 (adaptativo sem leitura de /proc: padrão 3)"
   }
 }
