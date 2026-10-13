@@ -1,0 +1,32 @@
+{
+  "descricao": "teto_agentes 1 no .forge/config.json, um ativo: bloqueia.",
+  "config": {
+    "teto_agentes": 1
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "1 agentes ativos, teto 1"
+  }
+}

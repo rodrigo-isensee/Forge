@@ -5,7 +5,7 @@ Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Ja
 ## a) Mecanismo (fim de cada entrega, 15 min no máximo)
 1. **Registro por papel** (Jarvis pede no fechamento do PR; cada papel responde em até 3 linhas no relatório final do subagente): `custou caro` (tokens, tempo, releitura), `deu retrabalho` (o que voltou e por quê), `melhoria proposta` (mudança exata).
 2. **Consolidação** (agile-coach): junta as respostas em `docs/retrospectivas/AAAA-MM-DD-<pedido>.md`, agrupa por causa e escolhe **no máximo 3 experimentos**, cada um com dono, métrica, linha de base e critério de sucesso (ex.: "tokens do QA -20% sem subir escapes").
-3. **Reavaliação** na entrega seguinte: cada experimento termina em manter, ajustar ou reverter, anotado em `melhorias.md`. Uma mudança por vez por parte do processo. Mudança em `.claude/agents/` ou `CLAUDE.md` só entra após aprovação do usuário (seção e).
+3. **Reavaliação** na entrega seguinte: cada experimento termina em manter, ajustar ou reverter, anotado em `melhorias.md`. Uma mudança por vez por parte do processo. Mudança no `CLAUDE.md` do projeto só entra após aprovação do usuário; mudança em agente ou skill nunca é copiada para o projeto: vira PR no Forge.
 4. Retrospectiva sem dados não vale: se a métrica não foi coletada, o primeiro experimento é coletá-la.
 
 ## b) Métricas (planilha única `docs/kanban/entregas.md`, uma linha por entrega)

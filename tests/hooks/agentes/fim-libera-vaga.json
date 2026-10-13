@@ -1,0 +1,46 @@
+{
+  "descricao": "SubagentStop remove o agente e libera a vaga.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:react-frontend",
+          "descricao": "Tela",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Review",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "agent_id": "a2",
+    "agent_type": "forge:react-frontend"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "a1",
+          "a3"
+        ],
+        "ausente": [
+          "\"a2\""
+        ]
+      }
+    }
+  }
+}

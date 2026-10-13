@@ -1,0 +1,5 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code 2.0.0"}
+{"ev": "agente", "t": "2026-01-01T10:00:01Z", "id": "a1", "tipo": "forge:node-backend", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:02Z", "id": "a2", "tipo": "forge:node-backend", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:03Z", "id": "a3", "tipo": "forge:node-backend", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:04Z", "id": "a4", "tipo": "forge:node-backend", "bg": true, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}

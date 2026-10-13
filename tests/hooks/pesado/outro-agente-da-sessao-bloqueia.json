@@ -1,0 +1,24 @@
+{
+  "descricao": "Mesma sessão, mas a trava é de um subagente (agent_id): bloqueia.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_vivo}",
+      "comando": "npx playwright test",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1",
+      "agente": "agente-a"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "docker compose up -d"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "apague .forge/run/pesado.json"
+  }
+}

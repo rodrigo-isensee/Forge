@@ -1,0 +1,3 @@
+{
+  "pesados": ["playwright", "docker compose up", "pytest -m integration"]
+}

@@ -1,48 +1,130 @@
 {
   "agentes_obrigatorios": [
-    "jarvis", "tech-lead", "software-architect", "ux-designer",
-    "node-backend", "react-frontend", "qa-engineer", "agile-coach"
+    "jarvis", "tech-lead", "software-architect", "ux-designer", "qa-engineer", "agile-coach"
   ],
+  "stacks_obrigatorias": {
+    "node-react": { "agentes": ["node-backend", "react-frontend"], "skills": ["node-backend", "react-frontend"] }
+  },
+  "neutralidade_nucleo": {
+    "pastas": ["agents", "skills", "docs", "templates", "bin", "scripts", ".github"],
+    "ignorar": ["docs/adr/", "docs/reviews/", "docs/qa/"],
+    "termos": [
+      "\\bNode(\\.js)?\\b", "\\bReact\\b", "TypeScript", "\\bpnpm\\b", "\\bnpm\\b", "Playwright",
+      "\\bzod\\b", "\\bVitest\\b", "\\bESLint\\b", "\\bPrettier\\b", "\\bFastify\\b",
+      "\\bPrisma\\b", "node-backend", "react-frontend", "node_modules"
+    ],
+    "excecoes": {
+      ".github/workflows/ci.yml": ["\\bnpm\\b"],
+      "scripts/preparar-estacao.sh": ["\\bNode(\\.js)?\\b", "\\bpnpm\\b"]
+    }
+  },
+  "limite_linhas": { "agente": 110, "skill": 133 },
   "termos_proibidos": [
     "Metricas ?DSPD", "\\bDSPD\\b", "BusinessMap", "Acelerato", "SistemaPonto",
     "\\bSSSC\\b", "Siegard", "\\bFL[123]\\b"
   ],
+  "anti_duplicacao": {
+    "palavras": 12,
+    "pastas": ["agents", "skills", "stacks", "templates", "docs"],
+    "excecoes": []
+  },
   "invariantes": {
     "agents/jarvis.md": [
-      "\\*\\*`main` é do usuário\\*\\*",
-      "nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push nela",
-      "nunca `--no-verify` nem `--force`",
-      "## Portão de QA \\(obrigatório\\)",
-      "Nenhum código sai sem aprovação do `qa-engineer`",
-      "Teto de recursos da máquina \\(obrigatório\\)",
-      "no máximo \\*\\*3 agentes trabalhando ao mesmo tempo\\*\\*",
-      "\\*\\*Todo pedido começa com discovery\\.\\*\\*",
-      "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega",
       "## Fábrica × projeto: onde cada mudança vai",
-      "Nunca copie agentes ou skills do Forge",
-      "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
       "\\*\\*em qualquer projeto\\*\\*",
       "\\*\\*Autonomia para melhorar o Forge e os projetos",
       "uma mudança que tenha as duas partes vira \\*\\*dois PRs\\*\\*",
-      "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário"
+      "`R-MAIN`",
+      "`R-FLUXO`",
+      "`R-WIP`",
+      "`R-TETO`",
+      "`R-QA`",
+      "`R-REVIEW`",
+      "`R-DISCOVERY`",
+      "`R-CUSTO`",
+      "`R-NEUTRO`",
+      "`R-COPIA`",
+      "`R-VERIFY`"
     ],
     "agents/tech-lead.md": [
-      "## A main é do usuário",
-      "\\*\\*Nunca\\*\\* faça commit, merge, rebase, reset, cherry-pick ou push na `main`",
-      "`--no-verify` é proibido",
       "\\*\\*Code review obrigatório\\*\\*",
-      "quem mescla na `main` é o usuário"
+      "quem mescla na `main` é o usuário",
+      "`R-MAIN`",
+      "`R-VERIFY`",
+      "`R-FLUXO`",
+      "`R-REVIEW`",
+      "`R-CUSTO`",
+      "`R-NEUTRO`"
+    ],
+    "docs/regras/R-MAIN.md": [
+      "\ntitulo: A main é do usuário\n",
+      "\\*\\*`main` é do usuário\\*\\*",
+      "nenhum agente faz commit, merge, rebase, reset, cherry-pick ou push nela, nem com `--force`",
+      "a `main` do Forge e a de cada projeto só mudam com o PR validado e mesclado pelo usuário",
+      "O hook `.githooks/pre-push` recusa envio para a `main`"
+    ],
+    "docs/regras/R-VERIFY.md": [
+      "Nunca `--no-verify` nem `--force`",
+      "`--no-verify` é proibido"
+    ],
+    "docs/regras/R-QA.md": [
+      "\ntitulo: Portão de QA\n",
+      "Nenhum código sai sem aprovação do `qa-engineer`",
+      "Bug bloqueante, crítico ou alto bloqueia a entrega"
+    ],
+    "docs/regras/R-TETO.md": [
+      "Teto de recursos da máquina \\(obrigatório\\)",
+      "teto de agentes adaptativo",
+      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "nunca relaxa as regras abaixo",
+      "\\*\\*tarefas pesadas uma de cada vez\\*\\*"
+    ],
+    "docs/regras/R-DISCOVERY.md": [
+      "\\*\\*Todo pedido começa com discovery\\.\\*\\*"
+    ],
+    "docs/regras/R-REVIEW.md": [
+      "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, antes do QA"
+    ],
+    "docs/regras/R-FLUXO.md": [
+      "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "Nada pula degrau"
+    ],
+    "docs/regras/R-COPIA.md": [
+      "Nunca copie agentes ou skills do Forge"
+    ],
+    "docs/regras/R-CUSTO.md": [
+      "Nada no Forge \\(CI, testes, scripts, fluxo\\) consome API paga ou serviço cobrado",
+      "sem autorização expressa do usuário"
+    ],
+    "docs/regras/R-NEUTRO.md": [
+      "nada específico de um projeto entra em agentes, skills, docs ou modelos"
+    ],
+    "docs/regras/R-WIP.md": [
+      "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
     ],
     ".githooks/pre-push": [
       "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
     ],
     "agents/agile-coach.md": [
       "nunca para avaliar um agente ou uma pessoa individualmente",
-      "vira PR no repositório \\*\\*Forge\\*\\*"
+      "vira PR no repositório \\*\\*Forge\\*\\*",
+      "`R-WIP`"
     ],
     "agents/ux-designer.md": [
-      "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*"
+      "\\*\\*A validação do usuário é o ponto de compromisso\\*\\*",
+      "`R-DISCOVERY`"
+    ],
+    "agents/qa-engineer.md": [
+      "`R-QA`"
+    ],
+    "agents/software-architect.md": [
+      "`R-DISCOVERY`"
+    ],
+    "templates/projeto/CLAUDE.md": [
+      "`R-MAIN`",
+      "`R-VERIFY`",
+      "`R-COPIA`"
     ],
     "templates/projeto/.githooks/pre-push": [
       "refs/heads/main",

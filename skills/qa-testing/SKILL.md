@@ -1,18 +1,20 @@
 ---
 name: qa-testing
-description: Padrões de QA do projeto - plano de testes, pirâmide de testes, Playwright para E2E, axe para acessibilidade, formato de relatório de bug e critérios de severidade. Use ao planejar, escrever ou executar testes e ao reportar defeitos.
+description: Padrões de QA do projeto - plano de testes, pirâmide de testes, E2E, acessibilidade, formato de relatório de bug e critérios de severidade. Use ao planejar, escrever ou executar testes e ao reportar defeitos.
 ---
 
 # QA
 
 ## Pirâmide de testes
-| Nível | Ferramenta | Quem escreve | Onde |
-|---|---|---|---|
-| Unitário | Vitest | `node-backend` / `react-frontend` | junto do código |
-| Integração de API | Vitest + Supertest | `node-backend` | `server/` |
-| Componente | Testing Library + MSW | `react-frontend` | `web/` |
-| E2E | Playwright | `qa-engineer` | `e2e/` |
-| Acessibilidade | @axe-core/playwright | `qa-engineer` | `e2e/` |
+| Nível | Quem escreve | Onde |
+|---|---|---|
+| Unitário | agentes de desenvolvimento da stack | junto do código |
+| Integração de API | agente de back-end | conforme a stack |
+| Componente | agente de front-end | conforme a stack |
+| E2E | `qa-engineer` | conforme a stack |
+| Acessibilidade | `qa-engineer` | conforme a stack |
+
+Ferramentas, pastas e comandos: `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md` (a stack vem do `CLAUDE.md` do projeto).
 
 Os E2E cobrem os fluxos críticos; o restante fica nos níveis mais baixos.
 
@@ -38,22 +40,21 @@ Data, ambiente, aprovados/falhos, links para bugs.
 
 Para cada critério de aceite da especificação, pelo menos um cenário. Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
 
-## Playwright
-- Seletores por papel e texto acessível (`getByRole`, `getByLabel`); `data-testid` só em último caso.
-- Nada de `waitForTimeout`; use as esperas automáticas e `expect(...).toBeVisible()`.
-- Cada teste cria e limpa os próprios dados (via API ou seed), sem depender de ordem.
-- Padrão Page Object em `e2e/pages/` para telas reutilizadas.
-- Rodar em Chromium por padrão; Firefox e WebKit no CI.
+## E2E
+- Seletores por papel e texto acessível; `data-testid` só em último caso.
+- Nada de espera fixa; use as esperas automáticas da ferramenta.
+- Cada teste cria e limpa os próprios dados, sem depender de ordem.
+- Navegador padrão no desenvolvimento; os demais no CI.
 
 ## Acessibilidade
-- `AxeBuilder` em todas as telas dos fluxos principais, com as tags `wcag2a`, `wcag2aa`, `wcag22aa`.
+- Verificação automática em todas as telas dos fluxos principais, com as tags WCAG 2.2 AA.
 - Zero violações críticas ou sérias para aprovar.
 
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown
 # <id> - <título curto>
 - Severidade: crítica | alta | média | baixa
-- Responsável sugerido: node-backend | react-frontend
+- Responsável sugerido: agente de desenvolvimento da stack
 - Ambiente: branch/commit, navegador
 
 ## Passos para reproduzir
@@ -62,7 +63,7 @@ Para cada critério de aceite da especificação, pelo menos um cenário. Sempre
 ## Resultado esperado
 ## Resultado obtido
 ## Evidência
-Log, screenshot ou trace do Playwright.
+Log, screenshot ou trace da ferramenta de E2E.
 ```
 
 ## Severidade

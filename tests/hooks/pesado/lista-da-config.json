@@ -1,0 +1,28 @@
+{
+  "descricao": "pesados do .forge/config.json substituem os padrões.",
+  "config": {
+    "pesados": [
+      "pnpm build"
+    ]
+  },
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "pnpm build",
+      "desde": "{agora-120}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "pnpm   build --filter web"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO"
+  }
+}

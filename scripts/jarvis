@@ -1,11 +1,29 @@
 #!/usr/bin/env bash
 # Forge: abre o Jarvis num projeto, retomando a última conversa, com o chat remoto (claude.ai/code)
 # e, se o plugin estiver instalado, o canal do Telegram.
-# Uso: jarvis [projeto]   (diretório em $HOME; padrão: diretório atual)
+# Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# Uso: jarvis [--sem-tmux] [projeto]   (diretório em $HOME; padrão: diretório atual)
+#   --sem-tmux   abre direto no terminal, sem criar ou anexar a sessão do tmux
+#   -h, --help   mostra esta ajuda
 # Instale com: scripts/instalar-atalho.sh
 set -euo pipefail
-if [ $# -gt 0 ]; then cd "$HOME/$1"; fi
+sem_tmux=0
+posicionais=()
+for a in "$@"; do
+  case "$a" in
+    --sem-tmux) sem_tmux=1 ;;
+    -h|--help) sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*) echo "jarvis: opção desconhecida: $a (veja jarvis --help)" >&2; exit 2 ;;
+    *) posicionais+=("$a") ;;
+  esac
+done
+if [ ${#posicionais[@]} -gt 0 ]; then cd "$HOME/${posicionais[0]}"; fi
 projeto="$(basename "$PWD")"
+if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
+  sessao="jarvis-${projeto//[.:]/_}"
+  eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' "$eu" "${posicionais[@]}")"
+fi
 args=(--continue --remote-control "Jarvis - $projeto")
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then
   if pgrep -f "bun server.ts" >/dev/null; then

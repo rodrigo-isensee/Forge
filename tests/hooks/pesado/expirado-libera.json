@@ -1,0 +1,22 @@
+{
+  "descricao": "Trava com mais de 2 h (expiracao_horas) expira.",
+  "estado": {
+    "pesado.json": {
+      "pid": "{pid_outro}",
+      "comando": "npx playwright test",
+      "desde": "{agora-7300}",
+      "tool_use_id": "toolu_1"
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "docker compose up -d"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
