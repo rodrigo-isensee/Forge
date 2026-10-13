@@ -4,6 +4,8 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- Licença MIT (`LICENSE`, `plugin.json`), decidida pelo dono para quando o repositório for público.
+- ADR 0008 vigente, com as decisões do dono: conta de máquina para os agentes; preparar já e tornar público quando chegar o primeiro colaborador.
 - Regra `R-DECISAO` (pedido do usuário): toda decisão do usuário vem uma de cada vez, com opções e a recomendação do time; ações pendentes ficam numa lista à parte. Citada pelo Jarvis, `tech-lead` e `ux-designer`; protegida por invariantes.
 
 ## [0.6.0] - 2026-10-13

@@ -14,7 +14,7 @@ Formato: contexto, decisão, alternativas e consequências; estado conforme `doc
 | [0005](0005-migracao-iniciada-pelo-projeto.md) | Migração iniciada pelo projeto e `forge-upgrade` |
 | [0006](0006-contribuicao-de-qualquer-projeto.md) | Contribuição de qualquer projeto e versão só na release |
 | [0007](0007-verificacao-de-comportamento-sem-custo.md) | Verificação de comportamento sem custo |
-| [0008](0008-governanca-de-contribuicoes.md) | Governança de contribuições: portões para todos, catraca e identidade dos agentes (proposta) |
+| [0008](0008-governanca-de-contribuicoes.md) | Governança de contribuições: portões para todos, catraca e identidade dos agentes |
 
 ## Substituídas
 Nenhuma.
