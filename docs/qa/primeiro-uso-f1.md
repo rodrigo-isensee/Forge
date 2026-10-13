@@ -3,13 +3,13 @@ tipo: qa
 contrato: 1
 pedido: primeiro-uso-f1
 branch: melhoria/primeiro-uso
-commit: 38571c0
+commit: 58e9474
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 4
+bugs_medios: 0
 bugs_baixos: 5
 aceite_usuario: sim
 data: 2026-10-13
@@ -100,3 +100,32 @@ Sem teste: CA-1 e CA-3 (texto de skill), mensagem "etapa X de 11" (CA-8, só na 
 
 ## Parecer
 Aprovado para a `develop`, com aceite do usuário para 4 bugs médios e 5 baixos abertos (`aceite_usuario: sim`). Segurança dos atos irreversíveis (privado, confirmação, nunca escrever em repositório alheio ou com conteúdo, sem segredo) está sólida e testada; os defeitos são de experiência de quem não programa. Recomendo corrigir BUG-01, BUG-02 e BUG-04 antes do primeiro uso por alguém de fora (D1 hoje é só o dono).
+
+## Reteste (volta 2, HEAD 58e9474)
+Worktree temporária do HEAD do PR #96, com PATH sem o `gh` real (diretório só com links das ferramentas, sem `gh`), `gh` e `claude` falsos dos testes, HOME temporário. Nada tocou GitHub.
+
+Suíte: `python3 -m unittest discover -s tests`, 310 testes, OK, 92 s, nenhum `skip`. (Uma primeira rodada com PATH incompleto, sem `grep`, falhou por ambiente e foi descartada; a repetição com PATH completo vale.)
+
+### Bugs corrigidos, reproduzidos com os passos originais
+| Bug | Passos | Resultado agora |
+|---|---|---|
+| BUG-01 | `gh api user` falha (sem rede) | "não consegui falar com o GitHub (sem conexão com a internet?). Nada foi criado ainda...", nenhum repositório criado. Resolvido (o erro cru do `gh` ainda aparece antes, aceitável) |
+| BUG-02 | Enter no nome | usa o nome da pasta atual como padrão, já validado; Enter no nome e na pasta chega à confirmação. Resolvido |
+| BUG-04 | `repo create` com 403 | mensagem "falta permissão", nada alterado, opções A (renovar login), B (criar vazio no site e retomar), C (pedir a quem administra). Resolvido |
+| BUG-05 | `Meu Aplicativo`, `Meu Aplicação` | propõe `meu-aplicativo` / `meu-aplicacao` com confirmação; aceitar cria com o nome normalizado, recusar volta a perguntar. Resolvido |
+| BUG-06 | mensagem final, retomada, clone | "ramos de trabalho", retomada "já feito: repositório criado", sem lista Python. Resolvido nos pontos reproduzidos |
+| CA-1 | apresentação | 10 minutos, "nada é criado sem o seu sim" e dica do Enter saem antes da primeira pergunta. Resolvido |
+
+### Matriz de CA atualizada
+CA-1 Ok (`test_apresentacao_vem_antes_da_primeira_pergunta`). CA-3 Parcial (BUG-03, baixo). CA-4 Ok: nome e pasta por Enter, confirmação por "sim" (Enter na confirmação recusa, por CA-5). CA-5 Ok. CA-6 Ok. CA-7 Ok para rede e 403; BUG-08 baixo segue. CA-8 Ok (texto corrigido). CA-9 e CA-10 Ok. CA-2 pendente (medição real, Q2 do UX).
+
+### Regressão
+- Confirmação: Enter e "n" não criam (`gh.log` sem `repo create`); "sim" cria uma vez.
+- Privado: `gh repo create pessoa-teste/meu-app --private` mantido; retomada recusa repositório de fora público ou com conteúdo (testes verdes).
+- Retomada: depois de falha do clone, segunda rodada só faz `repo clone`, sem recriar.
+- Nomes perigosos depois da normalização: `../x`, `a;b`, `..`, `.`, `$(id)` e `x y/z` recusados, nenhum `repo create` disparado.
+
+### Bugs abertos (todos baixos, vão para um cartão próprio)
+BUG-03 (11 interações), BUG-07 (pasta apagada), BUG-08 (sem rede como "sem login"), BUG-09 (repositório vazio existente). Novo, baixo: BUG-10, a pergunta de normalização sai "Pode ser? [sim] [sim]" (colchete duplicado), cosmético.
+
+Reteste: **aprovado**. Nenhum bug crítico, alto ou médio aberto; aceite do usuário mantido para os baixos.
