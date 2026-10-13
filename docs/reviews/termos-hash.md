@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: termos-hash
 branch: melhoria/termos-hash
-commit: 6a79fef
+commit: 5b535a2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -51,3 +51,7 @@ Escopo: `503830f..6a79fef` (commits `a9c0d45`..`6a79fef` do autor): `tests/neutr
 
 ### Pendências (não bloqueiam)
 - Nada novo. O CHANGELOG segue com a entrada no bloco de catraca, antes de "Pendências registradas".
+
+## Revalidação (5b535a2)
+
+Merge da develop: `ff3101d` na branch. Diff próprio do PR idêntico ao revisado em 6a79fef: patch igual nos 12 arquivos de código e docs do PR, conferido contra `d9eb6e2..6a79fef` (o parecer em si mudou só pelo commit `b19e6ee`). Conflito só no CHANGELOG (`git show --cc 5b535a2` lista só esse arquivo). Os demais diffs de `6a79fef..5b535a2` são conteúdo da develop (hooks `vigia`, `jarvis-forge`, bloco novo em `tests/test_forge.py` sem remoção de linha). Parecer mantido: **aprovado**.

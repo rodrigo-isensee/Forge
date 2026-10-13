@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: termos-hash
 branch: melhoria/termos-hash
-commit: 503830f
+commit: 5b535a2
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -31,3 +31,7 @@ Execução em clone descartável da branch; nenhum termo foi gravado em arquivo 
 ## Observações
 - CT-04: o ganho de cobertura com acento é compatível com a especificação (forma normalizada) e não gera falso positivo no fuzz.
 - Sem bugs abertos.
+
+## Revalidação (5b535a2)
+
+Merge da develop: `ff3101d` na branch. Diff próprio do PR idêntico ao revisado em 6a79fef; conflito só no CHANGELOG (`git show --cc 5b535a2` lista só esse arquivo). Sem nova bateria de QA: os testes do PR são os mesmos, e o conteúdo novo vem da develop, já coberto pelos pareceres dela.
