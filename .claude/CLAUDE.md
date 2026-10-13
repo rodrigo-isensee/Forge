@@ -12,7 +12,7 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
 - **Retroalimentação:** melhorias descobertas em qualquer projeto chegam aqui por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
 - **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos` em `tests/config.json` garantem isso.
 - **Regras da fábrica protegidas por teste:** os trechos em `invariantes` (`tests/config.json`) não podem sumir; as regras com ID são verificadas na fonte e os agentes precisam citar o ID. Afrouxar ou remover um item exige destaque no título do PR e o motivo.
-- **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`claude plugin validate . --strict`).
+- **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`scripts/validar-plugin.sh`; o CI roda `claude plugin validate . --strict`).
 - **Versão:** toda mudança que chega à `main` sobe a versão em `.claude-plugin/plugin.json` (SemVer: correção → patch, melhoria compatível → minor, quebra para os projetos → major) e ganha entrada no `CHANGELOG.md`. O CI confere que as duas batem.
 
 ## Estrutura
@@ -25,13 +25,13 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
 | `docs/` | Processo da fábrica: regras com ID (`docs/regras/`), ADRs, melhoria contínua, economia de tokens, padrão de documentação, pesquisa de práticas |
 | `templates/projeto/` | Modelo copiado para cada projeto pelo `bin/forge-init` |
 | `bin/` | `forge-init` (fica no PATH enquanto o plugin está ativo) |
-| `scripts/` | Atalho `jarvis` e o instalador dele |
+| `scripts/` | Atalho `jarvis` e o instalador dele, `validar-plugin.sh` |
 | `tests/` | Testes estruturais (biblioteca padrão do Python) |
 
 ## Como testar localmente
 ```bash
 python3 -m unittest discover -s tests -v
-claude plugin validate . --strict
+scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 claude --plugin-dir . --agent forge:jarvis        # sessão usando esta cópia do Forge
 ```
 

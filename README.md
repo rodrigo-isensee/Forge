@@ -40,6 +40,7 @@ O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) 
 - **Rede:** só GitHub, npm e PyPI; as APIs de modelo (Anthropic, OpenAI, Google) são negadas (`R-CUSTO`). Só `tmux capture-pane`, `tmux ls` e `tmux has-session` rodam fora do sandbox.
 - **Git:** `.git/config` é protegido: use `git push origin <branch>`, não `-u`, e não rode `git config` nem `git branch --set-upstream`. Worktree: `git worktree add --no-track -b <branch> <dir> origin/develop` (com rastreamento o git grava no `.git/config`).
 - **Pasta de contribuição:** o sandbox libera escrita dentro de `~/.forge-contrib/`, mas a pasta pessoal é somente leitura; o usuário cria a pasta uma vez, fora do Claude: `mkdir -p ~/.forge-contrib/wt`.
+- **Validar o plugin:** o ponto de montagem `.mcp.json` faz `claude plugin validate .` falhar na raiz; use `scripts/validar-plugin.sh`, que valida uma cópia limpa (arquivos versionados, com as mudanças do disco) em `$TMPDIR`. O CI continua com o comando direto.
 - **Pontos de montagem:** o bubblewrap cria, na raiz do diretório de trabalho, arquivos e pastas vazios e somente leitura (`.bashrc`, `.gitconfig`, `.forge`, `.claude/hooks` etc.) para cobrir os caminhos protegidos; o `.gitignore` os ignora.
 - **CLI do Claude nos testes:** a chamada tenta `api.anthropic.com` e é bloqueada; é o esperado (`R-CUSTO`).
 - **Conferir:** `/sandbox` na sessão.

@@ -10,7 +10,7 @@ Qualquer pessoa ou agente, em qualquer projeto, pode propor uma melhoria de fáb
 ## Checagens antes do PR
 ```bash
 python3 -m unittest discover -s tests -v
-claude plugin validate . --strict
+scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 scripts/verificar-contribuicao.sh
 ```
 - Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão: ela é decidida na release.

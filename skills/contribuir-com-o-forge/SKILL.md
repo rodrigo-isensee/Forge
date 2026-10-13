@@ -33,7 +33,7 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 ## 5. Antes do PR, no clone de contribuição
 ```bash
 python3 -m unittest discover -s tests -v
-claude plugin validate . --strict
+scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 scripts/verificar-contribuicao.sh        # segredos e caminhos pessoais no diff
 ```
 Falhou? Corrija e rode de novo; o PR só sai com as três verdes.
