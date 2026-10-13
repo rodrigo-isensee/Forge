@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: termos-hash
 branch: melhoria/termos-hash
-commit: a213b8e
+commit: 6a79fef
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -33,3 +33,21 @@ Nenhum.
 
 ## Parecer
 Aprovado. A detecção por hash é equivalente à das regex e não ficou mais fraca; os itens recomendados podem entrar neste PR ou em seguida, a critério do autor.
+
+## Revalidação (6a79fef)
+
+Escopo: `503830f..6a79fef` (commits `a9c0d45`..`6a79fef` do autor): `tests/neutralidade.py` incluído em `PROTEGIDOS` (`tests/catraca.py`), teste `test_detector_de_neutralidade_e_protegido`, e a frase da ADR 0008, seção 5, com o limite do hash. Suíte: 190 testes verdes. Parecer: **aprovado**.
+
+| Achado | Situação | Evidência |
+|---|---|---|
+| Recomendado 1: `tests/neutralidade.py` fora de `PROTEGIDOS` | corrigido | `PROTEGIDOS` inclui `tests/neutralidade.py`; o teste novo troca `normalizar` sem rótulo e espera `R-CONFORMIDADE` com `mudança em tests/neutralidade.py`; contra o `tests/catraca.py` de `503830f` o teste falha (cobertura real, não só verde) |
+| Recomendado 2: limite do hash (termo curto e `n`) | corrigido | ADR 0008, seção 5, item (a): força bruta sobre hash sem sal de termo curto e sobre `n` (tamanho em caracteres, ou par de tamanhos), declarado como proteção contra leitura casual, com o histórico condicionado ao item (b). Conferido em `tests/config.json`: `n` é o tamanho, então a descrição está certa |
+| Observação: regra nova fora do formato antigo barra na transição | mantida | aceitável, como antes |
+
+### Verificações
+- Nenhum termo novo em claro: a frase da ADR e a entrada do CHANGELOG falam em "termo curto" e no campo `n`, sem citar nenhum termo.
+- Editar `tests/neutralidade.py` sem o rótulo e a ADR barra com `R-CONFORMIDADE`; o teste confere a mensagem.
+- Sem alteração de detecção: o diff não toca `tests/neutralidade.py` nem `tests/config.json`.
+
+### Pendências (não bloqueiam)
+- Nada novo. O CHANGELOG segue com a entrada no bloco de catraca, antes de "Pendências registradas".
