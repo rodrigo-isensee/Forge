@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 49df362
+commit: 0432563
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -71,3 +71,16 @@ Diff `901bc91..49df362` (etapa 2 do sandbox e SBX-03). `SandboxDoBash` passa (11
 
 ## Veredito da revalidação
 **Aprovado** para a etapa 2 e a correção do SBX-03. N5 e N6 devem ser confirmados pelo QA antes do merge (podem virar texto no README ou cartão); N7 a N9 são recomendados. Quem mescla é o tech-lead depois do parecer do QA.
+
+## Revalidação (0432563)
+Diff `384df8b..0432563` (decisão N6). `SandboxDoBash` passa (10 testes).
+
+| Foco | Situação | Nota |
+|---|---|---|
+| Coerência com N6 | ok | `denyWrite` fica só com `.forge/` (nenhum arquivo versionado sob ele). Resolve N6 (git `pull/checkout/merge/rebase` travando no checkout principal) e deixa de lado N5 (não valia nas worktrees). README, CHANGELOG e ADR 0009 (seção 5, tabela e nota "Ajuste da implementação (N6)") dizem o mesmo. |
+| Honestidade da ADR | ok, com ressalva | A ADR admite o limite (SBX-03): o Bash pode gravar em `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md`. Ressalva (recomendado, N10): as linhas da matriz passaram de [I] para [B], mas o hook `conformidade` age sobre Write/Edit e comandos reconhecidos, não sobre qualquer redirecionamento do shell; o que cobre de fato a escrita por Bash é o registro de autoria e o PR revisado (detecção, [D]) e a catraca do CI só para os arquivos de proteção. Sugiro ajustar o rótulo para "[B] no Write/Edit; [D] no Bash" nas duas linhas afetadas. Não bloqueia: o texto da nota já descreve o limite. |
+| Teste novo | ok | `test_deny_write_so_estado_nao_versionado` cruza cada entrada de `denyWrite` com `git ls-files` (arquivo exato ou prefixo de diretório) e falha se cobrir caminho versionado, além de exigir `.forge/`. Substitui os dois testes que travavam o contrário; impede a regressão. |
+| Nada mais afrouxado | ok | O diff de `.claude/settings.json` só remove entradas de `denyWrite`; `denyRead`, `deniedDomains`, `allowUnsandboxedCommands` e `failIfUnavailable` intactos, e os testes que os cobrem seguem verdes. |
+
+## Veredito da revalidação (0432563)
+**Aprovado.** N10 é recomendado (texto da ADR); N7 a N9 seguem como antes. Quem mescla é o tech-lead depois do parecer do QA.
