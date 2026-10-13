@@ -18,6 +18,7 @@ from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from neutralidade import termos_achados  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -202,12 +203,24 @@ class Neutralidade(unittest.TestCase):
     """A fábrica serve N projetos: nada de nomes ou regras de um projeto específico."""
 
     def test_sem_termos_de_projeto(self):
-        termos = [re.compile(t, re.I) for t in CONFIG["termos_proibidos"]]
+        entradas = CONFIG["termos_proibidos_hash"]
         for p in arquivos_texto():
             texto = p.read_text(encoding="utf-8", errors="ignore")
-            for t in termos:
-                with self.subTest(arquivo=str(p.relative_to(RAIZ)), termo=t.pattern):
-                    self.assertIsNone(t.search(texto))
+            with self.subTest(arquivo=str(p.relative_to(RAIZ))):
+                self.assertEqual(termos_achados(texto, entradas), set(), "termo de projeto (compare por hash em tests/config.json)")
+
+    def test_detector_por_hash(self):
+        """Sem o nome em claro: monta a entrada a partir de uma palavra neutra e confere cada tipo de casamento."""
+        sha = lambda s: hashlib.sha256(s.encode()).hexdigest()
+        palavra = [{"tipo": "palavra", "n": 5, "sha256": sha("zebra")}]
+        trecho = [{"tipo": "trecho", "n": 5, "sha256": sha("zebra")}]
+        par = [{"tipo": "par", "n": [2, 3], "sha256": sha("zebra")}]
+        self.assertTrue(termos_achados("a Zebra.", palavra))
+        self.assertFalse(termos_achados("zebras", palavra))
+        self.assertTrue(termos_achados("minhaZEBRAs", trecho))
+        self.assertTrue(termos_achados("ze bra", par) and termos_achados("zebra", trecho))
+        self.assertFalse(termos_achados("ze  bra", par))
+        self.assertFalse(termos_achados("ze-bra", par))
 
 
 class NeutralidadeDoNucleo(unittest.TestCase):

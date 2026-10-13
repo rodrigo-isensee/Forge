@@ -66,15 +66,18 @@
     "agente": 110,
     "skill": 133
   },
-  "termos_proibidos": [
-    "Metricas ?DSPD",
-    "\\bDSPD\\b",
-    "BusinessMap",
-    "Acelerato",
-    "SistemaPonto",
-    "\\bSSSC\\b",
-    "Siegard",
-    "\\bFL[123]\\b"
+  "termos_proibidos_hash": [
+    {"tipo": "trecho", "n": 12, "sha256": "6a11a20159d5eba95840b858daa284b017c5f08574766b1c23b934a37fe76abb"},
+    {"tipo": "par", "n": [8, 4], "sha256": "6a11a20159d5eba95840b858daa284b017c5f08574766b1c23b934a37fe76abb"},
+    {"tipo": "palavra", "n": 4, "sha256": "91a59d959ff9cf9935f9b3d23e00a43c927e3e03e31e834c7cd61eb18af0a9ab"},
+    {"tipo": "trecho", "n": 11, "sha256": "0c17e21c783a18021c905f9616ed8bc86880d956a3c6999ee8903404e6343196"},
+    {"tipo": "trecho", "n": 9, "sha256": "a29cbd4b18898d45e8959793789c15b25229547bc79b991a37f54ac6afd7de67"},
+    {"tipo": "trecho", "n": 12, "sha256": "8657c17bb38c7ac2380b831835c62728a1d8ad6d7252e34e4c0076582339c5ba"},
+    {"tipo": "palavra", "n": 4, "sha256": "d05b77f108bc8c95e2cdb960a2ef1b071088a21f3f53e9d1c46bc4977ef9ac34"},
+    {"tipo": "trecho", "n": 7, "sha256": "6bff709e40e583c408e0585e149a68b4f368268b384189bce6194ebcf3800684"},
+    {"tipo": "palavra", "n": 3, "sha256": "887539ae032b612757c3db85abb59a5021d6258e6238fe40556103f404d33dc0"},
+    {"tipo": "palavra", "n": 3, "sha256": "227467f082ea66c3f9419cc76615ad680d56c5c167a7accbee3b4a9c94cb196e"},
+    {"tipo": "palavra", "n": 3, "sha256": "12c243f2ea0b6bc32902e349799d84f41c84822a39f2ce447bb1831eb4102ab7"}
   ],
   "anti_duplicacao": {
     "palavras": 12,

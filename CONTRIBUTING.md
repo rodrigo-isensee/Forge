@@ -15,7 +15,7 @@ scripts/verificar-contribuicao.sh
 ```
 - Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão: ela é decidida na release.
 - Neutralidade: nada de nome, regra de negócio, dado pessoal ou trecho de código do projeto de origem.
-- Não afrouxe `invariantes` nem `termos_proibidos` de `tests/config.json` sem destacar no título do PR e explicar o motivo.
+- Não afrouxe `invariantes` nem `termos_proibidos_hash` de `tests/config.json` sem destacar no título do PR e explicar o motivo.
 - Nada que custe dinheiro entra sem autorização expressa do usuário.
 
 ## Texto do PR
