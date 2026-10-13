@@ -7,7 +7,7 @@ flags proibidas (`--no-verify`, `--force`, `core.hooksPath`). Write/Edit decidem
 (garantido); o Bash é lido como texto (barrado em regra: um script ou ofuscação passa, e o sandbox é a garantia).
 PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
-Só age em projeto com `.forge/versao`.
+Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
 import hashlib
 import json
@@ -109,10 +109,11 @@ def tirar_heredocs(comando):
     return "\n".join(saida), corpos
 
 
-def sem_lancadores(palavras):
+def separar_lancadores(palavras):
     """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
-    deles, para classificar o comando de verdade; opções do comando seguinte não se perdem."""
-    palavras = sem_atribuicoes(palavras)
+    deles, para classificar o comando de verdade; opções do comando seguinte não se perdem. Devolve (comando,
+    atribuições feitas pelos lançadores): `env GH_REPO=x gh ...` passa a variável ao `gh` como `GH_REPO=x gh ...`."""
+    palavras, lancadas = sem_atribuicoes(palavras), []
     while palavras and Path(palavras[0]).name in LANCADORES:
         nome, com_valor = Path(palavras[0]).name, LANCADORES[Path(palavras[0]).name]
         i = 1
@@ -125,8 +126,20 @@ def sem_lancadores(palavras):
                 i += 1
         if nome == "timeout" and i < len(palavras):
             i += 1  # a duração
-        palavras = sem_atribuicoes(palavras[i:])
-    return palavras
+        resto = sem_atribuicoes(palavras[i:])
+        lancadas += palavras[i:len(palavras) - len(resto)]
+        palavras = resto
+    return palavras, lancadas
+
+
+def sem_lancadores(palavras):
+    return separar_lancadores(palavras)[0]
+
+
+def exporta(palavras):
+    """`export`, `declare -x` e `typeset -x` passam as variáveis aos comandos seguintes."""
+    return palavras[:1] == ["export"] or palavras[:1] in (["declare"], ["typeset"]) and any(
+        re.fullmatch(r"-[a-zA-Z]*x[a-zA-Z]*", p) for p in palavras[1:])
 
 
 class Guarda:
@@ -134,7 +147,7 @@ class Guarda:
         self.h, self.pol, self.papel = hook, politica, papel
         self._ramo = None
         self._forge = None
-        self.externo = None  # nome do clone: sessão tratada como de outro projeto, sem raiz que o prove (R-CONTRIB)
+        self.externo = None  # nome da sessão de outro projeto (prefixo `melhoria/<nome>-`), quando vem da raiz dela
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
 
     # Respostas -------------------------------------------------------------------------------
@@ -157,10 +170,10 @@ class Guarda:
     @property
     def projeto(self):
         """Nome do projeto da sessão: o prefixo próprio das branches de contribuição é `melhoria/<nome>-`."""
-        return self.externo or self.h.raiz.name
+        return self.h.raiz.name if self.externo is None else self.externo
 
     def clone_do_forge(self):
-        if self.externo:
+        if self.externo is not None:
             return False
         if self._forge is None:
             self._forge = parecer.e_clone_do_forge(self.h.raiz)
@@ -270,11 +283,13 @@ class Guarda:
     def segmento(self, palavras, pasta, ramos, nivel):
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`)."""
         atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
+        palavras, lancadas = separar_lancadores(palavras)
+        atribuicoes += lancadas
         for a in atribuicoes:
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
-        palavras = sem_lancadores(palavras)
-        definidas = palavras[1:] if palavras[:1] == ["export"] else [] if palavras else atribuicoes
+        definidas = [p for p in palavras[1:] if not p.startswith("-")] if exporta(palavras) else \
+            [] if palavras else atribuicoes
         for a in definidas:
             nome, _, valor = a.partition("=")
             if nome in ("GH_REPO", "GIT_DIR") and valor:
@@ -610,24 +625,42 @@ def alvos_de_escrita(comando):
     return alvos
 
 
-def sessao_no_clone_de_contribuicao(hook):
-    """R-CONTRIB: a sessão de um projeto que trabalha dentro de `~/.forge-contrib/<projeto>` (a pasta corrente passa
-    de uma chamada para a outra) tem `cwd` sem `.forge/versao`; a raiz dela vem de `CLAUDE_PROJECT_DIR`, que o Claude
-    Code define para os hooks. As worktrees `wt/*` são da sessão do Forge e ficam de fora. Devolve False se a
-    chamada não é dessa sessão; None se a raiz foi achada (já em `hook.raiz`); o nome do clone, sem a variável
-    (falha fechado, como projeto de nome igual ao do clone)."""
-    contrib = Path(os.path.realpath(Path.home() / ".forge-contrib"))
-    cwd = Path(os.path.realpath(hook.cwd()))
-    if contrib not in cwd.parents:
-        return False
-    nome = cwd.relative_to(contrib).parts[0]
-    if nome == "wt":
-        return False
+def raiz_declarada():
+    """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
+    subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
     raiz = os.environ.get("CLAUDE_PROJECT_DIR")
-    if raiz and Path(raiz).is_absolute():
-        return None if hook.projeto(Path(raiz)) else False  # o Forge sem `.forge/versao` ou projeto alheio ao Forge
-    hook.raiz = contrib / nome
-    return nome
+    return Path(raiz) if raiz and Path(raiz).is_absolute() else None
+
+
+def identificar_sessao(hook):
+    """R-CONTRIB: quem é a sessão vem da raiz dela, não da pasta corrente (que passa de uma chamada para a outra).
+    - Raiz no Forge (clone do próprio Forge): regras da sessão do Forge; o hook só age dentro de um projeto, pela
+      pasta corrente, como sempre.
+    - Raiz num projeto do Forge: as regras dele e as de contribuição valem em qualquer pasta (o próprio projeto, o
+      clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em `hook.raiz`, ou a do projeto
+      onde a pasta está, se houver.
+    - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
+      outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
+    Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
+    cwd, raiz = hook.cwd(), raiz_declarada()
+    if raiz and parecer.e_clone_do_forge(raiz):
+        return None if hook.projeto(cwd) else False
+    if raiz and raiz_do_projeto(raiz):
+        if not hook.projeto(raiz):  # o projeto desligou o hook: só a pasta corrente, se for outro projeto
+            return None if hook.projeto(cwd) else False
+        nome = hook.raiz.name
+        if not hook.projeto(cwd):
+            hook.projeto(raiz)
+        return nome
+    if hook.projeto(cwd):
+        return None
+    contrib, pasta = Path(os.path.realpath(Path.home() / ".forge-contrib")), Path(os.path.realpath(cwd))
+    if contrib != pasta and contrib not in pasta.parents:
+        return False
+    partes = pasta.relative_to(contrib).parts
+    clone = partes[:2] if partes and (partes[0] == "wt" or partes[0].endswith("-wt")) else partes[:1]
+    hook.raiz = contrib.joinpath(*clone)
+    return partes[0].removesuffix("-wt") if partes and partes[0] != "wt" else ""
 
 
 def principal(hook):
@@ -635,11 +668,9 @@ def principal(hook):
     entrada = hook.campo("tool_input")
     if not isinstance(entrada, dict) or (ferramenta != "Bash" and ferramenta not in FERRAMENTAS_DE_ARQUIVO):
         return
-    externo = None
-    if not hook.projeto(hook.cwd()):
-        externo = sessao_no_clone_de_contribuicao(hook) if ferramenta == "Bash" else False
-        if externo is False:
-            return
+    externo = identificar_sessao(hook)
+    if externo is False:
+        return
     pol = politica()
     guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
     guarda.externo = externo

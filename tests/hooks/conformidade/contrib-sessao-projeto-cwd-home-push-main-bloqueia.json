@@ -1,0 +1,23 @@
+{
+  "descricao": "Sessão de projeto com cwd em ~: push do projeto para a main bloqueia (R-MAIN).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C {tmp}/proj push origin main"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: push direto para main"
+  }
+}

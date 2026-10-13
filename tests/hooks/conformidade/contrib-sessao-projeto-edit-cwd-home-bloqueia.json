@@ -1,0 +1,27 @@
+{
+  "descricao": "Sessão de projeto com cwd em ~: Edit de parecer pelo dev bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/reviews/x.md": "a\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{tmp}/proj/docs/reviews/x.md",
+      "old_string": "a",
+      "new_string": "b"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev",
+    "cwd": "{tmp}/home"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

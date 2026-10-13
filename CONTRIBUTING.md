@@ -4,7 +4,7 @@ Qualquer pessoa ou agente, em qualquer projeto, pode propor uma melhoria de fáb
 
 ## Como
 1. Use um clone próprio (`~/.forge-contrib/<projeto>`), nunca uma worktree de outro clone nem o cache do plugin.
-2. Com acesso de escrita: branch `melhoria/<assunto>` a partir da `develop` atualizada (`git switch --no-track -c`; envio com `git push origin <branch>`, sem `-u`; worktrees em `~/.forge-contrib/wt/`, com `git worktree add --no-track`). Sem acesso: fork (`gh repo fork`) e a mesma branch no fork.
+2. Com acesso de escrita: branch `melhoria/<assunto>` a partir da `develop` atualizada (`git switch --no-track -c`; envio com `git push origin <branch>`, sem `-u`; worktrees com `git worktree add --no-track`: em `~/.forge-contrib/wt/` na sessão do Forge, em `~/.forge-contrib/<projeto>-wt/` na de outro projeto). Sem acesso: fork (`gh repo fork`) e a mesma branch no fork.
 3. Uma melhoria por PR, com o PR **para a `develop`**. Nunca envie para `develop`, `homolog` ou `main`; a `main` só muda por PR mesclado pelo usuário.
 
 ## Checagens antes do PR

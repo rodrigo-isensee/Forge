@@ -1,0 +1,22 @@
+{
+  "descricao": "Sessão de projeto no próprio clone: push da própria branch e PR para o Forge liberam.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/proj-tema && gh pr create --base develop --title t --body-file x.md -R rodrigo-isensee/Forge"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
