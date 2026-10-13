@@ -5,7 +5,8 @@ Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efeti
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
-último push. Eventos vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
+último push, ou cujo diff efetivo (merge-base, fora de `docs/reviews/` e `docs/qa/`) não mudou desde o rótulo. Eventos e
+execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
 do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
 import argparse
@@ -19,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime
 from importlib.machinery import SourceFileLoader
@@ -29,6 +31,8 @@ from neutralidade import normalizar  # noqa: E402
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
+PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
 PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
@@ -407,25 +411,71 @@ def instante(texto):
     return datetime.fromisoformat(texto.replace("Z", "+00:00"))
 
 
-def rotulo_liberado(eventos, dono, ultimo_push):
-    """True se o último evento do rótulo é `labeled` pelo dono e posterior ao último push."""
+def rotulo_do_dono(eventos, dono):
+    """O último evento do rótulo, se for `labeled` pelo dono; senão None."""
     ultimo = None
     for e in sorted((e for e in eventos if (e.get("label") or {}).get("name") == ROTULO
                      and e.get("event") in ("labeled", "unlabeled")), key=lambda e: e["created_at"]):
         ultimo = e
-    if not ultimo or ultimo["event"] != "labeled" or not dono:
-        return False
-    return (ultimo.get("actor") or {}).get("login") == dono and instante(ultimo["created_at"]) > instante(ultimo_push)
+    if not ultimo or ultimo["event"] != "labeled" or not dono or (ultimo.get("actor") or {}).get("login") != dono:
+        return None
+    return ultimo
+
+
+def rotulo_liberado(eventos, dono, ultimo_push):
+    """True se o último evento do rótulo é `labeled` pelo dono e posterior ao último push."""
+    ultimo = rotulo_do_dono(eventos, dono)
+    return bool(ultimo) and instante(ultimo["created_at"]) > instante(ultimo_push)
+
+
+def commit_do_rotulo(eventos, execucoes, numero, dono):
+    """SHA do head do PR no instante em que o dono aplicou o rótulo; None se não der para saber com segurança.
+
+    Instantes só do servidor: o head vigente é o da última execução `pull_request` deste PR criada antes do rótulo.
+    Falha fechada se o mesmo head não tem execução depois do rótulo (a do próprio `labeled`; sem ela, o head do
+    instante do rótulo pode não ter execução, como com `[skip ci]`) ou se a branch foi reescrita depois dele.
+    """
+    rotulo = rotulo_do_dono(eventos, dono)
+    if not rotulo:
+        return None
+    t = instante(rotulo["created_at"])
+    do_pr = [e for e in execucoes if e.get("event") == "pull_request" and e.get("head_sha") and e.get("created_at")
+             and any(str(p.get("number")) == str(numero) for p in e.get("pull_requests") or [])]
+    antes = [e for e in do_pr if instante(e["created_at"]) < t]
+    if not antes:
+        return None
+    vigente = max(antes, key=lambda e: instante(e["created_at"]))
+    sha, desde = vigente["head_sha"], instante(vigente["created_at"])
+    if not any(e["head_sha"] == sha and instante(e["created_at"]) >= t for e in do_pr):
+        return None
+    if any(e.get("event") in REESCRITA and instante(e["created_at"]) > desde for e in eventos):
+        return None
+    return sha
+
+
+def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono):
+    """True se o diff efetivo do head (merge-base com a base, fora dos pareceres) é o do head no instante do rótulo."""
+    sha = commit_do_rotulo(eventos, execucoes, numero, dono)
+    return bool(sha) and forge_check().mesmo_diff(raiz, base, sha, head, PARECERES)
+
+
+def requisicao(caminho, token):
+    req = urllib.request.Request(f"https://api.github.com{caminho}",
+                                 headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        return json.load(r)
+
+
+def api_objeto(caminho, token):
+    """GET de um recurso único (ex.: o PR)."""
+    return requisicao(caminho, token)
 
 
 def api(caminho, token, chave=None):
     """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`)."""
     itens, pagina = [], 1
     while True:
-        req = urllib.request.Request(f"https://api.github.com{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}",
-                                     headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            lote = json.load(r)
+        lote = requisicao(f"{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}", token)
         lote = lote[chave] if chave else lote
         itens += lote
         if len(lote) < 100:
@@ -450,6 +500,18 @@ def eventos_do_github():
         return None, None
     datas = [e["created_at"] for e in execucoes if e.get("head_sha", head) == head and e.get("created_at")]
     return eventos, (min(datas, key=instante) if datas else None)
+
+
+def execucoes_do_pr():
+    """Execuções `pull_request` da branch do PR via API; None sem token, repositório ou número, ou se a API falhar."""
+    token, repo, numero = (os.environ.get(k) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER"))
+    if not (token and repo and numero):
+        return None
+    try:
+        ramo = api_objeto(f"/repos/{repo}/pulls/{numero}", token)["head"]["ref"]
+        return api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
 
 
 # --- Outros modos -----------------------------------------------------------------------------------------
@@ -509,7 +571,7 @@ def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
         return []
     fc, achados = forge_check(), []
     for ped in fc.pedidos_da_branch(Path(raiz), ramo, head):
-        linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head) if l.strip()]
+        linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base) if l.strip()]
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         if not linhas:
@@ -542,6 +604,8 @@ def main(argv=None):
     ap.add_argument("--autor", default=os.environ.get("PR_AUTOR", ""), help="login do autor do PR")
     ap.add_argument("--eventos", help="JSON com os eventos da issue (testes); ignora a API")
     ap.add_argument("--ultimo-push", help="instante ISO do último push (com --eventos)")
+    ap.add_argument("--execucoes", help="JSON com as execuções do Actions do PR (testes, com --eventos); ignora a API")
+    ap.add_argument("--pr", default=os.environ.get("PR_NUMBER", ""), help="número do PR")
     a = ap.parse_args(argv)
     raiz = Path(a.raiz).resolve()
     if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):
@@ -560,9 +624,17 @@ def main(argv=None):
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json") or json_de(raiz, a.head, "tests/config.json") or {}
             custo = [x for x in viol if x.startswith("R-CUSTO:")]  # só `custo_permitido` abre exceção de custo, nunca o rótulo
-            if not custo and eventos is not None and push and rotulo_liberado(eventos, cfg.get("dono"), push):
-                resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono: {len(viol)} violação(ões) aceita(s)"] + viol)
-                print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono.")
+            dono, liberado = cfg.get("dono"), None
+            if not custo and eventos is not None:
+                if push and rotulo_liberado(eventos, dono, push):
+                    liberado = "aplicado depois do último push"
+                else:
+                    execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
+                    if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono):
+                        liberado = "diff efetivo igual ao do instante do rótulo"
+            if liberado:
+                resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
+                print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
                 return 0
     for v in viol:
         print(v)
