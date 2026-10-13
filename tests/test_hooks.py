@@ -9,6 +9,8 @@ Formato do fixture:
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
               | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
+  proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": número} ou {"ausente": true}
+              (padrão: load 5, 3 GB livres, ou seja, teto adaptativo 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
@@ -122,9 +124,25 @@ class Fixture:
             p.write_text(substituir(texto(conteudo), mapa, 0), encoding="utf-8")
 
 
-def rodar(hook, entrada, cwd):
+def montar_proc(tmp, proc):
+    """/proc simulado em tmp/proc (FORGE_PROC); `{"ausente": true}` aponta para uma pasta sem os arquivos."""
+    pasta = tmp / "proc"
+    pasta.mkdir()
+    proc = proc or {"loadavg": "5.00 5.00 5.00 1/100 1", "mem_gb": 3}
+    if not proc.get("ausente"):
+        (pasta / "loadavg").write_text(proc["loadavg"] + "\n", encoding="utf-8")
+        kb = int(proc["mem_gb"] * 1024 * 1024)
+        (pasta / "meminfo").write_text(f"MemTotal:       16000000 kB\nMemFree:  1 kB\nMemAvailable:   {kb} kB\n",
+                                       encoding="utf-8")
+    return pasta
+
+
+def rodar(hook, entrada, cwd, proc=None):
+    env = ambiente_limpo()
+    if proc is not None:
+        env["FORGE_PROC"] = str(proc)
     return subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=json.dumps(entrada), cwd=cwd,
-                          env=ambiente_limpo(), capture_output=True, text=True, timeout=30)
+                          env=env, capture_output=True, text=True, timeout=30)
 
 
 class Hooks(unittest.TestCase):
@@ -141,7 +159,7 @@ class Hooks(unittest.TestCase):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
                 self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
                 raiz, entrada = f.montar(tmp, outro.pid)
-                r = rodar(f.hook, entrada, raiz)
+                r = rodar(f.hook, entrada, raiz, montar_proc(tmp, f.dados.get("proc")))
                 esperado = f.dados["esperado"]
                 self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
                 self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -199,6 +217,24 @@ class Hooks(unittest.TestCase):
         self.assertEqual(usados, {f.hook for f in self.fixtures})
         matchers = {g.get("matcher") for g in d["hooks"]["PreToolUse"]}
         self.assertIn("Agent|Task", matchers)
+
+    def test_medicao_do_proc_real_nao_quebra(self):
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        carga, memoria = agentes.medir()
+        self.assertTrue(carga is None or carga >= 0)
+        self.assertTrue(memoria is None or memoria > 0)
+        self.assertEqual(agentes.medir(Path("/nao/existe")), (None, None))
+
+    def test_faixas_do_teto_adaptativo(self):
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        casos = [((1, 6), 5), ((2.9, 4.1), 5), ((3, 6), 4), ((3.9, 3.1), 4), ((4, 6), 3), ((3.5, 3), 3),
+                 ((6, 8), 3), ((6.1, 8), 2), ((0.1, 1.9), 2), ((0.1, 2), 3), ((1, 4), 4)]
+        for (carga, memoria), esperado in casos:
+            with self.subTest(carga=carga, memoria=memoria):
+                self.assertEqual(agentes.teto_adaptativo(carga, memoria), esperado)
+        self.assertEqual(agentes.teto_adaptativo(None, 6), 3)
 
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
