@@ -46,7 +46,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 | Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
 
 ### 4. Em vigor × proposta
-- **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (worktree de `origin/develop` em diretório próprio, `denyWrite`), atualizada só pelo script depois de um merge; `--plugin-dir .` fica para teste manual do dono.
+- **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (clone, não worktree, de `origin/develop` em diretório próprio, `denyWrite`; o worktree compartilharia o `.git/config` com o repositório de trabalho), atualizada só pelo script depois de um merge; `--plugin-dir .` fica para teste manual do dono.
 - **Proposta** é o mesmo arquivo numa branch `melhoria/*`; entra só por PR, com pareceres, a `catraca`, o rótulo do dono quando afrouxar e, na `main`, o merge do usuário.
 - Nos **projetos**, `.claude/**` e `.forge/config.json` são do usuário: o agente propõe o diff, o usuário aplica. O `CLAUDE.md` do projeto é do `jarvis` (ver o ajuste da implementação abaixo).
 
