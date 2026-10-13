@@ -1124,6 +1124,8 @@ class Transcricoes(unittest.TestCase):
 
     def test_contorno(self):
         self.assertEqual(self.caso("contorno-ok.jsonl"), (0, ""))
+        cod, saida = self.caso("contorno-encaminhado.jsonl")  # o papel certo refaz a ação: só a 1ª tentativa é achado
+        self.assertEqual((cod, saida.count("\n"), "R-CONFORMIDADE.papel" in saida, "contorno" in saida), (1, 1, True, False))
         self.esperado(
             "contorno-viola.jsonl",
             "R-CONFORMIDADE.contorno: `flag --no-verify` barrado (evento 4) e tentado de novo por script (evento 6)",
@@ -1233,6 +1235,51 @@ class Transcricoes(unittest.TestCase):
         for c in ("git config core.hooksPath /dev/null", "git config --global core.hooksPath .githooks",
                   "git -c core.hooksPath=/dev/null config core.hooksPath .githooks"):
             self.assertIn("flag core.hooksPath", self.tokens(c), c)
+
+    def test_forca_direta_e_refspec_com_mais(self):
+        self.assertEqual(self.tokens("git push -f origin x", "git push origin +x", "git push --force-with-lease origin x"),
+                         ["git push --force <branch>"] * 3)
+
+    def test_pip_com_arquivo_e_instalacao_congelada(self):
+        self.assertEqual(self.tokens("pip install -r requirements.txt", "pip install --requirement r.txt",
+                                     "pip install -r r.txt pacote", "pip install pacote"),
+                         ["pacote congelado", "pacote congelado", "pacote instalar", "pacote instalar"])
+
+    def test_heredoc_so_com_delimitador_valido_e_fechado(self):
+        # deslocamento de bits, <<< e heredoc sem fechamento não escondem o comando seguinte
+        for c in ("python3 -c 'print(1 << 2)' && git push --force origin x", "python3 -c 'print(1 << 2)'\ngit push -f origin x",
+                  "cat <<< oi && git push -f origin x", "cat <<EOF\ngit push -f origin x"):
+            self.assertIn("git push --force <branch>", self.tokens(c), c)
+        self.assertEqual(self.tokens("cat <<-'FIM'\n\tgit push -f origin x\n\tFIM\ngit status"), [])  # corpo do heredoc não é comando
+
+    def test_so_forge_nao_vale_no_verificador(self):
+        eventos = [{"ev": "escrita", "t": "", "alvo": "tests/hooks/", "copia": False, "arq": "", "flags": [], "via": "Write", "ator": "<agente>"},
+                   {"ev": "escrita", "t": "", "alvo": "docs/reviews/", "copia": False, "arq": "", "flags": [], "via": "Write", "ator": "<agente>"}]
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "t.jsonl"
+        arq.write_text("\n".join(json.dumps(l) for l in [{"formato": "forge-transcricao/1", "origem": "x"}, *eventos]) + "\n", encoding="utf-8")
+        cod, saida = self.rodar("verificar", str(arq))
+        self.assertEqual(cod, 1)
+        self.assertNotIn("tests/hooks/", saida)
+        self.assertIn("docs/reviews/", saida)
+
+    def test_exit_2_generico_nao_e_bloqueio(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+
+        def sessao(texto):
+            brutos = [{"type": "assistant", "timestamp": "2026-01-01T10:00:00Z", "message": {"content": [
+                {"type": "tool_use", "id": "b1", "name": "Bash", "input": {"command": "git push --no-verify origin x"}}]}},
+                {"type": "user", "timestamp": "2026-01-01T10:00:01Z", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": "b1", "is_error": True, "content": texto}]}}]
+            e, s = tmp / "e.jsonl", tmp / "s.jsonl"
+            e.write_text("\n".join(json.dumps(b) for b in brutos), encoding="utf-8")
+            self.assertEqual(self.rodar("anonimizar", str(e), str(s))[0], 0)
+            return [x["ev"] for x in map(json.loads, s.read_text(encoding="utf-8").splitlines()[1:])]
+
+        self.assertNotIn("bloqueio", sessao("Error: Exit code 2\ngrep: x: No such file"))
+        self.assertIn("bloqueio", sessao("Error: Exit code 2\nR-VERIFY: git push --no-verify"))
 
     def test_linha_malformada_vira_violacao(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))

@@ -308,7 +308,7 @@ FLAGS_PROIBIDAS = {"--no-verify": re.compile(r"--no-verify\b"),
 EXT_SCRIPT = {".sh", ".bash", ".zsh", ".py", ".rb", ".pl", ""}
 INTERPRETES = {"bash", "sh", "zsh", "python", "python3", "ruby", "perl", "source", "."}
 FERRAMENTAS_ESCRITA = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
-BLOQUEIO_HOOK = re.compile(r"blocking error|exit code 2|(?:PreToolUse|hook)[^\n]{0,80}(?:block|den(?:y|ied))", re.I)
+BLOQUEIO_HOOK = re.compile(r"blocking error|exit code 2\W+(?-i:R-[A-Z])|(?:PreToolUse|hook)[^\n]{0,80}(?:block|den(?:y|ied))", re.I)
 BLOQUEIO_PERMISSAO = re.compile(r"permission[^\n]{0,60}(?:denied|not allowed)|was denied|doesn't want to proceed|"
                                 r"requires approval|not allowed to use", re.I)
 OPCAO = re.compile(r"^\s*(?:[-*]\s+)?(?:\*\*)?(?:op[cç][aã]o\s+\w+|\(?[A-Da-d]\)|[A-Da-d][.)]|\d[.)])\s", re.I | re.M)
@@ -345,18 +345,37 @@ def marcar_agente(tipo):
     return tipo if tipo.startswith("forge:") and re.fullmatch(r"forge:[a-z0-9-]+", tipo) or tipo in AGENTES_GENERICOS else "<agente>"
 
 
+HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\1")
+
+
+def delimitador_heredoc(linha):
+    """Delimitador do heredoc aberto na linha (`<<EOF`, `<<-EOF`, `<<'EOF'`), ou None. `<<<`, deslocamento de bits
+    (`1 << 2`) e `<<` entre aspas não abrem heredoc."""
+    for m in HEREDOC.finditer(linha):
+        antes = linha[:m.start()]
+        if antes.count("'") % 2 == 0 and antes.count('"') % 2 == 0:
+            return m.group(2)
+    return None
+
+
+def separar_heredocs(texto):
+    """(linhas fora dos heredocs, linhas dentro). Só vale como heredoc o que tem a linha de fechamento; sem ela,
+    o resto do comando continua sendo comando e não fica escondido."""
+    linhas, fora, dentro, i = texto.split("\n"), [], [], 0
+    while i < len(linhas):
+        fora.append(linhas[i])
+        fim = delimitador_heredoc(linhas[i])
+        i += 1
+        fechamento = next((k for k in range(i, len(linhas)) if linhas[k].strip() == fim), None) if fim else None
+        if fechamento is not None:
+            dentro.extend(linhas[i:fechamento])
+            i = fechamento + 1
+    return fora, dentro
+
+
 def comandos_de(texto):
     """Divide um comando de shell em segmentos de palavras (aspas e heredocs respeitados, sem executar nada)."""
-    linhas, fim_heredoc, limpo = texto.split("\n"), None, []
-    for linha in linhas:
-        if fim_heredoc is not None:
-            if linha.strip() == fim_heredoc:
-                fim_heredoc = None
-            continue
-        limpo.append(linha)
-        m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?", linha)
-        if m:
-            fim_heredoc = m.group(1)
+    limpo = separar_heredocs(texto)[0]
     segmentos, palavras, atual, aspas, i, s = [], [], "", None, 0, "\n".join(limpo)
     tem = False
 
@@ -401,18 +420,7 @@ def comandos_de(texto):
 
 def corpos_heredoc(texto):
     """Conteúdo dos heredocs do comando (só para procurar flags proibidas; nunca é guardado)."""
-    corpos, fim = [], None
-    for linha in texto.split("\n"):
-        if fim is not None:
-            if linha.strip() == fim:
-                fim = None
-            else:
-                corpos.append(linha)
-            continue
-        m = re.search(r"<<-?\s*['\"]?(\w+)['\"]?", linha)
-        if m:
-            fim = m.group(1)
-    return "\n".join(corpos)
+    return "\n".join(separar_heredocs(texto)[1])
 
 
 def flags_do_conteudo(texto):
@@ -450,6 +458,22 @@ def registrar_script(scripts, caminho, flags):
     return scripts[nome]
 
 
+def so_arquivo(cfg, args, sub):
+    """`pip install -r arquivo` sem pacote avulso instala só o que o repositório já lista (como no hook)."""
+    opcoes = cfg.get("so_arquivo") or []
+    if not any(a in opcoes for a in args):
+        return False
+    avulsos, pulo = [], False
+    for a in args[args.index(sub) + 1:]:
+        if pulo:
+            pulo = False
+        elif a in opcoes:
+            pulo = True
+        elif not a.startswith("-"):
+            avulsos.append(a)
+    return not avulsos
+
+
 def token_pacote(pal, politica):
     """'pacote instalar' ou 'pacote congelado' se o comando instala pacote segundo a política; senão None."""
     cfg = (politica.get("pacotes") or {}).get(pal[0])
@@ -460,8 +484,7 @@ def token_pacote(pal, politica):
     if not pos or pos[0] not in cfg.get("adicionam", []) + cfg.get("congelados", []):
         return None
     congeladas = set(cfg.get("flags_congeladas", [])) | set(politica.get("flags_congeladas", []))
-    if pos[0] in cfg.get("congelados", []) or congeladas & set(args) or (
-            set(cfg.get("so_arquivo", [])) & set(args) and len(pos) == 1):
+    if pos[0] in cfg.get("congelados", []) or congeladas & set(args) or so_arquivo(cfg, args, pos[0]):
         return "pacote congelado"
     return "pacote instalar"
 
@@ -716,7 +739,7 @@ def quem_pode(e, politica):
     acoes = politica.get("acoes") or {}
     if e["ev"] == "escrita":
         for item in politica.get("caminhos", []):
-            if e["alvo"] and item.get("caminho") == e["alvo"]:
+            if e["alvo"] and item.get("caminho") == e["alvo"] and not item.get("so_forge"):  # só o hook sabe se é o Forge
                 return f"escrita em `{e['alvo']}`", item.get("quem", [])
         return None
     c = e["cmd"]
@@ -814,7 +837,9 @@ def cmd_transcricao_verificar(arquivo, teto=TETO_PADRAO):
                 ch["alvos"] |= alvos
                 for bc, bi, bl in bloqueados:
                     comum = sorted(bl["alvos"] & alvos)
-                    if bc != e["c"] and comum and e["c"] not in reportados and (bl["via"] != via or bl["ator"] != ator):
+                    encaminhado = bl["ator"] != ator and pode and papel_do_ator(ator, politica) in pode[1]  # papel certo
+                    if bc != e["c"] and comum and e["c"] not in reportados and (bl["via"] != via or bl["ator"] != ator) \
+                            and not encaminhado:
                         reportados.add(e["c"])
                         como = "script" if via == "script" else (f"outro agente ({quem})" if bl["ator"] != ator
                                                                   else f"outra ferramenta ({via})")
