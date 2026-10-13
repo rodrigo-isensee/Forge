@@ -10,7 +10,7 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
   - **`main`:** a versão usada por **todos os projetos**. Só muda pelo PR `homolog` → `main`, **mesclado pelo usuário**. Depois do merge, a release `vX.Y.Z` é publicada.
 - **Sem custo de dinheiro real** (`R-CUSTO`): nada no Forge (CI, testes, scripts, fluxo) consome API paga ou serviço cobrado. Não se adiciona nada que custe dinheiro sem autorização expressa do dono do Forge.
 - **Retroalimentação:** melhorias descobertas em qualquer projeto chegam aqui por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
-- **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos` em `tests/config.json` garantem isso.
+- **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos_hash` em `tests/config.json` garantem isso.
 - **Regras da fábrica protegidas por teste:** os trechos em `invariantes` (`tests/config.json`) não podem sumir; as regras com ID são verificadas na fonte e os agentes precisam citar o ID. Afrouxar ou remover um item exige destaque no título do PR e o motivo.
 - **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`claude plugin validate . --strict`).
 - **Versão:** toda mudança que chega à `main` sobe a versão em `.claude-plugin/plugin.json` (SemVer: correção → patch, melhoria compatível → minor, quebra para os projetos → major) e ganha entrada no `CHANGELOG.md`. O CI confere que as duas batem.
