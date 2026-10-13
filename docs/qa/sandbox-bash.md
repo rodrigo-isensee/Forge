@@ -2,11 +2,11 @@
 tipo: qa
 contrato: 1
 pedido: sandbox-bash
-branch: melhoria/sandbox-bash
-commit: 4b9a502
-parecer: reprovado
-escopo: completo
-bugs_criticos: 1
+branch: melhoria/sandbox-bash-r1
+commit: 6e0ff68
+parecer: aprovado
+escopo: incremental
+bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 1
 bugs_baixos: 0
@@ -65,12 +65,15 @@ Nota sobre o commit: o teste foi feito a partir de 4b9a502. Durante a sessão o 
 
 ## Bugs
 
-| ID | Título | Severidade | Estado |
-|---|---|---|---|
-| SBX-01 | Sandbox acessa qualquer host; a allowlist não é aplicada | crítica | aberto |
-| SBX-02 | `tmux ls` e `tmux has-session` falham mesmo fora do sandbox | média | aberto |
+Estado na rodada 0 (4b9a502), mantido como histórico. Estado atual na seção "Revalidação (6e0ff68)" abaixo.
 
-Relatórios em `docs/qa/bugs/SBX-01-rede-sem-allowlist.md` e `docs/qa/bugs/SBX-02-tmux-sem-acesso-ao-socket.md`.
+| ID | Título | Severidade | Estado (rodada 0) | Estado (6e0ff68) |
+|---|---|---|---|---|
+| SBX-01 | Sandbox acessa qualquer host; a allowlist não é aplicada | crítica | aberto | limite documentado (não conta como aberto) |
+| SBX-02 | `tmux ls` e `tmux has-session` falham mesmo fora do sandbox | média | aberto | limite documentado; verificação ao vivo pendente do reinício |
+| SBX-03 | `denyWrite` sem `docs/reviews/`, `docs/qa/` e `CLAUDE.md` | média | (novo) | aberto |
+
+Relatórios em `docs/qa/bugs/SBX-01-rede-sem-allowlist.md`, `docs/qa/bugs/SBX-02-tmux-sem-acesso-ao-socket.md` e `docs/qa/bugs/SBX-03-denywrite-sem-pareceres-e-claude-md.md`.
 
 ## Observações (não são bugs pela definição do pedido)
 - **O-1. Upstream antigo da branch.** `.git/config` já tinha `branch.melhoria/sandbox-bash.merge=refs/heads/develop`, anterior a esta sessão. Um `git push` sem refspec pode tentar `develop`, que o hook bloqueia, mas é armadilha. Correção pelo dono, fora do Claude: `git branch --set-upstream-to=origin/melhoria/sandbox-bash` ou remover o rastreamento. Não foi alterado.
@@ -79,5 +82,55 @@ Relatórios em `docs/qa/bugs/SBX-01-rede-sem-allowlist.md` e `docs/qa/bugs/SBX-0
 - **O-4. Dica do git com refspec errado.** A mensagem de `--set-upstream-to` sugere `origin/refs/heads/develop`, que é inválido. É do git, não do sandbox. Cosmético.
 - **O-5. Modelo ausente.** `docs/qa/_modelo.md`, citado pela skill `qa-testing`, não existe nesta branch. Este parecer segue os campos da ADR 0004.
 
-## Veredito
-**Reprovado.** Há um bug crítico aberto (SBX-01, rede sem allowlist) e um médio (SBX-02). Os controles de escrita (`.git/config`, `.githooks/`, `~/`), o bloqueio das APIs de modelo (`R-CUSTO`) e o uso do git e do GitHub estão corretos. Correções nas configurações são decisão do dono do Forge (R-DECISAO); não foram alteradas aqui. Aceite do usuário necessário para o médio aberto (`aceite_usuario: sim`).
+## Veredito (rodada 0, 4b9a502)
+**Reprovado.** Há um bug crítico aberto (SBX-01, rede sem allowlist) e um médio (SBX-02). Veredito atual na seção abaixo. Os controles de escrita (`.git/config`, `.githooks/`, `~/`), o bloqueio das APIs de modelo (`R-CUSTO`) e o uso do git e do GitHub estão corretos. Correções nas configurações são decisão do dono do Forge (R-DECISAO); não foram alteradas aqui. Aceite do usuário necessário para o médio aberto (`aceite_usuario: sim`).
+
+## Revalidação (6e0ff68)
+Escopo incremental: rodada 1 de correção (d012adb, ccffdae, ee99903, 8f44b52, 8f78805, 8348d61) e os commits de pareceres 901bc91 e 6e0ff68. HEAD testado: `6e0ff68`. O pedido citava `8348d61`; enquanto a revalidação rodava, a branch recebeu 901bc91 e 6e0ff68, que só tocam `docs/reviews/sandbox-bash.md` e `CHANGELOG.md` (ADR 0004, regra 2). O código testado é o mesmo de 8348d61.
+
+Ambiente: Linux/WSL2, bubblewrap. A sessão roda com a configuração ativa (anterior à branch); o `.claude/settings.json` da branch só vale após merge e reinício. Por isso, o que depende dele ao vivo fica para depois do reinício.
+
+### Verificações da rodada 1
+| Verificação | Comando | Resultado |
+|---|---|---|
+| Suíte unitária | `python3 -m unittest discover -s tests` (na worktree) | `Ran 210 tests ... OK` (34 a 37 s), rc 0 |
+| Validação do plugin | `scripts/validar-plugin.sh` | `Validation passed`, rc 0 |
+| Shellcheck | `~/.local/bin/shellcheck scripts/validar-plugin.sh` | rc 0, sem avisos |
+| JSON do sandbox | `python3 -m json.tool .claude/settings.json` | rc 0 |
+| tmux puro | `tmux ls` | **falha**: `error connecting to /tmp/tmux-1000/default (Operation not permitted)`, rc 1 (configuração ativa; ver SBX-02) |
+| Escrita por Bash em `docs/qa/` | `printf ... > docs/qa/.sonda-qa` | **escreveu** (rc 0), arquivo removido, árvore limpa (ver SBX-03) |
+| Escrita por Bash em `docs/reviews/` | idem | escreveu (rc 0), removido (ver SBX-03) |
+| Rede fora da lista | `curl https://example.com` | HTTP 200 (ver SBX-01, limite documentado) |
+
+A chamada da CLI do Claude nos testes gera `deny network-outbound api.anthropic.com:443`, o esperado (R-CUSTO).
+
+### Conferência do `.claude/settings.json` da branch
+- **denyWrite:** `.forge/`, `.githooks/`, `.claude-plugin/`, `.github/`, `tests/config.json`, `tests/catraca.py`, `tests/neutralidade.py`, `hooks/conformidade.json`. Igual à lista do README. Mínimo no sentido do README, mas **falta** `docs/reviews/`, `docs/qa/` e `CLAUDE.md`, que o ADR 0009 (seções 3 e 5) manda bloquear (SBX-03).
+- **deniedDomains:** `api.anthropic.com`, `*.anthropic.com`, `api.openai.com`, `*.openai.com`, `generativelanguage.googleapis.com`. OK.
+- **allowedDomains novos:** `nodejs.org`, `registry.yarnpkg.com`, `files.pythonhosted.org`, `uploads.github.com`, `codeload.github.com`, `playwright.azureedge.net`, `playwright.download.prss.microsoft.com`, `cdn.playwright.dev`. OK; só pré-liberam, não bloqueiam (SBX-01).
+- **env de caches:** `npm_config_cache`, `XDG_CACHE_HOME`, `PIP_CACHE_DIR`, `PLAYWRIGHT_BROWSERS_PATH` em `/tmp/claude-1000/cache/`. OK; o UID 1000 é fixo no caminho, documentado no README.
+- **excludedCommands:** só `tmux capture-pane *`, `tmux ls`, `tmux has-session *`. Todos de leitura. OK.
+- **Sem `strictAllowlist`** no arquivo do projeto. Correto: a decisão de ligar é do dono, no `~/.claude/settings.json` (README, "Rede restrita de verdade").
+- **Fixos:** `failIfUnavailable: true`, `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed: true`.
+
+### Uso documentado do tmux
+`tmux ls` sozinho, sem pipe: **não funcionou** (rc 1, `Operation not permitted`), com a configuração ativa. Ao vivo, o caminho documentado não está provado; fica como pendência (SBX-02).
+
+### Limites documentados (não contam como bug aberto)
+- **SBX-01 (rede sem allowlist):** o README (seção "Sandbox do Bash", item Rede) diz que `allowedDomains` só pré-libera e que a rede só fica restrita com `strictAllowlist: true` no `~/.claude/settings.json`. A documentação está correta para a configuração da branch. O `strictAllowlist` em si não foi testado ao vivo (exige alterar a configuração do usuário e reiniciar; não foi feito aqui).
+- **SBX-02 (tmux):** a documentação diz que `tmux ls` puro funciona e que pipe, `cd` e `&&` voltam ao sandbox. A correção só vale após o reinício; o teste ao vivo com a configuração ativa falhou (ver acima). Se falhar com a configuração da branch, reabre como média.
+
+### Verificado só ao vivo, depois do merge e do reinício
+1. `tmux ls` sozinho lista as sessões (SBX-02); `tmux ls | grep ...` volta ao sandbox e falha, como documentado.
+2. Com `strictAllowlist: true` no `~/.claude/settings.json` do dono: `example.com` e `httpbin.org` bloqueados; `github.com`, `registry.npmjs.org` e `pypi.org` continuam acessíveis.
+3. As APIs de modelo continuam negadas (`api.anthropic.com`, `api.openai.com`) com a configuração nova.
+4. `/sandbox` na sessão mostra o `denyWrite` da branch; escrita por Bash em `.githooks/`, `.forge/` e `tests/config.json` continua bloqueada.
+5. Escrita por Bash em `docs/qa/` e `docs/reviews/` (SBX-03): bloqueada se o dono decidir incluir os caminhos; caso contrário, o limite fica registrado no ADR 0009 e no README.
+6. `npm` e `pip` gravam no cache de `/tmp/claude-1000/cache/` sem erro de somente leitura.
+7. Existência da chave `strictAllowlist` na versão do Claude Code instalada: não verificada aqui; a documentação do README depende dela.
+
+### Observações da rodada 0 não reverificadas
+O-1 (upstream antigo da branch), O-2 (aviso do `git branch -D`), O-3 (teste de `.forge` pouco discriminante), O-4 (dica do git) e O-5 (modelo `docs/qa/_modelo.md` ausente) continuam como estavam. Não foram reverificadas nesta rodada.
+
+### Veredito (6e0ff68)
+**Aprovado com aceite do usuário.** Bugs abertos: 0 críticos, 0 altos, 1 médio (SBX-03), 0 baixos. SBX-01 e SBX-02 são limites documentados; SBX-02 tem verificação ao vivo pendente do reinício. O aceite do usuário é necessário para SBX-03 (`aceite_usuario: sim`). Ressalva: este parecer aceita a documentação dos limites; não verifica ao vivo a configuração da branch, que só entra em vigor após o merge e o reinício.

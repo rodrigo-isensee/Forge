@@ -3,6 +3,7 @@
 - Severidade: média (funcionalidade secundária; contorno simples: rodar `tmux ls` no terminal fora do Claude)
 - Responsável sugerido: dono do Forge (`excludedCommands` está em `.claude/settings.json`, protegido); revisão pelo `tech-lead`
 - Ambiente: branch `melhoria/sandbox-bash`, commit 4b9a502, Linux/WSL2, tmux 3.4, sessão tmux ativa (`TMUX=/tmp/tmux-1000/default,1566,1`)
+- Revalidação (6e0ff68, rodada 1): `tmux ls` puro, sem pipe, rodado de novo na sessão com a configuração ativa: mesmo erro (`error connecting to /tmp/tmux-1000/default (Operation not permitted)`, rc 1). A configuração ativa é a anterior à branch; a correção documentada (`excludedCommands` exato) só vale após merge e reinício. Pendência: rodar `tmux ls` sozinho depois do reinício. Se falhar com a configuração da branch, este bug reabre como média.
 
 ## Passos para reproduzir
 1. Na raiz do Forge, com o sandbox ativo: `tmux ls`
