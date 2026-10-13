@@ -1,18 +1,4 @@
 {
-  "env": {
-    "npm_config_cache": "/tmp/claude-1000/cache/npm",
-    "XDG_CACHE_HOME": "/tmp/claude-1000/cache/xdg",
-    "PIP_CACHE_DIR": "/tmp/claude-1000/cache/pip",
-    "PLAYWRIGHT_BROWSERS_PATH": "/tmp/claude-1000/cache/playwright",
-    "GIT_CONFIG_COUNT": "3",
-    "GIT_CONFIG_KEY_0": "url.https://github.com/.insteadOf",
-    "GIT_CONFIG_VALUE_0": "git@github.com:",
-    "GIT_CONFIG_KEY_1": "credential.https://github.com.helper",
-    "GIT_CONFIG_VALUE_1": "",
-    "GIT_CONFIG_KEY_2": "credential.https://github.com.helper",
-    "GIT_CONFIG_VALUE_2": "!gh auth git-credential",
-    "GIT_TERMINAL_PROMPT": "0"
-  },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
