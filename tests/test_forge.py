@@ -743,6 +743,12 @@ class SandboxDoBash(unittest.TestCase):
                         "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.json"):
             self.assertIn(caminho, deny)
 
+    def test_pareceres_e_instrucoes_em_vigor_sem_escrita_pelo_shell(self):
+        # SBX-03: pareceres só pela ferramenta Write/Edit (hook de autoria) e CLAUDE.md em vigor protegido.
+        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyWrite"]
+        for caminho in ("docs/reviews/", "docs/qa/", ".claude/CLAUDE.md"):
+            self.assertIn(caminho, deny)
+
     def test_credenciais_do_dono_ilegiveis(self):
         deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
         for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):

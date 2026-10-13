@@ -40,7 +40,10 @@
         "tests/config.json",
         "tests/catraca.py",
         "tests/neutralidade.py",
-        "hooks/conformidade.json"
+        "hooks/conformidade.json",
+        "docs/reviews/",
+        "docs/qa/",
+        ".claude/CLAUDE.md"
       ]
     },
     "network": {
