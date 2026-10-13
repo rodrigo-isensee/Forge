@@ -814,14 +814,37 @@ class SandboxDoBash(unittest.TestCase):
         for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):
             self.assertIn(caminho, deny)
 
-    def test_git_dos_agentes_pelo_https_do_bot_sem_credencial_literal(self):
+    def test_settings_versionado_nao_tem_env(self):
+        # O env tem caminhos da maquina (UID) e config de credencial: fica no settings.local.json.
         texto = (RAIZ / ".claude/settings.json").read_text()
-        env = json.loads(texto)["env"]
-        self.assertEqual(env["GIT_CONFIG_COUNT"], str(len([k for k in env if k.startswith("GIT_CONFIG_KEY_")])))
-        pares = {env[f"GIT_CONFIG_KEY_{i}"] + "=" + env[f"GIT_CONFIG_VALUE_{i}"] for i in range(int(env["GIT_CONFIG_COUNT"]))}
-        self.assertIn("url.https://github.com/.insteadOf=git@github.com:", pares)
-        self.assertIn("credential.https://github.com.helper=!gh auth git-credential", pares)
+        self.assertNotIn("env", json.loads(texto))
         self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|GH_TOKEN|-----BEGIN")
+
+    def test_configurar_ambiente_local_gera_env_e_mescla(self):
+        script = RAIZ / "scripts/configurar-ambiente-local.sh"
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            (raiz / ".claude").mkdir()
+            destino = raiz / ".claude/settings.local.json"
+            destino.write_text(json.dumps({"permissions": {"allow": ["Bash(ls)"]}, "env": {"MINHA": "1"}}))
+            ambiente = {**os.environ, "TMPDIR": "/tmp/xyz"}
+            for _ in range(2):  # idempotente
+                subprocess.run(["bash", str(script), str(raiz)], check=True, capture_output=True, env=ambiente)
+            cfg = json.loads(destino.read_text())
+            env = cfg["env"]
+            self.assertEqual(cfg["permissions"], {"allow": ["Bash(ls)"]})
+            self.assertEqual(env["MINHA"], "1")
+            self.assertEqual(env["GIT_CONFIG_COUNT"], str(len([k for k in env if k.startswith("GIT_CONFIG_KEY_")])))
+            pares = {env[f"GIT_CONFIG_KEY_{i}"] + "=" + env[f"GIT_CONFIG_VALUE_{i}"] for i in range(int(env["GIT_CONFIG_COUNT"]))}
+            self.assertIn("url.https://github.com/.insteadOf=git@github.com:", pares)
+            self.assertIn("credential.https://github.com.helper=!gh auth git-credential", pares)
+            self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+            base = f"/tmp/xyz/claude-{os.getuid()}/cache"
+            self.assertEqual(env["npm_config_cache"], f"{base}/pacotes-js")
+            self.assertEqual(env["PLAYWRIGHT_BROWSERS_PATH"], f"{base}/playwright")
+            linhas = (raiz / ".gitignore").read_text().splitlines()
+            self.assertEqual(linhas.count("/.claude/settings.local.json"), 1)
+            self.assertNotRegex(destino.read_text(), r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|GH_TOKEN")
 
     def test_excluded_commands_so_leitura_de_tmux(self):
         excluidos = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["excludedCommands"]
