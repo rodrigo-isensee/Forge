@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: catraca-conformidade
 branch: melhoria/catraca-conformidade
-commit: fb376cd
+commit: cae76b9
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -49,3 +49,25 @@ Segunda leitura (outra instância do `forge:tech-lead`) sobre `origin/develop..f
 - Nenhuma: o diff só soma `regra_politica` em `violacoes_das_regras`; as demais checagens e os testes existentes não mudaram.
 
 Parecer independente: **ajustes necessários** (desvios 1 a 3 bloqueiam; 4 e 5 recomendados). Frontmatter atualizado para `reprovado` no commit `fb376cd`.
+
+## Re-review independente
+
+Terceira leitura (outra instância do `forge:tech-lead`) sobre `cca8c18..cae76b9`, a troca da checagem por lista branca (`mudancas_da_politica`). Testes no checkout do PR: `python3 -m unittest discover -s tests`, 248 OK. Os desvios foram conferidos chamando `mudancas_da_politica` com a política real alterada, e o desvio novo também rodando o hook real (`hooks/conformidade.py`) sobre uma cópia com a política alterada.
+
+### Desvios do review anterior
+- 1 (`so_forge` acrescentado), 2 (`flags_congeladas`, `pacotes.<x>.congelados` e `so_arquivo`), 3 (papel perde agent_type, papel removido, papel `dev` novo) e 4 (renomear `papeis`, tirar `quem` de uma entrada, tirar `flags_congeladas`, arquivo removido): **todos acusam agora**.
+- 5: resolvido para o próprio arquivo (`hooks/conformidade.py` entrou em `PROTEGIDOS`). `parecer.e_clone_do_forge` e `_comum.executar`/`falhar_fechado` continuam só em `SENSIVEIS`; segue como recomendação para PR próprio.
+
+### Como o hook escolhe a entrada
+`caminho_barrado` percorre todas as entradas: a que permite dá `continue`, a primeira que barra decide. Não há "primeira que casa" nem "mais específica": uma entrada nova bem formada só pode acrescentar bloqueio. Por isso entrada mais larga, entrada mais específica dentro de um caminho existente (`.claude/settings.json` com `quem: ["jarvis"]`), `quem` amplo como `jarvis` e reordenar a lista não afrouxam. Caminho vazio acusa; espaço ou Unicode no caminho só criam um bloqueio inócuo.
+
+### Desvio novo (afrouxa e a checagem não acusa)
+1. `tests/catraca.py` (`_entrada_nova_invalida`) · **bloqueia** · A entrada nova só tem `caminho` e `quem` validados. Sem `motivo` (ou com `branch` que não seja texto), o hook lança `KeyError`/`TypeError` ao barrar, e a falha fechada é seletiva (`CRITICO`). Como a lista branca ignora a ordem (`Counter`), a entrada pode ser inserida no início. Reproduzido: `{"caminho": ".github/workflows/ci.yml", "quem": []}` no índice 0 passa na catraca, e as fixtures `protegido-github-dev-bloqueia` e `protegido-github-fora-de-melhoria-bloqueia` passam a sair com código 0 (`erros.log`: `KeyError: 'motivo'`). Na prática, a proteção de `.github/` some sem o rótulo do dono. O mesmo vale para `.claude-plugin/` e `tests/neutralidade.py`, que também ficam fora de `CRITICO`. Sugestão: validar o esquema completo da entrada nova (`motivo` texto não vazio; `so_forge`, se houver, booleano; `branch`, se houver, texto não vazio; nenhuma chave fora de `caminho`, `quem`, `motivo`, `so_forge` e `branch`) e acrescentar um teste para cada caso.
+
+### Falsos positivos (não bloqueiam)
+- Duplicar uma entrada existente, acrescentar entrada mais larga que um caminho existente (`docs/`) e trocar o texto de `motivo` acusam. Postura conservadora aceitável; o rótulo do dono libera.
+
+### Regressão
+- Nenhuma: as demais regras da catraca não mudaram; `PROTEGIDOS` só ganhou um item.
+
+Parecer da re-review: **ajustes necessários** (desvio novo 1 bloqueia; item 5 anterior segue recomendado). Frontmatter mantido em `reprovado`, commit `cae76b9`.
