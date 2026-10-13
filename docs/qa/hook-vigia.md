@@ -73,7 +73,7 @@ Obtido: `{"systemMessage": "Forge: 1 violação(ões) — contorno: Bash em main
 - Pendências já declaradas e não testáveis aqui: fixture de transcrição real com bloqueio do `conformidade` (R6), hook ausente (R7), hash só quando `(tamanho, mtime)` mudar.
 
 ## Revalidação (e74b287)
-Escopo incremental: `git diff fd27ded..e74b287` (3 arquivos): `hooks/vigia.py` (`perfil_da_chamada` ganha `args`, os argumentos depois do subcomando de escrita; `eh_contorno` passa a exigir os mesmos argumentos para merge, rebase e `gh pr merge`, e mantém o `push` como antes), `tests/hooks/vigia/merge-main-na-branch-de-trabalho.json` (fixture novo) e entrada no `CHANGELOG.md`. Ambiente: worktree `/home/rodrigoisensee/Forge-vigia`, branch `melhoria/hook-vigia`, commit e74b287; `hooks/vigia.py` rodado com JSON no stdin em projetos temporários (`git init`, removidos ao fim).
+Escopo incremental: `git diff fd27ded..e74b287` (3 arquivos): `hooks/vigia.py` (`perfil_da_chamada` ganha `args`, os argumentos depois do subcomando de escrita; `eh_contorno` passa a exigir os mesmos argumentos para merge, rebase e `gh pr merge`, e mantém o `push` como antes), `tests/hooks/vigia/merge-main-na-branch-de-trabalho.json` (fixture novo) e entrada no `CHANGELOG.md`. Ambiente: worktree `~/Forge-vigia`, branch `melhoria/hook-vigia`, commit e74b287; `hooks/vigia.py` rodado com JSON no stdin em projetos temporários (`git init`, removidos ao fim).
 
 Parecer da revalidação: **aprovado**. BUG-01 corrigido; sem regressão nos cenários de `R-MAIN` e de contorno revalidados; nenhum bug aberto.
 
