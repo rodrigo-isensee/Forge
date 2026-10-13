@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: transcricoes-conformidade
 branch: melhoria/transcricoes-conformidade
-commit: ec39104
-parecer: reprovado
+commit: dca58dd
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -32,3 +32,29 @@ Escopo: `bin/forge-check` (seção Transcrições), `tests/test_forge.py` (class
 
 ## Parecer
 **Reprovado (ajustes necessários)** (nenhum item bloqueia a segurança da anonimização; os itens 1 a 4 evitam que o verificador acuse sessões normais). Se o autor preferir aceitar 3 e 4, registre-os em "Limites" de `docs/transcricoes.md` e eu aprovo.
+
+## Revalidação (dca58dd)
+Diff `49b1633..dca58dd`; suíte completa: 178 testes verdes.
+
+| # | Achado | Situação |
+|---|---|---|
+| 1 | `papel` ignora `so_forge` | Corrigido: `quem_pode` pula itens `so_forge`; documentado em `docs/transcricoes.md`. |
+| 2 | `pip install -r` como `pacote instalar` | Corrigido: `so_arquivo` espelha o hook (pula o valor da opção e conta só avulsos). |
+| 3 | `R-VERIFY` em script gravado | Documentado em "Limites" (`rm --force`, teste `.py` que cita a flag); aceito conforme o parecer anterior. |
+| 4 | Contorno por encaminhamento | Corrigido: não acusa quando o outro ator tem papel autorizado (`encaminhado`); fixture `contorno-encaminhado.jsonl`; a primeira tentativa segue como achado de `papel`. |
+| 5 | Heredoc em `<< 2` | Corrigido: delimitador precisa começar por letra ou `_`, `<<` entre aspas não conta e heredoc sem fechamento não esconde o resto; unificado em `separar_heredocs`. |
+| 6 | `exit code 2` genérico | Corrigido: só conta com `R-` na saída; registrado em "Limites". |
+| 7 | Cobertura | Parcial: há fixture para `pip install -r` e para o encaminhamento; `-f`/`+refspec` direto segue sem fixture (baixo, não bloqueia). |
+
+Padrões de custo agora vêm de `tests/config.json` (`padroes_custo_transcricao`), sem duplicar literais em `bin/`; as regex passaram a ancorar em `claude` no início do comando (menos falso positivo).
+
+### Exceção `git config core.hooksPath .githooks` (hook e verificador)
+Sem brecha encontrada. A exceção exige `sub == "config"` e `args` exatamente `["core.hooksPath", ".githooks"]`; qualquer valor diferente, `--global`/`--system`/`--unset` ou argumento extra faz `args` divergir e continua barrado. `-c core.hooksPath=...` antes do subcomando cai em `palavras[:i]` e é barrado (fixture `c-com-config-bloqueia`). `--global` tem fixture. Só `-C dir` e opções globais sem relação passam (fixture com `-C .`). `.githooks/` é caminho protegido (`quem: []`), então o valor relativo não pode ser apontado para conteúdo alterado por agente. O verificador (`bin/forge-check`) aplica a mesma regra, sem divergência com o hook.
+
+Observação não bloqueante: `git --git-dir=X config core.hooksPath .githooks` também passa, mas só grava o mesmo valor relativo em outro repositório, sem desativar hook; risco desprezível.
+
+### Achados novos
+Nenhum bloqueante.
+
+## Parecer (revalidação)
+**Aprovado.** Pendência baixa: fixture para `push -f`/`+refspec` direto (item 7), a incluir quando conveniente.
