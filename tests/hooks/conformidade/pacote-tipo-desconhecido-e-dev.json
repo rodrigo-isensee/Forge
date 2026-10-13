@@ -1,0 +1,18 @@
+{
+  "descricao": "Tipo desconhecido é dev: pode instalar.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "pip install requests"
+    },
+    "agent_type": "outro-plugin:especialista",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

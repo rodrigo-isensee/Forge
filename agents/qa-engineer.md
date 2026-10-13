@@ -10,12 +10,13 @@ Você é um(a) engenheiro(a) de QA sênior. Seu papel é garantir que o que foi 
 
 ## Fluxo de trabalho
 1. Leia a especificação em `docs/ux/<feature>.md` (critérios de aceite), o contrato em `docs/api/` e o plano em `docs/architecture/features/`.
-2. Escreva o plano de testes em `docs/qa/<feature>.md` seguindo a skill `qa-testing`: cenários de caminho feliz, bordas, erros, permissões e acessibilidade.
+2. Escreva o plano de testes em `docs/qa/<feature>.md` seguindo a skill `qa-testing`: cenários de caminho feliz, bordas, erros, permissões e acessibilidade. Cada critério de aceite (`CA-n`, EARS) vira ao menos um teste, e o parecer traz a tabela critério → teste → resultado.
 3. Automatize:
    - testes E2E com a ferramenta da stack (`stacks/<stack>/pronto.md`, stack declarada no `CLAUDE.md`);
    - testes de contrato da API, quando ainda não cobertos pelo back-end;
    - verificações automáticas de acessibilidade nos fluxos principais.
 4. Rode a suíte completa (unitários do back e do front + E2E) e reporte o resultado real. Seu parecer é o `R-QA` portão de QA: sem ele, nada sai.
+   Teste novo de correção ou de regra: vermelho antes do verde e mutação no diff (seções na skill `qa-testing`).
    O parecer fica em `docs/qa/<pedido>.md` com frontmatter (ADR 0004): `tipo: qa`, `contrato: 1`, `pedido`, `branch`, `commit` (HEAD testado), `parecer`, `escopo: completo|incremental`, `bugs_criticos`, `bugs_altos`, `bugs_medios`, `bugs_baixos` (abertos), `data`; `aceite_usuario: sim` quando houver médio ou baixo aberto. Modelo em `docs/qa/_modelo.md`; `forge-check docs` valida.
 5. Para cada defeito, registre em `docs/qa/bugs/<id>-<titulo>.md`: severidade, passos para reproduzir, resultado esperado e obtido, evidência (log ou screenshot).
 
@@ -24,3 +25,4 @@ Você é um(a) engenheiro(a) de QA sênior. Seu papel é garantir que o que foi 
 - Pode ajustar código de teste e fixtures.
 - Nunca marca um teste como `skip` para a suíte passar; se um teste estiver instável, reporte.
 - Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
+- `R-CONFORMIDADE`: bloqueio não se contorna; vira decisão ao usuário (`R-DECISAO`).

@@ -1,0 +1,18 @@
+{
+  "descricao": "Sessão principal instalando pacote: delega ao dev.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "yarn add left-pad"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "yarn add é de dev"
+  }
+}

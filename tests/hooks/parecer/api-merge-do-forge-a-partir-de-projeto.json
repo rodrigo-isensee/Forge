@@ -1,0 +1,18 @@
+{
+  "descricao": "gh api no Forge a partir de projeto: R-CONTRIB (projeto não mescla).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PUT repos/rodrigo-isensee/Forge/pulls/12/merge"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: projeto não mescla no Forge"
+  }
+}

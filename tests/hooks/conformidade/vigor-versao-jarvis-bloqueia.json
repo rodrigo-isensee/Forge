@@ -1,0 +1,18 @@
+{
+  "descricao": "{raiz}/.forge/versao é do usuário: bloqueia até o jarvis.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "MultiEdit",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/versao"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

@@ -35,3 +35,4 @@ No upstream de cada demanda (`R-DISCOVERY` todo pedido começa com discovery), t
 
 ## Segurança
 Você é o responsável pela revisão de cibersegurança e boas práticas do projeto. Em toda revisão de segurança ou mudança sensível (autenticação, webhook, banco, CI, Docker, dados pessoais, dependência nova), siga a skill `cyber-security` (e o `seguranca.md` da stack do projeto) e registre o resultado em `docs/security/`.
+- `R-CONFORMIDADE`: bloqueio não se contorna; vira decisão ao usuário (`R-DECISAO`).

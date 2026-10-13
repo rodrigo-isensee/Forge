@@ -1,0 +1,64 @@
+{
+  "env": {
+    "npm_config_cache": "/tmp/claude-1000/cache/npm",
+    "XDG_CACHE_HOME": "/tmp/claude-1000/cache/xdg",
+    "PIP_CACHE_DIR": "/tmp/claude-1000/cache/pip",
+    "PLAYWRIGHT_BROWSERS_PATH": "/tmp/claude-1000/cache/playwright",
+    "GIT_CONFIG_COUNT": "3",
+    "GIT_CONFIG_KEY_0": "url.https://github.com/.insteadOf",
+    "GIT_CONFIG_VALUE_0": "git@github.com:",
+    "GIT_CONFIG_KEY_1": "credential.https://github.com.helper",
+    "GIT_CONFIG_VALUE_1": "",
+    "GIT_CONFIG_KEY_2": "credential.https://github.com.helper",
+    "GIT_CONFIG_VALUE_2": "!gh auth git-credential",
+    "GIT_TERMINAL_PROMPT": "0"
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "tmux capture-pane *",
+      "tmux ls",
+      "tmux has-session *"
+    ],
+    "filesystem": {
+      "denyRead": [
+        "~/.ssh",
+        "~/.config/gh",
+        "~/.git-credentials"
+      ],
+      "allowWrite": [
+        "~/.forge-contrib"
+      ],
+      "denyWrite": [
+        ".forge/"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "codeload.github.com",
+        "uploads.github.com",
+        "registry.npmjs.org",
+        "registry.yarnpkg.com",
+        "nodejs.org",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "playwright.azureedge.net",
+        "playwright.download.prss.microsoft.com",
+        "cdn.playwright.dev"
+      ],
+      "deniedDomains": [
+        "api.anthropic.com",
+        "*.anthropic.com",
+        "api.openai.com",
+        "*.openai.com",
+        "generativelanguage.googleapis.com"
+      ]
+    }
+  }
+}

@@ -3,6 +3,7 @@ name: CI
 # Bateria rápida em todo PR e push nas branches do fluxo (branch -> develop -> homolog -> main).
 on:
   pull_request:
+    types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)
   push:
     branches: [develop, homolog, main]
   workflow_dispatch:
@@ -20,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
@@ -31,14 +34,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Scripts e hooks
         run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
+
+  workflows:
+    name: workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      ACTIONLINT_VERSAO: "1.7.12"
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      ZIZMOR_VERSAO: "1.30.1"
+      ZIZMOR_SHA256: e65324f4430c2717591937edcec90ccbefaf14c174f8ec9415e03ca875b46e1a
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Baixa actionlint e zizmor em versão fixa e confere o checksum
+        run: |
+          set -euo pipefail
+          ferramentas="$RUNNER_TEMP/ferramentas"
+          mkdir -p "$ferramentas"
+          base_a="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSAO}"
+          base_z="https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR_VERSAO}"
+          curl -fsSL -o "$ferramentas/actionlint.tgz" "$base_a/actionlint_${ACTIONLINT_VERSAO}_linux_amd64.tar.gz"
+          curl -fsSL -o "$ferramentas/zizmor.tgz" "$base_z/zizmor-x86_64-unknown-linux-gnu.tar.gz"
+          echo "$ACTIONLINT_SHA256  $ferramentas/actionlint.tgz" | sha256sum -c -
+          echo "$ZIZMOR_SHA256  $ferramentas/zizmor.tgz" | sha256sum -c -
+          tar -xzf "$ferramentas/actionlint.tgz" -C "$ferramentas" actionlint
+          tar -xzf "$ferramentas/zizmor.tgz" -C "$ferramentas" zizmor
+          echo "$ferramentas" >> "$GITHUB_PATH"
+      - name: actionlint
+        run: actionlint -color
+      - name: zizmor (offline, sem token; falha em severidade média ou maior)
+        run: zizmor --offline --no-progress --min-severity medium .github/workflows
 
   plugin:
     name: validação do plugin
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
@@ -52,6 +92,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: "24"
@@ -68,6 +110,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: develop - mudança na fábrica exige linha nova em [Não publicado]
         if: github.base_ref == 'develop'
         env:
@@ -132,3 +175,52 @@ jobs:
             main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
           esac
           echo "ok: $HEAD_REF -> $BASE"
+
+  segredos:
+    name: segredos
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Segredo, .env ou caminho pessoal no diff
+        # A base é o primeiro pai do merge commit do checkout (a ponta atual da base), não o SHA do evento.
+        run: |
+          BASE=$(git rev-parse HEAD^1)
+          if scripts/verificar-contribuicao.sh "$BASE"; then
+            echo "segredos: sem achados" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "segredos: achados no diff (arquivo e linha no log; o valor nunca é impresso)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  pareceres:
+    name: pareceres
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Parecer de review (e de QA para a homolog) quando o PR toca código que governa os agentes
+        # Roda o script da base (a introdução usa o do PR); promoções ficam fora do job (ADR 0008, seção 3).
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          PR_AUTOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          BASE=$(git rev-parse HEAD^1)
+          script=tests/catraca.py
+          if git cat-file -e "$BASE:tests/catraca.py" 2>/dev/null; then
+            git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+            script="$RUNNER_TEMP/base/tests/catraca.py"
+          fi
+          python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"

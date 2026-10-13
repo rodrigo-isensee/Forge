@@ -1,0 +1,19 @@
+{
+  "descricao": "Tech-lead escrevendo parecer de QA: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/qa/p1.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: parecer de QA é do qa"
+  }
+}

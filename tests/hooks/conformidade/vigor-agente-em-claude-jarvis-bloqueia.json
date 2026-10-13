@@ -1,0 +1,18 @@
+{
+  "descricao": "{raiz}/.claude/agents/x.md é do usuário: bloqueia até o jarvis.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.claude/agents/x.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

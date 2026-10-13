@@ -1,0 +1,18 @@
+{
+  "descricao": "KANBAN.md é do quadro, não é protegido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/KANBAN.md"
+    },
+    "agent_type": "forge:agile-coach",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

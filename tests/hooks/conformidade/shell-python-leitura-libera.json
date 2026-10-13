@@ -1,0 +1,17 @@
+{
+  "descricao": "python -c só lendo o arquivo protegido: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -c \"print(open('.forge/config.json').read())\""
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

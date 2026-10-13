@@ -1,0 +1,59 @@
+name: Catraca
+
+# Catraca anti-piora (ADR 0008, seção 3). Workflow à parte para reagir ao rótulo `afrouxa-regra` e à edição do corpo
+# do PR sem rodar a bateria pesada do ci.yml. Só o evento `pull_request` (nunca o de contexto da base), só leitura; o corpo do
+# PR entra apenas por `env:`.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catraca-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  catraca:
+    name: catraca
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      actions: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Regras que somem ou afrouxam, testes que somem, custo
+        # Roda o script da base (a introdução da catraca usa o do PR); a base é o primeiro pai do merge commit.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_AUTOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          BASE=$(git rev-parse HEAD^1)
+          script=tests/catraca.py
+          if git cat-file -e "$BASE:tests/catraca.py" 2>/dev/null; then
+            git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+            script="$RUNNER_TEMP/base/tests/catraca.py"
+          fi
+          python3 "$script" --base "$BASE"
+
+  pr-texto:
+    name: pr-texto
+    if: github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Seções "Projeto de origem" e "Como medir"
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 tests/catraca.py --modo pr-texto

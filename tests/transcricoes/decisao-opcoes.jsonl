@@ -1,0 +1,4 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code 2.0.0 (sintética)"}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a1", "tipo": "forge:tech-lead", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a2", "tipo": "forge:qa-engineer", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "resposta", "t": "2026-01-01T10:00:00Z", "perguntas": 1, "opcoes": 3, "recomenda": false}

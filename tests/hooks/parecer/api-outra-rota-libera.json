@@ -1,0 +1,17 @@
+{
+  "descricao": "gh api de outra rota: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X POST repos/o/r/issues/3/comments -f body=oi"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

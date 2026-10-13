@@ -1,0 +1,63 @@
+{
+  "descricao": "Política do hook conformidade (ADR 0009, seções 2, 3 e 6): papéis por agent_type, quem pode cada ação crítica e caminhos protegidos. O código só aplica; mudar este arquivo é mudar a política (só o tech-lead e o doc, em melhoria/*).",
+  "papeis": {
+    "jarvis": ["forge:jarvis"],
+    "tech-lead": ["forge:tech-lead"],
+    "qa": ["forge:qa-engineer"],
+    "doc": ["forge:software-architect", "forge:ux-designer"],
+    "coach": ["forge:agile-coach"]
+  },
+  "sem_agent_type": "jarvis",
+  "papel_padrao": "dev",
+  "acoes": {
+    "merge_integracao": ["tech-lead", "jarvis"],
+    "pr_criar": ["jarvis", "tech-lead"],
+    "pr_merge_integracao": ["tech-lead", "jarvis"],
+    "instalar_pacote": ["dev"],
+    "instalar_congelado": ["dev", "qa", "tech-lead"]
+  },
+  "caminhos": [
+    {"caminho": ".claude/", "quem": [], "motivo": "arquivo em vigor (.claude/**)"},
+    {"caminho": "CLAUDE.md", "quem": ["jarvis"], "motivo": "CLAUDE.md do projeto: só o jarvis (iniciar-projeto e exceções locais aprovadas pelo usuário)"},
+    {"caminho": ".githooks/", "quem": [], "motivo": "arquivo em vigor (.githooks/)"},
+    {"caminho": ".forge/versao", "quem": [], "motivo": "arquivo em vigor (.forge/versao)"},
+    {"caminho": ".forge/config.json", "quem": [], "motivo": "arquivo em vigor (.forge/config.json)"},
+    {"caminho": ".forge/run/", "quem": [], "motivo": "estado dos hooks (.forge/run/)"},
+    {"caminho": ".git/config", "quem": [], "motivo": "configuração do git (.git/config)"},
+    {"caminho": ".git/hooks/", "quem": [], "motivo": "hooks do git (.git/hooks/)"},
+    {"caminho": "~/.claude/settings.json", "quem": [], "motivo": "configuração do usuário"},
+    {"caminho": "~/.claude/settings.local.json", "quem": [], "motivo": "configuração do usuário"},
+    {"caminho": "~/.claude/CLAUDE.md", "quem": [], "motivo": "instruções do usuário"},
+    {"caminho": "~/.claude/commands/", "quem": [], "motivo": "comandos em vigor"},
+    {"caminho": "~/.claude.json", "quem": [], "motivo": "configuração do usuário"},
+    {"caminho": "~/.claude/agents/", "quem": [], "motivo": "agentes em vigor"},
+    {"caminho": "~/.claude/skills/", "quem": [], "motivo": "skills em vigor"},
+    {"caminho": "~/.claude/hooks/", "quem": [], "motivo": "hooks em vigor"},
+    {"caminho": "~/.claude/plugins/", "quem": [], "motivo": "plugins em vigor (cache do Forge)"},
+    {"caminho": "docs/reviews/", "quem": ["tech-lead"], "motivo": "parecer de review é do tech-lead"},
+    {"caminho": "docs/qa/", "quem": ["qa"], "motivo": "parecer de QA é do qa"},
+    {"caminho": "docs/regras/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "regra do Forge só em branch melhoria/*"},
+    {"caminho": "tests/config.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": "tests/catraca.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": "tests/hooks/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": "hooks/conformidade.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "política de conformidade só em branch melhoria/*"}
+  ],
+  "pacotes": {
+    "npm": {"adicionam": ["install", "i", "add", "update", "up"], "congelados": ["ci"]},
+    "pnpm": {"adicionam": ["install", "i", "add", "update", "up"], "congelados": []},
+    "yarn": {"adicionam": ["install", "add", "up", "upgrade"], "congelados": []},
+    "pip": {"adicionam": ["install"], "congelados": [], "so_arquivo": ["-r", "--requirement"]},
+    "pip3": {"adicionam": ["install"], "congelados": [], "so_arquivo": ["-r", "--requirement"]},
+    "uv": {"adicionam": ["add", "sync", "pip"], "congelados": []},
+    "poetry": {"adicionam": ["add", "install", "update"], "congelados": [], "flags_congeladas": ["--no-root", "--sync"]},
+    "cargo": {"adicionam": ["add", "install", "update"], "congelados": []},
+    "bundle": {"adicionam": ["add", "install", "update"], "congelados": [], "flags_congeladas": ["--frozen", "--deployment"]},
+    "composer": {"adicionam": ["require", "install", "update"], "congelados": ["install"]},
+    "gem": {"adicionam": ["install"], "congelados": []},
+    "go": {"adicionam": ["get", "install"], "congelados": []},
+    "apt": {"adicionam": ["install"], "congelados": []},
+    "apt-get": {"adicionam": ["install"], "congelados": []},
+    "brew": {"adicionam": ["install"], "congelados": []}
+  },
+  "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"]
+}

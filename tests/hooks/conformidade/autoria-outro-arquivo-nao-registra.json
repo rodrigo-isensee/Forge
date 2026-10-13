@@ -1,0 +1,21 @@
+{
+  "descricao": "Arquivo fora de docs/reviews e docs/qa: nada a registrar.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/src/app.js"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

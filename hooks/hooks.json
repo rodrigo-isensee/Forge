@@ -1,5 +1,5 @@
 {
-  "description": "Forge: regras de processo garantidas por código, silenciosas (ADR 0003): teto de agentes e relançamento duplicado (R-TETO), parecer antes de PR e merge (R-REVIEW, R-QA), tarefa pesada uma por vez (R-TETO), quadro válido após edição (R-WIP).",
+  "description": "Forge: regras de processo garantidas por código, silenciosas (ADR 0003): teto de agentes e relançamento duplicado (R-TETO), parecer antes de PR e merge (R-REVIEW, R-QA), tarefa pesada uma por vez (R-TETO), quadro válido após edição (R-WIP), conformidade por papel: merge, push, caminhos protegidos e flags proibidas (R-CONFORMIDADE, R-MAIN, R-VERIFY; ADR 0009), e o vigia, que avisa o usuário do que escapou dos bloqueios (ADR 0009, seção 8).",
   "hooks": {
     "PreToolUse": [
       {
@@ -10,6 +10,19 @@
             "command": "python3",
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"
             ],
             "timeout": 10
           }
@@ -59,6 +72,19 @@
             "command": "python3",
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/quadro.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/conformidade.py"
             ],
             "timeout": 10
           }
@@ -117,6 +143,46 @@
             "command": "python3",
             "args": [
               "${CLAUDE_PLUGIN_ROOT}/hooks/agentes.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/hooks/vigia.py"
             ],
             "timeout": 10
           }

@@ -1,0 +1,19 @@
+{
+  "descricao": "{raiz}/.forge/versao é do usuário: bloqueia até o tech-lead.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "MultiEdit",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/versao"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

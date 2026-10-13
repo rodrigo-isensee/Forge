@@ -1,25 +1,101 @@
 #!/usr/bin/env bash
-# Forge: abre o Jarvis dentro do repositório ~/Forge, usando a cópia de trabalho como plugin (--plugin-dir),
-# retomando a última conversa do Forge, com chat remoto e, se instalado, o canal do Telegram.
-# Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
-# Uso: jarvis-forge [--sem-tmux]
-#   --sem-tmux   abre direto no terminal, sem criar ou anexar a sessão do tmux
-#   -h, --help   mostra esta ajuda
+# Forge: abre o Jarvis dentro do repositório ~/Forge (onde se edita), usando como plugin uma CÓPIA VIGENTE do Forge
+# (clone da origin/develop em ${XDG_DATA_HOME:-~/.local/share}/forge/vigente), não a cópia de trabalho: editar hooks/
+# ou agents/ numa branch não muda a guarda nem as instruções em uso (ADR 0009, seção 4). A cópia é criada se faltar
+# e só é atualizada por --atualizar-vigente, depois de um merge. Retoma a última conversa, com chat remoto e, se instalado,
+# o canal do Telegram. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# Uso: jarvis-forge [--sem-tmux] [--dev] | jarvis-forge --atualizar-vigente
+#   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux
+#   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças ou commits locais) e sai
+#   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir .), sem a proteção da cópia vigente
+#   -h, --help           mostra esta ajuda
 set -euo pipefail
 sem_tmux=0
+dev=0
+atualizar=0
 for a in "$@"; do
   case "$a" in
     --sem-tmux) sem_tmux=1 ;;
-    -h|--help) sed -n '2,7p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --dev) dev=1 ;;
+    --atualizar-vigente) atualizar=1 ;;
+    -h|--help) sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "jarvis-forge: argumento desconhecido: $a (veja jarvis-forge --help)" >&2; exit 2 ;;
   esac
 done
+dados="${XDG_DATA_HOME:-$HOME/.local/share}"
+case "$dados" in
+  /*) ;;
+  *) echo "jarvis-forge: XDG_DATA_HOME deve ser um caminho absoluto (recebi '$dados'); nada foi feito." >&2; exit 2 ;;
+esac
+vigente="$dados/forge/vigente"
+if [ "$atualizar" = 1 ] && [ "$dev" = 1 ]; then
+  echo "jarvis-forge: --atualizar-vigente e --dev não combinam." >&2; exit 2
+fi
+criar_vigente() {
+  local origem
+  origem="$(git -C "$HOME/Forge" remote get-url origin 2>/dev/null)" || {
+    echo "jarvis-forge: o $HOME/Forge não tem o remoto 'origin'; não há de onde criar a cópia vigente. Para esta vez, use 'jarvis-forge --dev' (cópia de trabalho, sem a proteção)." >&2
+    exit 1
+  }
+  mkdir -p "$(dirname "$vigente")"
+  echo "jarvis-forge: criando a cópia vigente em $vigente (origin/develop)." >&2
+  # o git remove sozinho o que o clone começou a criar; este script nunca apaga diretório
+  git clone --quiet --branch develop "$origem" "$vigente" || {
+    echo "jarvis-forge: não consegui criar a cópia vigente (sem rede ou sem acesso à origin?). Para esta vez, use 'jarvis-forge --dev' (cópia de trabalho, sem a proteção)." >&2
+    exit 1
+  }
+}
+# O caminho da cópia vigente só é usado se não existir (será criado) ou se já for um clone do Forge (mesma origin).
+# Qualquer outra coisa ali é do usuário: recusa sem tocar em nada.
+conferir_vigente() {
+  [ -e "$vigente" ] || return 0
+  local origem_vigente origem_forge
+  origem_vigente="$(git -C "$vigente" remote get-url origin 2>/dev/null || true)"
+  origem_forge="$(git -C "$HOME/Forge" remote get-url origin 2>/dev/null || true)"
+  if [ ! -d "$vigente/.git" ] || [ -z "$origem_vigente" ] || [ "$origem_vigente" != "$origem_forge" ]; then
+    echo "jarvis-forge: $vigente já existe e não é um clone do Forge; não mexi em nada. Mova ou apague esse diretório (ou aponte XDG_DATA_HOME para outro lugar)." >&2
+    exit 1
+  fi
+}
+conferir_vigente
+if [ "$atualizar" = 1 ]; then
+  if [ ! -e "$vigente" ]; then criar_vigente; exit 0; fi
+  if [ -n "$(git -C "$vigente" status --porcelain)" ]; then
+    echo "jarvis-forge: a cópia vigente ($vigente) tem mudanças locais; não atualizei. Confira com 'git -C $vigente status'." >&2
+    exit 1
+  fi
+  if [ -n "$(git -C "$vigente" rev-list origin/develop..HEAD 2>/dev/null)" ]; then
+    echo "jarvis-forge: a cópia vigente ($vigente) tem commits locais que não estão na origin/develop; não atualizei, para não descartá-los. Confira com 'git -C $vigente log origin/develop..HEAD'." >&2
+    exit 1
+  fi
+  git -C "$vigente" fetch --quiet origin || {
+    echo "jarvis-forge: não consegui buscar a origin (sem rede?); a cópia vigente ficou como estava. Use 'jarvis-forge --dev' para esta vez, se precisar." >&2
+    exit 1
+  }
+  antes="$(git -C "$vigente" rev-parse HEAD)"
+  git -C "$vigente" reset --quiet --hard origin/develop
+  depois="$(git -C "$vigente" rev-parse HEAD)"
+  echo "jarvis-forge: cópia vigente atualizada para origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
+  if [ "$antes" != "$depois" ] && command -v tmux >/dev/null 2>&1 && tmux has-session -t jarvis-Forge 2>/dev/null; then
+    echo "jarvis-forge: AVISO: a sessão do tmux 'jarvis-Forge' já está aberta e segue com a cópia anterior; reinicie-a (saia do Jarvis e rode jarvis-forge de novo) para valer a atualização." >&2
+  fi
+  exit 0
+fi
+if [ "$dev" = 1 ]; then
+  echo "jarvis-forge: AVISO: --dev usa a cópia de trabalho; hooks e agentes em edição passam a valer na hora." >&2
+elif [ ! -e "$vigente" ]; then
+  criar_vigente
+fi
 cd "$HOME/Forge"
 if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
+  repasse=(); [ "$dev" = 1 ] && repasse=(--dev)
+  sessao=jarvis-Forge; [ "$dev" = 1 ] && sessao=jarvis-Forge-dev  # um nome por modo: -A não reaproveita a sessão do outro modo
   eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-  exec tmux new-session -A -s jarvis-Forge -c "$PWD" "$(printf '%q' "$eu")"
+  exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' "$eu" ${repasse[@]+"${repasse[@]}"})"
 fi
-args=(--plugin-dir . --agent forge:jarvis --remote-control "Jarvis - Forge")
+plugin_dir="$vigente"; [ "$dev" = 1 ] && plugin_dir=.
+nome_remoto="Jarvis - Forge"; [ "$dev" = 1 ] && nome_remoto="Jarvis - Forge (dev)"
+args=(--plugin-dir "$plugin_dir" --agent forge:jarvis --remote-control "$nome_remoto")
 # retoma a conversa do Forge se já existir uma (o diretório do projeto é o caminho com "/" trocado por "-")
 if [ -d "$HOME/.claude/projects/${PWD//\//-}" ]; then args=(--continue "${args[@]}"); fi
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then

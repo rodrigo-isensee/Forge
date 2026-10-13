@@ -1,0 +1,26 @@
+{
+  "descricao": "Sem agent_type: papel jarvis (o forge-check recusa).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/reviews/p1-1.md": "x\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/reviews/p1-1.md"
+    },
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "autoria.jsonl": {
+        "contem": [
+          "\"papel\": \"jarvis\"",
+          "\"agente\": \"\""
+        ]
+      }
+    }
+  }
+}

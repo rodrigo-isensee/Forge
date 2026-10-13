@@ -1,0 +1,19 @@
+{
+  "descricao": "Projeto sem .forge/versao: escrita em .claude/ liberada.",
+  "forge": false,
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.claude/settings.json"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

@@ -1,6 +1,6 @@
 # 0008 - Governança de contribuições: portões para todos
 
-Estado: proposta. Data: 2026-10-12.
+Estado: vigente. Data: 2026-10-12. Decisões do dono em 2026-10-13: conta de máquina para os agentes (A); preparar já e tornar público quando chegar o primeiro colaborador (A); licença MIT (A).
 Propósito: impedir que contribuições, de qualquer pessoa ou agente e inclusive do dono, piorem a fábrica. Público: quem mantém o Forge e quem contribui de um projeto. Revisão: 2026-10-12.
 
 ## Contexto
@@ -18,18 +18,18 @@ Os agentes (Jarvis, `tech-lead` e sessões de projeto) usam uma **conta de máqu
 
 ### 2. Servidor (vale com o repositório público; definida como código em `.github/rulesets/`)
 1. **Ruleset `portoes`** em `develop`, `homolog` e `main`, **sem ator de bypass, nem administrador**: PR obrigatório; checks obrigatórios fixados à origem GitHub Actions; branch atualizada com a base; bloqueio de force push e de deleção.
-2. **Métodos de merge:** `develop` só squash, com histórico linear (um PR vira um commit); `homolog` e `main` só merge commit (squash na promoção faz as branches divergirem).
+2. **Métodos de merge:** `develop` só squash, com histórico linear (um PR vira um commit); `homolog` só merge commit; `main` por squash, mesclado pelo usuário. *Decisão do dono em 2026-10-13: antes, `homolog` e `main` eram só merge commit; a `main` passa a receber squash para ter apenas commits do usuário (as branches de trabalho acumularam commits com identidade de teste). Consequência: o commit da `main` não existe na `homolog` nem na `develop`, então, depois de cada release, um PR de sincronização `main` → `develop` (merge commit, sem conteúdo novo) mantém a base comum; o CI de fluxo aceita PR para a `develop` vindo de qualquer branch.*
 3. **Ruleset `aprovacao`**: 1 aprovação e revisão de code owner; aprovação descartada a cada push; bypass **só deste ruleset**, só para o dono, no modo "somente pull request" — o dono mescla o próprio PR sem segunda pessoa, mas nunca sem os checks do `portoes`, nem por push direto.
 4. **Ruleset `main-do-dono`**: "restringir atualizações" na `main`, bypass só do dono; a conta de máquina não mescla na `main` (`R-MAIN` garantida pelo servidor).
 5. **`.github/CODEOWNERS`** com o dono em `*`: PR de quem não é o dono exige a aprovação dele.
 6. **Actions:** aprovação obrigatória para executar workflows de PR de colaboradores externos; `GITHUB_TOKEN` padrão só leitura; Actions proibidas de criar ou aprovar PR; nenhum `pull_request_target` nem `workflow_run` privilegiado executando código do PR (ADR 0006).
 
 ### 3. CI anti-piora (catraca)
-Jobs em `ci.yml`, só biblioteca padrão do Python ou ferramentas gratuitas de versão fixa, sem segredos; todos entram na lista de checks obrigatórios. Os de regras ficam em `tests/catraca.py`, que lê a base com `git show $BASE:<arquivo>`.
+Jobs em `ci.yml` (e `catraca.yml`, para `catraca` e `pr-texto`), só biblioteca padrão do Python ou ferramentas gratuitas de versão fixa, sem segredos; todos entram na lista de checks obrigatórios. Os de regras ficam em `tests/catraca.py`, que lê a base com `git show $BASE:<arquivo>`.
 
 | Job | O que barra | Como |
 |---|---|---|
-| `catraca` | Regras que somem ou afrouxam: padrão de `invariantes`, `termos_proibidos` ou termos de neutralidade que existiam na base e sumiram; aumento de `limite_linhas`; exceções novas de neutralidade ou anti-duplicação; hook removido de `hooks/hooks.json`; mudança da chave `dono` | Comparação de conjuntos base × PR. Exceção só com o rótulo `afrouxa-regra` aplicado **pelo dono depois do último push** (eventos da issue: `actor.login` = `dono` de `tests/config.json`) |
+| `catraca` | Regras que somem ou afrouxam: padrão de `invariantes`, `termos_proibidos_hash` ou termos de neutralidade que existiam na base e sumiram; aumento de `limite_linhas`; exceções novas de neutralidade ou anti-duplicação; hook removido de `hooks/hooks.json`; mudança da chave `dono` | Comparação de conjuntos base × PR. Exceção só com o rótulo `afrouxa-regra` aplicado **pelo dono depois do último push** (eventos da issue: `actor.login` = `dono` de `tests/config.json`) |
 | `catraca` | Testes que somem: contagem de `def test_*` (AST) e de fixtures em `tests/hooks/**` cai em relação à base | Contagem estática nas duas versões; o mesmo rótulo é a única exceção |
 | `catraca` | Hooks que engordam: linhas de `hooks/*.py` acima de `limite_linhas.hooks`; mediana por fixture acima de 100 ms (ADR 0003) com margem de CI de 3× | Linhas no PR; tempo medido nos fixtures |
 | `catraca` | Custo: `secrets.*` diferente de `GITHUB_TOKEN` em workflows; chave de API paga, `claude plugin eval`, `claude -p` ou URL de API paga em `hooks/`, `bin/`, `scripts/` e `.github/` | Busca por padrões, com lista de permissão em `tests/config.json` |
@@ -39,6 +39,14 @@ Jobs em `ci.yml`, só biblioteca padrão do Python ou ferramentas gratuitas de v
 | `segredos` | Segredo, `.env` ou caminho pessoal no diff | `scripts/verificar-contribuicao.sh` no CI |
 
 Mensagens de bloqueio: uma linha, começando pelo ID da regra, com o quê, por quê e como corrigir (`<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`); nunca o valor de um segredo. O CI publica um comentário único por PR, atualizado a cada execução, com a tabela de portões; em PR de fork, sem permissão de escrita, o resumo vai para `GITHUB_STEP_SUMMARY`.
+
+Notas da implementação (rodada de correções do review e do QA):
+- **Promoções fora do `pareceres`:** PR `develop` → `homolog` e `homolog` → `main` não passa pelo job: o parecer é exigido na entrada de cada PR na `develop`, e na promoção o `ramo` seria `develop` ou `homolog`, sem parecer possível.
+- **"Depois do último push":** o instante vem do servidor (a execução mais antiga do Actions para o `head.sha`, `actions: read`), nunca da data do commit, que o cliente define. Sem execução registrada, o rótulo não vale.
+- **`R-CUSTO` não tem rótulo:** a exceção de custo é só `custo_permitido`, com autorização do usuário.
+- **Versão da base:** os jobs `catraca` e `pareceres` executam `tests/catraca.py` e `bin/forge-check` da base (checkout separado), avaliando os arquivos do PR; só a introdução usa a versão do PR.
+- **Dependabot:** PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer; qualquer outra mudança segue as regras normais.
+- **Rótulo e texto do PR:** `catraca` e `pr-texto` ficam em `.github/workflows/catraca.yml` para reagir a `labeled`, `unlabeled` e `edited` sem rodar a bateria pesada.
 
 Limite conhecido: no evento `pull_request`, o workflow roda na versão do PR, que pode editar o próprio `ci.yml` ou `tests/catraca.py`. Mitigações: a `catraca` exige `afrouxa-regra` para mudança em `.github/workflows/`, `.github/rulesets/`, `.github/CODEOWNERS` e `tests/catraca.py`; um job removido deixa o check obrigatório pendente; para quem não é o dono, a aprovação do code owner é o portão final.
 
@@ -52,7 +60,7 @@ Limite conhecido: no evento `pull_request`, o workflow roda na versão do PR, qu
 ### 5. Transição enquanto o repositório é privado e gratuito
 - **Vale já:** camada 1 (conta de máquina é gratuita também em repositório privado); camada 3 inteira (os checks rodam e aparecem, só não são obrigatórios no servidor); camada 4; limite de gasto do Actions em US$ 0; nenhum colaborador com escrita além do dono e da conta de máquina.
 - **Não vale:** camada 2. O merge com check vermelho fica barrado só pelos agentes e pelos hooks.
-- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos` sem os termos em claro (hash SHA-256 de cada termo normalizado); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença escolhida pelo dono; (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
+- **Gatilho para tornar público:** antes de dar escrita a outra pessoa ou aceitar o primeiro PR de fork, e só depois de: (a) `termos_proibidos_hash` no lugar de termos em claro (hash SHA-256 de cada termo normalizado; hash sem sal de termo curto e o campo `n` (tamanho) podem ser recuperados por força bruta, o que protege contra leitura casual, não contra quem quer descobrir, por isso o histórico depende também da decisão do item (b)); (b) varredura do histórico e dos corpos de PRs antigos por segredos, caminhos pessoais e nomes de projeto (gitleaks, gratuito), com decisão do dono sobre reescrever o histórico; (c) licença MIT (decidida; `LICENSE` na raiz); (d) rulesets e CODEOWNERS prontos em `.github/rulesets/`, aplicados no mesmo dia.
 - Até o gatilho, contribuição de outra pessoa entra como proposta ao dono, nunca como acesso.
 
 ## Alternativas consideradas

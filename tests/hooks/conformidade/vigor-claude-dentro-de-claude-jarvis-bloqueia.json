@@ -1,0 +1,19 @@
+{
+  "descricao": "Jarvis não edita .claude/CLAUDE.md (.claude/** é do usuário).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.claude/CLAUDE.md",
+      "content": "x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

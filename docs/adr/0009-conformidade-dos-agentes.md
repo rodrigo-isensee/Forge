@@ -1,0 +1,104 @@
+# 0009 - Conformidade dos agentes por construção
+
+Estado: proposta. Data: 2026-10-13.
+Propósito: separar o que vira impossível para um agente, o que vira detectado e o que continua dependendo do modelo, sem custo. Público: quem mantém o Forge. Revisão: 2026-10-13.
+
+## Contexto
+O dono pediu que nenhum agente burle as próprias instruções dentro do Forge. Premissa honesta: **instrução no prompt não é garantia**; só há garantia onde algo fora do modelo decide.
+
+Hoje as proteções são: as instruções dos agentes; quatro hooks de processo que liberam em erro interno (ADR 0003, item 4); `permissions.deny` só no modelo de projeto (o Forge não tem `.claude/settings.json`); o `.githooks/pre-push`; o CI, sem proteção no servidor enquanto o repositório for privado (ADR 0008). Evidências: o incidente da ADR 0008 (uma sessão de projeto mesclou PRs no Forge); agentes que, com a ferramenta Write falhando, gravaram via Bash (legítimo, mas prova que restringir a ferramenta não restringe o efeito); `docs/hooks.md`, "Limites conhecidos".
+
+Lacunas encontradas:
+1. `scripts/jarvis-forge` usa `--plugin-dir .`: editar `hooks/*.py` muda a guarda já na chamada seguinte, e editar `agents/*.md` muda as instruções em uso.
+2. Os hooks saem com 0 sem `.forge/versao` (ADR 0003, item 3): apagar o arquivo desliga todos.
+3. `.forge/run/` (travas e contagem) e `.forge/config.json` (teto) são graváveis por qualquer agente.
+4. O `deny` cobre `git config ... core.hooksPath`, mas não `git -c core.hooksPath=...`, e nenhum `deny` alcança `--no-verify` dentro de um script.
+5. Nada decide por papel: o `qa-engineer` pode rodar `gh pr merge`, e qualquer agente pode assinar `revisor` num parecer (risco da ADR 0004).
+6. O `tools:` restringe pouco: só `ux-designer` e `software-architect` não têm Bash.
+
+Fatos da plataforma: hooks do plugin disparam também nas ferramentas dos subagentes, com `agent_type`/`agent_id`; `PreToolUse` com saída 2 bloqueia; hooks e ferramentas de arquivo rodam fora do sandbox. O **sandbox do Bash** do Claude Code é imposto pelo sistema operacional (bubblewrap no Linux/WSL2), vale para processos filhos e é gratuito: escrita só no diretório de trabalho, no temporário e em `allowWrite`; `denyWrite`/`denyRead`; caminhos protegidos nativos (configurações e `agents/skills/commands/hooks` em `.claude/`, `.git/hooks`, `.git/config`, `~/.claude`); rede só por proxy com lista de domínios; `allowUnsandboxedCommands: false` anula a fuga `dangerouslyDisableSandbox`; `failIfUnavailable: true` impede abrir a sessão sem sandbox; vindo por `--settings`, o sandbox é exigido e o `.claude/settings.json` do repositório não o afrouxa.
+
+## Decisão
+Cada controle é classificado: **[I] impossível** (mecanismo fora do alcance do agente: sandbox, `permissions.deny`, hook sobre parâmetro estruturado como `file_path`, servidor); **[B] barrado em regra** (hook lendo a linha de comando: pega o caso comum, contornável por script ou ofuscação); **[D] detectado depois** (vigia e transcrições); **[M] depende do modelo**.
+
+### 1. Regra `R-CONFORMIDADE`: controles não se contornam; o que está em vigor é do usuário
+Texto só em `docs/regras/R-CONFORMIDADE.md` (ADR 0002): nenhum agente desliga, enfraquece ou dribla um controle (hook, permissão, sandbox, teste, CI, regra) por outro caminho (shell, script, outra ferramenta, outro agente ou sessão); bloqueio que impede trabalho legítimo vai ao usuário como decisão (`R-DECISAO`), nunca é contornado; trocar de ferramenta quando uma falha só vale para caminho não protegido; arquivos em vigor só o usuário altera.
+
+### 2. Papéis por `agent_type`
+O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:jarvis` e a sessão principal sem `agent_type`, a confirmar por fixture), `tech-lead`, `qa` (`forge:qa-engineer`), `doc` (`forge:software-architect`, `forge:ux-designer`), `coach` (`forge:agile-coach`), `dev` (agentes dos pacotes de stack, `general-purpose` e **qualquer tipo desconhecido**). Delegar não amplia direitos: o subagente tem os direitos do seu tipo, nunca os de quem o lançou.
+
+### 3. Matriz papel × ação crítica
+| Ação | Quem pode | Garantido por |
+|---|---|---|
+| Merge na `main` (Forge e projetos) | só o usuário | hook `conformidade` para todo papel [B]; `pre-push` [B]; ruleset `main-do-dono` [I quando público]; vigia [D] |
+| Merge em `develop`/`homolog` ou integração do projeto | `tech-lead` e `jarvis`, com pareceres | hook `conformidade` e `parecer` [B]; ruleset `portoes` [I quando público]; transcrição [D] |
+| Push direto para `develop`/`homolog`/`main` | ninguém | `pre-push` [B]; hook [B]; servidor [I quando público] |
+| Criar PR | `tech-lead`, `jarvis` | hook por papel e `parecer` [B]; job `pareceres` no CI (ADR 0008) |
+| Escrever parecer em `docs/reviews/` / `docs/qa/` | `tech-lead` / `qa` | [B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado) (sem `denyWrite`: ver nota N6) |
+| Editar regras e testes de proteção (`docs/regras/`, `tests/config.json`, `tests/catraca.py`, `tests/hooks/**`, `hooks/conformidade.json`) | `tech-lead` e `doc`, só em branch `melhoria/*` do Forge | Write/Edit fora disso: hook [I]; vigor só após merge (seção 4); afrouxar exige o rótulo do dono na `catraca` |
+| Editar o que está **em vigor** (cache do plugin, `~/.claude` inclusive `CLAUDE.md`, `commands/` e `~/.claude.json`, `.claude/**`, `.githooks/`, `.forge/versao`, `.forge/config.json`, `.forge/run/`, cópia vigente do Forge) | só o usuário | Bash: sandbox [I] para o estado não versionado (`.forge/`, `~/.claude`, `.git/hooks`, `.git/config`) e hook `conformidade` + catraca [B] para os versionados; Write/Edit: `deny Edit(...)` e hook [I]; vigia por hash [D] |
+| `--no-verify`, `--force`/`+refspec`, `core.hooksPath` (inclusive `-c`), desligar o sandbox | ninguém | `deny` e hook [B]; `.git/config` e `.git/hooks` protegidos pelo sandbox [I]; `allowUnsandboxedCommands: false` [I]; `pre-push` recusa não fast-forward [B]; transcrição [D] |
+| Chamada paga | ninguém sem autorização | rede do sandbox com APIs de modelo negadas [I]; hook (`claude -p`, `plugin eval`) [B]; `catraca` de custo |
+| Instalar dependência nova | `dev`; `qa` só com lockfile congelado | hook por papel [B]; rede limitada aos registros da stack [I]; diff do lockfile no review [M] |
+| Escrever fora do repositório | ninguém (exceções: temporário; `jarvis`/`tech-lead` em `~/.forge-contrib/`) | Bash: sandbox [I]; Write/Edit: hook pelo `file_path` [I] |
+| Editar o `CLAUDE.md` do projeto (`iniciar-projeto`, exceções locais aprovadas pelo usuário) | `jarvis` | [B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado); o `agile-coach` propõe a exceção no relatório |
+| Ler `.env` | ninguém pela ferramenta | `deny Read(.env*)` [I]; `cat`/`source` de `.env` no hook [B]; o app lê (risco residual) |
+| Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
+
+### 4. Em vigor × proposta
+- **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (clone, não worktree, de `origin/develop` em diretório próprio, `denyWrite`; o worktree compartilharia o `.git/config` com o repositório de trabalho), atualizada só pelo script depois de um merge; `--plugin-dir .` fica para teste manual do dono.
+- **Proposta** é o mesmo arquivo numa branch `melhoria/*`; entra só por PR, com pareceres, a `catraca`, o rótulo do dono quando afrouxar e, na `main`, o merge do usuário.
+- Nos **projetos**, `.claude/**` e `.forge/config.json` são do usuário: o agente propõe o diff, o usuário aplica. O `CLAUDE.md` do projeto é do `jarvis` (ver o ajuste da implementação abaixo).
+
+> **Ajuste da implementação (rodada 1 do review, 2026-10-13).** Duas linhas da matriz mudaram porque o fluxo normal do Jarvis dependia delas: (1) o `jarvis` pode mesclar em `develop`/`homolog` quando o hook `parecer` aceitar (pareceres válidos), nunca na `main`; antes o checklist de merge do Jarvis (`R-CONTRIB`) contradizia o hook; (2) o `jarvis` edita o `CLAUDE.md` do projeto, porque o `iniciar-projeto` o preenche com o usuário e as exceções locais aprovadas por ele entram ali; `.claude/**`, `.githooks/`, `.forge/versao`, `.forge/config.json` e `.forge/run/` continuam só do usuário. O `agile-coach` não edita o `CLAUDE.md`: propõe a exceção no relatório e o Jarvis a registra.
+
+### 5. Sandbox e permissões
+- `.claude/settings.json` do Forge (novo) e do modelo de projeto: sandbox ligado com `failIfUnavailable` e `allowUnsandboxedCommands: false`; `denyWrite` só para estado em vigor não versionado (`.forge/`); os arquivos versionados (`.githooks/`, `docs/reviews/`, `docs/qa/`, `CLAUDE.md` e, no Forge, `.claude-plugin/`, `.github/`, `tests/config.json`, `tests/catraca.py`, `hooks/conformidade.json`) ficam com o hook `conformidade` (Write/Edit por papel), a catraca do CI (rótulo do dono) e o registro de autoria [B]; `denyRead` das credenciais do dono; domínios de rede por stack e APIs de modelo negadas; `deny` em `Edit(...)` para os mesmos caminhos e `Bash(git -c core.hooksPath*)`.
+- Os atalhos `jarvis` e `jarvis-forge` passam `--settings` estrito; `scripts/preparar-estacao.sh` instala `bubblewrap` e `socat` (gratuitos).
+- `docker compose` é o único comando fora do sandbox previsto, liberado pelo hook só para `dev`/`qa` [B].
+
+**Andamento da seção 5.** Etapa 1 aplicada no Forge (`.claude/settings.json` com sandbox obrigatório, rede restrita e `denyWrite` dos arquivos em vigor). Limites de escopo (QA, SBX-01 e SBX-02): `allowedDomains` do projeto só pré-libera; a rede só fica restrita com `strictAllowlist` no `~/.claude/settings.json` do dono ou em configuração gerenciada (o repositório não controla); `excludedCommands` só vale para o comando exato e sozinho. Etapa 2 aplicada: git dos agentes sobre HTTPS com o token do bot (`GH_TOKEN` no `~/.claude/settings.json` do dono; variáveis `GIT_CONFIG_*` no `env` do projeto, sem gravar em arquivo de configuração) e `denyRead` de `~/.ssh`, `~/.config/gh` e `~/.git-credentials`. Os commits seguem com o autor do `~/.gitconfig` do dono (o push é do bot); o PR `homolog` → `main` é aberto e mesclado pelo dono, para o squash da `main` ter o autor dele. Testado com `git ls-remote` no repositório privado: o helper `gh auth git-credential` é chamado e responde com o token do bot. Etapa 3: modelo de projeto, migração e `--settings` estrito nos atalhos.
+
+### 6. Hook `conformidade` (`PreToolUse` em `Bash|Write|Edit|MultiEdit|NotebookEdit`)
+1. Política em `hooks/conformidade.json`; o código só aplica. Mensagens no padrão da ADR 0003.
+2. Write/Edit/NotebookEdit: decide pelo `file_path` normalizado (resolve `..` e links) [I].
+3. Bash: reconhece merge, push, PR, `gh api`, flags proibidas, instalação de pacote, escrita explícita em caminho protegido (`>`, `>>`, `tee`, `sed -i`, `cp`/`mv`/`rm`/`ln`, `python -c`/`node -e` com o caminho em literal) e `bash -c`/`eval` com esses padrões [B]; a garantia de escrita vem do sandbox.
+4. Autoria de pareceres: `PostToolUse` em Write/Edit de `docs/reviews/` ou `docs/qa/` grava caminho, hash, `agent_type` e horário em `.forge/run/autoria.jsonl`; o `forge-check pr` exige autoria do papel certo para o hash atual.
+5. O hook `parecer` absorve o item 4.3 da ADR 0008 (`gh pr merge`) e checa o papel.
+
+### 7. Falha fechada × falha aberta (emenda ao item 4 da ADR 0003)
+- **Falham fechado, de forma seletiva:** `conformidade` e `parecer` nas ações de merge, PR e push. Em erro interno, o script olha só o comando do Bash e o caminho do arquivo (nunca o conteúdo gravado) e bloqueia só se houver marcador crítico (`git`/`gh` com `merge` ou `push`, `pr create`, `--no-verify`, `hooksPath`, `--force` ou prefixo de caminho protegido); sem marcador, sai com 0.
+- **Continuam falhando aberto:** `agentes`, `pesado`, `quadro` (processo, não segurança).
+- Saída de emergência só do dono: `FORGE_GUARDA_ABERTA=1` no ambiente do processo do Claude Code (definido no `env` de `~/.claude/settings.json`, protegido pelo sandbox).
+- Limite aceito: sem `python3` ou com estouro de tempo, o Claude Code não bloqueia; a mitigação é o sandbox.
+
+### 8. Detecção do que não dá para bloquear
+- **Hook `vigia`**: `SessionStart` grava os hashes dos arquivos em vigor; `Stop`/`SubagentStop` comparam, olham `git status` dos caminhos protegidos, as linhas novas de `erros.log` e a transcrição desde o último deslocamento. Violação vai para `.forge/run/violacoes.jsonl` e aparece **ao usuário** por `systemMessage` em uma linha, sem passar pelo modelo. Meta: até 300 ms por turno.
+- **Verificador de transcrições** (ADR 0007), propriedades novas: ação fora da matriz para o `agent_type`; contorno (bloqueio seguido de nova tentativa com o mesmo alvo por outra ferramenta, script ou agente); uso de `dangerouslyDisableSandbox`; flags proibidas em scripts gravados na sessão; comandos e domínios pagos; escrita em `.claude/agents|skills`; `R-DECISAO` (heurística, só aviso).
+
+### 9. Identidade e servidor
+Continua valendo a ADR 0008 (conta de máquina; rulesets quando público). A verificar: dar às sessões de projeto um token **sem escrita no Forge**, com PR a partir de um fork da conta de máquina; se viável no plano gratuito, "projeto não mescla no Forge" vira [I] antes de o repositório ser público.
+
+## Alternativas consideradas
+| Opção | Prós | Contras |
+|---|---|---|
+| Só reforçar instruções | Zero código | Não é garantia; já falhou duas vezes |
+| Tirar Bash de todos os papéis | Fecha o shell | Dev e QA precisam de testes e git |
+| Só hooks lendo comandos | Sem dependência nova | Bash é Turing-completo; script e `eval` passam |
+| Contêiner ou VM por sessão | Isolamento total | Pesado (`R-TETO`); o sandbox nativo cobre o essencial sem custo |
+| Falha fechada em todos os hooks | Rígido | Um bug paralisa todos os projetos |
+| Proteger só por `tools:` | Simples | Grosso: só a ausência de Bash garante algo |
+
+## Consequências
+- **Mais fácil:** escrita em arquivo em vigor, leitura de credencial e de `.env` pela ferramenta, chamada à API de modelo e desligamento de hooks pelo `.git/config` ficam impossíveis na sessão; merge e PR fora do papel são barrados com mensagem; o que escapa aparece ao usuário no mesmo turno.
+- **Mais difícil:** o usuário aplica à mão mudanças em `.claude/` e `CLAUDE.md` dos projetos; ferramentas incompatíveis com o sandbox pedem `allowWrite`/`excludedCommands` revisados no PR; Windows nativo não roda o sandbox (use WSL2); a migração (ADR 0005) leva o settings novo aos projetos.
+- **Sem garantia (risco residual):**
+  1. Enquanto o Forge for privado, um agente com o token de máquina que esconda `--no-verify`/`-c core.hooksPath` num script **consegue** enviar ou mesclar em `develop`/`homolog`/`main`. É o maior risco: detectado pelo vigia e pelo CI, reversível, e fechado só pelo servidor ou pelo token sem escrita (seção 9).
+  2. Regras de julgamento ficam [M] com detecção parcial: discovery, qualidade do review, parecer aprovado sem teste, `R-DECISAO`.
+  3. Processos do app leem `.env`; use só segredo de desenvolvimento local.
+  4. O usuário pode aprovar prompts ou ampliar listas: é consentimento, fora do escopo.
+  5. Docker fora do sandbox (hook só [B]).
+  6. Mudanças de formato no Claude Code podem abrir a guarda; mitigação: fixtures com versão fixada no CI e o vigia registrando hook ausente.
+  7. Sessões abertas sem os atalhos têm o sandbox do projeto, mas não no modo exigido.
+
+**Ajuste da implementação (N6).** `denyWrite` em arquivo versionado quebra o git do checkout principal (`pull`, `checkout`, `merge` e `rebase` falham sempre que a `develop` altera o arquivo) e, nas worktrees, nem vale (N5). Por isso o `denyWrite` do sandbox cobre só estado não versionado. Limite documentado (SBX-03, decisão N6): o Bash pode gravar em `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md` no diretório de trabalho; a barreira é o hook `conformidade`, a catraca do CI e o registro de autoria, não o sandbox.

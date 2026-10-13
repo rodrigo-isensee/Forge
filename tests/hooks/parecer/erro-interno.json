@@ -1,5 +1,5 @@
 {
-  "descricao": "Config corrompida: libera e registra em erros.log.",
+  "descricao": "Config corrompida e gh pr create (marcador crítico): falha fechado e registra em erros.log (ADR 0009, seção 7).",
   "config_bruta": "[1,",
   "arquivos": {
     "src/app.js": "v1\n"
@@ -24,7 +24,8 @@
     }
   },
   "esperado": {
-    "codigo": 0,
+    "codigo": 2,
+    "stderr": "erro interno do hook parecer",
     "erros_log": "parecer JSONDecodeError"
   }
 }
