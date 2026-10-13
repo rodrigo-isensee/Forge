@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: jarvis-triagem
 branch: melhoria/jarvis-triagem
-commit: 5873c63
-parecer: reprovado
+commit: 38b49a8
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -26,3 +26,20 @@ Parecer: **reprovado**. Testes no head 5873c63: 310 OK (`python3 -m unittest dis
 O resto confere: a seção é curta e clara; não contradiz o restante do arquivo (o Jarvis continua sem implementar, `:8` e `:63` "você, só quadro e configuração do time"); os invariantes protegem o trecho certo; CHANGELOG em `[Não publicado]`.
 
 Pedido ao autor: corrigir o item 1 (bloqueia) e, se possível, os itens 2 e 4 no mesmo PR.
+
+## Re-review independente
+
+Parecer: **aprovado**, no head 38b49a8 (`fix(jarvis): descrição e autonomia alinhadas à triagem; invariante do tech-lead`). Testes no head 38b49a8: 310 OK (`python3 -m unittest discover -s tests`).
+
+Os quatro itens do review anterior:
+
+1. Descrição do frontmatter (`agents/jarvis.md:3`): corrigida. Não diz mais que o Jarvis cuida do versionamento; diz que coordena e que versão, release e merge são do `tech-lead`. Atende ao item bloqueante.
+2. Duplicação (`agents/jarvis.md:27` e `:96`): a frase "Toda resposta que delega cita o agente" saiu; ficou só a da triagem. Atende.
+3. Autonomia (`agents/jarvis.md:81`): a linha agora manda acionar o `tech-lead`, que implementa e abre o PR, e diz "você não". A tensão com "Você não implementa" foi reduzida. Ver o achado novo abaixo.
+4. Invariante (`tests/config.json`): protegido "que são do `tech-lead`", além de "diga sempre ao usuário para qual agente passou". Protege o trecho certo. A sugestão de proteger também "inclusive versionamento, release, merge e integração" não foi aplicada; é recomendado, não bloqueia.
+
+Achado novo (recomendado, não bloqueia): `agents/jarvis.md:81` manda o `tech-lead` implementar melhorias e abrir o PR, mas `agents/tech-lead.md:28` diz "Não implementa features". A autonomia fala de melhorias de fábrica e a limitação, de features; ainda assim, o texto do `tech-lead` deveria dizer que implementa só melhorias de fábrica ou que delega a implementação. Pode ir em PR próprio.
+
+Checks do PR: no head 38b49a8, todos os jobs (CI, Catraca, validação do plugin, testes estruturais e demais) falharam em 2 a 4 s, sem nenhum passo executado. O push em `develop` de `de0e519` falhou do mesmo jeito (4 s, sem passos), então a causa parece ser da plataforma do GitHub Actions (runner ou cobrança), e não do código. Os logs não puderam ser lidos daqui. A bateria local está verde. Por isso este parecer não autoriza a mesclagem: o `tech-lead` mescla só com os checks verdes (R-FLUXO).
+
+Pedido ao Jarvis: resolver a falha dos checks no GitHub (conta ou runner) e, depois, rerodar `gh pr checks 97`. Quando estiverem verdes, a mesclagem segue com `gh pr merge 97 --squash`.
