@@ -737,6 +737,30 @@ class SandboxDoBash(unittest.TestCase):
         for dominio in ("api.anthropic.com", "api.openai.com", "generativelanguage.googleapis.com"):
             self.assertIn(dominio, negados)
 
+    def test_deny_write_minimo_nao_afrouxa(self):
+        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyWrite"]
+        for caminho in (".forge/", ".githooks/", ".claude-plugin/", ".github/", "tests/config.json",
+                        "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.json"):
+            self.assertIn(caminho, deny)
+
+    def test_excluded_commands_so_leitura_de_tmux(self):
+        excluidos = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["excludedCommands"]
+        self.assertTrue(excluidos)
+        for comando in excluidos:
+            self.assertRegex(comando, r"^tmux (ls|capture-pane|has-session)\b")
+            self.assertNotRegex(comando, r"send-keys|new-session|kill-|run-shell")
+
+    def test_apis_de_modelo_negadas_com_curinga(self):
+        negados = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["network"]["deniedDomains"]
+        for dominio in ("*.anthropic.com", "*.openai.com"):
+            self.assertIn(dominio, negados)
+
+    def test_validar_plugin_usa_copia_limpa(self):
+        texto = (RAIZ / "scripts/validar-plugin.sh").read_text()
+        self.assertIn("git ls-files", texto)
+        self.assertIn("claude plugin validate", texto)
+        self.assertTrue(os.access(RAIZ / "scripts/validar-plugin.sh", os.X_OK))
+
     def test_estacao_instala_dependencias_do_sandbox(self):
         texto = (RAIZ / "scripts/preparar-estacao.sh").read_text()
         self.assertIn("bubblewrap", texto)
