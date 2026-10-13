@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado] — requer migração (0.7.0, `forge-upgrade`)
+## [0.7.0] - 2026-10-13 — requer migração (`forge-upgrade`)
 - Pendências que exigem mexer em `.github/` (protegido; PR com o rótulo `afrouxa-regra` do dono): incluir `scripts/validar-plugin.sh` no job `shellcheck` do CI e trocar `claude plugin validate . --strict` por `scripts/validar-plugin.sh` no `.github/pull_request_template.md`.
 ### Corrigido
 - **Sandbox, `denyWrite` só para estado não versionado (N6):** `sandbox.filesystem.denyWrite` fica só com `.forge/`; arquivos versionados saem da lista porque travavam `git pull/checkout/merge/rebase` no checkout principal (e não valiam nas worktrees). Proteção deles: hook `conformidade`, catraca do CI e registro de autoria. SBX-03 vira limite documentado. Teste estrutural barra caminho versionado em `denyWrite`; README e ADR 0009 atualizados.
