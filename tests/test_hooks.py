@@ -330,6 +330,72 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("política de conformidade inválida", r.stderr)
 
+    def rodar_com_politica(self, politica, comando, agent_type):
+        """Roda o hook sobre uma cópia do plugin com a política dada; devolve o processo."""
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        shutil.copytree(HOOKS, tmp / "plugin" / "hooks", ignore=shutil.ignore_patterns("__pycache__"))
+        (tmp / "plugin" / "hooks" / "conformidade.json").write_text(json.dumps(politica), encoding="utf-8")
+        raiz = tmp / "proj"
+        (raiz / ".forge").mkdir(parents=True)
+        (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        git("init", "-q", "-b", "develop", cwd=raiz)
+        entrada_hook = {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": agent_type,
+                        "hook_event_name": "PreToolUse", "cwd": str(raiz)}
+        env = ambiente_limpo()
+        env.pop("FORGE_GUARDA_ABERTA", None)
+        return subprocess.run([sys.executable, str(tmp / "plugin" / "hooks" / "conformidade.py")],
+                              input=json.dumps(entrada_hook), cwd=raiz, env=env, capture_output=True, text=True,
+                              timeout=30)
+
+    def test_politica_com_chave_de_topo_malformada_bloqueia(self):
+        """Qualquer chave de topo ausente ou com tipo errado: falha fechado (saída 2), nunca libera."""
+        base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        sem = lambda chave: {k: v for k, v in base.items() if k != chave}
+        npm_sem_congelados = {"npm": {"adicionam": ["install"]}}
+        malformadas = {
+            "papeis em lista": dict(base, papeis=["forge:qa-engineer"]),
+            "papeis sem lista de tipos": dict(base, papeis={"qa": "forge:qa-engineer"}),
+            "papeis ausente": sem("papeis"),
+            "sem_agent_type não texto": dict(base, sem_agent_type=None),
+            "sem_agent_type ausente": sem("sem_agent_type"),
+            "papel_padrao não texto": dict(base, papel_padrao=3),
+            "papel_padrao ausente": sem("papel_padrao"),
+            "acoes em lista": dict(base, acoes=["dev"]),
+            "acoes com valor não lista": dict(base, acoes={"instalar_pacote": "dev"}),
+            "acoes ausente": sem("acoes"),
+            "acoes sem ação conhecida": dict(base, acoes={}),
+            "pacotes ausente": sem("pacotes"),
+            "pacotes em lista": dict(base, pacotes=["npm"]),
+            "pacotes: npm sem congelados": dict(base, pacotes=npm_sem_congelados),
+            "pacotes: adicionam não lista": dict(base, pacotes={"npm": {"adicionam": "install", "congelados": []}}),
+            "pacotes: flags_congeladas não lista": dict(
+                base, pacotes={"npm": {"adicionam": [], "congelados": [], "flags_congeladas": None}}),
+            "pacotes: so_arquivo não lista": dict(
+                base, pacotes={"npm": {"adicionam": [], "congelados": [], "so_arquivo": "-r"}}),
+            "flags_congeladas null": dict(base, flags_congeladas=None),
+            "flags_congeladas ausente": sem("flags_congeladas"),
+            "caminhos ausente": sem("caminhos"),
+        }
+        for nome, politica in malformadas.items():
+            with self.subTest(nome):
+                r = self.rodar_com_politica(politica, "echo oi", "forge:dev")
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("política de conformidade inválida", r.stderr)
+
+    def test_qa_nao_instala_pacote_com_pacotes_malformado(self):
+        """O furo do review: com `pacotes` malformado o `qa` rodava `npm install x`; agora o hook bloqueia."""
+        base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        politica = dict(base, pacotes={"npm": {"adicionam": ["install"]}})
+        r = self.rodar_com_politica(politica, "npm install x", "forge:qa-engineer")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("política de conformidade inválida", r.stderr)
+
+    def test_politica_vigente_passa_na_validacao(self):
+        base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        r = self.rodar_com_politica(base, "echo oi", "forge:dev")
+        self.assertEqual((r.returncode, r.stderr), (0, ""))
+
     def test_varredura_do_vigia_nao_desce_em_pastas_ignoradas(self):
         sys.path.insert(0, str(HOOKS))
         import vigia
