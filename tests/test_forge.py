@@ -406,7 +406,7 @@ class ForgeInit(unittest.TestCase):
         self.rodar()
         plugin = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
         self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8").strip(), plugin)
-        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8")).get("teto_agentes"), None)
         self.rodar()
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
 
@@ -471,7 +471,7 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertIn("gh pr create --base develop", r.stdout)
         self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "forge/upgrade-0.5.0")
         self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.5.0\n")
-        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
+        self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8")).get("teto_agentes"), None)
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.forge/run/\n")
         self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
         for rel, texto in DOCS_DEPOIS.items():
