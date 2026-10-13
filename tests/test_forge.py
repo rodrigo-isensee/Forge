@@ -631,6 +631,54 @@ class HookPrePush(unittest.TestCase):
     def test_permite_outra_branch(self):
         self.assertEqual(self.push("HEAD:feature/x").returncode, 0)
 
+    def commit_novo(self, msg, amend=False):
+        args = ["commit", "-q", "--allow-empty", "-m", msg] + (["--amend"] if amend else [])
+        git(*args, cwd=self.repo)
+
+    def test_fast_forward_passa(self):
+        self.assertEqual(self.push("HEAD:feature/ff").returncode, 0)
+        self.commit_novo("segundo")
+        self.assertEqual(self.push("HEAD:feature/ff").returncode, 0)
+
+    def test_historico_reescrito_e_recusado(self):
+        self.assertEqual(self.push("HEAD:feature/rw").returncode, 0)
+        self.commit_novo("reescrito", amend=True)
+        for refspec in ("--force", "+HEAD:feature/rw"):
+            with self.subTest(refspec=refspec):
+                args = ["--force", "origin", "HEAD:feature/rw"] if refspec == "--force" else ["origin", refspec]
+                r = subprocess.run(["git", "-C", str(self.repo), "push", *args], cwd=self.repo,
+                                   env=ambiente_limpo(), capture_output=True, text=True)
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("R-VERIFY", r.stderr)
+
+    def test_remoto_com_commit_desconhecido_pede_fetch(self):
+        self.assertEqual(self.push("HEAD:feature/u").returncode, 0)
+        outro = self.tmp / "outro"
+        git("clone", "-q", str(self.remoto), str(outro), cwd=self.tmp)
+        for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
+            git("config", k, v, cwd=outro)
+        git("checkout", "-q", "feature/u", cwd=outro)
+        git("commit", "-q", "--allow-empty", "-m", "de outro clone", cwd=outro)
+        self.assertEqual(subprocess.run(["git", "-C", str(outro), "push", "origin", "feature/u"], cwd=outro,
+                                        env=ambiente_limpo(), capture_output=True).returncode, 0)
+        self.commit_novo("local")  # o remoto avançou e este clone não fez fetch
+        r = self.push("HEAD:feature/u")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("git fetch", r.stderr)
+        self.assertNotIn("R-VERIFY", r.stderr)
+
+    def test_apagar_branch_passa(self):
+        self.assertEqual(self.push("HEAD:feature/del").returncode, 0)
+        self.assertEqual(self.push(":feature/del").returncode, 0)
+
+    def test_apagar_tag_passa(self):
+        git("tag", "v0", cwd=self.repo)
+        self.assertEqual(self.push("v0").returncode, 0)
+        self.assertEqual(self.push(":refs/tags/v0").returncode, 0)
+
+    def test_branch_nova_passa(self):
+        self.assertEqual(self.push("HEAD:feature/nova").returncode, 0)
+
     def test_pre_push_local_que_falha_bloqueia(self):
         local = self.repo / ".githooks/pre-push.local"
         local.write_text("#!/usr/bin/env bash\necho falhou >&2\nexit 1\n", encoding="utf-8")

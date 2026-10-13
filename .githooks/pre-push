@@ -2,7 +2,26 @@
 # Forge: develop, homolog e main só mudam por pull request (develop e homolog mesclados pelo tech-lead
 # com os testes verdes; main mesclada pelo usuário). Ninguém envia direto para elas.
 # Diferente do hook do modelo de projeto (só main): a fábrica tem três degraus protegidos.
-while read -r _ _ remote_ref _; do
+while read -r _ local_sha remote_ref remote_sha; do
+  # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
+  # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
+  # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
+  case "$local_sha" in *[!0]*)
+    case "$remote_sha" in *[!0]*)
+      ref_nome="${remote_ref#refs/heads/}"; ref_nome="${ref_nome#refs/tags/}"
+      if ! git cat-file -e "$remote_sha" 2>/dev/null; then
+        echo "pre-push: o commit atual de ${ref_nome} no remoto não existe aqui, então não dá para saber se o envio é fast-forward; rode 'git fetch' e tente de novo." >&2
+        exit 1
+      fi
+      if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        case "$remote_ref" in
+          refs/tags/*) echo "pre-push: R-VERIFY: mover a tag ${ref_nome} para outro commit (histórico reescrito) bloqueado; reescrever histórico é decisão do usuário." >&2 ;;
+          *) echo "pre-push: R-VERIFY: envio não fast-forward para ${ref_nome} (histórico reescrito) bloqueado; faça rebase sobre a remota e envie normalmente, reescrever histórico é decisão do usuário." >&2 ;;
+        esac
+        exit 1
+      fi ;;
+    esac ;;
+  esac
   case "$remote_ref" in
     refs/heads/main|refs/heads/homolog|refs/heads/develop)
       echo "pre-push: envio direto para ${remote_ref#refs/heads/} bloqueado. Abra um pull request (fluxo: branch -> develop -> homolog -> main)." >&2
