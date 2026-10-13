@@ -20,7 +20,7 @@ PLUGIN = Path(__file__).resolve().parent.parent
 LIMITE_MENSAGEM = 200
 LIMITE_LOG = 256 * 1024
 # Usados só se o modelo do projeto (templates/projeto/.forge/config.json) não puder ser lido.
-RESERVA = {"teto_agentes": 3, "pesados": ["playwright", "docker compose up"]}
+RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (forge-init)
 INTEGRACAO = {"main", "master", "develop", "homolog"}
 SEPARADORES = set("();|&\n")
 REDIRECIONAMENTO = set("<>")

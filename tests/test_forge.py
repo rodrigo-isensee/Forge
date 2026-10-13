@@ -119,7 +119,10 @@ class PacotesDeStack(unittest.TestCase):
                 self.assertTrue((pacote / "pronto.md").is_file(), "falta pronto.md")
                 pronto = (pacote / "pronto.md").read_text(encoding="utf-8")
                 self.assertRegex(pronto, r"(?m)^Comando sugerido: `[^`]+`", "pronto.md sem 'Comando sugerido: `...`'")
-                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md"}
+                if (pacote / "pesados.json").exists():
+                    pesados = json.loads((pacote / "pesados.json").read_text(encoding="utf-8"))
+                    self.assertTrue(isinstance(pesados, list) and all(isinstance(x, str) and x.strip() for x in pesados))
+                extras = {p.name for p in pacote.iterdir()} - {"agents", "skills", "seguranca.md", "pronto.md", "pesados.json"}
                 self.assertEqual(extras, set(), "arquivo fora da forma do pacote")
 
     def test_nomes_de_agente_nao_colidem(self):
@@ -402,6 +405,17 @@ class ForgeInit(unittest.TestCase):
         self.assertIn("# Demo", (self.tmp / "CLAUDE.md").read_text(encoding="utf-8"))
 
 
+    def test_pesados_padrao_vem_da_stack_e_o_nucleo_nao_traz_lista(self):
+        self.assertEqual(json.loads((RAIZ / "templates/projeto/.forge/config.json").read_text(encoding="utf-8"))["pesados"], [])
+        self.rodar()
+        da_stack = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
+        self.assertTrue(da_stack)
+        config = self.tmp / ".forge/config.json"
+        self.assertEqual(json.loads(config.read_text(encoding="utf-8"))["pesados"], da_stack)
+        config.write_text('{"pesados": ["meu-comando"]}\n', encoding="utf-8")  # config do projeto não é tocada
+        self.rodar()
+        self.assertEqual(json.loads(config.read_text(encoding="utf-8"))["pesados"], ["meu-comando"])
+
     def test_grava_versao_e_config_idempotente(self):
         self.rodar()
         plugin = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
@@ -520,6 +534,47 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertEqual(git("branch", "--list", "forge/*", cwd=self.tmp).stdout, "")
         self.assertEqual(git("branch", "--show-current", cwd=self.tmp).stdout.strip(), "main")
+
+
+class Migracao070(unittest.TestCase):
+    """Migração 0.7.0: só `teto_agentes` igual a 3 sai do config; fixtures antes/depois em tests/migracoes/0.7.0/."""
+
+    def migrar(self, projeto):
+        return subprocess.run([sys.executable, str(RAIZ / "migrations/0.7.0/migrar"), str(projeto)],
+                              capture_output=True, text=True)
+
+    def test_fixtures_antes_e_depois(self):
+        casos = sorted((RAIZ / "tests/migracoes/0.7.0").glob("*.json"))
+        self.assertGreaterEqual(len(casos), 5)
+        for caso in casos:
+            dados = json.loads(caso.read_text(encoding="utf-8"))
+            with self.subTest(caso=caso.stem), tempfile.TemporaryDirectory() as tmp:
+                config = Path(tmp) / ".forge/config.json"
+                config.parent.mkdir()
+                config.write_text(json.dumps(dados["antes"]), encoding="utf-8")
+                r = self.migrar(tmp)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn(dados["saida"], r.stdout)
+                self.assertEqual(json.loads(config.read_text(encoding="utf-8")), dados["depois"])
+                if not dados["saida"]:
+                    self.assertEqual(config.read_text(encoding="utf-8"), json.dumps(dados["antes"]))  # nem reformata
+                depois = config.read_bytes()
+                self.assertEqual(self.migrar(tmp).stdout, "")  # idempotente
+                self.assertEqual(config.read_bytes(), depois)
+
+    def test_config_ausente_ou_ilegivel_nao_muda(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(self.migrar(tmp).returncode, 0)
+            self.assertFalse((Path(tmp) / ".forge/config.json").exists())
+            config = Path(tmp) / ".forge/config.json"
+            config.parent.mkdir()
+            config.write_text("{quebrado", encoding="utf-8")
+            r = self.migrar(tmp)
+            self.assertEqual((r.returncode, config.read_text(encoding="utf-8")), (0, "{quebrado"))
+            self.assertIn("ilegível", r.stdout)
+
+    def test_leia_resume_para_o_forge_upgrade(self):
+        self.assertIn("teto_agentes", (RAIZ / "migrations/0.7.0/LEIA.md").read_text(encoding="utf-8").splitlines()[2])
 
 
 class HookPrePush(unittest.TestCase):

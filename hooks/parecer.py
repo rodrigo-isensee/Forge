@@ -46,15 +46,18 @@ def posicionais(args, com_valor):
 def troca_de_branch(args):
     """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
     if "--" in args:
-        return None  # restaura arquivos
+        k = args.index("--")
+        if k + 1 < len(args):
+            return None  # restaura arquivos
+        args = args[:k]  # `--` sem caminho depois não restaura nada: é troca de branch
     for k, a in enumerate(args):
         if a in CRIA_BRANCH:
             return args[k + 1] if k + 1 < len(args) else None
         if a in ("-d", "--detach"):
             return ""
     pos = posicionais(args, set())
-    if not pos:
-        return None
+    if not pos or len(pos) > 1:
+        return None  # `git checkout <ref> <arquivo>...` restaura arquivos; trocar de branch leva um só nome
     return "" if pos[0] == "-" else pos[0]
 
 
