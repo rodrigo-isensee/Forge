@@ -114,7 +114,10 @@
       "teste de bloqueante",
       "nunca sobe sozinho",
       "estado em uma linha",
-      "só vale gravada"
+      "só vale gravada",
+      "## Triagem de cada pedido",
+      "diga sempre ao usuário para qual agente passou",
+      "que são do `tech-lead`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",

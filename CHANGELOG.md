@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
+- **Jarvis, triagem de cada pedido:** antes de agir, o Jarvis decide se faz (orquestração, quadro, configuração, comunicação) ou passa ao `forge:<agente>` (inclusive release, versão e merge, do `tech-lead`) e sempre diz ao usuário para qual agente passou; invariantes novos em `tests/config.json`.
 - **Primeiro uso (F1):** `forge novo-projeto` (despachante `bin/forge` e `bin/forge-novo-projeto`) cria o repositório privado, clona, faz o commit inicial na `main`, cria `develop` e `homolog`, guarda o progresso sem segredos e abre o Jarvis; skill `novo-projeto` conduz o roteiro e chama `iniciar-projeto` no fim; perfil `.forge/perfil` e skill `modo-iniciante`; linha no Jarvis para pasta sem `.forge/versao`. Especificação em `docs/propostas/primeiro-uso/`; teste de ponta a ponta com `gh` e `claude` falsos. Pendência: o job `shellcheck` do CI ainda não lista `bin/forge` nem `bin/forge-novo-projeto` (`.github/` é protegido).
 
 ## [0.11.0] - 2026-10-13
