@@ -116,7 +116,8 @@
       "estado em uma linha",
       "só vale gravada",
       "## Triagem de cada pedido",
-      "diga sempre ao usuário para qual agente passou"
+      "diga sempre ao usuário para qual agente passou",
+      "que são do `tech-lead`"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
