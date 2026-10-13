@@ -3,13 +3,13 @@ tipo: qa
 contrato: 1
 pedido: catraca-ci
 branch: melhoria/catraca-ci
-commit: 57b77c1
-parecer: reprovado
-escopo: completo
+commit: 5846df4
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 2
+bugs_baixos: 0
 data: 2026-10-13
 ---
 # QA: catraca anti-piora do CI (ADR 0008, seção 3)
@@ -86,5 +86,52 @@ Esperado: barrar. Obtido: exit 0; só `unittest` falha. Baixa porque o job de te
 ### BUG-03 (baixa): `pr-texto` aceita qualquer texto
 Uma seção "Como medir" com `ok` passa. Aceitável como mínimo; sugerir tamanho mínimo ou revisão humana.
 
-## Parecer
+## Parecer da primeira rodada (57b77c1)
 Reprovado por BUG-01 (alto): um PR consegue desligar o CI sem a catraca notar. Corrigir e reexecutar CT-15 a CT-17. Os demais cenários passam.
+
+## Revalidação (5846df4)
+Escopo incremental: BUG-01, BUG-02 e BUG-03, o que a correção toca (promoções, dependabot, script da base, `forge-check` único) e a suíte. Ambiente: clone descartável de `melhoria/catraca-ci` em 5846df4; cada cenário é um commit sobre a base 5846df4. Nada que custe uso de IA foi executado.
+
+| Verificação | Resultado |
+|---|---|
+| `python3 -m unittest discover -s tests` | 156 testes, OK |
+| shellcheck (lista do job `shell`) | sem achados |
+| `claude plugin validate . --strict` | passou |
+| `bash tests/e2e-instalacao.sh` | ok (8 agentes, 9 skills) |
+
+| ID | Cenário | Esperado | Obtido |
+|---|---|---|---|
+| CT-15 | `git mv .github/workflows/ci.yml .github/outro.yml` (BUG-01) | barra | barra: `R-CONFORMIDADE: mudança em .github/workflows/ci.yml` (exit 1) |
+| CT-15b | `git mv tests/catraca.py tests/catraca2.py`, rodando o script da base como o CI | barra | barra: mudança em `tests/catraca.py` |
+| CT-08 | Editar `tests/catraca.py` | barra | barra |
+| CT-19 | `git rm docs/regras/R-QA.md` (BUG-02) | barra | barra: arquivo de regra apagado ou movido |
+| CT-18 | `git mv agents/jarvis.md agents/jarvis-novo.md` | barra | barra |
+| CT-17 | `git mv docs/regras/R-REVIEW.md docs/regras/R-REVIEW2.md` | barra | barra |
+| CT-20 | Renomear arquivo de teste sem perder `test_*` | passa | passa (exit 0) |
+| CT-22 | "Como medir" com `ok`, `OK.`, `n/a`, `teste`, `sim` (BUG-03) | barra | barra (mínimo de 20 caracteres fora de comentários) |
+| CT-23 | "Como medir" só com comentário HTML | barra | barra |
+| CT-25 | Seções com texto real | passa | passa |
+| CT-27 | Corpo vazio | barra as duas seções | barra |
+| CT-35 | `--modo pareceres --ramo develop --base-ref homolog`, toca `hooks/`, sem parecer | passa (promoção) | passa (exit 0) |
+| CT-36 | Idem `homolog` para `main` | passa | passa |
+| CT-37 | `melhoria/*` para `develop`, toca `hooks/`, sem parecer | barra | barra (R-REVIEW) |
+| CT-38 | Autor `dependabot[bot]`, só troca SHA e comentário de versão de `uses:` em `ci.yml` (modos `regras` e `pareceres`) | passa | passa (exit 0) |
+| CT-39 | Mesmo diff com autor humano | barra | barra |
+| CT-40 | dependabot: SHA e troca de `name:` | barra | barra |
+| CT-41 | dependabot: SHA e troca de `run:` por `curl ... | sh` | barra | barra |
+| CT-42 | dependabot: toca `hooks/agentes.py`, modo `pareceres` | barra | barra (R-REVIEW) |
+
+Observações, sem bug:
+- Um "Como medir" de 26 letras repetidas passa. O mínimo de 20 caracteres é filtro de preenchimento, não de qualidade; o julgamento fica com a revisão humana (já era a ressalva do BUG-03).
+- O rótulo `afrouxa-regra` segue sem teste contra a API real (sem token); `rotulo_liberado` é coberto pelos testes unitários.
+- O workflow `catraca.yml` e a criação do worktree da base só rodam no GitHub; aqui reproduzi a mesma chamada (`python3 <cópia da base>/tests/catraca.py --base <base>`) localmente.
+
+### Situação dos bugs
+| Bug | Severidade | Situação |
+|---|---|---|
+| BUG-01 | alta | corrigido (CT-15, CT-15b) |
+| BUG-02 | baixa | corrigido (CT-17 a CT-19) |
+| BUG-03 | baixa | corrigido para texto curto (CT-22); resíduo aceito, ver observações |
+
+## Parecer
+Aprovado em 5846df4: nenhum bug aberto, suíte verde, os cenários dos três bugs agora barram e a promoção `develop` para `homolog` não exige parecer. A parte que depende do GitHub (rótulo, execução do `catraca.yml`) só se confirma no primeiro PR.
