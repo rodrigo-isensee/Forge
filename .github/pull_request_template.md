@@ -1,5 +1,5 @@
 ## Projeto de origem
-<!-- Tipo/identificador genérico do projeto; sem nomes, regras de negócio ou código dele. -->
+<!-- OBRIGATÓRIA (a catraca barra o PR sem ela): mínimo de 20 caracteres fora de comentários. Tipo/identificador genérico do projeto; sem nomes, regras de negócio ou código dele. -->
 
 ## Situação observada
 <!-- O problema na fábrica, descrito sem dados do projeto. -->
@@ -8,7 +8,7 @@
 <!-- Arquivos e comportamento, em poucas linhas. -->
 
 ## Como medir
-<!-- Como saber se melhorou (ver docs/melhoria-continua.md). -->
+<!-- OBRIGATÓRIA (a catraca barra o PR sem ela): mínimo de 20 caracteres fora de comentários. Como saber se melhorou (ver docs/melhoria-continua.md). -->
 
 ## Checklist
 - [ ] `python3 -m unittest discover -s tests -v` verde
