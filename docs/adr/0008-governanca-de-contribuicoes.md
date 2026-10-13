@@ -40,6 +40,14 @@ Jobs em `ci.yml`, só biblioteca padrão do Python ou ferramentas gratuitas de v
 
 Mensagens de bloqueio: uma linha, começando pelo ID da regra, com o quê, por quê e como corrigir (`<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`); nunca o valor de um segredo. O CI publica um comentário único por PR, atualizado a cada execução, com a tabela de portões; em PR de fork, sem permissão de escrita, o resumo vai para `GITHUB_STEP_SUMMARY`.
 
+Notas da implementação (rodada de correções do review e do QA):
+- **Promoções fora do `pareceres`:** PR `develop` → `homolog` e `homolog` → `main` não passa pelo job: o parecer é exigido na entrada de cada PR na `develop`, e na promoção o `ramo` seria `develop` ou `homolog`, sem parecer possível.
+- **"Depois do último push":** o instante vem do servidor (a execução mais antiga do Actions para o `head.sha`, `actions: read`), nunca da data do commit, que o cliente define. Sem execução registrada, o rótulo não vale.
+- **`R-CUSTO` não tem rótulo:** a exceção de custo é só `custo_permitido`, com autorização do usuário.
+- **Versão da base:** os jobs `catraca` e `pareceres` executam `tests/catraca.py` e `bin/forge-check` da base (checkout separado), avaliando os arquivos do PR; só a introdução usa a versão do PR.
+- **Dependabot:** PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer; qualquer outra mudança segue as regras normais.
+- **Rótulo e texto do PR:** `catraca` e `pr-texto` ficam em `.github/workflows/catraca.yml` para reagir a `labeled`, `unlabeled` e `edited` sem rodar a bateria pesada.
+
 Limite conhecido: no evento `pull_request`, o workflow roda na versão do PR, que pode editar o próprio `ci.yml` ou `tests/catraca.py`. Mitigações: a `catraca` exige `afrouxa-regra` para mudança em `.github/workflows/`, `.github/rulesets/`, `.github/CODEOWNERS` e `tests/catraca.py`; um job removido deixa o check obrigatório pendente; para quem não é o dono, a aprovação do code owner é o portão final.
 
 ### 4. Agentes

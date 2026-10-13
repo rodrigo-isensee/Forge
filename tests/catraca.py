@@ -2,6 +2,7 @@
 """Catraca anti-piora do Forge (ADR 0008, seção 3): barra, para todos inclusive o dono, a mudança que piora a fábrica.
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
+Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push. Eventos vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
@@ -9,6 +10,7 @@ do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. 
 """
 import argparse
 import ast
+import importlib.util
 import json
 import os
 import re
@@ -16,6 +18,7 @@ import subprocess
 import sys
 import urllib.request
 from datetime import datetime
+from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
 ROTULO = "afrouxa-regra"
@@ -339,27 +342,47 @@ def violacoes_do_texto(corpo):
             for t in ("Projeto de origem", "Como medir") if len(secao(corpo, t)) < MINIMO_SECAO]
 
 
-def pedidos_da_branch(raiz, ramo):
-    pedidos = set()
-    for pasta in ("docs/reviews", "docs/qa"):
-        for p in sorted((Path(raiz) / pasta).glob("*.md")):
-            fm = re.match(r"---\n(.*?)\n---", p.read_text(encoding="utf-8"), re.S)
-            campos = dict(l.split(":", 1) for l in (fm.group(1) if fm else "").splitlines() if ":" in l)
-            if campos.get("branch", "").strip() == ramo and campos.get("pedido", "").strip():
-                pedidos.add(campos["pedido"].strip())
-    return sorted(pedidos)
+def forge_check():
+    """O `bin/forge-check` ao lado deste script (uma fonte só, ADR 0002): no CI, a versão da base."""
+    caminho = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
+    loader = SourceFileLoader("forge_check", str(caminho))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check", loader))
+    loader.exec_module(modulo)
+    return modulo
+
+
+PROMOCOES = {("develop", "homolog"), ("homolog", "main")}  # o parecer é exigido na entrada de cada PR na develop
+DEPENDABOT = "dependabot[bot]"
+USO_DE_ACAO = re.compile(r"^(\s*(?:-\s*)?uses:\s*[\w./-]+@)[0-9a-f]{40}(\s+#.*)?$")
+
+
+def so_troca_sha_de_acoes(raiz, b, h):
+    """True se o diff só troca o SHA (e o comentário de versão) de linhas `uses:` em workflows."""
+    arquivos = alterados(raiz, b, h)
+    if not arquivos:
+        return False
+    for a in arquivos:
+        antes, depois = ler(raiz, b, a), ler(raiz, h, a)
+        if not a.startswith(".github/workflows/") or antes is None or depois is None or len(antes.splitlines()) != len(depois.splitlines()):
+            return False
+        for x, y in zip(antes.splitlines(), depois.splitlines()):
+            if x != y:
+                mx, my = USO_DE_ACAO.match(x), USO_DE_ACAO.match(y)
+                if not (mx and my and mx.group(1) == my.group(1)):
+                    return False
+    return True
 
 
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
+    if (ramo, base_ref) in PROMOCOES:
+        return []
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     if not tocados:
         return []
-    pedidos, achados = pedidos_da_branch(raiz, ramo), []
-    for ped in pedidos:
-        r = subprocess.run([sys.executable, str(Path(raiz) / "bin" / "forge-check"), "--raiz", str(raiz), "pr", ped, "--ref", head],
-                           capture_output=True, text=True, timeout=120)
-        linhas = [l for l in r.stdout.splitlines() if l.strip()]
+    fc, achados = forge_check(), []
+    for ped in fc.pedidos_da_branch(Path(raiz), ramo, head):
+        linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head) if l.strip()]
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         if not linhas:
@@ -389,10 +412,14 @@ def main(argv=None):
     ap.add_argument("--raiz", default=".")
     ap.add_argument("--ramo", default=os.environ.get("HEAD_REF", ""), help="branch do PR (modo pareceres)")
     ap.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""), help="branch de destino (modo pareceres)")
+    ap.add_argument("--autor", default=os.environ.get("PR_AUTOR", ""), help="login do autor do PR")
     ap.add_argument("--eventos", help="JSON com os eventos da issue (testes); ignora a API")
     ap.add_argument("--ultimo-push", help="instante ISO do último push (com --eventos)")
     a = ap.parse_args(argv)
     raiz = Path(a.raiz).resolve()
+    if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):
+        resumo(a.modo, ["PR do dependabot que só troca SHA de ações em workflows: passa sem rótulo e sem parecer (ADR 0008)"])
+        return 0
     if a.modo == "pr-texto":
         viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
     elif a.modo == "pareceres":

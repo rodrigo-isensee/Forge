@@ -15,6 +15,8 @@ Decisão: [ADR 0003](adr/0003-hooks-deterministicos-e-silenciosos.md). Os hooks 
 
 O `parecer` libera: diff só de `.md` contra a base (documentação não passa por QA), PR ou merge entre branches de integração (promoção) e `git merge` que atualiza uma branch de trabalho. O parecer é achado pelo campo `branch:` dos documentos em `docs/reviews/` e `docs/qa/`; num `git merge`, eles são lidos da própria branch a mesclar.
 
+No CI do Forge, o job `pareceres` segue a mesma ideia: o parecer é exigido na entrada de cada PR na `develop`; os PRs de promoção (`develop` → `homolog` e `homolog` → `main`) ficam fora dele, porque já passaram por esse portão e pelas baterias da `homolog` (ADR 0008, seção 3).
+
 ## Estado e expiração
 O estado fica em `.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo teto), com `.gitignore` próprio: `agentes.json`, `pesado.json` e `erros.log`. Todo registro expira em `expiracao_horas` (padrão 2), para uma sessão interrompida não travar o projeto; uma reserva de agente que nunca começou expira em 5 minutos e a trava de tarefa pesada, em 10 minutos (sem o `PostToolUse`, como na permissão negada, ela não prende as outras sessões). A trava nunca bloqueia a própria sessão e o próprio agente. Para liberar na hora, apague `.forge/run/pesado.json`. Erro interno de um hook nunca bloqueia: ele libera e grava uma linha em `erros.log`.
 

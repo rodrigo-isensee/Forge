@@ -493,6 +493,50 @@ class LinhaDeComando(Base):
         self.assertIn("R-CUSTO:", r.stdout)
 
 
+class Dependabot(Base):
+    """Review 7: PR do dependabot que só troca SHA de ação passa sem rótulo e sem parecer; qualquer outra coisa, não."""
+    SHA1, SHA2 = "a" * 40, "b" * 40
+
+    def workflow(self, sha, versao, extra=""):
+        return f"name: CI\njobs:\n  j:\n    steps:\n      - uses: actions/checkout@{sha} # {versao}\n{extra}"
+
+    def prepara(self, depois, autor="dependabot[bot]", modo="regras"):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", self.workflow(self.SHA1, "v4"))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "ci")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+        self.repo.escreve(".github/workflows/ci.yml", depois)
+        self.repo.commit()
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        args = ["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", "--modo", modo,
+                "--autor", autor, "--ramo", "dependabot/x", "--base-ref", "develop"]
+        return subprocess.run(args, capture_output=True, text=True, env=env).returncode
+
+    def test_so_troca_de_sha_passa(self):
+        for modo in ("regras", "pareceres"):
+            with self.subTest(modo):
+                self.setUp()
+                self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5"), modo=modo), 0)
+
+    def test_outro_autor_com_o_mesmo_diff_barra(self):
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5"), autor="alguem"), 1)
+
+    def test_mudanca_alem_do_sha_barra(self):
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5", "      - run: curl x | sh\n")), 1)
+        self.setUp()
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5").replace("checkout", "outra")), 1)
+        self.setUp()
+        self.assertEqual(self.prepara(self.workflow(self.SHA2, "v5").replace("name: CI", "name: X")), 1)
+
+    def test_funcao_nao_aceita_arquivo_fora_de_workflows(self):
+        self.repo.escreve("scripts/x.sh", "uses: a/b@" + self.SHA1 + "\n")
+        self.repo.commit()
+        self.assertFalse(catraca.so_troca_sha_de_acoes(self.repo.dir, "base", "HEAD"))
+
+
 class TextoDoPr(unittest.TestCase):
     def test_preenchido_passa(self):
         corpo = "## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\nmenos retrabalho nas revisões\n\n## Checklist\n- [ ] x\n"
@@ -520,7 +564,6 @@ class TextoDoPr(unittest.TestCase):
 
 class Pareceres(Base):
     def parecer(self, tipo, ramo="pr", parecer="aprovado"):
-        self.repo.escreve("bin/forge-check", (AQUI.parent / "bin" / "forge-check").read_text(encoding="utf-8"))
         self.repo.commit()
         commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
         pasta = "reviews" if tipo == "review" else "qa"
@@ -548,6 +591,23 @@ class Pareceres(Base):
         self.parecer("review")
         self.assertEqual(self.roda("develop"), [])
         self.assertEqual(len(self.roda("homolog")), 1)
+
+    def test_promocao_fica_fora_do_job(self):
+        """Review 2: develop -> homolog e homolog -> main não exigem parecer novo (foi exigido na entrada na develop)."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.repo.commit()
+        for ramo, base_ref in (("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref), [])
+        for ramo, base_ref in (("melhoria/x", "homolog"), ("develop", "main"), ("melhoria/x", "develop")):
+            with self.subTest(ramo=ramo, base_ref=base_ref):
+                self.assertEqual(len(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref)), 1)
+
+    def test_usa_o_forge_check_do_proprio_script(self):
+        """Review 13: uma fonte só para ler os pareceres (ADR 0002)."""
+        fc = catraca.forge_check()
+        self.assertTrue(callable(fc.pedidos_da_branch) and callable(fc.cmd_pr))
+        self.assertFalse(hasattr(catraca, "pedidos_da_branch"))
 
     def test_parecer_reprovado_ou_de_outra_branch_barra(self):
         self.repo.escreve("scripts/novo.sh", "echo\n")
