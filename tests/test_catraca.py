@@ -519,6 +519,188 @@ class InstanteDoServidor(unittest.TestCase):
         self.assertEqual(catraca.eventos_do_github(), (None, None))
 
 
+class PoliticaDeConformidade(Base):
+    """hooks/conformidade.json: lista branca: só acrescentar entrada válida em `caminhos` passa; todo o resto acusa R-CONFORMIDADE."""
+
+    POLITICA = {
+        "papeis": {"tech-lead": ["forge:tech-lead"], "doc": ["forge:software-architect"]},
+        "sem_agent_type": "jarvis",
+        "papel_padrao": "dev",
+        "acoes": {"merge_integracao": ["tech-lead"], "instalar_pacote": ["dev"]},
+        "caminhos": [
+            {"caminho": ".claude/", "quem": [], "motivo": "x"},
+            {"caminho": "docs/regras/", "quem": ["tech-lead"], "so_forge": True, "branch": "melhoria/", "motivo": "y"},
+        ],
+        "pacotes": {"npm": {"adicionam": ["install", "add"], "congelados": ["ci"]}},
+    }
+
+    def setUp(self):
+        super().setUp()
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("hooks/conformidade.json", json.dumps(self.POLITICA))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "politica")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+
+    def muda(self, f):
+        pol = copy.deepcopy(self.POLITICA)
+        f(pol)
+        self.repo.escreve("hooks/conformidade.json", json.dumps(pol))
+        self.repo.commit()
+        return [v for v in self.repo.violacoes() if "conformidade.json" in v]
+
+    def test_sem_mudanca_nao_acusa(self):
+        self.assertEqual(self.muda(lambda p: None), [])
+
+    def test_remover_entrada_de_caminhos_acusa(self):
+        v = self.muda(lambda p: p["caminhos"].pop(0))
+        self.assertEqual(len(v), 1)
+        self.assertIn("R-CONFORMIDADE:", v[0])
+        self.assertIn(".claude/", v[0])
+
+    def test_ampliar_quem_acusa(self):
+        v = self.muda(lambda p: p["caminhos"][1]["quem"].append("doc"))
+        self.assertEqual(len(v), 1)
+        self.assertIn("doc", v[0])
+
+    def test_quem_de_vazio_para_lista_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][0].update(quem=["jarvis"]))), 1)
+
+    def test_remover_branch_acusa(self):
+        v = self.muda(lambda p: p["caminhos"][1].pop("branch"))
+        self.assertEqual(len(v), 1)
+        self.assertIn("docs/regras/", v[0])
+
+    def test_alterar_branch_ou_remover_so_forge_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][1].update(branch="feature/"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p["caminhos"][1].pop("so_forge"))), 1)
+
+    def test_acao_ganha_papel_ou_some_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["acoes"]["merge_integracao"].append("dev"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p["acoes"].pop("merge_integracao"))), 1)
+
+    def test_papel_ganha_agent_type_ou_padrao_muda_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["papeis"]["tech-lead"].append("forge:dev"))), 1)
+        self.assertEqual(len(self.muda(lambda p: p.update(papel_padrao="tech-lead"))), 1)
+
+    def test_bloqueio_de_pacote_removido_acusa(self):
+        self.assertEqual(len(self.muda(lambda p: p["pacotes"]["npm"]["adicionam"].remove("add"))), 1)
+
+    def acusa(self, f, trecho=None):
+        v = self.muda(f)
+        self.assertEqual(len(v), 1, v)
+        self.assertIn("R-CONFORMIDADE:", v[0])
+        if trecho:
+            self.assertIn(trecho, v[0])
+
+    def nova(self, **campos):
+        return lambda p: p["caminhos"].append({"caminho": "novo/", "quem": ["tech-lead"], "motivo": "z", **campos})
+
+    def test_acrescentar_entrada_legitima_nao_acusa(self):
+        self.assertEqual(self.muda(lambda p: p["caminhos"].append({"caminho": "novo/", "quem": [], "motivo": "z"})), [])
+        self.assertEqual(self.muda(self.nova(so_forge=True, branch="melhoria/")), [])
+
+    def test_entrada_nova_com_dev_ou_papel_inexistente_acusa(self):
+        self.acusa(self.nova(quem=["dev"]), "dev")
+        self.acusa(self.nova(quem=["fantasma"]), "fantasma")
+        self.acusa(lambda p: p["caminhos"].append({"caminho": "novo/", "motivo": "z"}), "quem")
+
+    def test_entrada_nova_sem_motivo_ou_com_campo_fora_do_esquema_acusa(self):
+        self.acusa(lambda p: p["caminhos"].insert(0, {"caminho": "novo/", "quem": []}), "motivo")
+        self.acusa(self.nova(motivo=""), "motivo")
+        self.acusa(self.nova(motivo=3), "motivo")
+        self.acusa(self.nova(branch=7), "branch")
+        self.acusa(self.nova(branch=""), "branch")
+        self.acusa(self.nova(so_forge="sim"), "so_forge")
+        self.acusa(self.nova(extra=1), "extra")
+
+    def test_entrada_nova_com_caminho_igual_ou_prefixo_de_existente_acusa(self):
+        self.acusa(lambda p: p["caminhos"].append({"caminho": "docs/regras/", "quem": [], "motivo": "z"}), "docs/regras/")
+        self.acusa(lambda p: p["caminhos"].append({"caminho": "docs/", "quem": [], "motivo": "z"}), "docs/")
+        self.assertEqual(self.muda(lambda p: p["caminhos"].append({"caminho": "docs/regras/x", "quem": [], "motivo": "z"})), [])
+
+    def test_entrada_nova_junto_de_outra_mudanca_acusa(self):
+        def f(p):
+            p["caminhos"].append({"caminho": "novo/", "quem": [], "motivo": "z"})
+            p["acoes"]["merge_integracao"] = []
+        self.acusa(f)
+
+    def test_so_forge_acrescentado_acusa(self):
+        self.acusa(lambda p: p["caminhos"][0].update(so_forge=True), ".claude/")
+
+    def test_restringir_tambem_acusa(self):
+        """Lista branca: só acrescentar entrada passa; apertar `quem` ou `acoes` também pede o rótulo."""
+        self.acusa(lambda p: p["caminhos"][1].update(quem=[]))
+        self.acusa(lambda p: p["acoes"].update(merge_integracao=[]))
+
+    def test_listas_de_instalacao_congelada_ampliadas_acusam(self):
+        self.acusa(lambda p: p.update(flags_congeladas=["--save"]), "flags_congeladas")
+        self.acusa(lambda p: p["pacotes"]["npm"]["congelados"].append("install"), "pacotes")
+        self.acusa(lambda p: p["pacotes"]["npm"].update(flags_congeladas=["--save"]), "pacotes")
+        self.acusa(lambda p: p["pacotes"]["npm"].update(so_arquivo=["-r"]), "pacotes")
+
+    def test_mudar_papeis_acusa(self):
+        self.acusa(lambda p: p["papeis"]["tech-lead"].clear())
+        self.acusa(lambda p: p["papeis"].pop("tech-lead"))
+        self.acusa(lambda p: p["papeis"].update(dev=["forge:qa-engineer"]))
+        self.acusa(lambda p: p.update(sem_agent_type="dev"))
+
+    def test_quebra_de_esquema_acusa(self):
+        self.acusa(lambda p: p.update(papeis_x=p.pop("papeis")))
+        self.acusa(lambda p: p["caminhos"][0].pop("quem"))
+        self.acusa(lambda p: p.pop("pacotes"))
+        self.acusa(lambda p: p.update(caminhos={}))
+
+    def test_json_invalido_ou_nao_objeto_acusa(self):
+        for texto in ("{invalido", "[]", "null"):
+            with self.subTest(texto):
+                self.repo.git("reset", "-q", "--hard", "base")
+                self.repo.escreve("hooks/conformidade.json", texto)
+                self.repo.commit()
+                v = [x for x in self.repo.violacoes() if "conformidade.json" in x]
+                self.assertEqual(len(v), 1, v)
+
+    def test_arquivo_removido_ou_movido_acusa(self):
+        self.repo.git("mv", "hooks/conformidade.json", "hooks/outra.json")
+        self.repo.commit()
+        self.assertTrue([x for x in self.repo.violacoes() if "conformidade.json" in x])
+
+    def test_hook_conformidade_e_protegido(self):
+        self.assertIn("hooks/conformidade.py", catraca.PROTEGIDOS)
+        self.repo.escreve("hooks/conformidade.py", "x = 1\n")
+        self.repo.commit()
+        self.assertTrue(any("mudança em hooks/conformidade.py" in v for v in self.repo.violacoes()))
+
+    def test_politica_ausente_na_base_nao_acusa(self):
+        self.repo.git("rm", "-q", "hooks/conformidade.json")
+        self.repo.git("commit", "-q", "-m", "tira")
+        self.repo.git("tag", "-f", "base", "HEAD")
+        self.repo.escreve("hooks/conformidade.json", json.dumps(self.POLITICA))
+        self.repo.commit()
+        self.assertEqual([v for v in self.repo.violacoes() if "conformidade.json" in v], [])
+
+    def roda(self, eventos):
+        pol = copy.deepcopy(self.POLITICA)
+        pol["caminhos"].pop(0)
+        self.repo.escreve("hooks/conformidade.json", json.dumps(pol))
+        self.repo.commit()
+        arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+        arq.write_text(json.dumps(eventos), encoding="utf-8")
+        self.addCleanup(arq.unlink, missing_ok=True)
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        return subprocess.run(["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(arq),
+                               "--ultimo-push", "2026-01-02T09:00:00Z"], capture_output=True, text=True, env=env)
+
+    def evento(self, quem):
+        return {"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": quem}, "created_at": "2026-01-02T10:00:00Z"}
+
+    def test_sem_rotulo_sai_1_e_rotulo_do_dono_libera(self):
+        self.assertEqual(self.roda([]).returncode, 1)
+        self.assertEqual(self.roda([self.evento("dona")]).returncode, 0)
+
+
 class LinhaDeComando(Base):
     """A saída e o código de saída do script, com e sem o rótulo."""
 
