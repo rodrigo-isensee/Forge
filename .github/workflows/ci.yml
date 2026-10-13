@@ -3,6 +3,7 @@ name: CI
 # Bateria rápida em todo PR e push nas branches do fluxo (branch -> develop -> homolog -> main).
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
   push:
     branches: [develop, homolog, main]
   workflow_dispatch:
@@ -132,3 +133,77 @@ jobs:
             main)    [ "$HEAD_REF" = "homolog" ] || { echo "PR para main só a partir da homolog (veio de $HEAD_REF)."; exit 1; } ;;
           esac
           echo "ok: $HEAD_REF -> $BASE"
+
+  # Catraca anti-piora (ADR 0008, seção 3). Pull request do próprio evento `pull_request` (nunca `pull_request_target`),
+  # só leitura; o corpo do PR entra apenas por `env:`.
+  catraca:
+    name: catraca
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Regras que somem ou afrouxam, testes que somem, custo
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 tests/catraca.py --base "$BASE"
+
+  pr-texto:
+    name: pr-texto
+    if: github.event_name == 'pull_request' && github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - name: Seções "Projeto de origem" e "Como medir"
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: python3 tests/catraca.py --modo pr-texto
+
+  segredos:
+    name: segredos
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Segredo, .env ou caminho pessoal no diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if scripts/verificar-contribuicao.sh "$BASE"; then
+            echo "segredos: sem achados" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "segredos: achados no diff (arquivo e linha no log; o valor nunca é impresso)" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+  pareceres:
+    name: pareceres
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Parecer de review (e de QA para a homolog) quando o PR toca código que governa os agentes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: python3 tests/catraca.py --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo "$HEAD_REF" --base-ref "$BASE_REF"
