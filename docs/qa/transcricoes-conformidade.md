@@ -3,11 +3,11 @@ tipo: qa
 contrato: 1
 pedido: transcricoes-conformidade
 branch: melhoria/transcricoes-conformidade
-commit: ec39104
-parecer: reprovado
-escopo: completo
+commit: dca58dd
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
+bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-13
@@ -49,7 +49,8 @@ Eventos: 151 cmd, 47 agente, 45 fim, 5 bloqueio, 1 escrita, 1 resposta, 0 sandbo
 Observação: R-VERIFY `core.hooksPath` dispara em ativação legítima; considerar distinguir `git config core.hooksPath .githooks` (apontar para a pasta do repo) de desativação (valor vazio ou outro caminho). Não classificado como bug por estar descrito na especificação como regra, mas gera ruído.
 
 ## Bugs
-### BUG-01 - catraca falha com R-CUSTO em `bin/forge-check` (alta)
+### BUG-01 - catraca falha com R-CUSTO em `bin/forge-check` (alta) - FECHADO em dca58dd
+Status: corrigido. Revalidado em dca58dd: `tests/catraca.py --base origin/develop` sai 0.
 - Responsável sugerido: dev (autor do verificador); autorização do usuário necessária se a saída for `custo_permitido`.
 - Passos: `python3 tests/catraca.py --base origin/develop` em ec39104.
 - Esperado: saída 0.
@@ -61,3 +62,25 @@ Fixtures de `tests/transcricoes/`; sessão real anonimizada em diretório tempor
 
 ## Resultado
 Parecer reprovado por BUG-01 (alto, aberto). Demais cenários passaram. Unitários: 172 OK.
+
+## Revalidação (dca58dd)
+Escopo incremental: BUG-01 e os pontos tocados desde ec39104 (commits `fbbe494`, `16c29ff`, `1f5b015`, `4d338ff`, `dca58dd`). Ambiente: Linux (WSL2), Python 3, branch `melhoria/transcricoes-conformidade`.
+
+| ID | Cenário | Resultado |
+|---|---|---|
+| RV-01 | `python3 -m unittest discover -s tests` | passou: 178 testes, OK (eram 172) |
+| RV-02 | `python3 tests/catraca.py --base origin/develop` | passou: saída 0 (era 1 em BUG-01) |
+| RV-03 | `claude plugin validate . --strict` | passou: "Validation passed" |
+| RV-04 | `scripts/verificar-contribuicao.sh` | passou: saída 0, sem achados |
+| RV-05 | `bin/forge-check transcricao verificar tests/transcricoes/contorno-encaminhado.jsonl` | passou: saída 1, 1 linha (`R-CONFORMIDADE.papel`, evento 3), igual ao teste `test_contorno`. Só a 1ª tentativa é achado, como especificado |
+| RV-06 | Fixtures de `-f`, `+refspec`, `pip -r` em `tests/transcricoes/` | **não existem como arquivos**; a única fixture nova é `contorno-encaminhado.jsonl`. A cobertura desses casos está em `tests/test_forge.py` (`test_forca_direta_e_refspec_com_mais` e o caso de `pip install -r`), que passou na RV-01. Não criei fixture nova (fora do escopo de QA) |
+| RV-07 | `hooks/conformidade.py`: `git config core.hooksPath .githooks` | passou: exit 0 (projeto temporário com `.forge/versao`) |
+| RV-08 | `hooks/conformidade.py`: `git config core.hooksPath /tmp/x` | passou: exit 2, `R-VERIFY: core.hooksPath` |
+| RV-09 | `hooks/conformidade.py`: `git -c core.hooksPath=x push origin feat` | passou: exit 2, `R-VERIFY: core.hooksPath` |
+| RV-10 | Controle: `git config core.hooksPath /tmp/x` fora de projeto (sem `.forge/versao`) | passou: exit 0, o hook não age fora de projeto do Forge |
+
+Diretório temporário de RV-07 a RV-10 removido ao fim. Nenhum comando `git config` foi executado: o hook recebeu o JSON do comando e decidiu sem alterar configuração.
+
+Achados novos: nenhum. Limitação registrada: RV-06 não foi exercitado por fixture de transcrição, só por testes unitários.
+
+Parecer: **aprovado** para revalidação incremental. Nenhum bug crítico ou alto aberto; BUG-01 fechado. Critério de pronto atendido para os cenários revalidados.
