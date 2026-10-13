@@ -31,13 +31,26 @@ criar_vigente() {
   origem="$(git -C "$HOME/Forge" remote get-url origin)"
   mkdir -p "$(dirname "$vigente")"
   echo "jarvis-forge: criando a cópia vigente em $vigente (origin/develop)." >&2
-  if ! git clone --quiet --branch develop "$origem" "$vigente"; then
-    rm -rf "$vigente"
+  # o git remove sozinho o que o clone começou a criar; este script nunca apaga diretório
+  git clone --quiet --branch develop "$origem" "$vigente" || {
     echo "jarvis-forge: não consegui criar a cópia vigente." >&2; exit 1
+  }
+}
+# O caminho da cópia vigente só é usado se não existir (será criado) ou se já for um clone do Forge (mesma origin).
+# Qualquer outra coisa ali é do usuário: recusa sem tocar em nada.
+conferir_vigente() {
+  [ -e "$vigente" ] || return 0
+  local origem_vigente origem_forge
+  origem_vigente="$(git -C "$vigente" remote get-url origin 2>/dev/null || true)"
+  origem_forge="$(git -C "$HOME/Forge" remote get-url origin 2>/dev/null || true)"
+  if [ ! -d "$vigente/.git" ] || [ -z "$origem_vigente" ] || [ "$origem_vigente" != "$origem_forge" ]; then
+    echo "jarvis-forge: $vigente já existe e não é um clone do Forge; não mexi em nada. Mova ou apague esse diretório (ou aponte XDG_DATA_HOME para outro lugar)." >&2
+    exit 1
   fi
 }
+conferir_vigente
 if [ "$atualizar" = 1 ]; then
-  if [ ! -d "$vigente/.git" ]; then criar_vigente; exit 0; fi
+  if [ ! -e "$vigente" ]; then criar_vigente; exit 0; fi
   if [ -n "$(git -C "$vigente" status --porcelain)" ]; then
     echo "jarvis-forge: a cópia vigente ($vigente) tem mudanças locais; não atualizei. Confira com 'git -C $vigente status'." >&2
     exit 1
@@ -49,7 +62,7 @@ if [ "$atualizar" = 1 ]; then
 fi
 if [ "$dev" = 1 ]; then
   echo "jarvis-forge: AVISO: --dev usa a cópia de trabalho; hooks e agentes em edição passam a valer na hora." >&2
-elif [ ! -d "$vigente/.git" ]; then
+elif [ ! -e "$vigente" ]; then
   criar_vigente
 fi
 cd "$HOME/Forge"

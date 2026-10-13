@@ -776,7 +776,8 @@ class JarvisForgeVigente(unittest.TestCase):
         self.registro.unlink()
         r = self.rodar("--sem-tmux")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertFalse([c for c in self.chamadas() if c.startswith("git ")], "tocou na cópia vigente")
+        self.assertFalse([c for c in self.chamadas() if c.startswith("git ") and "remote get-url" not in c],
+                         "alterou a cópia vigente")
         self.assertIn(f"--plugin-dir {self.vigente} ", [c for c in self.chamadas() if c.startswith("claude --")][0] + " ")
 
     def test_respeita_xdg_data_home(self):
@@ -791,7 +792,7 @@ class JarvisForgeVigente(unittest.TestCase):
         r = self.rodar("--atualizar-vigente")
         self.assertEqual(r.returncode, 0, r.stderr)
         git = [c for c in self.chamadas() if c.startswith("git ")]
-        self.assertTrue(all(f"-C {self.vigente} " in c for c in git), git)
+        self.assertTrue(all(f"-C {self.vigente} " in c or "remote get-url" in c for c in git), git)
         self.assertTrue(any(" fetch " in c for c in git))
         self.assertTrue(any("reset --quiet --hard origin/develop" in c for c in git))
         self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux"))], "abriu sessão")
@@ -802,6 +803,33 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("mudanças locais", r.stderr)
         self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
+
+    def test_nunca_apaga_diretorio_que_nao_e_clone_do_forge(self):
+        """JFV-01: diretório do usuário no caminho da cópia vigente fica intacto, nos dois modos."""
+        self.vigente.mkdir(parents=True)
+        arquivo = self.vigente / "nao-apagar.txt"
+        arquivo.write_text("importante\n")
+        for args in (("--sem-tmux",), ("--atualizar-vigente",)):
+            with self.subTest(args=args):
+                r = self.rodar(*args)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn("não é um clone do Forge", r.stderr)
+                self.assertEqual(arquivo.read_text(), "importante\n")
+                self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux"))])
+                self.assertFalse([c for c in self.chamadas() if " clone " in c or " reset " in c])
+
+    def test_recusa_clone_de_outra_origem(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        (self.vigente / "x.txt").write_text("x")
+        # o stub responde a mesma URL para qualquer pasta; força a diferença só na cópia vigente
+        git_falso = Path(self.env["PATH"].split(":")[0]) / "git"
+        corpo = git_falso.read_text().replace('*"remote get-url"*)',
+                                              f'*"-C {self.vigente} remote get-url"*) echo https://outro.invalido/x.git ;;\n  *"remote get-url"*)')
+        git_falso.write_text(corpo)
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertTrue((self.vigente / "x.txt").exists())
+        self.assertFalse([c for c in self.chamadas() if c.startswith("claude")])
 
     def test_dev_usa_a_copia_de_trabalho_com_aviso(self):
         r = self.rodar("--sem-tmux", "--dev")
