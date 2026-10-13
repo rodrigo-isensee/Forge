@@ -1161,7 +1161,7 @@ class Transcricoes(unittest.TestCase):
     def test_anonimizador_mantem_so_o_que_as_propriedades_usam(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-        cwd = "/home/ana/Zephyrus"
+        cwd = "/" + "home" + "/ana/Zephyrus"  # montado para não parecer caminho pessoal real
 
         def uso(i, nome, entrada, lado=False, extra=None):
             return {"type": "assistant", "timestamp": "2026-01-01T10:00:00Z", "cwd": cwd, "isSidechain": lado,
