@@ -1,0 +1,19 @@
+{
+  "descricao": "Dev gravando parecer de QA por redirecionamento: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > docs/qa/p1.md <<'EOF'\nparecer: aprovado\nEOF"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "docs/qa/"
+  }
+}

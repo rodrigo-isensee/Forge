@@ -6,8 +6,10 @@ Formato do fixture:
   forge       false para projeto sem .forge/versao (padrão: true)
   arquivos    {caminho: texto ou lista de linhas} gravados antes do commit inicial (branch develop)
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
+  links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
+  env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
-              | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD)
+              | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": número} ou {"ausente": true}
               (padrão: load 5, 3 GB livres, ou seja, teto adaptativo 3)
@@ -30,6 +32,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
@@ -89,6 +92,9 @@ class Fixture:
             arquivos[".forge/config.json"] = d["config_bruta"]
         arquivos[".gitignore"] = ".forge/run/\n"
         self.gravar(raiz, arquivos, mapa)
+        for rel, alvo in d.get("links", {}).items():
+            (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
+            (raiz / rel).symlink_to(substituir(alvo, mapa, 0))
         git("add", "-A", cwd=raiz)
         git("commit", "-q", "-m", "base", cwd=raiz)
         for passo in d.get("git", []):
@@ -98,6 +104,9 @@ class Fixture:
                 git("switch", "-q", "-c", passo["branch"], cwd=raiz)
             elif "checkout" in passo:
                 git("switch", "-q", passo["checkout"], cwd=raiz)
+            elif "config" in passo:
+                for chave, valor in passo["config"].items():
+                    git("config", chave, valor, cwd=raiz)
             elif "ref" in passo:  # ex.: refs/remotes/origin/x apontando para o HEAD, como depois de um fetch
                 git("update-ref", passo["ref"], "HEAD", cwd=raiz)
             if "arquivos" in passo:
@@ -139,8 +148,10 @@ def montar_proc(tmp, proc):
     return pasta
 
 
-def rodar(hook, entrada, cwd, proc=None):
+def rodar(hook, entrada, cwd, proc=None, extra=None):
     env = ambiente_limpo()
+    env.pop("FORGE_GUARDA_ABERTA", None)
+    env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
     return subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=json.dumps(entrada), cwd=cwd,
@@ -161,7 +172,8 @@ class Hooks(unittest.TestCase):
                 tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
                 self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
                 raiz, entrada = f.montar(tmp, outro.pid)
-                r = rodar(f.hook, entrada, raiz, montar_proc(tmp, f.dados.get("proc")))
+                r = rodar(f.hook, entrada, raiz, montar_proc(tmp, f.dados.get("proc")),
+                           {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()})
                 esperado = f.dados["esperado"]
                 self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
                 self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -241,7 +253,7 @@ class Hooks(unittest.TestCase):
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-        for hook in ("agentes", "parecer", "pesado", "quadro"):
+        for hook in ("agentes", "conformidade", "parecer", "pesado", "quadro"):
             for entrada in ("", "não é json", "[1, 2]"):
                 with self.subTest(hook=hook, entrada=entrada):
                     r = subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=entrada, cwd=tmp,

@@ -1,0 +1,21 @@
+{
+  "descricao": "Redirecionar para ~/.claude/CLAUDE.md pelo Bash.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x >> ~/.claude/CLAUDE.md"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude/CLAUDE.md"
+  }
+}

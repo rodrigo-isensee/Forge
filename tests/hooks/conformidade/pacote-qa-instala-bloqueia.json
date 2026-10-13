@@ -1,0 +1,19 @@
+{
+  "descricao": "QA instalando dependência nova: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "npm install lodash"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: npm install é de dev (papel: qa)"
+  }
+}

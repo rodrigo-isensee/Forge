@@ -1,0 +1,23 @@
+{
+  "descricao": "~/.claude/CLAUDE.md é do usuário.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.claude/CLAUDE.md",
+      "content": "x"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude/CLAUDE.md"
+  }
+}

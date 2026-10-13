@@ -31,23 +31,26 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 | Ação | Quem pode | Garantido por |
 |---|---|---|
 | Merge na `main` (Forge e projetos) | só o usuário | hook `conformidade` para todo papel [B]; `pre-push` [B]; ruleset `main-do-dono` [I quando público]; vigia [D] |
-| Merge em `develop`/`homolog` ou integração do projeto | `tech-lead`, com pareceres | hook `conformidade` e `parecer` [B]; ruleset `portoes` [I quando público]; transcrição [D] |
+| Merge em `develop`/`homolog` ou integração do projeto | `tech-lead` e `jarvis`, com pareceres | hook `conformidade` e `parecer` [B]; ruleset `portoes` [I quando público]; transcrição [D] |
 | Push direto para `develop`/`homolog`/`main` | ninguém | `pre-push` [B]; hook [B]; servidor [I quando público] |
 | Criar PR | `tech-lead`, `jarvis` | hook por papel e `parecer` [B]; job `pareceres` no CI (ADR 0008) |
 | Escrever parecer em `docs/reviews/` / `docs/qa/` | `tech-lead` / `qa` | Write/Edit: hook por papel [I]; Bash: `denyWrite` no sandbox [I]; registro de autoria (6.4) |
 | Editar regras e testes de proteção (`docs/regras/`, `tests/config.json`, `tests/catraca.py`, `tests/hooks/**`, `hooks/conformidade.json`) | `tech-lead` e `doc`, só em branch `melhoria/*` do Forge | Write/Edit fora disso: hook [I]; vigor só após merge (seção 4); afrouxar exige o rótulo do dono na `catraca` |
-| Editar o que está **em vigor** (cache do plugin, `~/.claude`, `.claude/**`, `CLAUDE.md`, `.githooks/`, `.forge/versao`, `.forge/config.json`, `.forge/run/`, cópia vigente do Forge) | só o usuário | Bash: sandbox [I]; Write/Edit: `deny Edit(...)` e hook [I]; vigia por hash [D] |
+| Editar o que está **em vigor** (cache do plugin, `~/.claude` inclusive `CLAUDE.md`, `commands/` e `~/.claude.json`, `.claude/**`, `.githooks/`, `.forge/versao`, `.forge/config.json`, `.forge/run/`, cópia vigente do Forge) | só o usuário | Bash: sandbox [I]; Write/Edit: `deny Edit(...)` e hook [I]; vigia por hash [D] |
 | `--no-verify`, `--force`/`+refspec`, `core.hooksPath` (inclusive `-c`), desligar o sandbox | ninguém | `deny` e hook [B]; `.git/config` e `.git/hooks` protegidos pelo sandbox [I]; `allowUnsandboxedCommands: false` [I]; `pre-push` recusa não fast-forward [B]; transcrição [D] |
 | Chamada paga | ninguém sem autorização | rede do sandbox com APIs de modelo negadas [I]; hook (`claude -p`, `plugin eval`) [B]; `catraca` de custo |
 | Instalar dependência nova | `dev`; `qa` só com lockfile congelado | hook por papel [B]; rede limitada aos registros da stack [I]; diff do lockfile no review [M] |
 | Escrever fora do repositório | ninguém (exceções: temporário; `jarvis`/`tech-lead` em `~/.forge-contrib/`) | Bash: sandbox [I]; Write/Edit: hook pelo `file_path` [I] |
+| Editar o `CLAUDE.md` do projeto (`iniciar-projeto`, exceções locais aprovadas pelo usuário) | `jarvis` | Write/Edit: hook por papel [I]; o `agile-coach` propõe a exceção no relatório |
 | Ler `.env` | ninguém pela ferramenta | `deny Read(.env*)` [I]; `cat`/`source` de `.env` no hook [B]; o app lê (risco residual) |
 | Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
 
 ### 4. Em vigor × proposta
 - **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (worktree de `origin/develop` em diretório próprio, `denyWrite`), atualizada só pelo script depois de um merge; `--plugin-dir .` fica para teste manual do dono.
 - **Proposta** é o mesmo arquivo numa branch `melhoria/*`; entra só por PR, com pareceres, a `catraca`, o rótulo do dono quando afrouxar e, na `main`, o merge do usuário.
-- Nos **projetos**, `.claude/**`, `CLAUDE.md` e `.forge/config.json` são do usuário: o agente propõe o diff, o usuário aplica.
+- Nos **projetos**, `.claude/**` e `.forge/config.json` são do usuário: o agente propõe o diff, o usuário aplica. O `CLAUDE.md` do projeto é do `jarvis` (ver o ajuste da implementação abaixo).
+
+> **Ajuste da implementação (rodada 1 do review, 2026-10-13).** Duas linhas da matriz mudaram porque o fluxo normal do Jarvis dependia delas: (1) o `jarvis` pode mesclar em `develop`/`homolog` quando o hook `parecer` aceitar (pareceres válidos), nunca na `main`; antes o checklist de merge do Jarvis (`R-CONTRIB`) contradizia o hook; (2) o `jarvis` edita o `CLAUDE.md` do projeto, porque o `iniciar-projeto` o preenche com o usuário e as exceções locais aprovadas por ele entram ali; `.claude/**`, `.githooks/`, `.forge/versao`, `.forge/config.json` e `.forge/run/` continuam só do usuário. O `agile-coach` não edita o `CLAUDE.md`: propõe a exceção no relatório e o Jarvis a registra.
 
 ### 5. Sandbox e permissões
 - `.claude/settings.json` do Forge (novo) e do modelo de projeto: sandbox ligado com `failIfUnavailable` e `allowUnsandboxedCommands: false`; `denyWrite` para `.forge/`, `.githooks/`, `docs/reviews/`, `docs/qa/`, `CLAUDE.md` e, no Forge, `.claude-plugin/`, `.github/`, `tests/config.json`, `tests/catraca.py`, `hooks/conformidade.json`; `denyRead` das credenciais do dono; domínios de rede por stack e APIs de modelo negadas; `deny` em `Edit(...)` para os mesmos caminhos e `Bash(git -c core.hooksPath*)`.
@@ -62,7 +65,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 5. O hook `parecer` absorve o item 4.3 da ADR 0008 (`gh pr merge`) e checa o papel.
 
 ### 7. Falha fechada × falha aberta (emenda ao item 4 da ADR 0003)
-- **Falham fechado, de forma seletiva:** `conformidade` e `parecer` nas ações de merge, PR e push. Em erro interno, o script olha a entrada crua e bloqueia só se houver marcador crítico (`merge`, `push`, `pr create`, `--no-verify`, `hooksPath`, `--force` ou prefixo de caminho protegido); sem marcador, sai com 0.
+- **Falham fechado, de forma seletiva:** `conformidade` e `parecer` nas ações de merge, PR e push. Em erro interno, o script olha só o comando do Bash e o caminho do arquivo (nunca o conteúdo gravado) e bloqueia só se houver marcador crítico (`git`/`gh` com `merge` ou `push`, `pr create`, `--no-verify`, `hooksPath`, `--force` ou prefixo de caminho protegido); sem marcador, sai com 0.
 - **Continuam falhando aberto:** `agentes`, `pesado`, `quadro` (processo, não segurança).
 - Saída de emergência só do dono: `FORGE_GUARDA_ABERTA=1` no ambiente do processo do Claude Code (definido no `env` de `~/.claude/settings.json`, protegido pelo sandbox).
 - Limite aceito: sem `python3` ou com estouro de tempo, o Claude Code não bloqueia; a mitigação é o sandbox.

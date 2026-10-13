@@ -1,0 +1,18 @@
+{
+  "descricao": "QA instala com lockfile congelado: pip install -r requirements.txt",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "pip install -r requirements.txt"
+    },
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -7,9 +7,12 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF]   (--raiz 
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007).
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
+Se existir `.forge/run/autoria.jsonl` (hook `conformidade`, ADR 0009), `pr` também exige que o parecer atual tenha
+sido gravado pelo papel certo (review: tech-lead; QA: qa); sem o arquivo, como antes (o CI não o tem).
 Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -195,7 +198,7 @@ def cmd_kanban(raiz):
 
 def git(raiz, *args):
     """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
-    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno, que libera). Devolve (código, stdout)."""
+    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout)."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env,
                        timeout=GIT_TIMEOUT_S)
@@ -227,19 +230,50 @@ def pedidos_da_branch(raiz, branch, ref=None):
     return sorted(pedidos)
 
 
+# Papel que deve ter gravado cada tipo de parecer (hook conformidade, ADR 0009, 6.4).
+PAPEL_DO_PARECER = {"review": "tech-lead", "qa": "qa"}
+
+
+def autorias(raiz):
+    """Registros de `.forge/run/autoria.jsonl` da cópia principal do projeto; None se o arquivo não existe."""
+    principal = Path(raiz)
+    cod, comum = git(raiz, "rev-parse", "--git-common-dir")
+    if not cod and comum and (Path(raiz) / comum).resolve().name == ".git":
+        principal = (Path(raiz) / comum).resolve().parent
+    arquivo = principal / ".forge" / "run" / "autoria.jsonl"
+    if not arquivo.is_file():
+        return None
+    registros = []
+    for linha in arquivo.read_text(encoding="utf-8").splitlines():
+        try:
+            registro = json.loads(linha)
+        except ValueError:
+            continue
+        if isinstance(registro, dict):
+            registros.append(registro)
+    return registros
+
+
 def cmd_pr(raiz, pedido, ref=None):
     saida = []
+    registros = autorias(raiz)
     for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
         achados = []
         for rel, texto in documentos(raiz, tipo, ref):
             campos, viol = validar_documento(rel, texto)
             if campos is not None and campos.get("pedido") == pedido:
-                achados.append((campos.get("data", ""), rel, campos, viol))
+                achados.append((campos.get("data", ""), rel, campos, viol, texto))
         if not achados:
             saida.append(f"docs/{'reviews' if tipo == 'review' else 'qa'}: {tipo}: sem parecer para o pedido `{pedido}` ({rid})")
             continue
-        _, rel, campos, viol = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
+        _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
         saida += viol
+        if registros is not None:
+            hash_atual, papel = hashlib.sha256(texto.strip().encode()).hexdigest(), PAPEL_DO_PARECER[tipo]
+            if not any(r.get("caminho") == rel and r.get("sha256") == hash_atual and r.get("papel") == papel
+                       for r in registros):
+                saida.append(f"{rel}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
+                             f"o {papel} deve escrevê-lo ({rid})")
         if campos.get("parecer") != "aprovado":
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):

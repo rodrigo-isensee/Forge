@@ -1,0 +1,19 @@
+{
+  "descricao": "gh api alterando proteção de branch: ninguém.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PUT repos/o/r/branches/main/protection -f x=1"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "gh api que altera"
+  }
+}

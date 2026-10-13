@@ -1,0 +1,33 @@
+{
+  "descricao": "Só .md contra a base: não passa por QA.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "docs/x"
+    },
+    {
+      "arquivos": {
+        "notas.md": "oi\n"
+      },
+      "commit": "docs: notas"
+    },
+    {
+      "config": {
+        "branch.docs/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge docs/x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
