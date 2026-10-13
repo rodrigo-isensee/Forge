@@ -181,8 +181,12 @@ def slug_do_forge():
 
 
 def aponta_para_o_forge(texto):
+    """True se o texto cita o slug do Forge exato (o GitHub não diferencia maiúsculas), com fronteira nos dois lados:
+    `<dono>/Forge-site`, `<dono>/ForgeX` e `<dono>/meu-Forge` são outros repositórios. Aceita `.git` e `/` finais."""
     slug = slug_do_forge()
-    return bool(texto) and bool(slug) and slug in texto.lower().removesuffix(".git")
+    if not texto or not slug:
+        return False
+    return bool(re.search(rf"(?<![\w.-]){re.escape(slug)}(\.git)?(?![\w.-])", texto.lower()))
 
 
 def metodo_mutante(args):

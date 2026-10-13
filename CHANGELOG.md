@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Corrigido
+- **`R-CONTRIB`, o Forge como alvo só pelo slug exato (requer o rótulo `afrouxa-regra` do dono):** `aponta_para_o_forge` comparava por substring e barrava o fluxo normal de projeto com origin `<dono>/Forge-site`, `<dono>/ForgeX` ou `<dono>/meu-Forge`; agora compara `dono/repo` sem diferenciar maiúsculas, com fronteira (início, `/`, `:`, espaço, aspas ou fim) e aceita `.git` e `/` finais. Nada mais é afrouxado. Altera `hooks/parecer.py`.
 - **`R-CONTRIB`, trava de contribuição sem brechas da review do #84 (exige o rótulo `afrouxa-regra` do dono):** raiz com `.forge/versao` é sempre projeto, mesmo com um `plugin.json` do Forge (só a sessão do Forge escreve em `.claude-plugin/`); a falha fechada por erro interno decide pela raiz da sessão, não pela pasta; o Forge é alvo em qualquer pasta (clone de contribuição, clone sem `.forge/versao` ou repositório com remoto apontando para ele, resolvido por `git remote get-url`); `bash -c`, `sh -c`, `eval` e `env -S` são analisados, e o aninhado ilegível que aponta para o Forge falha fechado.
 
 ## [0.10.1] - 2026-10-13
