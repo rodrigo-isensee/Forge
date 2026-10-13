@@ -107,10 +107,12 @@ elif [ ! -e "$destino/.forge/versao" ] || [ "$forcar" -eq 1 ]; then
   mkdir -p "$destino/.forge"; printf '%s\n' "$versao_forge" > "$destino/.forge/versao"
   echo "  criado   .forge/versao ($versao_forge)"
 fi
-# Estado de execução local não é versionado.
-if ! grep -qxF '.forge/run/' "$destino/.gitignore" 2>/dev/null; then
-  echo '.forge/run/' >> "$destino/.gitignore"; echo "  gitignore .forge/run/"
-fi
+# Estado de execução local e preferências da pessoa (perfil de experiência) não são versionados.
+for ignorado in '.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md'; do
+  if ! grep -qxF "$ignorado" "$destino/.gitignore" 2>/dev/null; then
+    echo "$ignorado" >> "$destino/.gitignore"; echo "  gitignore $ignorado"
+  fi
+done
 
 if git -C "$destino" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git -C "$destino" config core.hooksPath .githooks

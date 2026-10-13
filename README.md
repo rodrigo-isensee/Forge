@@ -7,6 +7,15 @@ Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** 
 - **Regras:** a `main` é do usuário; QA e code review em toda entrega; teto de recursos da máquina; quadro Kanban visível; reuniões de alinhamento; melhoria contínua com autonomia, separando fábrica e projeto.
 - **Modelo de projeto:** `CLAUDE.md`, `KANBAN.md`, pastas de pedidos, Kanban, retrospectivas e alinhamentos, práticas, configuração do Claude Code e hook que protege a `main`.
 
+## Começar um projeto novo
+Pré-requisitos: Claude Code, `git` e a conta do GitHub entrada no terminal (`gh auth login`; o login é feito no navegador, o Forge nunca vê sua senha nem o token).
+```bash
+claude plugin marketplace add rodrigo-isensee/Forge
+claude plugin install forge@forge
+forge novo-projeto
+```
+O `forge novo-projeto` pergunta o nome e a pasta (padrão `~/<nome>`), cria o repositório **privado** na sua conta, clona, faz o commit inicial na `main` e cria `develop` e `homolog`. Em seguida abre o Jarvis, que conduz o resto numa conversa curta (perfil de experiência, objetivo, stack, regras) e abre o PR "adota o Forge". Se parar no meio, rode o comando de novo e informe o mesmo nome: ele retoma de onde parou. Perfil `iniciante` em `.forge/perfil` (arquivo da pessoa, fora do git): o Jarvis fala sem jargão e leva só as decisões de produto, escopo, custo e acesso. Desenho: `docs/propostas/primeiro-uso/`.
+
 ## Usar num projeto
 Pré-requisito: acesso ao repositório (privado) pelo git da máquina — chave SSH no GitHub ou `gh auth login` + `gh auth setup-git`.
 
