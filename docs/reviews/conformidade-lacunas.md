@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: conformidade-lacunas
 branch: melhoria/conformidade-lacunas
-commit: a0b8660
+commit: 8c26499
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -21,3 +21,13 @@ Escopo: `hooks/conformidade.json` (3 entradas), 9 fixtures `tests/hooks/conformi
 - Os caminhos passam a exigir branch `melhoria/*` mesmo para o `tech-lead`; edições de `.github/` em outra branch de fábrica serão barradas, como as demais regras.
 
 Parecer: aprovado. Sem itens que bloqueiam.
+
+## Review independente
+Segunda leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 8c26499.
+- Testes: `python3 -m unittest discover -s tests` no checkout do PR: 225 testes, OK.
+- As 3 entradas só acrescentam; as existentes não mudaram. `so_forge` isenta os projetos (`.github/` e `.claude-plugin/` de projeto seguem livres); o dependabot e workflows editados pelo dono não passam pelo hook, que só vigia ferramentas de agente.
+- As 9 fixtures cobrem, nos três caminhos, dev bloqueado em `melhoria/*`, `tech-lead` liberado em `melhoria/*` e `tech-lead` bloqueado fora dela.
+- Release normal: `tech-lead` e `doc` editam `.claude-plugin/plugin.json` em `melhoria/release-*` (o prefixo `melhoria/` casa).
+- Recomendado, não bloqueia: sem fixture do papel `doc` (compartilha a entrada `quem` com o `tech-lead`). Edição de `.github/` pelo Bash continua fora do hook (limite SBX-03 já documentado).
+
+Parecer do review independente: aprovado.
