@@ -28,12 +28,16 @@ if [ "$atualizar" = 1 ] && [ "$dev" = 1 ]; then
 fi
 criar_vigente() {
   local origem
-  origem="$(git -C "$HOME/Forge" remote get-url origin)"
+  origem="$(git -C "$HOME/Forge" remote get-url origin 2>/dev/null)" || {
+    echo "jarvis-forge: o $HOME/Forge não tem o remoto 'origin'; não há de onde criar a cópia vigente. Para esta vez, use 'jarvis-forge --dev' (cópia de trabalho, sem a proteção)." >&2
+    exit 1
+  }
   mkdir -p "$(dirname "$vigente")"
   echo "jarvis-forge: criando a cópia vigente em $vigente (origin/develop)." >&2
   # o git remove sozinho o que o clone começou a criar; este script nunca apaga diretório
   git clone --quiet --branch develop "$origem" "$vigente" || {
-    echo "jarvis-forge: não consegui criar a cópia vigente." >&2; exit 1
+    echo "jarvis-forge: não consegui criar a cópia vigente (sem rede ou sem acesso à origin?). Para esta vez, use 'jarvis-forge --dev' (cópia de trabalho, sem a proteção)." >&2
+    exit 1
   }
 }
 # O caminho da cópia vigente só é usado se não existir (será criado) ou se já for um clone do Forge (mesma origin).
@@ -59,7 +63,10 @@ if [ "$atualizar" = 1 ]; then
     echo "jarvis-forge: a cópia vigente ($vigente) tem commits locais que não estão na origin/develop; não atualizei, para não descartá-los. Confira com 'git -C $vigente log origin/develop..HEAD'." >&2
     exit 1
   fi
-  git -C "$vigente" fetch --quiet origin
+  git -C "$vigente" fetch --quiet origin || {
+    echo "jarvis-forge: não consegui buscar a origin (sem rede?); a cópia vigente ficou como estava. Use 'jarvis-forge --dev' para esta vez, se precisar." >&2
+    exit 1
+  }
   git -C "$vigente" reset --quiet --hard origin/develop
   echo "jarvis-forge: cópia vigente atualizada para origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
   exit 0

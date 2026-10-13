@@ -742,7 +742,7 @@ class JarvisForgeVigente(unittest.TestCase):
             "claude": 'exit 0',
             "tmux": 'exit 0',
             "git": ('case "$*" in\n'
-                    '  *"remote get-url"*) echo https://exemplo.invalido/Forge.git ;;\n'
+                    '  *"remote get-url"*) [ -z "${STUB_GIT_SEM_ORIGIN:-}" ] || exit 2; echo https://exemplo.invalido/Forge.git ;;\n'
                     '  "clone "*) mkdir -p "${@: -1}/.git" ;;\n'
                     '  *"rev-list"*) printf "%s" "${STUB_GIT_ADIANTE:-}" ;;\n'
                     '  *"status --porcelain"*) printf "%s" "${STUB_GIT_SUJO:-}" ;;\n'
@@ -839,6 +839,14 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("commits locais", r.stderr)
         self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
+
+    def test_sem_origin_sugere_dev(self):
+        """JFV-03: mensagem do próprio script, sem criar nada."""
+        r = self.rodar("--sem-tmux", STUB_GIT_SEM_ORIGIN="1")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("não tem o remoto 'origin'", r.stderr)
+        self.assertIn("--dev", r.stderr)
+        self.assertFalse(self.vigente.exists())
 
     def test_dev_usa_a_copia_de_trabalho_com_aviso(self):
         r = self.rodar("--sem-tmux", "--dev")
