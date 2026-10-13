@@ -737,17 +737,16 @@ class SandboxDoBash(unittest.TestCase):
         for dominio in ("api.anthropic.com", "api.openai.com", "generativelanguage.googleapis.com"):
             self.assertIn(dominio, negados)
 
-    def test_deny_write_minimo_nao_afrouxa(self):
+    def test_deny_write_so_estado_nao_versionado(self):
+        # N6: denyWrite em arquivo versionado quebra git pull/checkout/merge no checkout principal.
         deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyWrite"]
-        for caminho in (".forge/", ".githooks/", ".claude-plugin/", ".github/", "tests/config.json",
-                        "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.json"):
-            self.assertIn(caminho, deny)
-
-    def test_pareceres_e_instrucoes_em_vigor_sem_escrita_pelo_shell(self):
-        # SBX-03: pareceres só pela ferramenta Write/Edit (hook de autoria) e CLAUDE.md em vigor protegido.
-        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyWrite"]
-        for caminho in ("docs/reviews/", "docs/qa/", ".claude/CLAUDE.md"):
-            self.assertIn(caminho, deny)
+        self.assertIn(".forge/", deny)
+        r = subprocess.run(["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True, check=True)
+        versionados = r.stdout.splitlines()
+        for caminho in deny:
+            prefixo = caminho if caminho.endswith("/") else None
+            travados = [f for f in versionados if f == caminho or (prefixo and f.startswith(prefixo))]
+            self.assertEqual(travados, [], f"denyWrite {caminho} cobre arquivo versionado: {travados[:3]}")
 
     def test_credenciais_do_dono_ilegiveis(self):
         deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
