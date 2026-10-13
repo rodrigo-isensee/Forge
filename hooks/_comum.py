@@ -174,7 +174,8 @@ class Hook:
             return isinstance(v, list) and all(isinstance(x, str) and x.strip() for x in v)
 
         self._config = {
-            "teto_agentes": valor("teto_agentes", inteiro, RESERVA["teto_agentes"]),
+            "teto_agentes": valor("teto_agentes", inteiro, None),  # None: teto adaptativo (R-TETO)
+            "teto_maximo": valor("teto_maximo", inteiro, None),
             "pesados": valor("pesados", lista, RESERVA["pesados"]),
             "expiracao_horas": valor("expiracao_horas", numero, 2),
             "hooks_desligados": valor("hooks_desligados", lista, []),

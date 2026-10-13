@@ -36,7 +36,7 @@ No Agent tool, use o nome completo com o prefixo do plugin (`subagent_type: "for
 
 ## Trabalho em paralelo (padrão)
 Sequencial só com dependência real. O discovery corre à frente da entrega (dual-track): enquanto os devs constroem, UX e arquiteto adiantam as próximas demandas. Na entrega, back e front (front com mock até a API existir), testes do QA e revisão incremental do `tech-lead` rodam juntos. Dispare de uma vez os agentes que podem começar, em segundo plano; antes de relançar um lento, confira se o anterior ainda roda. Sempre dentro de:
-- `R-TETO` teto de recursos (obrigatório): 3 agentes ao mesmo tempo, pesado um por vez;
+- `R-TETO` teto de recursos (obrigatório): adaptativo (2 a 5 agentes pela carga da máquina), pesado um por vez;
 - `R-WIP` 1 cartão por agente e limites de coluna.
 
 ## Reuniões e retrospectiva

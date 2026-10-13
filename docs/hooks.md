@@ -22,14 +22,16 @@ O estado fica em `.forge/run/` da cópia de trabalho principal (as worktrees som
 
 ```json
 {
-  "teto_agentes": 3,
+  "teto_maximo": 5,
   "pesados": ["playwright", "docker compose up", "pytest -m integration"],
   "expiracao_horas": 2,
   "hooks_desligados": []
 }
 ```
 
-- `teto_agentes`: agentes ativos ao mesmo tempo, somando todas as sessões do projeto.
+- Teto de agentes ativos ao mesmo tempo (somando todas as sessões do projeto): por padrão é adaptativo e segue as faixas de `R-TETO` (2 a 5, pelo load de `/proc/loadavg` e pela `MemAvailable` de `/proc/meminfo`; sem leitura, 3). O bloqueio informa o load e a memória medidos.
+- `teto_agentes`: fixa o teto e sobrepõe o adaptativo (projetos criados antes desta versão trazem `3` fixo: apague a chave para adotar o adaptativo).
+- `teto_maximo`: limita o teto adaptativo (não afeta o `teto_agentes` fixo).
 - `pesados`: início de comando (sem diferença de maiúsculas e espaços) tratado como tarefa pesada; substitui a lista padrão. Vale em qualquer comando simples da linha (`cd web && ...`), depois de variáveis e de lançadores (`sudo`, `env`, `npx`, `<gerenciador> exec|run|dlx`); só citar a ferramenta (`grep ferramenta`, instalar o pacote) não conta.
 - `expiracao_horas`: validade dos registros.
 - `hooks_desligados`: nomes dos hooks a desligar (`agentes`, `parecer`, `pesado`, `quadro`). É o jeito recomendado de desligar um hook; apagar `.forge/versao` desliga todos e quebra o `forge-upgrade`.

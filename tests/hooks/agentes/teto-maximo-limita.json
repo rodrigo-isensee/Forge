@@ -1,0 +1,54 @@
+{
+  "descricao": "Máquina folgada (teto 5) com teto_maximo 4: quatro ativos bloqueiam.",
+  "config": {
+    "teto_maximo": 4
+  },
+  "proc": {
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 6
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 2",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 3",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "4 agentes ativos, teto 4 (adaptativo: load 1.0, 6.0 GB disponíveis, limitado por teto_maximo 4)"
+  }
+}

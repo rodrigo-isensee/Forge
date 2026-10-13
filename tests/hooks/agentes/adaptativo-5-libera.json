@@ -1,0 +1,50 @@
+{
+  "descricao": "Load 1 e 6 GB livres: teto 5, quatro ativos liberam.",
+  "proc": {
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 6
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 2",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 3",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
