@@ -34,14 +34,14 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 | Merge em `develop`/`homolog` ou integração do projeto | `tech-lead` e `jarvis`, com pareceres | hook `conformidade` e `parecer` [B]; ruleset `portoes` [I quando público]; transcrição [D] |
 | Push direto para `develop`/`homolog`/`main` | ninguém | `pre-push` [B]; hook [B]; servidor [I quando público] |
 | Criar PR | `tech-lead`, `jarvis` | hook por papel e `parecer` [B]; job `pareceres` no CI (ADR 0008) |
-| Escrever parecer em `docs/reviews/` / `docs/qa/` | `tech-lead` / `qa` | Write/Edit: hook por papel [I]; Bash: hook `conformidade` + catraca do CI + registro de autoria [B] (sem `denyWrite`: ver nota N6) |
+| Escrever parecer em `docs/reviews/` / `docs/qa/` | `tech-lead` / `qa` | [B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado) (sem `denyWrite`: ver nota N6) |
 | Editar regras e testes de proteção (`docs/regras/`, `tests/config.json`, `tests/catraca.py`, `tests/hooks/**`, `hooks/conformidade.json`) | `tech-lead` e `doc`, só em branch `melhoria/*` do Forge | Write/Edit fora disso: hook [I]; vigor só após merge (seção 4); afrouxar exige o rótulo do dono na `catraca` |
 | Editar o que está **em vigor** (cache do plugin, `~/.claude` inclusive `CLAUDE.md`, `commands/` e `~/.claude.json`, `.claude/**`, `.githooks/`, `.forge/versao`, `.forge/config.json`, `.forge/run/`, cópia vigente do Forge) | só o usuário | Bash: sandbox [I] para o estado não versionado (`.forge/`, `~/.claude`, `.git/hooks`, `.git/config`) e hook `conformidade` + catraca [B] para os versionados; Write/Edit: `deny Edit(...)` e hook [I]; vigia por hash [D] |
 | `--no-verify`, `--force`/`+refspec`, `core.hooksPath` (inclusive `-c`), desligar o sandbox | ninguém | `deny` e hook [B]; `.git/config` e `.git/hooks` protegidos pelo sandbox [I]; `allowUnsandboxedCommands: false` [I]; `pre-push` recusa não fast-forward [B]; transcrição [D] |
 | Chamada paga | ninguém sem autorização | rede do sandbox com APIs de modelo negadas [I]; hook (`claude -p`, `plugin eval`) [B]; `catraca` de custo |
 | Instalar dependência nova | `dev`; `qa` só com lockfile congelado | hook por papel [B]; rede limitada aos registros da stack [I]; diff do lockfile no review [M] |
 | Escrever fora do repositório | ninguém (exceções: temporário; `jarvis`/`tech-lead` em `~/.forge-contrib/`) | Bash: sandbox [I]; Write/Edit: hook pelo `file_path` [I] |
-| Editar o `CLAUDE.md` do projeto (`iniciar-projeto`, exceções locais aprovadas pelo usuário) | `jarvis` | Write/Edit: hook por papel [I]; o `agile-coach` propõe a exceção no relatório |
+| Editar o `CLAUDE.md` do projeto (`iniciar-projeto`, exceções locais aprovadas pelo usuário) | `jarvis` | [B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado); o `agile-coach` propõe a exceção no relatório |
 | Ler `.env` | ninguém pela ferramenta | `deny Read(.env*)` [I]; `cat`/`source` de `.env` no hook [B]; o app lê (risco residual) |
 | Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
 
