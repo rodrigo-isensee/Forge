@@ -110,7 +110,11 @@
       "`R-VERIFY`",
       "`R-DECISAO`",
       "`R-CONFORMIDADE`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "teste de bloqueante",
+      "nunca sobe sozinho",
+      "estado em uma linha",
+      "só vale gravada"
     ],
     "agents/tech-lead.md": [
       "\\*\\*Code review obrigatório\\*\\*",
@@ -207,7 +211,11 @@
     "docs/regras/R-DECISAO.md": [
       "\\*\\*uma de cada vez\\*\\*",
       "\\*\\*as opções\\*\\*",
-      "\\*\\*a recomendação\\*\\*"
+      "\\*\\*a recomendação\\*\\*",
+      "Teste de bloqueante",
+      "Escada da recomendação",
+      "preferência do time",
+      "Decisão só vale gravada"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
