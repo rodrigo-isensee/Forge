@@ -3,14 +3,13 @@ tipo: qa
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 6e0ff68
+commit: 49df362
 parecer: aprovado
-escopo: incremental
+escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
-aceite_usuario: sim
 data: 2026-10-13
 ---
 
@@ -134,3 +133,52 @@ O-1 (upstream antigo da branch), O-2 (aviso do `git branch -D`), O-3 (teste de `
 
 ### Veredito (6e0ff68)
 **Aprovado com aceite do usuário.** Bugs abertos: 0 críticos, 0 altos, 1 médio (SBX-03), 0 baixos. SBX-01 e SBX-02 são limites documentados; SBX-02 tem verificação ao vivo pendente do reinício. O aceite do usuário é necessário para SBX-03 (`aceite_usuario: sim`). Ressalva: este parecer aceita a documentação dos limites; não verifica ao vivo a configuração da branch, que só entra em vigor após o merge e o reinício.
+
+## Revalidação (49df362)
+Escopo completo da configuração proposta: etapas 1 e 2 (inclui o git dos agentes pelo token do bot) e a correção de SBX-03. HEAD testado: `49df362`. A branch tem ainda `63d8531` (`docs: re-review do sandbox`), que só altera pareceres (ADR 0004, regra 2); o código testado é o mesmo. Verificação estática e simulada: esta sessão roda a configuração anterior, e a proposta só vale após merge e reinício.
+
+### Verificações automáticas
+| Cenário | Comando | Resultado real |
+|---|---|---|
+| Suíte unitária | `python3 -m unittest discover -s tests` | `Ran 213 tests ... OK` (37,8 s). Os `deny network-outbound api.anthropic.com:443` são esperados (R-CUSTO) |
+| Validação do plugin | `scripts/validar-plugin.sh` | `Validation passed`, rc 0 |
+| JSON do sandbox | `python3 -m json.tool .claude/settings.json` | rc 0 |
+| Shellcheck | `shellcheck` em `scripts/*.sh`, `scripts/jarvis`, `scripts/jarvis-forge`, `bin/forge-init` | rc 0, sem avisos |
+
+### Simulação do git pelo bot (subshell, só `GIT_CONFIG_*` e `GIT_TERMINAL_PROMPT` do `env` do settings; ambiente da sessão intacto)
+| Cenário | Resultado real |
+|---|---|
+| `git ls-remote --get-url git@github.com:<dono>/Forge.git` | reescrito para `https://github.com/<dono>/Forge.git`: `insteadOf` funciona |
+| `git config --get-all credential.https://github.com.helper` | lista o helper global e, depois do valor vazio (reset), `!gh auth git-credential`: o reset está presente |
+| `git credential fill` (host github.com, valores mascarados) com `GIT_TRACE=1` | executa `gh auth git-credential get` e devolve `username` e `password` (mascarados); sem prompt |
+| `git ls-remote origin develop` | **não concluído nesta sessão**: `CONNECT tunnel failed, response 403`; `deny network-outbound github.com:443 (host is not on the allow list)`. A sessão de QA tem rede estrita sem `github.com`, diferente da sessão da rodada anterior (onde funcionava). Limite de ambiente, não defeito da proposta. O `origin` desta worktree já é HTTPS, então a chamada passaria por helper e `insteadOf` sem mudança |
+
+### Conferência estática do `.claude/settings.json`
+- **denyWrite (11):** `.forge/`, `.githooks/`, `.claude-plugin/`, `.github/`, `tests/config.json`, `tests/catraca.py`, `tests/neutralidade.py`, `hooks/conformidade.json`, `docs/reviews/`, `docs/qa/`, `.claude/CLAUDE.md`. Igual ao README e inclui os três itens de SBX-03. OK.
+- **denyRead (3):** `~/.ssh`, `~/.config/gh`, `~/.git-credentials`. OK.
+- **allowedDomains (13):** `github.com`, `api.github.com`, `*.githubusercontent.com`, `codeload.github.com`, `uploads.github.com`, `registry.npmjs.org`, `registry.yarnpkg.com`, `nodejs.org`, `pypi.org`, `files.pythonhosted.org`, `playwright.azureedge.net`, `playwright.download.prss.microsoft.com`, `cdn.playwright.dev`. OK.
+- **deniedDomains (5):** `api.anthropic.com`, `*.anthropic.com`, `api.openai.com`, `*.openai.com`, `generativelanguage.googleapis.com`. OK.
+- **excludedCommands (3):** `tmux capture-pane *`, `tmux ls`, `tmux has-session *`; só leitura. OK.
+- **env:** caches em `/tmp/claude-1000/cache/` e as chaves `GIT_CONFIG_*` e `GIT_TERMINAL_PROMPT=0`. Busca por `ghp_`, `github_pat_`, `gho_`, `token`, `password`: nenhuma ocorrência; sem credencial literal. OK.
+- **Fixos:** `failIfUnavailable`, `allowUnsandboxedCommands: false`, `autoAllowBashIfSandboxed`; sem `strictAllowlist` (decisão do dono, README).
+
+### Bugs
+| ID | Estado em 49df362 |
+|---|---|
+| SBX-01 | limite documentado (README); `strictAllowlist` só ao vivo |
+| SBX-02 | limite documentado; `tmux ls` só ao vivo |
+| SBX-03 | corrigido na configuração (verificado estaticamente); efeito só ao vivo |
+
+Nenhum bug novo. Observações O-1 a O-5 inalteradas (O-5, `_modelo.md`, não reverificado).
+
+### Só verificável ao vivo, depois do merge e do reinício
+1. Rede estrita (`strictAllowlist: true` ligado pelo dono): `example.com` e `httpbin.org` bloqueados; `github.com`, `registry.npmjs.org`, `pypi.org` acessíveis; APIs de modelo seguem negadas.
+2. `denyRead` efetivo: `cat ~/.ssh/*`, `~/.config/gh/hosts.yml` e `~/.git-credentials` falham no Bash.
+3. Push e leitura remota pelo bot: `git ls-remote origin develop` por HTTPS; `git push` de `melhoria/*` com o helper `gh auth git-credential`, e o push para `develop`, `homolog` e `main` continua bloqueado pelo hook; confirmar que `gh` lê o token sem `~/.config/gh` (via `GH_TOKEN` ou outro caminho do bot).
+4. `denyWrite` efetivo: escrita por Bash em `docs/qa/`, `docs/reviews/`, `.claude/CLAUDE.md`, `.githooks/`, `tests/config.json` bloqueada; Write/Edit continua gravando em `docs/qa/` e `docs/reviews/`.
+5. `tmux ls` sozinho lista as sessões; com pipe, `cd` ou `&&` falha, como documentado (SBX-02).
+6. `npm` e `pip` gravam no cache de `/tmp/claude-1000/cache/` sem erro de somente leitura.
+7. Existência da chave `strictAllowlist` na versão instalada do Claude Code.
+
+### Veredito (49df362)
+**Aprovado**, sem bugs abertos (0 críticos, 0 altos, 0 médios, 0 baixos), condicionado ao teste ao vivo acima. Ressalva: `git ls-remote` pela rede não pôde ser exercitado nesta sessão (limite de ambiente); `insteadOf` e helper foram provados por simulação.
