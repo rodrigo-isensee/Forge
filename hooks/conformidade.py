@@ -22,7 +22,7 @@ from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, executar, git, nome_
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.githooks|\.forge/|docs/reviews|docs/qa|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
@@ -50,6 +50,12 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
                        r"|hooks|keys|transfer)")
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
+# R-CONTRIB: o que a sessão de outro projeto não faz no Forge (PR alheio, rótulos), pela API REST e pelo GraphQL.
+CONTRIB_PR_ALHEIO = {"merge", "edit", "close"}
+CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/labels(/|$)")
+CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
+                             r"removeLabelsFromLabelable|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
+                             r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
@@ -144,6 +150,18 @@ class Guarda:
         if self._forge is None:
             self._forge = parecer.e_clone_do_forge(self.h.raiz)
         return self._forge
+
+    def em_contrib(self, pasta):
+        """A pasta está no clone de contribuição (`~/.forge-contrib/`), onde o projeto trabalha o Forge."""
+        alvo = Path(os.path.realpath(pasta))
+        return Path(os.path.realpath(Path.home() / ".forge-contrib")) in (alvo, *alvo.parents)
+
+    def alvo_do_forge(self, pasta, repo=None):
+        """R-CONTRIB: o comando da sessão de OUTRO projeto (raiz que não é o Forge) atinge o repositório do Forge:
+        `repo` aponta para ele ou, sem `repo`, a pasta é o clone de contribuição."""
+        if self.clone_do_forge():
+            return False
+        return parecer.aponta_para_o_forge(repo) if repo else self.em_contrib(pasta)
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
@@ -262,7 +280,8 @@ class Guarda:
         elif prog == "git":
             self.git(palavras, parte, pasta, ramos)
         elif prog == "gh":
-            self.gh(palavras, parte, pasta)
+            self.gh(palavras, parte, pasta, next((a.split("=", 1)[1] for a in atribuicoes
+                                                  if a.startswith("GH_REPO=")), None))
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
                 re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)) or (
                 prog == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*", a) for a in args)):
@@ -366,9 +385,41 @@ class Guarda:
                 self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário")
             if d in INTEGRACAO:
                 self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho")
+        if self.alvo_do_forge(pasta):
+            propria = f"melhoria/{self.h.raiz.name}-"
+            for d in destinos:
+                if not d.startswith(propria):
+                    self.barrar("R-CONTRIB", f"push para {d}: a sessão de outro projeto só envia a própria "
+                                             f"branch `{propria}<tema>`", "abra o PR da sua branch e espere o Forge integrar")
 
     # gh ----------------------------------------------------------------------------------------------
-    def gh(self, palavras, parte, pasta):
+    def gh_contrib(self, palavras, pasta, repo_env):
+        """R-CONTRIB: a sessão de outro projeto abre o PR e para; não mescla, edita, fecha nem rotula no Forge."""
+        pos = parecer.posicionais(palavras[1:], {"-R", "--repo"})
+        grupo, sub = (pos + [None, None])[:2]
+        repo = parecer.opcao(palavras[1:], "--repo", "-R") or repo_env
+        if grupo == "pr" and sub in CONTRIB_PR_ALHEIO or grupo == "label":
+            if self.alvo_do_forge(pasta, repo):
+                self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo == 'pr' else ''} no Forge: a sessão de outro "
+                                         "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
+        elif grupo == "api":
+            args = palavras[2:]
+            endpoint = parecer.endpoint_da_api(args)
+            dono = re.match(r"^/?repos/([^/]+/[^/]+)", endpoint)
+            if not parecer.metodo_mutante(args):
+                return
+            if endpoint == "graphql":
+                alvo = self.em_contrib(pasta) or any(parecer.aponta_para_o_forge(a) for a in args)
+                perigoso = any("mutation" in a and CONTRIB_GRAPHQL.search(a) for a in args)
+            else:
+                alvo = self.alvo_do_forge(pasta, dono.group(1) if dono else None)
+                perigoso = bool(CONTRIB_API.search(endpoint))
+            if alvo and perigoso and not self.clone_do_forge():
+                self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
+                                         "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
+
+    def gh(self, palavras, parte, pasta, repo_env=None):
+        self.gh_contrib(palavras, pasta, repo_env)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):

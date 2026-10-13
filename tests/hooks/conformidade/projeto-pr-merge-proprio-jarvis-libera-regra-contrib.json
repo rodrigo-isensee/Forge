@@ -1,0 +1,20 @@
+{
+  "descricao": "gh pr merge no repositório do projeto, sem alvo no Forge, não cai no R-CONTRIB (o parecer decide).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge 3 --repo outro/projeto"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
