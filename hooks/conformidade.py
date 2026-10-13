@@ -22,7 +22,7 @@ from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, executar, git, nome_
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
-    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
+    r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
     r"\.claude/|\.githooks|\.forge/|docs/reviews|docs/qa|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
@@ -51,7 +51,13 @@ API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection
 GRAPHQL_PERIGOSO = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|updateRef|createRef|deleteRef|"
                               r"createCommitOnBranch", re.I)
 # R-CONTRIB: o que a sessão de outro projeto não faz no Forge (PR alheio, rótulos), pela API REST e pelo GraphQL.
-CONTRIB_PR_ALHEIO = {"merge", "edit", "close"}
+CONTRIB_PR_ALHEIO = {"merge", "edit", "close", "ready", "reopen", "review"}
+CONTRIB_ISSUE_ALHEIA = {"edit", "close", "reopen", "delete", "transfer", "lock", "unlock"}  # o PR também é uma issue
+# Opções de `gh pr|issue` que levam valor: o texto delas (corpo, título, rótulo) não é o alvo do comando.
+GH_COM_VALOR = {"-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--title", "-l", "--add-label",
+                "--remove-label", "-a", "--add-assignee", "--remove-assignee", "-m", "--milestone", "-B", "--base",
+                "-p", "--add-project", "--remove-project", "-r", "--add-reviewer", "--remove-reviewer", "--subject",
+                "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason"}
 CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/labels(/|$)")
 CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
                              r"removeLabelsFromLabelable|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
@@ -128,6 +134,8 @@ class Guarda:
         self.h, self.pol, self.papel = hook, politica, papel
         self._ramo = None
         self._forge = None
+        self.externo = None  # nome do clone: sessão tratada como de outro projeto, sem raiz que o prove (R-CONTRIB)
+        self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -146,7 +154,14 @@ class Guarda:
             self._ramo = git(self.h.raiz, "branch", "--show-current")[1]
         return self._ramo
 
+    @property
+    def projeto(self):
+        """Nome do projeto da sessão: o prefixo próprio das branches de contribuição é `melhoria/<nome>-`."""
+        return self.externo or self.h.raiz.name
+
     def clone_do_forge(self):
+        if self.externo:
+            return False
         if self._forge is None:
             self._forge = parecer.e_clone_do_forge(self.h.raiz)
         return self._forge
@@ -155,6 +170,11 @@ class Guarda:
         """A pasta está no clone de contribuição (`~/.forge-contrib/`), onde o projeto trabalha o Forge."""
         alvo = Path(os.path.realpath(pasta))
         return Path(os.path.realpath(Path.home() / ".forge-contrib")) in (alvo, *alvo.parents)
+
+    @staticmethod
+    def caminho(pasta, texto):
+        """Destino de `cd`/`-C`/`--git-dir`: expande `~` e variáveis de ambiente, como o shell faria."""
+        return pasta / Path(os.path.expandvars(texto)).expanduser()
 
     def alvo_do_forge(self, pasta, repo=None):
         """R-CONTRIB: o comando da sessão de OUTRO projeto (raiz que não é o Forge) atinge o repositório do Forge:
@@ -235,6 +255,8 @@ class Guarda:
         except ValueError:
             return  # aspas desbalanceadas: o próprio shell vai recusar
         ramos = {}
+        if nivel == 0:
+            self.ambiente = {}
         for palavras, destinos in partes:
             for d in destinos:
                 self.checar_escrita(d, pasta)
@@ -252,6 +274,11 @@ class Guarda:
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
         palavras = sem_lancadores(palavras)
+        definidas = palavras[1:] if palavras[:1] == ["export"] else [] if palavras else atribuicoes
+        for a in definidas:
+            nome, _, valor = a.partition("=")
+            if nome in ("GH_REPO", "GIT_DIR") and valor:
+                self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in palavras:
             if "$(" in p or "`" in p:
                 self.bash(p, pasta, nivel + 1)
@@ -260,8 +287,11 @@ class Guarda:
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
         parte = parecer.analisar(palavras)
+        if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
+            alvo = next((a for a in args if not a.startswith("-")), None)
+            return self.caminho(pasta, alvo) if alvo else pasta
         if parte and parte[0] == "cd":
-            return pasta / Path(parte[1]).expanduser() if parte[1] else Path.home()
+            return self.caminho(pasta, parte[1]) if parte[1] else Path.home()
         if parte and parte[0] == "branch":
             raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
             if raiz:
@@ -278,10 +308,9 @@ class Guarda:
             if prog.startswith("python") and args[:2] == ["-m", "pip"]:
                 self.pacote("pip", args[2:])
         elif prog == "git":
-            self.git(palavras, parte, pasta, ramos)
+            self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"))
         elif prog == "gh":
-            self.gh(palavras, parte, pasta, next((a.split("=", 1)[1] for a in atribuicoes
-                                                  if a.startswith("GH_REPO=")), None))
+            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
                 re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)) or (
                 prog == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*", a) for a in args)):
@@ -307,17 +336,23 @@ class Guarda:
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
 
+    def da_atribuicao(self, atribuicoes, nome):
+        """Valor de `NOME=` na própria linha do comando ou definido antes (`export`)."""
+        return next((a.split("=", 1)[1] for a in atribuicoes if a.startswith(nome + "=")), self.ambiente.get(nome))
+
     # git ---------------------------------------------------------------------------------------------
     def ramo_em(self, pasta, ramos):
         raiz = raiz_do_projeto(pasta)
         chave = raiz.resolve() if raiz else None
         return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
 
-    def git(self, palavras, parte, pasta, ramos):
-        i, pasta_git = 1, pasta
+    def git(self, palavras, parte, pasta, ramos, git_dir=None):
+        i, pasta_git = 1, self.caminho(pasta, git_dir) if git_dir else pasta
         while i < len(palavras) and palavras[i].startswith("-"):
-            if palavras[i] == "-C" and i + 1 < len(palavras):
-                pasta_git = pasta / palavras[i + 1]
+            if palavras[i] in ("-C", "--git-dir") and i + 1 < len(palavras):
+                pasta_git = self.caminho(pasta, palavras[i + 1])
+            elif palavras[i].startswith("--git-dir="):
+                pasta_git = self.caminho(pasta, palavras[i].split("=", 1)[1])
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
@@ -369,7 +404,7 @@ class Guarda:
                 self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo")
             elif not a.startswith("-"):
                 refs.append(a)
-        refs = refs[1:]  # o primeiro é o remoto
+        remoto, refs = (refs[0] if refs else None), refs[1:]
         if not refs and "--tags" in args:
             return
         atual = None
@@ -385,22 +420,44 @@ class Guarda:
                 self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário")
             if d in INTEGRACAO:
                 self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho")
-        if self.alvo_do_forge(pasta):
-            propria = f"melhoria/{self.h.raiz.name}-"
+        if self.alvo_do_forge(pasta) or self.alvo_do_forge(pasta, remoto):  # a pasta ou a URL do remoto
+            propria = f"melhoria/{self.projeto}-"
             for d in destinos:
                 if not d.startswith(propria):
                     self.barrar("R-CONTRIB", f"push para {d}: a sessão de outro projeto só envia a própria "
                                              f"branch `{propria}<tema>`", "abra o PR da sua branch e espere o Forge integrar")
 
     # gh ----------------------------------------------------------------------------------------------
+    def graphql_perigoso(self, args, pasta):
+        """Mutação do GraphQL que fecha, edita ou rotula PR: o ID é global (sem slug), então vale para toda sessão
+        de projeto. O texto vem inline ou de arquivo (`-F query=@arq`, `--input arq`); o que não dá para ler
+        (`--input -`, arquivo ausente) falha fechado."""
+        textos = []
+        for i, a in enumerate(args):
+            valor = args[i + 1] if a == "--input" and i + 1 < len(args) else a.split("=", 1)[-1]
+            if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (
+                    a in ("-F", "--field") and i + 1 < len(args) and "=@" in args[i + 1]):
+                arq = valor if a.startswith("--input") else (args[i + 1] if a in ("-F", "--field") else a).split("=@", 1)[-1]
+                try:
+                    textos.append((pasta / os.path.expandvars(arq)).expanduser().read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    return True
+            else:
+                textos.append(a)
+        return any("mutation" in t and CONTRIB_GRAPHQL.search(t) for t in textos)
+
     def gh_contrib(self, palavras, pasta, repo_env):
-        """R-CONTRIB: a sessão de outro projeto abre o PR e para; não mescla, edita, fecha nem rotula no Forge."""
-        pos = parecer.posicionais(palavras[1:], {"-R", "--repo"})
+        """R-CONTRIB: a sessão de outro projeto abre o PR e para; não mescla, edita, fecha, revisa nem rotula no
+        Forge. O alvo vem de `-R`, de `GH_REPO`, de URL entre os argumentos ou da pasta (clone de contribuição)."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         repo = parecer.opcao(palavras[1:], "--repo", "-R") or repo_env
-        if grupo == "pr" and sub in CONTRIB_PR_ALHEIO or grupo == "label":
-            if self.alvo_do_forge(pasta, repo):
-                self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo == 'pr' else ''} no Forge: a sessão de outro "
+        proibido = (grupo == "pr" and sub in CONTRIB_PR_ALHEIO or grupo == "issue" and sub in CONTRIB_ISSUE_ALHEIA
+                    or grupo == "label")
+        if proibido:
+            alvo = self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])
+            if alvo and not self.clone_do_forge():
+                self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo != 'label' else ''} no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
         elif grupo == "api":
             args = palavras[2:]
@@ -409,11 +466,10 @@ class Guarda:
             if not parecer.metodo_mutante(args):
                 return
             if endpoint == "graphql":
-                alvo = self.em_contrib(pasta) or any(parecer.aponta_para_o_forge(a) for a in args)
-                perigoso = any("mutation" in a and CONTRIB_GRAPHQL.search(a) for a in args)
+                alvo, perigoso = True, self.graphql_perigoso(args, pasta)
             else:
-                alvo = self.alvo_do_forge(pasta, dono.group(1) if dono else None)
-                perigoso = bool(CONTRIB_API.search(endpoint))
+                slug = dono.group(1) if dono and "{" not in dono.group(1) else repo_env  # {owner}/{repo} = GH_REPO
+                alvo, perigoso = self.alvo_do_forge(pasta, slug), bool(CONTRIB_API.search(endpoint))
             if alvo and perigoso and not self.clone_do_forge():
                 self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
@@ -554,15 +610,39 @@ def alvos_de_escrita(comando):
     return alvos
 
 
+def sessao_no_clone_de_contribuicao(hook):
+    """R-CONTRIB: a sessão de um projeto que trabalha dentro de `~/.forge-contrib/<projeto>` (a pasta corrente passa
+    de uma chamada para a outra) tem `cwd` sem `.forge/versao`; a raiz dela vem de `CLAUDE_PROJECT_DIR`, que o Claude
+    Code define para os hooks. As worktrees `wt/*` são da sessão do Forge e ficam de fora. Devolve False se a
+    chamada não é dessa sessão; None se a raiz foi achada (já em `hook.raiz`); o nome do clone, sem a variável
+    (falha fechado, como projeto de nome igual ao do clone)."""
+    contrib = Path(os.path.realpath(Path.home() / ".forge-contrib"))
+    cwd = Path(os.path.realpath(hook.cwd()))
+    if contrib not in cwd.parents:
+        return False
+    nome = cwd.relative_to(contrib).parts[0]
+    if nome == "wt":
+        return False
+    raiz = os.environ.get("CLAUDE_PROJECT_DIR")
+    if raiz and Path(raiz).is_absolute():
+        return None if hook.projeto(Path(raiz)) else False  # o Forge sem `.forge/versao` ou projeto alheio ao Forge
+    hook.raiz = contrib / nome
+    return nome
+
+
 def principal(hook):
     ferramenta = hook.campo("tool_name")
     entrada = hook.campo("tool_input")
     if not isinstance(entrada, dict) or (ferramenta != "Bash" and ferramenta not in FERRAMENTAS_DE_ARQUIVO):
         return
+    externo = None
     if not hook.projeto(hook.cwd()):
-        return
+        externo = sessao_no_clone_de_contribuicao(hook) if ferramenta == "Bash" else False
+        if externo is False:
+            return
     pol = politica()
     guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
+    guarda.externo = externo
     if hook.campo("hook_event_name") == "PostToolUse":
         if ferramenta == "Bash":
             alvos = alvos_de_escrita(entrada["command"]) if isinstance(entrada.get("command"), str) else []

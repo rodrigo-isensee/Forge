@@ -1,0 +1,22 @@
+{
+  "descricao": "Sem CLAUDE_PROJECT_DIR: gh pr merge bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge 70"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/proj"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh pr merge"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "descricao": "export GH_REPO do Forge.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "export GH_REPO=rodrigo-isensee/Forge; gh pr merge 70"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh pr merge"
+  }
+}
