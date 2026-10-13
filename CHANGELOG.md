@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 ### Alterado
 - **CI e modelo de PR:** o job `shellcheck` passa a cobrir `scripts/validar-plugin.sh` e `scripts/configurar-ambiente-local.sh` (altera `.github/`: exige o rótulo `afrouxa-regra` do dono); o modelo de PR marca `Projeto de origem` e `Como medir` como obrigatórias, com o mínimo de 20 caracteres da catraca.
 ### Corrigido
+- **Hook `conformidade` falha fechado com qualquer parte da política malformada (R-CONFORMIDADE, ADR 0009):** `papeis`, `sem_agent_type`, `papel_padrao`, `acoes`, `pacotes`, `flags_congeladas` e `caminhos` ausentes ou com tipo errado (e JSON ilegível) bloqueiam com "política de conformidade inválida" (saída 2), em vez de liberar por erro interno (ex.: `qa` rodando `npm install x`). A política vigente não muda. Altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono.
 - **Catraca: hooks que decidem protegidos, pareceres ignorados limitados ao pedido e violação vinda da base barrada (R-CONFORMIDADE, ADR 0008):** `hooks/parecer.py`, `hooks/_comum.py` e `bin/forge-check` entram em `PROTEGIDOS`; depois do rótulo `afrouxa-regra`, só mudam sem invalidá-lo os pareceres que o PR já tocava ou com o nome da branch (do PR, pela API); violação ausente no head rotulado (ex.: trazida por merge da base) invalida o rótulo. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
 
 ## [0.9.0] - 2026-10-13
