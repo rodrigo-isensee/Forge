@@ -1,0 +1,51 @@
+{
+  "descricao": "SubagentStop lê a transcrição do subagente (agent_transcript_path) desde o início.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "gravar": {
+        "{tmp}/a.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Write\", \"input\": {\"file_path\": \"{raiz}/CLAUDE.md\", \"content\": \"1\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": true, \"content\": \"R-CONFORMIDADE: no\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Bash\", \"input\": {\"command\": \"sed -i s/a/b/ CLAUDE.md\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "agent_type": "forge:dev",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_transcript_path": "{tmp}/a.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "contorno",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "forge:dev"
+        ]
+      }
+    }
+  }
+}
+

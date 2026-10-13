@@ -1,0 +1,43 @@
+{
+  "descricao": "Write barrado em docs/reviews e outro Write no mesmo caminho aceito (agora liberado): mesma ferramenta, não é contorno.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Write\", \"input\": {\"file_path\": \"{raiz}/docs/reviews/x.md\", \"content\": \"1\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": true, \"content\": \"R-CONFORMIDADE: no\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Write\", \"input\": {\"file_path\": \"{raiz}/docs/reviews/x.md\", \"content\": \"2\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"ok\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "violacoes.jsonl"
+    ]
+  }
+}

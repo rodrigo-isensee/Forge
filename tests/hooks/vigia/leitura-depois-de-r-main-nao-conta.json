@@ -1,0 +1,43 @@
+{
+  "descricao": "Push em main barrado (R-MAIN) e depois `git log main`: leitura, não contorno.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"a\", \"name\": \"Bash\", \"input\": {\"command\": \"git push origin main\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"a\", \"is_error\": true, \"content\": \"R-MAIN: push direto\"}]}}",
+          "{\"type\": \"assistant\", \"message\": {\"content\": [{\"type\": \"tool_use\", \"id\": \"b\", \"name\": \"Bash\", \"input\": {\"command\": \"git log --oneline main\"}}]}}",
+          "{\"type\": \"user\", \"message\": {\"content\": [{\"type\": \"tool_result\", \"tool_use_id\": \"b\", \"is_error\": false, \"content\": \"abc\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "violacoes.jsonl"
+    ]
+  }
+}

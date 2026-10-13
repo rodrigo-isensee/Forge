@@ -1,0 +1,33 @@
+{
+  "descricao": "SessionStart é a entrada principal: grava o ponto de partida e não escreve nada (o stdout dele vira contexto do modelo).",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "source": "startup",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "vigia.json": {
+        "contem": [
+          ".githooks/pre-push"
+        ],
+        "ausente": [
+          "systemMessage"
+        ]
+      }
+    }
+  }
+}
