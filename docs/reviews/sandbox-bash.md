@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 0432563
+commit: efc63e5
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -84,3 +84,20 @@ Diff `384df8b..0432563` (decisão N6). `SandboxDoBash` passa (10 testes).
 
 ## Veredito da revalidação (0432563)
 **Aprovado.** N10 é recomendado (texto da ADR); N7 a N9 seguem como antes. Quem mescla é o tech-lead depois do parecer do QA.
+
+## Revalidação (efc63e5)
+Diff `0432563..efc63e5` (sem `CHANGELOG.md`): 9 arquivos. `SandboxDoBash` e a suíte completa passam (212 testes, OK); `scripts/validar-plugin.sh` passa.
+
+| Foco | Situação | Nota |
+|---|---|---|
+| N10 (rótulo da matriz) | ok | As duas linhas (parecer em `docs/reviews/` e `docs/qa/`; `CLAUDE.md` do projeto) agora dizem "[B] no Write/Edit (hook `conformidade`); [D] no Bash (autoria e PR revisado)". Confere com a legenda da ADR ("[D] detectado depois"): a escrita por Bash é detectada, não barrada. Só texto de matriz; nenhum comportamento mudou. |
+| SBX-03 | ok | Só a linha de status passou a dizer "limite documentado (decisão N6)". Não há mudança no `denyWrite` nem em teste. |
+| Merge da `develop` (`ff3101d`) | ok | `.github/workflows/ci.yml` (job `workflows`), `docs/adr/0008-governanca-de-contribuicoes.md`, `docs/regras/R-FLUXO.md`, a linha de sincronização em `agents/tech-lead.md` e `docs/reviews/workflows-auditoria.md` são idênticos aos da `origin/develop`. Os demais arquivos de código e configuração do PR (`scripts/`, `tests/`, `skills/`, `.claude/`) não estão no delta desde `0432563`. |
+| Escopo do PR | ok | Fora do delta, a diferença de `agents/tech-lead.md` em relação à `origin/develop` (`git push origin <branch>`, sem `-u`) já vinha de commits anteriores do PR, não deste merge. |
+
+Recomendado, sem bloqueio: o `CHANGELOG.md` (excluído deste delta) traz a entrada do job `workflows` e a da sincronização `main` → `develop`, vindas da `develop`; conferir na release que as entradas do PR continuam sob `## [Não publicado]`.
+
+Ambiente de execução: `validar-plugin.sh` e a suíte geraram avisos `deny network-outbound` (APIs de modelo e telemetria negadas pelo sandbox), esperados pela regra `R-CUSTO`.
+
+## Veredito da revalidação (efc63e5)
+**Aprovado.** Sem bloqueio nem achado novo. N10 foi aplicado com o rótulo honesto; o restante do delta é o merge da `develop` sem alteração. Quem mescla é o tech-lead depois do parecer do QA.

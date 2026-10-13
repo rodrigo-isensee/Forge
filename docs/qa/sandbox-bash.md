@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 0432563
+commit: efc63e5
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -224,3 +224,6 @@ Bugs abertos: 0 críticos, 0 altos, 0 médios, 0 baixos. Nenhum bug novo. Observ
 
 ### Veredito (0432563)
 **Aprovado**, escopo incremental. Bugs abertos: 0 em todas as severidades; `aceite_usuario` não é exigido. A aprovação depende de a decisão N6 ser confirmada pelo dono (limite de SBX-03) e das verificações ao vivo acima.
+
+## Nota de revalidação (efc63e5)
+Sem mudança de código do sandbox desde `0432563`. O delta `0432563..efc63e5` tem só: N10 (rótulo da matriz da ADR 0009), o status do SBX-03 (limite documentado) e o merge da `develop` (`ff3101d`), cujos arquivos são idênticos à `origin/develop`. Suíte unitária (212 testes) e `scripts/validar-plugin.sh` verdes em `efc63e5`. Bugs abertos: 0 em todas as severidades, sem alteração. O veredito de `0432563` vale para `efc63e5`, com a mesma ressalva de N6 e SBX-03 (decisão do dono).
