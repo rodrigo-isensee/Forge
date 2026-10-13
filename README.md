@@ -38,7 +38,10 @@ O script instala pacotes, Node 24, pnpm, Claude Code, o plugin e os atalhos `jar
 O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) com `failIfUnavailable` e sem `allowUnsandboxedCommands`: sem `bubblewrap` e `socat` (instalados por `scripts/preparar-estacao.sh`) a sessão não abre.
 - **Escrita:** só o diretório de trabalho, o temporário da sessão, `~/.forge-contrib` (clones de contribuição e as worktrees do Forge, em `~/.forge-contrib/wt/<nome>`) e `/tmp/claude-1000`. Ficam bloqueados para o Bash, mesmo dentro do diretório de trabalho: `.forge/`, `.githooks/`, `.claude-plugin/`, `.github/`, `tests/config.json`, `tests/catraca.py`, `tests/neutralidade.py` e `hooks/conformidade.json`; o Claude Code protege sempre `.claude/settings*.json`, `.claude/{skills,agents,commands,hooks}`, `.git/hooks` e `.git/config`. O sandbox vale só para o Bash: esses arquivos mudam por Write/Edit, numa branch, com PR revisado (é o desejado).
 - **Rede:** só GitHub, npm e PyPI; as APIs de modelo (Anthropic, OpenAI, Google) são negadas (`R-CUSTO`). Só `tmux capture-pane`, `tmux ls` e `tmux has-session` rodam fora do sandbox.
-- **Git:** use `git push origin <branch>`, não `-u`, porque `.git/config` é protegido.
+- **Git:** `.git/config` é protegido: use `git push origin <branch>`, não `-u`, e não rode `git config` nem `git branch --set-upstream`. Worktree: `git worktree add --no-track -b <branch> <dir> origin/develop` (com rastreamento o git grava no `.git/config`).
+- **Pasta de contribuição:** o sandbox libera escrita dentro de `~/.forge-contrib/`, mas a pasta pessoal é somente leitura; o usuário cria a pasta uma vez, fora do Claude: `mkdir -p ~/.forge-contrib/wt`.
+- **Pontos de montagem:** o bubblewrap cria, na raiz do diretório de trabalho, arquivos e pastas vazios e somente leitura (`.bashrc`, `.gitconfig`, `.forge`, `.claude/hooks` etc.) para cobrir os caminhos protegidos; o `.gitignore` os ignora.
+- **CLI do Claude nos testes:** a chamada tenta `api.anthropic.com` e é bloqueada; é o esperado (`R-CUSTO`).
 - **Conferir:** `/sandbox` na sessão.
 - **Emergência (só o dono):** edite `.claude/settings.json` no terminal, fora do Claude, e reinicie a sessão.
 

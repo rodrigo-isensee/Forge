@@ -742,6 +742,18 @@ class SandboxDoBash(unittest.TestCase):
         self.assertIn("bubblewrap", texto)
         self.assertIn("socat", texto)
 
+    def test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados(self):
+        linhas = {l.strip() for l in (RAIZ / ".gitignore").read_text().splitlines()}
+        raiz = [".bash_profile", ".bashrc", ".profile", ".zprofile", ".zshrc", ".gitconfig", ".gitmodules",
+                ".ripgreprc", ".mcp.json", ".idea", ".vscode", ".forge", "tests/neutralidade.py"]
+        claude = ["agents", "commands", "hooks", "skills", "workflows", "output-styles", "routines",
+                  "launch.json", "loop.md", "scheduled_tasks.json", "settings.local.json"]
+        for padrao in [f"/{n}" for n in raiz] + [f"/.claude/{n}" for n in claude]:
+            self.assertIn(padrao, linhas)
+        versionados_ignorados = subprocess.run(
+            ["git", "ls-files", "-ci", "--exclude-standard"], cwd=RAIZ, capture_output=True, text=True, check=True).stdout
+        self.assertEqual(versionados_ignorados.strip(), "", "o .gitignore casa com arquivo versionado")
+
 
 class JarvisForgeVigente(unittest.TestCase):
     """ADR 0009, seção 4: o jarvis-forge carrega a cópia vigente (clone da origin/develop), não a de trabalho."""
