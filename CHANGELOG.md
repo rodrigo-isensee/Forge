@@ -3,6 +3,7 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+- ADR 0008 (proposta): governança de contribuições — conta de máquina para agentes, rulesets sem bypass dos checks, CI anti-piora (catraca), `R-CONTRIB` e transição até o repositório ficar público.
 ### Adicionado
 - Retrospectiva da evolução 0.2.0 a 0.5.0 (`docs/retrospectivas/2026-10-12-evolucao-0.5.0.md`) com métricas dos PRs e cinco propostas de melhoria do processo da fábrica.
 - Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/run/diario.jsonl` por projeto (alinhado às ADR 0003 e 0005: só age em projeto com `.forge/versao`, e `.forge/run/` já é ignorada), hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
