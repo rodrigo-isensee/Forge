@@ -1,7 +1,9 @@
 """Testes da catraca (tests/catraca.py) em repositório git temporário: cada regra com um caso que passa e um que barra."""
+import contextlib
 import copy
 import hashlib
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -673,6 +675,18 @@ class PoliticaDeConformidade(Base):
         self.repo.commit()
         self.assertTrue(any("mudança em hooks/conformidade.py" in v for v in self.repo.violacoes()))
 
+    def test_hooks_e_validador_que_decidem_o_bloqueio_sao_protegidos(self):
+        """Review #57: `parecer.py` (e_clone_do_forge), `_comum.py` (falhar_fechado, executar) e o `forge-check`
+        (validade do parecer que o hook `parecer` e o modo `pareceres` consultam) decidem o bloqueio."""
+        for rel in ("hooks/parecer.py", "hooks/_comum.py", "bin/forge-check"):
+            with self.subTest(rel):
+                self.assertIn(rel, catraca.PROTEGIDOS)
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "x = 1\n")
+                repo.commit()
+                self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()), repo.violacoes())
+
     def test_politica_ausente_na_base_nao_acusa(self):
         self.repo.git("rm", "-q", "hooks/conformidade.json")
         self.repo.git("commit", "-q", "-m", "tira")
@@ -960,7 +974,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
 
-    def roda(self, execs=None):
+    def roda(self, execs=None, ramo=""):
         self.repo.commit()
         entrada = tempfile.TemporaryDirectory()
         self.addCleanup(entrada.cleanup)
@@ -970,8 +984,8 @@ class RotuloSobreviveAoConteudo(Base):
         (pasta / "execucoes.json").write_text(json.dumps(execs), encoding="utf-8")
         args = ["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "develop",
                 "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
-                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7"]
-        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", f"--ramo={ramo}"]
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
         return subprocess.run(args, capture_output=True, text=True, env=env)
 
     def mescla_base(self):
@@ -988,9 +1002,99 @@ class RotuloSobreviveAoConteudo(Base):
         self.assertIn("liberada", r.stdout)
 
     def test_commit_so_de_parecer_mantem_o_rotulo(self):
+        """Parecer cujo nome é o da branch (o pedido desta branch) muda depois do rótulo sem invalidá-lo."""
         self.repo.escreve("docs/reviews/ped.md", "parecer\n")
         self.repo.escreve("docs/qa/ped.md", "parecer\n")
+        self.assertEqual(self.roda(ramo="melhoria/ped").returncode, 0)
+
+    def test_parecer_de_outro_pedido_depois_do_rotulo_invalida(self):
+        """Review #65, desvio 1: só os pareceres dos pedidos desta branch ficam fora da comparação."""
+        for rel in ("docs/reviews/outro.md", "docs/qa/outro.md", "docs/reviews/ped-x.md"):
+            with self.subTest(rel=rel):
+                self.repo.git("reset", "-q", "--hard", self.rotulado)
+                self.repo.escreve(rel, "reescrito depois do rótulo\n")
+                r = self.roda(ramo="melhoria/ped")
+                self.assertEqual(r.returncode, 1, r.stdout)
+
+    def test_parecer_de_outro_pedido_que_ja_existia_na_base_invalida(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("docs/reviews/antigo.md", "parecer original\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("docs/reviews/antigo.md", "histórico reescrito\n")
+        self.assertEqual(self.roda(ramo="melhoria/ped").returncode, 1)
+
+    def test_parecer_que_o_pr_ja_tocava_antes_do_rotulo_pode_mudar(self):
+        self.repo.escreve("docs/reviews/tocado.md", "parecer de autor\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("docs/reviews/tocado.md", "parecer independente\n")
         self.assertEqual(self.roda().returncode, 0)
+
+    def test_sem_ramo_na_linha_de_comando_usa_a_branch_do_pr_pela_api(self):
+        """No CI o `catraca.yml` não passa a branch: ela vem do PR pela API (gratuita, só leitura)."""
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.repo.commit()
+        execs = [execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]
+        originais = {n: getattr(catraca, n, None) for n in ("eventos_do_github", "execucoes_do_pr", "ramo_do_pr")}
+        self.addCleanup(lambda: [setattr(catraca, n, f) for n, f in originais.items()])
+        catraca.eventos_do_github = lambda: ([rotulo()], "2026-01-02T11:00:00Z")
+        catraca.execucoes_do_pr = lambda: execs
+        for ramo, esperado in (("melhoria/ped", 0), ("", 1)):
+            with self.subTest(ramo=ramo):
+                catraca.ramo_do_pr = lambda ramo=ramo: ramo
+                antigo = dict(os.environ)
+                self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antigo)))
+                for k in ("HEAD_REF", "GITHUB_STEP_SUMMARY"):
+                    os.environ.pop(k, None)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(catraca.main(["--raiz", str(self.repo.dir), "--base", "develop", "--pr", "7"]), esperado)
+
+    def test_sem_ramo_parecer_novo_depois_do_rotulo_invalida(self):
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.assertEqual(self.roda().returncode, 1)
+
+    def test_nome_com_curinga_nao_vira_padrao_que_esconde_outros_pareceres(self):
+        """O caminho ignorado vai literal ao git: `docs/reviews/*` tocado antes do rótulo não cobre `outro.md`."""
+        self.repo.escreve("docs/reviews/*", "parecer de nome estranho\n")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.escreve("docs/reviews/outro.md", "reescrito\n")
+        self.assertEqual(self.roda().returncode, 1)
+
+    def test_violacao_nova_vinda_da_base_invalida(self):
+        """Review #65, desvio 2: a base passa a proteger um arquivo que o patch do PR já apagava."""
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("docs/nova.md", "regra nova\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        self.repo.git("rm", "-q", "docs/nova.md")
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.config(invariantes={"docs/regra.md": ["nunca sem teste"], "docs/nova.md": ["regra nova"]})
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("docs/nova.md", r.stdout)
+
+    def test_mesma_violacao_com_numero_diferente_depois_da_base_mantem_o_rotulo(self):
+        """O texto é comparado sem os números: a contagem de testes muda com a base, a violação é a mesma."""
+        self.repo.escreve("tests/test_x.py", TESTE.replace("    def test_b(self): pass\n", ""))
+        self.repo.commit()
+        self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.escreve("tests/test_z.py", "import unittest\nclass T(unittest.TestCase):\n    def test_z(self):\n        self.assertTrue(1)\n")
+        self.repo.commit()
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "develop")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_mudanca_de_codigo_depois_do_rotulo_invalida(self):
         for rel, texto in (("tests/catraca.py", "# mudou de novo\n"), ("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n")):
@@ -1040,6 +1144,14 @@ class ExecucoesDoPr(unittest.TestCase):
         self.assertEqual(catraca.execucoes_do_pr(), [execucao("b", "2026-01-02T09:00:00Z")])
         self.assertEqual(chamadas[0], "/repos/o/r/pulls/7")
         self.assertEqual(chamadas[1], ("/repos/o/r/actions/runs?event=pull_request&branch=melhoria%2Fa%20b", "workflow_runs"))
+
+    def test_ramo_do_pr_vem_da_api_e_falha_vira_vazio(self):
+        catraca.api_objeto = lambda caminho, token: {"head": {"ref": "melhoria/ped"}} if caminho == "/repos/o/r/pulls/7" else {}
+        self.assertEqual(catraca.ramo_do_pr(), "melhoria/ped")
+        catraca.api_objeto = lambda caminho, token: {"head": {}}
+        self.assertEqual(catraca.ramo_do_pr(), "")
+        del os.environ["GITHUB_TOKEN"]
+        self.assertEqual(catraca.ramo_do_pr(), "")
 
     def test_sem_token_ou_com_falha_da_api_e_none(self):
         def falha(*a, **k):
