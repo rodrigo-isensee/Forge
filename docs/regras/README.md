@@ -8,10 +8,10 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 |---|---|---|
 | [`R-MAIN`](R-MAIN.md) | A main é do usuário | hook, teste, permissões |
 | [`R-FLUXO`](R-FLUXO.md) | Branches e promoção | CI, hook |
-| [`R-WIP`](R-WIP.md) | Um cartão por agente e limites de coluna | revisão |
-| [`R-TETO`](R-TETO.md) | Teto de recursos da máquina | revisão |
-| [`R-QA`](R-QA.md) | Portão de QA | revisão |
-| [`R-REVIEW`](R-REVIEW.md) | Code review antes do QA | revisão |
+| [`R-WIP`](R-WIP.md) | Um cartão por agente e limites de coluna | revisão, hook |
+| [`R-TETO`](R-TETO.md) | Teto de recursos da máquina | revisão, hook |
+| [`R-QA`](R-QA.md) | Portão de QA | revisão, hook |
+| [`R-REVIEW`](R-REVIEW.md) | Code review antes do QA | revisão, hook |
 | [`R-DISCOVERY`](R-DISCOVERY.md) | Todo pedido começa com discovery | revisão |
 | [`R-CUSTO`](R-CUSTO.md) | Nada que custe dinheiro sem autorização | revisão |
 | [`R-NEUTRO`](R-NEUTRO.md) | Neutralidade da fábrica | teste |

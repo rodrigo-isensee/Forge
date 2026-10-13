@@ -4,7 +4,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
-- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/run/diario.jsonl` por projeto (alinhado a ADR 0003 e 0005: só age em projeto com `.forge/versao`), hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
+- Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/run/diario.jsonl` por projeto (alinhado às ADR 0003 e 0005: só age em projeto com `.forge/versao`, e `.forge/run/` já é ignorada), hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
+### Alterado
+- Teto de agentes adaptativo à carga da máquina (`R-TETO`: 2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes de `tests/config.json` ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio. O hook de teto (ADR 0003) segue lendo `teto_agentes` de `.forge/config.json` (padrão 3, o piso conservador); fazê-lo adaptativo fica como melhoria seguinte.
+
+## [0.5.0] - 2026-10-12 — requer migração (`forge-upgrade`)
+### Adicionado
+- `forge-check transcricao anonimizar|verificar` (ADR 0007): anonimiza por lista de permissão uma sessão gravada e confere `R-TETO`, `R-MAIN`, `R-REVIEW`, `R-QA` e o prompt-padrão de delegação, sem IA e sem rede. Casos sintéticos em `tests/transcricoes/`, testes `Transcricoes`, neutralidade estendida a essa pasta e guia em `docs/transcricoes.md`.
 - Núcleo neutro e pacotes de stack (ADR 0001): `stacks/node-react/` com os agentes `node-backend` e `react-frontend` (mesmos nomes, `forge:node-backend` e `forge:react-frontend` continuam valendo), as skills de mesmo nome, `seguranca.md` (checklists de API Node, front React, banco e cadeia de suprimentos) e `pronto.md` (comando "pronto" sugerido, convenções de código, pirâmide de testes e arquitetura de referência). Sem migração: projeto sem a seção "Stack" no `CLAUDE.md` é tratado como `node-react`.
 - `plugin.json` lista cada agente (`agents`) e cada skill de stack (`skills`); a lista de `agents` substitui a varredura de `agents/`, e um teste confere que nada fica de fora.
 - `forge-init --stack <nome>` (padrão `node-react`): preenche a seção "Stack" do `CLAUDE.md` e usa o "pronto" sugerido pela stack quando `--pronto` não é informado.
@@ -16,14 +22,25 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 - **Requer migração (0.5.0):** `bin/forge-upgrade` e `migrations/0.5.0/`: o projeto traz a si mesmo para a versão atual, numa branch `forge/upgrade-<versão>` com um commit por migração, sem push nem merge (ADR 0005). Projetos anteriores (sem `.forge/`) ganham `.forge/versao`, `.forge/config.json` e `.forge/run/` no `.gitignore`.
 - `forge-init` grava `.forge/versao` e `.forge/config.json` e ignora `.forge/run/`.
 - `bin/forge-check` (`docs`, `kanban`, `pr <pedido>`): valida o contrato entre agentes; modelos com frontmatter para review, QA e plano técnico em `templates/projeto/docs/` e nas instruções do `tech-lead`, `qa-engineer` e `software-architect` (ADR 0004). Testes `ForgeCheck`.
+- Hooks do plugin (`hooks/hooks.json` e scripts Python só com biblioteca padrão), silenciosos e ativos só em projeto com `.forge/versao` (ADR 0003): teto de agentes e relançamento duplicado (`R-TETO`), parecer de review e de QA antes de `gh pr create` e de `git merge` na integração (`R-REVIEW`, `R-QA`), tarefa pesada uma por vez (`R-TETO`) e quadro válido após edição (`R-WIP`). Limites, expiração e `hooks_desligados` em `.forge/config.json`; documentação em `docs/hooks.md`; testes por fixture em `tests/hooks/`.
+- `forge-check pr <pedido> --ref <ref>`: lê os pareceres de uma ref do git e compara o commit deles com ela (usado pelo hook de parecer no `git merge`).
 ### Alterado
-- Teto de agentes adaptativo à carga da máquina (`R-TETO`: 2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes de `tests/config.json` ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio.
 - Núcleo sem stack: `cyber-security`, `engineering-practices`, `software-architecture`, `qa-testing`, `iniciar-projeto`, `qa-engineer`, `software-architect`, o modelo de projeto e `R-TETO` dizem "conforme a stack do projeto" e apontam para `stacks/<stack>/`. O Jarvis lê a stack declarada e delega só aos agentes do pacote. Nenhuma regra, invariante ou termo proibido foi afrouxado.
 - `tests/e2e-instalacao.sh` confere os agentes pela lista de `--agent` (o `plugin details` não lista agentes registrados no manifesto).
 - Job `versao` do CI: PR para a `develop` exige linha nova em `[Não publicado]` em vez de subir a versão; PR para a `main` exige versão maior e changelog fechado.
 - Agentes e "Fábrica × projeto" do Jarvis apontam para a skill, sem o passo a passo duplicado.
 - Agentes, skills e modelo de projeto citam as regras pelo ID em vez de repetir o texto (`jarvis.md` 99 → 90 linhas). **Invariantes** de `tests/config.json`: os trechos protegidos passam a ser verificados em `docs/regras/`, e os agentes precisam citar os IDs; nenhum trecho deixou de ser verificado.
 - Divergências resolvidas pela redação mais restritiva: QA com WIP 2 no modelo de `KANBAN.md` (era 3); cartão de correção passa por QA com suíte completa; `--force` proibido em qualquer push; branch de trabalho a partir da branch de integração.
+### Corrigido
+- Hook `pesado`: a trava não bloqueia a própria sessão e o próprio agente; sem o `PostToolUse` ela expira em 10 minutos, o `PermissionDenied` também a solta e a mensagem diz como liberar. Os itens de `pesados` casam no início de um comando simples (depois de variáveis e lançadores), e só citar a ferramenta não conta mais.
+- Hook `parecer`: acompanha `git checkout`/`git switch` na mesma linha e trata `git pull <remoto> <branch>` na integração como merge; o que continua fora está em `docs/hooks.md`, "Limites conhecidos".
+- Migração 0.5.0: marca com `contrato: 0` os documentos de `docs/reviews/`, `docs/qa/` e `docs/architecture/features/` sem frontmatter (ADR 0004) e só acrescenta ao `.gitignore`, preservando CRLF.
+- `hooks/hooks.json`: `timeout` de 10 s conferido por teste e fontes oficiais do formato registradas em `docs/hooks.md`.
+- `forge-check`: um só `git`, com limite de tempo e sem `GIT_*` herdadas, para validador e hooks; `--raiz` também depois do subcomando; aviso de migração pendente; linha malformada em `transcricao verificar` vira violação e o anonimizador só copia `t` em ISO 8601.
+- `forge-init` em projeto antigo (com `CLAUDE.md` ou `KANBAN.md` e sem `.forge/versao`) grava `0.0.0` e orienta rodar o `forge-upgrade`.
+- `R-WIP`, `R-TETO`, `R-QA` e `R-REVIEW` registram que também são verificadas por hook.
+- Release: checkout com `persist-credentials: false`.
+- `jarvis` e `jarvis-forge` aceitam `-h`/`--help` e recusam opção desconhecida com saída 2.
 
 ## [0.4.1] - 2026-10-12
 ### Adicionado

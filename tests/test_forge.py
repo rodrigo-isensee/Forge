@@ -3,6 +3,8 @@
 Garantem a integridade da fábrica a cada mudança: manifestos, agentes, skills, referências,
 neutralidade (nada específico de um projeto), regras invioláveis, inicializador e hook de git.
 """
+import importlib.machinery
+import importlib.util
 import json
 import os
 import re
@@ -45,7 +47,7 @@ def skills_do_plugin():
 
 
 def arquivos_texto():
-    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "tests/transcricoes"):
         for p in (RAIZ / pasta).rglob("*"):
             if p.is_file():
                 yield p
@@ -408,11 +410,36 @@ class ForgeInit(unittest.TestCase):
         self.rodar()
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8").splitlines().count(".forge/run/"), 1)
 
+    def test_projeto_antigo_fica_com_versao_zero(self):
+        (self.tmp / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")
+        saida = self.rodar().stdout
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.0.0\n")
+        self.assertIn("forge-upgrade", saida)
+        self.rodar()
+        self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.0.0\n")
+
     def test_nao_mexe_na_versao_existente(self):
         (self.tmp / ".forge").mkdir()
         (self.tmp / ".forge/versao").write_text("0.1.0\n", encoding="utf-8")
         self.rodar()
         self.assertEqual((self.tmp / ".forge/versao").read_text(encoding="utf-8"), "0.1.0\n")
+
+
+# Documentos de um projeto antigo: só os do contrato sem frontmatter ganham `contrato: 0` (ADR 0004).
+DOCS_ANTES = {
+    "docs/reviews/p1-1.md": "# Review antigo\nparecer: aprovado\n",
+    "docs/qa/p1.md": "# QA antigo\r\nok\r\n",
+    "docs/architecture/features/p1.md": "# Plano antigo\n",
+    "docs/reviews/p2-1.md": "---\ncontrato: 0\ntitulo: já marcado\n---\n# Review\n",
+    "docs/reviews/README.md": "# Pareceres\n",
+    "docs/qa/_modelo.md": "# Modelo\n",
+    "docs/outro.md": "# Fora do contrato\n",
+}
+DOCS_DEPOIS = dict(DOCS_ANTES, **{
+    "docs/reviews/p1-1.md": "---\ncontrato: 0\n---\n# Review antigo\nparecer: aprovado\n",
+    "docs/qa/p1.md": "---\r\ncontrato: 0\r\n---\r\n# QA antigo\r\nok\r\n",
+    "docs/architecture/features/p1.md": "---\ncontrato: 0\n---\n# Plano antigo\n",
+})
 
 
 class ForgeUpgrade(unittest.TestCase):
@@ -425,6 +452,9 @@ class ForgeUpgrade(unittest.TestCase):
         git("config", "user.email", "t@example.com", cwd=self.tmp)
         (self.tmp / ".gitignore").write_text("node_modules/", encoding="utf-8")
         (self.tmp / "CLAUDE.md").write_text("meu conteúdo\n", encoding="utf-8")
+        for rel, texto in DOCS_ANTES.items():
+            (self.tmp / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.tmp / rel).write_bytes(texto.encode("utf-8"))
         git("add", "-A", cwd=self.tmp)
         git("commit", "-q", "-m", "antes", cwd=self.tmp)
 
@@ -444,6 +474,11 @@ class ForgeUpgrade(unittest.TestCase):
         self.assertEqual(json.loads((self.tmp / ".forge/config.json").read_text(encoding="utf-8"))["teto_agentes"], 3)
         self.assertEqual((self.tmp / ".gitignore").read_text(encoding="utf-8"), "node_modules/\n.forge/run/\n")
         self.assertEqual((self.tmp / "CLAUDE.md").read_text(encoding="utf-8"), "meu conteúdo\n")
+        for rel, texto in DOCS_DEPOIS.items():
+            self.assertEqual((self.tmp / rel).read_bytes().decode("utf-8"), texto, rel)
+        docs = subprocess.run([str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), "docs"],
+                              env=ambiente_limpo(), capture_output=True, text=True)
+        self.assertEqual((docs.returncode, docs.stdout), (0, ""))
         self.assertEqual(git("log", "--format=%s", "develop..HEAD", cwd=self.tmp).stdout.strip(),
                          "chore(forge): migração 0.5.0")
         antes = git("rev-parse", "HEAD", cwd=self.tmp).stdout
@@ -454,6 +489,15 @@ class ForgeUpgrade(unittest.TestCase):
         # a própria migração é idempotente quando rodada direto sobre o resultado
         subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)], check=True)
         self.assertEqual(git("status", "--porcelain", cwd=self.tmp).stdout, "")
+
+    def test_migracao_so_acrescenta_ao_gitignore(self):
+        for antes, depois in (("a/\r\nb/\r\n", "a/\r\nb/\r\n.forge/run/\r\n"), ("a/\r\nb/", "a/\r\nb/\r\n.forge/run/\r\n"),
+                              ("a/\n", "a/\n.forge/run/\n"), ("a/\n.forge/run/\n", "a/\n.forge/run/\n")):
+            with self.subTest(antes=antes):
+                (self.tmp / ".gitignore").write_bytes(antes.encode())
+                subprocess.run([sys.executable, str(RAIZ / "migrations/0.5.0/migrar"), str(self.tmp)],
+                               check=True, capture_output=True)
+                self.assertEqual((self.tmp / ".gitignore").read_bytes().decode(), depois)
 
     def test_recusa_arvore_suja(self):
         (self.tmp / "sujeira.txt").write_text("x", encoding="utf-8")
@@ -552,6 +596,11 @@ class CI(unittest.TestCase):
                     with self.subTest(arquivo=wf.name, linha=n):
                         self.assertRegex(m.group(1), r"@[0-9a-f]{40}$", "fixe a ação por SHA de 40 caracteres")
 
+    def test_release_sem_credencial_no_checkout(self):
+        """Com `contents: write`, o token não fica gravado no .git enquanto os testes rodam."""
+        texto = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertIn("persist-credentials: false", texto)
+
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
@@ -597,6 +646,18 @@ class PrepararEstacao(unittest.TestCase):
         r = subprocess.run(["bash", str(RAIZ / "scripts/preparar-estacao.sh"), "--x"],
                            capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
+
+    def test_atalhos_do_jarvis_com_ajuda(self):
+        """--help mostra o uso e sai com 0; opção desconhecida sai com 2, sem abrir nada."""
+        for script in ("jarvis", "jarvis-forge"):
+            with self.subTest(script=script):
+                r = subprocess.run(["bash", str(RAIZ / "scripts" / script), "--help"], capture_output=True, text=True)
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertIn(f"Uso: {script} [--sem-tmux]", r.stdout)
+                self.assertNotIn("set -", r.stdout)
+                r = subprocess.run(["bash", str(RAIZ / "scripts" / script), "--xpto"], capture_output=True, text=True)
+                self.assertEqual((r.returncode, r.stdout), (2, ""))
+                self.assertIn("--help", r.stderr)
 
 
 class VerificarContribuicao(unittest.TestCase):
@@ -656,6 +717,13 @@ class VerificarContribuicao(unittest.TestCase):
         r = subprocess.run(["bash", str(RAIZ / "scripts/verificar-contribuicao.sh"), "nao-existe"],
                            cwd=self.tmp, env=ambiente_limpo(), capture_output=True, text=True)
         self.assertEqual(r.returncode, 2)
+
+
+def carregar_forge_check():
+    carregador = importlib.machinery.SourceFileLoader("forge_check_teste", str(RAIZ / "bin/forge-check"))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
 
 
 class ForgeCheck(unittest.TestCase):
@@ -768,6 +836,29 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.assertEqual(self.check("pr", "p1"), (0, ""))
 
+    def test_raiz_depois_do_subcomando_e_git_isolado(self):
+        self.pareceres(self.head())
+        self.commitar()
+        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
+                           env=env, capture_output=True, text=True)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_aviso_de_migracao_pendente(self):
+        fc = carregar_forge_check()
+        plugin = self.tmp / "plugin"
+        (plugin / ".claude-plugin").mkdir(parents=True)
+        (plugin / ".claude-plugin/plugin.json").write_text('{"version": "0.6.0"}', encoding="utf-8")
+        for v in ("0.5.0", "0.6.0", "0.7.0"):
+            (plugin / "migrations" / v).mkdir(parents=True)
+            (plugin / "migrations" / v / "migrar").write_text("", encoding="utf-8")
+        fc.PLUGIN = plugin
+        self.assertEqual(fc.migracao_pendente(self.tmp), [])  # sem .forge/versao: não é projeto do Forge
+        self.escrever(".forge/versao", "0.5.0\n")
+        self.assertEqual(fc.migracao_pendente(self.tmp), ["0.6.0"])
+        self.escrever(".forge/versao", "0.6.0\n")
+        self.assertEqual(fc.migracao_pendente(self.tmp), [])
+
     def test_pr_sem_pareceres(self):
         codigo, saida = self.check("pr", "p1")
         self.assertEqual(codigo, 1)
@@ -797,6 +888,17 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres("deadbeef")
         self.assertIn("commit não existe", self.check("pr", "p1")[1])
 
+    def test_pr_com_ref_le_os_pareceres_da_branch(self):
+        git("switch", "-q", "-c", "develop", cwd=self.tmp)
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar()
+        self.pareceres(self.head())
+        self.commitar()
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertIn("sem parecer", self.check("pr", "p1")[1])
+
     def test_pr_qa_com_bug_alto_falha(self):
         self.pareceres(self.head(), a=1)
         codigo, saida = self.check("pr", "p1")
@@ -817,3 +919,96 @@ class Orcamento(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Transcricoes(unittest.TestCase):
+    """ADR 0007: verificador offline de sessões gravadas, sem IA e sem rede."""
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", *args],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def caso(self, nome, *args):
+        return self.rodar("verificar", str(RAIZ / "tests/transcricoes" / nome), *args)
+
+    def test_sessao_correta_passa(self):
+        self.assertEqual(self.caso("ok.jsonl"), (0, ""))
+
+    def test_viola_teto(self):
+        cod, saida = self.caso("viola-teto.jsonl")
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.strip(), "transcricao: R-TETO: 4 agentes em segundo plano, teto 3 (evento 4)")
+
+    def test_teto_configuravel(self):
+        self.assertEqual(self.caso("viola-teto.jsonl", "--teto", "4")[0], 0)
+
+    def test_viola_main(self):
+        cod, saida = self.caso("viola-main.jsonl")
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.count("R-MAIN"), 2)
+
+    def test_pr_sem_review_nem_qa_e_prompt_incompleto(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "t.jsonl"
+        secoes = {n: n != "Ler" for n in ("Objetivo", "Ler", "Entregar", "Decisões e restrições", "Pronto quando", "Relatório")}
+        linhas = [{"formato": "forge-transcricao/1", "origem": "x"},
+                  {"ev": "agente", "t": "", "id": "a1", "tipo": "forge:node-backend", "bg": False, "secoes": secoes},
+                  {"ev": "cmd", "t": "", "cmd": "gh pr create", "branch": "<branch>"}]
+        arq.write_text("\n".join(json.dumps(l) for l in linhas) + "\n", encoding="utf-8")
+        cod, saida = self.rodar("verificar", str(arq))
+        self.assertEqual(cod, 1)
+        for rid in ("PROMPT-PADRAO", "R-REVIEW", "R-QA"):
+            self.assertIn(rid, saida)
+
+    def test_anonimizador_so_deixa_a_lista_de_permissao(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        prompt = ("## Objetivo\nProjeto Zephyrus de ana.silva@exemplo.org em /home/ana/Zephyrus\n## Ler\nx\n"
+                  "## Entregar\nx\n## Decisões e restrições\nx\n## Pronto quando\nx\n## Relatório\nx")
+        brutos = [
+            {"type": "user", "timestamp": "t0", "version": "9.9.9", "message": {"content": "segredo do usuario Zephyrus"}},
+            {"type": "assistant", "timestamp": "t1", "gitBranch": "melhoria/zephyrus-x", "message": {"content": [
+                {"type": "text", "text": "texto livre do assistente em /home/ana/"},
+                {"type": "tool_use", "id": "u1", "name": "Agent", "input": {
+                    "subagent_type": "zephyrus-dev", "run_in_background": "true", "prompt": prompt}},
+                {"type": "tool_use", "id": "u2", "name": "Bash", "input": {
+                    "command": "cd /home/ana/Zephyrus && git -C /home/ana/Zephyrus push origin melhoria/zephyrus-x "
+                               "&& git config user.email ana.silva@exemplo.org && gh pr create --body 'Zephyrus'"}},
+                {"type": "tool_use", "id": "u3", "name": "Read", "input": {"file_path": "/home/ana/Zephyrus/segredo.txt"}}]}},
+            {"type": "user", "timestamp": "t2", "message": {"content": [
+                {"type": "tool_result", "tool_use_id": "u1", "content": "Async agent launched /home/ana/Zephyrus"}]}},
+            {"type": "queue-operation", "timestamp": "2026-01-01T10:00:00.123Z", "content":
+                "<task-notification><tool-use-id>u1</tool-use-id><summary>ana.silva@exemplo.org</summary></task-notification>"},
+        ]
+        entrada, saida = tmp / "e.jsonl", tmp / "s.jsonl"
+        entrada.write_text("\n".join(json.dumps(b) for b in brutos), encoding="utf-8")
+        self.assertEqual(self.rodar("anonimizar", str(entrada), str(saida))[0], 0)
+        texto = saida.read_text(encoding="utf-8")
+        for proibido in ("ana", "@", "/home", "Zephyrus", "zephyrus", "segredo", "texto livre", "Read"):
+            self.assertNotIn(proibido, texto)
+        eventos = [json.loads(l) for l in texto.splitlines()][1:]
+        self.assertEqual([e["ev"] for e in eventos], ["agente", "cmd", "cmd", "fim"])
+        self.assertEqual(eventos[0]["tipo"], "<agente>")
+        self.assertEqual([e["cmd"] for e in eventos[1:3]], ["git push <branch>", "gh pr create"])
+        self.assertTrue(all(eventos[0]["secoes"].values()))
+        self.assertEqual([e["t"] for e in eventos], ["", "", "", "2026-01-01T10:00:00.123Z"])  # "t1" não é ISO 8601
+
+    def test_linha_malformada_vira_violacao(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "t.jsonl"
+        arq.write_text("\n".join([json.dumps({"formato": "forge-transcricao/1", "origem": "x"}), "{quebrado",
+                                  json.dumps({"t": ""}), json.dumps({"ev": "fim", "t": "ontem", "id": "a1"}),
+                                  json.dumps({"ev": "cmd", "t": "", "branch": "main"}),
+                                  json.dumps({"ev": "fim", "t": "2026-01-01T10:00:00Z", "id": "a1"})]), encoding="utf-8")
+        cod, saida = self.rodar("verificar", str(arq))
+        self.assertEqual(cod, 1)
+        self.assertEqual(saida.splitlines(), [
+            "transcricao: formato: evento 1 inválido: não é JSON",
+            "transcricao: formato: evento 2 inválido: `ev` deve ser um de agente, fim, cmd",
+            "transcricao: formato: evento 3 inválido: `t` deve ser data e hora ISO 8601 ou vazio",
+            "transcricao: formato: evento 4 inválido: `cmd` ausente ou de tipo errado"])
+        arq.write_text("não é json\n", encoding="utf-8")
+        self.assertEqual(self.rodar("verificar", str(arq))[0], 1)

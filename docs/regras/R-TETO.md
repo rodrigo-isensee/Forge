@@ -1,7 +1,7 @@
 ---
 id: R-TETO
 titulo: Teto de recursos da máquina
-verificada_por: revisão
+verificada_por: revisão e hooks `agentes` e `pesado`
 ---
 # R-TETO: Teto de recursos da máquina
 
@@ -14,6 +14,7 @@ Teto de recursos da máquina (obrigatório). Padrão da fábrica, pensado para u
   - **3 agentes** (padrão) nos demais casos;
   - **2 agentes** com load acima de 6 ou menos de 2 GB disponíveis; nesse caso não dispare nada novo até a carga baixar;
   - equilíbrio: subir o teto nunca relaxa as regras abaixo (pesadas uma por vez, worktrees), e agentes extras vão para trabalho leve (discovery, documentação, revisão de código), não para tarefas pesadas;
+- o hook de teto (ADR 0003) impõe o valor de `teto_agentes` em `.forge/config.json` (padrão 3, o piso); para usar 4 ou 5, o projeto sobe esse valor, e o Jarvis decide por disparo dentro dele;
 - **tarefas pesadas uma de cada vez**, nunca em paralelo: testes E2E, testes de banco, build de produção, `docker compose up` de pilha completa, carga de volume para teste de performance;
 - no máximo **2 cópias de trabalho** (`git worktree`) além do diretório principal; cada instância paralela usa a sua, e a worktree é removida assim que a branch dela for mesclada;
 - antes de disparar uma tarefa pesada, confira `uptime` e `free -m`: com load average acima de 8 ou menos de 1,5 GB disponíveis, espere a carga baixar;

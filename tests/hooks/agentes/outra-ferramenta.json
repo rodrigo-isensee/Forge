@@ -1,0 +1,37 @@
+{
+  "descricao": "PreToolUse de outra ferramenta: nada a fazer.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:react-frontend",
+          "descricao": "Tela",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Review",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "ls"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

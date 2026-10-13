@@ -1,0 +1,27 @@
+{
+  "descricao": "Quadro no formato e dentro do WIP.",
+  "arquivos": {
+    "KANBAN.md": [
+      "# Quadro",
+      "",
+      "## QA (WIP 2)",
+      "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |",
+      "|---|---|---|---|---|---|---|",
+      "| C1 | a | p1 | forge:qa-engineer | d | d | |"
+    ]
+  },
+  "entrada": {
+    "hook_event_name": "PostToolUse",
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/KANBAN.md",
+      "old_string": "a",
+      "new_string": "b"
+    },
+    "tool_response": {}
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_run": true
+  }
+}

@@ -1,7 +1,7 @@
 ---
 id: R-REVIEW
 titulo: Code review antes do QA
-verificada_por: revisão (parecer em docs/reviews/ exigido no PR)
+verificada_por: revisão e hook `parecer` (parecer em docs/reviews/ exigido no PR e no merge na integração)
 ---
 # R-REVIEW: Code review antes do QA
 

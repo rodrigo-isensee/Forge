@@ -1,7 +1,7 @@
 ---
 id: R-QA
 titulo: Portão de QA
-verificada_por: revisão (parecer em docs/qa/ exigido no PR)
+verificada_por: revisão e hook `parecer` (parecer em docs/qa/ exigido no PR e no merge na integração)
 ---
 # R-QA: Portão de QA
 
