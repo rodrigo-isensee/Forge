@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f1
 branch: melhoria/primeiro-uso
-commit: 23c255f
+commit: d469b35
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -23,8 +23,8 @@ Não afrouxa regra: nenhum invariante nem hook mudou; `bin/forge-check`, `hooks/
 - Dono nunca fixo: vem de `gh api user`.
 
 ## Desvios e limites (sem ocultar)
-- Sem confirmação "sim/não" antes de `gh repo create` (CA-5 do roteiro): o comando é explícito, o script imprime conta, nome e visibilidade antes de criar, e o repositório é sempre privado. A confirmação existe na skill, antes do push e do PR.
-- Reaproveitar a URL de um repositório vazio e a conferência do escopo `repo` do token ficam fora da F1 (nome existente pede outro nome).
+- CA-5 atendido: o script pergunta "Confirma? [s/N]" antes de `gh repo create` (Enter ou "n" recusa; `--sim` só pula, de forma explícita); o repositório é sempre privado. A skill ainda confirma antes do push e do PR.
+- Repositório existente só é aceito na retomada se for vazio, privado e da mesma conta (achado 1 do review); a conferência do escopo `repo` do token fica fora da F1.
 - O job `shellcheck` do CI não lista os scripts novos (`.github/` é protegido, `R-CONFORMIDADE`); rodado localmente, passa. Pendência registrada no CHANGELOG.
 
 ## Checklist
@@ -55,3 +55,19 @@ Revisor: `forge:tech-lead`, sobre `origin/melhoria/primeiro-uso` em `23c255f` (i
 2. **Baixa** · nome ou e-mail de commit vazios são aceitos (`ler` sem padrão) e o commit inicial falha depois; sugestão: repetir a pergunta até não vazio.
 3. **Baixa** · o estado guarda `dono`, mas a retomada usa o `gh api user` atual; se a conta mudou entre execuções, o estado diverge. Sugestão: parar com mensagem clara.
 4. **Baixa (docs)** · o parecer de autor acima, em "Desvios e limites", ainda diz que não há confirmação antes de `gh repo create`; o commit `23c255f` a adicionou. Atualizar o texto.
+
+# Re-review independente
+
+Revisor: `forge:tech-lead`, sobre `d469b35` (correção `58e6e12` e merge da `develop` 0.11.0). Parecer: **aprovado**; os 4 achados anteriores estão resolvidos.
+
+## Verificação
+- Achado 1 (média): sem `repo_criado`, repositório existente só segue se `gh repo view --json isPrivate,isEmpty` der "true true"; senão para pedindo outro nome, sem escrever nada. Testes: conteúdo, público e o caso aceito (vazio e privado). A conta é a mesma por construção, pelo achado 3.
+- Achado 2: nome e e-mail vazios param com instrução de `git config`; teste cobre os dois campos.
+- Achado 3: dono do estado diferente do `gh api user` atual para com mensagem das duas contas; teste confere que nada é criado de novo.
+- Achado 4: textos do parecer de autor corrigidos.
+- Os 5 testes novos falham com o `bin/forge-novo-projeto` anterior (`640e650`) e passam com o atual.
+- `python3 -m unittest discover -s tests`: 302 testes, OK. `shellcheck bin/forge bin/forge-novo-projeto`: limpo.
+- CHANGELOG: `[Não publicado]` só com a linha do PR; `[0.11.0]` idêntica à da `develop`; `plugin.json` igual ao da `develop`.
+
+## Achados
+Nenhum que bloqueie. Observação baixa: `ler "...";` deixa um `;` sobrando nas duas perguntas de identidade (inofensivo, sem efeito).
