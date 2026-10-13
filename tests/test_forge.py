@@ -3,6 +3,7 @@
 Garantem a integridade da fábrica a cada mudança: manifestos, agentes, skills, referências,
 neutralidade (nada específico de um projeto), regras invioláveis, inicializador e hook de git.
 """
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -15,6 +16,9 @@ import tempfile
 import unittest
 from unittest import mock
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -890,6 +894,58 @@ class ForgeCheck(unittest.TestCase):
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
         self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def autoria(self, *registros):
+        """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
+        linhas = []
+        for rel, papel in registros:
+            hash_ = hashlib.sha256((self.tmp / rel).read_text(encoding="utf-8").strip().encode()).hexdigest()
+            linhas.append(json.dumps({"caminho": rel, "sha256": hash_, "agente": "x", "papel": papel,
+                                      "quando": "2026-10-13T10:00:00"}))
+        self.escrever(".forge/run/autoria.jsonl", "\n".join(linhas) + "\n")
+
+    def test_pr_com_autoria_do_papel_certo_vale(self):
+        self.pareceres(self.head())
+        self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_autoria_de_papel_errado_ou_ausente_falha(self):
+        self.pareceres(self.head())
+        casos = {
+            "qa gravado pelo tech-lead": ([("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "tech-lead")],
+                                          "docs/qa/p1.md: autoria: sem registro de que o papel `qa`"),
+            "review gravado pela sessão principal": ([("docs/reviews/p1.md", "jarvis"), ("docs/qa/p1.md", "qa")],
+                                                     "docs/reviews/p1.md: autoria: sem registro de que o papel `tech-lead`"),
+            "só o review registrado": ([("docs/reviews/p1.md", "tech-lead")], "docs/qa/p1.md: autoria"),
+        }
+        for nome, (registros, trecho) in casos.items():
+            with self.subTest(nome):
+                self.autoria(*registros)
+                codigo, saida = self.check("pr", "p1")
+                self.assertEqual(codigo, 1)
+                self.assertIn(trecho, saida)
+
+    def test_pr_autoria_de_versao_anterior_do_parecer_falha(self):
+        self.pareceres(self.head())
+        self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
+        self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "editado à mão\n")
+        self.assertIn("docs/qa/p1.md: autoria", self.check("pr", "p1")[1])
+
+    def test_pr_sem_arquivo_de_autoria_nao_exige(self):
+        self.pareceres(self.head())
+        self.assertFalse((self.tmp / ".forge/run/autoria.jsonl").exists())
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_autoria_com_ref_compara_o_texto_da_branch(self):
+        git("switch", "-q", "-c", "develop", cwd=self.tmp)
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar()
+        self.pareceres(self.head())
+        self.commitar()
+        self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
 
     def test_raiz_depois_do_subcomando_e_git_isolado(self):
         self.pareceres(self.head())

@@ -1,0 +1,17 @@
+{
+  "descricao": "Jarvis grava no CLAUDE.md pelo Bash: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo '- exceção' >> CLAUDE.md"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "descricao": "node -e que só usa .replace sobre o texto de CLAUDE.md: não escreve, libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "node -e \"console.log(require('fs').readFileSync('CLAUDE.md','utf8').replace('a','b'))\""
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

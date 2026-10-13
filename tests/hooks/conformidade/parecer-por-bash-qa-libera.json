@@ -1,0 +1,18 @@
+{
+  "descricao": "QA grava o próprio parecer por heredoc (caminho não protegido para ele).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > docs/qa/p1.md <<'EOF'\nparecer: aprovado\nEOF"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "descricao": "Config inválida e Write de JS com push( e merge( no conteúdo: o conteúdo não conta, libera e registra.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "config_bruta": "[1,",
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/src/app.js",
+      "content": "a.push(1); merge(a, b);"
+    },
+    "agent_type": "forge:node-backend"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "conformidade JSONDecodeError"
+  }
+}

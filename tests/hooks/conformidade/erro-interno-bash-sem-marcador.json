@@ -1,0 +1,20 @@
+{
+  "descricao": "Config corrompida e comando sem marcador: libera e registra.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "config_bruta": "[1,",
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "npm test"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "conformidade JSONDecodeError"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "descricao": "os.replace sobre arquivo protegido é escrita.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -c \"import os; os.replace('x', '.githooks/pre-push')\""
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

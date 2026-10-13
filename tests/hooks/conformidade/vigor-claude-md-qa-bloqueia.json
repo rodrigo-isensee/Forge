@@ -1,0 +1,20 @@
+{
+  "descricao": "CLAUDE.md do projeto: qa não edita (só o jarvis).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/CLAUDE.md",
+      "content": "x"
+    },
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

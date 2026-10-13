@@ -1,0 +1,19 @@
+{
+  "descricao": "Contorno pelo shell: python3 -c \"open('.forge/config.json','w').write('{}')\"",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -c \"open('.forge/config.json','w').write('{}')\""
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": ".forge/config.json"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "descricao": "QA não instala dependência nova: bundle install",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "bundle install"
+    },
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

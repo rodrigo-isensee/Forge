@@ -1,0 +1,17 @@
+{
+  "descricao": "Ler a configuração libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config user.name && git config --get core.editor && git config --list && git config core.editor"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

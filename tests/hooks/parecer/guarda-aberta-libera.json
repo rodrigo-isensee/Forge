@@ -1,0 +1,32 @@
+{
+  "descricao": "FORGE_GUARDA_ABERTA=1 abre a guarda do parecer em erro interno.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "FORGE_GUARDA_ABERTA": "1"
+  },
+  "config_bruta": "[1,",
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr create --base develop --title x --body y"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "descricao": "NotebookEdit usa notebook_path: também decidido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "NotebookEdit",
+    "tool_input": {
+      "notebook_path": "{raiz}/.forge/versao"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": ".forge/versao"
+  }
+}
