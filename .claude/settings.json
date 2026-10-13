@@ -1,4 +1,10 @@
 {
+  "env": {
+    "npm_config_cache": "/tmp/claude-1000/cache/npm",
+    "XDG_CACHE_HOME": "/tmp/claude-1000/cache/xdg",
+    "PIP_CACHE_DIR": "/tmp/claude-1000/cache/pip",
+    "PLAYWRIGHT_BROWSERS_PATH": "/tmp/claude-1000/cache/playwright"
+  },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": true,
@@ -11,8 +17,7 @@
     ],
     "filesystem": {
       "allowWrite": [
-        "~/.forge-contrib",
-        "/tmp/claude-1000"
+        "~/.forge-contrib"
       ],
       "denyWrite": [
         ".forge/",
@@ -33,8 +38,13 @@
         "codeload.github.com",
         "uploads.github.com",
         "registry.npmjs.org",
+        "registry.yarnpkg.com",
+        "nodejs.org",
         "pypi.org",
-        "files.pythonhosted.org"
+        "files.pythonhosted.org",
+        "playwright.azureedge.net",
+        "playwright.download.prss.microsoft.com",
+        "cdn.playwright.dev"
       ],
       "deniedDomains": [
         "api.anthropic.com",
