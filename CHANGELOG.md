@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Alterado
+- **CI e modelo de PR:** o job `shellcheck` passa a cobrir `scripts/validar-plugin.sh` e `scripts/configurar-ambiente-local.sh` (altera `.github/`: exige o rótulo `afrouxa-regra` do dono); o modelo de PR marca `Projeto de origem` e `Como medir` como obrigatórias, com o mínimo de 20 caracteres da catraca.
+
 ## [0.9.0] - 2026-10-13
 ### Adicionado
 - **`R-FLUXO`, "Depois do merge":** branch remota, branch local e worktree são sempre apagadas após o merge (nunca `develop`, `homolog` nem `main`); se o sandbox recusar ("Device or resource busy"), o dono recebe o `git worktree prune` para rodar. Citada em `tech-lead`, `jarvis` e `contribuir-com-o-forge`; invariante novo em `tests/config.json`.
