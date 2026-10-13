@@ -16,6 +16,7 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 
 ## Complemento: o que é bloqueante e de onde vem a recomendação
 - **Teste de bloqueante.** Uma dúvida só vai ao usuário se as três condições valem **juntas**: (1) existem leituras razoáveis que levam a resultados bem distintos em negócio, dados, interface, escopo, segurança, compatibilidade ou ato irreversível; (2) nem a conversa nem o projeto resolvem; (3) errar custa caro de desfazer. Faltando uma, o time decide e a dúvida vira uma linha "Suposições" no relatório, com a base.
-- **Escada da recomendação**, nesta ordem: fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
+- **O teste não se aplica** a custo (`R-CUSTO`), a acesso e credenciais, a exceção a uma regra (`R-CONFORMIDADE`) nem a fato de negócio que o usuário já declarou: esses casos vão sempre ao usuário, como o primeiro item desta regra manda.
+- **Escada da recomendação**, nesta ordem: o que o usuário disse, depois o fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
 - **Recomendar sempre, com a base declarada:** toda recomendação diz o degrau da escada que a decidiu. Em escopo, prioridade ou custo, leva a marca "preferência do time", separada dos fatos.
 - **Decisão só vale gravada.** Quem recebe a resposta do usuário a grava, no mesmo turno, no arquivo do pedido ou no diário de retomada. Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
