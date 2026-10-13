@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: catraca-rotulo-escopo
 branch: melhoria/catraca-rotulo-escopo
-commit: 0dc9ce9
+commit: a4929f3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -61,3 +61,5 @@ Revisor: forge:tech-lead (sessão separada da do autor). Escopo: `origin/develop
 **Aprovado com recomendações.** Nenhum desvio permite passar violação de regra que o dono não viu com o rótulo. Os itens 1 e 2 permitem reescrever o texto de pareceres de outros pedidos depois do rótulo (baixa). O item 3 é teórico (baixa), e o resíduo do item 5 é anterior a este PR. Os três ficam como recomendações para um PR seguinte, sem bloquear este. Pendência para o merge: o rótulo `afrouxa-regra` do dono, porque o PR muda `tests/catraca.py`.
 
 Atualização (merge da develop com #72 e #73): o conflito foi só no `CHANGELOG.md` (entradas mantidas lado a lado); `tests/catraca.py`, ADR 0008 e testes do escopo ficaram intactos. O parecer foi revalidado sobre o novo head e o campo `commit` atualizado.
+
+Revalidado após merge da develop (só CHANGELOG).
