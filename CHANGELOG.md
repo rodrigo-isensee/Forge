@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **`R-FLUXO`, "Depois do merge":** branch remota, branch local e worktree são sempre apagadas após o merge (nunca `develop`, `homolog` nem `main`); se o sandbox recusar ("Device or resource busy"), o dono recebe o `git worktree prune` para rodar. Citada em `tech-lead`, `jarvis` e `contribuir-com-o-forge`; invariante novo em `tests/config.json`.
 ### Alterado
 - **`env` sai do `.claude/settings.json` versionado:** caches e configuração de credencial do git (`GIT_CONFIG_*`) passam ao `.claude/settings.local.json` de cada máquina, gerado por `scripts/configurar-ambiente-local.sh` (idempotente, mescla sem perder o que existe, caminhos por `${TMPDIR:-/tmp}` e UID). Testes barram a volta do `env` ao arquivo versionado. Cada máquina precisa rodar o script uma vez; o job `shellcheck` do CI ainda não lista o script novo (pendência em `.github/`, protegido).
 
