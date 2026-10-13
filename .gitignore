@@ -18,7 +18,6 @@ __pycache__/
 /.idea
 /.vscode
 /.forge
-/tests/neutralidade.py
 /.claude/agents
 /.claude/commands
 /.claude/hooks
