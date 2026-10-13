@@ -517,16 +517,17 @@ def reduzir_comando(texto, ramo, politica=None, scripts=None, cwd=""):
             cmd(f"gh pr {pal[2]}", ramo)
         if pal[0] != "git":
             continue
-        if any("core.hooksPath" in a for a in pal):
-            cmd("flag core.hooksPath", ramo)
-        if "--no-verify" in pal:
-            cmd("flag --no-verify", ramo)
         resto, i = pal[1:], 0
         while i < len(resto) and resto[i].startswith("-"):  # opções globais: -C dir, -c k=v, --no-pager
             i += 2 if resto[i] in ("-C", "-c") else 1
-        if i >= len(resto):
+        sub, args = (resto[i], resto[i + 1:]) if i < len(resto) else (None, [])
+        ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
+        if any("core.hooksPath" in a for a in (pal[:i + 1] if ativacao else pal)):
+            cmd("flag core.hooksPath", ramo)
+        if "--no-verify" in pal:
+            cmd("flag --no-verify", ramo)
+        if sub is None:
             continue
-        sub, args = resto[i], resto[i + 1:]
         if sub in ("checkout", "switch"):
             alvo_r = [a for a in args if not a.startswith("-")]
             if alvo_r and not any(a in ("-b", "-B", "-c", "-C") for a in args):

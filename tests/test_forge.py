@@ -1214,6 +1214,26 @@ class Transcricoes(unittest.TestCase):
         for regra in ("R-VERIFY", "R-CUSTO", "R-COPIA", "R-CONFORMIDADE.sandbox", "R-CONFORMIDADE.contorno", "R-DECISAO"):
             self.assertIn(regra, saida_v)
 
+    def anonimizado(self, *comandos):
+        """Anonimiza uma sessão sintética com um Bash por comando e devolve os eventos gerados (sem o cabeçalho)."""
+        tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        brutos = [{"type": "assistant", "timestamp": "2026-01-01T10:00:00Z", "cwd": "/x/p", "message": {"content": [
+            {"type": "tool_use", "id": f"b{n}", "name": "Bash", "input": {"command": c}}]}} for n, c in enumerate(comandos)]
+        entrada, saida = tmp / "e.jsonl", tmp / "s.jsonl"
+        entrada.write_text("\n".join(json.dumps(b) for b in brutos), encoding="utf-8")
+        self.assertEqual(self.rodar("anonimizar", str(entrada), str(saida))[0], 0)
+        return [json.loads(l) for l in saida.read_text(encoding="utf-8").splitlines()][1:]
+
+    def tokens(self, *comandos):
+        return [e.get("cmd") or e.get("alvo") for e in self.anonimizado(*comandos)]
+
+    def test_ativar_o_hook_da_fabrica_nao_e_r_verify(self):
+        self.assertEqual(self.tokens("git config core.hooksPath .githooks", "git -C /x/p config core.hooksPath .githooks"), [])
+        for c in ("git config core.hooksPath /dev/null", "git config --global core.hooksPath .githooks",
+                  "git -c core.hooksPath=/dev/null config core.hooksPath .githooks"):
+            self.assertIn("flag core.hooksPath", self.tokens(c), c)
+
     def test_linha_malformada_vira_violacao(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-transc-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
