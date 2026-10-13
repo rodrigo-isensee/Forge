@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: rotulo-sobrevive-merge
 branch: melhoria/rotulo-sobrevive-merge
-commit: 90705c1
+commit: acf55f0
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -82,3 +82,5 @@ Segunda leitura (outra instância do `forge:tech-lead`) sobre `origin/develop..9
 Em CI roda o `tests/catraca.py` da base, então este PR é julgado pela regra antiga: o rótulo `afrouxa-regra` precisa ser aplicado pelo dono depois do último push, incluindo este commit de review.
 
 Parecer independente: **aprovado** (nenhum desvio bloqueia; 1 e 2 recomendados para um PR próprio). Frontmatter atualizado para o commit revisado `90705c1`.
+
+Revalidado após merge da develop (só CHANGELOG). Commit revisado atualizado para `acf55f0`; o diff efetivo fora de `docs/reviews/` e `CHANGELOG.md` é idêntico ao revisado em `90705c1`.
