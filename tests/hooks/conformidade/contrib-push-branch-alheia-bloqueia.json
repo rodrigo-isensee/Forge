@@ -1,0 +1,21 @@
+{
+  "descricao": "Sessão de projeto (jarvis) empurra para branch de outro PR no clone de contribuição: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C {tmp}/home/.forge-contrib/proj push origin melhoria/outro-tema"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}

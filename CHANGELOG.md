@@ -2,8 +2,9 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.10.0] - 2026-10-13
 ### Alterado
+- **`R-CONTRIB`: sessão de outro projeto só propõe ao Forge (requer o rótulo `afrouxa-regra` do dono):** pode escrever a sugestão no corpo do PR, criar uma branch `melhoria/<projeto>-<tema>` e abrir o PR para a `develop`; não commita em branch alheia, não resolve conflito nem revalida parecer de PR alheio, não mescla, não fecha, não edita e não rotula; depois do PR avisa o usuário e para. A skill `contribuir-com-o-forge` e a autonomia do `jarvis` seguem a regra. O hook `conformidade` barra, fora da sessão do Forge, `git push` para branch fora de `melhoria/<projeto>-`, `gh pr merge|edit|close`, `gh label` e `gh api`/GraphQL que editem, fechem, mesclem ou rotulem PR do Forge. O alvo vale também pela pasta corrente no clone `~/.forge-contrib/<projeto>` (raiz por `CLAUDE_PROJECT_DIR`; sem ela, falha fechado), por URL de PR, por `gh issue edit|close|reopen`, por `GH_REPO`/`GIT_DIR` exportados, `pushd`, `--git-dir` e push por URL; `gh pr edit --body` no próprio PR fica barrado (corpo por comentário).
 - **CI e modelo de PR:** o job `shellcheck` passa a cobrir `scripts/validar-plugin.sh` e `scripts/configurar-ambiente-local.sh` (altera `.github/`: exige o rótulo `afrouxa-regra` do dono); o modelo de PR marca `Projeto de origem` e `Como medir` como obrigatórias, com o mínimo de 20 caracteres da catraca.
 ### Corrigido
 - **Hook `conformidade` falha fechado com qualquer parte da política malformada (R-CONFORMIDADE, ADR 0009):** `papeis`, `sem_agent_type`, `papel_padrao`, `acoes`, `pacotes`, `flags_congeladas` e `caminhos` ausentes ou com tipo errado (e JSON ilegível) bloqueiam com "política de conformidade inválida" (saída 2), em vez de liberar por erro interno (ex.: `qa` rodando `npm install x`). A política vigente não muda. Altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono.

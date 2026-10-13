@@ -1,0 +1,20 @@
+{
+  "descricao": "PATCH em pulls/N de outro repositório (o do projeto): não é do R-CONTRIB.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PATCH repos/outro/projeto/pulls/5 -f state=closed"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
