@@ -232,6 +232,15 @@ def _entrada_nova_invalida(entrada, base, papeis):
     quem = entrada.get("quem")
     if not isinstance(quem, list) or not all(isinstance(q, str) for q in quem):
         return "`quem` ausente ou fora da forma (lista de papéis)"
+    if not isinstance(entrada.get("motivo"), str) or not entrada["motivo"]:
+        return "`motivo` ausente ou fora da forma (texto não vazio)"
+    if not isinstance(entrada.get("so_forge", False), bool):
+        return "`so_forge` fora da forma (booleano)"
+    if "branch" in entrada and (not isinstance(entrada["branch"], str) or not entrada["branch"]):
+        return "`branch` fora da forma (texto não vazio)"
+    fora = sorted(set(entrada) - {"caminho", "quem", "motivo", "so_forge", "branch"})
+    if fora:
+        return f"chave desconhecida: {', '.join(fora)}"
     if "dev" in quem:
         return "`quem` contém `dev`"
     if [q for q in quem if q not in papeis]:

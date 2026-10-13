@@ -607,6 +607,15 @@ class PoliticaDeConformidade(Base):
         self.acusa(self.nova(quem=["fantasma"]), "fantasma")
         self.acusa(lambda p: p["caminhos"].append({"caminho": "novo/", "motivo": "z"}), "quem")
 
+    def test_entrada_nova_sem_motivo_ou_com_campo_fora_do_esquema_acusa(self):
+        self.acusa(lambda p: p["caminhos"].insert(0, {"caminho": "novo/", "quem": []}), "motivo")
+        self.acusa(self.nova(motivo=""), "motivo")
+        self.acusa(self.nova(motivo=3), "motivo")
+        self.acusa(self.nova(branch=7), "branch")
+        self.acusa(self.nova(branch=""), "branch")
+        self.acusa(self.nova(so_forge="sim"), "so_forge")
+        self.acusa(self.nova(extra=1), "extra")
+
     def test_entrada_nova_com_caminho_igual_ou_prefixo_de_existente_acusa(self):
         self.acusa(lambda p: p["caminhos"].append({"caminho": "docs/regras/", "quem": [], "motivo": "z"}), "docs/regras/")
         self.acusa(lambda p: p["caminhos"].append({"caminho": "docs/", "quem": [], "motivo": "z"}), "docs/")
