@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Forge: despachante de subcomandos. `forge <sub> [args]` executa `bin/forge-<sub>`.
+# Uso: forge <subcomando> [argumentos]   (sem argumento, lista os subcomandos)
+#   forge novo-projeto   cria um projeto novo no GitHub e abre o Jarvis nele
+set -euo pipefail
+
+dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+
+listar() {
+  echo "Uso: forge <subcomando> [argumentos]"
+  echo "Subcomandos:"
+  for f in "$dir"/forge-*; do
+    [ -x "$f" ] && echo "  ${f##*/forge-}"
+  done
+}
+
+if [ $# -eq 0 ] || [ "$1" = "-h" ] || [ "$1" = "--help" ]; then listar; exit 0; fi
+
+sub="$1"; shift
+if ! [[ "$sub" =~ ^[a-z][a-z0-9-]*$ ]] || [ ! -x "$dir/forge-$sub" ]; then
+  echo "forge: subcomando desconhecido: $sub" >&2
+  listar >&2
+  exit 2
+fi
+exec "$dir/forge-$sub" "$@"

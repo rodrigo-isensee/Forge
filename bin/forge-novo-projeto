@@ -1,0 +1,189 @@
+#!/usr/bin/env bash
+# Forge: cria um projeto novo e abre o Jarvis nele. Rode no terminal, antes do Claude (use: forge novo-projeto).
+# Confere o login do GitHub (gh auth), pergunta o nome e a pasta (padrão ~/<nome>), cria o repositório privado,
+# clona, faz o commit inicial na main (ato seu, com a sua identidade do git) e cria develop e homolog.
+# O progresso fica em ~/.local/state/forge/novo-projeto/<nome>.json (sem segredos): se parar, rode de novo para retomar.
+# O token do GitHub nunca é lido por este script nem passa pelo chat; o login é feito por `gh auth login`.
+# Antes de criar o repositório no GitHub, pede confirmação (CA-5). A flag --sim pula a pergunta (teste e automação).
+set -euo pipefail
+
+sim=0
+for arg in "$@"; do
+  case "$arg" in
+    --sim) sim=1 ;;
+    *) echo "forge novo-projeto: opção desconhecida: $arg (use --sim para pular a confirmação)" >&2; exit 2 ;;
+  esac
+done
+
+estado_raiz="${XDG_STATE_HOME:-$HOME/.local/state}/forge/novo-projeto"
+
+die() { echo "forge novo-projeto: $*" >&2; exit 1; }
+ler() { # ler "pergunta" [padrão] -> REPLY
+  local padrao="${2:-}"
+  if [ -n "$padrao" ]; then printf '%s [%s] ' "$1" "$padrao" >&2; else printf '%s ' "$1" >&2; fi
+  read -r REPLY || die "entrada encerrada; nada além do que já foi feito."
+  [ -t 0 ] || echo >&2
+  [ -n "$REPLY" ] || REPLY="$padrao"
+}
+
+echo "Forge: vou preparar um projeto novo com você. Leva cerca de 10 minutos, em poucas perguntas curtas, uma por vez." >&2
+echo "Nada é criado no GitHub sem o seu \"sim\". Pode parar quando quiser: ao rodar de novo, eu retomo de onde parou." >&2
+echo "Quando uma pergunta mostra uma resposta entre colchetes, basta apertar Enter para aceitá-la." >&2
+echo >&2
+
+for cmd in git gh claude python3; do
+  command -v "$cmd" >/dev/null 2>&1 || die "não encontrei '$cmd'$([ "$cmd" = gh ] && echo ' (o GitHub CLI, que é como este comando fala com o GitHub; instale em https://cli.github.com)'). Instale e rode de novo."
+done
+gh auth status >/dev/null 2>&1 \
+  || die "você ainda não entrou no GitHub por aqui. Rode 'gh auth login' neste terminal (o login acontece no navegador; este script não vê sua senha) e tente de novo."
+dono="$(gh api user --jq .login)" \
+  || die "não consegui falar com o GitHub (sem conexão com a internet?). Nada foi criado ainda. Confira a rede e rode de novo."
+[ -n "$dono" ] || die "não consegui descobrir sua conta do GitHub (gh api user)."
+
+normalizar() { # sem acentos, minúsculas, espaços viram hífen
+  python3 -c 'import sys,unicodedata,re
+t=unicodedata.normalize("NFKD",sys.argv[1])
+t="".join(c for c in t if not unicodedata.combining(c)).lower().strip()
+print(re.sub(r"\s+","-",t))' "$1"
+}
+
+echo "Vou criar o projeto na sua conta $dono, como repositório privado (só você enxerga)."
+padrao_nome="$(normalizar "$(basename "$PWD")")"
+[[ "$padrao_nome" =~ ^[a-z0-9._-]{1,100}$ ]] && [ "$padrao_nome" != "." ] && [ "$padrao_nome" != ".." ] || padrao_nome=""
+while true; do
+  ler "Qual o nome do projeto? (ex.: meu-app)" "$padrao_nome"
+  nome_digitado="$REPLY"
+  nome="$(normalizar "$nome_digitado")"
+  if ! [[ "$nome" =~ ^[a-z0-9._-]{1,100}$ ]] || [ "$nome" = "." ] || [ "$nome" = ".." ]; then
+    echo "Nome inválido: use letras, números, ponto, hífen e sublinhado (até 100). Exemplos: meu-app, loja-online." >&2; continue
+  fi
+  if [ "$nome" != "$nome_digitado" ]; then
+    echo "Vou usar o nome: $nome (sem acentos, em minúsculas e com hífen no lugar de espaços)." >&2
+    if [ "$sim" -ne 1 ]; then
+      ler "Pode ser? [sim]" "sim"
+      case "$REPLY" in s|S|sim|Sim|SIM) ;; *) continue ;; esac
+    fi
+  fi
+  estado="$estado_raiz/$nome.json"
+  [ -e "$estado" ] && break
+  if gh repo view "$dono/$nome" >/dev/null 2>&1; then
+    echo "$dono/$nome já existe no GitHub; não escrevo em repositório existente. Escolha outro nome (ex.: $nome-2)."; continue
+  fi
+  break
+done
+
+estado_campo() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[sys.argv[2]])' "$estado" "$1"; }
+estado_tem() { python3 -c 'import json,sys; sys.exit(0 if sys.argv[2] in json.load(open(sys.argv[1]))["etapas"] else 1)' "$estado" "$1"; }
+
+if [ -e "$estado" ]; then
+  dono_salvo="$(estado_campo dono)"
+  [ "$dono_salvo" = "$dono" ] \
+    || die "este projeto foi começado na conta $dono_salvo, mas agora você está na conta $dono. Entre de novo na conta $dono_salvo ('gh auth login') e rode de novo."
+  pasta="$(estado_campo pasta)"
+  feito="$(python3 -c 'import json,sys
+n={"repo_criado":"repositório criado","clonado":"cópia na pasta","commit_inicial":"primeiro registro enviado","branches":"ramos de trabalho criados"}
+print(", ".join(n.get(e,e) for e in json.load(open(sys.argv[1]))["etapas"]) or "nada ainda")' "$estado")"
+  echo "Retomando o projeto $nome em $pasta (já feito: $feito)."
+else
+  ler "Em que pasta?" "$HOME/$nome"
+  pasta="${REPLY/#\~/$HOME}"
+  if [ -e "$pasta" ] && [ -n "$(ls -A "$pasta" 2>/dev/null)" ]; then die "a pasta $pasta já existe e não está vazia."; fi
+  mkdir -p "$estado_raiz"
+  python3 - "$estado" "$nome" "$pasta" "$dono" <<'PY'
+import json, sys
+arq, nome, pasta, dono = sys.argv[1:5]
+with open(arq, "w", encoding="utf-8") as f:
+    json.dump({"nome": nome, "pasta": pasta, "dono": dono, "etapas": []}, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+fi
+
+marcar() { # grava a etapa depois do efeito; copia o estado para o projeto, para o Jarvis ler
+  python3 - "$estado" "$1" <<'PY'
+import json, os, sys
+arq, etapa = sys.argv[1:3]
+dados = json.load(open(arq, encoding="utf-8"))
+if etapa not in dados["etapas"]:
+    dados["etapas"].append(etapa)
+with open(arq + ".novo", "w", encoding="utf-8") as f:
+    json.dump(dados, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+os.replace(arq + ".novo", arq)
+PY
+  if [ -d "$pasta/.git" ]; then mkdir -p "$pasta/.forge"; cp "$estado" "$pasta/.forge/novo-projeto.json"; fi
+}
+
+if ! estado_tem repo_criado; then
+  if gh repo view "$dono/$nome" >/dev/null 2>&1; then
+    # Sem a marca repo_criado, o repositório pode ser de outra origem: só aceito se estiver vazio e privado.
+    situacao="$(gh repo view "$dono/$nome" --json isPrivate,isEmpty --jq '"\(.isPrivate) \(.isEmpty)"' 2>/dev/null || true)"
+    [ "$situacao" = "true true" ] \
+      || die "o repositório $dono/$nome já existe no GitHub e não está vazio e privado; não escrevo nele. Rode de novo e escolha outro nome (ex.: $nome-2)."
+    echo "O repositório $dono/$nome já foi criado antes (vazio e privado); sigo com ele."
+  else
+    if [ "$sim" -ne 1 ]; then
+      ler "Vou criar o repositório privado $dono/$nome no GitHub. Confirma? [sim/não; Enter = não]"
+      case "$REPLY" in
+        s|S|sim|Sim|SIM) ;;
+        *) die "sem confirmação, não criei nada. Quando quiser, rode 'forge novo-projeto' de novo; o nome e a pasta ficam salvos e a pergunta volta." ;;
+      esac
+    fi
+    echo "Criando $dono/$nome (privado)..."
+    erro_criar="$(gh repo create "$dono/$nome" --private 2>&1 >/dev/null)" || {
+      if printf '%s' "$erro_criar" | grep -qiE '403|forbidden|permission|not accessible|scope'; then
+        die "o GitHub negou a criação de $dono/$nome (falta permissão). Nada foi alterado na sua pasta. Escolha um caminho:
+  A) renovar a permissão do login: rode 'gh auth refresh -h github.com -s repo' e depois 'forge novo-projeto' de novo [recomendado];
+  B) criar você mesmo, no site https://github.com/new, um repositório vazio e privado chamado $nome, e rodar 'forge novo-projeto' de novo (eu sigo com ele);
+  C) pedir a quem administra a conta que libere a criação de repositórios, e tentar depois."
+      fi
+      die "o GitHub não criou $dono/$nome ($erro_criar). Nada foi alterado na sua pasta; confira a rede e rode de novo."
+    }
+  fi
+  marcar repo_criado
+fi
+
+if ! estado_tem clonado; then
+  if [ ! -d "$pasta/.git" ]; then
+    [ ! -e "$pasta" ] || [ -z "$(ls -A "$pasta")" ] || die "a pasta $pasta existe e não é o clone do projeto."
+    mkdir -p "$(dirname "$pasta")"
+    gh repo clone "$dono/$nome" "$pasta" >/dev/null 2>&1 || die "não consegui baixar uma cópia de $dono/$nome para a pasta (rede?). O repositório já existe; rode de novo para retomar."
+  fi
+  marcar clonado
+fi
+
+# Identidade do git: só neste repositório, sem tocar na configuração global.
+if [ -z "$(git -C "$pasta" config user.name || true)" ]; then
+  ler "Seu nome para o histórico de alterações (aparece publicamente, não é segredo)?";
+  [ -n "$REPLY" ] || die "o nome para o histórico não pode ficar vazio. Rode de novo, ou configure antes: git config --global user.name \"Seu Nome\"."
+  git -C "$pasta" config user.name "$REPLY"
+fi
+if [ -z "$(git -C "$pasta" config user.email || true)" ]; then
+  ler "Seu e-mail para o histórico de alterações (aparece publicamente)?";
+  [ -n "$REPLY" ] || die "o e-mail para o histórico não pode ficar vazio. Rode de novo, ou configure antes: git config --global user.email \"voce@exemplo.com\"."
+  git -C "$pasta" config user.email "$REPLY"
+fi
+
+if ! estado_tem commit_inicial; then
+  git -C "$pasta" checkout -q -B main
+  if ! git -C "$pasta" rev-parse -q --verify HEAD >/dev/null; then
+    printf '# %s\n' "$nome" > "$pasta/README.md"
+    printf '%s\n' '.forge/run/' '.forge/perfil' '.forge/novo-projeto.json' '.forge/onboarding.md' > "$pasta/.gitignore"
+    git -C "$pasta" add README.md .gitignore
+    git -C "$pasta" commit -q -m "chore: commit inicial"
+  fi
+  git -C "$pasta" push -q -u origin main || die "não consegui enviar a versão principal (main). O primeiro registro do histórico está salvo na pasta; rode de novo."
+  marcar commit_inicial
+fi
+
+if ! estado_tem branches; then
+  for ramo in develop homolog; do
+    git -C "$pasta" branch -q "$ramo" main 2>/dev/null || true
+    git -C "$pasta" push -q -u origin "$ramo" || die "não consegui enviar o ramo de trabalho $ramo; rode de novo."
+  done
+  marcar branches
+fi
+git -C "$pasta" checkout -q develop
+
+echo "Pronto: $dono/$nome (privado) em $pasta, com a versão principal (main) e dois ramos de trabalho: develop (em construção) e homolog (em teste). Abrindo o Jarvis..."
+cd "$pasta"
+exec claude --agent forge:jarvis "Primeiro uso: conduza o roteiro da skill forge:novo-projeto para este projeto ($nome)."
