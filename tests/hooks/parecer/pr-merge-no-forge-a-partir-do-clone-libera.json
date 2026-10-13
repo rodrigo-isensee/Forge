@@ -1,9 +1,10 @@
 {
-  "descricao": "Clone do Forge mesclando no Forge com pareceres: libera.",
+  "descricao": "Clone do Forge (manifesto, sem .forge/versao) mesclando no Forge: não é projeto, o hook não age.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
   },
+  "forge": false,
   "git": [
     {
       "branch": "feature/x"

@@ -1,0 +1,35 @@
+{
+  "descricao": "Sessão de projeto com cwd em wt/*: erro interno (nome de pasta longo demais) bloqueia a ação crítica.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; git push origin HEAD"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: erro interno",
+    "erros_log": "conformidade"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "branch": "melhoria/outra",
+      "arquivos": {
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+      },
+      "remotos": {
+        "origin": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  }
+}

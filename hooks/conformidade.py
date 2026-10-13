@@ -13,17 +13,18 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, executar, git, nome_da_branch, raiz_do_projeto,
-                    sem_atribuicoes)
+from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar, git,
+                    nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
-    r"\.claude/|\.githooks|\.forge/|docs/reviews|docs/qa|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
+    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
 LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
@@ -34,6 +35,8 @@ LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R
               "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "--max-args", "--max-procs",
                         "--delimiter", "--arg-file", "--max-lines", "--max-chars"}}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
+ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
+MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl|ruby|php|deno|bun)$")
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
@@ -116,20 +119,43 @@ def separar_lancadores(palavras):
     palavras, lancadas = sem_atribuicoes(palavras), []
     while palavras and Path(palavras[0]).name in LANCADORES:
         nome, com_valor = Path(palavras[0]).name, LANCADORES[Path(palavras[0]).name]
-        i = 1
+        i, dividido = 1, []
         while i < len(palavras) and palavras[i].startswith("-") and palavras[i] != "-":
             opcao = palavras[i]
             i += 1
             if opcao == "--":
                 break
-            if opcao in com_valor:
+            split = valor_do_split_string(opcao, palavras[i] if i < len(palavras) else "") if nome == "env" else None
+            if split is not None:  # `env -S '<comando>'`: o valor é o comando, dividido em palavras
+                texto, consome = split
+                i += consome
+                dividido += shlex.split(texto)  # aspas abertas: ValueError, e o comando não é analisável
+            elif opcao in com_valor or (nome == "env" and re.fullmatch(r"-[a-zA-Z]*[uC]", opcao)):
                 i += 1
         if nome == "timeout" and i < len(palavras):
             i += 1  # a duração
-        resto = sem_atribuicoes(palavras[i:])
-        lancadas += palavras[i:len(palavras) - len(resto)]
+        cauda = dividido + palavras[i:]
+        resto = sem_atribuicoes(cauda)
+        lancadas += cauda[:len(cauda) - len(resto)]
         palavras = resto
     return palavras, lancadas
+
+
+def valor_do_split_string(opcao, seguinte):
+    """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string`, o comando que o `env` divide e roda;
+    None se a opção não é essa. No grupo curto (`-iS`), a primeira letra que leva valor decide (`-uS` é `-u S`)."""
+    if opcao == "--split-string":
+        return seguinte, 1
+    if opcao.startswith("--split-string="):
+        return opcao.split("=", 1)[1], 0
+    if opcao.startswith("--"):
+        return None
+    for k, letra in enumerate(opcao[1:], 1):
+        if letra in ENV_COM_VALOR_CURTA:
+            if letra != "S":
+                return None
+            return (opcao[k + 1:], 0) if opcao[k + 1:] else (seguinte, 1)
+    return None
 
 
 def sem_lancadores(palavras):
@@ -148,7 +174,9 @@ class Guarda:
         self._ramo = None
         self._forge = None
         self.externo = None  # nome da sessão de outro projeto (prefixo `melhoria/<nome>-`), quando vem da raiz dela
+        self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
+        self._repos = {}     # (raiz git, remoto) -> é o Forge
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -173,28 +201,62 @@ class Guarda:
         return self.h.raiz.name if self.externo is None else self.externo
 
     def clone_do_forge(self):
+        """A raiz em que o hook age é o Forge (dá poder: R-CONTRIB não se aplica). Projeto nunca é o Forge."""
         if self.externo is not None:
             return False
         if self._forge is None:
-            self._forge = parecer.e_clone_do_forge(self.h.raiz)
+            self._forge = e_clone_do_forge(self.h.raiz)
         return self._forge
 
-    def em_contrib(self, pasta):
-        """A pasta está no clone de contribuição (`~/.forge-contrib/`), onde o projeto trabalha o Forge."""
+    def regras_do_forge(self):
+        """Os caminhos `so_forge` valem: a raiz tem o manifesto do Forge. Só protege mais, então basta o arquivo."""
+        return self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+
+    @staticmethod
+    def raiz_git(pasta):
+        """Raiz da cópia de trabalho que contém a pasta (só disco), ou None."""
         alvo = Path(os.path.realpath(pasta))
-        return Path(os.path.realpath(Path.home() / ".forge-contrib")) in (alvo, *alvo.parents)
+        return next((d for d in (alvo, *alvo.parents) if (d / ".git").exists()), None)
+
+    def repositorio_do_forge(self, pasta, remoto=None):
+        """O repositório da pasta é o Forge, em qualquer pasta: o clone de contribuição, um clone do Forge (manifesto e
+        sem `.forge/versao`) ou um repositório com remoto que aponta para o Forge (`git remote get-url`, que aplica o
+        `insteadOf`; `remoto`: só ele, senão qualquer um, como o `gh` faz ao escolher o repositório)."""
+        if em_contrib(pasta):
+            return True
+        raiz = self.raiz_git(pasta)
+        if raiz is None:
+            return False
+        chave = (raiz, remoto)
+        if chave not in self._repos:
+            self._repos[chave] = e_clone_do_forge(raiz) or any(
+                parecer.aponta_para_o_forge(url) for url in self.urls_dos_remotos(raiz, remoto))
+        return self._repos[chave]
+
+    @staticmethod
+    def urls_dos_remotos(raiz, remoto=None):
+        cod, saida = git(raiz, "remote")
+        nomes = saida.split() if not cod else []
+        if remoto is not None:
+            nomes = [remoto] if remoto in nomes else []
+        urls = []
+        for nome in nomes:
+            for push in ([], ["--push"]):
+                cod, saida = git(raiz, "remote", "get-url", "--all", *push, nome)
+                urls += saida.splitlines() if not cod else []
+        return urls
 
     @staticmethod
     def caminho(pasta, texto):
         """Destino de `cd`/`-C`/`--git-dir`: expande `~` e variáveis de ambiente, como o shell faria."""
         return pasta / Path(os.path.expandvars(texto)).expanduser()
 
-    def alvo_do_forge(self, pasta, repo=None):
+    def alvo_do_forge(self, pasta, repo=None, remoto=None):
         """R-CONTRIB: o comando da sessão de OUTRO projeto (raiz que não é o Forge) atinge o repositório do Forge:
-        `repo` aponta para ele ou, sem `repo`, a pasta é o clone de contribuição."""
+        `repo` aponta para ele ou, sem `repo`, o repositório da pasta é o Forge (`repositorio_do_forge`)."""
         if self.clone_do_forge():
             return False
-        return parecer.aponta_para_o_forge(repo) if repo else self.em_contrib(pasta)
+        return parecer.aponta_para_o_forge(repo) if repo else self.repositorio_do_forge(pasta, remoto)
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
@@ -211,7 +273,7 @@ class Guarda:
             c = e["caminho"]
             if c.startswith("~/"):
                 achou = any(t == "home" and casa(r, c) for t, r in formas)
-            elif e.get("so_forge") and not self.clone_do_forge():
+            elif e.get("so_forge") and not self.regras_do_forge():
                 continue
             else:
                 achou = any(t == "proj" and casa(r, c) for t, r in formas) or (
@@ -227,7 +289,14 @@ class Guarda:
                 return ("R-CONFORMIDADE", f"{e['motivo']}: {c}", "só o usuário altera; proponha o diff (R-DECISAO)")
             return ("R-CONFORMIDADE", f"{e['motivo']}: {c} (papel: {self.papel})",
                     f"peça a {'/'.join(e['quem'])}")
+        no_manifesto = any(t == "proj" and casa(r, MANIFESTO) for t, r in formas)
+        if no_manifesto and not self.sessao_forge and self.raiz_e_projeto():
+            return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
+                    "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def raiz_e_projeto(self):
+        return (Path(self.h.raiz) / ".forge" / "versao").is_file()
 
     def resolver(self, caminho, pasta):
         p = Path(caminho).expanduser()
@@ -261,11 +330,14 @@ class Guarda:
     # Bash ----------------------------------------------------------------------------------------
     def bash(self, comando, pasta, nivel=0):
         if nivel > PROFUNDIDADE:
+            self.ilegivel(comando, pasta)
             return
         comando, corpos = tirar_heredocs(comando)
         try:
             partes = list(comandos(comando))
         except ValueError:
+            if nivel:
+                self.ilegivel(comando, pasta)
             return  # aspas desbalanceadas: o próprio shell vai recusar
         ramos = {}
         if nivel == 0:
@@ -280,10 +352,42 @@ class Guarda:
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
 
+    def ilegivel(self, comando, pasta):
+        """R-CONTRIB: comando aninhado (`bash -c`, `eval`, `env -S`) que o hook não consegue analisar, numa sessão de
+        projeto, apontando para o Forge (o texto, o GH_REPO/GIT_DIR da linha ou a pasta): falha fechado."""
+        if self.sessao_forge or self.clone_do_forge():
+            return
+        if (parecer.aponta_para_o_forge(comando) or any(parecer.aponta_para_o_forge(v) for v in self.ambiente.values())
+                or self.alvo_do_forge(pasta)):
+            self.barrar("R-CONTRIB", "comando aninhado (bash -c, eval, env -S) que o hook não consegue analisar, "
+                                     "apontando para o Forge", "rode o comando direto, sem shell aninhado")
+
+    def aninhado(self, comando, pasta, nivel, atribuicoes):
+        """`bash -c`, `sh -c`, `eval`: o comando interno passa pelas mesmas regras, com as variáveis da linha externa
+        (`GH_REPO=x bash -c '...'`, `env GH_REPO=x sh -c '...'`)."""
+        antes = {}
+        for a in atribuicoes:
+            nome, _, valor = a.partition("=")
+            if nome in ("GH_REPO", "GIT_DIR") and valor:
+                antes.setdefault(nome, self.ambiente.get(nome))
+                self.ambiente[nome] = valor
+        try:
+            self.bash(comando, pasta, nivel + 1)
+        finally:
+            for nome, valor in antes.items():
+                if valor is None:
+                    self.ambiente.pop(nome, None)
+                else:
+                    self.ambiente[nome] = valor
+
     def segmento(self, palavras, pasta, ramos, nivel):
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`)."""
         atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
-        palavras, lancadas = separar_lancadores(palavras)
+        try:
+            palavras, lancadas = separar_lancadores(palavras)
+        except ValueError:  # `env -S` com aspas abertas
+            self.ilegivel(" ".join(palavras), pasta)
+            return pasta
         atribuicoes += lancadas
         for a in atribuicoes:
             if "core.hookspath" in a.lower():
@@ -314,9 +418,9 @@ class Guarda:
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
-                    self.bash(args[i + 1], pasta, nivel + 1)
+                    self.aninhado(args[i + 1], pasta, nivel, atribuicoes)
         elif prog == "eval":
-            self.bash(" ".join(args), pasta, nivel + 1)
+            self.aninhado(" ".join(args), pasta, nivel, atribuicoes)
         elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
@@ -435,7 +539,8 @@ class Guarda:
                 self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário")
             if d in INTEGRACAO:
                 self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho")
-        if self.alvo_do_forge(pasta) or self.alvo_do_forge(pasta, remoto):  # a pasta ou a URL do remoto
+        # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
+        if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)):
             propria = f"melhoria/{self.projeto}-"
             for d in destinos:
                 if not d.startswith(propria):
@@ -625,26 +730,18 @@ def alvos_de_escrita(comando):
     return alvos
 
 
-def raiz_declarada():
-    """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
-    subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
-    raiz = os.environ.get("CLAUDE_PROJECT_DIR")
-    return Path(raiz) if raiz and Path(raiz).is_absolute() else None
-
-
 def identificar_sessao(hook):
     """R-CONTRIB: quem é a sessão vem da raiz dela, não da pasta corrente (que passa de uma chamada para a outra).
-    - Raiz no Forge (clone do próprio Forge): regras da sessão do Forge; o hook só age dentro de um projeto, pela
-      pasta corrente, como sempre.
-    - Raiz num projeto do Forge: as regras dele e as de contribuição valem em qualquer pasta (o próprio projeto, o
-      clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em `hook.raiz`, ou a do projeto
-      onde a pasta está, se houver.
+    - Raiz num projeto do Forge (tem `.forge/versao`; vem antes do Forge, então o manifesto `.claude-plugin/` do
+      Forge escrito no projeto não muda nada): as regras dele e as de contribuição valem em qualquer pasta (o
+      próprio projeto, o clone, `wt/*`, `~`, outra pasta), no Bash, no Write e no Edit; a raiz fica em
+      `hook.raiz`, ou a do projeto onde a pasta está, se houver.
+    - Raiz no Forge (clone do próprio Forge, sem `.forge/versao`): regras da sessão do Forge; o hook só age dentro
+      de um projeto, pela pasta corrente, como sempre.
     - Sem raiz (ou raiz fora do Forge): pela pasta corrente; em `~/.forge-contrib` falha fechado, como sessão de
       outro projeto de nome igual ao do clone (`wt/*` e a própria pasta: nome vazio).
     Devolve False se o hook não age; None se age pela raiz do repositório; o nome da sessão de outro projeto."""
     cwd, raiz = hook.cwd(), raiz_declarada()
-    if raiz and parecer.e_clone_do_forge(raiz):
-        return None if hook.projeto(cwd) else False
     if raiz and raiz_do_projeto(raiz):
         if not hook.projeto(raiz):  # o projeto desligou o hook: só a pasta corrente, se for outro projeto
             return None if hook.projeto(cwd) else False
@@ -652,14 +749,16 @@ def identificar_sessao(hook):
         if not hook.projeto(cwd):
             hook.projeto(raiz)
         return nome
+    if raiz and e_clone_do_forge(raiz):
+        return None if hook.projeto(cwd) else False
     if hook.projeto(cwd):
         return None
-    contrib, pasta = Path(os.path.realpath(Path.home() / ".forge-contrib")), Path(os.path.realpath(cwd))
-    if contrib != pasta and contrib not in pasta.parents:
+    if not em_contrib(cwd):
         return False
-    partes = pasta.relative_to(contrib).parts
+    base = contrib()
+    partes = Path(os.path.realpath(cwd)).relative_to(base).parts
     clone = partes[:2] if partes and (partes[0] == "wt" or partes[0].endswith("-wt")) else partes[:1]
-    hook.raiz = contrib.joinpath(*clone)
+    hook.raiz = base.joinpath(*clone)
     return partes[0].removesuffix("-wt") if partes and partes[0] != "wt" else ""
 
 
@@ -674,6 +773,7 @@ def principal(hook):
     pol = politica()
     guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
     guarda.externo = externo
+    guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
     if hook.campo("hook_event_name") == "PostToolUse":
         if ferramenta == "Bash":
             alvos = alvos_de_escrita(entrada["command"]) if isinstance(entrada.get("command"), str) else []

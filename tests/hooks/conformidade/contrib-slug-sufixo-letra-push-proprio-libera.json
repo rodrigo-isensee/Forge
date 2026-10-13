@@ -1,0 +1,28 @@
+{
+  "descricao": "Projeto cujo origin é <dono>/ForgeX (não é o Forge): push de qualquer branch libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/rodrigo-isensee/ForgeX.git"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/outra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

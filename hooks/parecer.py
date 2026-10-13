@@ -13,8 +13,8 @@ import json
 import re
 from pathlib import Path
 
-from _comum import (INTEGRACAO, PLUGIN, bloquear, executar, forge_check, git, nome_da_branch, raiz_do_projeto,
-                    segmentos, sem_atribuicoes, separar_regra)
+from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
+                    raiz_do_projeto, segmentos, sem_atribuicoes, separar_regra)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -180,17 +180,13 @@ def slug_do_forge():
     return re.sub(r"^.*github\.com[/:]", "", url).removesuffix(".git").strip("/").lower()
 
 
-def e_clone_do_forge(raiz):
-    """A raiz é um clone do próprio Forge (tem `.claude-plugin/plugin.json` de nome `forge`)."""
-    try:
-        return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
-    except (OSError, ValueError):
-        return False
-
-
 def aponta_para_o_forge(texto):
+    """True se o texto cita o slug do Forge exato (o GitHub não diferencia maiúsculas), com fronteira nos dois lados:
+    `<dono>/Forge-site`, `<dono>/ForgeX` e `<dono>/meu-Forge` são outros repositórios. Aceita `.git` e `/` finais."""
     slug = slug_do_forge()
-    return bool(texto) and bool(slug) and slug in texto.lower().removesuffix(".git")
+    if not texto or not slug:
+        return False
+    return bool(re.search(rf"(?<![\w.-]){re.escape(slug)}(\.git)?(?![\w.-])", texto.lower()))
 
 
 def metodo_mutante(args):

@@ -122,3 +122,9 @@ Ordem sugerida: C3 (destrava os itens 1 e 2), C1, C2.
 - **A fonte cita nomes de projetos consumidores** nos `specs/` (seções de medição): nada disso pode passar para o Forge (`R-NEUTRO`; a catraca de termos não conhece esses nomes).
 - **Números da fonte não se transferem:** foram medidos nos projetos dela; cada adoção mede a própria linha de base antes.
 - **Ritmo alto de versões** (5.x com 19 versões menores): a triagem fica nos caminhos de interesse do processo para não virar custo de leitura.
+
+## Decisões do dono (2026-10-13)
+- C1 = A (mantém `R-DECISAO`), C2 = A (mantém ADR 0003 e `forge-upgrade`), C3 = C (recomendar sempre, com a base declarada).
+- F1 é a fonte de harness do Forge: implementar o que fizer sentido; o que piorar o que já existe vai ao dono; consulta diária por novidades.
+- Item 11 = B: adotar inteiro (especificação como autoridade única, metamodelo, rastreio requisito para arquivo), com implementação própria só em biblioteca padrão (a F1 não tem licença: ideias, não código) e monitoramento. Avisar o dono quando deixar de fazer sentido; sinais: custo de tokens por entrega, tempo de migração por projeto, retrabalho de rastreio, projeto sem modelagem de domínio.
+- Item 12 = B com ajuste: commit só com a palavra do usuário, que o Jarvis pode destravar (em nome do usuário, registrando quando e por quê); inglês só nos artefatos técnicos (código, nomes, commits, branches, testes), com conversa, especificações, relatórios e documentação em português; projetos existentes migram aos poucos, só no que for tocado.

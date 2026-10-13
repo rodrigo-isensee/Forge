@@ -254,7 +254,7 @@ Se passar de 300 caracteres na revisão, encurtar; o teste verifica o limite.
 
 ### 8.2 O que o Jarvis registra (texto de R-6 no `agents/jarvis.md`)
 
-Seção curta "Retomada": registrar a `decisao.pendente` **antes** de perguntar ao usuário e a `decisao.tomada` ao receber a resposta; `pr` e `ci` ao abrir ou disparar; `etapa.inicio`/`etapa.fim`; `delegacao.fim` ao receber cada relatório; `bloqueio`/`desbloqueio`; `proximo` quando a etapa não o deixa óbvio. Ao abrir a sessão com o resumo indicando algo em voo, seguir a skill `retomada` **antes** de qualquer trabalho novo. Frase obrigatória (invariante): ações destrutivas dependem da confirmação do usuário.
+Seção curta "Retomada": registrar a `decisao.pendente` **antes** de perguntar ao usuário e a `decisao.tomada` ao receber a resposta, **no mesmo turno** (decisão do usuário só vale gravada: o resumo de compactação não autoriza, e depois dela decisão sem registro no disco é perguntada de novo, `R-DECISAO`); `pr` e `ci` ao abrir ou disparar; `etapa.inicio`/`etapa.fim`; `delegacao.fim` ao receber cada relatório; `bloqueio`/`desbloqueio`; `proximo` quando a etapa não o deixa óbvio. Ao abrir a sessão com o resumo indicando algo em voo, seguir a skill `retomada` **antes** de qualquer trabalho novo. Frase obrigatória (invariante): ações destrutivas dependem da confirmação do usuário.
 
 ## 9. Skill `retomada`
 
