@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: efc63e5
+commit: b68febf
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -101,3 +101,7 @@ Ambiente de execução: `validar-plugin.sh` e a suíte geraram avisos `deny netw
 
 ## Veredito da revalidação (efc63e5)
 **Aprovado.** Sem bloqueio nem achado novo. N10 foi aplicado com o rótulo honesto; o restante do delta é o merge da `develop` sem alteração. Quem mescla é o tech-lead depois do parecer do QA.
+
+## Revalidação (b68febf)
+
+Merge da develop (#42) na branch, sem conflito de comportamento (só CHANGELOG, resolvido mantendo as duas partes). Diff próprio inalterado: `.claude/settings.json`, `scripts/validar-plugin.sh`, `README.md` e ADR 0009 são idênticos ao commit revisado fc1bfc8 (`git diff fc1bfc8 HEAD` nesses arquivos vazio); o que mudou no PR veio só da develop.
