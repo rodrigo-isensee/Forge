@@ -1,0 +1,33 @@
+{
+  "descricao": "Sessão do Forge (raiz no clone do Forge) escreve .claude-plugin/ de um projeto: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/home/Forge"
+  },
+  "repos": {
+    "home/Forge": {
+      "arquivos": {
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+      },
+      "remotos": {
+        "origin": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/proj/.claude-plugin/plugin.json",
+      "content": "{}\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

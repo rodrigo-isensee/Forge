@@ -4,7 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Corrigido
-- **`R-CONTRIB`, identidade da sessão:** quem é a sessão vem sempre de `CLAUDE_PROJECT_DIR`, em qualquer pasta corrente e também no Write e no Edit (sem a variável, pela pasta; em `~/.forge-contrib`, falha fechado). `~/.forge-contrib/wt/*` fica só para a sessão do Forge; a de projeto usa `~/.forge-contrib/<projeto>` e `<projeto>-wt/*`. `GH_REPO` vale também por `declare -x`, `typeset -x` e `env VAR=...`. Fecha os desvios da re-review do #78 (altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono).
+- **`R-CONTRIB`, identidade da sessão:** quem é a sessão vem sempre de `CLAUDE_PROJECT_DIR`, em qualquer pasta corrente e também no Write e no Edit (sem a variável, pela pasta; em `~/.forge-contrib`, falha fechado). `~/.forge-contrib/wt/*` fica só para a sessão do Forge; a de projeto usa `~/.forge-contrib/<projeto>` e `<projeto>-wt/*`. `GH_REPO` vale também por `declare -x`, `typeset -x` e `env VAR=...`. Fecha os desvios da re-review do #78 e da review do #84: raiz com `.forge/versao` é sempre projeto, mesmo com o manifesto do Forge, e no projeto `.claude-plugin/` só a sessão do Forge escreve; a falha fechada por erro interno decide pela raiz da sessão, não pela pasta corrente; o Forge é alvo em qualquer pasta (clone como o `~/Forge` ou repositório com remoto apontando para ele, remoto nomeado pela URL); `bash -c`, `sh -c`, `eval` e `env -S` são analisados com as variáveis da linha, e o que não dá para analisar apontando para o Forge falha fechado (altera `hooks/conformidade.py`, `hooks/parecer.py` e `hooks/_comum.py`: exige o rótulo `afrouxa-regra` do dono).
 
 ## [0.10.0] - 2026-10-13
 ### Alterado

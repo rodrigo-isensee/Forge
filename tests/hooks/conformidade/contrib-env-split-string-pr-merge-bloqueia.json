@@ -1,0 +1,22 @@
+{
+  "descricao": "env --split-string='gh pr merge 70 -R <forge>' bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env --split-string='gh pr merge 70 -R rodrigo-isensee/Forge'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh pr merge"
+  }
+}

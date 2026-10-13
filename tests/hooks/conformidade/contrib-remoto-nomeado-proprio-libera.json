@@ -1,0 +1,33 @@
+{
+  "descricao": "Projeto com remoto `forge`: push da própria feature para o origin do projeto libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "git": [
+    {
+      "config": {
+        "remote.origin.url": "https://github.com/acme/proj.git"
+      }
+    },
+    {
+      "config": {
+        "remote.forge.url": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin feature/x && env -S 'git push origin feature/x' && GH_REPO=acme/proj bash -c 'gh pr merge 3'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
