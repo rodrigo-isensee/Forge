@@ -1,0 +1,42 @@
+{
+  "descricao": "Arquivo em vigor já sujo no git antes do SessionStart (o hash não vê): o git status avisa.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": "",
+        "{raiz}/.claude/novo.md": "x\n"
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "1 mudança(s) — git: ?? .claude/novo.md",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "\"tipo\": \"git\""
+        ],
+        "ausente": [
+          "em-vigor"
+        ]
+      }
+    }
+  }
+}
