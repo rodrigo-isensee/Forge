@@ -75,7 +75,9 @@
     ],
     "docs/regras/R-TETO.md": [
       "Teto de recursos da máquina \\(obrigatório\\)",
-      "no máximo \\*\\*3 agentes trabalhando ao mesmo tempo\\*\\*",
+      "teto de agentes adaptativo",
+      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*"
     ],
     "docs/regras/R-DISCOVERY.md": [
