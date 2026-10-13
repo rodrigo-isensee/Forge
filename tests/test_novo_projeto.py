@@ -75,7 +75,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_caminho_feliz(self):
         pasta = self.tmp / "projetos" / "meu-app"
-        r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\n")
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         gh = self.log("gh.log")
         self.assertRegex(gh, r"repo create pessoa-teste/meu-app .*--private")
@@ -97,9 +97,35 @@ class NovoProjeto(unittest.TestCase):
         self.assertIn("--agent forge:jarvis", claude)
         self.assertIn("forge:novo-projeto", claude)
 
+    def test_recusa_na_confirmacao_nao_cria_o_repositorio(self):
+        pasta = self.tmp / "meu-app"
+        for resposta in ("n\n", "\n"):
+            r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\n{resposta}")
+            self.assertNotEqual(r.returncode, 0)
+            saida = r.stdout + r.stderr
+            self.assertIn("Vou criar o repositório privado pessoa-teste/meu-app", saida)
+            self.assertIn("forge novo-projeto' de novo", saida)
+            self.assertNotIn("repo create", self.log("gh.log"))
+            self.assertFalse(self.remoto().exists())
+            self.assertEqual(self.log("claude.log"), "")
+
+    def test_aceite_na_confirmacao_cria_o_repositorio(self):
+        pasta = self.tmp / "meu-app"
+        r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\ns\n")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("Vou criar o repositório privado pessoa-teste/meu-app", r.stdout + r.stderr)
+        self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
+
+    def test_sim_cria_sem_perguntar(self):
+        pasta = self.tmp / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("Confirma?", r.stdout + r.stderr)
+        self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
+
     def test_estado_de_retomada_nao_guarda_segredo(self):
         pasta = self.tmp / "meu-app"
-        self.assertEqual(self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\n").returncode, 0)
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n").returncode, 0)
         arquivos = self.estados() + [pasta / ".forge/novo-projeto.json"]
         self.assertTrue(arquivos[0].exists())
         for arq in arquivos:
@@ -112,7 +138,7 @@ class NovoProjeto(unittest.TestCase):
     def test_sem_gh_auth_nao_cria_nada(self):
         (self.fake / "sem-auth").write_text("")
         pasta = self.tmp / "meu-app"
-        r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\n")
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("gh auth login", r.stderr)
         self.assertNotIn("repo create", self.log("gh.log"))
@@ -122,7 +148,7 @@ class NovoProjeto(unittest.TestCase):
     def test_nome_existente_pergunta_outro_e_nao_escreve_no_existente(self):
         subprocess.run(["git", "init", "-q", "--bare", str(self.remoto())], env=self.env, check=True)
         pasta = self.tmp / "outro-app"
-        r = self.forge("novo-projeto", entrada=f"meu-app\noutro-app\n{pasta}\n")
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\noutro-app\n{pasta}\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("já existe", r.stdout + r.stderr)
         criados = re.findall(r"repo create (\S+)", self.log("gh.log"))
@@ -140,12 +166,12 @@ class NovoProjeto(unittest.TestCase):
         (self.fake / "falha-clone").write_text("")
         pasta = self.tmp / "meu-app"
         entrada = f"meu-app\n{pasta}\n"
-        primeira = self.forge("novo-projeto", entrada=entrada)
+        primeira = self.forge("novo-projeto", "--sim", entrada=entrada)
         self.assertNotEqual(primeira.returncode, 0)
         self.assertEqual(self.log("claude.log"), "")
         estado = json.loads(self.estados()[0].read_text(encoding="utf-8"))
         self.assertEqual(estado["etapas"], ["repo_criado"])
-        segunda = self.forge("novo-projeto", entrada=entrada)
+        segunda = self.forge("novo-projeto", "--sim", entrada=entrada)
         self.assertEqual(segunda.returncode, 0, segunda.stderr + segunda.stdout)
         self.assertIn("retomando", (segunda.stdout + segunda.stderr).lower())
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1, "o repositório não é recriado")
@@ -157,8 +183,8 @@ class NovoProjeto(unittest.TestCase):
     def test_rodar_de_novo_com_tudo_pronto_so_reabre_o_claude(self):
         pasta = self.tmp / "meu-app"
         entrada = f"meu-app\n{pasta}\n"
-        self.assertEqual(self.forge("novo-projeto", entrada=entrada).returncode, 0)
-        self.assertEqual(self.forge("novo-projeto", entrada=entrada).returncode, 0)
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
         self.assertEqual(self.log("claude.log").count("cwd="), 2)
 

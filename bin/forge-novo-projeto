@@ -4,7 +4,16 @@
 # clona, faz o commit inicial na main (ato seu, com a sua identidade do git) e cria develop e homolog.
 # O progresso fica em ~/.local/state/forge/novo-projeto/<nome>.json (sem segredos): se parar, rode de novo para retomar.
 # O token do GitHub nunca é lido por este script nem passa pelo chat; o login é feito por `gh auth login`.
+# Antes de criar o repositório no GitHub, pede confirmação (CA-5). A flag --sim pula a pergunta (teste e automação).
 set -euo pipefail
+
+sim=0
+for arg in "$@"; do
+  case "$arg" in
+    --sim) sim=1 ;;
+    *) echo "forge novo-projeto: opção desconhecida: $arg (use --sim para pular a confirmação)" >&2; exit 2 ;;
+  esac
+done
 
 estado_raiz="${XDG_STATE_HOME:-$HOME/.local/state}/forge/novo-projeto"
 
@@ -78,6 +87,13 @@ if ! estado_tem repo_criado; then
   if gh repo view "$dono/$nome" >/dev/null 2>&1; then
     echo "O repositório $dono/$nome já foi criado antes; sigo com ele."
   else
+    if [ "$sim" -ne 1 ]; then
+      ler "Vou criar o repositório privado $dono/$nome no GitHub. Confirma? [s/N]"
+      case "$REPLY" in
+        s|S|sim|Sim|SIM) ;;
+        *) die "sem confirmação, não criei nada. Quando quiser, rode 'forge novo-projeto' de novo; o nome e a pasta ficam salvos e a pergunta volta." ;;
+      esac
+    fi
     echo "Criando $dono/$nome (privado)..."
     gh repo create "$dono/$nome" --private >/dev/null || die "o GitHub não criou $dono/$nome. Nada foi alterado na sua pasta; rode de novo."
   fi
