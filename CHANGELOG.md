@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Alterado
+- **CI e modelo de PR:** o job `shellcheck` passa a cobrir `scripts/validar-plugin.sh` e `scripts/configurar-ambiente-local.sh` (altera `.github/`: exige o rótulo `afrouxa-regra` do dono); o modelo de PR marca `Projeto de origem` e `Como medir` como obrigatórias, com o mínimo de 20 caracteres da catraca.
 ### Corrigido
 - **Catraca: hooks que decidem protegidos, pareceres ignorados limitados ao pedido e violação vinda da base barrada (R-CONFORMIDADE, ADR 0008):** `hooks/parecer.py`, `hooks/_comum.py` e `bin/forge-check` entram em `PROTEGIDOS`; depois do rótulo `afrouxa-regra`, só mudam sem invalidá-lo os pareceres que o PR já tocava ou com o nome da branch (do PR, pela API); violação ausente no head rotulado (ex.: trazida por merge da base) invalida o rótulo. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
 
