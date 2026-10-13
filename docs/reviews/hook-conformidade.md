@@ -2,9 +2,9 @@
 tipo: review
 contrato: 1
 pedido: hook-conformidade
-branch: melhoria/hook-conformidade
-commit: b1bd4ce
-parecer: reprovado
+branch: melhoria/hook-conformidade-v2
+commit: c175f6b
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -134,3 +134,16 @@ Achados novos:
 
 ## Parecer da revalidação
 **Reprovado só por B4**, que é mecânico e depende de o usuário limpar a identidade do `.git/config`; B1 a B3 estão corrigidos e sem crítico ou alto em aberto no código. N1 entra nesta branch ou vira cartão antes da `homolog`. Fecha com a reescrita da autoria, sem nova rodada de código, se N1 for resolvido.
+
+## Revalidação (c175f6b)
+Reaplicação do commit sobre a `develop` (`melhoria/hook-conformidade-v2`). O código de `hooks/`, `bin/`, `tests/hooks/`, `docs/regras/` e `agents/` é idêntico ao revisado em `226cfba`: `git diff 12fc258 c175f6b` nesses caminhos vem vazio, e o `226cfba` (que resolve N1) é o mesmo código. Testes: `python3 -m unittest discover -s tests` verde (164 testes); `tests/catraca.py --base origin/develop` sem reprovação.
+
+| # | Achado | Situação |
+|---|---|---|
+| B4 | Autoria `t <t@t>` dos commits | **Resolvido pelo processo.** Decisão do Jarvis: o merge é por squash e grava na `develop` o commit com o autor do PR, como no #10. Os commits locais com autor `t` não chegam à `develop`, então o ajuste de autoria do `.git/config` deixa de ser pré-requisito de envio. |
+| N1 | Merge do `jarvis` valia também num clone do Forge | **Resolvido em `226cfba`.** A R-CONTRIB distingue a sessão que mantém o Forge (clone do próprio Forge, `tech-lead` ou Jarvis) de uma sessão de projeto, que nunca mescla, mesmo com o mesmo login. |
+
+Demais achados da rodada anterior seguem como na tabela acima (B1 a B3, R1 a R4 corrigidos; R5, R8, R9 e R6 registrados).
+
+## Parecer da revalidação
+**Aprovado.** Nenhum achado bloqueante em aberto; B4 resolvido pelo processo de merge e N1 resolvido em `226cfba`.
