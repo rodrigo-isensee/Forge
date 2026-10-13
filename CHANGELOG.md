@@ -2,7 +2,7 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não publicado]
+## [0.11.0] - 2026-10-13
 ### Adicionado
 - **Jarvis, decisões e relatório (fonte F1, lote 1):** `R-DECISAO` ganha o teste de bloqueante (três condições juntas; senão vira "Suposições"), a escada da recomendação com a base sempre declarada ("preferência do time" em escopo, prioridade e custo) e a regra de que decisão do usuário só vale gravada no mesmo turno. O Jarvis grava modo, escopo e suposições no passo 1 do pedido, e o relatório segue a ordem fixa estado, o que precisa do usuário, feito, riscos. Estudo F1 registra as decisões do dono.
 ### Corrigido
