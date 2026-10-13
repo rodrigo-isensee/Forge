@@ -16,12 +16,13 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 ## 2. Prepare um clone próprio
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
 - **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório); `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
+- Sessão com sandbox do Bash: worktrees em `~/.forge-contrib/wt/<nome>`, criadas com `git worktree add --no-track -b <branch> <dir> origin/develop`; nada de `git config` nem `git branch -u` (`.git/config` é protegido).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
 - Ao criar o clone, ative o hook: `git config core.hooksPath .githooks` (`R-CONTRIB`).
 
 ## 3. Cheque o acesso
 `gh repo view rodrigo-isensee/Forge --json viewerPermission`
-- **`WRITE`, `MAINTAIN` ou `ADMIN`:** `git switch -c melhoria/<assunto> origin/develop`; envie a branch ao próprio repositório.
+- **`WRITE`, `MAINTAIN` ou `ADMIN`:** `git switch --no-track -c melhoria/<assunto> origin/develop`; envie com `git push origin melhoria/<assunto>` (sem `-u`, que grava no `.git/config`, protegido pelo sandbox).
 - **`READ` (sem escrita):** `gh repo fork rodrigo-isensee/Forge --clone=false`, adicione o fork como remoto, crie a branch a partir de `origin/develop` e envie ao fork; o PR vai para a `develop` do Forge.
 - **Sem `gh` autenticado:** registre a proposta em `docs/kanban/melhorias.md` do projeto (situação, mudança, como medir) e avise o usuário.
 - Nunca envie para `develop`, `homolog` ou `main` (`R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário).

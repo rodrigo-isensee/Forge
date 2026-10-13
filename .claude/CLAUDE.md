@@ -8,6 +8,7 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
   - **`develop`:** bateria rápida — testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta. O `tech-lead` mescla com tudo verde.
   - **`homolog`:** a mesma bateria, de novo, sobre o conjunto que vai para a `main`. O `tech-lead` promove `develop` → `homolog` por PR com tudo verde.
   - **`main`:** a versão usada por **todos os projetos**. Só muda pelo PR `homolog` → `main`, **mesclado pelo usuário**. Depois do merge, a release `vX.Y.Z` é publicada.
+- **Sandbox do Bash** (ADR 0009, README "Sandbox do Bash"): `git push origin <branch>` sem `-u`; `git switch --no-track -c` e `git worktree add --no-track` (o `.git/config` é protegido); worktrees em `~/.forge-contrib/wt/`; validar o plugin com `scripts/validar-plugin.sh`.
 - **Sem custo de dinheiro real** (`R-CUSTO`): nada no Forge (CI, testes, scripts, fluxo) consome API paga ou serviço cobrado. Não se adiciona nada que custe dinheiro sem autorização expressa do dono do Forge.
 - **Retroalimentação:** melhorias descobertas em qualquer projeto chegam aqui por PR na `develop` (ver "Fábrica × projeto" em `agents/jarvis.md`).
 - **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos` em `tests/config.json` garantem isso.
