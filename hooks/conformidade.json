@@ -38,6 +38,9 @@
     {"caminho": "docs/qa/", "quem": ["qa"], "motivo": "parecer de QA é do qa"},
     {"caminho": "docs/regras/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "regra do Forge só em branch melhoria/*"},
     {"caminho": "tests/config.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
+    {"caminho": ".claude-plugin/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "manifesto e versão do plugin só em branch melhoria/*"},
+    {"caminho": ".github/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "CI e modelo de PR protegem as regras invioláveis; só em branch melhoria/*"},
+    {"caminho": "tests/neutralidade.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/catraca.py", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "tests/hooks/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},
     {"caminho": "hooks/conformidade.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "política de conformidade só em branch melhoria/*"}
