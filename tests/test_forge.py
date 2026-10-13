@@ -744,6 +744,7 @@ class JarvisForgeVigente(unittest.TestCase):
             "git": ('case "$*" in\n'
                     '  *"remote get-url"*) [ -z "${STUB_GIT_SEM_ORIGIN:-}" ] || exit 2; echo https://exemplo.invalido/Forge.git ;;\n'
                     '  "clone "*) mkdir -p "${@: -1}/.git" ;;\n'
+                    '  *"rev-parse HEAD"*) [ -n "${STUB_GIT_HEAD_FIXO:-}" ] && echo fixo || wc -l < "$REGISTRO" ;;\n'
                     '  *"rev-list"*) printf "%s" "${STUB_GIT_ADIANTE:-}" ;;\n'
                     '  *"status --porcelain"*) printf "%s" "${STUB_GIT_SUJO:-}" ;;\n'
                     'esac'),
@@ -754,6 +755,7 @@ class JarvisForgeVigente(unittest.TestCase):
             falso.chmod(0o755)
         self.env = ambiente_limpo()
         self.env.update(HOME=str(self.home), PATH=f"{bin_falso}:{self.env['PATH']}")
+        self.env["REGISTRO"] = str(self.registro)
         self.env.pop("XDG_DATA_HOME", None)
         self.env.pop("TMUX", None)
 
@@ -796,7 +798,8 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertTrue(all(f"-C {self.vigente} " in c or "remote get-url" in c for c in git), git)
         self.assertTrue(any(" fetch " in c for c in git))
         self.assertTrue(any("reset --quiet --hard origin/develop" in c for c in git))
-        self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux"))], "abriu sessão")
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux")) and "has-session" not in c],
+                         "abriu sessão")
 
     def test_atualizar_vigente_recusa_mudancas_locais(self):
         (self.vigente / ".git").mkdir(parents=True)
@@ -847,6 +850,51 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertIn("não tem o remoto 'origin'", r.stderr)
         self.assertIn("--dev", r.stderr)
         self.assertFalse(self.vigente.exists())
+
+    def test_atualizar_avisa_sessao_aberta_so_se_a_copia_mudou(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("tmux has-session -t jarvis-Forge", "\n".join(self.chamadas()))
+        self.assertIn("reinicie", r.stderr)
+        self.registro.unlink()
+        r = self.rodar("--atualizar-vigente", STUB_GIT_HEAD_FIXO="1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("reinicie", r.stderr)
+
+    def test_dev_com_atualizar_vigente_sai_com_2(self):
+        r = self.rodar("--dev", "--atualizar-vigente")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("não combinam", r.stderr)
+        self.assertFalse(self.chamadas())
+
+    def test_xdg_data_home_com_espaco(self):
+        outro = Path(self._tmp.name) / "meus dados"
+        r = self.rodar("--sem-tmux", XDG_DATA_HOME=str(outro))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((outro / "forge/vigente/.git").is_dir())
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertIn(f"--plugin-dir {outro}/forge/vigente ", claude)
+
+    def test_xdg_data_home_relativo_e_recusado(self):
+        r = self.rodar("--sem-tmux", XDG_DATA_HOME="dados")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("absoluto", r.stderr)
+        self.assertFalse(self.chamadas())
+
+    def test_sessao_e_chat_remoto_por_modo(self):
+        self.rodar("--dev")
+        self.rodar()
+        tmux = [c for c in self.chamadas() if c.startswith("tmux new-session")]
+        self.assertIn("-s jarvis-Forge-dev ", tmux[0] + " ")
+        self.assertIn("-s jarvis-Forge ", tmux[1] + " ")
+        self.registro.unlink()
+        self.rodar("--sem-tmux", "--dev")
+        self.rodar("--sem-tmux")
+        claude = [c for c in self.chamadas() if c.startswith("claude --")]
+        self.assertIn("--remote-control Jarvis - Forge (dev)", claude[0])
+        self.assertIn("--remote-control Jarvis - Forge", claude[1])
+        self.assertNotIn("(dev)", claude[1])
 
     def test_dev_usa_a_copia_de_trabalho_com_aviso(self):
         r = self.rodar("--sem-tmux", "--dev")
