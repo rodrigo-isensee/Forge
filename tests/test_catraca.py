@@ -355,11 +355,61 @@ class Rotulo(unittest.TestCase):
         self.assertFalse(catraca.rotulo_liberado([], "dona", "2026-01-02T09:00:00Z"))
 
     def test_sem_token_trata_como_sem_rotulo(self):
-        antigo = {k: os.environ.pop(k, None) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER")}
+        antigo = {k: os.environ.pop(k, None) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER", "HEAD_SHA")}
         try:
             self.assertEqual(catraca.eventos_do_github(), (None, None))
         finally:
             os.environ.update({k: v for k, v in antigo.items() if v is not None})
+
+
+class InstanteDoServidor(unittest.TestCase):
+    """Review 1: o "último push" vem do servidor (execuções do head), nunca da data do commit."""
+
+    def setUp(self):
+        self.antigo = dict(os.environ)
+        os.environ.update({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7", "HEAD_SHA": "abc"})
+        self.original = catraca.api
+        self.addCleanup(lambda: setattr(catraca, "api", self.original))
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(self.antigo)))
+
+    def api_falsa(self, execucoes):
+        eventos = [{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]
+
+        def falsa(caminho, token, chave=None):
+            if "/actions/runs" in caminho:
+                self.assertEqual(chave, "workflow_runs")
+                self.assertIn("head_sha=abc", caminho)
+                return execucoes
+            if "/commits" in caminho:  # a data do commit não pode ser consultada
+                return [{"commit": {"committer": {"date": "2026-01-02T08:00:00Z"}}}]
+            return eventos
+        catraca.api = falsa
+
+    def test_usa_a_execucao_mais_antiga_do_head(self):
+        self.api_falsa([{"head_sha": "abc", "created_at": "2026-01-02T11:00:00Z"}, {"head_sha": "abc", "created_at": "2026-01-02T09:30:00Z"}])
+        eventos, push = catraca.eventos_do_github()
+        self.assertEqual(push, "2026-01-02T09:30:00Z")
+        self.assertTrue(catraca.rotulo_liberado(eventos, "dona", push))
+
+    def test_commit_com_data_antiga_mas_push_depois_do_rotulo_nao_libera(self):
+        self.api_falsa([{"head_sha": "abc", "created_at": "2026-01-02T10:30:00Z"}])
+        eventos, push = catraca.eventos_do_github()
+        self.assertEqual(push, "2026-01-02T10:30:00Z")
+        self.assertFalse(catraca.rotulo_liberado(eventos, "dona", push))
+
+    def test_sem_execucao_do_head_ou_sem_head_sha_trata_como_sem_rotulo(self):
+        self.api_falsa([])
+        self.assertEqual(catraca.eventos_do_github()[1], None)
+        self.api_falsa([{"head_sha": "outro", "created_at": "2026-01-02T09:00:00Z"}])
+        self.assertEqual(catraca.eventos_do_github()[1], None)
+        del os.environ["HEAD_SHA"]
+        self.assertEqual(catraca.eventos_do_github(), (None, None))
+
+    def test_falha_da_api_trata_como_sem_rotulo(self):
+        def falha(*a, **k):
+            raise OSError("sem rede")
+        catraca.api = falha
+        self.assertEqual(catraca.eventos_do_github(), (None, None))
 
 
 class LinhaDeComando(Base):

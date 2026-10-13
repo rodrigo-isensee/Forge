@@ -4,8 +4,8 @@
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
-último push. Eventos vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token ou sem evento, vale
-como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
+último push. Eventos vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
+do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
 import argparse
 import ast
@@ -243,13 +243,15 @@ def rotulo_liberado(eventos, dono, ultimo_push):
     return (ultimo.get("actor") or {}).get("login") == dono and instante(ultimo["created_at"]) > instante(ultimo_push)
 
 
-def api(caminho, token):
+def api(caminho, token, chave=None):
+    """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`)."""
     itens, pagina = [], 1
     while True:
         req = urllib.request.Request(f"https://api.github.com{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}",
                                      headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
         with urllib.request.urlopen(req, timeout=30) as r:
             lote = json.load(r)
+        lote = lote[chave] if chave else lote
         itens += lote
         if len(lote) < 100:
             return itens
@@ -257,18 +259,22 @@ def api(caminho, token):
 
 
 def eventos_do_github():
-    """(eventos, ultimo_push) via API; (None, None) sem token, repositório ou número do PR."""
-    token, repo, numero = os.environ.get("GITHUB_TOKEN"), os.environ.get("GITHUB_REPOSITORY"), os.environ.get("PR_NUMBER")
-    if not (token and repo and numero):
+    """(eventos, ultimo_push) via API; (None, None) sem token, repositório, número do PR ou HEAD_SHA.
+
+    O "último push" é o instante do servidor em que o head atual apareceu: o `created_at` mais antigo das execuções
+    do Actions com `head_sha` igual ao do PR. A data do commit nunca vale (vem do cliente e pode ser forjada).
+    Sem execução registrada, `ultimo_push` é None e o rótulo não vale.
+    """
+    token, repo, numero, head = (os.environ.get(k) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER", "HEAD_SHA"))
+    if not (token and repo and numero and head):
         return None, None
     try:
         eventos = api(f"/repos/{repo}/issues/{numero}/events", token)
-        commits = api(f"/repos/{repo}/pulls/{numero}/commits", token)
-    except (OSError, ValueError):
+        execucoes = api(f"/repos/{repo}/actions/runs?head_sha={head}", token, "workflow_runs")
+    except (OSError, ValueError, KeyError, TypeError):
         return None, None
-    datas = [c["commit"]["committer"]["date"] for c in commits] + \
-            [e["created_at"] for e in eventos if e.get("event") == "head_ref_force_pushed"]
-    return eventos, (max(datas, key=instante) if datas else None)
+    datas = [e["created_at"] for e in execucoes if e.get("head_sha", head) == head and e.get("created_at")]
+    return eventos, (min(datas, key=instante) if datas else None)
 
 
 # --- Outros modos -----------------------------------------------------------------------------------------
