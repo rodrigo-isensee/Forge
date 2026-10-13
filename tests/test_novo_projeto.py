@@ -19,8 +19,14 @@ echo "gh $*" >> "$FAKE_DIR/gh.log"
 remoto() { echo "$FAKE_DIR/remotos/$1.git"; }
 case "$1 $2" in
   "auth status") [ ! -e "$FAKE_DIR/sem-auth" ] || { echo "You are not logged into any GitHub hosts." >&2; exit 1; } ;;
-  "api user") echo "pessoa-teste" ;;
-  "repo view") [ -d "$(remoto "$3")" ] ;;
+  "api user") if [ -e "$FAKE_DIR/conta" ]; then cat "$FAKE_DIR/conta"; else echo "pessoa-teste"; fi ;;
+  "repo view")
+    [ -d "$(remoto "$3")" ] || exit 1
+    if [ "${4:-}" = "--json" ]; then
+      privado=true; [ ! -e "$FAKE_DIR/publico" ] || privado=false
+      vazio=true; [ -z "$(git -C "$(remoto "$3")" for-each-ref 2>/dev/null)" ] || vazio=false
+      echo "$privado $vazio"
+    fi ;;
   "repo create")
     [ ! -d "$(remoto "$3")" ] || { echo "GraphQL: Name already exists on this account" >&2; exit 1; }
     mkdir -p "$(dirname "$(remoto "$3")")"; git init -q --bare -b main "$(remoto "$3")" ;;
@@ -187,6 +193,72 @@ class NovoProjeto(unittest.TestCase):
         self.assertEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
         self.assertEqual(self.log("claude.log").count("cwd="), 2)
+
+    def _recusa_e_depois_repo_de_fora(self, preparar):
+        pasta = self.tmp / "meu-app"
+        entrada = f"meu-app\n{pasta}\n"
+        self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        preparar()
+        r = self.forge("novo-projeto", "--sim", entrada=entrada + "outro\n")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("outro nome", r.stdout + r.stderr)
+        self.assertNotIn("repo create", self.log("gh.log"))
+        self.assertFalse(pasta.exists())
+        self.assertEqual(self.log("claude.log"), "")
+        refs = subprocess.run(["git", "-C", str(self.remoto()), "for-each-ref"], env=self.env,
+                              capture_output=True, text=True).stdout
+        self.assertNotIn("refs/heads/develop", refs)
+
+    def test_retomada_recusa_repositorio_de_fora_com_conteudo(self):
+        def preparar():
+            tmp = self.tmp / "semente"
+            subprocess.run(["git", "clone", "-q", str(self.remoto()), str(tmp)], env=self.env, check=True,
+                           capture_output=True)
+            (tmp / "a.txt").write_text("x")
+            subprocess.run(["git", "-C", str(tmp), "add", "a.txt"], env=self.env, check=True)
+            subprocess.run(["git", "-C", str(tmp), "commit", "-q", "-m", "x"], env=self.env, check=True)
+            subprocess.run(["git", "-C", str(tmp), "push", "-q", "origin", "main"], env=self.env, check=True,
+                           capture_output=True)
+        self._recusa_e_depois_repo_de_fora(preparar)
+
+    def test_retomada_recusa_repositorio_de_fora_publico(self):
+        self._recusa_e_depois_repo_de_fora(lambda: (self.fake / "publico").write_text(""))
+
+    def test_retomada_aceita_repositorio_vazio_e_privado(self):
+        pasta = self.tmp / "meu-app"
+        entrada = f"meu-app\n{pasta}\n"
+        self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        r = self.forge("novo-projeto", "--sim", entrada=entrada)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("repo create", self.log("gh.log"))
+
+    def test_nome_ou_email_de_commit_vazios_sao_recusados(self):
+        (self.home / "gitconfig").write_text("", encoding="utf-8")
+        pasta = self.tmp / "meu-app"
+        for resposta in ("\n", "Pessoa\n\n"):
+            with self.subTest(resposta=resposta):
+                r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n{resposta}")
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("git config", r.stdout + r.stderr)
+                self.assertEqual(self.log("claude.log"), "")
+                shutil.rmtree(self.fake / "remotos", ignore_errors=True)
+                shutil.rmtree(pasta, ignore_errors=True)
+                shutil.rmtree(self.home / ".local", ignore_errors=True)
+
+    def test_conta_diferente_da_gravada_no_estado_para(self):
+        (self.fake / "falha-clone").write_text("")
+        pasta = self.tmp / "meu-app"
+        entrada = f"meu-app\n{pasta}\n"
+        self.assertNotEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
+        (self.fake / "conta").write_text("outra-pessoa\n")
+        r = self.forge("novo-projeto", "--sim", entrada=entrada)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("pessoa-teste", r.stdout + r.stderr)
+        self.assertIn("outra-pessoa", r.stdout + r.stderr)
+        self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
+        self.assertEqual(self.log("claude.log"), "")
 
 
 class Despachante(unittest.TestCase):

@@ -52,6 +52,9 @@ estado_campo() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))
 estado_tem() { python3 -c 'import json,sys; sys.exit(0 if sys.argv[2] in json.load(open(sys.argv[1]))["etapas"] else 1)' "$estado" "$1"; }
 
 if [ -e "$estado" ]; then
+  dono_salvo="$(estado_campo dono)"
+  [ "$dono_salvo" = "$dono" ] \
+    || die "este projeto foi começado na conta $dono_salvo, mas agora você está na conta $dono. Entre de novo na conta $dono_salvo ('gh auth login') e rode de novo."
   pasta="$(estado_campo pasta)"
   echo "Retomando o projeto $nome em $pasta (já feito: $(estado_campo etapas))."
 else
@@ -85,7 +88,11 @@ PY
 
 if ! estado_tem repo_criado; then
   if gh repo view "$dono/$nome" >/dev/null 2>&1; then
-    echo "O repositório $dono/$nome já foi criado antes; sigo com ele."
+    # Sem a marca repo_criado, o repositório pode ser de outra origem: só aceito se estiver vazio e privado.
+    situacao="$(gh repo view "$dono/$nome" --json isPrivate,isEmpty --jq '"\(.isPrivate) \(.isEmpty)"' 2>/dev/null || true)"
+    [ "$situacao" = "true true" ] \
+      || die "o repositório $dono/$nome já existe no GitHub e não está vazio e privado; não escrevo nele. Rode de novo e escolha outro nome (ex.: $nome-2)."
+    echo "O repositório $dono/$nome já foi criado antes (vazio e privado); sigo com ele."
   else
     if [ "$sim" -ne 1 ]; then
       ler "Vou criar o repositório privado $dono/$nome no GitHub. Confirma? [s/N]"
@@ -111,10 +118,14 @@ fi
 
 # Identidade do git: só neste repositório, sem tocar na configuração global.
 if [ -z "$(git -C "$pasta" config user.name || true)" ]; then
-  ler "Seu nome para os commits (público, não é segredo)?"; git -C "$pasta" config user.name "$REPLY"
+  ler "Seu nome para os commits (público, não é segredo)?";
+  [ -n "$REPLY" ] || die "o nome para os commits não pode ficar vazio. Rode de novo, ou configure antes: git config --global user.name \"Seu Nome\"."
+  git -C "$pasta" config user.name "$REPLY"
 fi
 if [ -z "$(git -C "$pasta" config user.email || true)" ]; then
-  ler "Seu e-mail para os commits (público no histórico)?"; git -C "$pasta" config user.email "$REPLY"
+  ler "Seu e-mail para os commits (público no histórico)?";
+  [ -n "$REPLY" ] || die "o e-mail para os commits não pode ficar vazio. Rode de novo, ou configure antes: git config --global user.email \"voce@exemplo.com\"."
+  git -C "$pasta" config user.email "$REPLY"
 fi
 
 if ! estado_tem commit_inicial; then
