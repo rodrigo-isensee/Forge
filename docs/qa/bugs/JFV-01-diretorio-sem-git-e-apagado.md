@@ -1,6 +1,7 @@
 # JFV-01 - Diretório existente sem .git é apagado pelo jarvis-forge
 
 - Severidade: crítica (perda de dados; gatilho raro)
+- Status: resolvido (6432242)
 - Responsável sugerido: node-backend (script de infraestrutura `scripts/jarvis-forge`)
 - Ambiente: branch `melhoria/jarvis-forge-vigente`, commit b51cd3a, Linux (bash), execução com HOME e XDG_DATA_HOME temporários e origin local de teste; claude e tmux substituídos por stubs
 
@@ -19,3 +20,6 @@ Nos dois casos o script sai com código 1 (`fatal: destination path ... already 
 ## Evidência
 Saída do harness (cenários T10.1 e T10.2): `dir existe: NAO` e `arquivo existe: NAO` depois de cada execução. Trecho causador em `scripts/jarvis-forge`, função `criar_vigente`: `if ! git clone ...; then rm -rf "$vigente"; ...`. A remoção é incondicional, mesmo quando o diretório já existia antes da chamada.
 Correção sugerida (para quem corrige, não aplicada aqui): tratar como erro qualquer caminho existente sem `.git` antes do clone, ou clonar em diretório temporário e mover só se der certo; remover só o que o próprio script criou.
+
+## Resolução
+Resolvido e verificado na revalidação do commit 6432242 (2026-10-13): cenário reproduzido com stubs e origin local, sem recorrência.

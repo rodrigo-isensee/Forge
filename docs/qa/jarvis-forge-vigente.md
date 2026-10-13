@@ -3,13 +3,13 @@ tipo: qa
 contrato: 1
 pedido: jarvis-forge-vigente
 branch: melhoria/jarvis-forge-vigente
-commit: b51cd3a
-parecer: reprovado
-escopo: completo
-bugs_criticos: 1
+commit: 6432242
+parecer: aprovado
+escopo: incremental
+bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
-bugs_baixos: 1
+bugs_medios: 0
+bugs_baixos: 0
 data: 2026-10-13
 ---
 # QA - jarvis-forge com cópia vigente
@@ -67,3 +67,13 @@ Bugs (em `docs/qa/bugs/`, ainda não versionados nesta rodada):
 - `JFV-03-erro-sem-origin-sem-mensagem-do-script.md` (baixa, node-backend)
 
 Observação: a suíte, o shellcheck e a catraca passam no commit b51cd3a, mas os três defeitos estão fora do que os testes atuais cobrem.
+
+## Revalidação (6432242)
+Escopo incremental, ambiente igual ao da rodada anterior (git real, origin local, HOME e XDG_DATA_HOME temporários removidos ao fim, stubs de claude e tmux).
+- Suíte: 202 testes OK. shellcheck: sem avisos. Catraca contra origin/develop: código 0.
+- CT-JF-13 (JFV-01): diretório existente com arquivo do usuário, na criação e no `--atualizar-vigente`: código 1, mensagem do script, arquivo intacto. Aprovado.
+- CT-JF-14 (JFV-02): commit local não publicado: `--atualizar-vigente` recusa (código 1) e o commit fica no HEAD. Aprovado.
+- CT-JF-12 (JFV-03): sem origin, a mensagem é do script e sugere `--dev`; nenhuma cópia criada. Aprovado.
+- Regressão aprovada: criação normal; segunda execução sem tocar na cópia (HEAD igual, arquivo novo da origin não aparece); `--atualizar-vigente` limpo atualiza; `--dev` usa `--plugin-dir .` e não toca a cópia (também sem origin); tmux com sessões `jarvis-Forge` e `jarvis-Forge-dev` por modo; XDG_DATA_HOME com espaço funciona; relativo é recusado (código 2) sem criar nada.
+- Bugs abertos: crítico 0, alto 0, médio 0, baixo 0. JFV-01, JFV-02 e JFV-03 resolvidos.
+- Parecer: aprovado. Observação: o aviso de sessão tmux aberta apareceu no teste porque o stub do tmux sempre responde que a sessão existe; não é defeito.

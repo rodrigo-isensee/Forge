@@ -1,6 +1,7 @@
 # JFV-02 - Commit local na cópia vigente é descartado sem aviso
 
 - Severidade: média (perda de commit local; recuperável pelo reflog até o `gc`)
+- Status: resolvido (6432242)
 - Responsável sugerido: node-backend (script de infraestrutura `scripts/jarvis-forge`)
 - Ambiente: branch `melhoria/jarvis-forge-vigente`, commit b51cd3a, Linux (bash), HOME e XDG_DATA_HOME temporários; origin local de teste
 
@@ -19,3 +20,6 @@ O script exibe `cópia vigente atualizada para origin/develop`, sai com código 
 ## Evidência
 Saída do harness (cenário T11.1): rc=0, `cópia vigente atualizada para origin/develop (a2e58b5)`, HEAD movido. `git reflog` da cópia mostra `commit: local` seguido de `reset: moving to origin/develop`. Causa: `git -C "$vigente" reset --quiet --hard origin/develop`, depois de a checagem olhar só `git status --porcelain` (arquivos), que não vê commits à frente do remoto.
 Correção sugerida: recusar também quando `git rev-list origin/develop..HEAD` não estiver vazio, ou ajustar a documentação para dizer que commits locais são descartados.
+
+## Resolução
+Resolvido e verificado na revalidação do commit 6432242 (2026-10-13): cenário reproduzido com stubs e origin local, sem recorrência.
