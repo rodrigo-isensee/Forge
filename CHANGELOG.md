@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Adicionado
+- **`R-FLUXO`, "Depois do merge":** branch remota, branch local e worktree são sempre apagadas após o merge (nunca `develop`, `homolog` nem `main`); se o sandbox recusar ("Device or resource busy"), o dono recebe o `git worktree prune` para rodar. Citada em `tech-lead`, `jarvis` e `contribuir-com-o-forge`; invariante novo em `tests/config.json`.
+
 ## [0.8.0] - 2026-10-13
 ### Adicionado
 - **Catraca confere `hooks/conformidade.json` (R-CONFORMIDADE), por lista branca:** a única mudança que passa sem o rótulo é acrescentar entrada nova em `caminhos` (JSON carregado, não texto), com `quem` sem `dev` nem papel inexistente e `caminho` que não seja igual nem prefixo de um já existente; todo o resto acusa (remover ou alterar entrada, mudar `papeis`, `acoes`, flags e pacotes, `papel_padrao`, `sem_agent_type`, quebrar o esquema, JSON inválido, arquivo removido ou movido). O rótulo `afrouxa-regra` do dono libera. `hooks/conformidade.py` entra em `PROTEGIDOS`. Testes em `tests/test_catraca.py`. Altera `tests/catraca.py`: exige o rótulo `afrouxa-regra` do dono.
