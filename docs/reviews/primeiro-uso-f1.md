@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f1
 branch: melhoria/primeiro-uso
-commit: 516c4a4
+commit: 23c255f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -35,3 +35,23 @@ Não afrouxa regra: nenhum invariante nem hook mudou; `bin/forge-check`, `hooks/
 5. Segurança: sem segredo em tela, estado ou commit; teste confere.
 6. Testes: escritos antes (commit `test(primeiro-uso)`). Vermelho: 15 falhas e erros em `tests/test_novo_projeto.py` (13 testes, sem o código). Verde: `python3 -m unittest discover -s tests`, 294 testes; `scripts/validar-plugin.sh` e `forge-check docs` passam. Cobertura: caminho feliz (ordem, `--private`, três branches, autor do commit, estado), sem `gh auth`, nome existente, nome inválido, retomada depois de falha no clone, reexecução com tudo pronto, despachante, `.gitignore`, skills e Jarvis.
 7. Commits: especificação, testes (vermelho), código, parecer; `git add` explícito.
+
+# Review independente
+
+Revisor: `forge:tech-lead`, sobre `origin/melhoria/primeiro-uso` em `23c255f` (inclui o ajuste de CA-5). Parecer: **aprovado**, com 1 recomendação média e 3 baixas.
+
+## Verificação
+- `python3 -m unittest discover -s tests`: 297 testes, OK. `shellcheck bin/forge bin/forge-novo-projeto`: limpo.
+- Token: o script não chama `gh auth token`; o teste confere; o estado (`~/.local/state/forge/novo-projeto/<nome>.json` e a cópia ignorada pelo git) guarda só nome, pasta, dono e etapas. A skill proíbe pedir segredo no chat.
+- Repositório sempre `--private` (teste confere). Dono vem de `gh api user`; nada fixo na conta do dono do Forge.
+- CA-5: pergunta "Confirma? [s/N]" antes de `gh repo create`; Enter ou "n" recusa e nada é criado (testado); `--sim` só pula, de forma explícita.
+- Commit inicial na `main` uma vez (etapa `commit_inicial`, `git add` explícito); reexecução com tudo pronto só reabre o Claude (testado).
+- Nome: regex `^[A-Za-z0-9._-]{1,100}$` sem `.` e `..`; espaços, `/`, `../`, `;` são recusados e o laço pergunta de novo. O nome só aparece entre aspas e em argumentos, sem `eval`.
+- Testes: HOME, `GIT_CONFIG_GLOBAL`, PATH e estado em diretório temporário; `git config` só no clone temporário; sem rede.
+- Modo iniciante e Jarvis claros (perfil lido em uma linha, ausente = normal, decisão técnica é do time, credenciais só pelo terminal). Neutralidade: sem nome de projeto ou conta.
+
+## Achados
+1. **Média (recomendado)** · `bin/forge-novo-projeto`, bloco `repo_criado`: se a pessoa recusar a confirmação (estado salvo, sem `repo_criado`) e depois existir no GitHub um repositório com esse nome que não é do script, a retomada pula o teste de nome existente, diz "já foi criado antes; sigo com ele", marca `repo_criado` e empurra `main`, `develop` e `homolog` nele. Quebra a garantia "nunca escreve em repositório existente" e não confere visibilidade. Sem `--force`, então não destrói histórico. Sugestão: só aceitar repositório existente sem `repo_criado` se estiver vazio e privado (`gh repo view --json isPrivate,...`); senão pedir outro nome. Teste novo para a recusa seguida de repositório criado por fora.
+2. **Baixa** · nome ou e-mail de commit vazios são aceitos (`ler` sem padrão) e o commit inicial falha depois; sugestão: repetir a pergunta até não vazio.
+3. **Baixa** · o estado guarda `dono`, mas a retomada usa o `gh api user` atual; se a conta mudou entre execuções, o estado diverge. Sugestão: parar com mensagem clara.
+4. **Baixa (docs)** · o parecer de autor acima, em "Desvios e limites", ainda diz que não há confirmação antes de `gh repo create`; o commit `23c255f` a adicionou. Atualizar o texto.
