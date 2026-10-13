@@ -5,8 +5,8 @@ Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efeti
 Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em workflows passa sem rótulo e sem parecer.
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
-último push, ou cujo diff efetivo (merge-base, fora de `docs/reviews/` e `docs/qa/`) não mudou desde o rótulo. Eventos e
-execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
+último push, ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde o rótulo e
+cujas violações já existiam no head rotulado. Eventos e execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
 do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
 import argparse
@@ -31,9 +31,11 @@ from neutralidade import normalizar  # noqa: E402
 
 ROTULO = "afrouxa-regra"
 ADR = "docs/adr/0008-governanca-de-contribuicoes.md"
-PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer do pedido não muda o conteúdo que o dono viu (o modo `pareceres` o confere)
+CURINGA = re.compile(r"[*?\[\]\\]")  # pathspec do git casa curinga: caminho com eles nunca é ignorado
 REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
-PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py", "tests/neutralidade.py", "hooks/conformidade.py")
+PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py",
+              "tests/neutralidade.py", "hooks/conformidade.py", "hooks/parecer.py", "hooks/_comum.py", "bin/forge-check")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -382,7 +384,7 @@ def regra_custo(raiz, ref, permitido):
 def regra_protegidos(raiz, b, h):
     if ler(raiz, b, "tests/catraca.py") is None:  # introdução da própria catraca
         return []
-    return [msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS, hooks do git, dependabot e a catraca são os próprios controles",
+    return [msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS, hooks do git, dependabot, a catraca, os hooks que decidem o bloqueio e o forge-check são os próprios controles",
                 f"só passa com o rótulo `{ROTULO}` do dono, aplicado depois do último push", ADR)
             for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
 
@@ -453,10 +455,36 @@ def commit_do_rotulo(eventos, execucoes, numero, dono):
     return sha
 
 
-def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono):
-    """True se o diff efetivo do head (merge-base com a base, fora dos pareceres) é o do head no instante do rótulo."""
+def pareceres_do_pedido(raiz, base, rotulado, head, ramo):
+    """Pareceres que podem mudar depois do rótulo: os que o PR já tocava no head rotulado e os de nome igual ao último
+    segmento da branch (`melhoria/x` -> `docs/reviews/x.md`, `docs/qa/x.md`). Caminho com curinga fica de fora (falha fechada)."""
+    def tocados(ref):
+        return {a for a in alterados(raiz, base_efetiva(raiz, base, ref), ref) if a.startswith(PARECERES)}
+    nome = ramo.rsplit("/", 1)[-1]
+    antes = tocados(rotulado)
+    livres = antes | {a for a in tocados(head) if nome and Path(a).stem == nome and Path(a).parent.as_posix() + "/" in PARECERES}
+    return sorted(a for a in livres if not CURINGA.search(a))
+
+
+def chave_da_violacao(v):
+    """Regra e o que foi violado (com o caminho), sem os números: contagens e linhas mudam com a base, a violação não."""
+    return re.sub(r"\b\d+\b", "N", v.split(". Por quê:", 1)[0])
+
+
+def violacoes_novas(atuais, rotuladas):
+    """Violações atuais que não estavam no head rotulado (multiconjunto pela chave normalizada)."""
+    sobra = Counter(map(chave_da_violacao, atuais)) - Counter(map(chave_da_violacao, rotuladas))
+    return [v for v in atuais if sobra.get(chave_da_violacao(v))]
+
+
+def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono, ramo="", atuais=None):
+    """True se o diff efetivo do head (merge-base com a base, fora dos pareceres do pedido) é o do head no instante do
+    rótulo e nenhuma violação atual é nova em relação às do head rotulado sobre o merge-base dele (ex.: vinda da base)."""
     sha = commit_do_rotulo(eventos, execucoes, numero, dono)
-    return bool(sha) and forge_check().mesmo_diff(raiz, base, sha, head, PARECERES)
+    if not sha or not forge_check().mesmo_diff(raiz, base, sha, head, pareceres_do_pedido(raiz, base, sha, head, ramo)):
+        return False
+    atuais = violacoes_das_regras(raiz, base, head) if atuais is None else atuais
+    return not violacoes_novas(atuais, violacoes_das_regras(raiz, base, sha))
 
 
 def requisicao(caminho, token):
@@ -502,13 +530,26 @@ def eventos_do_github():
     return eventos, (min(datas, key=instante) if datas else None)
 
 
-def execucoes_do_pr():
-    """Execuções `pull_request` da branch do PR via API; None sem token, repositório ou número, ou se a API falhar."""
+def ramo_do_pr():
+    """Branch do PR (`head.ref`) via API; "" sem token, repositório ou número, ou se a API falhar (só os pareceres que
+    o PR já tocava ficam fora da comparação: mais estrito)."""
     token, repo, numero = (os.environ.get(k) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER"))
     if not (token and repo and numero):
-        return None
+        return ""
     try:
         ramo = api_objeto(f"/repos/{repo}/pulls/{numero}", token)["head"]["ref"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return ""
+    return ramo if isinstance(ramo, str) else ""
+
+
+def execucoes_do_pr():
+    """Execuções `pull_request` da branch do PR via API; None sem token, repositório, número ou branch, ou se a API falhar."""
+    token, repo = os.environ.get("GITHUB_TOKEN"), os.environ.get("GITHUB_REPOSITORY")
+    ramo = ramo_do_pr()
+    if not ramo:
+        return None
+    try:
         return api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
     except (OSError, ValueError, KeyError, TypeError):
         return None
@@ -599,7 +640,7 @@ def main(argv=None):
     ap.add_argument("--base", default=os.environ.get("BASE", "origin/develop"))
     ap.add_argument("--head", default="HEAD")
     ap.add_argument("--raiz", default=".")
-    ap.add_argument("--ramo", default=os.environ.get("HEAD_REF", ""), help="branch do PR (modo pareceres)")
+    ap.add_argument("--ramo", default=os.environ.get("HEAD_REF", ""), help="branch do PR (modo pareceres; no modo regras, pareceres do pedido, e sem ela vem da API)")
     ap.add_argument("--base-ref", default=os.environ.get("BASE_REF", ""), help="branch de destino (modo pareceres)")
     ap.add_argument("--autor", default=os.environ.get("PR_AUTOR", ""), help="login do autor do PR")
     ap.add_argument("--eventos", help="JSON com os eventos da issue (testes); ignora a API")
@@ -630,7 +671,8 @@ def main(argv=None):
                     liberado = "aplicado depois do último push"
                 else:
                     execucoes = json.loads(Path(a.execucoes).read_text(encoding="utf-8")) if a.execucoes else ([] if a.eventos else execucoes_do_pr())
-                    if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono):
+                    ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
+                    if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "diff efetivo igual ao do instante do rótulo"
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)

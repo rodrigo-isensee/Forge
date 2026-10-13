@@ -58,6 +58,8 @@ CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-
                   "--edit"}
 CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
 
+ACOES = {"merge_integracao", "pr_criar", "pr_merge_integracao", "instalar_pacote", "instalar_congelado"}
+
 
 def papel_de(politica, agent_type):
     """Papel do `agent_type`: sem ele, a sessão principal; tipo desconhecido é `dev` (ADR 0009, seção 2)."""
@@ -432,12 +434,39 @@ def entrada_valida(e):
             and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
 
 
+def lista_de_textos(v):
+    return isinstance(v, list) and all(isinstance(t, str) for t in v)
+
+
+def pacote_valido(cfg):
+    """Um gerenciador de `pacotes`: `adicionam` e `congelados` obrigatórios; as flags opcionais, se existirem, são listas."""
+    return (isinstance(cfg, dict) and lista_de_textos(cfg.get("adicionam")) and lista_de_textos(cfg.get("congelados"))
+            and all(lista_de_textos(cfg[k]) for k in ("flags_congeladas", "so_arquivo") if k in cfg))
+
+
+def politica_valida(pol):
+    """Forma de toda a política: o hook lê estas chaves sem checar, então qualquer desvio liberaria por erro interno."""
+    def texto(v):
+        return isinstance(v, str) and bool(v)
+    if not isinstance(pol, dict):
+        return False
+    papeis, acoes, pacotes, caminhos = (pol.get(k) for k in ("papeis", "acoes", "pacotes", "caminhos"))
+    return (isinstance(papeis, dict) and all(lista_de_textos(t) for t in papeis.values())
+            and texto(pol.get("sem_agent_type")) and texto(pol.get("papel_padrao"))
+            and isinstance(acoes, dict) and ACOES <= acoes.keys() and all(lista_de_textos(q) for q in acoes.values())
+            and isinstance(pacotes, dict) and all(pacote_valido(c) for c in pacotes.values())
+            and lista_de_textos(pol.get("flags_congeladas"))
+            and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos))
+
+
 def politica():
-    """Lê a política; entrada malformada em `caminhos` bloqueia (falha fechado), em vez de liberar por erro interno."""
-    pol = json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
-    caminhos = pol.get("caminhos")
-    if not isinstance(caminhos, list) or not all(entrada_valida(e) for e in caminhos):
-        bloquear("R-CONFORMIDADE", "política de conformidade inválida: entrada malformada em `caminhos` "
+    """Lê a política; qualquer parte malformada (ou JSON ilegível) bloqueia (falha fechado), em vez de liberar por erro interno."""
+    try:
+        pol = json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        pol = None
+    if not politica_valida(pol):
+        bloquear("R-CONFORMIDADE", "política de conformidade inválida: chave ausente ou com tipo errado "
                                    "(hooks/conformidade.json). Corrigir: leve ao usuário (R-DECISAO)")
     return pol
 
