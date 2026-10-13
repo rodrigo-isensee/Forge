@@ -4,13 +4,13 @@ Qualquer pessoa ou agente, em qualquer projeto, pode propor uma melhoria de fáb
 
 ## Como
 1. Use um clone próprio (`~/.forge-contrib/<projeto>`), nunca uma worktree de outro clone nem o cache do plugin.
-2. Com acesso de escrita: branch `melhoria/<assunto>` a partir da `develop` atualizada. Sem acesso: fork (`gh repo fork`) e a mesma branch no fork.
+2. Com acesso de escrita: branch `melhoria/<assunto>` a partir da `develop` atualizada (`git switch --no-track -c`; envio com `git push origin <branch>`, sem `-u`; worktrees em `~/.forge-contrib/wt/`, com `git worktree add --no-track`). Sem acesso: fork (`gh repo fork`) e a mesma branch no fork.
 3. Uma melhoria por PR, com o PR **para a `develop`**. Nunca envie para `develop`, `homolog` ou `main`; a `main` só muda por PR mesclado pelo usuário.
 
 ## Checagens antes do PR
 ```bash
 python3 -m unittest discover -s tests -v
-claude plugin validate . --strict
+scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 scripts/verificar-contribuicao.sh
 ```
 - Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão: ela é decidida na release.

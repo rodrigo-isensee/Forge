@@ -738,6 +738,80 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertIn("--help", r.stderr)
 
 
+class SandboxDoBash(unittest.TestCase):
+    def test_settings_do_forge_com_sandbox_obrigatorio(self):
+        cfg = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]
+        self.assertIs(cfg["enabled"], True)
+        self.assertIs(cfg["failIfUnavailable"], True)
+        self.assertIs(cfg["allowUnsandboxedCommands"], False)
+
+    def test_apis_de_modelo_negadas(self):
+        negados = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["network"]["deniedDomains"]
+        for dominio in ("api.anthropic.com", "api.openai.com", "generativelanguage.googleapis.com"):
+            self.assertIn(dominio, negados)
+
+    def test_deny_write_so_estado_nao_versionado(self):
+        # N6: denyWrite em arquivo versionado quebra git pull/checkout/merge no checkout principal.
+        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyWrite"]
+        self.assertIn(".forge/", deny)
+        r = subprocess.run(["git", "ls-files"], cwd=RAIZ, capture_output=True, text=True, check=True)
+        versionados = r.stdout.splitlines()
+        for caminho in deny:
+            prefixo = caminho if caminho.endswith("/") else None
+            travados = [f for f in versionados if f == caminho or (prefixo and f.startswith(prefixo))]
+            self.assertEqual(travados, [], f"denyWrite {caminho} cobre arquivo versionado: {travados[:3]}")
+
+    def test_credenciais_do_dono_ilegiveis(self):
+        deny = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["filesystem"]["denyRead"]
+        for caminho in ("~/.ssh", "~/.config/gh", "~/.git-credentials"):
+            self.assertIn(caminho, deny)
+
+    def test_git_dos_agentes_pelo_https_do_bot_sem_credencial_literal(self):
+        texto = (RAIZ / ".claude/settings.json").read_text()
+        env = json.loads(texto)["env"]
+        self.assertEqual(env["GIT_CONFIG_COUNT"], str(len([k for k in env if k.startswith("GIT_CONFIG_KEY_")])))
+        pares = {env[f"GIT_CONFIG_KEY_{i}"] + "=" + env[f"GIT_CONFIG_VALUE_{i}"] for i in range(int(env["GIT_CONFIG_COUNT"]))}
+        self.assertIn("url.https://github.com/.insteadOf=git@github.com:", pares)
+        self.assertIn("credential.https://github.com.helper=!gh auth git-credential", pares)
+        self.assertNotRegex(texto, r"gh[pousr]_[A-Za-z0-9]{20,}|github_pat_|GH_TOKEN|-----BEGIN")
+
+    def test_excluded_commands_so_leitura_de_tmux(self):
+        excluidos = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["excludedCommands"]
+        self.assertTrue(excluidos)
+        for comando in excluidos:
+            self.assertRegex(comando, r"^tmux (ls|capture-pane|has-session)\b")
+            self.assertNotRegex(comando, r"send-keys|new-session|kill-|run-shell")
+
+    def test_apis_de_modelo_negadas_com_curinga(self):
+        negados = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["network"]["deniedDomains"]
+        for dominio in ("*.anthropic.com", "*.openai.com"):
+            self.assertIn(dominio, negados)
+
+    def test_validar_plugin_usa_copia_limpa(self):
+        texto = (RAIZ / "scripts/validar-plugin.sh").read_text()
+        self.assertIn("git ls-files", texto)
+        self.assertIn("claude plugin validate", texto)
+        self.assertTrue(os.access(RAIZ / "scripts/validar-plugin.sh", os.X_OK))
+
+    def test_estacao_instala_dependencias_do_sandbox(self):
+        texto = (RAIZ / "scripts/preparar-estacao.sh").read_text()
+        self.assertIn("bubblewrap", texto)
+        self.assertIn("socat", texto)
+
+    def test_gitignore_cobre_pontos_de_montagem_sem_ignorar_versionados(self):
+        linhas = {l.strip() for l in (RAIZ / ".gitignore").read_text().splitlines()}
+        raiz = [".bash_profile", ".bashrc", ".profile", ".zprofile", ".zshrc", ".gitconfig", ".gitmodules",
+                ".ripgreprc", ".mcp.json", ".idea", ".vscode", ".forge"]
+        # tests/neutralidade.py é versionado (develop, #42): não é ponto de montagem, então não entra aqui.
+        claude = ["agents", "commands", "hooks", "skills", "workflows", "output-styles", "routines",
+                  "launch.json", "loop.md", "scheduled_tasks.json", "settings.local.json"]
+        for padrao in [f"/{n}" for n in raiz] + [f"/.claude/{n}" for n in claude]:
+            self.assertIn(padrao, linhas)
+        versionados_ignorados = subprocess.run(
+            ["git", "ls-files", "-ci", "--exclude-standard"], cwd=RAIZ, capture_output=True, text=True, check=True).stdout
+        self.assertEqual(versionados_ignorados.strip(), "", "o .gitignore casa com arquivo versionado")
+
+
 class JarvisForgeVigente(unittest.TestCase):
     """ADR 0009, seção 4: o jarvis-forge carrega a cópia vigente (clone da origin/develop), não a de trabalho."""
 
