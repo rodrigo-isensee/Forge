@@ -423,8 +423,23 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"{prog} {sub} {self.so_de(acao)} (papel: {self.papel})", dica)
 
 
+def entrada_valida(e):
+    """Forma de uma entrada de `caminhos`: sem ela o hook cairia em KeyError/TypeError e liberaria (saída 0)."""
+    def texto(v):
+        return isinstance(v, str) and bool(v)
+    return (isinstance(e, dict) and texto(e.get("caminho")) and texto(e.get("motivo"))
+            and isinstance(e.get("quem"), list) and all(isinstance(q, str) for q in e["quem"])
+            and isinstance(e.get("so_forge", False), bool) and ("branch" not in e or texto(e["branch"])))
+
+
 def politica():
-    return json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+    """Lê a política; entrada malformada em `caminhos` bloqueia (falha fechado), em vez de liberar por erro interno."""
+    pol = json.loads((PLUGIN / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+    caminhos = pol.get("caminhos")
+    if not isinstance(caminhos, list) or not all(entrada_valida(e) for e in caminhos):
+        bloquear("R-CONFORMIDADE", "política de conformidade inválida: entrada malformada em `caminhos` "
+                                   "(hooks/conformidade.json). Corrigir: leve ao usuário (R-DECISAO)")
+    return pol
 
 
 def autoria(hook, guarda, alvos):

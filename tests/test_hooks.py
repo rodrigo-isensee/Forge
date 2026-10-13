@@ -301,6 +301,35 @@ class Hooks(unittest.TestCase):
                                        env=ambiente_limpo(), capture_output=True, text=True, timeout=30)
                     self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
 
+    def test_politica_de_conformidade_malformada_bloqueia(self):
+        """Entrada de `caminhos` sem chave ou com tipo errado: falha fechado (saída 2), não libera com KeyError."""
+        base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        malformadas = {"sem motivo": {"caminho": ".github/", "quem": []},
+                       "branch não texto": {"caminho": ".github/", "quem": [], "motivo": "m", "branch": 7},
+                       "quem não lista": {"caminho": ".github/", "quem": "jarvis", "motivo": "m"},
+                       "so_forge não booleano": {"caminho": ".github/", "quem": [], "motivo": "m", "so_forge": "s"},
+                       "entrada não objeto": "docs/"}
+        for nome, entrada in malformadas.items():
+            with self.subTest(nome):
+                tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+                self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+                shutil.copytree(HOOKS, tmp / "plugin" / "hooks", ignore=shutil.ignore_patterns("__pycache__"))
+                politica = dict(base, caminhos=[entrada, *base["caminhos"]])
+                (tmp / "plugin" / "hooks" / "conformidade.json").write_text(json.dumps(politica), encoding="utf-8")
+                raiz = tmp / "proj"
+                (raiz / ".forge").mkdir(parents=True)
+                (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+                git("init", "-q", "-b", "develop", cwd=raiz)
+                entrada_hook = {"tool_name": "Write", "tool_input": {"file_path": str(raiz / ".github/workflows/ci.yml")},
+                                "agent_type": "forge:dev", "hook_event_name": "PreToolUse", "cwd": str(raiz)}
+                env = ambiente_limpo()
+                env.pop("FORGE_GUARDA_ABERTA", None)
+                r = subprocess.run([sys.executable, str(tmp / "plugin" / "hooks" / "conformidade.py")],
+                                   input=json.dumps(entrada_hook), cwd=raiz, env=env, capture_output=True, text=True,
+                                   timeout=30)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("política de conformidade inválida", r.stderr)
+
     def test_varredura_do_vigia_nao_desce_em_pastas_ignoradas(self):
         sys.path.insert(0, str(HOOKS))
         import vigia
