@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Adicionado
+- Regra `R-DECISAO` (pedido do usuário): toda decisão do usuário vem uma de cada vez, com opções e a recomendação do time; ações pendentes ficam numa lista à parte. Citada pelo Jarvis, `tech-lead` e `ux-designer`; protegida por invariantes.
+
 ## [0.6.0] - 2026-10-13
 - ADR 0008 (proposta): governança de contribuições — conta de máquina para agentes, rulesets sem bypass dos checks, CI anti-piora (catraca), `R-CONTRIB` e transição até o repositório ficar público.
 ### Adicionado

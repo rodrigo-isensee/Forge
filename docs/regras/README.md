@@ -17,3 +17,4 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 | [`R-NEUTRO`](R-NEUTRO.md) | Neutralidade da fábrica | teste |
 | [`R-COPIA`](R-COPIA.md) | Não copiar agentes e skills para o projeto | revisão |
 | [`R-VERIFY`](R-VERIFY.md) | Nunca `--no-verify` nem `--force` | permissões, invariantes |
+| [`R-DECISAO`](R-DECISAO.md) | Uma decisão por vez, com opções e recomendação | revisão |
