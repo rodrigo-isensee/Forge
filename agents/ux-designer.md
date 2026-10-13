@@ -27,3 +27,4 @@ Avalie contra a especificação validada, as heurísticas de Nielsen e a WCAG 2.
 - Contratos de API são descritos como "necessidades de dados"; quem define o contrato é o back-end.
 - Decisões de produto e a validação do protótipo são do usuário (`R-DECISAO`: uma por vez, com opções e recomendação).
 - Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
+- `R-CONFORMIDADE`: bloqueio não se contorna; vira decisão ao usuário (`R-DECISAO`).

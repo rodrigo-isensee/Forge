@@ -5,7 +5,7 @@ description: Use quando você, em qualquer projeto, perceber uma melhoria de fá
 
 # Contribuir com o Forge a partir de qualquer projeto
 
-Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente de qualquer projeto contribui, como colaborador do GitHub. **Uma melhoria por PR.**
+Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente de qualquer projeto contribui, como colaborador do GitHub. **Uma melhoria por PR.** `R-CONTRIB`: o projeto abre o PR e nunca o mescla.
 
 ## 1. Classifique: fábrica ou projeto
 - **Fábrica (vai ao Forge):** o que melhora como o time trabalha em qualquer projeto: agentes, skills, fluxo, práticas gerais, hooks, modelos, testes e CI do Forge.
@@ -17,7 +17,7 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
 - **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório); `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
-- Ative o hook: `git config core.hooksPath .githooks`.
+- Ao criar o clone, ative o hook: `git config core.hooksPath .githooks` (`R-CONTRIB`).
 
 ## 3. Cheque o acesso
 `gh repo view rodrigo-isensee/Forge --json viewerPermission`

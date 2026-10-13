@@ -18,3 +18,5 @@ Decisão: `docs/adr/0002-uma-fonte-por-regra.md`. Agentes, skills e modelos cita
 | [`R-COPIA`](R-COPIA.md) | Não copiar agentes e skills para o projeto | revisão |
 | [`R-VERIFY`](R-VERIFY.md) | Nunca `--no-verify` nem `--force` | permissões, invariantes |
 | [`R-DECISAO`](R-DECISAO.md) | Uma decisão por vez, com opções e recomendação | revisão |
+| [`R-CONFORMIDADE`](R-CONFORMIDADE.md) | Controles não se contornam; o que está em vigor é do usuário | hook, sandbox, permissões, vigia |
+| [`R-CONTRIB`](R-CONTRIB.md) | Contribuição ao Forge: projeto abre PR, nunca mescla | hook, rulesets, CI |
