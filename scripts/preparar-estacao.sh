@@ -31,7 +31,7 @@ fi
 
 passo "Pacotes do sistema (apt)"
 faltam=()
-for pacote in git tmux curl ca-certificates unzip python3 shellcheck jq gh; do
+for pacote in git tmux curl ca-certificates unzip python3 shellcheck jq gh bubblewrap socat; do
   if ! dpkg-query -W -f='${Status}' "$pacote" 2>/dev/null | grep -q '^install ok installed'; then
     faltam+=("$pacote")
   fi

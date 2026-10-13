@@ -1,0 +1,48 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "excludedCommands": [
+      "tmux capture-pane *",
+      "tmux ls",
+      "tmux has-session *"
+    ],
+    "filesystem": {
+      "allowWrite": [
+        "~/.forge-contrib",
+        "/tmp/claude-1000"
+      ],
+      "denyWrite": [
+        ".forge/",
+        ".githooks/",
+        ".claude-plugin/",
+        ".github/",
+        "tests/config.json",
+        "tests/catraca.py",
+        "tests/neutralidade.py",
+        "hooks/conformidade.json"
+      ]
+    },
+    "network": {
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "codeload.github.com",
+        "uploads.github.com",
+        "registry.npmjs.org",
+        "pypi.org",
+        "files.pythonhosted.org"
+      ],
+      "deniedDomains": [
+        "api.anthropic.com",
+        "*.anthropic.com",
+        "api.openai.com",
+        "*.openai.com",
+        "generativelanguage.googleapis.com"
+      ]
+    }
+  }
+}

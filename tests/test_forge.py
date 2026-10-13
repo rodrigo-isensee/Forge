@@ -725,6 +725,24 @@ class PrepararEstacao(unittest.TestCase):
                 self.assertIn("--help", r.stderr)
 
 
+class SandboxDoBash(unittest.TestCase):
+    def test_settings_do_forge_com_sandbox_obrigatorio(self):
+        cfg = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]
+        self.assertIs(cfg["enabled"], True)
+        self.assertIs(cfg["failIfUnavailable"], True)
+        self.assertIs(cfg["allowUnsandboxedCommands"], False)
+
+    def test_apis_de_modelo_negadas(self):
+        negados = json.loads((RAIZ / ".claude/settings.json").read_text())["sandbox"]["network"]["deniedDomains"]
+        for dominio in ("api.anthropic.com", "api.openai.com", "generativelanguage.googleapis.com"):
+            self.assertIn(dominio, negados)
+
+    def test_estacao_instala_dependencias_do_sandbox(self):
+        texto = (RAIZ / "scripts/preparar-estacao.sh").read_text()
+        self.assertIn("bubblewrap", texto)
+        self.assertIn("socat", texto)
+
+
 class JarvisForgeVigente(unittest.TestCase):
     """ADR 0009, seção 4: o jarvis-forge carrega a cópia vigente (clone da origin/develop), não a de trabalho."""
 
