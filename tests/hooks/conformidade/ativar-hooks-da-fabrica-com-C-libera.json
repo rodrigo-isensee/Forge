@@ -1,0 +1,18 @@
+{
+  "descricao": "Ativar o hook com -C <dir> libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C . config core.hooksPath .githooks"
+    },
+    "agent_type": "forge:node-backend"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

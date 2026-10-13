@@ -1,0 +1,7 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code 2.0.0 (sintética)"}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a1", "tipo": "forge:tech-lead", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "agente", "t": "2026-01-01T10:00:00Z", "id": "a2", "tipo": "forge:qa-engineer", "bg": false, "secoes": {"Objetivo": true, "Ler": true, "Entregar": true, "Decisões e restrições": true, "Pronto quando": true, "Relatório": true}}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "gh pr merge", "branch": "<branch>", "c": "c1"}
+{"ev": "bloqueio", "t": "2026-01-01T10:00:00Z", "c": "c1", "causa": "hook"}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "gh pr merge", "branch": "<branch>", "c": "c2"}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "git push <branch>", "branch": "<branch>", "c": "c3"}

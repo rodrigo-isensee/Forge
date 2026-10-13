@@ -293,18 +293,19 @@ class Guarda:
         return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
 
     def git(self, palavras, parte, pasta, ramos):
-        if any("core.hookspath" in p.lower() for p in palavras):
-            self.barrar("R-VERIFY", "core.hooksPath", "não desative nem troque o caminho dos hooks")
         i, pasta_git = 1, pasta
         while i < len(palavras) and palavras[i].startswith("-"):
             if palavras[i] == "-C" and i + 1 < len(palavras):
                 pasta_git = pasta / palavras[i + 1]
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
+        ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
+        if any("core.hookspath" in p.lower() for p in (palavras[:i] if ativacao else palavras)):
+            self.barrar("R-VERIFY", "core.hooksPath", "não desative nem troque o caminho dos hooks")
         if "--no-verify" in args or (sub == "commit" and any(re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a)
                                                              for a in args)):
             self.barrar("R-VERIFY", f"git {sub} --no-verify", "corrija a causa do hook que falhou")
-        if sub == "config":
+        if sub == "config" and not ativacao:
             self.git_config(args)
         if sub == "push":
             self.git_push(args, pasta_git, ramos)
