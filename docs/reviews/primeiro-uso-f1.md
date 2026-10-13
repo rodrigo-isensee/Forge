@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f1
 branch: melhoria/primeiro-uso
-commit: d469b35
+commit: e659b0d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -71,3 +71,18 @@ Revisor: `forge:tech-lead`, sobre `d469b35` (correção `58e6e12` e merge da `de
 
 ## Achados
 Nenhum que bloqueie. Observação baixa: `ler "...";` deixa um `;` sobrando nas duas perguntas de identidade (inofensivo, sem efeito).
+
+## Review da correção do QA
+Commit revisado: `e659b0d` (diff `07753c1..e659b0d`: `bin/forge-novo-projeto` e `tests/test_novo_projeto.py`).
+
+- `python3 -m unittest discover -s tests`: 310 testes, OK. `shellcheck bin/forge bin/forge-novo-projeto`: limpo.
+- BUG-01 (sem rede): `dono=... || die` em português; `test_sem_rede_explica_em_portugues_e_nao_cria_nada`.
+- BUG-02 (Enter no nome): padrão vem do nome da pasta, já normalizado e validado; `test_enter_no_nome_usa_o_nome_da_pasta_atual`.
+- BUG-04 (403): opções A, B e C com próximo passo; `test_403_oferece_as_opcoes_do_roteiro`.
+- BUG-05 (normalização): minúsculas, sem acento, hífen no lugar de espaço, com confirmação; dois testes.
+- BUG-06 (jargão): mensagens e lista de retomada em texto; dois testes.
+- CA-1: apresentação com o tempo antes da primeira pergunta; `test_apresentacao_vem_antes_da_primeira_pergunta`.
+- Segurança sem regressão: `--private` mantido; confirmação do repositório intacta (Enter = não); estado sem token; o nome é validado depois da normalização (`^[a-z0-9._-]{1,100}$`, `.` e `..` recusados), então `../`, `;` e vazio são recusados (`test_nome_invalido_e_recusado` cobre `../x`). O erro do `gh` exibido no `die` não carrega segredo.
+- Observações baixas, sem bloqueio: não há teste dedicado para `;` nem para nome vazio após a normalização (a regra os cobre); o `;` sobrando nas perguntas de identidade segue aberto.
+
+Parecer: aprovado.
