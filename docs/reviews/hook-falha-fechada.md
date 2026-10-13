@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: hook-falha-fechada
 branch: melhoria/hook-falha-fechada
-commit: 4a0c620
+commit: d754c4f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -33,3 +33,5 @@ Revisor: forge:tech-lead (instância independente), sobre `4a0c620`. Parecer: **
 - **Sugestão (recomendado, não bloqueia):** num PR futuro, um teste de "política vigente" que fixe as cinco ações com seus papéis e os gerenciadores esperados em `pacotes`, para que esvaziar `pacotes` ou ampliar `acoes` apareça como teste vermelho, e não só no diff.
 - **Custo:** a validação percorre uma política de poucos KB uma vez por chamada; o hook inteiro leva cerca de 0,1 s por chamada com ela. Aceitável.
 - **Observação:** o hook só lê a política para sessões em projeto Forge e ferramentas Bash/arquivo; fora disso retorna antes de `politica()`, como já era.
+
+Revalidado após merge da develop (só CHANGELOG): o diff do PR fora do CHANGELOG e dos pareceres é idêntico ao revisado em 4a0c620; `.github/pull_request_template.md` e `ci.yml` vieram da develop (#73).
