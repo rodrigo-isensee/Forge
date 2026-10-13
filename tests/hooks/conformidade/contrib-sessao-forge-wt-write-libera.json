@@ -1,0 +1,26 @@
+{
+  "descricao": "Sessão do Forge em wt/*: Write numa regra da worktree libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/docs/regras/R-X.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:dev",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -348,8 +348,9 @@ class RegrasComId(unittest.TestCase):
 
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
-    global/de sistema: o git dos testes só enxerga o repositório temporário em que roda."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    global/de sistema: o git dos testes só enxerga o repositório temporário em que roda. Sem `CLAUDE_PROJECT_DIR`
+    (a raiz da sessão que roda os testes): o hook decide a sessão por ela, e cada fixture declara a sua."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
     return env
 

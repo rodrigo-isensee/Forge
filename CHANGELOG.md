@@ -2,6 +2,10 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não publicado]
+### Corrigido
+- **`R-CONTRIB`, identidade da sessão:** quem é a sessão vem sempre de `CLAUDE_PROJECT_DIR`, em qualquer pasta corrente e também no Write e no Edit (sem a variável, pela pasta; em `~/.forge-contrib`, falha fechado). `~/.forge-contrib/wt/*` fica só para a sessão do Forge; a de projeto usa `~/.forge-contrib/<projeto>` e `<projeto>-wt/*`. `GH_REPO` vale também por `declare -x`, `typeset -x` e `env VAR=...`. Fecha os desvios da re-review do #78 (altera `hooks/conformidade.py`: exige o rótulo `afrouxa-regra` do dono).
+
 ## [0.10.0] - 2026-10-13
 ### Alterado
 - **`R-CONTRIB`: sessão de outro projeto só propõe ao Forge (requer o rótulo `afrouxa-regra` do dono):** pode escrever a sugestão no corpo do PR, criar uma branch `melhoria/<projeto>-<tema>` e abrir o PR para a `develop`; não commita em branch alheia, não resolve conflito nem revalida parecer de PR alheio, não mescla, não fecha, não edita e não rotula; depois do PR avisa o usuário e para. A skill `contribuir-com-o-forge` e a autonomia do `jarvis` seguem a regra. O hook `conformidade` barra, fora da sessão do Forge, `git push` para branch fora de `melhoria/<projeto>-`, `gh pr merge|edit|close`, `gh label` e `gh api`/GraphQL que editem, fechem, mesclem ou rotulem PR do Forge. O alvo vale também pela pasta corrente no clone `~/.forge-contrib/<projeto>` (raiz por `CLAUDE_PROJECT_DIR`; sem ela, falha fechado), por URL de PR, por `gh issue edit|close|reopen`, por `GH_REPO`/`GIT_DIR` exportados, `pushd`, `--git-dir` e push por URL; `gh pr edit --body` no próprio PR fica barrado (corpo por comentário).
