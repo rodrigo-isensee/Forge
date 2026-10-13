@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: f1-lote1-comunicacao
 branch: melhoria/f1-lote1-comunicacao
-commit: 5e8c2c5
-parecer: reprovado
+commit: ac4f1ff
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -32,3 +32,15 @@ Revisor: `forge:tech-lead`, sem ter escrito a mudança. HEAD revisado: `5e8c2c5`
 - Decisão só vale gravada e pergunta de novo após compactação estão em `R-DECISAO`, em `agents/jarvis.md` (comunicação) e em `docs/retomada-de-sessao.md` (8.2, mesmo turno).
 - O passo 1 grava modo, escopo e suposições com a base, antes do discovery, e o modo nunca sobe sozinho (item 10).
 - O texto da regra fica só em `R-DECISAO`; o Jarvis cita o ID (ADR 0002). Nenhum nome da fonte nas linhas adicionadas fora do estudo, que já os continha. Invariantes só acrescentam proteção.
+
+## Re-review independente
+
+Revisor: `forge:tech-lead`, sem ter escrito a mudança. HEAD revisado: `ac4f1ff`. 281 testes verdes no checkout do PR. Parecer: **aprovado**.
+
+**Bloqueante resolvido.** O complemento de `R-DECISAO` agora diz que o teste não se aplica a custo (`R-CUSTO`), acesso e credenciais, exceção a uma regra (`R-CONFORMIDADE`) nem fato de negócio já declarado pelo usuário: esses casos vão sempre ao usuário. O primeiro item da regra, as opções com recomendação e "uma por vez" seguem intactos; a única mudança é uma exceção que restringe o teste, então a regra não ficou mais frouxa. A varredura por "bloqueante" e "Suposições" nos demais arquivos não achou outro texto que reabra o teste (`agents/jarvis.md` só o cita por ID). As duas frases novas entram nos `invariantes` de `tests/config.json`.
+
+**Recomendados atendidos.**
+- A escada começa em "o que o usuário disse", antes do fato do projeto, e tem invariante.
+- A linha "Suposições" entra no relatório logo depois de "o que precisa do usuário", no passo 6 e na seção de comunicação de `agents/jarvis.md`, com a mesma ordem nos dois lugares.
+
+Nada novo a ajustar.
