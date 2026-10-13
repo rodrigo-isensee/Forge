@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- Retrospectiva da evolução 0.2.0 a 0.5.0 (`docs/retrospectivas/2026-10-12-evolucao-0.5.0.md`) com métricas dos PRs e cinco propostas de melhoria do processo da fábrica.
 - Proposta e especificação da retomada de sessão (`docs/propostas/retomada-de-sessao.md`, `docs/retomada-de-sessao.md`): diário `.forge/run/diario.jsonl` por projeto (alinhado às ADR 0003 e 0005: só age em projeto com `.forge/versao`, e `.forge/run/` já é ignorada), hooks de sessão e de subagente, skill `retomada`. A implementação vem numa versão seguinte.
 ### Alterado
 - Teto de agentes adaptativo à carga da máquina (`R-TETO`: 2 a 5 agentes, conforme load e memória disponível), mantendo tarefas pesadas uma de cada vez, o limite de worktrees e agentes extras só em trabalho leve. **Invariantes de `tests/config.json` ajustados:** o teto fixo de 3 deu lugar ao teto adaptativo, com invariantes novos que protegem as regras de equilíbrio. O hook de teto (ADR 0003) segue lendo `teto_agentes` de `.forge/config.json` (padrão 3, o piso conservador); fazê-lo adaptativo fica como melhoria seguinte.
