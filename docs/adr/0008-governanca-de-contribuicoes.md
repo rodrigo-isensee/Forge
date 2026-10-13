@@ -25,7 +25,7 @@ Os agentes (Jarvis, `tech-lead` e sessões de projeto) usam uma **conta de máqu
 6. **Actions:** aprovação obrigatória para executar workflows de PR de colaboradores externos; `GITHUB_TOKEN` padrão só leitura; Actions proibidas de criar ou aprovar PR; nenhum `pull_request_target` nem `workflow_run` privilegiado executando código do PR (ADR 0006).
 
 ### 3. CI anti-piora (catraca)
-Jobs em `ci.yml`, só biblioteca padrão do Python ou ferramentas gratuitas de versão fixa, sem segredos; todos entram na lista de checks obrigatórios. Os de regras ficam em `tests/catraca.py`, que lê a base com `git show $BASE:<arquivo>`.
+Jobs em `ci.yml` (e `catraca.yml`, para `catraca` e `pr-texto`), só biblioteca padrão do Python ou ferramentas gratuitas de versão fixa, sem segredos; todos entram na lista de checks obrigatórios. Os de regras ficam em `tests/catraca.py`, que lê a base com `git show $BASE:<arquivo>`.
 
 | Job | O que barra | Como |
 |---|---|---|

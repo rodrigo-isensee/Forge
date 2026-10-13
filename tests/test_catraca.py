@@ -617,5 +617,43 @@ class Pareceres(Base):
         self.assertEqual(len(self.roda()), 1)
 
 
+class Workflows(unittest.TestCase):
+    """Reviews 3, 6, 9, 10 e 14: o que os workflows prometem, conferido no texto (sem rede)."""
+    RAIZ = AQUI.parent / ".github"
+
+    def texto(self, nome):
+        return (self.RAIZ / "workflows" / nome).read_text(encoding="utf-8")
+
+    def test_rotulo_e_edicao_so_disparam_a_catraca(self):
+        ci, ct = self.texto("ci.yml"), self.texto("catraca.yml")
+        self.assertIn("types: [opened, synchronize, reopened]", ci)
+        for evento in ("labeled", "unlabeled", "edited"):
+            self.assertNotIn(evento, ci.split("jobs:")[0].replace("rótulo e edição", ""))
+            self.assertIn(evento, ct.split("jobs:")[0])
+        self.assertRegex(ct, r"(?m)^  catraca:")
+        self.assertRegex(ct, r"(?m)^  pr-texto:")
+        self.assertNotRegex(ci, r"(?m)^  (catraca|pr-texto):")
+
+    def test_checkout_sem_credencial_e_sem_pull_request_target(self):
+        for nome in ("ci.yml", "catraca.yml"):
+            texto = self.texto(nome)
+            self.assertNotIn("pull_request_target", texto)
+            self.assertEqual(texto.count("actions/checkout@"), texto.count("persist-credentials: false"), nome)
+
+    def test_catraca_e_pareceres_usam_a_base_do_merge_e_o_script_da_base(self):
+        for nome, trecho in (("ci.yml", "--modo pareceres"), ("catraca.yml", 'python3 "$script" --base')):
+            texto = self.texto(nome)
+            self.assertIn("BASE=$(git rev-parse HEAD^1)", texto)
+            self.assertIn('git cat-file -e "$BASE:tests/catraca.py"', texto)
+            self.assertIn('script="$RUNNER_TEMP/base/tests/catraca.py"', texto)
+            self.assertIn(trecho, texto)
+        self.assertNotIn("base.sha", self.texto("catraca.yml"))
+        self.assertIn('--ramo="$HEAD_REF"', self.texto("ci.yml"))
+        self.assertIn("HEAD_SHA:", self.texto("catraca.yml"))
+
+    def test_dependabot_vai_para_a_develop(self):
+        self.assertIn("target-branch: develop", (self.RAIZ / "dependabot.yml").read_text(encoding="utf-8"))
+
+
 if __name__ == "__main__":
     unittest.main()
