@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: sandbox-bash
 branch: melhoria/sandbox-bash-r1
-commit: 49df362
+commit: 0432563
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -182,3 +182,45 @@ Nenhum bug novo. Observações O-1 a O-5 inalteradas (O-5, `_modelo.md`, não re
 
 ### Veredito (49df362)
 **Aprovado**, sem bugs abertos (0 críticos, 0 altos, 0 médios, 0 baixos), condicionado ao teste ao vivo acima. Ressalva: `git ls-remote` pela rede não pôde ser exercitado nesta sessão (limite de ambiente); `insteadOf` e helper foram provados por simulação.
+
+
+## Revalidação (0432563)
+Escopo incremental: commit `0432563` (`fix(sandbox): denyWrite só para estado não versionado (N6)`), aplicado sobre `49df362`. HEAD testado: `0432563`. Durante a revalidação a branch recebeu `c4438fc` (`docs: re-review do sandbox (N6)`), que só altera `docs/reviews/sandbox-bash.md` (ADR 0004, regra 2); o código testado é o mesmo. Worktree `~/.forge-contrib/wt/sandbox-r1`, branch `melhoria/sandbox-bash-r1`.
+
+Ambiente: Linux/WSL2, bubblewrap. A sessão roda a configuração anterior à branch; o `.claude/settings.json` novo só vale após merge e reinício.
+
+### Verificações automáticas
+| Verificação | Comando | Resultado real |
+|---|---|---|
+| Suíte unitária | `python3 -m unittest discover -s tests` | `Ran 212 tests ... OK` (43,2 s), rc 0. Os `deny network-outbound api.anthropic.com:443` são esperados (R-CUSTO) |
+| Validação do plugin | `scripts/validar-plugin.sh` | `Validation passed`, rc 0 |
+| JSON do sandbox | `python3 -m json.tool .claude/settings.json` | rc 0 |
+
+### Conferência do `.claude/settings.json` (0432563)
+| Item | Esperado | Obtido | Veredito |
+|---|---|---|---|
+| `denyWrite` | só `.forge/` (N6) | `['.forge/']` | ok |
+| Arquivos versionados sob `denyWrite` | nenhum (causa do N6) | `git ls-files .forge` = 0 | ok |
+| `denyRead` | 3 caminhos | `~/.ssh`, `~/.config/gh`, `~/.git-credentials` | ok |
+| `deniedDomains` | 5 entradas | `api.anthropic.com`, `*.anthropic.com`, `api.openai.com`, `*.openai.com`, `generativelanguage.googleapis.com` | ok |
+| `allowUnsandboxedCommands` | `false` | `false` | ok |
+| `failIfUnavailable` | `true` | `true` | ok |
+| `autoAllowBashIfSandboxed` / `excludedCommands` | inalterados (leitura do tmux) | `true` / 3 entradas de leitura | ok |
+| `strictAllowlist` | ausente no projeto (decisão do dono) | ausente | ok |
+
+### Bugs
+| ID | Estado em 0432563 |
+|---|---|
+| SBX-01 | limite documentado (README); `strictAllowlist` só ao vivo |
+| SBX-02 | limite documentado; `tmux ls` só ao vivo |
+| SBX-03 | limite documentado (decisão N6): o Bash pode gravar em `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md`; a barreira é o hook `conformidade`, a catraca do CI e o registro de autoria |
+
+Bugs abertos: 0 críticos, 0 altos, 0 médios, 0 baixos. Nenhum bug novo. Observações O-1 a O-5 da rodada 0 não reverificadas.
+
+### Ressalvas
+- **N6 não reproduzido ao vivo.** O argumento (`git pull`, `checkout`, `merge` e `rebase` falham quando um arquivo versionado está sob `denyWrite`) foi conferido por análise: nenhum arquivo versionado está sob `.forge/`. O efeito real só pode ser visto depois do merge e do reinício.
+- **SBX-03 virou limite por decisão.** Escrita de parecer ou de `CLAUDE.md` por Bash não é barrada pelo sandbox. A ADR 0009 (seções 3, 5 e nota N6) e o README registram isso. Se o dono quiser o bloqueio de volta, o caminho é reabrir como médio e rever o `denyWrite` junto com a regra de versionamento.
+- **Ao vivo, depois do merge e do reinício:** rede estrita com `strictAllowlist` (SBX-01); `tmux ls` sozinho (SBX-02); escrita por Bash em `.forge/`, `.githooks/` e `tests/config.json` bloqueada; `denyRead` efetivo; `git pull`/`checkout` no checkout principal com `develop` alterando um parecer (N6).
+
+### Veredito (0432563)
+**Aprovado**, escopo incremental. Bugs abertos: 0 em todas as severidades; `aceite_usuario` não é exigido. A aprovação depende de a decisão N6 ser confirmada pelo dono (limite de SBX-03) e das verificações ao vivo acima.

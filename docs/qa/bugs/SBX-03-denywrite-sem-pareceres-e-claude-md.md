@@ -1,5 +1,5 @@
 # SBX-03 - `denyWrite` do Forge não cobre `docs/reviews/`, `docs/qa/` nem `CLAUDE.md`; a matriz do ADR 0009 promete
-- Status: corrigido (commit `fix(sandbox): pareceres e instruções em vigor sem escrita pelo shell (SBX-03)` na branch `melhoria/sandbox-bash-r1`; verificado estaticamente em 49df362: `denyWrite` contém `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md`; efeito ao vivo pendente do reinício) (achado na revalidação 6e0ff68)
+- Status: limite documentado (decisão N6, commit `0432563`, branch `melhoria/sandbox-bash-r1`). `denyWrite` ficou só com `.forge/`, porque bloquear `docs/reviews/`, `docs/qa/` e `CLAUDE.md` no sandbox quebrava `pull`, `checkout`, `merge` e `rebase` no checkout principal (ADR 0009, nota N6). A barreira passa a ser o hook `conformidade`, a catraca do CI e o registro de autoria. Não conta como bug aberto; se o dono quiser o bloqueio, reabre como média. (Revalidação em 0432563)
 - Severidade: média (integridade de processo: o parecer pode ser gravado por Bash sem passar pelo hook de autoria; não é perda de dados nem vazamento)
 - Responsável sugerido: dono do Forge (`.claude/settings.json` é protegido, R-DECISAO), com `software-architect` para alinhar o ADR 0009 e o README ao que for decidido
 - Ambiente: branch `melhoria/sandbox-bash-r1`, commit 6e0ff68, Linux/WSL2, bubblewrap; sessão com a configuração ativa (anterior à branch)
