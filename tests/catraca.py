@@ -3,7 +3,7 @@
 
 Só biblioteca padrão. Lê a base com `git show <base>:<arquivo>` (a base efetiva é o merge-base com o HEAD).
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
-Exceção única das regras: rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
+Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push. Eventos vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token ou sem evento, vale
 como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
@@ -28,7 +28,7 @@ CUSTO = {
     "claude-plugin-eval": r"claude\s+plugin\s+eval",
     "claude-print": r"\bclaude\s+(?:-p|--print)\b",
     "url-de-api-paga": r"api\.anthropic\.com|api\.openai\.com",
-    "segredo-do-workflow": r"secrets\.(?!GITHUB_TOKEN\b)\w+|secrets\[|toJSON\(secrets\)|secrets:\s*inherit",
+    "segredo-do-workflow": r"\bsecrets\b(?!\.GITHUB_TOKEN\b)",  # cobre secrets.X, secrets[..], tojson(secrets), secrets: inherit
 }
 
 
@@ -192,7 +192,7 @@ def regra_custo(raiz, ref, permitido):
                 continue
             if nome in permitido.get(arq, []):
                 continue
-            m = re.search(padrao, texto)
+            m = re.search(padrao, texto, re.I)
             if m:
                 linha = texto.count("\n", 0, m.start()) + 1
                 v.append(msg("R-CUSTO", f"{nome} em {arq}:{linha}", "nada no Forge pode consumir API paga ou segredo",
@@ -278,10 +278,14 @@ def secao(corpo, titulo):
     return (m.group(1) if m else "").strip()
 
 
+MINIMO_SECAO = 20  # caracteres, sem contar comentários HTML (QA BUG-03: "ok" não descreve origem nem medida)
+
+
 def violacoes_do_texto(corpo):
-    return [msg("R-CONTRIB", f"PR sem a seção '{t}' preenchida", "a origem e a medida da melhoria decidem se ela entra",
+    return [msg("R-CONTRIB", f"PR sem a seção '{t}' preenchida (mínimo de {MINIMO_SECAO} caracteres fora de comentários)",
+                "a origem e a medida da melhoria decidem se ela entra",
                 f"preencha '## {t}' no corpo do PR (modelo em .github/pull_request_template.md)", "docs/melhoria-continua.md")
-            for t in ("Projeto de origem", "Como medir") if not secao(corpo, t)]
+            for t in ("Projeto de origem", "Como medir") if len(secao(corpo, t)) < MINIMO_SECAO]
 
 
 def pedidos_da_branch(raiz, ramo):
@@ -350,7 +354,8 @@ def main(argv=None):
             else:
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json") or json_de(raiz, a.head, "tests/config.json") or {}
-            if eventos is not None and push and rotulo_liberado(eventos, cfg.get("dono"), push):
+            custo = [x for x in viol if x.startswith("R-CUSTO:")]  # só `custo_permitido` abre exceção de custo, nunca o rótulo
+            if not custo and eventos is not None and push and rotulo_liberado(eventos, cfg.get("dono"), push):
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono: {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono.")
                 return 0

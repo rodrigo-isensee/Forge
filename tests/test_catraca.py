@@ -266,6 +266,22 @@ class Custo(Base):
         self.barra("bin/g")
         self.assertFalse(any("bin/f" in v for v in self.repo.violacoes()))
 
+    def test_segredo_sem_distincao_de_maiusculas_e_em_expressoes(self):
+        """Review 5: GitHub Expressions não diferenciam maiúsculas; tojson(secrets) e secrets[...] também são segredo."""
+        for trecho in ("${{ tojson(secrets) }}", "${{ secrets['X'] }}", "${{ SECRETS.FOO }}", "${{ toJSON(Secrets) }}", "secrets: inherit"):
+            with self.subTest(trecho):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(".github/workflows/x.yml", f"run: echo {trecho}\n")
+                repo.commit()
+                self.assertTrue(any(v.startswith("R-CUSTO:") for v in repo.violacoes()), trecho)
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve(".github/pull_request_template.md", "claude PLUGIN eval\nanthropic_api_key\n")
+        repo.escreve("scripts/x.sh", "claude PLUGIN eval\n")
+        repo.commit()
+        self.assertTrue(any("claude-plugin-eval em scripts/x.sh" in v for v in repo.violacoes()))
+
     def test_claude_code_no_npm_nao_e_custo(self):
         self.repo.escreve("scripts/i.sh", "npm install -g @anthropic-ai/claude-code\n")
         self.passa()
@@ -375,10 +391,17 @@ class LinhaDeComando(Base):
     def test_rotulo_do_novo_dono_da_pr_nao_vale(self):
         self.assertEqual(self.roda([self.evento("outra")]).returncode, 1)
 
+    def test_rotulo_nao_libera_violacao_de_custo(self):
+        """Review 5: o custo tem outra exceção (`custo_permitido`, com autorização do usuário); o rótulo não vale."""
+        self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        r = self.roda([self.evento("dona")])
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("R-CUSTO:", r.stdout)
+
 
 class TextoDoPr(unittest.TestCase):
     def test_preenchido_passa(self):
-        corpo = "## Projeto de origem\nweb\n\n## Como medir\nmenos retrabalho\n\n## Checklist\n- [ ] x\n"
+        corpo = "## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\nmenos retrabalho nas revisões\n\n## Checklist\n- [ ] x\n"
         self.assertEqual(catraca.violacoes_do_texto(corpo), [])
 
     def test_vazio_ou_so_comentario_barra(self):
@@ -389,7 +412,16 @@ class TextoDoPr(unittest.TestCase):
 
     def test_secao_ausente_e_corpo_nulo_barram(self):
         self.assertEqual(len(catraca.violacoes_do_texto(None)), 2)
-        self.assertEqual(len(catraca.violacoes_do_texto("## Como medir\nx\n")), 1)
+        self.assertEqual(len(catraca.violacoes_do_texto("## Como medir\nmenos retrabalho nas revisões\n")), 1)
+
+    def test_texto_curto_demais_barra_e_comentario_nao_conta(self):
+        """QA BUG-03: 'ok' não basta; o mínimo é de 20 caracteres fora de comentários HTML."""
+        for texto in ("ok", "x" * 19, "<!-- " + "x" * 40 + " -->curto"):
+            with self.subTest(texto=texto[:12]):
+                corpo = f"## Projeto de origem\nprojeto web de pedidos\n\n## Como medir\n{texto}\n"
+                self.assertEqual(len(catraca.violacoes_do_texto(corpo)), 1)
+        corpo = "## Projeto de origem\n" + "x" * 20 + "\n\n## Como medir\n" + "y" * 20 + "\n"
+        self.assertEqual(catraca.violacoes_do_texto(corpo), [])
 
 
 class Pareceres(Base):
