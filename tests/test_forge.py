@@ -183,6 +183,12 @@ class Skills(unittest.TestCase):
                 self.assertGreater(len(fm.get("description", "")), 40)
 
 
+    def test_qa_tem_vermelho_antes_do_verde_e_mutacao(self):
+        texto = (SKILLS / "qa-testing" / "SKILL.md").read_text(encoding="utf-8")
+        for titulo in ("## Vermelho antes do verde", "## Mutação no código alterado"):
+            self.assertIn(titulo, texto)
+
+
 class Referencias(unittest.TestCase):
     def test_caminhos_do_plugin_existem(self):
         padrao = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([\w./-]+)")

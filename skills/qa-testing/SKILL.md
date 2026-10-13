@@ -50,6 +50,12 @@ Para cada critério de aceite da especificação, pelo menos um cenário. Sempre
 - Verificação automática em todas as telas dos fluxos principais, com as tags WCAG 2.2 AA.
 - Zero violações críticas ou sérias para aprovar.
 
+## Vermelho antes do verde
+Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação: guarde o código de produção (`git stash`) ou rode contra o commit anterior. O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
+
+## Mutação no código alterado
+Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
+
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown
 # <id> - <título curto>
