@@ -1,5 +1,6 @@
 """Testes da catraca (tests/catraca.py) em repositório git temporário: cada regra com um caso que passa e um que barra."""
 import copy
+import hashlib
 import importlib.util
 import json
 import os
@@ -24,6 +25,14 @@ CONFIG = {
 }
 HOOKS = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python3", "args": ["a.py"]},
                                                                   {"type": "command", "command": "python3", "args": ["b.py"]}]}]}}
+SHA_TRECHO = hashlib.sha256(b"trecho1").hexdigest()
+
+
+def hash_(forma, tipo="trecho", n=None):
+    """Entrada de `termos_proibidos_hash` para uma forma fictícia."""
+    return {"tipo": tipo, "n": n or len(forma.strip()), "sha256": hashlib.sha256(forma.strip().encode()).hexdigest()}
+
+
 TESTE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n    def test_b(self): pass\n"
 
 
@@ -107,11 +116,56 @@ class RegrasDeConfig(Base):
         self.repo.config(invariantes=lambda i: {"docs/regra.md": ["nunca sem testes"]})
         self.barra("nunca sem teste")
 
-    def test_termo_proibido_removido_barra_e_acrescimo_passa(self):
+    def test_termo_proibido_em_claro_removido_barra_sem_mostrar_o_texto(self):
         self.repo.config(termos_proibidos=lambda t: t + ["Outro"])
         self.passa()
         self.repo.config(termos_proibidos=[])
-        self.barra("Segredo1", "R-NEUTRO")
+        self.barra("termo nº 1 (sha256 ", "R-NEUTRO")
+        self.assertFalse(any("Segredo1" in v or "segredo1" in v for v in self.repo.violacoes()))
+
+    def test_remover_hash_barra_e_acrescimo_passa(self):
+        self.repo.escreve("tests/config.json", json.dumps({**CONFIG, "termos_proibidos_hash": [hash_("zebra"), hash_("trecho1")]}))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "hash")
+        self.repo.git("tag", "-f", "base")
+        base = [hash_("zebra"), hash_("trecho1")]
+        self.repo.config(termos_proibidos_hash=base + [hash_("novo", "palavra")])
+        self.passa()
+        self.repo.config(termos_proibidos_hash=base[:1])
+        self.barra(f"termo nº 2 (sha256 {SHA_TRECHO[:8]}…)", "R-NEUTRO")
+        self.assertFalse(any("trecho1" in v for v in self.repo.violacoes()))
+
+    def test_transicao_do_claro_para_hash_completa_passa(self):
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=[hash_("segredo1", "trecho")])
+        self.passa()
+
+    def test_transicao_incompleta_barra(self):
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=[hash_("outra", "trecho")])
+        self.barra("sem cobertura em termos_proibidos_hash", "R-NEUTRO")
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=[hash_("segredo1", "palavra")])
+        self.barra("sem cobertura")
+
+    def test_transicao_de_palavra_par_e_classe(self):
+        base = {**CONFIG, "termos_proibidos": ["\\bAlfa[12]\\b", "Beta ?Gama"]}
+        self.repo.escreve("tests/config.json", json.dumps(base))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "claro")
+        self.repo.git("tag", "-f", "base")
+        completo = [hash_("alfa1", "palavra"), hash_("alfa2", "palavra"), hash_("betagama", "trecho"), hash_("betagama", "par", [4, 4])]
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=completo)
+        self.passa()
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=completo[1:])
+        self.barra("termo nº 1 (sha256 ", "R-NEUTRO")
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=completo[:3])
+        self.barra("termo nº 2 (sha256 ")
+
+    def test_regex_complexa_na_transicao_barra(self):
+        self.repo.escreve("tests/config.json", json.dumps({**CONFIG, "termos_proibidos": ["Zeta(a|b)"]}))
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "regex")
+        self.repo.git("tag", "-f", "base")
+        self.repo.config(termos_proibidos=[], termos_proibidos_hash=[hash_("zetaa", "trecho"), hash_("zetab", "trecho")])
+        self.barra("termo nº 1 (sha256 ")
 
     def test_termo_de_neutralidade_removido_ou_mudado_barra(self):
         self.repo.config(neutralidade_nucleo=lambda n: {**n, "termos": ["\\bReact\\b", "\\bVue\\b"]})
