@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: rotulo-sobrevive-merge
 branch: melhoria/rotulo-sobrevive-merge
-commit: 4a4d468
+commit: 90705c1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -53,3 +53,32 @@ Alternativa descartada: ignorar os commits de merge no diff. Um merge pode resol
 - **Hook `parecer` local:** continua estrito depois de um merge da `develop`. Se o dono quiser o mesmo comportamento local, isso fica para outro pedido.
 
 Parecer: **aprovado** (parecer de autor; a review independente vem a seguir).
+
+## Review independente
+
+Segunda leitura (outra instância do `forge:tech-lead`) sobre `origin/develop..90705c1`. Testes no checkout do PR: `python3 -m unittest discover -s tests`, 267 OK. Os desvios foram conferidos chamando `mesmo_diff` do `bin/forge-check` do PR em repositórios descartáveis, um por caso, e a semântica de reexecução no histórico real de execuções do repositório (API do Actions).
+
+### Conferidos sem desvio
+- **Conteúdo novo no merge:** merge da base com arquivo novo embutido (`merge --no-commit` + edição), conflito resolvido com linha nova, merge que desfaz uma mudança da base e merge de outra branch que não é a base: todos dão `mesmo_diff = False`. O merge limpo da base dá `True`. No CI o head avaliado é o merge commit sintético do GitHub e a base é o primeiro pai dele, então o diff efetivo é sempre "base atual + patch do PR".
+- **Comparação dos diffs:** `chmod` (linhas `old mode`/`new mode` ficam), symlink novo ou trocado (`new file mode 120000` fica), binário (`--binary` traz o conteúdo inteiro), submódulo (`Subproject commit`), `.gitattributes` com `-diff` só no worktree e `docs/reviewsX/` (o pathspec não casa prefixo parcial): todos `False`. Base que mexe no contexto do trecho do PR: `False` (falha fechada, como o parecer de autor declara). `--no-renames`, `--no-textconv` e `--no-ext-diff` fecham renomeação e drivers. Remover só as linhas `index ` não esconde conteúdo: linhas do patch começam com `+`, `-` ou espaço, e as do binário não têm espaço.
+- **Arquivos de parecer:** nenhum hook, teste ou workflow executa conteúdo de `docs/reviews/` ou `docs/qa/`. O `forge-check` lê só o frontmatter, o hook `conformidade` controla quem grava e a `Neutralidade` já os ignorava (`tests/config.json`).
+- **Head no instante do rótulo:**
+  - Uma reexecução preserva o `created_at` original. Execuções do repositório com `run_attempt: 2` mantêm o `created_at` da primeira tentativa, mesmo reexecutadas horas depois. Assim, reexecutar um workflow antigo não forja uma execução depois do rótulo.
+  - `workflow_dispatch` e outros eventos ficam fora pelo filtro `event=pull_request`.
+  - As execuções de outros workflows `pull_request` são criadas pelo servidor com o head real, então contar todas é correto.
+  - Um PR de fork vem com `pull_requests` vazio e fica só com a regra antiga.
+  - Corrida entre push e rótulo: a execução do `labeled` sai com o SHA novo, e a regra falha fechado.
+  - `[skip ci]`: o head sem execução falha fechado, como o teste cobre.
+- **Regressão:** `rotulo_liberado` é equivalente ao anterior. Erro de API, falta de token, falta de execução e commit ausente dão `None` ou `False`. Um timestamp malformado lança exceção fora do `try` e derruba o job, o que também é fechado. R-CUSTO continua sem exceção.
+- **Parecer:** sem `--base`, o `forge-check pr` continua estrito (teste `test_sem_base_o_merge_da_base_continua_invalidando`). O veredito trocado continua barrando porque é lido no head. O `commit` passa pela regex hexadecimal antes de chegar ao `git`, então não há injeção de opção. No CI, a catraca e o `forge-check` rodam da base (worktree `$RUNNER_TEMP/base`), e o PR não consegue trocar `mesmo_diff` para se aprovar.
+
+### Desvios
+1. `tests/catraca.py` (`PARECERES`) · **recomendado** · Depois do rótulo, qualquer arquivo em `docs/reviews/` ou `docs/qa/` muda sem o dono ver, inclusive o parecer de outro pedido. Isso não executa nada, mas permite reescrever o histórico de outro PR. Sugestão: ignorar só os pareceres dos pedidos desta branch (`pedidos_da_branch`) ou exigir que os arquivos ignorados declarem `branch: <ramo>`.
+2. `tests/catraca.py` (`rotulo_vale_pelo_conteudo`) · **recomendado** · O rótulo libera a lista de violações do head atual. Depois de um merge da base, essa lista pode ganhar uma violação que não existia quando o dono rotulou, com o mesmo patch: a base cria um invariante novo sobre um texto que o patch do PR já removia. O conteúdo é o mesmo que o dono viu, mas a violação ele não viu. Sugestão: exigir que as violações atuais estejam contidas nas do head rotulado sobre o merge-base dele, ou listar no resumo as violações novas desde o rótulo.
+3. Indireção para `docs/reviews/` · **baixo, não bloqueia** · Um symlink ou código aprovado no instante do rótulo que leia um arquivo de `docs/reviews/` passa a carregar conteúdo novo sem invalidar o rótulo. Isso exige que o dono tenha aprovado a indireção. Se o desvio 1 for adotado, ele fica restrito aos pareceres do próprio pedido.
+4. Criação de execuções fora de ordem · **residual, não bloqueia** · Se o GitHub atrasar a criação das execuções de um push e adiantar a de um head anterior para depois do rótulo, a atribuição cai no head anterior. Isso depende de um atraso do servidor e de o dono ter visto o head novo antes de qualquer execução dele. Fica registrado como risco.
+
+### Observação para o merge
+Em CI roda o `tests/catraca.py` da base, então este PR é julgado pela regra antiga: o rótulo `afrouxa-regra` precisa ser aplicado pelo dono depois do último push, incluindo este commit de review.
+
+Parecer independente: **aprovado** (nenhum desvio bloqueia; 1 e 2 recomendados para um PR próprio). Frontmatter atualizado para o commit revisado `90705c1`.
