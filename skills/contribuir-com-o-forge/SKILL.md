@@ -16,7 +16,7 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 ## 2. Prepare um clone próprio
 - Use `~/.forge-contrib/<projeto>` (um clone por projeto, fora do projeto).
 - **Nunca** use worktree de outro clone do Forge (o estado git compartilhado já corrompeu um repositório); `R-COPIA` não copiar agentes e skills para o projeto (nem editar o cache do plugin).
-- Sessão com sandbox do Bash: worktrees em `~/.forge-contrib/wt/<nome>`, criadas com `git worktree add --no-track -b <branch> <dir> origin/develop`; nada de `git config` nem `git branch -u` (`.git/config` é protegido).
+- Sessão com sandbox do Bash: a sessão de projeto usa só o clone `~/.forge-contrib/<projeto>` e, se precisar de worktree, `~/.forge-contrib/<projeto>-wt/<nome>`; `~/.forge-contrib/wt/*` é exclusivo das sessões do Forge (`R-CONTRIB`). Worktrees criadas com `git worktree add --no-track -b <branch> <dir> origin/develop`; nada de `git config` nem `git branch -u` (`.git/config` é protegido).
 - Não existe? `git clone git@github.com:rodrigo-isensee/Forge.git ~/.forge-contrib/<projeto>`. Depois, `git fetch origin`.
 - Ao criar o clone, ative o hook: `git config core.hooksPath .githooks` (`R-CONTRIB`).
 

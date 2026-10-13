@@ -1,0 +1,23 @@
+{
+  "descricao": "Sessão de projeto com cwd em ~/.forge-contrib/wt/*: push alheio bloqueia (wt é só do Forge).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin melhoria/outra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home/.forge-contrib/wt/x"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: push"
+  }
+}
