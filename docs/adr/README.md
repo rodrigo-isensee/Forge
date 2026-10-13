@@ -15,9 +15,10 @@ Formato: contexto, decisão, alternativas e consequências; estado conforme `doc
 | [0006](0006-contribuicao-de-qualquer-projeto.md) | Contribuição de qualquer projeto e versão só na release |
 | [0007](0007-verificacao-de-comportamento-sem-custo.md) | Verificação de comportamento sem custo |
 | [0008](0008-governanca-de-contribuicoes.md) | Governança de contribuições: portões para todos, catraca e identidade dos agentes |
+| [0009](0009-conformidade-dos-agentes.md) | Conformidade dos agentes por construção: sandbox, papéis, vigia (proposta) |
 
 ## Substituídas
 Nenhuma.
 
 ## Ordem de implementação
-0006 (versão no CI, destrava PRs paralelos) → 0002 (regras com ID) → 0004 (contrato e `forge-check`) → 0003 (hooks, que usam os dois) → 0001 (stacks) → 0005 (migração, que leva os projetos ao novo formato) → 0007 → 0008.
+0006 (versão no CI, destrava PRs paralelos) → 0002 (regras com ID) → 0004 (contrato e `forge-check`) → 0003 (hooks, que usam os dois) → 0001 (stacks) → 0005 (migração, que leva os projetos ao novo formato) → 0007 → 0008 → 0009.

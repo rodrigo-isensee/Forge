@@ -4,6 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
+- ADR 0009 (proposta): conformidade dos agentes por construção — o que fica impossível (sandbox do Bash, permissões, hook por papel), barrado, detectado (vigia, transcrições) e o risco residual.
 - Licença MIT (`LICENSE`, `plugin.json`), decidida pelo dono para quando o repositório for público.
 - ADR 0008 vigente, com as decisões do dono: conta de máquina para os agentes; preparar já e tornar público quando chegar o primeiro colaborador.
 - Regra `R-DECISAO` (pedido do usuário): toda decisão do usuário vem uma de cada vez, com opções e a recomendação do time; ações pendentes ficam numa lista à parte. Citada pelo Jarvis, `tech-lead` e `ux-designer`; protegida por invariantes.
