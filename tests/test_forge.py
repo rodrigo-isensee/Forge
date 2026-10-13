@@ -744,6 +744,7 @@ class JarvisForgeVigente(unittest.TestCase):
             "git": ('case "$*" in\n'
                     '  *"remote get-url"*) echo https://exemplo.invalido/Forge.git ;;\n'
                     '  "clone "*) mkdir -p "${@: -1}/.git" ;;\n'
+                    '  *"rev-list"*) printf "%s" "${STUB_GIT_ADIANTE:-}" ;;\n'
                     '  *"status --porcelain"*) printf "%s" "${STUB_GIT_SUJO:-}" ;;\n'
                     'esac'),
         }
@@ -830,6 +831,14 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertTrue((self.vigente / "x.txt").exists())
         self.assertFalse([c for c in self.chamadas() if c.startswith("claude")])
+
+    def test_atualizar_vigente_recusa_commits_locais(self):
+        """JFV-02: commit local que não está na origin/develop não é descartado pelo reset."""
+        (self.vigente / ".git").mkdir(parents=True)
+        r = self.rodar("--atualizar-vigente", STUB_GIT_ADIANTE="a2e58b5 local\n")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("commits locais", r.stderr)
+        self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
 
     def test_dev_usa_a_copia_de_trabalho_com_aviso(self):
         r = self.rodar("--sem-tmux", "--dev")

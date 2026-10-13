@@ -6,7 +6,7 @@
 # o canal do Telegram. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
 # Uso: jarvis-forge [--sem-tmux] [--dev] | jarvis-forge --atualizar-vigente
 #   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux
-#   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças locais) e sai
+#   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças ou commits locais) e sai
 #   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir .), sem a proteção da cópia vigente
 #   -h, --help           mostra esta ajuda
 set -euo pipefail
@@ -53,6 +53,10 @@ if [ "$atualizar" = 1 ]; then
   if [ ! -e "$vigente" ]; then criar_vigente; exit 0; fi
   if [ -n "$(git -C "$vigente" status --porcelain)" ]; then
     echo "jarvis-forge: a cópia vigente ($vigente) tem mudanças locais; não atualizei. Confira com 'git -C $vigente status'." >&2
+    exit 1
+  fi
+  if [ -n "$(git -C "$vigente" rev-list origin/develop..HEAD 2>/dev/null)" ]; then
+    echo "jarvis-forge: a cópia vigente ($vigente) tem commits locais que não estão na origin/develop; não atualizei, para não descartá-los. Confira com 'git -C $vigente log origin/develop..HEAD'." >&2
     exit 1
   fi
   git -C "$vigente" fetch --quiet origin
