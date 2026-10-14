@@ -3,6 +3,7 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+- **`scripts/ci-local`:** roda localmente a bateria do CI (lê os `run:` dos workflows do PR, numa worktree temporária no sha da cabeça) e, com `--publicar`, grava o commit status `ci-local`; vale como portão local enquanto o Actions estiver sem cota (decisão do dono, opção A). Jobs obrigatórios: todos menos `workflows`; ferramenta ausente em job obrigatório reprova. Testes em `tests/test_ci_local.py`.
 
 ## [0.13.0] - 2026-10-14
 ### Adicionado
