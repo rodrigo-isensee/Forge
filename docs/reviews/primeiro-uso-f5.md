@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f5
 branch: melhoria/primeiro-uso-f5
-commit: 20c18fd
-parecer: reprovado
+commit: 7512584
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
@@ -116,3 +116,41 @@ Worktree destacada em `20c18fd`, sem o Actions:
 - versão e changelog: a versão é a mesma da `develop` (0.12.0) e há 4 linhas novas em `[Não publicado]`. Ok.
 
 Parecer: **reprovado**. O bloqueante 1 volta ao autor, com o teste que falha antes. O resto está pronto. Depois disso, o rótulo `afrouxa-regra` do dono continua obrigatório.
+
+## Quarta review independente (head `7512584`)
+
+Sondas com a CLI real (`claude` 2.1.299, `HOME` temporário, `XDG_STATE_HOME` sem valor, Forge local com as tags v0.12.0 e v0.13.0, `FORGE_PERMITE_LOCAL=1`, projeto criado pelo `forge-init`, terminal por `script`). Um `claude` intermediário troca `<fonte>#vX.Y.Z` pela pasta da tag, porque a CLI não aceita `#ref` em pasta, e injeta o sinal no `marketplace add` da tag.
+
+### Bloqueante anterior: corrigido
+- **Ctrl-C de verdade.** O intermediário manda SIGINT ao grupo de processos em primeiro plano do terminal, como o Ctrl-C (grupo 7; o `claude` está no grupo 47, sessão própria). O `forge atualizar` chega ao `add` da tag, recebe o SIGINT, espera o `claude` terminar e devolve a marketplace (`remove`, `add <fonte original>`, `update`/`install`). A saída é "Forge: interrompido durante a troca do plugin. Devolvi a marketplace como estava (<fonte>)". Depois:
+  - o `~/.claude/settings.json` tem a mesma fonte de antes (`directory` na pasta original) e `forge@forge: true`;
+  - `claude plugin list` lista o plugin;
+  - o projeto está limpo.
+- **Arquivo de estado.** `~/.local/state/forge/marketplace-original.json` tem permissão 600, numa pasta 700. Contém só `fonte` e `escopo`, sem segredo além do que já está no `settings.json` do usuário. É gravado antes do `remove`, por arquivo temporário e `os.replace`.
+- **SIGKILL sem handler.** O intermediário mata o `forge atualizar` entre o `remove` e o `add`. O usuário fica com `extraKnownMarketplaces: {}` e "No plugins installed". Em seguida:
+  - `forge voltar-versao` acha o ponto, não acha a marketplace, readiciona a fonte gravada e fixa o plugin na 0.12.0, com o projeto intacto;
+  - no `--fixar`, que não tem ponto, o mesmo SIGKILL é recuperado por um novo `forge atualizar --fixar`.
+- **A recuperação não pode ser desviada.**
+  - A fonte gravada só é usada quando não há marketplace do Forge no Claude; a atual sempre prevalece.
+  - Quem grava é só o `fixar_plugin`. Neste sandbox, `~/.local/state` é somente leitura para agentes: `touch` e `mkdir` dão "Read-only file system".
+  - `forge atualizar` e `forge voltar-versao` são recusados a agentes pelo hook `conformidade` e exigem terminal, então um agente também não consegue redirecionar o `XDG_STATE_HOME` por eles.
+- O teste `CtrlCNaTroca` cobre SIGINT no `add`, `start_new_session`, a permissão 600, a gravação antes do `remove`, a recuperação do `voltar-versao` e os comandos manuais.
+
+### Recomendado (não bloqueia)
+- `bin/forge_versoes.py`, `fixar_plugin`: o `devolver_original` do caminho de falha comum e o da recuperação pela fonte gravada rodam fora do `_sem_interrupcao`. Um Ctrl-C ali pode deixar o usuário sem a marketplace. Ainda dá para recuperar pelo arquivo de estado, mas vale proteger os dois.
+- `bin/forge-voltar-versao`: sem ponto, como depois de um `--fixar` interrompido, o comando diz "Não encontrei nenhum ponto de retorno", mesmo quando a marketplace sumiu e a fonte está gravada. A dica final do `forge atualizar` ("rode: forge voltar-versao") leva a esse beco. Recuperar o plugin pela fonte gravada também sem ponto, ou indicar `forge atualizar --fixar`.
+- `tests/test_atualizar.py`: a classe `CtrlCNaTroca` vem depois do `if __name__ == "__main__": unittest.main()`. Roda pelo `discover`, mas não com `python3 tests/test_atualizar.py`. Subir a classe para antes do bloco.
+- `fonte_original_gravada` aceita qualquer texto sem espaço que não comece com `-`. A pasta protegida segura isso hoje; conferir também a forma (URL https do Forge, `dono/repo` ou caminho absoluto) seria uma defesa a mais.
+- Continuam os três recomendados da terceira review (`stderr` no `git()` do `voltar-versao`, aviso de arquivo do ponto não sobrescrito, ponto e marca que ficam no Ctrl-C).
+
+### Bateria no checkout do PR
+Worktree destacada em `7512584`, sem o Actions:
+- `python3 -m unittest discover -s tests`: 452 testes OK;
+- `scripts/validar-plugin.sh`: "Validation passed", sai 0. A telemetria da CLI foi bloqueada pelo sandbox, sem efeito;
+- `shellcheck` (lista do CI mais `bin/forge`): limpo;
+- `catraca.py --modo pr-texto`, com o corpo real do PR: sai 0;
+- `catraca.py --base <develop b5e5d3d>`, script da base: sai 1, só pelo rótulo `afrouxa-regra` do dono em `hooks/_comum.py`, `conformidade.py` e `parecer.py`;
+- `catraca.py --modo pareceres`, argumentos do CI, sobre o commit deste parecer: resultado no comentário do PR;
+- versão e changelog: 0.12.0 igual à da `develop`, 4 linhas novas em `[Não publicado]`. Ok.
+
+Parecer: **aprovado**. Nenhum caminho testado perde trabalho do projeto ou deixa o usuário sem o plugin sem recuperação. Os recomendados podem ir num PR seguinte. O merge continua dependendo do rótulo `afrouxa-regra` do dono, aplicado depois do último push.
