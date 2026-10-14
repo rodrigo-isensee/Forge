@@ -7,6 +7,10 @@ Os jobs vêm dos próprios workflows do PR (.github/workflows/ci.yml e catraca.y
 na ordem, com as mesmas variáveis de ambiente, numa worktree temporária no sha exato da cabeça do PR. Nada da lógica do
 CI é copiado para cá. Só biblioteca padrão; nada que custe dinheiro (R-CUSTO).
 
+Os passos rodam como no GitHub (`bash --noprofile --norc -eo pipefail`) e o `if:` é avaliado por um avaliador próprio, sem
+`eval`; condição fora do subconjunto deixa o job "pulado por falta de suporte" (conta como falha se for obrigatório).
+Os testes rodam sobre a cabeça do PR, não sobre o merge com a base (o CI testa o merge): atualize a branch antes.
+
 Fidelidade ao CI: a base dos jobs é o ponto de partida do PR (merge-base entre a cabeça e a base atual), no lugar do
 primeiro pai do merge commit que o GitHub monta; o texto `git rev-parse HEAD^1` dos workflows é trocado por esse sha.
 
@@ -30,7 +34,11 @@ NAO_OBRIGATORIOS = {"workflows"}
 PASSO_DE_PREPARO = re.compile(r"\b(curl|wget)\b|\binstall\s+(-g|--global)\b")
 FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
 OK, FALHOU, PULADO = "ok", "falhou", "pulado"
-SEGURA = re.compile(r"^(github\.[a-z_.]+|'[^']*'|==|!=|&&|\|\||\(|\)|\s)+$")
+# Um grupo por token do `if:`: contexto `github.*`, literal entre aspas simples (aspa dobrada = aspa) e operadores.
+TOKEN_SE = re.compile(r"\s*(?:(github\.[a-z_.]+)|'((?:[^']|'')*)'|(==|!=|&&|\|\||\(|\)))")
+CHAVES_IGNORADAS = {0: ("env", "defaults"), 4: ("env", "defaults", "continue-on-error"),
+                    8: ("working-directory", "shell", "continue-on-error")}
+TOKENS_SECRETOS = ("GITHUB_TOKEN", "GH_TOKEN")
 
 
 # --- Leitura dos workflows (YAML mínimo: só o que os workflows do Forge usam) -----------------------------
@@ -116,15 +124,97 @@ def contexto_do_pr(pr, base_sha, token=""):
     }
 
 
+def _tokens_se(expressao):
+    tokens, pos = [], 0
+    while expressao[pos:].strip():
+        m = TOKEN_SE.match(expressao, pos)
+        if not m:
+            raise ValueError(f"condição sem suporte (token inesperado): {expressao}")
+        ctx_, lit, op = m.groups()
+        tokens.append(("ctx", ctx_) if ctx_ else ("lit", lit.replace("''", "'")) if lit is not None else ("op", op))
+        pos = m.end()
+    return tokens
+
+
 def avaliar_se(expressao, ctx):
-    """Avalia um `if:` (só `github.*`, literais, ==, !=, &&, ||, parênteses). Vazio = verdadeiro; fora disso levanta ValueError."""
+    """Avalia um `if:` com avaliador próprio (nunca `eval`): `github.*`, literais, ==, !=, &&, ||, parênteses.
+    Vazio = verdadeiro; fora do subconjunto levanta ValueError. `||` pesa menos que `&&`, que pesa menos que `==`/`!=`."""
     expressao = expressao.strip()
     if not expressao:
         return True
-    if not SEGURA.match(expressao):
-        raise ValueError(f"condição fora do subconjunto aceito: {expressao}")
-    py = re.sub(r"github\.[a-z_.]+", lambda m: repr(ctx.get(m.group(0), "")), expressao)
-    return bool(eval(py.replace("&&", " and ").replace("||", " or "), {"__builtins__": {}}, {}))  # noqa: S307 (validada acima)
+    tokens, pos = _tokens_se(expressao), [0]
+
+    def espiar():
+        return tokens[pos[0]] if pos[0] < len(tokens) else (None, None)
+
+    def tomar():
+        pos[0] += 1
+        return tokens[pos[0] - 1]
+
+    def operando():
+        tipo, valor = espiar()
+        if tipo == "op" and valor == "(":
+            tomar()
+            r = ou()
+            if espiar() != ("op", ")"):
+                raise ValueError(f"condição sem suporte (parêntese aberto): {expressao}")
+            tomar()
+            return r
+        if tipo == "ctx":
+            tomar()
+            return ctx.get(valor, "")
+        if tipo == "lit":
+            tomar()
+            return valor
+        raise ValueError(f"condição sem suporte (operando esperado): {expressao}")
+
+    def comparacao():
+        esq = operando()
+        tipo, valor = espiar()
+        if tipo == "op" and valor in ("==", "!="):
+            tomar()
+            dir_ = operando()
+            igual = str(esq).lower() == str(dir_).lower()  # o GitHub compara texto sem diferenciar maiúsculas
+            return igual if valor == "==" else not igual
+        return esq
+
+    def e():
+        r = comparacao()
+        while espiar() == ("op", "&&"):
+            tomar()
+            r = bool(r) & bool(comparacao())
+        return r
+
+    def ou():
+        r = e()
+        while espiar() == ("op", "||"):
+            tomar()
+            r = bool(r) | bool(e())
+        return r
+
+    resultado_ = ou()
+    if pos[0] != len(tokens):
+        raise ValueError(f"condição sem suporte (sobra de texto): {expressao}")
+    return bool(resultado_)
+
+
+def avisos_do_workflow(arquivo, texto):
+    """Chaves que mudam a execução no GitHub e que este leitor ignora; o resultado local pode divergir do CI."""
+    avisos = []
+    for linha in texto.splitlines():
+        ind = len(linha) - len(linha.lstrip())
+        chave = linha.strip().removeprefix("- ").partition(":")[0]
+        if linha.lstrip().startswith("- ") and ind == 6:
+            ind = 8
+        if chave in CHAVES_IGNORADAS.get(ind, ()):
+            avisos.append(f"{arquivo}: `{chave}:` (nível {ind}) é ignorado pelo ci-local; o resultado pode divergir do CI")
+    return avisos
+
+
+def avisos_do_script(script):
+    if re.search(r"HEAD[\^~]", script):
+        return ["o passo ainda usa HEAD^/HEAD~ depois da troca de `git rev-parse HEAD^1`: roda contra o pai da cabeça, não da base"]
+    return []
 
 
 def expandir(valor, ctx):
@@ -178,7 +268,8 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         passos = [p for p in job["passos"] if p["run"] and not PASSO_DE_PREPARO.search(p["run"])]
         passos = [p for p in passos if avaliar_se(p["se"], ctx)]
     except ValueError as erro:
-        return resultado(nome, FALHOU, str(erro), obrigatorio)
+        print(f"AVISO: job '{nome}' pulado por falta de suporte: {erro}", file=sys.stderr, flush=True)
+        return resultado(nome, PULADO, f"sem suporte do ci-local: {erro}", obrigatorio, ausente=True)
     if not passos:
         return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
     tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
@@ -188,12 +279,15 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         return resultado(nome, PULADO, f"ferramenta ausente no PATH: {', '.join(faltam)}", obrigatorio, ausente=True)
     for passo in passos:
         script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        for aviso in avisos_do_script(script):
+            print(f"AVISO: {nome}/{passo['nome'] or 'passo'}: {aviso}", file=sys.stderr, flush=True)
+        # O token só entra nos passos que o declaram em `env:` (como no CI); o do usuário não vaza para os demais.
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in TOKENS_SECRETOS}
         env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "CI": "true"})
         env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
         print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
         try:
-            p = rodar(["nice", "-n", "10", "bash", "-e", "-c", script], cwd=raiz, env=env, timeout=1800)
+            p = rodar(["nice", "-n", "10", "bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script], cwd=raiz, env=env, timeout=1800)
         except subprocess.TimeoutExpired:
             return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
         if p.returncode:
@@ -232,7 +326,13 @@ def main(argv=None):
     if not base:
         sys.exit("ci-local: sem ponto de partida comum entre o PR e a base.")
 
-    token = rodar(["gh", "auth", "token"], saida=True).stdout.strip()
+    t = rodar(["gh", "auth", "token"], saida=True)
+    token = t.stdout.strip()
+    if t.returncode or not token:
+        print(f"AVISO: `gh auth token` falhou ({t.stderr.strip() or 'token vazio'}); os passos que usam o token vão falhar.",
+              file=sys.stderr, flush=True)
+    if pr["state"] != "OPEN":
+        print(f"AVISO: o PR está {pr['state']}, não OPEN.", file=sys.stderr, flush=True)
     ctx = contexto_do_pr(pr, base, token)
     tmp = Path(tempfile.mkdtemp(prefix="ci-local.", dir=os.environ.get("TMPDIR") or None))
     raiz = tmp / "wt"
@@ -240,14 +340,16 @@ def main(argv=None):
     try:
         if rodar(["git", "worktree", "add", "-q", "--detach", str(raiz), sha], cwd=repo_dir, saida=True).returncode:
             sys.exit("ci-local: não consegui criar a worktree temporária.")
-        os.environ.update({"GITHUB_TOKEN": token, "GITHUB_REPOSITORY": nome_repo, "PR_NUMBER": str(a.pr), "HEAD_SHA": sha,
-                           "PR_AUTOR": ctx["github.event.pull_request.user.login"]})
+        os.environ.update({"GITHUB_REPOSITORY": nome_repo})  # sem segredo; PR_NUMBER, HEAD_SHA e o token vêm do `env:` de cada passo
         for arquivo in WORKFLOWS:
             caminho = raiz / ".github" / "workflows" / arquivo
             if not caminho.exists():
                 resultados.append(resultado(arquivo, PULADO, "workflow ausente neste PR", ausente=True))
                 continue
-            for job in ler_jobs(caminho.read_text(encoding="utf-8")):
+            texto = caminho.read_text(encoding="utf-8")
+            for aviso in avisos_do_workflow(arquivo, texto):
+                print(f"AVISO: {aviso}", file=sys.stderr, flush=True)
+            for job in ler_jobs(texto):
                 resultados.append(rodar_job(job, ctx, raiz, base, tmp))
     finally:
         rodar(["git", "worktree", "remove", "--force", str(raiz)], cwd=repo_dir, saida=True)

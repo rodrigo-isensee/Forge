@@ -71,6 +71,36 @@ class ExpressoesTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             ci.avaliar_se("__import__('os').system('x') == 1", self.ctx)
 
+    def test_if_com_escape_de_aspas_nao_executa_nada(self):
+        """Regressão B1: `'\\'` fechava o literal na validação e abria código no eval."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            marca = Path(d) / "executou"
+            carga = ("'\\' == ' and [x for x in ().__class__.__base__.__subclasses__() if x.__name__ == \"Popen\"][0]"
+                     f"([\"touch\", \"{marca}\"]).wait() == 0 #'")
+            self.assertFalse(ci.avaliar_se(carga, self.ctx))  # são dois literais diferentes comparados: nada é executado
+            self.assertFalse(marca.exists())
+            with self.assertRaises(ValueError):  # e a variante que sobra código fora de literal é recusada
+                ci.avaliar_se("'a' == 'b' and __import__('os').system('touch " + str(marca) + "')", self.ctx)
+            self.assertFalse(marca.exists())
+            job = {"id": "j", "nome": "j", "se": "__import__('os').system('touch " + str(marca) + "')", "passos": [
+                {"nome": "p", "se": "", "env": {}, "run": "true\n"}]}
+            r = ci.rodar_job(job, self.ctx, Path(d), "b" * 40, Path(d))
+            self.assertEqual((r["estado"], r["ausente"]), (ci.PULADO, True))
+            self.assertIn("suporte", r["motivo"])
+            self.assertFalse(marca.exists())
+
+    def test_if_literal_com_aspa_dobrada_e_precedencia(self):
+        ctx = {**self.ctx, "github.head_ref": "it's"}
+        self.assertTrue(ci.avaliar_se("github.head_ref == 'it''s'", ctx))
+        self.assertTrue(ci.avaliar_se("'a' == 'b' || 'a' == 'a' && 'c' != 'd'", ctx))
+        self.assertFalse(ci.avaliar_se("('a' == 'b' || 'a' == 'a') && 'c' == 'd'", ctx))
+
+    def test_if_malformado_e_recusado(self):
+        for ruim in ("github.base_ref ==", "(github.base_ref == 'develop'", "'a' 'b'", "github.base_ref == 'x' )", "x"):
+            with self.assertRaises(ValueError, msg=ruim):
+                ci.avaliar_se(ruim, self.ctx)
+
     def test_expandir_troca_expressoes_conhecidas_e_apaga_desconhecidas(self):
         self.assertEqual(ci.expandir("${{ github.base_ref }}/${{ nada.disso }}", self.ctx), "develop/")
 
@@ -96,6 +126,22 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertEqual(passo["run"], "echo um\n\necho dois\n")
         self.assertEqual(passo["env"], {"BASE": "${{ github.base_ref }}"})
         self.assertEqual(passo["se"], "github.base_ref == 'main'")
+
+
+class AvisosTest(unittest.TestCase):
+    def test_chaves_ignoradas_geram_aviso(self):
+        texto = ("env:\n  A: 1\ndefaults:\n  run:\n    shell: sh\njobs:\n  j:\n    env:\n      X: 1\n    steps:\n"
+                 "      - name: p\n        working-directory: sub\n        shell: sh\n        run: echo\n")
+        avisos = " ".join(ci.avisos_do_workflow("w.yml", texto))
+        for chave in ("env", "defaults", "working-directory", "shell"):
+            self.assertIn(chave, avisos)
+
+    def test_workflow_sem_chaves_ignoradas_nao_avisa(self):
+        self.assertEqual(ci.avisos_do_workflow("w.yml", "jobs:\n  j:\n    steps:\n      - run: echo\n        env:\n          A: 1\n"), [])
+
+    def test_head_pai_restante_gera_aviso(self):
+        self.assertTrue(ci.avisos_do_script("git rev-parse HEAD~1"))
+        self.assertFalse(ci.avisos_do_script("echo ok"))
 
 
 class RodarJobTest(unittest.TestCase):
@@ -126,6 +172,27 @@ class RodarJobTest(unittest.TestCase):
             ci.shutil.which = original
         self.assertEqual((r["estado"], r["ausente"], r["obrigatorio"]), (ci.PULADO, True, True))
         self.assertIn("shellcheck", r["motivo"])
+
+    def test_pipefail_como_no_github(self):
+        """Regressão B2: `false | true` passava local e falha no Actions (bash -eo pipefail)."""
+        self.assertEqual(self.rodar(self.job("false | true\n"))["estado"], ci.FALHOU)
+
+    def test_token_so_chega_ao_passo_que_o_declara(self):
+        ctx = ci.contexto_do_pr(PR, "b" * 40, "segredo")
+        job = {"id": "j", "nome": "j", "se": "", "passos": [
+            {"nome": "sem", "se": "", "env": {}, "run": '[ -z "${GITHUB_TOKEN-}" ]\n'},
+            {"nome": "com", "se": "", "env": {"GITHUB_TOKEN": "${{ github.token }}"}, "run": '[ "$GITHUB_TOKEN" = segredo ]\n'}]}
+        import tempfile
+        old = ci.os.environ.get("GITHUB_TOKEN")
+        ci.os.environ["GITHUB_TOKEN"] = "do-usuario"
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                self.assertEqual(ci.rodar_job(job, ctx, Path(d), "b" * 40, Path(d))["estado"], ci.OK)
+        finally:
+            if old is None:
+                ci.os.environ.pop("GITHUB_TOKEN")
+            else:
+                ci.os.environ["GITHUB_TOKEN"] = old
 
     def test_base_do_pr_substitui_o_primeiro_pai_do_merge(self):
         r = self.rodar(self.job('[ "$(git rev-parse HEAD^1)" = "' + "b" * 40 + '" ]\n'))
