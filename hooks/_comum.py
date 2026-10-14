@@ -25,6 +25,9 @@ RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (fo
 INTEGRACAO = {"main", "master", "develop", "homolog"}
 SEPARADORES = set("();|&\n")
 REDIRECIONAMENTO = set("<>")
+# Abertura de substituição de processo (`<(`, `>(`, também colada a outro sinal: `)<(`, `&>(`): o que vem depois é um
+# comando que o shell executa, não um alvo de redirecionamento. Entre aspas, a mesma palavra cai aqui (na dúvida, confere).
+SUBST_PROCESSO = re.compile(r"[();<>|&]*[<>]\([();<>|&]*")
 
 
 def raiz_do_projeto(inicio):
@@ -103,9 +106,9 @@ def segmentos(comando):
     lex.whitespace, lex.whitespace_split = " \t\r", True
     atual, pular = [], False
     for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
+        if SUBST_PROCESSO.fullmatch(tok) or tok and set(tok) <= SEPARADORES:  # `<(...)`: o de dentro é outro comando
             yield atual
-            atual = []
+            atual, pular = [], False
         elif tok and set(tok) <= REDIRECIONAMENTO:
             pular = True
         elif pular:
@@ -122,7 +125,10 @@ def comandos(comando):
     lex.whitespace, lex.whitespace_split = " \t\r", True
     atual, destinos, modo = [], [], None  # modo: None | "saida" | "entrada"
     for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
+        if SUBST_PROCESSO.fullmatch(tok):
+            atual.append(tok)  # quem consome é o `conformidade` (`separar_substituicoes`)
+            modo = None
+        elif tok and set(tok) <= SEPARADORES:
             yield atual, destinos
             atual, destinos, modo = [], [], None
         elif tok and set(tok) <= REDIRECIONAMENTO | set("|&") and set(tok) & REDIRECIONAMENTO:

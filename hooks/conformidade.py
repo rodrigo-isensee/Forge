@@ -19,8 +19,8 @@ import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar, git,
-                    mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+from _comum import (INTEGRACAO, PLUGIN, SUBST_PROCESSO, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar,
+                    git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -226,6 +226,19 @@ def valor_do_split_string(opcao, seguinte):
                 return None
             return (opcao[k + 1:], 0) if opcao[k + 1:] else (seguinte, 1)
     return None
+
+
+def separar_substituicoes(palavras):
+    """Corta o comando simples em cada abertura de substituição de processo (`cat <(git push ...)`): devolve (o comando
+    de fora, [os comandos de dentro]). O `)` que fecha já é separador no `comandos`; o que vem depois dele segue como
+    outro segmento."""
+    pedacos = [[]]
+    for p in palavras:
+        if SUBST_PROCESSO.fullmatch(p):
+            pedacos.append([])
+        else:
+            pedacos[-1].append(p)
+    return pedacos[0], pedacos[1:]
 
 
 def sem_lancadores(palavras):
@@ -489,6 +502,12 @@ class Guarda:
             self.linha = original
             self.sugerir_na_linha(original)
         for palavras, destinos in partes:
+            palavras, internos = separar_substituicoes(palavras)
+            if internos and self.leitura:
+                self.barrar("R-CONFORMIDADE", f"substituição de processo <(...) ou >(...) pelo papel só de leitura "
+                                              f"({self.papel})", DICA_LEITURA)
+            for interno in internos:  # roda num subshell: `cd` e troca de branch lá dentro não valem para a linha
+                self.segmento(interno, pasta, dict(ramos), nivel)
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
