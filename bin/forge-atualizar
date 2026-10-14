@@ -8,6 +8,7 @@ roda o doutor antes; roda `forge-upgrade --simular` e, se der certo, troca o plu
 confirmar a tag e guardar a fonte original da marketplace) e aplica o `forge-upgrade` numa branch nova; roda o doutor de novo; só se
 aparecer problema NOVO oferece voltar (`forge voltar-versao`). Nunca envia nada ao GitHub, nem mescla, nem força nada.
 Saída: 0 atualizou ou nada a fazer; 1 não atualizou ou algo falhou; 2 sem terminal."""
+import os
 import shutil
 import subprocess
 import sys
@@ -34,7 +35,9 @@ def raiz_do_projeto():
 
 def rodar_do_forge_novo(forge_novo, nome, *args):
     """Roda `bin/<nome>` da cópia da versão nova (é ela que sabe migrar para si mesma). Devolve (código, saída)."""
-    r = subprocess.run([str(forge_novo / "bin" / nome), *args], capture_output=True, text=True, stdin=subprocess.DEVNULL)
+    # FORGE_SEM_DOUTOR: o aviso do doutor do `forge-upgrade` não entra no meio da atualização (quem avalia o doutor é esta etapa)
+    r = subprocess.run([str(forge_novo / "bin" / nome), *args], capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                       env={**os.environ, "FORGE_SEM_DOUTOR": "1"})
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
@@ -61,6 +64,10 @@ def main():
     desconhecidas = [a for a in args if a != "--fixar"]
     if desconhecidas:
         print(f"forge atualizar: opção desconhecida: {desconhecidas[0]}", file=sys.stderr)
+        return 2
+    recusa = fv.recusar_dentro_do_claude("forge atualizar")
+    if recusa:
+        print(recusa, file=sys.stderr)
         return 2
     if not fv.tem_terminal():
         print("forge atualizar: rode num terminal (a atualização pede a sua confirmação) e responda s para seguir.", file=sys.stderr)
@@ -124,14 +131,18 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         if criou_tag:
             git(projeto, "tag", "-d", tag)
 
-    codigo, saida = rodar_do_forge_novo(forge_novo, "forge-upgrade", "--simular", str(projeto))
-    if codigo != 0:
-        print(f"A simulação da atualização falhou, então parei antes de mudar qualquer coisa:\n{saida}")
+    try:
+        codigo, saida = rodar_do_forge_novo(forge_novo, "forge-upgrade", "--simular", str(projeto))
+        if codigo != 0:
+            print(f"A simulação da atualização falhou, então parei antes de mudar qualquer coisa:\n{saida}")
+            descartar()
+            print("Não mudei nada no projeto nem no plugin. Se o problema persistir, peça ao Jarvis para registrar como sugestão ao Forge.")
+            return 1
+        deu, msg = fv.fixar_plugin(url, nova, voltar_para=atual, projeto=projeto)
+    except KeyboardInterrupt:  # Ctrl-C antes de o plugin trocar: o ponto e a marca não valem, a versão nova nunca foi instalada
         descartar()
-        print("Não mudei nada no projeto nem no plugin. Se o problema persistir, peça ao Jarvis para registrar como sugestão ao Forge.")
+        print(f"\nInterrompido. Nada foi atualizado: o Forge continua na versão {atual}.", file=sys.stderr)
         return 1
-
-    deu, msg = fv.fixar_plugin(url, nova, voltar_para=atual, projeto=projeto)
     if not deu:
         descartar()
         print(f"Não deu para trocar o plugin: {msg}. O projeto não foi mexido.")
@@ -139,21 +150,26 @@ def atualizar(projeto, url, atual, nova, forge_novo):
     print(f"Plugin: {msg}.")
 
     codigo, saida = rodar_do_forge_novo(forge_novo, "forge-upgrade", str(projeto))
-    print(saida)
     if codigo != 0:
+        print(saida)
         print("A atualização do projeto parou no meio (a branch de trabalho ficou como está, nada se perdeu).")
         return oferecer_voltar(atual)
+    ramo = f"forge/upgrade-{nova}"
+    abrir_pr = next((l.strip() for l in saida.splitlines() if l.strip().startswith("gh pr create")), "gh pr create")
 
     problemas, saida = fv.problemas_do_doutor(forge_novo / "bin", projeto)
     novos = [p for p in problemas if p not in problemas_antes]
     antigos = [p for p in problemas if p in problemas_antes]
     if novos:
-        print("O doutor achou coisa nova depois da atualização (podem não ter relação com ela):\n" + "\n".join(f"- {p}" for p in novos))
+        print(f"Os arquivos do projeto foram atualizados na branch {ramo}, mas o doutor (a checagem de saúde do projeto) achou coisa nova "
+              "(pode não ter relação com a atualização):\n" + "\n".join(f"- {p}" for p in novos))
         if antigos:
             print("Já existiam antes da atualização:\n" + "\n".join(f"- {p}" for p in antigos))
         return oferecer_voltar(atual)
     resto = ("\nJá existiam antes da atualização (não mexi):\n" + "\n".join(f"- {p}" for p in antigos)) if antigos else ""
-    print(f"\nPronto: o Forge está na versão {nova} e o doutor não achou nada novo.{resto}\nPara voltar: forge voltar-versao")
+    print(f"\nPronto: o Forge está na versão {nova} e a checagem de saúde do projeto não achou nada novo.{resto}\n"
+          f"Os arquivos do projeto foram atualizados na branch {ramo} (nada foi enviado ao GitHub). Revise as mudanças e abra o pull request; "
+          f"o merge é seu:\n  {abrir_pr}\nPara voltar: forge voltar-versao")
     return 0
 
 if __name__ == "__main__":

@@ -55,7 +55,10 @@ class Base(unittest.TestCase):
         self.gitconfig = self.home / "gitconfig"
         self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
         self.publicado = self.tmp / "forge-publicado.git"
-        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
+        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas), e os scripts se recusam a rodar
+        # aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do ambiente do subprocesso.
+        self.env = {k: v for k, v in os.environ.items()
+                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
                         FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
@@ -286,6 +289,68 @@ class Atualizar(Base):
         adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
         self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user", adds)
         self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+
+    def test_caminho_feliz_tem_um_resultado_so_e_o_aviso_do_doutor_nao_aparece_no_meio(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Forge doutor", saida, "o aviso do doutor antes da atualização não aparece no meio dela")
+        self.assertNotIn("forge-upgrade", saida, "não pede à pessoa um comando que a própria atualização está rodando")
+        self.assertEqual(saida.count("Pronto"), 1, saida)
+        self.assertNotIn("Algo não saiu", saida)
+        self.assertTrue(saida.rstrip().endswith("forge voltar-versao"), saida)
+
+    def test_problema_novo_do_doutor_nao_mostra_pronto_antes_de_algo_nao_saiu(self):
+        self.publicar("9.9.2", falha="doutor")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertNotIn("Pronto", saida, "o resultado final é um só")
+        self.assertIn("Algo não saiu como esperado", saida)
+        self.assertIn("forge/upgrade-9.9.2", saida)
+
+
+class Dentro(Base):
+    """F5-01: a defesa principal é do próprio script, porque o hook não cobre toda indireção do shell."""
+
+    def recusa(self, script, env, *args):
+        codigo, saida = self.rodar(script, *args, respostas=[], env=env)
+        self.assertEqual(codigo, 2, saida)
+        self.assertIn("fora do Claude", saida)
+        self.assertEqual(self.chamadas_do_claude(), [], "não chegou a mexer no plugin")
+        self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+    def test_variaveis_do_claude_code_recusam(self):
+        self.publicar("9.9.0")
+        for nome in ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"):
+            for script in (ATUALIZAR, VOLTAR):
+                with self.subTest(variavel=nome, script=script.name):
+                    self.recusa(script, {**self.env, nome: "1"})
+
+    def test_ancestral_chamado_claude_recusa_mesmo_com_pty_e_sem_variavel(self):
+        self.publicar("9.9.0")
+        for script in (ATUALIZAR, VOLTAR):
+            with self.subTest(script=script.name):
+                pasta = self.tmp / ("falso-" + script.name)
+                pasta.mkdir()
+                claude = pasta / "claude"  # o ancestral: um processo chamado `claude` que roda o script
+                claude.write_text(f"#!/bin/sh\n{sys.executable} -c \"import pty,sys;sys.exit(pty.spawn(['{sys.executable}','{script}']) >> 8)\"\n",
+                                  encoding="utf-8")
+                claude.chmod(0o755)
+                r = subprocess.run([str(claude)], env=self.env, cwd=self.proj, capture_output=True, text=True, timeout=60,
+                                   stdin=subprocess.DEVNULL)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertEqual(self.chamadas_do_claude(), [])
+                self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+    def test_fixar_tambem_recusa(self):
+        self.recusa(ATUALIZAR, {**self.env, "CLAUDECODE": "1"}, "--fixar")
+
+    def test_terminal_normal_segue(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("fora do Claude", saida)
 
 
 class Voltar(Base):
@@ -638,6 +703,19 @@ class CtrlCNaTroca(Base):
         self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user", chamadas)
         self.assertTrue(any(c.startswith(("claude plugin install forge@forge", "claude plugin update forge@forge"))
                             for c in chamadas[chamadas.index(adds[-1]):]), chamadas)
+
+    def test_ctrl_c_na_troca_nao_deixa_ponto_nem_marca_e_o_voltar_nao_fala_de_versao_nunca_instalada(self):
+        self.publicar("9.9.0")
+        (self.fake / "sigint-no-add").write_text("", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("Nada foi atualizado", saida)
+        self.assertEqual(self.pontos(), [])
+        self.assertEqual(self.git("tag", "--list", "forge/*"), "")
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertNotIn("9.9.0", saida)
+        self.assertIn("ponto de retorno", saida)
 
     def test_o_claude_roda_numa_sessao_propria_para_nao_receber_o_sigint_do_terminal(self):
         r = subprocess.run([sys.executable, "-c", "import sys, os; sys.path.insert(0, sys.argv[1]); import forge_versoes as v\n"

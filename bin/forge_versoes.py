@@ -390,6 +390,41 @@ def tem_terminal():
     return sys.stdin.isatty() and sys.stdout.isatty()
 
 
+VARIAVEIS_DO_CLAUDE_CODE = ("CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")  # o Claude Code define as duas nos processos que roda
+
+
+def _pai_e_nome(pid):
+    """(pid do pai, nome do processo) lidos de /proc/<pid>/stat; (0, "") se não der para ler."""
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace")
+        return int(stat[stat.rfind(")") + 2:].split()[1]), stat[stat.find("(") + 1:stat.rfind(")")]
+    except (OSError, ValueError, IndexError):
+        return 0, ""
+
+
+def dentro_do_claude():
+    """True se este processo foi chamado de dentro de uma sessão do Claude Code (um agente): variável do Claude Code no ambiente
+    ou um processo ancestral chamado `claude`. Vale mesmo com pty, `$(...)` ou `bash <<<`, que escapam do hook `conformidade`."""
+    if any(os.environ.get(v) for v in VARIAVEIS_DO_CLAUDE_CODE):
+        return True
+    pid, vistos = os.getppid(), set()
+    while pid > 1 and pid not in vistos:
+        vistos.add(pid)
+        pai, nome = _pai_e_nome(pid)
+        if nome.lower() in ("claude", "claude.exe"):
+            return True
+        pid = pai
+    return False
+
+
+def recusar_dentro_do_claude(comando):
+    """Mensagem (para stderr) se `comando` foi chamado de dentro do Claude; None se pode seguir."""
+    if dentro_do_claude():
+        return (f"{comando}: isto é com você, não com o Claude. Rode no seu terminal, fora do Claude (a atualização muda o "
+                f"seu Forge e pede a sua confirmação). Não mudei nada.")
+    return None
+
+
 def confirmar(pergunta):
     """True só com s ou sim; Enter, outra coisa ou fim da entrada contam como não."""
     try:

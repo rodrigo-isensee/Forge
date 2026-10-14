@@ -99,6 +99,10 @@ def main():
     if [a for a in args if a != "--ja-confirmado"]:
         print("forge voltar-versao: não recebe argumentos.", file=sys.stderr)
         return 2
+    recusa = fv.recusar_dentro_do_claude("forge voltar-versao")
+    if recusa:
+        print(recusa, file=sys.stderr)
+        return 2
     if not fv.tem_terminal():
         print("forge voltar-versao: rode num terminal (a volta pede a sua confirmação) e responda s para seguir.", file=sys.stderr)
         return 2
