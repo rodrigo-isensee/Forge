@@ -91,6 +91,23 @@
     "excecoes": []
   },
   "invariantes": {
+    "docs/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
+    "templates/projeto/docs/architecture/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "critério de reversão",
+      "Por que o existente não basta"
+    ],
+    "docs/melhoria-continua.md": [
+      "critério de reversão"
+    ],
     "agents/jarvis.md": [
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
@@ -119,7 +136,19 @@
       "diga sempre ao usuário para qual agente passou",
       "que são do `tech-lead`"
     ],
+    "templates/projeto/docs/engineering/praticas.md": [
+      "## Regras e quem as decide",
+      "\\*\\*ferramenta\\*\\*",
+      "\\*\\*leitura\\*\\*",
+      "pendência a registrar, não revisão manual"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "decidida por: leitura",
+      "cita a saída dos comandos das regras \"ferramenta\"",
+      "vira pendência no parecer, não revisão manual"
+    ],
     "agents/tech-lead.md": [
+      "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
       "`R-MAIN`",
@@ -129,7 +158,9 @@
       "`R-CUSTO`",
       "`R-NEUTRO`",
       "`R-CONFORMIDADE`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "critério de reversão",
+      "Por que o existente não basta"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -195,8 +226,23 @@
     "agents/qa-engineer.md": [
       "`R-QA`"
     ],
+    "skills/qa-testing/SKILL.md": [
+      "## Teste nasce de obrigação, e para quando ela está coberta",
+      "Teste redundante não entra",
+      "uma amostra por classe de equivalência mais cada fronteira",
+      "fronteira protegida",
+      "afirma um mínimo de itens"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "Teste de ausência .* cujo alvo mudou é relido"
+    ],
+    "tests/test_forge.py": [
+      "def minimo\\("
+    ],
     "agents/software-architect.md": [
-      "`R-DISCOVERY`"
+      "`R-DISCOVERY`",
+      "critério de reversão",
+      "Por que o existente não basta"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",

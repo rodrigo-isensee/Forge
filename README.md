@@ -2,6 +2,8 @@
 
 Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** (orquestrador) e o time completo — tech lead, arquiteto, UX, desenvolvedores por stack (pacote inicial: Node + React), QA e agile coach —, o processo de desenvolvimento e os modelos para iniciar projetos.
 
+Visão geral com diagramas do fluxo, das integrações e das guardas: [`docs/visao-geral.md`](docs/visao-geral.md).
+
 ## O que vem na fábrica
 - **Fluxo:** discovery com Design Thinking (UX + arquiteto) → validação do protótipo pelo usuário → desenho técnico → desenvolvimento em paralelo → code review → QA obrigatório → revisão de UX → PR validado pelo usuário → retrospectiva.
 - **Regras:** a `main` é do usuário; QA e code review em toda entrega; teto de recursos da máquina; quadro Kanban visível; reuniões de alinhamento; melhoria contínua com autonomia, separando fábrica e projeto.

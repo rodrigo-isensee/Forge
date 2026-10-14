@@ -35,7 +35,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
+from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
@@ -201,7 +201,7 @@ def rodar(hook, entrada, cwd, proc=None, extra=None):
 
 class Hooks(unittest.TestCase):
     def setUp(self):
-        self.fixtures = [Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))]
+        self.fixtures = minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))], 460, "fixtures em tests/hooks/")
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
@@ -256,7 +256,7 @@ class Hooks(unittest.TestCase):
                     self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
     def test_cada_hook_tem_caso_que_passa_e_que_bloqueia(self):
-        scripts = {p.stem for p in HOOKS.glob("*.py") if not p.name.startswith("_")}
+        scripts = {p.stem for p in minimo(HOOKS.glob("*.py"), 5, "scripts de hook") if not p.name.startswith("_")}
         self.assertEqual({f.hook for f in self.fixtures}, scripts)
         for hook in scripts:
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
@@ -285,6 +285,7 @@ class Hooks(unittest.TestCase):
                         rel = h["args"][0].replace("${CLAUDE_PLUGIN_ROOT}/", "")
                         self.assertTrue((RAIZ / rel).is_file(), rel)
                         usados.add(Path(rel).stem)
+        minimo(usados, 5, "hooks registrados em hooks.json")
         self.assertEqual(usados, {f.hook for f in self.fixtures})
         matchers = {g.get("matcher") for g in d["hooks"]["PreToolUse"]}
         self.assertIn("Agent|Task", matchers)

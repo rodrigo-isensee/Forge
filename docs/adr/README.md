@@ -1,8 +1,8 @@
 # Decisões de arquitetura do Forge
 
-Propósito: índice das ADRs da fábrica. Público: quem mantém o Forge e quem contribui de um projeto. Revisão: 2026-10-12.
+Propósito: índice das ADRs da fábrica. Público: quem mantém o Forge e quem contribui de um projeto. Revisão: 2026-10-13.
 
-Formato: contexto, decisão, alternativas e consequências; estado conforme `docs/padrao-de-documentacao.md` ("Estado das ADRs"). Numeração sequencial, nunca reaproveitada.
+Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequências, critério de reversão e leituras; estado conforme `docs/padrao-de-documentacao.md` ("Estado das ADRs"). Numeração sequencial, nunca reaproveitada.
 
 ## Vigentes
 | ADR | Assunto |
