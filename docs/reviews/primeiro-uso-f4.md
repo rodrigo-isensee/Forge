@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f4
 branch: melhoria/primeiro-uso-f4
-commit: 69d681e
+commit: 78caa1b
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -109,3 +109,36 @@ Parecer: **reprovado**. Revisei o diff `e427a49..69d681e` e sondei o hook real c
 5. `git branch -f feature/x HEAD~1` e `git checkout -B feature/x HEAD` movem a branch publicada sem confirmação, em qualquer pasta, também no projeto. Já acontecia antes e está fora do escopo desta correção, mas cabe na mesma pergunta de "reescreve versões".
 
 Depois de corrigir os itens 1 e 2, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
+
+## Quarta review independente (tech-lead, HEAD 78caa1b)
+
+Parecer: **reprovado**, por um achado novo (item 1), que nenhuma das três reviews anteriores tinha visto. Os dois bloqueios da terceira review estão resolvidos. Revisei o diff `a6b2f2e..78caa1b` e sondei o hook real com cerca de 70 comandos, no perfil iniciante e no papel `node-backend`. O cenário tem um projeto do Forge (`.forge/versao`) com mudança não salva, a `feature/x` publicada no `origin` e uma worktree `--detach` em `$TMPDIR`. A sessão (`CLAUDE_PROJECT_DIR`) aponta para o projeto. Quando o resultado mudou, comparei com o `e427a49`, o `69d681e` e a `develop`.
+
+**Validação local** (cota do Actions esgotada), no checkout do `78caa1b`:
+- `python3 -m unittest discover -s tests`: 404 testes, OK.
+- `scripts/validar-plugin.sh`: passou.
+- `catraca.py` da base `b5e5d3d`, modo `regras`: saiu com 1, só pedindo o rótulo `afrouxa-regra` para `hooks/_comum.py`, `hooks/conformidade.py` e `hooks/parecer.py`, como esperado.
+- Modo `pareceres` (`--head HEAD --ramo=melhoria/primeiro-uso-f4 --base-ref develop`): saiu com 1, porque o último parecer é reprovado.
+- Modo `pr-texto` (corpo do PR #110): passou.
+- Versão 0.12.0, igual à da base, com 3 linhas novas em `[Não publicado]`: ok.
+
+**Bloqueios da terceira review: resolvidos**
+- **Item 1.** Com o cwd na worktree solta, todos estes comandos agora **perguntam**: `cd <projeto> && git reset --hard HEAD~1`, `cd <projeto> && git clean -fdx`, `git -C <projeto> reset --hard`, `git -C <projeto> checkout -- .`, `git --work-tree=<projeto> clean -fdx`, `git --work-tree <projeto> clean -fdx`, `git --git-dir=<projeto>/.git reset --hard`, `GIT_DIR=... GIT_WORK_TREE=... git reset --hard`, `git switch feature/x && git reset --hard HEAD~1`, `git checkout feature/x; git reset --hard develop`, `git reset --hard; git clean -fdx` e `git -c core.worktree=<projeto> reset --hard`. Opção global entre `git` e o ato não casa com `UM_ATO_SIMPLES`, então pergunta. Tentei também argumentos que apontam para fora da cópia, como `git clean -fdx ..`, `git clean -fdx -- <projeto>` e `git restore --source=HEAD~1 -- <projeto>/src`. O hook deixa passar, mas o próprio git recusa um caminho fora do repositório, então não há dano. O cwd que persiste entre chamadas também não abre brecha: depois de um `cd <projeto>`, a chamada seguinte já roda com a raiz no projeto e pergunta.
+- **Item 2.** `read TMPDIR <<< <projeto>; rm -rf $TMPDIR/.forge` e `printf -v TMPDIR %s <projeto>; rm -rf $TMPDIR/.forge` são **recusados**. O mesmo vale para `rm -rf $TMPDIR/.forge`, `"$TMPDIR"/lnk/.forge` e `${TMPDIR}/x/.forge`. `$(pwd -P)/.forge` também é recusado, o que fecha o recomendado 3.
+- **Caso legítimo continua dispensado.** Na worktree solta, `git reset --hard`, `git reset --hard HEAD`, `git clean -fdx`, `git checkout -- .`, `git restore .` e `git restore --staged --worktree .` passam sem pergunta. No projeto, `git reset --hard`, `git clean -fdx` e `git -C <worktree> reset --hard` perguntam. `rm -rf <worktree>` e `git worktree remove --force <worktree>` seguem livres.
+
+**Ajustes necessários**
+1. `hooks/conformidade.py:380` (`checar_remocao`): com o cwd na worktree temporária, `rm -rf <projeto>/.forge`, `rm -rf ../proj/.forge` e `mv <projeto>/.forge /tmp/x` **passam**, e apagam a `.forge` do projeto da pessoa. Isso inclui o `perfil`, então o modo iniciante deixa de valer. A causa é que a função mede tudo a partir de `self.h.raiz`, que é a raiz da worktree em que o comando roda, e não a do projeto onde fica o alvo. Por isso, `<projeto>/.forge` cai "fora" e não é conferido.
+
+   Os mesmos comandos são recusados com o cwd no projeto, num subdiretório dele ou numa pasta qualquer fora do git. Pela worktree, a escrita em `<projeto>/.forge/perfil`, o `rm -f <projeto>/.forge/versao` e o `rm -rf <projeto>/.githooks` também são recusados. Sobra só a remoção da pasta `.forge` inteira, a partir de outra cópia do projeto.
+
+   Não é regressão desta correção: já passava no `e427a49` e no `69d681e`, e na `develop` nem existia a trava. Mas é exatamente o dano que a F4 promete evitar, e o comando é literal, sem nenhum truque de shell. Basta um agente de review que ficou com o cwd na cópia de review.
+
+   Sugestão: conferir o alvo resolvido também contra a raiz do projeto que **o contém** (`raiz_do_projeto(alvo)`), mantendo de fora essa raiz e as pastas acima dela. A checagem de escrita (`caminho_barrado`) já não depende só de `self.h.raiz`: ela usa `em_qualquer_lugar`, e por isso recusa `<projeto>/.forge/versao`. Fixtures, todas com o cwd em `{tmp}/review-wt` e a resposta "bloqueia": `rm -rf {raiz}/.forge` e `mv {raiz}/.forge {tmp}/x`. Severidade: **bloqueia**.
+
+**Recomendados** (não bloqueiam; podem virar cartão)
+2. `for X in <projeto>; do rm -rf $X/.forge; done` passa, inclusive com `for TMPDIR in ...`. O corpo do `for` não é examinado como os comandos soltos. Já acontecia no `e427a49` e na `develop`.
+3. `git checkout --ignore-other-worktrees -B feature/x HEAD~1` e `git branch -f feature/x HEAD~1` movem a branch publicada sem confirmação, em qualquer pasta. Isso continua o recomendado 5 da terceira review.
+4. `rm -rf $TMPDIR/x/.forge` voltou a ser recusado. É o falso positivo do recomendado 3 da segunda review, mas trocado agora por segurança, e na direção certa: na dúvida, recusa. Se incomodar, basta escrever o caminho sem variável.
+
+Depois de corrigir o item 1, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
