@@ -32,7 +32,7 @@ if [ -n "$(git ls-files -u)" ] || [ -e "$(git rev-parse --git-path MERGE_HEAD)" 
 fi
 
 if [ "$recuperar" -eq 1 ]; then
-  linha="$(git stash list | grep -m1 'desfeito' || true)"
+  linha="$(git stash list | grep -m1 -- 'desfeito' || true)"
   [ -n "$linha" ] || die "não há nada guardado de lado para recuperar."
   ref="${linha%%:*}"
   echo "Vou trazer de volta o que foi guardado de lado (${linha##*: }). Arquivos:" >&2

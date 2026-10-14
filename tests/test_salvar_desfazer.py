@@ -208,6 +208,13 @@ class Salvar(Base):
         self.assertIn("configurações/a.txt", self.saida(r))
         self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
 
+    def test_marca_de_conflito_em_arquivo_com_nome_iniciado_por_traco_e_recusada(self):  # BUG-F2-07
+        self.escrever("-rf.txt", "<<<<<<< HEAD\nx\n")
+        r = self.forge("salvar", "a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("-rf.txt", self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
+
     def test_reenvia_o_que_ficou_salvo_em_ramo_sem_versao_remota(self):  # BUG-F2-02
         self.git("checkout", "-q", "-b", "feature/x")
         url = self.git("remote", "get-url", "origin")

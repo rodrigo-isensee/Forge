@@ -36,7 +36,7 @@ for cmd in git gh claude python3; do
 done
 if ! saida_auth="$(gh auth status 2>&1)"; then
   # Sem rede o gh também falha; não culpar o login nesse caso.
-  if printf '%s' "$saida_auth" | grep -qiE 'error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection'; then
+  if printf '%s' "$saida_auth" | grep -qiE -- 'error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection'; then
     die "não consegui falar com o GitHub (sem conexão com a internet?). Nada foi criado ainda. Confira a rede e rode de novo."
   fi
   die "você ainda não entrou no GitHub por aqui. Rode 'gh auth login' neste terminal (o login acontece no navegador; este script não vê sua senha) e tente de novo."
@@ -142,7 +142,7 @@ if ! estado_tem repo_criado; then
     fi
     echo "Criando $dono/$nome (privado)..."
     erro_criar="$(gh repo create "$dono/$nome" --private 2>&1 >/dev/null)" || {
-      if printf '%s' "$erro_criar" | grep -qiE '403|forbidden|permission|not accessible|scope'; then
+      if printf '%s' "$erro_criar" | grep -qiE -- '403|forbidden|permission|not accessible|scope'; then
         die "o GitHub negou a criação de $dono/$nome (falta permissão). Nada foi alterado na sua pasta. Escolha um caminho:
   A) renovar a permissão do login: rode 'gh auth refresh -h github.com -s repo' e depois 'forge novo-projeto' de novo [recomendado];
   B) criar você mesmo, no site https://github.com/new, um repositório vazio e privado chamado $nome, e rodar 'forge novo-projeto' de novo (eu sigo com ele);

@@ -50,7 +50,7 @@ for arq in "${tocados[@]}"; do
     segredos="$segredos$arq
 "
   fi
-  if [ -f "$arq" ] && grep -qE '^(<<<<<<<|>>>>>>>) ' "$arq"; then
+  if [ -f "$arq" ] && grep -qE -- '^(<<<<<<<|>>>>>>>) ' "$arq"; then
     marcas="$marcas$arq
 "
   fi
@@ -75,10 +75,10 @@ git add -A
 git commit -q -m "$mensagem" || die "não consegui registrar as mudanças (uma verificação do projeto recusou). Veja a mensagem acima."
 echo "Trabalho registrado: \"$mensagem\"."
 if ! erro="$(git push -q -u origin "$ramo" 2>&1)"; then
-  if printf '%s' "$erro" | grep -qiE 'non-fast-forward|fetch first|stale info'; then
+  if printf '%s' "$erro" | grep -qiE -- 'non-fast-forward|fetch first|stale info'; then
     die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas alguém mudou o trabalho no GitHub depois da sua última cópia, e por isso não enviei (para não apagar o que há lá). Nada se perdeu. Peça ajuda ao Jarvis para juntar as duas versões e rode 'forge salvar' de novo."
   fi
-  if printf '%s' "$erro" | grep -qiE 'remote rejected|pre-receive|protected|declined'; then
+  if printf '%s' "$erro" | grep -qiE -- 'remote rejected|pre-receive|protected|declined'; then
     die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas o servidor do GitHub recusou o envio (uma proteção ou verificação do projeto). Nada se perdeu. Peça ajuda ao Jarvis para ver o motivo e rode 'forge salvar' de novo."
   fi
   die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
