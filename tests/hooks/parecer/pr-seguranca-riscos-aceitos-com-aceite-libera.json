@@ -1,5 +1,5 @@
 {
-  "descricao": "Riscos aceitos com aceite do usuário: libera.",
+  "descricao": "Riscos aceitos com o arquivo de aceite do usuario: libera.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -55,9 +55,15 @@
           "parecer: riscos-aceitos",
           "revisor: forge:security-engineer",
           "data: 2026-10-12",
-          "aceite_usuario: sim",
           "---",
           "# Parecer"
+        ],
+        "docs/security/aceites/p1.md": [
+          "---",
+          "pedido: p1",
+          "aceite: sim",
+          "---",
+          "Aceito o risco."
         ]
       },
       "commit": "docs: pareceres"

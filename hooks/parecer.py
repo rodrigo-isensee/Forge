@@ -126,7 +126,7 @@ def existe(raiz, ref):
 def verificar(hook, raiz, branch, ref, base):
     """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido."""
     if base:
-        cod, arquivos = git(raiz, "diff", "--name-only", f"{base}...{ref or 'HEAD'}")
+        cod, arquivos = git(raiz, "diff", "--name-only", "--no-renames", f"{base}...{ref or 'HEAD'}")
         if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
             return  # só documentação: não passa por QA (R-QA)
     fc = forge_check()

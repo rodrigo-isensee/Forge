@@ -39,6 +39,7 @@
     {"caminho": "docs/reviews/", "quem": ["tech-lead"], "motivo": "parecer de review é do tech-lead"},
     {"caminho": "docs/qa/", "quem": ["qa"], "motivo": "parecer de QA é do qa"},
     {"caminho": "docs/devops/", "quem": ["devops"], "motivo": "parecer de devops é do devops"},
+    {"caminho": "docs/security/aceites/", "quem": [], "motivo": "aceite de risco é do usuário: nenhum agente o grava (R-SEGURANCA, R-DECISAO)"},
     {"caminho": "docs/security/", "quem": ["seguranca"], "motivo": "parecer e postura de segurança são do seguranca"},
     {"caminho": "docs/regras/", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "regra do Forge só em branch melhoria/*"},
     {"caminho": "tests/config.json", "quem": ["tech-lead", "doc"], "so_forge": true, "branch": "melhoria/", "motivo": "teste de proteção só em branch melhoria/*"},

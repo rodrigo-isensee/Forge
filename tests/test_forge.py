@@ -1165,9 +1165,9 @@ class ForgeCheck(unittest.TestCase):
     def head(self):
         return git("rev-parse", "HEAD", cwd=self.tmp).stdout.strip()
 
-    def commitar(self):
+    def commitar(self, mensagem="mudanca"):
         git("add", "-A", cwd=self.tmp)
-        git("commit", "-q", "-m", "mudanca", cwd=self.tmp)
+        git("commit", "-q", "-m", mensagem, cwd=self.tmp)
 
     def pareceres(self, commit, p="aprovado", a=0, m=0, extra=""):
         self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
@@ -1333,7 +1333,7 @@ class ForgeCheck(unittest.TestCase):
                       "parecer: talvez\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
         codigo, saida = self.check("docs")
         self.assertEqual(codigo, 1)
-        self.assertIn("docs/security/p1.md: aceite_usuario: riscos aceitos exigem `aceite_usuario: sim` (R-SEGURANCA)", saida)
+        self.assertNotIn("docs/security/p1.md", saida)  # o aceite é conferido no `pr`, pelo arquivo em docs/security/aceites/
         self.assertIn("docs/devops/p1.md: parecer: use aprovado ou reprovado (R-REVIEW)", saida)
         self.assertNotIn("postura.md", saida)
 
@@ -1377,6 +1377,109 @@ class ForgeCheck(unittest.TestCase):
                 saida = self.check("pr", "p1")[1]
                 self.assertIn("docs/security: revisao-seguranca: sem parecer", saida)
                 self.assertNotIn("revisao-devops", saida)
+
+    def exige(self, arquivo, devops=True, seguranca=True):
+        """Entrega que só muda `arquivo` exige (ou não) os pareceres de devops e de segurança."""
+        git("branch", "-q", "-f", "develop", "HEAD", cwd=self.tmp)
+        self.escrever(arquivo, "x\n")
+        self.commitar()
+        self.pareceres(self.head())
+        saida = self.check("pr", "p1")[1]
+        self.assertEqual("revisao-devops" in saida, devops, saida)
+        self.assertEqual("revisao-seguranca" in saida, seguranca, saida)
+
+    def test_pr_terraform_exige_devops_e_seguranca(self):
+        for arquivo in ("infra/main.tf", "main.tf", "env/prod.tfvars", "x.tf.json"):
+            with self.subTest(arquivo=arquivo):
+                self.exige(arquivo)
+
+    def test_pr_pastas_de_infraestrutura_exigem_devops_e_seguranca(self):
+        for arquivo in ("infra/a.txt", "deploy/a.txt", "terraform/a.txt", "k8s/a.txt", "helm/a.txt", "x/deploy/a.txt"):
+            with self.subTest(arquivo=arquivo):
+                self.exige(arquivo)
+
+    def test_pr_manifestos_de_dependencia_exigem_seguranca(self):
+        for arquivo in ("requirements.txt", "requirements-dev.txt", "pyproject.toml", "package.json", "Gemfile",
+                        "go.mod", "Cargo.toml", "app/package.json"):
+            with self.subTest(arquivo=arquivo):
+                self.exige(arquivo, devops=False)
+
+    def test_pr_renomear_o_arquivo_de_travas_ainda_dispara(self):
+        self.escrever("pnpm-lock.yaml", "a: 1\n")
+        self.commitar()
+        git("branch", "-q", "-f", "develop", "HEAD", cwd=self.tmp)
+        git("mv", "pnpm-lock.yaml", "vendor-deps.yaml", cwd=self.tmp)
+        self.escrever("vendor-deps.yaml", "a: 1\nb: 2\n")
+        self.commitar()
+        self.pareceres(self.head())
+        self.assertIn("docs/security: revisao-seguranca: sem parecer", self.check("pr", "p1")[1])
+
+    def test_pr_renomear_dockerfile_ainda_exige_devops(self):
+        self.escrever("Dockerfile", "FROM scratch\n")
+        self.commitar()
+        git("branch", "-q", "-f", "develop", "HEAD", cwd=self.tmp)
+        git("mv", "Dockerfile", "base.img", cwd=self.tmp)
+        self.commitar()
+        self.pareceres(self.head())
+        self.assertIn("revisao-devops: sem parecer", self.check("pr", "p1")[1])
+
+    def dependabot(self, mensagem, arquivo="package-lock.json"):
+        git("branch", "-q", "-f", "develop", "HEAD", cwd=self.tmp)
+        git("switch", "-q", "-c", "dependabot/npm/foo", cwd=self.tmp)
+        self.escrever(arquivo, "x\n")
+        self.commitar(mensagem)
+        self.pareceres(self.head())
+        return self.check("pr", "p1")[1]
+
+    def test_dependabot_de_versao_menor_basta_o_parecer_de_devops(self):
+        saida = self.dependabot("Bump foo from 1.2.3 to 1.2.4")
+        self.assertIn("revisao-devops: sem parecer", saida)
+        self.assertNotIn("revisao-seguranca", saida)
+
+    def test_dependabot_com_versao_maior_exige_seguranca(self):
+        saida = self.dependabot("Bump foo from 1.2.3 to 2.0.0")
+        self.assertIn("revisao-devops: sem parecer", saida)
+        self.assertIn("revisao-seguranca: sem parecer", saida)
+
+    def test_dependabot_sem_versao_legivel_mantem_a_exigencia(self):
+        self.assertIn("revisao-seguranca: sem parecer", self.dependabot("Bump the group"))
+
+    def test_dependabot_que_toca_outra_coisa_exige_seguranca(self):
+        saida = self.dependabot("Bump foo from 1.2.3 to 1.2.4", arquivo=".env")
+        self.assertIn("revisao-seguranca: sem parecer", saida)
+
+    def aceite(self, texto=None):
+        self.entrega("package-lock.json", f"{git('rev-list', '--count', 'HEAD', cwd=self.tmp).stdout.strip()}\n")  # conteúdo novo a cada chamada (subTests)
+        head = self.head()
+        self.pareceres(head)
+        self.escrever("docs/devops/p1.md", "---\ntipo: revisao-devops\ncontrato: 1\npedido: p1\nbranch: melhoria/x\n"
+                      f"commit: {head}\nparecer: aprovado\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
+        self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="riscos-aceitos", extra="") + "---\n")
+        if texto is not None:
+            self.escrever("docs/security/aceites/p1.md", texto)
+        return self.check("pr", "p1")
+
+    def test_riscos_aceitos_sem_o_arquivo_de_aceite_reprova(self):
+        codigo, saida = self.aceite()
+        self.assertEqual(codigo, 1)
+        self.assertIn("docs/security/aceites/p1.md", saida)
+        self.assertIn("(R-SEGURANCA)", saida)
+
+    def test_riscos_aceitos_com_aceite_no_frontmatter_do_parecer_nao_basta(self):
+        self.entrega("package-lock.json")
+        head = self.head()
+        self.pareceres(head)
+        self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(
+            c=head, p="riscos-aceitos", extra="aceite_usuario: sim\n") + "---\n")
+        self.assertIn("docs/security/aceites/p1.md", self.check("pr", "p1")[1])
+
+    def test_riscos_aceitos_com_o_arquivo_de_aceite_vale(self):
+        self.assertEqual(self.aceite("---\npedido: p1\naceite: sim\n---\nAceito o risco X.\n"), (0, ""))
+
+    def test_aceite_de_outro_pedido_ou_nao_nao_vale(self):
+        for texto in ("---\npedido: p2\naceite: sim\n---\n", "---\npedido: p1\naceite: nao\n---\n", "aceito\n"):
+            with self.subTest(texto=texto):
+                self.assertEqual(self.aceite(texto)[0], 1)
 
     def test_pr_sem_pareceres(self):
         codigo, saida = self.check("pr", "p1")

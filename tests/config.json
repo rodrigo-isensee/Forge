@@ -173,7 +173,7 @@
     "docs/regras/R-SEGURANCA.md": [
       "\ntitulo: Parecer de segurança quando há gatilho\n",
       "Gatilhos: autenticação ou autorização",
-      "`riscos-aceitos` só vale com `aceite_usuario: sim`"
+      "`riscos-aceitos` só vale com o \\*\\*aceite do usuário\\*\\* em `docs/security/aceites/<pedido>.md`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",

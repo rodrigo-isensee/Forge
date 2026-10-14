@@ -10,7 +10,7 @@ data: AAAA-MM-DD
 ---
 # Review de segurança: <pedido>
 
-Copie para `docs/security/<pedido>.md`. Formato: ADR 0004 do Forge; `forge-check docs` valida. Arquivos que começam com `_` ou sem frontmatter (postura, modelo de ameaças) são ignorados. Exigido quando há gatilho (`R-SEGURANCA`). `parecer: riscos-aceitos` exige `aceite_usuario: sim` no frontmatter, dado pelo usuário.
+Copie para `docs/security/<pedido>.md`. Formato: ADR 0004 do Forge; `forge-check docs` valida. Arquivos que começam com `_` ou sem frontmatter (postura, modelo de ameaças) são ignorados. Exigido quando há gatilho (`R-SEGURANCA`). `parecer: riscos-aceitos` só vale se o usuário escrever, à mão, `docs/security/aceites/<pedido>.md` com `pedido: <pedido>` e `aceite: sim` (nenhum agente grava essa pasta; `R-SEGURANCA`).
 
 ## Gatilhos
 Quais gatilhos da `R-SEGURANCA` a entrega toca.
