@@ -1,0 +1,269 @@
+#!/usr/bin/env python3
+"""ci-local: roda localmente a bateria do CI sobre um PR e, com --publicar, grava o resultado como commit status `ci-local`.
+
+Uso: scripts/ci-local <número do PR> [--publicar]
+
+Os jobs vêm dos próprios workflows do PR (.github/workflows/ci.yml e catraca.yml): o script lê cada `run:` e o executa
+na ordem, com as mesmas variáveis de ambiente, numa worktree temporária no sha exato da cabeça do PR. Nada da lógica do
+CI é copiado para cá. Só biblioteca padrão; nada que custe dinheiro (R-CUSTO).
+
+Fidelidade ao CI: a base dos jobs é o ponto de partida do PR (merge-base entre a cabeça e a base atual), no lugar do
+primeiro pai do merge commit que o GitHub monta; o texto `git rev-parse HEAD^1` dos workflows é trocado por esse sha.
+
+Jobs obrigatórios: todos, menos `workflows` (actionlint e zizmor são baixados pelo CI; localmente só rodam se já
+estiverem instalados). Um job é "pulado" por duas razões: não se aplica ao PR (condição `if` do workflow: não afeta
+o status) ou falta algo para rodá-lo (ferramenta ausente: se o job é obrigatório, o status vira `failure`).
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+WORKFLOWS = ("ci.yml", "catraca.yml")
+NAO_OBRIGATORIOS = {"workflows"}
+# Passos que o CI faz só para preparar o runner (baixar ferramentas, instalar o CLI); local, o que existe no PATH vale.
+PASSO_DE_PREPARO = re.compile(r"\b(npm install|curl|wget)\b")
+FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
+OK, FALHOU, PULADO = "ok", "falhou", "pulado"
+SEGURA = re.compile(r"^(github\.[a-z_.]+|'[^']*'|==|!=|&&|\|\||\(|\)|\s)+$")
+
+
+# --- Leitura dos workflows (YAML mínimo: só o que os workflows do Forge usam) -----------------------------
+def _valor(texto):
+    texto = texto.strip()
+    if len(texto) >= 2 and texto[0] == texto[-1] and texto[0] in "'\"":
+        return texto[1:-1]
+    return texto
+
+
+def _bloco(linhas, i, indent):
+    """Texto do bloco `|` que começa em linhas[i], com indentação maior que `indent`; devolve (texto, próximo i)."""
+    corpo = []
+    while i < len(linhas) and (not linhas[i].strip() or len(linhas[i]) - len(linhas[i].lstrip()) > indent):
+        corpo.append(linhas[i])
+        i += 1
+    base = min((len(l) - len(l.lstrip()) for l in corpo if l.strip()), default=0)
+    return "\n".join(l[base:] for l in corpo).rstrip("\n") + "\n", i
+
+
+def ler_jobs(texto):
+    """Lista de jobs: {id, nome, se, passos: [{nome, se, env, run}]} na ordem do arquivo."""
+    linhas = texto.splitlines()
+    jobs, job, passo, i = [], None, None, 0
+    while i < len(linhas) and not linhas[i].startswith("jobs:"):
+        i += 1
+    i += 1
+    while i < len(linhas):
+        linha = linhas[i]
+        i += 1
+        ind = len(linha) - len(linha.lstrip())
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        if ind == 0:
+            break
+        if ind == 2 and linha.rstrip().endswith(":"):
+            job = {"id": linha.strip()[:-1], "nome": linha.strip()[:-1], "se": "", "passos": []}
+            jobs.append(job)
+            passo = None
+        elif job is None:
+            continue
+        elif ind == 4 and not linha.startswith("    steps:"):
+            chave, _, valor = linha.strip().partition(":")
+            if chave == "name":
+                job["nome"] = _valor(valor)
+            elif chave == "if":
+                job["se"] = _valor(valor)
+        elif ind >= 6 and linha.startswith("      - "):
+            passo = {"nome": "", "se": "", "env": {}, "run": ""}
+            job["passos"].append(passo)
+            linha, ind = "        " + linha[8:], 8
+        if passo is not None and ind == 8:
+            chave, _, valor = linha.strip().partition(":")
+            if chave == "name":
+                passo["nome"] = _valor(valor)
+            elif chave == "if":
+                passo["se"] = _valor(valor)
+            elif chave == "run":
+                if valor.strip() in ("|", ">"):
+                    passo["run"], i = _bloco(linhas, i, 8)
+                else:
+                    passo["run"] = _valor(valor) + "\n"
+            elif chave == "env":
+                while i < len(linhas) and linhas[i].startswith("          ") and linhas[i].strip():
+                    k, _, v = linhas[i].strip().partition(":")
+                    passo["env"][k] = _valor(v)
+                    i += 1
+    return jobs
+
+
+# --- Contexto do PR e expressões `${{ }}` / `if:` ----------------------------------------------------------
+def contexto_do_pr(pr, base_sha, token=""):
+    return {
+        "github.event_name": "pull_request",
+        "github.base_ref": pr["baseRefName"],
+        "github.head_ref": pr["headRefName"],
+        "github.token": token,
+        "github.event.pull_request.number": str(pr["number"]),
+        "github.event.pull_request.head.sha": pr["headRefOid"],
+        "github.event.pull_request.base.sha": base_sha,
+        "github.event.pull_request.user.login": (pr.get("author") or {}).get("login", ""),
+        "github.event.pull_request.body": pr.get("body") or "",
+    }
+
+
+def avaliar_se(expressao, ctx):
+    """Avalia um `if:` (só `github.*`, literais, ==, !=, &&, ||, parênteses). Vazio = verdadeiro; fora disso levanta ValueError."""
+    expressao = expressao.strip()
+    if not expressao:
+        return True
+    if not SEGURA.match(expressao):
+        raise ValueError(f"condição fora do subconjunto aceito: {expressao}")
+    py = re.sub(r"github\.[a-z_.]+", lambda m: repr(ctx.get(m.group(0), "")), expressao)
+    return bool(eval(py.replace("&&", " and ").replace("||", " or "), {"__builtins__": {}}, {}))  # noqa: S307 (validada acima)
+
+
+def expandir(valor, ctx):
+    return re.sub(r"\$\{\{\s*([\w.]+)\s*\}\}", lambda m: ctx.get(m.group(1), ""), valor)
+
+
+# --- Resultado, resumo e status (lógica pura, sem rede) ----------------------------------------------------
+def resultado(nome, estado, motivo="", obrigatorio=True, ausente=False):
+    return {"nome": nome, "estado": estado, "motivo": motivo, "obrigatorio": obrigatorio, "ausente": ausente}
+
+
+def pulado_obrigatorio(r):
+    """Pulado por falta de ferramenta num job obrigatório: conta como falha. Pulado por não se aplicar não conta."""
+    return r["estado"] == PULADO and r["ausente"] and r["obrigatorio"]
+
+
+def resumo(resultados):
+    linhas = []
+    for r in resultados:
+        sufixo = f" ({r['motivo']})" if r["motivo"] else ""
+        marca = "PULADO (obrigatório: conta como falha)" if pulado_obrigatorio(r) else r["estado"].upper()
+        linhas.append(f"{r['nome']:<28} {marca}{sufixo}")
+    return "\n".join(linhas)
+
+
+def status(resultados):
+    """(state, description) do commit status: failure se algum job falhou ou se um obrigatório ficou pulado por ausência."""
+    ok = sum(r["estado"] == OK for r in resultados)
+    falhas = sum(r["estado"] == FALHOU or pulado_obrigatorio(r) for r in resultados)
+    puladas = sum(r["estado"] == PULADO and not pulado_obrigatorio(r) for r in resultados)
+    descricao = f"{ok} ok / {falhas} falharam" + (f" / {puladas} pulados" if puladas else "")
+    return ("failure" if falhas else "success"), descricao
+
+
+# --- Execução ----------------------------------------------------------------------------------------------
+def rodar(args, cwd=None, env=None, saida=False, timeout=None):
+    return subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=saida, timeout=timeout, check=False)
+
+
+def ferramentas_ausentes(script):
+    achadas = {ferr for palavra, ferr in FERRAMENTAS_DO_JOB.items() if re.search(rf"(^|[\s;&|(]){palavra}\s", script, re.M)}
+    return sorted(f for f in achadas if not shutil.which(f))
+
+
+def rodar_job(job, ctx, raiz, base_sha, tmp):
+    nome = job["nome"]
+    obrigatorio = job["id"] not in NAO_OBRIGATORIOS
+    try:
+        if not avaliar_se(job["se"], ctx):
+            return resultado(nome, PULADO, f"não se aplica a este PR (if: {job['se']})", obrigatorio)
+        passos = [p for p in job["passos"] if p["run"] and not PASSO_DE_PREPARO.search(p["run"])]
+        passos = [p for p in passos if avaliar_se(p["se"], ctx)]
+    except ValueError as erro:
+        return resultado(nome, FALHOU, str(erro), obrigatorio)
+    if not passos:
+        return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
+    tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
+    tmp.mkdir(parents=True, exist_ok=True)
+    faltam = sorted({f for p in passos for f in ferramentas_ausentes(p["run"])})
+    if faltam:
+        return resultado(nome, PULADO, f"ferramenta ausente no PATH: {', '.join(faltam)}", obrigatorio, ausente=True)
+    for passo in passos:
+        script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "CI": "true"})
+        env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
+        print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
+        try:
+            p = rodar(["nice", "-n", "10", "bash", "-e", "-c", script], cwd=raiz, env=env, timeout=1800)
+        except subprocess.TimeoutExpired:
+            return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
+        if p.returncode:
+            return resultado(nome, FALHOU, f"passo '{passo['nome']}' saiu com {p.returncode}", obrigatorio)
+    return resultado(nome, OK, "", obrigatorio)
+
+
+def gh_json(*args):
+    p = rodar(["gh", *args], saida=True)
+    if p.returncode:
+        sys.exit(f"ci-local: `gh {' '.join(args[:2])}` falhou: {p.stderr.strip()}")
+    return json.loads(p.stdout)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Roda a bateria do CI localmente sobre um PR.")
+    ap.add_argument("pr", type=int, help="número do PR")
+    ap.add_argument("--publicar", action="store_true", help="grava o resultado como commit status `ci-local`")
+    a = ap.parse_args(argv)
+
+    topo = rodar(["git", "rev-parse", "--show-toplevel"], saida=True)
+    if topo.returncode:
+        sys.exit("ci-local: rode dentro do repositório do Forge.")
+    repo_dir = topo.stdout.strip()
+    pr = gh_json("pr", "view", str(a.pr), "--json", "number,headRefOid,headRefName,baseRefName,body,author,state")
+    nome_repo = gh_json("repo", "view", "--json", "nameWithOwner")["nameWithOwner"]
+    sha = pr["headRefOid"]
+    print(f"PR #{a.pr} ({pr['state']}): {pr['headRefName']} -> {pr['baseRefName']} @ {sha[:12]}")
+
+    for ref in (f"pull/{a.pr}/head", pr["baseRefName"]):
+        if rodar(["git", "fetch", "-q", "origin", ref], cwd=repo_dir, saida=True).returncode:
+            sys.exit(f"ci-local: não consegui buscar '{ref}' do origin.")
+    if rodar(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=repo_dir).returncode:
+        sys.exit(f"ci-local: o sha {sha} da cabeça do PR não chegou (o PR mudou durante a busca?).")
+    base = rodar(["git", "merge-base", sha, f"origin/{pr['baseRefName']}"], cwd=repo_dir, saida=True).stdout.strip()
+    if not base:
+        sys.exit("ci-local: sem ponto de partida comum entre o PR e a base.")
+
+    token = rodar(["gh", "auth", "token"], saida=True).stdout.strip()
+    ctx = contexto_do_pr(pr, base, token)
+    tmp = Path(tempfile.mkdtemp(prefix="ci-local.", dir=os.environ.get("TMPDIR") or None))
+    raiz = tmp / "wt"
+    resultados = []
+    try:
+        if rodar(["git", "worktree", "add", "-q", "--detach", str(raiz), sha], cwd=repo_dir, saida=True).returncode:
+            sys.exit("ci-local: não consegui criar a worktree temporária.")
+        os.environ.update({"GITHUB_TOKEN": token, "GITHUB_REPOSITORY": nome_repo, "PR_NUMBER": str(a.pr), "HEAD_SHA": sha,
+                           "PR_AUTOR": ctx["github.event.pull_request.user.login"]})
+        for arquivo in WORKFLOWS:
+            caminho = raiz / ".github" / "workflows" / arquivo
+            if not caminho.exists():
+                resultados.append(resultado(arquivo, PULADO, "workflow ausente neste PR", ausente=True))
+                continue
+            for job in ler_jobs(caminho.read_text(encoding="utf-8")):
+                resultados.append(rodar_job(job, ctx, raiz, base, tmp))
+    finally:
+        rodar(["git", "worktree", "remove", "--force", str(raiz)], cwd=repo_dir, saida=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+        rodar(["git", "worktree", "prune"], cwd=repo_dir, saida=True)  # worktrees que os próprios jobs criaram em $RUNNER_TEMP
+
+    estado, descricao = status(resultados)
+    print("\n" + resumo(resultados) + f"\n\nci-local: {estado} ({descricao})")
+    if a.publicar:
+        p = rodar(["gh", "api", "-X", "POST", f"repos/{nome_repo}/statuses/{sha}", "-f", f"state={estado}",
+                   "-f", "context=ci-local", "-f", f"description={descricao}"], saida=True)
+        if p.returncode:
+            sys.exit(f"ci-local: não consegui publicar o status: {p.stderr.strip()}")
+        print(f"status `ci-local` publicado em {sha[:12]}")
+    return 0 if estado == "success" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
