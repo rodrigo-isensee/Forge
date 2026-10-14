@@ -215,5 +215,118 @@ class Fila(Base):
         self.assertNotIn("issue create", self.log_gh())
 
 
+class Higiene(Base):
+    def guardado(self, texto):
+        codigo, saida = self.rodar("--guardar", texto)
+        self.assertEqual(codigo, 0, saida)
+        (arq,) = self.na_fila()
+        return arq.read_text(encoding="utf-8"), saida
+
+    def test_guardar_anonimiza_grava_600_e_nao_envia_nem_pergunta(self):
+        texto, saida = self.guardado(TEXTO)
+        self.sem_dados(texto)
+        self.assertEqual(self.na_fila()[0].stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.fila.stat().st_mode & 0o777, 0o700)
+        self.assertNotIn("issue create", self.log_gh())
+
+    def test_guardar_dentro_do_claude_funciona(self):
+        codigo, saida = self.rodar("--guardar", TEXTO, env={**self.env, "CLAUDECODE": "1"})
+        self.assertEqual(codigo, 0, saida)
+        self.sem_dados(self.na_fila()[0].read_text(encoding="utf-8"))
+
+    def test_remove_controle_e_direcao_unicode_do_texto_e_do_titulo(self):
+        sujo = "\x1b[8mSEGREDO\x1b[0m\rfalso\u202eoculto\u2066x\u2069\u200bz\x07fim\nlinha 2\tcom tab"
+        texto, _ = self.guardado(sujo)
+        for ruim in ("\x1b", "\r", "\u202e", "\u2066", "\u2069", "\u200b", "\x07"):
+            self.assertNotIn(ruim, texto)
+        self.assertIn("linha 2\tcom tab", texto)
+        codigo, saida = self.rodar(sujo, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        enviado = self.log_gh()
+        for ruim in ("\x1b", "\r", "\u202e", "\u200b"):
+            self.assertNotIn(ruim, enviado)
+
+    def test_remove_controle_tambem_do_que_ja_estava_na_fila(self):
+        self.fila.mkdir(parents=True)
+        (self.fila / "x.md").write_text("ok\x1b[8mescondido\u202e\n", encoding="utf-8")
+        self.rodar("--fila", respostas=["s"])
+        self.assertNotIn("\x1b", self.log_gh())
+        self.assertNotIn("\u202e", self.log_gh())
+
+    def casos(self, pares):
+        for entrada, proibido in pares:
+            with self.subTest(entrada=entrada):
+                self.setUp_limpa()
+                texto, saida = self.guardado("antes " + entrada + " depois")
+                self.assertNotIn(proibido, texto)
+                self.assertIn("antes", texto)
+                self.assertIn("depois", texto)
+
+    def setUp_limpa(self):
+        shutil.rmtree(self.fila, ignore_errors=True)
+
+    def test_pem_inteiro(self):
+        pem = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAxyz1234567890abcdef\nQWERTYUIOPasdfghjkl\n-----END RSA PRIVATE KEY-----"
+        self.casos([(pem, "MIIEowIBAAKCAQEA"), (pem, "QWERTYUIOP"), (pem, "BEGIN RSA")])
+
+    def test_chaves_aws(self):
+        self.casos([("AKIAIOSFODNN7EXAMPLE", "AKIAIOSFODNN7"),
+                    ("aws_secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", "wJalrXUtnFEMI"),
+                    ("a chave wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY sozinha", "wJalrXUtnFEMI")])
+
+    def test_pares_de_segredo_com_aspas_e_espacos(self):
+        self.casos([('password:"p4ss w0rd"', "w0rd"), ("secret = 'meu segredo grande'", "grande"),
+                    ('token: "abc def ghi"', "ghi"), ('apikey="x y z 123"', "123"), ("db_password=hunter22", "hunter22"),
+                    ("api_key: 'k k k'", "k k k"), ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA")])
+
+    def test_basic_auth_em_url(self):
+        self.casos([("postgres://admin:s3nha@db.exemplo.com:5432/x", "s3nha"), ("https://user:pw123@exemplo.org/a", "pw123")])
+
+    def test_ips(self):
+        self.casos([("host 10.20.30.40 caiu", "10.20.30.40"), ("v6 2001:db8:85a3::8a2e:370:7334 caiu", "8a2e:370"),
+                    ("loop ::1 e fe80::1ff:fe23:4567:890a", "fe80")])
+
+    def test_hostnames_internos(self):
+        self.casos([("db01.corp.local", "db01"), ("api.interno.internal", "api.interno"), ("nas.lan", "nas.lan"),
+                    ("wiki.meu-projeto-secreto.com.br", "wiki."), ("meuprojetosecreto.dev", "meuprojetosecreto")])
+
+    def test_toda_url_vira_url_menos_as_do_forge(self):
+        texto, _ = self.guardado("veja https://intranet.empresa.local/wiki/Sistema e www.empresa.local/x e "
+                                 "https://exemplo.com/docs e https://github.com/rodrigo-isensee/Forge/issues/12 fim")
+        self.assertNotIn("empresa.local", texto)
+        self.assertNotIn("exemplo.com", texto)
+        self.assertIn("<url>", texto)
+        self.assertIn("https://github.com/rodrigo-isensee/Forge/issues/12", texto)
+
+    def test_url_que_foge_do_repositorio_do_forge_nao_fica(self):
+        texto, _ = self.guardado("https://github.com/rodrigo-isensee/Forge/../../outro/repo e https://github.com/rodrigo-isensee/Forge-x")
+        self.assertNotIn("outro/repo", texto)
+        self.assertNotIn("Forge-x", texto)
+
+    def test_variantes_do_nome_do_projeto(self):
+        self.casos([("meu-projeto-secreto", "secreto"), ("Meu Projeto Secreto", "Secreto"), ("meu_projeto_secreto", "secreto"),
+                    ("MEUPROJETOSECRETO", "SECRETO"), ("MeuProjetoSecreto", "Secreto"), ("meuprojetosecreto", "secreto")])
+
+    def test_variantes_sem_acento_do_nome_com_acento(self):
+        (self.proj / ".forge" / "novo-projeto.json").write_text('{"nome": "Sistema Ação", "dono": "x-y"}\n', encoding="utf-8")
+        self.casos([("Sistema-Acao", "Acao"), ("sistema acao", "acao"), ("SistemaAção", "Ação"), ("sistema_acao", "acao"),
+                    ("SISTEMA-AÇÃO", "AÇÃO")])
+
+    def test_caminhos_windows_e_unc(self):
+        self.casos([("C:\\Users\\bob\\app", "bob"), ("C:/Users/bob/app", "bob"), ("\\\\servidor\\share\\dir", "servidor")])
+
+    def test_aviso_nao_afirma_que_o_texto_esta_limpo(self):
+        _, saida = self.rodar(TEXTO, respostas=["n"])
+        self.assertNotIn("já não tem dados do seu projeto", saida)
+        self.assertIn("removi o que reconheci; confira o texto abaixo antes de confirmar", saida)
+
+    def test_nao_estraga_texto_comum_do_forge(self):
+        texto, _ = self.guardado("hooks/conformidade.py na versão 0.12.0 falha às 10:30 com R-CONTRIB; veja docs/regras/R-CONTRIB.md")
+        self.assertIn("hooks/conformidade.py", texto)
+        self.assertIn("0.12.0", texto)
+        self.assertIn("10:30", texto)
+        self.assertIn("R-CONTRIB", texto)
+
+
 if __name__ == "__main__":
     unittest.main()

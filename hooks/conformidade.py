@@ -62,9 +62,9 @@ GH_COM_VALOR = {"-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--ti
                 "--remove-label", "-a", "--add-assignee", "--remove-assignee", "-m", "--milestone", "-B", "--base",
                 "-p", "--add-project", "--remove-project", "-r", "--add-reviewer", "--remove-reviewer", "--subject",
                 "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason", "--label", "--assignee"}
-CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/labels(/|$)")
+CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/issues/?(\?.*)?$|/labels(/|$)")
 CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
-                             r"removeLabelsFromLabelable|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
+                             r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
@@ -757,11 +757,12 @@ class Guarda:
                 self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo != 'label' else ''} no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
         elif grupo == "issue" and sub == "create":
-            # Issue nova é a sugestão anônima (`forge sugerir`, R-CONTRIB): libera; já nascer com rótulo é aplicar rótulo.
-            if parecer.opcao(palavras[1:], "--label", "-l") is not None and self.alvo_do_forge(pasta, repo) \
-                    and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", "gh issue create com rótulo no Forge: a sessão de outro projeto não aplica "
-                                         "rótulos", "crie a issue sem --label; quem rotula é o Forge")
+            # Issue nova no Forge é da pessoa: `forge sugerir`, no terminal dela, fora do Claude (onde o hook não roda).
+            alvo = self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])
+            if alvo and not self.clone_do_forge():
+                self.barrar("R-CONTRIB", "gh issue create no Forge: só a pessoa envia sugestão, no terminal dela, fora do "
+                                         "Claude, com `forge sugerir`", "guarde o texto com `forge sugerir --guardar \"<texto>\"` "
+                                         "e avise a pessoa")
         elif grupo == "api":
             args = palavras[2:]
             endpoint = parecer.endpoint_da_api(args)
@@ -774,7 +775,7 @@ class Guarda:
                 slug = dono.group(1) if dono and "{" not in dono.group(1) else repo_env  # {owner}/{repo} = GH_REPO
                 alvo, perigoso = self.alvo_do_forge(pasta, slug), bool(CONTRIB_API.search(endpoint))
             if alvo and perigoso and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
+                self.barrar("R-CONTRIB", "gh api que cria issue ou edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
 
     def gh_trava(self, palavras, pasta):

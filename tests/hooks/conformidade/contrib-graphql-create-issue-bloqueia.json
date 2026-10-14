@@ -1,5 +1,5 @@
 {
-  "descricao": "Criar issue nova no Forge (sugestão do forge sugerir) libera.",
+  "descricao": "Mutação GraphQL createIssue: bloqueia.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -9,12 +9,13 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "gh issue create -R rodrigo-isensee/Forge --title t --body-file s.md"
+      "command": "gh api graphql -f query='mutation { createIssue(input:{repositoryId:\"X\",title:\"t\"}) { issue { id } } }'"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
   }
 }
