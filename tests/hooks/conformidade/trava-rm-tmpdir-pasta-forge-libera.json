@@ -1,0 +1,33 @@
+{
+  "descricao": ".forge dentro de $TMPDIR que não é o projeto: rm -rf $TMPDIR/x/.forge",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{raiz}",
+    "TMPDIR": "{tmp}/t"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "rm -rf $TMPDIR/x/.forge"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

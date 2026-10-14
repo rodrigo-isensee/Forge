@@ -8,7 +8,7 @@ Formato do fixture:
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
-  git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
+  git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b} (com "solto": true, HEAD solto)
               | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   repos       {pasta relativa a {tmp}: {"arquivos": {...}, "branch": b, "remotos": {nome: url}}} outros repositórios git
@@ -111,7 +111,10 @@ class Fixture:
         git("commit", "-q", "-m", "base", cwd=raiz)
         for passo in d.get("git", []):
             if "worktree" in passo:
-                git("worktree", "add", "-q", "-b", passo["branch"], str(tmp / passo["worktree"]), cwd=raiz)
+                if passo.get("solto"):  # HEAD solto, sem branch (cópia de review)
+                    git("worktree", "add", "-q", "--detach", str(tmp / passo["worktree"]), cwd=raiz)
+                else:
+                    git("worktree", "add", "-q", "-b", passo["branch"], str(tmp / passo["worktree"]), cwd=raiz)
             elif "branch" in passo:
                 git("switch", "-q", "-c", passo["branch"], cwd=raiz)
             elif "checkout" in passo:

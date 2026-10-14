@@ -1,5 +1,5 @@
 {
-  "descricao": "Em worktree temporária de review, reset --hard não pergunta.",
+  "descricao": "Em worktree temporária de review com HEAD solto, reset --hard não pergunta.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".forge/perfil": "iniciante\n"
@@ -16,7 +16,8 @@
     },
     {
       "worktree": "review-wt",
-      "branch": "review/x"
+      "branch": "review/x",
+      "solto": true
     }
   ],
   "entrada": {
