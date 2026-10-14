@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: f1-lote4-custo
 branch: melhoria/f1-lote4-custo
-commit: 6051057
-parecer: reprovado
+commit: ff4393f
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
@@ -77,3 +77,19 @@ F. **nit** · `bin/forge-check:951` diz "pulado", mas um arquivo com erro no mei
 
 ### Próximo passo
 Autor corrige A (e, se quiser, B a E), faz push e pede novo re-review. Não há validação local registrada no PR: só se aprova depois de A.
+
+## Terceira review independente
+Parecer: **aprovado** (commit revisado ff4393f). O bloqueio A do re-review (`skipIf` de root) está resolvido: o teste roda sempre e o caminho do arquivo ilegível é exercitado de verdade.
+
+### O que confere
+- **Teste sem pulo.** O `skipIf` saiu. Contagem de pulos em `tests/` (skip, skipIf, skipUnless, expectedFailure, skipTest) igual na base `b5e5d3d` e no head: 6 e 6. A catraca `--modo regras` não aponta pulo.
+- **O caminho ilegível é o real.** O teste troca o `open` do módulo `forge-check` (`mock.patch.object(fc, "open", ..., create=True)`) e levanta `PermissionError` só para `ruim.jsonl`. Como `ler_uso` usa o `open` global do módulo, a troca alcança a leitura. Sem chmod, vale como root e como usuário comum.
+- **Mutação (cópia descartável, fora do PR).** Sem a captura de `OSError` em `ler_uso`, o teste dá ERROR com o `PermissionError` propagado. Com o mock desligado, dá FAIL (`0 != 1`). Com o código do PR, passa.
+- **Asserções.** `ilegiveis == 1`; aviso em stderr; sem `Traceback`; `ruim.jsonl` fora da saída (nome exato, resolve o recomendado B); o `bom.jsonl` é somado (`input_tokens` 1, `output_tokens` 2).
+- **Bateria local no ff4393f.** `python3 -m unittest discover -s tests`: 324 testes, OK. `scripts/validar-plugin.sh`: exit 0, "Validation passed". Catraca `--modo regras`: a única violação é `bin/forge-check` sem o rótulo `afrouxa-regra` (decisão do dono, R-CONFORMIDADE). Catraca `--modo pr-texto`: exit 0. Catraca `--modo pareceres`: reprovava com o parecer anterior; passa com este (ver o registro no PR).
+- **Versão e changelog.** `plugin.json` continua em 0.12.0; uma linha nova em `[Não publicado]`.
+
+### Recomendados abertos (não bloqueiam)
+- **recomendado** · `tests/test_forge.py` (classe `CustoDeTokens`) · o "vale a última" da duplicata de streaming segue sem teste (recomendado C do re-review). Sugestão: fixture com mesmo `message.id` e `requestId` e `output_tokens` diferentes.
+- **recomendado** · `bin/forge-check` `ler_uso` · `ilegiveis` agora é lido pelo teste, mas não pela saída do comando (recomendado D). Ou expor no aviso final, ou remover.
+- **recomendado** · `bin/forge-check` `ler_uso` · `tipo_do_agente.get(agente)` para mensagens da sessão principal (recomendado E), e a mensagem "pulado" para arquivo com erro no meio (nit F).
