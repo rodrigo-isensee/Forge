@@ -3,15 +3,15 @@ tipo: qa
 contrato: 1
 pedido: primeiro-uso-f2
 branch: melhoria/primeiro-uso-f2
-commit: 41b14f5
-parecer: reprovado
+commit: 6307554
+parecer: aprovado
 revisor: forge:qa-engineer
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
-bugs_altos: 1
-bugs_medios: 1
-bugs_baixos: 4
-aceite_usuario: sim
+bugs_altos: 0
+bugs_medios: 0
+bugs_baixos: 0
+aceite_usuario: nao
 data: 2026-10-13
 ---
 
@@ -93,3 +93,23 @@ Testes para: nome acentuado (BUG-F2-01), reenvio em ramo sem versão remota (BUG
 
 ## Parecer
 Reprovado para a `develop` com 1 bug alto aberto (BUG-F2-01) e 1 médio (BUG-F2-02). Nenhum caso perde trabalho, e `desfazer` está sólido. A reprovação é pelo segredo que escapa em pasta com acento, que fura a promessa central de `salvar`, e pela falsa segurança do reenvio. Corrigidos F2-01 e F2-02 (com teste cada), o retorno é reteste incremental; os quatro baixos podem seguir com aceite do usuário.
+
+## Reteste (volta 2)
+
+Testado no HEAD 6307554 (código da correção 2c28cad), worktree temporária, PATH sem o `gh` real, HOME e git temporários, remotos bare locais, sem rede. O aviso de sandbox sobre `api.anthropic.com` na saída da suíte é do ambiente (nenhum script do PR chama API).
+
+Suíte: `python3 -m unittest discover -s tests`: 351 testes, OK, 62 s, nenhum `skip`. (Uma primeira rodada com PATH incompleto, sem `grep` real, falhou por ambiente; refeita com `/usr/bin` sem `gh`.)
+
+| Bug | Reprodução | Resultado |
+|---|---|---|
+| F2-01 | `pasta ção/.env` e `açao.txt` com `<<<<<<<` | Recusa os dois, lista o nome legível, nada commitado. Fechado |
+| F2-02 | ramo novo, remoto fora, salvar; remoto de volta, salvar | Segunda rodada: "enviei ao GitHub o que já estava salvo"; `ls-remote` mostra o ramo. Fechado |
+| F2-03 | `pre-receive` que recusa | Mensagem de proteção do servidor, sem falsa "alguém mudou". Fechado |
+| F2-04 | repositório sem commits, arquivo novo, desfazer | "ainda não há nenhum ponto salvo para voltar", nada alterado. Fechado |
+| F2-05 | `--recuperar` com conflito | Texto em português: "o que estava guardado continua guardado"; stash mantido, pasta intacta. Fechado |
+| F2-06 | prompts de `forge-novo-projeto` | Colchete único (`ler` é o único que o acrescenta; linha 160 sem colchete próprio); testes cobrem. Fechado |
+| F2-07 | `-rf.txt` com `<<<<<<<` | Recusa com o nome, rc 1, nenhum commit novo. Fechado |
+
+Regressão dos cenários do primeiro parecer (salvar, segredos, desfazer, recuperar): sem perda de trabalho. `git reflog` mostra todos os commits de salvar; `git stash list` mantém `stash@{0}: desfeito ...` quando o `--recuperar` não aplica; árvore e remoto preservados.
+
+Parecer do reteste: aprovado. Sem bugs abertos. Pendência não bloqueante (já registrada): scripts de `bin/` ainda fora do job `shellcheck` do CI.
