@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f2
 branch: melhoria/primeiro-uso-f2
-commit: 6a8795a
+commit: 229ec44
 parecer: aprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-13
@@ -36,3 +36,19 @@ Revisor: `tech-lead`, sobre o HEAD 6a8795a. Resultado: **aprovado**, com recomen
   4. `bin/forge-desfazer`: com mesclagem em andamento o `stash` falha com mensagem crua do git; avisar antes. Também, se `stash pop` gera conflito, o texto "nada foi perdido" é verdadeiro, mas a pasta pode ficar com marcas; dizer isso.
   5. CI: incluir os quatro scripts bash de `bin/` no job `shellcheck` (pendência já registrada).
 - **Itens 1 a 4:** sugiro cartão de acompanhamento, com teste para cada um; não impedem a F2, pois falham sem apagar nada.
+
+## Re-review independente
+
+Revisor: `tech-lead`, sobre o HEAD 229ec44 (correção das recomendações 1 a 4 e da suposição da pasta). Resultado: **aprovado**, sem item que bloqueie.
+
+- **Verificação:** 342 testes OK; `shellcheck` limpo em `bin/forge`, `forge-salvar`, `forge-desfazer` e `forge-novo-projeto`. Só mudaram os dois scripts, os testes e `decisoes.md`; nenhum hook, catraca ou invariante.
+- **Rec. 1 (push recusado):** atendida; a mensagem de conflito diz que nada se perdeu, que não se enviou para não apagar o que há lá e manda chamar o Jarvis. Teste com segundo clone cobre o caso e exige a ausência de "rede ou permissão".
+- **Rec. 2 (mesclagem e marcas):** atendida; `ls-files -u` ou `MERGE_HEAD` recusam antes de qualquer `add` e o HEAD não se move (testado); marcas `<<<<<<< `/`>>>>>>> ` em arquivo tocado também recusam. O laço com `&&` não derruba o `set -e`.
+- **Rec. 3 (segredo no índice):** atendida; `diff --cached --name-only` entra na lista, com teste de `.env` posto por `git add -f`.
+- **Rec. 4 (desfazer):** atendida; mesclagem recusada antes do `stash`, sem texto cru do git. O aviso de `--recuperar` está claro: "nada foi perdido, mas a pasta pode ter ficado com marcas de conflito (<<<<<<<). Peça ajuda ao Jarvis". Se o `pop` deixar conflito, `salvar` e `desfazer` passam a recusar com o aviso de mesclagem, o que protege.
+- **Suposição da pasta:** `decisoes.md` atualizado ("pasta fixa `~/<nome>`, avisada; quem quiser outra pasta move depois").
+- **Observações (não bloqueiam, para o cartão de acompanhamento):**
+  1. `bin/forge-salvar`: o padrão `rejected` também casa com "remote rejected" (hook ou proteção do GitHub), que mostraria o texto de "alguém mudou". Preferir `non-fast-forward|fetch first|stale info` e deixar o resto cair em "rede ou permissão".
+  2. Nos demais erros de push o texto do git deixou de aparecer (a saída é capturada). Imprimir `$erro` em stderr no caminho genérico ajuda o diagnóstico.
+  3. Nomes com acento ou espaço saem entre aspas em `ls-files` (`core.quotepath`); a checagem de segredo e de marcas os ignora. Usar `-z` ou `-c core.quotepath=off`.
+  4. CI: os scripts bash de `bin/` ainda fora do job `shellcheck` (pendência já registrada).
