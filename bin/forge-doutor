@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""Forge: doutor, o diagnóstico do projeto em linguagem simples (primeiro uso, F3). Rode no terminal, dentro do projeto.
+Uso: forge doutor [--rapido] [-v] [DIRETORIO]
+  --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
+  -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
+Confere: plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
+`.claude/settings.json` com o Jarvis, sandbox e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
+Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
+terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub, nem mescla, nem apaga.
+Saída: 0 tudo em ordem; 1 sobrou algo a ver. Só biblioteca padrão."""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+MODELO = RAIZ / "templates" / "projeto"
+RAMOS = ("develop", "homolog")
+JARVIS = "forge:jarvis"
+
+
+class Problema:
+    """Uma coisa fora do lugar: `texto` em linguagem simples e, se houver, `conserto` = (o que faz, função segura)."""
+
+    def __init__(self, texto, conserto=None):
+        self.texto, self.conserto = texto, conserto
+
+
+def rodar(args, cwd, limite=15):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") or k == "GIT_CONFIG_GLOBAL" or k == "GIT_CONFIG_NOSYSTEM"}
+    try:
+        r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=limite)
+    except (OSError, subprocess.TimeoutExpired):
+        return 1, ""
+    return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def ler_json(caminho):
+    """(dados, erro): o conteúdo do JSON, ou None e o motivo."""
+    try:
+        return json.loads(caminho.read_text(encoding="utf-8")), None
+    except FileNotFoundError:
+        return None, "ausente"
+    except (OSError, ValueError):
+        return None, "ilegível"
+
+
+def versao_de(texto):
+    achou = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", texto.strip())
+    return tuple(int(x) for x in achou.groups()) if achou else None
+
+
+def versao_do_plugin():
+    dados, _ = ler_json(RAIZ / ".claude-plugin" / "plugin.json")
+    return dados.get("version", "") if isinstance(dados, dict) else ""
+
+
+def raiz_do_projeto(inicio):
+    """Raiz do projeto (a pasta com .git) se ele tem `.forge/versao`; senão None (o doutor só cuida de projeto do Forge)."""
+    inicio = Path(inicio).resolve()
+    for pasta in (inicio, *inicio.parents):
+        if (pasta / ".git").exists():
+            return pasta if (pasta / ".forge" / "versao").is_file() else None
+    return None
+
+
+def casa() -> Path:
+    return Path(os.environ.get("HOME") or Path.home())
+
+
+def pasta_de_backup(raiz):
+    estado = Path(os.environ.get("XDG_STATE_HOME") or casa() / ".local" / "state")
+    return estado / "forge" / "backup" / raiz.name / time.strftime("%Y%m%d-%H%M%S")
+
+
+# Conferências ---------------------------------------------------------------------------------
+def conferir_plugin(raiz):
+    instalados, _ = ler_json(casa() / ".claude" / "plugins" / "installed_plugins.json")
+    plugins = instalados.get("plugins") if isinstance(instalados, dict) else None
+    no_computador = isinstance(plugins, dict) and any(str(k).startswith("forge@") for k in plugins)
+    config, _ = ler_json(raiz / ".claude" / "settings.json")
+    ligado = isinstance(config, dict) and isinstance(config.get("enabledPlugins"), dict) \
+        and any(str(k).startswith("forge@") and v for k, v in config["enabledPlugins"].items())
+    if no_computador or ligado:
+        return []
+    return [Problema("O plugin do Forge não está instalado neste computador. Peça ao Jarvis para instalar "
+                     "ou rode `claude plugin install forge@forge`.")]
+
+
+def conferir_versao(raiz):
+    plugin = versao_do_plugin()
+    projeto = (raiz / ".forge" / "versao").read_text(encoding="utf-8").strip()
+    a, b = versao_de(projeto), versao_de(plugin)
+    if a is None:
+        return [Problema(f"O arquivo .forge/versao está ilegível (diz `{projeto[:30]}`). Peça ao Jarvis para conferir a versão do projeto.")]
+    if b is None or a == b:
+        return []
+    if a < b:
+        return [Problema(f"O projeto está na versão {projeto} do Forge e o Forge instalado é o {plugin}: "
+                         "atualize o projeto com `forge-upgrade --simular` (mostra o que muda) e depois `forge-upgrade`.")]
+    return [Problema(f"O projeto já usa a versão {projeto} do Forge, mas o plugin instalado é o {plugin}: "
+                     "atualize o plugin com `claude plugin update forge@forge`.")]
+
+
+def conferir_protecao_do_git(raiz, config_git):
+    itens = []
+    pasta = raiz / ".githooks"
+    if not pasta.is_dir():
+        itens.append("a pasta .githooks sumiu")
+    else:
+        itens += [f".githooks/{a.name} sem permissão de execução" for a in sorted(pasta.iterdir())
+                  if a.is_file() and not os.access(a, os.X_OK)]
+    ativo = config_git.get("core.hookspath", "")
+    if ativo not in (".githooks", str(pasta)):
+        itens.append("ela está desligada neste projeto")
+    if not itens:
+        return []
+
+    def consertar():
+        if not pasta.is_dir():
+            shutil.copytree(MODELO / ".githooks", pasta)
+        for arq in pasta.iterdir():
+            if arq.is_file():
+                arq.chmod(arq.stat().st_mode | 0o111)
+        rodar(["git", "config", "core.hooksPath", ".githooks"], raiz)
+        return "religuei a proteção do git (impede enviar direto para a main)"
+    return [Problema("A proteção do git, que impede enviar trabalho direto para a main, está incompleta: "
+                     + "; ".join(itens) + ".", ("religar a proteção do git", consertar))]
+
+
+def conferir_gh(raiz):
+    if not shutil.which("gh"):
+        return [Problema("O `gh` (a ferramenta que fala com o GitHub) não está instalado: instale em https://cli.github.com "
+                         "e rode `gh auth login`.")]
+    codigo, saida = rodar(["gh", "auth", "status"], raiz)
+    if codigo == 0:
+        return []
+    if re.search(r"error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection", saida, re.I):
+        return []  # sem conexão não é falta de login; o doutor não adivinha
+    return [Problema("Você ainda não entrou no GitHub por aqui: rode `gh auth login` neste terminal "
+                     "(o login acontece no navegador).")]
+
+
+def conferir_identidade(config_git):
+    faltam = [(chave, rotulo, comando) for chave, rotulo, comando in (
+        ("user.name", "nome", 'git config --global user.name "Seu Nome"'),
+        ("user.email", "e-mail", 'git config --global user.email "voce@exemplo.com"')) if not config_git.get(chave)]
+    if not faltam:
+        return []
+    return [Problema(f"O git ainda não sabe seu {' e seu '.join(f[1] for f in faltam)}: rode "
+                     + " e ".join(f"`{f[2]}`" for f in faltam) + " (troque pelos seus dados).")]
+
+
+def conferir_settings(raiz):
+    alvo = raiz / ".claude" / "settings.json"
+    dados, erro = ler_json(alvo)
+    if erro == "ausente":
+        def restaurar():
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(MODELO / ".claude" / "settings.json", alvo)
+            return "recriei o .claude/settings.json a partir do modelo do Forge"
+        return [Problema("Falta o arquivo .claude/settings.json, que liga o Jarvis neste projeto.", ("recriar o arquivo", restaurar))]
+    if erro or not isinstance(dados, dict):
+        return [Problema("O arquivo .claude/settings.json está quebrado (não consigo ler). Peça ao Jarvis para conferir; "
+                         "não mexo nele para não perder o que você configurou.")]
+    if dados.get("agent") == JARVIS:
+        return []
+
+    def religar():
+        copia = pasta_de_backup(raiz)
+        copia.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(alvo, copia / "settings.json")
+        dados["agent"] = JARVIS
+        alvo.write_text(json.dumps(dados, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return f"liguei o Jarvis no .claude/settings.json (cópia do arquivo anterior em {copia})"
+    return [Problema("O Jarvis não está ligado neste projeto: falta `\"agent\": \"forge:jarvis\"` no .claude/settings.json.",
+                     ("ligar o Jarvis", religar))]
+
+
+def conferir_sandbox(raiz):
+    for arq in (raiz / ".claude" / "settings.json", raiz / ".claude" / "settings.local.json", casa() / ".claude" / "settings.json"):
+        dados, _ = ler_json(arq)
+        caixa = dados.get("sandbox") if isinstance(dados, dict) else None
+        if isinstance(caixa, dict) and caixa.get("enabled") is True:
+            return []
+    return [Problema("O sandbox (a caixa que limita o que o Claude pode mexer no seu computador) está desligado: "
+                     "dentro do Claude, digite `/sandbox` e ligue.")]
+
+
+def conferir_ramos(raiz):
+    codigo, saida = rodar(["git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"], raiz)
+    refs = set(saida.splitlines()) if codigo == 0 else set()
+    problemas = []
+    for ramo in RAMOS:
+        if f"refs/heads/{ramo}" in refs:
+            continue
+        if f"refs/remotes/origin/{ramo}" in refs:
+            def criar(ramo=ramo):
+                rodar(["git", "branch", ramo, f"origin/{ramo}"], raiz)
+                return f"criei aqui a branch {ramo}, igual à do GitHub"
+            problemas.append(Problema(f"A branch {ramo} existe no GitHub, mas não neste computador.", (f"criar a branch {ramo}", criar)))
+        else:
+            problemas.append(Problema(f"A branch {ramo} não existe (nem aqui nem no GitHub): peça ao Jarvis para criá-la."))
+    return problemas
+
+
+def diagnosticar(raiz, rapido=True):
+    """Lista de Problema do projeto em `raiz`. `rapido` dispensa o `gh` (rede)."""
+    codigo, saida = rodar(["git", "config", "--list"], raiz)
+    config_git = {}
+    for linha in saida.splitlines() if codigo == 0 else []:
+        chave, _, valor = linha.partition("=")
+        config_git[chave.lower()] = valor
+    problemas = conferir_plugin(raiz) + conferir_versao(raiz) + conferir_protecao_do_git(raiz, config_git)
+    if not rapido:
+        problemas += conferir_gh(raiz)
+    return problemas + conferir_identidade(config_git) + conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
+
+
+# Saída ------------------------------------------------------------------------------------------
+def relatar(problemas, consertaveis, interativo):
+    n = len(problemas)
+    print(f"Forge doutor: {n} {'coisa' if n == 1 else 'coisas'} para ver")
+    for p in problemas:
+        print(f"- {p.texto}")
+    if consertaveis and not interativo:
+        print(f"Dá para consertar {len(consertaveis)} sozinho: rode `forge doutor` num terminal e responda s.")
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__.split("Saída:")[0].strip())
+        return 0
+    rapido, detalhe = "--rapido" in args, "-v" in args
+    pastas = [a for a in args if not a.startswith("-")]
+    raiz = raiz_do_projeto(pastas[0] if pastas else os.getcwd())
+    if raiz is None:
+        return 0
+    problemas = diagnosticar(raiz, rapido)
+    if not problemas:
+        if detalhe:
+            print(f"Forge doutor: tudo em ordem (Forge {versao_do_plugin()}).")
+        return 0
+    consertaveis = [p for p in problemas if p.conserto]
+    interativo = not rapido and sys.stdin.isatty() and sys.stdout.isatty()
+    relatar(problemas, consertaveis, interativo)
+    if not (consertaveis and interativo):
+        return 1
+    resposta = input(f"Posso consertar sozinho {len(consertaveis)} (mexo só no que é seguro e guardo cópia)? [s/N] ")
+    if resposta.strip().lower() not in ("s", "sim"):
+        return 1
+    for p in consertaveis:
+        print(f"Consertei: {p.conserto[1]()}.")
+    restantes = diagnosticar(raiz, rapido)
+    if not restantes:
+        print("Tudo em ordem agora.")
+        return 0
+    print("Ficou para você:")
+    for p in restantes:
+        print(f"- {p.texto}")
+    return 1
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (EOFError, KeyboardInterrupt):
+        sys.exit(1)

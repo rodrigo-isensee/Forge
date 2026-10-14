@@ -41,6 +41,9 @@ def main():
     if git(projeto, "status", "--porcelain"):
         sair("a cópia de trabalho não está limpa; commite ou guarde as mudanças antes", 2)
 
+    # Antes de atualizar: o doutor (rápido, só avisa) mostra o que já está fora do lugar, para não somar problema a problema.
+    subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-doutor"), "--rapido", str(projeto)], check=False)
+
     alvo = a.ate or json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
     arq_versao = projeto / ".forge/versao"
     atual = arq_versao.read_text(encoding="utf-8").strip() if arq_versao.exists() else "0.0.0"

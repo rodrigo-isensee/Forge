@@ -1,0 +1,17 @@
+{
+  "descricao": "Config corrompida: o doutor sai 0, não avisa e registra em erros.log.",
+  "config_bruta": "{",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "erros_log": "doutor JSONDecodeError"
+  }
+}

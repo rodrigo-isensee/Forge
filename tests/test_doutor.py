@@ -1,0 +1,464 @@
+"""Primeiro uso (F3): `forge doutor` e o hook `doutor` (ADR 0003), com HOME, git e `gh` falsos, sem rede.
+
+O projeto de partida está em ordem; cada teste estraga uma coisa e confere o aviso em linguagem simples.
+"""
+import json
+import os
+import pty
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from pathlib import Path
+
+RAIZ = Path(__file__).resolve().parent.parent
+DOUTOR = RAIZ / "bin" / "forge-doutor"
+HOOK = RAIZ / "hooks" / "doutor.py"
+VERSAO = json.loads((RAIZ / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
+HOJE = "2026-10-13"
+
+
+class Base(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="doutor-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.home = self.tmp / "home"
+        self.bin = self.tmp / "bin"
+        self.home.mkdir()
+        self.bin.mkdir()
+        self.gh_log = self.tmp / "gh.log"
+        (self.bin / "gh").write_text(
+            f'#!/usr/bin/env bash\necho "$*" >> {self.gh_log}\n'
+            f'[ -e "{self.home}/gh-sem-login" ] && {{ echo "not logged in" >&2; exit 1; }}\nexit 0\n', encoding="utf-8")
+        (self.bin / "gh").chmod(0o755)
+        self.gitconfig = self.home / "gitconfig"
+        self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
+        self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
+                        PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE)
+        self.env.pop("XDG_STATE_HOME", None)
+        self.remoto = self.tmp / "remoto.git"
+        self.proj = self.tmp / "proj"
+        self.git("init", "-q", "--bare", "-b", "main", str(self.remoto), cwd=self.tmp)
+        self.git("clone", "-q", str(self.remoto), str(self.proj), cwd=self.tmp)
+        self.escrever(".forge/versao", VERSAO + "\n")
+        self.escrever(".claude/settings.json", json.dumps({"agent": "forge:jarvis", "enabledPlugins": {"forge@forge": True}}))
+        self.escrever(".githooks/pre-push", "#!/bin/sh\nexit 0\n")
+        (self.proj / ".githooks" / "pre-push").chmod(0o755)
+        self.escrever(".gitignore", ".forge/run/\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "chore: inicio")
+        self.git("push", "-q", "origin", "main")
+        for ramo in ("develop", "homolog"):
+            self.git("branch", ramo)
+            self.git("push", "-q", "origin", ramo)
+        self.git("config", "core.hooksPath", ".githooks")
+        self.escrever_home(".claude/plugins/installed_plugins.json",
+                           json.dumps({"version": 2, "plugins": {"forge@forge": [{"scope": "user", "version": VERSAO}]}}))
+        self.escrever_home(".claude/settings.json", json.dumps({"sandbox": {"enabled": True}}))
+
+    def git(self, *args, cwd=None):
+        r = subprocess.run(["git", *args], cwd=cwd or self.proj, env=self.env, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.strip()
+
+    def escrever(self, rel, texto):
+        arq = self.proj / rel
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+
+    def escrever_home(self, rel, texto):
+        arq = self.home / rel
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+
+    def doutor(self, *args, cwd=None, env=None):
+        return subprocess.run([sys.executable, str(DOUTOR), *args], env=env or self.env, cwd=cwd or self.proj,
+                              capture_output=True, text=True, timeout=60)
+
+    def doutor_tty(self, resposta, *args):
+        """Roda o doutor num terminal de verdade (pty), respondendo `resposta` à pergunta."""
+        mestre, escravo = pty.openpty()
+        os.write(mestre, resposta.encode())
+        p = subprocess.Popen([sys.executable, str(DOUTOR), *args], env=self.env, cwd=self.proj, stdin=escravo,
+                             stdout=escravo, stderr=escravo, close_fds=True)
+        os.close(escravo)
+        saida = b""
+        limite = time.time() + 30
+        while time.time() < limite:
+            try:
+                bloco = os.read(mestre, 4096)
+            except OSError:
+                break
+            if not bloco:
+                break
+            saida += bloco
+        p.wait(timeout=30)
+        os.close(mestre)
+        return p.returncode, saida.decode("utf-8", "replace")
+
+
+class Diagnostico(Base):
+    def test_tudo_em_ordem_fica_em_silencio(self):
+        for args in ((), ("--rapido",)):
+            r = self.doutor(*args)
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""), args)
+
+    def test_detalhado_diz_que_esta_tudo_bem_em_uma_linha(self):
+        r = self.doutor("-v")
+        self.assertEqual(r.returncode, 0)
+        self.assertEqual(len(r.stdout.strip().splitlines()), 1)
+        self.assertIn(VERSAO, r.stdout)
+
+    def test_fora_de_projeto_do_forge_nao_diz_nada(self):
+        fora = self.tmp / "fora"
+        fora.mkdir()
+        r = self.doutor(cwd=fora)
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_plugin_nao_instalado(self):
+        (self.home / ".claude/plugins/installed_plugins.json").write_text('{"plugins": {}}', encoding="utf-8")
+        self.escrever(".claude/settings.json", json.dumps({"agent": "forge:jarvis"}))
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("plugin do Forge não está instalado", r.stdout)
+
+    def test_projeto_sem_versao(self):
+        (self.proj / ".forge/versao").unlink()
+        r = self.doutor(cwd=self.proj)  # sem .forge/versao não é projeto do Forge: nada a dizer
+        self.assertEqual(r.stdout, "")
+        self.escrever(".forge/versao", "lixo\n")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".forge/versao", r.stdout)
+
+    def test_projeto_na_versao_antiga_manda_atualizar_o_projeto(self):
+        self.escrever(".forge/versao", "0.0.1\n")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("0.0.1", r.stdout)
+        self.assertIn("forge-upgrade", r.stdout)
+
+    def test_projeto_na_versao_mais_nova_que_o_plugin(self):
+        self.escrever(".forge/versao", "99.0.0\n")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("99.0.0", r.stdout)
+        self.assertIn("plugin", r.stdout)
+
+    def test_hooks_do_git_desligados(self):
+        self.git("config", "--unset", "core.hooksPath")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("proteção do git", r.stdout)
+
+    def test_hook_do_git_sem_permissao_de_execucao(self):
+        (self.proj / ".githooks/pre-push").chmod(0o644)
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("pre-push", r.stdout)
+
+    def test_gh_sem_login_so_no_modo_completo(self):
+        (self.home / "gh-sem-login").write_text("", encoding="utf-8")
+        self.assertEqual(self.doutor("--rapido").stdout, "")
+        self.assertFalse(self.gh_log.exists() and self.gh_log.read_text(), "o modo rápido não chama o gh")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("gh auth login", r.stdout)
+
+    def test_gh_ausente(self):
+        sem_gh = self.tmp / "sem-gh"
+        sem_gh.mkdir()
+        for nome in ("git", "python3"):
+            (sem_gh / nome).symlink_to(shutil.which(nome))
+        env = {**self.env, "PATH": str(sem_gh)}
+        r = self.doutor(env=env)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("gh", r.stdout)
+        self.assertIn("instale", r.stdout)
+
+    def test_identidade_do_git(self):
+        self.gitconfig.write_text("", encoding="utf-8")
+        r = self.doutor("--rapido")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("nome", r.stdout)
+        self.assertIn("e-mail", r.stdout)
+        self.assertIn("git config --global user.name", r.stdout)
+
+    def test_settings_sem_o_jarvis(self):
+        self.escrever(".claude/settings.json", json.dumps({"enabledPlugins": {"forge@forge": True}}))
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("Jarvis", r.stdout)
+
+    def test_settings_ausente_ou_invalido(self):
+        self.escrever(".claude/settings.json", "{ quebrado")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn(".claude/settings.json", r.stdout)
+        self.assertEqual((self.proj / ".claude/settings.json").read_text(encoding="utf-8"), "{ quebrado")
+
+    def test_sandbox_desligado(self):
+        self.escrever_home(".claude/settings.json", "{}")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("sandbox", r.stdout)
+        self.assertIn("/sandbox", r.stdout)
+
+    def test_sandbox_ligado_no_projeto_basta(self):
+        self.escrever_home(".claude/settings.json", "{}")
+        self.escrever(".claude/settings.json", json.dumps({"agent": "forge:jarvis", "sandbox": {"enabled": True},
+                                                           "enabledPlugins": {"forge@forge": True}}))
+        self.assertEqual(self.doutor().stdout, "")
+
+    def test_falta_a_branch_homolog(self):
+        self.git("branch", "-D", "homolog")
+        self.git("push", "-q", "origin", "--delete", "homolog")
+        self.git("update-ref", "-d", "refs/remotes/origin/homolog")
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("homolog", r.stdout)
+        self.assertNotIn("develop", r.stdout)
+
+    def test_varios_problemas_viram_lista_com_cabecalho(self):
+        self.git("config", "--unset", "core.hooksPath")
+        self.escrever(".forge/versao", "0.0.1\n")
+        r = self.doutor()
+        linhas = r.stdout.strip().splitlines()
+        self.assertIn("2", linhas[0])
+        self.assertEqual(len([x for x in linhas if x.startswith("- ")]), 2)
+
+    def test_linguagem_simples_sem_jargao_de_codigo(self):
+        self.git("config", "--unset", "core.hooksPath")
+        self.assertNotIn("Traceback", self.doutor().stdout + self.doutor().stderr)
+
+    def test_modo_rapido_nao_usa_rede(self):
+        self.git("config", "--unset", "core.hooksPath")
+        self.doutor("--rapido")
+        self.assertFalse(self.gh_log.exists() and self.gh_log.read_text())
+
+
+class Conserto(Base):
+    def estrago(self):
+        self.git("config", "--unset", "core.hooksPath")
+        (self.proj / ".githooks/pre-push").chmod(0o644)
+
+    def test_sem_terminal_nao_conserta_e_explica(self):
+        self.estrago()
+        r = self.doutor()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("forge doutor", r.stdout)
+        self.assertNotEqual(subprocess.run(["git", "config", "core.hooksPath"], cwd=self.proj, env=self.env,
+                                           capture_output=True, text=True).stdout.strip(), ".githooks")
+        self.assertFalse((self.proj / ".githooks/pre-push").stat().st_mode & 0o111)
+
+    def test_rapido_nunca_conserta_nem_pergunta(self):
+        self.estrago()
+        codigo, saida = self.doutor_tty("s\n", "--rapido")
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("[s/N]", saida)
+        self.assertEqual(subprocess.run(["git", "config", "core.hooksPath"], cwd=self.proj, env=self.env,
+                                        capture_output=True, text=True).stdout.strip(), "")
+
+    def test_com_terminal_e_sim_conserta_as_protecoes_do_git(self):
+        self.estrago()
+        codigo, saida = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("config", "core.hooksPath"), ".githooks")
+        self.assertTrue((self.proj / ".githooks/pre-push").stat().st_mode & 0o100)
+        self.assertEqual(self.doutor().stdout, "")  # idempotente: depois, silêncio
+
+    def test_com_terminal_e_nao_nada_muda(self):
+        self.estrago()
+        codigo, saida = self.doutor_tty("n\n")
+        self.assertEqual(codigo, 1, saida)
+        self.assertEqual(subprocess.run(["git", "config", "core.hooksPath"], cwd=self.proj, env=self.env,
+                                        capture_output=True, text=True).stdout.strip(), "")
+
+    def test_enter_sozinho_conta_como_nao(self):
+        self.estrago()
+        codigo, _ = self.doutor_tty("\n")
+        self.assertEqual(codigo, 1)
+        self.assertFalse((self.proj / ".githooks/pre-push").stat().st_mode & 0o111)
+
+    def test_restaura_o_jarvis_no_settings_com_copia_de_seguranca(self):
+        antes = {"enabledPlugins": {"forge@forge": True}, "permissions": {"deny": ["Read(./.env)"]}}
+        self.escrever(".claude/settings.json", json.dumps(antes))
+        codigo, saida = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 0, saida)
+        depois = json.loads((self.proj / ".claude/settings.json").read_text(encoding="utf-8"))
+        self.assertEqual(depois["agent"], "forge:jarvis")
+        self.assertEqual(depois["permissions"], antes["permissions"], "o resto do arquivo fica como estava")
+        copias = list((self.home / ".local/state/forge/backup").rglob("settings.json"))
+        self.assertEqual(len(copias), 1, saida)
+        self.assertEqual(json.loads(copias[0].read_text(encoding="utf-8")), antes)
+        self.assertIn("backup", saida.lower() + "backup")
+
+    def test_settings_invalido_nao_e_consertado(self):
+        self.escrever(".claude/settings.json", "{ quebrado")
+        codigo, _ = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 1)
+        self.assertEqual((self.proj / ".claude/settings.json").read_text(encoding="utf-8"), "{ quebrado")
+
+    def test_cria_a_branch_local_que_so_existe_no_remoto(self):
+        self.git("branch", "-D", "homolog")
+        codigo, saida = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("homolog", self.git("branch", "--list", "homolog"))
+        self.assertEqual(self.git("rev-parse", "homolog"), self.git("rev-parse", "origin/homolog"))
+
+    def test_o_que_nao_e_seguro_continua_na_lista(self):
+        self.estrago()
+        (self.home / "gh-sem-login").write_text("", encoding="utf-8")
+        codigo, saida = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 1)
+        self.assertIn("gh auth login", saida)
+        self.assertEqual(self.git("config", "core.hooksPath"), ".githooks")
+
+    def test_o_doutor_nao_usa_comandos_destrutivos(self):
+        texto = DOUTOR.read_text(encoding="utf-8")
+        for proibido in ("--force", "--no-verify", "reset --hard", "clean -f", "push"):
+            self.assertNotIn(proibido, texto)
+
+
+class HookDoutor(Base):
+    def hook(self, evento, extra=None):
+        entrada = {"hook_event_name": evento, "session_id": "s1", "cwd": str(self.proj), **(extra or {})}
+        return subprocess.run([sys.executable, str(HOOK)], input=json.dumps(entrada), env=self.env, cwd=self.proj,
+                              capture_output=True, text=True, timeout=30)
+
+    def cache(self):
+        arq = self.proj / ".forge/run/doutor"
+        return json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else None
+
+    def estrago(self):
+        self.git("config", "--unset", "core.hooksPath")
+
+    def test_ao_abrir_e_silencioso_mesmo_com_problema_e_grava_a_data(self):
+        self.estrago()
+        r = self.hook("SessionStart", {"source": "startup"})
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""), "SessionStart não escreve (ADR 0003)")
+        self.assertEqual(self.cache()["data"], HOJE)
+        self.assertEqual(len(self.cache()["problemas"]), 1)
+
+    def test_tudo_bem_nao_diz_nada_em_nenhum_evento(self):
+        for evento in ("SessionStart", "Stop", "Stop"):
+            r = self.hook(evento)
+            self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""), evento)
+        self.assertEqual(self.cache()["problemas"], [])
+
+    def test_problema_vira_uma_linha_so_para_o_usuario_e_so_uma_vez(self):
+        self.estrago()
+        self.hook("SessionStart", {"source": "startup"})
+        r = self.hook("Stop")
+        saida = json.loads(r.stdout)
+        self.assertEqual(list(saida), ["systemMessage"], "nunca additionalContext (ADR 0003)")
+        self.assertNotIn("\n", saida["systemMessage"])
+        self.assertLessEqual(len(saida["systemMessage"]), 200)
+        self.assertTrue(saida["systemMessage"].startswith("Forge doutor: "))
+        self.assertIn("forge doutor", saida["systemMessage"])
+        self.assertEqual(self.hook("Stop").stdout, "", "já avisado hoje")
+
+    def test_uma_vez_por_dia_o_cache_da_data_vale(self):
+        self.hook("SessionStart", {"source": "startup"})  # hoje, tudo bem
+        self.estrago()  # estraga depois: o cache de hoje manda, não reexamina
+        self.assertEqual(self.hook("Stop").stdout, "")
+        self.assertEqual(self.cache()["problemas"], [])
+
+    def test_dia_novo_reexamina_e_avisa(self):
+        self.hook("SessionStart", {"source": "startup"})
+        self.estrago()
+        (self.proj / ".forge/run/doutor").write_text(json.dumps({"data": "2026-10-12", "problemas": [], "avisado": False}),
+                                                      encoding="utf-8")
+        r = self.hook("Stop")
+        self.assertIn("systemMessage", json.loads(r.stdout))
+        self.assertEqual(self.cache()["data"], HOJE)
+        self.assertEqual(self.hook("Stop").stdout, "")
+
+    def test_cache_corrompido_reexamina(self):
+        self.estrago()
+        (self.proj / ".forge/run").mkdir(parents=True, exist_ok=True)
+        (self.proj / ".forge/run/doutor").write_text("{", encoding="utf-8")
+        self.assertIn("systemMessage", json.loads(self.hook("Stop").stdout))
+
+    def test_fora_de_projeto_do_forge_nao_age(self):
+        (self.proj / ".forge/versao").unlink()
+        r = self.hook("SessionStart", {"source": "startup"})
+        self.assertEqual((r.returncode, r.stdout), (0, ""))
+        self.assertFalse((self.proj / ".forge/run").exists())
+
+    def test_o_hook_nao_chama_gh_nem_a_rede(self):
+        (self.home / "gh-sem-login").write_text("", encoding="utf-8")
+        self.hook("SessionStart", {"source": "startup"})
+        self.assertEqual(self.hook("Stop").stdout, "")
+        self.assertFalse(self.gh_log.exists() and self.gh_log.read_text())
+
+    def test_hook_desligado_na_config(self):
+        self.estrago()
+        self.escrever(".forge/config.json", json.dumps({"hooks_desligados": ["doutor"]}))
+        self.assertEqual(self.hook("Stop").stdout, "")
+
+    def test_erro_interno_libera_e_registra(self):
+        self.escrever(".forge/config.json", "{")
+        r = self.hook("Stop")
+        self.assertEqual((r.returncode, r.stdout), (0, ""))
+        self.assertIn("doutor JSONDecodeError", (self.proj / ".forge/run/erros.log").read_text(encoding="utf-8"))
+
+    def test_abrir_em_menos_de_cem_ms_em_media(self):
+        self.hook("SessionStart", {"source": "startup"})
+        t0 = time.perf_counter()
+        for _ in range(5):
+            self.hook("Stop")  # com o cache de hoje: só lê o arquivo
+        self.assertLess((time.perf_counter() - t0) / 5, 0.3)
+
+    def test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop(self):
+        d = json.loads((RAIZ / "hooks/hooks.json").read_text(encoding="utf-8"))
+        for evento in ("SessionStart", "Stop"):
+            comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"][evento] for h in g["hooks"]}
+            self.assertIn("doutor.py", comandos, evento)
+        self.assertNotIn("UserPromptSubmit", d["hooks"], "o stdout dele viraria contexto (ADR 0003)")
+
+
+class Frequencia(Base):
+    """Antes de abrir o Jarvis, antes de atualizar o projeto e antes de abrir PR."""
+
+    def test_atalho_jarvis_roda_o_doutor_antes_do_claude(self):
+        cache = self.home / ".claude/plugins/cache/forge/forge/9.9.9/bin"
+        cache.mkdir(parents=True)
+        (cache / "forge-doutor").write_text(f'#!/usr/bin/env bash\necho doutor >> {self.tmp}/ordem\n', encoding="utf-8")
+        (cache / "forge-doutor").chmod(0o755)
+        (self.bin / "claude").write_text(f'#!/usr/bin/env bash\n[ "$1" = plugin ] || echo claude >> {self.tmp}/ordem\n', encoding="utf-8")
+        (self.bin / "claude").chmod(0o755)
+        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / "ordem").read_text(encoding="utf-8").split(), ["doutor", "claude"])
+
+    def test_atalho_sem_o_plugin_instalado_abre_o_jarvis_do_mesmo_jeito(self):
+        (self.bin / "claude").write_text(f'#!/usr/bin/env bash\n[ "$1" = plugin ] || echo claude >> {self.tmp}/ordem\n', encoding="utf-8")
+        (self.bin / "claude").chmod(0o755)
+        r = subprocess.run(["bash", str(RAIZ / "scripts/jarvis"), "--sem-tmux"], env=self.env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30, stdin=subprocess.DEVNULL)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.tmp / "ordem").read_text(encoding="utf-8").split(), ["claude"])
+
+    def test_forge_upgrade_chama_o_doutor_antes_de_atualizar(self):
+        texto = (RAIZ / "bin/forge-upgrade").read_text(encoding="utf-8")
+        self.assertIn("forge-doutor", texto)
+
+    def test_doutor_e_subcomando_do_forge(self):
+        r = subprocess.run(["bash", str(RAIZ / "bin/forge"), "doutor", "--rapido"], env=self.env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual((r.returncode, r.stdout), (0, ""))
+        self.assertIn("doutor", subprocess.run(["bash", str(RAIZ / "bin/forge")], env=self.env, capture_output=True,
+                                               text=True).stdout)
+
+    def test_o_tech_lead_roda_o_doutor_antes_de_abrir_pr(self):
+        texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
+        self.assertIn("forge doutor --rapido", texto)
+
+
+if __name__ == "__main__":
+    unittest.main()

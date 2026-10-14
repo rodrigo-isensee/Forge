@@ -155,6 +155,16 @@ def forge_check():
     return modulo
 
 
+@functools.lru_cache(maxsize=1)
+def forge_doutor():
+    """Carrega bin/forge-doutor como módulo: o hook `doutor` roda as mesmas conferências do comando, sem duplicá-las."""
+    carregador = importlib.machinery.SourceFileLoader("forge_doutor", str(PLUGIN / "bin" / "forge-doutor"))
+    spec = importlib.util.spec_from_loader("forge_doutor", carregador)
+    modulo = importlib.util.module_from_spec(spec)
+    carregador.exec_module(modulo)
+    return modulo
+
+
 def ler_json(caminho, padrao):
     if not caminho.exists():
         return padrao
