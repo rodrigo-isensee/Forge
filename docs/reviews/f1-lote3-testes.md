@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: f1-lote3-testes
 branch: melhoria/f1-lote3-testes
-commit: 7164cd1
-parecer: reprovado
+commit: f926e92
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -48,3 +48,20 @@ Resultados no checkout do PR:
 - Item 10 do checklist está em `skills/engineering-practices/SKILL.md`; o `tech-lead` carrega a skill pelo frontmatter (`skills: engineering-practices`).
 
 Parecer: **reprovado** até a catraca passar. Os demais pontos estão aprovados; o reenvio é só o ajuste das três asserções.
+
+## Re-review independente
+Revisor: `forge:tech-lead`, sobre `f926e92` (correção do PR #105; validação local, cota do Actions esgotada).
+
+Resultados no checkout detached de `f926e92`:
+- Diff `e78b973..f926e92`: só `tests/test_forge.py`. Restaura `self.assertTrue(pacotes, ...)`, `self.assertTrue(fontes, ...)` e `self.assertGreaterEqual(len(casos), 5)` ao lado de cada `minimo(...)`. Nenhuma outra linha mudou.
+- `python3 -m unittest discover -s tests`: 310 testes, OK.
+- `scripts/validar-plugin.sh`: passou.
+- `tests/catraca.py --base` (merge-base com `origin/develop`, e também `HEAD^1` como no CI): modo `regras` sai com 0, sem acusação.
+- `tests/catraca.py --modo pareceres`: sai com 0. `--modo pr-texto` (corpo do PR em `PR_BODY`): sai com 0.
+- Contagem de asserções (AST, como a catraca): `tests/` tem 715, igual à base original; `test_forge.py` passou de 371 para 374.
+- Versão e changelog: `plugin.json` segue 0.12.0 e a linha nova está em `[Não publicado]`: ok.
+
+### Bloqueia
+Nada.
+
+Parecer: **aprovado**. A correção restaura as três asserções sem afrouxar nada, e a catraca volta a passar.
