@@ -229,6 +229,18 @@ class Higiene(Base):
         self.assertEqual(self.fila.stat().st_mode & 0o777, 0o700)
         self.assertNotIn("issue create", self.log_gh())
 
+    def test_guardar_nunca_chama_o_gh_nem_com_terminal_e_resposta_s(self):
+        codigo, saida = self.rodar("--guardar", TEXTO, respostas=["s", "s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.log_gh(), "")
+        self.assertEqual(len(self.na_fila()), 1)
+
+    def test_guardar_so_vale_como_primeiro_argumento(self):
+        for args in (("texto", "--guardar"), ("x", "--guardar", "y"), ("--arquivo", "/dev/null", "--guardar")):
+            codigo, saida = self.rodar(*args, respostas=["s", "s"])
+            self.assertEqual(codigo, 2, saida)
+            self.assertEqual(self.log_gh(), "", saida)
+
     def test_guardar_dentro_do_claude_funciona(self):
         codigo, saida = self.rodar("--guardar", TEXTO, env={**self.env, "CLAUDECODE": "1"})
         self.assertEqual(codigo, 0, saida)
@@ -289,6 +301,10 @@ class Higiene(Base):
 
     def test_segredo_em_url_codificada(self):
         self.casos([("?token%3Dabcdef123456", "abcdef123456"), ("password%3Dhunter2", "hunter2"), ("api_key%3Aabc999zz", "abc999zz")])
+
+    def test_segredo_codificado_duas_vezes_e_chaves_curtas(self):
+        self.casos([("password%253Dhunter2", "hunter2"), ("token%253Aabcdef123456", "abcdef123456"), ("key=abc12345", "abc12345"),
+                    ("pass=hunter22", "hunter22"), ("?key=zzz999&x=1", "zzz999")])
 
     def test_basic_auth_em_url(self):
         self.casos([("postgres://admin:s3nha@db.exemplo.com:5432/x", "s3nha"), ("https://user:pw123@exemplo.org/a", "pw123")])

@@ -2,7 +2,7 @@
 """Forge: sugestão de melhoria ao Forge, sem dados do projeto (primeiro uso, F6). Rode no terminal, dentro do projeto.
 Uso: forge sugerir "texto"            texto com problema observado, proposta e como medir
      forge sugerir --arquivo ARQ      o mesmo texto, lido de um arquivo
-     forge sugerir --guardar "texto"  só anonimiza e guarda na fila (permissão 600); nunca envia nem pergunta: é o que o agente usa
+     forge sugerir --guardar "texto"  (primeiro argumento) só anonimiza e guarda na fila (permissão 600); nunca envia nem pergunta: é o que o agente usa
      forge sugerir --fila             mostra e envia o que ficou pendente
 Passos: tira do texto caracteres de controle e de direção Unicode, caminhos, nomes de usuário, e-mails, URLs, IPs, hostnames
 internos, chaves e segredos e o nome do projeto (lido de .forge/, do remoto e da pasta; todas as grafias); mostra o texto final EXATO e avisa que vai aparecer com o seu nome de usuário do GitHub; só com "s" abre
@@ -35,8 +35,8 @@ AVISO = ("Atenção: removi o que reconheci; confira o texto abaixo antes de con
 ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-_]")
 PEM = re.compile(r"-----BEGIN [^\n-]*-----[\s\S]*?(?:-----END [^\n-]*-----|\Z)")
 CHAVE_DO_SEGREDO = (r"[\w-]*(?:token|senha|password|passwd|pwd|secret|segredo|api[_-]?key|private[_-]?key|access[_-]?key|chave|"
-                    r"credential)[\w-]*")
-SEGREDO = re.compile(rf"(?i)\b({CHAVE_DO_SEGREDO})(\\*[\"']?\s*(?:[:=]|%3[ADad])\s*)(?!\[)(\\*\"(?:[^\"\\\n]|\\.)*?\\*\"|\"[^\"\n]*\"|'[^'\n]*'|\S+)")
+                    r"credential)[\w-]*|(?<![\w-])(?:key|pass)(?![\w-])")
+SEGREDO = re.compile(rf"(?i)\b({CHAVE_DO_SEGREDO})(\\*[\"']?\s*(?:[:=]|%(?:25)*3[ADad])\s*)(?!\[)(\\*\"(?:[^\"\\\n]|\\.)*?\\*\"|\"[^\"\n]*\"|'[^'\n]*'|\S+)")
 TOKENS = re.compile(r"\b(?:gh[pousr]_|github_pat_|sk-|xox[abprs]-|AIza|glpat-)[A-Za-z0-9_\-]{12,}|\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b|"
                     r"eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*|\b[0-9a-fA-F]{32,}\b|\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=._~-]{8,}", re.I)
 BASE64_LONGO = re.compile(r"(?<![A-Za-z0-9/+=])(?=[A-Za-z0-9/+=]*\d)(?=[A-Za-z0-9/+=]*[a-z])(?=[A-Za-z0-9/+=]*[A-Z])"
@@ -254,13 +254,11 @@ def main(args):
     if args[:1] in (["-h"], ["--help"]):
         print((__doc__ or "").split("Passos:")[0].strip())
         return 0
-    fila, guardar, arquivo, palavras = False, False, None, []
-    it = iter(args)
+    fila, guardar, arquivo, palavras = False, args[:1] == ["--guardar"], None, []  # --guardar só vale como o primeiro argumento
+    it = iter(args[1:] if guardar else args)
     for a in it:
         if a == "--fila":
             fila = True
-        elif a == "--guardar":
-            guardar = True
         elif a == "--arquivo":
             arquivo = next(it, None)
             if not arquivo:

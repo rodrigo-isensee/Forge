@@ -100,6 +100,22 @@ SIMPLES = {
 # F5: quem atualiza o Forge (ou volta de versão) é a pessoa, no terminal; o agente só oferece e explica.
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
+GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def guardar_exato(linha):
+    """A linha inteira é `forge sugerir --guardar <um texto entre aspas>` (ou `forge-sugerir`, `bin/forge-sugerir`): sem
+    encadeamento, variável, substituição, redirecionamento nem nada antes ou depois."""
+    linha = linha.strip()
+    if not GUARDAR_EXATO.fullmatch(linha):
+        return False
+    try:
+        palavras = shlex.split(linha)
+    except ValueError:
+        return False
+    return palavras[:-1] in (["forge", "sugerir", "--guardar"], ["forge-sugerir", "--guardar"], ["bin/forge-sugerir", "--guardar"])
+
+
 BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao", "forge-sugerir"}
 SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao", "sugerir"}
 ENVOLVEDORES = {"env", "script", "nohup", "sudo", "command", "exec", "time", "timeout", "setsid", "stdbuf", "unbuffer", "xargs",
@@ -453,6 +469,7 @@ class Guarda:
         if nivel == 0:
             self.ambiente = {}
             self.linha = original
+            self.sugerir_na_linha(original)
         for palavras, destinos in partes:
             for d in destinos:
                 self.checar_escrita(d, pasta)
@@ -462,6 +479,17 @@ class Guarda:
                 self.bash(corpo, pasta, nivel + 1)
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
+
+    def sugerir_na_linha(self, linha):
+        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
+        outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
+        if guardar_exato(linha):
+            return
+        limpa = re.sub(r"[\"'\\`]", "", linha)
+        if "sugerir" in limpa or re.search(r"(?:^|[\s;&|(])(?:\S*/)?forge[\"']?\s+[\"']?\S*[$`*?\[{~]", linha):
+            self.barrar("R-CONFORMIDADE", "`forge sugerir` fora da forma `forge sugerir --guardar \"<texto>\"` sozinha na linha",
+                        "quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`; o agente só guarda, "
+                        "com a linha inteira `forge sugerir --guardar \"<texto>\"`", "sugerir")
 
     def ilegivel(self, comando, pasta):
         """R-CONTRIB: comando aninhado (`bash -c`, `eval`, `env -S`) que o hook não consegue analisar, numa sessão de
@@ -832,8 +860,7 @@ class Guarda:
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
             e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
             if e_sugerir:
-                resto = todas[i + 1:]
-                if "--guardar" in resto and "--fila" not in resto:  # guardar na fila é do agente; enviar é da pessoa
+                if guardar_exato(self.linha):  # guardar na fila é do agente; enviar é da pessoa
                     continue
                 if nome == "forge" and so_binarios:
                     continue
