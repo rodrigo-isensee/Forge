@@ -30,10 +30,13 @@ class Problema:
         self.texto, self.conserto = texto, conserto
 
 
-def rodar(args, cwd, limite=15):
+LIMITE_GIT = 15  # segundos por comando; o hook usa um valor menor
+
+
+def rodar(args, cwd, limite=None):
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") or k == "GIT_CONFIG_GLOBAL" or k == "GIT_CONFIG_NOSYSTEM"}
     try:
-        r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=limite)
+        r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=limite or LIMITE_GIT)
     except (OSError, subprocess.TimeoutExpired):
         return 1, ""
     return r.returncode, (r.stdout + r.stderr).strip()
@@ -126,8 +129,16 @@ def conferir_protecao_do_git(raiz, config_git):
         for arq in pasta.iterdir():
             if arq.is_file():
                 arq.chmod(arq.stat().st_mode | 0o111)
-        rodar(["git", "config", "core.hooksPath", ".githooks"], raiz)
-        return "religuei a proteção do git (impede enviar direto para a main)"
+        antes = ""
+        if ativo:
+            copia = pasta_de_backup(raiz)
+            copia.mkdir(parents=True, exist_ok=True)
+            (copia / "core.hooksPath").write_text(ativo + "\n", encoding="utf-8")
+            antes = f"; o valor anterior de core.hooksPath era `{ativo}` e está guardado em {copia}"
+        codigo, _ = rodar(["git", "config", "core.hooksPath", ".githooks"], raiz)
+        if codigo != 0:
+            return "não consegui religar a proteção do git (o `git config` falhou)"
+        return "religuei a proteção do git (impede enviar direto para a main)" + antes
     return [Problema("A proteção do git, que impede enviar trabalho direto para a main, está incompleta: "
                      + "; ".join(itens) + ".", ("religar a proteção do git", consertar))]
 

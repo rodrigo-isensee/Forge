@@ -270,6 +270,15 @@ class Conserto(Base):
         self.assertTrue((self.proj / ".githooks/pre-push").stat().st_mode & 0o100)
         self.assertEqual(self.doutor().stdout, "")  # idempotente: depois, silêncio
 
+    def test_conserto_guarda_e_cita_o_core_hookspath_anterior(self):
+        self.git("config", "core.hooksPath", "/outro/gerenciador")  # repositório temporário do teste
+        codigo, saida = self.doutor_tty("s\n")
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("/outro/gerenciador", saida)
+        self.assertEqual(self.git("config", "core.hooksPath"), ".githooks")
+        guardado = list(Path(self.home).rglob("core.hooksPath"))
+        self.assertEqual([g.read_text().strip() for g in guardado], ["/outro/gerenciador"])
+
     def test_com_terminal_e_nao_nada_muda(self):
         self.estrago()
         codigo, saida = self.doutor_tty("n\n")
@@ -360,6 +369,23 @@ class HookDoutor(Base):
         self.assertTrue(saida["systemMessage"].startswith("Forge doutor: "))
         self.assertIn("forge doutor", saida["systemMessage"])
         self.assertEqual(self.hook("Stop").stdout, "", "já avisado hoje")
+
+    def test_resume_e_compact_nao_reabrem_o_aviso_do_dia(self):
+        self.estrago()
+        self.hook("SessionStart", {"source": "startup"})
+        self.assertNotEqual(self.hook("Stop").stdout, "")
+        for origem in ("resume", "compact", "clear"):
+            self.hook("SessionStart", {"source": origem})
+            self.assertEqual(self.hook("Stop").stdout, "", origem)
+        self.assertTrue(self.cache()["avisado"])
+
+    def test_problema_novo_no_mesmo_dia_avisa_de_novo(self):
+        self.estrago()
+        self.hook("SessionStart", {"source": "startup"})
+        self.hook("Stop")
+        self.gitconfig.write_text("", encoding="utf-8")  # some a identidade do git: problema novo
+        self.hook("SessionStart", {"source": "resume"})
+        self.assertNotEqual(self.hook("Stop").stdout, "")
 
     def test_uma_vez_por_dia_o_cache_da_data_vale(self):
         self.hook("SessionStart", {"source": "startup"})  # hoje, tudo bem

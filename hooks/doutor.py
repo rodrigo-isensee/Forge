@@ -21,10 +21,27 @@ def hoje():
     return os.environ.get("FORGE_HOJE") or time.strftime("%Y-%m-%d")  # FORGE_HOJE: só os testes
 
 
+LIMITE_GIT = 3  # segundos por comando `git` do diagnóstico (o padrão do comando é 15)
+
+
+def ler_cache(hook):
+    try:
+        estado = ler_json(hook.run() / "doutor", {})
+    except ValueError:
+        return {}
+    return estado if isinstance(estado, dict) else {}
+
+
 def examinar(hook, raiz):
-    problemas = [p.texto for p in forge_doutor().diagnosticar(raiz, rapido=True)]
-    estado = {"data": hoje(), "problemas": problemas, "avisado": False}
-    gravar_json(hook.run() / "doutor", estado)
+    """Diagnostica FORA da trava (o `git` pode demorar); a trava protege só a leitura e a escrita do cache."""
+    modulo = forge_doutor()
+    modulo.LIMITE_GIT = LIMITE_GIT
+    problemas = [p.texto for p in modulo.diagnosticar(raiz, rapido=True)]
+    with hook.trava():
+        antigo = ler_cache(hook)
+        igual = antigo.get("data") == hoje() and antigo.get("problemas") == problemas
+        estado = {"data": hoje(), "problemas": problemas, "avisado": bool(igual and antigo.get("avisado"))}
+        gravar_json(hook.run() / "doutor", estado)
     return estado
 
 
@@ -43,20 +60,18 @@ def principal(hook):
     raiz = hook.projeto(hook.cwd())
     if raiz is None:
         return
+    if evento == "SessionStart":  # inclusive resume e compact: reexamina sem reabrir o aviso de hoje
+        examinar(hook, raiz)
+        return
     with hook.trava():
-        if evento == "SessionStart":
-            examinar(hook, raiz)
-            return
-        try:
-            estado = ler_json(hook.run() / "doutor", {})
-        except ValueError:
-            estado = {}
-        if not isinstance(estado, dict) or estado.get("data") != hoje() or not isinstance(estado.get("problemas"), list):
-            estado = examinar(hook, raiz)
-        if estado["problemas"] and not estado.get("avisado"):
+        estado = ler_cache(hook)
+    if estado.get("data") != hoje() or not isinstance(estado.get("problemas"), list):
+        estado = examinar(hook, raiz)
+    if estado["problemas"] and not estado.get("avisado"):
+        with hook.trava():
             estado["avisado"] = True
             gravar_json(hook.run() / "doutor", estado)
-            print(json.dumps({"systemMessage": linha([str(p) for p in estado["problemas"]])}, ensure_ascii=False))
+        print(json.dumps({"systemMessage": linha([str(p) for p in estado["problemas"]])}, ensure_ascii=False))
 
 
 if __name__ == "__main__":
