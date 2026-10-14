@@ -32,17 +32,23 @@ def ler_cache(hook):
     return estado if isinstance(estado, dict) else {}
 
 
-def examinar(hook, raiz):
-    """Diagnostica FORA da trava (o `git` pode demorar); a trava protege só a leitura e a escrita do cache."""
+def diagnosticar(raiz):
+    """O diagnóstico em si, FORA da trava (o `git` pode demorar)."""
     modulo = forge_doutor()
     modulo.LIMITE_GIT = LIMITE_GIT
-    problemas = [p.texto for p in modulo.diagnosticar(raiz, rapido=True)]
+    return [p.texto for p in modulo.diagnosticar(raiz, rapido=True)]
+
+
+def registrar(hook, problemas, avisar):
+    """Sob a trava: relê o cache, decide se avisa e grava, tudo de uma vez (duas sessões não avisam duas vezes).
+    Devolve os problemas a mostrar ao usuário, ou None."""
     with hook.trava():
         antigo = ler_cache(hook)
         igual = antigo.get("data") == hoje() and antigo.get("problemas") == problemas
-        estado = {"data": hoje(), "problemas": problemas, "avisado": bool(igual and antigo.get("avisado"))}
-        gravar_json(hook.run() / "doutor", estado)
-    return estado
+        avisado = bool(igual and antigo.get("avisado"))
+        avisa = avisar and bool(problemas) and not avisado
+        gravar_json(hook.run() / "doutor", {"data": hoje(), "problemas": problemas, "avisado": avisado or avisa})
+    return problemas if avisa else None
 
 
 def linha(problemas):
@@ -61,17 +67,21 @@ def principal(hook):
     if raiz is None:
         return
     if evento == "SessionStart":  # inclusive resume e compact: reexamina sem reabrir o aviso de hoje
-        examinar(hook, raiz)
+        registrar(hook, diagnosticar(raiz), avisar=False)
         return
-    with hook.trava():
+    with hook.trava():  # cache de hoje: decide e marca "avisado" na mesma trava
         estado = ler_cache(hook)
-    if estado.get("data") != hoje() or not isinstance(estado.get("problemas"), list):
-        estado = examinar(hook, raiz)
-    if estado["problemas"] and not estado.get("avisado"):
-        with hook.trava():
+        valido = estado.get("data") == hoje() and isinstance(estado.get("problemas"), list)
+        problemas = [str(p) for p in estado["problemas"]] if valido else []
+        avisa = valido and bool(problemas) and not estado.get("avisado")
+        if avisa:
             estado["avisado"] = True
             gravar_json(hook.run() / "doutor", estado)
-        print(json.dumps({"systemMessage": linha([str(p) for p in estado["problemas"]])}, ensure_ascii=False))
+    mostrar = problemas if avisa else None
+    if not valido:  # primeira vez hoje: diagnostica fora da trava e decide de novo, relendo o cache
+        mostrar = registrar(hook, diagnosticar(raiz), avisar=True)
+    if mostrar:
+        print(json.dumps({"systemMessage": linha(mostrar)}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

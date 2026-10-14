@@ -279,6 +279,14 @@ class Conserto(Base):
         guardado = list(Path(self.home).rglob("core.hooksPath"))
         self.assertEqual([g.read_text().strip() for g in guardado], ["/outro/gerenciador"])
 
+    def test_segundo_conserto_nao_sobrescreve_o_backup_com_githooks(self):
+        self.git("config", "core.hooksPath", "/outro/gerenciador")
+        self.assertEqual(self.doutor_tty("s\n")[0], 0)
+        (self.proj / ".githooks/pre-push").chmod(0o644)  # agora só a permissão está errada; core.hooksPath já é .githooks
+        self.assertEqual(self.doutor_tty("s\n")[0], 0)
+        guardado = list(Path(self.home).rglob("core.hooksPath"))
+        self.assertEqual([g.read_text().strip() for g in guardado], ["/outro/gerenciador"])
+
     def test_com_terminal_e_nao_nada_muda(self):
         self.estrago()
         codigo, saida = self.doutor_tty("n\n")
@@ -438,6 +446,40 @@ class HookDoutor(Base):
         for _ in range(5):
             self.hook("Stop")  # com o cache de hoje: só lê o arquivo
         self.assertLess((time.perf_counter() - t0) / 5, 0.3)
+
+    def git_falso(self, quando, segundos):
+        """Um `git` que demora `segundos` quando a linha de comando contém `quando`; o resto vai ao git de verdade."""
+        real = shutil.which("git", path=os.environ["PATH"])
+        (self.bin / "git").write_text(
+            f'#!/usr/bin/env bash\ncase "$*" in *"{quando}"*) sleep {segundos};; esac\nexec {real} "$@"\n', encoding="utf-8")
+        (self.bin / "git").chmod(0o755)
+
+    def test_git_lento_demais_diz_que_nao_conseguiu_checar_e_nao_afirma_falsidade(self):
+        for quando, falso in (("--list", ("proteção", "não sabe seu")), ("for-each-ref", ("não existe",))):
+            with self.subTest(quando=quando):
+                self.git_falso(quando, 6)
+                self.hook("SessionStart")
+                texto = " ".join(self.cache()["problemas"])
+                self.assertIn("Não consegui checar o git", texto)
+                for frase in falso:
+                    self.assertNotIn(frase, texto)
+
+    def test_duas_sessoes_no_stop_avisam_uma_vez_so(self):
+        self.estrago()
+        self.hook("SessionStart")  # cache de hoje com problema ainda não avisado
+        # `hoje` lento alarga a janela entre ler o cache e gravar "avisado": quem decide fora da trava avisa em dobro
+        codigo = ("import sys, time; sys.path.insert(0, sys.argv[1]); import doutor; h = doutor.hoje; "
+                  "doutor.hoje = lambda: (time.sleep(0.4), h())[1]; doutor.executar('doutor', doutor.principal)")
+        entrada = json.dumps({"hook_event_name": "Stop", "session_id": "s", "cwd": str(self.proj)})
+        procs = [subprocess.Popen([sys.executable, "-c", codigo, str(HOOK.parent)], stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, text=True, env=self.env, cwd=self.proj) for _ in range(2)]
+        for p in procs:  # as duas recebem a entrada antes de qualquer uma terminar
+            p.stdin.write(entrada)
+            p.stdin.close()
+        saidas = [p.stdout.read() for p in procs]
+        for p in procs:
+            p.wait(timeout=30)
+        self.assertEqual(len([o for o in saidas if o.strip()]), 1, saidas)
 
     def test_hooks_json_registra_o_doutor_so_em_sessionstart_e_stop(self):
         d = json.loads((RAIZ / "hooks/hooks.json").read_text(encoding="utf-8"))

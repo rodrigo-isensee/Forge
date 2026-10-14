@@ -38,7 +38,7 @@ def rodar(args, cwd, limite=None):
     try:
         r = subprocess.run(args, cwd=cwd, env=env, capture_output=True, text=True, timeout=limite or LIMITE_GIT)
     except (OSError, subprocess.TimeoutExpired):
-        return 1, ""
+        return None, ""  # não rodou ou estourou o limite: quem chama diz "não consegui checar", nunca adivinha
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
@@ -109,6 +109,10 @@ def conferir_versao(raiz):
                      "atualize o plugin com `claude plugin update forge@forge`.")]
 
 
+def nao_consegui_git():
+    return Problema("Não consegui checar o git agora (ele demorou demais para responder): tente de novo daqui a pouco.")
+
+
 def conferir_protecao_do_git(raiz, config_git):
     itens = []
     pasta = raiz / ".githooks"
@@ -130,7 +134,7 @@ def conferir_protecao_do_git(raiz, config_git):
             if arq.is_file():
                 arq.chmod(arq.stat().st_mode | 0o111)
         antes = ""
-        if ativo:
+        if ativo and ativo not in (".githooks", str(pasta)):  # só o valor original, nunca um que já é o nosso
             copia = pasta_de_backup(raiz)
             copia.mkdir(parents=True, exist_ok=True)
             (copia / "core.hooksPath").write_text(ativo + "\n", encoding="utf-8")
@@ -148,7 +152,7 @@ def conferir_gh(raiz):
         return [Problema("O `gh` (a ferramenta que fala com o GitHub) não está instalado: instale em https://cli.github.com "
                          "e rode `gh auth login`.")]
     codigo, saida = rodar(["gh", "auth", "status"], raiz)
-    if codigo == 0:
+    if codigo == 0 or codigo is None:  # None: o `gh` não respondeu a tempo; não é falta de login
         return []
     if re.search(r"error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection", saida, re.I):
         return []  # sem conexão não é falta de login; o doutor não adivinha
@@ -204,6 +208,8 @@ def conferir_sandbox(raiz):
 
 def conferir_ramos(raiz):
     codigo, saida = rodar(["git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"], raiz)
+    if codigo is None:
+        return [nao_consegui_git()]
     refs = set(saida.splitlines()) if codigo == 0 else set()
     problemas = []
     for ramo in RAMOS:
@@ -226,10 +232,17 @@ def diagnosticar(raiz, rapido=True):
     for linha in saida.splitlines() if codigo == 0 else []:
         chave, _, valor = linha.partition("=")
         config_git[chave.lower()] = valor
-    problemas = conferir_plugin(raiz) + conferir_versao(raiz) + conferir_protecao_do_git(raiz, config_git)
+    problemas = conferir_plugin(raiz) + conferir_versao(raiz)
+    if codigo is not None:  # sem a configuração do git, proteção e identidade não se conferem
+        problemas += conferir_protecao_do_git(raiz, config_git)
     if not rapido:
         problemas += conferir_gh(raiz)
-    return problemas + conferir_identidade(config_git) + conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
+    if codigo is not None:
+        problemas += conferir_identidade(config_git)
+    problemas += conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
+    if codigo is None:
+        problemas = [nao_consegui_git()] + [p for p in problemas if p.texto != nao_consegui_git().texto]
+    return problemas
 
 
 # Saída ------------------------------------------------------------------------------------------
