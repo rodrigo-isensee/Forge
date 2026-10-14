@@ -963,8 +963,8 @@ class JarvisForgeVigente(unittest.TestCase):
         self.registro.unlink()
         r = self.rodar("--sem-tmux")
         self.assertEqual(r.returncode, 0, r.stderr)
-        self.assertFalse([c for c in self.chamadas() if c.startswith("git ") and "remote get-url" not in c],
-                         "alterou a cópia vigente")
+        self.assertFalse([c for c in self.chamadas() if c.startswith("git ") and "remote get-url" not in c
+                          and (" clone " in c or " reset " in c or " checkout " in c)], "recriou ou resetou a cópia vigente")
         self.assertIn(f"--plugin-dir {self.vigente} ", [c for c in self.chamadas() if c.startswith("claude --")][0] + " ")
 
     def test_respeita_xdg_data_home(self):
@@ -981,7 +981,7 @@ class JarvisForgeVigente(unittest.TestCase):
         git = [c for c in self.chamadas() if c.startswith("git ")]
         self.assertTrue(all(f"-C {self.vigente} " in c or "remote get-url" in c for c in git), git)
         self.assertTrue(any(" fetch " in c for c in git))
-        self.assertTrue(any("reset --quiet --hard origin/develop" in c for c in git))
+        self.assertTrue(any("reset --quiet --hard refs/remotes/origin/develop" in c for c in git))
         self.assertFalse([c for c in self.chamadas() if c.startswith(("claude", "tmux")) and "has-session" not in c],
                          "abriu sessão")
 
@@ -1025,7 +1025,7 @@ class JarvisForgeVigente(unittest.TestCase):
         r = self.rodar("--atualizar-vigente", STUB_GIT_ADIANTE="a2e58b5 local\n")
         self.assertEqual(r.returncode, 1)
         self.assertIn("commits locais", r.stderr)
-        self.assertFalse([c for c in self.chamadas() if " reset " in c or " fetch " in c])
+        self.assertFalse([c for c in self.chamadas() if " reset " in c])  # o fetch vem antes, para conferir com a origin atual
 
     def test_sem_origin_sugere_dev(self):
         """JFV-03: mensagem do próprio script, sem criar nada."""
@@ -1095,6 +1095,297 @@ class JarvisForgeVigente(unittest.TestCase):
         tmux = [c for c in self.chamadas() if c.startswith("tmux ")][0]
         self.assertIn("jarvis-Forge", tmux)
         self.assertIn("--dev", tmux)
+
+
+class JarvisForgeAbrir(unittest.TestCase):
+    """Ao abrir, o jarvis-forge atualiza a cópia vigente (só fast-forward) e consulta a fonte de harness (1 vez por dia).
+    Repositórios bare locais e HOME temporário; nunca a rede."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+        self.home = self.tmp / "home"
+        self.origem = self.tmp / "origem.git"
+        semente = self.tmp / "semente"
+        git("init", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        git("clone", "-q", str(self.origem), str(semente), cwd=self.tmp)
+        (semente / "bin").mkdir()
+        self.chamadas_fontes = self.tmp / "fontes.log"
+        fc = semente / "bin/forge-check"
+        fc.write_text(f'#!/usr/bin/env bash\necho "$*" >> "{self.chamadas_fontes}"\n'
+                      'echo "fontes: F1 tem versão nova (aaaaaaa -> bbbbbbb)"\n')
+        fc.chmod(0o755)
+        (semente / "a.txt").write_text("1\n")
+        self.semente = semente
+        self.publicar("inicial")
+        self.home.mkdir()
+        git("clone", "-q", str(self.origem), str(self.home / "Forge"), cwd=self.tmp)
+        self.vigente = self.home / ".local/share/forge/vigente"
+        bin_falso = self.tmp / "bin"
+        bin_falso.mkdir()
+        self.log = self.tmp / "chamadas"
+        for nome in ("claude", "tmux"):
+            falso = bin_falso / nome
+            falso.write_text(f'#!/usr/bin/env bash\necho "{nome} $*" >> "{self.log}"\n')
+            falso.chmod(0o755)
+        self.env = ambiente_limpo()
+        self.env.update(HOME=str(self.home), PATH=f"{bin_falso}:{self.env['PATH']}",
+                        XDG_STATE_HOME=str(self.tmp / "estado"), GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+                        GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+        for k in ("XDG_DATA_HOME", "TMUX"):
+            self.env.pop(k, None)
+
+    def publicar(self, msg):
+        (self.semente / "a.txt").write_text(msg + "\n")
+        git("add", "-A", cwd=self.semente)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", msg, cwd=self.semente)
+        git("push", "-q", "origin", "develop", cwd=self.semente)
+
+    def rodar(self, *args, env=None, sem_tmux=True):
+        return subprocess.run(["bash", str(RAIZ / "scripts/jarvis-forge"), *args, *(["--sem-tmux"] if sem_tmux else [])],
+                              env={**self.env, **(env or {})}, capture_output=True, text=True,
+                              stdin=subprocess.DEVNULL, timeout=60, cwd=self.tmp)  # nunca a raiz do repositório
+
+    def head(self, pasta):
+        return git("rev-parse", "HEAD", cwd=pasta).stdout.strip()
+
+    def abriu(self):
+        return self.log.exists() and any(c.startswith("claude --") for c in self.log.read_text().splitlines())
+
+    def test_fast_forward_atualiza_a_copia_vigente_ao_abrir(self):
+        self.assertEqual(self.rodar().returncode, 0)
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.head(self.vigente), git("rev-parse", "develop", cwd=self.origem).stdout.strip())
+        self.assertIn("atualizada", r.stderr)
+        self.assertTrue(self.abriu())
+
+    def test_recusa_com_mudanca_local_e_segue_com_a_copia_atual(self):
+        self.rodar()
+        antes = self.head(self.vigente)
+        (self.vigente / "a.txt").write_text("sujo\n")
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.head(self.vigente), antes)
+        self.assertEqual((self.vigente / "a.txt").read_text(), "sujo\n")
+        self.assertIn("mudanças locais", r.stderr)
+        self.assertTrue(self.abriu())
+
+    def test_recusa_com_commit_local_sem_descartar(self):
+        self.rodar()
+        (self.vigente / "b.txt").write_text("b\n")
+        git("add", "-A", cwd=self.vigente)
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "local", cwd=self.vigente)
+        antes = self.head(self.vigente)
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.head(self.vigente), antes)
+        self.assertIn("commits locais", r.stderr)
+
+    def test_sem_rede_avisa_numa_linha_e_segue(self):
+        self.rodar()
+        antes = self.head(self.vigente)
+        self.origem.rename(self.tmp / "sumiu.git")
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.head(self.vigente), antes)
+        self.assertIn("sem rede", r.stderr)
+        self.assertEqual(len([l for l in r.stderr.splitlines() if "sem rede" in l]), 1)
+        self.assertTrue(self.abriu())
+
+    def test_consulta_diaria_das_fontes_uma_vez_com_cache_da_data(self):
+        r = self.rodar()
+        self.assertIn("versão nova", r.stderr)
+        self.assertEqual(self.chamadas_fontes.read_text().split(), ["fontes"])
+        self.assertEqual(len(list((self.tmp / "estado/forge").glob("fontes-????-??-??"))), 1)
+        r = self.rodar()
+        self.assertNotIn("versão nova", r.stderr)
+        self.assertEqual(self.chamadas_fontes.read_text().split(), ["fontes"])  # não consultou de novo
+
+    def publicar_tag_ambigua(self):
+        """Tag `origin/develop` na origem apontando para um commit de fora da develop (a branch melhoria/x)."""
+        git("switch", "--no-track", "-q", "-c", "melhoria/x", cwd=self.semente)
+        (self.semente / "a.txt").write_text("codigo nao revisado\n")
+        git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "x", cwd=self.semente)
+        git("push", "-q", "origin", "melhoria/x", cwd=self.semente)
+        git("tag", "origin/develop", cwd=self.semente)
+        git("push", "-q", "origin", "refs/tags/origin/develop", cwd=self.semente)
+        git("switch", "-q", "develop", cwd=self.semente)
+        return git("rev-parse", "melhoria/x", cwd=self.semente).stdout.strip()
+
+    def test_tag_origin_develop_nao_e_usada_ao_abrir(self):
+        self.rodar()
+        self.publicar_tag_ambigua()
+        self.publicar("novo")
+        esperado = git("rev-parse", "refs/heads/develop", cwd=self.origem).stdout.strip()
+        r = self.rodar()
+        self.assertEqual(self.head(self.vigente), esperado, r.stderr)
+
+    def test_tag_origin_develop_nao_e_usada_ao_abrir_mesmo_sem_novidade_na_develop(self):
+        self.rodar()
+        antes = self.head(self.vigente)
+        mal = self.publicar_tag_ambigua()
+        self.rodar()
+        self.assertEqual(self.head(self.vigente), antes)
+        self.assertNotEqual(self.head(self.vigente), mal)
+
+    def test_tag_origin_develop_nao_e_usada_no_atualizar_vigente(self):
+        self.rodar()
+        mal = self.publicar_tag_ambigua()
+        self.publicar("novo")
+        esperado = git("rev-parse", "refs/heads/develop", cwd=self.origem).stdout.strip()
+        r = self.rodar("--atualizar-vigente")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.head(self.vigente), esperado)
+        self.assertNotEqual(self.head(self.vigente), mal)
+
+    def test_branch_diferente_da_develop_nao_atualiza(self):
+        self.rodar()
+        git("switch", "--no-track", "-q", "-c", "outra", cwd=self.vigente)
+        antes = self.head(self.vigente)
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertEqual(self.head(self.vigente), antes)
+        self.assertIn("não está na develop", r.stderr)
+        self.assertTrue(self.abriu())
+
+    def test_sessao_tmux_aberta_nao_atualiza(self):
+        self.rodar()
+        antes = self.head(self.vigente)
+        self.publicar("novo")
+        r = self.rodar(sem_tmux=False)  # o tmux falso responde que a sessão existe
+        self.assertEqual(self.head(self.vigente), antes, r.stderr)
+
+    def test_dev_nao_atualiza(self):
+        self.rodar()
+        antes = self.head(self.vigente)
+        self.publicar("novo")
+        r = self.rodar("--dev")
+        self.assertEqual(self.head(self.vigente), antes, r.stderr)
+
+    def test_xdg_state_home_relativo_e_recusado(self):
+        r = self.rodar(env={"XDG_STATE_HOME": "relativo"})
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("XDG_STATE_HOME", r.stderr)
+        self.assertFalse(self.abriu())
+
+
+class ForgeCheckFontes(unittest.TestCase):
+    """`forge-check fontes`: compara o commit mais recente de cada fonte do registro local com o último revisado.
+    Usa um `git` falso no PATH (nunca a rede); só URLs https:// chegam a ele, e sempre com o protocolo travado."""
+
+    TOPO = "b" * 40
+    URL = "https://exemplo.invalid/org/repo.git"
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+        self.home = self.tmp / "home"
+        self.chamadas = self.tmp / "git.log"
+        bin_falso = self.tmp / "bin"
+        bin_falso.mkdir()
+        git_falso = bin_falso / "git"
+        git_falso.write_text(f'#!/usr/bin/env bash\necho "$*" >> "{self.chamadas}"\n'
+                             '[ -n "${FALSO_FALHA:-}" ] && exit 128\n'
+                             'printf "%s\\tHEAD\\n" "$FALSO_TOPO"\n')
+        git_falso.chmod(0o755)
+        self.bin_falso = bin_falso
+
+    def registrar(self, commit, url=None, codigo="F1"):
+        pasta = self.home / ".forge-contrib/fontes"
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / "fontes.json").write_text(json.dumps(
+            {codigo: {"url": url or self.URL, "clone": "x", "versao_revisada": "1", "commit_revisado": commit}}))
+
+    def rodar(self, topo=None, falha=False):
+        env = ambiente_limpo()
+        env.update(HOME=str(self.home), PATH=f"{self.bin_falso}:{env['PATH']}", FALSO_TOPO=topo or self.TOPO)
+        if falha:
+            env["FALSO_FALHA"] = "1"
+        return subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "fontes"], env=env,
+                              capture_output=True, text=True, timeout=60)
+
+    def chamou_git(self):
+        return self.chamadas.exists() and self.chamadas.read_text().strip() != ""
+
+    def test_versao_nova(self):
+        self.registrar("a" * 7)
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(len(r.stdout.splitlines()), 1)
+        self.assertIn("F1", r.stdout)
+        self.assertIn("versão nova", r.stdout)
+
+    def test_chama_o_git_com_o_protocolo_travado_em_https(self):
+        self.registrar("a" * 7)
+        self.rodar()
+        linha = self.chamadas.read_text().strip()
+        negados = " ".join(f"-c protocol.{p}.allow=never" for p in ("ext", "file", "ssh", "git", "http"))
+        self.assertEqual(linha, f"-c protocol.allow=never {negados} -c protocol.https.allow=always ls-remote -- {self.URL} HEAD")
+
+    def test_git_do_cwd_malicioso_nao_executa_comando(self):
+        """Um .git gravável no cwd (insteadOf para ext:: e protocol.ext.allow=always) não pode ser lido."""
+        alvo = self.tmp / "executou"
+        cwd = self.tmp / "cwd"
+        cwd.mkdir()
+        sh = lambda *a: subprocess.run(["git", *a], cwd=cwd, env=ambiente_limpo(), capture_output=True, check=True)
+        sh("init", "-q")
+        sh("config", f"url.ext::sh -c touch% {alvo}.insteadOf", "https://127.0.0.1:1/r.git")
+        sh("config", "protocol.ext.allow", "always")
+        self.registrar("a" * 7, url="https://127.0.0.1:1/r.git")
+        env = ambiente_limpo()
+        env["HOME"] = str(self.home)
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "fontes"], env=env, cwd=cwd,
+                           capture_output=True, text=True, timeout=60)
+        self.assertFalse(alvo.exists(), r.stdout + r.stderr)
+        self.assertEqual(r.returncode, 3)
+
+    def test_sem_novidade(self):
+        self.registrar(self.TOPO[:7])
+        r = self.rodar()
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("versão nova", r.stdout)
+        self.assertLessEqual(len(r.stdout.splitlines()), 1)
+
+    def test_sem_registro_fica_em_silencio(self):
+        r = self.rodar()
+        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+
+    def test_fonte_inalcancavel_sai_com_3_sem_barulho(self):
+        self.registrar("a" * 7)
+        r = self.rodar(falha=True)
+        self.assertEqual(r.returncode, 3)
+        self.assertNotIn("versão nova", r.stdout)
+
+    def test_url_que_nao_e_https_e_recusada_sem_chamar_o_git(self):
+        recusadas = ["ext::sh -c touch% /tmp/x", "file:///tmp/repo", "/tmp/repo", "ssh://git@host/repo.git",
+                     "git@host:org/repo.git", "http://host/repo.git", "https://host/repo;touch x",
+                     "https://host/repo touch", "https://host/repo\nx", "HTTPS-://x", "ftp://host/x"]
+        for url in recusadas:
+            with self.subTest(url=url):
+                self.registrar("a" * 7, url=url)
+                r = self.rodar()
+                self.assertFalse(self.chamou_git(), url)
+                self.assertIn("recusad", r.stdout + r.stderr)
+                self.assertNotIn("versão nova", r.stdout)
+
+    def test_controle_na_saida_e_filtrado(self):
+        self.registrar("a" * 7, codigo="F\x1b]0;pwn\x07\x1b[31m1")
+        r = self.rodar()
+        for c in ("\x1b", "\x07", "\r"):
+            self.assertNotIn(c, r.stdout + r.stderr)
+
+    def test_topo_que_nao_e_hexadecimal_e_tratado_como_falha(self):
+        self.registrar("a" * 7)
+        r = self.rodar(topo="\x1b[31mpwn")
+        self.assertNotIn("\x1b", r.stdout + r.stderr)
+        self.assertNotIn("versão nova", r.stdout)
+        self.assertEqual(r.returncode, 3)
 
 
 class VerificarContribuicao(unittest.TestCase):
