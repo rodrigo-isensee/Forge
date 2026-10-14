@@ -32,4 +32,11 @@ if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; 
     args+=(--channels plugin:telegram@claude-plugins-official)
   fi
 fi
+# Antes de abrir o Jarvis: o doutor rápido (local, sem rede, custo zero de tokens). Silencioso se está tudo bem; se
+# listou algo, espera um Enter para a pessoa ler antes de o Claude ocupar a tela. Sem o plugin instalado, pula.
+doutor="$(find "$HOME"/.claude/plugins/cache/*/forge/*/bin/forge-doutor 2>/dev/null | sort -V | tail -n 1 || true)"
+[ -n "$doutor" ] || doutor="$(command -v forge-doutor || true)"
+if [ -n "$doutor" ] && ! "$doutor" --rapido && [ -t 0 ]; then
+  read -r -p "Enter para abrir o Jarvis assim mesmo (ou Ctrl+C para consertar antes com: forge doutor) " _
+fi
 exec claude "${args[@]}"

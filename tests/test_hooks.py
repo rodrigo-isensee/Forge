@@ -262,7 +262,7 @@ class Hooks(unittest.TestCase):
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook == "vigia" else {0, 2})  # o vigia avisa, nunca bloqueia
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor") else {0, 2})  # o vigia e o doutor avisam, nunca bloqueiam
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
 
@@ -273,7 +273,7 @@ class Hooks(unittest.TestCase):
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            self.assertLessEqual(comandos, {"vigia.py"}, f"só o vigia (silencioso, sem stdout) fica em {evento}")
+            self.assertLessEqual(comandos, {"vigia.py", "doutor.py"}, f"só o vigia e o doutor (sem stdout no SessionStart) ficam em {evento}")
         usados = set()
         for evento, grupos in d["hooks"].items():
             for g in grupos:
