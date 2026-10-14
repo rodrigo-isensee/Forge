@@ -148,6 +148,23 @@ class ConferirNoCI(Base):
         self.commitar()
         self.assertNotEqual(self.conferir().returncode, 0)
 
+    def test_fragmento_em_subpasta_nao_conta(self):
+        self.mudar_fabrica()
+        (self.dir / "changelog.d" / "sub").mkdir(parents=True)
+        (self.dir / "changelog.d" / "sub" / "x.md").write_text("### Alterado\n- v\n", encoding="utf-8")
+        self.commitar()
+        self.assertNotEqual(self.conferir().returncode, 0)
+
+    def test_marcador_sem_texto_nao_conta(self):
+        for conteudo in ("### Alterado\n- \n", "### Alterado\n-\n"):
+            with self.subTest(conteudo=conteudo):
+                git(self.dir, "switch", "-q", "-C", "melhoria/minha-mudanca", "develop")
+                self.mudar_fabrica()
+                (self.dir / "changelog.d").mkdir(exist_ok=True)
+                (self.dir / "changelog.d" / "x.md").write_text(conteudo, encoding="utf-8")
+                self.commitar()
+                self.assertNotEqual(self.conferir().returncode, 0)
+
     def test_fragmento_que_ja_existia_na_base_nao_conta(self):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "velho.md").write_text("### Alterado\n- v\n", encoding="utf-8")
@@ -170,10 +187,23 @@ class ConferirNoCI(Base):
         self.assertEqual(self.conferir().returncode, 0)
 
 
+class ConferirRelease(Base):
+    def test_recusa_fragmento_pendente_e_aceita_pasta_limpa(self):
+        self.assertEqual(forge_changelog(self.dir, "conferir-release").returncode, 0)
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- v\n", encoding="utf-8")
+        (self.dir / "changelog.d" / "README.md").write_text("leia\n", encoding="utf-8")
+        r = forge_changelog(self.dir, "conferir-release")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("changelog.d", r.stdout + r.stderr)
+
+
 class CIUsaOsFragmentos(unittest.TestCase):
     def test_ci_chama_a_ferramenta_e_instrucoes_apontam_para_ela(self):
         ci = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("bin/forge-changelog conferir", ci)
+        self.assertIn("bin/forge-changelog conferir-release", ci)
+        self.assertNotIn("__import__", ci)
         for caminho in ("agents/tech-lead.md", "skills/contribuir-com-o-forge/SKILL.md", "CONTRIBUTING.md",
                         ".github/pull_request_template.md", ".claude/CLAUDE.md"):
             with self.subTest(arquivo=caminho):

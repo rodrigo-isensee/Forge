@@ -3,6 +3,7 @@
 
 Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em changelog.d/<branch-sem-prefixo>.md
      forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md e os apaga
+     forge-changelog conferir-release                                 gate da main: sobrou fragmento em changelog.d/?
      forge-changelog conferir --base REF                              checagem do CI: o PR deixou entrada de changelog?
 Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
 """
@@ -37,7 +38,7 @@ def ler_fragmento(texto, nome):
             if m.group(1) not in TIPOS:
                 sys.exit(f"{nome}: tipo '{m.group(1)}' inválido (use {', '.join(TIPOS)}).")
             atual = secoes.setdefault(m.group(1), [])
-        elif atual is not None and linha.startswith("- "):
+        elif atual is not None and re.match(r"- \S", linha):
             atual.append(linha)
         elif atual is not None and linha.startswith(" ") and atual:
             atual[-1] += "\n" + linha
@@ -122,7 +123,8 @@ def conferir(args):
     if not mudou:
         return
     novos = [p for p in git("diff", "--name-only", "--no-renames", "--diff-filter=A", base, "HEAD", "--", PASTA).split()
-             if p.startswith(f"{PASTA}/") and p.endswith(".md") and Path(p).name.lower() != "readme.md"]
+             if p.startswith(f"{PASTA}/") and p.endswith(".md") and Path(p).name.lower() != "readme.md"
+             and Path(p).parent == Path(PASTA)]
     for p in novos:
         ler_fragmento(git("show", f"HEAD:{p}"), p)
     if novos:
@@ -140,6 +142,14 @@ def conferir(args):
              "não suba a versão no PR.")
 
 
+def conferir_release(_args):
+    pendentes = fragmentos()
+    if pendentes:
+        sys.exit(f"Há fragmentos em {PASTA}/ ({', '.join(p.name for p in pendentes)}): rode "
+                 "`bin/forge-changelog release <versão> <data>` para juntá-los e apagá-los.")
+    print(f"ok: {PASTA}/ sem fragmentos pendentes")
+
+
 def main():
     ap = argparse.ArgumentParser(prog="forge-changelog")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -154,6 +164,8 @@ def main():
     p = sub.add_parser("conferir")
     p.add_argument("--base", required=True)
     p.set_defaults(f=conferir)
+    p = sub.add_parser("conferir-release")
+    p.set_defaults(f=conferir_release)
     args = ap.parse_args()
     args.f(args)
 

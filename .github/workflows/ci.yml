@@ -146,12 +146,11 @@ jobs:
           texto = open(sys.argv[3], encoding="utf-8").read()
           if not re.search(rf"^## \[{re.escape(sys.argv[2])}\]", texto, re.M):
               sys.exit(f"CHANGELOG.md sem a entrada '## [{sys.argv[2]}]'.")
-          if any(f for f in __import__('pathlib').Path('changelog.d').glob('*.md') if f.name.lower() != 'readme.md'):
-              sys.exit('Há fragmentos em changelog.d/: rode `bin/forge-changelog release <versão> <data>` para juntá-los e apagá-los.')
           m = re.search(r"^## \[Não publicado\][^\n]*\n(.*?)(?=^## |\Z)", texto, re.M | re.S)
           if m and any(l.strip() for l in m.group(1).splitlines()):
               sys.exit("Converta '## [Não publicado]' em '## [" + sys.argv[2] + "] - data': a seção deve estar vazia na release.")
           PY
+          python3 bin/forge-changelog conferir-release
       - name: Nada pula degrau
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
