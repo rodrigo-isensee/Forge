@@ -471,9 +471,30 @@ class Revisao(Base):
         antes = (self.proj / ".claude/settings.json").read_text(encoding="utf-8")
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
-        self.assertIn("restaurei", saida)
+        self.assertIn("Restaurei .claude/settings.json", saida)
         self.assertEqual((self.proj / ".claude/settings.json").read_text(encoding="utf-8"), antes)
         self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def test_fixar_com_mudanca_nao_salva_recusa_e_nada_se_perde(self):
+        self.escrever(".forge/versao", "0.0.1\n")
+        self.escrever(".gitignore", "meu-trabalho\n")
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("forge salvar", saida)
+        self.assertEqual((self.proj / ".forge/versao").read_text(encoding="utf-8"), "0.0.1\n")
+        self.assertEqual((self.proj / ".gitignore").read_text(encoding="utf-8"), "meu-trabalho\n")
+        self.assertEqual(self.chamadas_do_claude(), [])
+
+    def test_a_restauracao_nao_toca_em_arquivo_que_ja_estava_alterado(self):
+        self.escrever(".gitignore", "meu-trabalho\n")  # sujo ANTES da troca
+        (self.fake / "suja-projeto").write_text(str(self.proj), encoding="utf-8")  # a troca suja o settings.json, que estava limpo
+        r = self.py(f"print(v.fixar_plugin(v.url_do_forge(), '{VERSAO}', projeto=v.Path({str(self.proj)!r})))")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((self.proj / ".gitignore").read_text(encoding="utf-8"), "meu-trabalho\n")
+        self.assertEqual(self.git("status", "--porcelain"), "M .gitignore")
+        self.assertIn(".claude/settings.json", r.stdout)
+        self.assertNotIn(".gitignore", r.stdout)
+        self.assertNotIn("O Claude mexeu", r.stdout)
 
     def test_falha_no_add_devolve_exatamente_a_fonte_e_o_escopo_originais(self):
         self.publicar("9.9.0")

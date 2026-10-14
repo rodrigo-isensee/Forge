@@ -225,22 +225,32 @@ def devolver_original(original):
     return trocar_marketplace(original["fonte"])[0]
 
 
-def restaurar_projeto(projeto):
-    """Se a troca mexeu em arquivo versionado do projeto, devolve cada um (`git checkout -- <arquivo>`) e diz quais. "" se nada."""
+def arquivos_alterados(projeto):
+    """Os arquivos versionados com mudança (`git status --porcelain`, sem os não versionados). Conjunto vazio se `projeto` é None."""
+    if projeto is None:
+        return set()
+    r = subprocess.run(["git", "-C", str(projeto), "status", "--porcelain", "-z", "-uno"], capture_output=True, text=True)
+    return {entrada[3:] for entrada in r.stdout.split("\0") if len(entrada) > 3}
+
+
+def restaurar_projeto(projeto, antes):
+    """Defesa extra: devolve (`git checkout -- <arquivo>`) só o que estava limpo em `antes` (a foto de `arquivos_alterados` tirada antes
+    da troca) e ficou alterado depois. Nunca toca em arquivo que já estava alterado. Diz quais arquivos e por quê. "" se nada (o texto começa com ". " e não termina com ponto)."""
     if projeto is None:
         return ""
-    r = subprocess.run(["git", "-C", str(projeto), "diff", "--name-only"], capture_output=True, text=True)
-    mexidos = [a for a in r.stdout.splitlines() if a]
-    for arquivo in mexidos:
+    sujou = sorted(arquivos_alterados(projeto) - antes)
+    for arquivo in sujou:
         subprocess.run(["git", "-C", str(projeto), "checkout", "--", arquivo], capture_output=True, text=True)
-    return f" O Claude mexeu em arquivo do projeto e eu restaurei: {', '.join(mexidos)}." if mexidos else ""
+    return (f". Restaurei {', '.join(sujou)}: o arquivo estava salvo, mudou durante a troca do plugin e não era uma mudança sua, "
+            f"então o devolvi ao que estava salvo") if sujou else ""
 
 
 def fixar_plugin(url, versao, voltar_para=None, projeto=None):
     """Deixa o plugin do Forge fixado na tag v<versao>, só no escopo do usuário (`--scope user`): marketplace readicionada com
     `<endereço>#v<versao>` e plugin atualizado (ou instalado). Antes de qualquer remoção confirma a tag e guarda a fonte e o escopo
-    originais; se algo falhar, readiciona exatamente a fonte original. Depois confere os arquivos versionados do `projeto`.
+    originais; se algo falhar, readiciona exatamente a fonte original. Depois devolve só o que a troca alterou em arquivo versionado do `projeto` (nunca o que já estava alterado).
     Devolve (deu certo, mensagem em linguagem simples)."""
+    antes = arquivos_alterados(projeto)
     if not tag_existe(url, versao):
         return False, f"não consegui confirmar a versão {versao} no endereço do Forge (sem conexão ou ela não existe). Não mexi no plugin"
     original = fonte_original()
@@ -248,15 +258,15 @@ def fixar_plugin(url, versao, voltar_para=None, projeto=None):
         return False, "não achei a marketplace do Forge no seu Claude (ela tem de estar instalada pelo endereço do Forge). Não mexi no plugin"
     deu, saida = trocar_marketplace(f"{url}#v{versao}")
     if deu:
-        return True, f"o plugin do Forge está fixado na versão {versao}" + restaurar_projeto(projeto)
+        return True, f"o plugin do Forge está fixado na versão {versao}" + restaurar_projeto(projeto, antes)
     devolveu = devolver_original(original)
-    aviso = restaurar_projeto(projeto)
+    aviso = restaurar_projeto(projeto, antes)
     como = (f"Para refazer à mão: `claude plugin marketplace add {original['fonte']} --scope user` e "
             f"`claude plugin install {PLUGIN} --scope user`")
     if devolveu:
         return False, (f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}); devolvi a marketplace como estava "
                        f"({original['fonte']}, escopo {original['escopo']}){aviso}")
-    return False, f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}) nem devolver o de antes. {como}.{aviso}"
+    return False, f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}) nem devolver o de antes. {como}{aviso or '.'}"
 
 
 def problemas_do_doutor(pasta_bin, projeto):

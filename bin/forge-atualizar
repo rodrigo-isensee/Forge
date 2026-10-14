@@ -2,7 +2,7 @@
 """Forge: atualiza o Forge do projeto com ponto de retorno (primeiro uso, F5). Rode no terminal, dentro do projeto.
 Uso: forge atualizar [--fixar]
   --fixar   só deixa o plugin fixado na versão que está em uso (nada muda no projeto)
-Passos: mostra a versão atual, a nova e o que mudou (do CHANGELOG, em linguagem simples); pede "s"; guarda o ponto de retorno
+Só começa com tudo salvo no projeto (também com --fixar). Passos: mostra a versão atual, a nova e o que mudou (do CHANGELOG, em linguagem simples); pede "s"; guarda o ponto de retorno
 (versão do plugin e cópia dos arquivos VERSIONADOS de `.forge/`, em ~/.local/state/forge/retorno/; nunca segredo nem arquivo local);
 roda o doutor antes; roda `forge-upgrade --simular` e, se der certo, troca o plugin (só no escopo do usuário, fixado na tag vX.Y.Z, depois de
 confirmar a tag e guardar a fonte original da marketplace) e aplica o `forge-upgrade` numa branch nova; roda o doutor de novo; só se
@@ -73,12 +73,12 @@ def main():
     if url is None:
         print("forge atualizar: não achei um endereço seguro (https) para consultar as versões do Forge. Não mudei nada.", file=sys.stderr)
         return 1
-    if "--fixar" in args:
-        return fixar_somente(url, atual, projeto)
     if git(projeto, "status", "--porcelain")[1]:
-        print("Há mudanças não salvas neste projeto. Salve (forge salvar) ou desfaça (forge desfazer) e rode de novo. Não mudei nada.")
+        print("Há mudanças não salvas neste projeto. Salve antes com `forge salvar` (ou desfaça com `forge desfazer`) e rode de novo, para que nada se perca. Não mudei nada.")
         return 1
 
+    if "--fixar" in args:
+        return fixar_somente(url, atual, projeto)
     nova, erro = fv.ultima_versao(url)
     if erro:
         print(f"Não consegui ver se há versão nova ({erro}). Confira a conexão com a internet e tente de novo. Não mudei nada.")

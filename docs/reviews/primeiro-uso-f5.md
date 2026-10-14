@@ -22,6 +22,8 @@ Autor e revisor são o mesmo papel aqui: este parecer é de autor e não substit
 - Altera `hooks/doutor.py` (consulta de rede no Stop, 3 s, cache diário): o PR precisa do rótulo `afrouxa-regra` do dono. `hooks.json` não mudou.
 - Doutor com problema antigo e sem relação oferece voltar depois da atualização (a mensagem avisa que pode não ter relação).
 - `forge-check` e os demais hooks intocados.
+- **Correção da re-review (árvore suja):** o `forge atualizar` (inclusive `--fixar`) só começa com a árvore versionada limpa; senão recusa e manda salvar com `forge salvar`. Em `restaurar_projeto`, a foto de `git status --porcelain` é tirada antes da troca e só se restaura o que estava limpo antes e ficou alterado depois; a mensagem diz quais arquivos e por quê. Dois testes novos, vermelhos antes (`--fixar` recusa com trabalho não salvo; a restauração não toca em arquivo já alterado).
+- **Limites do hook e defesa do sandbox:** ver "Limites conhecidos" em `docs/hooks.md` (`python -c`, `node -e`, `perl -e` e shell por pipe passam). O sandbox nega escrita em `~/.claude/plugins` e `~/.claude/settings.json` por padrão do Claude Code; nenhum dos dois `.claude/settings.json` (Forge e modelo de projeto) declara esses caminhos, e o modelo nem tem bloco `sandbox`.
 
 ## Review independente (head `a1c8e80`)
 
