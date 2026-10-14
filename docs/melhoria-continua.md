@@ -11,7 +11,8 @@ Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Ja
 ## b) Métricas (planilha única `docs/kanban/entregas.md`, uma linha por entrega)
 | Métrica | Como coletar | Quem |
 |---|---|---|
-| Tokens por agente por entrega | `subagent_tokens` do relatório de cada subagente, somado por papel | Jarvis anota ao receber |
+| Tokens por agente por entrega | `forge-check transcricao custo --entregas --entrega <pedido>`, lido das transcrições locais: inclui a sessão principal do Jarvis e as compactações; sem transcrição, `subagent_tokens` do relatório, anotado à mão | Jarvis roda no fim do pedido |
+| Retrabalho de delegação | `relancamentos` do mesmo comando: agente relançado com o mesmo tipo e prompt (hash), por pedido | agile-coach |
 | Rodadas de review e de QA | contar `docs/reviews/*-rN.md` e `docs/qa/` da entrega | agile-coach |
 | Bugs por entrega e onde nasceram | pareceres por severidade; origem = fase (spec, arquitetura, código, teste, UX) | agile-coach |
 | Tempo de ciclo | `historico.md` (valores brutos até 20 itens) | agile-coach |

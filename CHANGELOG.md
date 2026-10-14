@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Custo de tokens lido das transcrições locais (fonte F1, lote 4):** `forge-check transcricao custo [<pasta ou .jsonl>] [--entregas]` soma entrada, saída e cache por sessão, por subagente (tipo e modelo), a sessão principal à parte, as compactações e os relançamentos do mesmo prompt (retrabalho), sem rede e com saída anonimizada; o Jarvis e o `agile-coach` passam a usá-lo no lugar da anotação manual. Mexe em `bin/forge-check` (protegido): PR com o rótulo `afrouxa-regra`.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado

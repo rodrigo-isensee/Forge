@@ -18,6 +18,16 @@ Conformidade dos agentes (ADR 0009, seção 8):
 - `R-COPIA`: escrita em `.claude/agents/` ou `.claude/skills/`.
 - `R-DECISAO` (**aviso**, não muda o código de saída; linha `transcricao: aviso: R-DECISAO: ...`): a última mensagem do assistente ao usuário, antes de qualquer outra ferramenta, tem mais de uma pergunta, ou uma pergunta e duas ou mais opções (`A)`, `Opção B`, `1.`) sem "recomend...". É heurística sobre contagens; o texto nunca é guardado.
 
+## Medir o custo em tokens
+`forge-check transcricao custo [<pasta ou arquivo .jsonl>]` lê as transcrições brutas do Claude Code (padrão: `~/.claude/projects/<diretório atual>`), só do disco local, sem rede e sem IA (`R-CUSTO`). Antes de ler, avisa no stderr quantos arquivos lerá e onde. A saída é anonimizada: números, tipos de agente (`forge:*`, os demais viram `<agente>`), modelos e hashes curtos; nunca texto, caminho, prompt nem nome de sessão (`s1`, `s2`...).
+- `sessao sN`: entrada, saída, cache de criação e de leitura da sessão inteira (principal e subagentes).
+- `principal`: só a sessão do Jarvis, à parte.
+- `subagente <tipo> <modelo>`: mensagens e tokens por tipo e modelo (tipo resolvido pelo `agentId` da delegação).
+- `compactacoes`: quantidade e `tokens_antes` (contexto que cada `compact_boundary` comprimiu; o custo do resumo em si aparece como mensagem da sessão principal).
+- `retrabalho`: o mesmo tipo de agente lançado de novo com o mesmo prompt (hash de 8 hex) conta como relançamento.
+- `--entregas [--entrega NOME]`: em vez do relatório, uma linha por agente no formato de `docs/kanban/entregas.md` (principal e cada tipo de subagente). Duração e rodadas ficam `-`; "Tokens" é a soma dos quatro campos.
+Mensagens repetidas pelo streaming (mesmos `message.id` e `requestId`) contam uma vez; linha corrompida é ignorada. Limites: depende do formato do `.jsonl`, que o Claude Code pode mudar; sem pastas de subagentes ou sessões apagadas, o número é parcial.
+
 ## Anonimizar e contribuir
 1. Localize a sessão em `~/.claude/projects/<projeto>/<sessão>.jsonl`.
 2. `forge-check transcricao anonimizar <sessão>.jsonl tests/transcricoes/<caso>.jsonl`.

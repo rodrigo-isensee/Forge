@@ -1653,6 +1653,78 @@ class Transcricoes(unittest.TestCase):
         self.assertEqual(self.rodar("verificar", str(arq))[0], 1)
 
 
+class CustoDeTokens(unittest.TestCase):
+    """`forge-check transcricao custo`: tokens lidos das transcrições locais, sem rede e anonimizados (fonte F1, lote 4)."""
+    USO = RAIZ / "tests/transcricoes/uso"
+
+    def rodar(self, *args):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", "custo", *args],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout, r.stderr
+
+    def test_tokens_por_sessao_com_subagentes_e_duplicata_de_streaming(self):
+        cod, saida, _ = self.rodar(str(self.USO))
+        self.assertEqual(cod, 0, saida)
+        self.assertIn("custo: sessao s1: entrada=373 saida=205 cache_criacao=1003 cache_leitura=2954 total=4535", saida)
+        self.assertIn("custo: sessao s2: entrada=30 saida=10 cache_criacao=0 cache_leitura=0 total=40", saida)
+
+    def test_principal_a_parte(self):
+        saida = self.rodar(str(self.USO))[1]
+        self.assertIn("custo: principal: entrada=380 saida=185 cache_criacao=1000 cache_leitura=2300 total=3865", saida)
+
+    def test_subagente_por_tipo_e_modelo(self):
+        saida = self.rodar(str(self.USO))[1]
+        self.assertIn("custo: subagente forge:tech-lead claude-sonnet-4: mensagens=3 entrada=22 saida=28 "
+                      "cache_criacao=0 cache_leitura=650 total=700", saida)
+        self.assertIn("custo: subagente forge:qa-engineer claude-haiku-4: mensagens=1 entrada=1 saida=2 "
+                      "cache_criacao=3 cache_leitura=4 total=10", saida)
+
+    def test_compactacoes(self):
+        self.assertIn("custo: compactacoes: quantidade=1 tokens_antes=9000", self.rodar(str(self.USO))[1])
+
+    def test_relancamento_do_mesmo_prompt_e_retrabalho(self):
+        saida = self.rodar(str(self.USO))[1]
+        self.assertIn("custo: retrabalho: relancamentos=1", saida)
+        self.assertRegex(saida, r"custo: retrabalho: hash=[0-9a-f]{8} tipo=forge:tech-lead lancamentos=2")
+
+    def test_aceita_arquivo_unico_e_ignora_linha_corrompida(self):
+        cod, saida, _ = self.rodar(str(self.USO / "sessao-b.jsonl"))
+        self.assertEqual(cod, 0)
+        self.assertIn("custo: sessao s1: entrada=30 saida=10 cache_criacao=0 cache_leitura=0 total=40", saida)
+        self.assertIn("custo: retrabalho: relancamentos=0", saida)
+
+    def test_saida_anonimizada(self):
+        cod, saida, erro = self.rodar(str(self.USO))
+        for proibido in ("SEGREDO", "pessoa", "projeto-secreto", "/home", "sessao-a", "sessao-b"):
+            self.assertNotIn(proibido, saida)
+        self.assertNotIn("SEGREDO", erro)
+
+    def test_anuncia_o_que_vai_ler_antes_de_ler(self):
+        erro = self.rodar(str(self.USO))[2]
+        self.assertIn("custo: vai ler 2 arquivo(s) .jsonl em ", erro)
+        self.assertIn(str(self.USO), erro)
+
+    def test_entregas_gera_linhas_do_quadro(self):
+        saida = self.rodar(str(self.USO), "--entregas", "--entrega", "exemplo")[1]
+        linhas = [l for l in saida.splitlines() if l.startswith("| ")]
+        self.assertTrue(all(l.count("|") == 8 for l in linhas), linhas)  # 7 colunas de docs/kanban/entregas.md
+        self.assertTrue(any("| exemplo | jarvis (principal) | 3865 |" in l for l in linhas), linhas)
+        self.assertTrue(any("| exemplo | forge:tech-lead | 700 |" in l for l in linhas), linhas)
+        self.assertTrue(any("2026-01-02" in l for l in linhas) or any("2026-01-01" in l for l in linhas))
+
+    def test_caminho_inexistente_falha_sem_traceback(self):
+        cod, saida, erro = self.rodar(str(self.USO / "nao-existe"))
+        self.assertEqual(cod, 1)
+        self.assertNotIn("Traceback", erro)
+
+    def test_pasta_sem_transcricoes_diz_que_nao_ha_o_que_ler(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-custo-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        cod, saida, erro = self.rodar(str(tmp))
+        self.assertEqual(cod, 1)
+        self.assertIn("nenhum arquivo .jsonl", saida + erro)
+
+
 class PraticasDeEspecificacao(unittest.TestCase):
     """Critérios EARS, bug, constituição e DORA presentes nos lugares certos."""
 
