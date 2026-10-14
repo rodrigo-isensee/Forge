@@ -3,7 +3,8 @@
 
 PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge`, ou `git merge <branch>` e
 `git pull <remoto> <branch>` na branch de integração: exige parecer aprovado e válido para a branch (validado pelo
-forge-check, ADR 0004). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha.
+forge-check, ADR 0004); com pipeline, contêiner ou IaC no diff, também o de devops (R-REVIEW); com gatilho de segurança, o
+de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha.
 Libera mudança só de documentação (.md), atualização a partir de uma branch de integração e promoção entre
 branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
@@ -127,14 +128,15 @@ def existe(raiz, ref):
 def verificar(hook, raiz, branch, ref, base):
     """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido."""
     if base:
-        cod, arquivos = git(raiz, "diff", "--name-only", f"{base}...{ref or 'HEAD'}")
+        cod, arquivos = git(raiz, "diff", "--name-only", "--no-renames", f"{base}...{ref or 'HEAD'}")
         if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
             return  # só documentação: não passa por QA (R-QA)
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         bloquear("R-REVIEW", f"nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "
-                             "faça o code review e o QA (R-QA) antes do PR ou do merge.")
+                             "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
+                             "quando há gatilho, ficam em docs/devops/ e docs/security/).")
     for pedido in pedidos:
         violacoes = fc.cmd_pr(raiz, pedido, ref)
         if violacoes:

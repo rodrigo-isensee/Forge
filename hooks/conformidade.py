@@ -25,7 +25,7 @@ from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, contrib, e_clone_do_
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
-    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
+    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
 LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
@@ -950,7 +950,7 @@ def autoria(hook, guarda, alvos):
         if raiz not in p.parents or p.suffix != ".md" or not p.is_file():
             continue
         rel = p.relative_to(raiz).as_posix()
-        if rel.startswith(("docs/reviews/", "docs/qa/")):
+        if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")):
             registro = {"caminho": rel, "sha256": hashlib.sha256(p.read_text(encoding="utf-8").strip().encode()).hexdigest(),
                         "agente": hook.entrada.get("agent_type") or "", "papel": guarda.papel,
                         "quando": time.strftime("%Y-%m-%dT%H:%M:%S")}
