@@ -1,0 +1,31 @@
+{
+  "descricao": "git clean -fd apaga arquivos novos. (iniciante: pede confirmação com a consequência)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/perfil": "iniciante\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git clean -fdx"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "pergunta": "apaga os arquivos novos"
+  }
+}

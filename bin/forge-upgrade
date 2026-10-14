@@ -5,6 +5,7 @@ Cria a branch forge/upgrade-<versão>, aplica as migrações pendentes (um commi
 Nunca faz push nem merge."""
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -40,6 +41,11 @@ def main():
         sair(f"{projeto} não é um repositório git", 2)
     if git(projeto, "status", "--porcelain"):
         sair("a cópia de trabalho não está limpa; commite ou guarde as mudanças antes", 2)
+
+    # Antes de atualizar: o doutor (rápido, só avisa) mostra o que já está fora do lugar, para não somar problema a problema.
+    # (`forge atualizar` já roda o doutor por conta própria e define FORGE_SEM_DOUTOR para o aviso não aparecer no meio dele.)
+    if not os.environ.get("FORGE_SEM_DOUTOR"):
+        subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-doutor"), "--rapido", str(projeto)], check=False)
 
     alvo = a.ate or json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
     arq_versao = projeto / ".forge/versao"

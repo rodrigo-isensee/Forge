@@ -1,0 +1,30 @@
+{
+  "descricao": "env -i ... script -qec \"forge-sugerir --fila\": sem as variáveis o script não se defende; o hook barra (F6).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -i HOME=/tmp PATH=/usr/bin script -qec \"forge-sugerir --fila\" /dev/null"
+    },
+    "agent_type": "forge:jarvis",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "quem envia a sugestão é você, no seu terminal"
+  }
+}

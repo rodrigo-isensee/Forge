@@ -20,23 +20,9 @@ flowchart LR
 ```
 
 ## ADR (`docs/architecture/adr/NNNN-titulo.md`)
-```markdown
-# NNNN - Título da decisão
-- Status: proposta | aceita | substituída por NNNN
-- Data: AAAA-MM-DD
-
-## Contexto
-Qual problema ou força motivou a decisão.
-
-## Decisão
-O que foi decidido.
-
-## Alternativas consideradas
-Opção, prós, contras — para cada uma.
-
-## Consequências
-O que fica mais fácil, o que fica mais difícil, riscos.
-```
+Siga o modelo `${CLAUDE_PLUGIN_ROOT}/templates/projeto/docs/architecture/adr/_modelo.md` (o `forge-init` o copia para o projeto). Ele define as seções e a linha `Estado:`; não copie o modelo para outro lugar.
+- Toda ADR traz **critério de reversão** (um fato observável) e a tabela de **leituras**. Sem critério de reversão, a ADR não está pronta.
+- Quando a decisão cria mecanismo novo (hook, regra, ferramenta, campo, agente), a seção **"Por que o existente não basta"** é obrigatória: o que já existe para a mesma necessidade e por que não basta, com evidência de execução.
 
 ## Plano técnico de feature (`docs/architecture/features/<feature>.md`)
 0. **Conferência com a constituição** (`docs/constituicao.md`, se existir): antes de seguir, cada princípio inegociável e portão de qualidade é conferido contra o plano; conflito é resolvido no plano ou vira ADR pedindo emenda à constituição, nunca é ignorado. Registre "conforme" ou o desvio no topo do plano.

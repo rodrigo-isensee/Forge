@@ -16,4 +16,9 @@ data: AAAA-MM-DD
 
 Copie para `docs/qa/<pedido>.md`. Formato: ADR 0004 do Forge; `forge-check docs` valida. Médio ou baixo abertos com parecer aprovado exigem a linha `aceite_usuario: sim` no frontmatter. Bugs em `docs/qa/bugs/`.
 
+## Critério → teste → resultado
+| Critério | Teste | Fronteira protegida | Resultado |
+|---|---|---|---|
+| CA-1 | CT-01 | vazio, máximo ou `n/a` | passou |
+
 ## Cenários e resultado real

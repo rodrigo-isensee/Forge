@@ -1,0 +1,32 @@
+{
+  "descricao": "Com perfil iniciante, Write em .forge/perfil é recusado.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/perfil": "iniciante\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.forge/perfil",
+      "content": "experiente\n"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE:"
+  }
+}

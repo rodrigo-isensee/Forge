@@ -10,11 +10,12 @@ As fontes aparecem aqui só pelo código (F1, F2...), por neutralidade (`R-NEUTR
 
 | Fonte | URL | Última versão revisada | Commit revisado | Data do commit | Revisada em | Estudo |
 |---|---|---|---|---|---|---|
-| F1 | no registro local | 5.19.0 | `fe46a6b` | 2026-10-08 | 2026-10-13 | [fonte-f1-5.19.0](propostas/fonte-f1-5.19.0.md) |
+| F1 (fonte de harness do Forge) | no registro local | 5.19.0 | `fe46a6b` | 2026-10-08 | 2026-10-13 | [fonte-f1-5.19.0](propostas/fonte-f1-5.19.0.md) |
 
 Fonte nova entra nesta tabela por PR, com o motivo (o que ela tem que as atuais não têm). Fonte sem estudo há dois ciclos sem mudança relevante pode sair, também por PR.
 
 ## Cadência
+- **Todo dia, para a F1** (decisão do dono): a F1 é a fonte de harness do Forge. Ao abrir, o `jarvis-forge` roda `forge-check fontes` (no máximo uma vez por dia, cache em `${XDG_STATE_HOME:-~/.local/state}/forge/fontes-<data>`), que lê o registro local, compara o commit mais recente com `commit_revisado` por `git ls-remote` e mostra uma linha se houver versão nova; o Jarvis então abre o estudo comparativo. Sem registro local, silêncio; sem rede, tenta de novo na abertura seguinte.
 - **Na retrospectiva** de cada entrega do Forge e **no início de cada ciclo de melhoria** (antes de escolher os próximos cartões `melhoria/*`), o `agile-coach` confere cada fonte da tabela.
 - Sem commit novo: uma linha na retrospectiva ("fontes sem novidade") e fim.
 - Com commit novo: triagem (abaixo) e, se houver item candidato, estudo novo em `docs/propostas/<fonte>-<versao>.md`.
