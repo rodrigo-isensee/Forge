@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f6
 branch: melhoria/primeiro-uso-f6
-commit: 7a630a4
+commit: 7dd719e
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -69,3 +69,29 @@ Terceira leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 7a
 3. Recomendado. Nome do projeto separado por ponto passa (`Sistema.Acao`, `sistema.acao.app`), e `Sistema--Acao` também: incluir `.` e repetição em `[-_ .]*` entre as partes. Valor em URL codificada passa (`token%3Dabcdef123456`, `password%3Dhunter2`): decodificar `%3D`/`%3A` antes do `SEGREDO` ou aceitar o separador codificado. Base64 de menos de 40 (`dG9rZW49YWJjZGVmMTIzNDU2Nzg5`, que é `token=abcdef123456789`) passa; aceitável pela heurística, já que o aviso pede conferência. `https://api.empresa.com/v1?token=x` vira `<url>]` (resto do `[token]`): cosmético.
 
 O que está certo, além dos quatro itens: e-mail com `+` sai; `?token=` e `?access_token=` em URL do Forge viram `[token]` e em outra URL a URL inteira sai; o nome do projeto dentro de caminho (`build/Sistema-Acao/src`, `./sistemaacao/x`, `repo/SistemaAção.git`) sai; Enter, EOF e outra resposta seguem guardando; o `gh` segue com argv em lista e `stdin` nulo.
+
+
+## Terceira review independente
+
+Quarta leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 7dd719e (`4a08081..7dd719e`). Parecer: **reprovado**. Os dois bloqueios da re-review estão fechados nas formas apontadas, mas a exceção do `--guardar` no hook virou atalho para enviar sem a pessoa.
+
+### Bateria local (cota do Actions esgotada)
+- `python3 -m unittest discover -s tests`: 493 testes, OK.
+- `scripts/validar-plugin.sh`: ok. `shellcheck` (lista do CI mais `bin/forge`): limpo.
+- `tests/catraca.py --base origin/develop` (regras): sai 1 só por R-CONFORMIDADE em `hooks/_comum.py`, `conformidade.py` e `parecer.py` (rótulo `afrouxa-regra` do dono pendente, como antes).
+- `--modo pareceres` (`--ramo=melhoria/primeiro-uso-f6 --base-ref develop`): sai 1, esperado, porque o último parecer é reprovado. `--modo pr-texto` com o corpo do #112 (`gh pr view 112`): 0.
+- Versão e changelog: `plugin.json` 0.12.0 igual à `develop`; linha da F6 em `## [Não publicado]`: ok.
+
+### Os dois bloqueios anteriores
+1. **Fechado nas formas apontadas.** Com o hook real, de sessão de projeto, saem com 2 e R-CONFORMIDADE: `forge sugerir --fila`, texto solto e `--arquivo`; `env -i ... script -qec "python3 bin/forge-sugerir --fila"`; `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT script -qec 'printf "s\n" | forge sugerir --fila'`; `env -i ... script -qec 'yes s | forge sugerir "x"'`; `bash -c`, `setsid -f`, caminho absoluto, `python3 .../forge-sugerir` e `yes s | forge sugerir`. `--guardar --fila`, `--fila --guardar`, `--guardar=x` e `--guardar "--fila"` também barram. `forge sugerir --guardar "x"` passa, como deve.
+2. **Fechado.** `{\"api_key\": \"AbCdEf123456\"}`, `{\"token\":\"abc\"}`, `"{\"password\":\"hunter2\"}"` e o escape de dois níveis viram `[token]`; `token%3D`, `password%3D`, `api_key%3a` e `TOKEN%3d` também; os testes novos cobrem os três grupos.
+
+### Ajustes necessários
+1. **Bloqueia. O `--guardar` serve de atalho para enviar** (`hooks/conformidade.py:833-836`). O hook decide por `"--guardar" in resto`, e `resto` é tudo o que vem depois da palavra, com o texto entre aspas quebrado por espaço e os comandos seguintes do mesmo `-c` juntos. O script só guarda quando `--guardar` é um argumento inteiro da própria chamada. Reproduzido com o hook real (sai 0) e o script real com `gh` falso (o `gh issue create -R rodrigo-isensee/Forge` foi chamado nos dois):
+   - texto que contém a palavra: `printf "s\n" | env -i HOME=... PATH=... script -qec 'forge sugerir "x --guardar"' /dev/null` (o script recebe um argumento só, `x --guardar`, e envia com o `s` do agente);
+   - outra chamada no mesmo comando: `printf "s\n" | env -i ... script -qec 'forge sugerir y; forge sugerir --guardar z' /dev/null` (a primeira envia; a segunda só guarda e libera as duas).
+   Correção: liberar só a chamada direta, de nível de topo, `forge sugerir --guardar ...` ou `forge-sugerir --guardar ...`, com `--guardar` como elemento do argv dessa chamada (já separado pelo parser do hook, sem o `split()` dentro das aspas) e sem `--fila`; qualquer `forge sugerir`/`forge-sugerir` por baixo de `env`, `script`, `setsid`, interpretador ou `-c` barra sempre, com ou sem `--guardar` (o agente não precisa dessas formas). Fixtures `-bloqueia` com as duas formas acima.
+2. Recomendado (desvio teórico). Ofuscação do subcomando escapa do hook: `S=sugerir; ... script -qec "forge $S x"` e `forge sug""erir x` saem com 0. É a mesma classe que já vale para `forge atualizar` e `forge voltar-versao` (fora deste PR); a variável do Claude Code segue como segunda camada, e ela cai com `env -i`. Registrar no quadro: tratar `forge` com subcomando que não é literal, dentro de `env -i`/`script`, como suspeito.
+3. Recomendado (heurística). Ainda passam: `password%253Dhunter2` (codificado duas vezes), `key=...` e `pass=...` (a lista não tem `key` nem `pass` soltos), `"Authorization": "token ghx_..."` (prefixo que não está na lista) e, no JSON escapado, o valor com aspas escapadas dentro dele deixa o resto (`\"a b\\\" c\"` vira `[token] c\"`). `?token=abc&y=1` engole o `&y=1`: cosmético. O aviso pede conferência, então ficam como recomendação.
+
+O que está certo, além dos dois itens: o script recusa `--guardar` com `--fila` (sai 2 com "--fila não leva texto"), então a forma `--guardar --fila` não envia mesmo se o hook falhar; o argumento repetido (`--guardar x --guardar`) só guarda; o envio continua pedindo "s" num terminal e o `gh` segue com argv em lista e `stdin` nulo.
