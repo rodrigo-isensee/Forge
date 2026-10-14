@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f2
 branch: melhoria/primeiro-uso-f2
-commit: 1687736
-parecer: reprovado
+commit: 2c28cad
+parecer: aprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-13
 ---
@@ -63,3 +63,13 @@ Revisor: `tech-lead` (independente), sobre o HEAD 1687736. Resultado: **reprovad
 - **F2-02:** o reenvio só ocorre fora de `main`/`develop`/`homolog`/sem branch e envia `origin "$ramo"`; nunca para a `main`.
 - **Sem regressão** nos demais itens (F2-03 a F2-06): mensagens e testes coerentes.
 - Ao corrigir, o `tocados` vazio com `set -u` não ocorre, pois `mudancas` não vazio implica caminhos; nenhuma ação extra.
+
+## Re-review da correção
+
+Revisor: `tech-lead` (independente), sobre o HEAD 2c28cad (correção do bloqueio do QA, `--` nos `grep`). Resultado: **aprovado**, sem item que bloqueie.
+
+- **Verificação:** 351 testes OK (`python3 -m unittest discover -s tests`); `shellcheck` limpo em `bin/forge`, `forge-salvar`, `forge-desfazer` e `forge-novo-projeto`.
+- **Comandos com nome de arquivo nos quatro scripts:** conferidos um a um. O único `grep` que recebe arquivo (`bin/forge-salvar`, laço de marcas de conflito) agora tem `--`. Os demais `grep` leem de pipe ou de variável de texto, sem arquivo. `[ -f "$arq" ]` e `cp "$estado"` recebem caminho absoluto (`$HOME` ou `XDG_STATE_HOME`), que não começa com `-`. `git add -A`, `git ls-files` e `git diff --cached` não recebem nome. Não há `rm`, `cat`, `mv` nem `touch` sobre nomes vindos do usuário.
+- **Teste do bug:** `test_marca_de_conflito_em_arquivo_com_nome_iniciado_por_traco_e_recusada` (BUG-F2-07) cria `-rf.txt` com `<<<<<<<`, exige código de saída diferente de zero, o nome na mensagem e nenhum commit novo. Verificado por mutação em cópia temporária: sem `--`, o teste falha (1 falha); com `--`, passa.
+- **Sem regressão:** a diferença do PR é só os quatro `grep` e o teste; nenhum hook, catraca ou invariante tocado. Sem mudança de versão (sobe na release, ADR 0006).
+- **Observação (não bloqueia):** durante a bateria apareceu um aviso do sandbox de conexão negada a `api.anthropic.com`; os testes passaram e nenhum script do PR chama API. Vale checar qual processo tentou a conexão, para garantir que nenhum teste toca serviço pago (`R-CUSTO`).
