@@ -7,7 +7,8 @@
     "doc": ["forge:software-architect", "forge:ux-designer"],
     "coach": ["forge:agile-coach"],
     "devops": ["forge:devops-engineer"],
-    "seguranca": ["forge:security-engineer"]
+    "seguranca": ["forge:security-engineer"],
+    "conferente": ["forge:conferente"]
   },
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",
@@ -67,5 +68,14 @@
     "apt-get": {"adicionam": ["install"], "congelados": []},
     "brew": {"adicionam": ["install"], "congelados": []}
   },
-  "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"]
+  "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"],
+  "so_leitura": {
+    "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, redirecionamento só para as saídas, variável na linha recusada e só os comandos da lista (programa sem caminho; git e gh com o subcomando). Fora da lista, recusa: na dúvida, recusa.",
+    "papeis": ["conferente"],
+    "comandos": ["git log", "git show", "git diff", "git ls-remote", "git rev-parse", "git merge-base", "git status", "git cat-file",
+                 "gh pr view", "gh pr list", "gh pr checks", "gh pr diff", "gh run list", "gh run view",
+                 "forge-check pr", "forge-check docs",
+                 "ls", "test", "[", "grep", "cat", "head", "tail", "wc", "cut", "tr", "echo", "pwd", "cd", "true"],
+    "saidas": ["/dev/null", "/dev/stdout", "/dev/stderr"]
+  }
 }

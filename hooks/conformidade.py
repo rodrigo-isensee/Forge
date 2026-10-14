@@ -135,6 +135,9 @@ REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x
 CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
+DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
+                "o que exige escrita é de outro agente")
+
 ACOES = {"merge_integracao", "pr_criar", "pr_merge_integracao", "instalar_pacote", "instalar_congelado"}
 
 
@@ -241,6 +244,8 @@ class Guarda:
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
+        leitura = politica.get("so_leitura")
+        self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -447,6 +452,8 @@ class Guarda:
 
     # Write, Edit, MultiEdit, NotebookEdit -------------------------------------------------------
     def arquivo(self, entrada):
+        if self.leitura:
+            self.barrar("R-CONFORMIDADE", f"escrita de arquivo pelo papel só de leitura ({self.papel})", DICA_LEITURA)
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
             self.checar_escrita(caminho, self.h.cwd())
@@ -472,6 +479,9 @@ class Guarda:
             self.sugerir_na_linha(original)
         for palavras, destinos in partes:
             for d in destinos:
+                if self.leitura and d not in self.leitura["saidas"]:
+                    self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
+                                DICA_LEITURA)
                 self.checar_escrita(d, pasta)
             pasta = self.segmento(palavras, pasta, ramos, nivel)
         for dono, corpo in corpos:
@@ -530,6 +540,8 @@ class Guarda:
             self.ilegivel(" ".join(palavras), pasta)
             return pasta
         atribuicoes += lancadas
+        if self.leitura:
+            self.checar_so_leitura(palavras, atribuicoes)
         for a in atribuicoes:
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
@@ -603,6 +615,26 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
+
+    def checar_so_leitura(self, palavras, atribuicoes):
+        """Papel só de leitura (`so_leitura`): lista branca de comandos. Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa
+        com caminho (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`) e `--output`
+        recusam; o resto fora da lista também: na dúvida, recusa."""
+        if atribuicoes:
+            self.barrar("R-CONFORMIDADE", f"variável na linha ({atribuicoes[0]}) pelo papel só de leitura ({self.papel})",
+                        DICA_LEITURA)
+        if not palavras:
+            return
+        prog, args = palavras[0], palavras[1:]
+        if prog == "git":
+            while args[:1] == ["--no-pager"] or (args[:1] == ["-C"] and len(args) > 1):
+                args = args[1:] if args[0] == "--no-pager" else args[2:]
+        chave = " ".join([prog, *args[:2 if prog == "gh" else 1]]) if prog in ("git", "gh", "forge-check") else prog
+        if any(a.startswith("--output") for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --output` grava arquivo (papel só de leitura: {self.papel})",
+                        DICA_LEITURA)
+        if "/" in prog or chave not in self.leitura["comandos"]:
+            self.barrar("R-CONFORMIDADE", f"`{chave}` fora da lista do papel só de leitura ({self.papel})", DICA_LEITURA)
 
     def da_atribuicao(self, atribuicoes, nome):
         """Valor de `NOME=` na própria linha do comando ou definido antes (`export`)."""
@@ -962,6 +994,11 @@ def pacote_valido(cfg):
             and all(lista_de_textos(cfg[k]) for k in ("flags_congeladas", "so_arquivo") if k in cfg))
 
 
+def leitura_valida(v):
+    """`so_leitura` é opcional; presente, precisa das três listas (sem elas o papel só de leitura cairia em KeyError)."""
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
+
+
 def politica_valida(pol):
     """Forma de toda a política: o hook lê estas chaves sem checar, então qualquer desvio liberaria por erro interno."""
     def texto(v):
@@ -974,7 +1011,8 @@ def politica_valida(pol):
             and isinstance(acoes, dict) and ACOES <= acoes.keys() and all(lista_de_textos(q) for q in acoes.values())
             and isinstance(pacotes, dict) and all(pacote_valido(c) for c in pacotes.values())
             and lista_de_textos(pol.get("flags_congeladas"))
-            and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos))
+            and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos)
+            and leitura_valida(pol.get("so_leitura")))
 
 
 def politica():

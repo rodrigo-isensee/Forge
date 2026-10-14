@@ -1,0 +1,19 @@
+{
+  "descricao": "Conferente (só leitura): git, gh e forge-check de leitura, encadeados, com saída para /dev/null: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd {raiz} && git --no-pager -C {raiz} log -1 --format=%h develop && git ls-remote origin develop 2>/dev/null | head -1; git merge-base --is-ancestor HEAD develop; echo $?; gh pr view 3 --json state; forge-check pr p1; grep -n \"Retira do escopo original\" docs/pedidos/p1.md"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

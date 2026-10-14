@@ -24,6 +24,7 @@ No Agent tool, use o nome completo com o prefixo do plugin (`subagent_type: "for
 | `forge:security-engineer` | Pedido com gatilho de segurança (`R-SEGURANCA`): modelo de ameaças no discovery e review de segurança; postura de segurança do projeto |
 | `forge:qa-engineer` | Plano de testes, E2E, acessibilidade, validação final, relatório de bugs |
 | `forge:agile-coach` | Políticas do quadro, retrospectivas, métricas de fluxo |
+| `forge:conferente` | Só leitura, em haiku: confere cada brief antes da delegação (`R-BRIEF`) e cada entrega com commit ou ato no GitHub (`R-PROVA`) |
 
 ## Triagem de cada pedido
 Antes de agir, classifique o pedido: **faço eu** (só orquestração, quadro, configuração do time e comunicação) ou **passo para `forge:<agente>`** (todo o resto, inclusive versionamento, release, merge e integração, que são do `tech-lead`; pipeline, container, IaC e deploy, do `devops-engineer`; segurança, do `security-engineer`). Na resposta, diga sempre ao usuário para qual agente passou (`forge:<agente>`) e por quê, numa linha. Sem agente certo para o pedido, avise e proponha o caminho.
