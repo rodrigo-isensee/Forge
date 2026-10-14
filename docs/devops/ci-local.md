@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 1d7266d7885a54699158d2890adb06fc48996860
+commit: e901d636c2c6e2105c35f72265f6e3b6e360fbb5
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-14
@@ -22,12 +22,15 @@ Ferramentas: shellcheck sem achado novo (o script é Python; não há shell toca
 ## O que fica de fora
 - Job `workflows` (actionlint, zizmor): o CI os baixa; local só rodam se instalados, e o job é não obrigatório.
 - Merge-base no lugar do primeiro pai do merge commit do GitHub: a base dos jobs de diff pode diferir quando a base avançou depois do PR.
-- `if:` e expressões só no subconjunto `github.*`, literais, ==, !=, &&, ||; fora dele o job falha (não passa em silêncio).
+- `if:` avaliado por avaliador próprio (sem `eval`), só no subconjunto `github.*`, literais, ==, !=, &&, ||, parênteses; fora dele o job fica "pulado por falta de suporte", com aviso, e conta como falha se for obrigatório.
+- Os passos rodam como no GitHub (`bash --noprofile --norc -eo pipefail`).
+- **Os testes rodam sobre a cabeça do PR, não sobre o merge com a base** (o CI testa o merge commit). Atualize a branch com a base (`git merge origin/<base>`) antes de rodar.
+- Chaves que o leitor ignora geram aviso: `env:` de workflow e de job, `defaults`, `working-directory`, `shell`, `continue-on-error`. Também há aviso se sobrar `HEAD^`/`HEAD~` no passo depois da troca de `git rev-parse HEAD^1`, se o `gh auth token` falhar e se o PR não estiver `OPEN`.
 - Passos de preparo (instalação global de CLI, `curl`, `wget`) são ignorados; vale o que há no PATH. Ferramenta ausente em job obrigatório vira `failure`.
 - O status `ci-local` é auto-declarado: quem o publica pode publicar `success`. Torná-lo check exigido é decisão do dono (`R-CONFORMIDADE`).
 
 ## Segurança (gatilho `R-SEGURANCA` para o security-engineer)
-O script executa localmente os `run:` dos workflows do PR: código do PR roda na máquina de quem roda, com o `gh auth token` exportado como `GITHUB_TOKEN` e o ambiente do usuário (sem as variáveis `GIT_*`). Risco: PR de terceiro malicioso pode exfiltrar o token ou o ambiente. Mitigações atuais: só PRs do próprio repositório, sandbox do Bash, worktree temporária, timeout de 30 min por passo. Recomendado: rodar só sobre PR de autor confiável, e o security-engineer avaliar filtrar o ambiente passado aos passos e limitar o token ao necessário.
+O script executa localmente os `run:` dos workflows do PR: código do PR roda na máquina de quem roda, com o ambiente do usuário (sem `GIT_*`, `GITHUB_TOKEN` e `GH_TOKEN`); o `gh auth token` só chega aos passos que o declaram em `env:` no workflow, como no CI. Risco: PR de terceiro malicioso pode exfiltrar o token ou o ambiente. Mitigações atuais: `if:` sem `eval`; só PRs do próprio repositório, sandbox do Bash, worktree temporária, timeout de 30 min por passo. Recomendado: rodar só sobre PR de autor confiável, e o security-engineer avaliar filtrar o ambiente passado aos passos e limitar o token ao necessário.
 
 ## Custo e rollback
 Custo zero (`R-CUSTO`): roda na máquina local, sem serviço pago e sem minutos de Actions. Rollback: reverter os dois commits; nada em `.github/`.
