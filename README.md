@@ -2,6 +2,8 @@
 
 Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** (orquestrador) e o time completo — tech lead, arquiteto, UX, desenvolvedores por stack (pacote inicial: Node + React), QA e agile coach —, o processo de desenvolvimento e os modelos para iniciar projetos.
 
+Visão geral com diagramas do fluxo, das integrações e das guardas: [`docs/visao-geral.md`](docs/visao-geral.md).
+
 ## O que vem na fábrica
 - **Fluxo:** discovery com Design Thinking (UX + arquiteto) → validação do protótipo pelo usuário → desenho técnico → desenvolvimento em paralelo → code review → QA obrigatório → revisão de UX → PR validado pelo usuário → retrospectiva.
 - **Regras:** a `main` é do usuário; QA e code review em toda entrega; teto de recursos da máquina; quadro Kanban visível; reuniões de alinhamento; melhoria contínua com autonomia, separando fábrica e projeto.
@@ -34,7 +36,7 @@ jarvis            # no diretório do projeto (roda no tmux; --sem-tmux para o mo
 ```
 A sessão fica num tmux `jarvis-<projeto>`: sobrevive ao fechamento do terminal (volte com o mesmo comando) e aparece em claude.ai/code como "Jarvis - <projeto>".
 
-**`jarvis-forge` e a cópia vigente (ADR 0009, seção 4).** O diretório de trabalho é o `~/Forge` (onde se edita), mas o plugin carregado vem de uma cópia vigente: um clone da `origin/develop` em `${XDG_DATA_HOME:-~/.local/share}/forge/vigente`, criado na primeira vez e **nunca atualizado sozinho**. Assim, editar `hooks/` ou `agents/` numa branch não muda a guarda nem as instruções da sessão em uso. Depois que um PR for mesclado na `develop`, rode `jarvis-forge --atualizar-vigente` (faz `git fetch` e `git reset --hard origin/develop` só na cópia vigente; recusa se ela tiver mudanças ou commits locais, e nunca apaga um diretório que não seja clone do Forge) e reinicie a sessão do tmux (o script avisa se ela estiver aberta). A sessão do modo `--dev` tem nome próprio (`jarvis-Forge-dev`). `jarvis-forge --dev` usa a cópia de trabalho (`--plugin-dir .`), com aviso, para teste manual do dono.
+**`jarvis-forge` e a cópia vigente (ADR 0009, seção 4).** O diretório de trabalho é o `~/Forge` (onde se edita), mas o plugin carregado vem de uma cópia vigente: um clone da `origin/develop` em `${XDG_DATA_HOME:-~/.local/share}/forge/vigente`, criado na primeira vez e **atualizado sozinho ao abrir, só por fast-forward** para a `origin/develop` (se tiver mudança ou commit local, se não estiver na `develop`, se não houver rede ou se a sessão do tmux já estiver aberta, o script avisa numa linha e segue com a cópia atual; nunca usa a cópia de trabalho, salvo `--dev`). Uma vez por dia (cache em `${XDG_STATE_HOME:-~/.local/state}/forge/fontes-<data>`) ele roda `forge-check fontes` e mostra uma linha se a fonte de harness tiver versão nova (sem o registro local, fica em silêncio). Assim, editar `hooks/` ou `agents/` numa branch não muda a guarda nem as instruções da sessão em uso. Para forçar a atualização sem abrir a sessão, rode `jarvis-forge --atualizar-vigente` (faz `git fetch` e `git reset --hard origin/develop` só na cópia vigente; recusa se ela tiver mudanças ou commits locais, e nunca apaga um diretório que não seja clone do Forge) e reinicie a sessão do tmux (o script avisa se ela estiver aberta). A sessão do modo `--dev` tem nome próprio (`jarvis-Forge-dev`). `jarvis-forge --dev` usa a cópia de trabalho (`--plugin-dir .`), com aviso, para teste manual do dono.
 
 ## Preparar uma estação nova (WSL)
 1. No PowerShell: `wsl --install -d Ubuntu-24.04 --location <unidade>:\WSL\<nome>`
