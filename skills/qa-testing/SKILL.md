@@ -38,7 +38,7 @@ Usuários, permissões e fixtures necessários.
 Data, ambiente, aprovados/falhos, links para bugs.
 ```
 
-Para cada critério de aceite da especificação, pelo menos um cenário. Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
+Para cada critério de aceite da especificação, pelo menos um cenário. A tabela critério → teste → resultado do parecer traz a coluna "fronteira protegida" (o limite que o teste guarda: vazio, máximo, permissão; `n/a` se não houver). Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
 
 ## E2E
 - Seletores por papel e texto acessível; `data-testid` só em último caso.
@@ -49,6 +49,12 @@ Para cada critério de aceite da especificação, pelo menos um cenário. Sempre
 ## Acessibilidade
 - Verificação automática em todas as telas dos fluxos principais, com as tags WCAG 2.2 AA.
 - Zero violações críticas ou sérias para aprovar.
+
+## Teste nasce de obrigação, e para quando ela está coberta
+- **Obrigação → teste:** todo teste responde a uma obrigação nomeada: critério de aceite (`CA-n`), regra (`R-<ID>`) ou suposição registrada. Teste nascido da estrutura do código ("cobrir esta função") não entra. Cada teste diz o que precisa quebrar para ele falhar.
+- **Regra de parada:** uma amostra por classe de equivalência mais cada fronteira (vazio, mínimo, máximo, logo fora do limite). Para quando toda obrigação tem evidência e nada é redundante.
+- **Teste redundante não entra:** no máximo um teste por comportamento distinto; o segundo que falha pelo mesmo motivo é apagado ou fundido. Cobertura se diz por obrigação, não em percentual.
+- **Guarda contra suíte vazia:** teste que percorre pasta, glob ou lista afirma um mínimo de itens (N de hoje menos margem pequena); pasta renomeada derruba o teste em vez de passar sem ler nada.
 
 ## Vermelho antes do verde
 Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação: guarde o código de produção (`git stash`) ou rode contra o commit anterior. O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.

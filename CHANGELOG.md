@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Disciplina de testes e guardas contra suíte vazia (fonte F1, lote 3):** a `qa-testing` ganha a seção "Teste nasce de obrigação, e para quando ela está coberta" (obrigação → teste, uma amostra por classe de equivalência mais cada fronteira, teste redundante não entra) e a coluna "fronteira protegida" na tabela critério → teste (modelo `docs/qa/_modelo.md`); `tests/` ganha o helper `minimo` e mais de 25 testes que percorrem pasta ou lista passam a afirmar um mínimo de itens; o checklist de code review (`engineering-practices`) relê o teste de ausência cujo alvo mudou. Invariantes novos em `tests/config.json`.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado

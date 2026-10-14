@@ -195,6 +195,19 @@
     "agents/qa-engineer.md": [
       "`R-QA`"
     ],
+    "skills/qa-testing/SKILL.md": [
+      "## Teste nasce de obrigação, e para quando ela está coberta",
+      "Teste redundante não entra",
+      "uma amostra por classe de equivalência mais cada fronteira",
+      "fronteira protegida",
+      "afirma um mínimo de itens"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "Teste de ausência .* cujo alvo mudou é relido"
+    ],
+    "tests/test_forge.py": [
+      "def minimo\\("
+    ],
     "agents/software-architect.md": [
       "`R-DISCOVERY`"
     ],

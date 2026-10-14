@@ -42,20 +42,32 @@ def frontmatter(caminho: Path) -> dict:
     return campos
 
 
+def minimo(itens, n, rotulo):
+    """Guarda contra teste que passa em silêncio: o que o teste percorre não pode estar vazio.
+
+    `n` é o tamanho de hoje menos uma margem pequena; pasta renomeada ou glob que deixou de casar
+    derruba o teste em vez de deixá-lo verde sem ter lido nada. Devolve a lista para encadear.
+    """
+    itens = list(itens)
+    if len(itens) < n:
+        raise AssertionError(f"{rotulo}: {len(itens)} itens, esperava ao menos {n} (pasta ou glob vazio?)")
+    return itens
+
+
 def agentes_do_plugin():
     """Todo .md de agents/ e de stacks/*/agents/ (ADR 0001)."""
-    return sorted(AGENTES.glob("*.md")) + sorted(STACKS.glob("*/agents/*.md"))
+    return minimo(sorted(AGENTES.glob("*.md")) + sorted(STACKS.glob("*/agents/*.md")), 7, "agentes do plugin")
 
 
 def skills_do_plugin():
-    return sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md"))
+    return minimo(sorted(SKILLS.glob("*/SKILL.md")) + sorted(STACKS.glob("*/skills/*/SKILL.md")), 11, "skills do plugin")
 
 
 def arquivos_texto():
+    achados = []
     for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "tests/transcricoes"):
-        for p in (RAIZ / pasta).rglob("*"):
-            if p.is_file():
-                yield p
+        achados += [p for p in (RAIZ / pasta).rglob("*") if p.is_file()]
+    return minimo(achados, 150, "arquivos de texto varridos")
 
 
 class Manifestos(unittest.TestCase):
@@ -87,7 +99,7 @@ class ManifestoDoPlugin(unittest.TestCase):
 
     def test_agentes_listados_existem_e_vice_versa(self):
         listados = {(RAIZ / a).resolve() for a in self.manifesto["agents"]}
-        for a in self.manifesto["agents"]:
+        for a in minimo(self.manifesto["agents"], 7, "agentes do manifesto"):
             with self.subTest(agente=a):
                 self.assertTrue(a.startswith("./") and a.endswith(".md"))
                 self.assertTrue((RAIZ / a).is_file(), f"{a} listado e inexistente")
@@ -97,10 +109,10 @@ class ManifestoDoPlugin(unittest.TestCase):
 
     def test_skills_de_stack_listadas_e_vice_versa(self):
         listadas = {(RAIZ / s).resolve() for s in self.manifesto["skills"]}
-        for s in self.manifesto["skills"]:
+        for s in minimo(self.manifesto["skills"], 1, "skills de stack do manifesto"):
             with self.subTest(skill=s):
                 self.assertTrue((RAIZ / s / "SKILL.md").is_file(), f"{s} sem SKILL.md")
-        existentes = {p.parent.resolve() for p in STACKS.glob("*/skills/*/SKILL.md")}
+        existentes = {p.parent.resolve() for p in minimo(STACKS.glob("*/skills/*/SKILL.md"), 1, "skills de stack em disco")}
         self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listadas}, set(), "skill de stack fora do manifesto")
 
 
@@ -108,14 +120,14 @@ class PacotesDeStack(unittest.TestCase):
     """ADR 0001: todo pacote em stacks/<nome>/ tem a mesma forma."""
 
     def test_stacks_esperadas_existem(self):
-        for nome, itens in CONFIG["stacks_obrigatorias"].items():
+        for nome, itens in minimo(CONFIG["stacks_obrigatorias"].items(), 1, "stacks obrigatórias"):
             with self.subTest(stack=nome):
                 self.assertEqual({p.stem for p in (STACKS / nome).glob("agents/*.md")}, set(itens["agentes"]))
                 self.assertEqual({p.parent.name for p in (STACKS / nome).glob("skills/*/SKILL.md")}, set(itens["skills"]))
 
     def test_forma_do_pacote(self):
         pacotes = sorted(p for p in STACKS.iterdir() if p.is_dir())
-        self.assertTrue(pacotes, "stacks/ vazia")
+        minimo(pacotes, 1, "pacotes em stacks/")
         for pacote in pacotes:
             with self.subTest(stack=pacote.name):
                 self.assertRegex(pacote.name, r"^[a-z0-9-]+$")
@@ -171,7 +183,7 @@ class Agentes(unittest.TestCase):
         tabela = re.search(r"## Time\n(.*?)\n## ", texto, re.S).group(1)
         citados = set(re.findall(r"^\| `(?:forge:)?([a-z-]+)` \|", tabela, re.M))
         # Os agentes de stack não ficam na tabela (o núcleo não os cita): o Jarvis os lê de stacks/<stack>/agents/.
-        self.assertEqual(citados, {p.stem for p in AGENTES.glob("*.md")} - {"jarvis"})
+        self.assertEqual(citados, {p.stem for p in minimo(AGENTES.glob("*.md"), 5, "agentes do núcleo")} - {"jarvis"})
         self.assertIn("stacks/<stack>/agents/", tabela)
 
 
@@ -203,7 +215,7 @@ class Neutralidade(unittest.TestCase):
     """A fábrica serve N projetos: nada de nomes ou regras de um projeto específico."""
 
     def test_sem_termos_de_projeto(self):
-        entradas = CONFIG["termos_proibidos_hash"]
+        entradas = minimo(CONFIG["termos_proibidos_hash"], 10, "termos proibidos por hash")
         for p in arquivos_texto():
             texto = p.read_text(encoding="utf-8", errors="ignore")
             with self.subTest(arquivo=str(p.relative_to(RAIZ))):
@@ -223,6 +235,9 @@ class Neutralidade(unittest.TestCase):
         self.assertFalse(termos_achados("ze-bra", par))
 
 
+NUCLEO_MIN = 75  # arquivos do núcleo (menos os ignorados) lidos pelo teste de ausência de termos de stack
+
+
 class NeutralidadeDoNucleo(unittest.TestCase):
     """ADR 0001: linguagem, framework e ferramenta só em stacks/ (e nas exceções explícitas do config)."""
 
@@ -235,12 +250,14 @@ class NeutralidadeDoNucleo(unittest.TestCase):
         self.assertFalse(any(t.search("Verifique o nó da árvore; reagir ao evento") for t in termos))
 
     def test_nucleo_sem_termos_de_stack(self):
-        termos = [re.compile(t) for t in self.cfg["termos"]]
+        termos = minimo((re.compile(t) for t in self.cfg["termos"]), 14, "termos de stack do núcleo")
+        varridos = 0
         for pasta in self.cfg["pastas"]:
             for p in sorted((RAIZ / pasta).rglob("*")):
                 rel = p.relative_to(RAIZ).as_posix()
                 if not p.is_file() or any(rel.startswith(i) for i in self.cfg["ignorar"]):
                     continue
+                varridos += 1
                 texto = p.read_text(encoding="utf-8", errors="ignore")
                 for t in termos:
                     if t.pattern in self.cfg["excecoes"].get(rel, []):
@@ -248,6 +265,7 @@ class NeutralidadeDoNucleo(unittest.TestCase):
                     with self.subTest(arquivo=rel, termo=t.pattern):
                         achado = t.search(texto)
                         self.assertIsNone(achado, f"{rel}: stack no núcleo ({achado and achado.group(0)}); mova para stacks/ ou registre exceção em tests/config.json")
+        minimo(range(varridos), NUCLEO_MIN, "arquivos do núcleo varridos")
 
     def test_stack_declarada_no_modelo_e_no_init(self):
         self.assertIn("{{STACK}}", (RAIZ / "templates/projeto/CLAUDE.md").read_text(encoding="utf-8"))
@@ -257,7 +275,9 @@ class RegrasInviolaveis(unittest.TestCase):
     """Se alguém apagar uma regra da fábrica por engano, o CI quebra."""
 
     def test_trechos_obrigatorios(self):
-        for rel, trechos in CONFIG["invariantes"].items():
+        invariantes = minimo(CONFIG["invariantes"].items(), 23, "arquivos com invariantes")
+        minimo((t for _, ts in invariantes for t in ts), 95, "trechos invariantes")
+        for rel, trechos in invariantes:
             texto = (RAIZ / rel).read_text(encoding="utf-8")
             for t in trechos:
                 with self.subTest(arquivo=rel, trecho=t):
@@ -299,10 +319,10 @@ class AntiDuplicacao(unittest.TestCase):
         self.assertFalse(sequencias(fonte, self.n) & sequencias("`R-MAIN` a main é do usuário", self.n))
 
     def test_regra_so_na_fonte(self):
-        fontes = sorted(REGRAS.glob("R-*.md"))
-        self.assertTrue(fontes, "docs/regras sem regras")
+        fontes = minimo(sorted(REGRAS.glob("R-*.md")), 13, "regras em docs/regras")
         alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
                  for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
         textos = {p: sequencias(p.read_text(encoding="utf-8", errors="ignore"), self.n) for p in alvos}
         for fonte in fontes:
             trechos = sequencias(corpo_da_regra(fonte), self.n) - self.excecoes
@@ -318,7 +338,7 @@ class RegrasComId(unittest.TestCase):
     """ADR 0002: toda regra citada existe e diz como é verificada; o índice lista todas."""
 
     def setUp(self):
-        self.regras = {p.stem: p for p in sorted(REGRAS.glob("R-*.md"))}
+        self.regras = {p.stem: p for p in minimo(sorted(REGRAS.glob("R-*.md")), 13, "regras em docs/regras")}
 
     def test_frontmatter_restrito(self):
         for nome, p in self.regras.items():
@@ -340,6 +360,7 @@ class RegrasComId(unittest.TestCase):
         origens = [RAIZ / ".claude" / "CLAUDE.md", *sorted(REGRAS.glob("*.md"))]
         for pasta in ("agents", "skills", "templates"):
             origens += [p for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
+        minimo(origens, 45, "arquivos que citam IDs de regra")
         for p in origens:
             for rid in set(re.findall(r"\bR-[A-Z][A-Z0-9-]*\b", p.read_text(encoding="utf-8", errors="ignore"))):
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), regra=rid):
@@ -379,13 +400,13 @@ class ForgeInit(unittest.TestCase):
     def test_cria_estrutura_completa(self):
         self.rodar()
         modelo = RAIZ / "templates/projeto"
-        for arq in modelo.rglob("*"):
+        for arq in minimo(modelo.rglob("*"), 27, "entradas do modelo de projeto"):
             if arq.is_file():
                 self.assertTrue((self.tmp / arq.relative_to(modelo)).is_file(), arq.relative_to(modelo))
         claude_md = (self.tmp / "CLAUDE.md").read_text(encoding="utf-8")
         self.assertIn("# Demo", claude_md)
         self.assertIn("`make pronto`", claude_md)
-        for arq in self.tmp.rglob("*"):
+        for arq in minimo(self.tmp.rglob("*"), 27, "entradas do projeto gerado"):
             if arq.is_file() and ".git" not in arq.parts:
                 self.assertNotIn("{{", arq.read_text(encoding="utf-8", errors="ignore"), arq)
         self.assertEqual(git("config", "core.hooksPath", cwd=self.tmp).stdout.strip(), ".githooks")
@@ -569,7 +590,7 @@ class Migracao070(unittest.TestCase):
 
     def test_fixtures_antes_e_depois(self):
         casos = sorted((RAIZ / "tests/migracoes/0.7.0").glob("*.json"))
-        self.assertGreaterEqual(len(casos), 5)
+        minimo(casos, 5, "fixtures de migração 0.7.0")
         for caso in casos:
             dados = json.loads(caso.read_text(encoding="utf-8"))
             with self.subTest(caso=caso.stem), tempfile.TemporaryDirectory() as tmp:
@@ -716,7 +737,7 @@ class IsolamentoDoGit(unittest.TestCase):
 class CI(unittest.TestCase):
     def test_acoes_fixadas_por_sha(self):
         """Toda ação de terceiros usa SHA completo (40 hex); Dependabot atualiza."""
-        for wf in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+        for wf in minimo(sorted((RAIZ / ".github" / "workflows").glob("*.yml")), 3, "workflows"):
             for n, linha in enumerate(wf.read_text(encoding="utf-8").splitlines(), 1):
                 m = re.search(r"\buses:\s*(\S+)", linha)
                 if m and not m.group(1).startswith("./"):
