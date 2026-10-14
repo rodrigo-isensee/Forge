@@ -1120,7 +1120,7 @@ class JarvisForgeAbrir(unittest.TestCase):
     def rodar(self, *args, env=None, sem_tmux=True):
         return subprocess.run(["bash", str(RAIZ / "scripts/jarvis-forge"), *args, *(["--sem-tmux"] if sem_tmux else [])],
                               env={**self.env, **(env or {})}, capture_output=True, text=True,
-                              stdin=subprocess.DEVNULL, timeout=60)
+                              stdin=subprocess.DEVNULL, timeout=60, cwd=self.tmp)  # nunca a raiz do repositório
 
     def head(self, pasta):
         return git("rev-parse", "HEAD", cwd=pasta).stdout.strip()
@@ -1300,7 +1300,25 @@ class ForgeCheckFontes(unittest.TestCase):
         self.registrar("a" * 7)
         self.rodar()
         linha = self.chamadas.read_text().strip()
-        self.assertEqual(linha, f"-c protocol.allow=never -c protocol.https.allow=always ls-remote -- {self.URL} HEAD")
+        negados = " ".join(f"-c protocol.{p}.allow=never" for p in ("ext", "file", "ssh", "git", "http"))
+        self.assertEqual(linha, f"-c protocol.allow=never {negados} -c protocol.https.allow=always ls-remote -- {self.URL} HEAD")
+
+    def test_git_do_cwd_malicioso_nao_executa_comando(self):
+        """Um .git gravável no cwd (insteadOf para ext:: e protocol.ext.allow=always) não pode ser lido."""
+        alvo = self.tmp / "executou"
+        cwd = self.tmp / "cwd"
+        cwd.mkdir()
+        sh = lambda *a: subprocess.run(["git", *a], cwd=cwd, env=ambiente_limpo(), capture_output=True, check=True)
+        sh("init", "-q")
+        sh("config", f"url.ext::sh -c touch% {alvo}.insteadOf", "https://127.0.0.1:1/r.git")
+        sh("config", "protocol.ext.allow", "always")
+        self.registrar("a" * 7, url="https://127.0.0.1:1/r.git")
+        env = ambiente_limpo()
+        env["HOME"] = str(self.home)
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "fontes"], env=env, cwd=cwd,
+                           capture_output=True, text=True, timeout=60)
+        self.assertFalse(alvo.exists(), r.stdout + r.stderr)
+        self.assertEqual(r.returncode, 3)
 
     def test_sem_novidade(self):
         self.registrar(self.TOPO[:7])

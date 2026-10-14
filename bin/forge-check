@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
@@ -923,26 +924,31 @@ def cmd_fontes():
     if not isinstance(fontes, dict):
         return ["fontes: registro local ilegível"], 1
     novas, recusadas, falhou = [], [], False
-    env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
-    for codigo, f in sorted(fontes.items()):
-        url, revisado = (f.get("url"), f.get("commit_revisado")) if isinstance(f, dict) else (None, None)
-        if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:
-            continue
-        nome = _imprimivel(str(codigo))
-        if not URL_FONTE.fullmatch(url):
-            recusadas.append(nome)  # só https://; o registro é gravável pelos agentes e esta consulta roda fora do sandbox
-            continue
-        try:
-            r = subprocess.run(["git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
-                                "ls-remote", "--", url, "HEAD"], capture_output=True, text=True, timeout=15, env=env)
-        except (subprocess.TimeoutExpired, OSError):
-            falhou = True
-            continue
-        topo = r.stdout.split()[0] if r.returncode == 0 and r.stdout.strip() else ""
-        if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", topo):
-            falhou = True
-        elif not topo.startswith(revisado):
-            novas.append(f"{nome} tem versão nova ({_imprimivel(revisado)[:7]} -> {topo[:7]})")
+    # Sem GIT_* herdado e sem configuração de usuário/sistema (insteadOf, credential.helper): só vale a linha abaixo.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    protocolos = [a for p in ("ext", "file", "ssh", "git", "http") for a in ("-c", f"protocol.{p}.allow=never")]
+    with tempfile.TemporaryDirectory() as vazia:  # fora de qualquer repositório: um .git gravável no cwd não entra
+        for codigo, f in sorted(fontes.items()):
+            url, revisado = (f.get("url"), f.get("commit_revisado")) if isinstance(f, dict) else (None, None)
+            if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:
+                continue
+            nome = _imprimivel(str(codigo))
+            if not URL_FONTE.fullmatch(url):
+                recusadas.append(nome)  # só https://; o registro é gravável pelos agentes e esta consulta roda fora do sandbox
+                continue
+            try:
+                r = subprocess.run(["git", "-c", "protocol.allow=never", *protocolos, "-c", "protocol.https.allow=always",
+                                    "ls-remote", "--", url, "HEAD"], capture_output=True, text=True, timeout=15, env=env,
+                                   cwd=vazia)
+            except (subprocess.TimeoutExpired, OSError):
+                falhou = True
+                continue
+            topo = r.stdout.split()[0] if r.returncode == 0 and r.stdout.strip() else ""
+            if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", topo):
+                falhou = True
+            elif not topo.startswith(revisado):
+                novas.append(f"{nome} tem versão nova ({_imprimivel(revisado)[:7]} -> {topo[:7]})")
     linhas = []
     if novas:
         linhas.append("fontes: " + "; ".join(novas) + "; abra o estudo comparativo")
