@@ -29,6 +29,10 @@ case "$dados" in
   /*) ;;
   *) echo "jarvis-forge: XDG_DATA_HOME deve ser um caminho absoluto (recebi '$dados'); nada foi feito." >&2; exit 2 ;;
 esac
+case "${XDG_STATE_HOME:-/}" in
+  /*) ;;
+  *) echo "jarvis-forge: XDG_STATE_HOME deve ser um caminho absoluto (recebi '$XDG_STATE_HOME'); nada foi feito." >&2; exit 2 ;;
+esac
 vigente="$dados/forge/vigente"
 if [ "$atualizar" = 1 ] && [ "$dev" = 1 ]; then
   echo "jarvis-forge: --atualizar-vigente e --dev não combinam." >&2; exit 2
@@ -59,6 +63,12 @@ conferir_vigente() {
     exit 1
   fi
 }
+# Busca só a develop, por extenso e sem tags: o nome curto origin/develop é ambíguo (uma tag de mesmo nome na origin
+# ganharia da branch e levaria código não revisado para a cópia vigente). Em todo o script, usar refs/remotes/origin/develop.
+refspec_develop=+refs/heads/develop:refs/remotes/origin/develop
+buscar_develop() {
+  git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"
+}
 conferir_vigente
 if [ "$atualizar" = 1 ]; then
   if [ ! -e "$vigente" ]; then criar_vigente; exit 0; fi
@@ -66,16 +76,16 @@ if [ "$atualizar" = 1 ]; then
     echo "jarvis-forge: a cópia vigente ($vigente) tem mudanças locais; não atualizei. Confira com 'git -C $vigente status'." >&2
     exit 1
   fi
-  if [ -n "$(git -C "$vigente" rev-list origin/develop..HEAD 2>/dev/null)" ]; then
-    echo "jarvis-forge: a cópia vigente ($vigente) tem commits locais que não estão na origin/develop; não atualizei, para não descartá-los. Confira com 'git -C $vigente log origin/develop..HEAD'." >&2
-    exit 1
-  fi
-  git -C "$vigente" fetch --quiet origin || {
+  buscar_develop || {
     echo "jarvis-forge: não consegui buscar a origin (sem rede?); a cópia vigente ficou como estava. Use 'jarvis-forge --dev' para esta vez, se precisar." >&2
     exit 1
   }
+  if [ -n "$(git -C "$vigente" rev-list refs/remotes/origin/develop..HEAD)" ]; then
+    echo "jarvis-forge: a cópia vigente ($vigente) tem commits locais que não estão na origin/develop; não atualizei, para não descartá-los. Confira com 'git -C $vigente log refs/remotes/origin/develop..HEAD'." >&2
+    exit 1
+  fi
   antes="$(git -C "$vigente" rev-parse HEAD)"
-  git -C "$vigente" reset --quiet --hard origin/develop
+  git -C "$vigente" reset --quiet --hard refs/remotes/origin/develop
   depois="$(git -C "$vigente" rev-parse HEAD)"
   echo "jarvis-forge: cópia vigente atualizada para origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
   if [ "$antes" != "$depois" ] && command -v tmux >/dev/null 2>&1 && tmux has-session -t jarvis-Forge 2>/dev/null; then
@@ -95,17 +105,17 @@ atualizar_ao_abrir() {
   if [ "$(git -C "$vigente" symbolic-ref --short HEAD 2>/dev/null || true)" != develop ]; then
     echo "jarvis-forge: a cópia vigente não está na develop; não atualizei, sigo com a cópia atual." >&2; return 0
   fi
-  if [ -n "$(git -C "$vigente" status --porcelain 2>/dev/null)" ]; then
+  if [ -n "$(git -C "$vigente" status --porcelain)" ]; then
     echo "jarvis-forge: a cópia vigente tem mudanças locais; não atualizei, sigo com a cópia atual." >&2; return 0
   fi
-  if ! timeout 30 git -C "$vigente" fetch --quiet origin 2>/dev/null; then
+  if ! timeout 30 git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"; then
     echo "jarvis-forge: sem rede (ou sem acesso à origin); sigo com a cópia vigente atual." >&2; return 0
   fi
-  if [ -n "$(git -C "$vigente" rev-list origin/develop..HEAD 2>/dev/null)" ]; then
+  if [ -n "$(git -C "$vigente" rev-list refs/remotes/origin/develop..HEAD)" ]; then
     echo "jarvis-forge: a cópia vigente tem commits locais fora da origin/develop; não atualizei, sigo com a cópia atual." >&2; return 0
   fi
   antes="$(git -C "$vigente" rev-parse HEAD)"
-  if ! git -C "$vigente" merge --quiet --ff-only origin/develop >/dev/null 2>&1; then
+  if ! git -C "$vigente" merge --quiet --ff-only refs/remotes/origin/develop; then
     echo "jarvis-forge: a cópia vigente não avança por fast-forward; não atualizei, sigo com a cópia atual." >&2; return 0
   fi
   depois="$(git -C "$vigente" rev-parse HEAD)"

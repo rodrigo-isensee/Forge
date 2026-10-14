@@ -4,7 +4,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 ### Adicionado
-- **`jarvis-forge` ao abrir (requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** a cópia vigente se atualiza sozinha por fast-forward para a `origin/develop` (recusa e avisa se houver mudança local, commit local ou falta de rede; ADR 0009, ajuste), e `bin/forge-check fontes` consulta por dia, com cache, a fonte de harness F1 do registro local por `git ls-remote` (sem custo) e avisa se houver versão nova.
+- **`jarvis-forge` ao abrir (requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** a cópia vigente se atualiza sozinha por fast-forward para a `origin/develop` (recusa e avisa se houver mudança local, commit local ou falta de rede; ADR 0009, ajuste), e `bin/forge-check fontes` consulta por dia, com cache, a fonte de harness F1 do registro local por `git ls-remote` (sem custo) e avisa se houver versão nova (só URL `https://`, com protocolo travado; saída sem caracteres de controle). A atualização busca só `refs/heads/develop` sem tags e usa `refs/remotes/origin/develop` por extenso (uma tag homônima não é seguida), inclusive no `--atualizar-vigente`; `XDG_STATE_HOME` relativo é recusado.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado

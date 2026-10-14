@@ -903,6 +903,14 @@ def migracao_pendente(raiz):
                    if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
 
 
+URL_FONTE = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~%+/-]*)?")
+
+
+def _imprimivel(texto):
+    """Tira caracteres de controle (o código vem de um registro que os agentes podem gravar)."""
+    return "".join(c for c in texto if c.isprintable())
+
+
 def cmd_fontes():
     """Retorna (linhas, código): 0 consultou, 3 alguma fonte não respondeu (sem rede). Sem registro, ([], 0)."""
     registro = Path.home() / ".forge-contrib/fontes/fontes.json"
@@ -914,26 +922,35 @@ def cmd_fontes():
         return ["fontes: registro local ilegível"], 1
     if not isinstance(fontes, dict):
         return ["fontes: registro local ilegível"], 1
-    novas, falhou = [], False
+    novas, recusadas, falhou = [], [], False
     env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
     for codigo, f in sorted(fontes.items()):
         url, revisado = (f.get("url"), f.get("commit_revisado")) if isinstance(f, dict) else (None, None)
-        if not isinstance(url, str) or not url or url.startswith("-") or not isinstance(revisado, str) or not revisado:
+        if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:
+            continue
+        nome = _imprimivel(str(codigo))
+        if not URL_FONTE.fullmatch(url):
+            recusadas.append(nome)  # só https://; o registro é gravável pelos agentes e esta consulta roda fora do sandbox
             continue
         try:
-            r = subprocess.run(["git", "ls-remote", "--", url, "HEAD"], capture_output=True, text=True,
-                               timeout=15, env=env)
+            r = subprocess.run(["git", "-c", "protocol.allow=never", "-c", "protocol.https.allow=always",
+                                "ls-remote", "--", url, "HEAD"], capture_output=True, text=True, timeout=15, env=env)
         except (subprocess.TimeoutExpired, OSError):
             falhou = True
             continue
         topo = r.stdout.split()[0] if r.returncode == 0 and r.stdout.strip() else ""
-        if not topo:
+        if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", topo):
             falhou = True
         elif not topo.startswith(revisado):
-            novas.append(f"{codigo} tem versão nova ({revisado[:7]} -> {topo[:7]})")
+            novas.append(f"{nome} tem versão nova ({_imprimivel(revisado)[:7]} -> {topo[:7]})")
+    linhas = []
     if novas:
-        return ["fontes: " + "; ".join(novas) + "; abra o estudo comparativo"], 3 if falhou else 0
-    return ([], 3) if falhou else (["fontes: sem novidade"], 0)
+        linhas.append("fontes: " + "; ".join(novas) + "; abra o estudo comparativo")
+    if recusadas:
+        linhas.append("fontes: URL recusada (só https:// é aceito) em: " + ", ".join(recusadas))
+    if not linhas and not falhou:
+        linhas = ["fontes: sem novidade"]
+    return linhas, 3 if falhou else 0
 
 
 def main():
