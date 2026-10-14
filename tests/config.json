@@ -99,6 +99,8 @@
     "excecoes": []
   },
   "invariantes": {
+    "hooks/conformidade.py": ["REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",

@@ -40,6 +40,8 @@ def opcao(args, longa, curta):
             return args[i + 1]
         if a.startswith(longa + "="):
             return a.split("=", 1)[1]
+        if not curta.startswith("--") and a.startswith(curta) and len(a) > len(curta):
+            return a[len(curta):].removeprefix("=")  # `-XDELETE`, `-X=DELETE`
     return None
 
 
