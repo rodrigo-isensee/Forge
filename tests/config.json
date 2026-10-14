@@ -91,6 +91,18 @@
     "excecoes": []
   },
   "invariantes": {
+    "docs/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "critério de reversão",
+      "Por que o existente não basta"
+    ],
+    "docs/melhoria-continua.md": [
+      "critério de reversão"
+    ],
     "agents/jarvis.md": [
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
@@ -129,7 +141,9 @@
       "`R-CUSTO`",
       "`R-NEUTRO`",
       "`R-CONFORMIDADE`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "critério de reversão",
+      "Por que o existente não basta"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -196,7 +210,9 @@
       "`R-QA`"
     ],
     "agents/software-architect.md": [
-      "`R-DISCOVERY`"
+      "`R-DISCOVERY`",
+      "critério de reversão",
+      "Por que o existente não basta"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",

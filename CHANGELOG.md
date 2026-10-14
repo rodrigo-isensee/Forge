@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Critério de reversão e mecanismo novo (F1, lote 2):** modelo de ADR (`docs/adr/_modelo.md` e no modelo de projeto) e formato de experimento ganham "Critério de reversão" (fato observável) e "Leituras"; arquiteto, `tech-lead` e checklist de review exigem "Por que o existente não basta" para mecanismo novo; invariantes em `tests/config.json`. Pendência: campo equivalente no `.github/pull_request_template.md` (`.github/` é protegido).
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
