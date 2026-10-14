@@ -6,6 +6,8 @@ neutralidade (nada específico de um projeto), regras invioláveis, inicializado
 import hashlib
 import importlib.machinery
 import importlib.util
+import contextlib
+import io
 import json
 import os
 import re
@@ -1730,22 +1732,33 @@ class CustoDeTokens(unittest.TestCase):
         (tmp / nome).write_text(conteudo, encoding="utf-8")
         return tmp
 
-    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root lê qualquer arquivo")
     def test_arquivo_ilegivel_avisa_e_e_pulado_sem_traceback(self):
+        # Simula o PermissionError no `open` (sem chmod), para o teste valer também como root e em qualquer usuário.
         tmp = Path(tempfile.mkdtemp(prefix="forge-custo-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         ruim = tmp / "ruim.jsonl"
+        bom = tmp / "bom.jsonl"
         ruim.write_text("{}\n", encoding="utf-8")
-        ruim.chmod(0)
-        self.addCleanup(ruim.chmod, 0o600)
-        (tmp / "bom.jsonl").write_text(
+        bom.write_text(
             '{"type":"assistant","message":{"id":"m1","model":"m","usage":{"input_tokens":1,"output_tokens":2}}}\n', encoding="utf-8")
-        cod, saida, erro = self.rodar(str(tmp))
-        self.assertNotIn("Traceback", erro)
-        self.assertEqual(cod, 0, erro)
-        self.assertIn("aviso", erro)
-        self.assertNotIn("ruim", saida + erro)
-        self.assertIn("total=3", saida)
+        abrir_de_verdade = open
+
+        def abrir_com_permissao_negada(arquivo, *args, **kwargs):
+            if Path(arquivo) == ruim:
+                raise PermissionError(13, "Permission denied")
+            return abrir_de_verdade(arquivo, *args, **kwargs)
+
+        fc = carregar_forge_check()
+        erro = io.StringIO()
+        with mock.patch.object(fc, "open", abrir_com_permissao_negada, create=True), contextlib.redirect_stderr(erro):
+            dados = fc.ler_uso([ruim, bom])
+        self.assertEqual(dados["ilegiveis"], 1)
+        self.assertIn("aviso", erro.getvalue())
+        self.assertNotIn("Traceback", erro.getvalue())
+        self.assertNotIn("ruim.jsonl", erro.getvalue())
+        self.assertEqual(len(dados["mensagens"]), 1)
+        self.assertEqual(dados["mensagens"][0][4]["output_tokens"], 2)
+        self.assertEqual(dados["mensagens"][0][4]["input_tokens"], 1)
 
     def test_linha_malformada_e_contada_em_stderr(self):
         erro = self.rodar(str(self.USO / "sessao-b.jsonl"))[2]
