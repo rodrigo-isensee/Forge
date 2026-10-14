@@ -92,12 +92,16 @@ SIMPLES = {
     "perfil": "O seu perfil de uso só muda por você, não por mim. Se quiser mudar, peça ao Jarvis como fazer.",
     "atualizar": "Atualizar ou voltar a versão do Forge é com você, no terminal: rode 'forge atualizar' (ou 'forge voltar-versao'). "
                  "Posso explicar o que muda.",
+    "sugerir": "Enviar a sugestão ao Forge não é comigo: quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`. "
+                "Eu só guardo o texto, com `forge sugerir --guardar`.",
     "instalacao": "Isso mexe na instalação do Forge, que fica protegida para o projeto não quebrar. "
                   "Posso registrar o pedido como sugestão ao Forge.",
 }
 # F5: quem atualiza o Forge (ou volta de versão) é a pessoa, no terminal; o agente só oferece e explica.
-BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao"}
-SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao"}
+# F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
+# ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
+BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao", "forge-sugerir"}
+SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao", "sugerir"}
 ENVOLVEDORES = {"env", "script", "nohup", "sudo", "command", "exec", "time", "timeout", "setsid", "stdbuf", "unbuffer", "xargs",
                 "nice", "ionice", "busybox", "expect", "socat"}
 SUGESTAO = "se deveria valer, registre como sugestão ao Forge"
@@ -826,6 +830,16 @@ class Guarda:
         for i, palavra in enumerate(todas[:1] if direto else todas):
             nome = Path(palavra).name
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
+            e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
+            if e_sugerir:
+                resto = todas[i + 1:]
+                if "--guardar" in resto and "--fila" not in resto:  # guardar na fila é do agente; enviar é da pessoa
+                    continue
+                if nome == "forge" and so_binarios:
+                    continue
+                self.barrar("R-CONFORMIDADE", f"`{nome}{' sugerir' if nome == 'forge' else ''}` envia ao Forge o que o agente escreveu",
+                            "quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`", "sugerir")
+                continue
             if nome in BINARIOS_DE_ATUALIZACAO or (nome == "forge" and not so_binarios and sub in SUBCOMANDOS_DE_ATUALIZACAO):
                 self.barrar("R-CONFORMIDADE", f"`{nome}{' ' + sub if nome == 'forge' else ''}` troca o plugin e mexe no projeto",
                             "quem roda é a pessoa, no terminal (rode no terminal: forge atualizar); o agente só oferece e explica",

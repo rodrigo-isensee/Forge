@@ -36,7 +36,7 @@ ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x
 PEM = re.compile(r"-----BEGIN [^\n-]*-----[\s\S]*?(?:-----END [^\n-]*-----|\Z)")
 CHAVE_DO_SEGREDO = (r"[\w-]*(?:token|senha|password|passwd|pwd|secret|segredo|api[_-]?key|private[_-]?key|access[_-]?key|chave|"
                     r"credential)[\w-]*")
-SEGREDO = re.compile(rf"(?i)\b({CHAVE_DO_SEGREDO})([\"']?\s*[:=]\s*)(?!\[)(\"[^\"\n]*\"|'[^'\n]*'|\S+)")
+SEGREDO = re.compile(rf"(?i)\b({CHAVE_DO_SEGREDO})(\\*[\"']?\s*(?:[:=]|%3[ADad])\s*)(?!\[)(\\*\"(?:[^\"\\\n]|\\.)*?\\*\"|\"[^\"\n]*\"|'[^'\n]*'|\S+)")
 TOKENS = re.compile(r"\b(?:gh[pousr]_|github_pat_|sk-|xox[abprs]-|AIza|glpat-)[A-Za-z0-9_\-]{12,}|\b(?:AKIA|ASIA)[A-Z0-9]{12,}\b|"
                     r"eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*|\b[0-9a-fA-F]{32,}\b|\b(?:Bearer|Basic)\s+[A-Za-z0-9+/=._~-]{8,}", re.I)
 BASE64_LONGO = re.compile(r"(?<![A-Za-z0-9/+=])(?=[A-Za-z0-9/+=]*\d)(?=[A-Za-z0-9/+=]*[a-z])(?=[A-Za-z0-9/+=]*[A-Z])"
@@ -141,7 +141,7 @@ def classe_da_letra(c):
 def variantes_do_nome(nome):
     """Regex das grafias de um nome: sem acento, com espaço, `_`, `-` ou junto, camelCase, em qualquer caixa."""
     partes = [p for parte in re.split(r"[-_\s.]+", nome) for p in re.split(r"(?<=[a-zà-ÿ0-9])(?=[A-ZÀ-Ý])", parte) if p]
-    return "[-_ ]?".join("".join(classe_da_letra(c) for c in p) for p in partes) if partes else ""
+    return "[-_ .]*".join("".join(classe_da_letra(c) for c in p) for p in partes) if partes else ""
 
 
 def trocar_nomes(texto, nomes, rotulo, hosts=False):

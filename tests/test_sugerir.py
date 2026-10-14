@@ -279,6 +279,17 @@ class Higiene(Base):
                     ('token: "abc def ghi"', "ghi"), ('apikey="x y z 123"', "123"), ("db_password=hunter22", "hunter22"),
                     ("api_key: 'k k k'", "k k k"), ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA")])
 
+    def test_chave_em_json_escapado(self):
+        self.casos([('{\\"api_key\\": \\"AbCdEf123456\\"}', "AbCdEf123456"), ('{\\"password\\":\\"hunter2\\"}', "hunter2"),
+                    ('{\\\\\\"secret\\\\\\": \\\\\\"zzzqq\\\\\\"}', "zzzqq")])
+
+    def test_nome_do_projeto_com_ponto_ou_repetido(self):
+        self.casos([("o meu.projeto.secreto caiu", "meu.projeto"), ("o meu--projeto-secreto caiu", "projeto-secreto"),
+                    ("o Meu.Projeto_Secreto caiu", "Projeto_Secreto")])
+
+    def test_segredo_em_url_codificada(self):
+        self.casos([("?token%3Dabcdef123456", "abcdef123456"), ("password%3Dhunter2", "hunter2"), ("api_key%3Aabc999zz", "abc999zz")])
+
     def test_basic_auth_em_url(self):
         self.casos([("postgres://admin:s3nha@db.exemplo.com:5432/x", "s3nha"), ("https://user:pw123@exemplo.org/a", "pw123")])
 
