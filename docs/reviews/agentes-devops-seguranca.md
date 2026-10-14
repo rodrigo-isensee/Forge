@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: agentes-devops-seguranca
 branch: melhoria/agentes-devops-seguranca
-commit: fea66c7
-parecer: reprovado
+commit: e413cf2
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
@@ -93,3 +93,42 @@ R4. `bin/forge-check:53-57` · recomendado · ainda não disparam `charts/`, `ku
 R5. `hooks/conformidade.py:89` (`casa`) · informativo · a comparação diferencia maiúsculas. Em sistema de arquivos que não diferencia (macOS, com `core.ignorecase`), o `seguranca` grava em `docs/security/ACEITES/p1.md` (só `docs/security/` casa), o arquivo cai na pasta `aceites/` que já existe e o `forge-check` o lê como aceite. Baixo; o R3 cobre.
 
 Para aprovar: corrigir R1 e R2 com fixture e reenviar. R3 a R5 podem virar cartão, registrados no PR.
+
+## Terceira review independente
+
+Revisor: `forge:tech-lead`, sessão separada da do autor. Escopo: `f6ee155..e413cf2` (1 commit), sobre R1 e R2 da re-review. **Parecer: aprovado.** Os dois bloqueios foram corrigidos e não há desvio novo que bloqueie. Fica um ajuste de texto recomendado (T1).
+
+### Bateria local (cota do Actions esgotada)
+Checkout do PR em `e413cf2`; merge commit sintético com `HEAD^1` = `origin/develop` (b5e5d3d, igual à base do PR); script da base.
+- `python3 -m unittest discover -s tests`: 327 testes, OK. Saíram 4 testes da isenção e entraram 3: Dependabot ainda exige o parecer, aceite de commit antigo e aceite sem commit.
+- `scripts/validar-plugin.sh`: "Validation passed".
+- `catraca.py`:
+  - modo `regras`: sai com 1, só pelo rótulo `afrouxa-regra` que falta (`hooks/conformidade.json` com papéis e `.github/`, `bin/forge-check`, `hooks/conformidade.py`, `hooks/parecer.py`), como previsto;
+  - modo `pareceres`: rodado depois deste commit; o resultado está no comentário do PR;
+  - modo `pr-texto` com o corpo do PR: sai com 0.
+- Versão e changelog: versão 0.12.0 igual à base, 28 arquivos da fábrica alterados e 1 linha nova em `[Não publicado]`: OK.
+
+### Bloqueios anteriores
+R1. Isenção do Dependabot: **corrigido**. `bump_do_dependabot` e `VERSAO_ATUALIZADA` foram removidos; `gatilhos()` não olha mais branch nem mensagem. Reproduzi o ataque da re-review com a branch `dependabot/npm/a-1.0.1`, o `package.json` com o bump `a` 1.0.0 → 1.0.1 mais o pacote novo `malicioso`, a mensagem "Bump a from 1.0.0 to 1.0.1" e o autor `dependabot[bot]` no commit. O resultado foi `revisao-seguranca: sem parecer (dependência (travas ou manifesto): package.json)`, saída 1, tanto no disco quanto em cabeça solta com `--ref HEAD --base develop` (modo do CI). `R-SEGURANCA` diz "sem isenção". Efeito colateral aceitável: um bump só de dependência deixa de exigir o parecer de devops; a triagem do Dependabot continua com ele, como orientação. A isenção da catraca para `dependabot[bot]` (só troca de SHA de `uses:`, ADR 0008) é outra coisa, vem do evento do GitHub e não mudou.
+
+R2. Aceite preso ao commit: **corrigido**. `aceite_do_usuario` só vale com `pedido` igual, `aceite: sim` e `commit` igual ao `commit` do parecer de segurança, que não pode ser vazio. Testado em repositório descartável, com `riscos-aceitos` no commit X:
+
+| Caso | Resultado |
+|---|---|
+| aceite `commit: X` | saída 0 |
+| aceite de outro commit | saída 1, mensagem `R-SEGURANCA` |
+| aceite sem `commit` | saída 1 |
+| aceite com `commit:` vazio | saída 1 |
+| aceite com `commit` abreviado e parecer com o SHA completo | saída 1 (falha fechada; o usuário copia o valor do parecer) |
+| código muda, `seguranca` troca o parecer para o commit Y e mantém o aceite de X | saída 1 (aceite) |
+| parecer mantido em X depois de o código mudar | saída 1 (`desatualizado`) |
+| aceite novo do usuário com `commit: Y` | a parte de segurança passa |
+
+Ou seja, trocar o `commit:` do parecer depois do aceite invalida o aceite, e não trocar invalida o parecer. O caminho da re-review (aceite antigo cobrindo o parecer novo) fechou. A fixture do hook `parecer` usa `commit: {HEAD}`, e `R-SEGURANCA`, os dois `_modelo.md` e o `security-engineer` dizem o mesmo.
+
+### Achados
+T1. `CHANGELOG.md:7` · **recomendado** (texto; corrigir antes do merge, sem nova review de código) · a linha diz "sem isenção para o Dependabot (pasta sem escrita para agentes)" e, adiante, "em `dependabot/*` basta o devops, salvo versão maior". A segunda frase sobrou da versão anterior e contradiz a regra, e o parêntese ficou no lugar errado: ele se refere à pasta de aceites. É o texto que os projetos leem na release. Correção: apagar "em `dependabot/*` basta o devops, salvo versão maior" e mover "(pasta sem escrita para agentes)" para depois de "escrito pelo usuário".
+
+T2. `bin/forge-check:324` · informativo · o aceite prende o commit, não o texto do parecer. Com o código parado em X, o `seguranca` ainda pode reescrever o corpo do parecer (acrescentar um risco B) sem invalidar o aceite. O dano é estreito: o código é o mesmo que o usuário viu, a autoria registra a nova gravação e o diff do PR mostra a mudança. Se quiser fechar, o aceite pode levar o `sha256` do parecer. Vale um cartão, não bloqueia.
+
+Pendências registradas no PR: R3 a R5 da re-review (cartão) e o rótulo `afrouxa-regra`, que só o dono aplica, depois do último push.
