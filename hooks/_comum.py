@@ -23,11 +23,13 @@ LIMITE_LOG = 256 * 1024
 # Usados só se o modelo do projeto (templates/projeto/.forge/config.json) não puder ser lido.
 RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (forge-init)
 INTEGRACAO = {"main", "master", "develop", "homolog"}
-SEPARADORES = set("();|&\n")
-REDIRECIONAMENTO = set("<>")
-# Abertura de substituição de processo (`<(`, `>(`, também colada a outro sinal: `)<(`, `&>(`): o que vem depois é um
-# comando que o shell executa, não um alvo de redirecionamento. Entre aspas, a mesma palavra cai aqui (na dúvida, confere).
-SUBST_PROCESSO = re.compile(r"[();<>|&]*[<>]\([();<>|&]*")
+PONTUACAO = "();<>|&\n"
+# Um sinal do shell (fora de aspas) se divide em operadores: abertura de substituição de processo (`<(`, `>(`), parênteses,
+# redirecionamento (`>`, `>>`, `2>&`, `&>`, `<<`...) e separadores (`;`, `|`, `&&`, quebra de linha).
+OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
+# No lugar de uma substituição, o comando de fora recebe uma palavra opaca; o conteúdo dela é conferido como comando
+# próprio. `$(…)` contém `$(`: as regras que já desconfiam de `$(` num caminho (`$X/.forge`) seguem valendo.
+OPACO = {"$": "$(…)", "<": "<(…)", ">": ">(…)"}
 
 
 def raiz_do_projeto(inicio):
@@ -99,47 +101,116 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
-def segmentos(comando):
-    """Divide a linha do shell em comandos simples (listas de palavras), sem executar nada.
+def fichas(comando):
+    """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
     Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando)."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
+    lex = shlex.shlex(comando, posix=True, punctuation_chars=PONTUACAO)
     lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, pular = [], False
-    for tok in lex:
-        if SUBST_PROCESSO.fullmatch(tok) or tok and set(tok) <= SEPARADORES:  # `<(...)`: o de dentro é outro comando
-            yield atual
-            atual, pular = [], False
-        elif tok and set(tok) <= REDIRECIONAMENTO:
-            pular = True
-        elif pular:
-            pular = False
-        else:
-            atual.append(tok)
-    yield atual
+    # O `shlex` devolve o caractere que encerrou a palavra (sem espaço no meio) em `_pushback_chars`: é por ele que se
+    # sabe o que está colado (`$(`, `)/x`), e pela posição na linha, se o sinal estava entre aspas (`")"`).
+    def posicao():
+        return lex.instream.tell() - len(lex._pushback_chars)
+
+    inicio = posicao()
+    while (tok := lex.get_token()) is not None:
+        fim = posicao()
+        bruto = comando[inicio:fim].rstrip(" \t\r")
+        sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
+            len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
+        yield tok, sinal, bool(lex._pushback_chars)
+        inicio = fim
 
 
 def comandos(comando):
-    """Como `segmentos`, mas devolve (palavras, destinos) por comando simples: `destinos` são os alvos dos
-    redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
-    lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, destinos, modo = [], [], None  # modo: None | "saida" | "entrada"
-    for tok in lex:
-        if SUBST_PROCESSO.fullmatch(tok):
-            atual.append(tok)  # quem consome é o `conformidade` (`separar_substituicoes`)
-            modo = None
-        elif tok and set(tok) <= SEPARADORES:
-            yield atual, destinos
-            atual, destinos, modo = [], [], None
-        elif tok and set(tok) <= REDIRECIONAMENTO | set("|&") and set(tok) & REDIRECIONAMENTO:
-            modo = "saida" if ">" in tok else "entrada"
-        elif modo:
-            if modo == "saida" and not re.fullmatch(r"\d+|-", tok):
-                destinos.append(tok)
-            modo = None
+    """Divide a linha do shell em comandos simples: (palavras, destinos, substituição) por comando. `destinos` são os
+    alvos dos redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos.
+
+    `$(...)`, `<(...)` e `>(...)` não separam comandos: uma pilha de aninhamento guarda o comando de fora, que recebe a
+    palavra opaca (`OPACO`, colada ao que estiver colado: `$(…)/x`) e segue juntando palavras depois do `)`. O conteúdo
+    sai antes, como comando próprio, com `substituição` = a tupla que a identifica (`()` é a linha; `(1,)`, a primeira
+    substituição; `(1, 2)`, uma dentro dela): roda num subshell, então `cd` lá dentro não vale para a linha. O `(` de
+    subshell e o `)` que o fecha continuam separando. Aspas desbalanceadas levantam ValueError."""
+    pilha, contador = [], [0]  # pilha: ("(", None) para subshell; (tipo, estado de fora) para substituição
+    estado = {"palavras": [], "destinos": [], "modo": None, "palavra": None, "colar": False, "sub": ()}
+
+    def entregar():
+        palavra, estado["palavra"], estado["colar"] = estado["palavra"], None, False
+        if palavra is None:
+            return
+        if estado["modo"]:
+            if estado["modo"] == "saida" and not re.fullmatch(r"\d+|-", palavra):
+                estado["destinos"].append(palavra)
+            estado["modo"] = None
         else:
-            atual.append(tok)
-    yield atual, destinos
+            estado["palavras"].append(palavra)
+
+    def separar():
+        entregar()
+        feito = (estado["palavras"], estado["destinos"], estado["sub"])
+        estado.update(palavras=[], destinos=[], modo=None)
+        return feito
+
+    def abrir(tipo, prefixo):
+        contador[0] += 1
+        pilha.append((tipo, dict(estado, palavra=prefixo)))
+        estado.update(palavras=[], destinos=[], modo=None, palavra=None, colar=False, sub=estado["sub"] + (contador[0],))
+
+    def fechar():
+        feito = separar()
+        tipo, fora = pilha.pop()
+        estado.clear()
+        estado.update(fora, palavra=(fora["palavra"] or "") + OPACO[tipo])
+        return feito
+
+    for tok, sinal, colada in fichas(comando):
+        if not sinal:
+            if estado["palavra"] is not None and estado["colar"]:
+                estado["palavra"] += tok
+            else:
+                entregar()
+                estado["palavra"] = tok
+            estado["colar"] = colada
+            continue
+        ops = OPERADOR.findall(tok)
+        for i, op in enumerate(ops):
+            colado = estado["colar"] and i == 0 and estado["palavra"] is not None
+            if op == "(" and colado and estado["palavra"].endswith("$"):
+                abrir("$", estado["palavra"][:-1])
+            elif op in ("<(", ">("):
+                prefixo = estado["palavra"] if colado else None
+                if not colado:
+                    entregar()
+                abrir(op[0], prefixo)
+            elif op == "(":
+                yield separar()
+                pilha.append(("(", None))
+            elif op == ")" and pilha and pilha[-1][0] != "(":
+                yield fechar()
+                estado["colar"] = colada and i == len(ops) - 1
+                continue
+            elif op == ")":
+                yield separar()
+                if pilha:
+                    pilha.pop()
+            elif set(op) & set("<>"):
+                entregar()
+                estado["modo"] = "saida" if ">" in op else "entrada"
+            else:
+                yield separar()
+            estado["colar"] = False
+    while pilha:  # substituição sem o `)`: o shell recusa, mas o de dentro é conferido do mesmo jeito
+        if pilha[-1][0] == "(":
+            pilha.pop()
+        else:
+            yield fechar()
+    yield separar()
+
+
+def segmentos(comando):
+    """Os comandos simples da linha (listas de palavras), sem os alvos de redirecionamento: os de `comandos`, inclusive
+    o conteúdo de cada substituição. Aspas desbalanceadas levantam ValueError."""
+    for palavras, _, _ in comandos(comando):
+        yield palavras
 
 
 def sem_atribuicoes(palavras):

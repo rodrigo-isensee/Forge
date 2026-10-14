@@ -19,7 +19,7 @@ import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, PLUGIN, SUBST_PROCESSO, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar,
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar,
                     git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
@@ -237,19 +237,6 @@ def valor_do_split_string(opcao, seguinte):
     return None
 
 
-def separar_substituicoes(palavras):
-    """Corta o comando simples em cada abertura de substituição de processo (`cat <(git push ...)`): devolve (o comando
-    de fora, [os comandos de dentro]). O `)` que fecha já é separador no `comandos`; o que vem depois dele segue como
-    outro segmento."""
-    pedacos = [[]]
-    for p in palavras:
-        if SUBST_PROCESSO.fullmatch(p):
-            pedacos.append([])
-        else:
-            pedacos[-1].append(p)
-    return pedacos[0], pedacos[1:]
-
-
 def sem_lancadores(palavras):
     return separar_lancadores(palavras)[0]
 
@@ -435,9 +422,16 @@ class Guarda:
         return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
 
     def checar_escrita(self, caminho, pasta):
-        achado = self.caminho_barrado(self.resolver(self.expandir(caminho, pasta), pasta))
-        if achado:
-            self.barrar(*achado)
+        """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
+        conferido também a partir da raiz do projeto."""
+        alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
+        resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
+        if resto:
+            alvos.append(self.resolver(resto, Path(self.h.raiz)))
+        for alvo in alvos:
+            achado = self.caminho_barrado(alvo)
+            if achado:
+                self.barrar(*achado)
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
@@ -492,13 +486,15 @@ class Guarda:
             self.checar_escrita(caminho, self.h.cwd())
 
     # Bash ----------------------------------------------------------------------------------------
-    def bash(self, comando, pasta, nivel=0):
+    def bash(self, comando, pasta, nivel=0, so_substituicoes=False):
+        """Confere a linha. `so_substituicoes`: a linha é uma palavra entre aspas (`"$(git log)"`), e só o conteúdo das
+        substituições dela é comando."""
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
         original = comando
         comando, corpos = tirar_heredocs(comando)
-        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # sem aspas, o divisor de comandos separaria o `$(...)`
+        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
         try:
             partes = list(comandos(comando))
         except ValueError:
@@ -510,19 +506,29 @@ class Guarda:
             self.ambiente = {}
             self.linha = original
             self.sugerir_na_linha(original)
-        for palavras, destinos in partes:
-            palavras, internos = separar_substituicoes(palavras)
-            if internos and self.leitura:
-                self.barrar("R-CONFORMIDADE", f"substituição de processo <(...) ou >(...) pelo papel só de leitura "
-                                              f"({self.papel})", DICA_LEITURA)
-            for interno in internos:  # roda num subshell: `cd` e troca de branch lá dentro não valem para a linha
-                self.segmento(interno, pasta, dict(ramos), nivel)
+        contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
+
+        def contexto(sub):
+            if sub not in contextos:
+                pasta_de_fora, ramos_de_fora = contexto(sub[:-1])
+                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
+            return contextos[sub]
+
+        if self.leitura and any(OPACO["<"] in p or OPACO[">"] in p for palavras, destinos, _ in partes
+                                for p in palavras + destinos):
+            self.barrar("R-CONFORMIDADE", f"substituição de processo <(...) ou >(...) pelo papel só de leitura "
+                                          f"({self.papel})", DICA_LEITURA)
+        for palavras, destinos, sub in partes:
+            if so_substituicoes and not sub:
+                continue
+            pasta_sub, ramos_sub = contexto(sub)
             for d in destinos:
                 if self.leitura and d not in self.leitura["saidas"]:
                     self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
                                 DICA_LEITURA)
-                self.checar_escrita(d, pasta)
-            pasta = self.segmento(palavras, pasta, ramos, nivel)
+                self.checar_escrita(d, pasta_sub)
+            contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
+        pasta = contextos[()][0]
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
@@ -594,9 +600,11 @@ class Guarda:
             nome, _, valor = a.partition("=")
             if nome in ("GH_REPO", "GIT_DIR") and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
-        for p in palavras:
-            if "$(" in p or "`" in p:
+        for p in palavras:  # substituição entre aspas: a palavra chega inteira e o conteúdo dela é conferido aqui
+            if "`" in p:
                 self.bash(p, pasta, nivel + 1)
+            elif "$(" in p.replace(OPACO["$"], ""):
+                self.bash(p, pasta, nivel + 1, so_substituicoes=True)
         if not palavras:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
@@ -674,7 +682,7 @@ class Guarda:
             if a != "$?" and EXPANSAO.search(a) or CHAVES.search(a):
                 self.barrar("R-CONFORMIDADE", f"`{a}`: expansão do shell que o hook não vê (papel só de leitura: "
                                               f"{self.papel})", DICA_LEITURA)
-            if i and prog not in ACEITAM_SUBSTITUICAO and (a == "$" or "$(" in a or "`" in a):
+            if i and prog not in ACEITAM_SUBSTITUICAO and ("$(" in a or "`" in a):
                 self.barrar("R-CONFORMIDADE", f"`$(...)` ou crase como argumento de `{prog}` (papel só de leitura: "
                                               f"{self.papel})", f"só echo, test e [ a aceitam; {DICA_LEITURA}")
         if prog == "git":
@@ -1120,7 +1128,7 @@ def alvos_de_escrita(comando):
     comando, _ = tirar_heredocs(comando)
     alvos = []
     try:
-        for palavras, destinos in comandos(comando):
+        for palavras, destinos, _ in comandos(comando):
             alvos += destinos
             palavras = sem_lancadores(palavras)
             if palavras[:1] == ["tee"]:
