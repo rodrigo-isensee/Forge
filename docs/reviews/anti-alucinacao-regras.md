@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: ea2b636
+commit: e98d977
 parecer: aprovado
 revisor: forge:tech-lead (autor)
 data: 2026-10-14
@@ -123,10 +123,128 @@ $ scripts/validar-plugin.sh
 ```
 
 ### Riscos da volta 2
-- **Comentário engole a quebra de linha (anterior, fora do escopo, alta):** o `shlex` lê o comentário até o fim da linha e consome o `\n`, então a linha seguinte vira argumento do comando do comentário. Com o papel dev, `echo a #b⏎git push origin main` sai com 0 antes e depois desta volta (e `a#b`, sem espaço, também, embora no bash não seja comentário). Cartão para o `security-engineer`; a correção cabe em `_comum.fichas`.
+- (Resolvido na volta 3.) **Comentário engole a quebra de linha (anterior, fora do escopo, alta):** o `shlex` lê o comentário até o fim da linha e consome o `\n`, então a linha seguinte vira argumento do comando do comentário. Com o papel dev, `echo a #b⏎git push origin main` sai com 0 antes e depois desta volta (e `a#b`, sem espaço, também, embora no bash não seja comentário). Cartão para o `security-engineer`; a correção cabe em `_comum.fichas`.
 - **Limites aceitos do analisador:** `case ... a)` dentro de `$(...)` fecha o nível cedo; a crase continua sem pilha (só a recursão por palavra); `$((...))` confere `1+2` como comando (no papel só de leitura, falso bloqueio). Na dúvida, recusa; o sandbox continua sendo a garantia.
 - **Falso bloqueio no papel só de leitura:** `$X` em qualquer palavra e chaves com vírgula (um `--jq` com `{a,b}`) são recusados, como o parecer de segurança previu.
 - `fichas` lê `shlex._pushback_chars` (interno da biblioteca padrão, estável desde o Python 3.6) para saber o que está colado. Se sumir, o hook falha fechado nas ações críticas (ADR 0009, seção 7).
+
+## Volta 3: ADR 0011, opção (b), com os ajustes do aceite de segurança (2131fb6, e98d977)
+Escopo: `git diff b88089a..e98d977`. Implementa os itens 1 e 2 da ADR 0011 com os ajustes da seção "Divergência" e do "Aceite de segurança" de `docs/security/anti-alucinacao-regras.md`. Os cartões C1 a C6 não entram. **O PR precisa destacar no título a terceira correção geral** (comentário `#` e construções não modeladas, em todos os papéis), além do rótulo `afrouxa-regra`.
+
+- **2131fb6, item 1 (papel só de leitura):** `_comum.fora_da_gramatica_de_leitura` lê a linha uma vez, com um estado só para as aspas. Fora de aspas, aceita letras e dígitos (`isalnum`), espaço e tab literais, `_ . / : = @ , + % - ~ ^`, `&&`, `||`, `;` e `|`; o `&` sozinho recusa. Entre aspas simples, tudo menos caractere de controle; entre duplas, também recusa `$`, crase, `\` e `!`. Aspas sem fechar recusam. A checagem roda no nível 0, antes de qualquer outra, e a mensagem diz a forma explícita. Saem as regras pontuais de S1 e S2 (`EXPANSAO`, `CHAVES`, `ACEITAM_SUBSTITUICAO`) e a recusa de `<(`/`>(` do papel, todas inalcançáveis depois da gramática. `agents/conferente.md` troca `; echo $?` por `&& echo contém || echo não contém` e ganha a forma da linha.
+- **e98d977, item 2 (demais papéis):** `_comum.construcao_nao_modelada` devolve a primeira construção da lista fechada: `#` com outra linha depois (em qualquer posição da palavra), crase, `case`, `$` fora de aspas simples que não abra `$(`, `\` seguido de quebra de linha e chaves. O `\` escapa o caractere seguinte, e `$(` abre um contexto novo de aspas, como no bash. O `conformidade` só a consulta quando a linha casa com `CRITICO` (ADR 0009, seção 7) e recusa depois das checagens da linha, para que a regra mais específica (`R-MAIN`, `R-VERIFY`...) fale primeiro. Também recusa quando o `shlex` não consegue ler a linha: `git push origin main $'\''` saía com 0 por aspas "desbalanceadas" que o bash lê bem.
+- **Heredoc (ajuste de autor dentro do item 2):** a lista da ADR diz "heredoc". Aplicada ao pé da letra, ela quebra dois fixtures de uso legítimo que já existiam: `shell-heredoc-no-commit-libera` (mensagem de commit por `<<'EOF'`) e `parecer-por-bash-qa-libera` (QA grava o parecer por heredoc). Além disso, a sonda mostrou que o próprio `tirar_heredocs` tira como corpo linhas que o bash executa: `cat \<<'EOF'⏎git push origin main⏎EOF`, `echo "<<'EOF'"⏎...` e `cat <<E'OF'⏎EOF⏎git push origin main⏎E` saíam com 0 antes e continuavam com 0 na primeira versão do item 2. A regra entregue: só o heredoc de delimitador entre aspas (`<<'FIM'` ou `<<"FIM"`), sem `-`, terminado numa linha igual ao delimitador, é modelado, e o corpo dele não é lido. Todo outro `<<` numa linha de várias linhas (sem aspas, `<<-`, `<<<`, escapado, entre aspas, sem fim, fim com espaço em volta) recusa. **Pede confirmação do `security-engineer`.**
+
+### rc do hook `conformidade` (projeto temporário em `$TMPDIR`; antes = hooks de b88089a, depois = e98d977)
+```
+antes depois | papel      | comando
+  0     0    | conferente | git log -1 'HEAD@{1}' && git diff --text HEAD && grep -n 'v1$' src/app.js
+  0     0    | conferente | grep -n 'v1$' src/app.js
+  0     0    | conferente | grep -n "a#b" src/app.js
+  0     0    | conferente | git show HEAD^
+  0     0    | conferente | git status && git log -1
+  0     0    | conferente | forge-check pr p1
+  0     0    | conferente | git log -1
+  0     0    | conferente | git ls-remote origin develop
+  0     0    | conferente | cat src/app.js | head -5
+  0     0    | conferente | git log -1 'HEAD@{1}'
+  0     0    | conferente | grep -n "<(" src/app.js
+  0     0    | conferente | cd {raiz} && git --no-pager -C {raiz} log -1 ... | head -1; ...; forge-check pr p1; grep ...  (conferente-leitura-libera)
+  0     2    | conferente | grep -n 'v1 src/app.js
+  0     2    | conferente | grep -n "a\|b" src/app.js
+  0     2    | conferente | echo a #b⏎git commit -m x
+  0     2    | conferente | echo a #b⏎git log -1
+  0     2    | conferente | git log -1 2>/dev/null
+  0     2    | conferente | git log -1⏎git status
+  0     2    | conferente | git log -1 & git status
+  0     2    | conferente | echo $(git log -1)
+  0     2    | conferente | grep -n "a!b" src/app.js
+  0     2    | conferente | ls *
+  0     2    | conferente | git log -1 HEAD@{1}
+  0     2    | conferente | cat <<E
+  0     2    | conferente | git log -1␍git status
+  0     2    | conferente | echo $?
+  0     2    | conferente | echo "$(git log -1)"
+  2     2    | conferente | git log -1 $'--output=OUT1'
+  2     2    | conferente | git ls-remote $'--upload-pack=touch PWNED1;' .
+  2     2    | conferente | grep -n "'" src/app.js $(touch Z) "'"
+  2     2    | conferente | git log -1 \--output=x
+  2     2    | conferente | git diff {--output=OUT2,HEAD}
+  2     2    | conferente | git ls-remote {--upload-pack='touch PWNED2;',.}
+  2     2    | conferente | git log `echo -1`
+  2     2    | conferente | nohup cat src/app.js
+  2     2    | conferente | git log -1 $(cat src/app.js)
+  2     2    | conferente | git log -1 $(true) cat --format=x
+  2     2    | conferente | git ls-remote $(echo --upload-pack=touch\>PWNED12 .)
+  2     2    | conferente | sudo -i
+  2     2    | conferente | git log $X
+  2     2    | conferente | xargs -a src/app.js cat
+  2     2    | conferente | echo "'--upload-pack=touch PWNED4;' ." | xargs git ls-remote
+  0     0    | dev        | x=$(git rev-parse HEAD) && echo $x
+  0     0    | tech-lead  | x=$(git rev-parse HEAD) && echo $x
+  0     0    | dev        | git log -1 # nota
+  0     0    | tech-lead  | git log -1 # nota
+  0     0    | dev        | echo $(git rev-parse HEAD)
+  0     0    | tech-lead  | echo $(git rev-parse HEAD)
+  0     0    | dev        | for f in $(ls src); do echo $f; done
+  0     0    | tech-lead  | for f in $(ls src); do echo $f; done
+  0     0    | dev        | git push origin melhoria/x
+  0     0    | tech-lead  | git push origin melhoria/x
+  0     0    | dev        | diff <(git log -1) <(git log -2)
+  0     0    | tech-lead  | diff <(git log -1) <(git log -2)
+  0     2    | dev        | git push origin main $'\''
+  0     2    | dev        | git push origin $'main'
+  0     2    | dev        | git push origin $@main
+  0     2    | dev        | git push origin $"main"
+  0     2    | dev        | case x in x) git push origin melhoria/x;; esac
+  0     2    | dev        | echo a#b⏎git push origin main
+  0     2    | dev        | git push origin {main,x}
+  0     2    | tech-lead  | echo a #b⏎git push origin melhoria/x
+  0     2    | dev        | echo a #b⏎git push origin main
+  0     2    | dev        | git push origin ma\⏎in
+  0     2    | dev        | git push origin `echo main`
+  0     2    | dev        | git push origin $1main
+  0     2    | dev        | git push origin $B
+  2     2    | dev        | bash <<E⏎git push origin main⏎E
+  0     0    | dev        | git commit -m "$(cat <<'EOF'⏎docs: parecer em docs/reviews/p1.md (#12)⏎EOF⏎)"
+  0     2    | dev        | cat <<E'OF'⏎EOF⏎git push origin main⏎E
+  0     2    | dev        | echo "<<'EOF'"⏎git push origin main⏎EOF
+  0     2    | dev        | cat \<<'EOF'⏎git push origin main⏎EOF
+  0     2    | dev        | cat <<EOF⏎$(git push origin main)⏎EOF
+  0     0    | qa-engineer | cat > docs/qa/p1.md <<'EOF'⏎parecer: aprovado⏎EOF
+  0     0    | tech-lead  | git commit -m "$(cat <<'EOF'⏎feat: x⏎⏎não use git push --force nem echo x > .forge/versao⏎EOF⏎)"
+```
+`⏎` é quebra de linha, e `␍` é o `\r`. Todas as linhas batem com o `esperado` do fixture. Os comandos com rc 2 nas duas colunas mudam de motivo: agora a gramática (ou o lançador, no S3) recusa antes da regra pontual.
+
+### Fixtures antes e depois
+```
+commit A, antes (b88089a): 39 fixtures conferente-gramatica-* → FAILED (failures=25)
+                           (16 com rc 0 em vez de 2; 9 já com rc 2, mas pela regra pontual, e não pela gramática)
+commit B, antes (2131fb6): 26 fixtures nao-modelado-* → FAILED (failures=13), todas com rc 0 em vez de 2
+heredoc,  antes (1ª versão do item 2): 4 fixtures nao-modelado-heredoc-*-bloqueia → rc 0 em 2 delas
+                           (escapado, entre aspas), e parecer-por-bash-qa-libera e shell-heredoc-no-commit-libera com rc 2
+depois (e98d977):          688 fixtures de conformidade → Ran 1 test in 90.251s / OK
+```
+Fixtures reescritos: `conferente-leitura-libera` sem `2>/dev/null` e sem `echo $?` (endurecimento, sem exceção para `/dev/null`); `conferente-expansao-legitima-libera` na forma explícita (`'HEAD@{1}'`); `conferente-subst-entre-aspas-libera` vira `-bloqueia`, porque o `$` entre aspas duplas é expandido. Dez fixtures de bloqueio do papel trocam o trecho esperado do stderr para "fora da gramática".
+
+### Suíte, validação e tempo
+```
+$ uptime → load average: 3.88 (início), 1.07 (fim)
+$ python3 -m unittest discover -s tests
+Ran 562 tests in 136.175s
+OK
+$ scripts/validar-plugin.sh
+✔ Validation passed
+hook inteiro, mediana de 15 chamadas, linha `git push origin melhoria/x && git log -1` como dev:
+  b88089a 130 ms, e98d977 96 ms (com load acima de 5, então é ruído)
+as duas varreduras juntas, no mesmo processo: 0,09 ms por linha
+```
+
+### Riscos e pendências da volta 3
+- **Falso bloqueio previsto pela ADR:** no papel só de leitura, `echo $?`, `$(...)`, `2>/dev/null`, `HEAD@{1}` sem aspas, glob, várias linhas e `grep "a\|b"`. Nos demais papéis, só com marcador: `git push origin $BRANCH`, laço com `push`, comentário entre linhas, `cp $TMPDIR/x docs/reviews/y.md` (C6) e heredoc sem aspas no delimitador. O critério de reversão da ADR mede isso.
+- **A redação da ADR e o código divergem em dois pontos.** (1) Heredoc, como acima. (2) Chaves: o código recusa qualquer `{` ou `}` fora de aspas, como o brief pediu, e não só "com `,` ou `..`". O `{ ...; }` com `push` passa a recusar. A ADR ainda diz "Estado: proposta" e cita `git ls-files 'docs/*.md'`, que não está na lista do conferente (no agente, o exemplo é `grep -n 'v1$' src/app.js`). Cabe ao arquiteto ajustar o texto.
+- **Inertes no papel só de leitura:** a lista `saidas` de `hooks/conformidade.json` e a checagem de redirecionamento do papel, porque a gramática recusa `<` e `>` antes. Ficaram, porque a validação da política exige a chave. Candidato a cartão de limpeza.
+- **Limites que continuam:** glob em caminho protegido nos papéis comuns (C3) e a pilha da crase e o `case` dentro de `$(...)` no analisador geral (C2), que o item 2 cobre só nas linhas com marcador.
 
 ## O que mudou
 - **Regras:** `R-PROVA` e `R-BRIEF` são novas. A `R-DECISAO` passa a exigir uma pergunta por vez em tudo e a marca "Retira do escopo original" em todo corte, com a lista "Fora do escopo". O índice também foi atualizado. O `verificada_por` das novas diz que os hooks `prova` e `brief` ainda não existem, para que a regra não afirme uma garantia que ainda não há.
