@@ -41,3 +41,4 @@ Nunca culpe a pessoa e nunca peça segredo.
 - **Sem permissão ou nome já existente:** ofereça criar na conta pessoal ou escolher outro nome; nunca escreva em repositório que já tem conteúdo.
 - **Sem rede:** diga que nada foi criado além do já feito e peça "tentar de novo"; confira o estado antes de repetir.
 - **Falha no meio:** diga o que já foi feito e o que falta.
+- **Recusa da proteção ou problema do Forge:** depois de explicar o que houve, ofereça "Quer que eu sugira essa melhoria ao Forge?". Com "sim", escreva problema observado, proposta e como medir, sem nome do projeto, caminho nem dados pessoais, e rode `forge sugerir "<texto>"` (guarda na fila, já anonimizado); diga que a pessoa envia com `forge sugerir --fila` no terminal dela, vendo o texto final, e que aparece no GitHub com o nome de usuário dela. Você não envia.

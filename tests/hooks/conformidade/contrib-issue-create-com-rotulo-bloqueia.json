@@ -1,0 +1,21 @@
+{
+  "descricao": "Criar issue no Forge já com rótulo é aplicar rótulo: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh issue create -R rodrigo-isensee/Forge --title t --body b --label afrouxa-regra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh issue create"
+  }
+}

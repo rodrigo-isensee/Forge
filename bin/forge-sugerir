@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Forge: sugestão de melhoria ao Forge, sem dados do projeto (primeiro uso, F6). Rode no terminal, dentro do projeto.
+Uso: forge sugerir "texto"            texto com problema observado, proposta e como medir
+     forge sugerir --arquivo ARQ      o mesmo texto, lido de um arquivo
+     forge sugerir --fila             mostra e envia o que ficou pendente
+Passos: tira do texto caminhos, nomes de usuário, e-mails, endereços de repositório, tokens e o nome do projeto (lido de .forge/,
+do remoto e da pasta); mostra o texto final EXATO e avisa que vai aparecer com o seu nome de usuário do GitHub; só com "s" abre
+uma issue no repositório do Forge (`gh issue create`, pela sua conta). Sem "s", sem terminal, sem rede ou chamado de dentro do
+Claude: guarda o texto já anonimizado em ~/.local/state/forge/sugestoes/ para enviar depois com `forge sugerir --fila`.
+Nunca envia nada sem a sua confirmação, nem aplica rótulo, nem edita ou fecha issue (R-CONTRIB).
+Saída: 0 enviou, guardou na fila por escolha ou nada pendente; 1 guardou na fila por falha no envio; 2 uso errado ou chamado
+de dentro do Claude (só --fila)."""
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_versoes as fv  # noqa: E402
+
+FORGE = os.environ.get("FORGE_SUGERIR_REPO") or "rodrigo-isensee/Forge"
+RODAPE = "\n\n---\nEnviada com `forge sugerir`: o texto não leva dados do projeto de origem."
+AVISO = ("Isto vai aparecer no repositório do Forge com o seu nome de usuário do GitHub (o envio é pela sua conta: no GitHub "
+         "não é anônimo). O texto acima já não tem dados do seu projeto.")
+
+TOKENS = re.compile(r"\b(?:gh[pousr]_|github_pat_|sk-|xox[abprs]-|AKIA|AIza|glpat-)[A-Za-z0-9_\-]{12,}|eyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]*|"
+                    r"\b[0-9a-fA-F]{32,}\b|\bBearer\s+\S{8,}", re.I)
+SEGREDO = re.compile(r"(?i)\b(token|senha|password|passwd|secret|segredo|api[_-]?key|chave)\b(\s*[:=]\s*)(?!\[)\S+")
+EMAIL = re.compile(r"[\w.+%-]+@[\w-]+(?:\.[\w-]+)+")
+URL_REPO = re.compile(r"(?:(?:https?|ssh|git)://[^\s'\"<>)\]]+|git@[\w.-]+:[^\s'\"<>)\]]+)")
+HOSPEDEIRO = re.compile(r"(?:github\.com|gitlab\.com|bitbucket\.org|dev\.azure\.com|codeberg\.org|sr\.ht)[/:]|\.git\b|@", re.I)
+CAMINHO_WIN = re.compile(r"\b[A-Za-z]:\\[^\s'\"<>]*")
+CAMINHO = re.compile(r"(?<![\w.:/~-])(?:~(?:/[^\s'\"`<>)\],;]*)?|/(?:[\w.@+-]+/)+[\w.@+-]*)")
+
+
+def git(pasta, *args):
+    try:
+        r = subprocess.run(["git", "-C", str(pasta), *args], capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    return r.stdout.strip() if r.returncode == 0 else ""
+
+
+def ler_json(arq):
+    try:
+        dados = json.loads(Path(arq).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return dados if isinstance(dados, dict) else {}
+
+
+def nomes_a_remover():
+    """(nomes do projeto, nomes da pessoa) a trocar no texto: .forge/, remoto origin, pasta, ambiente e git."""
+    topo = git(Path.cwd(), "rev-parse", "--show-toplevel") or str(Path.cwd())
+    raiz = Path(topo)
+    estado = ler_json(raiz / ".forge" / "novo-projeto.json")
+    projeto = {raiz.name, str(estado.get("nome", ""))}
+    pessoa = {str(estado.get("dono", "")), os.environ.get("USER", ""), os.environ.get("LOGNAME", ""), fv.casa().name,
+              git(raiz, "config", "user.name"), git(raiz, "config", "user.email").split("@")[0]}
+    remoto = re.sub(r"\.git$", "", git(raiz, "remote", "get-url", "origin"))
+    achado = re.search(r"[:/]([^/:\s]+)/([^/\s]+)$", remoto)
+    if achado and achado.group(0).strip(":/").lower() != FORGE.lower():
+        pessoa.add(achado.group(1))
+        projeto.add(achado.group(2))
+    nome = git(raiz, "config", "user.name")
+    pessoa.update(p for p in nome.split() if len(p) >= 4)
+    projeto.discard("forge")
+    limpa = lambda nomes: sorted({n.strip() for n in nomes if len(n.strip()) >= 2}, key=len, reverse=True)  # noqa: E731
+    return limpa(projeto), limpa(pessoa)
+
+
+def trocar_url(achado):
+    url = achado.group(0)
+    if re.search(rf"github\.com[/:]{re.escape(FORGE)}(?:\.git)?(?:[/?#]|$)", url, re.I):
+        return url
+    return "[url-do-repositório]" if HOSPEDEIRO.search(url) else re.sub(r"//[^/@\s]+@", "//", url)
+
+
+def trocar_nomes(texto, nomes, rotulo):
+    for nome in nomes:
+        texto = re.sub(rf"(?<!\w){re.escape(nome)}(?!\w)", rotulo, texto, flags=re.I)
+    return texto
+
+
+def anonimizar(texto):
+    projeto, pessoa = nomes_a_remover()
+    texto = SEGREDO.sub(lambda m: f"{m.group(1)}{m.group(2)}[token]", texto)
+    texto = TOKENS.sub("[token]", texto)
+    texto = EMAIL.sub("[e-mail]", texto)
+    texto = URL_REPO.sub(trocar_url, texto)
+    texto = CAMINHO_WIN.sub("[caminho]", CAMINHO.sub("[caminho]", texto))
+    texto = trocar_nomes(texto, projeto, "[projeto]")
+    return trocar_nomes(texto, pessoa, "[usuário]")
+
+
+def titulo_de(texto):
+    linha = next((l.strip() for l in texto.splitlines() if l.strip()), "melhoria")
+    linha = re.sub(r"^[#>*\s-]*(problema observado\s*[:.-]?\s*)?", "", linha, flags=re.I) or "melhoria"
+    return "Sugestão: " + (linha if len(linha) <= 70 else linha[:67].rstrip() + "...")
+
+
+def pasta_da_fila():
+    return fv.pasta_de_estado() / "sugestoes"
+
+
+def guardar_na_fila(texto):
+    fila = pasta_da_fila()
+    fila.mkdir(parents=True, exist_ok=True)
+    tema = re.sub(r"[^a-z0-9]+", "-", titulo_de(texto).removeprefix("Sugestão: ").lower()).strip("-")[:40] or "melhoria"
+    base = f"{time.strftime('%Y%m%d-%H%M%S')}-{tema}"
+    arq, n = fila / f"{base}.md", 2
+    while arq.exists():
+        arq, n = fila / f"{base}-{n}.md", n + 1
+    arq.write_text(texto.rstrip() + "\n", encoding="utf-8")
+    arq.chmod(0o600)
+    return arq
+
+
+def abrir_issue(texto):
+    """(True, endereço) se a issue foi aberta; (False, motivo) se não deu."""
+    with tempfile.TemporaryDirectory() as pasta:
+        corpo = Path(pasta) / "corpo.md"
+        corpo.write_text(texto.rstrip() + RODAPE + "\n", encoding="utf-8")
+        try:
+            r = subprocess.run(["gh", "issue", "create", "-R", FORGE, "--title", titulo_de(texto), "--body-file", str(corpo)],
+                               capture_output=True, text=True, timeout=60, stdin=subprocess.DEVNULL)
+        except (OSError, subprocess.TimeoutExpired) as e:
+            return False, f"não consegui chamar o gh ({type(e).__name__})"
+    if r.returncode != 0:
+        return False, (r.stderr.strip().splitlines() or ["o gh falhou"])[0]
+    return True, (r.stdout.strip().splitlines() or ["(sem endereço)"])[-1]
+
+
+def mostrar(texto):
+    print("\n" + "-" * 60)
+    print(titulo_de(texto) + "\n")
+    print(texto.rstrip() + RODAPE)
+    print("-" * 60)
+    print(AVISO)
+
+
+def enviar_com_confirmacao(texto, arquivo_da_fila=None):
+    """0 enviado ou mantido por escolha; 1 falha no envio (o texto fica na fila)."""
+    mostrar(texto)
+    if not fv.confirmar("Enviar esta sugestão ao Forge agora?"):
+        guardado = arquivo_da_fila or guardar_na_fila(texto)
+        print(f"Tudo bem, nada foi enviado. Guardei em {guardado}. Para enviar depois: forge sugerir --fila")
+        return 0
+    ok, resultado = abrir_issue(texto)
+    if ok:
+        print(f"Enviado: {resultado}\nObrigado! O time do Forge vai avaliar.")
+        if arquivo_da_fila:
+            arquivo_da_fila.unlink(missing_ok=True)
+        return 0
+    guardado = arquivo_da_fila or guardar_na_fila(texto)
+    print(f"Não consegui enviar ({resultado}). Guardei em {guardado}; quando houver rede: forge sugerir --fila", file=sys.stderr)
+    return 1
+
+
+def processar_fila():
+    arquivos = sorted(pasta_da_fila().glob("*.md")) if pasta_da_fila().is_dir() else []
+    if not arquivos:
+        print("Nada pendente: nenhuma sugestão esperando envio.")
+        return 0
+    for i, arq in enumerate(arquivos, 1):
+        print(f"\nSugestão guardada {i} de {len(arquivos)} ({arq.name})")
+        texto = anonimizar(arq.read_text(encoding="utf-8", errors="replace"))
+        if texto.strip() and enviar_com_confirmacao(texto, arq) != 0:
+            return 1
+    return 0
+
+
+def main(args):
+    if args[:1] in (["-h"], ["--help"]):
+        print((__doc__ or "").split("Passos:")[0].strip())
+        return 0
+    fila, arquivo, palavras = False, None, []
+    it = iter(args)
+    for a in it:
+        if a == "--fila":
+            fila = True
+        elif a == "--arquivo":
+            arquivo = next(it, None)
+            if not arquivo:
+                print("forge sugerir: --arquivo pede o caminho do arquivo.", file=sys.stderr)
+                return 2
+        elif a.startswith("--"):
+            print(f"forge sugerir: opção desconhecida: {a}", file=sys.stderr)
+            return 2
+        else:
+            palavras.append(a)
+    if fila and (arquivo or palavras):
+        print("forge sugerir: --fila não leva texto.", file=sys.stderr)
+        return 2
+    claude = fv.dentro_do_claude()
+    if fila:
+        if claude:
+            print("forge sugerir --fila: o envio é com você, não com o Claude. Rode no seu terminal, fora do Claude. Não enviei nada.",
+                  file=sys.stderr)
+            return 2
+        if not fv.tem_terminal():
+            print("forge sugerir --fila: rode num terminal (o envio pede a sua confirmação). Não enviei nada.", file=sys.stderr)
+            return 2
+        return processar_fila()
+    try:
+        bruto = Path(arquivo).read_text(encoding="utf-8", errors="replace") if arquivo else " ".join(palavras)
+    except OSError:
+        print(f"forge sugerir: não consegui ler {arquivo}.", file=sys.stderr)
+        return 2
+    if not bruto.strip():
+        print('Uso: forge sugerir "problema observado, proposta e como medir"  (ou --arquivo ARQ, ou --fila)', file=sys.stderr)
+        return 2
+    texto = anonimizar(bruto)
+    if claude or not fv.tem_terminal():
+        guardado = guardar_na_fila(texto)
+        print(f"Guardei a sugestão (já sem dados do projeto) em {guardado}. Nada foi enviado: o envio é com você, num terminal "
+              "fora do Claude, com `forge sugerir --fila`.")
+        return 0
+    return enviar_com_confirmacao(texto)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

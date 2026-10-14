@@ -61,7 +61,7 @@ CONTRIB_ISSUE_ALHEIA = {"edit", "close", "reopen", "delete", "transfer", "lock",
 GH_COM_VALOR = {"-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--title", "-l", "--add-label",
                 "--remove-label", "-a", "--add-assignee", "--remove-assignee", "-m", "--milestone", "-B", "--base",
                 "-p", "--add-project", "--remove-project", "-r", "--add-reviewer", "--remove-reviewer", "--subject",
-                "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason"}
+                "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason", "--label", "--assignee"}
 CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/labels(/|$)")
 CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
                              r"removeLabelsFromLabelable|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
@@ -756,6 +756,12 @@ class Guarda:
             if alvo and not self.clone_do_forge():
                 self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo != 'label' else ''} no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
+        elif grupo == "issue" and sub == "create":
+            # Issue nova é a sugestão anônima (`forge sugerir`, R-CONTRIB): libera; já nascer com rótulo é aplicar rótulo.
+            if parecer.opcao(palavras[1:], "--label", "-l") is not None and self.alvo_do_forge(pasta, repo) \
+                    and not self.clone_do_forge():
+                self.barrar("R-CONTRIB", "gh issue create com rótulo no Forge: a sessão de outro projeto não aplica "
+                                         "rótulos", "crie a issue sem --label; quem rotula é o Forge")
         elif grupo == "api":
             args = palavras[2:]
             endpoint = parecer.endpoint_da_api(args)

@@ -1,0 +1,20 @@
+{
+  "descricao": "Criar issue nova no Forge (sugestão do forge sugerir) libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh issue create -R rodrigo-isensee/Forge --title t --body-file s.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
