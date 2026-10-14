@@ -6,7 +6,9 @@
     "software-architect",
     "ux-designer",
     "qa-engineer",
-    "agile-coach"
+    "agile-coach",
+    "devops-engineer",
+    "security-engineer"
   ],
   "stacks_obrigatorias": {
     "node-react": {
@@ -50,7 +52,13 @@
       "\\bPrisma\\b",
       "node-backend",
       "react-frontend",
-      "node_modules"
+      "node_modules",
+      "eslint-plugin-security",
+      "\\bbandit\\b",
+      "\\bgosec\\b",
+      "\\bbrakeman\\b",
+      "pip-audit",
+      "cargo[ -]audit"
     ],
     "excecoes": {
       ".github/workflows/ci.yml": [
@@ -111,6 +119,7 @@
       "`R-DECISAO`",
       "`R-CONFORMIDADE`",
       "`R-CONTRIB`",
+      "`R-SEGURANCA`",
       "teste de bloqueante",
       "nunca sobe sozinho",
       "estado em uma linha",
@@ -130,6 +139,41 @@
       "`R-NEUTRO`",
       "`R-CONFORMIDADE`",
       "`R-CONTRIB`"
+    ],
+    "agents/devops-engineer.md": [
+      "O token do bot não tem o escopo `workflow`, de propósito",
+      "para o \\*\\*dono\\*\\* executar",
+      "`R-CUSTO`",
+      "`R-VERIFY`",
+      "`R-MAIN`",
+      "`R-CONFORMIDADE`",
+      "`R-REVIEW`",
+      "`R-NEUTRO`",
+      "`R-CONTRIB`"
+    ],
+    "agents/security-engineer.md": [
+      "\\*\\*Defensiva e estática:\\*\\*",
+      "\\*\\*Segredo nunca é exibido:\\*\\*",
+      "\\*\\*não instala\\*\\* nada",
+      "`R-SEGURANCA`",
+      "`R-CUSTO`",
+      "`R-VERIFY`",
+      "`R-MAIN`",
+      "`R-CONFORMIDADE`",
+      "`R-NEUTRO`",
+      "`R-CONTRIB`"
+    ],
+    "skills/ci-cd/SKILL.md": [
+      "## GitHub Actions \\(padrão\\)",
+      "fixadas por SHA",
+      "`pull_request_target` com checkout de código de fork",
+      "`R-CUSTO`",
+      "`R-VERIFY`"
+    ],
+    "docs/regras/R-SEGURANCA.md": [
+      "\ntitulo: Parecer de segurança quando há gatilho\n",
+      "Gatilhos: autenticação ou autorização",
+      "`riscos-aceitos` só vale com `aceite_usuario: sim`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",

@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Agentes `devops-engineer` e `security-engineer` (requer o rótulo `afrouxa-regra` do dono; ADR 0010):** o primeiro é dono de pipeline, contêiner, IaC, ambiente e rollback; o segundo, da postura e do review de segurança, defensivo e só com ferramentas gratuitas. Skill `ci-cd`; regra `R-SEGURANCA` (parecer de segurança é portão quando há gatilho); pareceres em `docs/devops/` e `docs/security/`, exigidos pelo hook `parecer` e pelo `forge-check pr` (diff e `gatilhos_seguranca` do plano técnico); papéis `devops` e `seguranca` no hook `conformidade`. Altera `hooks/conformidade.json`, `hooks/parecer.py`, `bin/forge-check`, `.claude-plugin/plugin.json` e `tests/config.json`.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
