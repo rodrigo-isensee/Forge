@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Primeiro uso (F2):** `forge salvar` (commit e envio na branch de trabalho, nunca na `main`, recusa segredos) e `forge desfazer` (stash para o não salvo, `git revert` para o último registro, sem `--force` nem `reset --hard`, com confirmação); a skill `novo-projeto` ganha o primeiro pedido guiado (pedido, protótipo, aprovação, entrega). Corrige os 5 bugs baixos da F1: no máximo 10 interações (a pasta passa a ser `~/<nome>`), pasta apagada depois de concluir, sem rede x sem login, repositório vazio existente oferecido no passo do nome, `[sim] [sim]` duplicado.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado

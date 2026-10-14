@@ -2,6 +2,8 @@
 # Forge: despachante de subcomandos. `forge <sub> [args]` executa `bin/forge-<sub>`.
 # Uso: forge <subcomando> [argumentos]   (sem argumento, lista os subcomandos)
 #   forge novo-projeto   cria um projeto novo no GitHub e abre o Jarvis nele
+#   forge salvar         salva o trabalho (commit e envio) na branch de trabalho
+#   forge desfazer       volta ao último ponto bom, sem apagar histórico
 set -euo pipefail
 
 dir="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
