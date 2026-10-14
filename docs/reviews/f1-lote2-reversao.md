@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: f1-lote2-reversao
 branch: melhoria/f1-lote2-reversao
-commit: de1e3af
-parecer: reprovado
+commit: efeb221
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -40,3 +40,27 @@ Verificado sem achado:
 - Concisão: as linhas novas são curtas e sem repetição de texto entre arquivos, exceto a exigência, que aparece em quatro lugares (aceitável como ponteiro, mas a skill de ADR precisa dela, achado 1).
 
 Parecer: **reprovado** por ajustes necessários. Bloqueia o achado 1; os achados 2 e 3 são recomendados. A correção vai para o autor (`melhoria/f1-lote2-reversao`); depois, novo review sobre o HEAD novo.
+
+## Re-review independente
+
+Escopo: `c4086fa..efeb221` (HEAD revisado: `efeb221`, correção do achado 1 do review anterior, achados 2 e 3 incluídos). Revisor: `forge:tech-lead`.
+
+Conferência dos achados anteriores:
+1. **Skill de ADR (bloqueia, resolvido):** `skills/software-architecture/SKILL.md` aponta para `templates/projeto/docs/architecture/adr/_modelo.md`, que define as seções e a linha `Estado:`; a skill exige critério de reversão, leituras e "Por que o existente não basta" para mecanismo novo. Sem cópia do modelo.
+2. **Invariante do modelo de projeto (recomendado, resolvido):** `tests/config.json` protege `templates/projeto/docs/architecture/adr/_modelo.md` com os três títulos (`## Critério de reversão`, `## Leituras`, `## Por que o existente não basta`).
+3. **Data de revisão (recomendado, resolvido):** `docs/adr/README.md` com `Revisão: 2026-10-13`.
+
+Verificação (worktree destacada em `efeb221`, `$TMPDIR/rv104b`):
+- `python3 -m unittest discover -s tests`: **310 testes, OK**.
+- `scripts/validar-plugin.sh`: **Validation passed**. Os bloqueios de rede do sandbox (telemetria e `api.anthropic.com`) não alteraram o resultado.
+- `python3 tests/catraca.py --base b5e5d3d` (modo `regras`): **exit 0**.
+- `python3 tests/catraca.py --modo pr-texto` com o corpo do PR 104 em `PR_BODY`: **exit 0**.
+- `python3 tests/catraca.py --modo pareceres --base b5e5d3d --head efeb221 --ramo=melhoria/f1-lote2-reversao --base-ref develop`: **exit 0**. Sem `GITHUB_TOKEN` local, o caminho de rótulo e de eventos não foi exercitado.
+- Versão: `plugin.json` continua em `0.12.0` (igual à base), então o PR não é de release. Checagem de changelog do CI em `develop`: **ok, 1 linha nova em `[Não publicado]`**.
+- `bin/forge-check docs`: sem saída de erro.
+
+Achados:
+- Nenhum **bloqueia** nem **recomendado** novo. O diff ficou restrito a: skill de ADR, `tests/config.json` (só acréscimo), `docs/adr/README.md` (data) e linha de CHANGELOG.
+- Pendência já registrada (não bloqueia): campo equivalente em `.github/pull_request_template.md`, protegido.
+
+Parecer: **aprovado**. Pode seguir para a validação do usuário pelo PR 104. Não houve mescla.
