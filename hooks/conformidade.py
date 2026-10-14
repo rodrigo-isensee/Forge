@@ -135,6 +135,11 @@ REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x
 CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
+# Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
+# shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
+LS_REMOTE_LEITURA = {"--heads", "--tags", "--branches", "-h", "-t", "-b", "--refs", "-q", "--quiet", "--exit-code",
+                     "--symref", "--get-url"}
+GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff")
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
                 "o que exige escrita é de outro agente")
 
@@ -231,6 +236,12 @@ def exporta(palavras):
     """`export`, `declare -x` e `typeset -x` passam as variáveis aos comandos seguintes."""
     return palavras[:1] == ["export"] or palavras[:1] in (["declare"], ["typeset"]) and any(
         re.fullmatch(r"-[a-zA-Z]*x[a-zA-Z]*", p) for p in palavras[1:])
+
+
+def abreviacao_de(opcao, longas):
+    """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
+    nome = opcao.split("=", 1)[0]
+    return nome.startswith("--") and len(nome) > 3 and any(o.startswith(nome) for o in longas)
 
 
 class Guarda:
@@ -630,11 +641,28 @@ class Guarda:
             while args[:1] == ["--no-pager"] or (args[:1] == ["-C"] and len(args) > 1):
                 args = args[1:] if args[0] == "--no-pager" else args[2:]
         chave = " ".join([prog, *args[:2 if prog == "gh" else 1]]) if prog in ("git", "gh", "forge-check") else prog
-        if any(a.startswith("--output") for a in args):
+        if any(abreviacao_de(a, ("--output",)) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave} --output` grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
+        if prog == "git":
+            self.git_so_leitura(chave, args[1:])
         if "/" in prog or chave not in self.leitura["comandos"]:
             self.barrar("R-CONFORMIDADE", f"`{chave}` fora da lista do papel só de leitura ({self.papel})", DICA_LEITURA)
+
+    def git_so_leitura(self, chave, args):
+        """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
+        `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas."""
+        for a in args:
+            if chave == "git ls-remote":
+                if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):
+                    self.barrar("R-CONFORMIDADE", f"`git ls-remote` com a opção `{a}`, fora das de leitura "
+                                                  f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+                if not a.startswith("-") and "::" in a:
+                    self.barrar("R-CONFORMIDADE", f"`git ls-remote` com transporte `{a.split('::', 1)[0]}::`, que executa "
+                                                  f"programa (papel só de leitura: {self.papel})", DICA_LEITURA)
+            elif abreviacao_de(a, GIT_EXECUTA):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
 
     def da_atribuicao(self, atribuicoes, nome):
         """Valor de `NOME=` na própria linha do comando ou definido antes (`export`)."""

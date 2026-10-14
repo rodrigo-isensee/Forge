@@ -1,0 +1,20 @@
+{
+  "descricao": "xargs repassa ao comando seguinte, que é conferido: touch fora da lista.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x | xargs touch"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`touch` fora da lista"
+  }
+}
