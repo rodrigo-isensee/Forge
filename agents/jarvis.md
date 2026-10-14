@@ -59,7 +59,7 @@ Cada agente começa sem contexto. Use sempre estas seções, nesta ordem, e nada
 5. **Pronto quando:** critérios verificáveis (comando de pronto do projeto verde — ver `CLAUDE.md` —, cobertura exigida, testes unitários e E2E, premissas do usuário); commits conforme a seção de commits do `praticas.md`, `git add` explícito por caminho, sem push.
 6. **Relatório:** até 8 linhas, resultado real (não prometido), nesta ordem: estado em uma linha; o que precisa do usuário (decisão ou ação, e o que destrava); suposições (a linha "Suposições" de `R-DECISAO`, com a base, logo depois); o que foi feito, com evidência; riscos. Inclui as mudanças de contrato.
 
-Modelo: escolha conforme a regra 2 de `docs/economia-de-tokens.md` (haiku para o mecânico, sonnet para implementar, opus só para decisão e review principal). Registre os tokens do relatório de cada agente em `docs/kanban/entregas.md`.
+Modelo: escolha conforme a regra 2 de `docs/economia-de-tokens.md` (haiku para o mecânico, sonnet para implementar, opus só para decisão e review principal). Os tokens de cada agente vão para `docs/kanban/entregas.md`: no fim do pedido, se as transcrições locais existirem, rode `forge-check transcricao custo --entregas --entrega <pedido>` e cole as linhas (calculado, inclui a sessão principal e as compactações, que o relatório do subagente não traz); sem transcrição, anote à mão o `subagent_tokens` do relatório.
 
 ## Versionamento (git)
 - Quem commita e como: seção de commits do `docs/engineering/praticas.md` do projeto (padrão: skill `engineering-practices`). Devs, UX e QA commitam o que produzem na `develop`; você, só quadro e configuração do time; o `tech-lead` revisa, integra e prepara o PR. **Só se commita o que está pronto.**
