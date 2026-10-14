@@ -1165,21 +1165,49 @@ RE_SHA = re.compile(r"(?<![0-9A-Za-z])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{
 RE_PR = re.compile(r"(?<![0-9A-Za-z&])#(\d{1,6})(?!\d)")
 RE_PUSH = re.compile(r"\bpush\b[^.\n]{0,25}\b(?:aceito|entrou|enviado|feito|realizado|passou)\b|\benviei\b[^.\n]{0,25}\b(?:branch|origin)\b", re.I)
 RE_MESCLADO = re.compile(r"\bmescl(?:ado|ada|ei|ou)\b|\bmerged\b", re.I)
-RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)", re.I)
-RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+\S+|\[new (?:branch|tag)\]")
-RE_SAIDA_MESCLADO = re.compile(r"merged|merge pull request|mergedat|mesclad", re.I)
+RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)|\b(\d{1,6})\s+OK\b", re.I)
+RE_NEGACAO = re.compile(r"\b(?:n[ãa]o|sem|nunca)\b", re.I)
+# Saída de `git push`; a de `git fetch` tem o mesmo formato, mas o destino é `origin/...`.
+RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+(?!origin/)\S+|\[new (?:branch|tag)\]")
+
+
+def sem_negacao(texto, achado):
+    """Falso se a ocorrência vem negada ("não mesclei", "o push não passou") na mesma frase."""
+    inicio = max(texto.rfind(".", 0, achado.start()), texto.rfind("\n", 0, achado.start()), achado.start() - 30)
+    return RE_NEGACAO.search(texto[inicio + 1:achado.end()]) is None
 
 
 def afirmacoes_do_relatorio(texto):
-    """Afirmações verificáveis do texto: conjunto de (tipo, valor); `valor` é o que deve aparecer nas saídas."""
+    """Afirmações verificáveis do texto: conjunto de (tipo, valor); `valor` é o que deve aparecer nas saídas.
+    Em "mesclado", `valor` são os PRs citados no relatório (separados por vírgula; vazio se nenhum)."""
     achadas = {("sha", m.group(0)) for m in RE_SHA.finditer(texto)}
-    achadas |= {("pr", m.group(1)) for m in RE_PR.finditer(texto)}
-    if RE_PUSH.search(texto):
+    prs = sorted({m.group(1) for m in RE_PR.finditer(texto)}, key=int)
+    achadas |= {("pr", n) for n in prs}
+    if any(sem_negacao(texto, m) for m in RE_PUSH.finditer(texto)):
         achadas.add(("push", ""))
-    if RE_MESCLADO.search(texto):
-        achadas.add(("mesclado", ""))
-    achadas |= {("testes", m.group(1) or m.group(2)) for m in RE_TESTES.finditer(texto)}
+    if any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)):
+        achadas.add(("mesclado", ",".join(prs)))
+    achadas |= {("testes", m.group(1) or m.group(2) or m.group(3)) for m in RE_TESTES.finditer(texto)}
     return achadas
+
+
+def merge_provado(numero, saidas):
+    """Prova positiva de merge: objeto JSON do PR com state MERGED ou mergedAt não nulo, ou a saída de `gh pr merge`.
+    `numero` vazio vale para qualquer PR. `"mergedAt": null` e "Merge pull request" de `git log` não provam."""
+    n = re.escape(numero) if numero else r"\d+"
+    for obj in re.finditer(r"\{[^{}]*\}", saidas):
+        o = obj.group(0)
+        if re.search(rf'"number": ?{n}(?!\d)', o) and re.search(r'"state": ?"MERGED"|"mergedAt": ?"\d', o):
+            return True
+    return re.search(rf"\bmerged pull request #{n}(?!\d)", saidas, re.I) is not None
+
+
+def testes_ok(numero, saidas):
+    """`Ran N tests` seguido de `OK` (sem FAILED), `OK (N tests)` ou `N passed` sem `failed` na linha."""
+    if re.search(rf"\bRan {numero} tests?\b[^\n]*\n\s*OK\b|\bOK \({numero} tests?\)", saidas):
+        return True
+    return any(re.search(rf"\b{numero} (?:passed|tests? passed)\b", l) and not re.search(r"fail", l, re.I)
+               for l in saidas.splitlines())
 
 
 def tem_lastro(afirmacao, saidas):
@@ -1191,8 +1219,8 @@ def tem_lastro(afirmacao, saidas):
     if tipo == "push":
         return RE_SAIDA_PUSH.search(saidas) is not None
     if tipo == "mesclado":
-        return RE_SAIDA_MESCLADO.search(saidas) is not None
-    return re.search(rf"\bRan {valor} tests?\b|\b{valor} (?:tests?|testes|passed)\b|\bOK \({valor} tests?\)", saidas) is not None
+        return any(merge_provado(n, saidas) for n in (valor.split(",") if valor else [""]))
+    return testes_ok(valor, saidas)
 
 
 def textos_do_conteudo(conteudo):
@@ -1362,7 +1390,7 @@ def taxa(parte, total):
     return f"{100 * parte / total:.1f}%" if total else "n/a"
 
 
-def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos):
+def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den):
     """Anuncia (stderr), lê e imprime uma linha por sessão e o total, só com números. `campos`: nomes das colunas."""
     alvo = alvo or str(pasta_padrao_de_transcricoes())
     try:
@@ -1379,10 +1407,10 @@ def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos):
     soma = [0] * len(campos)
     for sessao, valores in sorted(medida.items(), key=lambda x: int(x[0][1:])):
         print(f"{rotulo}: sessao {sessao}: " + " ".join(f"{c}={v}" for c, v in zip(campos, valores))
-              + f" taxa={taxa(valores[-1], valores[-2] if rotulo == 'lastro' else valores[0])}")
+              + f" taxa={taxa(valores[-1], valores[den])}")
         soma = [a + b for a, b in zip(soma, valores)]
     print(f"{rotulo}: total: sessoes={len(medida)} " + " ".join(f"{c}={v}" for c, v in zip(campos, soma))
-          + f" taxa={taxa(soma[-1], soma[-2] if rotulo == 'lastro' else soma[0])}")
+          + f" taxa={taxa(soma[-1], soma[den])}")
     return 0
 
 
@@ -1503,9 +1531,9 @@ def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega)
     if a.cmd == "transcricao" and a.acao == "lastro":
-        return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"))
+        return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1)
     if a.cmd == "transcricao" and a.acao == "decisoes":
-        return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"))
+        return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0)
     if a.cmd == "fontes":
         linhas, codigo = cmd_fontes()
         for linha in linhas:
