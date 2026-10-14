@@ -247,6 +247,119 @@ def fora_da_gramatica_de_leitura(linha):
     return None
 
 
+# ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
+CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
+INICIO_DE_PALAVRA = " \t\n;&|()"
+# O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
+# palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
+HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
+
+
+def corpos_de_heredoc(linha, inicio, delimitadores):
+    """Pula os corpos dos heredocs pendentes a partir de `inicio` (o começo da linha seguinte ao operador). Devolve o
+    índice depois do último delimitador, ou None se um corpo não termina numa linha igual ao delimitador ou tem uma
+    linha que só é igual com espaços em volta (o `tirar_heredocs` a tomaria por fim, o bash não)."""
+    j = inicio
+    for delimitador in delimitadores:
+        while True:
+            if j > len(linha):
+                return None
+            k = linha.find("\n", j)
+            atual = linha[j:] if k < 0 else linha[j:k]
+            j = len(linha) + 1 if k < 0 else k + 1
+            if atual == delimitador:
+                break
+            if atual.strip() == delimitador:
+                return None
+    return min(j, len(linha))
+
+
+def construcao_nao_modelada(linha):
+    """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
+    simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,
+    `${`, `$X`, `$@`, `$1`...), `\\` seguido de quebra de linha; fora de aspas, chaves e `case`; e todo `<<` que não
+    seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas ou escapado numa linha com várias linhas). As aspas
+    são lidas em sequência, e `$(` abre um contexto novo de aspas, como no bash; `\\` escapa o caractere seguinte fora
+    de aspas e, entre duplas, `$`, crase, `"` e `\\`."""
+    pilha = [["fora", 0]]  # contexto: fora | subst (com a profundidade de parênteses) | simples | duplas
+    esqueleto, pendentes, modelados, i, n = [], [], set(), 0, len(linha)
+    while i < n:
+        c, seguinte = linha[i], linha[i + 1:i + 2]
+        contexto = pilha[-1]
+        if contexto[0] == "simples":
+            if c == "'":
+                pilha.pop()
+            elif c == "\n" and pendentes:
+                return "heredoc"
+            i += 1
+            continue
+        if c == "\\":
+            if seguinte == "\n":
+                return "\\ + quebra de linha"
+            if contexto[0] != "duplas" or seguinte in ('$', '`', '"', '\\'):
+                i += 1  # o caractere seguinte é literal
+        elif c == "`":
+            return "crase"
+        elif c == "$":
+            if seguinte != "(":
+                return "$" + seguinte if seguinte and not seguinte.isspace() else "$"
+            pilha.append(["subst", 0])
+            i += 1
+        elif contexto[0] == "duplas":
+            if c == '"':
+                pilha.pop()
+            elif c == "\n" and pendentes:
+                return "heredoc"
+        elif c == "'":
+            pilha.append(["simples", 0])
+            esqueleto.append("_")
+        elif c == '"':
+            pilha.append(["duplas", 0])
+            esqueleto.append("_")
+        elif c == "#":
+            if re.search(r"\n[ \t]*\S", linha[i:]):
+                return "# + outra linha"
+            if i == 0 or linha[i - 1] in INICIO_DE_PALAVRA:
+                break  # comentário até o fim da linha
+            esqueleto.append(c)
+        elif c in "{}":
+            return "chaves"
+        elif linha.startswith("<<", i):
+            m = HEREDOC_MODELADO.match(linha, i)
+            if m is None:
+                return "heredoc"
+            pendentes.append(m.group(2))
+            modelados.add(i)
+            esqueleto.append(" ")
+            i = m.end()
+            continue
+        elif c == "\n" and pendentes:
+            fim = corpos_de_heredoc(linha, i + 1, pendentes)
+            if fim is None:
+                return "heredoc"
+            modelados.update(range(i + 1, fim))
+            pendentes, i = [], fim
+            esqueleto.append("\n")
+            continue
+        else:
+            if contexto[0] == "subst" and c == "(":
+                contexto[1] += 1
+            elif contexto[0] == "subst" and c == ")":
+                if contexto[1]:
+                    contexto[1] -= 1
+                else:
+                    pilha.pop()
+            esqueleto.append(c)
+        i += 1
+    if pendentes:
+        return "heredoc"
+    # O `tirar_heredocs` acha `<<` em qualquer lugar da linha física (entre aspas, depois de `\\`): com várias linhas,
+    # todo `<<` fora dos heredocs modelados e dos corpos deles é não modelado.
+    if "\n" in linha and any(m.start() not in modelados for m in re.finditer("<<", linha)):
+        return "heredoc"
+    return "case" if CASE.search("".join(esqueleto)) else None
+
+
 def segmentos(comando):
     """Os comandos simples da linha (listas de palavras), sem os alvos de redirecionamento: os de `comandos`, inclusive
     o conteúdo de cada substituição. Aspas desbalanceadas levantam ValueError."""

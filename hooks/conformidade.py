@@ -19,7 +19,8 @@ import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar,
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
+                    em_contrib, executar,
                     fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto,
                     sem_atribuicoes, tem_manifesto_do_forge)
 
@@ -489,12 +490,16 @@ class Guarda:
             return
         if self.leitura and nivel == 0:
             self.gramatica_de_leitura(comando)
+        # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
+        # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
+        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
         original = comando
         comando, corpos = tirar_heredocs(comando)
         comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
         try:
             partes = list(comandos(comando))
         except ValueError:
+            self.nao_modelada(achado)
             if nivel:
                 self.ilegivel(comando, pasta)
             return  # aspas desbalanceadas: o próprio shell vai recusar
@@ -527,6 +532,14 @@ class Guarda:
                 self.bash(corpo, pasta, nivel + 1)
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
+        self.nao_modelada(achado)
+
+    def nao_modelada(self, achado):
+        """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
+        if achado is not None:
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela",
+                        "branch literal, um comando por linha, sem # entre linhas, "
+                        "$, crase, chaves nem case; heredoc só <<'FIM'")
 
     def gramatica_de_leitura(self, linha):
         """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
