@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f5
 branch: melhoria/primeiro-uso-f5
-commit: 7512584
+commit: c8534ec
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -154,3 +154,14 @@ Worktree destacada em `7512584`, sem o Actions:
 - versão e changelog: 0.12.0 igual à da `develop`, 4 linhas novas em `[Não publicado]`. Ok.
 
 Parecer: **aprovado**. Nenhum caminho testado perde trabalho do projeto ou deixa o usuário sem o plugin sem recuperação. Os recomendados podem ir num PR seguinte. O merge continua dependendo do rótulo `afrouxa-regra` do dono, aplicado depois do último push.
+
+## Review da correção do QA (head `c8534ec`)
+
+Escopo: F5-01 (recusa dentro do Claude Code) e F5-02 (mensagens e `FORGE_SEM_DOUTOR`). Diff de `de2cfbe` a `c8534ec`.
+
+- **A recusa não afrouxa nada.** `recusar_dentro_do_claude` só acrescenta uma saída 2 antes do teste de terminal, em `forge-atualizar` e `forge-voltar-versao`; as demais travas (opção desconhecida, terminal, árvore limpa, confirmação) seguem iguais. Detecta `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` ou ancestral `claude` em `/proc` (falha de leitura vira "não sei", e a trava de terminal e o hook continuam). Limite aceito: quem desvincula o processo (reparent para o init) e limpa o ambiente escapa, mas então já contornou o hook de propósito; a defesa é em camadas, não única.
+- **`FORGE_SEM_DOUTOR`.** Lido só em `forge-upgrade`, onde apenas pula um `forge-doutor --rapido` informativo (`check=False`). O `forge-atualizar` mede o doutor por conta própria antes e depois e define a variável só no subprocesso. Um agente que a defina evita um aviso: efeito cosmético, sem caminho para pular o doutor da atualização nem qualquer checagem de segurança.
+- **Testes.** Limpar `CLAUDECODE`/`CLAUDE_CODE_ENTRYPOINT` do ambiente do subprocesso é necessário (a suíte roda dentro do Claude) e não mascara nada: há testes próprios que definem `CLAUDECODE=1` e exigem a recusa, e cobrem o ancestral. Mensagens únicas cobertas por teste.
+- **Bateria (worktree destacada em `c8534ec`):** `python3 -m unittest discover -s tests` 459 OK; `scripts/validar-plugin.sh` passou; `shellcheck` (lista do CI mais `bin/forge`) limpo.
+
+Parecer: **aprovado**. Os recomendados anteriores seguem para PR seguinte; o rótulo `afrouxa-regra` do dono continua obrigatório.
