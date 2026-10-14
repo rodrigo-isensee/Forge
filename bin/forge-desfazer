@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Forge: volta ao último ponto bom, sem apagar histórico. Rode no terminal, dentro do projeto.
+# Uso: forge desfazer              mudanças não salvas: guardadas de lado (git stash); senão, o último registro: git revert
+#      forge desfazer --recuperar  traz de volta o que foi guardado de lado
+# Mostra em linguagem simples o que vai voltar e só age com "sim". Nunca usa --force nem reset --hard.
+set -euo pipefail
+
+die() { echo "forge desfazer: $*" >&2; exit 1; }
+confirmar() { # confirmar "pergunta" -> 0 só com sim; fim da entrada conta como não
+  local resp=""
+  printf '%s [sim/não; Enter = não] ' "$1" >&2
+  read -r resp || true
+  [ -t 0 ] || echo >&2
+  case "$resp" in s|S|sim|Sim|SIM) return 0 ;; *) return 1 ;; esac
+}
+nada() { echo "Tudo bem, não mudei nada." >&2; exit 0; }
+
+recuperar=0
+for arg in "$@"; do
+  case "$arg" in
+    --recuperar) recuperar=1 ;;
+    *) die "opção desconhecida: $arg (use 'forge desfazer' ou 'forge desfazer --recuperar')." ;;
+  esac
+done
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+  || die "esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo."
+cd "$(git rev-parse --show-toplevel)"
+
+if [ "$recuperar" -eq 1 ]; then
+  linha="$(git stash list | grep -m1 'desfeito' || true)"
+  [ -n "$linha" ] || die "não há nada guardado de lado para recuperar."
+  ref="${linha%%:*}"
+  echo "Vou trazer de volta o que foi guardado de lado (${linha##*: }). Arquivos:" >&2
+  git stash show --include-untracked --name-only "$ref" | sed 's/^/  - /' >&2
+  confirmar "Trago de volta?" || nada
+  git stash pop -q "$ref" || die "não consegui trazer de volta sem conflito com o que está na pasta agora. O material guardado continua guardado; nada foi perdido."
+  echo "Pronto: o que estava guardado voltou para a pasta."
+  exit 0
+fi
+
+ramo="$(git branch --show-current)"
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Estes arquivos têm mudanças que ainda não foram salvas:" >&2
+  git status --short | sed 's/^/  /' >&2
+  echo "Vou guardá-los de lado e a pasta volta ao último ponto salvo. Nada é apagado: 'forge desfazer --recuperar' traz tudo de volta." >&2
+  confirmar "Guardo de lado?" || nada
+  git stash push -q -u -m "desfeito $(date +%Y%m%d-%H%M%S)"
+  echo "Pronto: a pasta voltou ao último ponto salvo. Para trazer de volta: forge desfazer --recuperar"
+  exit 0
+fi
+
+case "$ramo" in
+  ""|main|develop|homolog)
+    die "você está na branch ${ramo:-sem nome}, que é uma das principais do projeto; aqui eu não desfaço registros. Troque para a sua branch de trabalho (forge salvar cria uma) e rode de novo." ;;
+esac
+
+n="$(git rev-list --parents -n1 HEAD | wc -w)"
+[ "$n" -ne 1 ] || die "este é o primeiro registro do projeto; não há ponto anterior para voltar."
+[ "$n" -le 2 ] || die "o último registro é uma mesclagem (junção de duas linhas de trabalho). Não desfaço isso sozinho; peça ajuda ao Jarvis."
+
+echo "O último registro foi: \"$(git log -1 --format=%s)\" ($(git log -1 --format=%cd --date=format:'%d/%m/%Y %H:%M'))." >&2
+echo "Arquivos que ele mexeu (voltam ao que eram antes):" >&2
+git show --name-only --format= HEAD | sed 's/^/  - /' >&2
+enviado=0
+if git show-ref --verify --quiet "refs/remotes/origin/$ramo" && git merge-base --is-ancestor HEAD "origin/$ramo"; then
+  enviado=1
+  echo "Ele já está no GitHub; por isso crio um novo registro que desfaz o anterior. O histórico não é apagado." >&2
+else
+  echo "Crio um novo registro que desfaz o anterior. O histórico não é apagado." >&2
+fi
+confirmar "Desfaço?" || nada
+
+git revert --no-edit HEAD >/dev/null || { git revert --abort 2>/dev/null || true; die "não consegui desfazer sozinho (há conflito com outras mudanças). Nada foi alterado; peça ajuda ao Jarvis."; }
+echo "Pronto: o último registro foi desfeito."
+if [ "$enviado" -eq 1 ]; then
+  git push -q origin "$ramo" || die "desfeito aqui na pasta, mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' quando puder."
+  echo "Enviado ao GitHub."
+fi

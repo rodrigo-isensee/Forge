@@ -18,7 +18,10 @@ GH_FALSO = r"""#!/usr/bin/env bash
 echo "gh $*" >> "$FAKE_DIR/gh.log"
 remoto() { echo "$FAKE_DIR/remotos/$1.git"; }
 case "$1 $2" in
-  "auth status") [ ! -e "$FAKE_DIR/sem-auth" ] || { echo "You are not logged into any GitHub hosts." >&2; exit 1; } ;;
+  "auth status")
+    [ ! -e "$FAKE_DIR/sem-rede-auth" ] || { echo "error connecting to api.github.com
+check your internet connection or https://githubstatus.com" >&2; exit 1; }
+    [ ! -e "$FAKE_DIR/sem-auth" ] || { echo "You are not logged into any GitHub hosts." >&2; exit 1; } ;;
   "api user")
     [ ! -e "$FAKE_DIR/sem-rede" ] || { echo "error connecting to api.github.com" >&2; exit 1; }
     if [ -e "$FAKE_DIR/conta" ]; then cat "$FAKE_DIR/conta"; else echo "pessoa-teste"; fi ;;
@@ -83,8 +86,8 @@ class NovoProjeto(unittest.TestCase):
         return sorted(pasta.glob("*.json")) if pasta.exists() else []
 
     def test_caminho_feliz(self):
-        pasta = self.tmp / "projetos" / "meu-app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        pasta = self.home / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         gh = self.log("gh.log")
         self.assertRegex(gh, r"repo create pessoa-teste/meu-app .*--private")
@@ -107,9 +110,9 @@ class NovoProjeto(unittest.TestCase):
         self.assertIn("forge:novo-projeto", claude)
 
     def test_recusa_na_confirmacao_nao_cria_o_repositorio(self):
-        pasta = self.tmp / "meu-app"
+        pasta = self.home / "meu-app"
         for resposta in ("n\n", "\n"):
-            r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\n{resposta}")
+            r = self.forge("novo-projeto", entrada=f"meu-app\n{resposta}")
             self.assertNotEqual(r.returncode, 0)
             saida = r.stdout + r.stderr
             self.assertIn("Vou criar o repositório privado pessoa-teste/meu-app", saida)
@@ -119,22 +122,22 @@ class NovoProjeto(unittest.TestCase):
             self.assertEqual(self.log("claude.log"), "")
 
     def test_aceite_na_confirmacao_cria_o_repositorio(self):
-        pasta = self.tmp / "meu-app"
-        r = self.forge("novo-projeto", entrada=f"meu-app\n{pasta}\ns\n")
+        pasta = self.home / "meu-app"
+        r = self.forge("novo-projeto", entrada=f"meu-app\ns\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("Vou criar o repositório privado pessoa-teste/meu-app", r.stdout + r.stderr)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
 
     def test_sim_cria_sem_perguntar(self):
-        pasta = self.tmp / "meu-app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        pasta = self.home / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertNotIn("Confirma?", r.stdout + r.stderr)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
 
     def test_estado_de_retomada_nao_guarda_segredo(self):
-        pasta = self.tmp / "meu-app"
-        self.assertEqual(self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n").returncode, 0)
+        pasta = self.home / "meu-app"
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada=f"meu-app\n").returncode, 0)
         arquivos = self.estados() + [pasta / ".forge/novo-projeto.json"]
         self.assertTrue(arquivos[0].exists())
         for arq in arquivos:
@@ -146,8 +149,8 @@ class NovoProjeto(unittest.TestCase):
 
     def test_sem_gh_auth_nao_cria_nada(self):
         (self.fake / "sem-auth").write_text("")
-        pasta = self.tmp / "meu-app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        pasta = self.home / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("gh auth login", r.stderr)
         self.assertNotIn("repo create", self.log("gh.log"))
@@ -156,8 +159,8 @@ class NovoProjeto(unittest.TestCase):
 
     def test_nome_existente_pergunta_outro_e_nao_escreve_no_existente(self):
         subprocess.run(["git", "init", "-q", "--bare", str(self.remoto())], env=self.env, check=True)
-        pasta = self.tmp / "outro-app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\noutro-app\n{pasta}\n")
+        pasta = self.home / "outro-app"
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\nnão\noutro-app\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertIn("já existe", r.stdout + r.stderr)
         criados = re.findall(r"repo create (\S+)", self.log("gh.log"))
@@ -173,8 +176,8 @@ class NovoProjeto(unittest.TestCase):
 
     def test_retomada_depois_de_parar_no_meio(self):
         (self.fake / "falha-clone").write_text("")
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         primeira = self.forge("novo-projeto", "--sim", entrada=entrada)
         self.assertNotEqual(primeira.returncode, 0)
         self.assertEqual(self.log("claude.log"), "")
@@ -190,16 +193,16 @@ class NovoProjeto(unittest.TestCase):
         self.assertEqual(sorted(ramos), ["develop", "homolog", "main"])
 
     def test_rodar_de_novo_com_tudo_pronto_so_reabre_o_claude(self):
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         self.assertEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
         self.assertEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
         self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
         self.assertEqual(self.log("claude.log").count("cwd="), 2)
 
     def _recusa_e_depois_repo_de_fora(self, preparar):
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
         preparar()
@@ -229,8 +232,8 @@ class NovoProjeto(unittest.TestCase):
         self._recusa_e_depois_repo_de_fora(lambda: (self.fake / "publico").write_text(""))
 
     def test_retomada_aceita_repositorio_vazio_e_privado(self):
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
         r = self.forge("novo-projeto", "--sim", entrada=entrada)
@@ -239,10 +242,10 @@ class NovoProjeto(unittest.TestCase):
 
     def test_nome_ou_email_de_commit_vazios_sao_recusados(self):
         (self.home / "gitconfig").write_text("", encoding="utf-8")
-        pasta = self.tmp / "meu-app"
+        pasta = self.home / "meu-app"
         for resposta in ("\n", "Pessoa\n\n"):
             with self.subTest(resposta=resposta):
-                r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n{resposta}")
+                r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{resposta}")
                 self.assertNotEqual(r.returncode, 0)
                 self.assertIn("git config", r.stdout + r.stderr)
                 self.assertEqual(self.log("claude.log"), "")
@@ -252,8 +255,8 @@ class NovoProjeto(unittest.TestCase):
 
     def test_conta_diferente_da_gravada_no_estado_para(self):
         (self.fake / "falha-clone").write_text("")
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         self.assertNotEqual(self.forge("novo-projeto", "--sim", entrada=entrada).returncode, 0)
         (self.fake / "conta").write_text("outra-pessoa\n")
         r = self.forge("novo-projeto", "--sim", entrada=entrada)
@@ -275,7 +278,7 @@ class NovoProjeto(unittest.TestCase):
         self.assertNotIn("repo create", self.log("gh.log"))
 
     def test_enter_no_nome_usa_o_nome_da_pasta_atual(self):  # BUG-02, CA-4
-        r = self.forge("novo-projeto", "--sim", entrada="\n\n")
+        r = self.forge("novo-projeto", "--sim", entrada="\n")
         self.assertEqual(r.returncode, 0, self._saida(r))
         esperado = self.tmp.name
         self.assertIn(f"repo create pessoa-teste/{esperado} ", self.log("gh.log"))
@@ -283,7 +286,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_403_oferece_as_opcoes_do_roteiro(self):  # BUG-04, CA-7
         (self.fake / "sem-permissao").write_text("")
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{self.tmp / 'meu-app'}\n")
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\n")
         self.assertNotEqual(r.returncode, 0)
         saida = self._saida(r)
         for opcao in ("A)", "B)", "C)"):
@@ -300,8 +303,8 @@ class NovoProjeto(unittest.TestCase):
         self.assertLess(saida.index("Nada é criado"), saida.index("Qual o nome do projeto?"))
 
     def test_mensagens_sem_jargao_cru(self):  # BUG-06
-        pasta = self.tmp / "meu-app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n{pasta}\n")
+        pasta = self.home / "meu-app"
+        r = self.forge("novo-projeto", "--sim", entrada=f"meu-app\n")
         saida = self._saida(r)
         self.assertNotIn("main, develop e homolog", saida)
         self.assertNotIn("commit inicial", saida)
@@ -309,8 +312,8 @@ class NovoProjeto(unittest.TestCase):
 
     def test_retomada_mostra_os_passos_em_texto_e_nao_lista_python(self):  # BUG-06
         (self.fake / "falha-clone").write_text("")
-        pasta = self.tmp / "meu-app"
-        entrada = f"meu-app\n{pasta}\n"
+        pasta = self.home / "meu-app"
+        entrada = f"meu-app\n"
         self.forge("novo-projeto", "--sim", entrada=entrada)
         r = self.forge("novo-projeto", "--sim", entrada=entrada)
         saida = self._saida(r)
@@ -319,19 +322,93 @@ class NovoProjeto(unittest.TestCase):
         self.assertNotIn("repo_criado", saida)
 
     def test_nome_com_acento_espaco_e_maiuscula_e_normalizado(self):  # BUG-05
-        pasta = self.tmp / "app"
-        r = self.forge("novo-projeto", "--sim", entrada=f"Meu Aplicação Útil\n{pasta}\n")
+        r = self.forge("novo-projeto", "--sim", entrada=f"Meu Aplicação Útil\n")
         self.assertEqual(r.returncode, 0, self._saida(r))
         self.assertIn("meu-aplicacao-util", self._saida(r))
         self.assertIn("repo create pessoa-teste/meu-aplicacao-util ", self.log("gh.log"))
 
     def test_normalizacao_pede_confirmacao_e_aceita_recusa(self):  # BUG-05
-        pasta = self.tmp / "app"
-        r = self.forge("novo-projeto", entrada=f"MeuApp\nn\nmeu-app\n{pasta}\ns\n")
+        r = self.forge("novo-projeto", entrada=f"MeuApp\nn\nmeu-app\ns\n")
         self.assertEqual(r.returncode, 0, self._saida(r))
         self.assertIn("meuapp", self._saida(r))
         self.assertIn("repo create pessoa-teste/meu-app ", self.log("gh.log"))
         self.assertNotIn("pessoa-teste/meuapp", self.log("gh.log"))
+
+
+    def test_nao_pergunta_a_pasta_e_usa_home_nome(self):  # BUG-03
+        r = self.forge("novo-projeto", entrada="meu-app\ns\n")
+        self.assertEqual(r.returncode, 0, self._saida(r))
+        self.assertNotIn("Em que pasta", self._saida(r))
+        self.assertIn(str(self.home / "meu-app"), self._saida(r))
+        self.assertTrue((self.home / "meu-app/.git").is_dir())
+
+    def test_roteiro_tem_no_maximo_10_interacoes(self):  # BUG-03, CA-3
+        texto = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
+        perguntas = texto.split("## 3.")[1].split("\n## ")[0]
+        da_skill = len(re.findall(r"(?m)^\d+\. \*\*", perguntas)) + 2  # confirmação do PR e primeiro pedido
+        terminal = 2  # nome e confirmação da criação
+        self.assertLessEqual(da_skill + terminal, 10)
+
+    def test_pasta_apagada_depois_de_concluir_baixa_de_novo(self):  # BUG-07
+        pasta = self.home / "meu-app"
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada="meu-app\n").returncode, 0)
+        shutil.rmtree(pasta)
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\n")
+        saida = self._saida(r)
+        self.assertEqual(r.returncode, 0, saida)
+        self.assertIn("não existe mais", saida)
+        self.assertNotIn("fatal", saida)
+        self.assertTrue((pasta / ".git").is_dir())
+        self.assertEqual(self.log("gh.log").count("repo clone"), 2)
+        self.assertEqual(len(re.findall(r"repo create", self.log("gh.log"))), 1)
+
+    def test_pasta_apagada_e_recusa_nao_baixa_nem_mostra_erro_cru(self):  # BUG-07
+        pasta = self.home / "meu-app"
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada="meu-app\n").returncode, 0)
+        shutil.rmtree(pasta)
+        r = self.forge("novo-projeto", entrada="meu-app\nnão\n")
+        saida = self._saida(r)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("não existe mais", saida)
+        self.assertNotIn("fatal", saida)
+        self.assertFalse(pasta.exists())
+
+    def test_sem_rede_no_auth_nao_diz_que_falta_login(self):  # BUG-08
+        (self.fake / "sem-rede-auth").write_text("")
+        r = self.forge("novo-projeto", "--sim", entrada="meu-app\n")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertRegex(r.stderr, r"(?i)conex|internet|rede")
+        self.assertNotIn("gh auth login", r.stderr)
+        self.assertNotIn("repo create", self.log("gh.log"))
+
+    def test_repositorio_vazio_existente_e_oferecido_no_nome(self):  # BUG-09
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        r = self.forge("novo-projeto", entrada="meu-app\nsim\n")
+        saida = self._saida(r)
+        self.assertEqual(r.returncode, 0, saida)
+        self.assertRegex(saida, r"(?i)já existe.*vazio")
+        self.assertNotIn("repo create", self.log("gh.log"))
+        self.assertTrue((self.home / "meu-app/.git").is_dir())
+
+    def test_repositorio_existente_com_conteudo_nao_e_oferecido(self):  # BUG-09
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        semente = self.tmp / "semente"
+        subprocess.run(["git", "clone", "-q", str(self.remoto()), str(semente)], env=self.env, check=True,
+                       capture_output=True)
+        (semente / "a.txt").write_text("x")
+        subprocess.run(["git", "-C", str(semente), "add", "a.txt"], env=self.env, check=True)
+        subprocess.run(["git", "-C", str(semente), "commit", "-q", "-m", "x"], env=self.env, check=True)
+        subprocess.run(["git", "-C", str(semente), "push", "-q", "origin", "main"], env=self.env, check=True,
+                       capture_output=True)
+        r = self.forge("novo-projeto", entrada="meu-app\nmeu-app-2\ns\n")
+        self.assertEqual(r.returncode, 0, self._saida(r))
+        self.assertNotIn("Quer usar", self._saida(r))
+        self.assertEqual(re.findall(r"repo create (\S+)", self.log("gh.log")), ["pessoa-teste/meu-app-2"])
+
+    def test_pergunta_de_normalizacao_sem_colchete_duplicado(self):  # BUG-10
+        r = self.forge("novo-projeto", entrada="MeuApp\nn\nmeu-app\ns\n")
+        self.assertIn("Pode ser?", self._saida(r))
+        self.assertNotIn("[sim] [sim]", self._saida(r))
 
 
 class Despachante(unittest.TestCase):
@@ -379,6 +456,15 @@ class PerfilEJarvis(unittest.TestCase):
         self.assertIn("forge:iniciar-projeto", texto)
         self.assertIn("gh auth login", texto)
         self.assertRegex(texto, r"(?i)nunca.*(token|senha)")
+
+    def test_skill_conduz_o_primeiro_pedido_guiado_e_cita_salvar_e_desfazer(self):  # F2, arquitetura 2.8
+        texto = (RAIZ / "skills/novo-projeto/SKILL.md").read_text(encoding="utf-8")
+        guiado = texto.split("## 5.")[0].split("## 4.")[1]
+        for trecho in ("pedido de exemplo", "protótipo", "aprovação", "entrega", "depois"):
+            self.assertIn(trecho, guiado, trecho)
+        self.assertIn("forge salvar", texto)
+        self.assertIn("forge desfazer", texto)
+        self.assertIn("quem mescla na `main` é a pessoa", texto)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# Forge: salva o trabalho (commit e envio ao GitHub) na branch de trabalho. Rode no terminal, dentro do projeto.
+# Uso: forge salvar ["mensagem"]
+# Nunca grava na main, develop ou homolog: nelas, cria antes a branch trabalho/<AAAAMMDD-HHMM>.
+# Respeita o .gitignore, recusa arquivos de segredo (.env, chaves) e nunca força o envio.
+set -euo pipefail
+
+die() { echo "forge salvar: $*" >&2; exit 1; }
+protegida() { case "$1" in ""|main|develop|homolog) return 0 ;; *) return 1 ;; esac; }
+
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
+  || die "esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo."
+cd "$(git rev-parse --show-toplevel)"
+
+ramo="$(git branch --show-current)"
+mudancas="$(git status --porcelain)"
+
+if [ -z "$mudancas" ]; then
+  if ! protegida "$ramo" && git show-ref --verify --quiet "refs/remotes/origin/$ramo" \
+     && [ "$(git rev-list --count "origin/$ramo..HEAD")" -gt 0 ]; then
+    git push -q -u origin "$ramo" || die "não consegui enviar ao GitHub (rede ou permissão). O trabalho continua salvo aqui na pasta; tente de novo mais tarde."
+    echo "Enviei ao GitHub o que já estava salvo na branch $ramo."
+    exit 0
+  fi
+  echo "Não há nada novo para salvar."
+  exit 0
+fi
+
+segredos="$(git ls-files -o -m --exclude-standard | grep -E '(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx)$|(^|/)id_(rsa|ed25519)$' | grep -v '\.example$' || true)"
+[ -z "$segredos" ] || die "não salvei nada: estes arquivos parecem guardar segredos e não devem ir para o GitHub:
+$segredos
+Coloque-os no arquivo .gitignore (ou tire-os da pasta) e rode de novo."
+
+if protegida "$ramo"; then
+  novo="trabalho/$(date +%Y%m%d-%H%M)"
+  git show-ref --verify --quiet "refs/heads/$novo" && novo="trabalho/$(date +%Y%m%d-%H%M%S)"
+  git checkout -q -b "$novo"
+  echo "Você estava na branch ${ramo:-sem nome}, que é protegida; criei a branch de trabalho $novo para salvar."
+  ramo="$novo"
+fi
+
+mensagem="${*:-Salva o trabalho em $(date '+%d/%m/%Y %H:%M')}"
+git add -A
+git commit -q -m "$mensagem" || die "não consegui registrar as mudanças (uma verificação do projeto recusou). Veja a mensagem acima."
+echo "Trabalho registrado: \"$mensagem\"."
+git push -q -u origin "$ramo" \
+  || die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
+echo "Enviado ao GitHub, na branch $ramo."
