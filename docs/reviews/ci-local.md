@@ -3,14 +3,48 @@ tipo: review
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 2a2f10cb9de03b8c51f53535fcf1fc37dee64656
-parecer: reprovado
+commit: ad4f7344542ccbf3eeea8dac49acc712532f581d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
 # Code review: `scripts/ci-local` (CI local enquanto o Actions está sem cota, decisão A do dono)
 
-## Re-review da volta 2 (HEAD 2a2f10c)
+## Re-review da volta 3 (HEAD ad4f734)
+Escopo: `git diff 00f7d78..ad4f734`. São os commits 1bb79fc (correção), b86137d (textos) e ad4f734 (parecer de autor). Arquivos tocados: `scripts/ci-local`, `tests/test_ci_local.py`, `docs/devops/ci-local.md` e `CHANGELOG.md`.
+
+### Conferido (execução real nesta worktree, HEAD ad4f734)
+- `python3 -m unittest tests.test_ci_local -v`: **31 testes, OK** (0,05 s). Na volta 2 eram 27.
+- Suíte completa: **587 testes, OK** (178 s). O load estava em 1,30 (`uptime`, 18:56).
+- Sonda (`$TMPDIR/sonda3.py`, módulo carregado com `python3 -I`):
+  - Comando montado para o passo `false | true`, conforme o `shell:` do passo:
+    - sem `shell:`: `bash -e`, resultado `ok`, sem aviso;
+    - `shell: bash` e `shell: 'bash'`: `bash --noprofile --norc -eo pipefail`, resultado `falhou`, sem aviso;
+    - `shell: sh` e `shell: bash -e {0}`: `bash -e`, com aviso de chave ignorada.
+  - Os 7 `if:` reais de `ci.yml` e `catraca.yml` avaliam sem `ValueError` no contexto de um PR para `develop`. Todos os `github.*` usados em `if:` estão no contexto. `github.ref` aparece só em `concurrency`, fora do `if:`.
+
+### Bloqueante da volta 2
+- **B3: resolvido**, pela opção (a).
+  - `scripts/ci-local:300` usa `bash -e` quando o passo não declara `shell:` e `bash --noprofile --norc -eo pipefail` quando declara `shell: bash`. Isso bate com a tabela "unspecified" e "bash" da documentação do Actions.
+  - O teste foi invertido: `test_sem_shell_nao_ha_pipefail_como_no_github` espera `OK`. Entraram dois testes novos: `test_shell_bash_declarado_ativa_pipefail` e `test_leitor_guarda_o_shell_do_passo`.
+  - Textos: os pontos citados no B3 (`scripts/ci-local:10`, o comentário em `:299`, o teste, `docs/devops/ci-local.md:28` e `CHANGELOG.md:8`) agora descrevem os dois casos. `grep "como no GitHub"` não acha mais nenhum "-eo pipefail como no GitHub". O "como no GitHub" que restou, no nome do teste, descreve o caso sem `shell:`, e isso está correto.
+  - `avisos_do_workflow` deixou de avisar para `shell: bash`, que agora é respeitado. Os outros valores de `shell:` continuam rodando em `bash -e`, com aviso. É aceitável e não bloqueia.
+
+### Recomendados da volta 2
+- **N1: resolvido.** `scripts/ci-local:167-168`: uma chave `github.*` fora do contexto levanta `ValueError`, e o job vira "pulado por falta de suporte" (`failure` se for obrigatório), em vez de comparar com `""` em silêncio. Sonda: `github.__class__ == ''` e `github.ref == 'x'` dão `ValueError`. Teste: `test_contexto_github_desconhecido_no_if_e_sem_suporte`.
+- **N2: resolvido.** `scripts/ci-local:199-202`: o `RecursionError` vira `ValueError` com motivo "aninhada demais" e o texto truncado. Sonda: com 5000 parênteses, dá `ValueError`; com 50, avalia `True`. Teste: `test_if_aninhado_demais_e_sem_suporte_legivel`.
+- **N3:** sem mudança, como já era esperado (é o lado conservador).
+
+### Observação (não bloqueia)
+- O parecer de autor (`docs/devops/ci-local.md`, frontmatter) aponta `commit: b86137d`, e não o HEAD. O commit ad4f734 é o próprio parecer, então isso é coerente.
+
+### Para o `security-engineer`
+- Sem mudança desde a volta 2: os passos herdam o ambiente do usuário, o `gh` usa a credencial do usuário e o status é autodeclarado. Ele revisa a seguir.
+
+### Parecer (volta 3)
+**Aprovado.** B1 e B3 estão resolvidos, e N1 e N2 também, todos com teste e sonda. Próximo passo: o review do `security-engineer`. A decisão de tornar o `ci-local` check exigido continua com o dono.
+
+## Re-review da volta 2 (HEAD 2a2f10c, parecer: reprovado)
 Escopo: `git diff 0fb51fc..2a2f10c -- scripts/ci-local tests/test_ci_local.py docs/devops/ci-local.md CHANGELOG.md`. Os commits são b2f7adc (merge da `develop`), e901d63 (correção) e 2a2f10c (parecer de autor). O resto do diff do merge (`bin/forge-check`, `tests/test_forge.py`, `docs/reviews/anti-alucinacao-medicao.md`) veio da `develop` e não entra neste review.
 
 ### Conferido (execução real nesta worktree, HEAD 2a2f10c)
