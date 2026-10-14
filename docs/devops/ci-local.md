@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: e901d636c2c6e2105c35f72265f6e3b6e360fbb5
+commit: b86137d30060ae57ed3f2e76699bf698e4c51149
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-14
@@ -14,6 +14,8 @@ Parecer de autor (o devops escreveu o script); exige review independente do tech
 
 ## Parecer
 Aprovado, com as lacunas abaixo. `scripts/ci-local <PR> [--publicar]` lê os `run:` de `ci.yml` e `catraca.yml` do PR, roda numa worktree temporária no sha da cabeça, com `env` do passo e `RUNNER_TEMP` próprio por job. Nenhuma lógica do CI foi copiada. Só biblioteca padrão.
+
+Volta 2 (re-review B3, N1, N2): passos sem `shell:` voltaram a `bash -e {0}` como o GitHub (o pipefail da volta 1 era engano meu e do revisor); `shell: bash` declarado usa `-eo pipefail`. `if:` com `github.*` desconhecido ou aninhado demais vira "sem suporte" com aviso, sem `RecursionError`. Testes de regressão vermelhos antes, verdes depois; suíte 587 OK.
 
 Execução real sobre o PR #121 (develop -> homolog), sem `--publicar`: testes estruturais OK (556), shellcheck OK, validação do plugin OK, instalação ponta a ponta OK, fluxo de promoção OK, segredos OK, pareceres OK, catraca FALHOU (legítimo: `bin/forge-check` mudou e falta o rótulo `afrouxa-regra` do dono, igual ao CI real), `workflows` PULADO (sem actionlint/zizmor), `versão e changelog` e `pr-texto` PULADOS (`if` não se aplica a base homolog). Bug achado e corrigido na execução: jobs `pareceres` e `catraca` criavam o mesmo `$RUNNER_TEMP/base`; agora cada job tem subpasta (teste de regressão).
 
