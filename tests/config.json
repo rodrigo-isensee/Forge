@@ -169,7 +169,24 @@
       "só vale gravada",
       "## Triagem de cada pedido",
       "diga sempre ao usuário para qual agente passou",
-      "que são do `tech-lead`"
+      "que são do `tech-lead`",
+      "`R-PROVA`",
+      "`R-BRIEF`",
+      "`PQ-1`",
+      "Provas:",
+      "`forge:conferente`",
+      "ele não vê o relatório",
+      "uma pergunta por vez",
+      "Retira do escopo original",
+      "\\*\\*Fora do escopo\\*\\*",
+      "\\*\\*pedido × entregue\\*\\*",
+      "`<<<BRIEF`"
+    ],
+    "templates/projeto/docs/pedidos/_modelo.md": [
+      "## Fora do escopo",
+      "Retira do escopo original",
+      "PQ-1",
+      "DECISÃO DO DONO"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
