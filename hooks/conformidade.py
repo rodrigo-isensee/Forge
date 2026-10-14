@@ -61,10 +61,10 @@ CONTRIB_ISSUE_ALHEIA = {"edit", "close", "reopen", "delete", "transfer", "lock",
 GH_COM_VALOR = {"-R", "--repo", "-b", "--body", "-F", "--body-file", "-t", "--title", "-l", "--add-label",
                 "--remove-label", "-a", "--add-assignee", "--remove-assignee", "-m", "--milestone", "-B", "--base",
                 "-p", "--add-project", "--remove-project", "-r", "--add-reviewer", "--remove-reviewer", "--subject",
-                "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason"}
-CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/labels(/|$)")
+                "-A", "--author-email", "--match-head-commit", "-c", "--comment", "--reason", "--label", "--assignee"}
+CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|/issues/?(\?.*)?$|/labels(/|$)")
 CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
-                             r"removeLabelsFromLabelable|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
+                             r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
@@ -92,12 +92,32 @@ SIMPLES = {
     "perfil": "O seu perfil de uso só muda por você, não por mim. Se quiser mudar, peça ao Jarvis como fazer.",
     "atualizar": "Atualizar ou voltar a versão do Forge é com você, no terminal: rode 'forge atualizar' (ou 'forge voltar-versao'). "
                  "Posso explicar o que muda.",
+    "sugerir": "Enviar a sugestão ao Forge não é comigo: quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`. "
+                "Eu só guardo o texto, com `forge sugerir --guardar`.",
     "instalacao": "Isso mexe na instalação do Forge, que fica protegida para o projeto não quebrar. "
                   "Posso registrar o pedido como sugestão ao Forge.",
 }
 # F5: quem atualiza o Forge (ou volta de versão) é a pessoa, no terminal; o agente só oferece e explica.
-BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao"}
-SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao"}
+# F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
+# ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
+GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def guardar_exato(linha):
+    """A linha inteira é `forge sugerir --guardar <um texto entre aspas>` (ou `forge-sugerir`, `bin/forge-sugerir`): sem
+    encadeamento, variável, substituição, redirecionamento nem nada antes ou depois."""
+    linha = linha.strip()
+    if not GUARDAR_EXATO.fullmatch(linha):
+        return False
+    try:
+        palavras = shlex.split(linha)
+    except ValueError:
+        return False
+    return palavras[:-1] in (["forge", "sugerir", "--guardar"], ["forge-sugerir", "--guardar"], ["bin/forge-sugerir", "--guardar"])
+
+
+BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao", "forge-sugerir"}
+SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao", "sugerir"}
 ENVOLVEDORES = {"env", "script", "nohup", "sudo", "command", "exec", "time", "timeout", "setsid", "stdbuf", "unbuffer", "xargs",
                 "nice", "ionice", "busybox", "expect", "socat"}
 SUGESTAO = "se deveria valer, registre como sugestão ao Forge"
@@ -449,6 +469,7 @@ class Guarda:
         if nivel == 0:
             self.ambiente = {}
             self.linha = original
+            self.sugerir_na_linha(original)
         for palavras, destinos in partes:
             for d in destinos:
                 self.checar_escrita(d, pasta)
@@ -458,6 +479,17 @@ class Guarda:
                 self.bash(corpo, pasta, nivel + 1)
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
+
+    def sugerir_na_linha(self, linha):
+        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
+        outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
+        if guardar_exato(linha):
+            return
+        limpa = re.sub(r"[\"'\\`]", "", linha)
+        if "sugerir" in limpa or re.search(r"(?:^|[\s;&|(])(?:\S*/)?forge[\"']?\s+[\"']?\S*[$`*?\[{~]", linha):
+            self.barrar("R-CONFORMIDADE", "`forge sugerir` fora da forma `forge sugerir --guardar \"<texto>\"` sozinha na linha",
+                        "quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`; o agente só guarda, "
+                        "com a linha inteira `forge sugerir --guardar \"<texto>\"`", "sugerir")
 
     def ilegivel(self, comando, pasta):
         """R-CONTRIB: comando aninhado (`bash -c`, `eval`, `env -S`) que o hook não consegue analisar, numa sessão de
@@ -756,6 +788,13 @@ class Guarda:
             if alvo and not self.clone_do_forge():
                 self.barrar("R-CONTRIB", f"gh {grupo}{' ' + sub if grupo != 'label' else ''} no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
+        elif grupo == "issue" and sub == "create":
+            # Issue nova no Forge é da pessoa: `forge sugerir`, no terminal dela, fora do Claude (onde o hook não roda).
+            alvo = self.alvo_do_forge(pasta, repo) or any(parecer.aponta_para_o_forge(a) for a in pos[2:])
+            if alvo and not self.clone_do_forge():
+                self.barrar("R-CONTRIB", "gh issue create no Forge: só a pessoa envia sugestão, no terminal dela, fora do "
+                                         "Claude, com `forge sugerir`", "guarde o texto com `forge sugerir --guardar \"<texto>\"` "
+                                         "e avise a pessoa")
         elif grupo == "api":
             args = palavras[2:]
             endpoint = parecer.endpoint_da_api(args)
@@ -768,7 +807,7 @@ class Guarda:
                 slug = dono.group(1) if dono and "{" not in dono.group(1) else repo_env  # {owner}/{repo} = GH_REPO
                 alvo, perigoso = self.alvo_do_forge(pasta, slug), bool(CONTRIB_API.search(endpoint))
             if alvo and perigoso and not self.clone_do_forge():
-                self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
+                self.barrar("R-CONTRIB", "gh api que cria issue ou edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
 
     def gh_trava(self, palavras, pasta):
@@ -819,6 +858,15 @@ class Guarda:
         for i, palavra in enumerate(todas[:1] if direto else todas):
             nome = Path(palavra).name
             sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
+            e_sugerir = nome == "forge-sugerir" or (nome == "forge" and sub == "sugerir")
+            if e_sugerir:
+                if guardar_exato(self.linha):  # guardar na fila é do agente; enviar é da pessoa
+                    continue
+                if nome == "forge" and so_binarios:
+                    continue
+                self.barrar("R-CONFORMIDADE", f"`{nome}{' sugerir' if nome == 'forge' else ''}` envia ao Forge o que o agente escreveu",
+                            "quem envia a sugestão é você, no seu terminal: `forge sugerir --fila`", "sugerir")
+                continue
             if nome in BINARIOS_DE_ATUALIZACAO or (nome == "forge" and not so_binarios and sub in SUBCOMANDOS_DE_ATUALIZACAO):
                 self.barrar("R-CONFORMIDADE", f"`{nome}{' ' + sub if nome == 'forge' else ''}` troca o plugin e mexe no projeto",
                             "quem roda é a pessoa, no terminal (rode no terminal: forge atualizar); o agente só oferece e explica",

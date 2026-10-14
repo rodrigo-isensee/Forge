@@ -1,0 +1,22 @@
+{
+  "descricao": "gh api -X POST em issues do Forge com --input: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "corpo.json": "{\"title\":\"t\"}\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X POST repos/rodrigo-isensee/Forge/issues --input corpo.json"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
+  }
+}
