@@ -23,7 +23,7 @@ Ferramentas: shellcheck sem achado novo (o script é Python; não há shell toca
 - Job `workflows` (actionlint, zizmor): o CI os baixa; local só rodam se instalados, e o job é não obrigatório.
 - Merge-base no lugar do primeiro pai do merge commit do GitHub: a base dos jobs de diff pode diferir quando a base avançou depois do PR.
 - `if:` e expressões só no subconjunto `github.*`, literais, ==, !=, &&, ||; fora dele o job falha (não passa em silêncio).
-- Passos de preparo (`npm install`, `curl`, `wget`) são ignorados; vale o que há no PATH. Ferramenta ausente em job obrigatório vira `failure`.
+- Passos de preparo (instalação global de CLI, `curl`, `wget`) são ignorados; vale o que há no PATH. Ferramenta ausente em job obrigatório vira `failure`.
 - O status `ci-local` é auto-declarado: quem o publica pode publicar `success`. Torná-lo check exigido é decisão do dono (`R-CONFORMIDADE`).
 
 ## Segurança (gatilho `R-SEGURANCA` para o security-engineer)

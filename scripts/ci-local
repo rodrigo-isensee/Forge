@@ -27,7 +27,7 @@ from pathlib import Path
 WORKFLOWS = ("ci.yml", "catraca.yml")
 NAO_OBRIGATORIOS = {"workflows"}
 # Passos que o CI faz só para preparar o runner (baixar ferramentas, instalar o CLI); local, o que existe no PATH vale.
-PASSO_DE_PREPARO = re.compile(r"\b(npm install|curl|wget)\b")
+PASSO_DE_PREPARO = re.compile(r"\b(curl|wget)\b|\binstall\s+(-g|--global)\b")
 FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
 OK, FALHOU, PULADO = "ok", "falhou", "pulado"
 SEGURA = re.compile(r"^(github\.[a-z_.]+|'[^']*'|==|!=|&&|\|\||\(|\)|\s)+$")
