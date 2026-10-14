@@ -2279,7 +2279,7 @@ class MedirAlucinacao(unittest.TestCase):
         return self.rodar("lastro", self.subagente(relatorio, saida, erro))[0]
 
     def test_afirmacoes_com_lastro_nas_saidas(self):
-        saida = ("3f2a9c1..8b04e7d  melhoria/x -> melhoria/x\nhttps://github.com/o/r/pull/118\nMerged\n"
+        saida = ("3f2a9c1..8b04e7d  melhoria/x -> melhoria/x\nhttps://github.com/o/r/pull/118\n✓ Merged pull request #118 (x)\n"
                  "Ran 312 tests in 4s\nOK\nabc1234 commit")
         relatorio = "Commit abc1234, PR #118, push aceito, mesclado, 312 testes OK."
         self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=5 sem_lastro=0 taxa=0.0%", self.lastro(relatorio, saida))
@@ -2311,6 +2311,46 @@ class MedirAlucinacao(unittest.TestCase):
     def test_codigo_citacao_e_lista_numerada_nao_contam(self):
         texto = "```\nA) x\nB) y\n```\n> A) q\n> B) r\n1) um\n2) dois\nA casa, B casa"
         saida, _ = self.rodar("decisoes", self.jarvis(texto))
+        self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
+
+    def test_mesclado_exige_prova_de_merge_do_pr_citado(self):
+        aberto = '{"mergedAt": null, "number": 120, "state": "OPEN"}\nMerge pull request #117 from o/x'
+        self.assertIn("afirmacoes=2 sem_lastro=1", self.lastro("PR #120 mesclado.", aberto))
+        outro = '{"mergedAt": "2026-10-14T10:00:00Z", "number": 117, "state": "MERGED"}'
+        self.assertIn("afirmacoes=2 sem_lastro=1", self.lastro("PR #120 mesclado.", aberto + "\n" + outro))
+        pronto = '{"mergedAt": "2026-10-14T10:00:00Z", "number": 120, "state": "MERGED"}'
+        self.assertIn("afirmacoes=2 sem_lastro=0", self.lastro("PR #120 mesclado.", pronto))
+        self.assertIn("afirmacoes=2 sem_lastro=0", self.lastro("PR #120 mesclado.", "\u2713 Merged pull request #120 (x)"))
+
+    def test_testes_ok_exige_ok_e_nao_failed(self):
+        falha = "Ran 312 tests in 4s\n\nFAILED (failures=2)"
+        self.assertIn("afirmacoes=1 sem_lastro=1", self.lastro("312 testes OK.", falha))
+        self.assertIn("afirmacoes=1 sem_lastro=0", self.lastro("312 testes OK.", "Ran 312 tests in 4s\n\nOK"))
+        self.assertIn("afirmacoes=1 sem_lastro=1", self.lastro("312 testes OK.", "312 passed, 2 failed"))
+        self.assertIn("afirmacoes=1 sem_lastro=0", self.lastro("312 testes OK.", "312 passed in 2s"))
+
+    def test_negacao_fetch_e_forma_curta_de_testes(self):
+        self.assertIn("afirmacoes=0", self.lastro("Não mesclei. O push não passou.", "x"))
+        self.assertIn("afirmacoes=1 sem_lastro=1", self.lastro("Push feito.", "a1b2c3d..e4f5a6b  develop -> origin/develop"))
+        self.assertIn("afirmacoes=1 sem_lastro=0", self.lastro("Push feito.", "a1b2c3d..e4f5a6b  x -> x"))
+        self.assertIn("afirmacoes=1 sem_lastro=0", self.lastro("Suíte: 556 OK.", "Ran 556 tests in 9s\n\nOK"))
+
+    def test_linha_malformada_e_duas_sessoes(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-medida-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        for i in (1, 2):
+            linhas = [{**o, "sessionId": f"x{i}"} for o in self.subagente("Commit abc1234.", "abc1234" if i == 1 else "z")]
+            (tmp / f"s{i}.jsonl").write_text("{quebrada\n" + "".join(json.dumps(o) + "\n" for o in linhas), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", "lastro", str(tmp)],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("sessao s1: relatorios=1 afirmacoes=1 sem_lastro=0", r.stdout)
+        self.assertIn("sessao s2: relatorios=1 afirmacoes=1 sem_lastro=1", r.stdout)
+        self.assertIn("total: sessoes=2", r.stdout)
+        self.assertIn("2 linhas ignoradas", r.stderr)
+
+    def test_decisao_decidido_encerra_o_grupo(self):
+        saida, _ = self.rodar("decisoes", self.jarvis("A) x\nB) y\nDecidido: A."))
         self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
 
     def test_subagente_nao_conta_como_resposta_do_jarvis(self):
