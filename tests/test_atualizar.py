@@ -35,6 +35,10 @@ fi
 if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace remove" ]; then
   echo '{"agent": "outro"}' > "$(cat "$FAKE_DIR/suja-projeto")/.claude/settings.json"
 fi
+# Imita o Ctrl-C do terminal no meio da troca: o `add` da tag manda SIGINT ao `forge` (o pai) e demora a terminar
+if [ -f "$FAKE_DIR/sigint-no-add" ] && [ "$2 $3" = "marketplace add" ] && [[ "$*" == *"#v"* ]]; then
+  kill -INT $PPID; sleep 0.6; exit 1
+fi
 exit 0
 """
 
@@ -615,3 +619,64 @@ class Subcomandos(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CtrlCNaTroca(Base):
+    """Terceira review do PR 111: Ctrl-C entre o `remove` e o `add` não pode deixar o usuário sem marketplace e sem plugin."""
+
+    def estado(self):
+        arq = self.home / ".local/state/forge/marketplace-original.json"
+        return arq, (json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else None)
+
+    def test_sigint_entre_o_remove_e_o_add_devolve_a_marketplace_original(self):
+        self.publicar("9.9.0")
+        (self.fake / "sigint-no-add").write_text("", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        chamadas = self.chamadas_do_claude()
+        adds = [c for c in chamadas if " marketplace add " in c]
+        self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user", chamadas)
+        self.assertTrue(any(c.startswith(("claude plugin install forge@forge", "claude plugin update forge@forge"))
+                            for c in chamadas[chamadas.index(adds[-1]):]), chamadas)
+
+    def test_o_claude_roda_numa_sessao_propria_para_nao_receber_o_sigint_do_terminal(self):
+        r = subprocess.run([sys.executable, "-c", "import sys, os; sys.path.insert(0, sys.argv[1]); import forge_versoes as v\n"
+                            "import subprocess\norig = subprocess.Popen\nvisto = {}\n"
+                            "def espia(*a, **k):\n    visto.update(k)\n    return orig(*a, **k)\n"
+                            "subprocess.Popen = espia\nv.claude(['--version'])\nprint(visto.get('start_new_session'))", str(RAIZ / "bin")],
+                           env=self.env, cwd=self.proj, capture_output=True, text=True)
+        self.assertEqual(r.stdout.strip(), "True", r.stderr)
+
+    def test_fixar_tambem_grava_a_fonte_original_com_permissao_600(self):
+        codigo, saida = self.rodar(ATUALIZAR, "--fixar", respostas=[])
+        self.assertEqual(codigo, 0, saida)
+        arq, dados = self.estado()
+        self.assertEqual(dados, {"fonte": "dono/Forge", "escopo": "user"})
+        self.assertEqual(arq.stat().st_mode & 0o777, 0o600)
+
+    def test_atualizar_grava_a_fonte_original_antes_do_remove(self):
+        self.publicar("9.9.0")
+        (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
+        self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(self.estado()[1], {"fonte": "dono/Forge", "escopo": "user"})
+
+    def test_voltar_sem_marketplace_se_recupera_pelo_arquivo_de_estado(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.escrever_home(".claude/settings.json", json.dumps({"sandbox": {"enabled": True}, "extraKnownMarketplaces": {}}))
+        (self.fake / "claude.log").unlink()
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
+        self.assertEqual(adds[0], "claude plugin marketplace add dono/Forge --scope user", adds)
+        self.assertTrue(adds[-1].endswith("#v" + VERSAO + " --scope user"), adds)
+
+    def test_sem_marketplace_e_sem_estado_mostra_os_comandos_manuais_do_forge(self):
+        self.escrever_home(".claude/settings.json", json.dumps({"sandbox": {"enabled": True}}))
+        r = subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import forge_versoes as v\n"
+                            f"print(v.fixar_plugin(v.url_do_forge(), '{VERSAO}')[1])", str(RAIZ / "bin")],
+                           env=self.env, cwd=self.proj, capture_output=True, text=True)
+        self.assertIn("claude plugin marketplace add", r.stdout)
+        self.assertIn("--scope user", r.stdout)
+        self.assertIn("claude plugin install forge@forge --scope user", r.stdout)

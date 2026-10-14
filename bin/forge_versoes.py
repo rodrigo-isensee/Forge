@@ -3,10 +3,12 @@
 Consulta as releases do Forge por `git` (grátis, R-CUSTO), com as mesmas defesas do `forge-check fontes` (docs/fontes-de-praticas.md):
 só https, pasta corrente neutra (nunca o projeto), todos os outros protocolos negados, sem pergunta de senha, sem configuração
 do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`, sempre no escopo do usuário). Só biblioteca padrão."""
+import contextlib
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -146,13 +148,30 @@ def aviso_de_versao_nova(limite):
 
 # Plugin ----------------------------------------------------------------------------------------
 def claude(args, limite=180):
-    """Roda o `claude` numa pasta neutra (nunca dentro do projeto): a troca do plugin não pode tocar nos arquivos dele."""
+    """Roda o `claude` numa pasta neutra (nunca dentro do projeto): a troca do plugin não pode tocar nos arquivos dele.
+    Numa sessão própria (`start_new_session`), para o Ctrl-C do terminal não o matar no meio da operação; se o Ctrl-C chegar aqui,
+    espera o `claude` terminar e só então relança o `KeyboardInterrupt`."""
+    interrompido = False
     try:
         with tempfile.TemporaryDirectory(prefix="forge-claude-") as neutro:
-            r = subprocess.run(["claude", *args], capture_output=True, text=True, timeout=limite, stdin=subprocess.DEVNULL, cwd=neutro)
+            p = subprocess.Popen(["claude", *args], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                                 stdin=subprocess.DEVNULL, cwd=neutro, start_new_session=True)
+            fim = time.monotonic() + limite
+            while True:
+                try:
+                    saida, _ = p.communicate(timeout=max(fim - time.monotonic(), 0.1))
+                    break
+                except KeyboardInterrupt:
+                    interrompido = True
+                except subprocess.TimeoutExpired:
+                    p.kill()
+                    p.communicate()
+                    raise
     except (OSError, subprocess.TimeoutExpired) as erro:
         return 1, str(erro)
-    return r.returncode, (r.stdout + r.stderr).strip()
+    if interrompido:
+        raise KeyboardInterrupt
+    return p.returncode, (saida or "").strip()
 
 
 def tag_existe(url, versao):
@@ -217,6 +236,43 @@ def trocar_marketplace(fonte):
     return instalar_plugin()
 
 
+def arquivo_da_fonte_original():
+    return pasta_de_estado() / "marketplace-original.json"
+
+
+def gravar_fonte_original(original):
+    """Guarda a fonte e o escopo da marketplace ANTES de qualquer remoção (permissão 600): é daqui que `forge voltar-versao` recupera
+    a marketplace se a troca for interrompida. Falha de gravação não impede a troca (a recuperação cai nos comandos manuais)."""
+    arquivo = arquivo_da_fonte_original()
+    try:
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        temporario = arquivo.with_name(arquivo.name + ".tmp")
+        descritor = os.open(temporario, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(descritor, "w", encoding="utf-8") as saida:
+            saida.write(json.dumps({"fonte": original["fonte"], "escopo": original["escopo"]}, ensure_ascii=False, indent=2) + "\n")
+        os.replace(temporario, arquivo)
+        arquivo.chmod(0o600)
+    except OSError:
+        pass
+
+
+def fonte_original_gravada():
+    """A fonte guardada por `gravar_fonte_original`, ou None (sem arquivo ou conteúdo inválido)."""
+    try:
+        dados = json.loads(arquivo_da_fonte_original().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if isinstance(dados, dict) and isinstance(dados.get("fonte"), str) and dados.get("escopo") in ("user", "outro") \
+            and fonte_para_add({"source": "url", "url": dados["fonte"]}):
+        return {"fonte": dados["fonte"], "escopo": dados["escopo"]}
+    return None
+
+
+def comandos_manuais(fonte):
+    return (f"`claude plugin marketplace add {fonte} --scope user` e `claude plugin install {PLUGIN} --scope user` "
+            f"(ou `claude plugin update {PLUGIN} --scope user`)")
+
+
 def devolver_original(original):
     """Readiciona exatamente a fonte e o escopo de antes (se a marketplace era do escopo do usuário; senão só tira a do usuário)."""
     if original["escopo"] != "user":
@@ -245,6 +301,37 @@ def restaurar_projeto(projeto, antes):
             f"então o devolvi ao que estava salvo") if sujou else ""
 
 
+@contextlib.contextmanager
+def _sigterm_como_interrupcao():
+    """Durante o trecho crítico, SIGTERM vira `KeyboardInterrupt` (para a marketplace original ser devolvida)."""
+    def tratar(_numero, _quadro):
+        raise KeyboardInterrupt
+    try:
+        anterior = signal.signal(signal.SIGTERM, tratar)
+    except ValueError:  # fora da thread principal
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGTERM, anterior)
+
+
+@contextlib.contextmanager
+def _sem_interrupcao():
+    """Enquanto devolve a marketplace, ignora Ctrl-C e SIGTERM: a recuperação não pode ser cortada."""
+    try:
+        antigos = [signal.signal(n, signal.SIG_IGN) for n in (signal.SIGINT, signal.SIGTERM)]
+    except ValueError:
+        yield
+        return
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, antigos[0])
+        signal.signal(signal.SIGTERM, antigos[1])
+
+
 def fixar_plugin(url, versao, voltar_para=None, projeto=None):
     """Deixa o plugin do Forge fixado na tag v<versao>, só no escopo do usuário (`--scope user`): marketplace readicionada com
     `<endereço>#v<versao>` e plugin atualizado (ou instalado). Antes de qualquer remoção confirma a tag e guarda a fonte e o escopo
@@ -255,14 +342,30 @@ def fixar_plugin(url, versao, voltar_para=None, projeto=None):
         return False, f"não consegui confirmar a versão {versao} no endereço do Forge (sem conexão ou ela não existe). Não mexi no plugin"
     original = fonte_original()
     if original is None:
-        return False, "não achei a marketplace do Forge no seu Claude (ela tem de estar instalada pelo endereço do Forge). Não mexi no plugin"
-    deu, saida = trocar_marketplace(f"{url}#v{versao}")
+        original = fonte_original_gravada()
+        if original is None:
+            return False, ("não achei a marketplace do Forge no seu Claude (ela tem de estar instalada pelo endereço do Forge). "
+                           f"Não mexi no plugin. Para instalar à mão: {comandos_manuais(url)}")
+        if not devolver_original(original):
+            return False, ("a marketplace do Forge sumiu do seu Claude e não consegui readicioná-la pela fonte guardada. "
+                           f"Para refazer à mão: {comandos_manuais(original['fonte'])}")
+    else:
+        gravar_fonte_original(original)
+    try:
+        with _sigterm_como_interrupcao():
+            deu, saida = trocar_marketplace(f"{url}#v{versao}")
+    except KeyboardInterrupt:
+        with _sem_interrupcao():
+            devolveu = devolver_original(original)
+        print("\nForge: interrompido durante a troca do plugin. " + (
+            f"Devolvi a marketplace como estava ({original['fonte']})." if devolveu else
+            f"Não consegui devolver a marketplace. Para refazer à mão: {comandos_manuais(original['fonte'])}"), file=sys.stderr)
+        raise
     if deu:
         return True, f"o plugin do Forge está fixado na versão {versao}" + restaurar_projeto(projeto, antes)
     devolveu = devolver_original(original)
     aviso = restaurar_projeto(projeto, antes)
-    como = (f"Para refazer à mão: `claude plugin marketplace add {original['fonte']} --scope user` e "
-            f"`claude plugin install {PLUGIN} --scope user`")
+    como = f"Para refazer à mão: {comandos_manuais(original['fonte'])}"
     if devolveu:
         return False, (f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}); devolvi a marketplace como estava "
                        f"({original['fonte']}, escopo {original['escopo']}){aviso}")
