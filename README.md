@@ -67,10 +67,10 @@ Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápid
 Em projeto com `.forge/versao`, o plugin garante por código, sem gastar contexto, o teto de agentes, o parecer antes de PR e merge, uma tarefa pesada por vez e o quadro válido (ADR 0003). Ajustes e como desligar um hook: [`docs/hooks.md`](docs/hooks.md).
 
 ## Atualizar um projeto
-O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No projeto, com a árvore limpa:
-1. `claude plugin update forge@forge`
-2. `forge-upgrade` (`--simular` mostra o que faria): cria a branch `forge/upgrade-<versão>`, aplica as migrações pendentes (um commit cada) e sugere o `gh pr create`.
-3. Revise o PR e mescle; o `forge-upgrade` nunca faz push nem merge.
+O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No terminal, dentro do projeto, com a árvore limpa:
+- `forge atualizar`: mostra a versão em uso, a nova e o que muda (resumo do CHANGELOG); pede "s"; guarda o **ponto de retorno** (versão do plugin e cópia de `.forge/` e da configuração, em `~/.local/state/forge/retorno/`); roda `forge-upgrade --simular` e, se der certo, troca o plugin e aplica o `forge-upgrade` (branch `forge/upgrade-<versão>`, um commit por migração, sem push nem merge); roda o `forge doutor`; se algo falhar, oferece voltar.
+- `forge voltar-versao`: pede "s" e devolve o plugin à versão de antes e os arquivos do projeto (atualização não mesclada: volta à branch de antes e guarda a da atualização; já mesclada: branch `forge/voltar-<versão>` com um registro novo). Nunca usa `--force` nem apaga trabalho.
+- **Versão fixada:** o plugin fica fixado na tag `vX.Y.Z` (a marketplace é readicionada como `<endereço>#vX.Y.Z`); nada muda sem você pedir. Uma vez por dia o Jarvis avisa numa linha quando saiu versão nova (consulta grátis às tags por `git ls-remote`, só https; `FORGE_VERIFICAR_VERSAO=0` desliga). `forge atualizar --fixar` só fixa a versão em uso. O `claude plugin update forge@forge` e o `forge-upgrade` soltos continuam valendo para quem prefere o caminho manual.
 
 ## Desenvolver o Forge
 Ver [`.claude/CLAUDE.md`](.claude/CLAUDE.md): regras, testes, avaliações e versionamento.

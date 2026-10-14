@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Forge: volta para a versão do Forge de antes da última atualização (primeiro uso, F5). Rode no terminal, dentro do projeto.
+Uso: forge voltar-versao
+Lê o ponto de retorno guardado por `forge atualizar` (~/.local/state/forge/retorno/), mostra o que vai voltar e só age com "s":
+1) troca o plugin de volta para a versão anterior (fixada na tag vX.Y.Z); se isso falhar, para antes de mexer no projeto;
+2) no projeto: atualização ainda não mesclada, volta para a branch de antes e MANTÉM a branch da atualização (feche o pull request, se
+   abriu um); já mesclada, cria a branch `forge/voltar-<versão>` com os arquivos de antes (`.forge/` e a configuração), num commit.
+Nunca força nada, nem reescreve a história, nem apaga branch, arquivo ou trabalho: arquivos que a atualização criou só são listados.
+Saída: 0 voltou (ou você recusou); 1 não deu para voltar; 2 sem terminal."""
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import forge_versoes as fv  # noqa: E402
+
+
+def git(projeto, *args):
+    r = subprocess.run(["git", "-C", str(projeto), *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip()
+
+
+def existe_branch(projeto, nome):
+    return bool(nome) and git(projeto, "rev-parse", "-q", "--verify", f"refs/heads/{nome}")[0] == 0
+
+
+def ja_mesclada(projeto, meta):
+    """A branch da atualização sumiu ou já está dentro da `develop` (ou da branch de antes): a atualização foi mesclada."""
+    ramo = meta["branch_upgrade"]
+    if not existe_branch(projeto, ramo):
+        return True
+    destinos = [b for b in ("develop", meta.get("branch_antes")) if existe_branch(projeto, b) and b != ramo]
+    return any(git(projeto, "merge-base", "--is-ancestor", ramo, destino)[0] == 0 for destino in destinos)
+
+
+def restaurar_arquivos(projeto, ponto):
+    """Copia por cima os arquivos guardados no ponto. Devolve a lista de arquivos novos que a atualização criou (ficam)."""
+    for origem in sorted((ponto / "forge").rglob("*")):
+        destino = projeto / ".forge" / origem.relative_to(ponto / "forge")
+        if origem.is_dir():
+            destino.mkdir(parents=True, exist_ok=True)
+        else:
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(origem, destino)
+    for origem in sorted((ponto / "claude").glob("*.json")):
+        (projeto / ".claude").mkdir(exist_ok=True)
+        shutil.copy2(origem, projeto / ".claude" / origem.name)
+    guardados = {p.relative_to(ponto / "forge") for p in (ponto / "forge").rglob("*") if p.is_file()}
+    atuais = [p for p in (projeto / ".forge").rglob("*") if p.is_file() and "run" not in p.relative_to(projeto / ".forge").parts]
+    return sorted(str(p.relative_to(projeto)) for p in atuais if p.relative_to(projeto / ".forge") not in guardados)
+
+
+def voltar_projeto(projeto, ponto, meta):
+    antes, ramo = meta["branch_antes"], meta["branch_upgrade"]
+    _, atual = git(projeto, "branch", "--show-current")
+    if not ja_mesclada(projeto, meta):
+        if atual == ramo and existe_branch(projeto, antes):
+            codigo, saida = git(projeto, "switch", antes)
+            if codigo != 0:
+                print(f"Não consegui voltar para a branch {antes}: {saida}. A branch {ramo} continua como está.")
+                return 1
+        print(f"A atualização ainda não foi mesclada: o projeto voltou para a branch {antes}. A branch {ramo} ficou guardada "
+              f"(nada foi apagado); se você abriu um pull request dela, feche-o no GitHub.")
+        return 0
+    base = "develop" if existe_branch(projeto, "develop") else atual
+    nova = f"forge/voltar-{meta['plugin_depois']}"
+    if existe_branch(projeto, nova):
+        print(f"A branch {nova} já existe: veja se ela já faz o que você quer. Não mexi no projeto.")
+        return 1
+    codigo, saida = git(projeto, "switch", "-c", nova, base)
+    if codigo != 0:
+        print(f"Não consegui criar a branch {nova}: {saida}. Não mexi no projeto.")
+        return 1
+    novos = restaurar_arquivos(projeto, ponto)
+    git(projeto, "add", "-A", ".forge", ".claude")
+    if not git(projeto, "status", "--porcelain")[1]:
+        git(projeto, "switch", atual or base)
+        git(projeto, "branch", "-d", nova)
+        print("Os arquivos do projeto já estão como eram antes da atualização; só o plugin voltou.")
+        return 0
+    codigo, saida = git(projeto, "commit", "-q", "-m",
+                        f"chore(forge): volta para a versão {meta['plugin_antes']}\n\nDesfaz a atualização para {meta['plugin_depois']}.")
+    if codigo != 0:
+        print(f"Não consegui registrar a volta: {saida}. Os arquivos ficaram restaurados na branch {nova}; revise com git status.")
+        return 1
+    print(f"Os arquivos de antes voltaram na branch {nova}, num registro novo (a história só cresce). Revise e abra o pull request "
+          f"para a {base}: gh pr create --base {base} --title 'chore(forge): volta para a versão {meta['plugin_antes']}'.")
+    if novos:
+        print("Arquivos que a atualização criou e que ficaram (revise, não apaguei nada):\n" + "\n".join(f"  - {n}" for n in novos))
+    return 0
+
+
+def main():
+    args = sys.argv[1:]
+    if "-h" in args or "--help" in args:
+        print(__doc__.split("Saída:")[0].strip())
+        return 0
+    ja_confirmado = "--ja-confirmado" in args  # só o `forge atualizar` usa, depois de perguntar "Voltar?"
+    if [a for a in args if a != "--ja-confirmado"]:
+        print("forge voltar-versao: não recebe argumentos.", file=sys.stderr)
+        return 2
+    if not fv.tem_terminal():
+        print("forge voltar-versao: rode num terminal (a volta pede a sua confirmação) e responda s para seguir.", file=sys.stderr)
+        return 2
+    codigo, topo = git(Path.cwd(), "rev-parse", "--show-toplevel")
+    if codigo != 0 or not (Path(topo) / ".forge" / "versao").is_file():
+        print("forge voltar-versao: entre na pasta de um projeto do Forge e rode de novo.", file=sys.stderr)
+        return 1
+    projeto = Path(topo)
+    ponto, meta = fv.ultimo_ponto(projeto)
+    if ponto is None:
+        print("Não encontrei nenhum ponto de retorno deste projeto (ele é criado pelo `forge atualizar`). Não mudei nada.")
+        return 1
+    if git(projeto, "status", "--porcelain")[1]:
+        print("Há mudanças não salvas neste projeto. Salve (forge salvar) ou desfaça (forge desfazer) e rode de novo. Não mudei nada.")
+        return 1
+    antes, depois = meta["plugin_antes"], meta["plugin_depois"]
+    print(f"Vou voltar o Forge da versão {depois} para a {antes}, com os arquivos do projeto como estavam (ponto de retorno {ponto.name}).")
+    if not ja_confirmado and not fv.confirmar("Posso voltar?"):
+        print("Tudo bem, não mudei nada.")
+        return 0
+    url = fv.url_do_forge()
+    if url is None:
+        print("Não achei um endereço seguro (https) para trocar o plugin. Não mudei nada.")
+        return 1
+    deu, msg = fv.fixar_plugin(url, antes, voltar_para=depois)
+    if not deu:
+        print(f"Parei antes de mexer no projeto: {msg}.")
+        return 1
+    print(f"Plugin: {msg}.")
+    resultado = voltar_projeto(projeto, ponto, meta)
+    if resultado == 0:
+        fv.marcar_usado(ponto, meta)
+    return resultado
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (EOFError, KeyboardInterrupt):
+        sys.exit(1)
