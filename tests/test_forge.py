@@ -1724,6 +1724,40 @@ class CustoDeTokens(unittest.TestCase):
         self.assertEqual(cod, 1)
         self.assertIn("nenhum arquivo .jsonl", saida + erro)
 
+    def pasta_com(self, nome, conteudo):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-custo-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / nome).write_text(conteudo, encoding="utf-8")
+        return tmp
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root lê qualquer arquivo")
+    def test_arquivo_ilegivel_avisa_e_e_pulado_sem_traceback(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-custo-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        ruim = tmp / "ruim.jsonl"
+        ruim.write_text("{}\n", encoding="utf-8")
+        ruim.chmod(0)
+        self.addCleanup(ruim.chmod, 0o600)
+        (tmp / "bom.jsonl").write_text(
+            '{"type":"assistant","message":{"id":"m1","model":"m","usage":{"input_tokens":1,"output_tokens":2}}}\n', encoding="utf-8")
+        cod, saida, erro = self.rodar(str(tmp))
+        self.assertNotIn("Traceback", erro)
+        self.assertEqual(cod, 0, erro)
+        self.assertIn("aviso", erro)
+        self.assertNotIn("ruim", saida + erro)
+        self.assertIn("total=3", saida)
+
+    def test_linha_malformada_e_contada_em_stderr(self):
+        erro = self.rodar(str(self.USO / "sessao-b.jsonl"))[2]
+        self.assertRegex(erro, r"custo: aviso: [1-9]\d* linhas? ignoradas?")
+
+    def test_arquivo_sem_usage_sai_com_codigo_diferente_de_zero(self):
+        tmp = self.pasta_com("lixo.jsonl", 'nao e json\n{"type":"user"}\n')
+        cod, saida, erro = self.rodar(str(tmp))
+        self.assertNotEqual(cod, 0)
+        self.assertIn("nenhuma mensagem com usage", saida + erro)
+        self.assertNotIn("total=0", saida)
+
 
 class PraticasDeEspecificacao(unittest.TestCase):
     """Critérios EARS, bug, constituição e DORA presentes nos lugares certos."""

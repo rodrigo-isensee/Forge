@@ -923,59 +923,68 @@ def pasta_padrao_de_transcricoes():
 
 
 def ler_uso(arquivos):
-    """Lê o `.jsonl` bruto do Claude Code e devolve só números e marcadores neutros (nenhum texto sai daqui):
-    mensagens com `usage` (sem a duplicata de streaming: mesma `message.id` e `requestId`), compactações
-    (`system`/`compact_boundary`) e lançamentos de subagente (hash curto de tipo + prompt)."""
-    objs = []
-    for arq in arquivos:
-        with open(arq, encoding="utf-8", errors="replace") as f:
-            for linha in f:
-                try:
-                    o = json.loads(linha)
-                except ValueError:
-                    continue
-                if isinstance(o, dict):
-                    objs.append((arq.stem, o))
+    """Lê o `.jsonl` bruto do Claude Code, linha a linha (memória proporcional às mensagens com `usage`, não ao
+    tamanho dos arquivos), e devolve só números e marcadores neutros (nenhum texto sai daqui): mensagens com `usage`
+    (sem a duplicata de streaming: mesma `message.id` e `requestId`; vale a última), compactações
+    (`system`/`compact_boundary`) e lançamentos de subagente (hash curto de tipo + prompt).
+    Arquivo ilegível é pulado com aviso em stderr; linha que não é um objeto JSON é contada em `ignoradas`."""
     tipo_do_uso, tipo_do_agente = {}, {}
-    for _, o in objs:
-        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
-            if not isinstance(b, dict):
-                continue
-            if b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task") and isinstance(b.get("input"), dict):
-                tipo_do_uso[b.get("id")] = marcar_agente(b["input"].get("subagent_type"))
-            elif b.get("type") == "tool_result" and isinstance(o.get("toolUseResult"), dict) \
-                    and b.get("tool_use_id") in tipo_do_uso and isinstance(o["toolUseResult"].get("agentId"), str):
-                tipo_do_agente[o["toolUseResult"]["agentId"]] = tipo_do_uso[b["tool_use_id"]]
     sessoes, mensagens, lancamentos, compactacoes, datas = {}, {}, {}, {"quantidade": 0, "tokens_antes": 0}, []
-    for pos, (stem, o) in enumerate(objs):
-        sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else stem
-        sessoes.setdefault(sessao, f"s{len(sessoes) + 1}")
-        t = str(o.get("timestamp") or "")
-        if ISO8601.match(t):
-            datas.append(t[:10])
-        if o.get("type") == "system" and o.get("subtype") == "compact_boundary":
-            compactacoes["quantidade"] += 1
-            meta = o.get("compactMetadata") if isinstance(o.get("compactMetadata"), dict) else {}
-            antes = meta.get("preTokens")
-            compactacoes["tokens_antes"] += antes if isinstance(antes, int) and not isinstance(antes, bool) and antes > 0 else 0
-        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
-        lado = bool(o.get("isSidechain"))
-        tipo = ""
-        if lado:
-            tipo = tipo_do_agente.get(o.get("agentId")) or (marcar_agente(o["agentType"]) if o.get("agentType") else "<agente>")
-        for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
-            if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task") \
-                    and isinstance(b.get("input"), dict) and not lado:
-                entrada = b["input"]
-                marca = marcar_agente(entrada.get("subagent_type"))
+    ignoradas = ilegiveis = pos = 0
+    for arq in arquivos:
+        try:
+            with open(arq, encoding="utf-8", errors="replace") as f:
+                for linha in f:
+                    if not linha.strip():
+                        continue
+                    pos += 1
+                    try:
+                        o = json.loads(linha)
+                    except ValueError:
+                        o = None
+                    if not isinstance(o, dict):
+                        ignoradas += 1
+                        continue
+                    _ler_objeto(o, arq.stem, pos, sessoes, mensagens, lancamentos, compactacoes, datas, tipo_do_uso, tipo_do_agente)
+        except OSError as erro:
+            ilegiveis += 1
+            print(f"custo: aviso: arquivo ilegivel ({erro.strerror or type(erro).__name__}); pulado", file=sys.stderr)
+    resolvidas = [(sid, lado, tipo_do_agente.get(agente) or marca, modelo, uso)
+                  for sid, lado, agente, marca, modelo, uso in mensagens.values()]
+    return {"sessoes": sessoes, "mensagens": resolvidas, "compactacoes": compactacoes, "ignoradas": ignoradas,
+            "ilegiveis": ilegiveis, "lancamentos": list(lancamentos.values()), "data": max(datas) if datas else ""}
+
+
+def _ler_objeto(o, stem, pos, sessoes, mensagens, lancamentos, compactacoes, datas, tipo_do_uso, tipo_do_agente):
+    sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else stem
+    sessoes.setdefault(sessao, f"s{len(sessoes) + 1}")
+    t = str(o.get("timestamp") or "")
+    if ISO8601.match(t):
+        datas.append(t[:10])
+    if o.get("type") == "system" and o.get("subtype") == "compact_boundary":
+        compactacoes["quantidade"] += 1
+        meta = o.get("compactMetadata") if isinstance(o.get("compactMetadata"), dict) else {}
+        antes = meta.get("preTokens")
+        compactacoes["tokens_antes"] += antes if isinstance(antes, int) and not isinstance(antes, bool) and antes > 0 else 0
+    msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+    lado = bool(o.get("isSidechain"))
+    for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task") and isinstance(b.get("input"), dict):
+            entrada = b["input"]
+            marca = marcar_agente(entrada.get("subagent_type"))
+            tipo_do_uso[b.get("id")] = marca
+            if not lado:
                 resumo = hashlib.sha256((str(entrada.get("subagent_type")) + "\0" + str(entrada.get("prompt"))).encode("utf-8")).hexdigest()[:8]
                 lancamentos.setdefault(b.get("id"), (resumo, marca))
-        if o.get("type") == "assistant" and isinstance(msg.get("usage"), dict):
-            chave = (msg.get("id"), o.get("requestId")) if msg.get("id") else ("#", pos)
-            mensagens[chave] = (sessoes[sessao], lado, tipo, marcar_modelo(msg.get("model")), msg["usage"])
-    return {"sessoes": sessoes, "mensagens": list(mensagens.values()), "compactacoes": compactacoes,
-            "lancamentos": list(lancamentos.values()), "data": max(datas) if datas else ""}
+        elif b.get("type") == "tool_result" and isinstance(o.get("toolUseResult"), dict) \
+                and b.get("tool_use_id") in tipo_do_uso and isinstance(o["toolUseResult"].get("agentId"), str):
+            tipo_do_agente[o["toolUseResult"]["agentId"]] = tipo_do_uso[b["tool_use_id"]]
+    if o.get("type") == "assistant" and isinstance(msg.get("usage"), dict):
+        chave = (msg.get("id"), o.get("requestId")) if msg.get("id") else ("#", pos)
+        marca = (marcar_agente(o["agentType"]) if o.get("agentType") else "<agente>") if lado else ""
+        mensagens[chave] = (sessoes[sessao], lado, o.get("agentId"), marca, marcar_modelo(msg.get("model")), msg["usage"])
 
 
 def resumir_custo(dados):
@@ -1045,6 +1054,11 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>"):
     print(f"custo: vai ler {len(arquivos)} arquivo(s) .jsonl em {alvo}; só disco local, sem rede; "
           "a saída traz números e tipos de agente, nunca texto, caminho ou prompt", file=sys.stderr)
     dados = ler_uso(arquivos)
+    if dados["ignoradas"]:
+        print(f"custo: aviso: {dados['ignoradas']} linhas ignoradas (malformadas ou em formato desconhecido)", file=sys.stderr)
+    if not dados["mensagens"]:
+        print("custo: nenhuma mensagem com usage encontrada; nada a somar (formato desconhecido, arquivos ilegiveis ou sessao sem uso)")
+        return 1
     resumo = resumir_custo(dados)
     for linha in (linhas_de_entregas(dados, resumo, entrega) if entregas else linhas_do_custo(dados, resumo)):
         print(linha)

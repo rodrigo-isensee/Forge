@@ -26,7 +26,7 @@ Conformidade dos agentes (ADR 0009, seção 8):
 - `compactacoes`: quantidade e `tokens_antes` (contexto que cada `compact_boundary` comprimiu; o custo do resumo em si aparece como mensagem da sessão principal).
 - `retrabalho`: o mesmo tipo de agente lançado de novo com o mesmo prompt (hash de 8 hex) conta como relançamento.
 - `--entregas [--entrega NOME]`: em vez do relatório, uma linha por agente no formato de `docs/kanban/entregas.md` (principal e cada tipo de subagente). Duração e rodadas ficam `-`; "Tokens" é a soma dos quatro campos.
-Mensagens repetidas pelo streaming (mesmos `message.id` e `requestId`) contam uma vez; linha corrompida é ignorada. Limites: depende do formato do `.jsonl`, que o Claude Code pode mudar; sem pastas de subagentes ou sessões apagadas, o número é parcial.
+Mensagens repetidas pelo streaming (mesmos `message.id` e `requestId`) contam uma vez; linha malformada é contada e informada em stderr ("N linhas ignoradas"); arquivo ilegível gera aviso e é pulado; se nenhuma mensagem com `usage` for encontrada, sai com código 1 em vez de imprimir zeros. A leitura é em fluxo (memória proporcional às mensagens com `usage`, não ao tamanho dos arquivos). O formato dos subagentes (`subagents/*.jsonl`, com `isSidechain` e `agentId`) foi confirmado com uma sessão real. Limites: depende do formato do `.jsonl`, que o Claude Code pode mudar; sem pastas de subagentes ou sessões apagadas, o número é parcial.
 
 ## Anonimizar e contribuir
 1. Localize a sessão em `~/.claude/projects/<projeto>/<sessão>.jsonl`.
