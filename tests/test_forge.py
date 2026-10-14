@@ -127,6 +127,7 @@ class PacotesDeStack(unittest.TestCase):
 
     def test_forma_do_pacote(self):
         pacotes = sorted(p for p in STACKS.iterdir() if p.is_dir())
+        self.assertTrue(pacotes, "stacks/ vazia")
         minimo(pacotes, 1, "pacotes em stacks/")
         for pacote in pacotes:
             with self.subTest(stack=pacote.name):
@@ -319,7 +320,9 @@ class AntiDuplicacao(unittest.TestCase):
         self.assertFalse(sequencias(fonte, self.n) & sequencias("`R-MAIN` a main é do usuário", self.n))
 
     def test_regra_so_na_fonte(self):
-        fontes = minimo(sorted(REGRAS.glob("R-*.md")), 13, "regras em docs/regras")
+        fontes = sorted(REGRAS.glob("R-*.md"))
+        self.assertTrue(fontes, "docs/regras sem regras")
+        minimo(fontes, 13, "regras em docs/regras")
         alvos = [p for pasta in self.pastas if (RAIZ / pasta).is_dir()
                  for p in sorted((RAIZ / pasta).rglob("*")) if p.is_file()]
         minimo(alvos, 110, "arquivos comparados pelo anti-duplicação")
@@ -590,6 +593,7 @@ class Migracao070(unittest.TestCase):
 
     def test_fixtures_antes_e_depois(self):
         casos = sorted((RAIZ / "tests/migracoes/0.7.0").glob("*.json"))
+        self.assertGreaterEqual(len(casos), 5)
         minimo(casos, 5, "fixtures de migração 0.7.0")
         for caso in casos:
             dados = json.loads(caso.read_text(encoding="utf-8"))
