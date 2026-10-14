@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 706030b
+commit: fe658ce
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-14
@@ -145,3 +145,70 @@ A ADR confere com o hook: o comentário que engole a quebra de linha passa em to
 **Cartões desta fatia:** (C1) S5 na fatia 3; (C2) pilha da crase e `case` dentro de `$(...)` no analisador geral; (C3) glob em caminho protegido e em nome de branch nos papéis comuns (sondado, rc 0; severidade baixa, com revisão e CI como camada); (C4) glob que expande arquivo começado por `-` (hipótese); (C5) `fichas` sem `shlex._pushback_chars`; (C6) acompanhar o falso bloqueio por `$TMPDIR`/`$HOME` com marcador e, se pesar na leitura de reversão, permitir variáveis do ambiente sem atribuição na linha. Dono de todos: `forge:tech-lead`. O Jarvis abre os pedidos.
 
 **Para reaprovar a fatia:** a ADR com os ajustes, as fixtures da ADR e as da Divergência com o rc certo, e um novo review de segurança do diff.
+
+## Re-review volta 3 (2026-10-14, sobre fe658ce)
+Escopo: `git diff b88089a..fe658ce` (`hooks/_comum.py`, `hooks/conformidade.py`, fixtures novas) e a seção "Volta 3" de `docs/reviews/anti-alucinacao-regras.md`. Sondas: hook do HEAD rodado direto, projeto descartável em `$TMPDIR` (`.forge/versao`, branch `develop`, sem configuração global), efeito real conferido pelo `bash` 5.2.21 e pelo git 2.43.0 num segundo repositório descartável. Notação: `⏎` é quebra de linha.
+
+### Veredito: **reprovado** (critério do item 3 (ii) da ADR 0011, ameaça adversária no papel só de leitura)
+A gramática lexical está certa: tudo o que ela recusa a fonte confirma, e a tabela de 79 linhas do autor bate com as minhas sondas. A falha está numa suposição dela: o texto entre aspas simples seria inerte. Não é. O `test`, que está na lista branca, reavalia como código do shell o subscrito de `-v 'nome[...]'`, e ali dentro roda substituição, `$'...'` e chaves. O hook ainda olha o `$(...)` de dentro, mas a nível 1, onde não há gramática e onde a volta tirou as regras de S1 e S2. Resultado: escrita e execução com rc 0.
+
+### S6. `test -v` reavalia o texto entre aspas simples (bloqueia)
+- **Evidência:** `hooks/conformidade.json:78` (`test` e `[` na lista); `hooks/conformidade.py:491-492` (gramática só no nível 0); a remoção de `EXPANSAO`/`CHAVES` em `checar_so_leitura`, `hooks/conformidade.py:686-709`.
+- **Caminho de ataque:** é o de S1. O conferente obedece a uma instrução injetada no brief ou no diff e roda `test -v 'a[$(<git com opção que grava ou executa>)]'`. No bash, `-v` também vale dentro de expressão composta (`x = y -o -v ...`, `'!' -v ...`).
+- **Severidade:** alta. Dá execução arbitrária e gravação de arquivo (por exemplo, um parecer falso em `docs/reviews/`) a partir do papel só de leitura.
+- **Correção mínima:** (1) no papel só de leitura, o `test` só na forma `test -e|-f|-d|-s <um caminho>`, que é a que `agents/conferente.md:55` usa; qualquer outra recusa. (2) Tirar o `[` da lista, porque a gramática já o recusa e a entrada não faz nada. (3) Defesa em profundidade: no papel só de leitura, recusar toda análise com nível maior que 0. Depois da gramática, o hook só chega a esse nível quando acha `$(` ou crase entre aspas simples, e o bash só executa esse texto por reavaliação. O custo é o falso bloqueio de um `grep '$(x)'`, que hoje já recusa quando o programa de dentro está fora da lista. Fixtures de bloqueio: as quatro linhas `rc 0` abaixo e a forma `x = y -o -v`. Fixture de liberação: `test -e src/app.js`.
+- **Por que o remendo fecha a classe:** pode-se enumerar o que na lista reavalia argumento. Os programas externos (`git`, `gh`, `grep`, `cat`, `head`, `tail`, `wc`, `cut`, `tr`, `ls`, `forge-check`) recebem o argumento já sem as aspas e não o passam ao shell. Dos internos do bash na lista (`test`, `[`, `echo`, `pwd`, `cd`, `true`), só o `test`/`[` com `-v` reavalia. Sondei `-R -e -f -d -s -o -n -z -a -r -L`, e nenhum dos outros executa.
+- **Esforço:** P. **Dono:** `forge:tech-lead`.
+
+**Decisão que cabe ao usuário (R-DECISAO).** No aceite da ADR, propus que uma nova reprovação pelo item 1 (ii) levasse direto à (c3), e não a outro remendo. A brecha está na semântica de um comando da lista, não no alfabeto da gramática, e o remendo acima fecha a classe por enumeração. **Recomendo o remendo P, mantendo a (b)**. A (c3) continua sendo o passo se uma brecha aparecer no alfabeto. Como isso afrouxa um critério que eu mesmo propus, a escolha é do usuário. Opções: (1) remendo P e um novo re-review; (2) (c3), de tamanho M, que tira o `Bash` do conferente.
+
+### S7. Repositório nu versionado executa configuração com `-C` ou `cd` (cartão; corrige o informativo anterior)
+- **Evidência:** a gramática e a lista aceitam `git -C <pasta> ...` e `cd <pasta> && git ...`, com rc 0. Sondei um diretório versionado com `HEAD`, `config`, `objects/.keep` e `refs/.keep`, num clone novo. O git 2.43 (com `safe.bareRepository` padrão `all`) o toma como repositório e lê o `config` dele, e `git -C evil ls-remote origin` roda o `remote.origin.uploadpack`. O arquivo foi criado. O informativo da volta 2 dizia que esse caminho exigia gravar antes no `.git/config`. Estava errado: basta um arquivo versionado, que pode chegar num PR de terceiro.
+- **Severidade:** média. Exige um PR malicioso **e** que o conferente seja induzido a apontar o git para a pasta. Pelo item 3 da ADR, depende de estado gravado antes, então vira cartão.
+- **Correção mínima:** configuração, sem código. O usuário define `safe.bareRepository=explicit` na configuração global do git (sondado: com ele, não roda nada). Isso protege todos os papéis. No hook, recusar no papel só de leitura o `-C`/`cd` para uma pasta que seja diretório git nu. **Dono:** o usuário, pela configuração (o Jarvis leva a decisão), e o `forge:tech-lead`, pelo cartão do hook.
+
+### Demais papéis (item 2): aprovado
+Todas as linhas críticas que pedi saem com rc 2: `#⏎` (com espaço antes, colado na palavra e dentro de `$(...)`), `$"…"` (com e sem aspas de fora), `\⏎` (com e sem aspas duplas), `$@` (com e sem aspas), `$1`, crase, chaves, `case` e `$x`. As consumidoras de heredoc que executam o corpo também saem com rc 2: `bash <<'E'`, `bash -s`, `cat <<'E' | bash`, dois heredocs e `bash /dev/fd/3 3<<'B'`. Achados novos, que exigem ofuscação deliberada e por isso viram cartão (critério do item 3): **(C7)** `. /dev/stdin <<'E'⏎git push origin main⏎E` sai com rc 0 (o `source`/`.` não está entre as consumidoras do corpo; o pre-push segura a `main`). **(C8)** Um marcador ofuscado (`git p''ush origin $B`) escapa do `CRITICO`, que lê o texto cru, e com ele escapa do item 2. Rc 0. Correção: rodar o `CRITICO` também sobre as palavras já sem as aspas. Dono dos dois: `forge:tech-lead`. Confirmado também o C3 (`git push origin mai[n]`, rc 0).
+
+### Desvio do heredoc: aceito
+A regra do autor está certa e é mais estreita que a da ADR. O analisador só modela o heredoc com delimitador entre aspas (`<<'FIM'` ou `<<"FIM"`; nos dois o bash não expande o corpo), sem `-`, e com a linha de fim exatamente igual ao delimitador. Qualquer outro `<<` numa linha de várias linhas recusa. As três formas que ele achou, que antes saíam com rc 0, agora saem com rc 2 pelo motivo `heredoc`. `<<-`, `<<<` e um fim com espaço também recusam, e os usos legítimos (`git commit -m "$(cat <<'EOF' …)"` e o QA gravando o parecer) saem com rc 0. Não proponho outra regra.
+
+### Suposições do autor
+- **Chaves recusadas sem condição:** confirmada, e é mais segura que "com `,` ou `..`", porque o grupo `{ ...; }` também é uma construção não modelada. O custo fica só nas linhas com marcador.
+- **Tab tratado como espaço:** confirmada. No bash, o tab é separador, e `git⇥log⇥-1` sai com 0 no papel só de leitura e `git⇥push⇥origin⇥main` com 2 como `dev`. `\v`, U+00A0 e U+2028 fora de aspas recusam.
+- **S1, S2 e `<(` cobertos pela gramática:** valem no nível 0, onde as sondas de S1, S2 e `<(` saem com rc 2 pela gramática. **"Inalcançáveis" é falso:** S6 chega a elas pelo nível 1, e o `EXPANSAO`/`CHAVES` antigo teria recusado as sondas PWN8 e PWN9. Com a correção (3) de S6, a suposição passa a valer.
+
+### Sondas (rc do hook; o efeito real está entre parênteses)
+```
+conferente, S6:  0 | test -v 'a[$(git diff {--output=PWN7,HEAD})]'                    (arquivo PWN7 criado)
+                 0 | test -v 'a[$(git ls-remote $'"'"'--upload-pack=touch PWN8;'"'"' .)]'   (PWN8 criado: execução)
+                 0 | test -v 'a[$(git ls-remote {--upload-pack=touch\ PWN9\;,.})]'        (PWN9 criado: execução)
+                 0 | test -v 'a[$(git log -1 $X)]'
+                 2 | test -v 'a[$(touch PWN1)]'  2 | test -v 'a[$(echo x >PWN6)]'  2 | test -v 'a[$(git log -1 $(echo --output=PWN11))]'
+                 2 | [ -v 'a[...]' ] (gramática: `[`)   bash: só -v executa; -R -e -f -d -s -o -n -z -a -r -L não
+conferente, S7:  0 | git -C evil ls-remote origin  0 | cd evil && git ls-remote origin  0 | cd evil && git status
+                 (PWNU criado num clone novo; com safe.bareRepository=explicit, nada)
+conferente, gramática, rc 2: $'--output=OUT1'  {--output=OUT2,HEAD}  $(cat src/app.js)  cat <(touch X)  2>/dev/null
+                 echo a #b⏎git commit -m x  `echo -1`  "a\|b"  HEAD@{1}  ls *  git log -1\vgit status  git log -1<U+00A0>;touch X
+                 git log -1 <U+2028>touch X  |&  &&&  '--out'put=OUT  --outp=OUT  --outp OUT  git diff --ou=OUT  PATH=src; git log -1
+                 . src/app.js  source …  time …  if/for/coproc …  git --exec-path=src log  git -p log  ^log^status  %1  --ext-diff
+conferente, rc 0: git⇥log⇥-1   git log -1 'HEAD@{1}' && git diff --text HEAD && grep -n 'v1$' src/app.js   test -e src/app.js
+                 grep -n 'v1$' src/app.js && echo contém || echo não contém   cd ~+ && git log -1   git log -1 'a<U+2028>b'
+                 echo "a'b#c{d}*e<f>g|h;i&j(k)"   gh pr view 1 --jq 'env'
+dev/tech-lead, rc 2: echo a #b⏎push main  echo a#b⏎push main  git log -1 #⏎push melhoria/x (tech-lead)  $"main"  "$"main
+                 "ma\⏎in"  ma\⏎in  $@main  "$@"  $1main  $(echo #⏎)main  {main,x}  { git push origin melhoria/x; }  `echo main`
+                 case … esac  x=main; …$x  main\r  git push origin main⇥--force  bash <<'E'⏎push main  cat <<'E' | bash⏎push main
+                 bash <<'A' <<'B'  bash <<'A' 3<<'B'  bash /dev/fd/3 3<<'B'  bash -s <<'E'  cat <<'A'⏎push main (sem fim)
+heredoc, rc 2:   cat <<E'OF'⏎EOF⏎push main⏎E   echo "<<'EOF'"⏎push main⏎EOF   cat \<<'EOF'⏎push main⏎EOF
+                 cat <<-'EOF'⏎x⏎⇥EOF⏎push melhoria/x   cat <<< 'x'⏎push melhoria/x
+rc 0 (legítimo): git commit -m "$(cat <<'EOF'⏎docs: x⏎EOF⏎)"   cat <<"EOF"⏎x⏎EOF⏎git push origin melhoria/x
+                 cat > docs/qa/p1.md <<'EOF'⏎…⏎EOF (qa-engineer)   git push origin melhoria/x # nota
+rc 0 (cartão):   . /dev/stdin <<'E'⏎git push origin main⏎E (C7)   git p''ush origin $B (C8)   git push origin mai[n] (C3)
+```
+`push main` abrevia `git push origin main`.
+
+### Para o arquiteto (texto da ADR 0011; não alterei)
+O "Estado" passa de "proposta" para "aceita". No item 1, entram `^` e o tab no alfabeto, e sai o `[` da lista. Entra também a restrição do `test` e a recusa a nível maior que 0 (S6). No item 2, a lista passa a ser a da Divergência, com chaves sem condição e o heredoc só na forma do desvio aceito acima. O exemplo `git ls-files 'docs/*.md'` não está na lista do conferente. Troque-o por `grep -n 'v1$' src/app.js`. Por fim, registre a decisão do usuário entre o remendo P e a (c3).
+
+### Para reaprovar
+S6 corrigido, com as fixtures, e um novo re-review só do diff de correção. Os cartões C7, C8 e S7 não bloqueiam. A decisão sobre `safe.bareRepository` vai ao usuário pelo Jarvis.
