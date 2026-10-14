@@ -96,6 +96,11 @@
       "## Leituras",
       "## Por que o existente não basta"
     ],
+    "templates/projeto/docs/architecture/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
     "skills/engineering-practices/SKILL.md": [
       "critério de reversão",
       "Por que o existente não basta"
