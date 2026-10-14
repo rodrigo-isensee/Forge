@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 34b7538
+commit: 486038f
 parecer: aprovado
 revisor: forge:tech-lead (autor)
 data: 2026-10-14
@@ -13,6 +13,50 @@ data: 2026-10-14
 Escopo: `git diff origin/develop..34b7538` (f9791e9, fa5c36c, c1ec273, 38fcc3b, 34b7538). Referência: a linha "| 2 |" da seção 11 da proposta anti-alucinação, com as decisões do dono P1 = B, P2 = A, P3 = A e §14 = B. Este é o parecer **de autor**: o review independente e o QA continuam obrigatórios antes do PR.
 
 Parecer: **aprovado como autor**, com as pendências abaixo. **O PR precisa do rótulo `afrouxa-regra`**: o papel só de leitura exigiu código em `hooks/conformidade.py`, que está em `PROTEGIDOS`. A mudança endurece e não remove nenhum invariante. Também exige parecer do `security-engineer` (`R-SEGURANCA`, porque o diff toca `docs/regras/`, `tests/config.json` e `hooks/conformidade.json`), que o `forge-check pr` já cobra.
+
+## Volta 1: bloqueantes do review independente (2b4a3b7, 486038f)
+Escopo: `git diff 0c3ef40..486038f`. Os bloqueantes 1 e 2 e os dois recomendados de `anti-alucinacao-regras-independente.md` estão corrigidos, e a falha geral apontada ao `security-engineer` também. Por decisão do time, a correção geral entrou nesta fatia, num commit próprio. O PR precisa destacá-la no título e no corpo.
+
+- **B1 (2b4a3b7):** no papel só de leitura, o `git ls-remote` passa a aceitar só opções de leitura (`--heads`, `--tags`, `--branches`, `-h`, `-t`, `-b`, `--refs`, `-q`, `--quiet`, `--exit-code`, `--symref`, `--get-url`, `--sort=`), e o endereço com transporte `<x>::` é recusado. Nos demais subcomandos git da lista, `--upload-pack`, `--receive-pack`, `--exec`, `--config-env` e `--ext-diff` são recusados, inclusive abreviados, porque o git aceita prefixo único. As opções globais já eram recusadas, com exceção de `-C` e `--no-pager`.
+- **Recomendados (2b4a3b7):** o `--output` passa a casar só a própria opção e as abreviações dela, e `--output-indicator-*` é liberado. Entram as fixtures de `tee` e de `xargs`.
+- **B2 e falha geral (486038f):** o analisador comum (`hooks/_comum.py`) reconhece a abertura `<(` e `>(`, também depois de `>` e colada a outro sinal. O `conformidade` confere o comando de dentro como um comando próprio, para todos os papéis. O papel só de leitura recusa a substituição em si. O `segmentos`, usado pelo `parecer` e pelo `pesado`, passa a separar o comando de dentro, e por isso um merge sem parecer dentro de `<(...)` agora bloqueia.
+
+### Fixtures antes (0c3ef40) e depois
+```
+antes:  FAILED (failures=12) em 29 fixtures (conferente-*, subst-*): ls-remote upload-pack/-u/--exec/ext::, log --ext-d,
+        output-indicator (falso bloqueio), conferente <(...)/>(...) x3, tech-lead <(...)/>(...)/aninhada
+        + parecer/subst-processo-merge-sem-parecer-bloqueia: FAIL (0 != 2)
+depois: Ran 1 test ... OK (30 fixtures: conferente-*, *subst-*)
+```
+
+### rc do hook `conformidade` (projeto temporário, hooks de 0c3ef40 e depois os de 486038f)
+```
+antes depois | papel      | comando
+  0     2    | conferente | git ls-remote --upload-pack='touch PWNED;' .
+  0     2    | conferente | git ls-remote -u 'touch W;' .
+  0     2    | conferente | git ls-remote --exec=x .
+  0     2    | conferente | cat <(touch x)
+  0     2    | conferente | echo >(touch t)
+  0     2    | conferente | git status 2>&1 >(touch t)
+  0     2    | tech-lead  | cat <(git push --force origin main)
+  2     2    | tech-lead  | git push --force origin main
+  2     0    | conferente | git log -1 --output-indicator-new=x
+  0     0    | conferente | git ls-remote origin develop
+  0     0    | tech-lead  | diff <(git log -1) <(git log -2)
+```
+
+### Suíte e validação
+```
+$ python3 -m unittest discover -s tests     (uptime: load average: 0.32)
+Ran 562 tests in 177.099s
+OK
+$ scripts/validar-plugin.sh
+✔ Validation passed
+```
+
+### Riscos da volta 1
+- Depois do `shlex`, uma palavra entre aspas igual a `"<("` fica idêntica à abertura de verdade, e o hook a trata como substituição. No papel comum, o efeito é conferir como comando o que vem depois dela. No papel só de leitura, o comando é recusado. É um falso bloqueio raro, e a regra é recusar na dúvida.
+- Anterior a esta fatia e fora do escopo: o `)` que fecha `<(...)` ou `$(...)` é separador no analisador. Por isso, o que vem depois dele na mesma linha é lido como outro comando, e o alvo do `rm` escapa da checagem de escrita. Pela sonda, com o papel tech-lead: `rm .forge/versao` sai com 2, mas `rm <(true) .forge/versao` e `rm $(true) .forge/versao` saem com 0. O sandbox continua sendo a garantia. Cartão para o `security-engineer`.
 
 ## O que mudou
 - **Regras:** `R-PROVA` e `R-BRIEF` são novas. A `R-DECISAO` passa a exigir uma pergunta por vez em tudo e a marca "Retira do escopo original" em todo corte, com a lista "Fora do escopo". O índice também foi atualizado. O `verificada_por` das novas diz que os hooks `prova` e `brief` ainda não existem, para que a regra não afirme uma garantia que ainda não há.
