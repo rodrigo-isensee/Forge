@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: jarvis-forge-ao-abrir
 branch: melhoria/jarvis-forge-ao-abrir
-commit: 06b3826
-parecer: reprovado
+commit: 8b08053
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-13
+data: 2026-10-14
 ---
 # Parecer de autor: `jarvis-forge` atualiza a cópia vigente e consulta a fonte de harness ao abrir
 
@@ -83,3 +83,36 @@ Revisor: `forge:tech-lead` (sessão independente da autoria e da review anterior
 - Não atualiza com branch diferente da `develop`, sessão tmux aberta ou `--dev` (testes novos com git real).
 - `_imprimivel` tira ESC, BEL e CR do código; `topo` precisa ter 40 ou 64 hexadecimais (SHA-1 ou SHA-256), senão conta como falha (saída 3).
 - Na abertura, os avisos do `fetch` e do `merge` deixaram de ser descartados (`2>/dev/null` removido), e um aviso de ambiguidade passaria a aparecer.
+
+## Terceira review independente
+
+Revisor: `forge:tech-lead` (sessão independente da autoria e das duas reviews anteriores). Escopo: `1572021..8b08053` (1 commit, `fix(jarvis-forge): consulta de fontes fora do cwd, sem config do usuário e com protocolos negados`), revisado como código de segurança. Parecer: **aprovado** (os dois bloqueios da re-review estão corrigidos; 1 item recomendado).
+
+### Os dois bloqueios da re-review, no head novo
+- **`.git` malicioso no cwd: corrigido.** O ataque foi reproduzido com git real 2.43. O `.git` tinha `url."ext::sh -c touch% <alvo>".insteadOf = https://127.0.0.1:1/r.git` e `protocol.ext.allow=always`. Primeiro, o controle: o git puro, nesse cwd, executa o comando. Com o `forge-check` do `1572021`, o alvo foi criado nos três casos testados: `.git` como diretório, cwd dentro do `.git` e `.git` como arquivo `gitdir:` (worktree). Com o do `8b08053`, o alvo não foi criado em nenhum dos três, e a saída foi 3. Há duas defesas, cada uma suficiente sozinha: o `ls-remote` roda num `TemporaryDirectory`, e a linha de comando nega `ext`, `file`, `ssh`, `git` e `http`.
+- **Arquivo de lixo: removido.** `relativo/forge/fontes-2026-10-13` saiu do repositório. `JarvisForgeAbrir.rodar` agora usa `cwd=self.tmp`. Depois da bateria completa, `git status` ficou limpo.
+
+### Outras fontes de configuração procuradas (git real, mesmo ataque, HOME temporário)
+O `1572021` executou o comando em 8 dos 10 vetores. O `8b08053` não executou em nenhum dos 10:
+- `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n`/`GIT_CONFIG_VALUE_n` herdados;
+- `GIT_CONFIG_PARAMETERS`;
+- `GIT_DIR` apontando para o `.git` malicioso;
+- `$XDG_CONFIG_HOME/git/config`;
+- `~/.config/git/config`;
+- `~/.gitconfig`;
+- `GIT_EXEC_PATH` com um `git-remote-https` falso;
+- `GIT_SSH_COMMAND` com `insteadOf` para `ssh://`;
+- `TMPDIR` dentro de um repositório malicioso.
+
+Os herdados caem porque o `env` filtra todo `GIT_*`. O global e o XDG caem por `GIT_CONFIG_GLOBAL=/dev/null`, e o do sistema por `GIT_CONFIG_NOSYSTEM=1`. O vetor do `TMPDIR` é o único em que o repositório pai ainda é descoberto, e nele quem barra é a negação por extenso na linha de comando.
+- **`git` falso no `PATH`: fora do escopo.** O comando é executado, como era esperado. O `PATH` é o do shell do dono, e o `jarvis-forge` não o altera. Quem controla o `PATH` do dono já executa qualquer coisa.
+- O teste novo `test_git_do_cwd_malicioso_nao_executa_comando` usa git real, sem rede. Ele falha com o `forge-check` do `1572021` e passa com o do `8b08053`. O teste da linha exata passou a exigir as negações por extenso, o que é mais estrito.
+
+### Bateria local (checkout `8b08053`)
+- `python3 -m unittest discover -s tests`: 331 testes, OK. Depois deles, `git status` ficou limpo.
+- `scripts/validar-plugin.sh`: passou. `shellcheck scripts/jarvis-forge`: sem achados.
+- `tests/catraca.py --base origin/develop`, com o script da base: falha só por `bin/forge-check`, que pede o rótulo `afrouxa-regra` aplicado pelo dono depois do último push (esperado). `--modo pr-texto` com o corpo do PR 107: OK. `--modo pareceres`: rodado sobre o commit deste parecer.
+- Versão e changelog: `plugin.json` continua em 0.12.0 e há uma linha nova em `## [Não publicado]`: OK.
+
+### Achados
+1. **`bin/forge-check` (`cmd_fontes`, `tempfile.TemporaryDirectory()`) · recomendado.** A pasta temporária nasce no `TMPDIR` do dono. Se esse `TMPDIR` ficar dentro de um repositório, o git descobre o repositório pai e lê a configuração local dele. Os protocolos estão negados na linha de comando, mas um `credential.helper=!cmd` ainda seria lido, e só rodaria se um servidor https respondesse 401. Não é explorável pelos agentes: o `TMPDIR` vem do shell do dono, e o sandbox não grava em `/tmp` (conferido). Como reforço barato, vale acrescentar ao `env` `GIT_CEILING_DIRECTORIES` com o pai da pasta temporária, ou `GIT_DIR` com um caminho inexistente. Pode ir num PR futuro.
