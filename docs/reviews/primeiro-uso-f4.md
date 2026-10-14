@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f4
 branch: melhoria/primeiro-uso-f4
-commit: 2b8970d
+commit: 69d681e
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -79,3 +79,33 @@ Parecer: **reprovado**. Revisei o diff `c44e32f..2b8970d` e sondei o hook real c
 3. Falso positivo leve: `rm -rf $TMPDIR/x/.forge` é recusado, enquanto `/tmp/abc/.forge` passa. Limpar uma worktree inteira (`rm -rf $TMPDIR/x`) continua livre, então o impacto é baixo.
 
 Depois de corrigir o item 1, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
+
+## Terceira review independente (tech-lead, HEAD 69d681e)
+
+Parecer: **reprovado**. Revisei o diff `e427a49..69d681e` e sondei o hook real com cerca de 55 comandos, no perfil iniciante e no papel `node-backend`. O cenário tem um projeto com `feature/x` publicada, uma worktree `--detach` em `$TMPDIR` e um link simbólico em `$TMPDIR` apontando para o projeto. Comparei com o `e427a49` quando o resultado mudou.
+
+**Validação local** (cota do Actions esgotada): `python3 -m unittest discover -s tests` passou (404 testes, OK). `scripts/validar-plugin.sh` passou. `catraca.py --base b5e5d3d` (modo `regras`) saiu com 1, só pedindo o rótulo `afrouxa-regra` para `hooks/_comum.py`, `hooks/conformidade.py` e `hooks/parecer.py`, como esperado. O modo `pareceres` (`--head HEAD --ramo=melhoria/primeiro-uso-f4 --base-ref develop`) saiu com 1, porque o último parecer é reprovado. O modo `pr-texto` (corpo do PR #110) passou. A versão 0.12.0 é igual à da base, com 3 linhas novas em `[Não publicado]`: ok.
+
+**O que a correção fechou**
+- Com o cwd na worktree temporária, `gh repo archive o/r --yes` volta a perguntar. Com branch na worktree, o `reset --hard` também pergunta, e há fixture para os dois casos.
+- `reset --hard`, `clean -fdx`, `checkout -- .` e `restore .` na própria cópia solta ficam livres, como pretendido. Com o cwd no projeto, `git -C $TMPDIR/w reset --hard` e `cd $TMPDIR/w && ...` continuam perguntando.
+- Expansão de `$TMPDIR`: com o link `$TMPDIR/lnk` apontando para o projeto, `rm -rf $TMPDIR/lnk/.forge` é recusado, também em `"$TMPDIR"/...` e `${TMPDIR}/.githooks`, porque o alvo é resolvido. `TMPDIR=... rm`, `export TMPDIR=...;`, `declare TMPDIR=...;` e `TMPDIR=... bash -c '...'` também são recusados. `rm -rf $TMPDIR/x/.forge` (o falso positivo do recomendado 3) agora passa.
+- `$(pwd)` e `$( pwd )` sem aspas, antes de `.forge`, são recusados.
+
+**Ajustes necessários**
+1. `hooks/conformidade.py:230` (`worktree_temporaria`): a dispensa é decidida pela raiz da pasta corrente da chamada (`self.h.raiz`), não pela pasta em que o comando age. Com o cwd na worktree temporária solta, todos estes comandos passam sem confirmação e descartam as mudanças não salvas do **projeto da pessoa**:
+   - `cd <projeto> && git reset --hard HEAD~1` e `cd <projeto> && git clean -fdx`;
+   - `git -C <projeto> reset --hard` e `git -C <projeto> checkout -- .`;
+   - `git --work-tree=<projeto> clean -fdx` e `GIT_DIR=<projeto>/.git GIT_WORK_TREE=<projeto> git reset --hard`.
+
+   O "HEAD solto" também pode ser forjado na mesma linha, porque é lido antes de o comando rodar. `git switch feature/x && git reset --hard HEAD~1`, ou `git checkout feature/x; git reset --hard develop`, passa sem confirmação e move a branch publicada da pessoa.
+
+   No `e427a49`, isso já passava, porque a dispensa valia para tudo. A correção estreitou a lista de atos, mas não a pasta. Sugestão: decidir a dispensa pela `pasta` que o `git_trava` recebe, ou seja, o `cd` e o `-C` já resolvidos. Não dispensar quando houver `--work-tree`, `--git-dir`, `GIT_DIR` ou `GIT_WORK_TREE`, nem quando a linha tiver antes um `switch` ou `checkout` de branch, `checkout -B` ou `branch -f`. O mais simples é dispensar só quando o ato for o único comando git da linha. Fixtures sugeridas, todas com o cwd na worktree solta e a resposta "pergunta": `cd <projeto> && git reset --hard`, `git -C <projeto> checkout -- .`, `git --work-tree=<projeto> clean -fdx` e `git switch feature/x && git reset --hard HEAD~1`. Severidade: **bloqueia**. É dano real para o iniciante: trabalho não salvo no projeto e uma branch publicada.
+2. `hooks/conformidade.py:425` (`tmpdir_redefinido`): a redefinição de `TMPDIR` só é reconhecida na forma `TMPDIR=`. Com `read TMPDIR <<< <projeto>; rm -rf $TMPDIR/.forge` e `printf -v TMPDIR %s <projeto>; rm -rf $TMPDIR/.forge`, o hook expande para a `TMPDIR` do próprio processo, e a remoção passa. No `e427a49`, a variável antes de `.forge` era recusada, então isso é uma **regressão** desta correção. `for TMPDIR in <projeto>; do rm -rf $TMPDIR/.forge; done` já passava antes. Sugestão: tratar como redefinição qualquer ocorrência da palavra `TMPDIR` que não seja leitura (`$TMPDIR` ou `${TMPDIR}`). Fixture com `read` e `rm`. Severidade: **bloqueia**, porque reabre a remoção da instalação, que estava fechada.
+
+**Recomendados** (não bloqueiam; podem virar cartão)
+3. `rm -rf $(pwd -P)/.forge` e `rm -rf $(git rev-parse --show-toplevel)/.forge` ainda passam. A troca cobre só o `$(pwd)` literal. Sugestão: tratar `$(` sem aspas antes de uma pasta protegida como variável não resolvida, que é recusada.
+4. `rm -rf <link>/`, com barra final num link simbólico para o projeto, esvazia o projeto. Conferi com o GNU rm: o conteúdo do alvo é apagado. O hook deixa passar, tanto com `$TMPDIR` quanto com o caminho literal, e isso já acontecia antes. Exige criar o link antes, então o impacto é baixo.
+5. `git branch -f feature/x HEAD~1` e `git checkout -B feature/x HEAD` movem a branch publicada sem confirmação, em qualquer pasta, também no projeto. Já acontecia antes e está fora do escopo desta correção, mas cabe na mesma pergunta de "reescreve versões".
+
+Depois de corrigir os itens 1 e 2, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
