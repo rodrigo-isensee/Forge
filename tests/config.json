@@ -312,7 +312,25 @@
       "O teste não se aplica\\*\\* a custo",
       "o que o usuário disse",
       "preferência do time",
-      "Decisão só vale gravada"
+      "Decisão só vale gravada",
+      "\\*\\*Uma pergunta por vez\\*\\* em tudo, também no entendimento inicial",
+      "Retira do escopo original",
+      "Fora do escopo",
+      "corte: sem marca"
+    ],
+    "docs/regras/R-PROVA.md": [
+      "tipo de prova",
+      "Provas:",
+      "copiada da saída de uma ferramenta",
+      "Item sem prova conta como \\*\\*não feito\\*\\*",
+      "Ele não recebe o relatório do autor",
+      "retrabalho"
+    ],
+    "docs/regras/R-BRIEF.md": [
+      "\\*\\*antes\\*\\* de chegar ao agente",
+      "literal, exatamente como será enviado",
+      "corte de escopo marcado",
+      "O agente só recebe o texto aprovado"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
