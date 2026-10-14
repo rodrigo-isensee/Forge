@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f4
 branch: melhoria/primeiro-uso-f4
-commit: 78caa1b
-parecer: reprovado
+commit: 8d99869
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
@@ -142,3 +142,33 @@ Parecer: **reprovado**, por um achado novo (item 1), que nenhuma das três revie
 4. `rm -rf $TMPDIR/x/.forge` voltou a ser recusado. É o falso positivo do recomendado 3 da segunda review, mas trocado agora por segurança, e na direção certa: na dúvida, recusa. Se incomodar, basta escrever o caminho sem variável.
 
 Depois de corrigir o item 1, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
+
+## Quinta review independente (tech-lead, HEAD 8d99869)
+
+Parecer: **aprovado**. O bloqueio da quarta review está resolvido, e os recomendados 2 e 3 também. Revisei o diff `4cf90c0..8d99869` e sondei o hook real com cerca de 120 comandos, no papel `node-backend` e no `jarvis`. O cenário é o da quarta review: um projeto do Forge (`.forge/versao`, `.forge/perfil` = iniciante, `.githooks/`, `.claude/`) com mudança não salva, a `feature/x` publicada no `origin` e uma worktree `--detach` solta. Rodei com o cwd na worktree, no projeto e numa pasta fora do git; com e sem `CLAUDE_PROJECT_DIR`. Quando o resultado mudou, comparei com o `78caa1b`.
+
+**Validação local** (cota do Actions esgotada), no checkout do `8d99869`:
+- `python3 -m unittest discover -s tests`: 404 testes, OK.
+- `scripts/validar-plugin.sh`: passou.
+- `catraca.py` da base `b5e5d3d`, modo `regras`: saiu com 1, só pedindo o rótulo `afrouxa-regra` para `hooks/_comum.py`, `hooks/conformidade.py` e `hooks/parecer.py`, como esperado.
+- Modo `pareceres` (`--head HEAD --ramo=melhoria/primeiro-uso-f4 --base-ref develop`): rodado sobre o commit deste parecer (resultado no comentário do PR).
+- Modo `pr-texto` (corpo do PR #110): passou.
+- Versão 0.12.0, igual à da base, com 3 linhas novas em `[Não publicado]`: ok.
+
+**Bloqueio da quarta review: resolvido**
+- Item 1. Com o cwd na worktree temporária, todos estes comandos agora são **recusados**: `rm -rf <projeto>/.forge`, `rm -rf ../proj/.forge`, `mv <projeto>/.forge <tmp>/x`, `rm -rf <projeto>/.githooks`, `mv <projeto>/.githooks <tmp>/x`, `rmdir <projeto>/.githooks`, `rm -rf <projeto>/.claude`, `mv <projeto>/.claude /tmp/x`, `rm -r ../proj/.claude`, `rm -rf <projeto>/.forge/`, `rm -rf <projeto>/./.forge` e `rm -rf <projeto>/.forge/run`. Também é recusado `rm -rf <link>/.forge`, com um link simbólico já existente que aponta para o projeto. O resultado é o mesmo sem `CLAUDE_PROJECT_DIR`, porque a raiz vem do repositório que contém o alvo (`raiz_git(alvo)`).
+
+**Recomendados novos: conferidos**
+- O corpo de `for`, `while`, `until` e `if/then/else` é examinado. `for X in <projeto>; do rm -rf $X/.forge; done` e `for TMPDIR in ...` são recusados, assim como `{ ...; }`, `( ... )`, `! rm ...`, `true && rm ...` e `bash -c 'rm ...'`.
+- **Perguntam**, em qualquer pasta: `git checkout -B feature/x HEAD~1`, com ou sem `--ignore-other-worktrees`, e também `checkout -fB`, `switch -C`, `switch -fC`, `switch --force-create`, `branch -f`, `branch --force` e `branch -f --no-track`, sempre sobre branch publicada. São **recusados** `branch -f main`, `branch -f refs/heads/main`, `checkout -B develop` e `switch -C homolog`.
+
+**Sem falso positivo no fluxo normal** (passam sem pergunta, no projeto e na worktree): `rm -rf <worktree>`, `rm -rf $TMPDIR/rv-algo`, `rm -f $TMPDIR/x.json`, `rm -rf node_modules dist`, `rm -rf <projeto>/src`, `mv src/app.js src/b.js`, `for f in a b; do rm -f $f.tmp; done`, `git worktree remove [--force] <worktree>`, `git switch -c` e `checkout -b melhoria/y`, `git branch -D melhoria/y`, `git branch -d feature/q`, `branch -f` e `checkout -B` de branch local não publicada, `git branch -m` e `-c`, `--list` e `-vv`.
+
+**Recomendados** (não bloqueiam; podem virar cartão)
+1. `find <projeto> -name .forge -exec rm -rf {} +` passa. É indireto, e já passava no `78caa1b`. Sugestão: tratar `find ... -exec|-execdir rm` e `-delete` como remoção dos caminhos de partida.
+2. `git branch -M nova feature/x` e `git update-ref refs/heads/feature/x HEAD~1` movem a branch publicada sem confirmação. Também já passavam no `78caa1b`. Sugestão: estender `branch_movida` para `-M`/`-C` e para o `update-ref` sem `-d`.
+3. `ln -s <projeto> L; rm -rf L/.forge`, na mesma chamada, passa: o link ainda não existe quando o hook resolve o caminho. Exige um truque deliberado; o sandbox é a garantia.
+4. A trava passou a valer para `.forge`, `.githooks` e `.claude` de **qualquer** repositório, inclusive a própria worktree de review e repositórios de teste em `$TMPDIR` (`rm -rf <outro-repo>/.claude` é recusado). É falso positivo na direção segura, e apagar o repositório inteiro segue livre. Se incomodar, restrinja a repositórios com `.forge/versao`.
+5. A raiz do projeto continua de fora por desenho (`rm -rf <projeto>` passa), como diz a docstring. É limite aceito, e o sandbox é a garantia.
+
+O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push. Não mesclei.
