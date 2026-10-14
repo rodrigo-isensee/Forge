@@ -2,8 +2,10 @@
 # Forge: abre o Jarvis dentro do repositório ~/Forge (onde se edita), usando como plugin uma CÓPIA VIGENTE do Forge
 # (clone da origin/develop em ${XDG_DATA_HOME:-~/.local/share}/forge/vigente), não a cópia de trabalho: editar hooks/
 # ou agents/ numa branch não muda a guarda nem as instruções em uso (ADR 0009, seção 4). A cópia é criada se faltar
-# e só é atualizada por --atualizar-vigente, depois de um merge. Retoma a última conversa, com chat remoto e, se instalado,
-# o canal do Telegram. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# e, ao abrir, é atualizada sozinha só por fast-forward para a origin/develop (recusa e avisa se tiver mudança ou
+# commit local, ou se estiver sem rede; sessão tmux já aberta não é tocada). Uma vez por dia consulta, com
+# `forge-check fontes`, a fonte de harness e mostra uma linha se houver versão nova. Retoma a última conversa, com
+# chat remoto e, se instalado, o canal do Telegram. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
 # Uso: jarvis-forge [--sem-tmux] [--dev] | jarvis-forge --atualizar-vigente
 #   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux
 #   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças ou commits locais) e sai
@@ -18,7 +20,7 @@ for a in "$@"; do
     --sem-tmux) sem_tmux=1 ;;
     --dev) dev=1 ;;
     --atualizar-vigente) atualizar=1 ;;
-    -h|--help) sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "jarvis-forge: argumento desconhecido: $a (veja jarvis-forge --help)" >&2; exit 2 ;;
   esac
 done
@@ -86,12 +88,57 @@ if [ "$dev" = 1 ]; then
 elif [ ! -e "$vigente" ]; then
   criar_vigente
 fi
+# Só fast-forward: nunca reset nem merge; qualquer dúvida vira um aviso de uma linha e a sessão abre com a cópia atual.
+atualizar_ao_abrir() {
+  local antes depois
+  [ -d "$vigente/.git" ] || return 0
+  if [ "$(git -C "$vigente" symbolic-ref --short HEAD 2>/dev/null || true)" != develop ]; then
+    echo "jarvis-forge: a cópia vigente não está na develop; não atualizei, sigo com a cópia atual." >&2; return 0
+  fi
+  if [ -n "$(git -C "$vigente" status --porcelain 2>/dev/null)" ]; then
+    echo "jarvis-forge: a cópia vigente tem mudanças locais; não atualizei, sigo com a cópia atual." >&2; return 0
+  fi
+  if ! timeout 30 git -C "$vigente" fetch --quiet origin 2>/dev/null; then
+    echo "jarvis-forge: sem rede (ou sem acesso à origin); sigo com a cópia vigente atual." >&2; return 0
+  fi
+  if [ -n "$(git -C "$vigente" rev-list origin/develop..HEAD 2>/dev/null)" ]; then
+    echo "jarvis-forge: a cópia vigente tem commits locais fora da origin/develop; não atualizei, sigo com a cópia atual." >&2; return 0
+  fi
+  antes="$(git -C "$vigente" rev-parse HEAD)"
+  if ! git -C "$vigente" merge --quiet --ff-only origin/develop >/dev/null 2>&1; then
+    echo "jarvis-forge: a cópia vigente não avança por fast-forward; não atualizei, sigo com a cópia atual." >&2; return 0
+  fi
+  depois="$(git -C "$vigente" rev-parse HEAD)"
+  [ "$antes" = "$depois" ] || echo "jarvis-forge: cópia vigente atualizada para a origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
+}
+# No máximo uma consulta por dia (cache da data); sem registro local das fontes, `forge-check fontes` fica em silêncio.
+consultar_fontes() {
+  local estado cache fc saida codigo
+  estado="${XDG_STATE_HOME:-$HOME/.local/state}/forge"
+  cache="$estado/fontes-$(date +%F)"
+  [ -e "$cache" ] && return 0
+  fc="$vigente/bin/forge-check"; [ "$dev" = 1 ] && fc="$HOME/Forge/bin/forge-check"
+  [ -x "$fc" ] || return 0
+  codigo=0; saida="$("$fc" fontes 2>/dev/null)" || codigo=$?
+  [ -n "$saida" ] && echo "jarvis-forge: $saida" >&2
+  if [ "$codigo" != 3 ]; then mkdir -p "$estado" && : > "$cache"; fi  # 3 = sem rede: tenta de novo na próxima abertura
+  return 0
+}
+# O que ocorre uma vez por abertura: dentro do tmux a sessão reentra neste script (FORGE_ABERTURA_FEITA) e não repete.
+if [ -z "${FORGE_ABERTURA_FEITA:-}" ]; then
+  # sessão tmux já aberta só é reanexada: não troca o plugin sob ela (a atualização espera o reinício)
+  if [ "$dev" = 0 ] && ! { [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1 \
+      && tmux has-session -t jarvis-Forge 2>/dev/null; }; then
+    atualizar_ao_abrir
+  fi
+  consultar_fontes
+fi
 cd "$HOME/Forge"
 if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then
   repasse=(); [ "$dev" = 1 ] && repasse=(--dev)
   sessao=jarvis-Forge; [ "$dev" = 1 ] && sessao=jarvis-Forge-dev  # um nome por modo: -A não reaproveita a sessão do outro modo
   eu="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-  exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' "$eu" ${repasse[@]+"${repasse[@]}"})"
+  exec tmux new-session -A -s "$sessao" -c "$PWD" "$(printf '%q ' env FORGE_ABERTURA_FEITA=1 "$eu" ${repasse[@]+"${repasse[@]}"})"
 fi
 plugin_dir="$vigente"; [ "$dev" = 1 ] && plugin_dir=.
 nome_remoto="Jarvis - Forge"; [ "$dev" = 1 ] && nome_remoto="Jarvis - Forge (dev)"
