@@ -42,7 +42,7 @@ Falhou? Corrija e rode de novo; o PR só sai com as três verdes.
 ## 6. Abra o PR para a `develop`
 Use `.github/pull_request_template.md` e preencha:
 - **Projeto de origem** e **situação observada**, sem dados do projeto (se o repositório for público, o PR é público);
-- **O que muda**;
+- **O que muda**; se criar mecanismo novo (hook, regra, ferramenta), diga o que já existe para isso e por que não basta (evidência de execução);
 - **Como medir** o efeito (`docs/melhoria-continua.md`);
 - checklist: testes, validate, `verificar-contribuicao`, CHANGELOG, neutralidade.
 

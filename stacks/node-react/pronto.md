@@ -38,3 +38,6 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 - Banco relacional (PostgreSQL por padrão; o projeto decide em ADR); front ↔ back via REST/JSON versionado (`/api/v1`).
 - Autenticação com sessão em cookie httpOnly (ou JWT de curta duração + refresh, via ADR).
 - Aplicação no Mermaid do `overview.md`: `Web SPA - React` → `API - Node.js` → banco.
+
+## CI
+Insumos da skill `ci-cd` para o `devops-engineer`: toolchain Node da versão do `engines`/`.nvmrc`, com `pnpm` pela versão do `packageManager`; chave do cache de pacotes derivada do `pnpm-lock.yaml`; instalação congelada (`pnpm install --frozen-lockfile`); jobs na ordem lint e type-check, testes unitários e de integração, build, E2E (Chromium por padrão; Firefox e WebKit só no CI); imagem base `node` fixada por digest, em multi-stage, com usuário não root.
