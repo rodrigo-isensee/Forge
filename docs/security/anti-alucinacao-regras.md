@@ -118,3 +118,30 @@ tech-lead:  0 | git push --force origin main
 - **Para reaprovar:** S1, S2 e S3 corrigidos, com as fixtures. Basta um novo review de segurança do diff de correção.
 - **Cartões:** S4 vira pedido próprio e urgente, para todos os papéis. S5 vai para a fatia 3.
 - **Ferramentas:** `bash`, `git` 2.43.0 e `python3`, com o hook rodado diretamente. Faltaram no ambiente `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint`. Nenhuma delas cobre análise de comando shell, então a lacuna não afeta este parecer. Não instalei nada.
+
+## Aceite de segurança: ADR 0011 (2026-10-14, sobre f007b49)
+**Veredito: aceita com ajustes.** A opção (b) é a certa: a omissão passa a ser recusar. Os ajustes estão na seção "Divergência" da ADR e entram nesta fatia, com fixtures.
+
+**Sondas** (hook do HEAD f007b49, projeto descartável em `$TMPDIR` com `.forge/versao` e branch `develop`; efeito conferido no `bash`):
+```
+dev:        0 | echo a #b⏎git push origin main      0 | echo a#b⏎git push origin main   (bash roda a 2ª linha nos dois)
+            0 | git push origin $B   0 | git push origin `echo main`   0 | git push origin {main,x}   0 | git push origin $'main'
+            0 | git push origin $"main"   0 | git push origin ma\⏎in   0 | git push origin $@main   0 | git push origin $1main  (fora da lista do item 2)
+            0 | rm .forg?/versao   0 | cp src/app.js .claud[e]/settings.json   (glob; sem marcador crítico, o item 2 não age)
+            2 | git push origin main   2 | bash <<E⏎git push origin main⏎E   2 | git push origin $(true) main   2 | rm $(true) .forge/versao  (S4 já fechado)
+conferente: 0 | echo a #b⏎git log -1   0 | echo a #b⏎git commit -m x   0 | ls *   0 | git log -1 HEAD@{1}   0 | echo $?
+            0 | git log -1 2>/dev/null   0 | git show HEAD^      2 | git log -1⏎git commit -m x   2 | git log -1 \--output=x
+```
+A ADR confere com o hook: o comentário que engole a quebra de linha passa em todos os papéis, inclusive `commit` no conferente.
+
+**Cobertura das brechas conhecidas.**
+- *Item 1 (so_leitura):* cobre S1 (`$'`, chaves, `${`), S2 (`$(`, crase), o `#⏎` e o `a#b⏎` (o `#` e a quebra de linha são recusados), heredoc, process substitution, `$((`, `case` (exige `)`) e glob. O S3 (lançadores) segue na lista branca de comandos. Ressalvas: a leitura de aspas tem de ser sequencial, o espaço é literal e os caracteres de controle são recusados.
+- *Item 2 (demais papéis):* cobre `#⏎` e `a#b⏎`, crase, heredoc, `$'`, `${`, `$NOME` e chaves. **Não cobre**, como está escrito, `$"..."`, `$@`/`$1` e `\⏎`, todos com rc 0 e efeito real. O ajuste é "todo `$` fora de aspas simples que não abra `$(`" mais "`\` seguido de quebra de linha". Glob em caminho protegido (`.forg?/`) escapa até do marcador crítico. Exige intenção deliberada, e o papel comum é guarda contra erro (ADR 0009). Vira cartão.
+
+**Critério de parada:** aceito o item 3 da ADR com dois complementos. (1) No item 1, a ameaça é adversária: qualquer construção aceita pela gramática que leve a escrita ou execução reprova. No item 2, a ameaça é erro: ofuscação deliberada sem outra camada vira cartão. (2) Se a próxima rodada reprovar de novo pelo item 1 (ii), o passo seguinte é a (c3), não outro remendo.
+
+**Falsos bloqueios esperados.** No so_leitura: `echo $?`, `$(...)`, `2>/dev/null`, `HEAD@{1}` sem aspas, glob, várias linhas, `\` e `!` entre aspas duplas (`grep "a\|b"`; use aspas simples). Nos demais papéis, só nas linhas com marcador: `git push origin $BRANCH`, laços com `push`, scripts com comentário entre linhas e caminho via `$TMPDIR`/`$HOME` junto de caminho protegido (`cp $TMPDIR/x docs/reviews/y.md`). Todos têm forma explícita, e o critério de reversão da ADR mede isso.
+
+**Cartões desta fatia:** (C1) S5 na fatia 3; (C2) pilha da crase e `case` dentro de `$(...)` no analisador geral; (C3) glob em caminho protegido e em nome de branch nos papéis comuns (sondado, rc 0; severidade baixa, com revisão e CI como camada); (C4) glob que expande arquivo começado por `-` (hipótese); (C5) `fichas` sem `shlex._pushback_chars`; (C6) acompanhar o falso bloqueio por `$TMPDIR`/`$HOME` com marcador e, se pesar na leitura de reversão, permitir variáveis do ambiente sem atribuição na linha. Dono de todos: `forge:tech-lead`. O Jarvis abre os pedidos.
+
+**Para reaprovar a fatia:** a ADR com os ajustes, as fixtures da ADR e as da Divergência com o rc certo, e um novo review de segurança do diff.
