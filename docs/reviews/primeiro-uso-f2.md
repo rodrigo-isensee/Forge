@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f2
 branch: melhoria/primeiro-uso-f2
-commit: 229ec44
-parecer: aprovado
+commit: 1687736
+parecer: reprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-13
 ---
@@ -52,3 +52,14 @@ Revisor: `tech-lead`, sobre o HEAD 229ec44 (correção das recomendações 1 a 4
   2. Nos demais erros de push o texto do git deixou de aparecer (a saída é capturada). Imprimir `$erro` em stderr no caminho genérico ajuda o diagnóstico.
   3. Nomes com acento ou espaço saem entre aspas em `ls-files` (`core.quotepath`); a checagem de segredo e de marcas os ignora. Usar `-z` ou `-c core.quotepath=off`.
   4. CI: os scripts bash de `bin/` ainda fora do job `shellcheck` (pendência já registrada).
+
+## Review da correção do QA
+
+Revisor: `tech-lead` (independente), sobre o HEAD 1687736. Resultado: **reprovado** (1 bloqueio).
+
+- **Verificação:** 350 testes OK; `shellcheck` limpo nos quatro scripts de `bin/`.
+- **Bloqueia, `bin/forge-salvar` (laço de marcas de conflito):** `grep -qE '^(<<<<<<<|>>>>>>>) ' "$arq"` sem `--`. Arquivo cujo nome começa com `-` é lido como opção do grep: o grep falha (`grep: .txt: No such file`), o `if` trata como "sem marca" e o arquivo com `<<<<<<<` é registrado e vai para o commit. Reproduzido com `-rf.txt` (commit criado e envio tentado); `-d/.env` também faz o grep reclamar. É o mesmo tipo de escape do F2-01, agora por outro nome. Correção: `grep -qE -- '...' "$arq"` (ou `./$arq`) e teste com nome iniciado em `-` (arquivo de marcas e pasta `-d/`).
+- **Confirmado OK:** a leitura com `-z` pega nome com acento (`pasta é/`), quebra de linha no nome e links simbólicos (arquivo real e link para ele; link para fora não é lido, vai como link); a checagem de segredos usa `[[ =~ ]]` sobre o nome, sem passar pelo grep.
+- **F2-02:** o reenvio só ocorre fora de `main`/`develop`/`homolog`/sem branch e envia `origin "$ramo"`; nunca para a `main`.
+- **Sem regressão** nos demais itens (F2-03 a F2-06): mensagens e testes coerentes.
+- Ao corrigir, o `tocados` vazio com `set -u` não ocorre, pois `mudancas` não vazio implica caminhos; nenhuma ação extra.
