@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: agentes-devops-seguranca
 branch: melhoria/agentes-devops-seguranca
-commit: 1ea1ace
+commit: fea66c7
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -63,3 +63,33 @@ Revisor: `forge:tech-lead`, sessão separada da do autor. Escopo: `origin/develo
 8. `bin/forge-check:33` (`LIVRES`) · informativo · um commit posterior que só toca `docs/devops/` ou `docs/security/` não invalida os pareceres, como já acontece com `docs/reviews/`. Aceitável.
 
 Para aprovar: corrigir 1, 2 e 3 com fixture e reenviar. O 4 a 7 podem virar cartão, desde que registrados no PR.
+
+## Re-review independente
+
+Revisor: `forge:tech-lead`, sessão separada da do autor. Escopo: `de4820d..fea66c7` (1 commit), sobre os achados da review independente. **Parecer: reprovado** (2 itens que bloqueiam; os 3 bloqueios anteriores estão corrigidos).
+
+### Bateria local (cota do Actions esgotada)
+Checkout do PR em `fea66c7`; merge commit sintético com `HEAD^1` = `origin/develop` (b5e5d3d); script da base.
+- `python3 -m unittest discover -s tests`: 328 testes, OK.
+- `scripts/validar-plugin.sh`: "Validation passed".
+- `catraca.py` modo `regras`: sai com 1, só pelo rótulo `afrouxa-regra` que falta (`hooks/conformidade.json` com papéis e `.github/`, `bin/forge-check`, `hooks/conformidade.py`, `hooks/parecer.py`), como previsto. Modo `pareceres`: sai com 1, só porque este parecer de review está reprovado. Modo `pr-texto` com o corpo do PR: sai com 0.
+- Versão e changelog: versão 0.12.0 igual à base, 1 linha nova em `[Não publicado]`: OK.
+
+### Bloqueios anteriores
+1. `*.tf`: corrigido. `main.tf`, `infra/main.tf`, `*.tfvars` e `*.tf.json` casam; pastas `infra/` e `deploy/` também; fixtures em `tests/test_forge.py`.
+2. Renomeação: corrigido. `--no-renames` em `arquivos_da_entrega`, `commit_vale` e `hooks/parecer.py`; fixtures de lockfile e `Dockerfile` renomeados.
+3. Aceite gravado pelo agente: corrigido no mecanismo. `docs/security/aceites/` com `quem: []` antes de `docs/security/`; o `forge-check pr` só aceita `riscos-aceitos` com `docs/security/aceites/<pedido>.md` (`pedido` igual, `aceite: sim`); `aceite_usuario` no parecer deixou de valer. A pasta não é lida como parecer (`documentos()` não desce em subpasta) e um commit que só a toca não invalida o parecer (`LIVRES`). Falta amarrar o aceite ao risco aceito (achado R2 abaixo).
+
+### Conferido
+- **Arquivo de aceite, escrita pelos agentes.** Testado com o hook `conformidade` deste commit, papéis `seguranca`, `tech-lead`, `devops` e sessão principal (`jarvis`): barrados (saída 2) Write, Edit, MultiEdit, `>`, `>>`, `tee`, heredoc, `cd docs/security && ... > aceites/x`, `cp`, `mv`, `install -D`, `sed -i`, `python3 -c "open(...,'w')"`, `bash -c '...'` e caminho com `..`. Escapam (saída 0) o caminho por variável (`d=docs/security/aceites; echo x > $d/p1.md`), `git checkout <ref> -- <aceite>` e `git restore --source` (estes dois exigem um commit que já tenha o arquivo) e o encanamento do git (`hash-object` + `update-index --cacheinfo`). É o nível [B] da ADR 0009 para caminhos versionados (o mesmo de `.forge/config.json` no Bash e de `docs/regras/`), e contornar é violar `R-CONFORMIDADE`; Write e Edit são [I]. Diferente dos pareceres, o aceite não tem a segunda linha [D] da autoria. Ver R3.
+- **Invariante de `R-SEGURANCA`:** aperta. O texto trocado exigia um campo que o próprio agente grava; o novo exige um arquivo que nenhum papel grava. Em relação à base, o invariante é novo (a regra nasce neste PR) e a catraca não acusa remoção. Não precisa de destaque adicional no título, que já pede o `afrouxa-regra` pelos outros motivos.
+- Recomendados anteriores: 5 (manifestos) e 6 (pastas de IaC) atendidos em parte; 7 (efeito no Forge) registrado no `CHANGELOG`.
+
+### Achados
+R1. `bin/forge-check:303-315` (`bump_do_dependabot`) · **bloqueia** · a isenção do Dependabot se decide pelo nome da branch e pelas mensagens dos commits, e os dois são do agente. Testado: branch `dependabot/npm/a-1.0.1`, `package.json` com o bump `a` 1.0.0 → 1.0.1 **e um pacote novo** `malicioso`, mensagem "Bump a from 1.0.0 to 1.0.1": `gatilhos() == (True, [])`, sem parecer de segurança; a mesma mudança em `feature/x` exige. "Dependência nova" é gatilho da própria `R-SEGURANCA`. Além disso, com a cabeça solta (CI) a branch é `HEAD` e a isenção nunca vale, ou seja, ela só serve no hook local, onde o Dependabot de verdade não passa, e só beneficia quem forja. Exigir o autor `dependabot[bot]` em todos os commits não resolve sozinho: `git commit --author=...` não é barrado pelo hook. Correção: remover a isenção (o falso positivo era só recomendado; o parecer de segurança curto resolve). Se o dono quiser manter, só com identidade que o agente não forja (o `PR_AUTOR` do evento do GitHub, como já faz o `pr-texto`), nunca por branch, mensagem ou autor do commit; e a `R-SEGURANCA` volta ao texto sem a exceção até lá.
+R2. `bin/forge-check:340-351` (`aceite_do_usuario`) · **bloqueia** · o aceite não diz o que foi aceito: vale para qualquer `riscos-aceitos` do pedido, em qualquer commit. Caminho: o usuário aceita o risco A no commit X; o dev muda o código, o `seguranca` grava um parecer novo no commit Y com `riscos-aceitos` para A e B; o `forge-check pr` aprova com o aceite antigo, e o agente volta a aceitar risco que o usuário não viu, que era o bloqueio 3. Correção mínima: o aceite leva `commit:` e só vale se for igual ao `commit` do parecer de segurança (parecer novo pede aceite novo); fixture com aceite de commit antigo reprovando. Atualizar `R-SEGURANCA`, os dois `_modelo.md` e o `security-engineer`.
+R3. `templates/projeto/.claude/settings.json` · recomendado · pôr `docs/security/aceites/` no `denyWrite` do sandbox e em `deny Edit(...)` do modelo de projeto: o caminho por variável e o `cp` ofuscado passam a [I] no Bash (o usuário escreve no editor, fora do sandbox). Registrar na ADR 0010 o nível do controle (Write/Edit [I], Bash [B], encanamento do git sem detecção, o diff do PR mostra o arquivo).
+R4. `bin/forge-check:53-57` · recomendado · ainda não disparam `charts/`, `kubernetes/`, `Containerfile`, `.gitlab-ci.yml`, `pom.xml`, `*.gradle*`, `gradle.lockfile` e `npm-shrinkwrap.json`. Acrescentar ou registrar em "Só orientação" da `R-SEGURANCA`.
+R5. `hooks/conformidade.py:89` (`casa`) · informativo · a comparação diferencia maiúsculas. Em sistema de arquivos que não diferencia (macOS, com `core.ignorecase`), o `seguranca` grava em `docs/security/ACEITES/p1.md` (só `docs/security/` casa), o arquivo cai na pasta `aceites/` que já existe e o `forge-check` o lê como aceite. Baixo; o R3 cobre.
+
+Para aprovar: corrigir R1 e R2 com fixture e reenviar. R3 a R5 podem virar cartão, registrados no PR.
