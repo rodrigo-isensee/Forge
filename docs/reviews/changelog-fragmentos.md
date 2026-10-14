@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: changelog-fragmentos
 branch: melhoria/changelog-fragmentos
-commit: 757ee2e
-parecer: reprovado
+commit: 99bfff4
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -31,3 +31,14 @@ Achados (reproduzidos num repositório temporário):
 3. Recomendado · o gate da `main` em `ci.yml` usa `__import__('pathlib')` inline, duplicando a regra de listagem; melhor reusar `fragmentos()` do `forge-changelog` (ex.: subcomando `conferir-release`), para que as duas listagens nunca divirjam.
 
 Parecer: **reprovado** até corrigir 1 e 2 (com testes); o restante está aprovado.
+
+## Re-review independente
+Escopo: `fd4a87b..99bfff4`. Revisor independente. `python3 -m unittest discover -s tests`: 333 OK; `scripts/validar-plugin.sh`: passa.
+
+1. Subpasta: resolvido. `conferir` só aceita fragmento com `Path(p).parent == Path(PASTA)`, o mesmo critério de `release` e do gate; teste `test_fragmento_em_subpasta_nao_conta`.
+2. Marcador vazio: resolvido. `ler_fragmento` exige `- \S`; `- ` e `-` caem em formato inválido; teste com `subTest` para as duas formas.
+3. Recomendação: atendida. O gate da `main` chama `forge-changelog conferir-release`, que usa `fragmentos()` (a mesma listagem de `release`); o `__import__` saiu do `ci.yml` e um teste o proíbe.
+
+Nenhum desvio novo (o diff só toca `ci.yml`, `bin/forge-changelog` e os testes). Observação menor, sem bloqueio: `-  texto` (dois espaços) é recusado; falha fechada.
+
+Parecer: **aprovado**.
