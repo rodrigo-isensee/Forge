@@ -133,6 +133,64 @@ class Salvar(Base):
         self.assertRegex(self.saida(r), r"(?i)salvo.*pasta")
         self.assertEqual(self.git("log", "-1", "--format=%s"), "a")
 
+    def conflito_em_andamento(self):
+        """Deixa uma mesclagem parada por conflito em a.txt, na branch feature/x."""
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "base\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "a base")
+        self.git("checkout", "-q", "-b", "feature/y")
+        self.escrever("a.txt", "y\n")
+        self.git("commit", "-q", "-am", "a y")
+        self.git("checkout", "-q", "feature/x")
+        self.escrever("a.txt", "x\n")
+        self.git("commit", "-q", "-am", "a x")
+        r = subprocess.run(["git", "merge", "feature/y"], cwd=self.proj, env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_envio_recusado_por_mudanca_no_github_nao_diz_rede_ou_permissao(self):
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.git("push", "-q", "origin", "feature/x")
+        outro = self.tmp / "outro"
+        self.git("clone", "-q", "-b", "feature/x", str(self.remoto), str(outro), cwd=self.tmp)
+        (outro / "o.txt").write_text("o\n", encoding="utf-8")
+        self.git("add", "-A", cwd=outro)
+        self.git("commit", "-q", "-m", "do outro", cwd=outro)
+        self.git("push", "-q", "origin", "feature/x", cwd=outro)
+        self.escrever("a.txt", "x\n")
+        r = self.forge("salvar", "a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertRegex(self.saida(r), r"(?i)alguém|mudou")
+        self.assertNotRegex(self.saida(r), r"(?i)rede ou permissão")
+        self.assertRegex(self.saida(r), r"(?i)Jarvis")
+
+    def test_recusa_com_mesclagem_em_andamento_sem_commitar_marcas(self):
+        self.conflito_em_andamento()
+        topo = self.git("rev-parse", "HEAD")
+        r = self.forge("salvar", "tenta")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertRegex(self.saida(r), r"(?i)conflito|mescla")
+        self.assertNotIn("fatal", self.saida(r))
+        self.assertEqual(self.git("rev-parse", "HEAD"), topo)
+
+    def test_recusa_marcas_de_conflito_ja_resolvidas_no_indice(self):
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> outro\n")
+        r = self.forge("salvar", "tenta")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("a.txt", self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
+
+    def test_recusa_segredo_ja_preparado_com_git_add(self):
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever(".env", "SENHA=1\n")
+        self.git("add", "-f", ".env")
+        self.escrever("b.txt", "b\n")
+        r = self.forge("salvar", "oops")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn(".env", self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
+
 
 class Desfazer(Base):
     def setUp(self):
@@ -194,6 +252,20 @@ class Desfazer(Base):
         self.assertNotEqual(r.returncode, 0)
         self.assertRegex(self.saida(r), r"(?i)mescla")
         self.assertEqual(self.git("rev-parse", "HEAD"), topo)
+
+    def test_recusa_com_mesclagem_em_andamento_sem_erro_cru(self):
+        self.git("checkout", "-q", "-b", "feature/y", "main")
+        self.escrever("b.txt", "outro\n")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "feat: b diferente")
+        r = subprocess.run(["git", "merge", "feature/x"], cwd=self.proj, env=self.env, capture_output=True, text=True)
+        self.assertNotEqual(r.returncode, 0)
+        r = self.forge("desfazer", entrada="sim\n")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertRegex(self.saida(r), r"(?i)mescla")
+        self.assertRegex(self.saida(r), r"(?i)Jarvis")
+        self.assertNotIn("fatal", self.saida(r))
+        self.assertNotIn("error:", self.saida(r))
 
     def test_recusa_nas_ramos_principais(self):
         for ramo in ("main", "develop"):

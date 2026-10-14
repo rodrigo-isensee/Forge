@@ -12,6 +12,10 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || die "esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo."
 cd "$(git rev-parse --show-toplevel)"
 
+if [ -n "$(git ls-files -u)" ] || [ -e "$(git rev-parse --git-path MERGE_HEAD)" ]; then
+  die "não salvei nada: há uma mesclagem (junção de trabalhos) em andamento ou com conflito, e salvar agora gravaria marcas de conflito (<<<<<<<) no projeto. Peça ajuda ao Jarvis para terminar ou cancelar a mesclagem e rode de novo."
+fi
+
 ramo="$(git branch --show-current)"
 mudancas="$(git status --porcelain)"
 
@@ -26,10 +30,21 @@ if [ -z "$mudancas" ]; then
   exit 0
 fi
 
-segredos="$(git ls-files -o -m --exclude-standard | grep -E '(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx)$|(^|/)id_(rsa|ed25519)$' | grep -v '\.example$' || true)"
+# novos, alterados e já preparados com git add (o índice inteiro)
+tocados="$( { git ls-files -o -m --exclude-standard; git diff --cached --name-only; } | sort -u)"
+segredos="$(printf '%s\n' "$tocados" | grep -E '(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx)$|(^|/)id_(rsa|ed25519)$' | grep -v '\.example$' || true)"
 [ -z "$segredos" ] || die "não salvei nada: estes arquivos parecem guardar segredos e não devem ir para o GitHub:
 $segredos
 Coloque-os no arquivo .gitignore (ou tire-os da pasta) e rode de novo."
+
+marcas=""
+while IFS= read -r arq; do
+  [ -f "$arq" ] && grep -qE '^(<<<<<<<|>>>>>>>) ' "$arq" && marcas="$marcas$arq
+"
+done <<< "$tocados"
+[ -z "$marcas" ] || die "não salvei nada: estes arquivos ainda têm marcas de conflito (<<<<<<<), sinal de uma junção mal resolvida:
+$marcas
+Peça ajuda ao Jarvis para resolver e rode de novo."
 
 if protegida "$ramo"; then
   novo="trabalho/$(date +%Y%m%d-%H%M)"
@@ -43,6 +58,10 @@ mensagem="${*:-Salva o trabalho em $(date '+%d/%m/%Y %H:%M')}"
 git add -A
 git commit -q -m "$mensagem" || die "não consegui registrar as mudanças (uma verificação do projeto recusou). Veja a mensagem acima."
 echo "Trabalho registrado: \"$mensagem\"."
-git push -q -u origin "$ramo" \
-  || die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
+if ! erro="$(git push -q -u origin "$ramo" 2>&1)"; then
+  if printf '%s' "$erro" | grep -qiE 'rejected|non-fast-forward|fetch first|stale info'; then
+    die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas alguém mudou o trabalho no GitHub depois da sua última cópia, e por isso não enviei (para não apagar o que há lá). Nada se perdeu. Peça ajuda ao Jarvis para juntar as duas versões e rode 'forge salvar' de novo."
+  fi
+  die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
+fi
 echo "Enviado ao GitHub, na branch $ramo."

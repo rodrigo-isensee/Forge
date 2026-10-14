@@ -27,6 +27,10 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 \
   || die "esta pasta não é um projeto (repositório do git). Entre na pasta do projeto e rode de novo."
 cd "$(git rev-parse --show-toplevel)"
 
+if [ -n "$(git ls-files -u)" ] || [ -e "$(git rev-parse --git-path MERGE_HEAD)" ]; then
+  die "há uma mesclagem (junção de trabalhos) em andamento ou com conflito; desfazer agora poderia piorar. Nada foi alterado. Peça ajuda ao Jarvis para terminar ou cancelar a mesclagem e rode de novo."
+fi
+
 if [ "$recuperar" -eq 1 ]; then
   linha="$(git stash list | grep -m1 'desfeito' || true)"
   [ -n "$linha" ] || die "não há nada guardado de lado para recuperar."
@@ -34,7 +38,7 @@ if [ "$recuperar" -eq 1 ]; then
   echo "Vou trazer de volta o que foi guardado de lado (${linha##*: }). Arquivos:" >&2
   git stash show --include-untracked --name-only "$ref" | sed 's/^/  - /' >&2
   confirmar "Trago de volta?" || nada
-  git stash pop -q "$ref" || die "não consegui trazer de volta sem conflito com o que está na pasta agora. O material guardado continua guardado; nada foi perdido."
+  git stash pop -q "$ref" || die "não consegui trazer de volta sem conflito com o que está na pasta agora. O material guardado continua guardado; nada foi perdido, mas a pasta pode ter ficado com marcas de conflito (<<<<<<<). Peça ajuda ao Jarvis."
   echo "Pronto: o que estava guardado voltou para a pasta."
   exit 0
 fi
