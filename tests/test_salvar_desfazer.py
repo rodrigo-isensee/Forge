@@ -192,6 +192,47 @@ class Salvar(Base):
         self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
 
 
+    def test_segredo_em_pasta_com_acento_e_espaco_e_recusado(self):  # BUG-F2-01
+        (self.proj / "pasta ção").mkdir()
+        (self.proj / "pasta ção/.env").write_text("K=1\n", encoding="utf-8")
+        r = self.forge("salvar", "a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("pasta ção/.env", self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
+
+    def test_marca_de_conflito_em_pasta_com_acento_e_recusada(self):  # BUG-F2-01
+        (self.proj / "configurações").mkdir()
+        (self.proj / "configurações/a.txt").write_text("<<<<<<< HEAD\nx\n", encoding="utf-8")
+        r = self.forge("salvar", "a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("configurações/a.txt", self.saida(r))
+        self.assertEqual(self.git("log", "-1", "--format=%s"), "chore: inicio")
+
+    def test_reenvia_o_que_ficou_salvo_em_ramo_sem_versao_remota(self):  # BUG-F2-02
+        self.git("checkout", "-q", "-b", "feature/x")
+        url = self.git("remote", "get-url", "origin")
+        self.git("remote", "set-url", "origin", str(self.tmp / "nao-existe.git"))
+        self.escrever("a.txt", "x\n")
+        self.assertNotEqual(self.forge("salvar", "a").returncode, 0)
+        self.git("remote", "set-url", "origin", url)
+        r = self.forge("salvar")
+        self.assertEqual(r.returncode, 0, self.saida(r))
+        self.assertRegex(self.saida(r), r"(?i)enviei")
+        self.assertEqual(self.topo_remoto("feature/x"), self.git("rev-parse", "HEAD"))
+
+    def test_recusa_do_servidor_nao_diz_que_alguem_mudou_o_trabalho(self):  # F2-03
+        hook = self.remoto / "hooks/pre-receive"
+        hook.write_text("#!/bin/sh\necho proibido >&2\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        self.git("checkout", "-q", "-b", "feature/x")
+        self.escrever("a.txt", "x\n")
+        r = self.forge("salvar", "a")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertRegex(self.saida(r), r"(?i)servidor|proteção|recus")
+        self.assertNotRegex(self.saida(r), r"(?i)alguém mudou")
+        self.assertRegex(self.saida(r), r"(?i)salvo.*pasta")
+
+
 class Desfazer(Base):
     def setUp(self):
         super().setUp()
@@ -288,6 +329,27 @@ class Desfazer(Base):
         r = self.forge("desfazer", "--recuperar", entrada="sim\n")
         self.assertNotEqual(r.returncode, 0)
         self.assertRegex(self.saida(r), r"(?i)nada.*(recuperar|guardado)")
+
+    def test_sem_commits_e_com_arquivo_novo_explica(self):  # F2-04
+        vazio = self.tmp / "vazio"
+        vazio.mkdir()
+        self.git("init", "-q", cwd=vazio)
+        (vazio / "n.txt").write_text("n\n", encoding="utf-8")
+        r = self.forge("desfazer", entrada="sim\n", cwd=vazio)
+        self.assertRegex(self.saida(r), r"(?i)ainda não há nenhum ponto salvo")
+        self.assertTrue((vazio / "n.txt").exists())
+
+    def test_recuperar_com_conflito_explica_em_portugues(self):  # F2-05
+        self.escrever("b.txt", "guardado\n")
+        self.assertEqual(self.forge("desfazer", entrada="sim\n").returncode, 0)
+        self.escrever("b.txt", "outro\n")
+        r = self.forge("desfazer", "--recuperar", entrada="sim\n")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotRegex(self.saida(r), r"(?i)error:|aborting|overwritten")
+        self.assertNotIn("marcas de conflito", self.saida(r))
+        self.assertRegex(self.saida(r), r"(?i)continua guardado")
+        self.assertEqual((self.proj / "b.txt").read_text(encoding="utf-8"), "outro\n")
+        self.assertIn("desfeito", self.git("stash", "list"))
 
 
 class Garantias(unittest.TestCase):

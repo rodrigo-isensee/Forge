@@ -38,7 +38,12 @@ if [ "$recuperar" -eq 1 ]; then
   echo "Vou trazer de volta o que foi guardado de lado (${linha##*: }). Arquivos:" >&2
   git stash show --include-untracked --name-only "$ref" | sed 's/^/  - /' >&2
   confirmar "Trago de volta?" || nada
-  git stash pop -q "$ref" || die "não consegui trazer de volta sem conflito com o que está na pasta agora. O material guardado continua guardado; nada foi perdido, mas a pasta pode ter ficado com marcas de conflito (<<<<<<<). Peça ajuda ao Jarvis."
+  if ! git stash pop -q "$ref" >/dev/null 2>&1; then
+    if [ -n "$(git ls-files -u)" ]; then
+      die "o que estava guardado se misturou com o que há na pasta agora e ficaram marcas de conflito (<<<<<<<). O material guardado continua guardado; nada foi perdido. Peça ajuda ao Jarvis para resolver."
+    fi
+    die "não trouxe de volta porque a pasta tem mudanças nos mesmos arquivos. O que estava guardado continua guardado e a pasta ficou como estava; nada foi perdido. Salve ('forge salvar') ou desfaça ('forge desfazer') o que há na pasta agora e rode 'forge desfazer --recuperar' de novo."
+  fi
   echo "Pronto: o que estava guardado voltou para a pasta."
   exit 0
 fi
@@ -50,6 +55,7 @@ if [ -n "$(git status --porcelain)" ]; then
   git status --short | sed 's/^/  /' >&2
   echo "Vou guardá-los de lado e a pasta volta ao último ponto salvo. Nada é apagado: 'forge desfazer --recuperar' traz tudo de volta." >&2
   confirmar "Guardo de lado?" || nada
+  git rev-parse --verify -q HEAD >/dev/null || die "ainda não há nenhum ponto salvo para voltar neste projeto (nenhum registro feito). Seus arquivos continuam na pasta, nada foi alterado. Use 'forge salvar' para fazer o primeiro registro."
   git stash push -q -u -m "desfeito $(date +%Y%m%d-%H%M%S)"
   echo "Pronto: a pasta voltou ao último ponto salvo. Para trazer de volta: forge desfazer --recuperar"
   exit 0

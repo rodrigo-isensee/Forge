@@ -19,29 +19,45 @@ fi
 ramo="$(git branch --show-current)"
 mudancas="$(git status --porcelain)"
 
+pendentes() { # quantos registros ainda não foram enviados ao GitHub
+  if git show-ref --verify --quiet "refs/remotes/origin/$ramo"; then
+    git rev-list --count "origin/$ramo..HEAD"
+  elif git remote get-url origin >/dev/null 2>&1; then
+    git rev-list --count HEAD --not --remotes=origin
+  else
+    echo 0
+  fi
+}
+
 if [ -z "$mudancas" ]; then
-  if ! protegida "$ramo" && git show-ref --verify --quiet "refs/remotes/origin/$ramo" \
-     && [ "$(git rev-list --count "origin/$ramo..HEAD")" -gt 0 ]; then
+  if ! protegida "$ramo" && [ "$(pendentes)" -gt 0 ]; then
     git push -q -u origin "$ramo" || die "não consegui enviar ao GitHub (rede ou permissão). O trabalho continua salvo aqui na pasta; tente de novo mais tarde."
-    echo "Enviei ao GitHub o que já estava salvo na branch $ramo."
+    echo "Não havia mudanças novas, mas enviei ao GitHub o que já estava salvo aqui na branch $ramo."
     exit 0
   fi
   echo "Não há nada novo para salvar."
   exit 0
 fi
 
-# novos, alterados e já preparados com git add (o índice inteiro)
-tocados="$( { git ls-files -o -m --exclude-standard; git diff --cached --name-only; } | sort -u)"
-segredos="$(printf '%s\n' "$tocados" | grep -E '(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx)$|(^|/)id_(rsa|ed25519)$' | grep -v '\.example$' || true)"
+# novos, alterados e já preparados com git add (o índice inteiro); -z preserva nomes com acento, espaço e quebra de linha
+tocados=()
+while IFS= read -r -d '' arq; do tocados+=("$arq"); done < <({ git ls-files -z -o -m --exclude-standard; git diff -z --cached --name-only; } | sort -zu)
+
+segredos=""
+marcas=""
+for arq in "${tocados[@]}"; do
+  if [[ "$arq" =~ (^|/)\.env(\..*)?$ || "$arq" =~ \.(pem|key|p12|pfx)$ || "$arq" =~ (^|/)id_(rsa|ed25519)$ ]] && [[ "$arq" != *.example ]]; then
+    segredos="$segredos$arq
+"
+  fi
+  if [ -f "$arq" ] && grep -qE '^(<<<<<<<|>>>>>>>) ' "$arq"; then
+    marcas="$marcas$arq
+"
+  fi
+done
 [ -z "$segredos" ] || die "não salvei nada: estes arquivos parecem guardar segredos e não devem ir para o GitHub:
 $segredos
 Coloque-os no arquivo .gitignore (ou tire-os da pasta) e rode de novo."
-
-marcas=""
-while IFS= read -r arq; do
-  [ -f "$arq" ] && grep -qE '^(<<<<<<<|>>>>>>>) ' "$arq" && marcas="$marcas$arq
-"
-done <<< "$tocados"
 [ -z "$marcas" ] || die "não salvei nada: estes arquivos ainda têm marcas de conflito (<<<<<<<), sinal de uma junção mal resolvida:
 $marcas
 Peça ajuda ao Jarvis para resolver e rode de novo."
@@ -59,8 +75,11 @@ git add -A
 git commit -q -m "$mensagem" || die "não consegui registrar as mudanças (uma verificação do projeto recusou). Veja a mensagem acima."
 echo "Trabalho registrado: \"$mensagem\"."
 if ! erro="$(git push -q -u origin "$ramo" 2>&1)"; then
-  if printf '%s' "$erro" | grep -qiE 'rejected|non-fast-forward|fetch first|stale info'; then
+  if printf '%s' "$erro" | grep -qiE 'non-fast-forward|fetch first|stale info'; then
     die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas alguém mudou o trabalho no GitHub depois da sua última cópia, e por isso não enviei (para não apagar o que há lá). Nada se perdeu. Peça ajuda ao Jarvis para juntar as duas versões e rode 'forge salvar' de novo."
+  fi
+  if printf '%s' "$erro" | grep -qiE 'remote rejected|pre-receive|protected|declined'; then
+    die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas o servidor do GitHub recusou o envio (uma proteção ou verificação do projeto). Nada se perdeu. Peça ajuda ao Jarvis para ver o motivo e rode 'forge salvar' de novo."
   fi
   die "o trabalho ficou salvo aqui na pasta (branch $ramo), mas não consegui enviar ao GitHub (rede ou permissão). Rode 'forge salvar' de novo quando puder."
 fi

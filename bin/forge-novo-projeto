@@ -75,7 +75,7 @@ while true; do
     situacao="$(gh repo view "$dono/$nome" --json isPrivate,isEmpty --jq '"\(.isPrivate) \(.isEmpty)"' 2>/dev/null || true)"
     if [ "$situacao" = "true true" ]; then
       echo "$dono/$nome já existe no GitHub, está vazio e é privado." >&2
-      ler "Quer usar este repositório? [sim]" "sim"
+      ler "Quer usar este repositório?" "sim"
       case "$REPLY" in s|S|sim|Sim|SIM) break ;; esac
       echo "Certo. Escolha outro nome (ex.: $nome-2)." >&2; continue
     fi
@@ -157,7 +157,7 @@ fi
 if estado_tem clonado && [ ! -d "$pasta/.git" ]; then
   echo "A pasta $pasta não existe mais. O projeto continua no GitHub, com tudo que foi enviado." >&2
   if [ "$sim" -ne 1 ]; then
-    ler "Quer baixar uma cópia de novo em $pasta? [sim/não; Enter = sim]" "sim"
+    ler "Quer baixar uma cópia de novo em $pasta? (sim/não)" "sim"
     case "$REPLY" in
       s|S|sim|Sim|SIM) ;;
       *) die "sem a pasta, não há o que abrir. Quando quiser, rode 'forge novo-projeto' de novo e responda sim." ;;

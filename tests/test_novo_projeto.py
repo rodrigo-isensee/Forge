@@ -410,6 +410,19 @@ class NovoProjeto(unittest.TestCase):
         self.assertIn("Pode ser?", self._saida(r))
         self.assertNotIn("[sim] [sim]", self._saida(r))
 
+    def test_prompts_de_sim_sem_colchete_duplicado(self):  # BUG-F2-06
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        r = self.forge("novo-projeto", entrada="meu-app\nsim\n")
+        self.assertIn("Quer usar este repositório?", self._saida(r))
+        self.assertNotRegex(self._saida(r), r"\] \[sim\]")
+
+    def test_pergunta_de_baixar_de_novo_sem_colchete_duplicado(self):  # BUG-F2-06
+        self.assertEqual(self.forge("novo-projeto", "--sim", entrada="meu-app\n").returncode, 0)
+        shutil.rmtree(self.home / "meu-app")
+        r = self.forge("novo-projeto", entrada="meu-app\nsim\n")
+        self.assertIn("Quer baixar uma cópia", self._saida(r))
+        self.assertNotRegex(self._saida(r), r"\] \[sim\]")
+
 
 class Despachante(unittest.TestCase):
     def forge(self, *args):
