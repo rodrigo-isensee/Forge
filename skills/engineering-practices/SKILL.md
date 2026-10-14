@@ -32,6 +32,8 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 - Testes determinísticos: sem dependência de hora atual nem de ordem de execução.
 
 ## Checklist de code review
+Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "decidida por: `<comando>`" (ferramenta) ou "decidida por: leitura". O review **lê só as regras "leitura" que alcançam os arquivos do diff** e **cita a saída dos comandos das regras "ferramenta"**, sem refazê-las (regra 5 de `docs/economia-de-tokens.md`). Regra "ferramenta" sem comando configurado vira pendência no parecer, não revisão manual. O checklist abaixo vale para o que é de leitura.
+
 1. Faz o que o cartão/especificação pede — nem mais, nem menos?
 2. Segue a arquitetura e os ADRs? Respeita as regras invioláveis do `CLAUDE.md` e as regras da fábrica (`docs/regras/`)?
 3. Legível sem explicação? Nomes, tamanho das funções, duplicação.

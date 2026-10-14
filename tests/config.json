@@ -136,7 +136,19 @@
       "diga sempre ao usuário para qual agente passou",
       "que são do `tech-lead`"
     ],
+    "templates/projeto/docs/engineering/praticas.md": [
+      "## Regras e quem as decide",
+      "\\*\\*ferramenta\\*\\*",
+      "\\*\\*leitura\\*\\*",
+      "pendência a registrar, não revisão manual"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "decidida por: leitura",
+      "cita a saída dos comandos das regras \"ferramenta\"",
+      "vira pendência no parecer, não revisão manual"
+    ],
     "agents/tech-lead.md": [
+      "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
       "`R-MAIN`",
