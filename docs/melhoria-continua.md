@@ -19,3 +19,5 @@ Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Ja
 | Falhas de CI por entrega | `gh run list --json conclusion` filtrado pela branch | tech-lead |
 | Retrabalho | commits `fix:` na branch após o primeiro review; pais devolvidos | tech-lead |
 | Escapes | bugs achados após o parecer do QA | qa-engineer |
+| M1: afirmações sem lastro por relatório de subagente | `forge-check transcricao lastro`: sha, PR, push, mescla e "N testes OK" que não aparecem literalmente nas saídas de ferramenta do próprio subagente; só mede, não bloqueia (F1). Linha de base: 121 de 837 afirmações (14,5%), em 271 relatórios, nas transcrições locais do Forge em 2026-10-14. Meta: -80% em 10 entregas | tech-lead |
+| M3: respostas do Jarvis com mais de uma decisão ou sem "Recomendo" | `forge-check transcricao decisoes`: grupos de opções A/B/C fora de código e citação; só mede (F1). Linha de base: 0 de 424 respostas (26 com grupo de opções), mesma fonte e data. A heurística só pega opções rotuladas A/B/C; decisões em texto livre ou lista numerada não entram | tech-lead |
