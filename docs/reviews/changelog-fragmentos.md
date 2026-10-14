@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: changelog-fragmentos
 branch: melhoria/changelog-fragmentos
-commit: 5c7de7e
-parecer: aprovado
+commit: 757ee2e
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -19,3 +19,15 @@ Escopo: `melhoria/ci-economia-minutos..5c7de7e` (1 commit): `bin/forge-changelog
 - **Limite:** o `conferir` roda `bin/forge-changelog` do próprio PR; a lógica do gate vem do código do PR, como já era com os scripts do repositório. Mudar `bin/` por si só exige fragmento.
 - **Verificação:** 330 testes OK, `scripts/validar-plugin.sh` passa, `actionlint` 1.7.12 (checksum do CI conferido) sem achados.
 - **Dependência:** a branch está sobre `melhoria/ci-economia-minutos` (ainda não enviada); o PR só faz sentido depois dela.
+
+## Review independente
+Escopo: `8374ed9..757ee2e`. Revisor independente (não é o autor do código). `python3 -m unittest discover -s tests`: 330 OK; `scripts/validar-plugin.sh`: passa.
+
+Conferido e correto: `release` agrupa por tipo (Adicionado, Alterado, Corrigido), ordem estável (arquivos ordenados), valida todos os fragmentos antes de escrever e só apaga os que juntou (README fica); `conferir` ignora fragmento que já estava na base (`--diff-filter=A`), fragmento fora de `changelog.d/` e nome com espaço (falha fechada); a linha antiga em `[Não publicado]` segue aceita; o PR de release pula o gate, e o PR para a `main` exige versão, entrada fechada e `changelog.d/` vazio; a emenda da ADR 0006 e as instruções (CLAUDE.md, CONTRIBUTING, skill, tech-lead, modelo de PR, README) são coerentes entre si; o CI passa `BASE` por `env` e não interpola dados do PR em `run:`.
+
+Achados (reproduzidos num repositório temporário):
+1. **Bloqueia** · `bin/forge-changelog:conferir` (filtro `novos`) · `changelog.d/sub/x.md` é aceito pelo `conferir` (`p.startswith("changelog.d/")`), mas `release` (`glob("*.md")`) e o gate da `main` (`glob('*.md')`) não o enxergam: o CI fica verde e a entrada nunca chega ao `CHANGELOG.md` nem trava a release. Sugestão: exigir `Path(p).parent == Path(PASTA)` em `conferir` (teste: fragmento em subpasta não conta).
+2. **Bloqueia** · `ler_fragmento` · `### Adicionado` + `- ` (marcador sem texto) conta como linha e passa o gate com entrada vazia. Sugestão: exigir texto não vazio após `- ` (`re.fullmatch(r"- \S.*")`) e teste.
+3. Recomendado · o gate da `main` em `ci.yml` usa `__import__('pathlib')` inline, duplicando a regra de listagem; melhor reusar `fragmentos()` do `forge-changelog` (ex.: subcomando `conferir-release`), para que as duas listagens nunca divirjam.
+
+Parecer: **reprovado** até corrigir 1 e 2 (com testes); o restante está aprovado.
