@@ -61,6 +61,7 @@
         "docs/security/aceites/p1.md": [
           "---",
           "pedido: p1",
+          "commit: {HEAD}",
           "aceite: sim",
           "---",
           "Aceito o risco."

@@ -55,7 +55,6 @@ PIPELINE_E_INFRA = re.compile(r"^(\.github/|(.*/)?(Dockerfile[^/]*|compose[^/]*\
 # Dependência: arquivos de travas e manifestos, por padrão de nome (qualquer stack; a lista é genérica).
 TRAVAS_DE_DEPENDENCIA = re.compile(r"(^|/)([^/]*[-.]lock\.(json|ya?ml|toml)|[^/]*\.lockb?|go\.sum|requirements[^/]*\.txt|"
                                    r"pyproject\.toml|package\.json|Gemfile|go\.mod|Cargo\.toml)$")
-VERSAO_ATUALIZADA = re.compile(r"\bfrom v?(\d+)[\w.+-]* to v?(\d+)", re.I)  # "Bump x from 1.2.3 to 2.0.0" (mensagem do Dependabot)
 SEGREDOS_E_CONFIG = re.compile(r"(^|/)\.env(\.[\w.-]+)?$")
 MIGRACOES = re.compile(r"(^|/)(migrations?|migrate)/")
 CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json")
@@ -300,29 +299,14 @@ def arquivos_da_entrega(raiz, ref=None, base=None):
     return []
 
 
-def bump_do_dependabot(raiz, arquivos, ref=None, base=None):
-    """(é do Dependabot, só versão menor). Do Dependabot: branch `dependabot/*` que só toca arquivos de dependência.
-    Só versão menor: as mensagens dos commits mostram só `from X.. to Y..` com o mesmo número maior; sem versão
-    legível, não (a exigência de segurança fica)."""
-    cod, branch = git(raiz, "rev-parse", "--abbrev-ref", ref or "HEAD")
-    b = base_da_entrega(raiz, base)
-    if cod or not b or not branch.startswith("dependabot/") or not arquivos \
-            or not all(TRAVAS_DE_DEPENDENCIA.search(a) for a in arquivos):
-        return False, False
-    cod, mensagens = git(raiz, "log", "--format=%B", f"{b}..{ref or 'HEAD'}")
-    versoes = VERSAO_ATUALIZADA.findall(mensagens)
-    return True, not cod and bool(versoes) and all(de == para for de, para in versoes)
-
-
 def gatilhos(raiz, pedido, ref=None, base=None):
     """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
-    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA). Dependabot só com dependências: devops; e segurança só se a versão maior sobe."""
+    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
     arquivos = arquivos_da_entrega(raiz, ref, base)
-    dependabot, bump_menor = bump_do_dependabot(raiz, arquivos, ref, base)
-    infra = dependabot or any(PIPELINE_E_INFRA.match(a) for a in arquivos)
+    infra = any(PIPELINE_E_INFRA.match(a) for a in arquivos)
     achados = []
     for nome, casa in (("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
-                       ("dependência (travas ou manifesto)", None if bump_menor else TRAVAS_DE_DEPENDENCIA.search),
+                       ("dependência (travas ou manifesto)", TRAVAS_DE_DEPENDENCIA.search),
                        ("segredos e configuração (.env)", SEGREDOS_E_CONFIG.search),
                        ("migração de banco", MIGRACOES.search),
                        ("controles do Forge", lambda a: a.startswith(CONTROLES_DO_FORGE))):
@@ -337,8 +321,9 @@ def gatilhos(raiz, pedido, ref=None, base=None):
     return infra, achados
 
 
-def aceite_do_usuario(raiz, pedido, ref=None):
-    """True se `docs/security/aceites/<pedido>.md` existe com `pedido` igual e `aceite: sim`. Nenhum papel o grava
+def aceite_do_usuario(raiz, pedido, commit, ref=None):
+    """True se `docs/security/aceites/<pedido>.md` existe com `pedido` igual, `aceite: sim` e `commit` igual ao
+    do parecer de segurança (o usuário aceitou exatamente esses riscos; parecer novo pede aceite novo). Nenhum papel o grava
     (hooks/conformidade.json): quem escreve é o usuário, à mão (R-SEGURANCA, R-DECISAO)."""
     rel = f"docs/security/aceites/{pedido}.md"
     if ref is None:
@@ -348,7 +333,8 @@ def aceite_do_usuario(raiz, pedido, ref=None):
         cod, texto = git(raiz, "show", f"{ref}:{rel}")
         texto = "" if cod else texto
     campos = ler_frontmatter(texto)[0] or {}
-    return campos.get("pedido") == pedido and campos.get("aceite") == "sim"
+    return (campos.get("pedido") == pedido and campos.get("aceite") == "sim"
+            and bool(commit) and campos.get("commit") == commit)
 
 
 def autorias(raiz):
@@ -395,9 +381,9 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
                        for r in registros):
                 saida.append(f"{rel}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo ({rid})")
-        if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, ref):
+        if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
             saida.append(f"{rel}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
-                         f"docs/security/aceites/{pedido}.md (`aceite: sim`, gravado à mão por ele) ({rid})")
+                         f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")
         elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
