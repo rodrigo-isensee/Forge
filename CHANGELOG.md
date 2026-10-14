@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- Visão geral do Forge (`docs/visao-geral.md`): big picture com dois diagramas (fluxo de um pedido e integrações entre fábrica e projetos), o time e as guardas; linkada no README.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
