@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: ci-economia-minutos
 branch: melhoria/ci-economia-minutos
-commit: 060aab3
-parecer: reprovado
+commit: a7b5351
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -54,3 +54,23 @@ Nenhum passo se perdeu: testes estruturais, shellcheck (mesma lista de arquivos)
 - **Checks exigidos:** a proteção de branch no GitHub precisa trocar os nomes antigos de checks exigidos por `bateria` e `catraca` antes do merge, senão os PRs ficam pendentes para sempre. Essa troca é do dono.
 
 **Parecer: reprovado.** Os bloqueantes 1 e 2 voltam ao autor. Re-review depois da correção.
+
+## Re-review independente (head `a7b5351`)
+
+Conferido: `git diff 5879a4a a7b5351` (`ci.yml`, `catraca.yml`, `tests/test_catraca.py`). `python3 -m unittest discover -s tests`: 312 testes, OK. `scripts/validar-plugin.sh`: passa. `actionlint` 1.7.12 e `zizmor` 1.30.1 (checksums do CI conferidos com `sha256sum -c`): sem achados (`zizmor --offline --min-severity medium`).
+
+### Bloqueantes
+1. **Renomeação: resolvido.** O gate usa `git diff --name-only --no-renames`. Reproduzido com `git mv scripts/a.sh docs/reviews/a.md`: o diff lista os dois caminhos e `scripts/a.sh` derruba o caminho leve. `test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde` trava a flag.
+2. **Testes que leem pareceres: resolvido.** No caminho `pesada != 'true'`, o passo "Testes que leem pareceres" roda `tests.test_forge.Neutralidade`, `Referencias` e `AntiDuplicacao`. Conferi os demais testes que varrem `docs/`: `NeutralidadeDoNucleo` ignora `docs/reviews/` e `docs/qa/` (`tests/config.json`), `RegrasComId.test_ids_citados_existem` lê só `agents`, `skills`, `templates` e as regras, e os testes do `forge-check docs` usam repositório temporário. Os três bastam. O passo usa o `python3` do runner (o `setup-python` fica no caminho pesado), o que basta para a biblioteca padrão. O teste exige as três classes na linha `run:` do passo.
+
+### Recomendações
+- **R1, check do `github-actions`, o mais recente: feito.** O jq foi exercitado com cinco entradas: lista vazia → 0; vermelho seguido de re-run verde → 1; verde seguido de re-run vermelho → 0; verde de outro app → 0; check em fila (`started_at` e `conclusion` nulos) → 0. Resíduo aceito: um workflow novo no PR com job `bateria` também é do app `github-actions`. Só que o `pull_request` já executa o `ci.yml` do próprio PR, e mudar `.github/workflows/` exige o rótulo do dono na catraca. O filtro não abre caminho novo.
+- **R2, `!cancelled()`: feito.** Não sobrou `always()` em `ci.yml` nem em `catraca.yml`, e o teste confere isso. O `setup-python` e o `setup-node` do caminho pesado seguem a mesma condição.
+- **R3, gate só com base `develop`: feito.** `[ "$BASE_REF" = develop ]` na condição do gate. O PR de promoção para a `homolog` roda a bateria completa, como pede a `R-FLUXO` (linha 13).
+
+### Desvios novos
+- **Injeção:** `BASE_REF` entra por `env:` (`${{ github.base_ref }}`), e nenhum `run:` interpola `${{ }}`: varri os três workflows e o `${{ }}` aparece só em `env`, `if` e `concurrency`. O `zizmor` (template-injection) concorda.
+- **Falha fechada mantida:** se a API falha ou devolve vazio, `verdes` fica 0 ou vazio. `[ "" -gt 0 ]` falha dentro do `if` e o gate segue com `pesada=true`. Se o passo do gate falhar, o passo leve roda (`!= 'true'`), mas o job já está vermelho.
+- Nenhum outro desvio. Os riscos aceitos e a pendência dos checks exigidos, registrados na review anterior, continuam valendo.
+
+**Parecer: aprovado.** Os dois bloqueantes estão resolvidos e as três recomendações foram atendidas. Segue para o QA.
