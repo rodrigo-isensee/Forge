@@ -99,11 +99,13 @@ PERGUNTAS = {
     "limpar": "Isso apaga os arquivos novos ainda não salvos, sem volta. Confirma?",
     "arquivar": "Isso deixa o projeto somente leitura no GitHub: ninguém salva nada até desarquivar. Confirma?",
     "rebase": "Isso reescreve versões que já estão no GitHub; outras cópias deixam de bater. Confirma?",
+    "mover": "Isso move uma branch já publicada no GitHub para outro ponto; outras cópias deixam de bater. Confirma?",
 }
 DISPENSA_NA_COPIA = {"descartar", "limpar"}  # só atos sobre os arquivos da cópia; `rebase` e `arquivar` perguntam sempre
 UM_ATO_SIMPLES = re.compile(r"\s*git\s+(reset|clean|checkout|restore)(\s+[^\s;&|`$()<>\\\n]+)*\s*")
 ATO_FORA_DA_COPIA = re.compile(r"(^|\s)(-C|--work-tree|--git-dir|--work-tree=\S*|--git-dir=\S*)(\s|$)|GIT_DIR|GIT_WORK_TREE|\b(cd|pushd)\b")
 REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
+CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
 ACOES = {"merge_integracao", "pr_criar", "pr_merge_integracao", "instalar_pacote", "instalar_congelado"}
@@ -388,17 +390,19 @@ class Guarda:
                 self.barrar("R-CONFORMIDADE", f"apagar {caminho} com variável no caminho pode apagar a instalação do Forge",
                             f"use o caminho sem variável, ou deixe ao usuário (R-DECISAO); {SUGESTAO}", "instalacao")
             return
-        raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        home = Path(os.path.realpath(Path.home()))
         alvo = self.resolver(caminho, pasta)
+        # O critério é o caminho protegido, não a raiz do cwd: vale a raiz da sessão e a do repositório que contém o alvo.
+        raizes = {Path(os.path.realpath(self.h.raiz)), *filter(None, [self.raiz_git(alvo)])}
         for e in self.pol["caminhos"]:
             c = e["caminho"]
             if e["quem"]:
                 continue
-            protegido = home / c[2:] if c.startswith("~/") else raiz / c
-            dentro = home if c.startswith("~/") else raiz
-            if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
-                self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
-                            f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
+            for dentro in ([home] if c.startswith("~/") else raizes):
+                protegido = home / c[2:] if c.startswith("~/") else dentro / c
+                if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
+                    self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
+                                f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
 
     def checar_texto(self, texto):
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
@@ -478,6 +482,8 @@ class Guarda:
 
     def segmento(self, palavras, pasta, ramos, nivel):
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`)."""
+        while palavras and palavras[0] in CORPO_DE_LACO:  # `do rm ...`, `then ...`: o comando vem depois da palavra
+            palavras = palavras[1:]
         atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
         try:
             palavras, lancadas = separar_lancadores(palavras)
@@ -622,6 +628,11 @@ class Guarda:
             if any(nome_da_branch(b) in INTEGRACAO for b in positivos):
                 self.barrar("R-VERIFY", "apagar a branch main, develop ou homolog (git update-ref -d)",
                             "peça ao usuário (R-DECISAO)", "integracao")
+        elif (alvo := self.branch_movida(sub, args, positivos)) is not None:
+            if nome_da_branch(alvo) in INTEGRACAO:
+                self.reescreve_historico(f"git {sub} move a {nome_da_branch(alvo)}")
+            if git(pasta, "branch", "-r", "--list", f"*/{nome_da_branch(alvo)}")[1].strip():
+                self.perguntar("mover")
         elif sub == "reset" and "--hard" in args:
             self.perguntar("descartar")
         elif sub == "clean" and (any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
@@ -632,6 +643,17 @@ class Guarda:
         elif sub == "restore" and "." in args and (
                 not {"--staged", "-S"} & set(args) or {"--worktree", "-W"} & set(args)):
             self.perguntar("descartar")
+
+    @staticmethod
+    def branch_movida(sub, args, positivos):
+        """Branch que `checkout -B`, `switch -C` ou `branch -f` recriam apontando para outro commit; senão None."""
+        if sub == "branch" and any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args):
+            return positivos[0] if positivos else None
+        letra = {"checkout": "B", "switch": "C"}.get(sub)
+        for i, a in enumerate(args):
+            if letra and (re.fullmatch(rf"-[a-zA-Z]*{letra}", a) or (sub == "switch" and a == "--force-create")):
+                return args[i + 1] if i + 1 < len(args) else None
+        return None
 
     def git_config(self, args):
         """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
