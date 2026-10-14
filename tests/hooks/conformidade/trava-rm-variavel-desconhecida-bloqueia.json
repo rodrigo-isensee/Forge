@@ -1,8 +1,7 @@
 {
-  "descricao": "claude plugin update forge@forge muda a instalação do Forge. (perfil iniciante: com a consequência em linguagem simples)",
+  "descricao": "rm com variável no caminho apaga a instalação: rm -rf $RAIZ_X/.forge",
   "arquivos": {
-    "src/app.js": "v1\n",
-    ".forge/perfil": "iniciante\n"
+    "src/app.js": "v1\n"
   },
   "git": [
     {
@@ -15,10 +14,13 @@
       "commit": "feat: muda o app"
     }
   ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{raiz}"
+  },
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "claude plugin update forge@forge"
+      "command": "rm -rf $RAIZ_X/.forge"
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
@@ -26,6 +28,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-CONFORMIDADE: Isso mexe na instalação do Forge"
+    "stderr": "R-CONFORMIDADE: apagar"
   }
 }

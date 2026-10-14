@@ -13,6 +13,7 @@ import hashlib
 import json
 import os
 import re
+import tempfile
 import shlex
 import time
 from pathlib import Path
@@ -77,7 +78,9 @@ CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
-VISIBILIDADE_PUBLICA = re.compile(r"\bprivate=false\b|\bvisibility(=|:\s*)[\"']?public\b", re.I)
+VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
     "publico": "Deixar o projeto público faz qualquer pessoa na internet ver todo o código e o histórico. "
@@ -86,6 +89,7 @@ SIMPLES = {
     "main": "A linha principal (main) é sua: só você junta nela, pelo pedido de revisão no GitHub. Peça ao Jarvis para abri-lo.",
     "historico": "Isso reescreve o histórico e as outras cópias deixam de bater. Para voltar atrás, use o 'forge desfazer'.",
     "integracao": "Isso apagaria uma linha de trabalho central do projeto, que ninguém mais conseguiria usar. Peça ao Jarvis.",
+    "perfil": "O seu perfil de uso só muda por você, não por mim. Se quiser mudar, peça ao Jarvis como fazer.",
     "instalacao": "Isso mexe na instalação do Forge, que fica protegida para o projeto não quebrar. "
                   "Posso registrar o pedido como sugestão ao Forge.",
 }
@@ -218,8 +222,18 @@ class Guarda:
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
         consequência (`permissionDecision: ask`). Vale só se nada na linha for recusado (a recusa vem antes)."""
-        if self.h.iniciante():
+        if self.h.iniciante() and not self.worktree_temporaria():
             self.perguntas.append(PERGUNTAS[texto])
+
+    def worktree_temporaria(self):
+        """Worktree vinculada em pasta temporária (cópia de review): nada ali é trabalho da pessoa, não há o que confirmar."""
+        raiz = Path(os.path.realpath(self.h.raiz))
+        cod, comum = git(raiz, "rev-parse", "--git-common-dir")
+        cod2, gitdir = git(raiz, "rev-parse", "--git-dir")
+        if cod or cod2 or Path(os.path.realpath(raiz / comum)) == Path(os.path.realpath(raiz / gitdir)):
+            return False
+        temporarias = {os.path.realpath(tempfile.gettempdir()), os.path.realpath("/tmp")}
+        return any(t in map(str, raiz.parents) for t in temporarias)
 
     def so_de(self, acao):
         quem = "/".join(self.pol["acoes"].get(acao, [])) or "só o usuário"
@@ -326,6 +340,9 @@ class Guarda:
                         f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
             return ("R-CONFORMIDADE", f"{e['motivo']}: {c} (papel: {self.papel})",
                     f"peça a {'/'.join(e['quem'])}")
+        if posix.endswith("/.forge/perfil") and self.h.iniciante():
+            return ("R-CONFORMIDADE", "o perfil iniciante (.forge/perfil) não é mudado por agente",
+                    f"só o usuário muda o perfil, à mão; {SUGESTAO}", "perfil")
         no_manifesto = any(t == "proj" and casa(r, MANIFESTO) for t, r in formas)
         if no_manifesto and not self.sessao_forge and self.raiz_e_projeto():
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
@@ -340,13 +357,26 @@ class Guarda:
         return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
 
     def checar_escrita(self, caminho, pasta):
-        achado = self.caminho_barrado(self.resolver(caminho, pasta))
+        achado = self.caminho_barrado(self.resolver(self.expandir(caminho, pasta), pasta))
         if achado:
             self.barrar(*achado)
 
+    def expandir(self, caminho, pasta):
+        """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
+        valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
+        return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
+
     def checar_remocao(self, caminho, pasta):
         """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
-        o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree)."""
+        o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree).
+        `$PWD` e `$CLAUDE_PROJECT_DIR` são expandidos; outra variável antes de uma pasta protegida (`$X/.forge`) não
+        dá para resolver, então recusa (variável sozinha, `rm -rf $X`, é limite aceito: o sandbox é a garantia)."""
+        caminho = self.expandir(caminho, pasta)
+        if VARIAVEL.search(caminho):
+            if PASTAS_PROTEGIDAS & set(Path(caminho).parts):
+                self.barrar("R-CONFORMIDADE", f"apagar {caminho} com variável no caminho pode apagar a instalação do Forge",
+                            f"use o caminho sem variável, ou deixe ao usuário (R-DECISAO); {SUGESTAO}", "instalacao")
+            return
         raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
         alvo = self.resolver(caminho, pasta)
         for e in self.pol["caminhos"]:
@@ -574,6 +604,10 @@ class Guarda:
             if any(nome_da_branch(b) in INTEGRACAO for b in positivos):
                 self.barrar("R-VERIFY", "apagar a branch main, develop ou homolog",
                             "peça ao usuário (R-DECISAO)", "integracao")
+        elif sub == "update-ref" and {"-d", "--delete"} & set(args):
+            if any(nome_da_branch(b) in INTEGRACAO for b in positivos):
+                self.barrar("R-VERIFY", "apagar a branch main, develop ou homolog (git update-ref -d)",
+                            "peça ao usuário (R-DECISAO)", "integracao")
         elif sub == "reset" and "--hard" in args:
             self.perguntar("descartar")
         elif sub == "clean" and (any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
@@ -690,7 +724,7 @@ class Guarda:
                 self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
 
-    def gh_trava(self, palavras):
+    def gh_trava(self, palavras, pasta):
         """Atos perigosos do `gh` (2.5): apagar o repositório e torná-lo público são recusados para todos (a pessoa faz
         pelo site do GitHub); arquivar só pede confirmação no perfil iniciante. Cobre `gh repo` e `gh api`."""
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR | {"--visibility"})
@@ -710,15 +744,32 @@ class Guarda:
             if (parecer.opcao(args, "--method", "-X") or "").upper() == "DELETE" and REPO_APAGAR.match(
                     parecer.endpoint_da_api(args)) or GRAPHQL_APAGAR.search(" ".join(args)):
                 self.barrar(*apagar)
-            if VISIBILIDADE_PUBLICA.search(" ".join(args)):
+            if VISIBILIDADE_PUBLICA.search(" ".join(args)) or self.input_publica(args, pasta):
                 self.barrar(*publico)
+
+    @staticmethod
+    def input_publica(args, pasta):
+        """`gh api --input arq` com `private:false`/`visibility:public` no corpo. No endpoint do repositório, PATCH ou PUT
+        com corpo que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
+        for i, a in enumerate(args):
+            if a != "--input" and not a.startswith("--input="):
+                continue
+            arq = a.split("=", 1)[1] if "=" in a else (args[i + 1] if i + 1 < len(args) else "")
+            try:
+                if VISIBILIDADE_PUBLICA.search((pasta / os.path.expandvars(arq)).expanduser().read_text(encoding="utf-8")):
+                    return True
+            except (OSError, ValueError):
+                metodo = (parecer.opcao(args, "--method", "-X") or "").upper()
+                if metodo in ("PATCH", "PUT") and REPO_APAGAR.match(parecer.endpoint_da_api(args)):
+                    return True
+        return False
 
     def claude(self, args):
         """Instalação intocável (2.2): dentro da sessão, `claude plugin` e `claude config` não mudam o Forge nem a
-        configuração; ler, validar e listar continuam livres. A pessoa faz no terminal dela."""
+        configuração; ler, validar, listar e `plugin update` (o caminho oficial de atualização) continuam livres. A pessoa faz no terminal dela."""
         pos = [a for a in args if not a.startswith("-")]
         sub = pos[1] if pos[:1] in (["plugin"], ["plugins"]) and len(pos) > 1 else None
-        muda = (pos[:1] in (["plugin"], ["plugins"]) and (sub in ("uninstall", "remove", "disable", "update") or (
+        muda = (pos[:1] in (["plugin"], ["plugins"]) and (sub in ("install", "uninstall", "remove", "disable") or (
                 sub == "marketplace" and pos[2:3] in (["add"], ["remove"])))) or (
             pos[:1] == ["config"] and pos[1:2] in (["set"], ["add"], ["remove"]))
         if muda:
@@ -726,7 +777,7 @@ class Guarda:
                         f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
 
     def gh(self, palavras, parte, pasta, repo_env=None):
-        self.gh_trava(palavras)
+        self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if not parte:
             return

@@ -1,5 +1,5 @@
 {
-  "descricao": "claude plugin update forge@forge muda a instalação do Forge.",
+  "descricao": "rm com variável no caminho apaga a instalação: rm -rf \"$X\"/.claude",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -14,10 +14,13 @@
       "commit": "feat: muda o app"
     }
   ],
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{raiz}"
+  },
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "claude plugin update forge@forge"
+      "command": "rm -rf \"$X\"/.claude"
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
@@ -25,6 +28,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-CONFORMIDADE: claude plugin"
+    "stderr": "R-CONFORMIDADE: arquivo em vigor (.claude/"
   }
 }
