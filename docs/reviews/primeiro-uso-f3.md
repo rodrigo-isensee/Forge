@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f3
 branch: melhoria/primeiro-uso-f3
-commit: 262356e
+commit: a032be1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
@@ -51,3 +51,13 @@ Revisor: `forge:tech-lead`, sem participação na autoria. Diff `ad1ef91..262356
 - **[baixo, recomendado] Corrida residual no `Stop` (`hooks/doutor.py:66-74`).** O estado é lido sob trava, a trava é solta e depois regravado por inteiro com `avisado: true`. Duas sessões simultâneas podem avisar duas vezes, e um `SessionStart` concorrente pode ter o cache mais novo sobrescrito por um estado velho. Não há arquivo corrompido (a gravação é sob trava) e o efeito é no máximo um aviso repetido ou um cache de um dia que se refaz na próxima sessão. Sugestão: na segunda trava, reler o cache, voltar a checar `avisado` e só então imprimir.
 - **[baixo, recomendado] Timeout do `git` não aparece como "não consegui checar" (`bin/forge-doutor:206-228`).** Não fica silencioso demais (nunca vira "ok"), mas vira afirmação falsa: `git config --list` estourando deixa `config_git` vazio e gera "proteção desligada" e "o git não sabe seu nome"; `for-each-ref` estourando gera "a branch develop/homolog/main não existe". Com 3 s isso é mais provável do que com 15 s, e o texto engana. Sugestão: se `rodar` falhar, devolver um único problema "não consegui checar o git (demorou demais)" e pular as conferências que dependem dele.
 - **[baixo, recomendado] Backup pode ser sobrescrito (`bin/forge-doutor:132`).** `if ativo:` também vale quando `ativo` já é `.githooks` (só a permissão estava errada), e então a cópia guarda `.githooks` por cima do valor original. Sugestão: guardar só se `ativo` não estiver em `(".githooks", str(pasta))`.
+
+## Review da última correção
+Revisor: `forge:tech-lead`. Diff `256cedd..a032be1` (`bin/forge-doutor`, `hooks/doutor.py`, `tests/test_doutor.py`) lido por inteiro. Testes no checkout do PR: `python3 -m unittest discover -s tests`, 404 OK.
+
+**Parecer: aprovado.** As três recomendações foram atendidas, sem regressão.
+
+- **Timeout vira "não consegui checar": resolvido.** `rodar` devolve `None` quando não roda ou estoura; `git config --list` com `None` pula proteção e identidade, `for-each-ref` com `None` não gera "branch não existe", e a lista final traz um único aviso, sem duplicar. No `gh`, `None` não vira "sem login". Testes novos cobrem.
+- **Corrida no `Stop`: resolvido.** Ler, decidir e gravar `avisado` acontecem na mesma trava; no caminho sem cache de hoje, `registrar` relê o cache sob trava antes de decidir. Duas sessões não avisam duas vezes e o cache mais novo não é sobrescrito por um velho.
+- **Backup do `core.hooksPath`: resolvido.** Só guarda se o valor não for `.githooks` nem o caminho absoluto da pasta, então o original não é sobrescrito.
+- **Efeito colateral (aviso "não consegui checar" no cache até o dia seguinte): aceito.** Todo `SessionStart` (inclusive resume e compact) reexamina e regrava o cache, então a checagem se repete na próxima sessão sem esperar a virada do dia. O aviso aparece uma vez por dia enquanto o texto for o mesmo, o que é o comportamento desejado para não incomodar. Não precisa de retentativa extra.
