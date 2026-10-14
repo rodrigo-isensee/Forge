@@ -3,9 +3,9 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f3
 branch: melhoria/primeiro-uso-f3
-commit: a851fda
-parecer: aprovado
-revisor: forge:tech-lead (autor)
+commit: 1d2a10b
+parecer: reprovado
+revisor: forge:tech-lead
 data: 2026-10-13
 ---
 # Parecer de autor: primeiro uso F3 (forge doutor)
@@ -19,3 +19,23 @@ data: 2026-10-13
 - **Atenção ao dono:** toca `hooks/` e `tests/hooks/`, protegidos: o PR precisa do rótulo `afrouxa-regra`. Duas asserções de `tests/test_hooks.py` passaram a aceitar o `doutor` ao lado do `vigia`; nenhuma fixture existente foi alterada. Sem mudança de versão (sobe na release, ADR 0006). Depende do #102 (F2).
 
 Parecer de autor, feito pelo mesmo agente que escreveu a mudança; o review independente fica a cargo do `tech-lead` no PR.
+
+## Review independente
+Revisor: `forge:tech-lead`, sem participação na autoria. Diff do PR #103 lido por inteiro a partir de `f4de24d` (o que vem do #102 fica fora); head revisado `1d2a10b`. Testes no checkout do PR: `python3 -m unittest discover -s tests`, 398 OK. Comportamentos conferidos com testes extras descartáveis sobre o `HookDoutor` de `tests/test_doutor.py`.
+
+**Parecer: reprovado** (um achado médio que bloqueia, de conserto pequeno; o resto aprovado).
+
+- **[médio, bloqueia] `hooks/doutor.py:47-49`: o aviso não é "uma vez por dia".** Todo `SessionStart` (inclusive `source` `resume`, `compact` e `clear`) chama `examinar`, que regrava o cache com `avisado: false`. Reproduzido: com um problema, `SessionStart(startup)` + `Stop` avisa; `SessionStart(compact)` + `Stop` avisa de novo; `SessionStart(resume)` + `Stop` de novo. Em sessão longa, o aviso volta a cada compactação, o contrário do que dizem `docs/hooks.md` ("no máximo uma vez por dia e por problema") e o `CHANGELOG.md`. Não gasta token (é `systemMessage`), mas é ruído, que é o que a F3 quer evitar. Sugestão: no `SessionStart`, manter `avisado` quando a data do cache é a de hoje e a lista de problemas é a mesma (ou já está contida no que foi avisado), com teste para `compact` e `resume`.
+- **[baixo, recomendado] `hooks/doutor.py:46`: o diagnóstico roda dentro de `hook.trava()`,** a mesma trava de `agentes`, `pesado`, `vigia` e da autoria da `conformidade`. Normalmente leva cerca de 32 ms (medido no `SessionStart`), mas com o `git` travado o `PreToolUse` dos outros hooks espera até o timeout de 10 s deste. Sugestão: chamar `diagnosticar` fora da trava e usá-la só para ler e gravar o cache. Também convém um limite menor que 10 s em `rodar` quando chamado pelo hook (hoje é 15 s).
+- **[baixo, recomendado] `bin/forge-doutor:117-129`: o conserto da proteção do git** troca qualquer `core.hooksPath` diferente de `.githooks` (por exemplo, um gerenciador de hooks que a pessoa já usava) sem guardar o valor anterior, e responde "religuei" sem conferir o código de saída do `git config`. A nova conferência logo depois mostra o que sobrou, então não há mentira duradoura. Sugestão: citar o valor atual na frase e guardá-lo junto da cópia de segurança.
+- **[baixo, recomendado] Arquitetura F3:** o critério "SessionStart < 100 ms" é testado no `Stop` com cache e com limite de 0,3 s (`test_abrir_em_menos_de_cem_ms_em_media`). Medi cerca de 32 ms no `SessionStart`; o teste deveria medir esse evento.
+- **[informativo] Cache forjado:** o `.forge/run/doutor` só é lido pelo próprio doutor; nenhum outro hook o consulta, então forjá-lo não pula checagem de segurança. Forjado, ele cala o aviso do dia ou mostra ao usuário um texto qualquer com o prefixo "Forge doutor:" (conferido). Isso fica coberto porque `.forge/` é caminho protegido na `conformidade` e o `vigia` vê o que escapar. Aceito.
+- **Conferido e aprovado:**
+  - Custo de contexto (ADR 0003): o `SessionStart` não escreve no stdout (fixture e teste), e o `Stop` emite só `systemMessage` de uma linha, até 200 caracteres, nunca `additionalContext`.
+  - Conserto seguro: só no modo completo, com TTY em stdin e stdout e "s". O `settings.json` é alterado com cópia em `~/.local/state/forge/backup/`, e o arquivo ilegível não é tocado. As `settings` do usuário, o `gh` e a identidade do git só são lidos ou viram instrução. Nada destrutivo: `git branch` sem `-f`, sem `push`, `reset` ou `--force`.
+  - Robustez: o `executar` sai 0 em erro interno e registra no `erros.log` (fixture `erro-interno`); o hook não é `critico` e não afrouxa outro controle. Fora de projeto do Forge, o hook não age.
+  - `R-CUSTO`: o `--rapido` não usa rede (teste com `gh` falso). O modo completo só chama `gh auth status`, que é gratuito. O `claude` dos testes é falso.
+  - As duas asserções de `tests/test_hooks.py`: a primeira exige do `doutor` só código 0, o que é mais estrito; a segunda só acrescenta `doutor.py` ao conjunto permitido em `SessionStart`/`Stop`, e a regra de stdout vazio no `SessionStart` continua valendo para as fixtures e para `test_doutor`. Nada afrouxado.
+  - Desvio do autor (hook separado do `vigia`): aceitável. Não altera fixture nem mensagem do `vigia`, segue a mesma política e pode ser desligado à parte por `hooks_desligados`.
+  - Atalho `jarvis` e `forge-upgrade`: só `--rapido`, que não conserta nem pergunta e cuja falha não impede seguir. `R-NEUTRO`: nenhum termo de projeto.
+- **Para o dono:** o PR toca `hooks/` e `tests/hooks/` e precisa do rótulo `afrouxa-regra`, como o autor já registrou.
