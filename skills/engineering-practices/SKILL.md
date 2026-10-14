@@ -41,6 +41,7 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 7. Testes cobrem o comportamento novo e os casos de borda?
 8. Acessibilidade (front): semântica, foco, contraste.
 9. Commits limpos e mensagem clara?
+10. Decisão ou experimento novo traz critério de reversão? Mecanismo novo traz "Por que o existente não basta" (evidência de execução)?
 
 Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · sugestão · severidade: bloqueia / recomendado).
 
