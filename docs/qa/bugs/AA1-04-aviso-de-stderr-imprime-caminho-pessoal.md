@@ -11,4 +11,4 @@ Coerência com a frase impressa: "a saída traz só números, nunca texto, nome 
 ## Resultado obtido
 Passo 1: `vai ler 282 arquivo(s) .jsonl em /home/<usuario>/.claude/projects/-home-<usuario>-Forge; ...`. Passo 2: `caminho inexistente: /home/<usuario>/.claude/projects/-home-...` no stdout, que é o canal que um relatório colaria. As linhas de sessão e total (stdout) não vazam nada.
 ## Evidência
-Grep `rodrigo|Metricas|SistemaPonto|/home` no stdout de `lastro` e `decisoes` sobre a pasta real: 0 ocorrências; no stderr, a linha de anúncio traz o caminho.
+Grep `<usuário>|<projeto>|/home` no stdout de `lastro` e `decisoes` sobre a pasta real: 0 ocorrências; no stderr, a linha de anúncio traz o caminho.
