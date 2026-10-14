@@ -21,6 +21,8 @@ Execução real sobre o PR #121 (develop -> homolog), sem `--publicar`: testes e
 
 Ferramentas: shellcheck sem achado novo (o script é Python; não há shell tocado); actionlint e zizmor ausentes no PATH.
 
+Volta 3 (parecer de segurança, A1, A2, C1, D): PR de fork recusado (`isCrossRepository`), salvo `--confiar` com aviso; passos com ambiente mínimo por lista branca; `ci.yml`/`catraca.yml` symlink conta como ausente; `--publicar` recusa PR que altera `.github/workflows/` ou `tests/catraca.py`, e o texto diz que o status é autodeclarado. Testes de regressão vermelhos antes (6 falhas e 3 erros), verdes depois; suíte 597 OK. Fora desta volta (recomendados A3 e C2): token dedicado de escopo fino, `start_new_session`/`killpg`.
+
 ## O que fica de fora
 - Job `workflows` (actionlint, zizmor): o CI os baixa; local só rodam se instalados, e o job é não obrigatório.
 - Merge-base no lugar do primeiro pai do merge commit do GitHub: a base dos jobs de diff pode diferir quando a base avançou depois do PR.
@@ -30,10 +32,11 @@ Ferramentas: shellcheck sem achado novo (o script é Python; não há shell toca
 - **Os testes rodam sobre a cabeça do PR, não sobre o merge com a base** (o CI testa o merge commit). Atualize a branch com a base (`git merge origin/<base>`) antes de rodar.
 - Chaves que o leitor ignora geram aviso: `env:` de workflow e de job, `defaults`, `working-directory`, `shell`, `continue-on-error`. Também há aviso se sobrar `HEAD^`/`HEAD~` no passo depois da troca de `git rev-parse HEAD^1`, se o `gh auth token` falhar e se o PR não estiver `OPEN`.
 - Passos de preparo (instalação global de CLI, `curl`, `wget`) são ignorados; vale o que há no PATH. Ferramenta ausente em job obrigatório vira `failure`.
-- O status `ci-local` é auto-declarado: quem o publica pode publicar `success`. Torná-lo check exigido é decisão do dono (`R-CONFORMIDADE`).
+- O status `ci-local` é **autodeclarado**: não prova que a bateria rodou (quem tem escrita publica `success` com uma chamada à API), usa os workflows do próprio PR e mede a cabeça sem o merge com a base; não substitui o CI nem a revisão. Por isso `--publicar` recusa PR que altera `.github/workflows/` ou `tests/catraca.py`. Torná-lo check exigido é decisão do dono (`R-CONFORMIDADE`).
+- Workflow (`ci.yml`, `catraca.yml`) que seja symlink conta como ausente (falha se obrigatório).
 
 ## Segurança (gatilho `R-SEGURANCA` para o security-engineer)
-O script executa localmente os `run:` dos workflows do PR: código do PR roda na máquina de quem roda, com o ambiente do usuário (sem `GIT_*`, `GITHUB_TOKEN` e `GH_TOKEN`); o `gh auth token` só chega aos passos que o declaram em `env:` no workflow, como no CI. Risco: PR de terceiro malicioso pode exfiltrar o token ou o ambiente. Mitigações atuais: `if:` sem `eval`; só PRs do próprio repositório, sandbox do Bash, worktree temporária, timeout de 30 min por passo. Recomendado: rodar só sobre PR de autor confiável, e o security-engineer avaliar filtrar o ambiente passado aos passos e limitar o token ao necessário.
+O script executa localmente os `run:` e o código da cabeça do PR, com os privilégios de quem o roda: é o equivalente local de `pull_request_target` com checkout da cabeça. O que protege de fato é o portão antes da execução: PR de fork (`isCrossRepository`) é **recusado**, salvo `--confiar` explícito, que imprime aviso de exposição da credencial; em PR do mesmo repositório, só quem tem escrita controla a branch. O que roda depois é redução de vazamento acidental, não defesa: os passos recebem ambiente mínimo por lista branca (`PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `LANG`, `LC_*`, `TERM`, `TMPDIR`, `TZ`, `GITHUB_REPOSITORY`, mais `RUNNER_TEMP`, `GITHUB_STEP_SUMMARY`, `CI` e o `env:` do passo), mas o PR escreve os próprios `env:` e o `gh` ainda lê a credencial em disco sob `HOME`. Outras mitigações: `if:` sem `eval`, worktree temporária, timeout de 30 min por passo. Limitações conhecidas: processos em segundo plano e ganchos gravados no `.git` comum sobrevivem à limpeza; o token entregue tem o escopo do usuário, maior que o `contents: read` do CI. Rode só sobre PR de autor confiável.
 
 ## Custo e rollback
 Custo zero (`R-CUSTO`): roda na máquina local, sem serviço pago e sem minutos de Actions. Rollback: reverter os dois commits; nada em `.github/`.
