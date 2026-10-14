@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f6
 branch: melhoria/primeiro-uso-f6
-commit: 9c55a3f
+commit: 7a630a4
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -45,3 +45,27 @@ Segunda leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 9c5
 
 O que está certo: só "s"/"sim" envia (Enter, outra resposta e EOF guardam); dentro do Claude ou sem terminal só fila, e `--fila` recusa nos dois casos; o texto e o título mostrados são os mesmos enviados (fora o item 2); `gh` com argv em lista e `stdin` nulo, sem shell; o hook barra `--label`, `--label=`, `-lX`, `GH_REPO`, URL em `--repo` e `bash -c`; `gh issue edit|close|reopen` seguem barrados e a `R-CONTRIB` não perdeu nenhuma proibição.
 
+
+## Re-review independente
+
+Terceira leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 7a630a4 (`d793fed..7a630a4`). Parecer: **reprovado**. Três dos quatro bloqueios estão fechados; o envio sem a pessoa continua possível por outro caminho, e um segredo comum ainda vaza.
+
+### Bateria local (cota do Actions esgotada)
+- `python3 -m unittest discover -s tests`: 490 testes, OK.
+- `scripts/validar-plugin.sh`: ok. `shellcheck` (lista do CI mais `bin/forge`): limpo.
+- `tests/catraca.py --base origin/develop` (regras): sai 1 só por R-CONFORMIDADE em `hooks/_comum.py`, `conformidade.py`, `parecer.py` (PR empilhado; rótulo `afrouxa-regra` do dono pendente); contra `d0ab6a7` (só a F6), sai 1 só por `hooks/conformidade.py`, o mesmo rótulo.
+- `--modo pareceres` (`--ramo=melhoria/primeiro-uso-f6 --base-ref develop`): sai 1, esperado, porque o último parecer é reprovado. `--modo pr-texto`: não rodei com o corpo do #112 (o repositório não responde à API sem autenticação e esta revisão usa só o `gh` falso); o corpo não mudou desde a review anterior, que deu 0.
+- Versão e changelog: `plugin.json` 0.12.0 igual à `develop`; linha da F6 em `## [Não publicado]`: ok.
+
+### Os quatro bloqueios anteriores
+1. **Fechado no hook.** De sessão de projeto, `gh issue create -R rodrigo-isensee/Forge`, `gh api repos/rodrigo-isensee/Forge/issues -f ...` e a mutação `createIssue` saem com 2 e R-CONTRIB (conferido no hook e nas sete fixtures novas). Mas veja o item 1 abaixo: o script chama o `gh` por dentro.
+2. **Fechado.** `limpar_controle` tira ANSI, OSC, `\r`, `Cc` e `Cf` do corpo e do título; ESC `[8m`, CR, U+202E e U+200B saem; o texto antes escondido fica visível.
+3. **Fechado.** PEM inteiro, `aws_secret_access_key=` e a chave solta de 40, `password:"p4ss w0rd"`, `Authorization: Basic` e base64 de 40+ viram `[chave]`/`[token]`.
+4. **Fechado.** As grafias do nome (`Sistema-Acao`, `Sistema Ação`, `SistemaAção`, `sistema_acao`, maiúsculas), IPv4/IPv6, `db01.corp.interno`, URLs que não são do Forge, `C:/`, UNC e o `../../` no caminho do Forge saem; o `AVISO` não promete mais anonimato. A skill `modo-iniciante` usa só `forge sugerir --guardar`; a fila nasce com pasta 700 e arquivo 600 (`O_EXCL`), e o `--fila` anonimiza de novo o que lê.
+
+### Ajustes necessários
+1. **Bloqueia. O agente ainda envia sem a pessoa, pelo próprio `forge sugerir`** (`bin/forge_versoes.py:405-417`, `bin/forge-sugerir:277-301`, `hooks/conformidade.py`). Com `CLAUDECODE` ou `CLAUDE_CODE_ENTRYPOINT`, o envio normal só guarda e o `--fila` sai com 2, como no `forge-atualizar` e no `forge-voltar-versao`: ok. Só que basta tirar as duas variáveis: dentro do sandbox do Bash o processo está num namespace de PID próprio (a linhagem vista termina em `bash`, PID 2), então a busca por um ancestral `claude` nunca acha nada. Reproduzido do Bash do agente, com `gh` falso: `env -i HOME=... PATH=... script -qec "python3 bin/forge-sugerir --fila" /dev/null` com `s` na entrada chegou ao `gh issue create -R rodrigo-isensee/Forge` e "enviou" a sugestão; o hook `conformidade` libera `forge sugerir --fila`, `env -u CLAUDECODE -u CLAUDE_CODE_ENTRYPOINT script -qec 'printf "s\n" | forge sugerir --fila' /dev/null` e `env -i ... script -qec 'yes s | forge sugerir "x"'` (todos saíram com 0). O hook barra o `gh`, mas o script chama o `gh` por dentro, e o "s" é do agente, não da pessoa. A review anterior já recomendava barrar isso no hook. Correção: o hook `conformidade` barra, em sessão de projeto (e de preferência em toda sessão), `forge sugerir` e `forge-sugerir` (também por caminho, `bash -c`, `env`, `script`, `setsid` e `python3 .../forge-sugerir`) sempre que não for `--guardar`, ou seja, `--fila`, texto solto e `--arquivo`; fixtures com essas três formas. A checagem por variável continua como segunda camada. Vale a mesma fragilidade para `forge atualizar` e `forge voltar-versao` (antiga, fora deste PR; registrar).
+2. **Bloqueia. Chave em JSON escapado vaza** (`bin/forge-sugerir:39`). `{\"api_key\": \"AbCdEf123456\"}`, `{\"token\":\"abc\"}`, `"{\"password\":\"hunter2\"}"` e `{\\\"secret\\\": \\\"zzz\\\"}` saem intactos: o separador `[\"']?\s*[:=]` não aceita a barra antes da aspa, e o valor `\"...\"` também não. É o formato de log e de corpo de requisição colado em sugestões. Correção: aceitar `\\*["']?` depois da chave e valor `\\*"(?:[^"\\\n]|\\.)*?\\*"`; testes com um e dois níveis de escape.
+3. Recomendado. Nome do projeto separado por ponto passa (`Sistema.Acao`, `sistema.acao.app`), e `Sistema--Acao` também: incluir `.` e repetição em `[-_ .]*` entre as partes. Valor em URL codificada passa (`token%3Dabcdef123456`, `password%3Dhunter2`): decodificar `%3D`/`%3A` antes do `SEGREDO` ou aceitar o separador codificado. Base64 de menos de 40 (`dG9rZW49YWJjZGVmMTIzNDU2Nzg5`, que é `token=abcdef123456789`) passa; aceitável pela heurística, já que o aviso pede conferência. `https://api.empresa.com/v1?token=x` vira `<url>]` (resto do `[token]`): cosmético.
+
+O que está certo, além dos quatro itens: e-mail com `+` sai; `?token=` e `?access_token=` em URL do Forge viram `[token]` e em outra URL a URL inteira sai; o nome do projeto dentro de caminho (`build/Sistema-Acao/src`, `./sistemaacao/x`, `repo/SistemaAção.git`) sai; Enter, EOF e outra resposta seguem guardando; o `gh` segue com argv em lista e `stdin` nulo.
