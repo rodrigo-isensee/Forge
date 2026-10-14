@@ -5,12 +5,17 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]]
+     forge-check transcricao lastro [<pasta ou .jsonl>]
+     forge-check transcricao decisoes [<pasta ou .jsonl>]
      forge-check fontes
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
+`lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK)
+e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` (M3) conta as respostas da sessão
+principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo". Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 `pr --base` aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
@@ -1155,6 +1160,232 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>"):
     return 0
 
 
+# ---- transcricao lastro / decisoes: a linha de base da proteção contra alucinação (M1 e M3), sem IA e sem rede ----
+RE_SHA = re.compile(r"(?<![0-9A-Za-z])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,40}(?![0-9A-Za-z])")
+RE_PR = re.compile(r"(?<![0-9A-Za-z&])#(\d{1,6})(?!\d)")
+RE_PUSH = re.compile(r"\bpush\b[^.\n]{0,25}\b(?:aceito|entrou|enviado|feito|realizado|passou)\b|\benviei\b[^.\n]{0,25}\b(?:branch|origin)\b", re.I)
+RE_MESCLADO = re.compile(r"\bmescl(?:ado|ada|ei|ou)\b|\bmerged\b", re.I)
+RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)", re.I)
+RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+\S+|\[new (?:branch|tag)\]")
+RE_SAIDA_MESCLADO = re.compile(r"merged|merge pull request|mergedat|mesclad", re.I)
+
+
+def afirmacoes_do_relatorio(texto):
+    """Afirmações verificáveis do texto: conjunto de (tipo, valor); `valor` é o que deve aparecer nas saídas."""
+    achadas = {("sha", m.group(0)) for m in RE_SHA.finditer(texto)}
+    achadas |= {("pr", m.group(1)) for m in RE_PR.finditer(texto)}
+    if RE_PUSH.search(texto):
+        achadas.add(("push", ""))
+    if RE_MESCLADO.search(texto):
+        achadas.add(("mesclado", ""))
+    achadas |= {("testes", m.group(1) or m.group(2)) for m in RE_TESTES.finditer(texto)}
+    return achadas
+
+
+def tem_lastro(afirmacao, saidas):
+    tipo, valor = afirmacao
+    if tipo == "sha":
+        return valor in saidas
+    if tipo == "pr":
+        return re.search(rf"#{valor}(?!\d)|pull/{valor}(?!\d)|\"number\": ?{valor}(?!\d)", saidas) is not None
+    if tipo == "push":
+        return RE_SAIDA_PUSH.search(saidas) is not None
+    if tipo == "mesclado":
+        return RE_SAIDA_MESCLADO.search(saidas) is not None
+    return re.search(rf"\bRan {valor} tests?\b|\b{valor} (?:tests?|testes|passed)\b|\bOK \({valor} tests?\)", saidas) is not None
+
+
+def textos_do_conteudo(conteudo):
+    if isinstance(conteudo, str):
+        return [conteudo]
+    return [b["text"] for b in conteudo if isinstance(b, dict) and isinstance(b.get("text"), str)] if isinstance(conteudo, list) else []
+
+
+def objetos_jsonl(arquivos, rotulo):
+    """Objetos de cada `.jsonl`, linha a linha; ilegível ou malformado é pulado (aviso só com números, em stderr)."""
+    ignoradas = 0
+    for arq in arquivos:
+        try:
+            with open(arq, encoding="utf-8", errors="replace") as f:
+                for linha in f:
+                    try:
+                        o = json.loads(linha) if linha.strip() else None
+                    except ValueError:
+                        o = None
+                    if isinstance(o, dict):
+                        yield o
+                    elif linha.strip():
+                        ignoradas += 1
+        except OSError as erro:
+            print(f"{rotulo}: aviso: arquivo ilegivel ({erro.strerror or type(erro).__name__}); pulado", file=sys.stderr)
+    if ignoradas:
+        print(f"{rotulo}: aviso: {ignoradas} linhas ignoradas (malformadas)", file=sys.stderr)
+
+
+def ler_relatorios(arquivos):
+    """Por subagente (sessão + agentId): o relatório final e o texto de todas as saídas de ferramenta sem erro.
+    Devolve {sessão: [(relatório, saídas)]}; nenhum texto sai daqui para a impressão."""
+    agentes, ordem = {}, {}
+    for o in objetos_jsonl(arquivos, "lastro"):
+        agente = o.get("agentId")
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        if not o.get("isSidechain") or not isinstance(agente, str):
+            continue
+        sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else ""
+        ordem.setdefault(sessao, f"s{len(ordem) + 1}")
+        reg = agentes.setdefault((sessao, agente), {"saidas": [], "texto": "", "id": None, "entregue": ""})
+        blocos = msg.get("content") if isinstance(msg.get("content"), list) else []
+        if o.get("type") == "assistant":
+            textos = [t for b in blocos if isinstance(b, dict) and b.get("type") == "text" for t in textos_do_conteudo([b])]
+            if textos:
+                reg["texto"] = (reg["texto"] + "\n" if reg["id"] == msg.get("id") else "") + "\n".join(textos)
+                reg["id"] = msg.get("id")
+            for b in blocos:
+                if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("name") == "SubagentHandback" \
+                        and isinstance(b.get("input"), dict) and isinstance(b["input"].get("message"), str):
+                    reg["entregue"] = b["input"]["message"]
+        elif o.get("type") == "user":
+            for b in blocos:
+                if isinstance(b, dict) and b.get("type") == "tool_result" and not b.get("is_error"):
+                    reg["saidas"] += textos_do_conteudo(b.get("content"))
+    saida = {}
+    for (sessao, _), reg in agentes.items():
+        relatorio = reg["entregue"] or reg["texto"]
+        if relatorio:
+            saida.setdefault(ordem[sessao], []).append((relatorio, "\n".join(reg["saidas"])))
+    return saida
+
+
+def medir_lastro(relatorios):
+    """{sessão: (relatórios, afirmações, sem lastro)}."""
+    medida = {}
+    for sessao, itens in relatorios.items():
+        total = sem = 0
+        for relatorio, saidas in itens:
+            for afirmacao in afirmacoes_do_relatorio(relatorio):
+                total += 1
+                sem += 0 if tem_lastro(afirmacao, saidas) else 1
+        medida[sessao] = (len(itens), total, sem)
+    return medida
+
+
+RE_OPCAO = re.compile(r"^\s*(?:[-*+]\s+)?(\|\s*)?(?:\*\*\s*)?(Op[çc][ãa]o\s+)?([A-F])(\*\*)?\s*(?:([).:|,])(?:\*\*)?)?(?=\s|$)")
+RE_RECOMENDO = re.compile(r"recomendo|recomenda[çc][ãa]o:", re.I)
+RE_DECIDIDO = re.compile(r"^\s*(?:\*\*)?(?:Decidido|Escolhida):", re.I)
+
+
+def sem_codigo_nem_citacao(texto):
+    saida, em_codigo, em_provas = [], False, False
+    for linha in texto.splitlines():
+        if linha.lstrip().startswith("```"):
+            em_codigo = not em_codigo
+            continue
+        if em_codigo or linha.lstrip().startswith(">"):
+            continue
+        if re.match(r"^\s*Provas:\s*$", linha):
+            em_provas = True
+            continue
+        if em_provas and not linha.strip():
+            em_provas = False
+        if not em_provas:
+            saida.append(linha)
+    return saida
+
+
+def grupos_de_opcoes(texto):
+    """[(índice da linha onde começa, recomenda?)] dos grupos de opções A/B/C (>= 2 opções) fora de código e citação."""
+    linhas = sem_codigo_nem_citacao(texto)
+    opcoes, pergunta = [], False
+    for i, linha in enumerate(linhas):
+        tabela = linha.lstrip().startswith("|")
+        if not tabela and linha.strip():
+            pergunta = "?" in linha
+        m = RE_OPCAO.match(linha)
+        if m and (m.group(2) or m.group(4) or m.group(5)) and not (m.group(1) and not pergunta):
+            opcoes.append((i, m.group(3)))
+    grupos, atual = [], []
+    for i, letra in opcoes:
+        if letra == "A":
+            grupos.append(atual)
+            atual = []
+        if letra == "A" or atual:
+            atual.append((i, letra))
+    grupos.append(atual)
+    saida = []
+    for g in (g for g in grupos if len(g) >= 2):
+        if any(RE_DECIDIDO.match(l) for l in linhas[g[-1][0] + 1:g[-1][0] + 4]):
+            continue
+        saida.append((g[0][0], RE_RECOMENDO.search("\n".join(linhas[g[0][0]:])) is not None))
+    return saida
+
+
+def ler_respostas_do_jarvis(arquivos):
+    """{sessão: [texto da resposta final de cada turno]} da sessão principal (fora de subagentes)."""
+    ordem, respostas, ultimo = {}, {}, {}
+    for o in objetos_jsonl(arquivos, "decisoes"):
+        if o.get("isSidechain") or o.get("type") not in ("assistant", "user"):
+            continue
+        sessao = o.get("sessionId") if isinstance(o.get("sessionId"), str) else ""
+        rotulo = ordem.setdefault(sessao, f"s{len(ordem) + 1}")
+        respostas.setdefault(rotulo, [])
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        blocos = msg.get("content")
+        if o["type"] == "assistant":
+            textos = [b["text"] for b in blocos if isinstance(b, dict) and b.get("type") == "text"
+                      and isinstance(b.get("text"), str)] if isinstance(blocos, list) else []
+            if textos:
+                antes = ultimo.get(rotulo)
+                junto = (antes[1] + "\n" if antes and antes[0] == msg.get("id") else "") + "\n".join(textos)
+                ultimo[rotulo] = (msg.get("id"), junto)
+        elif not (isinstance(blocos, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in blocos)):
+            if rotulo in ultimo:  # um pedido novo do usuário fecha o turno
+                respostas[rotulo].append(ultimo.pop(rotulo)[1])
+    for rotulo, texto in ultimo.items():
+        respostas[rotulo].append(texto[1])
+    return respostas
+
+
+def medir_decisoes(respostas):
+    """{sessão: (respostas, com grupo, com violação)}: violação = mais de um grupo ou grupo sem `Recomendo`."""
+    medida = {}
+    for sessao, textos in respostas.items():
+        com_grupo = violacoes = 0
+        for t in textos:
+            grupos = grupos_de_opcoes(t)
+            com_grupo += bool(grupos)
+            violacoes += len(grupos) > 1 or any(not recomenda for _, recomenda in grupos)
+        medida[sessao] = (len(textos), com_grupo, violacoes)
+    return medida
+
+
+def taxa(parte, total):
+    return f"{100 * parte / total:.1f}%" if total else "n/a"
+
+
+def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos):
+    """Anuncia (stderr), lê e imprime uma linha por sessão e o total, só com números. `campos`: nomes das colunas."""
+    alvo = alvo or str(pasta_padrao_de_transcricoes())
+    try:
+        arquivos = arquivos_de_transcricao(alvo)
+    except OSError:
+        print(f"{rotulo}: caminho inexistente: {alvo}")
+        return 1
+    if not arquivos:
+        print(f"{rotulo}: nenhum arquivo .jsonl em {alvo}")
+        return 1
+    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {alvo}; só disco local, sem rede; "
+          "a saída traz só números, nunca texto, nome ou caminho", file=sys.stderr)
+    medida = medir(ler(arquivos))
+    soma = [0] * len(campos)
+    for sessao, valores in sorted(medida.items(), key=lambda x: int(x[0][1:])):
+        print(f"{rotulo}: sessao {sessao}: " + " ".join(f"{c}={v}" for c, v in zip(campos, valores))
+              + f" taxa={taxa(valores[-1], valores[-2] if rotulo == 'lastro' else valores[0])}")
+        soma = [a + b for a, b in zip(soma, valores)]
+    print(f"{rotulo}: total: sessoes={len(medida)} " + " ".join(f"{c}={v}" for c, v in zip(campos, soma))
+          + f" taxa={taxa(soma[-1], soma[-2] if rotulo == 'lastro' else soma[0])}")
+    return 0
+
+
 def versao(texto):
     try:
         return tuple(int(p) for p in texto.strip().split("."))
@@ -1254,6 +1485,10 @@ def main():
     cu.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual em ~/.claude/projects)")
     cu.add_argument("--entregas", action="store_true", help="gera as linhas de docs/kanban/entregas.md")
     cu.add_argument("--entrega", default="<entrega>", help="nome da entrega na linha gerada por --entregas")
+    for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
+                        ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)")):
+        medida = tsub.add_parser(nome, help=ajuda)
+        medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
     raiz = Path(a.raiz).resolve()
@@ -1267,6 +1502,10 @@ def main():
 def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega)
+    if a.cmd == "transcricao" and a.acao == "lastro":
+        return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"))
+    if a.cmd == "transcricao" and a.acao == "decisoes":
+        return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"))
     if a.cmd == "fontes":
         linhas, codigo = cmd_fontes()
         for linha in linhas:

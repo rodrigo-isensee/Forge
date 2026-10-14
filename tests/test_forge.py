@@ -2241,6 +2241,83 @@ class CustoDeTokens(unittest.TestCase):
         self.assertNotIn("total=0", saida)
 
 
+class MedirAlucinacao(unittest.TestCase):
+    """`forge-check transcricao lastro` e `decisoes`: linha de base de M1 e M3, sobre transcrições sintéticas."""
+
+    def rodar(self, acao, linhas):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-medida-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "s.jsonl").write_text("".join(json.dumps(o) + "\n" for o in linhas), encoding="utf-8")
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "transcricao", acao, str(tmp)],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return r.stdout, r.stderr
+
+    @staticmethod
+    def subagente(relatorio, saida, erro=False):
+        base = {"isSidechain": True, "agentId": "a1", "sessionId": "sess"}
+        return [
+            {**base, "type": "user", "message": {"role": "user", "content": "faca"}},
+            {**base, "type": "assistant", "message": {"id": "m1", "role": "assistant", "content": [
+                {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "x"}}]}},
+            {**base, "type": "user", "message": {"role": "user", "content": [
+                {"type": "tool_result", "tool_use_id": "t1", "is_error": erro, "content": [{"type": "text", "text": saida}]}]}},
+            {**base, "type": "assistant", "message": {"id": "m2", "role": "assistant", "content": [
+                {"type": "tool_use", "id": "t2", "name": "SubagentHandback", "input": {"message": relatorio}}]}},
+        ]
+
+    @staticmethod
+    def jarvis(*respostas):
+        linhas = []
+        for i, texto in enumerate(respostas):
+            linhas.append({"type": "user", "sessionId": "sess", "message": {"role": "user", "content": f"pedido {i}"}})
+            linhas.append({"type": "assistant", "sessionId": "sess", "message": {
+                "id": f"j{i}", "role": "assistant", "content": [{"type": "text", "text": texto}]}})
+        return linhas
+
+    def lastro(self, relatorio, saida, erro=False):
+        return self.rodar("lastro", self.subagente(relatorio, saida, erro))[0]
+
+    def test_afirmacoes_com_lastro_nas_saidas(self):
+        saida = ("3f2a9c1..8b04e7d  melhoria/x -> melhoria/x\nhttps://github.com/o/r/pull/118\nMerged\n"
+                 "Ran 312 tests in 4s\nOK\nabc1234 commit")
+        relatorio = "Commit abc1234, PR #118, push aceito, mesclado, 312 testes OK."
+        self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=5 sem_lastro=0 taxa=0.0%", self.lastro(relatorio, saida))
+
+    def test_afirmacoes_sem_lastro(self):
+        saida = "! [rejected] melhoria/x -> melhoria/x (pre-receive hook declined)\nRan 10 tests\nFAILED"
+        relatorio = "Commit abc1234, PR #118, push aceito, mesclado, 312 testes OK."
+        self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=5 sem_lastro=5 taxa=100.0%", self.lastro(relatorio, saida))
+
+    def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):
+        saida = self.lastro("Commit abc1234 entrou.", "abc1234", erro=True)
+        self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", saida)
+        self.assertNotIn("abc1234", saida)
+        self.assertNotIn("a1", saida.replace("afirmacoes", ""))
+
+    def test_decisao_unica_com_recomendo_e_ok(self):
+        saida, _ = self.rodar("decisoes", self.jarvis("Qual caminho?\n- **A)** copiar\n- **B)** mover\nRecomendo A, e so isso."))
+        self.assertIn("decisoes: sessao s1: respostas=1 com_grupo=1 violacoes=0 taxa=0.0%", saida)
+
+    def test_decisao_dupla_e_violacao(self):
+        texto = "1.\nA) x\nB) y\nRecomendo A.\n\n2.\nA) z\nB) w\nRecomendo B."
+        saida, _ = self.rodar("decisoes", self.jarvis("so texto", texto))
+        self.assertIn("decisoes: sessao s1: respostas=2 com_grupo=1 violacoes=1 taxa=50.0%", saida)
+
+    def test_decisao_sem_recomendo_e_violacao(self):
+        saida, _ = self.rodar("decisoes", self.jarvis("Escolha:\nA: x\nB: y"))
+        self.assertIn("respostas=1 com_grupo=1 violacoes=1 taxa=100.0%", saida)
+
+    def test_codigo_citacao_e_lista_numerada_nao_contam(self):
+        texto = "```\nA) x\nB) y\n```\n> A) q\n> B) r\n1) um\n2) dois\nA casa, B casa"
+        saida, _ = self.rodar("decisoes", self.jarvis(texto))
+        self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
+
+    def test_subagente_nao_conta_como_resposta_do_jarvis(self):
+        saida, _ = self.rodar("decisoes", self.subagente("A) x\nB) y", "z") + self.jarvis("ok"))
+        self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
+
+
 class PraticasDeEspecificacao(unittest.TestCase):
     """Critérios EARS, bug, constituição e DORA presentes nos lugares certos."""
 
