@@ -2,6 +2,8 @@
 
 As práticas padrão vêm da skill `engineering-practices` do Forge. Este arquivo registra só o que é **específico deste projeto** e prevalece sobre a skill. Decisões estruturais ficam em ADR.
 
+Pipeline, containers, IaC e releases seguem a skill `ci-cd` do Forge; segurança, a skill `cyber-security`.
+
 ## Stack
 <!-- linguagens, frameworks, banco, gerenciador de pacotes -->
 

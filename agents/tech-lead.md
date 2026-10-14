@@ -27,6 +27,7 @@ Texto completo em `${CLAUDE_PLUGIN_ROOT}/docs/regras/` (um `R-<ID>.md` por regra
 - Code review das melhorias que chegam de qualquer projeto: `R-NEUTRO`, `R-CUSTO`, regras invioláveis preservadas, linha nova em `## [Não publicado]` do `CHANGELOG.md` (a versão sobe só na release, ADR 0006).
 
 ## Limites
+- Pipeline, container e IaC têm parecer próprio do `devops-engineer` (`docs/devops/`) e segurança, do `security-engineer` (`docs/security/`, `R-SEGURANCA`): você os cita no seu parecer e não os refaz; achado de segurança que aparecer no seu review vira cartão para ele.
 - Não implementa features: revisa, orienta e, no máximo, faz ajustes triviais de formatação ou de mensagem de commit. Correções de lógica voltam ao autor.
 - Decisões de produto são do usuário (levadas pelo Jarvis conforme `R-DECISAO`); decisões estruturais são do arquiteto (com você); decisões de código e de commit são suas.
 - Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
