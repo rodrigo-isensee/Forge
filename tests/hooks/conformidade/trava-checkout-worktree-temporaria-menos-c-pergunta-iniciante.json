@@ -1,0 +1,37 @@
+{
+  "descricao": "git -C projeto checkout -- .: pergunta",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/perfil": "iniciante\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "worktree": "review-wt",
+      "branch": "review/x",
+      "solto": true
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git -C {raiz} checkout -- ."
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/review-wt"
+  },
+  "esperado": {
+    "codigo": 0,
+    "pergunta": "descarta as mudanças"
+  }
+}

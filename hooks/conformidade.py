@@ -101,6 +101,8 @@ PERGUNTAS = {
     "rebase": "Isso reescreve versões que já estão no GitHub; outras cópias deixam de bater. Confirma?",
 }
 DISPENSA_NA_COPIA = {"descartar", "limpar"}  # só atos sobre os arquivos da cópia; `rebase` e `arquivar` perguntam sempre
+UM_ATO_SIMPLES = re.compile(r"\s*git\s+(reset|clean|checkout|restore)(\s+[^\s;&|`$()<>\\\n]+)*\s*")
+ATO_FORA_DA_COPIA = re.compile(r"(^|\s)(-C|--work-tree|--git-dir|--work-tree=\S*|--git-dir=\S*)(\s|$)|GIT_DIR|GIT_WORK_TREE|\b(cd|pushd)\b")
 REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
@@ -208,7 +210,7 @@ class Guarda:
         self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self._repos = {}     # (raiz git, remoto) -> é o Forge
-        self.tmpdir_redefinido = False  # a linha atribui TMPDIR
+        self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
 
     # Respostas -------------------------------------------------------------------------------
@@ -229,7 +231,11 @@ class Guarda:
 
     def worktree_temporaria(self):
         """Worktree vinculada em pasta temporária, com HEAD solto (cópia de review): descartar ou limpar arquivos ali não
-        toca o trabalho da pessoa. Com branch, o `reset --hard` move a branch dela (os refs são comuns às cópias)."""
+        toca o trabalho da pessoa. Com branch, o `reset --hard` move a branch dela (os refs são comuns às cópias).
+        Só vale para a linha que é UM ato simples (`git reset|clean|checkout|restore ...`): sem encadeamento, `$`, crase,
+        `cd`, `-C`, `--work-tree`, `--git-dir`, `GIT_DIR`, `GIT_WORK_TREE`; na dúvida, pergunta."""
+        if not UM_ATO_SIMPLES.fullmatch(self.linha) or ATO_FORA_DA_COPIA.search(self.linha):
+            return False
         raiz = Path(os.path.realpath(self.h.raiz))
         if git(raiz, "symbolic-ref", "-q", "HEAD")[0] != 1:
             return False
@@ -369,8 +375,6 @@ class Guarda:
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
         valores = {"PWD": str(pasta), "CLAUDE_PROJECT_DIR": str(self.h.raiz), "HOME": str(Path.home())}
-        if not self.tmpdir_redefinido:  # senão o valor do ambiente do hook não é o do comando
-            valores["TMPDIR"] = os.environ.get("TMPDIR") or tempfile.gettempdir()
         return VARIAVEL.sub(lambda m: valores.get(m.group(1), m.group(0)), caminho)
 
     def checar_remocao(self, caminho, pasta):
@@ -421,9 +425,9 @@ class Guarda:
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
+        original = comando
         comando, corpos = tirar_heredocs(comando)
-        self.tmpdir_redefinido = self.tmpdir_redefinido or bool(re.search(r"\bTMPDIR\s*=", comando))
-        comando = re.sub(r"\$\(\s*pwd\s*\)", "$PWD", comando)  # sem aspas, o divisor de comandos separaria o `$(...)`
+        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # sem aspas, o divisor de comandos separaria o `$(...)`
         try:
             partes = list(comandos(comando))
         except ValueError:
@@ -433,6 +437,7 @@ class Guarda:
         ramos = {}
         if nivel == 0:
             self.ambiente = {}
+            self.linha = original
         for palavras, destinos in partes:
             for d in destinos:
                 self.checar_escrita(d, pasta)

@@ -1,5 +1,5 @@
 {
-  "descricao": ".forge dentro de $TMPDIR que não é o projeto: rm -rf $TMPDIR/x/.forge",
+  "descricao": "$TMPDIR antes de .forge é variável desconhecida: rm -rf $TMPDIR/x/.forge é recusado",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -28,6 +28,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: apagar"
   }
 }
