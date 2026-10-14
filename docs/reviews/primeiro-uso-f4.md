@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f4
 branch: melhoria/primeiro-uso-f4
-commit: 3e91376
+commit: 2b8970d
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -47,3 +47,35 @@ Parecer: **reprovado**. Revisei o diff a partir de 279bab5 e sondei o hook com c
 7. Limites menores: `git update-ref -d refs/heads/develop` (só local, recuperável) e `git pull --rebase` sobre a branch de integração não são vistos.
 
 Depois de corrigir os itens 1 a 3, com fixtures novas, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
+
+## Re-review independente (tech-lead, HEAD 2b8970d)
+
+Parecer: **reprovado**. Revisei o diff `c44e32f..2b8970d` e sondei o hook real com cerca de 80 comandos, nos perfis padrão e iniciante, num repositório de teste (papel `node-backend`, `feature/x` publicada), comparando com o `c44e32f` quando o resultado mudou.
+
+**Validação local** (cota do Actions esgotada): `python3 -m unittest discover -s tests` passou (404 testes, OK). `scripts/validar-plugin.sh` passou. `catraca.py --base b5e5d3d` (modo `regras`) saiu com 1, só pedindo o rótulo `afrouxa-regra` para `hooks/_comum.py`, `hooks/conformidade.py` e `hooks/parecer.py`, como esperado. O modo `pareceres` (`--head HEAD --ramo=melhoria/primeiro-uso-f4 --base-ref develop`) saiu com 1, porque o último parecer é reprovado. O modo `pr-texto` (corpo do PR #110) passou. Versão 0.12.0 igual à da base, com 3 linhas novas em `[Não publicado]`: ok.
+
+**Bloqueios do review anterior: os 3 fechados**
+1. `claude plugin update forge@forge`, com `--scope project` e `plugins update`: liberados nos dois perfis. `uninstall` continua recusado; `validate` e `marketplace update` continuam livres.
+2. `gh api -XDELETE`, `-X=DELETE`, `-Xdelete`, `--method=DELETE` e `-XDELETE` depois do endpoint, em `repos/o/r[/]` e `repos/{owner}/{repo}`: recusados. `-XGET` e `-X GET .../pulls` continuam livres. O `parecer.opcao` agora lê a opção curta colada.
+3. `rm -rf $PWD/.forge[/]`, `"$CLAUDE_PROJECT_DIR"/.forge`, `${PWD}/.githooks`, `"${CLAUDE_PROJECT_DIR}/.claude"`, `$HOME/.claude`, `$PWD/.git` e `cd src && rm -rf $PWD/../.forge`: recusados. Com outra variável (`$X`, `$OLDPWD`, `` `pwd` ``, `"$(pwd)"`) antes da pasta protegida, também recusa. `rm -rf $PWD/node_modules|dist`, `rm -f $PWD/src/app.js`, `rm -rf $TMPDIR/<wt>` e `~/.forge-contrib/wt/x` continuam livres.
+
+**Recomendados do review anterior**
+4. `.forge/perfil` em `iniciante`: escrita e remoção recusadas por `>`, `rm`, `mv`, `sed -i`, `cp`, `truncate`, Write e Edit, também a partir de uma worktree. A criação no perfil padrão continua livre. Fechado.
+5. `gh api -X PATCH repos/o/r --input -` e `--input` com `{"private": false}`: recusados. Um corpo sem visibilidade, e o `POST` em issues ou pulls com `--input`, continuam livres. Fechado.
+6. Confirmação em worktree temporária: virou a brecha do item 1 abaixo.
+7. `git update-ref -d refs/heads/main|develop`: recusado; `melhoria/x` continua livre. Fechado.
+
+**`claude plugin install` recusado:** nenhum fluxo de agente depende disso. O `grep -rn "plugin install" agents skills bin scripts templates` só encontra comandos do usuário: o texto de ajuda do `bin/forge-doutor:94`, o comentário do `bin/forge-init:41` e o `scripts/preparar-estacao.sh:134`, que a pessoa roda no terminal (README, passo 3). Mesmo que um agente rodasse o script, o hook vê `preparar-estacao.sh`, não o `claude` de dentro. `iniciar-projeto` e `novo-projeto` não instalam o plugin, e não existe skill `forge-upgrade`. Ok.
+
+**Ajustes necessários**
+1. `hooks/conformidade.py:225` (`perguntar` e `worktree_temporaria`): com o cwd numa worktree vinculada em `$TMPDIR` ou `/tmp`, o agente escapa das confirmações do modo iniciante. Os atos que passam não são só da cópia temporária:
+   - `gh repo archive o/r --yes` age no repositório do GitHub, e não pergunta mais. No `c44e32f` perguntava.
+   - Com `git worktree add $TMPDIR/w feature/x` (a branch da pessoa), `git reset --hard HEAD~1` move a `feature/x` sem confirmação, e `git rebase develop` reescreve a branch já enviada, também sem confirmação. Os refs são comuns a todas as cópias.
+
+   Com o cwd no projeto, `git -C $TMPDIR/w reset --hard` e `cd $TMPDIR/w && ...` ainda perguntam. Mas a sessão que já está na worktree passa. Sugestão: dispensar só os atos que mexem apenas nos arquivos da cópia (`reset --hard`, `clean -f`, `checkout -- .`, `restore .`), e só com HEAD solto (`git symbolic-ref -q HEAD` falha), como no recomendado 6. `gh repo archive` e o `rebase` publicado perguntam sempre. Fixtures: `archive` numa worktree temporária pergunta, e `reset --hard` numa worktree temporária com branch pergunta. Severidade: **bloqueia**. É uma regressão da proteção desenhada para o iniciante, introduzida nesta correção.
+
+**Recomendados** (não bloqueiam; podem virar cartão)
+2. Sem aspas, `rm -rf $(pwd)/.forge`, `rm -f $(pwd)/.forge/versao` e `rm -rf $(git rev-parse --show-toplevel)/.forge` passam. Isso já acontecia no `c44e32f`, e com aspas o hook recusa. O divisor de comandos parece tratar `$(...)` sem aspas como um subcomando à parte. Sugestão: aplicar o critério de "variável antes de pasta protegida" também a esse caso.
+3. Falso positivo leve: `rm -rf $TMPDIR/x/.forge` é recusado, enquanto `/tmp/abc/.forge` passa. Limpar uma worktree inteira (`rm -rf $TMPDIR/x`) continua livre, então o impacto é baixo.
+
+Depois de corrigir o item 1, com as fixtures, peça um re-review. O rótulo `afrouxa-regra` continua sendo do dono, aplicado depois do último push.
