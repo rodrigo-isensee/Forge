@@ -43,6 +43,8 @@ Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "deci
 7. Testes cobrem o comportamento novo e os casos de borda?
 8. Acessibilidade (front): semântica, foco, contraste.
 9. Commits limpos e mensagem clara?
+10. Decisão ou experimento novo traz critério de reversão? Mecanismo novo traz "Por que o existente não basta" (evidência de execução)?
+11. Teste de ausência ("não achei X") cujo alvo mudou é relido: o texto que ele procura ainda existe? Teste que percorre pasta ou lista afirma um mínimo de itens?
 
 Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · sugestão · severidade: bloqueia / recomendado).
 
