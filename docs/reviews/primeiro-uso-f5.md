@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f5
 branch: melhoria/primeiro-uso-f5
-commit: a1c8e80
+commit: 2604b50
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -45,3 +45,29 @@ Bateria no checkout do PR (worktree destacada em `a1c8e80`, sem o Actions): `pyt
 Só no `Stop`, como `systemMessage` (nunca `additionalContext`), uma vez por dia pelo cache `.forge/run/versao-nova`, com a rede fora da trava e uma releitura do cache depois. São 3 s no máximo, há silêncio sem rede e `FORGE_VERIFICAR_VERSAO=0` desliga. O texto usa só números de versão, sem nada da saída remota.
 
 Parecer: **reprovado**. Os bloqueantes 1 a 3 voltam ao autor, cada um com o teste que falha antes (o 1 com a CLI real em `HOME` temporário). Depois, o rótulo `afrouxa-regra` do dono continua obrigatório.
+
+## Re-review independente (head `2604b50`)
+
+Bateria no checkout do PR (worktree destacada em `2604b50`, sem o Actions): `python3 -m unittest discover -s tests` 444 testes OK; `scripts/validar-plugin.sh` ok; `shellcheck` (lista do CI e `bin/forge`) limpo; `catraca.py --modo pr-texto` (corpo real do PR) sai 0. `catraca.py --base <develop>` (script da base) sai 1 só por `hooks/_comum.py`, `conformidade.py` e `parecer.py`: falta o rótulo `afrouxa-regra` do dono. `catraca.py --modo pareceres` (argumentos do CI) sai 1 só porque o último parecer deste arquivo era o reprovado anterior; não há outro defeito. Versão igual à da `develop` (0.12.0) e linhas novas em `[Não publicado]`, ok.
+
+Sondas com a CLI real (`claude` 2.1.299, `HOME` e `XDG_STATE_HOME` temporários, Forge local com as tags v0.12.0 e v0.13.0, `FORGE_PERMITE_LOCAL=1`, projeto com o `.claude/settings.json` do modelo, um `settings.local.json` com `env` e terminal por `script`):
+
+### Bloqueios anteriores: corrigidos
+1. **Escopo do projeto.** `claude plugin marketplace remove forge --scope user`, mesmo com o `cwd` no projeto, deixa o `git status` limpo. O código ainda roda o `claude` numa pasta neutra. Ok.
+2. **Ordem e restauração.** A tag é confirmada (`ls-remote`) e a fonte original é lida antes do `remove`. Na sonda, o `add` da tag falhou de verdade (`Path does not exist: ...#v0.13.0`). O fluxo readicionou a fonte original (`directory`, escopo `user`), o `~/.claude/settings.json` ficou idêntico ao de antes, o plugin continuou instalado, o ponto e a marca foram descartados e o projeto não mudou. A mensagem manual agora usa a fonte original. Ok.
+3. **Segredo no ponto.** O ponto guarda só os arquivos de `.forge/` que estão no git, sem `claude/` nem `settings.local.json`. As pastas `forge/`, `retorno/` e `retorno/<projeto>` ficam com 700. A volta nunca sobrescreve um arquivo não versionado. Ok.
+
+As recomendações também foram atendidas: doutor antes e depois (só problema novo oferece voltar), `GIT_CEILING_DIRECTORIES`, a mensagem "ficou como está" no `else`, `ultimo_ponto` filtrado pelo projeto e o Jarvis só oferece.
+
+### Recusa do hook para agentes: atende ao pedido
+Sonda direta no `hooks/conformidade.py` (perfil `iniciante`, `agent_type: forge:jarvis`). Recusa com `R-CONFORMIDADE`: `forge atualizar` (e `--fixar`), `forge voltar-versao`, `env [-i ...]`, `script -qc '...'` (incluindo `forge-voltar-versao --ja-confirmado`), `bash -c`, `sh -c "cd ... && ..."`, `bash -lc forge-atualizar`, caminho absoluto do binário, `python3 bin/forge-atualizar`, `eval`, `timeout` e `nohup`. Libera o que só cita o comando: `echo`, `git commit -m '... forge atualizar'`, `forge salvar '...'` e `forge doutor`.
+
+### Bloqueia o merge
+1. **`forge atualizar --fixar` descarta trabalho não salvo** (`bin/forge-atualizar:76` e `bin/forge_versoes.py`, `restaurar_projeto`). O `--fixar` sai antes da checagem `git status --porcelain`. Além disso, `restaurar_projeto` roda `git checkout -- <arquivo>` em **todo** arquivo de `git diff --name-only`, tanto no caminho de sucesso quanto no de falha, sem saber se foi o `claude` que mexeu. Sonda com a CLI real: alterei `.forge/versao` e `.gitignore` sem salvar e rodei `forge atualizar --fixar`. As duas mudanças sumiram, sem stash nem cópia. A mensagem ainda culpa o Claude ("O Claude mexeu em arquivo do projeto e eu restaurei: .forge/versao, .gitignore"). É perda de trabalho de quem não programa, no comando que a própria saída manda rodar.
+   Correção: (a) checar a árvore limpa também no `--fixar`, antes de qualquer chamada; (b) em `restaurar_projeto`, tirar a foto (`git status --porcelain` ou o hash de cada arquivo) antes da troca e só devolver o que mudou entre a foto e o depois. Como o `claude` agora roda em pasta neutra e no escopo `user`, a alternativa mais simples é trocar a restauração por uma checagem que só avisa e para. (c) Um teste que falha antes: árvore suja, `--fixar`, e a mudança continua lá.
+
+### Recomendado (não bloqueia)
+- **O hook não pega interpretador com código inline nem shell indireto.** Passam: `python3 -c "import pty; pty.spawn(['forge','atualizar'])"` (dá terminal), `python3 -c 'os.system("forge atualizar")'`, `node -e`, `perl -e`, `echo 'forge atualizar' | bash`, `bash <<< '...'`, `f=forge; $f atualizar` e `x=atualizar; forge $x`. Para isso o agente precisa contornar de propósito, e é o mesmo limite das outras travas da F4 por texto. Por isso é recomendação: para `-c`/`-e` de interpretador, procurar `forge-atualizar`, `forge-voltar-versao` e o par `forge` + `atualizar|voltar-versao` no texto inteiro do argumento, tirando `[],` das palavras, e recusar o pipe/here-string para shell que contenha esses termos. Cada caso com uma fixture.
+- A sonda do caminho de sucesso com a CLI real não foi possível sem `https`: o `claude` não aceita `#ref` em fonte de pasta local. O sucesso fica coberto só pelo `claude` falso. Vale uma sonda manual com o endereço real antes da release.
+
+Parecer: **reprovado**. O bloqueante 1 volta ao autor, com o teste que falha antes. O resto está pronto. Depois disso, o rótulo `afrouxa-regra` do dono continua obrigatório.
