@@ -19,7 +19,7 @@ from pathlib import Path
 
 import parecer
 from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar, git,
-                    nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+                    mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -72,6 +72,32 @@ CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--lis
 CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section", "--remove-section", "-e",
                   "--edit"}
 CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
+
+# Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
+# `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
+REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
+GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
+VISIBILIDADE_PUBLICA = re.compile(r"\bprivate=false\b|\bvisibility(=|:\s*)[\"']?public\b", re.I)
+SIMPLES = {
+    "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
+    "publico": "Deixar o projeto público faz qualquer pessoa na internet ver todo o código e o histórico. "
+               "Se quiser mesmo, mude pelo site do GitHub.",
+    "forca": "Enviar à força sobrescreve o que já está no GitHub e pode perder versões. Salve uma versão nova em vez disso.",
+    "main": "A linha principal (main) é sua: só você junta nela, pelo pedido de revisão no GitHub. Peça ao Jarvis para abri-lo.",
+    "historico": "Isso reescreve o histórico e as outras cópias deixam de bater. Para voltar atrás, use o 'forge desfazer'.",
+    "integracao": "Isso apagaria uma linha de trabalho central do projeto, que ninguém mais conseguiria usar. Peça ao Jarvis.",
+    "instalacao": "Isso mexe na instalação do Forge, que fica protegida para o projeto não quebrar. "
+                  "Posso registrar o pedido como sugestão ao Forge.",
+}
+SUGESTAO = "se deveria valer, registre como sugestão ao Forge"
+PERGUNTAS = {
+    "descartar": "Isso descarta as mudanças ainda não salvas e não dá para recuperá-las. Prefira 'forge desfazer'. Confirma?",
+    "limpar": "Isso apaga os arquivos novos ainda não salvos, sem volta. Confirma?",
+    "arquivar": "Isso deixa o projeto somente leitura no GitHub: ninguém salva nada até desarquivar. Confirma?",
+    "rebase": "Isso reescreve versões que já estão no GitHub; outras cópias deixam de bater. Confirma?",
+}
+REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
+REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
 ACOES = {"merge_integracao", "pr_criar", "pr_merge_integracao", "instalar_pacote", "instalar_congelado"}
 
@@ -177,13 +203,23 @@ class Guarda:
         self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
         return self.papel in self.pol["acoes"].get(acao, [])
 
-    def barrar(self, rid, o_que, corrigir):
+    def barrar(self, rid, o_que, corrigir, simples=None):
+        """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
+        if simples and self.h.iniciante():
+            bloquear(rid, SIMPLES[simples])
         bloquear(rid, f"{o_que}. Corrigir: {corrigir}")
+
+    def perguntar(self, texto):
+        """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
+        consequência (`permissionDecision: ask`). Vale só se nada na linha for recusado (a recusa vem antes)."""
+        if self.h.iniciante():
+            self.perguntas.append(PERGUNTAS[texto])
 
     def so_de(self, acao):
         quem = "/".join(self.pol["acoes"].get(acao, [])) or "só o usuário"
@@ -286,7 +322,8 @@ class Guarda:
                             f"crie uma branch {e['branch']}*")
                 continue
             if not e["quem"]:
-                return ("R-CONFORMIDADE", f"{e['motivo']}: {c}", "só o usuário altera; proponha o diff (R-DECISAO)")
+                return ("R-CONFORMIDADE", f"{e['motivo']}: {c}",
+                        f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
             return ("R-CONFORMIDADE", f"{e['motivo']}: {c} (papel: {self.papel})",
                     f"peça a {'/'.join(e['quem'])}")
         no_manifesto = any(t == "proj" and casa(r, MANIFESTO) for t, r in formas)
@@ -306,6 +343,21 @@ class Guarda:
         achado = self.caminho_barrado(self.resolver(caminho, pasta))
         if achado:
             self.barrar(*achado)
+
+    def checar_remocao(self, caminho, pasta):
+        """`rm -rf .forge`, `rm -r .githooks`: apagar a pasta que contém um caminho protegido sem dono (a instalação) é
+        o mesmo que apagar o arquivo. A raiz do projeto e as pastas acima dela ficam de fora (`rm` de worktree)."""
+        raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        alvo = self.resolver(caminho, pasta)
+        for e in self.pol["caminhos"]:
+            c = e["caminho"]
+            if e["quem"]:
+                continue
+            protegido = home / c[2:] if c.startswith("~/") else raiz / c
+            dentro = home if c.startswith("~/") else raiz
+            if alvo != dentro and dentro in alvo.parents and alvo in Path(os.path.realpath(protegido)).parents:
+                self.barrar("R-CONFORMIDADE", f"apagar {alvo.name}/ apaga {c}: {e['motivo']}",
+                            f"só o usuário altera; proponha o diff (R-DECISAO); {SUGESTAO}", "instalacao")
 
     def checar_texto(self, texto):
         """Escrita em caminho protegido com o caminho em literal dentro de `python -c`, `node -e`, script."""
@@ -430,12 +482,16 @@ class Guarda:
             self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"))
         elif prog == "gh":
             self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+        elif prog == "claude":
+            self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
                 re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)) or (
                 prog == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*", a) for a in args)):
             for a in args:
                 if not a.startswith("-"):
                     self.checar_escrita(a, pasta)
+                    if prog in REMOCAO:
+                        self.checar_remocao(a, pasta)
         elif prog in SO_DESTINO:
             alvo = next((args[i + 1] for i, a in enumerate(args[:-1]) if a in ("-t", "--target-directory")), None)
             alvo = alvo or next((a for a in reversed(args) if not a.startswith("-")), None)
@@ -482,6 +538,7 @@ class Guarda:
             self.barrar("R-VERIFY", f"git {sub} --no-verify", "corrija a causa do hook que falhou")
         if sub == "config" and not ativacao:
             self.git_config(args)
+        self.git_trava(sub, args, pasta_git, ramos)
         if sub == "push":
             self.git_push(args, pasta_git, ramos)
         elif parte and parte[0] == "merge" and parte[2]:
@@ -492,6 +549,41 @@ class Guarda:
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
+
+    def reescreve_historico(self, o_que):
+        self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
+                    "faça um commit novo (git revert) em vez de reescrever", "historico")
+
+    def git_trava(self, sub, args, pasta, ramos):
+        """Atos perigosos do git (2.5): reescrever ou apagar a história das branches de integração é recusado para todos;
+        descartar mudanças e reescrever branch já publicada só pedem confirmação no perfil iniciante."""
+        positivos = [a for a in args if not a.startswith("-")]
+        if sub in ("filter-branch", "filter-repo"):
+            self.reescreve_historico(f"git {sub}")
+        elif sub == "rebase":
+            pos = parecer.posicionais(args, REBASE_COM_VALOR)
+            atual = self.ramo_em(pasta, ramos)
+            alvo = nome_da_branch(pos[1]) if len(pos) > 1 else atual
+            if any(a in ("--abort", "--quit") for a in args):
+                return
+            if atual in INTEGRACAO or alvo in INTEGRACAO:
+                self.reescreve_historico("git rebase")
+            if alvo and git(pasta, "branch", "-r", "--list", f"*/{alvo}")[1].strip():
+                self.perguntar("rebase")
+        elif sub == "branch" and any(a == "--delete" or re.fullmatch(r"-[a-zA-Z]*[dD][a-zA-Z]*", a) for a in args):
+            if any(nome_da_branch(b) in INTEGRACAO for b in positivos):
+                self.barrar("R-VERIFY", "apagar a branch main, develop ou homolog",
+                            "peça ao usuário (R-DECISAO)", "integracao")
+        elif sub == "reset" and "--hard" in args:
+            self.perguntar("descartar")
+        elif sub == "clean" and (any(a == "--force" or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) for a in args)
+                                 and not any(a == "--dry-run" or re.fullmatch(r"-[a-zA-Z]*n[a-zA-Z]*", a) for a in args)):
+            self.perguntar("limpar")
+        elif sub == "checkout" and "." in args and "-b" not in args:
+            self.perguntar("descartar")
+        elif sub == "restore" and "." in args and (
+                not {"--staged", "-S"} & set(args) or {"--worktree", "-W"} & set(args)):
+            self.perguntar("descartar")
 
     def git_config(self, args):
         """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
@@ -520,7 +612,10 @@ class Guarda:
             elif a in PUSH_COM_VALOR:
                 pulo = True
             elif a.startswith("--force") or re.fullmatch(r"-[a-zA-Z]*f[a-zA-Z]*", a) or a.startswith("+"):
-                self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo")
+                self.barrar("R-VERIFY", "git push --force", "nunca force o push; refaça com um commit novo", "forca")
+            elif a == "--mirror":
+                self.barrar("R-VERIFY", "git push --mirror", "sobrescreve o remoto como um force push; "
+                            "envie só a branch, com um commit novo", "forca")
             elif not a.startswith("-"):
                 refs.append(a)
         remoto, refs = (refs[0] if refs else None), refs[1:]
@@ -536,9 +631,10 @@ class Guarda:
             destinos.append(nome_da_branch(destino))
         for d in destinos:
             if d in ("main", "master"):
-                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário")
+                self.barrar("R-MAIN", f"push direto para {d}", "abra um PR; a main é do usuário", "main")
             if d in INTEGRACAO:
-                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho")
+                self.barrar("R-CONFORMIDADE", f"push direto para {d}", "abra um PR a partir de uma branch de trabalho",
+                            "main")
         # o remoto nomeado (a URL dele, resolvida no repositório da pasta), a URL dada ou, sem remoto, a pasta
         if self.alvo_do_forge(pasta, remoto=remoto) or (remoto and self.alvo_do_forge(pasta, remoto)):
             propria = f"melhoria/{self.projeto}-"
@@ -594,7 +690,43 @@ class Guarda:
                 self.barrar("R-CONTRIB", "gh api que edita, fecha, mescla ou rotula PR no Forge: a sessão de outro "
                                          "projeto só abre o PR da própria branch", "avise o usuário e espere o Forge integrar")
 
+    def gh_trava(self, palavras):
+        """Atos perigosos do `gh` (2.5): apagar o repositório e torná-lo público são recusados para todos (a pessoa faz
+        pelo site do GitHub); arquivar só pede confirmação no perfil iniciante. Cobre `gh repo` e `gh api`."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR | {"--visibility"})
+        grupo, sub = (pos + [None, None])[:2]
+        apagar = ("R-CONFORMIDADE", "apagar o repositório", "só o usuário, pelo site do GitHub (R-DECISAO)", "apagar")
+        publico = ("R-CONFORMIDADE", "tornar o repositório público", "só o usuário, pelo site do GitHub (R-DECISAO)",
+                   "publico")
+        if grupo == "repo" and sub == "delete":
+            self.barrar(*apagar)
+        elif grupo == "repo" and sub == "archive":
+            self.perguntar("arquivar")
+        elif grupo == "repo" and sub == "edit":
+            if (parecer.opcao(palavras[1:], "--visibility", "--visibility") or "").lower() == "public":
+                self.barrar(*publico)
+        elif grupo == "api" and parecer.metodo_mutante(palavras[2:]):
+            args = palavras[2:]
+            if (parecer.opcao(args, "--method", "-X") or "").upper() == "DELETE" and REPO_APAGAR.match(
+                    parecer.endpoint_da_api(args)) or GRAPHQL_APAGAR.search(" ".join(args)):
+                self.barrar(*apagar)
+            if VISIBILIDADE_PUBLICA.search(" ".join(args)):
+                self.barrar(*publico)
+
+    def claude(self, args):
+        """Instalação intocável (2.2): dentro da sessão, `claude plugin` e `claude config` não mudam o Forge nem a
+        configuração; ler, validar e listar continuam livres. A pessoa faz no terminal dela."""
+        pos = [a for a in args if not a.startswith("-")]
+        sub = pos[1] if pos[:1] in (["plugin"], ["plugins"]) and len(pos) > 1 else None
+        muda = (pos[:1] in (["plugin"], ["plugins"]) and (sub in ("uninstall", "remove", "disable", "update") or (
+                sub == "marketplace" and pos[2:3] in (["add"], ["remove"])))) or (
+            pos[:1] == ["config"] and pos[1:2] in (["set"], ["add"], ["remove"]))
+        if muda:
+            self.barrar("R-CONFORMIDADE", f"claude {' '.join(pos[:3])} altera a instalação do Forge",
+                        f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
+
     def gh(self, palavras, parte, pasta, repo_env=None):
+        self.gh_trava(palavras)
         self.gh_contrib(palavras, pasta, repo_env)
         if not parte:
             return
@@ -762,6 +894,13 @@ def identificar_sessao(hook):
     return partes[0].removesuffix("-wt") if partes and partes[0] != "wt" else ""
 
 
+def pedir_confirmacao(perguntas):
+    """Saída 0 com `permissionDecision: ask`: o Claude Code mostra o motivo e a pessoa decide na janela de permissão."""
+    motivo = mensagem("R-CONFORMIDADE", " | ".join(dict.fromkeys(perguntas)))
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask",
+                                             "permissionDecisionReason": motivo}}, ensure_ascii=False))
+
+
 def principal(hook):
     ferramenta = hook.campo("tool_name")
     entrada = hook.campo("tool_input")
@@ -783,6 +922,8 @@ def principal(hook):
     elif ferramenta == "Bash":
         if isinstance(entrada.get("command"), str):
             guarda.bash(entrada["command"], hook.cwd())
+            if guarda.perguntas:
+                pedir_confirmacao(guarda.perguntas)
     else:
         guarda.arquivo(entrada)
 

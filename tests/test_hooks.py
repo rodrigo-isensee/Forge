@@ -20,7 +20,8 @@ Formato do fixture:
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
               {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
-  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
+              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
 import json
@@ -226,6 +227,12 @@ class Hooks(unittest.TestCase):
                     self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
                     self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
                     self.assertIn(esperado["saida"], saida["systemMessage"])
+                elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
+                    self.assertEqual(f.hook, "conformidade")
+                    saida = json.loads(r.stdout)["hookSpecificOutput"]
+                    self.assertEqual((saida["hookEventName"], saida["permissionDecision"]), ("PreToolUse", "ask"))
+                    self.assertNotIn("\n", saida["permissionDecisionReason"], "uma linha só")
+                    self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
                 else:
                     self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
                 self.assertEqual(r.returncode, esperado["codigo"], r.stderr)

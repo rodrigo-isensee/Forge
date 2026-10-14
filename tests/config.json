@@ -91,6 +91,8 @@
     "excecoes": []
   },
   "invariantes": {
+    "hooks/conformidade.py": ["REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub"],
     "agents/jarvis.md": [
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",

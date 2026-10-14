@@ -1,0 +1,31 @@
+{
+  "descricao": "claude plugin marketplace add dono/outro muda a instalação do Forge. (perfil iniciante: com a consequência em linguagem simples)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/perfil": "iniciante\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "claude plugin marketplace add dono/outro"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: Isso mexe na instalação do Forge"
+  }
+}
