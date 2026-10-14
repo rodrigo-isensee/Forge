@@ -3,6 +3,10 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Medir antes de proteger contra alucinação (fonte F1, fatia 1; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** `forge-check transcricao lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, "N testes OK") sem lastro literal nas saídas de ferramenta dele; `transcricao decisoes` (M3) conta as respostas do Jarvis com mais de um grupo de opções A/B/C ou sem "Recomendo". Offline, sem IA, saída anonimizada e só mede; métricas em `docs/melhoria-continua.md`.
+### Corrigido
+- **Medida de lastro (corrige os bloqueantes do parecer do PR #120; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** "mesclado" só tem lastro com prova de merge do PR citado (`state` MERGED, `mergedAt` não nulo ou `gh pr merge`; `mergedAt: null` e `git log` não valem); "N testes OK" exige `Ran N tests` seguido de `OK`; negação não conta como afirmação, `git fetch` não prova push, "N OK" é reconhecido. Linha de base M1 remedida: 13,6%.
 
 ## [0.13.0] - 2026-10-14
 ### Adicionado
