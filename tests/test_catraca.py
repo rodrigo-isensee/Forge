@@ -1194,6 +1194,22 @@ class Workflows(unittest.TestCase):
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa)/", ci)
 
+    def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
+        """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
+        ci = self.texto("ci.yml")
+        self.assertIn("git diff --name-only --no-renames", ci)  # renomear código para docs/reviews não pode esconder a origem
+        self.assertNotIn("always()", ci)  # execução cancelada não gasta os minutos que o gate poupa
+        self.assertNotIn("always()", self.texto("catraca.yml"))
+        self.assertIn("!cancelled()", ci)
+        self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)
+        self.assertIn('.app.slug == "github-actions"', ci)
+        self.assertIn("sort_by(.started_at) | last", ci)
+        leve = re.search(r"(?m)^      - name: Testes que leem pareceres.*?\n        run: (.*)$", ci, re.S)
+        self.assertIsNotNone(leve, "commit só de parecer ainda roda os testes que leem docs/reviews e docs/qa")
+        for classe in ("Neutralidade", "Referencias", "AntiDuplicacao"):
+            self.assertIn("tests.test_forge." + classe, leve.group(1).splitlines()[0])
+        self.assertIn("steps.gate.outputs.pesada != 'true'", ci)
+
     def test_checkout_sem_credencial_e_sem_pull_request_target(self):
         for nome in ("ci.yml", "catraca.yml"):
             texto = self.texto(nome)
