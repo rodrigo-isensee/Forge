@@ -16,8 +16,9 @@ concurrency:
 
 jobs:
   catraca:
-    name: catraca
+    name: catraca  # inclui o texto do PR (antes o job pr-texto): um job só custa 1 min, dois custavam 2
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
@@ -42,18 +43,8 @@ jobs:
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
           python3 "$script" --base "$BASE"
-
-  pr-texto:
-    name: pr-texto
-    if: github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          persist-credentials: false
       - name: Seções "Projeto de origem" e "Como medir"
+        if: always() && github.base_ref == 'develop' && github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: python3 tests/catraca.py --modo pr-texto

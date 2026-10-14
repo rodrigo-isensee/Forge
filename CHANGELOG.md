@@ -3,6 +3,7 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+- **CI, economia de minutos do GitHub Actions:** os ~10 jobs do `ci.yml` viram um só (`bateria`, passos nomeados) e `pr-texto` vira passo do job `catraca`; commit de PR que só muda `docs/reviews/` ou `docs/qa/` pula os passos pesados (gate por passo, com a bateria verde no commit anterior); push na `develop` roda só os testes estruturais (a bateria completa fica no PR e na `homolog`); `timeout-minutes` em todo job. `R-FLUXO` e `.claude/CLAUDE.md` atualizados.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
