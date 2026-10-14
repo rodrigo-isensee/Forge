@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f6
 branch: melhoria/primeiro-uso-f6
-commit: 7dd719e
-parecer: reprovado
+commit: 9991643
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
@@ -95,3 +95,26 @@ Quarta leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 7dd7
 3. Recomendado (heurística). Ainda passam: `password%253Dhunter2` (codificado duas vezes), `key=...` e `pass=...` (a lista não tem `key` nem `pass` soltos), `"Authorization": "token ghx_..."` (prefixo que não está na lista) e, no JSON escapado, o valor com aspas escapadas dentro dele deixa o resto (`\"a b\\\" c\"` vira `[token] c\"`). `?token=abc&y=1` engole o `&y=1`: cosmético. O aviso pede conferência, então ficam como recomendação.
 
 O que está certo, além dos dois itens: o script recusa `--guardar` com `--fila` (sai 2 com "--fila não leva texto"), então a forma `--guardar --fila` não envia mesmo se o hook falhar; o argumento repetido (`--guardar x --guardar`) só guarda; o envio continua pedindo "s" num terminal e o `gh` segue com argv em lista e `stdin` nulo.
+
+## Quarta review independente
+
+Quinta leitura por outra instância do `tech-lead` (R-REVIEW), sobre o HEAD 9991643 (`5b256fb..9991643`). Parecer: **aprovado**. O bloqueio da terceira review está fechado: o hook só libera a linha inteira `forge sugerir --guardar "<texto>"` (ou `forge-sugerir`, `bin/forge-sugerir`), e no script o `--guardar` só vale como primeiro argumento e nunca chama o `gh`.
+
+### Bateria local (cota do Actions esgotada)
+- `python3 -m unittest discover -s tests`: 496 testes, OK.
+- `scripts/validar-plugin.sh`: ok. `shellcheck` (lista do CI mais `bin/forge`): limpo.
+- `tests/catraca.py --base origin/develop` (regras): sai 1 só por R-CONFORMIDADE em `hooks/_comum.py`, `conformidade.py` e `parecer.py` (rótulo `afrouxa-regra` do dono pendente, como antes).
+- `--modo pareceres` (`--ramo=melhoria/primeiro-uso-f6 --base-ref develop`): saiu 1 antes deste parecer, como esperado (o último era reprovado). `--modo pr-texto` com o corpo do #112 (`gh pr view 112`): 0.
+- Versão e changelog: `plugin.json` 0.12.0 igual à `develop`; linha da F6 em `## [Não publicado]`: ok.
+
+### Ataques reproduzidos
+Hook real (`hooks/conformidade.py`, sessão de projeto, `forge:jarvis`). Quando o hook libera, a mesma linha roda de verdade sob `script -qec` (terminal), com "s" na entrada e o `gh` falso no PATH; conferi se o `gh issue create` foi chamado e o que foi para a fila.
+- **Os dois da terceira review barram (sai 2):** `env -i ... script -qec 'forge sugerir "x --guardar"'` e `env -i ... script -qec 'forge sugerir y; forge sugerir --guardar z'`, e as formas diretas. Também barram: `--fila`, texto solto, `--guardar "x"; forge sugerir --fila`, `&&`, `|`, a segunda linha com `--fila`, dois textos, `$(...)`, crase, `$'...'`, `\"` dentro das aspas, `'\''`, redirecionamento, `&`, subshell, comentário, `!!`, espaço duplo, `sug""erir`, `"sugerir"`, `$S`, `$x` como argumento, `bash -c`, `eval`, `$f sugerir` e apóstrofo em comentário, heredoc ou `${x:-'}'}` antes da chamada. Linha com aspas sem par (`--guardar "a"" ; forge sugerir texto`) passa no hook, mas o shell também recusa ("Unterminated quoted string") e nada roda.
+- **Liberadas e só guardam (o `gh` não é chamado, um item na fila):** `forge sugerir --guardar "x"`, com aspas simples, `forge-sugerir` e `bin/forge-sugerir`; texto com aspas do outro tipo dentro; quebra de linha no texto, inclusive `"linha1\nlinha2\nforge sugerir --fila"`; e `--guardar "x; forge sugerir --fila"` (aspas duplas e simples). Em todos, o `shlex` dá um argumento só, como o bash.
+- **Liberadas e o script recusa (sai 2, sem `gh`, sem fila):** `--guardar "--fila"` ("--fila não leva texto"), `--guardar "--arquivo"` e `--guardar ""`. `--guardar "-h"` guarda o texto `-h`.
+
+### Recomendações (não bloqueiam)
+1. **Ofuscação deliberada ainda envia** (`hooks/conformidade.py`, `sugerir_na_linha`). Com o hook saindo 0 e o `gh` falso chamado: `env -i HOME=... PATH=... S=sug T=erir script -qec 'forge ${S}${T} texto' /dev/null` (passa nas duas camadas, porque `env -i` derruba a variável do Claude Code) e `python3 -c "os.system('forge sug'+'erir texto')"` (o hook deixa passar; a variável do Claude Code segura). A heurística de `forge` com subcomando não literal só olha `forge` depois de início, espaço, `;&|(`; com aspas antes (`'forge ${S}`) não pega. É a mesma classe já registrada na terceira review e que vale para `forge atualizar` e `forge voltar-versao`: exige o agente montar o comando para fugir da trava. Sugestões: incluir `"'` antes de `forge` nessa regex e tirar da docstring a promessa de recusar "mesmo ofuscada", que é mais do que o hook entrega; registrar no quadro o tratamento de `env -i` + `script` como suspeito.
+2. **`bin/forge-sugerir` relativo** é liberado pela lista branca. Um arquivo com esse nome na pasta atual roda no lugar do script. Para usar isso o agente precisa criar o arquivo antes, que já é um envio por outro caminho (fica com o `gh issue create` e o R-CONTRIB). Considerar aceitar só `forge sugerir` e `forge-sugerir`.
+
+O que está certo: lista branca por regex de linha inteira mais `shlex.split` com argv conferido; dentro das aspas duplas, `$`, crase, `\` e `!` ficam fora, então o texto não expande; no script, `--guardar` fora da primeira posição sai 2 sem `gh` (teste novo), e com `--guardar` o envio não acontece nem num terminal com "s" (teste novo); seis fixtures novas, cinco `-bloqueia` e uma `-libera`.
