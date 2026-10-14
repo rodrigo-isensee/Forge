@@ -139,7 +139,16 @@ REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
 LS_REMOTE_LEITURA = {"--heads", "--tags", "--branches", "-h", "-t", "-b", "--refs", "-q", "--quiet", "--exit-code",
                      "--symref", "--get-url"}
-GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff")
+GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff", "--textconv", "--filters")
+# Opções de verdade que são prefixo de uma de `GIT_EXECUTA` (o git escolhe a exata); no `cat-file`, que não as tem, o
+# mesmo texto é abreviação de `--textconv`/`--filters`.
+GIT_EXATAS = {"--text", "--filter"}
+# Expansões que o bash faz antes de chamar o programa e o hook não vê: `$` que não fecha a palavra (`$'...'`, `$X`,
+# `${X:-...}`; ficam a `$?` e o `$(`, conferido como comando) e chaves com `,` ou `..` (`{--output=x,HEAD}`; `HEAD@{1}` fica).
+EXPANSAO = re.compile(r"\$(?!\(|$)")
+CHAVES = re.compile(r"\{[^{}]*(,|\.\.)[^{}]*\}")
+# Substituição de comando como argumento (`$(...)`, crase): a saída vira opção do programa; só estes a aceitam.
+ACEITAM_SUBSTITUICAO = {"echo", "test", "["}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
                 "o que exige escrita é de outro agente")
 
@@ -564,6 +573,7 @@ class Guarda:
         while palavras and palavras[0] in CORPO_DE_LACO:  # `do rm ...`, `then ...`: o comando vem depois da palavra
             palavras = palavras[1:]
         atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
+        originais = sem_atribuicoes(palavras)
         try:
             palavras, lancadas = separar_lancadores(palavras)
         except ValueError:  # `env -S` com aspas abertas
@@ -571,6 +581,9 @@ class Guarda:
             return pasta
         atribuicoes += lancadas
         if self.leitura:
+            if originais[:1] != palavras[:1]:
+                self.barrar("R-CONFORMIDADE", f"lançador `{Path(originais[0]).name}` repassa argumentos que o hook não vê "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
             self.checar_so_leitura(palavras, atribuicoes)
         for a in atribuicoes:
             if "core.hookspath" in a.lower():
@@ -648,14 +661,22 @@ class Guarda:
 
     def checar_so_leitura(self, palavras, atribuicoes):
         """Papel só de leitura (`so_leitura`): lista branca de comandos. Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa
-        com caminho (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`) e `--output`
-        recusam; o resto fora da lista também: na dúvida, recusa."""
+        com caminho (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`), `--output`,
+        expansão que o hook não vê (`$'...'`, chaves) e `$(...)` como argumento (fora de echo, test e [) recusam; o resto
+        fora da lista também: na dúvida, recusa."""
         if atribuicoes:
             self.barrar("R-CONFORMIDADE", f"variável na linha ({atribuicoes[0]}) pelo papel só de leitura ({self.papel})",
                         DICA_LEITURA)
         if not palavras:
             return
         prog, args = palavras[0], palavras[1:]
+        for i, a in enumerate(palavras):
+            if a != "$?" and EXPANSAO.search(a) or CHAVES.search(a):
+                self.barrar("R-CONFORMIDADE", f"`{a}`: expansão do shell que o hook não vê (papel só de leitura: "
+                                              f"{self.papel})", DICA_LEITURA)
+            if i and prog not in ACEITAM_SUBSTITUICAO and (a == "$" or "$(" in a or "`" in a):
+                self.barrar("R-CONFORMIDADE", f"`$(...)` ou crase como argumento de `{prog}` (papel só de leitura: "
+                                              f"{self.papel})", f"só echo, test e [ a aceitam; {DICA_LEITURA}")
         if prog == "git":
             while args[:1] == ["--no-pager"] or (args[:1] == ["-C"] and len(args) > 1):
                 args = args[1:] if args[0] == "--no-pager" else args[2:]
@@ -663,6 +684,8 @@ class Guarda:
         if any(abreviacao_de(a, ("--output",)) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave} --output` grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
+        if prog == "gh" and any(a in ("--web", "-w") for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --web` abre o navegador (papel só de leitura: {self.papel})", DICA_LEITURA)
         if prog == "git":
             self.git_so_leitura(chave, args[1:])
         if "/" in prog or chave not in self.leitura["comandos"]:
@@ -670,7 +693,8 @@ class Guarda:
 
     def git_so_leitura(self, chave, args):
         """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
-        `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas."""
+        `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas (`--textconv` e
+        `--filters` rodam o driver configurado no repositório)."""
         for a in args:
             if chave == "git ls-remote":
                 if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):
@@ -679,7 +703,7 @@ class Guarda:
                 if not a.startswith("-") and "::" in a:
                     self.barrar("R-CONFORMIDADE", f"`git ls-remote` com transporte `{a.split('::', 1)[0]}::`, que executa "
                                                   f"programa (papel só de leitura: {self.papel})", DICA_LEITURA)
-            elif abreviacao_de(a, GIT_EXECUTA):
+            elif abreviacao_de(a, GIT_EXECUTA) and (a.split("=", 1)[0] not in GIT_EXATAS or chave == "git cat-file"):
                 self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa "
                                               f"(papel só de leitura: {self.papel})", DICA_LEITURA)
 

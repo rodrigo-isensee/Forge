@@ -1,0 +1,19 @@
+{
+  "descricao": "Leituras legítimas: $(...) em echo, $?, HEAD@{1}, --text (opção exata do diff) e $ no fim da palavra (âncora do grep).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo $(git log -1) && echo $? && git log -1 HEAD@{1} && git diff --text HEAD && grep -n 'v1$' src/app.js"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

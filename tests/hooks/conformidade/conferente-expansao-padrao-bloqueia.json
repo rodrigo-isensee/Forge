@@ -1,0 +1,20 @@
+{
+  "descricao": "Valor padrão de variável ${X:-...} leva uma opção ao git sem aparecer na linha.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git log -1 ${X:---output=OUT3}"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "expansão do shell"
+  }
+}

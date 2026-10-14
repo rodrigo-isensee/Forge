@@ -1,0 +1,20 @@
+{
+  "descricao": "A saída de $(...) vira opção do git (--upload-pack): só echo, test e [ aceitam a substituição.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git ls-remote $(echo --upload-pack=touch\\>P .)"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "como argumento de `git`"
+  }
+}

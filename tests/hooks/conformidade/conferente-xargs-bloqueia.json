@@ -1,5 +1,5 @@
 {
-  "descricao": "xargs repassa ao comando seguinte, que é conferido: touch fora da lista.",
+  "descricao": "xargs repassa ao comando seguinte argumentos que o hook não vê: o papel só de leitura recusa o lançador.",
   "arquivos": {
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "`touch` fora da lista"
+    "stderr": "lançador `xargs`"
   }
 }
