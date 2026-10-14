@@ -1,0 +1,77 @@
+{
+  "descricao": "Riscos aceitos com aceite do usuário: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "package-lock.json": "{}\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1-1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ],
+        "docs/qa/p1.md": [
+          "---",
+          "tipo: qa",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "escopo: completo",
+          "bugs_criticos: 0",
+          "bugs_altos: 0",
+          "bugs_medios: 0",
+          "bugs_baixos: 0",
+          "data: 2026-10-12",
+          "---",
+          "# QA"
+        ],
+        "docs/security/p1.md": [
+          "---",
+          "tipo: revisao-seguranca",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: riscos-aceitos",
+          "revisor: forge:security-engineer",
+          "data: 2026-10-12",
+          "aceite_usuario: sim",
+          "---",
+          "# Parecer"
+        ]
+      },
+      "commit": "docs: pareceres"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'feat: app' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

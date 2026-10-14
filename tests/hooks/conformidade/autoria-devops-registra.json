@@ -1,0 +1,27 @@
+{
+  "descricao": "Edit em docs/devops/ pelo devops.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/devops/p1-1.md": "parecer\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/docs/devops/p1-1.md"
+    },
+    "agent_type": "forge:devops-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "autoria.jsonl": {
+        "contem": [
+          "docs/devops/p1-1.md",
+          "\"papel\": \"devops\""
+        ]
+      }
+    }
+  }
+}

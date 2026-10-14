@@ -1,0 +1,20 @@
+{
+  "descricao": ".github/workflows/ci.yml: devops fora de melhoria/*: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.github/workflows/ci.yml"
+    },
+    "agent_type": "forge:devops-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "branch atual: develop"
+  }
+}

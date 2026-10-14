@@ -1323,6 +1323,61 @@ class ForgeCheck(unittest.TestCase):
         self.escrever(".forge/versao", "0.6.0\n")
         self.assertEqual(fc.migracao_pendente(self.tmp), [])
 
+    SEGURANCA = ("tipo: revisao-seguranca\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\n"
+                 "parecer: {p}\nrevisor: forge:security-engineer\ndata: 2026-10-14\n{extra}")
+
+    def test_docs_de_devops_e_seguranca(self):
+        self.escrever("docs/security/postura.md", "# Postura, sem frontmatter: documento livre\n")
+        self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c="abc1234", p="riscos-aceitos", extra="") + "---\n")
+        self.escrever("docs/devops/p1.md", "---\ntipo: revisao-devops\ncontrato: 1\npedido: p1\nbranch: b\ncommit: abc1234\n"
+                      "parecer: talvez\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
+        codigo, saida = self.check("docs")
+        self.assertEqual(codigo, 1)
+        self.assertIn("docs/security/p1.md: aceite_usuario: riscos aceitos exigem `aceite_usuario: sim` (R-SEGURANCA)", saida)
+        self.assertIn("docs/devops/p1.md: parecer: use aprovado ou reprovado (R-REVIEW)", saida)
+        self.assertNotIn("postura.md", saida)
+
+    def entrega(self, arquivo, texto="x\n"):
+        git("branch", "-f", "develop", cwd=self.tmp)
+        self.escrever(arquivo, texto)
+        self.commitar()
+
+    def test_pr_com_pipeline_exige_devops_e_seguranca(self):
+        self.entrega(".github/workflows/ci.yml")
+        self.pareceres(self.head())
+        saida = self.check("pr", "p1")[1]
+        self.assertIn("docs/devops: revisao-devops: sem parecer", saida)
+        self.assertIn("docs/security: revisao-seguranca: sem parecer", saida)
+        self.assertIn("(R-SEGURANCA)", saida)
+
+    def test_pr_com_pareceres_de_devops_e_seguranca_vale(self):
+        self.entrega("Dockerfile", "FROM scratch\n")
+        head = self.head()
+        self.pareceres(head)
+        self.escrever("docs/devops/p1.md", "---\ntipo: revisao-devops\ncontrato: 1\npedido: p1\nbranch: melhoria/x\n"
+                      f"commit: {head}\nparecer: aprovado\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
+        self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="aprovado", extra="") + "---\n")
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"), ("docs/devops/p1.md", "tech-lead"),
+                     ("docs/security/p1.md", "seguranca"))
+        self.assertIn("docs/devops/p1.md: autoria", self.check("pr", "p1")[1])
+
+    def test_pr_sem_gatilho_nao_exige_devops_nem_seguranca(self):
+        self.entrega("src/outro.txt")
+        self.pareceres(self.head())
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_gatilhos_de_seguranca_pelo_diff(self):
+        for arquivo in ("package-lock.json", "app/.env", "db/migrations/001.sql", "hooks/conformidade.json", "docs/regras/R-X.md"):
+            with self.subTest(arquivo=arquivo):
+                git("branch", "-q", "-f", "develop", "HEAD", cwd=self.tmp)
+                self.escrever(arquivo, "x\n")
+                self.commitar()
+                self.pareceres(self.head())
+                saida = self.check("pr", "p1")[1]
+                self.assertIn("docs/security: revisao-seguranca: sem parecer", saida)
+                self.assertNotIn("revisao-devops", saida)
+
     def test_pr_sem_pareceres(self):
         codigo, saida = self.check("pr", "p1")
         self.assertEqual(codigo, 1)

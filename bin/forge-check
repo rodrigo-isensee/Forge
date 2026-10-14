@@ -9,7 +9,9 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
 `pr --base` aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 Se existir `.forge/run/autoria.jsonl` (hook `conformidade`, ADR 0009), `pr` também exige que o parecer atual tenha
-sido gravado pelo papel certo (review: tech-lead; QA: qa); sem o arquivo, como antes (o CI não o tem).
+sido gravado pelo papel certo (review: tech-lead; QA: qa; devops: devops; segurança: seguranca); sem o arquivo, como antes
+(o CI não o tem). O parecer de devops é exigido quando a entrega toca pipeline, contêiner ou IaC; o de segurança, quando
+toca um gatilho que o diff mostra (R-SEGURANCA) ou o plano técnico do pedido marca `gatilhos_seguranca`.
 Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
@@ -28,7 +30,7 @@ COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 INTEIRO = re.compile(r"^\d+$")
 PARECER = {"aprovado", "reprovado"}
 # Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
-LIVRES = ("docs/reviews/", "docs/qa/", "KANBAN.md", "docs/kanban/")
+LIVRES = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/")
 COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
 ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
 
@@ -39,7 +41,22 @@ CONTRATOS = {
                                "bugs_altos", "bugs_medios", "bugs_baixos", "data"]),
     "plano-tecnico": ("docs/architecture/features", "ADR-0004",
                       ["pedido", "estado", "ux", "adrs", "agentes"]),
+    "revisao-devops": ("docs/devops", "R-REVIEW", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
+    "revisao-seguranca": ("docs/security", "R-SEGURANCA", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
 }
+# Parecer válido por tipo; os pareceres de devops e de segurança são exigidos só quando há gatilho (ver `gatilhos`).
+VALORES_DO_PARECER = {"review": PARECER, "qa": PARECER, "revisao-devops": PARECER,
+                      "revisao-seguranca": PARECER | {"riscos-aceitos"}}
+# Pastas onde um .md sem frontmatter é documento livre (postura, modelo de ameaças), não parecer.
+PASTAS_LIVRES = {"revisao-devops", "revisao-seguranca"}
+# Gatilhos que o diff mostra (R-SEGURANCA): os demais o pedido marca em `gatilhos_seguranca` do plano técnico.
+PIPELINE_E_INFRA = re.compile(r"^(\.github/|(.*/)?(Dockerfile[^/]*|compose[^/]*\.ya?ml|docker-compose[^/]*\.ya?ml|"
+                              r"\.dockerignore|[^/]*\.tfvars?)|(.*/)?(terraform|iac|helm|k8s|pulumi|ansible)/)")
+TRAVAS_DE_DEPENDENCIA = re.compile(r"(^|/)([^/]*[-.]lock\.(json|ya?ml|toml)|[^/]*\.lockb?|go\.sum)$")  # nomes de lockfile, de qualquer stack
+SEGREDOS_E_CONFIG = re.compile(r"(^|/)\.env(\.[\w.-]+)?$")
+MIGRACOES = re.compile(r"(^|/)(migrations?|migrate)/")
+CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json")
+BASES = ("origin/develop", "develop", "origin/main", "main")
 
 
 def ler_frontmatter(texto):
@@ -89,9 +106,11 @@ def validar_documento(rel, texto):
     for c in obrigatorios:
         if not campos.get(c):
             erro(c, "obrigatório e vazio ou ausente")
-    if tipo in ("review", "qa"):
-        if campos.get("parecer") and campos["parecer"] not in PARECER:
-            erro("parecer", "use aprovado ou reprovado")
+    if tipo in VALORES_DO_PARECER:
+        if campos.get("parecer") and campos["parecer"] not in VALORES_DO_PARECER[tipo]:
+            erro("parecer", "use " + " ou ".join(sorted(VALORES_DO_PARECER[tipo])))
+        if campos.get("parecer") == "riscos-aceitos" and campos.get("aceite_usuario") != "sim":
+            erro("aceite_usuario", "riscos aceitos exigem `aceite_usuario: sim`")
         if campos.get("commit") and not COMMIT.match(campos["commit"]):
             erro("commit", "hash hexadecimal de 7 a 40 caracteres")
         if campos.get("data") and not DATA.match(campos["data"]):
@@ -132,10 +151,10 @@ def documentos(raiz, tipo=None, ref=None):
             if nome == "README.md" or nome.startswith("_"):
                 continue
             rel = f"{pasta}/{nome}"
-            if ref is None:
-                yield rel, (raiz / rel).read_text(encoding="utf-8")
-            else:
-                yield rel, git(raiz, "show", f"{ref}:{rel}")[1]
+            texto = (raiz / rel).read_text(encoding="utf-8") if ref is None else git(raiz, "show", f"{ref}:{rel}")[1]
+            if t in PASTAS_LIVRES and not texto.startswith("---"):
+                continue
+            yield rel, texto
 
 
 def cmd_docs(raiz):
@@ -245,9 +264,9 @@ def commit_vale(raiz, commit, ate="HEAD", base=None):
 
 
 def pedidos_da_branch(raiz, branch, ref=None):
-    """Pedidos cujos pareceres (review ou QA) declaram `branch: <branch>`."""
+    """Pedidos cujos pareceres (review, QA, devops ou segurança) declaram `branch: <branch>`."""
     pedidos = set()
-    for tipo in ("review", "qa"):
+    for tipo in ("review", "qa", "revisao-devops", "revisao-seguranca"):
         for rel, texto in documentos(raiz, tipo, ref):
             campos = ler_frontmatter(texto)[0] or {}
             if campos.get("branch") == branch and campos.get("pedido"):
@@ -256,7 +275,42 @@ def pedidos_da_branch(raiz, branch, ref=None):
 
 
 # Papel que deve ter gravado cada tipo de parecer (hook conformidade, ADR 0009, 6.4).
-PAPEL_DO_PARECER = {"review": "tech-lead", "qa": "qa"}
+PAPEL_DO_PARECER = {"review": "tech-lead", "qa": "qa", "revisao-devops": "devops", "revisao-seguranca": "seguranca"}
+PASTA_E_REGRA = {"review": ("docs/reviews", "R-REVIEW"), "qa": ("docs/qa", "R-QA"),
+                 "revisao-devops": ("docs/devops", "R-REVIEW"), "revisao-seguranca": ("docs/security", "R-SEGURANCA")}
+
+
+def arquivos_da_entrega(raiz, ref=None, base=None):
+    """Arquivos que a entrega muda sobre a base (merge-base); [] se a base não existe (sem como saber)."""
+    for b in ([base, f"origin/{base}"] if base else []) + list(BASES):
+        if git(raiz, "rev-parse", "--verify", "--quiet", f"{b}^{{commit}}")[0]:
+            continue
+        cod, saida = git(raiz, "diff", "--name-only", f"{b}...{ref or 'HEAD'}")
+        if not cod:
+            return saida.splitlines()
+    return []
+
+
+def gatilhos(raiz, pedido, ref=None, base=None):
+    """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
+    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
+    arquivos = arquivos_da_entrega(raiz, ref, base)
+    infra = any(PIPELINE_E_INFRA.match(a) for a in arquivos)
+    achados = []
+    for nome, casa in (("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
+                       ("dependência (arquivo de travas)", TRAVAS_DE_DEPENDENCIA.search),
+                       ("segredos e configuração (.env)", SEGREDOS_E_CONFIG.search),
+                       ("migração de banco", MIGRACOES.search),
+                       ("controles do Forge", lambda a: a.startswith(CONTROLES_DO_FORGE))):
+        quais = [a for a in arquivos if casa(a)]
+        if quais:
+            achados.append(f"{nome}: {quais[0]}")
+    for rel, texto in documentos(raiz, "plano-tecnico", ref):
+        campos = ler_frontmatter(texto)[0] or {}
+        marcados = campos.get("gatilhos_seguranca", "").strip("[] ")
+        if campos.get("pedido") == pedido and marcados:
+            achados.append(f"marcado no plano técnico: {marcados}")
+    return infra, achados
 
 
 def autorias(raiz):
@@ -282,14 +336,18 @@ def autorias(raiz):
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
-    for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
+    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
+    exigidos = ["review", "qa"] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
+    for tipo in exigidos:
+        pasta, rid = PASTA_E_REGRA[tipo]
         achados = []
         for rel, texto in documentos(raiz, tipo, ref):
             campos, viol = validar_documento(rel, texto)
             if campos is not None and campos.get("pedido") == pedido:
                 achados.append((campos.get("data", ""), rel, campos, viol, texto))
         if not achados:
-            saida.append(f"docs/{'reviews' if tipo == 'review' else 'qa'}: {tipo}: sem parecer para o pedido `{pedido}` ({rid})")
+            motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
+            saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
         saida += viol
@@ -299,7 +357,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
                        for r in registros):
                 saida.append(f"{rel}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo ({rid})")
-        if campos.get("parecer") != "aprovado":
+        if campos.get("parecer") not in ("aprovado", "riscos-aceitos") or (
+                campos.get("parecer") == "riscos-aceitos" and campos.get("aceite_usuario") != "sim"):
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base)
