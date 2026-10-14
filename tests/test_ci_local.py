@@ -173,9 +173,27 @@ class RodarJobTest(unittest.TestCase):
         self.assertEqual((r["estado"], r["ausente"], r["obrigatorio"]), (ci.PULADO, True, True))
         self.assertIn("shellcheck", r["motivo"])
 
-    def test_pipefail_como_no_github(self):
-        """Regressão B2: `false | true` passava local e falha no Actions (bash -eo pipefail)."""
-        self.assertEqual(self.rodar(self.job("false | true\n"))["estado"], ci.FALHOU)
+    def test_sem_shell_nao_ha_pipefail_como_no_github(self):
+        """Regressão B3: sem `shell:` o Actions roda `bash -e {0}`; `false | true` passa."""
+        self.assertEqual(self.rodar(self.job("false | true\n"))["estado"], ci.OK)
+
+    def test_shell_bash_declarado_ativa_pipefail(self):
+        job = self.job("false | true\n")
+        job["passos"][0]["shell"] = "bash"
+        self.assertEqual(self.rodar(job)["estado"], ci.FALHOU)
+
+    def test_leitor_guarda_o_shell_do_passo(self):
+        (job,) = ci.ler_jobs("jobs:\n  j:\n    steps:\n      - name: p\n        shell: bash\n        run: echo\n")
+        self.assertEqual(job["passos"][0]["shell"], "bash")
+
+    def test_contexto_github_desconhecido_no_if_e_sem_suporte(self):
+        with self.assertRaises(ValueError):
+            ci.avaliar_se("github.nao_existe == ''", self.ctx)
+
+    def test_if_aninhado_demais_e_sem_suporte_legivel(self):
+        with self.assertRaises(ValueError) as c:
+            ci.avaliar_se("(" * 5000 + "'a'" + ")" * 5000, self.ctx)
+        self.assertIn("aninhada", str(c.exception))
 
     def test_token_so_chega_ao_passo_que_o_declara(self):
         ctx = ci.contexto_do_pr(PR, "b" * 40, "segredo")

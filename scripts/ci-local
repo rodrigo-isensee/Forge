@@ -7,7 +7,7 @@ Os jobs vêm dos próprios workflows do PR (.github/workflows/ci.yml e catraca.y
 na ordem, com as mesmas variáveis de ambiente, numa worktree temporária no sha exato da cabeça do PR. Nada da lógica do
 CI é copiado para cá. Só biblioteca padrão; nada que custe dinheiro (R-CUSTO).
 
-Os passos rodam como no GitHub (`bash --noprofile --norc -eo pipefail`) e o `if:` é avaliado por um avaliador próprio, sem
+Os passos rodam como o GitHub os roda: sem `shell:`, `bash -e {0}` (sem pipefail); com `shell: bash`, `bash --noprofile --norc -eo pipefail {0}`. O `if:` é avaliado por um avaliador próprio, sem
 `eval`; condição fora do subconjunto deixa o job "pulado por falta de suporte" (conta como falha se for obrigatório).
 Os testes rodam sobre a cabeça do PR, não sobre o merge com a base (o CI testa o merge): atualize a branch antes.
 
@@ -60,7 +60,7 @@ def _bloco(linhas, i, indent):
 
 
 def ler_jobs(texto):
-    """Lista de jobs: {id, nome, se, passos: [{nome, se, env, run}]} na ordem do arquivo."""
+    """Lista de jobs: {id, nome, se, passos: [{nome, se, env, run, shell}]} na ordem do arquivo."""
     linhas = texto.splitlines()
     jobs, job, passo, i = [], None, None, 0
     while i < len(linhas) and not linhas[i].startswith("jobs:"):
@@ -87,7 +87,7 @@ def ler_jobs(texto):
             elif chave == "if":
                 job["se"] = _valor(valor)
         elif ind >= 6 and linha.startswith("      - "):
-            passo = {"nome": "", "se": "", "env": {}, "run": ""}
+            passo = {"nome": "", "se": "", "env": {}, "run": "", "shell": ""}
             job["passos"].append(passo)
             linha, ind = "        " + linha[8:], 8
         if passo is not None and ind == 8:
@@ -96,6 +96,8 @@ def ler_jobs(texto):
                 passo["nome"] = _valor(valor)
             elif chave == "if":
                 passo["se"] = _valor(valor)
+            elif chave == "shell":
+                passo["shell"] = _valor(valor)
             elif chave == "run":
                 if valor.strip() in ("|", ">"):
                     passo["run"], i = _bloco(linhas, i, 8)
@@ -162,7 +164,9 @@ def avaliar_se(expressao, ctx):
             return r
         if tipo == "ctx":
             tomar()
-            return ctx.get(valor, "")
+            if valor not in ctx:
+                raise ValueError(f"condição sem suporte (contexto `{valor}` desconhecido): {expressao}")
+            return ctx[valor]
         if tipo == "lit":
             tomar()
             return valor
@@ -192,7 +196,10 @@ def avaliar_se(expressao, ctx):
             r = bool(r) | bool(e())
         return r
 
-    resultado_ = ou()
+    try:
+        resultado_ = ou()
+    except RecursionError:
+        raise ValueError(f"condição sem suporte (aninhada demais): {expressao[:60]}...") from None
     if pos[0] != len(tokens):
         raise ValueError(f"condição sem suporte (sobra de texto): {expressao}")
     return bool(resultado_)
@@ -206,6 +213,8 @@ def avisos_do_workflow(arquivo, texto):
         chave = linha.strip().removeprefix("- ").partition(":")[0]
         if linha.lstrip().startswith("- ") and ind == 6:
             ind = 8
+        if chave == "shell" and _valor(linha.strip().removeprefix("- ").partition(":")[2]) == "bash":
+            continue  # `shell: bash` é respeitado (pipefail)
         if chave in CHAVES_IGNORADAS.get(ind, ()):
             avisos.append(f"{arquivo}: `{chave}:` (nível {ind}) é ignorado pelo ci-local; o resultado pode divergir do CI")
     return avisos
@@ -287,7 +296,9 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
         print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
         try:
-            p = rodar(["nice", "-n", "10", "bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script], cwd=raiz, env=env, timeout=1800)
+            # Como o GitHub: sem `shell:`, `bash -e {0}`; com `shell: bash`, `bash --noprofile --norc -eo pipefail {0}`.
+            shell = ["bash", "--noprofile", "--norc", "-eo", "pipefail"] if passo.get("shell") == "bash" else ["bash", "-e"]
+            p = rodar(["nice", "-n", "10", *shell, "-c", script], cwd=raiz, env=env, timeout=1800)
         except subprocess.TimeoutExpired:
             return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
         if p.returncode:
