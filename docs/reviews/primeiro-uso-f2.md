@@ -3,9 +3,9 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f2
 branch: melhoria/primeiro-uso-f2
-commit: bf9b821
+commit: 6a8795a
 parecer: aprovado
-revisor: forge:tech-lead
+revisor: forge:tech-lead (independente)
 data: 2026-10-13
 ---
 # Parecer de autor: primeiro uso F2 (salvar, desfazer, primeiro pedido guiado, bugs baixos da F1)
@@ -19,3 +19,20 @@ data: 2026-10-13
 - **Atenção:** o job `shellcheck` do CI ainda não lista `bin/forge`, `bin/forge-novo-projeto`, `bin/forge-salvar` nem `bin/forge-desfazer` (`.github/` é protegido; pendência já registrada na 0.12.0). Não toca em hooks, catraca nem invariantes. Sem mudança de versão (sobe na release, ADR 0006).
 
 Parecer de autor, feito pelo mesmo agente que escreveu a mudança; o review independente fica a cargo do `tech-lead` no PR.
+
+## Review independente
+
+Revisor: `tech-lead`, sobre o HEAD 6a8795a. Resultado: **aprovado**, com recomendações (nenhuma bloqueia).
+
+- **Verificação:** 337 testes OK; `shellcheck` limpo em `bin/forge`, `forge-salvar`, `forge-desfazer` e `forge-novo-projeto` (os dois scripts em Python, `forge-check` e `forge-upgrade`, não são shell e o shellcheck os recusa por natureza). Testes com HOME, gitconfig, remoto bare e `gh` falsos; nada fixo da conta do dono, nenhuma rede.
+- **desfazer:** não perde trabalho. Mudança não salva vai para `stash -u` com lista dos arquivos, confirmação e caminho de volta (`--recuperar`); último registro vira `revert`, nunca `reset`; recusa mesclagem, primeiro registro e `main`/`develop`/`homolog`/sem branch; Enter e fim da entrada contam como não; sem `--force`, `reset --hard` nem `clean` (teste estático). Linguagem simples, sem jargão na tela.
+- **salvar:** nas branches protegidas ou sem branch cria `trabalho/<data>` antes de commitar, então nunca grava nem envia nelas; recusa segredos; `push` sem força; sem rede, avisa que o trabalho ficou salvo na pasta.
+- **BUG-03 (pasta sempre `~/<nome>`):** aceitável. A pasta já é avisada na tela, pasta existente e não vazia continua recusada, e o objetivo é o limite de 10 interações para o público que não programa. Recomendo registrar em `docs/propostas/primeiro-uso/decisoes.md` a suposição atualizada ("pasta fixa `~/<nome>`, avisada; quem quiser outra pasta move depois"), pois a linha atual ("perguntada a cada vez") ficou desatualizada.
+- **Repositório vazio com `--sim`:** confirmado, `ler` sempre lê a entrada, então a pergunta continua. Correto.
+- **Recomendações (não bloqueiam):**
+  1. `bin/forge-salvar` (push): se o envio é recusado porque o GitHub tem registros novos (não é rede), a mensagem diz "rede ou permissão". Diferenciar e orientar ("peça ajuda ao Jarvis"); hoje o conflito não tem tratamento próprio.
+  2. `bin/forge-salvar`: com mesclagem ou conflito em andamento, `git add -A` registraria marcas de conflito. Recusar com aviso quando houver caminhos não resolvidos (`git ls-files -u`).
+  3. `bin/forge-salvar`: a checagem de segredos usa `ls-files -o -m`, então arquivo de segredo já posto na área de preparo (`git add`) passa. Incluir `git diff --cached --name-only`.
+  4. `bin/forge-desfazer`: com mesclagem em andamento o `stash` falha com mensagem crua do git; avisar antes. Também, se `stash pop` gera conflito, o texto "nada foi perdido" é verdadeiro, mas a pasta pode ficar com marcas; dizer isso.
+  5. CI: incluir os quatro scripts bash de `bin/` no job `shellcheck` (pendência já registrada).
+- **Itens 1 a 4:** sugiro cartão de acompanhamento, com teste para cada um; não impedem a F2, pois falham sem apagar nada.
