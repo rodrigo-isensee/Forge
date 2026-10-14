@@ -74,7 +74,7 @@ Toda linha cita o comando e a saída copiada. Sem comando rodado, a linha é `n�
 | `review` | Commit do autor existe e está no remoto | `git ls-remote origin <b>` |
 | `qa` | Parecer de review `aprovado` com `commit:` igual ao head, ou ancestral sem diff de código depois | `forge-check pr <pedido>` (linhas de `R-REVIEW`) |
 | `pr` (abrir PR) | Review **e** QA aprovados para a branch, menos em diff só de `.md` (isento de QA, `R-QA`) | `forge-check pr <pedido>` sem violação |
-| `merge-integracao` | O mesmo de `pr`, mais checks verdes no head e o rótulo `afrouxa-regra` quando o diff toca arquivo protegido | `gh pr checks <b> --json name,state`, `gh pr view <b> --json labels` |
+| `merge-integracao` | O mesmo de `pr`, mais checks verdes no head e o rótulo `afrouxa-regra` quando o diff toca arquivo protegido | `gh pr checks <b>` (nenhuma linha `fail` nem `pending`), `gh pr view <b> --json labels` |
 | `pedido-de-merge-ao-dono` | O mesmo de `merge-integracao`, sobre o PR `homolog` → `main` | idem |
 | Qualquer etapa | O ato não aconteceu antes da pré-condição: `createdAt`/`mergedAt` do PR depois do commit do parecer aprovado | `gh pr view <b> --json createdAt,mergedAt` e `git log -1 --format=%cI -- <parecer>` |
 
