@@ -30,5 +30,5 @@ Valem aqui; o texto completo de cada uma está em `docs/regras/` do Forge (https
 - `R-MAIN` a main é do usuário (hook `.githooks/pre-push`; ative com `git config core.hooksPath .githooks`).
 - `R-VERIFY` nunca `--no-verify` nem `--force`.
 - `R-FLUXO` branches e promoção · `R-WIP` 1 cartão por agente e limites de coluna · `R-TETO` teto de recursos da máquina.
-- `R-DISCOVERY` todo pedido começa com discovery · `R-REVIEW` code review antes do QA · `R-QA` portão de QA.
+- `R-DISCOVERY` todo pedido começa com discovery · `R-REVIEW` code review antes do QA · `R-QA` portão de QA · `R-SEGURANCA` parecer de segurança quando há gatilho.
 - `R-COPIA` não copiar agentes e skills para o projeto: mudanças em agentes, skills, fluxo e práticas gerais vão para o repositório **Forge** (seção "Fábrica × projeto" do Jarvis).

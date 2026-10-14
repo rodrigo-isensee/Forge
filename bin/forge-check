@@ -5,13 +5,19 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]]
+     forge-check fontes
+`fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
+repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
+registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 `pr --base` aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou.
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 Se existir `.forge/run/autoria.jsonl` (hook `conformidade`, ADR 0009), `pr` também exige que o parecer atual tenha
-sido gravado pelo papel certo (review: tech-lead; QA: qa); sem o arquivo, como antes (o CI não o tem).
+sido gravado pelo papel certo (review: tech-lead; QA: qa; devops: devops; segurança: seguranca); sem o arquivo, como antes
+(o CI não o tem). O parecer de devops é exigido quando a entrega toca pipeline, contêiner ou IaC; o de segurança, quando
+toca um gatilho que o diff mostra (R-SEGURANCA) ou o plano técnico do pedido marca `gatilhos_seguranca`.
 Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
@@ -21,6 +27,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
@@ -30,7 +37,7 @@ COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 INTEIRO = re.compile(r"^\d+$")
 PARECER = {"aprovado", "reprovado"}
 # Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
-LIVRES = ("docs/reviews/", "docs/qa/", "KANBAN.md", "docs/kanban/")
+LIVRES = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/")
 COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
 ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
 
@@ -41,7 +48,24 @@ CONTRATOS = {
                                "bugs_altos", "bugs_medios", "bugs_baixos", "data"]),
     "plano-tecnico": ("docs/architecture/features", "ADR-0004",
                       ["pedido", "estado", "ux", "adrs", "agentes"]),
+    "revisao-devops": ("docs/devops", "R-REVIEW", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
+    "revisao-seguranca": ("docs/security", "R-SEGURANCA", ["pedido", "branch", "commit", "parecer", "revisor", "data"]),
 }
+# Parecer válido por tipo; os pareceres de devops e de segurança são exigidos só quando há gatilho (ver `gatilhos`).
+VALORES_DO_PARECER = {"review": PARECER, "qa": PARECER, "revisao-devops": PARECER,
+                      "revisao-seguranca": PARECER | {"riscos-aceitos"}}
+# Pastas onde um .md sem frontmatter é documento livre (postura, modelo de ameaças), não parecer.
+PASTAS_LIVRES = {"revisao-devops", "revisao-seguranca"}
+# Gatilhos que o diff mostra (R-SEGURANCA): os demais o pedido marca em `gatilhos_seguranca` do plano técnico.
+PIPELINE_E_INFRA = re.compile(r"^(\.github/|(.*/)?(Dockerfile[^/]*|compose[^/]*\.ya?ml|docker-compose[^/]*\.ya?ml|"
+                              r"\.dockerignore|[^/]*\.tf(vars)?(\.json)?)$|(.*/)?(infra|deploy|terraform|iac|helm|k8s|pulumi|ansible)/)")
+# Dependência: arquivos de travas e manifestos, por padrão de nome (qualquer stack; a lista é genérica).
+TRAVAS_DE_DEPENDENCIA = re.compile(r"(^|/)([^/]*[-.]lock\.(json|ya?ml|toml)|[^/]*\.lockb?|go\.sum|requirements[^/]*\.txt|"
+                                   r"pyproject\.toml|package\.json|Gemfile|go\.mod|Cargo\.toml)$")
+SEGREDOS_E_CONFIG = re.compile(r"(^|/)\.env(\.[\w.-]+)?$")
+MIGRACOES = re.compile(r"(^|/)(migrations?|migrate)/")
+CONTROLES_DO_FORGE = ("hooks/conformidade.json", "docs/regras/", "tests/catraca.py", "tests/config.json")
+BASES = ("origin/develop", "develop", "origin/main", "main")
 
 
 def ler_frontmatter(texto):
@@ -91,9 +115,9 @@ def validar_documento(rel, texto):
     for c in obrigatorios:
         if not campos.get(c):
             erro(c, "obrigatório e vazio ou ausente")
-    if tipo in ("review", "qa"):
-        if campos.get("parecer") and campos["parecer"] not in PARECER:
-            erro("parecer", "use aprovado ou reprovado")
+    if tipo in VALORES_DO_PARECER:
+        if campos.get("parecer") and campos["parecer"] not in VALORES_DO_PARECER[tipo]:
+            erro("parecer", "use " + " ou ".join(sorted(VALORES_DO_PARECER[tipo])))
         if campos.get("commit") and not COMMIT.match(campos["commit"]):
             erro("commit", "hash hexadecimal de 7 a 40 caracteres")
         if campos.get("data") and not DATA.match(campos["data"]):
@@ -134,10 +158,10 @@ def documentos(raiz, tipo=None, ref=None):
             if nome == "README.md" or nome.startswith("_"):
                 continue
             rel = f"{pasta}/{nome}"
-            if ref is None:
-                yield rel, (raiz / rel).read_text(encoding="utf-8")
-            else:
-                yield rel, git(raiz, "show", f"{ref}:{rel}")[1]
+            texto = (raiz / rel).read_text(encoding="utf-8") if ref is None else git(raiz, "show", f"{ref}:{rel}")[1]
+            if t in PASTAS_LIVRES and not texto.startswith("---"):
+                continue
+            yield rel, texto
 
 
 def cmd_docs(raiz):
@@ -237,7 +261,7 @@ def commit_vale(raiz, commit, ate="HEAD", base=None):
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
-    cod, saida = git(raiz, "diff", "--name-only", commit, ate)
+    cod, saida = git(raiz, "diff", "--name-only", "--no-renames", commit, ate)
     if cod:
         return f"não foi possível comparar com {ate}"
     fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
@@ -247,9 +271,9 @@ def commit_vale(raiz, commit, ate="HEAD", base=None):
 
 
 def pedidos_da_branch(raiz, branch, ref=None):
-    """Pedidos cujos pareceres (review ou QA) declaram `branch: <branch>`."""
+    """Pedidos cujos pareceres (review, QA, devops ou segurança) declaram `branch: <branch>`."""
     pedidos = set()
-    for tipo in ("review", "qa"):
+    for tipo in ("review", "qa", "revisao-devops", "revisao-seguranca"):
         for rel, texto in documentos(raiz, tipo, ref):
             campos = ler_frontmatter(texto)[0] or {}
             if campos.get("branch") == branch and campos.get("pedido"):
@@ -258,7 +282,66 @@ def pedidos_da_branch(raiz, branch, ref=None):
 
 
 # Papel que deve ter gravado cada tipo de parecer (hook conformidade, ADR 0009, 6.4).
-PAPEL_DO_PARECER = {"review": "tech-lead", "qa": "qa"}
+PAPEL_DO_PARECER = {"review": "tech-lead", "qa": "qa", "revisao-devops": "devops", "revisao-seguranca": "seguranca"}
+PASTA_E_REGRA = {"review": ("docs/reviews", "R-REVIEW"), "qa": ("docs/qa", "R-QA"),
+                 "revisao-devops": ("docs/devops", "R-REVIEW"), "revisao-seguranca": ("docs/security", "R-SEGURANCA")}
+
+
+def base_da_entrega(raiz, base=None):
+    """A primeira base (a pedida ou uma das BASES) que existe no repositório; None se nenhuma."""
+    for b in ([base, f"origin/{base}"] if base else []) + list(BASES):
+        if not git(raiz, "rev-parse", "--verify", "--quiet", f"{b}^{{commit}}")[0]:
+            return b
+    return None
+
+
+def arquivos_da_entrega(raiz, ref=None, base=None):
+    """Arquivos que a entrega muda sobre a base (merge-base); [] se a base não existe (sem como saber).
+    `--no-renames`: renomear lista também o nome antigo (como removido), e o gatilho não escapa pelo nome novo."""
+    b = base_da_entrega(raiz, base)
+    if b:
+        cod, saida = git(raiz, "diff", "--name-only", "--no-renames", f"{b}...{ref or 'HEAD'}")
+        if not cod:
+            return saida.splitlines()
+    return []
+
+
+def gatilhos(raiz, pedido, ref=None, base=None):
+    """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
+    plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
+    arquivos = arquivos_da_entrega(raiz, ref, base)
+    infra = any(PIPELINE_E_INFRA.match(a) for a in arquivos)
+    achados = []
+    for nome, casa in (("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
+                       ("dependência (travas ou manifesto)", TRAVAS_DE_DEPENDENCIA.search),
+                       ("segredos e configuração (.env)", SEGREDOS_E_CONFIG.search),
+                       ("migração de banco", MIGRACOES.search),
+                       ("controles do Forge", lambda a: a.startswith(CONTROLES_DO_FORGE))):
+        quais = [a for a in arquivos if casa and casa(a)]
+        if quais:
+            achados.append(f"{nome}: {quais[0]}")
+    for rel, texto in documentos(raiz, "plano-tecnico", ref):
+        campos = ler_frontmatter(texto)[0] or {}
+        marcados = campos.get("gatilhos_seguranca", "").strip("[] ")
+        if campos.get("pedido") == pedido and marcados:
+            achados.append(f"marcado no plano técnico: {marcados}")
+    return infra, achados
+
+
+def aceite_do_usuario(raiz, pedido, commit, ref=None):
+    """True se `docs/security/aceites/<pedido>.md` existe com `pedido` igual, `aceite: sim` e `commit` igual ao
+    do parecer de segurança (o usuário aceitou exatamente esses riscos; parecer novo pede aceite novo). Nenhum papel o grava
+    (hooks/conformidade.json): quem escreve é o usuário, à mão (R-SEGURANCA, R-DECISAO)."""
+    rel = f"docs/security/aceites/{pedido}.md"
+    if ref is None:
+        arquivo = raiz / rel
+        texto = arquivo.read_text(encoding="utf-8") if arquivo.is_file() else ""
+    else:
+        cod, texto = git(raiz, "show", f"{ref}:{rel}")
+        texto = "" if cod else texto
+    campos = ler_frontmatter(texto)[0] or {}
+    return (campos.get("pedido") == pedido and campos.get("aceite") == "sim"
+            and bool(commit) and campos.get("commit") == commit)
 
 
 def autorias(raiz):
@@ -284,14 +367,18 @@ def autorias(raiz):
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
-    for tipo, rid in (("review", "R-REVIEW"), ("qa", "R-QA")):
+    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
+    exigidos = ["review", "qa"] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
+    for tipo in exigidos:
+        pasta, rid = PASTA_E_REGRA[tipo]
         achados = []
         for rel, texto in documentos(raiz, tipo, ref):
             campos, viol = validar_documento(rel, texto)
             if campos is not None and campos.get("pedido") == pedido:
                 achados.append((campos.get("data", ""), rel, campos, viol, texto))
         if not achados:
-            saida.append(f"docs/{'reviews' if tipo == 'review' else 'qa'}: {tipo}: sem parecer para o pedido `{pedido}` ({rid})")
+            motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
+            saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
         saida += viol
@@ -301,7 +388,10 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
                        for r in registros):
                 saida.append(f"{rel}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo ({rid})")
-        if campos.get("parecer") != "aprovado":
+        if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
+            saida.append(f"{rel}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
+                         f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")
+        elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
             saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base)
@@ -1085,6 +1175,61 @@ def migracao_pendente(raiz):
                    if versao(p.parent.name) and atual < versao(p.parent.name) <= plugin), key=versao)
 
 
+URL_FONTE = re.compile(r"https://[A-Za-z0-9.-]+(:[0-9]+)?(/[A-Za-z0-9._~%+/-]*)?")
+
+
+def _imprimivel(texto):
+    """Tira caracteres de controle (o código vem de um registro que os agentes podem gravar)."""
+    return "".join(c for c in texto if c.isprintable())
+
+
+def cmd_fontes():
+    """Retorna (linhas, código): 0 consultou, 3 alguma fonte não respondeu (sem rede). Sem registro, ([], 0)."""
+    registro = Path.home() / ".forge-contrib/fontes/fontes.json"
+    if not registro.is_file():
+        return [], 0
+    try:
+        fontes = json.loads(registro.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ["fontes: registro local ilegível"], 1
+    if not isinstance(fontes, dict):
+        return ["fontes: registro local ilegível"], 1
+    novas, recusadas, falhou = [], [], False
+    # Sem GIT_* herdado e sem configuração de usuário/sistema (insteadOf, credential.helper): só vale a linha abaixo.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_TERMINAL_PROMPT="0", GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    protocolos = [a for p in ("ext", "file", "ssh", "git", "http") for a in ("-c", f"protocol.{p}.allow=never")]
+    with tempfile.TemporaryDirectory() as vazia:  # fora de qualquer repositório: um .git gravável no cwd não entra
+        for codigo, f in sorted(fontes.items()):
+            url, revisado = (f.get("url"), f.get("commit_revisado")) if isinstance(f, dict) else (None, None)
+            if not isinstance(url, str) or not url or not isinstance(revisado, str) or not revisado:
+                continue
+            nome = _imprimivel(str(codigo))
+            if not URL_FONTE.fullmatch(url):
+                recusadas.append(nome)  # só https://; o registro é gravável pelos agentes e esta consulta roda fora do sandbox
+                continue
+            try:
+                r = subprocess.run(["git", "-c", "protocol.allow=never", *protocolos, "-c", "protocol.https.allow=always",
+                                    "ls-remote", "--", url, "HEAD"], capture_output=True, text=True, timeout=15, env=env,
+                                   cwd=vazia)
+            except (subprocess.TimeoutExpired, OSError):
+                falhou = True
+                continue
+            topo = r.stdout.split()[0] if r.returncode == 0 and r.stdout.strip() else ""
+            if not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", topo):
+                falhou = True
+            elif not topo.startswith(revisado):
+                novas.append(f"{nome} tem versão nova ({_imprimivel(revisado)[:7]} -> {topo[:7]})")
+    linhas = []
+    if novas:
+        linhas.append("fontes: " + "; ".join(novas) + "; abra o estudo comparativo")
+    if recusadas:
+        linhas.append("fontes: URL recusada (só https:// é aceito) em: " + ", ".join(recusadas))
+    if not linhas and not falhou:
+        linhas = ["fontes: sem novidade"]
+    return linhas, 3 if falhou else 0
+
+
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
@@ -1093,6 +1238,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum])
     sub.add_parser("kanban", parents=[comum])
+    sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
     pr = sub.add_parser("pr", parents=[comum])
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
@@ -1121,6 +1267,11 @@ def main():
 def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega)
+    if a.cmd == "fontes":
+        linhas, codigo = cmd_fontes()
+        for linha in linhas:
+            print(linha)
+        return codigo
     if a.cmd == "transcricao":
         try:
             violacoes = (cmd_transcricao_anonimizar(a.entrada, a.saida) if a.acao == "anonimizar"

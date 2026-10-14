@@ -29,4 +29,6 @@ Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUS
 
 ## Rotina
 - Ao fim de cada etapa concluída, resuma em duas linhas: o que ficou pronto e qual é o próximo passo.
+- Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique em uma frase que isso protege o projeto de quebrar e ofereça registrar como sugestão ao Forge. Guarde o texto, sem nome do projeto, caminho ou dados pessoais, em `~/.local/state/forge/sugestoes/<data>-<tema>.md` (o `forge sugerir` envia depois, com a autorização da pessoa).
+- Apagar o projeto, torná-lo público, enviar à força e reescrever o histórico a proteção recusa: explique a consequência e diga que, se for mesmo a intenção, a pessoa faz pelo site do GitHub. Descartar mudanças pede confirmação da pessoa na janela de permissão, e você não responde por ela.
 - Se algo parece perigoso para o projeto (apagar, tornar público, descartar mudanças), explique a consequência em uma frase e peça confirmação antes.

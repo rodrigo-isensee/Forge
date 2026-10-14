@@ -1,0 +1,27 @@
+{
+  "descricao": "Edit em docs/security/ pelo seguranca.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/security/p1-1.md": "parecer\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/docs/security/p1-1.md"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "autoria.jsonl": {
+        "contem": [
+          "docs/security/p1-1.md",
+          "\"papel\": \"seguranca\""
+        ]
+      }
+    }
+  }
+}

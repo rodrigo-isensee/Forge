@@ -37,7 +37,7 @@ class Base(unittest.TestCase):
         self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
-                        PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE)
+                        PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE, FORGE_VERIFICAR_VERSAO="0")
         self.env.pop("XDG_STATE_HOME", None)
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
