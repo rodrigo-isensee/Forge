@@ -2,7 +2,7 @@
 
 Consulta as releases do Forge por `git` (grátis, R-CUSTO), com as mesmas defesas do `forge-check fontes` (docs/fontes-de-praticas.md):
 só https, pasta corrente neutra (nunca o projeto), todos os outros protocolos negados, sem pergunta de senha, sem configuração
-do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`). Só biblioteca padrão."""
+do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`, sempre no escopo do usuário). Só biblioteca padrão."""
 import json
 import os
 import re
@@ -76,6 +76,7 @@ def rodar_git(args, limite=LIMITE_CONSULTA):
     if local:
         protocolos += ["-c", "protocol.file.allow=always"]
     neutro = tempfile.mkdtemp(prefix="forge-neutro-")
+    env["GIT_CEILING_DIRECTORIES"] = os.path.dirname(neutro)  # nenhum repositório acima da pasta neutra (TMPDIR dentro de um) vale
     try:
         r = subprocess.run(["git", *protocolos, "-c", f"core.hooksPath={os.devnull}", *args], cwd=neutro, env=env,
                            capture_output=True, text=True, timeout=limite)
@@ -140,41 +141,135 @@ def aviso_de_versao_nova(limite):
     nova, _ = ultima_versao(url, limite)
     if nova is None or versao_de(nova) <= versao_de(atual):
         return ""
-    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar com ponto de retorno, rode: forge atualizar"
+    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar com ponto de retorno, rode no terminal: `forge atualizar`"
 
 
 # Plugin ----------------------------------------------------------------------------------------
 def claude(args, limite=180):
+    """Roda o `claude` numa pasta neutra (nunca dentro do projeto): a troca do plugin não pode tocar nos arquivos dele."""
     try:
-        r = subprocess.run(["claude", *args], capture_output=True, text=True, timeout=limite, stdin=subprocess.DEVNULL)
+        with tempfile.TemporaryDirectory(prefix="forge-claude-") as neutro:
+            r = subprocess.run(["claude", *args], capture_output=True, text=True, timeout=limite, stdin=subprocess.DEVNULL, cwd=neutro)
     except (OSError, subprocess.TimeoutExpired) as erro:
         return 1, str(erro)
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def fixar_plugin(url, versao, voltar_para=None):
-    """Deixa o plugin do Forge fixado na tag v<versao>: marketplace readicionada com `<endereço>#v<versao>` e plugin atualizado
-    (ou instalado, se a troca da marketplace o tirou). Se falhar, devolve o plugin à versão `voltar_para`.
-    Devolve (deu certo, mensagem em linguagem simples)."""
-    def trocar(alvo):
-        claude(["plugin", "marketplace", "remove", MARKETPLACE])
-        codigo, saida = claude(["plugin", "marketplace", "add", f"{url}#v{alvo}"])
-        if codigo != 0:
-            return False, saida
-        codigo, saida = claude(["plugin", "update", PLUGIN])
-        if codigo != 0:
-            codigo, saida = claude(["plugin", "install", PLUGIN])
-        return codigo == 0, saida
+def tag_existe(url, versao):
+    """A tag v<versao> existe no endereço do Forge (`ls-remote`, com as defesas). Sem conexão: False."""
+    codigo, saida = rodar_git(["ls-remote", "--tags", "--refs", "--", url, f"refs/tags/v{versao}"])
+    return codigo == 0 and saida.rstrip().endswith(f"refs/tags/v{versao}")
 
-    deu, saida = trocar(versao)
+
+def fonte_para_add(origem):
+    """O argumento do `claude plugin marketplace add` que recria a fonte `origem` (dicionário do settings ou da lista)."""
+    if not isinstance(origem, dict):
+        return None
+    tipo = origem.get("source")
+    if tipo in ("directory", "file") and isinstance(origem.get("path"), str):
+        base = origem["path"]
+    elif tipo == "github" and isinstance(origem.get("repo"), str):
+        base = origem["repo"]
+    elif tipo in ("git", "url") and isinstance(origem.get("url"), str):
+        base = origem["url"]
+    else:
+        return None
+    if not base or base.startswith("-") or re.search(r"\s", base):
+        return None
+    ref = origem.get("ref")
+    return f"{base}#{ref}" if isinstance(ref, str) and ref and not ref.startswith("-") else base
+
+
+def fonte_original():
+    """A marketplace do Forge como está agora: {"fonte": argumento do `add`, "escopo": "user" (declarada no settings do usuário)
+    ou "outro"}. None se não achar (lida do settings do usuário e, depois, de `claude plugin marketplace list --json`)."""
+    try:
+        dados = json.loads((casa() / ".claude" / "settings.json").read_text(encoding="utf-8"))
+        fonte = fonte_para_add(dados["extraKnownMarketplaces"][MARKETPLACE]["source"])
+    except (OSError, ValueError, KeyError, TypeError):
+        fonte = None
+    if fonte:
+        return {"fonte": fonte, "escopo": "user"}
+    codigo, saida = claude(["plugin", "marketplace", "list", "--json"], 60)
+    try:
+        lista = json.loads(saida) if codigo == 0 else []
+    except ValueError:
+        lista = []
+    for item in lista if isinstance(lista, list) else []:
+        if isinstance(item, dict) and item.get("name") == MARKETPLACE and fonte_para_add(item):
+            return {"fonte": fonte_para_add(item), "escopo": "outro"}
+    return None
+
+
+def instalar_plugin():
+    codigo, saida = claude(["plugin", "update", PLUGIN, "--scope", "user"])
+    if codigo != 0:
+        codigo, saida = claude(["plugin", "install", PLUGIN, "--scope", "user"])
+    return codigo == 0, saida
+
+
+def trocar_marketplace(fonte):
+    """Troca a marketplace do usuário por `fonte` e deixa o plugin instalado. (deu certo, saída)"""
+    claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
+    codigo, saida = claude(["plugin", "marketplace", "add", fonte, "--scope", "user"])
+    if codigo != 0:
+        return False, saida
+    return instalar_plugin()
+
+
+def devolver_original(original):
+    """Readiciona exatamente a fonte e o escopo de antes (se a marketplace era do escopo do usuário; senão só tira a do usuário)."""
+    if original["escopo"] != "user":
+        claude(["plugin", "marketplace", "remove", MARKETPLACE, "--scope", "user"])
+        return instalar_plugin()[0]
+    return trocar_marketplace(original["fonte"])[0]
+
+
+def restaurar_projeto(projeto):
+    """Se a troca mexeu em arquivo versionado do projeto, devolve cada um (`git checkout -- <arquivo>`) e diz quais. "" se nada."""
+    if projeto is None:
+        return ""
+    r = subprocess.run(["git", "-C", str(projeto), "diff", "--name-only"], capture_output=True, text=True)
+    mexidos = [a for a in r.stdout.splitlines() if a]
+    for arquivo in mexidos:
+        subprocess.run(["git", "-C", str(projeto), "checkout", "--", arquivo], capture_output=True, text=True)
+    return f" O Claude mexeu em arquivo do projeto e eu restaurei: {', '.join(mexidos)}." if mexidos else ""
+
+
+def fixar_plugin(url, versao, voltar_para=None, projeto=None):
+    """Deixa o plugin do Forge fixado na tag v<versao>, só no escopo do usuário (`--scope user`): marketplace readicionada com
+    `<endereço>#v<versao>` e plugin atualizado (ou instalado). Antes de qualquer remoção confirma a tag e guarda a fonte e o escopo
+    originais; se algo falhar, readiciona exatamente a fonte original. Depois confere os arquivos versionados do `projeto`.
+    Devolve (deu certo, mensagem em linguagem simples)."""
+    if not tag_existe(url, versao):
+        return False, f"não consegui confirmar a versão {versao} no endereço do Forge (sem conexão ou ela não existe). Não mexi no plugin"
+    original = fonte_original()
+    if original is None:
+        return False, "não achei a marketplace do Forge no seu Claude (ela tem de estar instalada pelo endereço do Forge). Não mexi no plugin"
+    deu, saida = trocar_marketplace(f"{url}#v{versao}")
     if deu:
-        return True, f"o plugin do Forge está fixado na versão {versao}"
-    if voltar_para and voltar_para != versao:
-        devolveu, _ = trocar(voltar_para)
-        if devolveu:
-            return False, f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}); devolvi o plugin à versão {voltar_para}"
-    return False, (f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}). Para refazer à mão: "
-                   f"`claude plugin marketplace add {url}#v{voltar_para or versao}` e `claude plugin install {PLUGIN}`")
+        return True, f"o plugin do Forge está fixado na versão {versao}" + restaurar_projeto(projeto)
+    devolveu = devolver_original(original)
+    aviso = restaurar_projeto(projeto)
+    como = (f"Para refazer à mão: `claude plugin marketplace add {original['fonte']} --scope user` e "
+            f"`claude plugin install {PLUGIN} --scope user`")
+    if devolveu:
+        return False, (f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}); devolvi a marketplace como estava "
+                       f"({original['fonte']}, escopo {original['escopo']}){aviso}")
+    return False, f"não consegui trocar o plugin para a versão {versao} ({saida[:160]}) nem devolver o de antes. {como}.{aviso}"
+
+
+def problemas_do_doutor(pasta_bin, projeto):
+    """(lista de problemas, saída) do `forge-doutor --rapido` que está em `pasta_bin`. Sem problema: ([], "")."""
+    try:
+        r = subprocess.run([str(Path(pasta_bin) / "forge-doutor"), "--rapido", str(projeto)], capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as erro:
+        return [f"o doutor não rodou ({erro})"], ""
+    if r.returncode == 0:
+        return [], ""
+    saida = (r.stdout + r.stderr).strip()
+    return [l[2:].strip() for l in saida.splitlines() if l.startswith("- ")] or [saida or "o doutor terminou com erro"], saida
 
 
 # Terminal --------------------------------------------------------------------------------------
@@ -196,16 +291,27 @@ def pasta_de_retornos(projeto):
     return pasta_de_estado() / "retorno" / projeto.name
 
 
+def arquivos_versionados(projeto, pasta):
+    """Os arquivos que o git do projeto versiona em `pasta` (caminhos relativos ao projeto)."""
+    r = subprocess.run(["git", "-C", str(projeto), "ls-files", "-z", "--", pasta], capture_output=True, text=True)
+    return [a for a in r.stdout.split("\0") if a]
+
+
 def criar_ponto(projeto, meta):
-    """Guarda `.forge/` (sem `run/`), os `settings*.json` do projeto e o `meta.json`. Devolve a pasta do ponto."""
-    ponto = pasta_de_retornos(projeto) / (time.strftime("%Y%m%d-%H%M%S-") + f"{time.time_ns() % 1_000_000:06d}")
+    """Guarda só os arquivos VERSIONADOS de `.forge/` e o `meta.json` (versão do plugin e o resto da volta). Nada que não esteja
+    no git: `settings.local.json`, chaves e arquivos locais ficam de fora. A pasta é só do dono (700). Devolve a pasta do ponto."""
+    base = pasta_de_retornos(projeto)
+    base.mkdir(parents=True, exist_ok=True)
+    ponto = base / (time.strftime("%Y%m%d-%H%M%S-") + f"{time.time_ns() % 1_000_000:06d}")
     ponto.mkdir(parents=True)
-    if (projeto / ".forge").is_dir():
-        shutil.copytree(projeto / ".forge", ponto / "forge", ignore=shutil.ignore_patterns("run"))
-    (ponto / "claude").mkdir()
-    for nome in ("settings.json", "settings.local.json"):
-        if (projeto / ".claude" / nome).is_file():
-            shutil.copy2(projeto / ".claude" / nome, ponto / "claude" / nome)
+    for pasta in (ponto, base, pasta_de_estado() / "retorno", pasta_de_estado()):
+        pasta.chmod(0o700)
+    for arquivo in arquivos_versionados(projeto, ".forge"):
+        origem = projeto / arquivo
+        if origem.is_file():
+            destino = ponto / "forge" / Path(arquivo).relative_to(".forge")
+            destino.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(origem, destino)
     (ponto / "meta.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     with open(pasta_de_estado() / "versoes.log", "a", encoding="utf-8") as log:
         log.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')}\t{projeto.name}\t{meta['plugin_antes']}\t{meta['plugin_depois']}\n")
@@ -213,14 +319,14 @@ def criar_ponto(projeto, meta):
 
 
 def ultimo_ponto(projeto):
-    """(pasta, meta) do ponto de retorno mais recente ainda não usado, ou (None, None)."""
+    """(pasta, meta) do ponto de retorno mais recente DESTE projeto ainda não usado, ou (None, None)."""
     pasta = pasta_de_retornos(projeto)
     for ponto in sorted(pasta.iterdir(), reverse=True) if pasta.is_dir() else []:
         try:
             meta = json.loads((ponto / "meta.json").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
-        if isinstance(meta, dict) and not meta.get("usado"):
+        if isinstance(meta, dict) and not meta.get("usado") and meta.get("projeto") == str(projeto):
             return ponto, meta
     return None, None
 

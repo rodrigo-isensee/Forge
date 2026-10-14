@@ -3,9 +3,10 @@
 Uso: forge atualizar [--fixar]
   --fixar   só deixa o plugin fixado na versão que está em uso (nada muda no projeto)
 Passos: mostra a versão atual, a nova e o que mudou (do CHANGELOG, em linguagem simples); pede "s"; guarda o ponto de retorno
-(versão do plugin, cópia do `.forge/` e da configuração do projeto, em ~/.local/state/forge/retorno/); roda `forge-upgrade --simular`
-e, se der certo, troca o plugin para a versão nova (fixada na tag vX.Y.Z) e aplica o `forge-upgrade` numa branch nova; roda o
-`forge doutor`; se algo falhar, oferece voltar (`forge voltar-versao`). Nunca envia nada ao GitHub, nem mescla, nem força nada.
+(versão do plugin e cópia dos arquivos VERSIONADOS de `.forge/`, em ~/.local/state/forge/retorno/; nunca segredo nem arquivo local);
+roda o doutor antes; roda `forge-upgrade --simular` e, se der certo, troca o plugin (só no escopo do usuário, fixado na tag vX.Y.Z, depois de
+confirmar a tag e guardar a fonte original da marketplace) e aplica o `forge-upgrade` numa branch nova; roda o doutor de novo; só se
+aparecer problema NOVO oferece voltar (`forge voltar-versao`). Nunca envia nada ao GitHub, nem mescla, nem força nada.
 Saída: 0 atualizou ou nada a fazer; 1 não atualizou ou algo falhou; 2 sem terminal."""
 import shutil
 import subprocess
@@ -41,12 +42,13 @@ def oferecer_voltar(atual):
     print("\nAlgo não saiu como esperado. Nada foi enviado ao GitHub e nada foi apagado.")
     if fv.confirmar(f"Voltar para a versão {atual}?"):
         subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-voltar-versao"), "--ja-confirmado"])
-    print("Tudo bem, ficou como está. Para voltar quando quiser: forge voltar-versao")
+    else:
+        print("Tudo bem, ficou como está. Para voltar quando quiser: forge voltar-versao")
     return 1
 
 
-def fixar_somente(url, atual):
-    deu, msg = fv.fixar_plugin(url, atual)
+def fixar_somente(url, atual, projeto):
+    deu, msg = fv.fixar_plugin(url, atual, projeto=projeto)
     print(f"Forge: {msg}.", file=sys.stdout if deu else sys.stderr)
     return 0 if deu else 1
 
@@ -72,7 +74,7 @@ def main():
         print("forge atualizar: não achei um endereço seguro (https) para consultar as versões do Forge. Não mudei nada.", file=sys.stderr)
         return 1
     if "--fixar" in args:
-        return fixar_somente(url, atual)
+        return fixar_somente(url, atual, projeto)
     if git(projeto, "status", "--porcelain")[1]:
         print("Há mudanças não salvas neste projeto. Salve (forge salvar) ou desfaça (forge desfazer) e rode de novo. Não mudei nada.")
         return 1
@@ -96,7 +98,7 @@ def main():
             novidades = []
         print(f"Versão do Forge em uso: {atual}\nVersão nova: {nova}\nO que muda:")
         print("\n".join(f"  - {n}" for n in novidades) or "  - (o CHANGELOG não trouxe um resumo)")
-        print(f"Vou guardar um ponto de retorno (a versão {atual} e uma cópia da configuração do projeto), conferir o que muda "
+        print(f"Vou guardar um ponto de retorno (a versão {atual} e uma cópia dos arquivos do `.forge/` que estão no git), conferir o que muda "
               f"no projeto e só então atualizar. Nada vai ao GitHub sem você.")
         if not fv.confirmar(f"Atualizar o Forge da versão {atual} para a {nova}?"):
             print("Tudo bem, não mudei nada.")
@@ -105,12 +107,14 @@ def main():
 
 
 def atualizar(projeto, url, atual, nova, forge_novo):
+    problemas_antes, _ = fv.problemas_do_doutor(RAIZ / "bin", projeto)
     _, ramo_antes = git(projeto, "branch", "--show-current")
     _, cabeca = git(projeto, "rev-parse", "HEAD")
     _, versao_do_projeto = git(projeto, "show", "HEAD:.forge/versao")
     ponto = fv.criar_ponto(projeto, {
         "projeto": str(projeto), "plugin_antes": atual, "plugin_depois": nova, "projeto_antes": versao_do_projeto or atual,
-        "branch_antes": ramo_antes, "branch_upgrade": f"forge/upgrade-{nova}", "head_antes": cabeca, "url": url, "usado": False})
+        "branch_antes": ramo_antes, "branch_upgrade": f"forge/upgrade-{nova}", "head_antes": cabeca, "url": url, "usado": False,
+        "problemas_antes": problemas_antes})
     tag = f"forge/antes-{atual}"
     criou_tag = git(projeto, "rev-parse", "-q", "--verify", f"refs/tags/{tag}")[0] != 0 and git(projeto, "tag", tag, "HEAD")[0] == 0
     print(f"Ponto de retorno guardado em {ponto}" + (f" (e a marca {tag} no projeto)." if criou_tag else "."))
@@ -127,7 +131,7 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         print("Não mudei nada no projeto nem no plugin. Se o problema persistir, peça ao Jarvis para registrar como sugestão ao Forge.")
         return 1
 
-    deu, msg = fv.fixar_plugin(url, nova, voltar_para=atual)
+    deu, msg = fv.fixar_plugin(url, nova, voltar_para=atual, projeto=projeto)
     if not deu:
         descartar()
         print(f"Não deu para trocar o plugin: {msg}. O projeto não foi mexido.")
@@ -140,13 +144,17 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         print("A atualização do projeto parou no meio (a branch de trabalho ficou como está, nada se perdeu).")
         return oferecer_voltar(atual)
 
-    codigo, saida = rodar_do_forge_novo(forge_novo, "forge-doutor", "--rapido", str(projeto))
-    if codigo != 0:
-        print(f"O doutor achou coisas para ver depois da atualização (podem não ter relação com ela):\n{saida}")
+    problemas, saida = fv.problemas_do_doutor(forge_novo / "bin", projeto)
+    novos = [p for p in problemas if p not in problemas_antes]
+    antigos = [p for p in problemas if p in problemas_antes]
+    if novos:
+        print("O doutor achou coisa nova depois da atualização (podem não ter relação com ela):\n" + "\n".join(f"- {p}" for p in novos))
+        if antigos:
+            print("Já existiam antes da atualização:\n" + "\n".join(f"- {p}" for p in antigos))
         return oferecer_voltar(atual)
-    print(f"\nPronto: o Forge está na versão {nova} e o doutor não achou nada. Para voltar: forge voltar-versao")
+    resto = ("\nJá existiam antes da atualização (não mexi):\n" + "\n".join(f"- {p}" for p in antigos)) if antigos else ""
+    print(f"\nPronto: o Forge está na versão {nova} e o doutor não achou nada novo.{resto}\nPara voltar: forge voltar-versao")
     return 0
-
 
 if __name__ == "__main__":
     try:

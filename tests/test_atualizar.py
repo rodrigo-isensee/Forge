@@ -7,6 +7,7 @@ As confirmações são respondidas num terminal de verdade (pty), como a pessoa 
 import json
 import os
 import pty
+import select
 import shutil
 import subprocess
 import sys
@@ -26,6 +27,13 @@ CLAUDE_FALSO = r"""#!/usr/bin/env bash
 echo "claude $*" >> "$FAKE_DIR/claude.log"
 if [ -f "$FAKE_DIR/claude-falha" ] && [[ "$*" == *"$(cat "$FAKE_DIR/claude-falha")"* ]]; then
   echo "claude falso: falhou de propósito" >&2; exit 1
+fi
+# Imita o defeito do `claude` real: `marketplace remove` sem `--scope` reescreve o settings.json do projeto (o cwd)
+if [ "$2 $3" = "marketplace remove" ] && [[ "$*" != *"--scope user"* ]] && [ -f "$PWD/.claude/settings.json" ]; then
+  echo '{}' > "$PWD/.claude/settings.json"
+fi
+if [ -f "$FAKE_DIR/suja-projeto" ] && [ "$2 $3" = "marketplace remove" ]; then
+  echo '{"agent": "outro"}' > "$(cat "$FAKE_DIR/suja-projeto")/.claude/settings.json"
 fi
 exit 0
 """
@@ -52,7 +60,10 @@ class Base(unittest.TestCase):
         self.montar_projeto()
         self.escrever_home(".claude/plugins/installed_plugins.json",
                            json.dumps({"version": 2, "plugins": {"forge@forge": [{"scope": "user", "version": VERSAO}]}}))
-        self.escrever_home(".claude/settings.json", json.dumps({"sandbox": {"enabled": True}}))
+        self.escrever_home(".claude/settings.json", json.dumps({
+            "sandbox": {"enabled": True},
+            "extraKnownMarketplaces": {"forge": {"source": {"source": "github", "repo": "dono/Forge"}}}}))
+        self.publicar(VERSAO)
 
     def montar_projeto(self):
         remoto = self.tmp / "remoto.git"
@@ -64,7 +75,7 @@ class Base(unittest.TestCase):
         self.escrever(".claude/settings.json", json.dumps({"agent": "forge:jarvis", "enabledPlugins": {"forge@forge": True}}))
         self.escrever(".githooks/pre-push", "#!/bin/sh\nexit 0\n")
         (self.proj / ".githooks" / "pre-push").chmod(0o755)
-        self.escrever(".gitignore", ".forge/run/\n")
+        self.escrever(".gitignore", ".forge/run/\n.forge/local.json\n.claude/settings.local.json\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "chore: inicio")
         self.git("push", "-q", "origin", "main")
@@ -92,6 +103,8 @@ class Base(unittest.TestCase):
     def publicar(self, versao, falha=None, novidade="Passa a avisar quando sai versão nova."):
         """Cria a tag v<versao> no Forge publicado: cópia do plugin real, versão trocada e um CHANGELOG pequeno."""
         trabalho = self.tmp / f"pub-{versao}"
+        if trabalho.exists():
+            return
         trabalho.mkdir()
         for pasta in ("bin", "migrations", "templates", ".claude-plugin"):
             shutil.copytree(RAIZ / pasta, trabalho / pasta)
@@ -107,7 +120,7 @@ class Base(unittest.TestCase):
             (trabalho / "bin" / "forge-upgrade").write_text("#!/usr/bin/env python3\nimport sys\nprint('migração quebrada', file=sys.stderr)\nsys.exit(3)\n", encoding="utf-8")
             (trabalho / "bin" / "forge-upgrade").chmod(0o755)
         if falha == "doutor":
-            (trabalho / "bin" / "forge-doutor").write_text("#!/usr/bin/env python3\nimport sys\nprint('Forge doutor: 1 coisa para ver')\nsys.exit(1)\n", encoding="utf-8")
+            (trabalho / "bin" / "forge-doutor").write_text("#!/usr/bin/env python3\nimport sys\nprint('Forge doutor: 1 coisa para ver\\n- problema novo do doutor')\nsys.exit(1)\n", encoding="utf-8")
             (trabalho / "bin" / "forge-doutor").chmod(0o755)
         self.git("init", "-q", "-b", "main", cwd=trabalho)
         self.git("add", "-A", cwd=trabalho)
@@ -127,8 +140,10 @@ class Base(unittest.TestCase):
         p = subprocess.Popen([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, stdin=escravo,
                              stdout=escravo, stderr=escravo, close_fds=True)
         os.close(escravo)
-        saida, limite = b"", time.time() + 90
+        saida, limite = b"", time.time() + 25
         while time.time() < limite:
+            if not select.select([mestre], [], [], 1)[0]:
+                continue
             try:
                 bloco = os.read(mestre, 4096)
             except OSError:
@@ -136,6 +151,9 @@ class Base(unittest.TestCase):
             if not bloco:
                 break
             saida += bloco
+        if p.poll() is None:  # pergunta sem resposta: o teste falha em vez de travar
+            p.kill()
+            saida += b"\n[TRAVOU esperando resposta]"
         p.wait(timeout=30)
         os.close(mestre)
         return p.returncode, saida.decode("utf-8", "replace").replace("\r", "")
@@ -169,10 +187,10 @@ class Atualizar(Base):
         meta = json.loads((ponto / "meta.json").read_text(encoding="utf-8"))
         self.assertEqual((meta["plugin_antes"], meta["plugin_depois"], meta["projeto_antes"]), (VERSAO, "9.9.0", VERSAO))
         self.assertEqual((ponto / "forge" / "versao").read_text(encoding="utf-8").strip(), VERSAO)
-        self.assertTrue((ponto / "claude" / "settings.json").is_file())
+        self.assertFalse((ponto / "claude").exists(), "o ponto não guarda configuração do Claude")
         self.assertFalse((ponto / "forge" / "run").exists())
         chamadas = self.chamadas_do_claude()
-        self.assertTrue(any(c.startswith("claude plugin marketplace add ") and c.endswith("#v9.9.0") for c in chamadas), chamadas)
+        self.assertTrue(any(c.startswith("claude plugin marketplace add ") and c.endswith("#v9.9.0 --scope user") for c in chamadas), chamadas)
         self.assertEqual(self.git("ls-remote", "--heads", "origin").count("upgrade"), 0, "nunca envia nada")
         self.assertIn("gh pr create", saida)
 
@@ -181,7 +199,7 @@ class Atualizar(Base):
         self.assertEqual(codigo, 0, saida)
         adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
         self.assertEqual(len(adds), 1, adds)
-        self.assertTrue(adds[0].endswith("#v" + VERSAO))
+        self.assertTrue(adds[0].endswith("#v" + VERSAO + " --scope user"))
         self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
 
     def test_recusa_nao_muda_nada(self):
@@ -242,7 +260,7 @@ class Atualizar(Base):
         self.assertEqual(codigo, 1, saida)
         self.assertIn("Voltar para a versão " + VERSAO, saida)
         adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
-        self.assertTrue(adds[0].endswith("#v9.9.2") and adds[-1].endswith("#v" + VERSAO), adds)
+        self.assertTrue(adds[0].endswith("#v9.9.2 --scope user") and adds[-1].endswith("#v" + VERSAO + " --scope user"), adds)
         self.assertEqual(self.git("branch", "--show-current"), "main")
         self.assertIn("forge/upgrade-9.9.2", self.ramos(), "o trabalho da atualização não é apagado")
         self.assertEqual((self.proj / ".forge/versao").read_text(encoding="utf-8").strip(), VERSAO)
@@ -262,7 +280,7 @@ class Atualizar(Base):
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 1, saida)
         adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
-        self.assertTrue(adds[-1].endswith("#v" + VERSAO), adds)
+        self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user", adds)
         self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
 
 
@@ -297,7 +315,7 @@ class Voltar(Base):
         codigo, saida = self.rodar(VOLTAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
         adds = self.chamadas_do_claude()
-        self.assertTrue(any(c.endswith("#v" + VERSAO) for c in adds if " marketplace add " in c), adds)
+        self.assertTrue(any(c.endswith("#v" + VERSAO + " --scope user") for c in adds if " marketplace add " in c), adds)
         self.assertEqual(self.git("branch", "--show-current"), "main")
         self.assertEqual((self.proj / ".forge/versao").read_text(encoding="utf-8").strip(), VERSAO)
         self.assertIn("forge/upgrade-9.9.0", self.ramos(), "nunca apaga trabalho")
@@ -423,6 +441,142 @@ class AvisoDoDoutor(Base):
         mensagem = json.loads(r.stdout)["systemMessage"]
         self.assertIn("9.9.0", mensagem)
         self.assertIn("Forge doutor", mensagem)
+
+
+OPERACOES = (" marketplace add ", " marketplace remove ", " plugin update ", " plugin install ")
+
+
+class Revisao(Base):
+    """Correções do review do PR 111: escopo de usuário, ordem segura, ponto sem segredo, doutor antes e depois."""
+
+    def py(self, codigo, env=None, cwd=None):
+        return subprocess.run([sys.executable, "-c", "import sys; sys.path.insert(0, sys.argv[1]); import forge_versoes as v\n" + codigo,
+                               str(RAIZ / "bin")], env=env or self.env, cwd=cwd or self.proj, capture_output=True, text=True)
+
+    def test_toda_operacao_do_plugin_usa_o_escopo_de_usuario_e_o_settings_do_projeto_fica_intacto(self):
+        self.publicar("9.9.0")
+        antes = (self.proj / ".claude/settings.json").read_text(encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        operacoes = [c for c in self.chamadas_do_claude() if any(o in c + " " for o in OPERACOES)]
+        self.assertTrue(operacoes)
+        for c in operacoes:
+            self.assertIn("--scope user", c)
+        self.assertEqual((self.proj / ".claude/settings.json").read_text(encoding="utf-8"), antes)
+        self.assertEqual(self.git("show", "main:.claude/settings.json"), antes)
+
+    def test_se_o_claude_mexer_em_arquivo_versionado_o_forge_restaura_e_avisa(self):
+        self.publicar("9.9.0")
+        (self.fake / "suja-projeto").write_text(str(self.proj), encoding="utf-8")
+        antes = (self.proj / ".claude/settings.json").read_text(encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("restaurei", saida)
+        self.assertEqual((self.proj / ".claude/settings.json").read_text(encoding="utf-8"), antes)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def test_falha_no_add_devolve_exatamente_a_fonte_e_o_escopo_originais(self):
+        self.publicar("9.9.0")
+        (self.fake / "claude-falha").write_text("#v9.9.0", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        chamadas = self.chamadas_do_claude()
+        adds = [c for c in chamadas if " marketplace add " in c]
+        self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user", chamadas)
+        self.assertTrue(any(c.startswith("claude plugin install forge@forge --scope user") or c.startswith("claude plugin update forge@forge --scope user")
+                            for c in chamadas[chamadas.index(adds[-1]):]), chamadas)
+        self.assertNotIn("#v" + VERSAO, adds[-1])
+
+    def test_falha_no_update_e_no_install_tambem_devolve_a_fonte_original(self):
+        self.publicar("9.9.0")
+        (self.fake / "claude-falha").write_text("forge@forge --scope user", encoding="utf-8")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 1, saida)
+        adds = [c for c in self.chamadas_do_claude() if " marketplace add " in c]
+        self.assertEqual(adds[-1], "claude plugin marketplace add dono/Forge --scope user")
+
+    def test_sem_rede_ou_sem_a_tag_nada_e_removido(self):
+        env = {**self.env, "FORGE_REPO_URL": str(self.tmp / "nao-existe.git")}
+        r = self.py("print(v.fixar_plugin(v.url_do_forge(), '9.9.0'))", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("False", r.stdout)
+        self.assertEqual(self.chamadas_do_claude(), [], "a checagem da tag vem antes do remove")
+        r = self.py("print(v.fixar_plugin(v.url_do_forge(), '8.8.8'))")  # rede ok, tag inexistente
+        self.assertIn("False", r.stdout)
+        self.assertEqual(self.chamadas_do_claude(), [])
+
+    def test_sem_a_marketplace_no_claude_nao_mexe_em_nada(self):
+        self.escrever_home(".claude/settings.json", json.dumps({"sandbox": {"enabled": True}}))
+        r = self.py(f"print(v.fixar_plugin(v.url_do_forge(), '{VERSAO}'))")
+        self.assertIn("False", r.stdout)
+        self.assertEqual([c for c in self.chamadas_do_claude() if "list" not in c], [])
+
+    def test_ponto_de_retorno_nao_guarda_segredo_nem_o_que_nao_e_versionado_e_a_volta_nao_sobrescreve(self):
+        self.publicar("9.9.0")
+        self.escrever(".claude/settings.local.json", json.dumps({"env": {"TOKEN": "segredo-xyz"}}))
+        self.escrever(".forge/local.json", '{"chave": "local-xyz"}')
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        (ponto,) = self.pontos()
+        for arq in ponto.rglob("*"):
+            if arq.is_file():
+                texto = arq.read_text(encoding="utf-8", errors="replace")
+                self.assertNotIn("segredo-xyz", texto, str(arq))
+                self.assertNotIn("local-xyz", texto, str(arq))
+        self.assertFalse(list(ponto.rglob("settings*.json")))
+        self.assertEqual(ponto.stat().st_mode & 0o077, 0, "a pasta do ponto é só do dono")
+        self.git("switch", "-q", "develop")
+        self.git("merge", "-q", "--no-ff", "-m", "Merge upgrade", "forge/upgrade-9.9.0")
+        self.escrever(".claude/settings.local.json", json.dumps({"env": {"TOKEN": "segredo-novo"}}))
+        self.escrever(".forge/local.json", '{"chave": "local-novo"}')
+        codigo, saida = self.rodar(VOLTAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("segredo-novo", (self.proj / ".claude/settings.local.json").read_text(encoding="utf-8"))
+        self.assertIn("local-novo", (self.proj / ".forge/local.json").read_text(encoding="utf-8"))
+        self.assertNotIn("local.json", saida.split("Arquivos que a atualização criou")[-1] if "Arquivos que a atualização criou" in saida else "")
+
+    def test_dois_projetos_com_o_mesmo_nome_nao_compartilham_o_ponto(self):
+        v = self.py("print(1)")
+        self.assertEqual(v.returncode, 0)
+        outro = self.tmp / "outro" / self.proj.name
+        outro.mkdir(parents=True)
+        r = self.py(f"from pathlib import Path\nv.criar_ponto(Path({str(self.proj)!r}), {{'projeto': {str(self.proj)!r}, 'plugin_antes': 'a', 'plugin_depois': 'b'}})\n"
+                    f"print(v.ultimo_ponto(Path({str(outro)!r}))[0])")
+        self.assertEqual(r.stdout.strip(), "None")
+
+    def test_doutor_antes_e_depois_so_oferece_voltar_se_o_problema_for_novo(self):
+        self.publicar("9.9.0")
+        self.git("branch", "-q", "-D", "homolog")  # problema que já existe antes da atualização
+        antes = subprocess.run([str(RAIZ / "bin" / "forge-doutor"), "--rapido", str(self.proj)], env=self.env, capture_output=True, text=True)
+        self.assertIn("homolog", antes.stdout, "pré-condição: o doutor vê o problema antigo")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertNotIn("Voltar para a versão", saida)
+        self.assertIn("Já existiam antes", saida)
+
+    def test_doutor_com_problema_novo_oferece_voltar(self):
+        self.publicar("9.9.2", falha="doutor")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("problema novo do doutor", saida)
+        self.assertIn("Voltar para a versão " + VERSAO, saida)
+
+    def test_nao_diz_que_ficou_como_esta_depois_de_voltar(self):
+        self.publicar("9.9.2", falha="doutor")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "s"])
+        self.assertNotIn("Tudo bem, ficou como está", saida)
+
+    def test_consulta_de_tags_ignora_repositorio_acima_da_pasta_temporaria(self):
+        self.publicar("9.9.0")
+        envolvente = self.tmp / "envolvente"
+        envolvente.mkdir()
+        self.git("init", "-q", cwd=envolvente)
+        self.git("config", f"url.https://evil.invalid/x.insteadOf", str(self.publicado), cwd=envolvente)
+        (envolvente / "t").mkdir()
+        env = {**self.env, "TMPDIR": str(envolvente / "t")}
+        r = self.py("print(v.ultima_versao(v.url_do_forge()))", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("'9.9.0'", r.stdout)
 
 
 class Subcomandos(Base):

@@ -90,9 +90,16 @@ SIMPLES = {
     "historico": "Isso reescreve o histórico e as outras cópias deixam de bater. Para voltar atrás, use o 'forge desfazer'.",
     "integracao": "Isso apagaria uma linha de trabalho central do projeto, que ninguém mais conseguiria usar. Peça ao Jarvis.",
     "perfil": "O seu perfil de uso só muda por você, não por mim. Se quiser mudar, peça ao Jarvis como fazer.",
+    "atualizar": "Atualizar ou voltar a versão do Forge é com você, no terminal: rode 'forge atualizar' (ou 'forge voltar-versao'). "
+                 "Posso explicar o que muda.",
     "instalacao": "Isso mexe na instalação do Forge, que fica protegida para o projeto não quebrar. "
                   "Posso registrar o pedido como sugestão ao Forge.",
 }
+# F5: quem atualiza o Forge (ou volta de versão) é a pessoa, no terminal; o agente só oferece e explica.
+BINARIOS_DE_ATUALIZACAO = {"forge-atualizar", "forge-voltar-versao"}
+SUBCOMANDOS_DE_ATUALIZACAO = {"atualizar", "voltar-versao"}
+ENVOLVEDORES = {"env", "script", "nohup", "sudo", "command", "exec", "time", "timeout", "setsid", "stdbuf", "unbuffer", "xargs",
+                "nice", "ionice", "busybox", "expect", "socat"}
 SUGESTAO = "se deveria valer, registre como sugestão ao Forge"
 PERGUNTAS = {
     "descartar": "Isso descarta as mudanças ainda não salvas e não dá para recuperá-las. Prefira 'forge desfazer'. Confirma?",
@@ -518,6 +525,10 @@ class Guarda:
             if raiz:
                 ramos[raiz.resolve()] = parte[2]
         if prog in SHELLS:
+            self.atualizacao(palavras, so_binarios=True)
+        elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
+            self.atualizacao(palavras)
+        if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
                     self.aninhado(args[i + 1], pasta, nivel, atribuicoes)
@@ -799,6 +810,19 @@ class Guarda:
                 if metodo in ("PATCH", "PUT") and REPO_APAGAR.match(parecer.endpoint_da_api(args)):
                     return True
         return False
+
+    def atualizacao(self, palavras, so_binarios=False):
+        """`forge atualizar`, `forge voltar-versao` e os binários `forge-atualizar` e `forge-voltar-versao`, direto ou por baixo de
+        `env`, `script` (terminal falso), interpretador ou aspas: o agente não roda (R-CONFORMIDADE); a pessoa roda no terminal."""
+        todas = [w.strip("'\"`;()") for p in palavras for w in p.split()]
+        direto = Path(palavras[0]).name in ("forge", *BINARIOS_DE_ATUALIZACAO)  # só o comando em si, não o texto que ele recebe
+        for i, palavra in enumerate(todas[:1] if direto else todas):
+            nome = Path(palavra).name
+            sub = next((x for x in todas[i + 1:] if not x.startswith("-")), "")
+            if nome in BINARIOS_DE_ATUALIZACAO or (nome == "forge" and not so_binarios and sub in SUBCOMANDOS_DE_ATUALIZACAO):
+                self.barrar("R-CONFORMIDADE", f"`{nome}{' ' + sub if nome == 'forge' else ''}` troca o plugin e mexe no projeto",
+                            "quem roda é a pessoa, no terminal (rode no terminal: forge atualizar); o agente só oferece e explica",
+                            "atualizar")
 
     def claude(self, args):
         """Instalação intocável (2.2): dentro da sessão, `claude plugin` e `claude config` não mudam o Forge nem a

@@ -4,7 +4,7 @@ Uso: forge voltar-versao
 Lê o ponto de retorno guardado por `forge atualizar` (~/.local/state/forge/retorno/), mostra o que vai voltar e só age com "s":
 1) troca o plugin de volta para a versão anterior (fixada na tag vX.Y.Z); se isso falhar, para antes de mexer no projeto;
 2) no projeto: atualização ainda não mesclada, volta para a branch de antes e MANTÉM a branch da atualização (feche o pull request, se
-   abriu um); já mesclada, cria a branch `forge/voltar-<versão>` com os arquivos de antes (`.forge/` e a configuração), num commit.
+   abriu um); já mesclada, cria a branch `forge/voltar-<versão>` com os arquivos de antes (só os de `.forge/` que estão no git), num commit.
 Nunca força nada, nem reescreve a história, nem apaga branch, arquivo ou trabalho: arquivos que a atualização criou só são listados.
 Saída: 0 voltou (ou você recusou); 1 não deu para voltar; 2 sem terminal."""
 import shutil
@@ -35,20 +35,19 @@ def ja_mesclada(projeto, meta):
 
 
 def restaurar_arquivos(projeto, ponto):
-    """Copia por cima os arquivos guardados no ponto. Devolve a lista de arquivos novos que a atualização criou (ficam)."""
-    for origem in sorted((ponto / "forge").rglob("*")):
-        destino = projeto / ".forge" / origem.relative_to(ponto / "forge")
-        if origem.is_dir():
-            destino.mkdir(parents=True, exist_ok=True)
-        else:
-            destino.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(origem, destino)
-    for origem in sorted((ponto / "claude").glob("*.json")):
-        (projeto / ".claude").mkdir(exist_ok=True)
-        shutil.copy2(origem, projeto / ".claude" / origem.name)
-    guardados = {p.relative_to(ponto / "forge") for p in (ponto / "forge").rglob("*") if p.is_file()}
-    atuais = [p for p in (projeto / ".forge").rglob("*") if p.is_file() and "run" not in p.relative_to(projeto / ".forge").parts]
-    return sorted(str(p.relative_to(projeto)) for p in atuais if p.relative_to(projeto / ".forge") not in guardados)
+    """Copia por cima os arquivos VERSIONADOS guardados no ponto. Nunca sobrescreve arquivo que o git não versiona (local, segredo,
+    ignorado). Devolve a lista de arquivos versionados novos que a atualização criou (ficam)."""
+    versionados = set(fv.arquivos_versionados(projeto, ".forge"))
+    guardados = set()
+    for origem in sorted(p for p in (ponto / "forge").rglob("*") if p.is_file()):
+        relativo = origem.relative_to(ponto / "forge")
+        guardados.add(str(Path(".forge") / relativo))
+        destino = projeto / ".forge" / relativo
+        if destino.exists() and str(Path(".forge") / relativo) not in versionados:
+            continue
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(origem, destino)
+    return sorted(a for a in versionados if a not in guardados and "run" not in Path(a).parts)
 
 
 def voltar_projeto(projeto, ponto, meta):
@@ -73,7 +72,7 @@ def voltar_projeto(projeto, ponto, meta):
         print(f"Não consegui criar a branch {nova}: {saida}. Não mexi no projeto.")
         return 1
     novos = restaurar_arquivos(projeto, ponto)
-    git(projeto, "add", "-A", ".forge", ".claude")
+    git(projeto, "add", "-A", "--", ".forge")
     if not git(projeto, "status", "--porcelain")[1]:
         git(projeto, "switch", atual or base)
         git(projeto, "branch", "-d", nova)
@@ -124,7 +123,7 @@ def main():
     if url is None:
         print("Não achei um endereço seguro (https) para trocar o plugin. Não mudei nada.")
         return 1
-    deu, msg = fv.fixar_plugin(url, antes, voltar_para=depois)
+    deu, msg = fv.fixar_plugin(url, antes, voltar_para=depois, projeto=projeto)
     if not deu:
         print(f"Parei antes de mexer no projeto: {msg}.")
         return 1

@@ -94,6 +94,7 @@ Avise o usuário no resumo da etapa, sem interromper o trabalho. Continuam sendo
 - Pasta de projeto sem `.forge/versao` (ainda não adotou o Forge): ofereça o roteiro de primeiro uso e, aceito, conduza-o pela skill `forge:novo-projeto` (o comando `forge novo-projeto`, no terminal, já cria o repositório e abre você nela).
 - Se `.forge/perfil` contém `iniciante` (ausente ou `experiente` = fluxo normal), leia a skill `forge:modo-iniciante` e siga-a: sem jargão, e decisão técnica o time toma e registra (`R-DECISAO`).
 
+- Versão nova do Forge (o aviso do doutor) ou pedido para voltar de versão: só ofereça e explique o que muda. Quem atualiza é a pessoa, no terminal (`forge atualizar`, `forge voltar-versao`); a proteção recusa o agente que tentar (`R-CONFORMIDADE`).
 - Pedido para editar o próprio Forge (plugin, hooks, `.forge/`, `.claude/settings*`) a proteção recusa (`R-CONFORMIDADE`): explique, não contorne e registre como sugestão ao Forge (`forge:modo-iniciante`; a F6 envia).
 
 ## Comunicação com o usuário
