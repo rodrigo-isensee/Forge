@@ -1,5 +1,5 @@
 # F5-01 - o hook não barra `forge atualizar` escondido atrás de indireção do shell, e a trava de terminal se contorna com pty
-- Severidade: média
+- Severidade: média (CORRIGIDO e verificado no reteste, 1396c7e)
 - Responsável sugerido: forge:tech-lead (hooks `conformidade`) ou o agente que mantém `bin/forge_versoes.py`
 - Ambiente: melhoria/primeiro-uso-f5 @ e532702; `claude` falso, HOME e git temporários
 

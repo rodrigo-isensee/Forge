@@ -3,15 +3,15 @@ tipo: qa
 contrato: 1
 pedido: primeiro-uso-f5
 branch: melhoria/primeiro-uso-f5
-commit: e532702
+commit: 1396c7e
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
-bugs_baixos: 1
-aceite_usuario: sim
+bugs_medios: 0
+bugs_baixos: 0
+aceite_usuario: nao
 data: 2026-10-14
 ---
 
@@ -57,3 +57,13 @@ Nunca houve perda de trabalho nem estado sem o plugin: em todos os cenários de 
 
 ## Parecer
 Aprovado, com aceite do usuário para os dois bugs abertos (um médio e um baixo). Nada perde trabalho nem deixa a pessoa sem o plugin; o F5-01 é a trava que pode ser contornada por um agente e deve ser tratado no PR seguinte (ou antes, a critério do dono). A pendência já registrada do spike continua: confirmar o checkout da tag na primeira atualização real.
+
+## Reteste (volta 2, HEAD 1396c7e)
+Mesmo método: worktree temporária, sem rede, `gh` bloqueado no PATH, `claude` falso, HOME e git temporários. Nenhum código foi alterado.
+
+- Suíte: `python3 -m unittest discover -s tests` com `gh` bloqueado: 459 testes, OK, 108 s, sem `skip`.
+- **F5-01 (corrigido).** Com `CLAUDECODE` e `CLAUDE_CODE_ENTRYPOINT` no ambiente, `$(which forge) atualizar`, `f=forge; $f atualizar`, `` `which forge` voltar-versao ``, `bash <<< "forge atualizar"`, `pty.spawn(['forge','atualizar'])` e `printf 's\n' | pty.spawn(['python3','bin/forge-atualizar'])` (o caso que antes trocava o plugin) saem com código 2 e a mensagem "isto é com você, não com o Claude... Não mudei nada". Nenhuma chamada ao `claude` falso, nenhuma branch nova. O ancestral `claude` sem variável é coberto por `Dentro.test_ancestral_chamado_claude_recusa...` (verde na suíte).
+- **F5-02 (corrigido).** Caminho feliz: um texto só, sem bloco do doutor pedindo `forge-upgrade` no meio, termina com "Pronto", a branch `forge/upgrade-9.9.0`, o `gh pr create` e "Para voltar". Doutor com problema novo: "Os arquivos do projeto foram atualizados na branch ..., mas o doutor (a checagem de saúde do projeto) achou coisa nova", sem "Pronto" antes de "Algo não saiu como esperado". Ctrl-C na troca: "Interrompido. Nada foi atualizado: o Forge continua na versão 0.12.0.", sem ponto nem marca sobrando, e `voltar-versao` diz que não há ponto de retorno (não fala mais de uma 9.9.0 nunca instalada).
+- **Regressão (sem `CLAUDECODE`, simulando o terminal da pessoa).** Caminho feliz, recusa (`n`), simulação falha, doutor novo com voltar aceito (plugin refixado em v0.12.0, branch da atualização guardada, projeto na `main`) e recusado, sem rede, árvore suja (`atualizar`, `--fixar`), `--fixar`, `voltar-versao` feliz e repetido, Ctrl-C: todos como no primeiro parecer. Nada perdeu trabalho e nenhum deixou a pessoa sem o plugin.
+
+Parecer do reteste: aprovado, sem bugs abertos (F5-01 e F5-02 fechados). Ficam só os recomendados já registrados da review e a pendência do spike (confirmar o checkout da tag na primeira atualização real).

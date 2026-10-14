@@ -1,5 +1,5 @@
 # F5-02 - mensagens confusas para quem não programa (texto do doutor no meio, "Pronto" seguido de "Algo não saiu", Ctrl-C)
-- Severidade: baixa
+- Severidade: baixa (CORRIGIDO e verificado no reteste, 1396c7e)
 - Responsável sugerido: forge:tech-lead (`bin/forge-atualizar`, `bin/forge-voltar-versao`)
 - Ambiente: melhoria/primeiro-uso-f5 @ e532702
 
