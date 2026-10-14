@@ -225,5 +225,120 @@ class RodarJobTest(unittest.TestCase):
                 self.assertEqual(ci.rodar_job(job, self.ctx, Path(d), "b" * 40, Path(d))["estado"], ci.OK)
 
 
+class PortoesDeSegurancaTest(unittest.TestCase):
+    """Regressões do review de segurança: A1 (fork), A2 (ambiente mínimo), C1 (symlink) e D (status autodeclarado)."""
+    PR_BASE = {**PR, "state": "OPEN", "isCrossRepository": False, "headRepositoryOwner": {"login": "dona"}}
+
+    def principal(self, pr, *args):
+        """Roda main() com `gh` simulado; devolve (SystemExit ou None, comandos executados). O fetch falha de propósito."""
+        chamadas = []
+
+        def gh(*a):
+            return {"pr": pr, "repo": {"nameWithOwner": "dona/repo"}}[a[0]]
+
+        def rodar(args, **kw):
+            chamadas.append(list(args))
+            out = "/repo\n" if args[:2] == ["git", "rev-parse"] else ""
+            return ci.subprocess.CompletedProcess(args, 1 if args[:2] == ["git", "fetch"] else 0, out, "")
+
+        velho = (ci.gh_json, ci.rodar)
+        ci.gh_json, ci.rodar = gh, rodar
+        try:
+            try:
+                ci.main(["7", *args])
+                erro = None
+            except SystemExit as e:
+                erro = e
+        finally:
+            ci.gh_json, ci.rodar = velho
+        return erro, chamadas
+
+    def test_pr_de_fork_e_recusado_antes_de_buscar_ou_criar_worktree(self):
+        erro, chamadas = self.principal({**self.PR_BASE, "isCrossRepository": True, "headRepositoryOwner": {"login": "fulano"}})
+        self.assertIn("fork", str(erro.code))
+        self.assertFalse([c for c in chamadas if c[:2] in (["git", "fetch"], ["git", "worktree"])])
+
+    def test_pr_de_fork_com_confiar_segue_e_avisa(self):
+        erro, chamadas = self.principal({**self.PR_BASE, "isCrossRepository": True}, "--confiar")
+        self.assertIn("buscar", str(erro.code))  # passou do portão e foi até o fetch
+        self.assertTrue([c for c in chamadas if c[:2] == ["git", "fetch"]])
+
+    def test_pr_do_mesmo_repositorio_segue_sem_confiar(self):
+        erro, _ = self.principal(self.PR_BASE)
+        self.assertIn("buscar", str(erro.code))
+
+    def test_pedido_ao_gh_inclui_origem_da_cabeca(self):
+        import inspect
+        self.assertIn("isCrossRepository", inspect.getsource(ci.main))
+        self.assertIn("headRepositoryOwner", inspect.getsource(ci.main))
+
+    def test_passo_so_ve_ambiente_da_lista_branca(self):
+        import tempfile
+        nomes = {"FORGE_TESTE_CRED_TOKEN": "x", "FORGE_TESTE_PROXY_PASSWORD": "y", "LC_ALL": "C"}
+        job = {"id": "j", "nome": "j", "se": "", "passos": [
+            {"nome": "sem", "se": "", "env": {}, "run": 'env | grep -c "^FORGE_TESTE_" | grep -qx 0\n'},
+            {"nome": "lc", "se": "", "env": {}, "run": '[ "$LC_ALL" = C ] && [ -n "$PATH" ]\n'},
+            {"nome": "decl", "se": "", "env": {"FORGE_TESTE_DECLARADA": "v"}, "run": '[ "$FORGE_TESTE_DECLARADA" = v ]\n'}]}
+        antigo = dict(ci.os.environ)
+        ci.os.environ.update(nomes)
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                r = ci.rodar_job(job, ci.contexto_do_pr(PR, "b" * 40), Path(d), "b" * 40, Path(d))
+        finally:
+            ci.os.environ.clear()
+            ci.os.environ.update(antigo)
+        self.assertEqual(r["estado"], ci.OK, r)
+
+    def test_ambiente_minimo_filtra_por_nome(self):
+        env = ci.ambiente_minimo({"PATH": "/bin", "HOME": "/h", "LC_TIME": "C", "AWS_X": "1", "GITHUB_TOKEN": "t"})
+        self.assertEqual(set(env), {"PATH", "HOME", "LC_TIME"})
+
+    def test_workflow_symlink_conta_como_ausente(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "alvo.yml").write_text("jobs:\n", encoding="utf-8")
+            (d / "ci.yml").symlink_to(d / "alvo.yml")
+            (d / "ok.yml").write_text("jobs:\n", encoding="utf-8")
+            self.assertIsNone(ci.ler_workflow(d / "ci.yml"))
+            self.assertIsNone(ci.ler_workflow(d / "nao-existe.yml"))
+            self.assertEqual(ci.ler_workflow(d / "ok.yml"), "jobs:\n")
+
+    def test_publicar_recusa_pr_que_altera_a_propria_bateria(self):
+        for arquivo in (".github/workflows/ci.yml", "tests/catraca.py"):
+            with self.assertRaises(SystemExit) as c:
+                ci.recusar_publicacao(["README.md", arquivo])
+            self.assertIn("--publicar recusado", str(c.exception.code))
+        ci.recusar_publicacao(["README.md", "tests/test_x.py", ".github/dependabot.yml"])
+
+    def test_publicar_recusa_no_fluxo_principal_antes_de_rodar_a_bateria(self):
+        chamadas = []
+
+        def rodar(args, **kw):
+            chamadas.append(list(args))
+            out = {"rev-parse": "/repo\n", "merge-base": "c" * 40 + "\n", "diff": ".github/workflows/ci.yml\n"}.get(args[1], "")
+            return ci.subprocess.CompletedProcess(args, 0, out, "")
+
+        velho = (ci.gh_json, ci.rodar)
+        ci.gh_json = lambda *a: self.PR_BASE if a[0] == "pr" else {"nameWithOwner": "dona/repo"}
+        ci.rodar = rodar
+        try:
+            with self.assertRaises(SystemExit) as c:
+                ci.main(["7", "--publicar"])
+        finally:
+            ci.gh_json, ci.rodar = velho
+        self.assertIn("--publicar recusado", str(c.exception.code))
+        self.assertFalse([x for x in chamadas if x[:2] == ["git", "worktree"] or x[0] == "gh"])
+
+    def test_ajuda_diz_que_o_status_e_autodeclarado(self):
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), self.assertRaises(SystemExit):
+            ci.main(["--help"])
+        self.assertIn("AUTODECLARADO", buf.getvalue())
+        self.assertIn("--confiar", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

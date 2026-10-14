@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """ci-local: roda localmente a bateria do CI sobre um PR e, com --publicar, grava o resultado como commit status `ci-local`.
 
-Uso: scripts/ci-local <número do PR> [--publicar]
+Uso: scripts/ci-local <número do PR> [--publicar] [--confiar]
+
+Modelo de confiança: o script executa, com os privilégios de quem o roda, os workflows e o código da cabeça do PR (o
+equivalente local de `pull_request_target` com checkout da cabeça). Só o portão antes da execução protege: PR de fork é
+recusado, salvo com `--confiar`. O filtro de ambiente dos passos só reduz vazamento acidental; não impede o `gh` de usar a
+credencial em disco, e o PR escreve os próprios `env:`.
 
 Os jobs vêm dos próprios workflows do PR (.github/workflows/ci.yml e catraca.yml): o script lê cada `run:` e o executa
 na ordem, com as mesmas variáveis de ambiente, numa worktree temporária no sha exato da cabeça do PR. Nada da lógica do
@@ -38,7 +43,41 @@ OK, FALHOU, PULADO = "ok", "falhou", "pulado"
 TOKEN_SE = re.compile(r"\s*(?:(github\.[a-z_.]+)|'((?:[^']|'')*)'|(==|!=|&&|\|\||\(|\)))")
 CHAVES_IGNORADAS = {0: ("env", "defaults"), 4: ("env", "defaults", "continue-on-error"),
                     8: ("working-directory", "shell", "continue-on-error")}
-TOKENS_SECRETOS = ("GITHUB_TOKEN", "GH_TOKEN")
+# Ambiente dos passos por lista branca (o usuário tem credenciais de outros serviços no ambiente); fora daqui, só o que
+# o script define (RUNNER_TEMP, GITHUB_STEP_SUMMARY, CI) e o `env:` do próprio passo.
+ENV_PERMITIDO = {"PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "TERM", "TMPDIR", "TZ", "GITHUB_REPOSITORY"}
+ARQUIVOS_SENSIVEIS = (".github/workflows/", "tests/catraca.py")
+
+
+def ambiente_minimo(environ):
+    return {k: v for k, v in environ.items() if k in ENV_PERMITIDO or k.startswith("LC_")}
+
+
+def recusar_fork(pr, confiar):
+    """Portão de confiança: PR de fork roda código de terceiro com a credencial do usuário; só com `--confiar`."""
+    if not pr.get("isCrossRepository"):
+        return
+    dono = (pr.get("headRepositoryOwner") or {}).get("login", "desconhecido")
+    if not confiar:
+        sys.exit(f"ci-local: o PR vem de um fork (dono da cabeça: {dono}); o código dele rodaria com a sua credencial. "
+                 "Recusado. Revise o código e use --confiar só se confiar no autor.")
+    print(f"AVISO: --confiar: o código do PR de fork de '{dono}' vai rodar nesta máquina com o seu ambiente e com a "
+          "credencial do gh em disco; ela fica exposta a esse código.", file=sys.stderr, flush=True)
+
+
+def recusar_publicacao(arquivos):
+    """O status é autodeclarado; PR que altera a própria bateria poderia esvaziá-la e se dar `success`."""
+    tocados = sorted(a for a in arquivos if a.startswith(ARQUIVOS_SENSIVEIS[0]) or a == ARQUIVOS_SENSIVEIS[1])
+    if tocados:
+        sys.exit("ci-local: --publicar recusado: o PR altera a própria bateria (" + ", ".join(tocados[:5]) + "). "
+                 "Rode sem --publicar.")
+
+
+def ler_workflow(caminho):
+    """Texto do workflow, ou None se ausente ou symlink (a leitura seguiria o link para fora da worktree)."""
+    if caminho.is_symlink() or not caminho.exists():
+        return None
+    return caminho.read_text(encoding="utf-8")
 
 
 # --- Leitura dos workflows (YAML mínimo: só o que os workflows do Forge usam) -----------------------------
@@ -290,8 +329,9 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
         for aviso in avisos_do_script(script):
             print(f"AVISO: {nome}/{passo['nome'] or 'passo'}: {aviso}", file=sys.stderr, flush=True)
-        # O token só entra nos passos que o declaram em `env:` (como no CI); o do usuário não vaza para os demais.
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k not in TOKENS_SECRETOS}
+        # Lista branca: o token e o resto do ambiente do usuário não entram; só chega o que o passo declara em `env:`.
+        # Isso reduz vazamento acidental; não protege de PR mal-intencionado (ele escreve os `env:` e o gh lê a credencial em disco).
+        env = ambiente_minimo(os.environ)
         env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "CI": "true"})
         env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
         print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
@@ -316,15 +356,21 @@ def gh_json(*args):
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Roda a bateria do CI localmente sobre um PR.")
     ap.add_argument("pr", type=int, help="número do PR")
-    ap.add_argument("--publicar", action="store_true", help="grava o resultado como commit status `ci-local`")
+    ap.add_argument("--publicar", action="store_true",
+                    help="grava o resultado como commit status `ci-local`. O status é AUTODECLARADO: não prova que a bateria "
+                         "rodou, usa os workflows do próprio PR (sem merge com a base) e não substitui o CI nem a revisão; "
+                         "é recusado se o PR altera .github/workflows/ ou tests/catraca.py")
+    ap.add_argument("--confiar", action="store_true",
+                    help="aceita PR de fork (o código dele roda aqui com a sua credencial; só se confiar no autor)")
     a = ap.parse_args(argv)
 
     topo = rodar(["git", "rev-parse", "--show-toplevel"], saida=True)
     if topo.returncode:
         sys.exit("ci-local: rode dentro do repositório do Forge.")
     repo_dir = topo.stdout.strip()
-    pr = gh_json("pr", "view", str(a.pr), "--json", "number,headRefOid,headRefName,baseRefName,body,author,state")
+    pr = gh_json("pr", "view", str(a.pr), "--json", "number,headRefOid,headRefName,baseRefName,body,author,state,isCrossRepository,headRepositoryOwner")
     nome_repo = gh_json("repo", "view", "--json", "nameWithOwner")["nameWithOwner"]
+    recusar_fork(pr, a.confiar)
     sha = pr["headRefOid"]
     print(f"PR #{a.pr} ({pr['state']}): {pr['headRefName']} -> {pr['baseRefName']} @ {sha[:12]}")
 
@@ -336,6 +382,10 @@ def main(argv=None):
     base = rodar(["git", "merge-base", sha, f"origin/{pr['baseRefName']}"], cwd=repo_dir, saida=True).stdout.strip()
     if not base:
         sys.exit("ci-local: sem ponto de partida comum entre o PR e a base.")
+
+    if a.publicar:
+        alterados = rodar(["git", "diff", "--name-only", base, sha], cwd=repo_dir, saida=True).stdout.split()
+        recusar_publicacao(alterados)
 
     t = rodar(["gh", "auth", "token"], saida=True)
     token = t.stdout.strip()
@@ -354,10 +404,10 @@ def main(argv=None):
         os.environ.update({"GITHUB_REPOSITORY": nome_repo})  # sem segredo; PR_NUMBER, HEAD_SHA e o token vêm do `env:` de cada passo
         for arquivo in WORKFLOWS:
             caminho = raiz / ".github" / "workflows" / arquivo
-            if not caminho.exists():
-                resultados.append(resultado(arquivo, PULADO, "workflow ausente neste PR", ausente=True))
+            texto = ler_workflow(caminho)
+            if texto is None:
+                resultados.append(resultado(arquivo, PULADO, "workflow ausente (ou symlink) neste PR", ausente=True))
                 continue
-            texto = caminho.read_text(encoding="utf-8")
             for aviso in avisos_do_workflow(arquivo, texto):
                 print(f"AVISO: {aviso}", file=sys.stderr, flush=True)
             for job in ler_jobs(texto):
