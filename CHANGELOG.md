@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **Regras decididas por ferramenta ou por leitura (fonte F1, lote 5):** o `praticas.md` do modelo de projeto ganha a tabela "Regras e quem as decide"; o review (skill `engineering-practices` e `tech-lead`) lê só as regras de leitura que alcançam o diff e cita a saída das de ferramenta; ferramenta sem comando vira pendência. Projetos existentes: o `forge-upgrade` não migra (o `praticas.md` é do projeto); ajuste manual opcional, copiando a seção "Regras e quem as decide" do modelo. Recomendação para PR futuro: `hooks/conformidade.json` impedir o `tech-lead`, ao revisar, de gravar fora de `docs/reviews/`.
 
 ## [0.12.0] - 2026-10-13
 ### Adicionado
