@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f5
 branch: melhoria/primeiro-uso-f5
-commit: 2604b50
+commit: 20c18fd
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-14
@@ -71,5 +71,48 @@ Sonda direta no `hooks/conformidade.py` (perfil `iniciante`, `agent_type: forge:
 ### Recomendado (não bloqueia)
 - **O hook não pega interpretador com código inline nem shell indireto.** Passam: `python3 -c "import pty; pty.spawn(['forge','atualizar'])"` (dá terminal), `python3 -c 'os.system("forge atualizar")'`, `node -e`, `perl -e`, `echo 'forge atualizar' | bash`, `bash <<< '...'`, `f=forge; $f atualizar` e `x=atualizar; forge $x`. Para isso o agente precisa contornar de propósito, e é o mesmo limite das outras travas da F4 por texto. Por isso é recomendação: para `-c`/`-e` de interpretador, procurar `forge-atualizar`, `forge-voltar-versao` e o par `forge` + `atualizar|voltar-versao` no texto inteiro do argumento, tirando `[],` das palavras, e recusar o pipe/here-string para shell que contenha esses termos. Cada caso com uma fixture.
 - A sonda do caminho de sucesso com a CLI real não foi possível sem `https`: o `claude` não aceita `#ref` em fonte de pasta local. O sucesso fica coberto só pelo `claude` falso. Vale uma sonda manual com o endereço real antes da release.
+
+Parecer: **reprovado**. O bloqueante 1 volta ao autor, com o teste que falha antes. O resto está pronto. Depois disso, o rótulo `afrouxa-regra` do dono continua obrigatório.
+
+## Terceira review independente (head `20c18fd`)
+
+Sondas com a CLI real (`claude` 2.1.299, `HOME` e `XDG_STATE_HOME` temporários, Forge local com as tags v0.12.0 e v0.13.0, `FORGE_PERMITE_LOCAL=1`, projeto com o `.claude/settings.json` do modelo, terminal por `script`). Para chegar à parte do projeto do `voltar-versao`, um `claude` intermediário tira o `#vX.Y.Z` da fonte local (a CLI não aceita `#ref` em pasta) e repassa o resto à CLI real.
+
+### Bloqueante anterior: corrigido
+- **Cenário da re-review.** Com `.forge/versao` e `.gitignore` alterados e um `novo.txt` não versionado, `forge atualizar --fixar` e `forge atualizar` recusam com "Há mudanças não salvas" antes de qualquer chamada ao `claude`. As três mudanças continuam lá e o `~/.claude/settings.json` não muda. Com a árvore limpa, o `--fixar` real falha no `add` da tag local e devolve a marketplace (mesmo conteúdo, só a ordem das chaves muda), com o plugin instalado e o projeto limpo.
+- `restaurar_projeto` agora devolve só o que mudou entre a foto e o depois, e o teste `test_a_restauracao_nao_toca_em_arquivo_que_ja_estava_alterado` cobre isso. No fluxo real a foto é sempre vazia, porque a árvore já foi exigida limpa.
+
+### Outros caminhos de perda de trabalho: sem perda
+- **`voltar-versao` com a árvore suja.** Recusa antes de perguntar. `.forge/versao` alterado e `solto.txt` ficam intactos.
+- **Arquivo não versionado com o mesmo nome de um arquivo do ponto.** Se não for ignorado, ele suja a árvore e o comando recusa. Se for ignorado, a volta segue e não o sobrescreve. Sonda: a "atualização mesclada" tirou `.forge/config.json` do git e o pôs no `.gitignore`, com conteúdo local. O `voltar-versao` criou `forge/voltar-0.13.0` só com `.forge/versao` e deixou o `config.json` local como estava.
+
+### Bloqueia o merge
+1. **Ctrl-C entre o `remove` e o `add` deixa o usuário sem o plugin, e a saída indica uma recuperação que não funciona** (`bin/forge_versoes.py`, `trocar_marketplace` e `fixar_plugin`; `bin/forge-atualizar`, `except KeyboardInterrupt`). Sonda com a CLI real: um `claude` intermediário manda SIGINT ao grupo de processos no `marketplace add`, como o Ctrl-C do terminal. Resultado:
+   - `~/.claude/settings.json` fica com `"extraKnownMarketplaces": {}` e `"enabledPlugins": {}`, e `claude plugin list` responde "No plugins installed";
+   - a saída diz "Interrompido. Se algo ficou pela metade, rode: forge voltar-versao";
+   - o `forge voltar-versao` acha o ponto, mas `fonte_original()` não acha mais a marketplace e para com "não achei a marketplace do Forge no seu Claude... Não mexi no plugin";
+   - no `--fixar` não há ponto, e a mesma dica cai em "Não encontrei nenhum ponto de retorno".
+
+   A fonte original não fica gravada em lugar nenhum, então quem não programa fica sem o Forge e sem saber o comando que o devolve. O `add` pela URL https clona o repositório e o `install` copia o plugin, então a janela dura segundos, o bastante para um Ctrl-C de quem acha que travou. O projeto não perde nada: o ponto e a marca `forge/antes-<versão>` ficam, e a árvore continua limpa.
+   Correção:
+   - (a) Proteger a troca. Em `fixar_plugin`, envolver `trocar_marketplace` num `try/except KeyboardInterrupt` que chama `devolver_original(original)` e só depois relança. Rodar o `claude` com `start_new_session=True` (em `claude()`), para o Ctrl-C não matar o filho no meio da escrita.
+   - (b) Gravar a fonte original antes do `remove` (no `meta.json` do ponto e, no `--fixar`, num arquivo em `~/.local/state/forge/`). O `voltar-versao` passa a usá-la quando `fonte_original()` devolve `None`.
+   - (c) A mensagem de interrupção, quando a troca estava em curso, mostra os dois comandos manuais com a fonte original.
+   - (d) Um teste com o `claude` falso mandando SIGINT no `add`: o plugin volta (ou a mensagem traz a fonte), e o `voltar-versao` recupera.
+
+### Recomendado (não bloqueia)
+- `bin/forge-voltar-versao`: `git()` devolve só o `stdout`. Quando o `commit` falha, por exemplo sem identidade do git, a mensagem sai vazia ("Não consegui registrar a volta: . ..."). Incluir o `stderr`.
+- `restaurar_arquivos` pula sem avisar o arquivo do ponto que agora é local ou ignorado. Listá-lo como "guardado no ponto, não sobrescrevi o seu".
+- No `except KeyboardInterrupt` do `forge atualizar`, a marca `forge/antes-<versão>` e o ponto ficam mesmo quando nada mudou. É inofensivo (a volta conclui "já estão como eram"), mas pode ir junto com o item 1.
+
+### Bateria no checkout do PR
+Worktree destacada em `20c18fd`, sem o Actions:
+- `python3 -m unittest discover -s tests`: 446 testes OK;
+- `scripts/validar-plugin.sh`: ok;
+- `shellcheck` (lista do CI mais `bin/forge`): limpo;
+- `catraca.py --modo pr-texto`, com o corpo real do PR: sai 0;
+- `catraca.py --base <develop b5e5d3d>`, script da base: sai 1, só pelo rótulo `afrouxa-regra` do dono em `hooks/_comum.py`, `conformidade.py` e `parecer.py`;
+- `catraca.py --modo pareceres`, argumentos do CI: sai 1, só porque o último parecer era reprovado;
+- versão e changelog: a versão é a mesma da `develop` (0.12.0) e há 4 linhas novas em `[Não publicado]`. Ok.
 
 Parecer: **reprovado**. O bloqueante 1 volta ao autor, com o teste que falha antes. O resto está pronto. Depois disso, o rótulo `afrouxa-regra` do dono continua obrigatório.
