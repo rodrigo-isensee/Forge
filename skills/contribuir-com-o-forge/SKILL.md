@@ -29,7 +29,7 @@ Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente d
 
 ## 4. Faça a mudança
 - Siga o `.claude/CLAUDE.md` do Forge e as regras em `docs/regras/`: `R-NEUTRO` neutralidade da fábrica, `R-CUSTO` nada que custe dinheiro sem autorização; regras invioláveis preservadas.
-- Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão em `.claude-plugin/plugin.json`: a versão é decidida na release pelo `tech-lead`.
+- Registre a mudança num fragmento em `changelog.d/`: `bin/forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"` (arquivo `changelog.d/<branch-sem-prefixo>.md`; não edite o `CHANGELOG.md`). **Não** suba a versão em `.claude-plugin/plugin.json`: a versão é decidida na release pelo `tech-lead`.
 
 ## 5. Antes do PR, no clone de contribuição
 ```bash

@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+"""Forge: changelog por fragmentos (ADR 0006), para PRs paralelos não conflitarem no CHANGELOG.md. Só biblioteca padrão.
+
+Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em changelog.d/<branch-sem-prefixo>.md
+     forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md e os apaga
+     forge-changelog conferir --base REF                              checagem do CI: o PR deixou entrada de changelog?
+Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
+"""
+import argparse
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+TIPOS = ("Adicionado", "Alterado", "Corrigido")
+PASTA = "changelog.d"
+PROTEGIDAS = {"main", "homolog", "develop", "HEAD"}
+CAMINHOS_DA_FABRICA = ("agents", "skills", "templates", "bin", "scripts", "docs", ".claude-plugin", "hooks")
+SECAO_NAO_PUBLICADO = re.compile(r"^## \[Não publicado\][^\n]*\n(.*?)(?=^## |\Z)", re.M | re.S)
+
+
+def git(*args):
+    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    if r.returncode:
+        sys.exit(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def ler_fragmento(texto, nome):
+    """Devolve {tipo: [linhas]}; sai com erro se o formato não for `### tipo` + linhas `- texto`."""
+    secoes, atual = {}, None
+    for linha in texto.splitlines():
+        if not linha.strip():
+            continue
+        m = re.fullmatch(r"### (\w+)\s*", linha)
+        if m:
+            if m.group(1) not in TIPOS:
+                sys.exit(f"{nome}: tipo '{m.group(1)}' inválido (use {', '.join(TIPOS)}).")
+            atual = secoes.setdefault(m.group(1), [])
+        elif atual is not None and linha.startswith("- "):
+            atual.append(linha)
+        elif atual is not None and linha.startswith(" ") and atual:
+            atual[-1] += "\n" + linha
+        else:
+            sys.exit(f"{nome}: formato inválido; esperado '### <tipo>' seguido de linhas '- texto'.")
+    if not any(secoes.values()):
+        sys.exit(f"{nome}: fragmento sem nenhuma linha.")
+    return secoes
+
+
+def escrever_fragmento(secoes):
+    return "\n".join(f"### {t}\n" + "\n".join(secoes[t]) + "\n" for t in secoes)
+
+
+def fragmentos(pasta=PASTA):
+    return sorted(p for p in Path(pasta).glob("*.md") if p.name.lower() != "readme.md")
+
+
+def novo(args):
+    texto = args.texto.strip()
+    if not texto or "\n" in texto:
+        sys.exit("O texto deve ter uma linha e não pode ser vazio.")
+    branch = git("rev-parse", "--abbrev-ref", "HEAD").strip()
+    if branch in PROTEGIDAS:
+        sys.exit(f"Branch '{branch}': rode numa branch de trabalho (melhoria/<tema>).")
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", branch.split("/", 1)[-1]).strip("-.")
+    if not slug:
+        sys.exit(f"Não consegui um nome de arquivo a partir da branch '{branch}'.")
+    arquivo = Path(PASTA) / f"{slug}.md"
+    secoes = ler_fragmento(arquivo.read_text(encoding="utf-8"), str(arquivo)) if arquivo.exists() else {}
+    secoes.setdefault(args.tipo, []).append(f"- {texto}")
+    arquivo.parent.mkdir(exist_ok=True)
+    arquivo.write_text(escrever_fragmento(secoes), encoding="utf-8")
+    print(f"gravado em {arquivo}")
+
+
+def release(args):
+    if not re.fullmatch(r"\d+\.\d+\.\d+", args.versao):
+        sys.exit("Versão no formato X.Y.Z.")
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.data):
+        sys.exit("Data no formato AAAA-MM-DD.")
+    caminho = Path("CHANGELOG.md")
+    texto = caminho.read_text(encoding="utf-8")
+    if re.search(rf"^## \[{re.escape(args.versao)}\]", texto, re.M):
+        sys.exit(f"CHANGELOG.md já tem a versão {args.versao}.")
+    m = SECAO_NAO_PUBLICADO.search(texto)
+    if not m:
+        sys.exit("CHANGELOG.md sem a seção '## [Não publicado]'.")
+    antigas = [l for l in m.group(1).splitlines() if l.strip()]
+    arquivos = fragmentos()
+    agrupado = {t: [] for t in TIPOS}
+    for a in arquivos:
+        for tipo, linhas in ler_fragmento(a.read_text(encoding="utf-8"), str(a)).items():
+            agrupado[tipo].extend(linhas)
+    if not antigas and not arquivos:
+        sys.exit("Nada a publicar: sem fragmentos em changelog.d/ nem linhas em '[Não publicado]'.")
+    corpo = list(antigas)
+    for tipo in TIPOS:
+        if agrupado[tipo]:
+            corpo += [f"### {tipo}", *agrupado[tipo]]
+    secao = f"## [Não publicado]\n\n## [{args.versao}] - {args.data}\n" + "\n".join(corpo) + "\n\n"
+    caminho.write_text(texto[:m.start()] + secao + texto[m.end():], encoding="utf-8")
+    for a in arquivos:
+        a.unlink()
+    print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
+
+
+def linhas_nao_publicado(texto):
+    m = SECAO_NAO_PUBLICADO.search(texto)
+    return {l.strip() for l in (m.group(1) if m else "").splitlines() if l.strip().startswith("-")}
+
+
+def conferir(args):
+    base = args.base
+    mudou = git("diff", "--name-only", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
+    versao = lambda ref: re.search(r'"version"\s*:\s*"([^"]+)"', git("show", f"{ref}:.claude-plugin/plugin.json")).group(1)
+    atual, anterior = versao("HEAD"), versao(base)
+    print(f"arquivos da fábrica alterados: {len(mudou)} | versão base: {anterior} | versão do PR: {atual}")
+    if atual != anterior:
+        print("PR de release (versão mudou): o changelog fechado é conferido na promoção para a main.")
+        return
+    if not mudou:
+        return
+    novos = [p for p in git("diff", "--name-only", "--no-renames", "--diff-filter=A", base, "HEAD", "--", PASTA).split()
+             if p.startswith(f"{PASTA}/") and p.endswith(".md") and Path(p).name.lower() != "readme.md"]
+    for p in novos:
+        ler_fragmento(git("show", f"HEAD:{p}"), p)
+    if novos:
+        print(f"ok: {len(novos)} fragmento(s) novo(s) em {PASTA}/")
+        return
+    try:
+        anterior_txt = git("show", f"{base}:CHANGELOG.md")
+    except SystemExit:
+        anterior_txt = ""
+    novas = linhas_nao_publicado(Path("CHANGELOG.md").read_text(encoding="utf-8")) - linhas_nao_publicado(anterior_txt)
+    if novas:
+        print(f"ok: {len(novas)} linha(s) nova(s) em [Não publicado] (forma antiga, aceita na transição)")
+        return
+    sys.exit(f"Registre a mudança num fragmento novo em {PASTA}/ (rode `bin/forge-changelog novo <tipo> \"<texto>\"`); "
+             "não suba a versão no PR.")
+
+
+def main():
+    ap = argparse.ArgumentParser(prog="forge-changelog")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    p = sub.add_parser("novo")
+    p.add_argument("tipo", choices=TIPOS)
+    p.add_argument("texto")
+    p.set_defaults(f=novo)
+    p = sub.add_parser("release")
+    p.add_argument("versao")
+    p.add_argument("data")
+    p.set_defaults(f=release)
+    p = sub.add_parser("conferir")
+    p.add_argument("--base", required=True)
+    p.set_defaults(f=conferir)
+    args = ap.parse_args()
+    args.f(args)
+
+
+if __name__ == "__main__":
+    main()
