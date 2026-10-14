@@ -24,7 +24,8 @@ No upstream de cada demanda (`R-DISCOVERY` todo pedido começa com discovery), t
 
 ## Princípios
 - Simplicidade primeiro: monólito modular até haver motivo concreto para separar.
-- Toda decisão relevante tem alternativas consideradas e consequências registradas.
+- Toda decisão relevante tem alternativas consideradas, consequências, critério de reversão (um fato observável) e leituras registrados (modelo `_modelo.md` das ADRs).
+- Mecanismo novo (hook, regra, ferramenta, campo, agente) só entra com a seção "Por que o existente não basta", com evidência de execução, não a descrição.
 - Segurança, observabilidade e testabilidade fazem parte do desenho, não vêm depois.
 
 ## Limites

@@ -46,7 +46,7 @@ O papel vem de `hooks/conformidade.json` (dado, não código): `jarvis` (`forge:
 | Ler credenciais do dono (`~/.config/gh`, `~/.git-credentials`, `~/.ssh`) | ninguém | `denyRead` no sandbox e `deny Read(...)` [I] — mantém a separação de identidade da ADR 0008 |
 
 ### 4. Em vigor × proposta
-- **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (clone, não worktree, de `origin/develop` em diretório próprio, `denyWrite`; o worktree compartilharia o `.git/config` com o repositório de trabalho), atualizada só pelo script depois de um merge; `--plugin-dir .` fica para teste manual do dono.
+- **Em vigor** é o que governa a sessão atual; os agentes nunca o editam. O `jarvis-forge` passa a carregar uma **cópia vigente** do Forge (clone, não worktree, de `origin/develop` em diretório próprio, `denyWrite`; o worktree compartilharia o `.git/config` com o repositório de trabalho), atualizada só pelo script (ver o ajuste de 2026-10-13 abaixo); `--plugin-dir .` fica para teste manual do dono.
 - **Proposta** é o mesmo arquivo numa branch `melhoria/*`; entra só por PR, com pareceres, a `catraca`, o rótulo do dono quando afrouxar e, na `main`, o merge do usuário.
 - Nos **projetos**, `.claude/**` e `.forge/config.json` são do usuário: o agente propõe o diff, o usuário aplica. O `CLAUDE.md` do projeto é do `jarvis` (ver o ajuste da implementação abaixo).
 
@@ -102,3 +102,5 @@ Continua valendo a ADR 0008 (conta de máquina; rulesets quando público). A ver
   7. Sessões abertas sem os atalhos têm o sandbox do projeto, mas não no modo exigido.
 
 **Ajuste da implementação (N6).** `denyWrite` em arquivo versionado quebra o git do checkout principal (`pull`, `checkout`, `merge` e `rebase` falham sempre que a `develop` altera o arquivo) e, nas worktrees, nem vale (N5). Por isso o `denyWrite` do sandbox cobre só estado não versionado. Limite documentado (SBX-03, decisão N6): o Bash pode gravar em `docs/reviews/`, `docs/qa/` e `.claude/CLAUDE.md` no diretório de trabalho; a barreira é o hook `conformidade`, a catraca do CI e o registro de autoria, não o sandbox. O hook `conformidade` cobre também `.claude-plugin/`, `.github/` e `tests/neutralidade.py` (só `tech-lead` e `doc`, em `melhoria/*`).
+
+**Ajuste (2026-10-13, decisão do dono): a cópia vigente se atualiza ao abrir.** O `jarvis-forge` faz `fetch` e `merge --ff-only` da `origin/develop` na cópia vigente a cada abertura, para o Forge ser desenvolvido sempre com a versão mais recente dele. A proteção da seção 4 não muda: nenhuma branch `melhoria/*` entra em uso, a cópia de trabalho só vale com `--dev` e nada é descartado. Recusa e avisa numa linha, seguindo com a cópia atual, se houver mudança local, commit local, branch diferente da `develop` ou falta de rede; não troca o plugin sob uma sessão do tmux já aberta (a atualização espera o reinício). `--atualizar-vigente` continua como atualização manual.
