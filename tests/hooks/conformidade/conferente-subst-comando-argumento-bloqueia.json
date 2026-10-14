@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "como argumento de `git`"
+    "stderr": "fora da gramática"
   }
 }

@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "substituição de processo"
+    "stderr": "fora da gramática"
   }
 }

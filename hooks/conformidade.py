@@ -20,7 +20,8 @@ from pathlib import Path
 
 import parecer
 from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar,
-                    git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+                    fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto,
+                    sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -143,12 +144,6 @@ GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--e
 # Opções de verdade que são prefixo de uma de `GIT_EXECUTA` (o git escolhe a exata); no `cat-file`, que não as tem, o
 # mesmo texto é abreviação de `--textconv`/`--filters`.
 GIT_EXATAS = {"--text", "--filter"}
-# Expansões que o bash faz antes de chamar o programa e o hook não vê: `$` que não fecha a palavra (`$'...'`, `$X`,
-# `${X:-...}`; ficam a `$?` e o `$(`, conferido como comando) e chaves com `,` ou `..` (`{--output=x,HEAD}`; `HEAD@{1}` fica).
-EXPANSAO = re.compile(r"\$(?!\(|$)")
-CHAVES = re.compile(r"\{[^{}]*(,|\.\.)[^{}]*\}")
-# Substituição de comando como argumento (`$(...)`, crase): a saída vira opção do programa; só estes a aceitam.
-ACEITAM_SUBSTITUICAO = {"echo", "test", "["}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
                 "o que exige escrita é de outro agente")
 
@@ -492,6 +487,8 @@ class Guarda:
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
+        if self.leitura and nivel == 0:
+            self.gramatica_de_leitura(comando)
         original = comando
         comando, corpos = tirar_heredocs(comando)
         comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
@@ -514,10 +511,6 @@ class Guarda:
                 contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
             return contextos[sub]
 
-        if self.leitura and any(OPACO["<"] in p or OPACO[">"] in p for palavras, destinos, _ in partes
-                                for p in palavras + destinos):
-            self.barrar("R-CONFORMIDADE", f"substituição de processo <(...) ou >(...) pelo papel só de leitura "
-                                          f"({self.papel})", DICA_LEITURA)
         for palavras, destinos, sub in partes:
             if so_substituicoes and not sub:
                 continue
@@ -534,6 +527,16 @@ class Guarda:
                 self.bash(corpo, pasta, nivel + 1)
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
+
+    def gramatica_de_leitura(self, linha):
+        """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
+        positiva (`fora_da_gramatica_de_leitura`). O que ela não modela (`$`, crase, `\\`, `#`, chaves, globs,
+        redirecionamento, substituição, várias linhas) recusa, e a mensagem diz a forma explícita."""
+        sinal = fora_da_gramatica_de_leitura(linha)
+        if sinal is not None:
+            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
+                        "um comando por chamada; $, crase, \\, #, chaves, glob e < > só entre aspas simples "
+                        "('HEAD@{1}', 'v1$')")
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
@@ -668,9 +671,9 @@ class Guarda:
         return pasta
 
     def checar_so_leitura(self, palavras, atribuicoes):
-        """Papel só de leitura (`so_leitura`): lista branca de comandos. Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa
-        com caminho (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`), `--output`,
-        expansão que o hook não vê (`$'...'`, chaves) e `$(...)` como argumento (fora de echo, test e [) recusam; o resto
+        """Papel só de leitura (`so_leitura`): lista branca de comandos, depois da gramática (`gramatica_de_leitura`, que já
+        recusa expansão, substituição e redirecionamento). Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa com caminho
+        (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`) e `--output` recusam; o resto
         fora da lista também: na dúvida, recusa."""
         if atribuicoes:
             self.barrar("R-CONFORMIDADE", f"variável na linha ({atribuicoes[0]}) pelo papel só de leitura ({self.papel})",
@@ -678,13 +681,6 @@ class Guarda:
         if not palavras:
             return
         prog, args = palavras[0], palavras[1:]
-        for i, a in enumerate(palavras):
-            if a != "$?" and EXPANSAO.search(a) or CHAVES.search(a):
-                self.barrar("R-CONFORMIDADE", f"`{a}`: expansão do shell que o hook não vê (papel só de leitura: "
-                                              f"{self.papel})", DICA_LEITURA)
-            if i and prog not in ACEITAM_SUBSTITUICAO and ("$(" in a or "`" in a):
-                self.barrar("R-CONFORMIDADE", f"`$(...)` ou crase como argumento de `{prog}` (papel só de leitura: "
-                                              f"{self.papel})", f"só echo, test e [ a aceitam; {DICA_LEITURA}")
         if prog == "git":
             while args[:1] == ["--no-pager"] or (args[:1] == ["-C"] and len(args) > 1):
                 args = args[1:] if args[0] == "--no-pager" else args[2:]

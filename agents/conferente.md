@@ -13,8 +13,9 @@ Você é o **conferente** da fábrica. Começa sem contexto, recebe só o que es
 - `git log`, `git show`, `git diff` (sem `--output`), `git ls-remote`, `git rev-parse`, `git merge-base`, `git status`, `git cat-file`; opção global só `-C <pasta>` e `--no-pager`.
 - `gh pr view|list|checks|diff`, `gh run list|view` (com `--json` quando houver).
 - `forge-check pr <pedido>` e `forge-check docs` (pelo nome, sem caminho).
-- `ls`, `test`, `grep`, `cat`, `head`, `tail`, `wc`, `cut`, `tr`, `echo`, `pwd`, `cd`; redirecionamento só para `/dev/null`.
-- Pertença a uma branch: `git merge-base --is-ancestor <sha> <ref>; echo $?` (0 = contém).
+- `ls`, `test`, `grep`, `cat`, `head`, `tail`, `wc`, `cut`, `tr`, `echo`, `pwd`, `cd`.
+- Forma da linha (ADR 0011): um comando por chamada ou encadeados com `&&`, `||`, `;` e `|`, numa linha só. Sem `$`, crase, `\`, `#`, chaves, glob, `<`, `>` nem redirecionamento; texto com esses sinais vai entre aspas simples (`git log -1 'HEAD@{1}'`, `grep -n 'v1$' src/app.js`).
+- Pertença a uma branch: `git merge-base --is-ancestor <sha> <ref> && echo contém || echo não contém`.
 - Sem rede (`gh` falha): o item é `não verificável`, nunca `não cumpriu`.
 
 ## Modo `brief` (`R-BRIEF`): antes da delegação

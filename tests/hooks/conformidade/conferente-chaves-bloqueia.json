@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "expansão do shell"
+    "stderr": "fora da gramática"
   }
 }

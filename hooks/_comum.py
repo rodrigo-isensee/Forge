@@ -14,6 +14,7 @@ import re
 import shlex
 import sys
 import time
+import unicodedata
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -204,6 +205,46 @@ def comandos(comando):
         else:
             yield fechar()
     yield separar()
+
+
+# ADR 0011, item 1: fora de aspas, o papel só de leitura usa só este alfabeto (letras e dígitos, inclusive acentuados),
+# o espaço e o tab literais e os operadores `&&`, `||`, `;` e `|`. Entre aspas duplas, tudo menos `DUPLAS_RECUSA`.
+ALFABETO_LEITURA = frozenset(" \t_./:=@,+%-~^")
+DUPLAS_RECUSA = frozenset("$`\\!")
+
+
+def controle(c):
+    """Caractere de controle ou invisível (quebra de linha, `\\r`, largura zero...); o tab não conta."""
+    return c != "\t" and unicodedata.category(c)[0] == "C"
+
+
+def nome_do_sinal(c):
+    return "quebra de linha" if c == "\n" else f"U+{ord(c):04X}" if controle(c) else c
+
+
+def fora_da_gramatica_de_leitura(linha):
+    """ADR 0011, item 1: o primeiro sinal da linha fora da gramática do papel só de leitura, ou None. As aspas são lidas
+    em sequência, num estado só: o que está entre aspas simples vale como está (menos controle); entre duplas, o bash
+    ainda interpreta `$`, crase, `\\` e `!`. Aspas sem fechar recusam."""
+    i, n = 0, len(linha)
+    while i < n:
+        c = linha[i]
+        if c in "'\"":
+            fim = linha.find(c, i + 1)
+            if fim < 0:
+                return f"{c} sem fechar"
+            proibidos = DUPLAS_RECUSA if c == '"' else ()
+            ruim = next((x for x in linha[i + 1:fim] if x in proibidos or controle(x)), None)
+            if ruim is not None:
+                return nome_do_sinal(ruim)
+            i = fim + 1
+        elif linha.startswith(("&&", "||"), i):
+            i += 2
+        elif c in ";|" or c in ALFABETO_LEITURA or c.isalnum():
+            i += 1
+        else:
+            return nome_do_sinal(c)
+    return None
 
 
 def segmentos(comando):

@@ -1,5 +1,5 @@
 {
-  "descricao": "$(...) entre aspas num echo e <( literal entre aspas no grep: leitura legítima (antes, falso bloqueio).",
+  "descricao": "ADR 0011 (item 1): S1.",
   "arquivos": {
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
@@ -7,13 +7,14 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "echo \"$(git log -1)\" && grep -n \"<(\" src/app.js"
+      "command": "git ls-remote $'--upload-pack=touch PWNED1;' ."
     },
     "agent_type": "forge:conferente",
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "gramática do papel só de leitura"
   }
 }
