@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: primeiro-uso-f3
 branch: melhoria/primeiro-uso-f3
-commit: 1d2a10b
-parecer: reprovado
+commit: 262356e
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-13
 ---
@@ -39,3 +39,15 @@ Revisor: `forge:tech-lead`, sem participação na autoria. Diff do PR #103 lido 
   - Desvio do autor (hook separado do `vigia`): aceitável. Não altera fixture nem mensagem do `vigia`, segue a mesma política e pode ser desligado à parte por `hooks_desligados`.
   - Atalho `jarvis` e `forge-upgrade`: só `--rapido`, que não conserta nem pergunta e cuja falha não impede seguir. `R-NEUTRO`: nenhum termo de projeto.
 - **Para o dono:** o PR toca `hooks/` e `tests/hooks/` e precisa do rótulo `afrouxa-regra`, como o autor já registrou.
+
+## Re-review independente
+Revisor: `forge:tech-lead`, sem participação na autoria. Diff `ad1ef91..262356e` (`bin/forge-doutor`, `hooks/doutor.py`, `tests/test_doutor.py`) lido por inteiro; head revisado `262356e`. Testes no checkout do PR: `python3 -m unittest discover -s tests`, 401 OK.
+
+**Parecer: aprovado.** Os três pontos do review foram atendidos; restam três recomendações que não bloqueiam.
+
+- **Aviso em `resume` e `compact`: resolvido.** `SessionStart` reexamina, mas `examinar` mantém `avisado` quando data e lista de problemas são iguais às do cache. Problema novo no mesmo dia avisa de novo (correto). Testes novos cobrem os dois casos.
+- **Diagnóstico fora da trava: resolvido.** `diagnosticar` roda sem trava; ela cobre só ler e gravar o cache. O `rodar` do hook usa 3 s (`LIMITE_GIT`), contra 15 s do comando.
+- **Backup do `core.hooksPath`: resolvido.** O valor anterior é guardado, citado na frase, e o código de saída do `git config` é conferido. Teste novo cobre.
+- **[baixo, recomendado] Corrida residual no `Stop` (`hooks/doutor.py:66-74`).** O estado é lido sob trava, a trava é solta e depois regravado por inteiro com `avisado: true`. Duas sessões simultâneas podem avisar duas vezes, e um `SessionStart` concorrente pode ter o cache mais novo sobrescrito por um estado velho. Não há arquivo corrompido (a gravação é sob trava) e o efeito é no máximo um aviso repetido ou um cache de um dia que se refaz na próxima sessão. Sugestão: na segunda trava, reler o cache, voltar a checar `avisado` e só então imprimir.
+- **[baixo, recomendado] Timeout do `git` não aparece como "não consegui checar" (`bin/forge-doutor:206-228`).** Não fica silencioso demais (nunca vira "ok"), mas vira afirmação falsa: `git config --list` estourando deixa `config_git` vazio e gera "proteção desligada" e "o git não sabe seu nome"; `for-each-ref` estourando gera "a branch develop/homolog/main não existe". Com 3 s isso é mais provável do que com 15 s, e o texto engana. Sugestão: se `rodar` falhar, devolver um único problema "não consegui checar o git (demorou demais)" e pular as conferências que dependem dele.
+- **[baixo, recomendado] Backup pode ser sobrescrito (`bin/forge-doutor:132`).** `if ativo:` também vale quando `ativo` já é `.githooks` (só a permissão estava errada), e então a cópia guarda `.githooks` por cima do valor original. Sugestão: guardar só se `ativo` não estiver em `(".githooks", str(pasta))`.
