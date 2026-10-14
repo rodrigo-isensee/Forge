@@ -1,0 +1,23 @@
+{
+  "descricao": "Projeto com problemas (sem settings, sem sandbox): ao abrir, o SessionStart é silencioso e só grava o cache (ADR 0003).",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "entrada": {
+    "hook_event_name": "SessionStart",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "source": "startup"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "doutor": {
+        "contem": [
+          "problemas",
+          "avisado"
+        ]
+      }
+    }
+  }
+}
