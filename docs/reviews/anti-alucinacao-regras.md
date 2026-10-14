@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 486038f
+commit: ea2b636
 parecer: aprovado
 revisor: forge:tech-lead (autor)
 data: 2026-10-14
@@ -55,8 +55,78 @@ $ scripts/validar-plugin.sh
 ```
 
 ### Riscos da volta 1
-- Depois do `shlex`, uma palavra entre aspas igual a `"<("` fica idêntica à abertura de verdade, e o hook a trata como substituição. No papel comum, o efeito é conferir como comando o que vem depois dela. No papel só de leitura, o comando é recusado. É um falso bloqueio raro, e a regra é recusar na dúvida.
-- Anterior a esta fatia e fora do escopo: o `)` que fecha `<(...)` ou `$(...)` é separador no analisador. Por isso, o que vem depois dele na mesma linha é lido como outro comando, e o alvo do `rm` escapa da checagem de escrita. Pela sonda, com o papel tech-lead: `rm .forge/versao` sai com 2, mas `rm <(true) .forge/versao` e `rm $(true) .forge/versao` saem com 0. O sandbox continua sendo a garantia. Cartão para o `security-engineer`.
+- (Resolvido na volta 2.) Depois do `shlex`, uma palavra entre aspas igual a `"<("` fica idêntica à abertura de verdade, e o hook a trata como substituição. No papel comum, o efeito é conferir como comando o que vem depois dela. No papel só de leitura, o comando é recusado. É um falso bloqueio raro, e a regra é recusar na dúvida.
+- (Resolvido na volta 2.) Anterior a esta fatia e fora do escopo: o `)` que fecha `<(...)` ou `$(...)` é separador no analisador. Por isso, o que vem depois dele na mesma linha é lido como outro comando, e o alvo do `rm` escapa da checagem de escrita. Pela sonda, com o papel tech-lead: `rm .forge/versao` sai com 2, mas `rm <(true) .forge/versao` e `rm $(true) .forge/versao` saem com 0. O sandbox continua sendo a garantia. Cartão para o `security-engineer`.
+
+## Volta 2: parecer de segurança (ae60f03, ea2b636)
+Escopo: `git diff 875e9a1..ea2b636`. Corrige S1, S2 e S3 de `docs/security/anti-alucinacao-regras.md` e, por decisão do time, a falha geral S4 (item 3), num commit próprio. **O PR precisa destacar no título as duas correções gerais** (substituição de processo, da volta 1, e o `)` que fecha a substituição, desta volta), além do rótulo `afrouxa-regra`.
+
+- **ae60f03, papel só de leitura:** S1 recusa palavra com `$` que não fecha a palavra (`$'...'`, `$X`, `${X:-...}`; ficam `$?` e o `$(`) e chaves com `,` ou `..` (`HEAD@{1}` fica). S2 aceita `$(...)` e crase só como argumento de `echo`, `test` e `[`. S3 recusa todo lançador (`xargs`, `sudo`, `nohup`, `env`...). `--textconv` e `--filters` entram nas opções que executam programa (`--text` e `--filter` exatos seguem liberados, exceto no `cat-file`, onde são abreviação). O informativo `gh ... --web` também é recusado.
+- **ea2b636, analisador comum:** `_comum.fichas` devolve, para cada ficha do `shlex`, se ela é sinal fora de aspas e se está colada na seguinte. `_comum.comandos` usa uma pilha de aninhamento: `$(`, `<(` e `>(` abrem um nível, e o `)` correspondente devolve ao comando de fora a palavra opaca (`$(…)`, `<(…)`, `>(…)`, colada ao que estiver colado). O conteúdo sai antes, como comando próprio, com o identificador da substituição. O `(` de subshell segue separando. O `conformidade` dá a cada substituição um contexto próprio (`cd` e branch lá dentro não valem para a linha), confere só o conteúdo de `$(...)` entre aspas e confere o caminho colado à substituição também a partir da raiz. `segmentos` (do `parecer` e do `pesado`) passa a derivar de `comandos`.
+
+### rc do hook `conformidade` (projeto temporário em `$TMPDIR`; antes = código anterior à volta 2)
+```
+antes depois | papel      | comando
+  0     2    | conferente | git ls-remote $'--upload-pack=touch PWNED1;' .           (S1)
+  0     2    | conferente | git ls-remote {--upload-pack='touch PWNED2;',.}          (S1)
+  0     2    | conferente | git log -1 $'--output=OUT1'                              (S1)
+  0     2    | conferente | git diff {--output=OUT2,HEAD}                            (S1)
+  0     2    | conferente | git log -1 ${X:---output=OUT3}                           (S1)
+  0     2    | conferente | git ls-remote $(echo --upload-pack=touch\>PWNED12 .)     (S2)
+  0     2    | conferente | git log -1 $(cat src/app.js)                             (S2)
+  0     2    | conferente | git log -1 $(true) cat --format=x                        (S2)
+  0     2    | conferente | echo "'--upload-pack=touch PWNED4;' ." | xargs git ls-remote  (S3)
+  0     2    | conferente | sudo -i  /  sudo -s  /  nohup cat src/app.js  /  xargs -a src/app.js cat  (S3)
+  0     2    | conferente | git show --textconv ...  /  git cat-file --textconv|--filters|--text ...
+  0     2    | conferente | gh pr view 1 --web
+  2     0    | conferente | echo "$(git log -1)"          (falso bloqueio resolvido)
+  2     0    | conferente | grep -n "<(" src/app.js       (falso bloqueio resolvido)
+  0     0    | conferente | echo $?  /  echo $(git log -1)  /  git log -1 HEAD@{1}  /  git diff --text HEAD
+  0     0    | conferente | grep -n 'v1$' src/app.js  /  forge-check pr p1  /  cat "<(touch x)"
+  2     2    | conferente | diff <(git log -1) <(git log -2)
+  0     2    | tech-lead  | rm $(true) .forge/versao  /  rm <(true) .forge/versao
+  0     2    | tech-lead  | git push origin $(true) main --force
+  0     2    | tech-lead  | rm $(git rev-parse --show-toplevel)/.forge/versao
+  0     2    | tech-lead  | echo $((1+2)) && rm $(true) .forge/versao
+  2     2    | tech-lead  | cat <(git push --force origin main)  e as demais formas da volta 1
+  0     0    | tech-lead  | diff <(git log -1) <(git log -2)  /  paste <(git log -1) <(git show -s)
+  0     0    | tech-lead  | echo $(git rev-parse HEAD)  /  x=$(git rev-parse HEAD) && echo $x  /  (cd src && ls) && echo ok
+  0     0    | tech-lead  | for f in $(ls src); do echo $f; done  /  if [ "$(git branch --show-current)" = develop ]; ...
+  0     2    | dev        | git push origin $(true) main  /  git push origin $(true) HEAD:main  /  ... HEAD:develop
+  0     2    | dev        | cp src/app.js $(true) .claude/settings.json  /  cp src/app.js $(true) .forge/versao
+  0     2    | dev        | mv src/app.js $(true) docs/reviews/x.md  /  rm $(true) docs/reviews/x.md
+  0     2    | dev        | rm <(true) .forge/config.json
+  0     2    | dev        | cp src/app.js $(git rev-parse --show-toplevel)/docs/reviews/x.md
+  0     2    | dev        | echo ok > $(git rev-parse --show-toplevel)/docs/reviews/x.md
+```
+`rm $(true) docs/regras/R-X.md` e `rm <(true) tests/config.json` só valem num clone com o manifesto do Forge: as fixtures `subst-comando-rm-regras-dev-bloqueia` e `subst-processo-rm-tests-config-dev-bloqueia` cobrem esse caso.
+
+### Fixtures antes e depois
+```
+commit A, antes (875e9a1): FAILED (failures=10)  conferente-ansi-c, -chaves, -expansao-padrao, -filters-abreviado, -gh-web,
+                           -subst-comando-argumento, -subst-comando-arquivo, -sudo, -textconv, -xargs-git
+commit B, antes (ae60f03): FAILED (failures=12)  conferente-subst-entre-aspas-libera, subst-comando-caminho-colado-dev,
+                           -cp-claude-dev, -mv-reviews-dev, -push-force-tech-lead, -push-head-main-dev, -push-main-dev,
+                           -push-main-tech-lead, -rm-regras-dev, -rm-tech-lead, subst-processo-rm-tech-lead, -rm-tests-config-dev
+depois (ea2b636):          fixtures: 758 / Ran 1 test in 73.453s / OK   (todas as de tests/hooks/)
+```
+A fixture `conferente-xargs-bloqueia` passa a esperar a recusa do lançador, que vem antes da do `touch`.
+
+### Suíte e validação
+```
+$ uptime → load average: 3.21 (início), 3.97 (fim)
+$ python3 -m unittest discover -s tests
+Ran 562 tests in 168.479s
+OK
+$ scripts/validar-plugin.sh
+✔ Validation passed
+```
+
+### Riscos da volta 2
+- **Comentário engole a quebra de linha (anterior, fora do escopo, alta):** o `shlex` lê o comentário até o fim da linha e consome o `\n`, então a linha seguinte vira argumento do comando do comentário. Com o papel dev, `echo a #b⏎git push origin main` sai com 0 antes e depois desta volta (e `a#b`, sem espaço, também, embora no bash não seja comentário). Cartão para o `security-engineer`; a correção cabe em `_comum.fichas`.
+- **Limites aceitos do analisador:** `case ... a)` dentro de `$(...)` fecha o nível cedo; a crase continua sem pilha (só a recursão por palavra); `$((...))` confere `1+2` como comando (no papel só de leitura, falso bloqueio). Na dúvida, recusa; o sandbox continua sendo a garantia.
+- **Falso bloqueio no papel só de leitura:** `$X` em qualquer palavra e chaves com vírgula (um `--jq` com `{a,b}`) são recusados, como o parecer de segurança previu.
+- `fichas` lê `shlex._pushback_chars` (interno da biblioteca padrão, estável desde o Python 3.6) para saber o que está colado. Se sumir, o hook falha fechado nas ações críticas (ADR 0009, seção 7).
 
 ## O que mudou
 - **Regras:** `R-PROVA` e `R-BRIEF` são novas. A `R-DECISAO` passa a exigir uma pergunta por vez em tudo e a marca "Retira do escopo original" em todo corte, com a lista "Fora do escopo". O índice também foi atualizado. O `verificada_por` das novas diz que os hooks `prova` e `brief` ainda não existem, para que a regra não afirme uma garantia que ainda não há.
