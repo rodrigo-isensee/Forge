@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 8cb2d17
-parecer: reprovado
+commit: 706030b
+parecer: aprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-14
 ---
@@ -80,3 +80,33 @@ O PQ-3 com o `forge:conferente` rodando de verdade nos modos `brief` e `entrega`
 
 ## Para reaprovar
 Corrigir os itens 1 e 2, com fixtures, no autor. Basta um novo review do diff de correção, sem refazer o texto.
+
+## Re-review da volta 1 (`git diff 0c3ef40..706030b`)
+Commits revisados: 2b4a3b7 (git do papel só de leitura), 486038f (substituição de processo em todos os papéis) e 706030b (parecer de autor). Os arquivos são `hooks/_comum.py`, `hooks/conformidade.py`, 16 fixtures novas e `CHANGELOG.md`. Este re-review não partiu do parecer de autor: as sondas abaixo foram refeitas com o hook do HEAD 706030b, num projeto descartável, com `agent_type` explícito.
+
+### Parecer da volta 1: **aprovado**
+| # | Item do parecer anterior | Situação | Prova (rc do hook no HEAD) |
+|---|---|---|---|
+| 1 | `git ls-remote` executava programa | **resolvido** | 2 para `--upload-pack='touch PWNED;'`, `-u 'touch W;'`, `--exec=x`, `--upload-p=x` (abreviada), `-uX`, `ext::...`, `origin --upload-pack=x` (opção depois do posicional), `-- --upload-pack=x`, `-C . ls-remote --upload-pack=x` e `--no-pager ls-remote -u x`. Continuam liberados com 0: `--heads origin`, `--sort=-v:refname --tags .`, `-q` e `--get-url`. |
+| 2 | Substituição de processo no papel só de leitura | **resolvido** | 2 para `cat <(touch x)`, `grep a <(touch x)`, `echo >(touch t)`, `git status 2>&1 >(touch t)`, `diff <(git log) <(git log)`, `echo x >(cat)` e `cat <(true`. Com 0, só a forma entre aspas, `cat "<(touch x)"`, que é literal e não executa nada. |
+| 3 | `--output-indicator-*` com falso bloqueio | **resolvido** | 0 para `git log -1 --output-indicator-new=x`, `--output-indicator-old=y` e `--output-indicator-context=x`. Continuam recusados com 2: `git show --output x.patch`, `--outp=x`, `--outpu=f` e `git diff --output=f`. |
+| 4 | Fixtures de `tee` e `xargs` | **resolvido** | Existem `conferente-tee-bloqueia.json` e `conferente-xargs-bloqueia.json`, e também as fixtures dos itens 1 a 3. A sonda também dá 2 para `echo x \| tee f`, `echo x \| xargs touch` e `echo hi; touch y`. |
+| — | Lacuna geral apontada ao `security-engineer` (`<(...)` em todos os papéis) | **resolvido nesta fatia** | Papel `forge:tech-lead`, rc 2: `cat <(git push --force origin main)`, a forma aninhada `cat <(cat <(...))`, `cat <( git push ... )` com espaço, `cat < <(...)`, `echo x > >(...)`, `echo >(git commit --no-verify ...)` e a forma colada `echo b x<(git push --force origin main)`, que o bash executa: conferido fora do hook, criou o arquivo. Continuam liberadas, com rc 0: `diff <(git log) <(git log)`, `cat <(echo a) && git status` e `cat <(git log)\|grep a`. Para o `parecer`, há a fixture `subst-processo-merge-sem-parecer-bloqueia.json`. |
+
+A causa fica corrigida na origem: o tokenizador comum (`SUBST_PROCESSO`) passa a abrir um segmento novo e o `conformidade` confere o comando de dentro como um comando próprio. Não é uma exceção pontual. O `segmentos` zera o `pular` na abertura, o que evita que o comando de dentro seja engolido como alvo de redirecionamento em `cat < <(...)`. Os invariantes de `tests/config.json` não foram tocados neste diff.
+
+### Observações (não bloqueiam)
+- **Falso bloqueio por abreviação ambígua:** `git log --ex=x` e `--conf=x` saem com 2, porque são prefixo de `--exec`, `--ext-diff` e `--config-env`. O próprio git recusa essas formas (`fatal: unrecognized argument`). Não há perda real.
+- **Para o `security-engineer`:** `git show --textconv` e `git cat-file --textconv`/`--filters` saem com 0. Eles rodam o driver de textconv ou de filtro que já estiver configurado no repositório. O conferente não consegue gravar configuração (`git -c` e `--config-env` dão 2, e não tem escrita). O risco depende de uma configuração prévia hostil, e o mesmo vale para `git diff`/`git log -p` com textconv. Registro, não decido.
+- **Item do `security-engineer`, só registro (fora deste review, por decisão do brief):** o `)` que fecha a substituição ainda separa comandos. Com o papel `forge:tech-lead`, `rm $(true) .forge/versao` sai com 0, contra 2 de `rm .forge/versao`. Com o papel `forge:conferente`, o mesmo comando sai com 2, porque `rm` está fora da lista. O parecer de autor declara essa falha como risco, e o cartão é dele.
+- **CHANGELOG:** a linha nova está em `## [Não publicado]` / `### Corrigido` e declara o rótulo `afrouxa-regra`. O título do PR precisa destacar a correção geral (`_comum.py` + `conformidade.py`), como o parecer de autor pede.
+
+### Ferramentas (volta 1, saída citada)
+```
+$ uptime   → load average: 1.97, 1.54, 2.27 (ao fim)
+$ python3 -m unittest discover -s tests -v
+Ran 562 tests in 206.565s
+OK
+$ scripts/validar-plugin.sh
+✔ Validation passed
+```
