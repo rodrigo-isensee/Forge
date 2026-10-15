@@ -3,12 +3,49 @@ tipo: review
 contrato: 1
 pedido: autoria-worktree
 branch: melhoria/autoria-worktree
-commit: 02cb437
-parecer: reprovado
+commit: 531b131
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Review: autoria de parecer gravado em outra worktree
+
+## Volta 2 (commit revisado 531b131)
+
+Escopo: `git diff 504ef11..531b131`, com `hooks/conformidade.py` (`diretorio_comum`, `raiz_do_parecer`, `autoria`), os 7 fixtures novos `tests/hooks/conformidade/autoria-*`, `CHANGELOG.md` e as duas linhas alteradas de `docs/hooks.md`. A história foi reescrita só para trocar a identidade: o 02cb437 da volta 1 virou o 1d82a22. O parecer de segurança (`docs/security/autoria-worktree.md`) é próprio e não foi refeito aqui.
+
+Parecer: **aprovado**. O bloqueante foi resolvido, e os 3 recomendados e o nit também. Sobra um recomendado novo, que não bloqueia: worktree criada com caminhos relativos (item R1 abaixo).
+
+### Ferramentas (rodadas depois do rebase, sobre o 531b131)
+- Suíte completa (`env -u FORGE_ABERTURA_FEITA python3 -m unittest discover -s tests`): `Ran 561 tests in 159.969s`, `OK`. A contagem é a mesma da volta 1 porque os fixtures são subtestes de `test_fixtures`.
+- `scripts/validar-plugin.sh`: `✔ Validation passed`.
+- Falha antes e passa depois: o `tests.test_hooks` com o `hooks/conformidade.py` do 1d82a22 sobre os fixtures do 531b131 dá `FAILED (failures=3, errors=1)`. O `ERROR` é o `autoria-worktree-aninhada-registra`, e os `FAIL` são `autoria-git-forjado-comum-nao-registra`, `autoria-git-forjado-nao-registra` e `autoria-git-symlink-nao-registra`. Com o 531b131 passa.
+
+### Achados da volta 1
+1. **bloqueia, resolvido.** A worktree aninhada (`.claude/worktrees/<n>`) registra. `raiz_do_parecer` acha primeiro a cópia mais próxima pelo disco (`Guarda.raiz_git`) e só devolve a raiz da sessão se o topo for ela (ou um ancestral, quando a sessão não está na raiz do git). Fixture `autoria-worktree-aninhada-registra`, que falha no 1d82a22.
+2. **recomendado, resolvido.** Não há mais chamada git. O filtro por pares `("docs", reviews|qa|devops|security)` em `p.parts` vem antes de qualquer leitura do disco, e um `.md` qualquer fora dessas pastas não custa nada.
+3. **recomendado, resolvido.** O `docs/hooks.md` diz "qualquer worktree do mesmo repositório, dentro ou fora da raiz da sessão (outro repositório não conta)", e a seção de limites registra o forjamento dos dois arquivos dentro do `.git`.
+4. **recomendado, resolvido.** Entraram os fixtures `autoria-worktree-fora-de-docs-nao-registra` e `autoria-worktree-relativo-registra`. Também entraram `git-forjado`, `git-forjado-comum`, `git-symlink` e `git-dir-no-ambiente`.
+5. **nit, resolvido.** O filtro repetido saiu; `rel` vazio quando `raiz` é None.
+
+### `diretorio_comum` e `raiz_do_parecer`
+- **Vínculo de volta.** O `.git` (arquivo) tem de começar com `gitdir:`, a pasta tem de estar em `<comum>/worktrees/<n>`, e o `gitdir` dela tem de apontar de volta para o mesmo `<topo>/.git`. Com isso, a pasta solta que aponta para uma worktree real e a que aponta para o `.git` comum são recusadas, cada uma com o seu fixture. Os submódulos (`.git/modules/<n>`) ficam fora, e está certo, porque são outro repositório.
+- **Symlinks.** Um `.git` que é link é recusado (`is_symlink`), e o `raiz_git` não sobe para um `.git` mais acima, então não há desvio. Os topos e a raiz da sessão saem de `realpath`, e por isso a comparação `esperado == str(marca)` é feita entre caminhos reais.
+- **Caminhos relativos.** O `file_path` relativo é resolvido contra o `cwd` (fixture). O `gitdir:` relativo do `.git` é resolvido contra `topo`, que está certo. O `gitdir` de volta relativo não: ver R1.
+- **Filtro por pares.** Ele casa `docs/<pasta>` em qualquer altura do caminho absoluto. Um falso positivo, como `/x/docs/qa/proj/a.md`, só custa leituras de disco, e o `rel.startswith` relativo à cópia continua sendo o portão. Nenhum parecer legítimo é cortado pelo filtro.
+- **Parecer legítimo que deixa de registrar.** Sondei pela chamada direta de `diretorio_comum` num repositório temporário: a cópia principal e a worktree com caminho absoluto devolvem `<proj>/.git`, e a worktree criada com `git worktree add --relative-paths` (git 2.55 local; também `worktree.useRelativePaths=true`) devolve `None`. É o R1. A worktree movida sem `git worktree repair` também não registra, mas aí o próprio git a considera quebrada. Está aceitável.
+- **`sha` antes da conferência.** Ler o conteúdo antes das leituras do `.git` reduz a janela entre gravar e anotar. Concordo.
+- **Cache por sessão descartado.** Concordo. Sem processo git, o custo por alvo são poucos `stat` e duas leituras de arquivos pequenos, só para caminhos de parecer. Um cache acrescentaria estado e invalidação sem ganho mensurável.
+
+### Ajustes
+- **R1, recomendado** · `hooks/conformidade.py:1009` · o `gitdir` de volta pode ser relativo à pasta `<comum>/worktrees/<n>` (git 2.48 ou mais novo, com `--relative-paths` ou `worktree.useRelativePaths`), e `os.path.realpath(os.path.dirname(volta))` o resolve contra o `cwd` do processo. Assim a worktree legítima fica sem registro, e o `forge-check pr` recusa o parecer quando o `autoria.jsonl` existe (falso bloqueio, não falsa autoria). Contra a `develop` não é regressão, porque lá nenhuma worktree registrava. **Sugestão:** `alvo = os.path.join(pasta, volta)` (absoluto continua absoluto), comparar `os.path.join(os.path.realpath(os.path.dirname(alvo)), os.path.basename(alvo))` e somar o fixture `autoria-worktree-gitdir-relativo-registra`. Pode entrar nesta branch ou num cartão próprio.
+
+### Fora do código
+- `CHANGELOG.md`: a linha de `### Corrigido` foi reescrita, cita a worktree aninhada e os casos recusados e mantém o aviso de `afrouxa-regra`. Está correta.
+- Commit `fix(hooks): registra a autoria de worktree aninhada e valida o vínculo do .git`: um commit só, coerente, com mensagem clara.
+- `R-NEUTRO` e `R-CUSTO`: nada específico de projeto e nada pago.
+
+## Volta 1 (commit revisado 02cb437, hoje 1d82a22)
 
 Escopo: `git diff develop..02cb437`, com `hooks/conformidade.py` (`raiz_do_parecer`, `autoria`), `CHANGELOG.md` e os fixtures `tests/hooks/conformidade/autoria-worktree-registra.json` e `autoria-outro-repositorio-nao-registra.json`. Também li `docs/hooks.md`, só a parte de autoria (linhas 30, 52 e 81).
 
