@@ -13,7 +13,7 @@ python3 -m unittest discover -s tests -v
 scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 scripts/verificar-contribuicao.sh
 ```
-- Acrescente uma linha em `## [Não publicado]` do `CHANGELOG.md`. **Não** suba a versão: ela é decidida na release.
+- Registre a mudança num fragmento em `changelog.d/` (`bin/forge-changelog novo <tipo> "<texto>"`); não edite o `CHANGELOG.md`. **Não** suba a versão: ela é decidida na release.
 - Neutralidade: nada de nome, regra de negócio, dado pessoal ou trecho de código do projeto de origem.
 - Não afrouxe `invariantes` nem `termos_proibidos_hash` de `tests/config.json` sem destacar no título do PR e explicar o motivo.
 - Nada que custe dinheiro entra sem autorização expressa do usuário.
