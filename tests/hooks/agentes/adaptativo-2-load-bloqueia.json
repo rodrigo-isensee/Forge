@@ -1,5 +1,5 @@
 {
-  "descricao": "Load acima de 6: teto 2, mesmo com memória sobrando.",
+  "descricao": "Load acima de 6: a trava de carga alta bloqueia (R-TETO).",
   "proc": {
     "loadavg": "7.0 1.0 1.0 1/100 1",
     "mem_gb": 8
@@ -34,6 +34,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "2 agentes ativos, teto 2 (adaptativo: load 7.0"
+    "stderr": "R-TETO: carga alta (load 7.0"
   }
 }
