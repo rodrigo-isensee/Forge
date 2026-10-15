@@ -1,0 +1,20 @@
+{
+  "descricao": "AA2-01: a recusa de `$TMPDIR` com ação crítica mostra o nome inteiro da variável (ADR 0011, falsos bloqueios).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cp $TMPDIR/x docs/reviews/y.md"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`$TMPDIR` com ação crítica"
+  }
+}

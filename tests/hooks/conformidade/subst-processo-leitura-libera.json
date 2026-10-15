@@ -1,0 +1,19 @@
+{
+  "descricao": "Substituição de processo só com leitura, por papel comum: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "diff <(git log -1 --format=%h) <(git rev-parse --short HEAD)"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

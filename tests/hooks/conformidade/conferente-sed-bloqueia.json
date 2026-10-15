@@ -1,0 +1,20 @@
+{
+  "descricao": "sed (com -i grava) fora da lista.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "sed -i s/a/b/ src/app.js"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "fora da lista"
+  }
+}

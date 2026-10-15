@@ -1,7 +1,7 @@
 {
-  "descricao": "Load acima de 6: teto 2, um ativo libera.",
+  "descricao": "Load 5 (adaptativo 3): um ativo libera.",
   "proc": {
-    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "loadavg": "5.0 1.0 1.0 1/100 1",
     "mem_gb": 8
   },
   "estado": {
