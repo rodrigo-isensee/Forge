@@ -4,13 +4,17 @@ contrato: 1
 pedido: ci-ubuntu-26
 branch: melhoria/ci-ubuntu-26
 commit: bbc658f13b9d57fd551f73e17b57975799146fd7
-parecer: reprovado
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Code review: CI fixado em `ubuntu-24.04` (ci-ubuntu-26)
 
-Reprovado só pelo achado 1, que é um metadado do parecer de devops. A troca nos workflows e o CHANGELOG estão corretos. Corrigido o achado, o re-review se limita a conferir o `commit:` e a saída do portão.
+## Volta 2: aprovado
+O achado bloqueante da volta 1 está resolvido. O `docs/devops/ci-ubuntu-26.md` agora traz `commit: bbc658f13b9d57fd551f73e17b57975799146fd7`, corrigido em `a73ed6e`. O `8b52aa0` acrescenta o parecer de segurança (`docs/security/ci-ubuntu-26.md`), aprovado e sem achado bloqueante. O diff `229bceb..8b52aa0` toca só esses dois arquivos de `docs/`, sem mudança de código. Os recomendados 2 e 3 e o item 4 da volta 1 viraram cartões e não bloqueiam este PR. O que falta no portão é o parecer de QA.
+
+## Volta 1: reprovado (histórico)
+Reprovado só pelo achado 1, que é um metadado do parecer de devops. A troca nos workflows e o CHANGELOG estavam corretos.
 
 Escopo: diff `develop..bbc658f` com 3 commits (`b87664b`, `acacc7c`, `bbc658f`). Arquivos: `.github/workflows/ci.yml`, `.github/workflows/catraca.yml`, `.github/workflows/release.yml`, `CHANGELOG.md` e `docs/devops/ci-ubuntu-26.md`. Parecer de devops: `docs/devops/ci-ubuntu-26.md`, aprovado. O parecer de segurança (`R-SEGURANCA`, gatilho `.github/`) é do `security-engineer` e fica em `docs/security/`. Ele não é refeito aqui.
 
