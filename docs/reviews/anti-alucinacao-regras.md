@@ -392,3 +392,12 @@ veredito-brief: aprovado (só depois do registro da decisão)
 4. **A ADR 0011 (seção 13) não foi criada**, porque não está na linha "| 2 |" nem no brief. Ela é o lugar das leituras e do critério de reversão do conferente. Até lá, o critério está na seção 13 da proposta.
 5. **A lista branca do conferente** recusa `for`, `$(...)` com comando de fora da lista, `sed` e `awk`. Na dúvida, recusa. O falso bloqueio custa um comando refeito.
 6. **`docs/visao-geral.md` não lista o conferente.** É recomendado acrescentar, mas fica fora do escopo da fatia.
+
+## Recomendados do re-review
+Itens 3 a 7 do re-review independente (`docs/reviews/anti-alucinacao-regras-independente.md`), só textos e formatação; a lógica de decisão do hook não mudou e nenhuma fixture mudou (as mensagens mantêm o trecho que elas conferem).
+- 3: `agents/conferente.md` lista `test -e|-f|-d|-s <caminho>`, avisa que `%G`, `--show-signature` e `$(`/crase (até entre aspas) são recusados e dá a forma que passa.
+- 4: mensagens do nível > 0, de `%G` e de `--show-signature` trazem a forma que passa; a da gramática avisa que `$(` e crase não passam nem entre aspas.
+- 5: `descricao` do `so_leitura` alinhada à gramática da ADR 0011. A limpeza de `saidas` segue no cartão proposto.
+- 6: `CHANGELOG.md` cita os endurecimentos das voltas 2 a 4.
+- 7: `import` de `hooks/conformidade.py` reagrupado.
+- 1 (`shlex` ilegível) vira cartão; 2 é só registro.
