@@ -141,10 +141,15 @@ REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 # shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
 LS_REMOTE_LEITURA = {"--heads", "--tags", "--branches", "-h", "-t", "-b", "--refs", "-q", "--quiet", "--exit-code",
                      "--symref", "--get-url"}
-GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff", "--textconv", "--filters")
+GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff", "--textconv", "--filters",
+               "--show-signature")  # `--show-signature` roda o `gpg.program`
 # Opções de verdade que são prefixo de uma de `GIT_EXECUTA` (o git escolhe a exata); no `cat-file`, que não as tem, o
 # mesmo texto é abreviação de `--textconv`/`--filters`.
 GIT_EXATAS = {"--text", "--filter"}
+# `%G?`, `%GS`, `%+GK`... no `--format`/`--pretty` do git rodam o `gpg.program` para verificar a assinatura.
+FORMATO_ASSINATURA = re.compile(r"%[-+ ]?G")
+# `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
+TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
                 "o que exige escrita é de outro agente")
 
@@ -488,6 +493,9 @@ class Guarda:
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
+        if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
+            self.barrar("R-CONFORMIDADE", f"substituição dentro de aspas pelo papel só de leitura ({self.papel})",
+                        "tire o $( e a crase da linha")
         if self.leitura and nivel == 0:
             self.gramatica_de_leitura(comando)
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
@@ -686,8 +694,9 @@ class Guarda:
     def checar_so_leitura(self, palavras, atribuicoes):
         """Papel só de leitura (`so_leitura`): lista branca de comandos, depois da gramática (`gramatica_de_leitura`, que já
         recusa expansão, substituição e redirecionamento). Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa com caminho
-        (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`) e `--output` recusam; o resto
-        fora da lista também: na dúvida, recusa."""
+        (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`), `--output`, `test` fora de
+        `TESTE_LEITURA` e valor de opção do `forge-check` que começa com `-` recusam; o resto fora da lista também: na
+        dúvida, recusa."""
         if atribuicoes:
             self.barrar("R-CONFORMIDADE", f"variável na linha ({atribuicoes[0]}) pelo papel só de leitura ({self.papel})",
                         DICA_LEITURA)
@@ -701,6 +710,12 @@ class Guarda:
         if any(abreviacao_de(a, ("--output",)) for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave} --output` grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
+        if prog == "test" and (len(args) != 2 or args[0] not in TESTE_LEITURA):
+            self.barrar("R-CONFORMIDADE", f"`test` fora da forma `test -e|-f|-d|-s <caminho>` (papel só de leitura: "
+                                          f"{self.papel})", "um teste por chamada, com um caminho")
+        if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
+                                          f"{self.papel})", DICA_LEITURA)
         if prog == "gh" and any(a in ("--web", "-w") for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave} --web` abre o navegador (papel só de leitura: {self.papel})", DICA_LEITURA)
         if prog == "git":
@@ -711,7 +726,7 @@ class Guarda:
     def git_so_leitura(self, chave, args):
         """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
         `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas (`--textconv` e
-        `--filters` rodam o driver configurado no repositório)."""
+        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`)."""
         for a in args:
             if chave == "git ls-remote":
                 if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):
@@ -722,6 +737,9 @@ class Guarda:
                                                   f"programa (papel só de leitura: {self.papel})", DICA_LEITURA)
             elif abreviacao_de(a, GIT_EXECUTA) and (a.split("=", 1)[0] not in GIT_EXATAS or chave == "git cat-file"):
                 self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+            elif FORMATO_ASSINATURA.search(a):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com formato de assinatura (`%G`), que roda o gpg "
                                               f"(papel só de leitura: {self.papel})", DICA_LEITURA)
 
     def da_atribuicao(self, atribuicoes, nome):
