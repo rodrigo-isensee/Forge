@@ -73,6 +73,15 @@ def recusar_publicacao(arquivos):
                  "Rode sem --publicar.")
 
 
+def arquivos_alterados(repo_dir, base, sha):
+    """Caminhos tocados entre `base` e `sha`, com nome antigo e novo (sem detecção de renomeação), separados por NUL.
+    Falha fechada: se o `git diff` falhar, a publicação é recusada em vez de seguir com lista vazia."""
+    r = rodar(["git", "diff", "--name-only", "--no-renames", "-z", base, sha], cwd=repo_dir, saida=True)
+    if r.returncode:
+        sys.exit(f"ci-local: --publicar recusado: o git diff falhou (rc {r.returncode}); não deu para conferir os arquivos do PR.")
+    return [a for a in r.stdout.split("\0") if a]
+
+
 def ler_workflow(caminho):
     """Texto do workflow, ou None se ausente ou symlink (a leitura seguiria o link para fora da worktree)."""
     if caminho.is_symlink() or not caminho.exists():
@@ -384,8 +393,7 @@ def main(argv=None):
         sys.exit("ci-local: sem ponto de partida comum entre o PR e a base.")
 
     if a.publicar:
-        alterados = rodar(["git", "diff", "--name-only", base, sha], cwd=repo_dir, saida=True).stdout.split()
-        recusar_publicacao(alterados)
+        recusar_publicacao(arquivos_alterados(repo_dir, base, sha))
 
     t = rodar(["gh", "auth", "token"], saida=True)
     token = t.stdout.strip()

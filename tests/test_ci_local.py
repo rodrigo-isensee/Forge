@@ -311,12 +311,59 @@ class PortoesDeSegurancaTest(unittest.TestCase):
             self.assertIn("--publicar recusado", str(c.exception.code))
         ci.recusar_publicacao(["README.md", "tests/test_x.py", ".github/dependabot.yml"])
 
+    def repo_com(self, d, antes, depois):
+        """Repositório descartável: `antes` vira o commit base; `depois` (renomeações e edições) vira a cabeça."""
+        import subprocess
+        def git(*a):
+            subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *a],
+                           cwd=d, check=True, capture_output=True)
+        git("init", "-q")
+        for nome in antes:
+            (Path(d) / nome).parent.mkdir(parents=True, exist_ok=True)
+            (Path(d) / nome).write_text("conteudo identico\n" * 20, encoding="utf-8")
+        git("add", "-A")
+        git("commit", "-q", "-m", "base")
+        base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True).stdout.strip()
+        depois(git, Path(d))
+        git("add", "-A")
+        git("commit", "-q", "-m", "cabeca")
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True).stdout.strip()
+        return base, sha
+
+    def test_publicar_recusa_renomear_a_catraca(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            base, sha = self.repo_com(d, ["tests/catraca.py", "README.md"], lambda git, r: git("mv", "tests/catraca.py", "tests/outro.py"))
+            alterados = ci.arquivos_alterados(d, base, sha)
+            self.assertIn("tests/catraca.py", alterados)
+            with self.assertRaises(SystemExit) as c:
+                ci.recusar_publicacao(alterados)
+            self.assertIn("--publicar recusado", str(c.exception.code))
+
+    def test_publicar_recusa_se_o_git_diff_falha(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            base, _ = self.repo_com(d, ["README.md"], lambda git, r: (r / "x.txt").write_text("x"))
+            with self.assertRaises(SystemExit) as c:
+                ci.arquivos_alterados(d, base, "0" * 40)  # sha inexistente: o git diff falha
+            self.assertIn("git diff", str(c.exception.code))
+
+    def test_publicar_deixa_passar_pr_que_so_altera_o_readme(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            def mexe(git, r):
+                (r / "README.md").write_text("outro texto\n", encoding="utf-8")
+            base, sha = self.repo_com(d, ["README.md", "tests/catraca.py"], mexe)
+            alterados = ci.arquivos_alterados(d, base, sha)
+            self.assertEqual(alterados, ["README.md"])
+            ci.recusar_publicacao(alterados)
+
     def test_publicar_recusa_no_fluxo_principal_antes_de_rodar_a_bateria(self):
         chamadas = []
 
         def rodar(args, **kw):
             chamadas.append(list(args))
-            out = {"rev-parse": "/repo\n", "merge-base": "c" * 40 + "\n", "diff": ".github/workflows/ci.yml\n"}.get(args[1], "")
+            out = {"rev-parse": "/repo\n", "merge-base": "c" * 40 + "\n", "diff": ".github/workflows/ci.yml\0"}.get(args[1], "")
             return ci.subprocess.CompletedProcess(args, 0, out, "")
 
         velho = (ci.gh_json, ci.rodar)
