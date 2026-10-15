@@ -989,12 +989,29 @@ def politica():
     return pol
 
 
+def raiz_do_parecer(hook, p):
+    """Raiz da cópia de trabalho que contém `p`: a da sessão ou, se `p` está noutra worktree do mesmo repositório,
+    a dela (`--show-toplevel`). Outro repositório não vale (o diretório comum de git tem de ser o mesmo)."""
+    raiz = Path(os.path.realpath(hook.raiz))
+    if raiz in p.parents:
+        return raiz
+    cod, topo = git(p.parent, "rev-parse", "--show-toplevel")
+    cod2, comum = git(p.parent, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    cod3, comum_sessao = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if cod or cod2 or cod3 or os.path.realpath(comum) != os.path.realpath(comum_sessao):
+        return raiz
+    return Path(os.path.realpath(topo))
+
+
 def autoria(hook, guarda, alvos):
     """PostToolUse: grava quem escreveu cada parecer (caminho, hash do texto sem espaços nas pontas, agente, papel,
-    hora) em autoria.jsonl; o `forge-check pr` confere (ADR 0009, 6.4)."""
-    raiz = Path(os.path.realpath(hook.raiz))
+    hora) em autoria.jsonl; o `forge-check pr` confere (ADR 0009, 6.4). Vale também para parecer gravado em outra
+    worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/` comum."""
     for alvo in alvos:
         p = guarda.resolver(alvo, hook.cwd())
+        if not p.is_file() or p.suffix != ".md":
+            continue
+        raiz = raiz_do_parecer(hook, p)
         if raiz not in p.parents or p.suffix != ".md" or not p.is_file():
             continue
         rel = p.relative_to(raiz).as_posix()
