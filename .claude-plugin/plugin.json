@@ -16,6 +16,7 @@
   ],
   "agents": [
     "./agents/agile-coach.md",
+    "./agents/conferente.md",
     "./agents/devops-engineer.md",
     "./agents/jarvis.md",
     "./agents/qa-engineer.md",

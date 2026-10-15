@@ -403,6 +403,9 @@ class Hooks(unittest.TestCase):
             "flags_congeladas null": dict(base, flags_congeladas=None),
             "flags_congeladas ausente": sem("flags_congeladas"),
             "caminhos ausente": sem("caminhos"),
+            "so_leitura em lista": dict(base, so_leitura=["conferente"]),
+            "so_leitura sem comandos": dict(base, so_leitura={"papeis": ["conferente"], "saidas": []}),
+            "so_leitura: saidas não lista": dict(base, so_leitura=dict(base["so_leitura"], saidas="/dev/null")),
         }
         for nome, politica in malformadas.items():
             with self.subTest(nome):

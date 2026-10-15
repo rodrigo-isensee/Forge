@@ -1,0 +1,19 @@
+{
+  "descricao": "Volta 4: usos legítimos seguem livres (`git log -1`, `grep -n x arquivo`, `%h`/`%gd`, `--show-toplevel`, `--ref=HEAD`).",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git log -1 && grep -n x src/app.js && git log -1 --format=%h%n%gd && git rev-parse --show-toplevel && forge-check pr p1 --ref=HEAD"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

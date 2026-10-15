@@ -1,0 +1,20 @@
+{
+  "descricao": "S6, PWN7: `test -v` reavalia o índice entre aspas simples como código; o `$(git diff {--output=...})` de dentro grava arquivo.",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "test -v 'a[$(git diff {--output=PWN7,HEAD})]'"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`test` fora da forma"
+  }
+}

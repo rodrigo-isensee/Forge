@@ -14,6 +14,7 @@ import re
 import shlex
 import sys
 import time
+import unicodedata
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -23,8 +24,13 @@ LIMITE_LOG = 256 * 1024
 # Usados só se o modelo do projeto (templates/projeto/.forge/config.json) não puder ser lido.
 RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (forge-init)
 INTEGRACAO = {"main", "master", "develop", "homolog"}
-SEPARADORES = set("();|&\n")
-REDIRECIONAMENTO = set("<>")
+PONTUACAO = "();<>|&\n"
+# Um sinal do shell (fora de aspas) se divide em operadores: abertura de substituição de processo (`<(`, `>(`), parênteses,
+# redirecionamento (`>`, `>>`, `2>&`, `&>`, `<<`...) e separadores (`;`, `|`, `&&`, quebra de linha).
+OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
+# No lugar de uma substituição, o comando de fora recebe uma palavra opaca; o conteúdo dela é conferido como comando
+# próprio. `$(…)` contém `$(`: as regras que já desconfiam de `$(` num caminho (`$X/.forge`) seguem valendo.
+OPACO = {"$": "$(…)", "<": "<(…)", ">": ">(…)"}
 
 
 def raiz_do_projeto(inicio):
@@ -96,44 +102,270 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
-def segmentos(comando):
-    """Divide a linha do shell em comandos simples (listas de palavras), sem executar nada.
+def fichas(comando):
+    """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
     Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando)."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
+    lex = shlex.shlex(comando, posix=True, punctuation_chars=PONTUACAO)
     lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, pular = [], False
-    for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
-            yield atual
-            atual = []
-        elif tok and set(tok) <= REDIRECIONAMENTO:
-            pular = True
-        elif pular:
-            pular = False
-        else:
-            atual.append(tok)
-    yield atual
+    # O `shlex` devolve o caractere que encerrou a palavra (sem espaço no meio) em `_pushback_chars`: é por ele que se
+    # sabe o que está colado (`$(`, `)/x`), e pela posição na linha, se o sinal estava entre aspas (`")"`).
+    def posicao():
+        return lex.instream.tell() - len(lex._pushback_chars)
+
+    inicio = posicao()
+    while (tok := lex.get_token()) is not None:
+        fim = posicao()
+        bruto = comando[inicio:fim].rstrip(" \t\r")
+        sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
+            len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
+        yield tok, sinal, bool(lex._pushback_chars)
+        inicio = fim
 
 
 def comandos(comando):
-    """Como `segmentos`, mas devolve (palavras, destinos) por comando simples: `destinos` são os alvos dos
-    redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos."""
-    lex = shlex.shlex(comando, posix=True, punctuation_chars="();<>|&\n")
-    lex.whitespace, lex.whitespace_split = " \t\r", True
-    atual, destinos, modo = [], [], None  # modo: None | "saida" | "entrada"
-    for tok in lex:
-        if tok and set(tok) <= SEPARADORES:
-            yield atual, destinos
-            atual, destinos, modo = [], [], None
-        elif tok and set(tok) <= REDIRECIONAMENTO | set("|&") and set(tok) & REDIRECIONAMENTO:
-            modo = "saida" if ">" in tok else "entrada"
-        elif modo:
-            if modo == "saida" and not re.fullmatch(r"\d+|-", tok):
-                destinos.append(tok)
-            modo = None
+    """Divide a linha do shell em comandos simples: (palavras, destinos, substituição) por comando. `destinos` são os
+    alvos dos redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos.
+
+    `$(...)`, `<(...)` e `>(...)` não separam comandos: uma pilha de aninhamento guarda o comando de fora, que recebe a
+    palavra opaca (`OPACO`, colada ao que estiver colado: `$(…)/x`) e segue juntando palavras depois do `)`. O conteúdo
+    sai antes, como comando próprio, com `substituição` = a tupla que a identifica (`()` é a linha; `(1,)`, a primeira
+    substituição; `(1, 2)`, uma dentro dela): roda num subshell, então `cd` lá dentro não vale para a linha. O `(` de
+    subshell e o `)` que o fecha continuam separando. Aspas desbalanceadas levantam ValueError."""
+    pilha, contador = [], [0]  # pilha: ("(", None) para subshell; (tipo, estado de fora) para substituição
+    estado = {"palavras": [], "destinos": [], "modo": None, "palavra": None, "colar": False, "sub": ()}
+
+    def entregar():
+        palavra, estado["palavra"], estado["colar"] = estado["palavra"], None, False
+        if palavra is None:
+            return
+        if estado["modo"]:
+            if estado["modo"] == "saida" and not re.fullmatch(r"\d+|-", palavra):
+                estado["destinos"].append(palavra)
+            estado["modo"] = None
         else:
-            atual.append(tok)
-    yield atual, destinos
+            estado["palavras"].append(palavra)
+
+    def separar():
+        entregar()
+        feito = (estado["palavras"], estado["destinos"], estado["sub"])
+        estado.update(palavras=[], destinos=[], modo=None)
+        return feito
+
+    def abrir(tipo, prefixo):
+        contador[0] += 1
+        pilha.append((tipo, dict(estado, palavra=prefixo)))
+        estado.update(palavras=[], destinos=[], modo=None, palavra=None, colar=False, sub=estado["sub"] + (contador[0],))
+
+    def fechar():
+        feito = separar()
+        tipo, fora = pilha.pop()
+        estado.clear()
+        estado.update(fora, palavra=(fora["palavra"] or "") + OPACO[tipo])
+        return feito
+
+    for tok, sinal, colada in fichas(comando):
+        if not sinal:
+            if estado["palavra"] is not None and estado["colar"]:
+                estado["palavra"] += tok
+            else:
+                entregar()
+                estado["palavra"] = tok
+            estado["colar"] = colada
+            continue
+        ops = OPERADOR.findall(tok)
+        for i, op in enumerate(ops):
+            colado = estado["colar"] and i == 0 and estado["palavra"] is not None
+            if op == "(" and colado and estado["palavra"].endswith("$"):
+                abrir("$", estado["palavra"][:-1])
+            elif op in ("<(", ">("):
+                prefixo = estado["palavra"] if colado else None
+                if not colado:
+                    entregar()
+                abrir(op[0], prefixo)
+            elif op == "(":
+                yield separar()
+                pilha.append(("(", None))
+            elif op == ")" and pilha and pilha[-1][0] != "(":
+                yield fechar()
+                estado["colar"] = colada and i == len(ops) - 1
+                continue
+            elif op == ")":
+                yield separar()
+                if pilha:
+                    pilha.pop()
+            elif set(op) & set("<>"):
+                entregar()
+                estado["modo"] = "saida" if ">" in op else "entrada"
+            else:
+                yield separar()
+            estado["colar"] = False
+    while pilha:  # substituição sem o `)`: o shell recusa, mas o de dentro é conferido do mesmo jeito
+        if pilha[-1][0] == "(":
+            pilha.pop()
+        else:
+            yield fechar()
+    yield separar()
+
+
+# ADR 0011, item 1: fora de aspas, o papel só de leitura usa só este alfabeto (letras e dígitos, inclusive acentuados),
+# o espaço e o tab literais e os operadores `&&`, `||`, `;` e `|`. Entre aspas duplas, tudo menos `DUPLAS_RECUSA`.
+ALFABETO_LEITURA = frozenset(" \t_./:=@,+%-~^")
+DUPLAS_RECUSA = frozenset("$`\\!")
+
+
+def controle(c):
+    """Caractere de controle ou invisível (quebra de linha, `\\r`, largura zero...); o tab não conta."""
+    return c != "\t" and unicodedata.category(c)[0] == "C"
+
+
+def nome_do_sinal(c):
+    return "quebra de linha" if c == "\n" else f"U+{ord(c):04X}" if controle(c) else c
+
+
+def fora_da_gramatica_de_leitura(linha):
+    """ADR 0011, item 1: o primeiro sinal da linha fora da gramática do papel só de leitura, ou None. As aspas são lidas
+    em sequência, num estado só: o que está entre aspas simples vale como está (menos controle); entre duplas, o bash
+    ainda interpreta `$`, crase, `\\` e `!`. Aspas sem fechar recusam."""
+    i, n = 0, len(linha)
+    while i < n:
+        c = linha[i]
+        if c in "'\"":
+            fim = linha.find(c, i + 1)
+            if fim < 0:
+                return f"{c} sem fechar"
+            proibidos = DUPLAS_RECUSA if c == '"' else ()
+            ruim = next((x for x in linha[i + 1:fim] if x in proibidos or controle(x)), None)
+            if ruim is not None:
+                return nome_do_sinal(ruim)
+            i = fim + 1
+        elif linha.startswith(("&&", "||"), i):
+            i += 2
+        elif c in ";|" or c in ALFABETO_LEITURA or c.isalnum():
+            i += 1
+        else:
+            return nome_do_sinal(c)
+    return None
+
+
+# ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
+CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
+INICIO_DE_PALAVRA = " \t\n;&|()"
+# O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
+# palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
+HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
+
+
+def corpos_de_heredoc(linha, inicio, delimitadores):
+    """Pula os corpos dos heredocs pendentes a partir de `inicio` (o começo da linha seguinte ao operador). Devolve o
+    índice depois do último delimitador, ou None se um corpo não termina numa linha igual ao delimitador ou tem uma
+    linha que só é igual com espaços em volta (o `tirar_heredocs` a tomaria por fim, o bash não)."""
+    j = inicio
+    for delimitador in delimitadores:
+        while True:
+            if j > len(linha):
+                return None
+            k = linha.find("\n", j)
+            atual = linha[j:] if k < 0 else linha[j:k]
+            j = len(linha) + 1 if k < 0 else k + 1
+            if atual == delimitador:
+                break
+            if atual.strip() == delimitador:
+                return None
+    return min(j, len(linha))
+
+
+def construcao_nao_modelada(linha):
+    """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
+    simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,
+    `${`, `$X`, `$@`, `$1`...), `\\` seguido de quebra de linha; fora de aspas, chaves e `case`; e todo `<<` que não
+    seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas ou escapado numa linha com várias linhas). As aspas
+    são lidas em sequência, e `$(` abre um contexto novo de aspas, como no bash; `\\` escapa o caractere seguinte fora
+    de aspas e, entre duplas, `$`, crase, `"` e `\\`."""
+    pilha = [["fora", 0]]  # contexto: fora | subst (com a profundidade de parênteses) | simples | duplas
+    esqueleto, pendentes, modelados, i, n = [], [], set(), 0, len(linha)
+    while i < n:
+        c, seguinte = linha[i], linha[i + 1:i + 2]
+        contexto = pilha[-1]
+        if contexto[0] == "simples":
+            if c == "'":
+                pilha.pop()
+            elif c == "\n" and pendentes:
+                return "heredoc"
+            i += 1
+            continue
+        if c == "\\":
+            if seguinte == "\n":
+                return "\\ + quebra de linha"
+            if contexto[0] != "duplas" or seguinte in ('$', '`', '"', '\\'):
+                i += 1  # o caractere seguinte é literal
+        elif c == "`":
+            return "crase"
+        elif c == "$":
+            if seguinte != "(":
+                nome = re.match(r"\w+", linha[i + 1:])  # o nome inteiro da variável, não só a primeira letra
+                return "$" + (nome.group() if nome else seguinte) if seguinte and not seguinte.isspace() else "$"
+            pilha.append(["subst", 0])
+            i += 1
+        elif contexto[0] == "duplas":
+            if c == '"':
+                pilha.pop()
+            elif c == "\n" and pendentes:
+                return "heredoc"
+        elif c == "'":
+            pilha.append(["simples", 0])
+            esqueleto.append("_")
+        elif c == '"':
+            pilha.append(["duplas", 0])
+            esqueleto.append("_")
+        elif c == "#":
+            if re.search(r"\n[ \t]*\S", linha[i:]):
+                return "# + outra linha"
+            if i == 0 or linha[i - 1] in INICIO_DE_PALAVRA:
+                break  # comentário até o fim da linha
+            esqueleto.append(c)
+        elif c in "{}":
+            return "chaves"
+        elif linha.startswith("<<", i):
+            m = HEREDOC_MODELADO.match(linha, i)
+            if m is None:
+                return "heredoc"
+            pendentes.append(m.group(2))
+            modelados.add(i)
+            esqueleto.append(" ")
+            i = m.end()
+            continue
+        elif c == "\n" and pendentes:
+            fim = corpos_de_heredoc(linha, i + 1, pendentes)
+            if fim is None:
+                return "heredoc"
+            modelados.update(range(i + 1, fim))
+            pendentes, i = [], fim
+            esqueleto.append("\n")
+            continue
+        else:
+            if contexto[0] == "subst" and c == "(":
+                contexto[1] += 1
+            elif contexto[0] == "subst" and c == ")":
+                if contexto[1]:
+                    contexto[1] -= 1
+                else:
+                    pilha.pop()
+            esqueleto.append(c)
+        i += 1
+    if pendentes:
+        return "heredoc"
+    # O `tirar_heredocs` acha `<<` em qualquer lugar da linha física (entre aspas, depois de `\\`): com várias linhas,
+    # todo `<<` fora dos heredocs modelados e dos corpos deles é não modelado.
+    if "\n" in linha and any(m.start() not in modelados for m in re.finditer("<<", linha)):
+        return "heredoc"
+    return "case" if CASE.search("".join(esqueleto)) else None
+
+
+def segmentos(comando):
+    """Os comandos simples da linha (listas de palavras), sem os alvos de redirecionamento: os de `comandos`, inclusive
+    o conteúdo de cada substituição. Aspas desbalanceadas levantam ValueError."""
+    for palavras, _, _ in comandos(comando):
+        yield palavras
 
 
 def sem_atribuicoes(palavras):
