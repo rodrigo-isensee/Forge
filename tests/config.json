@@ -123,7 +123,11 @@
       "numstat",
       "escopo: anexo com remoção",
       "pendente:",
-      "sem espera"
+      "sem espera",
+      "só a marca ou a citação",
+      "Base-sha fora da branch",
+      "escopo: brief sem arquivo",
+      "linhas>=N"
     ],
     "hooks/conformidade.json": [
       "\"conferente\": \\[\"forge:conferente\"\\]",
@@ -380,6 +384,7 @@
       "Ele não recebe o relatório do autor",
       "retrabalho",
       "espera:",
+      "linhas>=N",
       "\"do autor\""
     ],
     "docs/regras/R-BRIEF.md": [
