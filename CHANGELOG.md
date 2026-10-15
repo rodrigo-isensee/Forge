@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+
+## [0.14.0] - 2026-10-14
 ### Adicionado
 - **Medir antes de proteger contra alucinação (fonte F1, fatia 1; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** `forge-check transcricao lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, "N testes OK") sem lastro literal nas saídas de ferramenta dele; `transcricao decisoes` (M3) conta as respostas do Jarvis com mais de um grupo de opções A/B/C ou sem "Recomendo". Offline, sem IA, saída anonimizada e só mede; métricas em `docs/melhoria-continua.md`.
 ### Corrigido
