@@ -105,4 +105,4 @@ Também passaram, na cópia da branch: `tests.test_hooks.Hooks.test_fixtures`, `
 - **Não verificado:**
   - comportamento real do GitHub (sem rede nem PR de teste). Que PR em rascunho não é mesclável e que o `PATCH` REST não muda `draft` vem da documentação do GitHub, não de sonda;
   - `gh pr create --draft --web`, porque o agente não opera o navegador.
-- **Ferramentas:** só leitura do código, sondas locais em Python e git, e os testes do repositório. `gitleaks`, `semgrep`, `zizmor`, `actionlint`, `osv-scanner` e `bandit` não estão no PATH: é uma lacuna, sem impacto aqui, porque o diff não toca workflow, dependência nem segredo.
+- **Ferramentas:** só leitura do código, sondas locais em Python e git, e os testes do repositório. `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH: é uma lacuna, sem impacto aqui, porque o diff não toca workflow, dependência nem segredo.
