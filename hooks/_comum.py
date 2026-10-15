@@ -1,7 +1,8 @@
 """Forge: base comum dos hooks do plugin (ADR 0003).
 
 Silenciosos (sem saída quando tudo está certo), determinísticos (só estado em disco e git local),
-só agem em projeto com `.forge/versao` e liberam em erro interno (registrado em `.forge/run/erros.log`).
+só agem em projeto com `.forge/versao` (o `parecer` também no clone do Forge, `raiz_de_estado`) e liberam em erro
+interno (registrado em `.forge/run/erros.log`).
 Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
 bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
@@ -33,14 +34,17 @@ OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
 OPACO = {"$": "$(…)", "<": "<(…)", ">": ">(…)"}
 
 
-def raiz_do_projeto(inicio):
-    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge (tem `.forge/versao`); senão None.
+def copia_de_trabalho(inicio):
+    """Raiz da cópia de trabalho (a pasta com `.git`, pasta ou arquivo de worktree) que contém `inicio`, ou None.
     Só consulta o disco: nada de git no caminho comum."""
     inicio = Path(inicio)
-    for d in (inicio, *inicio.parents):
-        if (d / ".git").exists():
-            return d if (d / ".forge" / "versao").is_file() else None
-    return None
+    return next((d for d in (inicio, *inicio.parents) if (d / ".git").exists()), None)
+
+
+def raiz_do_projeto(inicio):
+    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge (tem `.forge/versao`); senão None."""
+    raiz = copia_de_trabalho(inicio)
+    return raiz if raiz is not None and (raiz / ".forge" / "versao").is_file() else None
 
 
 def e_projeto(raiz):
@@ -65,6 +69,18 @@ def e_clone_do_forge(raiz):
     return raiz is not None and not e_projeto(raiz) and tem_manifesto_do_forge(raiz)
 
 
+def raiz_de_estado(inicio):
+    """Raiz em que os hooks agem e guardam o estado (`.forge/run/` da cópia principal, `Hook.run`): a do projeto que
+    contém `inicio` ou, fora de projeto, a do clone do Forge que o contém. Vale para a cópia principal do dono
+    (`~/Forge`) e para as worktrees de `~/.forge-contrib/wt/`. O manifesto do Forge pode ser escrito em qualquer pasta,
+    então quem usa esta raiz só pode ganhar guarda com ela, nunca perder (`tem_manifesto_do_forge`)."""
+    raiz = raiz_do_projeto(inicio)
+    if raiz is not None:
+        return raiz
+    copia = copia_de_trabalho(inicio)
+    return copia if e_clone_do_forge(copia) else None
+
+
 def raiz_declarada():
     """`CLAUDE_PROJECT_DIR`: a raiz da sessão, que o Claude Code define no processo do hook (também para os
     subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
@@ -82,12 +98,16 @@ def em_contrib(pasta):
     return contrib() in (alvo, *alvo.parents)
 
 
-def sessao_vigiada(hook):
+def sessao_vigiada(hook, clone_do_forge=False):
     """Os hooks que falham fechado agem nesta sessão? A mesma decisão de `identificar_sessao` (conformidade), pela
     raiz da sessão e não pela pasta corrente: raiz em projeto, em qualquer pasta; raiz no Forge, só dentro de um
-    projeto; sem raiz, num projeto ou em `~/.forge-contrib`. Se nem isso der para decidir, vigia (falha fechado)."""
+    projeto; sem raiz, num projeto ou em `~/.forge-contrib`. Se nem isso der para decidir, vigia (falha fechado).
+    `clone_do_forge` (hook que age no clone, como o `parecer`): vigia também com a raiz da sessão ou a pasta corrente
+    num clone do Forge."""
     try:
         cwd, raiz = hook.cwd(), raiz_declarada()
+        if clone_do_forge and (e_clone_do_forge(raiz) or raiz_de_estado(cwd) is not None):
+            return True
         if raiz is not None and e_projeto(raiz):
             return True
         if raiz_do_projeto(cwd) is not None:
@@ -457,9 +477,14 @@ class Hook:
         return Path(cwd) if isinstance(cwd, str) and cwd else Path.cwd()
 
     # Projeto e configuração ------------------------------------------------------------------
-    def projeto(self, inicio):
-        """Raiz do projeto do Forge que contém `inicio`, ou None (projeto alheio ou hook desligado na config)."""
+    def projeto(self, inicio, clone_do_forge=False):
+        """Raiz do projeto do Forge que contém `inicio`, ou None (projeto alheio ou hook desligado na config).
+        `clone_do_forge`: fora de projeto, também a raiz do clone do Forge (`raiz_de_estado`). Lá a guarda não se
+        desliga: `.forge/` do clone fica fora do git e nenhum hook a protege."""
         self.raiz, self._config, self._run = raiz_do_projeto(inicio), None, None
+        if self.raiz is None and clone_do_forge:
+            self.raiz = raiz_de_estado(inicio)
+            return self.raiz
         if self.raiz is None or self.nome in self.config()["hooks_desligados"]:
             return None
         return self.raiz
@@ -578,20 +603,21 @@ def texto_da_acao(hook, bruto):
     return "\n".join(v for k in ("command", "file_path", "notebook_path") if isinstance(v := entrada.get(k), str))
 
 
-def falhar_fechado(hook, critico, bruto):
-    """ADR 0009, seção 7: em erro interno, bloqueia só se o comando ou o caminho da ação tem marcador crítico e o
-    a sessão é vigiada (`sessao_vigiada`: pela raiz da sessão, não pela pasta corrente), e nunca depois da
+def falhar_fechado(hook, critico, bruto, clone_do_forge=False):
+    """ADR 0009, seção 7: em erro interno, bloqueia só se o comando ou o caminho da ação tem marcador crítico e a
+    sessão é vigiada (`sessao_vigiada`: pela raiz da sessão, não pela pasta corrente), e nunca depois da
     ferramenta, quando já não há o que impedir."""
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse"
-            or not critico.search(texto_da_acao(hook, bruto)) or not sessao_vigiada(hook)):
+            or not critico.search(texto_da_acao(hook, bruto)) or not sessao_vigiada(hook, clone_do_forge)):
         return
     bloquear("R-CONFORMIDADE", f"erro interno do hook {hook.nome} diante de uma ação crítica; ele não pôde "
                                "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")
 
 
-def executar(nome, funcao, critico=None):
+def executar(nome, funcao, critico=None, clone_do_forge=False):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
-    fechada seletiva; `FORGE_GUARDA_ABERTA=1` no ambiente do processo (só o dono) abre a guarda desses hooks."""
+    fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
+    (só o dono) abre a guarda desses hooks."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
@@ -603,5 +629,5 @@ def executar(nome, funcao, critico=None):
             funcao(hook)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)
-        falhar_fechado(hook, critico, bruto)
+        falhar_fechado(hook, critico, bruto, clone_do_forge)
     sys.exit(0)

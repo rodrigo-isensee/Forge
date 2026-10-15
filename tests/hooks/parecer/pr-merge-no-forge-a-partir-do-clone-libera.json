@@ -1,5 +1,5 @@
 {
-  "descricao": "Clone do Forge (manifesto, sem .forge/versao) mesclando no Forge: não é projeto, o hook não age.",
+  "descricao": "Clone do Forge (manifesto, sem .forge/versao) mesclando no Forge: o hook confere o parecer (anti-alucinação, fatia 3) e, aprovado, libera.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"

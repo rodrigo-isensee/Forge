@@ -24,6 +24,8 @@ Formato do fixture:
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
+import contextlib
+import io
 import json
 import os
 import re
@@ -34,6 +36,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
@@ -317,6 +320,50 @@ class Hooks(unittest.TestCase):
             with self.subTest(carga=carga, memoria=memoria):
                 self.assertEqual(agentes.teto_adaptativo(carga, memoria), esperado)
         self.assertEqual(agentes.teto_adaptativo(None, 6), 3)
+
+    def test_raiz_de_estado_no_clone_do_forge(self):
+        """Anti-alucinação, fatia 3: a raiz do clone do Forge (cópia principal e worktree) é achada; o projeto vem antes
+        do manifesto e pasta sem manifesto não é clone."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        clone, wt, projeto, alheio = tmp / "Forge", tmp / "wt" / "aa", tmp / "proj", tmp / "alheio"
+        for pasta in (clone, projeto, alheio):
+            (pasta / "docs").mkdir(parents=True)
+            git("init", "-q", "-b", "develop", cwd=pasta)
+            git("config", "user.email", "t@example.com", cwd=pasta)
+            git("config", "user.name", "Teste", cwd=pasta)
+        for pasta in (clone, projeto):
+            (pasta / ".claude-plugin").mkdir()
+            (pasta / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+        (projeto / ".forge").mkdir()
+        (projeto / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        git("add", "-A", cwd=clone)
+        git("commit", "-q", "-m", "base", cwd=clone)
+        git("worktree", "add", "-q", "-b", "melhoria/x", str(wt), cwd=clone)
+        self.assertEqual(_comum.raiz_de_estado(clone / "docs"), clone)
+        self.assertEqual(_comum.raiz_de_estado(wt / "docs"), wt)
+        self.assertEqual(_comum.raiz_de_estado(projeto / "docs"), projeto)
+        self.assertIsNone(_comum.raiz_de_estado(alheio / "docs"))
+        self.assertIsNone(_comum.raiz_de_estado(tmp))
+        hook = _comum.Hook("parecer")
+        hook.entrada = {"cwd": str(wt), "tool_input": {"command": "gh pr ready"}}
+        self.assertIsNone(hook.projeto(wt))  # sem o pedido, o hook segue só nos projetos
+        self.assertEqual(hook.projeto(wt, clone_do_forge=True), wt)
+        self.assertEqual(hook.copia_principal().resolve(), clone.resolve())  # o estado vai para a cópia principal
+        with mock.patch.dict(os.environ, clear=False):
+            os.environ.pop("CLAUDE_PROJECT_DIR", None)
+            self.assertFalse(_comum.sessao_vigiada(hook))  # pasta corrente no clone, fora de ~/.forge-contrib
+            self.assertTrue(_comum.sessao_vigiada(hook, clone_do_forge=True))
+            hook.entrada["cwd"] = str(tmp)
+            os.environ["CLAUDE_PROJECT_DIR"] = str(clone)  # sessão do dono em ~/Forge, pasta corrente fora dela
+            self.assertTrue(_comum.sessao_vigiada(hook, clone_do_forge=True))
+            erro = io.StringIO()
+            with self.assertRaises(SystemExit) as saida, contextlib.redirect_stderr(erro):
+                _comum.falhar_fechado(hook, re.compile(r"\bpr\b.*\bready\b"), "", clone_do_forge=True)
+            self.assertEqual(saida.exception.code, 2)
+            self.assertIn("erro interno do hook parecer", erro.getvalue())
 
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
