@@ -8,7 +8,7 @@ Formato do fixture:
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
-  git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b}
+  git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b} (com "solto": true, HEAD solto)
               | {"ref": "refs/remotes/origin/b"} (aponta para o HEAD) | {"config": {chave: valor}} (git config local)
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   repos       {pasta relativa a {tmp}: {"arquivos": {...}, "branch": b, "remotos": {nome: url}}} outros repositórios git
@@ -20,7 +20,8 @@ Formato do fixture:
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
               {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
-  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+  esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
+              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
 import json
@@ -35,7 +36,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
+from test_forge import RAIZ, ambiente_limpo, git, minimo  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
@@ -110,7 +111,10 @@ class Fixture:
         git("commit", "-q", "-m", "base", cwd=raiz)
         for passo in d.get("git", []):
             if "worktree" in passo:
-                git("worktree", "add", "-q", "-b", passo["branch"], str(tmp / passo["worktree"]), cwd=raiz)
+                if passo.get("solto"):  # HEAD solto, sem branch (cópia de review)
+                    git("worktree", "add", "-q", "--detach", str(tmp / passo["worktree"]), cwd=raiz)
+                else:
+                    git("worktree", "add", "-q", "-b", passo["branch"], str(tmp / passo["worktree"]), cwd=raiz)
             elif "branch" in passo:
                 git("switch", "-q", "-c", passo["branch"], cwd=raiz)
             elif "checkout" in passo:
@@ -201,7 +205,7 @@ def rodar(hook, entrada, cwd, proc=None, extra=None):
 
 class Hooks(unittest.TestCase):
     def setUp(self):
-        self.fixtures = [Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))]
+        self.fixtures = minimo([Fixture(p) for p in sorted(FIXTURES.glob("*/*.json"))], 460, "fixtures em tests/hooks/")
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
@@ -226,6 +230,12 @@ class Hooks(unittest.TestCase):
                     self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
                     self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
                     self.assertIn(esperado["saida"], saida["systemMessage"])
+                elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
+                    self.assertEqual(f.hook, "conformidade")
+                    saida = json.loads(r.stdout)["hookSpecificOutput"]
+                    self.assertEqual((saida["hookEventName"], saida["permissionDecision"]), ("PreToolUse", "ask"))
+                    self.assertNotIn("\n", saida["permissionDecisionReason"], "uma linha só")
+                    self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
                 else:
                     self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
                 self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
@@ -256,13 +266,13 @@ class Hooks(unittest.TestCase):
                     self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
     def test_cada_hook_tem_caso_que_passa_e_que_bloqueia(self):
-        scripts = {p.stem for p in HOOKS.glob("*.py") if not p.name.startswith("_")}
+        scripts = {p.stem for p in minimo(HOOKS.glob("*.py"), 5, "scripts de hook") if not p.name.startswith("_")}
         self.assertEqual({f.hook for f in self.fixtures}, scripts)
         for hook in scripts:
             codigos = {f.dados["esperado"]["codigo"] for f in self.fixtures if f.hook == hook}
             nomes = {f.caminho.stem for f in self.fixtures if f.hook == hook}
             with self.subTest(hook=hook):
-                self.assertEqual(codigos, {0} if hook == "vigia" else {0, 2})  # o vigia avisa, nunca bloqueia
+                self.assertEqual(codigos, {0} if hook in ("vigia", "doutor") else {0, 2})  # o vigia e o doutor avisam, nunca bloqueiam
                 self.assertIn("sem-forge-versao", nomes)
                 self.assertIn("erro-interno", nomes)
 
@@ -273,7 +283,7 @@ class Hooks(unittest.TestCase):
             "nunca `additionalContext`", ""), "o vigia só avisa o usuário (systemMessage)")
         for evento in ("SessionStart", "Stop"):  # SessionStart: o stdout vira contexto do modelo (ADR 0003, item 1)
             comandos = {h["args"][0].rsplit("/", 1)[-1] for g in d["hooks"].get(evento, []) for h in g["hooks"]}
-            self.assertLessEqual(comandos, {"vigia.py"}, f"só o vigia (silencioso, sem stdout) fica em {evento}")
+            self.assertLessEqual(comandos, {"vigia.py", "doutor.py"}, f"só o vigia e o doutor (sem stdout no SessionStart) ficam em {evento}")
         usados = set()
         for evento, grupos in d["hooks"].items():
             for g in grupos:
@@ -285,6 +295,7 @@ class Hooks(unittest.TestCase):
                         rel = h["args"][0].replace("${CLAUDE_PLUGIN_ROOT}/", "")
                         self.assertTrue((RAIZ / rel).is_file(), rel)
                         usados.add(Path(rel).stem)
+        minimo(usados, 5, "hooks registrados em hooks.json")
         self.assertEqual(usados, {f.hook for f in self.fixtures})
         matchers = {g.get("matcher") for g in d["hooks"]["PreToolUse"]}
         self.assertIn("Agent|Task", matchers)

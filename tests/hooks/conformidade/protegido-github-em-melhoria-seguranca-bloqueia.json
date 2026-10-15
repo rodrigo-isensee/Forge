@@ -1,0 +1,25 @@
+{
+  "descricao": ".github/workflows/ci.yml: seguranca em melhoria/*: bloqueia (propõe, o devops escreve).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.github/workflows/ci.yml"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "peça a tech-lead/doc/devops"
+  }
+}

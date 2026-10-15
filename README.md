@@ -2,6 +2,8 @@
 
 Fábrica de software com agentes para o Claude Code. Um plugin com o **Jarvis** (orquestrador) e o time completo — tech lead, arquiteto, UX, desenvolvedores por stack (pacote inicial: Node + React), QA e agile coach —, o processo de desenvolvimento e os modelos para iniciar projetos.
 
+Visão geral com diagramas do fluxo, das integrações e das guardas: [`docs/visao-geral.md`](docs/visao-geral.md).
+
 ## O que vem na fábrica
 - **Fluxo:** discovery com Design Thinking (UX + arquiteto) → validação do protótipo pelo usuário → desenho técnico → desenvolvimento em paralelo → code review → QA obrigatório → revisão de UX → PR validado pelo usuário → retrospectiva.
 - **Regras:** a `main` é do usuário; QA e code review em toda entrega; teto de recursos da máquina; quadro Kanban visível; reuniões de alinhamento; melhoria contínua com autonomia, separando fábrica e projeto.
@@ -34,7 +36,7 @@ jarvis            # no diretório do projeto (roda no tmux; --sem-tmux para o mo
 ```
 A sessão fica num tmux `jarvis-<projeto>`: sobrevive ao fechamento do terminal (volte com o mesmo comando) e aparece em claude.ai/code como "Jarvis - <projeto>".
 
-**`jarvis-forge` e a cópia vigente (ADR 0009, seção 4).** O diretório de trabalho é o `~/Forge` (onde se edita), mas o plugin carregado vem de uma cópia vigente: um clone da `origin/develop` em `${XDG_DATA_HOME:-~/.local/share}/forge/vigente`, criado na primeira vez e **nunca atualizado sozinho**. Assim, editar `hooks/` ou `agents/` numa branch não muda a guarda nem as instruções da sessão em uso. Depois que um PR for mesclado na `develop`, rode `jarvis-forge --atualizar-vigente` (faz `git fetch` e `git reset --hard origin/develop` só na cópia vigente; recusa se ela tiver mudanças ou commits locais, e nunca apaga um diretório que não seja clone do Forge) e reinicie a sessão do tmux (o script avisa se ela estiver aberta). A sessão do modo `--dev` tem nome próprio (`jarvis-Forge-dev`). `jarvis-forge --dev` usa a cópia de trabalho (`--plugin-dir .`), com aviso, para teste manual do dono.
+**`jarvis-forge` e a cópia vigente (ADR 0009, seção 4).** O diretório de trabalho é o `~/Forge` (onde se edita), mas o plugin carregado vem de uma cópia vigente: um clone da `origin/develop` em `${XDG_DATA_HOME:-~/.local/share}/forge/vigente`, criado na primeira vez e **atualizado sozinho ao abrir, só por fast-forward** para a `origin/develop` (se tiver mudança ou commit local, se não estiver na `develop`, se não houver rede ou se a sessão do tmux já estiver aberta, o script avisa numa linha e segue com a cópia atual; nunca usa a cópia de trabalho, salvo `--dev`). Uma vez por dia (cache em `${XDG_STATE_HOME:-~/.local/state}/forge/fontes-<data>`) ele roda `forge-check fontes` e mostra uma linha se a fonte de harness tiver versão nova (sem o registro local, fica em silêncio). Assim, editar `hooks/` ou `agents/` numa branch não muda a guarda nem as instruções da sessão em uso. Para forçar a atualização sem abrir a sessão, rode `jarvis-forge --atualizar-vigente` (faz `git fetch` e `git reset --hard origin/develop` só na cópia vigente; recusa se ela tiver mudanças ou commits locais, e nunca apaga um diretório que não seja clone do Forge) e reinicie a sessão do tmux (o script avisa se ela estiver aberta). A sessão do modo `--dev` tem nome próprio (`jarvis-Forge-dev`). `jarvis-forge --dev` usa a cópia de trabalho (`--plugin-dir .`), com aviso, para teste manual do dono.
 
 ## Preparar uma estação nova (WSL)
 1. No PowerShell: `wsl --install -d Ubuntu-24.04 --location <unidade>:\WSL\<nome>`
@@ -69,10 +71,10 @@ Em projeto com `.forge/versao`, o plugin garante por código, sem gastar context
 ## Atualizar um projeto
 Quem contribui com o Forge não edita o `CHANGELOG.md`: cada PR grava a sua entrada em `changelog.d/<branch>.md` (`bin/forge-changelog novo <tipo> "<texto>"`) e a release junta tudo, sem conflito entre PRs paralelos.
 
-O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No projeto, com a árvore limpa:
-1. `claude plugin update forge@forge`
-2. `forge-upgrade` (`--simular` mostra o que faria): cria a branch `forge/upgrade-<versão>`, aplica as migrações pendentes (um commit cada) e sugere o `gh pr create`.
-3. Revise o PR e mescle; o `forge-upgrade` nunca faz push nem merge.
+O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No terminal, dentro do projeto, com a árvore limpa:
+- `forge atualizar`: mostra a versão em uso, a nova e o que muda (resumo do CHANGELOG); pede "s"; guarda o **ponto de retorno** (versão do plugin e cópia de `.forge/` e da configuração, em `~/.local/state/forge/retorno/`); roda `forge-upgrade --simular` e, se der certo, troca o plugin e aplica o `forge-upgrade` (branch `forge/upgrade-<versão>`, um commit por migração, sem push nem merge); roda o `forge doutor`; se algo falhar, oferece voltar.
+- `forge voltar-versao`: pede "s" e devolve o plugin à versão de antes e os arquivos do projeto (atualização não mesclada: volta à branch de antes e guarda a da atualização; já mesclada: branch `forge/voltar-<versão>` com um registro novo). Nunca usa `--force` nem apaga trabalho.
+- **Versão fixada:** o plugin fica fixado na tag `vX.Y.Z` (a marketplace é readicionada como `<endereço>#vX.Y.Z`); nada muda sem você pedir. Uma vez por dia o Jarvis avisa numa linha quando saiu versão nova (consulta grátis às tags por `git ls-remote`, só https; `FORGE_VERIFICAR_VERSAO=0` desliga). `forge atualizar --fixar` só fixa a versão em uso. O `claude plugin update forge@forge` e o `forge-upgrade` soltos continuam valendo para quem prefere o caminho manual.
 
 ## Desenvolver o Forge
 Ver [`.claude/CLAUDE.md`](.claude/CLAUDE.md): regras, testes, avaliações e versionamento.

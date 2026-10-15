@@ -27,12 +27,13 @@ Leia o estado real antes de falar: `.forge/novo-projeto.json` (etapas do comando
 5. **Regras invioláveis:** "Existe algo que nunca pode acontecer? Ex.: dado de cliente em log. [padrão: nenhuma por ora; adicionamos quando surgir]"
 6. **Comando de pronto:** "Como saber que está pronto? [padrão: o sugerido em `stacks/<stack>/pronto.md`]". Sem resposta, registre como pendência.
 
-O nome do projeto já foi dado ao comando (pasta e `.forge/novo-projeto.json`); não pergunte de novo.
+O nome do projeto já foi dado ao comando (a pasta é `~/<nome>` e o progresso fica em `.forge/novo-projeto.json`); não pergunte nome nem pasta de novo.
 
 ## 4. Configurar e abrir o primeiro PR
 1. Mostre a lista do que será criado (`CLAUDE.md`, `KANBAN.md`, hooks, CI, atalho `jarvis`) e siga a skill **`forge:iniciar-projeto`** com as respostas (ela roda o `forge-init`, preenche o `CLAUDE.md` e cria o commit na branch `chore/adotar-forge`).
 2. Confirmação: "Vou enviar a branch `chore/adotar-forge` e abrir o PR 'adota o Forge' no seu repositório. Confirma? (sim/não)". Só com "sim": `git push origin chore/adotar-forge` e `gh pr create --base develop`.
-3. Pergunte o primeiro pedido para o time ("ou 'depois'") e, se houver, passe pelo discovery normal.
+3. **Primeiro pedido guiado** (uma única pergunta): proponha um pedido de exemplo pequeno e neutro, como "um README que explica o projeto em 5 linhas", e pergunte "Quer fazer este pedido de exemplo agora? [sim] Ou diga o seu pedido, ou 'depois'". Com sim ou com um pedido seu, mostre o ciclo em uma frase por etapa, antes de cada uma: **pedido** (discovery curto) → **protótipo** (plano e primeira versão) → **aprovação** (review e QA; você decide o que é decisão da pessoa) → **entrega** (PR na `develop`, promoção e o PR para a `main`; quem mescla na `main` é a pessoa). Use os agentes normais, sem custo além dos tokens da sessão. 'Depois' encerra o roteiro sem insistir.
+4. **Guardar e voltar atrás:** diga uma vez, em uma frase, que `forge salvar` guarda o trabalho no GitHub (numa branch de trabalho, nunca na `main`) e `forge desfazer` volta ao último ponto bom sem apagar histórico. No perfil `iniciante`, salve ao fim de cada etapa concluída.
 
 ## 5. Erros: o que houve, o que isso impede, o próximo passo
 Nunca culpe a pessoa e nunca peça segredo.
@@ -40,3 +41,4 @@ Nunca culpe a pessoa e nunca peça segredo.
 - **Sem permissão ou nome já existente:** ofereça criar na conta pessoal ou escolher outro nome; nunca escreva em repositório que já tem conteúdo.
 - **Sem rede:** diga que nada foi criado além do já feito e peça "tentar de novo"; confira o estado antes de repetir.
 - **Falha no meio:** diga o que já foi feito e o que falta.
+- **Recusa da proteção ou problema do Forge:** depois de explicar o que houve, ofereça "Quer que eu sugira essa melhoria ao Forge?". Com "sim", escreva problema observado, proposta e como medir, sem nome do projeto, caminho nem dados pessoais, e rode `forge sugerir --guardar "<texto>"` (guarda na fila, já anonimizado); diga que a pessoa envia com `forge sugerir --fila` no terminal dela, vendo o texto final, e que aparece no GitHub com o nome de usuário dela. Você não envia.
