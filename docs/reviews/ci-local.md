@@ -3,12 +3,15 @@ tipo: review
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: dec7589e6204e7a084a08a02850e3e6e8be81863
+commit: e325345c056c9e0b95fbb3309df60712429704dd
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Code review: `scripts/ci-local` (CI local enquanto o Actions está sem cota, decisão A do dono)
+
+## Revalidado após merge da develop ca87905 (HEAD e325345, parecer: aprovado)
+O merge `e325345` resolveu o conflito do PR #128 e trouxe a versão 0.14.0. Revisão independente: `git diff 6d0af8f e325345 -- scripts/ci-local tests/test_ci_local.py` vazio (comportamento do `ci-local` e dos testes intocado). `git diff ca87905 e325345 -- CHANGELOG.md` só acrescenta `### Adicionado` com a entrada do `ci-local` em `## [Não publicado]`, uma vez, sem tocar a seção 0.14.0. Suíte: `Ran 608 tests ... OK` (`env -u FORGE_ABERTURA_FEITA`, load 0.65). `scripts/validar-plugin.sh`: `Validation passed`. O parecer de código da volta 5 segue valendo.
 
 ## Revalidado após merge da develop (HEAD dec7589, parecer: aprovado)
 O merge `dec7589` trouxe #120 e #122 e um conflito de `CHANGELOG.md`, resolvido mantendo as duas partes: `git diff 3d26772..dec7589 -- CHANGELOG.md` só acrescenta a seção `### Corrigido` (medida de lastro) em `[Não publicado]`; a entrada do `ci-local` e a de `forge-check transcricao` seguem uma vez cada, sem perda. Nada do `ci-local` mudou (`scripts/`, `tests/test_ci_local.py`, `docs/devops/` sem diff contra o primeiro pai). O restante do diff é `bin/forge-check`, seus testes e documentos de #120 e #122, já revisados lá. O parecer de código da volta 5 segue valendo.
