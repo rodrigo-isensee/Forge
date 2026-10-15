@@ -1,0 +1,36 @@
+{
+  "descricao": "Clone do Forge sem parecer: gh pr ready da branch barra (PQ-2).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr ready feature/x"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: PR sai do rascunho só com parecer: nenhum parecer"
+  }
+}
