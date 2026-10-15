@@ -5,8 +5,8 @@ Este repositório **é** a fábrica: o plugin `forge` do Claude Code com o Jarvi
 ## Regras invioláveis
 Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo para quem mantém a fábrica.
 - **Fluxo de branches** (`R-FLUXO`, `R-MAIN`, `R-VERIFY`): `melhoria/*` → `develop` → `homolog` → `main`. Nada pula degrau (o CI confere) e ninguém envia direto para essas três branches (o hook `.githooks/pre-push` bloqueia; ative com `git config core.hooksPath .githooks`).
-  - **`develop`:** bateria rápida — testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta. O `tech-lead` mescla com tudo verde.
-  - **`homolog`:** a mesma bateria, de novo, sobre o conjunto que vai para a `main`. O `tech-lead` promove `develop` → `homolog` por PR com tudo verde.
+  - **`develop`:** a bateria completa (testes estruturais, shellcheck, validação do plugin, instalação de ponta a ponta) roda no PR; o push depois do merge roda só a checagem rápida. O `tech-lead` mescla com tudo verde.
+  - **`homolog`:** a mesma bateria completa, de novo, sobre o conjunto que vai para a `main`. O `tech-lead` promove `develop` → `homolog` por PR com tudo verde.
   - **`main`:** a versão usada por **todos os projetos**. Só muda pelo PR `homolog` → `main`, **mesclado pelo usuário**. Depois do merge, a release `vX.Y.Z` é publicada.
 - **Sandbox do Bash** (ADR 0009, README "Sandbox do Bash"): `git push origin <branch>` sem `-u`; `git switch --no-track -c` e `git worktree add --no-track` (o `.git/config` é protegido); worktrees em `~/.forge-contrib/wt/`; validar o plugin com `scripts/validar-plugin.sh`.
 - **Sem custo de dinheiro real** (`R-CUSTO`): nada no Forge (CI, testes, scripts, fluxo) consome API paga ou serviço cobrado. Não se adiciona nada que custe dinheiro sem autorização expressa do dono do Forge.
