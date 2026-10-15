@@ -1,0 +1,26 @@
+{
+  "descricao": "Load 6,5 bloqueia qualquer disparo novo, mesmo com 0 ativos (R-TETO).",
+  "proc": {
+    "loadavg": "6.5 1.0 1.0 1/100 1",
+    "mem_gb": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-TETO: carga alta (load 6.5, 8.0 GB disponíveis;"
+  }
+}
