@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: b86137d30060ae57ed3f2e76699bf698e4c51149
+commit: 68b3aec3c05e4f52f0ddcb156ab72cb2ab87dd25
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-14
@@ -22,6 +22,8 @@ Execução real sobre o PR #121 (develop -> homolog), sem `--publicar`: testes e
 Ferramentas: shellcheck sem achado novo (o script é Python; não há shell tocado); actionlint e zizmor ausentes no PATH.
 
 Volta 3 (parecer de segurança, A1, A2, C1, D): PR de fork recusado (`isCrossRepository`), salvo `--confiar` com aviso; passos com ambiente mínimo por lista branca; `ci.yml`/`catraca.yml` symlink conta como ausente; `--publicar` recusa PR que altera `.github/workflows/` ou `tests/catraca.py`, e o texto diz que o status é autodeclarado. Testes de regressão vermelhos antes (6 falhas e 3 erros), verdes depois; suíte 597 OK. Fora desta volta (recomendados A3 e C2): token dedicado de escopo fino, `start_new_session`/`killpg`.
+
+Volta 4 (D1 do re-review de segurança): o portão D agora usa `git diff --name-only --no-renames -z`, que traz o nome antigo e o novo (renomear `tests/catraca.py` é recusado), e é falha fechada: se o `git diff` sair com rc diferente de 0, o `--publicar` é recusado em vez de seguir com lista vazia. Testes de regressão (renomear a catraca, `git diff` que falha, PR que só altera o README) vermelhos antes (3 erros), verdes depois; suíte 600 OK e validação do plugin OK. Fora: A3 e C2, e o `--publicar` real não foi executado.
 
 ## O que fica de fora
 - Job `workflows` (actionlint, zizmor): o CI os baixa; local só rodam se instalados, e o job é não obrigatório.
