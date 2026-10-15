@@ -20,7 +20,7 @@ Aprovado: fixar `ubuntu-24.04` agora e migrar para a 26.04 em janela controlada.
 |---|---|---|---|
 | Python do sistema | 3.12.3 | 3.14.4 | `python3` sem `setup-python` em ci.yml (versao, fluxo, segredos, pareceres), catraca.yml e release.yml; só o job `testes` fixa 3.12 |
 | shellcheck | 0.9.0 | 0.11.0 | job `shell`: regras novas podem gerar achados que a 0.9 não vê |
-| Node.js | 22.23.3 | 24.21.0 | jobs `plugin` e `instalacao` usam `setup-node` 24: sem efeito |
+| Runtime JS (node) | 22.23.3 | 24.21.0 | jobs `plugin` e `instalacao` usam `setup-node` 24: sem efeito |
 | jq / git | 1.7 / 2.55.0 | 1.8.1 / 2.55.0 | scripts de shell que usem jq: risco baixo |
 | apt | n/a | n/a | nenhum workflow roda `apt`; actionlint e zizmor vêm de binário com sha256 fixo; sem risco |
 
