@@ -989,18 +989,37 @@ def politica():
     return pol
 
 
+def diretorio_comum(topo):
+    """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git). Cópia principal: o próprio
+    `.git`. Worktree vinculada: o `.git` é um arquivo `gitdir: <comum>/worktrees/<n>` e o `gitdir` de volta dessa
+    pasta tem de apontar para ele; um `.git` forjado, que não é o registrado, não vale. Senão, None."""
+    marca = topo / ".git"
+    if marca.is_symlink():
+        return None
+    if marca.is_dir():
+        return Path(os.path.realpath(marca))
+    try:
+        apontado = marca.read_text(encoding="utf-8").strip()
+        pasta = Path(os.path.realpath(topo / apontado[len("gitdir:"):].strip()))
+        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
+    except (OSError, ValueError):
+        return None
+    if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":
+        return None
+    esperado = os.path.join(os.path.realpath(os.path.dirname(volta)), os.path.basename(volta))
+    return Path(os.path.realpath(pasta.parent.parent)) if esperado == str(marca) else None
+
+
 def raiz_do_parecer(hook, p):
-    """Raiz da cópia de trabalho que contém `p`: a da sessão ou, se `p` está noutra worktree do mesmo repositório,
-    a dela (`--show-toplevel`). Outro repositório não vale (o diretório comum de git tem de ser o mesmo)."""
+    """Raiz da cópia de trabalho que contém `p`, ou None: a mais próxima (só pelo disco, `Guarda.raiz_git`), se for a
+    da sessão ou uma worktree do mesmo repositório (mesmo diretório comum, `.git` conferido nos dois sentidos).
+    Uma worktree dentro da raiz da sessão (`.claude/worktrees/<n>`) conta como ela mesma, não como a sessão."""
     raiz = Path(os.path.realpath(hook.raiz))
-    if raiz in p.parents:
-        return raiz
-    cod, topo = git(p.parent, "rev-parse", "--show-toplevel")
-    cod2, comum = git(p.parent, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    cod3, comum_sessao = git(raiz, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    if cod or cod2 or cod3 or os.path.realpath(comum) != os.path.realpath(comum_sessao):
-        return raiz
-    return Path(os.path.realpath(topo))
+    topo = Guarda.raiz_git(p.parent)
+    if topo is None or topo == raiz or topo in raiz.parents:
+        return raiz if raiz in p.parents else None
+    comum = diretorio_comum(topo)
+    return topo if comum and comum == diretorio_comum(raiz) else None
 
 
 def autoria(hook, guarda, alvos):
@@ -1009,14 +1028,14 @@ def autoria(hook, guarda, alvos):
     worktree do repositório: o caminho é relativo a ela e o registro vai para o `.forge/run/` comum."""
     for alvo in alvos:
         p = guarda.resolver(alvo, hook.cwd())
-        if not p.is_file() or p.suffix != ".md":
-            continue
+        if p.suffix != ".md" or not any(par == ("docs", pasta) for par in zip(p.parts, p.parts[1:])
+                                        for pasta in ("reviews", "qa", "devops", "security")) or not p.is_file():
+            continue  # só caminho de parecer dispara leitura
+        sha = hashlib.sha256(p.read_text(encoding="utf-8").strip().encode()).hexdigest()  # antes de qualquer outra leitura
         raiz = raiz_do_parecer(hook, p)
-        if raiz not in p.parents or p.suffix != ".md" or not p.is_file():
-            continue
-        rel = p.relative_to(raiz).as_posix()
+        rel = p.relative_to(raiz).as_posix() if raiz else ""
         if rel.startswith(("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/")):
-            registro = {"caminho": rel, "sha256": hashlib.sha256(p.read_text(encoding="utf-8").strip().encode()).hexdigest(),
+            registro = {"caminho": rel, "sha256": sha,
                         "agente": hook.entrada.get("agent_type") or "", "papel": guarda.papel,
                         "quando": time.strftime("%Y-%m-%dT%H:%M:%S")}
             with hook.trava(), open(hook.run() / "autoria.jsonl", "a", encoding="utf-8") as f:
