@@ -32,6 +32,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "espere a carga baixar"
+    "stderr": "espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1"
   }
 }

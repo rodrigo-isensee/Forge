@@ -205,6 +205,10 @@ def nome_da_branch(ref):
     return ref
 
 
+class Aviso(Exception):
+    """Linha informativa no erros.log (uso de escape do dono), não falha."""
+
+
 class Hook:
     def __init__(self, nome):
         self.nome = nome
@@ -333,6 +337,10 @@ class Hook:
                 f.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {self.nome} {linha}\n")
         except Exception:  # noqa: BLE001 - registrar o erro nunca pode bloquear a ferramenta
             pass
+
+    def registrar_escape(self, texto):
+        """Uso de um escape do dono (ex.: FORGE_CARGA_LIVRE=1) deixa uma linha no erros.log; nunca bloqueia."""
+        self.registrar_erro(Aviso(texto))
 
 
 def texto_da_acao(hook, bruto):

@@ -5,7 +5,8 @@ O teto é adaptativo (load e memória disponível, lidos de /proc; fallback 3) e
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
 PreToolUse (Agent/Task): bloqueia qualquer disparo com load > 6 ou < 2 GB disponíveis (R-TETO);
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
-senão reserva a vaga. SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
+senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de carga
+(teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 """
 import os
@@ -88,8 +89,12 @@ def lancar(hook, agentes, agora):
                                "não relance, espere o resultado dele.")
     carga, memoria = medir()
     if carga_alta(carga, memoria):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
-        bloquear("R-TETO", f"carga alta (load {carga:.1f}, {memoria:.1f} GB disponíveis; limite: load 6 e 2 GB): "
-                           "nenhum agente novo, mesmo com poucos ativos; espere a carga baixar.")
+        if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de carga
+            hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com carga alta (load {carga:.1f}, "
+                                  f"{memoria:.1f} GB disponíveis)")
+        else:
+            bloquear("R-TETO", f"carga alta (load {carga:.1f}, {memoria:.1f} GB disponíveis; limite: load 6 e 2 GB): "
+                               "nenhum agente novo; espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1.")
     teto, motivo = calcular_teto(hook.config())
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "

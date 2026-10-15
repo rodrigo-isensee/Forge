@@ -1,0 +1,43 @@
+{
+  "descricao": "FORGE_CARGA_LIVRE=1 pula só a trava de carga: o teto cheio (load 7 = teto 2) segue valendo.",
+  "env": {
+    "FORGE_CARGA_LIVRE": "1"
+  },
+  "proc": {
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "stderr": "2 agentes ativos, teto 2",
+    "erros_log": "FORGE_CARGA_LIVRE=1",
+    "codigo": 2
+  }
+}
