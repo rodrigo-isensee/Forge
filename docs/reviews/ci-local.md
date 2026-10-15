@@ -3,12 +3,23 @@ tipo: review
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 2a086c7f1783959d0fd8beab43cfa46987a95afd
+commit: 5b32d983b4c3dddc16a7af4e07c19a29bbcad62c
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-14
+data: 2026-10-15
 ---
 # Code review: `scripts/ci-local` (CI local enquanto o Actions está sem cota, decisão A do dono)
+
+## Re-review da volta 5 (HEAD 5b32d98, parecer: aprovado)
+Escopo: `git diff fc6aede..5b32d98` (CL-01 e C2: INT e TERM com limpeza) e a "Volta 5" de `docs/devops/ci-local.md`. Segurança não é refeita aqui.
+
+- Conferido: `python3 -m unittest tests.test_ci_local -v | tail -3` deu `Ran 46 tests ... OK`.
+- Correto: `Interrompido` herda de `BaseException` e sobe até o `finally` do `main`, que ignora INT e TERM durante a limpeza e remove worktree e pasta temporária; `executar` devolve 130 e 143 com uma linha "interrompido", sem traceback. `rodar_grupo` usa `start_new_session` e `killpg` na interrupção e no timeout, sem deixar netos.
+- Testes (`SinalTest`) usam processo real e sinal real, e conferem rc, ausência de traceback, pasta temporária e `git worktree list`. CHANGELOG em `[Não publicado]`; nada em `.github/`; só biblioteca padrão (`R-CUSTO`).
+- Recomendado, não bloqueia: o `SIGKILL` do grupo não dá chance de limpeza ao passo; e um sinal na janela entre instalar o handler e entrar no `try` do `main` não limpa nada (nesse ponto ainda não há worktree).
+- A3 e `--publicar` real seguem fora do escopo. O `ci-local` não vira check exigido (decisão do dono, `R-CONFORMIDADE`).
+
+**Parecer (volta 5): aprovado.**
 
 ## Re-review da volta 4 (HEAD 2a086c7)
 Escopo: `git diff 083bb7b..2a086c7 -- scripts/ci-local tests/test_ci_local.py CHANGELOG.md CONTRIBUTING.md`, mais as voltas 3 e 4 de `docs/devops/ci-local.md`. Commits de código: a86a0bc (portões de fork, ambiente, symlink e `--publicar`) e 68b3aec (`--no-renames -z` e rc conferido). `CHANGELOG.md` e `CONTRIBUTING.md` não mudaram nesse intervalo. A análise de segurança fica com o parecer do `security-engineer` e não é refeita aqui.
