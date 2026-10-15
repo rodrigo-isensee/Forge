@@ -1,0 +1,20 @@
+{
+  "descricao": "git ls-remote --exec=<cmd>: recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git ls-remote --exec=x ."
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`git ls-remote` com a opção `--exec"
+  }
+}

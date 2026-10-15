@@ -1,0 +1,20 @@
+{
+  "descricao": "S6, correção (3): crase entre aspas simples também leva à análise aninhada, recusada.",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "grep -n '`git log -1`' src/app.js"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "substituição dentro de aspas"
+  }
+}

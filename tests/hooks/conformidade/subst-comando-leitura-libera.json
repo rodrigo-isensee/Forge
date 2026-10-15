@@ -1,0 +1,19 @@
+{
+  "descricao": "Uso legítimo de substituição: echo, diff de duas <(...), atribuição e laço.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo $(git rev-parse HEAD) && diff <(git log -1) <(git log -2) && x=$(git rev-parse HEAD) && for f in $(ls src); do echo $f; done"
+    },
+    "agent_type": "forge:tech-lead",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
