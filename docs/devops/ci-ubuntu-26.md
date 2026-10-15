@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: ci-ubuntu-26
 branch: melhoria/ci-ubuntu-26
-commit: b87664b1de51b6d583c1b719ac56f963ff3ffb77
+commit: bbc658f13b9d57fd551f73e17b57975799146fd7
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-15
