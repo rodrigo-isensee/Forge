@@ -1,0 +1,2 @@
+{"type": "assistant", "sessionId": "sessao-b", "timestamp": "2026-01-02T08:00:00Z", "requestId": "req_n1", "message": {"id": "n1", "model": "claude-sonnet-4", "role": "assistant", "content": [{"type": "text", "text": "oi"}], "usage": {"input_tokens": 30, "output_tokens": 10, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}}}
+linha corrompida {

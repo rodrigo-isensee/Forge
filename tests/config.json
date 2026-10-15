@@ -6,7 +6,9 @@
     "software-architect",
     "ux-designer",
     "qa-engineer",
-    "agile-coach"
+    "agile-coach",
+    "devops-engineer",
+    "security-engineer"
   ],
   "stacks_obrigatorias": {
     "node-react": {
@@ -50,7 +52,13 @@
       "\\bPrisma\\b",
       "node-backend",
       "react-frontend",
-      "node_modules"
+      "node_modules",
+      "eslint-plugin-security",
+      "\\bbandit\\b",
+      "\\bgosec\\b",
+      "\\bbrakeman\\b",
+      "pip-audit",
+      "cargo[ -]audit"
     ],
     "excecoes": {
       ".github/workflows/ci.yml": [
@@ -91,6 +99,25 @@
     "excecoes": []
   },
   "invariantes": {
+    "hooks/conformidade.py": ["REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub"],
+    "docs/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
+    "templates/projeto/docs/architecture/adr/_modelo.md": [
+      "## Critério de reversão",
+      "## Leituras",
+      "## Por que o existente não basta"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "critério de reversão",
+      "Por que o existente não basta"
+    ],
+    "docs/melhoria-continua.md": [
+      "critério de reversão"
+    ],
     "agents/jarvis.md": [
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
@@ -111,6 +138,7 @@
       "`R-DECISAO`",
       "`R-CONFORMIDADE`",
       "`R-CONTRIB`",
+      "`R-SEGURANCA`",
       "teste de bloqueante",
       "nunca sobe sozinho",
       "estado em uma linha",
@@ -119,7 +147,19 @@
       "diga sempre ao usuário para qual agente passou",
       "que são do `tech-lead`"
     ],
+    "templates/projeto/docs/engineering/praticas.md": [
+      "## Regras e quem as decide",
+      "\\*\\*ferramenta\\*\\*",
+      "\\*\\*leitura\\*\\*",
+      "pendência a registrar, não revisão manual"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "decidida por: leitura",
+      "cita a saída dos comandos das regras \"ferramenta\"",
+      "vira pendência no parecer, não revisão manual"
+    ],
     "agents/tech-lead.md": [
+      "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
       "`R-MAIN`",
@@ -129,7 +169,44 @@
       "`R-CUSTO`",
       "`R-NEUTRO`",
       "`R-CONFORMIDADE`",
+      "`R-CONTRIB`",
+      "critério de reversão",
+      "Por que o existente não basta"
+    ],
+    "agents/devops-engineer.md": [
+      "O token do bot não tem o escopo `workflow`, de propósito",
+      "para o \\*\\*dono\\*\\* executar",
+      "`R-CUSTO`",
+      "`R-VERIFY`",
+      "`R-MAIN`",
+      "`R-CONFORMIDADE`",
+      "`R-REVIEW`",
+      "`R-NEUTRO`",
       "`R-CONTRIB`"
+    ],
+    "agents/security-engineer.md": [
+      "\\*\\*Defensiva e estática:\\*\\*",
+      "\\*\\*Segredo nunca é exibido:\\*\\*",
+      "\\*\\*não instala\\*\\* nada",
+      "`R-SEGURANCA`",
+      "`R-CUSTO`",
+      "`R-VERIFY`",
+      "`R-MAIN`",
+      "`R-CONFORMIDADE`",
+      "`R-NEUTRO`",
+      "`R-CONTRIB`"
+    ],
+    "skills/ci-cd/SKILL.md": [
+      "## GitHub Actions \\(padrão\\)",
+      "fixadas por SHA",
+      "`pull_request_target` com checkout de código de fork",
+      "`R-CUSTO`",
+      "`R-VERIFY`"
+    ],
+    "docs/regras/R-SEGURANCA.md": [
+      "\ntitulo: Parecer de segurança quando há gatilho\n",
+      "Gatilhos: autenticação ou autorização",
+      "`riscos-aceitos` só vale com o \\*\\*aceite do usuário\\*\\* em `docs/security/aceites/<pedido>.md`"
     ],
     "docs/regras/R-MAIN.md": [
       "\ntitulo: A main é do usuário\n",
@@ -195,8 +272,23 @@
     "agents/qa-engineer.md": [
       "`R-QA`"
     ],
+    "skills/qa-testing/SKILL.md": [
+      "## Teste nasce de obrigação, e para quando ela está coberta",
+      "Teste redundante não entra",
+      "uma amostra por classe de equivalência mais cada fronteira",
+      "fronteira protegida",
+      "afirma um mínimo de itens"
+    ],
+    "skills/engineering-practices/SKILL.md": [
+      "Teste de ausência .* cujo alvo mudou é relido"
+    ],
+    "tests/test_forge.py": [
+      "def minimo\\("
+    ],
     "agents/software-architect.md": [
-      "`R-DISCOVERY`"
+      "`R-DISCOVERY`",
+      "critério de reversão",
+      "Por que o existente não basta"
     ],
     "templates/projeto/CLAUDE.md": [
       "`R-MAIN`",

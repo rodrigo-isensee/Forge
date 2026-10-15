@@ -7,6 +7,9 @@ description: Use quando você, em qualquer projeto, perceber uma melhoria de fá
 
 Decisão: `docs/adr/0006-contribuicao-de-qualquer-projeto.md`. Qualquer agente de qualquer projeto contribui, como colaborador do GitHub. **Uma melhoria por PR.** `R-CONTRIB`: o projeto abre o PR e nunca o mescla; a sugestão vai no corpo do PR e, depois de aberto, a sessão para.
 
+## 0. Só uma ideia ou um problema? Sugira (`forge sugerir`)
+Quando o Forge recusar algo que a pessoa pediu (recusa de hook, F4), o doutor ou um comando do Forge falhar, ou você notar um problema do Forge sem ter a mudança pronta, **ofereça**: "Quer que eu sugira essa melhoria ao Forge?". Com "sim", escreva problema observado, proposta e como medir, sem nome do projeto, caminho nem dados pessoais, e rode `forge sugerir --guardar "<texto>"`: ele tira o que sobrou, guarda na fila local (`~/.local/state/forge/sugestoes/`) e **a pessoa** envia no terminal dela, fora do Claude, com `forge sugerir --fila`, depois de ver o texto final (aparece no GitHub com o nome de usuário dela; a issue é criada só pela pessoa, `R-CONTRIB`). Nunca envie por conta própria e pare aí. Para entregar a mudança pronta, siga os passos abaixo.
+
 ## 1. Classifique: fábrica ou projeto
 - **Fábrica (vai ao Forge):** o que melhora como o time trabalha em qualquer projeto: agentes, skills, fluxo, práticas gerais, hooks, modelos, testes e CI do Forge.
 - **Projeto (fica no projeto):** o que é do sistema (`R-NEUTRO` neutralidade da fábrica).
@@ -42,7 +45,7 @@ Falhou? Corrija e rode de novo; o PR só sai com as três verdes.
 ## 6. Abra o PR para a `develop`
 Use `.github/pull_request_template.md` e preencha:
 - **Projeto de origem** e **situação observada**, sem dados do projeto (se o repositório for público, o PR é público);
-- **O que muda**;
+- **O que muda**; se criar mecanismo novo (hook, regra, ferramenta), diga o que já existe para isso e por que não basta (evidência de execução);
 - **Como medir** o efeito (`docs/melhoria-continua.md`);
 - checklist: testes, validate, `verificar-contribuicao`, CHANGELOG, neutralidade.
 

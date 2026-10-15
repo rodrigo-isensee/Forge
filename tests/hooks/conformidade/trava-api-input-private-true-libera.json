@@ -1,0 +1,30 @@
+{
+  "descricao": "gh api --input com private:true libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "corpo.json": "{\"private\": true}\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PATCH repos/dono/proj --input corpo.json"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

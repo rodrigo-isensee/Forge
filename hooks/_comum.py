@@ -155,6 +155,16 @@ def forge_check():
     return modulo
 
 
+@functools.lru_cache(maxsize=1)
+def forge_doutor():
+    """Carrega bin/forge-doutor como módulo: o hook `doutor` roda as mesmas conferências do comando, sem duplicá-las."""
+    carregador = importlib.machinery.SourceFileLoader("forge_doutor", str(PLUGIN / "bin" / "forge-doutor"))
+    spec = importlib.util.spec_from_loader("forge_doutor", carregador)
+    modulo = importlib.util.module_from_spec(spec)
+    carregador.exec_module(modulo)
+    return modulo
+
+
 def ler_json(caminho, padrao):
     if not caminho.exists():
         return padrao
@@ -265,19 +275,32 @@ class Hook:
     def run(self):
         """`.forge/run/` da cópia de trabalho principal (as worktrees somam no mesmo estado)."""
         if self._run is None:
-            principal = self.raiz
-            cod, comum = git(self.raiz, "rev-parse", "--git-common-dir")
-            if not cod and comum:
-                comum = (self.raiz / comum).resolve()
-                if comum.name == ".git":
-                    principal = comum.parent
-            run = principal / ".forge" / "run"
+            run = self.copia_principal() / ".forge" / "run"
             run.mkdir(parents=True, exist_ok=True)
             ignorar = run / ".gitignore"
             if not ignorar.exists():
                 ignorar.write_text("*\n", encoding="utf-8")
             self._run = run
         return self._run
+
+    def copia_principal(self):
+        """Raiz da cópia de trabalho principal: as worktrees dividem o estado e o perfil dela."""
+        cod, comum = git(self.raiz, "rev-parse", "--git-common-dir")
+        if not cod and comum:
+            comum = (self.raiz / comum).resolve()
+            if comum.name == ".git":
+                return comum.parent
+        return self.raiz
+
+    def iniciante(self):
+        """`.forge/perfil` diz `iniciante` (da cópia de trabalho ou da principal). Ausente, ilegível ou outro valor:
+        experiente, e o hook segue o fluxo de sempre. Só consulta o disco."""
+        for base in dict.fromkeys((self.raiz, self.copia_principal())):
+            try:
+                return (base / ".forge" / "perfil").read_text(encoding="utf-8").strip().lower() == "iniciante"
+            except (OSError, ValueError):
+                continue
+        return False
 
     @contextmanager
     def trava(self):

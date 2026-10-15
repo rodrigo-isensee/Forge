@@ -1,0 +1,19 @@
+{
+  "descricao": "seguranca (security-engineer) com pip install: bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "python3 -m pip install requests"
+    },
+    "agent_type": "forge:security-engineer",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "pip install"
+  }
+}

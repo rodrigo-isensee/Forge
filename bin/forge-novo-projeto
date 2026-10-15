@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Forge: cria um projeto novo e abre o Jarvis nele. Rode no terminal, antes do Claude (use: forge novo-projeto).
-# Confere o login do GitHub (gh auth), pergunta o nome e a pasta (padrão ~/<nome>), cria o repositório privado,
+# Confere o login do GitHub (gh auth), pergunta o nome (a pasta é sempre ~/<nome>), cria o repositório privado,
 # clona, faz o commit inicial na main (ato seu, com a sua identidade do git) e cria develop e homolog.
 # O progresso fica em ~/.local/state/forge/novo-projeto/<nome>.json (sem segredos): se parar, rode de novo para retomar.
 # O token do GitHub nunca é lido por este script nem passa pelo chat; o login é feito por `gh auth login`.
@@ -34,8 +34,13 @@ echo >&2
 for cmd in git gh claude python3; do
   command -v "$cmd" >/dev/null 2>&1 || die "não encontrei '$cmd'$([ "$cmd" = gh ] && echo ' (o GitHub CLI, que é como este comando fala com o GitHub; instale em https://cli.github.com)'). Instale e rode de novo."
 done
-gh auth status >/dev/null 2>&1 \
-  || die "você ainda não entrou no GitHub por aqui. Rode 'gh auth login' neste terminal (o login acontece no navegador; este script não vê sua senha) e tente de novo."
+if ! saida_auth="$(gh auth status 2>&1)"; then
+  # Sem rede o gh também falha; não culpar o login nesse caso.
+  if printf '%s' "$saida_auth" | grep -qiE -- 'error connecting|internet|network|timeout|timed out|dial tcp|no such host|resolve|connection'; then
+    die "não consegui falar com o GitHub (sem conexão com a internet?). Nada foi criado ainda. Confira a rede e rode de novo."
+  fi
+  die "você ainda não entrou no GitHub por aqui. Rode 'gh auth login' neste terminal (o login acontece no navegador; este script não vê sua senha) e tente de novo."
+fi
 dono="$(gh api user --jq .login)" \
   || die "não consegui falar com o GitHub (sem conexão com a internet?). Nada foi criado ainda. Confira a rede e rode de novo."
 [ -n "$dono" ] || die "não consegui descobrir sua conta do GitHub (gh api user)."
@@ -60,14 +65,21 @@ while true; do
   if [ "$nome" != "$nome_digitado" ]; then
     echo "Vou usar o nome: $nome (sem acentos, em minúsculas e com hífen no lugar de espaços)." >&2
     if [ "$sim" -ne 1 ]; then
-      ler "Pode ser? [sim]" "sim"
+      ler "Pode ser?" "sim"
       case "$REPLY" in s|S|sim|Sim|SIM) ;; *) continue ;; esac
     fi
   fi
   estado="$estado_raiz/$nome.json"
   [ -e "$estado" ] && break
   if gh repo view "$dono/$nome" >/dev/null 2>&1; then
-    echo "$dono/$nome já existe no GitHub; não escrevo em repositório existente. Escolha outro nome (ex.: $nome-2)."; continue
+    situacao="$(gh repo view "$dono/$nome" --json isPrivate,isEmpty --jq '"\(.isPrivate) \(.isEmpty)"' 2>/dev/null || true)"
+    if [ "$situacao" = "true true" ]; then
+      echo "$dono/$nome já existe no GitHub, está vazio e é privado." >&2
+      ler "Quer usar este repositório?" "sim"
+      case "$REPLY" in s|S|sim|Sim|SIM) break ;; esac
+      echo "Certo. Escolha outro nome (ex.: $nome-2)." >&2; continue
+    fi
+    echo "$dono/$nome já existe no GitHub com conteúdo (ou é público); não escrevo em repositório existente. Escolha outro nome (ex.: $nome-2)." >&2; continue
   fi
   break
 done
@@ -85,8 +97,8 @@ n={"repo_criado":"repositório criado","clonado":"cópia na pasta","commit_inici
 print(", ".join(n.get(e,e) for e in json.load(open(sys.argv[1]))["etapas"]) or "nada ainda")' "$estado")"
   echo "Retomando o projeto $nome em $pasta (já feito: $feito)."
 else
-  ler "Em que pasta?" "$HOME/$nome"
-  pasta="${REPLY/#\~/$HOME}"
+  pasta="$HOME/$nome"
+  echo "A pasta do projeto será $pasta." >&2
   if [ -e "$pasta" ] && [ -n "$(ls -A "$pasta" 2>/dev/null)" ]; then die "a pasta $pasta já existe e não está vazia."; fi
   mkdir -p "$estado_raiz"
   python3 - "$estado" "$nome" "$pasta" "$dono" <<'PY'
@@ -130,7 +142,7 @@ if ! estado_tem repo_criado; then
     fi
     echo "Criando $dono/$nome (privado)..."
     erro_criar="$(gh repo create "$dono/$nome" --private 2>&1 >/dev/null)" || {
-      if printf '%s' "$erro_criar" | grep -qiE '403|forbidden|permission|not accessible|scope'; then
+      if printf '%s' "$erro_criar" | grep -qiE -- '403|forbidden|permission|not accessible|scope'; then
         die "o GitHub negou a criação de $dono/$nome (falta permissão). Nada foi alterado na sua pasta. Escolha um caminho:
   A) renovar a permissão do login: rode 'gh auth refresh -h github.com -s repo' e depois 'forge novo-projeto' de novo [recomendado];
   B) criar você mesmo, no site https://github.com/new, um repositório vazio e privado chamado $nome, e rodar 'forge novo-projeto' de novo (eu sigo com ele);
@@ -140,6 +152,27 @@ if ! estado_tem repo_criado; then
     }
   fi
   marcar repo_criado
+fi
+
+if estado_tem clonado && [ ! -d "$pasta/.git" ]; then
+  echo "A pasta $pasta não existe mais. O projeto continua no GitHub, com tudo que foi enviado." >&2
+  if [ "$sim" -ne 1 ]; then
+    ler "Quer baixar uma cópia de novo em $pasta? (sim/não)" "sim"
+    case "$REPLY" in
+      s|S|sim|Sim|SIM) ;;
+      *) die "sem a pasta, não há o que abrir. Quando quiser, rode 'forge novo-projeto' de novo e responda sim." ;;
+    esac
+  fi
+  python3 - "$estado" <<'PY'
+import json, os, sys
+arq = sys.argv[1]
+dados = json.load(open(arq, encoding="utf-8"))
+dados["etapas"] = [e for e in dados["etapas"] if e != "clonado"]
+with open(arq + ".novo", "w", encoding="utf-8") as f:
+    json.dump(dados, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+os.replace(arq + ".novo", arq)
+PY
 fi
 
 if ! estado_tem clonado; then

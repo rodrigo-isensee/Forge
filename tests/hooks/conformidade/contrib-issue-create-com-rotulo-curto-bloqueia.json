@@ -1,0 +1,21 @@
+{
+  "descricao": "Criar issue no Forge com -l bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh issue create -R rodrigo-isensee/Forge -t t -b b -l afrouxa-regra"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: gh issue create"
+  }
+}

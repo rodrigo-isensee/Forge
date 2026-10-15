@@ -13,3 +13,6 @@ Sem `dangerouslySetInnerHTML` com conteúdo não sanitizado; CSP; nada de segred
 
 ## Cadeia de suprimentos (pnpm)
 `pnpm audit`, lockfile versionado e `--frozen-lockfile`, Dependabot, `overrides` justificados, licenças permissivas, scripts de instalação (`onlyBuiltDependencies`), pacotes recém-publicados ou com um mantenedor só.
+
+## SAST da stack
+Análise estática para TypeScript e JavaScript: `eslint-plugin-security` e as regras do Semgrep para TypeScript e React (quando a licença das regras permitir); `pnpm audit` e `osv-scanner` sobre o `pnpm-lock.yaml`. Busca dirigida por: `exec`/`spawn` com entrada externa, `eval` e `new Function`, `innerHTML` e `dangerouslySetInnerHTML`, `fs` com caminho vindo do usuário, `RegExp` construída com entrada (ReDoS) e `VITE_*` com segredo. Só ferramentas já instaladas; o CI do projeto as roda.

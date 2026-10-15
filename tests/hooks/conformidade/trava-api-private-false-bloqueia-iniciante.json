@@ -1,0 +1,31 @@
+{
+  "descricao": "gh api PATCH com private=false. (perfil iniciante: com a consequência em linguagem simples)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".forge/perfil": "iniciante\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PATCH repos/dono/proj -F private=false"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: Deixar o projeto público"
+  }
+}
