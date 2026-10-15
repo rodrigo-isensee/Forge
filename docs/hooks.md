@@ -8,7 +8,7 @@ Decisões: [ADR 0003](adr/0003-hooks-deterministicos-e-silenciosos.md) e, para o
 
 | Hook (script) | Quando roda | Bloqueia quando | Regra |
 |---|---|---|---|
-| `agentes` | antes da ferramenta de agentes (`Agent`, ou `Task` em versões antigas); `SubagentStart` e `SubagentStop` mantêm a contagem | os agentes ativos já somam o teto (`R-TETO`), ou já há um ativo com o mesmo tipo e a mesma descrição | `R-TETO` |
+| `agentes` | antes da ferramenta de agentes (`Agent`, ou `Task` em versões antigas); `SubagentStart` e `SubagentStop` mantêm a contagem | a carga está alta (load acima de 6 ou menos de 2 GB disponíveis, qualquer teto), os agentes ativos já somam o teto (`R-TETO`), ou já há um ativo com o mesmo tipo e a mesma descrição | `R-TETO` |
 | `parecer` | antes de `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge`, e de `git merge <branch>` ou `git pull <remoto> <branch>` feito numa branch de integração (`develop`, `homolog`, `main`, `master`); a branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha | a branch não tem parecer de review e de QA aprovado e válido para o commit atual (`forge-check pr`); `gh pr merge` com base `main`; PR indicado só por número ou URL; `gh api` de merge; merge no Forge vindo de uma sessão cuja raiz não é clone do Forge | `R-REVIEW`, `R-QA`, `R-MAIN`, `R-CONTRIB` |
 | `conformidade` | antes de `Bash`, `Write`, `Edit`, `MultiEdit` e `NotebookEdit`; depois deles, só para registrar a autoria dos pareceres | a ação não é do papel do agente (`agent_type`), ou toca caminho protegido, ou usa flag proibida: ver a seção própria abaixo | `R-CONFORMIDADE`, `R-MAIN`, `R-VERIFY` |
 | `pesado` | antes e depois de comandos `Bash` com um comando simples que começa com um item de `pesados` | outra sessão, worktree ou subagente tem tarefa pesada ativa (trava com PID vivo, há menos de 10 minutos) | `R-TETO` |
@@ -62,8 +62,8 @@ O estado fica em `.forge/run/` da cópia de trabalho principal (as worktrees som
 }
 ```
 
-- Teto de agentes ativos ao mesmo tempo (somando todas as sessões do projeto): por padrão é adaptativo e segue as faixas de `R-TETO` (2 a 5, pelo load de `/proc/loadavg` e pela `MemAvailable` de `/proc/meminfo`; sem leitura, 3). O bloqueio informa o load e a memória medidos.
-- `teto_agentes`: fixa o teto e sobrepõe o adaptativo (o `3` que o modelo da 0.5.0 gravava é removido pela migração 0.7.0 do `forge-upgrade`; um `3` escrito depois dela é respeitado como escolha do projeto).
+- Teto de agentes ativos ao mesmo tempo (somando todas as sessões do projeto): por padrão é adaptativo e segue as faixas de `R-TETO` (2 a 5, pelo load de `/proc/loadavg` e pela `MemAvailable` de `/proc/meminfo`; sem leitura, 3). O bloqueio informa o load e a memória medidos. Com load acima de 6 ou menos de 2 GB disponíveis, nenhum disparo novo passa, mesmo com 0 ou 1 agente ativo e mesmo com `teto_agentes` ou `teto_maximo` (sem leitura de `/proc`, a trava não age).
+- `teto_agentes`: fixa o teto e sobrepõe o adaptativo (não desliga a trava de carga alta) (o `3` que o modelo da 0.5.0 gravava é removido pela migração 0.7.0 do `forge-upgrade`; um `3` escrito depois dela é respeitado como escolha do projeto).
 - `teto_maximo`: limita o teto adaptativo (não afeta o `teto_agentes` fixo).
 - `pesados`: início de comando (sem diferença de maiúsculas e espaços) tratado como tarefa pesada. O `forge-init` grava a lista padrão da stack (`stacks/<stack>/pesados.json`) ao criar o arquivo; o núcleo não traz lista, e sem `pesados` nenhum comando conta como pesado. Vale em qualquer comando simples da linha (`cd web && ...`), depois de variáveis e de lançadores (`sudo`, `env`, `npx`, `<gerenciador> exec|run|dlx`); só citar a ferramenta (`grep ferramenta`, instalar o pacote) não conta.
 - `expiracao_horas`: validade dos registros.

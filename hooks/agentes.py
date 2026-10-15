@@ -3,7 +3,8 @@
 
 O teto é adaptativo (load e memória disponível, lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
-PreToolUse (Agent/Task): bloqueia se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
+PreToolUse (Agent/Task): bloqueia qualquer disparo com load > 6 ou < 2 GB disponíveis (R-TETO);
+bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
 senão reserva a vaga. SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 """
@@ -52,6 +53,11 @@ def teto_adaptativo(carga, memoria):
     return 3
 
 
+def carga_alta(carga, memoria):
+    """R-TETO: load acima de 6 ou menos de 2 GB disponíveis. Sem medida (None), nunca é carga alta."""
+    return carga is not None and memoria is not None and (carga > 6 or memoria < 2)
+
+
 def calcular_teto(config, proc=None):
     """(teto, explicação para a mensagem). `teto_agentes` fixo sobrepõe o adaptativo."""
     if config.get("teto_agentes"):
@@ -80,6 +86,10 @@ def lancar(hook, agentes, agora):
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
             bloquear("R-TETO", f"já há um agente {tipo} ativo com a descrição \"{descricao[:60]}\"; "
                                "não relance, espere o resultado dele.")
+    carga, memoria = medir()
+    if carga_alta(carga, memoria):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
+        bloquear("R-TETO", f"carga alta (load {carga:.1f}, {memoria:.1f} GB disponíveis; limite: load 6 e 2 GB): "
+                           "nenhum agente novo, mesmo com poucos ativos; espere a carga baixar.")
     teto, motivo = calcular_teto(hook.config())
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
