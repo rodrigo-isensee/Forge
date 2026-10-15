@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 706030b
+commit: 714dc10
 parecer: aprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-14
@@ -110,3 +110,52 @@ OK
 $ scripts/validar-plugin.sh
 ✔ Validation passed
 ```
+
+## Re-review das voltas 2 a 4 (`git diff d29ea75..406cf54`) e da ADR 0011 (714dc10)
+Escopo: `hooks/_comum.py`, `hooks/conformidade.py`, `hooks/conformidade.json`, `agents/conferente.md`, `CHANGELOG.md`, as fixtures novas de `tests/hooks/conformidade/` (`conferente-gramatica-*`, `nao-modelado-*`, `subst-comando-*`, `conferente-test-v-*`...) e o texto da ADR 0011 que o arquiteto alinhou (commit 714dc10). A segurança já aprovou (cd657b6) e não refiz a análise dela: as sondas abaixo conferem só a consistência entre o código, a ADR e as mensagens. Os cartões C1 a C8, S7, S8, `gh --jq env` e `test -e -v` ficam fora, por decisão do brief.
+
+### Parecer das voltas 2 a 4: **aprovado**
+Nenhum bloqueante. O código faz o que a ADR 0011 decide, e as mensagens de recusa dizem a forma que passa. Os achados abaixo são recomendados e podem virar cartão ou entrar na próxima volta, sem novo review.
+
+| # | Arquivo:linha | Problema | Sugestão | Severidade |
+|---|---|---|---|---|
+| 1 | `hooks/conformidade.py:509-510` e ADR 0011, item 2 ("A linha que o `shlex` não consegue ler [...] também recusa") | O ramo `except ValueError` chama `self.nao_modelada(achado)`, que só recusa se `construcao_nao_modelada` achou algo. Sonda, papel `dev`: `git push origin main 'abc` sai com rc 0. Sem risco, porque o bash recusa aspas sem fechar e não roda nada, mas a frase da ADR promete mais do que o código faz. | Ou a ADR diz "só recusa se a linha também tiver uma construção da lista", ou o código passa `achado or "aspas que o hook não lê"`. A segunda opção é a coerente com "na dúvida, recusa". | recomendado |
+| 2 | `hooks/_comum.py:328-330` e ADR 0011, item 2 ("Qualquer outro `<<` numa linha de várias linhas recusa") | Fora de aspas, o código recusa todo `<<` que não seja `<<'FIM'`, mesmo numa linha só. Sondas, papel `dev`, rc 2: `grep -c push <<< 'git push origin melhoria/x'` e `git push origin melhoria/x <<E`. É mais estrito do que o texto, e o lado é o seguro. | Na ADR: "fora de aspas, todo `<<` que não seja `<<'FIM'` recusa; entre aspas ou escapado, só numa linha de várias linhas". | recomendado |
+| 3 | `agents/conferente.md:16` | A lista do agente diz só `test`. Desde a volta 4, o hook aceita apenas `test -e\|-f\|-d\|-s <caminho>`, recusa `%G` e `--show-signature`, e recusa `$(` ou crase até entre aspas simples. O exemplo da linha 17 ("texto com esses sinais vai entre aspas simples") não avisa dessa última exceção. O conferente (haiku) vai descobrir isso pela recusa, e cada recusa conta no critério de reversão da ADR. | Trocar `test` por `test -e\|-f\|-d\|-s <caminho>` e acrescentar "sem `%G`, `--show-signature`, `$(` nem crase, nem entre aspas". O exemplo da linha 55 (`test -e <caminho>`) já está na forma certa. | recomendado |
+| 4 | `hooks/conformidade.py:498`, `:715`, `:741` e `DICA_LEITURA` (`:153`) | Quase todas as mensagens mostram a forma que passa: a da gramática diz "entre aspas simples ('HEAD@{1}', 'v1$')", a do item 2 diz "branch literal, um comando por linha [...] heredoc só <<'FIM'" e a do `test` traz a forma no próprio texto. Três ficam genéricas. O nível > 0 diz "tire o $( e a crase da linha", sem alternativa (por exemplo, `grep -F` com um trecho sem esses sinais). O `%G` e o `--show-signature` caem na `DICA_LEITURA`, que não diz "use `--format=%h %s`, sem `%G`". Além disso, a mensagem da gramática sugere aspas simples para `$`, mas `'$(x)'` é recusado pela regra seguinte. | Dar a essas três mensagens a forma explícita que passa. | recomendado |
+| 5 | `hooks/conformidade.json:73` e `:79` | A `descricao` do `so_leitura` ainda diz "redirecionamento só para as saídas" e "variável na linha recusada", mas a gramática recusa `<`, `>` e `$` antes. A lista `saidas` e a checagem de redirecionamento do papel são inertes, como o parecer de autor já registra. | Atualizar a `descricao` para "linha na gramática da ADR 0011". A limpeza de `saidas` fica para o cartão que o autor já propôs (a validação da política exige a chave). | recomendado |
+| 6 | `CHANGELOG.md:10` | A linha do item 2 e da gramática está boa. Ela declara o `afrouxa-regra`, o efeito nos papéis e a lista de falsos bloqueios. Faltam os da volta 4, que mudam o que o conferente consegue rodar nos projetos: `test` só `-e\|-f\|-d\|-s`, `[` fora da lista, `--show-signature`/`%G` e `$(` entre aspas simples. Os endurecimentos da volta 2 também não aparecem: lançadores, `--textconv`/`--filters` e `gh --web`. | Acrescentar uma frase com os dois grupos na linha 10 ou na entrada da fatia 2 (`### Adicionado`), já que o conferente é novo nesta versão. | recomendado |
+| 7 | `hooks/conformidade.py:22-25` | O `from _comum import (...)` foi quebrado em linhas desiguais (`em_contrib, executar,` sozinho numa linha). | Reagrupar. É formatação e não muda nada. | recomendado |
+
+### Legibilidade e manutenção do analisador
+- **`comandos` (`hooks/_comum.py:125`):** a pilha de aninhamento com o `estado` em dicionário e os fechos `entregar`/`separar`/`abrir`/`fechar` tem um propósito claro. A docstring explica a tupla `substituição` e a palavra opaca, e o `OPERADOR` divide os sinais num lugar só. Quem for mexer precisa ler a função inteira, porque o estado é mutável e compartilhado entre os fechos, mas está documentado. A troca de `segmentos` para derivar de `comandos` tira a duplicação do tokenizador que existia na base.
+- **`fora_da_gramatica_de_leitura` (`:225`):** é curta, sequencial e espelha a frase da ADR, alfabeto, aspas e `&&`/`||`. O `ALFABETO_LEITURA` (`:212`) é idêntico ao do item 1 (`" \t_./:=@,+%-~^"`), e o `DUPLAS_RECUSA` é `$`, crase, `\` e `!`, como no texto.
+- **`construcao_nao_modelada` (`:277`, cerca de 85 linhas):** é a função mais longa do diff. É uma máquina de estados com quatro contextos (fora, subst, simples, duplas) e o heredoc no meio. Ela devolve o nome da construção, o que deixa a mensagem precisa. A redação segue a lista da ADR item a item (`#` + outra linha, crase, `$` que não abre `$(`, `\` + quebra, chaves, `case`, heredoc). Recomendo, quando o C5 for feito, extrair o tratamento do heredoc (`:328-339`) para uma função própria. Não bloqueia.
+- **`Guarda.bash` (`conformidade.py`):** a ordem segue a ADR. Primeiro o nível > 0 no papel só de leitura (`:496`), depois a gramática no nível 0 e as checagens da linha, e por último a não modelada (`:543`), para que `R-MAIN`/`R-VERIFY` falem primeiro. O `contexto(sub)` com o dicionário `contextos` modela bem o subshell de cada substituição.
+- Constantes com nome e comentário: `GIT_EXATAS`, `FORMATO_ASSINATURA`, `TESTE_LEITURA` e `HEREDOC_MODELADO`. Cada uma tem fixture (a ADR pede "cada entrada com fixture").
+
+### Consistência código × ADR 0011 (714dc10)
+| ADR | Código | Situação |
+|---|---|---|
+| Item 1: alfabeto, tab literal, `^`, `&` só como `&&`, aspas sequenciais, controle recusado | `_comum.py:212-250` (`controle` exclui só o tab) | igual |
+| Item 1: nível > 0 recusa | `conformidade.py:496` | igual |
+| Item 1: `test -e\|-f\|-d\|-s <caminho>`, dois argumentos | `conformidade.py:713` (`len(args) != 2 or args[0] not in TESTE_LEITURA`) | igual. Sonda: `test -n x` dá rc 2 |
+| Item 1: `[`/`[[` fora | `conformidade.json` sem `"["` | igual |
+| Item 1: `--show-signature` e `%G`, `%+G`, `%-G`, `% G` | `GIT_EXECUTA` + `FORMATO_ASSINATURA = %[-+ ]?G` | igual. Sonda: `--format=%GS` dá rc 2 |
+| Item 1: valor de opção do `forge-check` que começa com `-` | `re.match(r"--[\w-]+=-", a)` só na forma `=` | igual na prática: na forma separada, `forge-check pr p1 --ref -x` passa no hook (rc 0), mas o argparse recusa (`argument --ref: expected one argument`) |
+| Item 1: `EXPANSAO`, `CHAVES`, `ACEITAM_SUBSTITUICAO` saem | não estão mais no diff, e `separar_substituicoes` também sai | igual |
+| Item 2: lista fechada e ordem depois das checagens da linha | `construcao_nao_modelada` e `conformidade.py:543` | igual, com os achados 1 e 2 acima |
+| Item 2: chaves sem condição | `_comum.py:325` | igual |
+| Seção "Divergência" marcada como resolvida | o texto da volta 3 incorpora todos os pontos | igual |
+
+### Ferramentas (saída citada)
+```
+$ python3 -m unittest tests.test_forge -v 2>&1 | tail -3   (com a ADR editada, antes do commit A)
+Ran 205 tests in 45.143s
+
+OK
+```
+A suíte completa e o `scripts/validar-plugin.sh` foram rodados depois deste parecer. O resultado vai no relatório ao Jarvis, porque o commit deste parecer precisa existir antes da bateria.
+
+### Para o dono
+Nada novo a decidir aqui. O PR segue com o rótulo `afrouxa-regra`, com as três correções gerais destacadas no título (substituição de processo, o `)` que fecha a substituição e o comentário `#` com construções não modeladas). A decisão sobre `safe.bareRepository` (S7) vai ao usuário pelo Jarvis.
