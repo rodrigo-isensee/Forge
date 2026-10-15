@@ -34,8 +34,9 @@ class StatusTest(unittest.TestCase):
         rs = [ci.resultado("a", ci.OK), ci.resultado("pr-texto", ci.PULADO, "não se aplica", obrigatorio=True, ausente=False)]
         self.assertEqual(ci.status(rs)[0], "success")
 
-    def test_workflows_e_o_unico_job_opcional(self):
-        self.assertEqual(ci.NAO_OBRIGATORIOS, {"workflows"})
+    def test_nenhum_job_e_opcional_e_so_actionlint_e_zizmor_sao_passos_opcionais(self):
+        self.assertEqual(ci.NAO_OBRIGATORIOS, set())
+        self.assertEqual(ci.FERRAMENTAS_OPCIONAIS, {"actionlint", "zizmor"})
 
 
 class ResumoTest(unittest.TestCase):
@@ -113,6 +114,14 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         esperados = {"rapida", "bateria", "catraca"}
         self.assertTrue(esperados <= set(ids), esperados - set(ids))
 
+    def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
+        (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+                      if j["id"] == "bateria"]
+        comandos = "\n".join(p["run"] for p in bateria["passos"])
+        for trecho in ("unittest discover", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
+                       "[Não publicado]", "Nada pula degrau", "verificar-contribuicao"):
+            self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
+
     def test_passo_com_bloco_env_e_if(self):
         texto = (
             "jobs:\n  j:\n    name: Meu job\n    if: github.base_ref == 'develop'\n    steps:\n"
@@ -162,6 +171,30 @@ class RodarJobTest(unittest.TestCase):
     def test_if_falso_pula_sem_ser_ausencia(self):
         r = self.rodar(self.job("false\n", se="github.base_ref == 'main'"))
         self.assertEqual((r["estado"], r["ausente"]), (ci.PULADO, False))
+
+    def passo(self, nome, run):
+        return {"nome": nome, "se": "", "env": {}, "run": run}
+
+    def test_actionlint_ausente_pula_so_o_passo_e_o_resto_do_job_roda(self):
+        job = {"id": "j", "nome": "j", "se": "", "passos": [self.passo("lint", "actionlint -color\n"), self.passo("p", "true\n")]}
+        original = ci.shutil.which
+        ci.shutil.which = lambda _nome: None
+        try:
+            r = self.rodar(job)
+        finally:
+            ci.shutil.which = original
+        self.assertEqual(r["estado"], ci.OK)
+
+    def test_ferramenta_obrigatoria_ausente_continua_reprovando_com_actionlint_ausente(self):
+        job = {"id": "j", "nome": "j", "se": "", "passos": [self.passo("lint", "actionlint\n"), self.passo("s", "shellcheck x\n")]}
+        original = ci.shutil.which
+        ci.shutil.which = lambda _nome: None
+        try:
+            r = self.rodar(job)
+        finally:
+            ci.shutil.which = original
+        self.assertEqual((r["estado"], r["ausente"]), (ci.PULADO, True))
+        self.assertIn("shellcheck", r["motivo"])
 
     def test_ferramenta_ausente_pula_como_ausencia(self):
         original = ci.shutil.which

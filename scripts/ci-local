@@ -19,7 +19,7 @@ Os testes rodam sobre a cabeça do PR, não sobre o merge com a base (o CI testa
 Fidelidade ao CI: a base dos jobs é o ponto de partida do PR (merge-base entre a cabeça e a base atual), no lugar do
 primeiro pai do merge commit que o GitHub monta; o texto `git rev-parse HEAD^1` dos workflows é trocado por esse sha.
 
-Jobs obrigatórios: todos, menos `workflows` (actionlint e zizmor são baixados pelo CI; localmente só rodam se já
+Jobs obrigatórios: todos; só os passos do actionlint e do zizmor são opcionais (eles são baixados pelo CI; localmente só rodam se já
 estiverem instalados). Um job é "pulado" por duas razões: não se aplica ao PR (condição `if` do workflow: não afeta
 o status) ou falta algo para rodá-lo (ferramenta ausente: se o job é obrigatório, o status vira `failure`).
 """
@@ -35,7 +35,10 @@ import tempfile
 from pathlib import Path
 
 WORKFLOWS = ("ci.yml", "catraca.yml")
-NAO_OBRIGATORIOS = {"workflows"}
+NAO_OBRIGATORIOS = set()
+# actionlint e zizmor o CI baixa em versão fixa; local, só rodam se já estiverem instalados. Ausentes, o passo é pulado com
+# aviso e o resto do job continua obrigatório (antes eram o job `workflows`, o único não obrigatório).
+FERRAMENTAS_OPCIONAIS = {"actionlint", "zizmor"}
 # Passos que o CI faz só para preparar o runner (baixar ferramentas, instalar o CLI); local, o que existe no PATH vale.
 PASSO_DE_PREPARO = re.compile(r"\b(curl|wget)\b|\binstall\s+(-g|--global)\b")
 FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
@@ -343,6 +346,18 @@ def ferramentas_ausentes(script):
     return sorted(f for f in achadas if not shutil.which(f))
 
 
+def sem_passos_opcionais_ausentes(passos, nome_do_job):
+    """Tira os passos que dependem só de ferramentas opcionais ausentes (com aviso); os demais seguem obrigatórios."""
+    restantes = []
+    for passo in passos:
+        ausentes = set(ferramentas_ausentes(passo["run"]))
+        if ausentes and ausentes <= FERRAMENTAS_OPCIONAIS:
+            print(f"AVISO: {nome_do_job}/{passo['nome'] or 'passo'} pulado: {', '.join(sorted(ausentes))} ausente no PATH", file=sys.stderr, flush=True)
+        else:
+            restantes.append(passo)
+    return restantes
+
+
 def rodar_job(job, ctx, raiz, base_sha, tmp):
     nome = job["nome"]
     obrigatorio = job["id"] not in NAO_OBRIGATORIOS
@@ -358,6 +373,7 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
     tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
     tmp.mkdir(parents=True, exist_ok=True)
+    passos = sem_passos_opcionais_ausentes(passos, nome)
     faltam = sorted({f for p in passos for f in ferramentas_ausentes(p["run"])})
     if faltam:
         return resultado(nome, PULADO, f"ferramenta ausente no PATH: {', '.join(faltam)}", obrigatorio, ausente=True)
