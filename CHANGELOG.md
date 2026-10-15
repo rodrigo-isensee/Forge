@@ -3,8 +3,6 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
-### Alterado
-- **CI fixado em `ubuntu-24.04` (requer o rótulo `afrouxa-regra` do dono, altera `.github/`):** os três workflows deixam de usar `ubuntu-latest`, que o GitHub passa para a 26.04 em ondas entre 19/10 e 19/11/2026 (Python 3.12 para 3.14, shellcheck 0.9 para 0.11, runtime JS 22 para 24). Mesmo número de jobs e minutos; a migração para a 26.04 fica para uma janela própria. Parecer em `docs/devops/ci-ubuntu-26.md`.
 ### Adicionado
 - **`scripts/ci-local`:** roda localmente a bateria do CI (lê os `run:` dos workflows do PR, numa worktree temporária no sha da cabeça) e, com `--publicar`, grava o commit status `ci-local`; vale como portão local enquanto o Actions estiver sem cota (decisão do dono, opção A). Jobs obrigatórios: todos menos `workflows`; ferramenta ausente em job obrigatório reprova. Testes em `tests/test_ci_local.py`. INT e TERM limpam a worktree e saem com 130 e 143 sem traceback. Passos como o GitHub os roda (`bash -e`; `shell: bash` ativa `pipefail`), `if:` por avaliador próprio (sem `eval`), avisos para o que o leitor ignora e token só nos passos que o declaram.
 
