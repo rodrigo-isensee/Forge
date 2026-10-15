@@ -6,6 +6,7 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 ### Adicionado
 - **Medir antes de proteger contra alucinação (fonte F1, fatia 1; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** `forge-check transcricao lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, "N testes OK") sem lastro literal nas saídas de ferramenta dele; `transcricao decisoes` (M3) conta as respostas do Jarvis com mais de um grupo de opções A/B/C ou sem "Recomendo". Offline, sem IA, saída anonimizada e só mede; métricas em `docs/melhoria-continua.md`.
 ### Corrigido
+- **Teste frágil `JarvisForgeAbrir`:** `ambiente_limpo()` em `tests/test_forge.py` passa a remover todas as variáveis `FORGE_*` do ambiente dos testes (inclusive `FORGE_ABERTURA_FEITA`, que vazava de uma sessão aberta pelo `jarvis-forge` e fazia 7 testes falharem); quem precisa de uma a define de propósito. Só testes; sem mudança de comportamento do Forge.
 - **Medida de lastro (corrige os bloqueantes do parecer do PR #120; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** "mesclado" só tem lastro com prova de merge do PR citado (`state` MERGED, `mergedAt` não nulo ou `gh pr merge`; `mergedAt: null` e `git log` não valem); "N testes OK" exige `Ran N tests` seguido de `OK`; negação não conta como afirmação, `git fetch` não prova push, "N OK" é reconhecido. Linha de base M1 remedida: 13,6%.
 
 ## [0.13.0] - 2026-10-14
