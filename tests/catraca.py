@@ -611,13 +611,14 @@ def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     if not tocados:
         return []
     fc, achados = forge_check(), []
-    for ped in fc.pedidos_da_branch(Path(raiz), ramo, head):
+    pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
+    for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base) if l.strip()]
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
-        if not linhas:
-            return []
         achados += linhas
+    if pedidos and not achados:
+        return []
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
     return [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",

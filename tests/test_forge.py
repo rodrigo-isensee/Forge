@@ -391,8 +391,11 @@ class RegrasComId(unittest.TestCase):
 def ambiente_limpo():
     """Ambiente sem as variáveis GIT_* herdadas (um hook do git exporta GIT_DIR e afins) e sem config
     global/de sistema: o git dos testes só enxerga o repositório temporário em que roda. Sem `CLAUDE_PROJECT_DIR`
-    (a raiz da sessão que roda os testes): o hook decide a sessão por ela, e cada fixture declara a sua."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
+    (a raiz da sessão que roda os testes): o hook decide a sessão por ela, e cada fixture declara a sua.
+    Sem as variáveis `FORGE_*` (ex.: `FORGE_ABERTURA_FEITA`, que o `jarvis-forge` exporta na sessão aberta por ele):
+    elas mudam o comportamento dos scripts, e quem precisa de uma a define de propósito depois, em `env`."""
+    env = {k: v for k, v in os.environ.items()
+           if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
     return env
 
@@ -774,7 +777,7 @@ class CI(unittest.TestCase):
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        for trecho in ("base_ref == 'develop' || github.base_ref == 'main'", "[Não publicado]", "a <= b"):
+        for trecho in ("github.base_ref == 'develop'", "github.base_ref == 'main'", "changelog.d", "a <= b"):
             self.assertIn(trecho, texto)
 
     def test_dependabot_para_actions(self):
