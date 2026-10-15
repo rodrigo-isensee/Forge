@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: fe658ce
-parecer: reprovado
+commit: cd657b6
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-14
 ---
 # Review de segurança: anti-alucinacao-regras (fatia 2)
+
+**Veredito vigente: aprovado** (seção "Re-review volta 4", sobre cd657b6). As seções anteriores ficam como histórico.
 
 Escopo: `git diff f2dbe3a..706030b -- hooks/ tests/hooks/` e o frontmatter e os limites de `agents/conferente.md`. Lidos também o review independente e a volta 1 do parecer de autor. Todas as sondas rodaram o `hooks/conformidade.py` do HEAD com `CLAUDE_PROJECT_DIR` apontando para um projeto descartável em `$TMPDIR` (`.forge/versao`, branch `develop`). O efeito real foi conferido pelo `bash` num segundo repositório descartável, com git 2.43.0 e sem configuração global.
 
@@ -212,3 +214,66 @@ O "Estado" passa de "proposta" para "aceita". No item 1, entram `^` e o tab no a
 
 ### Para reaprovar
 S6 corrigido, com as fixtures, e um novo re-review só do diff de correção. Os cartões C7, C8 e S7 não bloqueiam. A decisão sobre `safe.bareRepository` vai ao usuário pelo Jarvis.
+
+## Re-review volta 4 (2026-10-14, sobre cd657b6)
+Escopo: `git diff beb9940..cd657b6` (`hooks/conformidade.py`, `hooks/conformidade.json`, 15 fixtures) e a seção "Volta 4" de `docs/reviews/anti-alucinacao-regras.md`, com a tabela de auditoria. Vale só para o papel só de leitura. Os demais papéis e o heredoc continuam aprovados (volta 3). Sondas: o hook do HEAD rodado direto com `agent_type: forge:conferente`, num projeto descartável em `$TMPDIR` (`.forge/versao`, branch `develop`, sem configuração global). O efeito real foi conferido pelo `bash` 5.2.21 e pelo git 2.43.0 numa cópia desse projeto. Essa cópia tinha um commit assinado e um `gpg.program` falso que cria um arquivo-marcador quando roda. Na coluna do efeito, "nada" quer dizer que nenhum arquivo novo apareceu.
+
+### Veredito: **aprovado**
+S6 está fechado. PWN7, PWN8 e PWN9 saem com rc 2, e o mesmo comando, rodado no `bash`, ainda grava ou executa. Isso prova que a recusa vem do hook, não de o comando ter perdido o efeito. Cada linha da tabela do autor confere com a sonda. Nenhuma das 50 tentativas novas com comandos da lista branca grava arquivo ou executa programa por escolha do conferente. A única execução com rc 0 roda um arquivo versionado, por um gancho do git que já vem configurado em todo projeto. Pelo critério do item 3 da ADR 0011, isso é estado gravado antes, como o S7, e vira o cartão S8 abaixo. Não bloqueia: quem consegue versionar esse arquivo já executa código em todo `commit` e `push` feito naquela cópia.
+
+### S8. `git status` roda o gancho `post-index-change` versionado (cartão, classe S7)
+- **Evidência:** `bin/forge-init:118` grava `core.hooksPath=.githooks` em todo projeto. `git status` está em `hooks/conformidade.json:76`. Quando o índice está com o carimbo de data desatualizado, o `git status` regrava o índice e o git roda `.githooks/post-index-change`. Sondado: o marcador foi criado, com rc 0 no hook. `git --no-optional-locks status`, `git diff`, `git log -p` e `git status --porcelain` com o índice em dia não criaram nada.
+- **Caminho de ataque:** um arquivo `.githooks/post-index-change` na branch em que o conferente trabalha. Esse caminho é protegido para os agentes comuns e fica ao alcance do `tech-lead`, de uma pessoa ou de um PR de terceiro. O conferente não precisa ser induzido: o `git status` é um uso normal.
+- **Severidade:** baixa. A pré-condição é a mesma que já dá execução pelo `pre-commit` e pelo `pre-push` a qualquer papel que faça `commit` ou `push` naquela cópia. A garantia que se perde é só "o conferente nunca executa nada".
+- **Correção mínima:** no papel só de leitura, aceitar `git status` só com a opção global `--no-optional-locks` (sondado: não regrava o índice e não roda o gancho) ou tirar o `git status` da lista. Entram a fixture e uma linha na ADR 0011, no item 3, junto do S7. **Dono:** `forge:tech-lead`.
+
+### A suposição do autor (classe S7)
+**Fica de pé** para os cinco itens. Sondado na cópia: com só o `.gitattributes` versionado (`diff=x filter=x`), `git diff`, `git status`, `git log -p` e `git show HEAD:<arquivo>` não rodaram nada. Com a configuração no `.git/config` (`diff.x.textconv`, `filter.x.clean`, `core.fsmonitor`, `diff.external`), os quatro marcadores apareceram. O `pretty.<x>` só é alias de um formato, e o `%G` dele roda o gpg como o formato direto. O pager precisa de terminal (a ferramenta Bash não tem) e de `core.pager`, e `-p`/`--paginate`/`-c` saem com rc 2. Nenhum comando da lista grava configuração: o conferente não cria sozinho a pré-condição. **Complemento:** a classe tem um sexto membro cuja configuração já vem de fábrica, o `core.hooksPath` (S8). Para ele, "depende de configuração gravada antes" é verdade só no papel. Na prática, basta o arquivo versionado.
+
+### Sondas (rc do hook | comando | efeito real no `bash`)
+```
+PWN7-9 e S6     2 | test -v 'a[$(git diff {--output=PWN7,HEAD})]'                 (PWN7 criado)
+                2 | test -v 'a[$(git ls-remote $'"'"'--upload-pack=touch PWN8;'"'"' .)]' (PWN8 criado: execução)
+                2 | test -v 'a[$(git ls-remote {--upload-pack=touch\ PWN9\;,.})]'     (PWN9 criado: execução)
+                2 | test x = y -o -v 'a[$(git log -1)]'   2 | test '!' -v 'a[...]'   2 | test -v x   2 | test -R x   2 | test -n x
+tabela, test    2 | 'test' -v x   2 | "test" -v 'a[x]'   2 | te''st -v x   2 | test -f src/app.js -o -v x   0 | test -e -v (nada; -e sobre o arquivo "-v")
+tabela, [ [[    2 | [ -e src/app.js ]   2 | [[ -e src/app.js ]]   (gramática)
+tabela, nível>0 2 | grep -n '$(git log -1)' src/app.js   2 | grep -n '`git log -1`' …   2 | echo 'a[$(touch PWNE)]'   2 | test -s 'a[$(touch PWNT1)]'
+tabela, %G      2 | git log -1 --show-signature (gpg rodou)   2 | git show --show-signature HEAD (gpg rodou)   2 | --format=%GS (gpg rodou)
+                2 | --pretty=format:%+GK (gpg rodou)   2 | '--format=% G?' (gpg rodou)   2 | --format=%-GG (gpg rodou)   2 | git show HEAD --format=%G? (gramática: ?)
+                2 | git log -1 --show-s / --show-sig (git 2.43 recusa a abreviação no log: rc 128)
+                0 | git log -1 --pretty=tformat:%x25GS (nada: %x25 imprime o %, não reavalia)   0 | '--format=%(describe)' (nada)   0 | git cat-file -p HEAD (nada)
+tabela, git     2 | git log -1 --output=PWNO (criado)   2 | git diff --outp=…   2 | --ext-diff   2 | --textc   2 | cat-file --filt   2 | cat-file --text
+                2 | git log -1 --ext-dif   2 | git log -1⇥--output=PWNTAB (criado)   2 | "--out""put=PWNQ" (criado)   2 | --out\put (gramática)
+tabela, global  2 | git -c core.pager=touch log   2 | git -p log   2 | git --paginate log   2 | git --exec-path=src log   2 | git --git-dir=.git log
+                0 | git --no-pager -C src log -1 (nada)   0 | git --no-pager -C . log -1 (nada)
+tabela, alias   2 | git lg (alias '!touch': ALIAS2 criado no bash)   0 | git log -1 com alias.log='!touch' (nada: alias não sobrepõe nativo)
+tabela, ls-rem  2 | --upload-pack=touch .   2 | -u touch .   2 | --exec=touch .   2 | 'ext::sh -c …'   2 | --config-env=x=y .   2 | -- --upload-pack=touch
+                2 | '-oProxyCommand=touch PWNSSH3:x'   0 | 'ssh://-oProxyCommand=touch PWNSSH/x' e '…%20PWNSSH2@h/x' (git recusa host e usuário estranhos: rc 128, nada)
+                0 | --sort=--upload-pack=touch . (rc 128, nada)
+tabela, config  ver "A suposição do autor": só .gitattributes, nada; com .git/config, os quatro marcadores
+tabela, gh      2 | gh pr view 1 --web   2 | -w   2 | gh run download 1   2 | gh pr checkout 1
+                0 | gh pr view 1 --jq 'env'   0 | --template x   0 | --repo x/y --web=false   (rc 1 fora do GitHub; nada gravado)
+tabela, f-check 2 | pr p1 --ref=--output=PWNF   2 | --base=-x   2 | --re=--output=PWNF (abreviação do argparse)   2 | forge-check fontes
+                2 | forge-check transcricao anonimizar src/app.js PWNT3 (criado)   2 | forge-check --raiz=. transcricao … PWNT2 (criado)
+                0 | forge-check pr --raiz=. p1 && forge-check docs --raiz=src (nada)   0 | pr p1 --ref=HEAD --base=develop (nada)
+tabela, internos 0 | echo ok; pwd; cd src && ls && cat app.js | head -1 | wc -l && cut -c1 app.js | tr a b; true (nada)   0 | cd .. && pwd   0 | cd /
+tabela, fora    2 | printf -v   2 | find -exec (gramática: \; o bash criou)   2 | git grep --open-files-in-pager   2 | eval   2 | bash -c
+                2 | unset 'a[$(…)]'   2 | declare 'a[$(touch PWND)]=1' (o bash criou)   2 | false
+novas, escrita  2 | echo --output=PWNS1 | git log -1 --stdin   0 | echo --show-signature | git log -1 --stdin (rc 128: o git recusa opção no --stdin)
+                0 | echo --format=%GS | git log -1 --stdin (rc 128, nada)   2 | cat … > /dev/stdout   2 | > /dev/fd/1   2 | >> /dev/null
+                0 | git cat-file --batch-command (sem entrada, nada)   0 | echo 'contents HEAD:src/app.js' | git cat-file --batch-command (nada)
+                0 | git diff --no-index src/app.js .forge/versao (nada)   0 | git diff -no-ext-diff (nada)   0 | git show HEAD:src/app.js (nada)
+                0 | git rev-parse --git-path hooks   0 | git log -1 --since=x --until=y --author=a --grep=b   0 | git log -1 | grep -c x | tr 1 2
+                0 | ls -la && wc -l … && tail -n 1 … && head -c 2 … && grep -rn v1 src (nada)   0 | cut --output-delimiter=x … e git log -1 --output-indicator-new=x (nada; sem falso bloqueio)
+novas, gancho   0 | git status (com core.hooksPath=.githooks e o gancho versionado: HOOKRODOU criado; S8)   0 | git status --porcelain e cd src && git status (índice em dia: nada)
+regressão       0 | test -f src/app.js && test -e src/app.js && test -d src && test -s src/app.js   0 | git log -1 && grep … && git log -1 --format=%h%n%s%n%gd && git rev-parse --show-toplevel && git status --show-stash
+```
+`⇥` é tab. Os rc 128 e 129 são do git. "(criado)" quer dizer que o `bash` sem o hook gravou ou executou, e que a recusa do hook é a única barreira.
+
+### Ressalvas que não bloqueiam
+- `gh pr view --jq 'env'` mostra o ambiente que a gramática não deixa ler com `$NOME`. A conta pode ter um token. É leitura, sem escrita nem execução, e fica como informativo (já estava na volta 3).
+- `test -e -v` passa e testa o arquivo `-v`. Não reavalia nada.
+
+### Pendências
+Nada pendente nesta fatia. Os cartões C1 a C8, S7 e S8 não bloqueiam. A decisão sobre `safe.bareRepository` já foi levada ao usuário. O S8 vai ao `forge:tech-lead`.
