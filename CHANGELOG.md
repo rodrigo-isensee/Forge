@@ -3,6 +3,9 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Corrigido
+- **`scripts/ci-local` e `tests/test_ci_local.py`:** acompanham o CI consolidado do #138 (jobs `rapida` e `bateria`). O teste confere os jobs atuais e que a `bateria` ainda traz os passos dos jobs antigos; no script, o job `workflows` deixou de existir, então o que era opcional (actionlint e zizmor) passou a ser opcional por passo, e todo o resto da `bateria` continua obrigatório.
+
 ### Adicionado
 - **`scripts/ci-local`:** roda localmente a bateria do CI (lê os `run:` dos workflows do PR, numa worktree temporária no sha da cabeça) e, com `--publicar`, grava o commit status `ci-local`; vale como portão local enquanto o Actions estiver sem cota (decisão do dono, opção A). Jobs obrigatórios: todos menos `workflows`; ferramenta ausente em job obrigatório reprova. Testes em `tests/test_ci_local.py`. INT e TERM limpam a worktree e saem com 130 e 143 sem traceback. Passos como o GitHub os roda (`bash -e`; `shell: bash` ativa `pipefail`), `if:` por avaliador próprio (sem `eval`), avisos para o que o leitor ignora e token só nos passos que o declaram.
 
