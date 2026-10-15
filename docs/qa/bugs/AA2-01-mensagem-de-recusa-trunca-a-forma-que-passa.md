@@ -1,4 +1,5 @@
 # AA2-01 - Mensagem de recusa do conferente corta a forma que passa e nomeia a variável por uma letra
+- Status: corrigido em 276b7f8 (reconferido em b377f35: recusa mostra `no lugar de echo $?: && echo contém || echo não contém` e `$TMPDIR` inteiro, pelo hook real)
 - Severidade: baixa
 - Responsável sugerido: `forge:tech-lead` (hooks/conformidade.py, `mensagem` em hooks/_comum.py)
 - Ambiente: melhoria/anti-alucinacao-regras 6a63087, hook `conformidade` PreToolUse, papéis `conferente` e `tech-lead`

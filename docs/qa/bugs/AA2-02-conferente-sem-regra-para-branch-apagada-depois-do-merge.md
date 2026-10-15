@@ -1,4 +1,5 @@
 # AA2-02 - `conferente.md` não diz como provar `push` quando a branch do PR já foi apagada
+- Status: corrigido em 5df7ba4 (reconferido em b377f35: `refs/pull/122/head` e `headRefOid` = 2251ad5, conforme o novo trecho de `agents/conferente.md`)
 - Severidade: baixa
 - Responsável sugerido: `forge:tech-lead` (agents/conferente.md)
 - Ambiente: melhoria/anti-alucinacao-regras 6a63087; PR #122 (mesclado)

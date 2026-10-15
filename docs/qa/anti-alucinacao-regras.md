@@ -3,14 +3,13 @@ tipo: qa
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 6a63087
+commit: b377f35
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 2
-aceite_usuario: sim
+bugs_baixos: 0
 data: 2026-10-14
 ---
 # QA - fatia 2 do anti-alucinacao (R-PROVA, R-BRIEF, conferente, correções do hook)
@@ -66,12 +65,12 @@ Conferente: `echo $?`; `echo $(git log -1)`; `git log -1 2>/dev/null`; `git log 
 ## Seção 4, regressão de fluxo comum
 dev, tech-lead e qa, rc 0: `git add src/app.js`, `git commit -m "x"`, `git push origin melhoria/x`, `python3 -m unittest`, `git commit -m "$(cat <<'FIM' ... FIM )"`. `git push origin main` como dev, tech-lead e qa: rc 2 (R-MAIN). Extras: `git push origin develop` rc 2, `--force` rc 2 (R-VERIFY), `--no-verify` rc 2, `cat <<'FIM'` com "git push origin main" no corpo rc 0.
 
-## Bugs abertos
+## Bugs (todos corrigidos)
 | ID | Severidade | Resumo |
 |---|---|---|
-| AA2-01 | baixa | recusa corta a forma que passa (200 caracteres) e mostra `$T` por `$TMPDIR` |
-| AA2-02 | baixa | `conferente.md` sem forma de provar push de branch apagada após o merge |
-Zero críticos, altos e médios. Os dois baixos pedem aceite do dono (`aceite_usuario: sim`).
+| AA2-01 | baixa (corrigido 276b7f8) | recusa corta a forma que passa (200 caracteres) e mostra `$T` por `$TMPDIR` |
+| AA2-02 | baixa (corrigido 5df7ba4) | `conferente.md` sem forma de provar push de branch apagada após o merge |
+Zero críticos, altos, médios e baixos abertos. AA2-01 corrigido em 276b7f8 e AA2-02 em 5df7ba4, reconferidos em b377f35 (hook real e `refs/pull/122/head`). `aceite_usuario`: não se aplica (0 bugs abertos); o campo estava como `sim` por engano, pois o dono não aceitou bug algum, e foi removido.
 
 ## Fora deste parecer
 Segurança (`R-SEGURANCA`) e review já aprovaram; este parecer não declara "seguro". O conferente simulado pelo Jarvis (agente haiku) não foi rodado por mim: executei o roteiro à mão.
