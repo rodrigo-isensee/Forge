@@ -4,6 +4,9 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+### Corrigido
+- **Autoria de parecer gravado em outra worktree (requer o rótulo `afrouxa-regra` do dono, altera `hooks/conformidade.py`):** o hook `conformidade` só registrava a autoria se o parecer estivesse sob a raiz da sessão; gravado em outra worktree do mesmo repositório, ficava sem registro e o `forge-check pr` o recusava. Agora a raiz do parecer é a cópia de trabalho mais próxima, achada só pelo disco (sem git), e vale se for a da sessão ou uma worktree do mesmo repositório, dentro (`.claude/worktrees/<n>`) ou fora da raiz da sessão; o `.git` e o `gitdir` de volta precisam apontar um para o outro (pasta com `.git` forjado, link simbólico e outro repositório não valem) e o registro continua no `.forge/run/` da cópia principal.
+
 ## [0.14.0] - 2026-10-14
 ### Adicionado
 - **Medir antes de proteger contra alucinação (fonte F1, fatia 1; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** `forge-check transcricao lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, "N testes OK") sem lastro literal nas saídas de ferramenta dele; `transcricao decisoes` (M3) conta as respostas do Jarvis com mais de um grupo de opções A/B/C ou sem "Recomendo". Offline, sem IA, saída anonimizada e só mede; métricas em `docs/melhoria-continua.md`.
