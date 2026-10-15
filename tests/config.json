@@ -143,6 +143,8 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "comando de pronto do projeto verde, rodado da raiz do repositório",
+      "suba mais instâncias iguais dele",
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
       "\\*\\*em qualquer projeto\\*\\*",
@@ -200,6 +202,7 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "\\*\\*uma vez, antes do review\\*\\*",
       "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
@@ -280,6 +283,7 @@
     ],
     "docs/regras/R-FLUXO.md": [
       "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "\\*\\*Atualize a branch com a integração uma vez, antes do review\\*\\*",
       "Nada pula degrau",
       "\\*\\*Depois do merge, limpe tudo\\*\\*",
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
@@ -296,6 +300,7 @@
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
     ],
     "docs/regras/R-WIP.md": [
+      "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
       "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
     ],
     ".githooks/pre-push": [
@@ -321,6 +326,8 @@
       "afirma um mínimo de itens"
     ],
     "skills/engineering-practices/SKILL.md": [
+      "## Definição de pronto",
+      "documentação afetada pela mudança atualizada na mesma entrega",
       "Teste de ausência .* cujo alvo mudou é relido"
     ],
     "tests/test_forge.py": [
