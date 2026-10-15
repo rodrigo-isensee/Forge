@@ -1,5 +1,6 @@
 # CL-01 - Ctrl-C no ci-local imprime traceback do Python
 - Severidade: baixa
+- Status: corrigido em f1fdb80 (revalidado por QA: INT rc 130 e TERM rc 143, sem traceback, sem worktree nem pasta temporária novas)
 - Responsável sugerido: forge:python-dev (ou o agente de desenvolvimento da stack do script)
 - Ambiente: melhoria/ci-local @ e808d6c, `scripts/ci-local`
 
