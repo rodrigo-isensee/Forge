@@ -174,6 +174,22 @@ class Agentes(unittest.TestCase):
                 self.assertTrue(fm.get("tools"), "tools vazio")
                 self.assertIn(fm.get("model"), MODELOS_VALIDOS)
 
+    def test_conferente_so_leitura(self):
+        """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
+        com o papel só de leitura na política do hook `conformidade` (o Bash dele fica na lista branca de leitura)."""
+        fm = frontmatter(AGENTES / "conferente.md")
+        ferramentas = {t.strip() for t in fm["tools"].split(",")}
+        self.assertFalse(ferramentas & {"Write", "Edit", "MultiEdit", "NotebookEdit", "Agent"}, ferramentas)
+        self.assertEqual(fm["model"], "haiku")
+        politica = json.loads((RAIZ / "hooks" / "conformidade.json").read_text(encoding="utf-8"))
+        papeis = [p for p, tipos in politica["papeis"].items() if "forge:conferente" in tipos]
+        self.assertEqual(papeis, ["conferente"])
+        self.assertIn("conferente", politica["so_leitura"]["papeis"])
+        for papel in politica["so_leitura"]["papeis"]:
+            with self.subTest(papel=papel):
+                self.assertFalse([a for a, quem in politica["acoes"].items() if papel in quem])
+                self.assertFalse([c["caminho"] for c in politica["caminhos"] if papel in c["quem"]])
+
     def test_skills_citadas_existem(self):
         for p in self.agentes:
             fm = frontmatter(p)

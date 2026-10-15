@@ -1,0 +1,33 @@
+{
+  "descricao": "Memória 1,5 GB bloqueia mesmo com 1 ativo (R-TETO).",
+  "proc": {
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 1.5
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "espere a carga baixar; só o dono: FORGE_CARGA_LIVRE=1"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "descricao": "Pasta solta com .git apontando para o .git comum do repositório (não uma worktree): não registra.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/falso/.git": "gitdir: {raiz}/.git\n",
+        "{tmp}/falso/docs/qa/p1.md": "parecer\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/falso/docs/qa/p1.md"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

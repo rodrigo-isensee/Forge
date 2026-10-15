@@ -1,5 +1,5 @@
 {
-  "descricao": "Menos de 2 GB livres: teto 2, mesmo com a máquina ociosa.",
+  "descricao": "Menos de 2 GB livres: a trava de carga alta bloqueia (R-TETO).",
   "proc": {
     "loadavg": "0.5 1.0 1.0 1/100 1",
     "mem_gb": 1.5
@@ -34,6 +34,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "2 agentes ativos, teto 2 (adaptativo: load 0.5, 1.5 GB"
+    "stderr": "R-TETO: carga alta (load 0.5, 1.5 GB"
   }
 }
