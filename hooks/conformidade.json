@@ -70,7 +70,7 @@
   },
   "flags_congeladas": ["--frozen-lockfile", "--immutable", "--locked", "--frozen", "--require-hashes"],
   "so_leitura": {
-    "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, redirecionamento só para as saídas, variável na linha recusada e só os comandos da lista (programa sem caminho; git e gh com o subcomando; test só como -e, -f, -d ou -s e um caminho). Fora da lista, recusa: na dúvida, recusa.",
+    "descricao": "Papéis só de leitura (R-PROVA, R-BRIEF): nenhuma ferramenta de arquivo, linha dentro da gramática da ADR 0011 (alfabeto fixo; redirecionamento, variável e substituição recusados) e só os comandos da lista (programa sem caminho; git e gh com o subcomando; test só como -e, -f, -d ou -s e um caminho). Fora da lista, recusa: na dúvida, recusa.",
     "papeis": ["conferente"],
     "comandos": ["git log", "git show", "git diff", "git ls-remote", "git rev-parse", "git merge-base", "git status", "git cat-file",
                  "gh pr view", "gh pr list", "gh pr checks", "gh pr diff", "gh run list", "gh run view",

@@ -20,9 +20,8 @@ from pathlib import Path
 
 import parecer
 from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
-                    em_contrib, executar,
-                    fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto,
-                    sem_atribuicoes, tem_manifesto_do_forge)
+                    em_contrib, executar, fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada,
+                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -495,7 +494,8 @@ class Guarda:
             return
         if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
             self.barrar("R-CONFORMIDADE", f"substituição dentro de aspas pelo papel só de leitura ({self.papel})",
-                        "tire o $( e a crase da linha")
+                        "escreva o nome literal em vez de $( ou crase, mesmo entre aspas (para procurar um trecho, "
+                        "grep -F 'trecho' <arquivo>, sem esses sinais)")
         if self.leitura and nivel == 0:
             self.gramatica_de_leitura(comando)
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
@@ -557,7 +557,7 @@ class Guarda:
         if sinal is not None:
             self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
                         "um comando por chamada; $, crase, \\, #, chaves, glob e < > só entre aspas simples "
-                        "('HEAD@{1}', 'v1$')")
+                        "('HEAD@{1}', 'v1$'), nunca com $( ou crase dentro")
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
@@ -735,12 +735,17 @@ class Guarda:
                 if not a.startswith("-") and "::" in a:
                     self.barrar("R-CONFORMIDADE", f"`git ls-remote` com transporte `{a.split('::', 1)[0]}::`, que executa "
                                                   f"programa (papel só de leitura: {self.papel})", DICA_LEITURA)
+            elif a.startswith("--show-signature"):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa (o gpg) "
+                                              f"(papel só de leitura: {self.papel})",
+                            "tire a opção e peça o dado por --format, por exemplo --format='%h %s' (sem %G)")
             elif abreviacao_de(a, GIT_EXECUTA) and (a.split("=", 1)[0] not in GIT_EXATAS or chave == "git cat-file"):
                 self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa "
                                               f"(papel só de leitura: {self.papel})", DICA_LEITURA)
             elif FORMATO_ASSINATURA.search(a):
                 self.barrar("R-CONFORMIDADE", f"`{chave}` com formato de assinatura (`%G`), que roda o gpg "
-                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+                                              f"(papel só de leitura: {self.papel})",
+                            "use um formato sem %G, por exemplo --format='%h %s' (hash e assunto)")
 
     def da_atribuicao(self, atribuicoes, nome):
         """Valor de `NOME=` na própria linha do comando ou definido antes (`export`)."""
