@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Alterado
+- **CI fixado em `ubuntu-24.04` (requer o rótulo `afrouxa-regra` do dono, altera `.github/`):** os três workflows deixam de usar `ubuntu-latest`, que o GitHub passa para a 26.04 em ondas entre 19/10 e 19/11/2026 (Python 3.12 para 3.14, shellcheck 0.9 para 0.11, Node 22 para 24). Mesmo número de jobs e minutos; a migração para a 26.04 fica para uma janela própria. Parecer em `docs/devops/ci-ubuntu-26.md`.
 ### Adicionado
 - **Medir antes de proteger contra alucinação (fonte F1, fatia 1; requer o rótulo `afrouxa-regra` do dono, altera `bin/forge-check`):** `forge-check transcricao lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, "N testes OK") sem lastro literal nas saídas de ferramenta dele; `transcricao decisoes` (M3) conta as respostas do Jarvis com mais de um grupo de opções A/B/C ou sem "Recomendo". Offline, sem IA, saída anonimizada e só mede; métricas em `docs/melhoria-continua.md`.
 ### Corrigido

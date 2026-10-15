@@ -18,7 +18,7 @@ concurrency:
 jobs:
   testes:
     name: testes estruturais
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -31,7 +31,7 @@ jobs:
 
   shell:
     name: shellcheck
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -41,7 +41,7 @@ jobs:
 
   workflows:
     name: workflows
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     env:
@@ -74,7 +74,7 @@ jobs:
 
   plugin:
     name: validação do plugin
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -89,7 +89,7 @@ jobs:
 
   instalacao:
     name: instalação de ponta a ponta
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -105,7 +105,7 @@ jobs:
   versao:
     name: versão e changelog
     if: github.event_name == 'pull_request' && (github.base_ref == 'develop' || github.base_ref == 'main')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -163,7 +163,7 @@ jobs:
   fluxo:
     name: fluxo de promoção
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Nada pula degrau
         env:
@@ -179,7 +179,7 @@ jobs:
   segredos:
     name: segredos
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
@@ -201,7 +201,7 @@ jobs:
   pareceres:
     name: pareceres
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
