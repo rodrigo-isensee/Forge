@@ -61,7 +61,7 @@ O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) 
 - **Emergência (só o dono):** edite `.claude/settings.json` no terminal, fora do Claude, e reinicie a sessão.
 
 ## Branches
-Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápidos), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
+Os projetos usam **só a `main`**. Melhorias entram por `develop` (bateria no PR; no push, só a checagem rápida), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
 
 **Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
 
@@ -69,6 +69,8 @@ Os projetos usam **só a `main`**. Melhorias entram por `develop` (testes rápid
 Em projeto com `.forge/versao`, o plugin garante por código, sem gastar contexto, o teto de agentes, o parecer antes de PR e merge, uma tarefa pesada por vez e o quadro válido (ADR 0003). Ajustes e como desligar um hook: [`docs/hooks.md`](docs/hooks.md).
 
 ## Atualizar um projeto
+Quem contribui com o Forge não edita o `CHANGELOG.md`: cada PR grava a sua entrada em `changelog.d/<branch>.md` (`bin/forge-changelog novo <tipo> "<texto>"`) e a release junta tudo, sem conflito entre PRs paralelos.
+
 O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No terminal, dentro do projeto, com a árvore limpa:
 - `forge atualizar`: mostra a versão em uso, a nova e o que muda (resumo do CHANGELOG); pede "s"; guarda o **ponto de retorno** (versão do plugin e cópia de `.forge/` e da configuração, em `~/.local/state/forge/retorno/`); roda `forge-upgrade --simular` e, se der certo, troca o plugin e aplica o `forge-upgrade` (branch `forge/upgrade-<versão>`, um commit por migração, sem push nem merge); roda o `forge doutor`; se algo falhar, oferece voltar.
 - `forge voltar-versao`: pede "s" e devolve o plugin à versão de antes e os arquivos do projeto (atualização não mesclada: volta à branch de antes e guarda a da atualização; já mesclada: branch `forge/voltar-<versão>` com um registro novo). Nunca usa `--force` nem apaga trabalho.

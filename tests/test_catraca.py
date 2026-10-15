@@ -5,6 +5,7 @@ import hashlib
 import importlib.util
 import io
 import json
+import re
 import os
 import subprocess
 import tempfile
@@ -822,13 +823,13 @@ class TextoDoPr(unittest.TestCase):
 
 
 class Pareceres(Base):
-    def parecer(self, tipo, ramo="pr", parecer="aprovado"):
+    def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped"):
         self.repo.commit()
         commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
         pasta = "reviews" if tipo == "review" else "qa"
         extra = "revisor: forge:tech-lead" if tipo == "review" else "qa: forge:qa-engineer"
-        self.repo.escreve(f"docs/{pasta}/ped.md",
-                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: ped\nbranch: {ramo}\ncommit: {commit}\n"
+        self.repo.escreve(f"docs/{pasta}/{pedido}.md",
+                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
                           f"parecer: {parecer}\n{extra}\ndata: 2026-01-01\n---\n# parecer\n")
 
     def roda(self, base_ref="develop"):
@@ -874,6 +875,25 @@ class Pareceres(Base):
         self.assertEqual(len(self.roda()), 1)
         self.parecer("review", ramo="outra")
         self.assertEqual(len(self.roda()), 1)
+
+    def test_um_pedido_reprovado_barra_mesmo_com_outro_aprovado(self):
+        """Proposta anti-alucinação, seção 9, item 4: o primeiro pedido aprovado não pode aprovar a branch inteira.
+        Os dois nomes cobrem as duas ordens (o forge-check devolve os pedidos em ordem alfabética)."""
+        for aprovado, reprovado in (("a-ok", "b-ruim"), ("b-ok", "a-ruim")):
+            with self.subTest(aprovado=aprovado):
+                self.setUp()
+                self.repo.escreve("hooks/novo.py", "x = 1\n")
+                self.parecer("review", pedido=reprovado, parecer="reprovado")
+                self.parecer("review", pedido=aprovado)
+                achadas = self.roda()
+                self.assertEqual(len(achadas), 1)
+                self.assertIn(f"docs/reviews/{reprovado}.md", achadas[0])
+
+    def test_dois_pedidos_aprovados_passam(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", pedido="a")
+        self.parecer("review", pedido="b")
+        self.assertEqual(self.roda(), [])
 
     # --- O parecer sobrevive a merge da base e a commit de parecer (diff efetivo, ADR 0004 item 3) ---
     def mescla_base(self, rel="scripts/da-base.sh"):
@@ -1176,8 +1196,38 @@ class Workflows(unittest.TestCase):
             self.assertNotIn(evento, ci.split("jobs:")[0].replace("rótulo e edição", ""))
             self.assertIn(evento, ct.split("jobs:")[0])
         self.assertRegex(ct, r"(?m)^  catraca:")
-        self.assertRegex(ct, r"(?m)^  pr-texto:")
+        self.assertIn("--modo pr-texto", ct)  # o texto do PR é um passo do job catraca (um job só: o GitHub cobra por minuto cheio)
+        self.assertNotRegex(ct, r"(?m)^  pr-texto:")
         self.assertNotRegex(ci, r"(?m)^  (catraca|pr-texto):")
+
+    def test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore(self):
+        """Economia de minutos: bateria num job, push na develop só com a checagem rápida, timeout em todo job."""
+        for nome in ("ci.yml", "catraca.yml", "release.yml"):
+            texto = self.texto(nome)
+            jobs = len(re.findall(r"(?m)^  [a-z-]+:\n    (?:name|if|runs-on):", texto))
+            self.assertEqual(texto.count("timeout-minutes:"), jobs, nome)
+            self.assertNotIn("paths-ignore", texto.replace("`paths-ignore`", "").replace("nunca paths-ignore", ""), nome)
+        ci = self.texto("ci.yml")
+        self.assertIn("if: github.event_name != 'push' || github.ref != 'refs/heads/develop'", ci)  # bateria fora do push na develop
+        self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
+        self.assertRegex(ci, r"(?m)^  bateria:")
+        self.assertIn("docs/(reviews|qa)/", ci)
+
+    def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
+        """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
+        ci = self.texto("ci.yml")
+        self.assertIn("git diff --name-only --no-renames", ci)  # renomear código para docs/reviews não pode esconder a origem
+        self.assertNotIn("always()", ci)  # execução cancelada não gasta os minutos que o gate poupa
+        self.assertNotIn("always()", self.texto("catraca.yml"))
+        self.assertIn("!cancelled()", ci)
+        self.assertIn('[ "$BASE_REF" = develop ]', ci)  # promoção para a homolog roda a bateria completa (R-FLUXO)
+        self.assertIn('.app.slug == "github-actions"', ci)
+        self.assertIn("sort_by(.started_at) | last", ci)
+        leve = re.search(r"(?m)^      - name: Testes que leem pareceres.*?\n        run: (.*)$", ci, re.S)
+        self.assertIsNotNone(leve, "commit só de parecer ainda roda os testes que leem docs/reviews e docs/qa")
+        for classe in ("Neutralidade", "Referencias", "AntiDuplicacao"):
+            self.assertIn("tests.test_forge." + classe, leve.group(1).splitlines()[0])
+        self.assertIn("steps.gate.outputs.pesada != 'true'", ci)
 
     def test_checkout_sem_credencial_e_sem_pull_request_target(self):
         for nome in ("ci.yml", "catraca.yml"):

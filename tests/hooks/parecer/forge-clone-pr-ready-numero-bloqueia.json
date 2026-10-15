@@ -1,0 +1,36 @@
+{
+  "descricao": "gh pr ready só com número, sem branch: não há parecer a conferir sem rede, barra (R-CONTRIB).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr ready 12"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: PR indicado só por número"
+  }
+}
