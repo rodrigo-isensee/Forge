@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: f1fdb80
+commit: 8703c56
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -13,6 +13,8 @@ bugs_baixos: 0
 data: 2026-10-15
 ---
 # QA: `scripts/ci-local` (bateria do CI rodada localmente sobre um PR)
+
+Revalidado após merge da develop (scripts e testes do ci-local sem diff desde 3d26772; o merge trouxe também código de outros PRs, não só o CHANGELOG), em 8703c56: `tests.test_ci_local` 46 OK.
 
 Ambiente: worktree da branch em f1fdb80 (revalidado após a correção do CL-01 e do C2; a execução dos PQ-1 e PQ-2c foi em e808d6c), `gh` autenticado, sem `--publicar` e sem `actionlint`/`zizmor` no PATH. Nada que custe dinheiro foi executado (`R-CUSTO`).
 
