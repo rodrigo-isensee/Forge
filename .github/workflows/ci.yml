@@ -22,7 +22,7 @@ jobs:
   rapida:
     name: checagem rápida (push na develop)
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -37,7 +37,7 @@ jobs:
   bateria:
     name: bateria
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: read

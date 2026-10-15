@@ -17,7 +17,7 @@ concurrency:
 jobs:
   catraca:
     name: catraca  # inclui o texto do PR (antes o job pr-texto): um job só custa 1 min, dois custavam 2
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: read
