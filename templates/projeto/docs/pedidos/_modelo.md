@@ -6,8 +6,13 @@ Copie para `docs/pedidos/NNN-<assunto>.md`. O Jarvis registra o pedido antes do 
 - **Objetivo:** <em uma frase, nas palavras do usuário>
 
 ## Escopo
-Um item por linha, numerado: é contra esta lista que o conferente pareia o "Entregar" de cada brief e a tabela pedido × entregue do fim.
-1. <item>
+Um item por linha, com ID estável (`E1`, `E2`…): é contra esta lista que o conferente pareia o "Entregar" de cada brief (que cita o ID, `(E1)`) e a tabela pedido × entregue do fim.
+- E1. <item>
+
+## Etapas
+O que pertence a outro papel ou momento (review, QA, push pelo dono). Um item por linha, `E1.1 (papel): ...`, onde o papel é o agente ou `dono`. Etapa de outro papel não é corte de escopo: no brief do agente destino aparece em "Fora do escopo" sem a marca.
+- E1.1 (<agente>): <etapa>
+- E1.2 (dono): <etapa>
 
 ## Fora do escopo
 O que o usuário não pediu, ou o que saiu do escopo depois. Item que estava no escopo e foi cortado leva a marca literal "Retira do escopo original", o trecho do escopo citado, a justificativa, a consequência e a decisão que o autoriza (`R-DECISAO`):
