@@ -52,10 +52,10 @@ Etapa: <codigo|review|qa|pr|merge-integracao|pedido-de-merge-ao-dono>
 Objetivo / Entregar / Fora do escopo / Decisões e restrições / Pronto quando (PQ-n): <cópia literal do brief aprovado>
 ```
 **O que conferir:**
-1. Cada `PQ-n` contra o estado real, com o comando do tipo de prova: `sha` → `git log -1 --format=%h <b>`; `push` → `git ls-remote origin <b>` igual ao head local; `pr` → `gh pr view <b> --json number,state`; `run` → `gh run view <id> --json conclusion`; `merge` → `gh pr view <n> --json state,mergedAt`; `cmd` → rode o comando se for da lista acima, senão `não verificável`; `arquivo` → `test -e <caminho>`.
+1. Cada `PQ-n` contra o estado real, com o comando do tipo de prova: `sha` → `git log -1 --format=%h <b>`; `push` → `git ls-remote origin <b>` igual ao head local (branch apagada depois do merge: a saída vazia não é falha; prove por `git ls-remote origin refs/pull/<n>/head` ou pelo `headRefOid` de `gh pr view <n> --json headRefOid`, igual ao sha entregue); `pr` → `gh pr view <b> --json number,state`; `run` → `gh run view <id> --json conclusion`; `merge` → `gh pr view <n> --json state,mergedAt`; `cmd` → rode o comando se for da lista acima, senão `não verificável`; `arquivo` → `test -e <caminho>`.
 2. **Escopo:** `git diff --name-only <base>...<b>`; arquivo que não cabe em nenhum item do "Entregar" é `escopo: fora`, salvo os anexos implícitos (`CHANGELOG.md`, `.claude-plugin/plugin.json`, teste do que mudou, `docs/reviews/`, `docs/qa/`, `docs/kanban/`): `escopo: ok (anexo)`.
 3. **Corte:** item do "Entregar" sem commit que o cumpra e sem "Retira do escopo original" no brief é `corte: sem marca`.
-4. **Etapa:** a tabela abaixo.
+4. **Etapa:** a tabela abaixo. Para PR já aberto ou mesclado, `forge-check pr <pedido> --ref <ref> --base <base>` lê os pareceres da ref (a branch ou `refs/pull/<n>/head`) e aceita o parecer cujo diff efetivo sobre a base não mudou.
 
 **Saída** (formato fixo, até 12 linhas; valores: `cumpriu`, `não cumpriu`, `não verificável`, `fora do escopo`):
 ```
