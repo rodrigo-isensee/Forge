@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: ci-ubuntu-26
 branch: melhoria/ci-ubuntu-26
-commit: bbc658f13b9d57fd551f73e17b57975799146fd7
+commit: 77a4028ba046ccf58774565adffbe73c3e505b6d
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-15
@@ -35,6 +35,13 @@ Aprovado: fixar `ubuntu-24.04` agora e migrar para a 26.04 em janela controlada.
 **Fora do alcance.** O runner privado (cota de cobrança do diagnóstico `ci-minutos`) é problema separado: esta mudança não o resolve nem agrava.
 
 **Ferramentas.** `actionlint` e `shellcheck` não estão no PATH deste ambiente: lacuna registrada; o job `workflows` do CI roda actionlint e zizmor. A mudança é só troca de rótulo. Parecer de segurança (`R-SEGURANCA`, gatilho `.github/`) é do `security-engineer`, ainda pendente.
+
+## Revalidação (HEAD 77a4028, após merge da develop 3f4a21e)
+Aprovado, mantido. Conferido por `git diff origin/develop -- .github CHANGELOG.md`: o diff em `.github/` são só 4 linhas `runs-on: ubuntu-latest` para `ubuntu-24.04` (catraca.yml 1, ci.yml 2 com `rapida` e `bateria`, release.yml 1); o `CHANGELOG.md` está fora do diff e o fragmento `changelog.d/ci-ubuntu-26.md` entrou. `grep ubuntu-latest .github` não retorna nada: nenhum job novo do #138 ficou no rótulo móvel. Os 9 jobs do parecer anterior viraram 2 em ci.yml (consolidação do #138), mesmo critério.
+
+`rapida` e `bateria` na 24.04 sem perda: ambos fixam `setup-python` 3.12 (SHA fixado) antes de `python3 -m unittest discover`; o shellcheck da `bateria` é o do runner (0.9.0 na 24.04), o mesmo que a develop já usava com `ubuntu-latest` (hoje 24.04), então nenhum achado novo. Resta um passo da `bateria` que usa `python3` do sistema antes do `setup-python` (testes de pareceres): 3.12.3 na 24.04, sem mudança. A recomendação de fixar o Python também nesse passo vale para a migração à 26.04.
+
+Registro: `tests.test_ci_local` falha na develop (026231f e 3f4a21e), não nesta branch; correção em `melhoria/ci-local-jobs-consolidados`. Não é motivo de reprova do #136. `actionlint` e `shellcheck` seguem fora do PATH (lacuna); o CI roda ambos. Push (escopo `workflow`), rótulo `afrouxa-regra` e merge: do dono.
 
 ## Custo e rollback
 Custo: zero adicional (`R-CUSTO`): mesmos jobs, mesmo tipo de runner. Em repositório privado a 24.04 e a 26.04 consomem minutos na mesma taxa. Rollback: reverter o commit (volta ao `ubuntu-latest`). Mudança em `.github/` exige o rótulo `afrouxa-regra` do dono no PR, e o envio exige o escopo `workflow`, que o bot não tem: o dono executa o push.
