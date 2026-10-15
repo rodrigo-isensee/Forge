@@ -1,0 +1,24 @@
+{
+  "descricao": "Parecer em docs/qa/ de OUTRO repositório (não é worktree deste): nada a registrar.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "repos": {
+    "alheio": {"arquivos": {"docs/qa/p1.md": "parecer\n"}, "branch": "develop"}
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/alheio/docs/qa/p1.md"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

@@ -199,6 +199,7 @@ def montar_proc(tmp, proc):
 def rodar(hook, entrada, cwd, proc=None, extra=None):
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
+    env.pop("FORGE_CARGA_LIVRE", None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
