@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: teto-bloqueia-carga-alta
 branch: melhoria/teto-bloqueia-carga-alta
-commit: 345da10
+commit: b96bef4
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-15
@@ -47,3 +47,29 @@ Casos de abuso para o `qa-engineer` (já cobertos pelas fixtures da mudança, ex
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito gravado: o parecer é `aprovado`; os achados 1 e 2 são recomendações para o dono decidir. Ferramentas: nenhuma varredura automática aplicável (Python do hook sem dependência nova; sem segredo, workflow nem imagem no diff). Sondas manuais com `python3` e o shell; `gitleaks`, `semgrep` e `zizmor` não foram usados (não se aplicam a este diff).
+
+## Revalidação volta 1 (escape `FORGE_CARGA_LIVRE=1`)
+`commit: b96bef4` (código; HEAD do remoto 8de259a). Escopo: `git diff 711d9ca..b96bef4 -- hooks/ tests/hooks/agentes/`. Sondas numa cópia descartável (`git archive b96bef4` de `hooks/`, `bin/`, `templates/projeto/.forge`, `docs/regras` em `$TMPDIR/probe2`, projeto sintético, `/proc` simulado em `FORGE_PROC`, `env -i`, `agent_type: forge:backend-engineer`). Nada real tocado (nem `~/.claude/settings.json`). **Veredito: aprovado.** O agente não se auto-libera na sessão em curso; um achado baixo (persistência fora do projeto) e duas recomendações.
+
+Leitura do código: o escape é uma única linha, `os.environ.get("FORGE_CARGA_LIVRE") == "1"` em `hooks/agentes.py` (`lancar`), igual a `FORGE_GUARDA_ABERTA` (`_comum.py`). Só vale `1` exato, só pula a trava de carga (teto e duplicado seguem) e grava `Aviso` no `erros.log`. Não lê config, prompt nem entrada da ferramenta.
+
+| Sonda | rc | Efeito |
+|---|---|---|
+| base, load 7, sem a variável (o prompt do agente cita `FORGE_CARGA_LIVRE=1`) | 2 | barra por R-TETO; o texto do prompt não libera |
+| variável no ambiente do processo do hook (o dono) | 0 | libera; `erros.log`: `Aviso: FORGE_CARGA_LIVRE=1 liberou o disparo com carga alta (load 7.0, ...)` |
+| valor `true` (não `1`) | 2 | não libera (o 2 veio do duplicado: o primeiro disparo ficou registrado; a carga não foi pulada) |
+| `.forge/config.json` e `.claude/settings.json` forjados com `FORGE_CARGA_LIVRE` (escrita direta no probe), sem a variável no processo | 2 | o hook ignora config |
+| `conformidade`: Write em `.claude/settings.json`; Edit em `settings.local.json`; Bash `echo > .claude/settings.local.json` (agente e Jarvis) | 2 | barrado: `.claude/**` |
+| `conformidade`: Write em `~/.claude/settings.json` | 2 | barrado: configuração do usuário |
+| `conformidade`: Write e Bash em `.forge/config.json` | 2 | barrado |
+| Bash `export FORGE_CARGA_LIVRE=1` | 0 | não é barrado, mas não chega ao hook: cada Bash é outro processo, e o ambiente do hook vem do processo do Claude Code (`raiz_declarada` documenta o mesmo para `CLAUDE_PROJECT_DIR`) |
+| Bash `FORGE_CARGA_LIVRE=1 claude ...` e `env FORGE_CARGA_LIVRE=1 claude -p ...` | 0 | não é barrado; vale só para o `claude` aninhado (ver achado 1) |
+| Bash `echo export FORGE_CARGA_LIVRE=1 >> ~/.bashrc` e `~/.profile`; `~/.config/environment.d/`; script em `~/.local/bin` | 0 | **não é barrado** (ver achado 1) |
+| `erros.log`: `rm`, `: >`, `>>` (forjar), `sed -i`, `mv`, `python -c open(...,'w')`, `rm -rf .forge/run`, Write | 2 | tudo barrado: `.forge/run/` é "estado dos hooks", sem dono agente |
+
+## Achados da volta 1
+1. **Baixa, persistência fora do projeto.** O `conformidade` não barra o agente de acrescentar `export FORGE_CARGA_LIVRE=1` a um arquivo de shell do dono (`~/.bashrc`, `~/.profile`, `environment.d`) nem de abrir um `claude` aninhado com a variável (sondas acima, rc 0). Caminho: o agente escreve a linha; o dono abre o próximo terminal e inicia o Claude Code; o escape fica ligado sem ele saber (o `erros.log` registra cada uso, mas só quem olha vê). A mesma lacuna já existe para `FORGE_GUARDA_ABERTA`, sondada igual (rc 0); esta entrega não a cria, só repete o padrão. Fica atenuada pelo sandbox do Bash, que só deixa escrever nos caminhos permitidos (`~/.bashrc` não está entre eles nesta sessão), mas o sandbox é configuração do dono e pode estar desligado, e o `claude` aninhado roda hooks próprios com o ambiente herdado. Correção mínima (P, dono `devops-engineer`, regra no `conformidade.json`): barrar, para agente, comando que cite `FORGE_CARGA_LIVRE` ou `FORGE_GUARDA_ABERTA` e escrita em arquivo de shell (`~/.bashrc`, `~/.profile`, `~/.zshrc`, `environment.d`). Não bloqueia o merge; decisão do dono (`R-DECISAO`).
+2. **Informativa, `erros.log` como registro de uso.** Não dá para apagar nem forjar por agente (sondas rc 2). Limites: (a) o `registrar_escape` falha em silêncio se a pasta não for gravável (`except Exception: pass`), por desenho (ADR 0003); (b) rotação em 256 KB para `erros.log.1`, com uma geração só: inundar o log com erros (o agente não consegue provocá-los à vontade) empurraria a linha para fora em duas rotações; (c) o dono apaga ou edita o arquivo à vontade. Serve como trilha de auditoria de melhor esforço, não como prova. Sem ação.
+3. **Informativa, o erro do Jarvis não se repete sozinho.** O escape não é lembrado pelo Jarvis: só existe se o dono exportar a variável antes de abrir o Claude Code; a mensagem do bloqueio diz "só o dono: FORGE_CARGA_LIVRE=1", o que ensina o nome ao agente, mas o nome sozinho não libera (sondas).
+
+Ferramentas: nenhuma varredura automática aplicável (sem dependência, segredo, workflow ou imagem no diff); sondas manuais com `python3` e o shell. Lacuna: não testei o Claude Code real propagando a chave `env` de `settings.json` ao processo do hook; testei só que a escrita dessa chave é barrada.
