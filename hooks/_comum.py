@@ -302,7 +302,8 @@ def construcao_nao_modelada(linha):
             return "crase"
         elif c == "$":
             if seguinte != "(":
-                return "$" + seguinte if seguinte and not seguinte.isspace() else "$"
+                nome = re.match(r"\w+", linha[i + 1:])  # o nome inteiro da variável, não só a primeira letra
+                return "$" + (nome.group() if nome else seguinte) if seguinte and not seguinte.isspace() else "$"
             pilha.append(["subst", 0])
             i += 1
         elif contexto[0] == "duplas":

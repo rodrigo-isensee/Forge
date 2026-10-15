@@ -556,8 +556,8 @@ class Guarda:
         sinal = fora_da_gramatica_de_leitura(linha)
         if sinal is not None:
             self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
-                        "um comando por chamada; $, crase, \\, #, chaves, glob e < > só entre aspas simples "
-                        "('HEAD@{1}', 'v1$'), nunca com $( ou crase dentro")
+                        "um comando por chamada; sinais só entre aspas simples; "
+                        "no lugar de echo $?: && echo contém || echo não contém")
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
