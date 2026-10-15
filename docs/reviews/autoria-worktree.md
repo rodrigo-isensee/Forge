@@ -3,12 +3,24 @@ tipo: review
 contrato: 1
 pedido: autoria-worktree
 branch: melhoria/autoria-worktree
-commit: 531b131
+commit: 25c51e3
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Review: autoria de parecer gravado em outra worktree
+
+## Revalidação após o merge da base (commit revisado 25c51e3)
+
+Escopo: `git diff ca87905 25c51e3` (o que o PR entrega sobre a develop com #125, #126 e #129) e `git diff 531b131 25c51e3 -- hooks/conformidade.py`. Revisão independente do merge.
+
+Parecer: **aprovado**, sem ajustes novos.
+- Sobre a develop atual, `hooks/conformidade.py` tem um único hunk (`@@ -1138`): `diretorio_comum`, `raiz_do_parecer` e `autoria`, idênticos ao aprovado em 531b131 (filtro por caminho de parecer, hash lido antes de `raiz_do_parecer`, registro no `.forge/run/` comum). Nenhum outro trecho do hook diverge da develop.
+- Sem interação com o que a develop trouxe: as mudanças do conferente e da catraca estão em outros hunks, e `raiz_git`, `resolver`, `hook.run` e `hook.trava` continuam como a função `autoria` os usa. A trava de carga (`hooks/agentes.py`, escape `FORGE_CARGA_LIVRE=1` só do dono) não é tocada pelo PR.
+- `CHANGELOG.md` e `docs/hooks.md`: só a linha em `### Corrigido` e as duas linhas de `docs/hooks.md`, sem conflito com a develop.
+- Gitdir relativo segue como o cartão 16d, decidido pelo time; não reprova.
+
+Ferramentas (sobre 25c51e3, load 0.5): suíte `Ran 562 tests in 171.298s`, `OK`; `scripts/validar-plugin.sh`: `Validation passed`. Segurança e QA revalidam em pareceres próprios.
 
 ## Volta 2 (commit revisado 531b131)
 
