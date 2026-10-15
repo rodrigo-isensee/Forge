@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: teto-bloqueia-carga-alta
 branch: melhoria/teto-bloqueia-carga-alta
-commit: bb3dbfc
+commit: b96bef4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
@@ -29,3 +29,11 @@ Parecer: **aprovado** (parecer do próprio autor; o review independente cabe ao 
 
 ## Reversão
 Reverter o commit `fix(hooks)`; nenhum estado persistido muda.
+
+## Volta 1 (decisão B do dono)
+O dono decidiu manter a trava de carga estrita e acrescentar um escape só dele, a opção (b) do parecer de segurança (`docs/security/teto-bloqueia-carga-alta.md`, achado 1). `FORGE_CARGA_LIVRE=1` no ambiente do processo faz `lancar` (`hooks/agentes.py`) pular só a trava de carga; o teto e a deduplicação seguem. O padrão é o de `FORGE_GUARDA_ABERTA`: variável do processo, que o agente não define.
+- Registro: a liberação grava uma linha no `erros.log` (`Hook.registrar_escape`, em `hooks/_comum.py`, sobre `registrar_erro`). Efeito colateral aceito: o `vigia` mostra a linha como `erro-hook`, o que dá visibilidade ao uso do escape.
+- Mensagem: a recusa cita "só o dono: FORGE_CARGA_LIVRE=1" (uma linha, abaixo de 200 caracteres); dois fixtures antigos mudaram só o trecho esperado.
+- Fixtures novos (vermelhos antes, verdes depois): `carga-livre-libera` (carga 7, 0 ativos: rc 0), `carga-livre-respeita-teto` (teto cheio: rc 2), `carga-livre-valor-invalido` (`true`: rc 2), `carga-alta-cita-escape` (sem escape: rc 2). `rodar` do teste limpa a variável do ambiente.
+- Não tocados: `docs/regras/R-TETO.md` e a reserva de 2 h. `docs/hooks.md` e o `CHANGELOG.md` atualizados.
+- Reversão: remover o `if` do escape em `lancar`; a trava volta a ser incondicional.
