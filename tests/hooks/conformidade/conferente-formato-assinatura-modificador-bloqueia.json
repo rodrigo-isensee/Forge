@@ -1,0 +1,20 @@
+{
+  "descricao": "Auditoria da volta 4: `%+GK` (com modificador) no `--pretty` também.",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git log -1 --pretty=format:%+GK"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "formato de assinatura"
+  }
+}

@@ -1,10 +1,10 @@
 {
-  "descricao": "teto_agentes 4 fixo com load alto (adaptativo daria 2): três ativos liberam.",
+  "descricao": "teto_agentes 4 fixo com load 5 (adaptativo daria 3): três ativos liberam.",
   "config": {
     "teto_agentes": 4
   },
   "proc": {
-    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "loadavg": "5.0 1.0 1.0 1/100 1",
     "mem_gb": 8
   },
   "estado": {

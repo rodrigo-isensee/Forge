@@ -1,0 +1,35 @@
+{
+  "descricao": "Pasta solta com arquivo .git que aponta para a gitdir de uma worktree real, mas que a worktree não reconhece (gitdir de volta aponta para outro .git): não registra.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "worktree": "wt-qa",
+      "branch": "melhoria/x"
+    }
+  ],
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/falso/.git": "gitdir: {raiz}/.git/worktrees/wt-qa\n",
+        "{tmp}/falso/docs/qa/p1.md": "parecer\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/falso/docs/qa/p1.md"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "descricao": "Auditoria da volta 4: `--ref=-...` do `forge-check` iria como opção a um git interno.",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check pr p1 --ref=--output=PWNF"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "valor de opção que começa com"
+  }
+}

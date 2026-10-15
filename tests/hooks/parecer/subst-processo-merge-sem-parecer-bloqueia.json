@@ -1,0 +1,32 @@
+{
+  "descricao": "git merge sem parecer dentro de substituição de processo <(...): também bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "checkout": "develop"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat <(git merge --no-ff -m 'merge feature' feature/x)"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "`branch: feature/x`"
+  }
+}
