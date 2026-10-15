@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: cd657b6
+commit: 79f0e83
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-14
 ---
 # Review de segurança: anti-alucinacao-regras (fatia 2)
 
-**Veredito vigente: aprovado** (seção "Re-review volta 4", sobre cd657b6). As seções anteriores ficam como histórico.
+**Veredito vigente: aprovado** (seção "Revalidação no head 79f0e83", que mantém a "Re-review volta 4", sobre cd657b6). As seções anteriores ficam como histórico.
 
 Escopo: `git diff f2dbe3a..706030b -- hooks/ tests/hooks/` e o frontmatter e os limites de `agents/conferente.md`. Lidos também o review independente e a volta 1 do parecer de autor. Todas as sondas rodaram o `hooks/conformidade.py` do HEAD com `CLAUDE_PROJECT_DIR` apontando para um projeto descartável em `$TMPDIR` (`.forge/versao`, branch `develop`). O efeito real foi conferido pelo `bash` num segundo repositório descartável, com git 2.43.0 e sem configuração global.
 
@@ -277,3 +277,25 @@ regressão       0 | test -f src/app.js && test -e src/app.js && test -d src && 
 
 ### Pendências
 Nada pendente nesta fatia. Os cartões C1 a C8, S7 e S8 não bloqueiam. A decisão sobre `safe.bareRepository` já foi levada ao usuário. O S8 vai ao `forge:tech-lead`.
+
+## Revalidação no head 79f0e83 (2026-10-14)
+Escopo: `git diff cd657b6..79f0e83 -- hooks/ agents/conferente.md` e a seção "Re-review no head af93f7d" do review independente. Parecer: **aprovado**, sem mudança de segurança desde a volta 4.
+- **Ramo novo de `--show-signature`** (`hooks/conformidade.py`, no laço de opções do git): só recusa, e vem antes do ramo de `GIT_EXECUTA`, que já recusava a opção. Não abre nenhuma permissão nova. As abreviações seguem no ramo de `GIT_EXECUTA`; o `ls-remote` mantém a lista branca própria.
+- **Mensagens novas:** repetem só texto que o próprio chamador escreveu (opção, sinal e nome da variável na linha) e o nome do papel. Não trazem caminho, valor de variável nem segredo. `construcao_nao_modelada` só muda o texto devolvido (`$` + nome), sempre não vazio, e os chamadores o usam como verdade e na mensagem.
+- **Comandos novos do `conferente.md`:** `git ls-remote origin refs/pull/<n>/head`, `gh pr view --json headRefOid` e `forge-check pr --ref --base` já estavam na lista branca; a leitura continua só de leitura. `test` com quatro formas e um caminho é o que o hook já impunha.
+- **Sondas** (hook do HEAD, `forge:conferente`, projeto descartável em `$TMPDIR` com `.forge/versao`, branch `develop`):
+```
+2 | git log -1 --show-signature          (ramo novo)
+2 | git show --show-signature HEAD
+2 | git log -1 --format=%GS
+0 | git ls-remote origin refs/pull/7/head
+2 | git ls-remote --upload-pack=touch X .
+0 | forge-check pr p1 --ref refs/pull/7/head --base develop
+2 | forge-check pr p1 --ref=--output=X
+2 | echo $HOME                            (mensagem sem valor da variável)
+0 | git log -1 --format='%h %s'
+0 | gh pr view 7 --json headRefOid
+2 | gh pr view 7 --web
+2 | grep -n "$(id)" x
+```
+Nenhum rc da volta 4 mudou. S8 segue como cartão aberto, fora deste portão. Sem `riscos-aceitos`.
