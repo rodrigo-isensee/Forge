@@ -3,12 +3,15 @@ tipo: review
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 5b32d983b4c3dddc16a7af4e07c19a29bbcad62c
+commit: dec7589e6204e7a084a08a02850e3e6e8be81863
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Code review: `scripts/ci-local` (CI local enquanto o Actions está sem cota, decisão A do dono)
+
+## Revalidado após merge da develop (HEAD dec7589, parecer: aprovado)
+O merge `dec7589` trouxe #120 e #122 e um conflito de `CHANGELOG.md`, resolvido mantendo as duas partes: `git diff 3d26772..dec7589 -- CHANGELOG.md` só acrescenta a seção `### Corrigido` (medida de lastro) em `[Não publicado]`; a entrada do `ci-local` e a de `forge-check transcricao` seguem uma vez cada, sem perda. Nada do `ci-local` mudou (`scripts/`, `tests/test_ci_local.py`, `docs/devops/` sem diff contra o primeiro pai). O restante do diff é `bin/forge-check`, seus testes e documentos de #120 e #122, já revisados lá. O parecer de código da volta 5 segue valendo.
 
 ## Re-review da volta 5 (HEAD 5b32d98, parecer: aprovado)
 Escopo: `git diff fc6aede..5b32d98` (CL-01 e C2: INT e TERM com limpeza) e a "Volta 5" de `docs/devops/ci-local.md`. Segurança não é refeita aqui.
