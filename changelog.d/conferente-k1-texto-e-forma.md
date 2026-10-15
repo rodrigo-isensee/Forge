@@ -1,0 +1,2 @@
+### Adicionado
+- **Conferente confiável, fatia K1 (texto e forma):** o modelo de pedido ganha IDs (`E1`) e `## Etapas` com papel; o brief é gravado em `docs/briefs/` e conferido contra o arquivo (`R-BRIEF`); PQ `cmd` passa a trazer `espera:` (`R-PROVA`); a entrega ganha `Base-sha:`; o conferente separa os modos brief e entrega, trata etapa de outro papel como `corte: etapa (ok)`, devolve `do autor` para PQ que ele não roda e só aceita anexo implícito sem remoção de linhas.

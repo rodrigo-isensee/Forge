@@ -115,7 +115,15 @@
       "\\*\\*última linha\\*\\* é o veredito",
       "`R-PROVA`",
       "`R-BRIEF`",
-      "`R-CUSTO`"
+      "`R-CUSTO`",
+      "use só a seção Modo brief",
+      "use só a seção Modo entrega",
+      "corte: etapa \\(ok\\)",
+      "Base-sha",
+      "numstat",
+      "escopo: anexo com remoção",
+      "pendente:",
+      "sem espera"
     ],
     "hooks/conformidade.json": [
       "\"conferente\": \\[\"forge:conferente\"\\]",
@@ -180,13 +188,18 @@
       "Retira do escopo original",
       "\\*\\*Fora do escopo\\*\\*",
       "\\*\\*pedido × entregue\\*\\*",
-      "`<<<BRIEF`"
+      "`<<<BRIEF`",
+      "docs/briefs/",
+      "`Base-sha:`",
+      "`## Etapas`"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
       "Retira do escopo original",
       "PQ-1",
-      "DECISÃO DO DONO"
+      "DECISÃO DO DONO",
+      "## Etapas",
+      "E1\\.1 \\(<agente>\\)"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
@@ -365,13 +378,16 @@
       "copiada da saída de uma ferramenta",
       "Item sem prova conta como \\*\\*não feito\\*\\*",
       "Ele não recebe o relatório do autor",
-      "retrabalho"
+      "retrabalho",
+      "espera:",
+      "\"do autor\""
     ],
     "docs/regras/R-BRIEF.md": [
       "\\*\\*antes\\*\\* de chegar ao agente",
       "literal, exatamente como será enviado",
       "corte de escopo marcado",
-      "O agente só recebe o texto aprovado"
+      "O agente só recebe o texto aprovado",
+      "docs/briefs/"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
