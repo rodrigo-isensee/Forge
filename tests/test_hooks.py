@@ -196,6 +196,7 @@ def montar_proc(tmp, proc):
 def rodar(hook, entrada, cwd, proc=None, extra=None):
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
+    env.pop("FORGE_CARGA_LIVRE", None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
@@ -403,6 +404,9 @@ class Hooks(unittest.TestCase):
             "flags_congeladas null": dict(base, flags_congeladas=None),
             "flags_congeladas ausente": sem("flags_congeladas"),
             "caminhos ausente": sem("caminhos"),
+            "so_leitura em lista": dict(base, so_leitura=["conferente"]),
+            "so_leitura sem comandos": dict(base, so_leitura={"papeis": ["conferente"], "saidas": []}),
+            "so_leitura: saidas não lista": dict(base, so_leitura=dict(base["so_leitura"], saidas="/dev/null")),
         }
         for nome, politica in malformadas.items():
             with self.subTest(nome):

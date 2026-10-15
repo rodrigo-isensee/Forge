@@ -1,0 +1,37 @@
+{
+  "descricao": "Pasta solta cujo .git é um link simbólico para o .git de uma worktree real: não registra.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "links": {
+    "../ln/.git": "{tmp}/wt-qa/.git"
+  },
+  "git": [
+    {
+      "worktree": "wt-qa",
+      "branch": "melhoria/x"
+    }
+  ],
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/ln/docs/qa/p1.md": "parecer\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/ln/docs/qa/p1.md"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "autoria.jsonl"
+    ]
+  }
+}

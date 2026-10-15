@@ -1,0 +1,479 @@
+#!/usr/bin/env python3
+"""ci-local: roda localmente a bateria do CI sobre um PR e, com --publicar, grava o resultado como commit status `ci-local`.
+
+Uso: scripts/ci-local <número do PR> [--publicar] [--confiar]
+
+Modelo de confiança: o script executa, com os privilégios de quem o roda, os workflows e o código da cabeça do PR (o
+equivalente local de `pull_request_target` com checkout da cabeça). Só o portão antes da execução protege: PR de fork é
+recusado, salvo com `--confiar`. O filtro de ambiente dos passos só reduz vazamento acidental; não impede o `gh` de usar a
+credencial em disco, e o PR escreve os próprios `env:`.
+
+Os jobs vêm dos próprios workflows do PR (.github/workflows/ci.yml e catraca.yml): o script lê cada `run:` e o executa
+na ordem, com as mesmas variáveis de ambiente, numa worktree temporária no sha exato da cabeça do PR. Nada da lógica do
+CI é copiado para cá. Só biblioteca padrão; nada que custe dinheiro (R-CUSTO).
+
+Os passos rodam como o GitHub os roda: sem `shell:`, `bash -e {0}` (sem pipefail); com `shell: bash`, `bash --noprofile --norc -eo pipefail {0}`. O `if:` é avaliado por um avaliador próprio, sem
+`eval`; condição fora do subconjunto deixa o job "pulado por falta de suporte" (conta como falha se for obrigatório).
+Os testes rodam sobre a cabeça do PR, não sobre o merge com a base (o CI testa o merge): atualize a branch antes.
+
+Fidelidade ao CI: a base dos jobs é o ponto de partida do PR (merge-base entre a cabeça e a base atual), no lugar do
+primeiro pai do merge commit que o GitHub monta; o texto `git rev-parse HEAD^1` dos workflows é trocado por esse sha.
+
+Jobs obrigatórios: todos, menos `workflows` (actionlint e zizmor são baixados pelo CI; localmente só rodam se já
+estiverem instalados). Um job é "pulado" por duas razões: não se aplica ao PR (condição `if` do workflow: não afeta
+o status) ou falta algo para rodá-lo (ferramenta ausente: se o job é obrigatório, o status vira `failure`).
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+WORKFLOWS = ("ci.yml", "catraca.yml")
+NAO_OBRIGATORIOS = {"workflows"}
+# Passos que o CI faz só para preparar o runner (baixar ferramentas, instalar o CLI); local, o que existe no PATH vale.
+PASSO_DE_PREPARO = re.compile(r"\b(curl|wget)\b|\binstall\s+(-g|--global)\b")
+FERRAMENTAS_DO_JOB = {"shellcheck": "shellcheck", "claude": "claude", "actionlint": "actionlint", "zizmor": "zizmor"}
+OK, FALHOU, PULADO = "ok", "falhou", "pulado"
+# Um grupo por token do `if:`: contexto `github.*`, literal entre aspas simples (aspa dobrada = aspa) e operadores.
+TOKEN_SE = re.compile(r"\s*(?:(github\.[a-z_.]+)|'((?:[^']|'')*)'|(==|!=|&&|\|\||\(|\)))")
+CHAVES_IGNORADAS = {0: ("env", "defaults"), 4: ("env", "defaults", "continue-on-error"),
+                    8: ("working-directory", "shell", "continue-on-error")}
+# Ambiente dos passos por lista branca (o usuário tem credenciais de outros serviços no ambiente); fora daqui, só o que
+# o script define (RUNNER_TEMP, GITHUB_STEP_SUMMARY, CI) e o `env:` do próprio passo.
+ENV_PERMITIDO = {"PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "TERM", "TMPDIR", "TZ", "GITHUB_REPOSITORY"}
+ARQUIVOS_SENSIVEIS = (".github/workflows/", "tests/catraca.py")
+
+
+def ambiente_minimo(environ):
+    return {k: v for k, v in environ.items() if k in ENV_PERMITIDO or k.startswith("LC_")}
+
+
+def recusar_fork(pr, confiar):
+    """Portão de confiança: PR de fork roda código de terceiro com a credencial do usuário; só com `--confiar`."""
+    if not pr.get("isCrossRepository"):
+        return
+    dono = (pr.get("headRepositoryOwner") or {}).get("login", "desconhecido")
+    if not confiar:
+        sys.exit(f"ci-local: o PR vem de um fork (dono da cabeça: {dono}); o código dele rodaria com a sua credencial. "
+                 "Recusado. Revise o código e use --confiar só se confiar no autor.")
+    print(f"AVISO: --confiar: o código do PR de fork de '{dono}' vai rodar nesta máquina com o seu ambiente e com a "
+          "credencial do gh em disco; ela fica exposta a esse código.", file=sys.stderr, flush=True)
+
+
+def recusar_publicacao(arquivos):
+    """O status é autodeclarado; PR que altera a própria bateria poderia esvaziá-la e se dar `success`."""
+    tocados = sorted(a for a in arquivos if a.startswith(ARQUIVOS_SENSIVEIS[0]) or a == ARQUIVOS_SENSIVEIS[1])
+    if tocados:
+        sys.exit("ci-local: --publicar recusado: o PR altera a própria bateria (" + ", ".join(tocados[:5]) + "). "
+                 "Rode sem --publicar.")
+
+
+def arquivos_alterados(repo_dir, base, sha):
+    """Caminhos tocados entre `base` e `sha`, com nome antigo e novo (sem detecção de renomeação), separados por NUL.
+    Falha fechada: se o `git diff` falhar, a publicação é recusada em vez de seguir com lista vazia."""
+    r = rodar(["git", "diff", "--name-only", "--no-renames", "-z", base, sha], cwd=repo_dir, saida=True)
+    if r.returncode:
+        sys.exit(f"ci-local: --publicar recusado: o git diff falhou (rc {r.returncode}); não deu para conferir os arquivos do PR.")
+    return [a for a in r.stdout.split("\0") if a]
+
+
+def ler_workflow(caminho):
+    """Texto do workflow, ou None se ausente ou symlink (a leitura seguiria o link para fora da worktree)."""
+    if caminho.is_symlink() or not caminho.exists():
+        return None
+    return caminho.read_text(encoding="utf-8")
+
+
+# --- Leitura dos workflows (YAML mínimo: só o que os workflows do Forge usam) -----------------------------
+def _valor(texto):
+    texto = texto.strip()
+    if len(texto) >= 2 and texto[0] == texto[-1] and texto[0] in "'\"":
+        return texto[1:-1]
+    return texto
+
+
+def _bloco(linhas, i, indent):
+    """Texto do bloco `|` que começa em linhas[i], com indentação maior que `indent`; devolve (texto, próximo i)."""
+    corpo = []
+    while i < len(linhas) and (not linhas[i].strip() or len(linhas[i]) - len(linhas[i].lstrip()) > indent):
+        corpo.append(linhas[i])
+        i += 1
+    base = min((len(l) - len(l.lstrip()) for l in corpo if l.strip()), default=0)
+    return "\n".join(l[base:] for l in corpo).rstrip("\n") + "\n", i
+
+
+def ler_jobs(texto):
+    """Lista de jobs: {id, nome, se, passos: [{nome, se, env, run, shell}]} na ordem do arquivo."""
+    linhas = texto.splitlines()
+    jobs, job, passo, i = [], None, None, 0
+    while i < len(linhas) and not linhas[i].startswith("jobs:"):
+        i += 1
+    i += 1
+    while i < len(linhas):
+        linha = linhas[i]
+        i += 1
+        ind = len(linha) - len(linha.lstrip())
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue
+        if ind == 0:
+            break
+        if ind == 2 and linha.rstrip().endswith(":"):
+            job = {"id": linha.strip()[:-1], "nome": linha.strip()[:-1], "se": "", "passos": []}
+            jobs.append(job)
+            passo = None
+        elif job is None:
+            continue
+        elif ind == 4 and not linha.startswith("    steps:"):
+            chave, _, valor = linha.strip().partition(":")
+            if chave == "name":
+                job["nome"] = _valor(valor)
+            elif chave == "if":
+                job["se"] = _valor(valor)
+        elif ind >= 6 and linha.startswith("      - "):
+            passo = {"nome": "", "se": "", "env": {}, "run": "", "shell": ""}
+            job["passos"].append(passo)
+            linha, ind = "        " + linha[8:], 8
+        if passo is not None and ind == 8:
+            chave, _, valor = linha.strip().partition(":")
+            if chave == "name":
+                passo["nome"] = _valor(valor)
+            elif chave == "if":
+                passo["se"] = _valor(valor)
+            elif chave == "shell":
+                passo["shell"] = _valor(valor)
+            elif chave == "run":
+                if valor.strip() in ("|", ">"):
+                    passo["run"], i = _bloco(linhas, i, 8)
+                else:
+                    passo["run"] = _valor(valor) + "\n"
+            elif chave == "env":
+                while i < len(linhas) and linhas[i].startswith("          ") and linhas[i].strip():
+                    k, _, v = linhas[i].strip().partition(":")
+                    passo["env"][k] = _valor(v)
+                    i += 1
+    return jobs
+
+
+# --- Contexto do PR e expressões `${{ }}` / `if:` ----------------------------------------------------------
+def contexto_do_pr(pr, base_sha, token=""):
+    return {
+        "github.event_name": "pull_request",
+        "github.base_ref": pr["baseRefName"],
+        "github.head_ref": pr["headRefName"],
+        "github.token": token,
+        "github.event.pull_request.number": str(pr["number"]),
+        "github.event.pull_request.head.sha": pr["headRefOid"],
+        "github.event.pull_request.base.sha": base_sha,
+        "github.event.pull_request.user.login": (pr.get("author") or {}).get("login", ""),
+        "github.event.pull_request.body": pr.get("body") or "",
+    }
+
+
+def _tokens_se(expressao):
+    tokens, pos = [], 0
+    while expressao[pos:].strip():
+        m = TOKEN_SE.match(expressao, pos)
+        if not m:
+            raise ValueError(f"condição sem suporte (token inesperado): {expressao}")
+        ctx_, lit, op = m.groups()
+        tokens.append(("ctx", ctx_) if ctx_ else ("lit", lit.replace("''", "'")) if lit is not None else ("op", op))
+        pos = m.end()
+    return tokens
+
+
+def avaliar_se(expressao, ctx):
+    """Avalia um `if:` com avaliador próprio (nunca `eval`): `github.*`, literais, ==, !=, &&, ||, parênteses.
+    Vazio = verdadeiro; fora do subconjunto levanta ValueError. `||` pesa menos que `&&`, que pesa menos que `==`/`!=`."""
+    expressao = expressao.strip()
+    if not expressao:
+        return True
+    tokens, pos = _tokens_se(expressao), [0]
+
+    def espiar():
+        return tokens[pos[0]] if pos[0] < len(tokens) else (None, None)
+
+    def tomar():
+        pos[0] += 1
+        return tokens[pos[0] - 1]
+
+    def operando():
+        tipo, valor = espiar()
+        if tipo == "op" and valor == "(":
+            tomar()
+            r = ou()
+            if espiar() != ("op", ")"):
+                raise ValueError(f"condição sem suporte (parêntese aberto): {expressao}")
+            tomar()
+            return r
+        if tipo == "ctx":
+            tomar()
+            if valor not in ctx:
+                raise ValueError(f"condição sem suporte (contexto `{valor}` desconhecido): {expressao}")
+            return ctx[valor]
+        if tipo == "lit":
+            tomar()
+            return valor
+        raise ValueError(f"condição sem suporte (operando esperado): {expressao}")
+
+    def comparacao():
+        esq = operando()
+        tipo, valor = espiar()
+        if tipo == "op" and valor in ("==", "!="):
+            tomar()
+            dir_ = operando()
+            igual = str(esq).lower() == str(dir_).lower()  # o GitHub compara texto sem diferenciar maiúsculas
+            return igual if valor == "==" else not igual
+        return esq
+
+    def e():
+        r = comparacao()
+        while espiar() == ("op", "&&"):
+            tomar()
+            r = bool(r) & bool(comparacao())
+        return r
+
+    def ou():
+        r = e()
+        while espiar() == ("op", "||"):
+            tomar()
+            r = bool(r) | bool(e())
+        return r
+
+    try:
+        resultado_ = ou()
+    except RecursionError:
+        raise ValueError(f"condição sem suporte (aninhada demais): {expressao[:60]}...") from None
+    if pos[0] != len(tokens):
+        raise ValueError(f"condição sem suporte (sobra de texto): {expressao}")
+    return bool(resultado_)
+
+
+def avisos_do_workflow(arquivo, texto):
+    """Chaves que mudam a execução no GitHub e que este leitor ignora; o resultado local pode divergir do CI."""
+    avisos = []
+    for linha in texto.splitlines():
+        ind = len(linha) - len(linha.lstrip())
+        chave = linha.strip().removeprefix("- ").partition(":")[0]
+        if linha.lstrip().startswith("- ") and ind == 6:
+            ind = 8
+        if chave == "shell" and _valor(linha.strip().removeprefix("- ").partition(":")[2]) == "bash":
+            continue  # `shell: bash` é respeitado (pipefail)
+        if chave in CHAVES_IGNORADAS.get(ind, ()):
+            avisos.append(f"{arquivo}: `{chave}:` (nível {ind}) é ignorado pelo ci-local; o resultado pode divergir do CI")
+    return avisos
+
+
+def avisos_do_script(script):
+    if re.search(r"HEAD[\^~]", script):
+        return ["o passo ainda usa HEAD^/HEAD~ depois da troca de `git rev-parse HEAD^1`: roda contra o pai da cabeça, não da base"]
+    return []
+
+
+def expandir(valor, ctx):
+    return re.sub(r"\$\{\{\s*([\w.]+)\s*\}\}", lambda m: ctx.get(m.group(1), ""), valor)
+
+
+# --- Resultado, resumo e status (lógica pura, sem rede) ----------------------------------------------------
+def resultado(nome, estado, motivo="", obrigatorio=True, ausente=False):
+    return {"nome": nome, "estado": estado, "motivo": motivo, "obrigatorio": obrigatorio, "ausente": ausente}
+
+
+def pulado_obrigatorio(r):
+    """Pulado por falta de ferramenta num job obrigatório: conta como falha. Pulado por não se aplicar não conta."""
+    return r["estado"] == PULADO and r["ausente"] and r["obrigatorio"]
+
+
+def resumo(resultados):
+    linhas = []
+    for r in resultados:
+        sufixo = f" ({r['motivo']})" if r["motivo"] else ""
+        marca = "PULADO (obrigatório: conta como falha)" if pulado_obrigatorio(r) else r["estado"].upper()
+        linhas.append(f"{r['nome']:<28} {marca}{sufixo}")
+    return "\n".join(linhas)
+
+
+def status(resultados):
+    """(state, description) do commit status: failure se algum job falhou ou se um obrigatório ficou pulado por ausência."""
+    ok = sum(r["estado"] == OK for r in resultados)
+    falhas = sum(r["estado"] == FALHOU or pulado_obrigatorio(r) for r in resultados)
+    puladas = sum(r["estado"] == PULADO and not pulado_obrigatorio(r) for r in resultados)
+    descricao = f"{ok} ok / {falhas} falharam" + (f" / {puladas} pulados" if puladas else "")
+    return ("failure" if falhas else "success"), descricao
+
+
+# --- Execução ----------------------------------------------------------------------------------------------
+def rodar(args, cwd=None, env=None, saida=False, timeout=None):
+    return subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=saida, timeout=timeout, check=False)
+
+
+class Interrompido(BaseException):
+    """INT ou TERM recebido: sobe até o `finally` do main (que limpa a worktree) e vira rc 128+sinal, sem traceback."""
+
+    def __init__(self, codigo):
+        super().__init__(codigo)
+        self.codigo = codigo
+
+
+def _ao_receber_sinal(numero, _frame):
+    raise Interrompido(128 + numero)
+
+
+def rodar_grupo(args, cwd=None, env=None, timeout=None):
+    """Roda o passo num grupo de processos próprio; ao sair por timeout, INT ou TERM, mata o grupo inteiro (os netos também)."""
+    p = subprocess.Popen(args, cwd=cwd, env=env, text=True, start_new_session=True)
+    try:
+        return subprocess.CompletedProcess(args, p.wait(timeout=timeout))
+    except BaseException:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        p.wait()
+        raise
+
+
+def ferramentas_ausentes(script):
+    achadas = {ferr for palavra, ferr in FERRAMENTAS_DO_JOB.items() if re.search(rf"(^|[\s;&|(]){palavra}\s", script, re.M)}
+    return sorted(f for f in achadas if not shutil.which(f))
+
+
+def rodar_job(job, ctx, raiz, base_sha, tmp):
+    nome = job["nome"]
+    obrigatorio = job["id"] not in NAO_OBRIGATORIOS
+    try:
+        if not avaliar_se(job["se"], ctx):
+            return resultado(nome, PULADO, f"não se aplica a este PR (if: {job['se']})", obrigatorio)
+        passos = [p for p in job["passos"] if p["run"] and not PASSO_DE_PREPARO.search(p["run"])]
+        passos = [p for p in passos if avaliar_se(p["se"], ctx)]
+    except ValueError as erro:
+        print(f"AVISO: job '{nome}' pulado por falta de suporte: {erro}", file=sys.stderr, flush=True)
+        return resultado(nome, PULADO, f"sem suporte do ci-local: {erro}", obrigatorio, ausente=True)
+    if not passos:
+        return resultado(nome, PULADO, "nenhum passo a rodar neste PR", obrigatorio)
+    tmp = tmp / re.sub(r"\W+", "_", job["id"])  # cada job tem seu RUNNER_TEMP, como num runner próprio
+    tmp.mkdir(parents=True, exist_ok=True)
+    faltam = sorted({f for p in passos for f in ferramentas_ausentes(p["run"])})
+    if faltam:
+        return resultado(nome, PULADO, f"ferramenta ausente no PATH: {', '.join(faltam)}", obrigatorio, ausente=True)
+    for passo in passos:
+        script = passo["run"].replace("git rev-parse HEAD^1", f"echo {base_sha}").replace("/tmp/", "$RUNNER_TEMP/")
+        for aviso in avisos_do_script(script):
+            print(f"AVISO: {nome}/{passo['nome'] or 'passo'}: {aviso}", file=sys.stderr, flush=True)
+        # Lista branca: o token e o resto do ambiente do usuário não entram; só chega o que o passo declara em `env:`.
+        # Isso reduz vazamento acidental; não protege de PR mal-intencionado (ele escreve os `env:` e o gh lê a credencial em disco).
+        env = ambiente_minimo(os.environ)
+        env.update({"RUNNER_TEMP": str(tmp), "GITHUB_STEP_SUMMARY": str(tmp / "resumo.md"), "CI": "true"})
+        env.update({k: expandir(v, ctx) for k, v in passo["env"].items()})
+        print(f"--- {nome}: {passo['nome'] or 'passo'}", flush=True)
+        try:
+            # Como o GitHub: sem `shell:`, `bash -e {0}`; com `shell: bash`, `bash --noprofile --norc -eo pipefail {0}`.
+            shell = ["bash", "--noprofile", "--norc", "-eo", "pipefail"] if passo.get("shell") == "bash" else ["bash", "-e"]
+            p = rodar_grupo(["nice", "-n", "10", *shell, "-c", script], cwd=raiz, env=env, timeout=1800)
+        except subprocess.TimeoutExpired:
+            return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
+        if p.returncode:
+            return resultado(nome, FALHOU, f"passo '{passo['nome']}' saiu com {p.returncode}", obrigatorio)
+    return resultado(nome, OK, "", obrigatorio)
+
+
+def gh_json(*args):
+    p = rodar(["gh", *args], saida=True)
+    if p.returncode:
+        sys.exit(f"ci-local: `gh {' '.join(args[:2])}` falhou: {p.stderr.strip()}")
+    return json.loads(p.stdout)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Roda a bateria do CI localmente sobre um PR.")
+    ap.add_argument("pr", type=int, help="número do PR")
+    ap.add_argument("--publicar", action="store_true",
+                    help="grava o resultado como commit status `ci-local`. O status é AUTODECLARADO: não prova que a bateria "
+                         "rodou, usa os workflows do próprio PR (sem merge com a base) e não substitui o CI nem a revisão; "
+                         "é recusado se o PR altera .github/workflows/ ou tests/catraca.py")
+    ap.add_argument("--confiar", action="store_true",
+                    help="aceita PR de fork (o código dele roda aqui com a sua credencial; só se confiar no autor)")
+    a = ap.parse_args(argv)
+
+    topo = rodar(["git", "rev-parse", "--show-toplevel"], saida=True)
+    if topo.returncode:
+        sys.exit("ci-local: rode dentro do repositório do Forge.")
+    repo_dir = topo.stdout.strip()
+    pr = gh_json("pr", "view", str(a.pr), "--json", "number,headRefOid,headRefName,baseRefName,body,author,state,isCrossRepository,headRepositoryOwner")
+    nome_repo = gh_json("repo", "view", "--json", "nameWithOwner")["nameWithOwner"]
+    recusar_fork(pr, a.confiar)
+    sha = pr["headRefOid"]
+    print(f"PR #{a.pr} ({pr['state']}): {pr['headRefName']} -> {pr['baseRefName']} @ {sha[:12]}")
+
+    for ref in (f"pull/{a.pr}/head", pr["baseRefName"]):
+        if rodar(["git", "fetch", "-q", "origin", ref], cwd=repo_dir, saida=True).returncode:
+            sys.exit(f"ci-local: não consegui buscar '{ref}' do origin.")
+    if rodar(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=repo_dir).returncode:
+        sys.exit(f"ci-local: o sha {sha} da cabeça do PR não chegou (o PR mudou durante a busca?).")
+    base = rodar(["git", "merge-base", sha, f"origin/{pr['baseRefName']}"], cwd=repo_dir, saida=True).stdout.strip()
+    if not base:
+        sys.exit("ci-local: sem ponto de partida comum entre o PR e a base.")
+
+    if a.publicar:
+        recusar_publicacao(arquivos_alterados(repo_dir, base, sha))
+
+    t = rodar(["gh", "auth", "token"], saida=True)
+    token = t.stdout.strip()
+    if t.returncode or not token:
+        print(f"AVISO: `gh auth token` falhou ({t.stderr.strip() or 'token vazio'}); os passos que usam o token vão falhar.",
+              file=sys.stderr, flush=True)
+    if pr["state"] != "OPEN":
+        print(f"AVISO: o PR está {pr['state']}, não OPEN.", file=sys.stderr, flush=True)
+    ctx = contexto_do_pr(pr, base, token)
+    tmp = Path(tempfile.mkdtemp(prefix="ci-local.", dir=os.environ.get("TMPDIR") or None))
+    raiz = tmp / "wt"
+    resultados = []
+    try:
+        if rodar(["git", "worktree", "add", "-q", "--detach", str(raiz), sha], cwd=repo_dir, saida=True).returncode:
+            sys.exit("ci-local: não consegui criar a worktree temporária.")
+        os.environ.update({"GITHUB_REPOSITORY": nome_repo})  # sem segredo; PR_NUMBER, HEAD_SHA e o token vêm do `env:` de cada passo
+        for arquivo in WORKFLOWS:
+            caminho = raiz / ".github" / "workflows" / arquivo
+            texto = ler_workflow(caminho)
+            if texto is None:
+                resultados.append(resultado(arquivo, PULADO, "workflow ausente (ou symlink) neste PR", ausente=True))
+                continue
+            for aviso in avisos_do_workflow(arquivo, texto):
+                print(f"AVISO: {aviso}", file=sys.stderr, flush=True)
+            for job in ler_jobs(texto):
+                resultados.append(rodar_job(job, ctx, raiz, base, tmp))
+    finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # um segundo sinal não interrompe a limpeza
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        rodar(["git", "worktree", "remove", "--force", str(raiz)], cwd=repo_dir, saida=True)
+        shutil.rmtree(tmp, ignore_errors=True)
+        rodar(["git", "worktree", "prune"], cwd=repo_dir, saida=True)  # worktrees que os próprios jobs criaram em $RUNNER_TEMP
+
+    estado, descricao = status(resultados)
+    print("\n" + resumo(resultados) + f"\n\nci-local: {estado} ({descricao})")
+    if a.publicar:
+        p = rodar(["gh", "api", "-X", "POST", f"repos/{nome_repo}/statuses/{sha}", "-f", f"state={estado}",
+                   "-f", "context=ci-local", "-f", f"description={descricao}"], saida=True)
+        if p.returncode:
+            sys.exit(f"ci-local: não consegui publicar o status: {p.stderr.strip()}")
+        print(f"status `ci-local` publicado em {sha[:12]}")
+    return 0 if estado == "success" else 1
+
+
+def executar():
+    signal.signal(signal.SIGINT, _ao_receber_sinal)
+    signal.signal(signal.SIGTERM, _ao_receber_sinal)
+    try:
+        return main()
+    except (Interrompido, KeyboardInterrupt) as e:
+        print("\nci-local: interrompido (a worktree temporária foi removida).", file=sys.stderr, flush=True)
+        return getattr(e, "codigo", 130)
+
+
+if __name__ == "__main__":
+    sys.exit(executar())

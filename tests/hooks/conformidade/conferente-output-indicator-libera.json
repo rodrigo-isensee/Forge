@@ -1,0 +1,19 @@
+{
+  "descricao": "--output-indicator-* só muda o texto do diff e as opções de leitura do ls-remote: libera.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git log -1 -p --output-indicator-new=x --output-indicator-old=y --output-indicator-context=z && git ls-remote --heads --tags --refs --symref -q --exit-code --sort=-v:refname origin develop"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

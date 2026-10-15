@@ -1,0 +1,19 @@
+{
+  "descricao": "S6: o `test` legítimo (`agents/conferente.md`): `-e`, `-f`, `-d`, `-s` com um caminho.",
+  "arquivos": {
+    "src/app.js": "v1\nx\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "test -f src/app.js && test -e src/app.js && test -d src && test -s src/app.js"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
