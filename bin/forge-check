@@ -228,81 +228,105 @@ def cmd_kanban(raiz):
     return saida
 
 
-def git(raiz, *args):
+def git(raiz, *args, bruto=False):
     """Único ponto que roda git (aqui e nos hooks): sem as variáveis GIT_* herdadas e com limite de tempo
-    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout)."""
+    (subprocess.TimeoutExpired sobe; nos hooks vira erro interno: libera, ou bloqueia se o comando tem marcador crítico, ADR 0009, seção 7). Devolve (código, stdout); com `bruto`, o stdout sai em bytes e sem `strip`."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=True, env=env,
+    r = subprocess.run(["git", "-C", str(raiz), *args], capture_output=True, text=not bruto, env=env,
                        timeout=GIT_TIMEOUT_S)
-    return r.returncode, r.stdout.strip()
+    return r.returncode, (r.stdout if bruto else r.stdout.strip())
 
 
-def diff_efetivo(raiz, base, commit, ignorar):
-    """Diff de `commit` sobre o merge-base com `base`, fora dos caminhos de `ignorar` (prefixos), como
-    {arquivo: texto normalizado}. Normalizado = só o que a branch adicionou ou removeu: o diff sai com `-U0` (sem
-    linhas de contexto), os cabeçalhos `@@ -a,b +c,d @@` viram um `@@` sem números e as linhas `index` saem (o hash do
-    blob muda quando a base muda o arquivo). Mudar a base desloca linhas e contexto, não as linhas da branch.
-    None se o git falhar."""
-    cod, mb = git(raiz, "merge-base", base, commit)
-    if cod or not mb:
-        return None
-    fora = [f":(exclude){p.rstrip('/')}" for p in ignorar]
-    cod, saida = git(raiz, "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--binary",
-                     mb, commit, "--", ".", *fora)
+def nomes_z(saida):
+    """Caminhos de uma saída `-z` do git (separados por NUL; nunca por quebra de linha, que pode estar no nome)."""
+    return [n.decode("utf-8", "surrogateescape") for n in saida.split(b"\0") if n]
+
+
+def trechos_do_arquivo(raiz, de, para, nome):
+    """O que a mudança `de` -> `para` fez em `nome`, como lista de linhas: o diff `-U0` (sem contexto), sem o
+    cabeçalho do git e com os `@@ -a,b +c,d @@` reduzidos a `@@` (números mudam com a base). Quebra de linha é só o
+    `\\n` do git. None se o git falhar ou se não houver trecho de texto (binário, modo, ausente)."""
+    cod, saida = git(raiz, "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", de, para,
+                     "--", nome, bruto=True)
     if cod:
         return None
-    arquivos, atual = {}, None
-    for linha in saida.splitlines():
-        if linha.startswith("diff --git "):
-            atual = linha[len("diff --git "):]
-            arquivos[atual] = []
-        elif atual is None or linha.startswith("index "):
-            continue
-        elif linha.startswith("@@ "):
-            arquivos[atual].append("@@")
-        else:
-            arquivos[atual].append(linha)
-    return {a: "\n".join(ls) for a, ls in arquivos.items()}
+    linhas, corpo = [], False
+    for linha in saida.split(b"\n"):
+        if linha.startswith(b"@@ "):
+            corpo = True
+            linhas.append(b"@@")
+        elif corpo:
+            linhas.append(linha)
+    return linhas or None
 
 
 def arquivos_divergentes(raiz, base, a, b, ignorar):
-    """Arquivos (fora de `ignorar`) cujo diff efetivo difere entre `a` e `b`, cada um sobre o seu merge-base com a
-    base. Igual = mesmas linhas adicionadas e removidas, na mesma ordem; número de linha e contexto não contam,
-    mas qualquer linha a mais ou a menos da branch conta, inclusive a vinda da resolução de um merge.
-    None se o git falhar."""
-    da = diff_efetivo(raiz, base, a, ignorar)
-    db = diff_efetivo(raiz, base, b, ignorar)
-    if da is None or db is None:
+    """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
+    de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
+    árvore resultante com a de `b`: igual = a branch só trouxe a base; qualquer linha a mais, a menos ou em outro
+    lugar, inclusive a vinda da resolução de um merge, diverge. Arquivo em conflito no merge simulado (ex.: duas
+    entradas no CHANGELOG) não tem árvore para comparar, porque a resolução é manual; nele vale a comparação
+    `trechos_do_arquivo` (mesmas linhas adicionadas e removidas pela branch, na mesma ordem, sem a posição) e
+    qualquer dúvida diverge. Quebra de linha só é o `\\n` do git e os nomes vêm de saída `-z`. None se o git falhar."""
+    try:
+        cod_a, mb_a = git(raiz, "merge-base", base, a)
+        cod_b, mb_b = git(raiz, "merge-base", base, b)
+        if cod_a or cod_b or not mb_a or not mb_b:
+            return None
+        cod, saida = git(raiz, "merge-tree", "--write-tree", "--name-only", "-z", f"--merge-base={mb_a}", mb_b, a,
+                         bruto=True)
+        if cod not in (0, 1):
+            return None
+        campos = saida.split(b"\0")
+        arvore = campos[0].decode().strip()
+        conflitos = []
+        for campo in campos[1:]:
+            if not campo:
+                break
+            conflitos.append(campo.decode("utf-8", "surrogateescape"))
+        fora = [f":(exclude){p.rstrip('/')}" for p in ignorar]
+        cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
+                         arvore, b, "--", ".", *fora, bruto=True)
+        if cod:
+            return None
+        divergem = set(nomes_z(saida))
+        for nome in conflitos:
+            if nome.startswith(tuple(ignorar)):
+                continue
+            antes = trechos_do_arquivo(raiz, mb_a, a, nome)
+            if antes is None or antes != trechos_do_arquivo(raiz, mb_b, b, nome):
+                divergem.add(nome)
+            else:
+                divergem.discard(nome)
+        return sorted(divergem)
+    except (UnicodeError, OSError):
         return None
-    return sorted(f for f in da.keys() | db.keys() if da.get(f) != db.get(f))
 
 
 def mesmo_diff(raiz, base, a, b, ignorar):
-    """True se `a` e `b` trazem as mesmas linhas adicionadas e removidas sobre a base, fora de `ignorar`
-    (ver `arquivos_divergentes`); falha do git é False."""
+    """True se `b` é `a` mais a base, fora de `ignorar` (ver `arquivos_divergentes`); falha do git é False."""
     return arquivos_divergentes(raiz, base, a, b, ignorar) == []
 
 
 def commit_vale(raiz, commit, ate="HEAD", base=None):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
-    Com `base`, também vale se o diff efetivo de `ate` sobre a base, fora de LIVRES, tiver as mesmas linhas
-    adicionadas e removidas que o do `commit`: merge da base depois do parecer não o invalida (ADR 0004, item 3).
-    Com `base`, o motivo cita o arquivo cujo diff efetivo diverge."""
+    Com `base`, também vale se `ate`, fora de LIVRES, for o patch do `commit` aplicado sobre a base nova (merge
+    simulado, ver `arquivos_divergentes`): merge da base depois do parecer não o invalida, mudar de lugar uma linha
+    da branch sim (ADR 0004, item 3). Com `base`, o motivo cita o arquivo que diverge."""
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
-    cod, saida = git(raiz, "diff", "--name-only", "--no-renames", commit, ate)
+    cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", commit, ate, bruto=True)
     if cod:
         return f"não foi possível comparar com {ate}"
-    fora = [f for f in saida.splitlines() if not f.startswith(LIVRES)]
+    fora = [f for f in nomes_z(saida) if not f.startswith(LIVRES)]
     if not fora:
         return None
     div = arquivos_divergentes(raiz, base, commit, ate, LIVRES) if base else None
     if div == []:
         return None
-    # o nome vem do cabeçalho `diff --git a/x b/x`; o caminho do arquivo é o que vem depois de `a/`
-    alvo = div[0].split(" b/", 1)[-1] if div else fora[0]
+    alvo = div[0] if div else fora[0]
     return f"desatualizado: {alvo} mudou depois do parecer; peça novo parecer"
 
 
