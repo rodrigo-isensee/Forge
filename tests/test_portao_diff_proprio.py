@@ -168,6 +168,21 @@ class PortaoDiffProprio(unittest.TestCase):
         self.assertIsNone(self.resolve_conflito_do_changelog(
             "# Changelog\n\n## [Não publicado]\n- da branch\n- da base\n\n## [1.0]\n"))
 
+    def test_conflito_em_arquivo_de_codigo_invalida_mesmo_com_as_mesmas_linhas(self):
+        """Falha fechada: em conflito fora do CHANGELOG.md a posição não é conferida, então a linha movida passaria."""
+        parecer = self.parecer_no_ramo()
+        self.git("switch", "-q", "develop")
+        self.escreve("src.txt", CORPO.replace("linha 15\n", "linha 15 da base\n"))
+        self.commit("base mexe na mesma linha")
+        self.git("switch", "-q", "ramo")
+        self.git("merge", "--no-commit", "--no-edit", "-X", "ours", "develop")
+        self.escreve("src.txt", CORPO.replace("linha 15\nlinha 16\n", "linha 16\nlinha 15 da branch\n"))
+        self.commit("merge com a linha da branch uma posição abaixo")
+        self.assertIn("desatualizado: src.txt mudou", self.vale(parecer))
+
+    def test_conflito_so_no_changelog_com_as_mesmas_linhas_da_branch_vale(self):
+        self.assertIsNone(self.resolve_conflito_do_changelog(self.CHANGELOG_DOS_DOIS))
+
     def esconde(self, separador):
         """Depois do parecer, uma linha da branch ganha `separador` + um falso cabeçalho git e um payload."""
         parecer = self.parecer_no_ramo()

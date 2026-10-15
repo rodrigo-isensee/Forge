@@ -264,10 +264,10 @@ def arquivos_divergentes(raiz, base, a, b, ignorar):
     """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
     de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
     árvore resultante com a de `b`: igual = a branch só trouxe a base; qualquer linha a mais, a menos ou em outro
-    lugar, inclusive a vinda da resolução de um merge, diverge. Arquivo em conflito no merge simulado (ex.: duas
-    entradas no CHANGELOG) não tem árvore para comparar, porque a resolução é manual; nele vale a comparação
-    `trechos_do_arquivo` (mesmas linhas adicionadas e removidas pela branch, na mesma ordem, sem a posição) e
-    qualquer dúvida diverge. Quebra de linha só é o `\\n` do git e os nomes vêm de saída `-z`. None se o git falhar."""
+    lugar, inclusive a vinda da resolução de um merge, diverge. Arquivo em conflito no merge simulado não tem
+    árvore para comparar, porque a resolução é manual: diverge (falha fechada), salvo o `CHANGELOG.md` da raiz, que
+    é texto e onde vale a comparação `trechos_do_arquivo` (mesmas linhas adicionadas e removidas pela branch, na
+    mesma ordem, sem a posição; qualquer dúvida diverge). Quebra de linha só é o `\\n` do git e os nomes vêm de saída `-z`. None se o git falhar."""
     try:
         cod_a, mb_a = git(raiz, "merge-base", base, a)
         cod_b, mb_b = git(raiz, "merge-base", base, b)
@@ -292,6 +292,9 @@ def arquivos_divergentes(raiz, base, a, b, ignorar):
         divergem = set(nomes_z(saida))
         for nome in conflitos:
             if nome.startswith(tuple(ignorar)):
+                continue
+            if nome != "CHANGELOG.md":
+                divergem.add(nome)
                 continue
             antes = trechos_do_arquivo(raiz, mb_a, a, nome)
             if antes is None or antes != trechos_do_arquivo(raiz, mb_b, b, nome):
