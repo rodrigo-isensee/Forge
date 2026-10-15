@@ -3,12 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 083bb7b02260135e6db2cc402adb8c8f1b7beff8
-parecer: reprovado
+commit: 18aa46c6c1ca3fa12d9968340cd7a66d80ec4665
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-14
 ---
 # Review de segurança: ci-local
+
+> **Re-review (18aa46c): aprovado.** O A1 foi corrigido, e os recomendados A2, C1 e D também. Veja a seção "Re-review" no fim. O texto abaixo, até ela, é o parecer original sobre 083bb7b e fica como histórico.
 
 Escopo: `scripts/ci-local` (HEAD 083bb7b), `docs/devops/ci-local.md` (seção Segurança) e os riscos que o review do `tech-lead` passou a este papel (`docs/reviews/ci-local.md`). A revisão foi estática, com sondas locais num diretório descartável em `$TMPDIR`. Nada foi publicado, o `--publicar` não rodou e o código não foi alterado.
 
@@ -83,3 +85,38 @@ Bloqueia só o **A1**: o portão `isCrossRepository` com `--confiar`, a correç�
 - Riscos aceitos: nenhum. Nenhum aceite foi pedido.
 - Ferramentas: `python3 -I` com sondas locais em `$TMPDIR`. `shellcheck` está no PATH, mas não se aplica, porque o script é Python. **Lacunas no ambiente:** `gitleaks`, `semgrep`, `zizmor` e `actionlint` não estão no PATH. Não foram instaladas (`R-CUSTO`), e os workflows não mudaram neste PR.
 - Suposição: o repositório é privado, inferido pelo 404 da API sem autenticação. A severidade do A1 depende disso.
+
+## Re-review (commit 18aa46c)
+Escopo: `git diff 2d8ea23..18aa46c -- scripts/ci-local tests/test_ci_local.py docs/devops/ci-local.md` (commit de correção a86a0bc e a volta 3 em `docs/devops/ci-local.md`). O código não foi alterado e nada foi publicado.
+
+**Veredito: aprovado.** O A1, que bloqueava, está corrigido. A2, C1 e D (o texto e a recusa) também. A3 e C2 continuam recomendados e fora desta volta, como registra a volta 3.
+
+### O que mudou e onde
+- **A1:** `scripts/ci-local` passa a pedir `isCrossRepository,headRepositoryOwner` ao `gh pr view` em `main`. `recusar_fork` roda antes de qualquer `git fetch` e antes da worktree, e sai com código diferente de 0 se faltar `--confiar`. Com `--confiar`, avisa que a credencial fica exposta. O comentário enganoso do antigo `:293` saiu. O `docs/devops/ci-local.md` (seção Segurança) agora descreve o modelo de confiança como ele é e não afirma mitigação que não existe.
+- **A2:** `ambiente_minimo` aplica a lista branca (`ENV_PERMITIDO` mais `LC_*`). Ficam de fora `GIT_*`, `GH_TOKEN`, `GITHUB_TOKEN` e qualquer outra variável do usuário.
+- **C1:** `ler_workflow` devolve `None` para symlink ou arquivo ausente, e o job vira "ausente (ou symlink)", que conta como falha se for obrigatório.
+- **D:** `recusar_publicacao` roda antes da worktree e antes do `gh auth token`, e recusa o `--publicar` quando o diff `merge-base..cabeça` toca `.github/workflows/` ou `tests/catraca.py`. A ajuda do `--publicar` e o `docs/devops/ci-local.md` dizem que o status é **autodeclarado**, que usa os workflows do PR, que mede a cabeça sem merge com a base e que não substitui o CI nem a revisão.
+- **Testes:** `PortoesDeSegurancaTest` em `tests/test_ci_local.py` cobre os quatro casos de abuso do parecer original. `python3 -m unittest tests.test_ci_local`: 41 testes OK.
+
+### Sondas (repositório descartável em `$TMPDIR`)
+Montagem: um repositório nu como `origin`, a cabeça do PR empurrada para `refs/pull/7/head` e um `gh` **simulado** no início do `PATH`, que registra cada chamada e responde a `pr view`, `repo view`, `auth token` e `api` sem rede. O `ci.yml` de sonda tem dois passos: um grava só os **nomes** das variáveis de ambiente (`env | cut -d= -f1`) e o outro declara `TOKEN: ${{ github.token }}`. O ambiente de quem roda recebeu variáveis fictícias com nome de credencial (`SONDA_CRED_TOKEN`, `SONDA_PROXY_PASSWORD`, `GH_TOKEN`, `GITHUB_TOKEN` e `GIT_SONDA`, todas com valor falso). Nenhum valor real foi lido.
+
+| Sonda | rc | Efeito |
+|---|---|---|
+| A1: PR de fork (`isCrossRepository: true`) sem `--confiar` | 1 | Recusado com "o PR vem de um fork". Não houve `git fetch` (sem `FETCH_HEAD`), não houve worktree e nenhum passo rodou (nenhum arquivo de sonda criado) |
+| A1: o mesmo PR com `--confiar` | 0 | O aviso "o código do PR de fork de 'terceiro' vai rodar ... com a credencial do gh em disco" aparece em stderr, e a bateria roda |
+| A2: PR do mesmo repositório, passo sem `env:` de credencial | 0 | O passo viu só `CI GITHUB_REPOSITORY GITHUB_STEP_SUMMARY HOME LANG LOGNAME PATH RUNNER_TEMP SHELL TERM TMPDIR USER`, o `env:` do próprio passo e as variáveis que o `bash` cria (`PWD`, `SHLVL`, `_`). Nenhum `SONDA_CRED_*`, `SONDA_PROXY_*`, `GH_TOKEN`, `GITHUB_TOKEN` ou `GIT_*`. O token só chegou ao passo que o declarou |
+| C1: `ci.yml` como symlink para um workflow fora da árvore | 1 | `ci.yml PULADO (obrigatório: conta como falha) (workflow ausente (ou symlink))`. O alvo do link não foi lido: a marca que ele criaria não existe. O resultado é `failure` |
+| D: `--publicar` com `.github/workflows/ci.yml` alterado | 1 | "--publicar recusado: o PR altera a própria bateria". 0 chamadas a `gh api` e nenhum passo rodou |
+| D: `--publicar` com `tests/catraca.py` alterado | 1 | Recusado, com 0 chamadas a `gh api` |
+| D: `--publicar` com workflow novo em `.github/workflows/` | 1 | Recusado, com 0 chamadas a `gh api` |
+| D, controle: `--publicar` com só o `README` alterado | 0 | Passa do portão e chama o `gh api` **simulado** (`POST .../statuses/<sha>`). Isso mostra que a recusa não é incondicional |
+
+### Observações novas (informativas, não bloqueiam)
+- **D1, renomeação e falha do `git diff` (informativa):** `recusar_publicacao` usa `git diff --name-only`, que detecta renomeação e só lista o caminho novo. Sonda: renomear `tests/catraca.py` para `tests/outro.py` passou do portão (rc 1, `gh api` simulado chamado com `state=failure`). Não é desvio, porque sem o arquivo a catraca falha e o status sai `failure`, nunca `success`. Pelo mesmo motivo, renomear `ci.yml` para fora deixa o workflow ausente, e isso vira falha. Também não se confere o `returncode` do `git diff`: se ele falhar, a lista vem vazia e o portão abre. Hoje esse caso é improvável, porque o `sha` e a `base` já foram verificados antes. **Melhoria opcional (P, dono `devops-engineer`):** `git diff --name-only --no-renames -z` e sair com erro se o `returncode` for diferente de 0.
+- **D2, o alcance do portão D é só a bateria literal (informativa):** o PR ainda pode mudar o que os workflows chamam (os testes em `tests/`, scripts). Isso é o mesmo que o CI faz com `pull_request`, e o texto já diz que o status é autodeclarado. Só importa se o dono quiser tornar o `ci-local` um check exigido, e aí volta a ser decisão dele (`R-CONFORMIDADE`).
+
+### O que segue em aberto
+- A3 (token de escopo fino) e C2 (`killpg` e a persistência no `.git` comum): recomendados, fora desta volta. Os dois estão documentados como limitação em `docs/devops/ci-local.md`.
+- Pela decisão do dono, o `ci-local` não é check exigido. O resultado vai no PR só como evidência. Se isso mudar, o D, junto com D1 e D2, precisa de nova revisão.
+- Riscos aceitos: nenhum. Ferramentas: `python3` e sondas locais. Seguem as mesmas lacunas no PATH (`gitleaks`, `semgrep`, `zizmor`, `actionlint`), e nenhuma ferramenta foi instalada (`R-CUSTO`).
