@@ -3,46 +3,59 @@ tipo: review
 contrato: 1
 pedido: conferente-k1
 branch: melhoria/conferente-k1
-commit: 5177b4316baddcfd3610e10ec015f99ba7090002
+commit: 43a7c5a1f3091d50a8fbade2a251c765f3587a4b
 parecer: reprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-15
 ---
-# Review independente: conferente confiável, fatia K1 (texto e forma)
+# Re-review independente (volta 2): conferente confiável, fatia K1
 
-Escopo: `git diff bad3edd...5177b43`, 6 commits e 8 arquivos. Conferi o texto contra as linhas C1, C3, C5, C6, C7, C8 e C10 da §3 e a linha K1 da §6 da proposta `conferente-confiavel.md`, e contra o pedido `conferente-k1`. Não escrevi esta branch.
+Escopo: `git diff bad3edd...43a7c5a`, com foco na volta 2 (`git diff 28be2c9..43a7c5a`: `6d021b3`, `85ccb68` e `43a7c5a`; 6 arquivos, +16/−8). Conferi o diff contra o brief da volta 2 (`docs/briefs/conferente-k1-tech-lead-3.md`, Entregar 1–6), contra o pedido `conferente-k1` e contra as linhas C1, C3, C5, C6, C7, C8 e C10 (§3) e K1 (§6) da proposta. Não escrevi esta branch. O parecer anterior (`28be2c9`, sobre `5177b43`) é substituído por este.
 
-## Parecer: **reprovado** (um ajuste de uma linha)
-Os sete itens estão implementados como a proposta pede, e os invariantes só acrescentam. Há um problema: a regra do veredito do modo brief continua literal ("qualquer campo diferente de `ok`"). Por essa regra, a linha nova `corte: etapa (ok)` reprova o brief. Isso traz de volta o vai e volta que a K1 quer acabar.
+## Parecer: **reprovado** (só invariantes; o texto das regras está certo)
+O bloqueante anterior e os itens 1–5 do brief estão resolvidos no texto. O item 6 não está: dois dos quatro trechos novos de 1–4, entre eles a correção do bloqueante, não têm invariante que falhe se forem apagados. Os testes continuam verdes sem essas regras, e é exatamente essa regressão que o invariante deve impedir. Abaixo vai tudo de uma vez, para fechar numa volta só.
 
+### Evidência (mutação)
+Para cada trecho novo, apaguei-o de uma cópia do texto em memória e conferi quais regex de `invariantes` (`tests/config.json`) deixam de casar:
+
+| Trecho apagado | Invariante que falha |
+|---|---|
+| `conferente.md:50`: ` e \`corte: etapa (ok)\`, que aparecem mas não reprovam` (item 1, o bloqueante) | nenhum (`corte: etapa \(ok\)` também casa na `:40`) |
+| `conferente.md:65`: ` e o mesmo com a base da branch (\`origin/<Base>\`): o Base-sha precisa ser ancestral das duas; ...` (item 2) | nenhum (`Base-sha fora da branch` já existia em `28be2c9`) |
+| `conferente.md:40`: `; etapa do papel do destino que falta no "Entregar" é corte` (item 3, 2ª parte) | nenhum |
+| `conferente.md:40`: `(só a marca ou a citação ...)` (item 3, 1ª parte) | `só a marca ou a citação` |
+| `conferente.md:62`: `Leia o brief do \`Arquivo:\` ...` (item 4) | `escopo: brief sem arquivo` |
+| `jarvis.md:63`: ` \`Arquivo:\` (o caminho do brief em \`docs/briefs/\`),` na entrega (item 4) | nenhum (`docs/briefs/` casa no trecho do brief) |
+| `conferente.md:64`: `, \`linhas>=N\`` (item 5) | `linhas>=N` |
+| `R-DECISAO.md:15`: `; na entrega, \`pendente:\`` (item 5) | nenhum |
+
+## Achados
 | # | Arquivo:linha | Problema | Sugestão | Severidade |
 |---|---|---|---|---|
-| 1 | `agents/conferente.md:50` (com a `:40`) | A `:40` define a saída `corte: etapa (ok)` para etapa de outro papel. A `:50` diz que "qualquer campo diferente de `ok` (menos `não verificável` ...) dá `veredito-brief: reprovado`". O valor `etapa (ok)` não é `ok`. Lido ao pé da letra, e o haiku lê assim, todo brief que põe uma etapa de outro papel no "Fora do escopo" sai reprovado. É o mesmo caso do pós-release 0.15.0 que motivou o C1. | Na `:50`: "Qualquer campo diferente de `ok` (menos `não verificável` e `corte: etapa (ok)`, que aparecem mas não reprovam sozinhos) dá ...". Se der, acrescente na `:40` que, havendo vários itens, a linha `corte:` lista cada um e só `sem marca` reprova. Convém um invariante para o trecho novo da `:50`. | **bloqueia** |
-| 2 | `docs/regras/R-PROVA.md:11`, `agents/conferente.md:51`, `agents/jarvis.md:63` | O vocabulário de `espera:` é `rc=0 \| contém \| igual \| linhas=N`, sem limite mínimo. A própria proposta (§6, K1, PQ-2, PQ-4 e PQ-5) usa "linhas ≥ 1" e "≥ 1 linha". Quando o brief tiver um PQ assim, o conferente da entrega não terá a regra para compará-lo, e o do brief pode marcá-lo como forma inválida. | Incluir `linhas>=N` no formato das três fontes, ou deixar escrito que `linhas=N` é exato e mandar reescrever esses PQs. | recomendado |
-| 3 | `agents/conferente.md:41` | "Brief com commit precisa de ao menos um PQ `sha`, `push` ou `arquivo`" (C6) não diz qual linha de saída sai quando falta esse PQ. O haiku vai inventar um rótulo. | Ex.: "Falta: `forma: sem PQ que o conferente confira`". | recomendado |
-| 4 | `agents/conferente.md:51` | O texto antigo dizia "`cmd` → rode o comando se for da lista acima". O novo só diz "compare só o que `espera:` diz". Que o comando roda ficou implícito. | "`cmd` → rode o comando (se for da lista acima) e compare só o que `espera:` diz ...". | recomendado |
-| 5 | `docs/regras/R-DECISAO.md:15` | A regra ainda diz que, em "decisão, brief ou entrega", o conferente reprova com `corte: sem marca`. Pelo C10, no modo entrega o rótulo agora é `pendente:`. As fontes divergem no rótulo, não no efeito. | Trocar para "(`corte: sem marca` no brief; `pendente:` na entrega)". O arquivo fica fora dos 8 do diff e o texto é protegido, por isso a decisão é do autor: nesta fatia ou num cartão. | recomendado |
-| 6 | `changelog.d/conferente-k1-texto-e-forma.md` | O nome não segue `changelog.d/<branch-sem-prefixo>.md`, que daria `conferente-k1.md` (`bin/forge-changelog:4` e `:67`). O CI não barra, mas a convenção existe para evitar colisão e para dar rastreio. | Renomear para `changelog.d/conferente-k1.md`. | recomendado |
+| 1 | `tests/config.json` (`agents/conferente.md`) | Item 6 do brief incompleto: os trechos dos itens 1 e 2 (o bloqueante da volta 1 e o M1) não têm invariante efetivo (tabela acima). | Acrescentar, só por acréscimo: `"menos \`não verificável\` e \`corte: etapa \\(ok\\)\`"` e `"precisa ser ancestral das duas"`. | **bloqueia** |
+| 2 | `tests/config.json` (`agents/conferente.md`, `agents/jarvis.md`) | Mesmo item 6, para os itens 3 (2ª parte) e 4 (lado do Jarvis): sem proteção. | `"etapa do papel do destino que falta"` em `conferente.md`; em `jarvis.md`, um trecho exclusivo da entrega, p. ex. `"\`Arquivo:\` \\(o caminho do brief"`. | **bloqueia** (mesmo item do brief; vai junto com o 1) |
+| 3 | `tests/config.json` (`docs/regras/R-DECISAO.md`) | O `pendente:` da entrega, aceito como saída do item 5, não é protegido. | Acrescentar `"na entrega, \`pendente:\`"`. | recomendado |
+| 4 | `agents/jarvis.md:60` | O prompt-padrão do Jarvis, que é quem escreve os PQs, ainda lista `espera: rc=0 \| contém \| igual \| linhas=N` sem `linhas>=N`. `R-PROVA` e o conferente já têm a forma. São três fontes do mesmo formato, e uma ficou para trás. | Acrescentar ` \| linhas>=N` na `:60` e atualizar o fragmento, se quiser. | recomendado |
+| 5 | `agents/conferente.md:41` | Continua aberto (achado 3 da volta 1, fora do brief da volta 2): falta o rótulo de saída para "brief com commit sem PQ `sha`, `push` ou `arquivo`". | Ex.: `forma: sem PQ que o conferente confira`. | recomendado |
+| 6 | `agents/conferente.md:64` | Continua aberto (achado 4 da volta 1): "`cmd` → compare só o que `espera:` diz" não diz que o comando roda. | "`cmd` → rode o comando (se for da lista acima) e compare só ...". | recomendado |
+| 7 | `changelog.d/conferente-k1-texto-e-forma.md` | Continua aberto (achado 6 da volta 1): o nome foge de `<branch-sem-prefixo>.md`. | Renomear para `changelog.d/conferente-k1.md`. | recomendado |
 
-## O que foi conferido e está certo
-- **C1:** o `_modelo.md` do pedido ganhou `E1.` e `## Etapas` com `E1.1 (<agente>)` e `E1.2 (dono)`. No `jarvis.md`, o passo 1 traz IDs e Etapas, e o item 3 do prompt-padrão pede `(E2)` e etapa sem a marca. No conferente, o item 3 pareia por ID, devolve `corte: não verificável (pedido sem IDs)` sem reprovar (é a mitigação da proposta) e exige que o trecho exista literalmente em `## Etapas`. Esta delegação de review serve de exemplo: E1.1 é do mesmo papel do destino (tech-lead) e por isso foi cortada com a marca, como o texto exige.
-- **C3:** o brief vai para `docs/briefs/<pedido>-<destino>-<n>.md` em `R-BRIEF`, no `jarvis.md:63` e na entrada do modo brief (`Arquivo:`, `test -e`, `cat`, cópia igual ao arquivo). O `forge-check brief --prompt-igual` é da K2, e o `forge-check docs` não varre `docs/briefs/`. Até a K2, quem compara a cópia com o arquivo é a leitura do haiku. É um risco conhecido, com mitigação já planejada, e não conta como achado.
-- **C5 (só texto):** o formato está em `R-PROVA`, no item 1 do modo entrega e no prompt-padrão. O texto diz que o rc ≠ 0 não reprova quando a espera é de saída, e que "saída de X" vale como `contém` na transição. `forma: PQ-n sem espera` fica no brief.
-- **C6:** a linha `PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro` está lá. Ela não reprova (`:67`) e não conta como `não verificável`. `R-PROVA` diz o mesmo.
-- **C7:** `Base-sha:` está na entrada do modo entrega e no `jarvis.md`. Antes do diff, o conferente roda `git merge-base --is-ancestor` (forma já liberada em `conferente.md:24`). O diff usa o sha, não a base local.
-- **C8:** o anexo implícito só vale por acréscimo, conferido com `git diff --numstat`. A saída `escopo: anexo com remoção` reprova. O "mover cartão" vai no Entregar, pelo `jarvis.md`.
-- **C10:** os modos estão separados no topo (uma linha por modo, `a691f24`). `corte:` aparece só no brief e `pendente:` só na entrega, tanto no item 3 da entrega quanto no exemplo de saída e no veredito (`:67`). Não achei contradição entre os dois modos. A única inconsistência é a de dentro do modo brief (item 1). O começo do modo brief "por `forge-check brief`" é da K2, como manda a §6.
-- **Invariantes (`tests/config.json`):** só há acréscimos. As cinco linhas `-` do diff são a mesma entrada com a vírgula nova. São 8 trechos novos em `conferente.md`, 3 em `jarvis.md`, 2 no `_modelo.md`, 2 em `R-PROVA` e 1 em `R-BRIEF`, e eles cobrem os trechos que viraram regra. Nenhum item existente foi afrouxado.
-- **Correção `5177b43`:** `ambiente_limpo()` acrescenta `maintenance.auto=false` e `gc.auto=0` por `GIT_CONFIG_COUNT/KEY/VALUE`. Isso vale só para o processo filho, não grava nada e não persiste. O `HookPrePush.setUp` grava `receive.autogc=false` só no `remoto.git` temporário (`self.tmp`). O helper `git()` (`tests/test_forge.py:407`) é o único que usa esse env. Nada toca o repositório real nem o `~/.gitconfig`. A causa está documentada em `docs/briefs/conferente-k1-causa.md`, com a prova `repack disparado: 1` contra `0`, e bate com o git local (2.55.0).
-- **Changelog:** o fragmento existe e está no formato certo (`### Adicionado` + linha). O nome é o item 6.
-- **Regras invioláveis:** `R-NEUTRO` ok, porque não há nome de projeto nem stack. `R-CUSTO` ok, porque não há comando pago. O `plugin.json` e o `CHANGELOG.md` não foram tocados.
+## Conferido e certo
+- **Bloqueante da volta 1 (`conferente.md:50`):** resolvido. Agora diz "menos `não verificável` e `corte: etapa (ok)`, que aparecem mas não reprovam". Só falta o invariante (achado 1).
+- **Item 2 (M1, `:65`):** o Base-sha precisa ser ancestral de `<b>` e de `origin/<Base>`, e "não contém" em qualquer um dos dois dá `escopo: Base-sha fora da branch`. Usa só `git merge-base`, que está na lista de comandos (`:19`, `:24`).
+- **Item 3 (M2, `:40`):** a cobertura de `E<n>` vale "só a marca ou a citação `(E<n>)`; paráfrase não cobre". Etapa do papel do destino que falta no Entregar é corte. Isso é coerente com esta delegação: E1.1 é do tech-lead, que é o papel do destino, e foi cortada com a marca.
+- **Item 4 (M3):** `Arquivo:` está na entrada do modo entrega (`conferente.md:57`) e no `jarvis.md:63`. O conferente lê o brief do arquivo (`:62`), e a falta ou a divergência reprova com rótulo `escopo:`, que é vocabulário do modo entrega. Não mistura com o `forma:` do brief.
+- **Item 5:** `linhas>=N` está em `R-PROVA.md:11` e em `conferente.md:64`. **Saída do autor em `R-DECISAO.md:15`, aceita pelo Jarvis (decisão técnica registrada no pedido):** é coerente e eu não a contesto. O texto passa a dizer "no brief, `corte: sem marca`; na entrega, `pendente:`". Isso bate com `conferente.md:16` (vocabulário por modo), `:40` (brief) e `:66` (entrega: item do Entregar sem commit nem marca vira `pendente:`). O invariante `corte: sem marca` continua intacto, e trocá-lo exigiria decisão do dono (CLAUDE.md), por isso a saída é a certa. O objetivo do item (as duas fontes falarem a mesma língua por modo) foi cumprido.
+- **Brief × entrega sem contradição:** `corte:` só aparece no brief (`:38-50`), e `pendente:`/`escopo:` só na entrega (`:52-79`). As regras de cada modo ficam na própria seção. O texto do `jarvis.md:63` descreve as duas entradas na mesma ordem dos blocos do conferente.
+- **C1, C3, C5, C6, C7, C8, C10:** continuam como a proposta pede (detalhe no parecer da volta 1, `28be2c9`). A volta 2 só acrescenta e não desfaz nenhum.
+- **Invariantes:** só acréscimos (`+5` em `conferente.md`, `+1` em `R-PROVA.md`). Nenhum item existente foi removido nem afrouxado. As linhas `-` do diff são a mesma entrada, que ganhou a vírgula.
+- **Fragmento:** `changelog.d/conferente-k1-texto-e-forma.md` ganhou a linha da volta 2. O `CHANGELOG.md` e o `plugin.json` não foram tocados.
+- **Correção `5177b43` (não mudou na volta 2):** só toca o ambiente dos testes. `maintenance.auto=false` e `gc.auto=0` vão por `GIT_CONFIG_COUNT/KEY/VALUE` em `ambiente_limpo()` (`tests/test_forge.py:402`), que só os processos filhos dos testes usam. `receive.autogc=false` é gravado no `remoto.git` temporário (`:663`). Nada é gravado no repositório real nem no `~/.gitconfig`. A causa está em `docs/briefs/conferente-k1-causa.md`, com a prova `repack disparado: 1` contra `0`.
+- **`R-NEUTRO` / `R-CUSTO`:** ok. Não há nome de projeto, stack nem comando pago.
 
 ## Ferramentas (citadas, não refeitas)
-- Suíte completa: rodada pelo autor e não refeita aqui, porque a segurança roda em paralelo. Rodei só as classes que este diff toca, no HEAD `5177b43`: `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.RegrasComId tests.test_forge.Agentes tests.test_forge.HookPrePush tests.test_forge.IsolamentoDoGit`, com saída `Ran 19 tests in 1.652s` / `OK`.
-- `scripts/validar-plugin.sh`: não rodado. Fica com o QA (`R-QA`).
+- Suíte completa: não rodada aqui, porque a segurança roda em paralelo na mesma worktree. O autor a rodou. Rodei só as classes de texto no HEAD `43a7c5a`: `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.RegrasComId tests.test_forge.Agentes` → `Ran 9 tests in 0.031s` / `OK`.
+- `scripts/validar-plugin.sh`: com o QA (`R-QA`).
 
-## Para o security-engineer (aponto, não decido)
-- O C3 muda a entrada do conferente: o brief passa a ser lido do disco com `cat`. Um brief gravado em disco pode trazer instrução ao conferente, como antes, e a regra de `conferente.md:10` continua valendo. Não há comando novo na lista do `so_leitura`.
-
-## Pendências fora desta fatia
-- PQ-6 da linha K1 (um brief real gravado em `docs/briefs/` e conferido, com a saída colada no PR): é prova de PR, na E3.2.
+## Para fechar (uma volta)
+Acréscimos em `tests/config.json` (achados 1–3). Se quiser, os recomendados 4–7 entram no mesmo commit de texto. Depois, push. Basta isso para eu aprovar. O texto das regras não precisa mudar.
