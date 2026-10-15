@@ -3,12 +3,17 @@ tipo: review
 contrato: 1
 pedido: ci-ubuntu-26
 branch: melhoria/ci-ubuntu-26
-commit: bbc658f13b9d57fd551f73e17b57975799146fd7
+commit: 77a4028ba046ccf58774565adffbe73c3e505b6d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
 ---
 # Code review: CI fixado em `ubuntu-24.04` (ci-ubuntu-26)
+
+## Revalidação (rodada 3): aprovado
+HEAD `77a4028` (merge `448d877` com a develop `3f4a21e`). Os 3 workflows conflitaram com o #138 e foram resolvidos ficando com a versão da develop e trocando só o rótulo. Conferido: `git diff origin/develop -- .github CHANGELOG.md` mostra só 4 linhas `runs-on` (`ubuntu-latest` para `ubuntu-24.04`: 1 em `catraca.yml`, 2 em `ci.yml`, 1 em `release.yml`); o `CHANGELOG.md` é idêntico ao da develop; a entrada vai no fragmento `changelog.d/ci-ubuntu-26.md` (`### Alterado`, com o rótulo `afrouxa-regra` e o parecer de devops). Os 4 `runs-on` de `.github/` estão em `ubuntu-24.04` e nenhum job novo do #138 ficou em `ubuntu-latest`. Fora de `.github/` e do fragmento, o diff só traz os pareceres em `docs/`; `bin`, `hooks`, `tests` e `scripts` são idênticos aos da develop.
+
+Registro: a falha de `tests.test_ci_local` vem da develop (`026231f` e `3f4a21e`) e está em correção em `melhoria/ci-local-jobs-consolidados`; não é desta branch e não reprova o #136. Pareceres de devops, segurança e QA precisam carregar o commit `77a4028` (delegações próprias); push e merge são do dono.
 
 ## Volta 2: aprovado
 O achado bloqueante da volta 1 está resolvido. O `docs/devops/ci-ubuntu-26.md` agora traz `commit: bbc658f13b9d57fd551f73e17b57975799146fd7`, corrigido em `a73ed6e`. O `8b52aa0` acrescenta o parecer de segurança (`docs/security/ci-ubuntu-26.md`), aprovado e sem achado bloqueante. O diff `229bceb..8b52aa0` toca só esses dois arquivos de `docs/`, sem mudança de código. Os recomendados 2 e 3 e o item 4 da volta 1 viraram cartões e não bloqueiam este PR. O que falta no portão é o parecer de QA.
