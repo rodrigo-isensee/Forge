@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: 18aa46c6c1ca3fa12d9968340cd7a66d80ec4665
+commit: 27d86b505ee4564f7cbfa0e293297e420affb2f6
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-10-14
+data: 2026-10-15
 ---
 # Review de segurança: ci-local
 
-> **Re-review (18aa46c): aprovado.** O A1 foi corrigido, e os recomendados A2, C1 e D também. Veja a seção "Re-review" no fim. O texto abaixo, até ela, é o parecer original sobre 083bb7b e fica como histórico.
+> **Revalidação (27d86b5): aprovado mantido; ver a seção no fim.** **Re-review (18aa46c): aprovado.** O A1 foi corrigido, e os recomendados A2, C1 e D também. Veja a seção "Re-review" no fim. O texto abaixo, até ela, é o parecer original sobre 083bb7b e fica como histórico.
 
 Escopo: `scripts/ci-local` (HEAD 083bb7b), `docs/devops/ci-local.md` (seção Segurança) e os riscos que o review do `tech-lead` passou a este papel (`docs/reviews/ci-local.md`). A revisão foi estática, com sondas locais num diretório descartável em `$TMPDIR`. Nada foi publicado, o `--publicar` não rodou e o código não foi alterado.
 
@@ -120,3 +120,22 @@ Montagem: um repositório nu como `origin`, a cabeça do PR empurrada para `refs
 - A3 (token de escopo fino) e C2 (`killpg` e a persistência no `.git` comum): recomendados, fora desta volta. Os dois estão documentados como limitação em `docs/devops/ci-local.md`.
 - Pela decisão do dono, o `ci-local` não é check exigido. O resultado vai no PR só como evidência. Se isso mudar, o D, junto com D1 e D2, precisa de nova revisão.
 - Riscos aceitos: nenhum. Ferramentas: `python3` e sondas locais. Seguem as mesmas lacunas no PATH (`gitleaks`, `semgrep`, `zizmor`, `actionlint`), e nenhuma ferramenta foi instalada (`R-CUSTO`).
+
+## Revalidação no head (commit 27d86b5)
+Escopo: `git diff 5072e69..27d86b5 -- scripts/ci-local tests/test_ci_local.py`, que fecha o D1 (observação do re-review): `arquivos_alterados()` usa `git diff --name-only --no-renames -z` e sai com erro se o `returncode` for diferente de 0, mais 3 testes. O código não foi alterado e nada foi publicado.
+
+**Veredito: parecer mantido, aprovado.** O fechamento do D1 não abre nada novo. O `-z` também fecha um desvio que o D1 não citava: sem ele, o git coloca entre aspas o nome com quebra de linha, e a lista deixaria de começar com `.github/workflows/`.
+
+Sondas: repositório descartável em `$TMPDIR` (origin nu, cabeça em `refs/pull/7/head`), `gh` simulado no `PATH` que registra as chamadas, e `scripts/ci-local 7 --publicar` de ponta a ponta. Para o item 2, um shim de `git` no `PATH` devolve rc 128 só no subcomando `diff`. Os valores de rc abaixo são do script. Nas linhas de controle, o rc 1 vem da bateria do workflow mínimo da sonda; o que importa ali é o portão ter aberto.
+
+| Sonda | rc | Efeito |
+|---|---|---|
+| Renomear `tests/catraca.py` para `tests/outro.py` | 1 | "--publicar recusado: o PR altera a própria bateria (tests/catraca.py)". 0 chamadas a `gh api` (em 5072e69 passava do portão) |
+| `git diff` falha (rc 128 simulado) | 1 | "--publicar recusado: o git diff falhou (rc 128)". 0 chamadas a `gh api`; falha fechada |
+| Arquivo `.github/workflows/x<LF>y.yml` (quebra de linha no nome) | 1 | Recusado, com o nome inteiro em `tocados`. 0 chamadas a `gh api`. O `-z` entrega a entrada sem aspas |
+| `docs/a<LF>.github/workflows/z` (uma entrada só, que não começa em `.github/workflows/`) | 1 | Não recusado, e está certo: é um arquivo de `docs/`, e a quebra de linha não vira duas entradas. 1 chamada a `gh api` (o portão abriu) |
+| Controle: só o `README` alterado | 1 | Portão aberto, 1 chamada a `gh api` simulada. A recusa não é incondicional |
+
+Leitura do diff: a lista é separada por NUL, e `if a` descarta só a entrada vazia final. O `rodar` não usa shell. `base` e `sha` vêm do `gh` e do `git` já verificados antes, e vão como argumentos separados. Não há `eval`. O teste `test_publicar_recusa_no_fluxo_principal_antes_de_rodar_a_bateria` foi ajustado para a saída com NUL.
+
+Continuam como estavam: A3, C2 e D2, informativos e registrados. Pela decisão do dono (decisão A), o `ci-local` não é check exigido; se virar, o D, o D2 e o A3 precisam de nova revisão (`R-CONFORMIDADE`). Riscos aceitos: nenhum. Ferramentas: `python3` e sondas locais; seguem as lacunas `gitleaks`, `semgrep`, `zizmor` e `actionlint` no PATH, e nada foi instalado (`R-CUSTO`).
