@@ -8,17 +8,25 @@ de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `gi
 Libera mudança só de documentação (.md), atualização a partir de uma branch de integração e promoção entre
 branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
-Falha fechado nas ações críticas (ADR 0009, seção 7).
+No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
+`hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
+exige o parecer, como o merge (o GitHub não mescla PR em rascunho).
+Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do Forge.
 """
 import json
 import re
 from pathlib import Path
 
 from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
-                    raiz_do_projeto, segmentos, sem_atribuicoes, separar_regra)
+                    raiz_de_estado, segmentos, sem_atribuicoes, separar_regra)
 
-PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
-CRITICO = re.compile(r"\bpr\b.*\b(create|merge)\b|\bapi\b|\b(merge|pull)\b", re.S)
+PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
+CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
+CREATE_COM_VALOR = {"-a", "--assignee", "-B", "--base", "-b", "--body", "-F", "--body-file", "-H", "--head", "-l",
+                    "--label", "-m", "--milestone", "-p", "--project", "-r", "--reviewer", "-t", "--title", "-T",
+                    "--template", "-R", "--repo", "--recover"}
+READY_COM_VALOR = {"-R", "--repo"}
+VERDADE = {"1", "t", "true"}  # o que o `gh` aceita como verdadeiro em `--draft=<valor>`
 MERGE_PR_COM_VALOR = {"-b", "--body", "-F", "--body-file", "-t", "--subject", "-A", "--author-email",
                       "--match-head-commit", "-R", "--repo"}
 API_COM_VALOR = {"-X", "--method", "-H", "--header", "-f", "--raw-field", "-F", "--field", "--input", "-q", "--jq",
@@ -57,6 +65,24 @@ def posicionais(args, com_valor):
     return saida
 
 
+def bandeira(args, com_valor, nomes):
+    """A bandeira booleana (`--draft`, `-d`, `--draft=true`) está ligada? Pula os valores das opções (`--title -d` não é
+    rascunho) e vale a última, como no `gh`. Forma desconhecida (`-dw`) conta como desligada: o portão fica mais
+    estrito, nunca mais frouxo."""
+    ligada, j = False, 0
+    while j < len(args):
+        a = args[j]
+        if a in com_valor:
+            j += 2
+            continue
+        if a in nomes:
+            ligada = True
+        elif "=" in a and a.split("=", 1)[0] in nomes:
+            ligada = a.split("=", 1)[1].lower() in VERDADE
+        j += 1
+    return ligada
+
+
 def troca_de_branch(args):
     """Branch depois de `git checkout`/`git switch` ("" se HEAD solto ou desconhecida); None se não troca."""
     if "--" in args:
@@ -76,7 +102,7 @@ def troca_de_branch(args):
 
 
 def analisar(toks):
-    """('cd', dir) | ('pr', None, base, head) | ('prmerge', repo, alvo) | ('api', args)
+    """('cd', dir) | ('pr', None, base, head, rascunho) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz) | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
     sem = sem_atribuicoes(toks)
     atribuicoes, toks = toks[: len(toks) - len(sem)], sem
@@ -92,7 +118,11 @@ def analisar(toks):
         i = toks.index("pr")
         args = toks[i + 2:]
         if toks[i + 1: i + 2] == ["create"]:
-            return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"))
+            return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
+                    bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}))
+        if toks[i + 1: i + 2] == ["ready"]:
+            return ("prready", (posicionais(args, READY_COM_VALOR) or [None])[0],
+                    bandeira(args, READY_COM_VALOR, {"--undo"}))
         if toks[i + 1: i + 2] == ["merge"]:
             repo = opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
                                                         if a.startswith("GH_REPO=")), None)
@@ -125,8 +155,8 @@ def existe(raiz, ref):
     return git(raiz, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] == 0
 
 
-def verificar(hook, raiz, branch, ref, base):
-    """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido."""
+def verificar(hook, raiz, branch, ref, base, dica=""):
+    """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido. `dica` abre o motivo."""
     if base:
         cod, arquivos = git(raiz, "diff", "--name-only", "--no-renames", f"{base}...{ref or 'HEAD'}")
         if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
@@ -134,7 +164,7 @@ def verificar(hook, raiz, branch, ref, base):
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
-        bloquear("R-REVIEW", f"nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "
+        bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "
                              "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
                              "quando há gatilho, ficam em docs/devops/ e docs/security/).")
     for pedido in pedidos:
@@ -142,13 +172,16 @@ def verificar(hook, raiz, branch, ref, base):
         if violacoes:
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
-            bloquear(rid, f"{texto}{extra}; confira com forge-check pr {pedido}.")
+            bloquear(rid, f"{dica}{texto}{extra}; confira com forge-check pr {pedido}.")
 
 
-def pull_request(hook, pasta, base, head):
-    raiz = hook.projeto(pasta)
+def pull_request(hook, pasta, base, head, rascunho):
+    raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
         return
+    forge = e_clone_do_forge(raiz)
+    if forge and rascunho:
+        return  # no Forge, o PR nasce em rascunho e só sai dele com o parecer (`gh pr ready`)
     atual = git(raiz, "branch", "--show-current")[1]
     branch = nome_da_branch(head) if head else atual
     if not branch or branch in INTEGRACAO:
@@ -156,14 +189,38 @@ def pull_request(hook, pasta, base, head):
     ref = None
     if head and branch != atual:
         ref = next((r for r in (head, f"origin/{branch}") if existe(raiz, r)), None)
+        if ref is None and forge:
+            bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem parecer a conferir. Corrigir: "
+                                 "git fetch, ou abra com gh pr create --draft.")
         if ref is None:
-            return  # a branch não existe localmente: nada a conferir aqui
+            return  # projeto: a branch não existe localmente, nada a conferir aqui
     candidatas = (base, f"origin/{base}") if base else (b for b in BASES if nome_da_branch(b) != branch)
-    verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None))
+    verificar(hook, raiz, branch, ref, next((b for b in candidatas if existe(raiz, b)), None),
+              "sem parecer aprovado, abra com gh pr create --draft; " if forge else "")
+
+
+def pronto_de_pr(hook, pasta, alvo, desfaz):
+    """`gh pr ready` no clone do Forge: tirar o PR do rascunho exige o mesmo parecer do merge."""
+    raiz = hook.projeto(pasta, clone_do_forge=True)
+    if not raiz or not e_clone_do_forge(raiz) or desfaz:
+        return  # nos projetos, nada muda; `--undo` volta o PR para rascunho
+    branch = branch_do_pr(raiz, alvo)
+    if not branch:
+        bloquear("R-CONTRIB", "PR indicado só por número, sem branch. Corrigir: use o nome da branch "
+                              "(gh pr ready <branch>).")
+    if branch in INTEGRACAO:
+        return  # promoção entre branches de integração
+    ref = next((r for r in (branch, f"origin/{branch}") if existe(raiz, r)), None)
+    if ref is None:
+        bloquear("R-REVIEW", f"branch `{branch}` não existe localmente, sem parecer a conferir. Corrigir: "
+                             "git fetch e tente de novo.")
+    base = base_do_pr(raiz, branch)
+    verificar(hook, raiz, branch, ref, next((b for b in (base, f"origin/{base}") if existe(raiz, b)), None),
+              "PR sai do rascunho só com parecer: ")
 
 
 def merge(hook, pasta, alvos, branches):
-    raiz = hook.projeto(pasta)
+    raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
         return
     chave = raiz.resolve()
@@ -226,7 +283,7 @@ def branch_do_pr(raiz, alvo):
 
 
 def merge_de_pr(hook, pasta, repo, alvo):
-    raiz = hook.projeto(pasta)
+    raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
         return
     if aponta_para_o_forge(repo) and not e_clone_do_forge(raiz):
@@ -252,7 +309,7 @@ def merge_de_pr(hook, pasta, repo, alvo):
 def merge_por_api(hook, pasta, args):
     if not (ENDPOINT_MERGE.search(endpoint_da_api(args)) and metodo_mutante(args)):
         return
-    raiz = hook.projeto(pasta)
+    raiz = hook.projeto(pasta, clone_do_forge=True)
     if not raiz:
         return
     if aponta_para_o_forge(endpoint_da_api(args)) and not e_clone_do_forge(raiz):
@@ -277,13 +334,15 @@ def principal(hook):
         if parte[0] == "cd":
             pasta = pasta / Path(parte[1]).expanduser() if parte[1] else Path.home()
         elif parte[0] == "pr":
-            pull_request(hook, pasta, parte[2], parte[3])
+            pull_request(hook, pasta, parte[2], parte[3], parte[4])
+        elif parte[0] == "prready":
+            pronto_de_pr(hook, pasta, parte[1], parte[2])
         elif parte[0] == "prmerge":
             merge_de_pr(hook, pasta, parte[1], parte[2])
         elif parte[0] == "api":
             merge_por_api(hook, pasta, parte[1])
         elif parte[0] == "branch":
-            raiz = raiz_do_projeto(pasta / parte[1] if parte[1] else pasta)
+            raiz = raiz_de_estado(pasta / parte[1] if parte[1] else pasta)
             if raiz:
                 branches[raiz.resolve()] = parte[2]
         else:
@@ -291,4 +350,4 @@ def principal(hook):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO)
+    executar("parecer", principal, CRITICO, clone_do_forge=True)
