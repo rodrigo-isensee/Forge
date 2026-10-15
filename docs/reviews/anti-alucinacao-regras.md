@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: e98d977
+commit: 59b65af
 parecer: aprovado
 revisor: forge:tech-lead (autor)
 data: 2026-10-14
@@ -245,6 +245,77 @@ as duas varreduras juntas, no mesmo processo: 0,09 ms por linha
 - **A redação da ADR e o código divergem em dois pontos.** (1) Heredoc, como acima. (2) Chaves: o código recusa qualquer `{` ou `}` fora de aspas, como o brief pediu, e não só "com `,` ou `..`". O `{ ...; }` com `push` passa a recusar. A ADR ainda diz "Estado: proposta" e cita `git ls-files 'docs/*.md'`, que não está na lista do conferente (no agente, o exemplo é `grep -n 'v1$' src/app.js`). Cabe ao arquiteto ajustar o texto.
 - **Inertes no papel só de leitura:** a lista `saidas` de `hooks/conformidade.json` e a checagem de redirecionamento do papel, porque a gramática recusa `<` e `>` antes. Ficaram, porque a validação da política exige a chave. Candidato a cartão de limpeza.
 - **Limites que continuam:** glob em caminho protegido nos papéis comuns (C3) e a pilha da crase e o `case` dentro de `$(...)` no analisador geral (C2), que o item 2 cobre só nas linhas com marcador.
+
+## Volta 4: S6 do re-review de segurança da volta 3 (59b65af)
+Escopo: `git diff beb9940..59b65af` (`hooks/conformidade.py`, `hooks/conformidade.json`, 15 fixtures novas). Decisão do time: correção pequena e auditoria. Se o papel só de leitura reprovar de novo, o passo seguinte é a (c3) da ADR 0011, sem outro remendo. Os demais papéis e o heredoc ficam como estavam. C3, C7, C8 e S7 continuam cartões.
+
+### O que mudou
+- `test` só passa na forma `test -e|-f|-d|-s <um caminho>` (`TESTE_LEITURA`), com exatamente dois argumentos. O caminho é literal, porque a gramática já recusa expansão fora de aspas, e `-f`/`-e`/`-d`/`-s` não reavaliam o texto entre aspas.
+- `[` sai de `so_leitura.comandos`. `[[` não estava na lista, e a gramática recusa os dois pelo `[`.
+- Papel só de leitura com `nivel > 0` recusa no começo de `bash()`. Depois da gramática, esse nível só aparece com `$(` ou crase entre aspas simples, e o bash só executa esse texto por reavaliação.
+- Auditoria: `--show-signature` entra em `GIT_EXECUTA`, abreviado inclusive. O formato `%G` (`FORMATO_ASSINATURA`, também com `%+G`, `%-G` e `% G`) recusa em qualquer subcomando git da lista. Valor de opção do `forge-check` que começa com `-` também recusa.
+
+### Auditoria da lista branca do papel só de leitura
+Sondas: bash 5.2.21 e git 2.43.0 num repositório descartável em `$TMPDIR`, com `gpg.program` falso que cria um arquivo ao rodar.
+
+| Comando | Forma que reavalia argumento ou executa programa | Tratamento |
+|---|---|---|
+| `test` (interno) | `-v 'a[$(...)]'`, também em `x = y -o -v` e `'!' -v` (sondado: só `-v` executa; `-f -e -d -s -R -o -nt -eq -lt` não) | só `-e\|-f\|-d\|-s <caminho>`; o resto recusa |
+| `[`, `[[` | as mesmas do `test`; o `[[` também faz aritmética no `-eq` | `[` sai da lista; a gramática recusa os dois |
+| qualquer comando | `$(...)` ou crase entre aspas simples, que só roda por reavaliação | análise aninhada recusada no papel |
+| `git log`/`show`/`diff` | `--show-signature` e `%G?`/`%GS`/`%GK`... no `--format`/`--pretty` rodam o `gpg.program` (sondado: o gpg falso rodou nos dois; `git show <tag assinada>`, `cat-file -p` e `%(describe)` não o rodam) | recusa, também abreviado e com modificador |
+| `git` (todos) | `--output` grava; `--ext-diff`, `--textconv`, `--filters`, `--upload-pack`, `--receive-pack`, `--exec` e `--config-env` executam | já recusados (voltas 1 a 3), também abreviados |
+| `git` (opção global) | `-c` (`core.pager`, `alias.*`, `gpg.program`), `-p`/`--paginate`, `--exec-path`, `--git-dir` | já recusados: só `-C` e `--no-pager` passam antes do subcomando |
+| `git` (alias) | alias não sobrepõe subcomando nativo, e a chave tem de ser um dos subcomandos da lista | nada a fazer |
+| `git ls-remote` | `--upload-pack`, `-u`, `--exec` e transporte `<x>::` executam | já recusados: só as opções de leitura passam |
+| `git` com configuração do repositório | `diff.<x>.textconv`/`command` via `.gitattributes`, `core.fsmonitor`, `core.pager` com tty, `remote.<x>.uploadpack`, `pretty.<x>` e `log.showSignature` | depende de configuração gravada antes: é a classe S7 (cartão e `safe.bareRepository`), fora desta volta |
+| `gh pr`/`gh run` | `--web`/`-w` abre o navegador; o pager só roda com tty e `GH_PAGER`, que é variável recusada; `--jq` (gojq) e `--template` (Go) não executam programa; o pflag não aceita abreviação | `--web` já recusado; o resto não reavalia |
+| `forge-check pr`/`docs` | `--ref=-...`/`--base=-...` chegariam como opção ao git interno (`ls-tree`, `diff`, `show`). Hoje é inalcançável, porque o `ls-tree` falha antes do `diff` | recusa por defesa (valor que começa com `-`) |
+| `echo`, `pwd`, `cd`, `true` (internos) | nenhuma (sondado com `'a[$(touch X)]'`: nada criado) | nada a fazer |
+| `ls`, `grep`, `cat`, `head`, `tail`, `wc`, `cut`, `tr` (externos) | recebem o argumento sem aspas e não o passam ao shell. Nenhuma opção do GNU executa programa (o `--pre` é do `rg`, que está fora da lista) | nada a fazer |
+| fora da lista | `printf -v`, `-exec` (`find`), `--pager`/`less`, `--open-files-in-pager` (`git grep`), `-e` de interpretador, `eval`, `bash -c`, `unset`/`declare` com índice | já recusados pela lista branca: não entram |
+
+### rc do hook `conformidade` (conferente; antes = beb9940, depois = 59b65af)
+```
+antes depois
+  0     2  test -v 'a[$(git diff {--output=PWN7,HEAD})]'                                      (PWN7)
+  0     2  test -v 'a[$(git ls-remote $'"'"'--upload-pack=touch PWN8;'"'"' .)]'              (PWN8)
+  0     2  test -v 'a[$(git ls-remote {--upload-pack=touch\ PWN9\;,.})]'                      (PWN9)
+  0     2  test -v 'a[$(git log -1 $X)]'    test x = y -o -v 'a[$(git log -1)]'    test '!' -v 'a[...]'    test -v x
+  0     2  grep -n '$(git log -1)' src/app.js                                                 (nível 1)
+  2     2  grep -n '`git log -1`' src/app.js            (antes: "``git` fora da lista"; agora: "substituição dentro de aspas")
+  2     2  [ -e src/app.js ]    [[ -e src/app.js ]]                                           (gramática)
+  0     2  git log -1 --show-signature    git log -1 --show-sig    git log -1 --format=%GS    git log -1 --pretty=format:%+GK
+  0     2  forge-check pr p1 --ref=--output=PWNF
+  0     0  test -f src/app.js && test -e src/app.js && test -d src && test -s src/app.js
+  0     0  git log -1    grep -n x src/app.js    git log -1 --format=%h%n%s%n%gd && git rev-parse --show-toplevel && git status --show-stash
+  0     0  forge-check pr p1 --ref=HEAD --base=develop
+```
+
+### Fixtures antes e depois
+```
+antes (hooks de beb9940): 15 fixtures novas → FAILED (failures=12)
+        (11 com rc 0 em vez de 2; crase entre aspas simples já com rc 2, mas por outro motivo;
+         conferente-colchete-bloqueia já verde: é regressão da retirada do `[`; as 2 de liberação, verdes)
+depois (59b65af):         15 fixtures novas → Ran 1 test in 1.352s / OK
+```
+
+### Suíte, validação e tempo
+```
+$ uptime → load average: 1.50 (início), 4.86 (fim, carga da própria suíte)
+$ python3 -m unittest discover -s tests
+Ran 562 tests in 182.090s
+OK
+$ scripts/validar-plugin.sh
+✔ Validation passed
+hook inteiro, 10 chamadas, conferente com `test -f … && git log -1 && grep -n x … && git log -1 --format=%h`: min 14 ms, mediana 18 ms, máx 25 ms
+```
+
+### Riscos e pendências da volta 4
+- **Falso bloqueio novo:** `grep` de um texto com `$(` ou crase entre aspas simples, `test` em outra forma (`-n`, `-z`, comparações) e `%G` em `--grep=`. O custo foi aceito pelo security-engineer em S6 (3).
+- **Classe S7:** textconv, diff externo, fsmonitor, pager e `pretty.<x>` dependem de configuração gravada antes no repositório. Ficam com o cartão de S7 e a decisão sobre `safe.bareRepository`, que vai ao usuário pelo Jarvis.
+- **Re-review de segurança** só do diff `beb9940..59b65af`. Se reprovar, o passo seguinte é a (c3).
+- **ADR 0011:** sai o `[` da lista e entram a restrição do `test` e a recusa a nível maior que 0. O texto é do arquiteto (S6, "Para o arquiteto").
 
 ## O que mudou
 - **Regras:** `R-PROVA` e `R-BRIEF` são novas. A `R-DECISAO` passa a exigir uma pergunta por vez em tudo e a marca "Retira do escopo original" em todo corte, com a lista "Fora do escopo". O índice também foi atualizado. O `verificada_por` das novas diz que os hooks `prova` e `brief` ainda não existem, para que a regra não afirme uma garantia que ainda não há.
