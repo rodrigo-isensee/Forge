@@ -18,5 +18,6 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 
 ## No projeto
 - Trabalho em branch própria (`feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug) criada a partir da branch de integração atualizada; o padrão é a `develop`, e o `CLAUDE.md` do projeto pode definir outra.
+- **Atualize a branch com a integração uma vez, antes do review** (`git fetch` + merge da `develop`, ou da branch de integração do projeto), para que os pareceres de review e de QA valham para o conteúdo que será mesclado. Depois do QA só se atualiza se houver conflito real, e então se revalida em proporção ao que o conflito tocou (só os testes e os pareceres dos arquivos afetados), sem refazer pareceres de quem não foi alcançado.
 - A integração chega à `main` por PR validado e mesclado pelo usuário (`R-MAIN`).
 - Só se commita o que está pronto.
