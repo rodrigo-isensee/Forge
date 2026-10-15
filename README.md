@@ -69,6 +69,8 @@ Os projetos usam **só a `main`**. Melhorias entram por `develop` (bateria no PR
 Em projeto com `.forge/versao`, o plugin garante por código, sem gastar contexto, o teto de agentes, o parecer antes de PR e merge, uma tarefa pesada por vez e o quadro válido (ADR 0003). Ajustes e como desligar um hook: [`docs/hooks.md`](docs/hooks.md).
 
 ## Atualizar um projeto
+Quem contribui com o Forge não edita o `CHANGELOG.md`: cada PR grava a sua entrada em `changelog.d/<branch>.md` (`bin/forge-changelog novo <tipo> "<texto>"`) e a release junta tudo, sem conflito entre PRs paralelos.
+
 O Forge nunca muda um projeto sozinho (ADR 0005). Cada versão está no `CHANGELOG.md`; as marcadas "**requer migração**" mudam arquivos do projeto. No terminal, dentro do projeto, com a árvore limpa:
 - `forge atualizar`: mostra a versão em uso, a nova e o que muda (resumo do CHANGELOG); pede "s"; guarda o **ponto de retorno** (versão do plugin e cópia de `.forge/` e da configuração, em `~/.local/state/forge/retorno/`); roda `forge-upgrade --simular` e, se der certo, troca o plugin e aplica o `forge-upgrade` (branch `forge/upgrade-<versão>`, um commit por migração, sem push nem merge); roda o `forge doutor`; se algo falhar, oferece voltar.
 - `forge voltar-versao`: pede "s" e devolve o plugin à versão de antes e os arquivos do projeto (atualização não mesclada: volta à branch de antes e guarda a da atualização; já mesclada: branch `forge/voltar-<versão>` com um registro novo). Nunca usa `--force` nem apaga trabalho.
