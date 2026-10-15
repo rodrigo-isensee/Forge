@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 714dc10
+commit: af93f7d
 parecer: aprovado
 revisor: forge:tech-lead (independente)
 data: 2026-10-14
@@ -159,3 +159,16 @@ A suíte completa e o `scripts/validar-plugin.sh` foram rodados depois deste par
 
 ### Para o dono
 Nada novo a decidir aqui. O PR segue com o rótulo `afrouxa-regra`, com as três correções gerais destacadas no título (substituição de processo, o `)` que fecha a substituição e o comentário `#` com construções não modeladas). A decisão sobre `safe.bareRepository` (S7) vai ao usuário pelo Jarvis.
+
+## Re-review no head af93f7d
+Escopo: `git diff 714dc10..af93f7d -- hooks/ agents/ CHANGELOG.md` (recomendados 3 a 7 e bugs AA2-01 e AA2-02 do QA). Parecer: **aprovado**.
+- Nenhuma decisão do hook mudou. `hooks/_comum.py`: `construcao_nao_modelada` só troca o texto devolvido (`$` + nome inteiro), que continua não vazio, e os chamadores (`conformidade.py:503`, `:510`, `:543`) só usam o valor como verdade e na mensagem. `hooks/conformidade.py`: o ramo novo de `--show-signature` vem antes do de `GIT_EXECUTA`, que já recusava a opção (`--show-signature` não está em `GIT_EXATAS`), e fica fora do `ls-remote`, que segue com a lista branca própria; as abreviações continuam no ramo de `GIT_EXECUTA`. O resto é texto de mensagem, `descricao` do `so_leitura` e o `import` reagrupado.
+- `agents/conferente.md` e `CHANGELOG.md` cobrem os recomendados 3 e 6 e a prova de push com branch apagada (AA2-02), sem copiar trecho de regra.
+- As duas fixtures novas cobrem só as mensagens. Nenhum rc de fixture existente mudou.
+
+```
+$ python3 -m unittest tests.test_hooks -v 2>&1 | tail -3
+Ran 12 tests in 146.851s
+
+OK
+```

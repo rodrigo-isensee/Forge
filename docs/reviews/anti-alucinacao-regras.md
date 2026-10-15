@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: anti-alucinacao-regras
 branch: melhoria/anti-alucinacao-regras
-commit: 59b65af
+commit: af93f7d
 parecer: aprovado
 revisor: forge:tech-lead (autor)
 data: 2026-10-14
@@ -406,3 +406,5 @@ Itens 3 a 7 do re-review independente (`docs/reviews/anti-alucinacao-regras-inde
 - AA2-01: a recusa da gramática de leitura cabe nos 200 caracteres e traz a forma que passa (`&& echo contém || echo não contém`); a recusa de variável nomeia o nome inteiro (`$TMPDIR`). Só texto: `fora_da_gramatica_de_leitura` e `construcao_nao_modelada` decidem como antes, e nenhum rc de fixture mudou. Duas fixtures novas (`conferente-recusa-mostra-forma-que-passa-bloqueia`, `nao-modelado-recusa-nomeia-variavel-inteira-tech-lead-bloqueia`) falharam antes e passam depois.
 - AA2-02: `agents/conferente.md` ensina a provar o `push` de branch apagada (`git ls-remote origin refs/pull/<n>/head` ou `headRefOid`) e documenta `forge-check pr --ref` e `--base`. No #122, as duas provas devolveram 2251ad5.
 - Suíte: 562 testes, OK; `scripts/validar-plugin.sh`: Validation passed. A suíte rodou com carga de 5,7 (outras sessões), acima do pedido (4); sem falha por tempo.
+
+Revalidado no head af93f7d: o diff 714dc10..af93f7d traz só mensagens, documentação e as correções AA2-01 e AA2-02, sem mudança de decisão do hook (ver o re-review independente); `tests.test_hooks` OK.
