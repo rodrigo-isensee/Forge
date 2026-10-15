@@ -3,12 +3,47 @@ tipo: review
 contrato: 1
 pedido: ci-local
 branch: melhoria/ci-local
-commit: ad4f7344542ccbf3eeea8dac49acc712532f581d
+commit: 2a086c7f1783959d0fd8beab43cfa46987a95afd
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-14
 ---
 # Code review: `scripts/ci-local` (CI local enquanto o Actions está sem cota, decisão A do dono)
+
+## Re-review da volta 4 (HEAD 2a086c7)
+Escopo: `git diff 083bb7b..2a086c7 -- scripts/ci-local tests/test_ci_local.py CHANGELOG.md CONTRIBUTING.md`, mais as voltas 3 e 4 de `docs/devops/ci-local.md`. Commits de código: a86a0bc (portões de fork, ambiente, symlink e `--publicar`) e 68b3aec (`--no-renames -z` e rc conferido). `CHANGELOG.md` e `CONTRIBUTING.md` não mudaram nesse intervalo. A análise de segurança fica com o parecer do `security-engineer` e não é refeita aqui.
+
+### Conferido (execução real nesta worktree, HEAD 2a086c7)
+- `python3 -m unittest tests.test_ci_local -v`: **44 testes, OK** (0,09 s). Na volta 3 eram 31; os 13 novos estão em `PortoesDeSegurancaTest`.
+- `bin/forge-check pr ci-local` (antes deste commit): acusou este parecer desatualizado e a falta do parecer de QA (ver "Pendências").
+- Este repositório não tem `docs/engineering/praticas.md` com regras de ferramenta; não há saída de comando de ferramenta a citar.
+
+### Legibilidade
+- As cinco funções novas (`ambiente_minimo`, `recusar_fork`, `recusar_publicacao`, `arquivos_alterados` e `ler_workflow`) são curtas, de um propósito, com nome que diz o que fazem e docstring que diz o porquê. A chamada em `main` fica na ordem certa: fork antes de qualquer `fetch`; recusa de publicação antes da worktree e do `gh auth token`.
+- Os comentários do `rodar_job` (`scripts/ci-local:341-342`) dizem o limite da lista branca sem vender proteção que ela não dá. Bom.
+
+### Testes
+- Cobrem o comportamento novo pelo caminho real: `main()` com `gh` e `rodar` simulados (fork recusado sem `fetch` nem worktree; `--confiar` passa; publicação recusada antes da bateria), ambiente do passo com variáveis plantadas, symlink real e repositório git descartável para renomeação, `git diff` que falha e PR só com README (o caso negativo, que evita portão que recusa tudo).
+- Os helpers restauram o estado (`os.environ`, `ci.gh_json`, `ci.rodar`) em `finally`.
+
+### Coerência entre documentação e código
+- `docs/devops/ci-local.md`, voltas 3 e 4 e "O que fica de fora": batem com o código (lista branca idêntica a `ENV_PERMITIDO` mais `LC_*`, os dois caminhos de `ARQUIVOS_SENSIVEIS`, `--no-renames -z`, falha fechada).
+- Docstring e `--help` dizem "AUTODECLARADO" e listam `--confiar`; há teste para isso.
+
+### Recomendado (não bloqueia; corrigir antes de abrir o PR, por quem escreveu os textos)
+- **R1. `scripts/ci-local:12`:** "com as mesmas variáveis de ambiente" ficou falso com a lista branca. Sugestão: "com o `env:` de cada passo sobre um ambiente mínimo".
+- **R2. `CHANGELOG.md:8` e `CONTRIBUTING.md:21-28`:** não citam `--confiar`, a recusa de PR de fork nem a recusa do `--publicar` para PR que altera `.github/workflows/` ou `tests/catraca.py`; o `CHANGELOG` ainda resume o ambiente como "token só nos passos que o declaram". Sugestão: uma frase em cada um.
+- **R3. `CONTRIBUTING.md:27` contra `recusar_publicacao`:** o texto diz que o `tech-lead` só mescla com o status `ci-local` verde, mas PR que altera a própria bateria nunca terá esse status. Sugestão: dizer o caminho para esse caso (rodar sem `--publicar` e anexar a saída no PR como evidência, que é o que a decisão A já prevê).
+- **R4. `docs/devops/ci-local.md:44`:** "reverter os dois commits" ficou velho; hoje são vários. Sugestão: "reverter os commits da branch".
+- **R5. `tests/test_ci_local.py` (`test_pedido_ao_gh_inclui_origem_da_cabeca`):** confere o texto-fonte de `main` com `inspect.getsource`; o `gh` simulado ignora os argumentos. Passa com a string num comentário. Sugestão: o `gh` simulado guardar os argumentos e o teste afirmar que `isCrossRepository` foi pedido.
+- **R6. `scripts/ci-local:70`:** `ARQUIVOS_SENSIVEIS[0]`/`[1]` por índice esconde a diferença entre prefixo e arquivo. Sugestão: duas constantes com nome (`PREFIXO_WORKFLOWS`, `CATRACA`).
+
+### Pendências (fora deste review)
+- Parecer de segurança: `commit` em 18aa46c, anterior ao 68b3aec; a re-assinatura é do `security-engineer`.
+- Parecer de QA ausente (`docs/qa/ci-local.md`), acusado pelo `forge-check`.
+
+### Parecer (volta 4)
+**Aprovado.** O código novo é legível, testado pelo caminho real e coerente com o parecer de autor. R1 a R4 são texto e pedem correção antes do PR; R5 e R6 podem ficar para depois. A decisão de tornar o `ci-local` check exigido continua com o dono.
 
 ## Re-review da volta 3 (HEAD ad4f734)
 Escopo: `git diff 00f7d78..ad4f734`. São os commits 1bb79fc (correção), b86137d (textos) e ad4f734 (parecer de autor). Arquivos tocados: `scripts/ci-local`, `tests/test_ci_local.py`, `docs/devops/ci-local.md` e `CHANGELOG.md`.
