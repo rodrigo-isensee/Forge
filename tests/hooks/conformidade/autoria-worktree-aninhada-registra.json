@@ -1,0 +1,39 @@
+{
+  "descricao": "PostToolUse de Write em docs/qa/ de uma worktree DENTRO da raiz da sessão (.claude/worktrees/x, layout do Claude Code): registra o caminho relativo a ela.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "worktree": "proj/.claude/worktrees/x",
+      "branch": "melhoria/x"
+    }
+  ],
+  "passos": [
+    {
+      "gravar": {
+        "{raiz}/.claude/worktrees/x/docs/qa/p1.md": "parecer\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.claude/worktrees/x/docs/qa/p1.md"
+    },
+    "agent_type": "forge:qa-engineer",
+    "hook_event_name": "PostToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "autoria.jsonl": {
+        "contem": [
+          "\"caminho\": \"docs/qa/p1.md\"",
+          "\"papel\": \"qa\""
+        ]
+      }
+    }
+  }
+}

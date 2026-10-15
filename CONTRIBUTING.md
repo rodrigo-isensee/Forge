@@ -18,5 +18,15 @@ scripts/verificar-contribuicao.sh
 - Não afrouxe `invariantes` nem `termos_proibidos_hash` de `tests/config.json` sem destacar no título do PR e explicar o motivo.
 - Nada que custe dinheiro entra sem autorização expressa do usuário.
 
+## CI local (`ci-local`)
+```bash
+scripts/ci-local <número do PR>              # roda a bateria e imprime uma linha por job
+scripts/ci-local <número do PR> --publicar   # grava o resultado como commit status `ci-local` no PR
+```
+- Roda os mesmos `run:` de `.github/workflows/ci.yml` e `catraca.yml` do PR, numa worktree temporária no sha exato da cabeça do PR, com `nice -n 10`. Custo zero (`R-CUSTO`).
+- Enquanto o GitHub Actions estiver sem cota, o status `ci-local` vale como portão local (decisão do dono, opção A, 2026-10-14): o `tech-lead` só mescla com ele verde.
+- Obrigatórios: todos os jobs, menos `workflows` (actionlint e zizmor só rodam se já estiverem no PATH). Job "pulado" porque não se aplica ao PR (`if:` do workflow) não reprova; pulado por ferramenta ausente (`claude`, `shellcheck`) num job obrigatório reprova (`failure`).
+- Limite conhecido: a catraca libera violações pelo rótulo `afrouxa-regra` só com execução do Actions registrada para o sha; sem Actions, o job `catraca` de PR com rótulo falha localmente, e a decisão fica com o dono.
+
 ## Texto do PR
 Siga `.github/pull_request_template.md`: projeto de origem, situação observada, o que muda e como medir o efeito. Descreva a situação sem dados do projeto, porque o PR pode ser público.

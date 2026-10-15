@@ -17,6 +17,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0008](0008-governanca-de-contribuicoes.md) | Governança de contribuições: portões para todos, catraca e identidade dos agentes |
 | [0009](0009-conformidade-dos-agentes.md) | Conformidade dos agentes por construção: sandbox, papéis, vigia (proposta) |
 | [0010](0010-agentes-devops-e-seguranca.md) | Agentes `devops-engineer` e `security-engineer`; parecer de segurança com gatilho (`R-SEGURANCA`) (proposta) |
+| [0011](0011-analisador-de-comandos-gramatica-positiva.md) | Analisador de comandos dos hooks: gramática positiva e falha fechada no que não modela (proposta) |
 
 ## Substituídas
 Nenhuma.
