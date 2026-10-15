@@ -1,0 +1,36 @@
+{
+  "descricao": "Clone do Forge sem parecer e sem --draft: barra e ensina o rascunho.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'feat: app' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: sem parecer aprovado, abra com gh pr create --draft; nenhum parecer"
+  }
+}

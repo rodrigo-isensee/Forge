@@ -822,13 +822,13 @@ class TextoDoPr(unittest.TestCase):
 
 
 class Pareceres(Base):
-    def parecer(self, tipo, ramo="pr", parecer="aprovado"):
+    def parecer(self, tipo, ramo="pr", parecer="aprovado", pedido="ped"):
         self.repo.commit()
         commit = self.repo.git("rev-parse", "--short", "HEAD").strip()
         pasta = "reviews" if tipo == "review" else "qa"
         extra = "revisor: forge:tech-lead" if tipo == "review" else "qa: forge:qa-engineer"
-        self.repo.escreve(f"docs/{pasta}/ped.md",
-                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: ped\nbranch: {ramo}\ncommit: {commit}\n"
+        self.repo.escreve(f"docs/{pasta}/{pedido}.md",
+                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
                           f"parecer: {parecer}\n{extra}\ndata: 2026-01-01\n---\n# parecer\n")
 
     def roda(self, base_ref="develop"):
@@ -874,6 +874,25 @@ class Pareceres(Base):
         self.assertEqual(len(self.roda()), 1)
         self.parecer("review", ramo="outra")
         self.assertEqual(len(self.roda()), 1)
+
+    def test_um_pedido_reprovado_barra_mesmo_com_outro_aprovado(self):
+        """Proposta anti-alucinação, seção 9, item 4: o primeiro pedido aprovado não pode aprovar a branch inteira.
+        Os dois nomes cobrem as duas ordens (o forge-check devolve os pedidos em ordem alfabética)."""
+        for aprovado, reprovado in (("a-ok", "b-ruim"), ("b-ok", "a-ruim")):
+            with self.subTest(aprovado=aprovado):
+                self.setUp()
+                self.repo.escreve("hooks/novo.py", "x = 1\n")
+                self.parecer("review", pedido=reprovado, parecer="reprovado")
+                self.parecer("review", pedido=aprovado)
+                achadas = self.roda()
+                self.assertEqual(len(achadas), 1)
+                self.assertIn(f"docs/reviews/{reprovado}.md", achadas[0])
+
+    def test_dois_pedidos_aprovados_passam(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", pedido="a")
+        self.parecer("review", pedido="b")
+        self.assertEqual(self.roda(), [])
 
     # --- O parecer sobrevive a merge da base e a commit de parecer (diff efetivo, ADR 0004 item 3) ---
     def mescla_base(self, rel="scripts/da-base.sh"):
