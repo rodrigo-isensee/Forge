@@ -3,6 +3,8 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões em [SemVer](https://semver.org/lang/pt-BR/).
 
 ## [Não publicado]
+### Adicionado
+- **`scripts/ci-local`:** roda localmente a bateria do CI (lê os `run:` dos workflows do PR, numa worktree temporária no sha da cabeça) e, com `--publicar`, grava o commit status `ci-local`; vale como portão local enquanto o Actions estiver sem cota (decisão do dono, opção A). Jobs obrigatórios: todos menos `workflows`; ferramenta ausente em job obrigatório reprova. Testes em `tests/test_ci_local.py`. INT e TERM limpam a worktree e saem com 130 e 143 sem traceback. Passos como o GitHub os roda (`bash -e`; `shell: bash` ativa `pipefail`), `if:` por avaliador próprio (sem `eval`), avisos para o que o leitor ignora e token só nos passos que o declaram.
 
 ### Corrigido
 - **Autoria de parecer gravado em outra worktree (requer o rótulo `afrouxa-regra` do dono, altera `hooks/conformidade.py`):** o hook `conformidade` só registrava a autoria se o parecer estivesse sob a raiz da sessão; gravado em outra worktree do mesmo repositório, ficava sem registro e o `forge-check pr` o recusava. Agora a raiz do parecer é a cópia de trabalho mais próxima, achada só pelo disco (sem git), e vale se for a da sessão ou uma worktree do mesmo repositório, dentro (`.claude/worktrees/<n>`) ou fora da raiz da sessão; o `.git` e o `gitdir` de volta precisam apontar um para o outro (pasta com `.git` forjado, link simbólico e outro repositório não valem) e o registro continua no `.forge/run/` da cópia principal.
