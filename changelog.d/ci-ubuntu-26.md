@@ -1,2 +1,0 @@
-### Alterado
-- **CI fixado em `ubuntu-24.04` (requer o rótulo `afrouxa-regra` do dono, altera `.github/`):** os três workflows deixam de usar `ubuntu-latest`, que o GitHub passa para a 26.04 em ondas entre 19/10 e 19/11/2026 (Python 3.12 para 3.14, shellcheck 0.9 para 0.11, runtime JS 22 para 24). Mesmo número de jobs e minutos; a migração para a 26.04 fica para uma janela própria. Parecer em `docs/devops/ci-ubuntu-26.md`.
