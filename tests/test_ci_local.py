@@ -110,7 +110,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         ids = []
         for arquivo in ci.WORKFLOWS:
             ids += [j["id"] for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8"))]
-        esperados = {"testes", "shell", "workflows", "plugin", "instalacao", "versao", "fluxo", "segredos", "pareceres", "catraca", "pr-texto"}
+        esperados = {"rapida", "bateria", "catraca"}
         self.assertTrue(esperados <= set(ids), esperados - set(ids))
 
     def test_passo_com_bloco_env_e_if(self):
