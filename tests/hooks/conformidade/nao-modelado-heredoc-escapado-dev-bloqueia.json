@@ -1,0 +1,20 @@
+{
+  "descricao": "ADR 0011 (item 2): \\<< não é heredoc no bash, mas o hook tirava o corpo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# p1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat \\<<'EOF'\ngit push origin main\nEOF"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não modela"
+  }
+}

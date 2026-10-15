@@ -19,8 +19,9 @@ import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, PLUGIN, bloquear, comandos, contrib, e_clone_do_forge, em_contrib, executar, git,
-                    mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
+                    em_contrib, executar, fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada,
+                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -135,6 +136,22 @@ REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x
 CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
+# Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
+# shell); nos demais subcomandos da lista, a opção que executa programa ou grava arquivo recusa, mesmo abreviada.
+LS_REMOTE_LEITURA = {"--heads", "--tags", "--branches", "-h", "-t", "-b", "--refs", "-q", "--quiet", "--exit-code",
+                     "--symref", "--get-url"}
+GIT_EXECUTA = ("--upload-pack", "--receive-pack", "--exec", "--config-env", "--ext-diff", "--textconv", "--filters",
+               "--show-signature")  # `--show-signature` roda o `gpg.program`
+# Opções de verdade que são prefixo de uma de `GIT_EXECUTA` (o git escolhe a exata); no `cat-file`, que não as tem, o
+# mesmo texto é abreviação de `--textconv`/`--filters`.
+GIT_EXATAS = {"--text", "--filter"}
+# `%G?`, `%GS`, `%+GK`... no `--format`/`--pretty` do git rodam o `gpg.program` para verificar a assinatura.
+FORMATO_ASSINATURA = re.compile(r"%[-+ ]?G")
+# `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
+TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
+DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
+                "o que exige escrita é de outro agente")
+
 ACOES = {"merge_integracao", "pr_criar", "pr_merge_integracao", "instalar_pacote", "instalar_congelado"}
 
 
@@ -230,6 +247,12 @@ def exporta(palavras):
         re.fullmatch(r"-[a-zA-Z]*x[a-zA-Z]*", p) for p in palavras[1:])
 
 
+def abreviacao_de(opcao, longas):
+    """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
+    nome = opcao.split("=", 1)[0]
+    return nome.startswith("--") and len(nome) > 3 and any(o.startswith(nome) for o in longas)
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -241,6 +264,8 @@ class Guarda:
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
+        leitura = politica.get("so_leitura")
+        self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
     # Respostas -------------------------------------------------------------------------------
     def pode(self, acao):
@@ -397,9 +422,16 @@ class Guarda:
         return Path(os.path.realpath(p if p.is_absolute() else pasta / p))
 
     def checar_escrita(self, caminho, pasta):
-        achado = self.caminho_barrado(self.resolver(self.expandir(caminho, pasta), pasta))
-        if achado:
-            self.barrar(*achado)
+        """Na dúvida, recusa: o que vem depois de uma substituição (`$(git rev-parse --show-toplevel)/docs/reviews/x`) é
+        conferido também a partir da raiz do projeto."""
+        alvos = [self.resolver(self.expandir(caminho, pasta), pasta)]
+        resto = caminho.rsplit(OPACO["$"], 1)[1].lstrip("/") if OPACO["$"] in caminho else ""
+        if resto:
+            alvos.append(self.resolver(resto, Path(self.h.raiz)))
+        for alvo in alvos:
+            achado = self.caminho_barrado(alvo)
+            if achado:
+                self.barrar(*achado)
 
     def expandir(self, caminho, pasta):
         """`$PWD`, `$CLAUDE_PROJECT_DIR` e `$HOME` (com ou sem chaves; as aspas o shlex já tirou) viram o caminho real."""
@@ -447,21 +479,35 @@ class Guarda:
 
     # Write, Edit, MultiEdit, NotebookEdit -------------------------------------------------------
     def arquivo(self, entrada):
+        if self.leitura:
+            self.barrar("R-CONFORMIDADE", f"escrita de arquivo pelo papel só de leitura ({self.papel})", DICA_LEITURA)
         caminho = entrada.get("file_path") or entrada.get("notebook_path")
         if isinstance(caminho, str) and caminho:
             self.checar_escrita(caminho, self.h.cwd())
 
     # Bash ----------------------------------------------------------------------------------------
-    def bash(self, comando, pasta, nivel=0):
+    def bash(self, comando, pasta, nivel=0, so_substituicoes=False):
+        """Confere a linha. `so_substituicoes`: a linha é uma palavra entre aspas (`"$(git log)"`), e só o conteúdo das
+        substituições dela é comando."""
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
+        if self.leitura and nivel:  # depois da gramática, só `$(`/crase entre aspas simples: o bash só roda por reavaliação
+            self.barrar("R-CONFORMIDADE", f"substituição dentro de aspas pelo papel só de leitura ({self.papel})",
+                        "escreva o nome literal em vez de $( ou crase, mesmo entre aspas (para procurar um trecho, "
+                        "grep -F 'trecho' <arquivo>, sem esses sinais)")
+        if self.leitura and nivel == 0:
+            self.gramatica_de_leitura(comando)
+        # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
+        # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
+        achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
         original = comando
         comando, corpos = tirar_heredocs(comando)
-        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # sem aspas, o divisor de comandos separaria o `$(...)`
+        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
         try:
             partes = list(comandos(comando))
         except ValueError:
+            self.nao_modelada(achado)
             if nivel:
                 self.ilegivel(comando, pasta)
             return  # aspas desbalanceadas: o próprio shell vai recusar
@@ -470,15 +516,48 @@ class Guarda:
             self.ambiente = {}
             self.linha = original
             self.sugerir_na_linha(original)
-        for palavras, destinos in partes:
+        contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
+
+        def contexto(sub):
+            if sub not in contextos:
+                pasta_de_fora, ramos_de_fora = contexto(sub[:-1])
+                contextos[sub] = (pasta_de_fora, dict(ramos_de_fora))
+            return contextos[sub]
+
+        for palavras, destinos, sub in partes:
+            if so_substituicoes and not sub:
+                continue
+            pasta_sub, ramos_sub = contexto(sub)
             for d in destinos:
-                self.checar_escrita(d, pasta)
-            pasta = self.segmento(palavras, pasta, ramos, nivel)
+                if self.leitura and d not in self.leitura["saidas"]:
+                    self.barrar("R-CONFORMIDADE", f"redirecionamento para {d} pelo papel só de leitura ({self.papel})",
+                                DICA_LEITURA)
+                self.checar_escrita(d, pasta_sub)
+            contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
+        pasta = contextos[()][0]
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
                 self.checar_texto(corpo)
+        self.nao_modelada(achado)
+
+    def nao_modelada(self, achado):
+        """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
+        if achado is not None:
+            self.barrar("R-CONFORMIDADE", f"`{achado}` com ação crítica: o hook não modela",
+                        "branch literal, um comando por linha, sem # entre linhas, "
+                        "$, crase, chaves nem case; heredoc só <<'FIM'")
+
+    def gramatica_de_leitura(self, linha):
+        """ADR 0011, item 1: antes de qualquer outra checagem, a linha do papel só de leitura precisa caber na gramática
+        positiva (`fora_da_gramatica_de_leitura`). O que ela não modela (`$`, crase, `\\`, `#`, chaves, globs,
+        redirecionamento, substituição, várias linhas) recusa, e a mensagem diz a forma explícita."""
+        sinal = fora_da_gramatica_de_leitura(linha)
+        if sinal is not None:
+            self.barrar("R-CONFORMIDADE", f"`{sinal}` fora da gramática do papel só de leitura ({self.papel})",
+                        "um comando por chamada; sinais só entre aspas simples; "
+                        "no lugar de echo $?: && echo contém || echo não contém")
 
     def sugerir_na_linha(self, linha):
         """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
@@ -524,12 +603,18 @@ class Guarda:
         while palavras and palavras[0] in CORPO_DE_LACO:  # `do rm ...`, `then ...`: o comando vem depois da palavra
             palavras = palavras[1:]
         atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
+        originais = sem_atribuicoes(palavras)
         try:
             palavras, lancadas = separar_lancadores(palavras)
         except ValueError:  # `env -S` com aspas abertas
             self.ilegivel(" ".join(palavras), pasta)
             return pasta
         atribuicoes += lancadas
+        if self.leitura:
+            if originais[:1] != palavras[:1]:
+                self.barrar("R-CONFORMIDADE", f"lançador `{Path(originais[0]).name}` repassa argumentos que o hook não vê "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+            self.checar_so_leitura(palavras, atribuicoes)
         for a in atribuicoes:
             if "core.hookspath" in a.lower():
                 self.barrar("R-VERIFY", "core.hooksPath por variável de ambiente", "não troque o caminho dos hooks")
@@ -539,9 +624,11 @@ class Guarda:
             nome, _, valor = a.partition("=")
             if nome in ("GH_REPO", "GIT_DIR") and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
-        for p in palavras:
-            if "$(" in p or "`" in p:
+        for p in palavras:  # substituição entre aspas: a palavra chega inteira e o conteúdo dela é conferido aqui
+            if "`" in p:
                 self.bash(p, pasta, nivel + 1)
+            elif "$(" in p.replace(OPACO["$"], ""):
+                self.bash(p, pasta, nivel + 1, so_substituicoes=True)
         if not palavras:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
@@ -603,6 +690,62 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
+
+    def checar_so_leitura(self, palavras, atribuicoes):
+        """Papel só de leitura (`so_leitura`): lista branca de comandos, depois da gramática (`gramatica_de_leitura`, que já
+        recusa expansão, substituição e redirecionamento). Variável na linha (`GIT_EXTERNAL_DIFF=x`), programa com caminho
+        (`./grep`), opção global do git que não seja `-C`/`--no-pager` (`-c core.pager=...`), `--output`, `test` fora de
+        `TESTE_LEITURA` e valor de opção do `forge-check` que começa com `-` recusam; o resto fora da lista também: na
+        dúvida, recusa."""
+        if atribuicoes:
+            self.barrar("R-CONFORMIDADE", f"variável na linha ({atribuicoes[0]}) pelo papel só de leitura ({self.papel})",
+                        DICA_LEITURA)
+        if not palavras:
+            return
+        prog, args = palavras[0], palavras[1:]
+        if prog == "git":
+            while args[:1] == ["--no-pager"] or (args[:1] == ["-C"] and len(args) > 1):
+                args = args[1:] if args[0] == "--no-pager" else args[2:]
+        chave = " ".join([prog, *args[:2 if prog == "gh" else 1]]) if prog in ("git", "gh", "forge-check") else prog
+        if any(abreviacao_de(a, ("--output",)) for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --output` grava arquivo (papel só de leitura: {self.papel})",
+                        DICA_LEITURA)
+        if prog == "test" and (len(args) != 2 or args[0] not in TESTE_LEITURA):
+            self.barrar("R-CONFORMIDADE", f"`test` fora da forma `test -e|-f|-d|-s <caminho>` (papel só de leitura: "
+                                          f"{self.papel})", "um teste por chamada, com um caminho")
+        if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave}` com valor de opção que começa com `-` (papel só de leitura: "
+                                          f"{self.papel})", DICA_LEITURA)
+        if prog == "gh" and any(a in ("--web", "-w") for a in args):
+            self.barrar("R-CONFORMIDADE", f"`{chave} --web` abre o navegador (papel só de leitura: {self.papel})", DICA_LEITURA)
+        if prog == "git":
+            self.git_so_leitura(chave, args[1:])
+        if "/" in prog or chave not in self.leitura["comandos"]:
+            self.barrar("R-CONFORMIDADE", f"`{chave}` fora da lista do papel só de leitura ({self.papel})", DICA_LEITURA)
+
+    def git_so_leitura(self, chave, args):
+        """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
+        `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas (`--textconv` e
+        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`)."""
+        for a in args:
+            if chave == "git ls-remote":
+                if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):
+                    self.barrar("R-CONFORMIDADE", f"`git ls-remote` com a opção `{a}`, fora das de leitura "
+                                                  f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+                if not a.startswith("-") and "::" in a:
+                    self.barrar("R-CONFORMIDADE", f"`git ls-remote` com transporte `{a.split('::', 1)[0]}::`, que executa "
+                                                  f"programa (papel só de leitura: {self.papel})", DICA_LEITURA)
+            elif a.startswith("--show-signature"):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa (o gpg) "
+                                              f"(papel só de leitura: {self.papel})",
+                            "tire a opção e peça o dado por --format, por exemplo --format='%h %s' (sem %G)")
+            elif abreviacao_de(a, GIT_EXECUTA) and (a.split("=", 1)[0] not in GIT_EXATAS or chave == "git cat-file"):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com `{a}`, opção que executa programa "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+            elif FORMATO_ASSINATURA.search(a):
+                self.barrar("R-CONFORMIDADE", f"`{chave}` com formato de assinatura (`%G`), que roda o gpg "
+                                              f"(papel só de leitura: {self.papel})",
+                            "use um formato sem %G, por exemplo --format='%h %s' (hash e assunto)")
 
     def da_atribuicao(self, atribuicoes, nome):
         """Valor de `NOME=` na própria linha do comando ou definido antes (`export`)."""
@@ -962,6 +1105,11 @@ def pacote_valido(cfg):
             and all(lista_de_textos(cfg[k]) for k in ("flags_congeladas", "so_arquivo") if k in cfg))
 
 
+def leitura_valida(v):
+    """`so_leitura` é opcional; presente, precisa das três listas (sem elas o papel só de leitura cairia em KeyError)."""
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
+
+
 def politica_valida(pol):
     """Forma de toda a política: o hook lê estas chaves sem checar, então qualquer desvio liberaria por erro interno."""
     def texto(v):
@@ -974,7 +1122,8 @@ def politica_valida(pol):
             and isinstance(acoes, dict) and ACOES <= acoes.keys() and all(lista_de_textos(q) for q in acoes.values())
             and isinstance(pacotes, dict) and all(pacote_valido(c) for c in pacotes.values())
             and lista_de_textos(pol.get("flags_congeladas"))
-            and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos))
+            and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos)
+            and leitura_valida(pol.get("so_leitura")))
 
 
 def politica():
@@ -1011,7 +1160,7 @@ def alvos_de_escrita(comando):
     comando, _ = tirar_heredocs(comando)
     alvos = []
     try:
-        for palavras, destinos in comandos(comando):
+        for palavras, destinos, _ in comandos(comando):
             alvos += destinos
             palavras = sem_lancadores(palavras)
             if palavras[:1] == ["tee"]:

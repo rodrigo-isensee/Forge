@@ -1,0 +1,29 @@
+{
+  "descricao": "Só o valor 1 libera: FORGE_CARGA_LIVRE=true não libera a carga alta.",
+  "env": {
+    "FORGE_CARGA_LIVRE": "true"
+  },
+  "proc": {
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "stderr": "só o dono: FORGE_CARGA_LIVRE=1",
+    "codigo": 2
+  }
+}
