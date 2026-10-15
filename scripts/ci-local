@@ -28,6 +28,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -311,6 +312,32 @@ def rodar(args, cwd=None, env=None, saida=False, timeout=None):
     return subprocess.run(args, cwd=cwd, env=env, text=True, capture_output=saida, timeout=timeout, check=False)
 
 
+class Interrompido(BaseException):
+    """INT ou TERM recebido: sobe até o `finally` do main (que limpa a worktree) e vira rc 128+sinal, sem traceback."""
+
+    def __init__(self, codigo):
+        super().__init__(codigo)
+        self.codigo = codigo
+
+
+def _ao_receber_sinal(numero, _frame):
+    raise Interrompido(128 + numero)
+
+
+def rodar_grupo(args, cwd=None, env=None, timeout=None):
+    """Roda o passo num grupo de processos próprio; ao sair por timeout, INT ou TERM, mata o grupo inteiro (os netos também)."""
+    p = subprocess.Popen(args, cwd=cwd, env=env, text=True, start_new_session=True)
+    try:
+        return subprocess.CompletedProcess(args, p.wait(timeout=timeout))
+    except BaseException:
+        try:
+            os.killpg(p.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        p.wait()
+        raise
+
+
 def ferramentas_ausentes(script):
     achadas = {ferr for palavra, ferr in FERRAMENTAS_DO_JOB.items() if re.search(rf"(^|[\s;&|(]){palavra}\s", script, re.M)}
     return sorted(f for f in achadas if not shutil.which(f))
@@ -347,7 +374,7 @@ def rodar_job(job, ctx, raiz, base_sha, tmp):
         try:
             # Como o GitHub: sem `shell:`, `bash -e {0}`; com `shell: bash`, `bash --noprofile --norc -eo pipefail {0}`.
             shell = ["bash", "--noprofile", "--norc", "-eo", "pipefail"] if passo.get("shell") == "bash" else ["bash", "-e"]
-            p = rodar(["nice", "-n", "10", *shell, "-c", script], cwd=raiz, env=env, timeout=1800)
+            p = rodar_grupo(["nice", "-n", "10", *shell, "-c", script], cwd=raiz, env=env, timeout=1800)
         except subprocess.TimeoutExpired:
             return resultado(nome, FALHOU, f"passo '{passo['nome']}' passou de 30 minutos", obrigatorio)
         if p.returncode:
@@ -421,6 +448,8 @@ def main(argv=None):
             for job in ler_jobs(texto):
                 resultados.append(rodar_job(job, ctx, raiz, base, tmp))
     finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)  # um segundo sinal não interrompe a limpeza
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         rodar(["git", "worktree", "remove", "--force", str(raiz)], cwd=repo_dir, saida=True)
         shutil.rmtree(tmp, ignore_errors=True)
         rodar(["git", "worktree", "prune"], cwd=repo_dir, saida=True)  # worktrees que os próprios jobs criaram em $RUNNER_TEMP
@@ -436,5 +465,15 @@ def main(argv=None):
     return 0 if estado == "success" else 1
 
 
+def executar():
+    signal.signal(signal.SIGINT, _ao_receber_sinal)
+    signal.signal(signal.SIGTERM, _ao_receber_sinal)
+    try:
+        return main()
+    except (Interrompido, KeyboardInterrupt) as e:
+        print("\nci-local: interrompido (a worktree temporária foi removida).", file=sys.stderr, flush=True)
+        return getattr(e, "codigo", 130)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(executar())

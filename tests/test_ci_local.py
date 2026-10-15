@@ -387,5 +387,75 @@ class PortoesDeSegurancaTest(unittest.TestCase):
         self.assertIn("--confiar", buf.getvalue())
 
 
+class SinalTest(unittest.TestCase):
+    """INT e TERM num processo real: limpam a worktree e a pasta temporária, rc 128+sinal, sem traceback."""
+
+    def setUp(self):
+        import json
+        import os
+        import subprocess
+        import tempfile
+        self.os, self.subprocess = os, subprocess
+        self.dir = Path(tempfile.mkdtemp(prefix="sinal."))
+        self.addCleanup(__import__("shutil").rmtree, self.dir, True)
+        origem, repo, binp, self.tmp = (self.dir / n for n in ("origem.git", "repo", "bin", "tmp"))
+        for d in (binp, self.tmp):
+            d.mkdir()
+        git = lambda *a, cwd=repo: subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True, text=True,
+                                                  env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                                                       "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+        self.git = git
+        git("init", "-q", "--bare", str(origem), cwd=self.dir)
+        git("init", "-q", "-b", "develop", str(repo), cwd=self.dir)
+        (repo / ".github" / "workflows").mkdir(parents=True)
+        (repo / ".github" / "workflows" / "ci.yml").write_text(
+            "name: CI\njobs:\n  lento:\n    name: lento\n    runs-on: ubuntu-latest\n    steps:\n"
+            "      - name: espera\n        run: |\n          echo comecou > \"$RUNNER_TEMP/../../comecou\"\n          sleep 120\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", "x")
+        git("remote", "add", "origin", str(origem))
+        git("push", "-q", "origin", "develop")
+        sha = git("rev-parse", "HEAD").stdout.strip()
+        git("push", "-q", "origin", f"{sha}:refs/pull/7/head")
+        pr = {"number": 7, "headRefOid": sha, "headRefName": "melhoria/x", "baseRefName": "develop", "body": "",
+              "author": {"login": "a"}, "state": "OPEN", "isCrossRepository": False, "headRepositoryOwner": {"login": "a"}}
+        gh = binp / "gh"
+        gh.write_text(f"#!/bin/sh\ncase \"$1 $2\" in\n 'pr view') cat <<'J'\n{json.dumps(pr)}\nJ\n;;\n"
+                      " 'repo view') echo '{\"nameWithOwner\": \"a/b\"}';;\n 'auth token') echo tok;;\nesac\n")
+        gh.chmod(0o755)
+        self.repo = repo
+        self.env = {**os.environ, "PATH": f"{binp}:{os.environ['PATH']}", "TMPDIR": str(self.tmp)}
+
+    def _interromper(self, sinal):
+        p = self.subprocess.Popen([str(RAIZ / "scripts" / "ci-local"), "7"], cwd=self.repo, env=self.env,
+                                  stdout=self.subprocess.PIPE, stderr=self.subprocess.STDOUT, text=True)
+        import time
+        marca = self.tmp / "comecou"
+        for _ in range(300):
+            if marca.exists() or any(self.tmp.glob("ci-local.*/**/comecou")) or p.poll() is not None:
+                break
+            time.sleep(0.1)
+        time.sleep(0.5)
+        self.assertIsNone(p.poll(), "o script terminou antes do sinal")
+        p.send_signal(sinal)
+        saida, _ = p.communicate(timeout=30)
+        return p.returncode, saida
+
+    def _confere(self, rc, saida, esperado):
+        self.assertEqual(rc, esperado, saida)
+        self.assertNotIn("Traceback", saida)
+        self.assertIn("interrompido", saida)
+        self.assertEqual(list(self.tmp.glob("ci-local.*")), [])
+        self.assertNotIn("ci-local.", self.git("worktree", "list").stdout)
+
+    def test_int_limpa_e_sai_130_sem_traceback(self):
+        import signal
+        self._confere(*self._interromper(signal.SIGINT), 130)
+
+    def test_term_limpa_e_sai_143_sem_traceback(self):
+        import signal
+        self._confere(*self._interromper(signal.SIGTERM), 143)
+
+
 if __name__ == "__main__":
     unittest.main()
