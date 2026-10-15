@@ -14,5 +14,5 @@
 - [ ] `python3 -m unittest discover -s tests -v` verde
 - [ ] `claude plugin validate . --strict` verde
 - [ ] `scripts/verificar-contribuicao.sh` sem achados
-- [ ] Linha nova em `## [Não publicado]` do CHANGELOG (versão não alterada)
+- [ ] Fragmento novo em `changelog.d/` (`bin/forge-changelog novo`; versão não alterada, `CHANGELOG.md` intocado)
 - [ ] Neutralidade: nada do projeto de origem; sem afrouxar `tests/config.json` (ou destacado no título)

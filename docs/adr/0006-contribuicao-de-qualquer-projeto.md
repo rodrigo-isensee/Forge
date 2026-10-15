@@ -22,7 +22,7 @@ Decisão do usuário: qualquer agente de qualquer projeto que perceber uma melho
 |---|---|---|
 | Clone único `~/Forge` (hoje) | Simples | Sessões paralelas trocam a branch umas das outras |
 | Worktree do clone do Forge por projeto | Economiza disco | Estado git compartilhado; foi a origem do vazamento da 0.3.0 |
-| Fragmentos de changelog (`changelog.d/<branch>.md`) montados na release | Zero conflito entre PRs | Mais ferramenta; adotar se os conflitos em `[Não publicado]` ficarem frequentes |
+| Fragmentos de changelog (`changelog.d/<branch>.md`) montados na release (**adotados depois**, ver emenda abaixo) | Zero conflito entre PRs | Mais ferramenta; adotar se os conflitos em `[Não publicado]` ficarem frequentes |
 | Manter a versão em cada PR | Já implementado | Conflito garantido entre contribuidores paralelos |
 
 ## Consequências
@@ -30,3 +30,6 @@ Decisão do usuário: qualquer agente de qualquer projeto que perceber uma melho
 - Mais difícil: a versão é decidida na release, não no PR; o `tech-lead` passa a classificar patch, minor ou major (ADR 0005) olhando o `[Não publicado]`.
 - Segurança: PR de fork roda com `pull_request` (sem segredos, permissão de leitura); nunca usar `pull_request_target` com checkout do código do PR. O hook `.githooks/pre-push` é só do lado do cliente; com mais colaboradores com escrita, a proteção real da `develop`, `homolog` e `main` precisa ser a proteção de branch do GitHub.
 - Risco: o texto do PR expor o projeto de origem se o repositório do Forge for público. O PR descreve a situação sem dados do projeto.
+
+## Emenda: fragmentos de changelog
+Os conflitos em `[Não publicado]` entre PRs paralelos levaram à adoção dos fragmentos: cada PR para a `develop` grava um arquivo novo em `changelog.d/` (`bin/forge-changelog novo`) em vez de editar o `CHANGELOG.md`; a release roda `bin/forge-changelog release <versão> <data>`, que os junta e apaga. A linha em `[Não publicado]` continua aceita na transição, e o PR de release exige `changelog.d/` vazio.

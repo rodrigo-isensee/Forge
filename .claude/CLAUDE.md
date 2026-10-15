@@ -14,7 +14,7 @@ Texto único de cada regra com ID em `docs/regras/` (ADR 0002); aqui, o resumo p
 - **Neutralidade** (`R-NEUTRO`): nada específico de um projeto (nomes, regras de negócio, stack fixa) entra em agentes, skills, docs ou modelos. O teste `Neutralidade` e a lista `termos_proibidos_hash` em `tests/config.json` garantem isso.
 - **Regras da fábrica protegidas por teste:** os trechos em `invariantes` (`tests/config.json`) não podem sumir; as regras com ID são verificadas na fonte e os agentes precisam citar o ID. Afrouxar ou remover um item exige destaque no título do PR e o motivo.
 - **Toda mudança passa pelos testes** (`python3 -m unittest discover -s tests -v`) e pela validação do plugin (`scripts/validar-plugin.sh`; o CI roda `claude plugin validate . --strict`).
-- **Versão:** toda mudança que chega à `main` sobe a versão em `.claude-plugin/plugin.json` (SemVer: correção → patch, melhoria compatível → minor, quebra para os projetos → major) e ganha entrada no `CHANGELOG.md`. O CI confere que as duas batem.
+- **Versão:** toda mudança que chega à `main` sobe a versão em `.claude-plugin/plugin.json` (SemVer: correção → patch, melhoria compatível → minor, quebra para os projetos → major) e ganha entrada no `CHANGELOG.md`. O CI confere que as duas batem. Cada PR para a `develop` registra a sua entrada num fragmento `changelog.d/<branch-sem-prefixo>.md` (`bin/forge-changelog novo <tipo> "<texto>"`) e não edita o `CHANGELOG.md`; a release junta os fragmentos (`bin/forge-changelog release <versão> <data>`) e os apaga.
 
 ## Estrutura
 | Pasta | O quê |

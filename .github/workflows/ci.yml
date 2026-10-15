@@ -124,33 +124,11 @@ jobs:
       - name: Instala o Forge num projeto vazio e inicializa
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: bash tests/e2e-instalacao.sh
-      - name: develop - mudança na fábrica exige linha nova em [Não publicado]
+      - name: develop - mudança na fábrica exige fragmento em changelog.d
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'develop' }}
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
-        run: |
-          mudou=$(git diff --name-only "$BASE" HEAD -- agents skills templates bin scripts docs .claude-plugin hooks | wc -l)
-          atual=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
-          base=$(git show "$BASE:.claude-plugin/plugin.json" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "$atual")
-          echo "arquivos da fábrica alterados: $mudou | versão base: $base | versão do PR: $atual"
-          if [ "$atual" != "$base" ]; then
-            echo "PR de release (versão mudou): a conversão de [Não publicado] é conferida na promoção para a main."
-          elif [ "$mudou" -gt 0 ]; then
-            git show "$BASE:CHANGELOG.md" > /tmp/changelog-base.md 2>/dev/null || : > /tmp/changelog-base.md
-            python3 - /tmp/changelog-base.md CHANGELOG.md <<'PY'
-          import re, sys
-
-          def nao_publicado(caminho):
-              texto = open(caminho, encoding="utf-8").read()
-              m = re.search(r"^## \[Não publicado\][^\n]*\n(.*?)(?=^## |\Z)", texto, re.M | re.S)
-              return [l.strip() for l in (m.group(1) if m else "").splitlines() if l.strip().startswith("-")]
-
-          novas = set(nao_publicado(sys.argv[2])) - set(nao_publicado(sys.argv[1]))
-          if not novas:
-              sys.exit("Acrescente ao menos uma linha em '## [Não publicado]' do CHANGELOG.md (não suba a versão no PR).")
-          print(f"ok: {len(novas)} linha(s) nova(s) em [Não publicado]")
-          PY
-          fi
+        run: python3 bin/forge-changelog conferir --base "$BASE"
       - name: main - release exige versão nova e changelog fechado
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'main' }}
         env:
@@ -172,6 +150,7 @@ jobs:
           if m and any(l.strip() for l in m.group(1).splitlines()):
               sys.exit("Converta '## [Não publicado]' em '## [" + sys.argv[2] + "] - data': a seção deve estar vazia na release.")
           PY
+          python3 bin/forge-changelog conferir-release
       - name: Nada pula degrau
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
