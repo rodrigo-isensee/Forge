@@ -4,6 +4,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.16.0] - 2026-10-16
+### Adicionado
+- **Conferente confiável, fatia K1 (texto e forma):** o modelo de pedido ganha IDs (`E1`) e `## Etapas` com papel; o brief é gravado em `docs/briefs/` e conferido contra o arquivo (`R-BRIEF`); PQ `cmd` passa a trazer `espera:` (`R-PROVA`); a entrega ganha `Base-sha:`; o conferente separa os modos brief e entrega, trata etapa de outro papel como `corte: etapa (ok)`, devolve `do autor` para PQ que ele não roda e só aceita anexo implícito sem remoção de linhas.
+- **Conferente K1, volta 2:** a entrega traz `Arquivo:` e o conferente lê o brief do arquivo; o Base-sha precisa ser ancestral da base e da branch; só a marca ou `(E<n>)` cobre um item do escopo; `corte: etapa (ok)` não reprova; `espera:` ganha `linhas>=N` (também no prompt do Jarvis); o conferente roda o `cmd` e tem rótulo para brief sem PQ conferível.
+### Alterado
+- **Processo (`R-FLUXO`, `R-WIP`, `R-REVIEW`, prompt-padrão do Jarvis, `engineering-practices`, `kanban-scrum`):** definição de pronto com o comando verde da raiz e a documentação atualizada; a branch de integração entra uma vez, antes do review (regra para o Forge e para os projetos), e depois do QA só com conflito real, com a revalidação de quem deu o parecer quando o patch diverge (`commit_vale`); agente que vira gargalo ganha mais instâncias iguais, cada uma na sua worktree, dentro de todo o `R-TETO`; a instância autora não revisa o próprio cartão; review e segurança que reprovam juntos devolvem ao autor um brief único.
+- **`forge-check kanban` (e hook `quadro`):** mais de um cartão do mesmo agente em "Em andamento" só passa com `worktree: <nome>` distinto na Obs. de cada um e no máximo 3 instâncias (ou `teto_maximo`, se menor); sem isso, o quadro é barrado.
+- **Hook `pesado`:** no clone do Forge, a suíte completa (`python3 -m unittest discover`) é tarefa pesada, uma de cada vez (`R-TETO`).
+- **Invariantes:** as travas das regras novas (teto, "a fila espera", revalidação pós-QA, comando de pronto da raiz) passam a ser protegidas por teste.
+
 ## [0.15.1] - 2026-10-15
 ### Corrigido
 - **Notas da 0.15.0:** passam a incluir a correção do `scripts/ci-local` e de `tests/test_ci_local.py` (#145), que tinha ficado fora da seção por o fragmento chegar à `main` depois de a branch da release ser aberta. Só o texto do `CHANGELOG.md`; o código já estava na 0.15.0.
