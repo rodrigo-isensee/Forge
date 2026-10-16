@@ -259,6 +259,7 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "Commite o parecer na branch revisada",
       "Fila de integração",
       "ordem de chegada",
       "quem deu o parecer revalida",
@@ -279,6 +280,7 @@
       "Por que o existente não basta"
     ],
     "agents/devops-engineer.md": [
+      "Commite o parecer na branch revisada",
       "O token do bot não tem o escopo `workflow`, de propósito",
       "para o \\*\\*dono\\*\\* executar",
       "`R-CUSTO`",
@@ -290,6 +292,8 @@
       "`R-CONTRIB`"
     ],
     "agents/security-engineer.md": [
+      "Commite o parecer na branch revisada",
+      "e só em `docs/security/`",
       "\\*\\*Defensiva e estática:\\*\\*",
       "\\*\\*Segredo nunca é exibido:\\*\\*",
       "\\*\\*não instala\\*\\* nada",
@@ -389,6 +393,7 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "Commite o parecer na branch revisada",
       "`R-QA`"
     ],
     "skills/qa-testing/SKILL.md": [
