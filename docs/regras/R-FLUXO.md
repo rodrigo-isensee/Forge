@@ -20,3 +20,7 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - Trabalho em branch própria (`feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug) criada a partir da branch de integração atualizada; o padrão é a `develop`, e o `CLAUDE.md` do projeto pode definir outra.
 - A integração chega à `main` por PR validado e mesclado pelo usuário (`R-MAIN`).
 - Só se commita o que está pronto.
+
+## No Forge e no projeto
+- **Atualize a branch com a integração uma vez, antes do review** (`git fetch` + merge da `develop`; no projeto, da branch de integração do `CLAUDE.md`), para que os pareceres de review e de QA valham para o conteúdo que será mesclado. Depois do QA só se atualiza se houver conflito real.
+- Merge da base sem conflito não muda o patch da entrega e não invalida parecer. Resolução de conflito que faz o patch divergir invalida os pareceres dos arquivos que ela tocou (`forge-check pr <pedido>`, `commit_vale`). Quem resolveu o conflito não decide o alcance: a ferramenta aponta os pareceres desatualizados, e quem deu o parecer revalida em proporção ao que mudou (revalidação incremental, `R-QA`) e grava o novo.

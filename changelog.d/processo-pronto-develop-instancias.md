@@ -1,0 +1,5 @@
+### Alterado
+- **Processo (`R-FLUXO`, `R-WIP`, `R-REVIEW`, prompt-padrão do Jarvis, `engineering-practices`, `kanban-scrum`):** definição de pronto com o comando verde da raiz e a documentação atualizada; a branch de integração entra uma vez, antes do review (regra para o Forge e para os projetos), e depois do QA só com conflito real, com a revalidação de quem deu o parecer quando o patch diverge (`commit_vale`); agente que vira gargalo ganha mais instâncias iguais, cada uma na sua worktree, dentro de todo o `R-TETO`; a instância autora não revisa o próprio cartão; review e segurança que reprovam juntos devolvem ao autor um brief único.
+- **`forge-check kanban` (e hook `quadro`):** mais de um cartão do mesmo agente em "Em andamento" só passa com `worktree: <nome>` distinto na Obs. de cada um e no máximo 3 instâncias (ou `teto_maximo`, se menor); sem isso, o quadro é barrado.
+- **Hook `pesado`:** no clone do Forge, a suíte completa (`python3 -m unittest discover`) é tarefa pesada, uma de cada vez (`R-TETO`).
+- **Invariantes:** as travas das regras novas (teto, "a fila espera", revalidação pós-QA, comando de pronto da raiz) passam a ser protegidas por teste.

@@ -90,6 +90,7 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 
 **3. Fluxo**
 - Entra em "Em andamento" com o autor original, sem passar por "Pronto para fazer". Depois: Code review, QA, e revisão de UX se houver interface (nenhuma coluna pulada, `R-QA`).
+- Review e segurança que reprovam em paralelo geram uma devolução só: o Jarvis monta um brief único com os achados dos dois e o autor corrige tudo de uma vez, antes de nova conferência.
 - Conta como retrabalho (métrica: cartão devolvido). O histórico registra `Code review -> Em andamento` no pai e `Entrada -> Em andamento` nos cartões de bug.
 - O cartão pai vai para "Bloqueado" (motivo: "aguardando bugs K-xxx", origem Em andamento) até todos os bugs bloqueantes, críticos e altos fecharem; só então volta e segue o fluxo com os bugs. Exceção de WIP do pai: `R-WIP` (senão o mesmo trabalho conta duas vezes). A idade do pai continua correndo (cycle time não para).
 - Bug aprovado em code review e QA fecha junto com o pai: não tem "Pronto" próprio, vai com o pai para "Aguardando sua validação"; o histórico registra "Fechado com K-xxx".
