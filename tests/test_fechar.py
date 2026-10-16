@@ -5,9 +5,13 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "bin" / "forge-fechar"
@@ -60,8 +64,10 @@ class Fechar(unittest.TestCase):
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
                         FORGE_FECHAR_TESTE="1")
+        self.env = sem_manutencao(self.env)
         self.remoto, self.proj = self.tmp / "remoto.git", self.tmp / "proj"
         self.git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
         self.git("clone", "-q", str(self.remoto), str(self.proj), cwd=self.tmp)
         (self.proj / "a").write_text("1\n")
         (self.proj / ".claude-plugin").mkdir()

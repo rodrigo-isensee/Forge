@@ -8,9 +8,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import CONFIGURACAO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -35,13 +39,17 @@ check your internet connection or https://githubstatus.com" >&2; exit 1; }
   "repo create")
     [ ! -e "$FAKE_DIR/sem-permissao" ] || { echo "HTTP 403: Forbidden (https://api.github.com/user/repos)" >&2; exit 1; }
     [ ! -d "$(remoto "$3")" ] || { echo "GraphQL: Name already exists on this account" >&2; exit 1; }
-    mkdir -p "$(dirname "$(remoto "$3")")"; git init -q --bare -b main "$(remoto "$3")" ;;
+    mkdir -p "$(dirname "$(remoto "$3")")"; git init -q --bare -b main "$(remoto "$3")"
+    @SEM_MANUTENCAO_NO_REMOTO@ ;;
   "repo clone")
     if [ -e "$FAKE_DIR/falha-clone" ]; then rm "$FAKE_DIR/falha-clone"; echo "network error" >&2; exit 1; fi
     git clone -q "$(remoto "$3")" "$4" 2>/dev/null ;;
   *) echo "gh falso: $*" >&2; exit 64 ;;
 esac
 """
+# o remoto recebe push do script, e o receive-pack não herda GIT_CONFIG_* (ver ambiente_git.py): grava as chaves nele
+GH_FALSO = GH_FALSO.replace("@SEM_MANUTENCAO_NO_REMOTO@", "; ".join(
+    f'git -C "$(remoto "$3")" config {chave} {valor}' for chave, valor in CONFIGURACAO))
 
 CLAUDE_FALSO = r"""#!/usr/bin/env bash
 printf 'cwd=%s\nargs=%s\n' "$PWD" "$*" >> "$FAKE_DIR/claude.log"
@@ -66,6 +74,7 @@ class NovoProjeto(unittest.TestCase):
                         GIT_CONFIG_GLOBAL=str(self.home / "gitconfig"),
                         PATH=f"{bin_falso}:{os.environ['PATH']}")
         self.env.pop("XDG_STATE_HOME", None)
+        self.env = sem_manutencao(self.env)
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -159,6 +168,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_nome_existente_pergunta_outro_e_nao_escreve_no_existente(self):
         subprocess.run(["git", "init", "-q", "--bare", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         pasta = self.home / "outro-app"
         r = self.forge("novo-projeto", "--sim", entrada="meu-app\nnão\noutro-app\n")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
@@ -205,6 +215,7 @@ class NovoProjeto(unittest.TestCase):
         entrada = f"meu-app\n"
         self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         preparar()
         r = self.forge("novo-projeto", "--sim", entrada=entrada + "outro\n")
         self.assertNotEqual(r.returncode, 0)
@@ -236,6 +247,7 @@ class NovoProjeto(unittest.TestCase):
         entrada = f"meu-app\n"
         self.assertNotEqual(self.forge("novo-projeto", entrada=entrada + "n\n").returncode, 0)
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         r = self.forge("novo-projeto", "--sim", entrada=entrada)
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertNotIn("repo create", self.log("gh.log"))
@@ -383,6 +395,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_repositorio_vazio_existente_e_oferecido_no_nome(self):  # BUG-09
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         r = self.forge("novo-projeto", entrada="meu-app\nsim\n")
         saida = self._saida(r)
         self.assertEqual(r.returncode, 0, saida)
@@ -392,6 +405,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_repositorio_existente_com_conteudo_nao_e_oferecido(self):  # BUG-09
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         semente = self.tmp / "semente"
         subprocess.run(["git", "clone", "-q", str(self.remoto()), str(semente)], env=self.env, check=True,
                        capture_output=True)
@@ -412,6 +426,7 @@ class NovoProjeto(unittest.TestCase):
 
     def test_prompts_de_sim_sem_colchete_duplicado(self):  # BUG-F2-06
         subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.remoto())], env=self.env, check=True)
+        remoto_sem_manutencao(self.remoto())
         r = self.forge("novo-projeto", entrada="meu-app\nsim\n")
         self.assertIn("Quer usar este repositório?", self._saida(r))
         self.assertNotRegex(self._saida(r), r"\] \[sim\]")
@@ -443,7 +458,7 @@ class PerfilEJarvis(unittest.TestCase):
     def test_forge_init_ignora_o_perfil_da_pessoa(self):
         tmp = Path(tempfile.mkdtemp(prefix="perfil-"))
         try:
-            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+            env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
             subprocess.run(["git", "init", "-q", str(tmp)], env=env, check=True)
             subprocess.run(["bash", str(RAIZ / "bin/forge-init"), "--nome", "Demo", str(tmp)],
                            env=env, check=True, capture_output=True)
