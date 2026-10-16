@@ -16,6 +16,8 @@ import time
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
 VOLTAR = RAIZ / "bin" / "forge-voltar-versao"
@@ -63,6 +65,7 @@ class Base(unittest.TestCase):
                         PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
                         FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
         self.env.pop("XDG_STATE_HOME", None)
+        self.env = sem_manutencao(self.env)
         self.git("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
         self.montar_projeto()
         self.escrever_home(".claude/plugins/installed_plugins.json",

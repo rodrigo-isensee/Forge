@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 AQUI = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")
 catraca = importlib.util.module_from_spec(spec)
@@ -61,7 +63,7 @@ class Repo:
         self.git("checkout", "-q", "-b", "pr")
 
     def git(self, *args):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
         return subprocess.run(["git", "-C", str(self.dir), *args], check=True, capture_output=True, text=True, env=env).stdout
 
     def escreve(self, rel, texto):

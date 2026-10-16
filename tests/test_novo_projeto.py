@@ -12,6 +12,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 
 GH_FALSO = r"""#!/usr/bin/env bash
@@ -66,6 +68,7 @@ class NovoProjeto(unittest.TestCase):
                         GIT_CONFIG_GLOBAL=str(self.home / "gitconfig"),
                         PATH=f"{bin_falso}:{os.environ['PATH']}")
         self.env.pop("XDG_STATE_HOME", None)
+        self.env = sem_manutencao(self.env)
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -443,7 +446,7 @@ class PerfilEJarvis(unittest.TestCase):
     def test_forge_init_ignora_o_perfil_da_pessoa(self):
         tmp = Path(tempfile.mkdtemp(prefix="perfil-"))
         try:
-            env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+            env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
             subprocess.run(["git", "init", "-q", str(tmp)], env=env, check=True)
             subprocess.run(["bash", str(RAIZ / "bin/forge-init"), "--nome", "Demo", str(tmp)],
                            env=env, check=True, capture_output=True)

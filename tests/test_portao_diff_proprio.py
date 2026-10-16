@@ -8,6 +8,8 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 AQUI = Path(__file__).resolve().parent
 fc = SourceFileLoader("forge_check_portao", str(AQUI.parent / "bin" / "forge-check")).load_module()
 
@@ -26,7 +28,7 @@ class PortaoDiffProprio(unittest.TestCase):
         self.git("switch", "-q", "-c", "ramo")
 
     def git(self, *args):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
         r = subprocess.run(["git", "-C", str(self.dir), "-c", "user.name=t", "-c", "user.email=t@t",
                             "-c", "commit.gpgsign=false", *args], capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
@@ -68,7 +70,7 @@ class PortaoDiffProprio(unittest.TestCase):
         self.base_avanca()
         # conflito só no changelog: as duas entradas ficam
         r = subprocess.run(["git", "-C", str(self.dir), "-c", "user.name=t", "-c", "user.email=t@t",
-                            "merge", "--no-edit", "develop"], capture_output=True, text=True)
+                            "merge", "--no-edit", "develop"], capture_output=True, text=True, env=sem_manutencao())
         self.assertNotEqual(r.returncode, 0)
         self.escreve("CHANGELOG.md", self.CHANGELOG_DOS_DOIS)
         self.commit("merge da base")

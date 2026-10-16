@@ -11,6 +11,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 
 
@@ -29,6 +31,7 @@ class Base(unittest.TestCase):
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.home / "gitconfig"),
                         PATH=f"{bin_falso}:{os.environ['PATH']}")
+        self.env = sem_manutencao(self.env)
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)

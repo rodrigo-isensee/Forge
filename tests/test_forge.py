@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -397,11 +398,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-    # O git 2.55 dispara `maintenance run --auto --detach` depois do commit; o repack em segundo plano escreve
-    # (maintenance.lock, tmp de pack) enquanto o tearDown apaga o repositório temporário e o rmtree falha.
-    env.update(GIT_CONFIG_COUNT="2", GIT_CONFIG_KEY_0="maintenance.auto", GIT_CONFIG_VALUE_0="false",
-               GIT_CONFIG_KEY_1="gc.auto", GIT_CONFIG_VALUE_1="0")
-    return env
+    return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 
 def git(*args, cwd):

@@ -13,6 +13,8 @@ import time
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 DOUTOR = RAIZ / "bin" / "forge-doutor"
 HOOK = RAIZ / "hooks" / "doutor.py"
@@ -39,6 +41,7 @@ class Base(unittest.TestCase):
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE, FORGE_VERIFICAR_VERSAO="0")
         self.env.pop("XDG_STATE_HOME", None)
+        self.env = sem_manutencao(self.env)
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", "-b", "main", str(self.remoto), cwd=self.tmp)

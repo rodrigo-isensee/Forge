@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "bin" / "forge-fechar"
 
@@ -60,6 +62,7 @@ class Fechar(unittest.TestCase):
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
                         FORGE_FECHAR_TESTE="1")
+        self.env = sem_manutencao(self.env)
         self.remoto, self.proj = self.tmp / "remoto.git", self.tmp / "proj"
         self.git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
         self.git("clone", "-q", str(self.remoto), str(self.proj), cwd=self.tmp)

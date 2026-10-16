@@ -8,14 +8,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ambiente_git import sem_manutencao
+
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-changelog"
 CABECALHO = "# Changelog\n\nFormato.\n\n## [Não publicado]\n\n## [0.1.0] - 2026-01-01\n### Adicionado\n- **Antigo:** x\n"
 
 
 def git(cwd, *args):
-    ambiente = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
-                "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
+    ambiente = sem_manutencao({**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null",
+                               "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
+                               "GIT_COMMITTER_EMAIL": "t@t"})
     return subprocess.run(["git", *args], cwd=cwd, env=ambiente, capture_output=True, text=True, check=True).stdout
 
 
