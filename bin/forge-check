@@ -176,6 +176,40 @@ def cmd_docs(raiz):
     return saida
 
 
+WORKTREE = re.compile(r"worktree:\s*([^\s;,|]+)")
+INSTANCIAS_MAX = 3  # o diretório principal e as 2 worktrees de R-TETO
+
+
+def teto_instancias(raiz):
+    """Instâncias simultâneas do mesmo agente: no máximo INSTANCIAS_MAX (R-TETO, 2 worktrees além do principal),
+    ou menos se `teto_maximo` ou `teto_agentes` de .forge/config.json for menor. Lê só o arquivo, sem medir carga."""
+    teto = INSTANCIAS_MAX
+    try:
+        config = json.loads((raiz / ".forge" / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return teto
+    for chave in ("teto_maximo", "teto_agentes"):
+        v = config.get(chave) if isinstance(config, dict) else None
+        if isinstance(v, int) and not isinstance(v, bool) and v >= 1:
+            teto = min(teto, v)
+    return teto
+
+
+def instancias_do_agente(secao, quem, cartoes, limite, teto):
+    """Violações de WIP de um agente em "Em andamento". Mais de `limite` cartões só passam como instâncias
+    paralelas: cada cartão com `worktree: <nome>` distinto na Obs. e no máximo `teto` instâncias (R-WIP, R-TETO)."""
+    q = len(cartoes)
+    if q <= limite:
+        return []
+    if q > max(teto, limite):
+        return [f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {max(teto, limite)} instâncias por agente (R-WIP, R-TETO)"]
+    nomes = [(WORKTREE.search(c[6]) or [None, None])[1] for c in cartoes]
+    if None in nomes or len(set(nomes)) < q:
+        return [f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {limite} por agente; instância extra exige "
+                "`worktree: <nome>` distinto na Obs. de cada cartão (R-WIP)"]
+    return []
+
+
 def cmd_kanban(raiz):
     arq = raiz / "KANBAN.md"
     if not arq.is_file():
@@ -190,10 +224,9 @@ def cmd_kanban(raiz):
         if wip and wip[1] == "agente":
             por = {}
             for r in linhas:
-                por[r[3]] = por.get(r[3], 0) + 1
-            for quem, q in por.items():
-                if q > wip[0]:
-                    saida.append(f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {wip[0]} por agente (R-WIP)")
+                por.setdefault(r[3], []).append(r)
+            for quem, cartoes in por.items():
+                saida.extend(instancias_do_agente(secao, quem, cartoes, wip[0], teto_instancias(raiz)))
 
     for n, linha in enumerate(arq.read_text(encoding="utf-8").split("\n"), 1):
         if linha.startswith("## "):

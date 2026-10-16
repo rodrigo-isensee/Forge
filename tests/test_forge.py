@@ -1587,6 +1587,42 @@ class ForgeCheck(unittest.TestCase):
                 self.assertIn(trecho, saida)
                 self.assertIn("(R-WIP)", saida)
 
+    def cartoes(self, *obs, agente="forge:tech-lead"):
+        linhas = "".join(f"| C{i} | a | p | {agente} | d | d | {o} |\n" for i, o in enumerate(obs, 1))
+        self.kanban("## Em andamento (WIP 1 por agente)\n{cab}" + linhas)
+
+    def test_instancias_worktrees_distintas_passam(self):
+        self.cartoes("worktree: principal", "worktree: wt-a", "worktree: wt-b")
+        self.assertEqual(self.check("kanban"), (0, ""))
+        self.cartoes("worktree: principal", "worktree: wt-a")
+        self.assertEqual(self.check("kanban"), (0, ""))
+
+    def test_cartoes_sem_worktree_barram(self):
+        for nome, obs in {"sem campo": ("", ""), "só um com campo": ("worktree: wt-a", ""),
+                          "worktree repetida": ("worktree: wt-a", "worktree: wt-a")}.items():
+            with self.subTest(nome):
+                self.cartoes(*obs)
+                codigo, saida = self.check("kanban")
+                self.assertEqual(codigo, 1)
+                self.assertIn("worktree", saida)
+                self.assertIn("por agente", saida)
+                self.assertIn("(R-WIP)", saida)
+
+    def test_instancias_acima_do_teto_barram(self):
+        quatro = ("worktree: a", "worktree: b", "worktree: c", "worktree: d")
+        self.cartoes(*quatro)
+        codigo, saida = self.check("kanban")
+        self.assertEqual(codigo, 1)
+        self.assertIn("limite 3 instâncias", saida)
+        self.assertIn("R-TETO", saida)
+        self.escrever(".forge/config.json", json.dumps({"teto_maximo": 2}))  # teto_maximo menor reduz o limite
+        self.cartoes("worktree: a", "worktree: b", "worktree: c")
+        codigo, saida = self.check("kanban")
+        self.assertEqual(codigo, 1)
+        self.assertIn("limite 2 instâncias", saida)
+        self.cartoes("worktree: a", "worktree: b")
+        self.assertEqual(self.check("kanban"), (0, ""))
+
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
         self.assertEqual(self.check("pr", "p1"), (0, ""))
