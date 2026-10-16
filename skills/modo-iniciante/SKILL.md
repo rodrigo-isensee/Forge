@@ -39,7 +39,7 @@ Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Ant
 Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
 > A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Eficiência: de 0 a 1 h a mais por demanda, média 0,5 h.
-> B) Mensagem no celular: chega mais rápido, mas cada mensagem custa dinheiro (vira uma decisão de custo à parte). Afrouxa o processo? Não. Eficiência: de 1 a 3 h a mais, média 2 h.
+> B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Eficiência: de 1 a 3 h a mais, média 2 h.
 > C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Eficiência: sem diferença.
 > Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
 
