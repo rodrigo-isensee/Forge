@@ -26,3 +26,4 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 ## Complemento: "tanto faz" e ordem ampla
 - **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.
 - **Ordem ampla não confirma.** "Resolva", "acabe tudo" e "pode fazer" só cobrem itens já marcados `confirmado` ou `delegado` no pedido. Item novo ou ato irreversível dentro dela volta ao usuário como pergunta, uma por vez.
+- **Item `técnico` não depende de ordem.** É decisão do time ("Decisões técnicas são do time", acima): executa sem ordem do usuário. `Suposição` e `no-protótipo` seguem fora da ordem ampla: ela não os confirma.
