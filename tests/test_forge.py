@@ -1644,6 +1644,20 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida)
         self.assertNotIn("docs/reviews/p1.md: parecer presente", saida)
 
+    def test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged(self):
+        """PA-4: a conferência compara os bytes do disco com os do HEAD; o índice não a engana."""
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        for marca in ("--skip-worktree", "--assume-unchanged"):
+            git("update-index", marca, "docs/qa/p1.md", cwd=self.tmp)
+            self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "editado\n")
+            saida = self.check("pr", "p1")
+            self.assertEqual(saida[0], 1, marca)
+            self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida[1])
+            git("update-index", "--no-" + marca[2:], "docs/qa/p1.md", cwd=self.tmp)
+            git("checkout", "--", "docs/qa/p1.md", cwd=self.tmp)
+            self.assertEqual(self.check("pr", "p1"), (0, ""), marca)
+
     def test_pr_com_ref_nao_olha_a_arvore_de_trabalho(self):
         git("switch", "-q", "-c", "develop", cwd=self.tmp)
         git("switch", "-q", "melhoria/x", cwd=self.tmp)
