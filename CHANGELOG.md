@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.18.0] - 2026-10-16
+### Adicionado
+- **Sobreposição, fila de integração e registro do quadro:** `forge-check sobreposicao` lista os arquivos em comum entre branches `melhoria/*`, a fila de integração da `develop` (R-FLUXO) entra um PR por vez e `forge-check movimento` grava hora e coluna de cada movimento do quadro
+### Alterado
+- Os 882 fixtures de hook de tests/test_hooks.py rodam em paralelo (ThreadPoolExecutor, até 4 trabalhadores); os 18 que dependem de PID ou da trava do hook pesado seguem em série. test_hooks caiu de 84-114 s (série) para 32-39 s (duas das três execuções; a terceira, 74 s, com a máquina ocupada).
+
 ## [0.17.0] - 2026-10-16
 ### Adicionado
 - **Conferente confiável, fatia K2:** `forge-check brief <arquivo> --pedido <pedido>` confere forma e corte do brief por regra (etapa de outro papel, corte com marca completa, PQ com tipo e `espera:`, quem confere cada PQ, hash do arquivo) e `forge-check brief gerar` monta os blocos fixos do brief; o conferente lista todos os achados de uma vez e o Jarvis se autoconfere antes de reenviar (`R-BRIEF`); `Base:` limitada às branches de integração, `Brief-sha256:` na entrega, `tests/config.json` nunca é anexo, `forma: modo ausente`; teste de que o fragmento de changelog tem o nome da branch; invariantes novos nos textos do conferente, do Jarvis e de `R-BRIEF`/`R-PROVA`.
