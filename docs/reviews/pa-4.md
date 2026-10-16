@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: pa-4
 branch: melhoria/pa-4-parecer-commitado
-commit: 4a28e23c1c4f05ba7e0270d5acf6364b18b21f3c
+commit: 7424d5c2a9ed7c74b62cbc19d3964f8a492d40d1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
@@ -39,3 +39,13 @@ Escopo: `b38cd283...4a28e23c` (base b38cd283fcb5; o autor não é este revisor).
 - `test_hooks` (fixtures de `tests/hooks/parecer/` com `gh pr create`) não foi rodado aqui; o QA e o CI o rodam.
 
 Parecer: **aprovado**, com dois recomendados que não bloqueiam.
+
+## Revalidação após a volta do autor
+Escopo: `4a28e23c..7424d5c2` em `bin/`, `tests/`, `agents/` e `changelog.d/` (commits `da2f537` fix e `7424d5c` docs; o `docs/security/pa-4.md` no mesmo intervalo é de outra delegação e não entra aqui).
+- **Recomendados tratados.** Ajuda do `pr` (`bin/forge-check:33`) e do `--ref` (`bin/forge-check:2056`) citam que, sem `--ref`, o parecer do disco precisa ser igual ao do HEAD. O rótulo "(PA-4)" saiu dos quatro agentes; o texto da regra ficou igual. `tests/config.json` não continha o rótulo nos invariantes e não mudou; o fragmento `changelog.d/` continua fiel e não mudou.
+- **Comparação de bytes em `parecer_commitado`** (`bin/forge-check:478-485`): `git show HEAD:<rel>` (`bruto=True`) contra `read_bytes()` do disco. O resto do comportamento se mantém: fora de repositório ou sem HEAD continua `True`; parecer ausente no HEAD, só no índice ou editado continua recusado; o único chamador (`:506`) só roda com `ref is None` e com `rel` vindo do disco. Única mudança de efeito: falha do git com HEAD legível agora recusa (antes liberava), como pediu a segurança (B-PA4-1); isso fecha, não afrouxa.
+- **Teste** `test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged`: cobre as duas marcas do índice e a volta ao verde depois de desfeitas. Vermelho antes do verde conferido: com o `bin/forge-check` de `4a28e23` numa cópia em `$TMPDIR`, o teste falha (`FAILED (failures=1)`).
+- **Ferramenta:** `python3 -m unittest tests.test_forge -q` no HEAD `7424d5c`, árvore limpa: `Ran 237 tests in 24.688s` / `OK`.
+- **Informativo:** com filtros de checkout (`core.autocrlf`, `smudge`) o disco pode diferir do blob sem edição e o parecer seria recusado; falha fechada e rara nos pareceres em Markdown; cartão só se aparecer.
+
+Parecer da revalidação: **aprovado**.
