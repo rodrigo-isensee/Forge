@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
+
+Uso: forge-testes [--base REF] [--listar] [--completa]
+  (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
+                não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
+  --base REF    base da comparação (padrão origin/develop)
+  --listar      mostra o plano (modo e módulos) e não roda nada
+  --completa    roda a suíte inteira, sem consultar o mapa
+
+Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
+um módulo mapeado que não existe ou um erro ao ler o git fazem rodar a suíte completa.
+Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
+data UTC, modo, módulos, duração e código de saída.
+
+Isto é ferramenta de iteração do autor. NÃO é portão: pre-push, review, QA, CI e o caminho para a main
+rodam a suíte inteira (`python3 -m unittest discover -s tests`). Nenhum deles chama este script.
+"""
+import argparse
+import os
+import re
+import subprocess
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+BASE_PADRAO = "origin/develop"
+LOG = Path(".forge/run/testes.log")
+SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
+
+# Mapa caminho -> módulos de teste. Primeira regra que casa vence; o caminho vira a união dos módulos.
+# Cada regra é (expressão regular sobre o caminho relativo à raiz, módulos em tests/). Prefira ser largo
+# a ser estreito: o que sobra sem regra roda a suíte completa. Mudar este mapa roda a suíte completa.
+FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro")
+CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor")
+MAPA = [
+    (r"tests/(test_[a-z0-9_]+)\.py", None),  # o próprio módulo de teste (caso especial abaixo)
+    (r"bin/forge-changelog", ("test_changelog",)),
+    (r"bin/forge-check", FORGE_CHECK),
+    (r"bin/forge-doutor", ("test_doutor",)),
+    (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge")),
+    (r"bin/(forge-atualizar|forge-upgrade|forge-voltar-versao|forge_versoes\.py)", ("test_atualizar",)),
+    (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer",)),
+    (r"bin/forge-sugerir", ("test_sugerir",)),
+    (r"bin/forge-testes", ("test_testes_tocados",)),
+    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge")),
+    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor")),
+    (r"scripts/ci-local", ("test_ci_local",)),
+    (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
+    (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
+    (r"(agents|skills|stacks|templates|docs|migrations|\.claude-plugin)/.*", CONTEUDO),
+    (r"(README|CONTRIBUTING)\.md", ("test_forge",)),
+    (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
+]
+# Sem regra (de propósito): .github/, .githooks/, tests/config.json, tests/*.py de apoio, fixtures, LICENSE.
+# O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
+ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
+MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
+
+
+def git(*args):
+    r = subprocess.run(["git", *args], capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def caminhos_alterados(base):
+    """Alterados desde o ancestral comum com `base` (commitados ou não) e os novos ainda não versionados."""
+    ancora = git("merge-base", base, "HEAD").strip()
+    nomes = set(git("diff", "--name-only", ancora).splitlines())
+    nomes |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
+    return sorted(n for n in nomes if n)
+
+
+def planejar(caminhos, raiz=Path(".")):
+    """Devolve ("dirigido", [módulos]) ou ("completo", [motivo])."""
+    modulos = set()
+    for caminho in caminhos:
+        if caminho in ALTERA_O_MAPA:
+            return "completo", [f"{caminho} altera o mapa ou a configuração"]
+        casou = None
+        for padrao, destino in MAPA:
+            if re.fullmatch(padrao, caminho):
+                casou = destino if destino is not None else (MODULO_DE_TESTE.fullmatch(caminho).group(1),)
+                break
+        if casou is None:
+            return "completo", [f"{caminho} sem mapa"]
+        modulos.update(casou)
+    ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
+    if ausentes:
+        return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
+    return "dirigido", sorted(modulos)
+
+
+def anotar(modo, modulos, segundos, codigo):
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with LOG.open("a", encoding="utf-8") as f:
+        f.write(f"{agora} modo={modo} modulos={','.join(modulos) or '-'} duracao={segundos:.1f}s saida={codigo}\n")
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido durante a iteração (não é portão).")
+    p.add_argument("--base", default=BASE_PADRAO)
+    p.add_argument("--listar", action="store_true")
+    p.add_argument("--completa", action="store_true")
+    args = p.parse_args(argv)
+
+    try:
+        os.chdir(git("rev-parse", "--show-toplevel").strip())
+    except RuntimeError as erro:
+        sys.exit(f"forge-testes: fora de um repositório git ({erro})")
+
+    if args.completa:
+        modo, detalhe = "completo", ["pedido --completa"]
+    else:
+        try:
+            modo, detalhe = planejar(caminhos_alterados(args.base))
+        except RuntimeError as erro:
+            modo, detalhe = "completo", [f"não consegui ler o git ({erro})"]
+        else:
+            if modo == "dirigido" and not detalhe:
+                print("forge-testes: nada alterado; nada a rodar.")
+                return 0
+
+    if modo == "completo":
+        print(f"forge-testes: suíte completa ({'; '.join(detalhe)})")
+        comando, modulos = SUITE_COMPLETA, []
+    else:
+        print(f"forge-testes: dirigido ({', '.join(detalhe)}). Os portões rodam a suíte inteira.")
+        comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
+    if args.listar:
+        return 0
+    inicio = time.monotonic()
+    codigo = subprocess.run(comando).returncode
+    anotar(modo, modulos, time.monotonic() - inicio, codigo)
+    return codigo
+
+
+if __name__ == "__main__":
+    sys.exit(main())
