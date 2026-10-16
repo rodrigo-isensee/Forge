@@ -24,6 +24,8 @@ Uma linha por ocorrência, em `## Registro de clareza` no fim do pedido, no mesm
 - `NAO-ENTENDI: <data> · <resumo>`: o usuário disse que não entendeu ou devolveu uma pergunta.
 - `ESCOPO+: <data> · <item>` e `ESCOPO-: <data> · <item>`: item acrescentado ou retirado depois do primeiro brief.
 - `DEVOLVIDA: <data> · <entrega> · <motivo>`: entrega devolvida por "não era isso".
+- `PERGUNTA: nenhuma` (ou a tag equivalente): registra zero ocorrência. Seção presente sem a tag também conta zero; sem a seção, é "não medido".
+- Tag e resumo nunca levam segredo nem dado de pessoa (token, senha, CPF, e-mail): se o usuário colou um por engano, o resumo diz só "colou um segredo" e o segredo não é copiado.
 
 ## Etapas
 O que pertence a outro papel ou momento (review, QA, push pelo dono). Um item por linha, `E1.1 (papel): ...`, onde o papel é o agente ou `dono`. Etapa de outro papel não é corte de escopo: no brief do agente destino aparece em "Fora do escopo" sem a marca.
@@ -32,16 +34,16 @@ O que pertence a outro papel ou momento (review, QA, push pelo dono). Um item po
 
 ## Fora do escopo
 O que o usuário não pediu, ou o que saiu do escopo depois. Item que estava no escopo e foi cortado leva a marca literal "Retira do escopo original", o trecho do escopo citado, a justificativa, a consequência e a decisão que o autoriza (`R-DECISAO`):
-- <item> · Retira do escopo original: "<trecho do escopo>" · motivo: <...> · consequência: <...> · decisão: <linha DECISÃO DO DONO abaixo ou ADR>
+- <item> · Retira do escopo original: "<trecho do escopo>" · motivo: <...> · consequência: <...> · decisão: <linha DECISÃO DO DONO abaixo ou ADR> · `confirmado`
 
 ## Suposições
 - <suposição> · `suposição` · base: <degrau da escada da R-DECISAO>
 
 ## Critério de pronto
-- PQ-1 <critério verificável> · prova: <sha | push | pr | run | cmd | arquivo | merge>
+- PQ-1 <critério verificável> · prova: <sha | push | pr | run | cmd | arquivo | merge> · `técnico`
 
 ## Decisões do usuário (registro literal)
 DECISÃO DO DONO (AAAA-MM-DD): <decisão, nas palavras do usuário>
 
 ## Registro de clareza
-PERGUNTA: AAAA-MM-DD · <resumo>
+<uma tag por linha, na forma acima; sem ocorrência, `PERGUNTA: nenhuma`>
