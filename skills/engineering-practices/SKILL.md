@@ -27,7 +27,7 @@ Mantidas pelo `tech-lead` e pelo `software-architect`. Ajustes específicos do p
 - Revisão de modelagem pelo tech lead e pelo arquiteto antes de escrever a migração.
 
 ## Definição de pronto
-- O autor só entrega com o comando de pronto do projeto (`CLAUDE.md`) verde, rodado da raiz do repositório, e com a documentação afetada pela mudança atualizada na mesma entrega (README, guias, ADR, comentários de contrato). Entrega sem isso volta ao autor antes do review, sem gastar rodada.
+- O autor só entrega com o comando de pronto do projeto (`CLAUDE.md`) verde, rodado da raiz do repositório, e com a documentação afetada pela mudança atualizada na mesma entrega (README, guias, ADR, comentários de contrato). Entrega sem isso volta ao autor antes do review; essa devolução não abre rodada de review (`docs/economia-de-tokens.md`, regra 1) nem conta como volta de `R-QA`, e quem a confere é o Jarvis pela prova `PQ-n` do brief (`R-PROVA`).
 
 ## Testes
 - Toda regra de cálculo com teste unitário e casos de borda documentados.
