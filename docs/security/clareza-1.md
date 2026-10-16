@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: clareza-1
 branch: melhoria/clareza-pacote-1
-commit: 4a83650c49af18bdf537b8b2394cc347cead94c8
+commit: 8e5b5e25bd34917141dc80940a1aa62f8fb6bd11
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -58,6 +58,15 @@ Escopo: `git diff b16d20f22a3f3d540ffdca42a70ec653ded0c0cf...4a83650c49af18bdf53
 - **Avaliação:** o modelo não pede segredo nem dado pessoal, e o pedido já grava decisões literais hoje, então não há caminho de ataque novo. O risco é um resumo de `NAO-ENTENDI:` copiar algo que a pessoa colou por engano no chat, como um token.
 - **Sugestão (opcional):** em "Tags de registro", uma linha dizendo que o resumo nunca leva segredo nem dado de pessoa.
 - **Dono:** autor da branch.
+
+## Revalidação após a volta do autor
+HEAD revisado: `8e5b5e25bd34917141dc80940a1aa62f8fb6bd11` (volta do autor em `4088593` e `8e5b5e2`; a revisão anterior cobriu `4a83650`). Li `git diff 69aa2ac..8e5b5e2` em `agents/ skills/ docs/regras/ templates/ tests/ changelog.d/`. **Parecer mantido: aprovado.**
+- **S1 tratado:** `skills/modo-iniciante/SKILL.md` (item 6) e `agents/jarvis.md` (linha 108) dizem que "decidam vocês" não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível, e remetem à `R-DECISAO`. Sem copiar o texto da regra.
+- **S2 tratado:** `tests/config.json` passa a proteger a lista das quatro exceções em `docs/regras/R-DECISAO.md` (custo, acesso, exceção a regra, ato irreversível), o trecho do modelo de pedido e a frase do `jarvis.md` e da skill.
+- **S3 tratado:** o modelo de pedido ganhou a linha "Tag e resumo nunca levam segredo nem dado de pessoa", com invariante.
+- **Sem afrouxamento:** em `docs/regras/` nenhuma linha removida. Em `tests/config.json` a única linha `-` é a lista da skill `modo-iniciante`, reescrita com os dois itens antigos mantidos e só acréscimos. A ordem ampla segue limitada a `confirmado`/`delegado`, e a frase nova do `jarvis.md` diz que o ato irreversível volta sempre como pergunta. A retirada da exceção do recibo ("salvo leitura...") aperta a regra, não a afrouxa.
+- **Testes:** `python3 -m unittest tests.test_clareza tests.test_forge -q`: 239 testes, OK.
+- Lacunas de ferramenta e riscos aceitos: sem mudança (nenhum).
 
 ## Plano em cartões
 - S1 e S2: um cartão para o autor da branch, de esforço P. Não bloqueiam este parecer. Se forem corrigidos nesta branch, o novo HEAD precisa de novo parecer (o `commit:` muda).
