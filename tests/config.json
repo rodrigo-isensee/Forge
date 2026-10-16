@@ -100,6 +100,10 @@
     "excecoes": []
   },
   "invariantes": {
+    "skills/kanban-scrum/SKILL.md": [
+      "forge-check movimento",
+      "Sem credencial"
+    ],
     "agents/conferente.md": [
       "origin/<Base>",
       "é corte real",
@@ -180,6 +184,8 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "bin/forge-check sobreposicao",
+      "forge-check movimento",
       "lista \\*\\*todos os achados\\*\\* de uma vez; corrija todos",
       "Autoconferência fixa do brief",
       "forge-check brief gerar",
@@ -253,6 +259,8 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "Fila de integração",
+      "ordem de chegada",
       "quem deu o parecer revalida",
       "não decide o alcance",
       "\\*\\*uma vez, antes do review\\*\\*",
@@ -336,6 +344,8 @@
       "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, antes do QA"
     ],
     "docs/regras/R-FLUXO.md": [
+      "Fila de integração na `develop`",
+      "ordem de chegada",
       "Depois do QA só se atualiza se houver conflito real",
       "Quem resolveu o conflito não decide o alcance",
       "quem deu o parecer revalida",
