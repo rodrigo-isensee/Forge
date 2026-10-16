@@ -1658,6 +1658,12 @@ class ForgeCheck(unittest.TestCase):
             git("checkout", "--", "docs/qa/p1.md", cwd=self.tmp)
             self.assertEqual(self.check("pr", "p1"), (0, ""), marca)
 
+    def test_ajuda_geral_cita_parecer_commitado_no_pr(self):
+        """PA-4 (BUG-1 do QA): `forge-check --help` lista o `pr` e cita a exigência de parecer commitado."""
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--help"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
+        self.assertRegex(r.stdout, r"(?s)\bpr\b[^\n]*\n?[^\n]*commitado")
+
     def test_pr_com_ref_nao_olha_a_arvore_de_trabalho(self):
         git("switch", "-q", "-c", "develop", cwd=self.tmp)
         git("switch", "-q", "melhoria/x", cwd=self.tmp)
