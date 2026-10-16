@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: ta-6-pa-3-pa-9
 branch: melhoria/ta-6-sobreposicao-fila-quadro
-commit: c7a2b6af58a96ebbe1e9f4566c7411af9dcd116b
+commit: f257b67d7c0405f133980382fff7b5f06bb8591b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -41,3 +41,10 @@ Escopo: `git diff origin/develop...c7a2b6a` (Base-sha 1fd122f), 8 arquivos. Foco
 ## Riscos aceitos e ferramentas
 - Riscos aceitos: nenhum; as duas observações são informativas e viram cartões sem aceite do dono.
 - Ferramentas: revisão estática do diff; execução local de `movimento` e `sobreposicao` em `$TMPDIR` com entradas incomuns (`|`, quebra de linha, ESC, `--base` com `--`). Lacuna: `gitleaks`, `zizmor` e `semgrep` não estão no PATH (nada varrido por eles; o diff não toca workflow nem traz segredo, conferido por leitura).
+
+## Revalidação após a volta do autor
+Revisado `git diff c7a2b6a..f257b67 -- bin/ agents/ tests/` (commits 2d94038 e f257b67); parecer anterior vale para c7a2b6a, este vale para f257b67. **Veredito mantido: aprovado.**
+- **I-TA6-1 corrigido:** `limpo` agora remove `[\x00-\x1f\x7f]` depois de colapsar o espaço em branco (`bin/forge-check:579`); a checagem de campo vazio usa o valor já limpo, então cartão só com controle continua recusado. Teste `test_remove_caracteres_de_controle`.
+- **I-TA6-2 corrigido:** `arq.is_symlink()` recusa com rc 1 antes de `mkdir` e de abrir (`:585-586`), inclusive link pendente; teste confirma que o alvo fica intacto.
+- **Sem efeito colateral:** o novo ajuste de quebra de linha final só lê 1 byte do próprio arquivo fixo e escreve `\n`, sem caminho vindo da entrada; `sobreposicao` não mudou (só ganhou teste de branch remota); em `agents/tech-lead.md` a fila de integração apenas mudou de seção (nenhum texto removido). Nenhum controle afrouxado; `hooks/`, `.github/` e `tests/config.json` fora deste intervalo.
+- **Evidência:** `python3 -m unittest tests.test_sobreposicao_quadro -q`: 15 testes, OK. Lacunas de ferramenta inalteradas (`gitleaks`, `zizmor`, `semgrep` fora do PATH).
