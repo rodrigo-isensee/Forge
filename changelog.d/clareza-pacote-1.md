@@ -1,2 +1,0 @@
-### Adicionado
-- Pacote 1 de clareza: marcas por item e tags de registro no modelo de pedido, recibo do pedido, formato fixo de pergunta com "Afrouxa o processo?" e custo de eficiência, "tanto faz" como item delegado, ordem ampla que não confirma item novo e medição por pedido na retrospectiva. Afrouxa o processo? Não: só acrescenta registro e confirmação. Eficiência (estimativa): de 1 a 3 minutos a mais por pedido (recibo e registro), média 2, contra menos retrabalho por entendimento errado (não medido ainda).
