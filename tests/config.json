@@ -101,6 +101,26 @@
   },
   "invariantes": {
     "agents/conferente.md": [
+      "origin/<Base>",
+      "é corte real",
+      "só por acréscimo",
+      "forma: brief diferente do arquivo",
+      "ou `escopo: brief diferente do arquivo`",
+      "(o arquivo mudou depois da conferência)",
+      "ao menos um PQ",
+      "não da cópia do Jarvis",
+      "existe só na entrega",
+      "liste \\*\\*todos os achados\\*\\* de uma vez",
+      "forge-check brief <arquivo> --pedido <pedido>",
+      "forma: modo ausente",
+      "escopo: base fora do fluxo",
+      "--no-renames",
+      "`tests/config.json` nunca é anexo",
+      "Brief-sha256: <o hash completo",
+      "com `Brief-sha256:`: diferente",
+      "forma: Arquivo fora do padrão",
+      "corte: trecho fora do pedido",
+      "`rc=0 e <espera de saída>`",
       "model: haiku",
       "\\*\\*só leitura\\*\\*",
       "não cumpriu",
@@ -160,6 +180,11 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "lista \\*\\*todos os achados\\*\\* de uma vez; corrija todos",
+      "Autoconferência fixa do brief",
+      "forge-check brief gerar",
+      "Brief-sha256",
+      "nunca a própria branch",
       "brief único",
       "worktree: <nome>` na Obs\\.",
       "comando de pronto do projeto verde, rodado da raiz do repositório",
@@ -408,6 +433,8 @@
       "na entrega, `pendente:`"
     ],
     "docs/regras/R-PROVA.md": [
+      "fora da lista de comandos do conferente",
+      "rc=0 e <espera de saída>",
       "tipo de prova",
       "Provas:",
       "copiada da saída de uma ferramenta",
@@ -419,6 +446,10 @@
       "\"do autor\""
     ],
     "docs/regras/R-BRIEF.md": [
+      "todos os achados",
+      "Autoconferência do Jarvis",
+      "forge-check brief gerar",
+      "só com o que o arquivo delas diz",
       "\\*\\*antes\\*\\* de chegar ao agente",
       "literal, exatamente como será enviado",
       "corte de escopo marcado",
