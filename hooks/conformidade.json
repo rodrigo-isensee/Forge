@@ -74,7 +74,7 @@
     "papeis": ["conferente"],
     "comandos": ["git log", "git show", "git diff", "git ls-remote", "git rev-parse", "git merge-base", "git status", "git cat-file",
                  "gh pr view", "gh pr list", "gh pr checks", "gh pr diff", "gh run list", "gh run view",
-                 "forge-check pr", "forge-check docs",
+                 "forge-check pr", "forge-check docs", "forge-check brief",
                  "ls", "test", "grep", "cat", "head", "tail", "wc", "cut", "tr", "echo", "pwd", "cd", "true"],
     "saidas": ["/dev/null", "/dev/stdout", "/dev/stderr"]
   }
