@@ -34,7 +34,7 @@ Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Ant
 3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
 4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção: quanto tempo a mais ou a menos por demanda, em faixa e média, ou "não medido".
 5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
-6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`).
+6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
 
 Exemplo neutro:
 > Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.

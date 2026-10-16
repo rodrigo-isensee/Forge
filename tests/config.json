@@ -165,7 +165,7 @@
     "hooks/conformidade.py": [
       "def checar_so_leitura",
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -186,6 +186,9 @@
     "agents/jarvis.md": [
       "bin/forge-check sobreposicao",
       "Recibo antes de acionar o time",
+      "Marque cada item de escopo, fora do escopo e critério de pronto",
+      "que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível",
+      "não contradiz o teste de bloqueante",
       "vou fazer: \\.\\.\\.; não vou fazer: \\.\\.\\.; é isso\\?",
       "frase literal entre aspas com as duas leituras",
       "Ordem ampla não confirma:\\*\\* diante de",
@@ -255,6 +258,9 @@
       "### Tags de registro",
       "`PERGUNTA: <data>",
       "## Registro de clareza",
+      "Custo, acesso, exceção a regra e ato irreversível nunca são delegáveis",
+      "`PERGUNTA: nenhuma`",
+      "nunca levam segredo nem dado de pessoa",
       "Retira do escopo original",
       "PQ-1",
       "DECISÃO DO DONO",
@@ -450,6 +456,7 @@
       "Complemento: \\\"tanto faz\\\" e ordem ampla",
       "viram item `delegado`",
       "nunca são delegáveis assim",
+      "\\*\\*custo\\*\\* \\(`R-CUSTO`\\), \\*\\*acesso\\*\\*, \\*\\*exceção a regra\\*\\* \\(`R-CONFORMIDADE`\\) e \\*\\*ato irreversível\\*\\*",
       "Ordem ampla não confirma",
       "`confirmado` ou `delegado`",
       "\\*\\*as opções\\*\\*",
