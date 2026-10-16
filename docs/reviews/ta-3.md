@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: ta-3
 branch: melhoria/ta-3-testes-tocados
-commit: 98bd38a9f2bc11064942727d4838cadf7de47ad2
-parecer: reprovado
+commit: 604b2a90c509915c39becadbd5f56cb47cbd195e
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
 ---
@@ -31,6 +31,16 @@ Veredito (rodada 1, sobre `98bd38a`): **REPROVADO** por 1 achado que bloqueia: o
 2. **bin/forge-testes:72** · problema: `git diff --name-only` detecta renomeação por padrão (diff.renames) e lista só o nome novo. Se um arquivo mapeado for movido, os módulos do caminho antigo não entram no plano. · sugestão: `git("diff", "--name-only", "--no-renames", ancora)`, que lista os dois lados. Um teste com `git mv` no repositório de brinquedo. · severidade: recomendado.
 
 3. **bin/forge-testes:56** · problema: a lista "Sem regra (de propósito)" não cita `tests/hooks/`, `tests/migracoes/` e `tests/transcricoes/` (fixtures), nem `CLAUDE.md`/`.gitignore` na raiz. Todos caem corretamente na completa, mas o comentário parece exaustivo e não é. · sugestão: escrever "por exemplo" ou completar a lista. · severidade: recomendado.
+
+## Revalidação após a volta do autor
+Rodada 2 sobre `604b2a9`. Diff lido: `98bd38a..604b2a9 -- bin/ tests/ docs/ changelog.d/`. Veredito: **APROVADO**. Os 3 achados foram corrigidos e cada um tem teste.
+- Achado 1 (bloqueia), corrigido. `test_atualizar` entra em `bin/forge-doutor`, `bin/forge`, `bin/forge-upgrade`, `hooks/doutor.py` (regra própria antes de `hooks/.*`), `migrations/`, `templates/` e `.claude-plugin/` (`PUBLICADO`). `test_hooks` entra em `stacks/` e `.claude-plugin/`. Saída real de `planejar`: `migrations/0.7.0/migrar`, `bin/forge-doutor`, `hooks/doutor.py` e `.claude-plugin/plugin.json` incluem `test_atualizar`; `stacks/node-react/pesados.json` inclui `test_hooks`. Testes `test_caminhos_do_forge_publicado_incluem_test_atualizar` e `test_stacks_incluem_test_hooks`.
+- Teste novo `MapaCobreOQueOsTestesLeem`: confere cada `RAIZ / "..."` que aponta para um arquivo existente e exige pelo menos 40 casos. Para provar que ele funciona, rodei a mesma conferência contra o mapa de `98bd38a`: ela acha 10 buracos (os de `test_atualizar`, `test_hooks` em stacks, `bin/forge-upgrade` sem `test_doutor`/`test_forge` e os alvos de `test_testes_tocados`). Contra o mapa atual, acha 0. Limite conhecido: o teste não vê leituras feitas sem `RAIZ / "..."`. O mapa continua largo e falha fechado, então o limite é aceitável.
+- Alargamento: `test_forge` entra nas regras de `bin/` e `scripts/`. `test_testes_tocados` entra em `bin/forge-check`, `hooks/.*`, `scripts/ci-local` e `docs/economia-de-tokens.md`, que são os alvos do teste "não é portão" e da regra 5. `IMPORTADO_POR` faz `tests/test_forge.py` rodar também `test_hooks` e `test_guarda_git`, os únicos que importam outro módulo de teste (`grep 'from test_forge'`). O efeito só vale quando o caminho é o próprio módulo de teste. Sem efeito colateral: a falha fechada fica igual (sem regra, `ALTERA_O_MAPA`, módulo ausente, erro do git) e os casos antigos só ganharam módulos.
+- Achado 2 (recomendado), corrigido: `--no-renames` (bin/forge-testes:92). Testes com `git mv`: `tests/config.json` movido para `docs/` cai na completa, e um caminho mapeado movido leva os módulos do caminho antigo. Isso também fecha o B-TA3-1 da segurança. O B-TA3-2 está fechado: `bin/forge-check` agora está nos alvos do teste "não é portão".
+- Achado 3 (recomendado), corrigido: o comentário diz "por exemplo" e cita as fixtures de `tests/`, `CLAUDE.md`, `.claude/` e `.gitignore`.
+- O comportamento descrito no fragmento `changelog.d/` e na regra 5 não mudou, então os textos seguem corretos.
+- Execução: `python3 -m unittest tests.test_testes_tocados -q` dá `Ran 27 tests in 0.609s OK`. A suíte completa e o validar-plugin ficam para o QA e o CI (fora deste brief).
 
 ## Segurança, devops e QA
 A segurança roda em paralelo (`docs/security/`), e este parecer não a refaz. O script não mexe em pipeline nem em CI, então não há parecer de devops. O QA vem depois deste parecer e do de segurança.
