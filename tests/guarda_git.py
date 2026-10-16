@@ -7,14 +7,18 @@ import difflib
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 
 
 def config_comum(pasta=RAIZ):
     """Caminho do `.git/config` comum (`git rev-parse --git-common-dir`) ou None fora de um repositório."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})  # pasta pode ser temporária
     r = subprocess.run(["git", "-C", str(pasta), "rev-parse", "--path-format=absolute", "--git-common-dir"],
                        capture_output=True, text=True, env=env, timeout=30)
     return Path(r.stdout.strip()) / "config" if r.returncode == 0 and r.stdout.strip() else None
