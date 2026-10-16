@@ -3,8 +3,8 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: ta-5
 branch: melhoria/ta-5-fechamento
-commit: 27f38686da3f52bcbd5cdd3aade87fc42e8c45ee
-parecer: reprovado
+commit: 24883170f8fd067b5ba1efff2f3180a98707e4d1
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
 ---
@@ -16,7 +16,7 @@ Escopo: `git diff 15660a346640c165ddbe322a03511c1448db1a41...27f3868`, 6 arquivo
 `R-SEGURANCA`: script novo que mescla PR e apaga branch e worktree (controle do fluxo, `R-FLUXO`, `R-MAIN`).
 
 ## Resumo
-**Veredito: reprovado**, por um achado médio (M-TA5-1) que quebra a garantia "nunca mescla na main"; correção de duas linhas. Dois achados baixos e duas observações informativas. Os testes do autor passam (`python3 -m unittest tests.test_fechar`: 10 testes, OK).
+**Veredito atual: aprovado** em `2488317` (ver "Revalidação após a volta do autor", no fim). Veredito original em `27f3868`: reprovado, por um achado médio (M-TA5-1) que quebra a garantia "nunca mescla na main"; correção de duas linhas. Dois achados baixos e duas observações informativas. Os testes do autor passam (`python3 -m unittest tests.test_fechar`: 10 testes, OK).
 
 ## Conferido
 - **Main recusada na entrada.** `--base` só aceita `origin/develop` e `origin/homolog` (`bin/forge-fechar:34-39`); `main` e `origin/main` morrem com `R-MAIN`, e `--ref` não pode ser `main|develop|homolog` (`:33`). O alvo vem só dessa tabela (`:35-36`), nunca da entrada.
@@ -60,3 +60,14 @@ Escopo: `git diff 15660a346640c165ddbe322a03511c1448db1a41...27f3868`, 6 arquivo
 ## Riscos aceitos e ferramentas
 - Riscos aceitos: nenhum. M-TA5-1 e B-TA5-1 devem ser corrigidos; os demais podem virar cartão.
 - Ferramentas: revisão estática do diff; execução do `--dry-run` e de entradas incomuns de `--ref` em repositório temporário (o script nunca rodou sem `--dry-run` contra o GitHub real); testes do autor. Lacuna: `gitleaks`, `zizmor`, `shellcheck` e `semgrep` não estão no PATH (nada varrido por eles; o diff não toca workflow nem traz segredo, conferido por leitura).
+
+## Revalidação após a volta do autor
+Escopo: `git diff 27f3868..2488317 -- bin/ tests/ docs/` (commits `d404695` e `2488317`). `python3 -m unittest tests.test_fechar`: 22 testes, OK.
+- **M-TA5-1, corrigido.** Passo 3 lê `baseRefName` e para se a base do PR aberto não é o alvo (`bin/forge-fechar:96-97`); passo 6 relê a base e recusa `main` e qualquer outra (`:135-137`). Testes `test_pr_aberto_para_a_main_e_recusado_no_passo_3` e `test_base_que_vira_main_antes_do_merge_e_recusada` (nenhum `pr merge` chamado).
+- **B-TA5-1, corrigido.** `gh pr merge ... --match-head-commit "$remoto_sha"` (`:141`); o `gh` falso recusa head diferente, como o GitHub. Testes `test_commit_novo_na_branch_durante_a_espera_impede_o_merge` e `test_merge_passa_quando_o_head_confere`.
+- **B-TA5-2, corrigido.** `FORGE_CHECK`/`FORGE_GH` só valem com `FORGE_FECHAR_TESTE=1`; sem ela, aviso em stderr e comandos reais (`:44-53`). Teste `test_variaveis_de_teste_sem_a_trava_sao_ignoradas_com_aviso`.
+- **I-TA5-1, corrigido.** `git check-ref-format --branch` na entrada (`:36`) e `push --delete "refs/heads/$ref"` (`:146`). Testes `test_ref_invalido_e_recusado` (`-x`, `a..b`, `a b`, nenhuma chamada) e `test_limpeza_apaga_a_branch_remota_por_refs_heads`.
+- **I-TA5-2, registrado** como limite em `docs/fechamento-integrador.md` (passo 5); o controle do rótulo segue no CI exigido pelo passo 4.
+- **Mudanças novas, sem efeito colateral de segurança:** `--base origin/homolog` saiu (a promoção fica manual: menos superfície; conferido `--dry-run --base origin/homolog` recusado); o passo 5 agora falha fechado em erro de leitura do `gh`; "no checks reported" conta como pendente só até `--espera` (sem laço infinito; teste `test_sem_checks_ate_o_limite_para_no_passo_4`); `gh pr ready` em rascunho só depois dos pareceres do passo 1 e dos checks do passo 4 (não dispensa portão); o script recusa rodar fora do repositório do Forge (`:68-72`, `R-CONTRIB`).
+- **Residual (informativo, sem ação):** `FORGE_FECHAR_TESTE=1` deixada no ambiente junto com `FORGE_CHECK` reabre B-TA5-2, mas exige duas variáveis explícitas; `FORGE_FECHAR_INTERVALO` continua honrada sem a trava (só muda o ritmo de leitura). `agents/tech-lead.md:29` ainda diz "merge pelo método da base"; é texto, não muda comportamento (ao `tech-lead`, opcional).
+- Ferramentas: as mesmas lacunas (`gitleaks`, `zizmor`, `shellcheck`, `semgrep` fora do PATH).
