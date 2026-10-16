@@ -48,7 +48,7 @@ Escopo: `git diff b16d20f22a3f3d540ffdca42a70ec653ded0c0cf...4a83650c49af18bdf53
 ### S2 (baixa): o invariante protege a frase das exceções, mas não a lista
 - **Evidência:**
   - `tests/config.json`, chave `docs/regras/R-DECISAO.md`, guarda `nunca são delegáveis assim` e `viram item \`delegado\``.
-  - A lista em si (`**custo** (\`R-CUSTO\`), **acesso**, **exceção a regra** (\`R-CONFORMIDADE\`) e **ato irreversível**`, `docs/regras/R-DECISAO.md:27`) não está protegida.
+  - A lista das quatro exceções em si (`docs/regras/R-DECISAO.md:27`, em negrito, item por item) não está protegida.
 - **Caminho de ataque:** uma edição futura tira um item da lista, por exemplo "**acesso**", e mantém a frase. Os testes passam e "acesso" vira delegável sem destaque no título do PR, contornando a política de afrouxamento.
 - **Correção mínima:** acrescentar ao invariante o trecho literal da lista, ou um trecho por item (`\\*\\*custo\\*\\*`, `\\*\\*acesso\\*\\*`, `\\*\\*exceção a regra\\*\\*`, `\\*\\*ato irreversível\\*\\*`). O mesmo vale para `_modelo.md:16` ("Custo, acesso, exceção a regra e ato irreversível nunca são delegáveis").
 - **Esforço:** P. **Dono:** autor da branch (tech-lead E1).
