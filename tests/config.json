@@ -115,7 +115,24 @@
       "\\*\\*última linha\\*\\* é o veredito",
       "`R-PROVA`",
       "`R-BRIEF`",
-      "`R-CUSTO`"
+      "`R-CUSTO`",
+      "use só a seção Modo brief",
+      "use só a seção Modo entrega",
+      "corte: etapa \\(ok\\)",
+      "Base-sha",
+      "numstat",
+      "escopo: anexo com remoção",
+      "pendente:",
+      "sem espera",
+      "só a marca ou a citação",
+      "Base-sha fora da branch",
+      "escopo: brief sem arquivo",
+      "linhas>=N",
+      "menos `não verificável` e `corte: etapa \\(ok\\)`",
+      "precisa ser ancestral das duas",
+      "etapa do papel do destino que falta",
+      "forma: sem PQ que o conferente confira",
+      "`cmd` → rode o comando"
     ],
     "hooks/conformidade.json": [
       "\"conferente\": \\[\"forge:conferente\"\\]",
@@ -182,13 +199,20 @@
       "Retira do escopo original",
       "\\*\\*Fora do escopo\\*\\*",
       "\\*\\*pedido × entregue\\*\\*",
-      "`<<<BRIEF`"
+      "`<<<BRIEF`",
+      "docs/briefs/",
+      "`Base-sha:`",
+      "`## Etapas`",
+      "`Arquivo:` \\(o caminho do brief",
+      "linhas>=N"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
       "Retira do escopo original",
       "PQ-1",
-      "DECISÃO DO DONO"
+      "DECISÃO DO DONO",
+      "## Etapas",
+      "E1\\.1 \\(<agente>\\)"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
@@ -364,7 +388,8 @@
       "\\*\\*Uma pergunta por vez\\*\\* em tudo, também no entendimento inicial",
       "Retira do escopo original",
       "Fora do escopo",
-      "corte: sem marca"
+      "corte: sem marca",
+      "na entrega, `pendente:`"
     ],
     "docs/regras/R-PROVA.md": [
       "tipo de prova",
@@ -372,13 +397,17 @@
       "copiada da saída de uma ferramenta",
       "Item sem prova conta como \\*\\*não feito\\*\\*",
       "Ele não recebe o relatório do autor",
-      "retrabalho"
+      "retrabalho",
+      "espera:",
+      "linhas>=N",
+      "\"do autor\""
     ],
     "docs/regras/R-BRIEF.md": [
       "\\*\\*antes\\*\\* de chegar ao agente",
       "literal, exatamente como será enviado",
       "corte de escopo marcado",
-      "O agente só recebe o texto aprovado"
+      "O agente só recebe o texto aprovado",
+      "docs/briefs/"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",
