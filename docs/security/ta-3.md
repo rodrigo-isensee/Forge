@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: ta-3
 branch: melhoria/ta-3-testes-tocados
-commit: 98bd38a9f2bc11064942727d4838cadf7de47ad2
+commit: 604b2a90c509915c39becadbd5f56cb47cbd195e
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -39,6 +39,15 @@ Escopo: `git diff 6ebd2016939293d451f3584a2d3ae3e6fde381bf...98bd38a`, 4 arquivo
 ### I-TA3-1 (informativa): o log segue link simbólico
 - **Evidência:** `bin/forge-testes:98-100` abre `.forge/run/testes.log` em modo de acréscimo, sem checar link.
 - **Caminho de ataque:** exigiria uma branch maliciosa versionar (com `git add -f`) um link em `.forge/run/`. Quem roda o script dessa branch já executa o código dela, então não há ganho. Fica só o registro, sem ação.
+
+## Revalidação após a volta do autor
+Escopo: `git diff 98bd38a..604b2a9 -- bin/ tests/ docs/ changelog.d/` (`bin/forge-testes`, `tests/test_testes_tocados.py`). **Aprovado** no HEAD `604b2a9`.
+- **B-TA3-1 corrigido:** `bin/forge-testes:92` usa `git diff --name-only --no-renames`, então o caminho antigo de um renomeio entra no plano. Testes: `test_arquivo_protegido_renomeado_cai_na_completa` (`tests/config.json` → `docs/` cai na completa) e `test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo` (`tests/test_testes_tocados.py:220-242`).
+- **B-TA3-2 corrigido:** `tests/test_testes_tocados.py:254-255` inclui `bin/forge-check` nos alvos de `test_nenhum_portao_cita_o_script`.
+- **Falha fechada sem desvio novo:** `planejar` (`bin/forge-testes:96-117`) mantém a mesma ordem: `ALTERA_O_MAPA` → completa; sem regra → completa; módulo sem arquivo → completa; erro do git → completa (`:143-144`). O mapa só ganhou módulos e regras mais finas para caminhos que já eram dirigidos (`stacks/`, `.claude-plugin/`, `migrations/`, `templates/`, `docs/`, `README`/`CONTRIBUTING`). Nenhum caminho que caía na completa passou a dirigido. `IMPORTADO_POR` (`:76`) só acrescenta módulos. O nome do módulo continua vindo de `fullmatch` ou de tuplas fixas, e o `subprocess` continua por lista.
+- **Nenhum portão chama o script:** `grep -rn forge-testes .githooks .github hooks bin scripts tests/config.json` só encontra o próprio script. A volta não toca `.githooks`, `.github`, `hooks` nem `scripts`, e `.githooks/pre-push:36` segue com `unittest discover -s tests`.
+- **Testes:** `python3 -m unittest tests.test_testes_tocados -q`: 27 testes, OK.
+- I-TA3-1 continua só registrado, sem ação.
 
 ## Lacunas de ferramenta
 `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (nada foi instalado, `R-CUSTO`). A revisão foi manual. O diff não toca workflow, dependência nem segredo.
