@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: pa-4
 branch: melhoria/pa-4-parecer-commitado
-commit: 7424d5c2a9ed7c74b62cbc19d3964f8a492d40d1
+commit: 54bfcf9d56fb9f7f1f18c4ca9edca84947f9703f
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -49,3 +49,6 @@ Escopo: `git diff 4a28e23c1c4f05ba7e0270d5acf6364b18b21f3c..7424d5c2a9ed7c74b62c
 - **B-PA4-1 corrigido.** `parecer_commitado` (`bin/forge-check:478-485`) não usa mais `git status`: compara os bytes de `git show HEAD:<rel>` (`bruto=True`, `:284-285`) com `(raiz / rel).read_bytes()`, o mesmo arquivo cujo texto o portão julga (`:504`). `--skip-worktree` e `--assume-unchanged` só mexem no índice, então não alteram a comparação. Falha do `git show` com HEAD legível dá `cod != 0` e devolve `False` (recusa): fecha, não libera. Sem HEAD continua `True`, coberto pelo `commit_vale` como antes.
 - **Teste.** `tests/test_forge.py:1647-1659` (`test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged`) edita o parecer commitado sob cada marca e espera a recusa; depois desfaz e espera aprovação. Mutação: com o `bin/forge-check` de 4a28e23 (cópia em `$TMPDIR`) o teste falha; com o de 7424d5c passa. `python3 -m unittest tests.test_forge -q`: 237 testes, OK.
 - **Sem desvio novo.** O resto da volta é texto: ajuda do `pr` e do `--ref` (`bin/forge-check:33`, `:2056`) e a retirada do rótulo de cartão interno nos quatro agentes; a regra (só o arquivo do parecer, `git add` explícito, e para o security-engineer só `docs/security/` fora de `docs/security/aceites/`) ficou intacta. `tests/config.json` e `changelog.d/` não mudaram. Comparação por bytes não passa por filtros de checkout; num clone com `core.autocrlf` ou filtro `smudge` no parecer, o efeito é recusa indevida (falha fechada), não liberação: só registro.
+
+## Revalidação após a segunda volta do autor (54bfcf9)
+Escopo: `git diff 7424d5c..54bfcf9 -- bin/ tests/ agents/ changelog.d/`. **Aprovado, sem desvio.** A mudança é só texto de ajuda (`bin/forge-check:2054`, `help=` do subcomando `pr`) e um teste novo (`tests/test_forge.py:1661`, `test_ajuda_geral_cita_parecer_commitado_no_pr`); a lógica do portão (`parecer_commitado`, `commit_vale`) não foi tocada; `agents/` e `changelog.d/` sem alteração. `python3 -m unittest tests.test_forge -q`: 238 testes, OK.
