@@ -397,6 +397,10 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    # O git 2.55 dispara `maintenance run --auto --detach` depois do commit; o repack em segundo plano escreve
+    # (maintenance.lock, tmp de pack) enquanto o tearDown apaga o repositório temporário e o rmtree falha.
+    env.update(GIT_CONFIG_COUNT="2", GIT_CONFIG_KEY_0="maintenance.auto", GIT_CONFIG_VALUE_0="false",
+               GIT_CONFIG_KEY_1="gc.auto", GIT_CONFIG_VALUE_1="0")
     return env
 
 
@@ -655,6 +659,8 @@ class HookPrePush(unittest.TestCase):
         self.remoto = self.tmp / "remoto.git"
         self.repo = self.tmp / "repo"
         git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        # o receive-pack local não herda GIT_CONFIG_*: sem isto ele dispara a manutenção em segundo plano no remoto
+        git("config", "receive.autogc", "false", cwd=self.remoto)
         git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp)
         for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
             git("config", k, v, cwd=self.repo)
