@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: clareza-1
 branch: melhoria/clareza-pacote-1
-commit: 8e5b5e25bd34917141dc80940a1aa62f8fb6bd11
+commit: 6b3eca09da5005b02f9cf5775b38aeeb14b09f67
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -67,6 +67,9 @@ HEAD revisado: `8e5b5e25bd34917141dc80940a1aa62f8fb6bd11` (volta do autor em `40
 - **Sem afrouxamento:** em `docs/regras/` nenhuma linha removida. Em `tests/config.json` a única linha `-` é a lista da skill `modo-iniciante`, reescrita com os dois itens antigos mantidos e só acréscimos. A ordem ampla segue limitada a `confirmado`/`delegado`, e a frase nova do `jarvis.md` diz que o ato irreversível volta sempre como pergunta. A retirada da exceção do recibo ("salvo leitura...") aperta a regra, não a afrouxa.
 - **Testes:** `python3 -m unittest tests.test_clareza tests.test_forge -q`: 239 testes, OK.
 - Lacunas de ferramenta e riscos aceitos: sem mudança (nenhum).
+
+## Segunda revalidação (correção de B1 a B4 do QA)
+HEAD revisado: `6b3eca09da5005b02f9cf5775b38aeeb14b09f67`. Li `git diff 8e130be..6b3eca0` em `agents/ skills/ docs/regras/ templates/ tests/ changelog.d/`. **Parecer mantido: aprovado.** Só houve acréscimos: a `R-DECISAO` ganhou a linha "Item `técnico` não depende de ordem" (é a decisão técnica do time, que já era do time; não cobre custo, acesso, exceção a regra nem ato irreversível, que seguem indo ao usuário, e `suposição` e `no-protótipo` continuam fora da ordem ampla); o `jarvis.md` diz que o item novo ou irreversível sob ordem ampla volta como pergunta sem passar pelo teste de bloqueante (aperta, não afrouxa); o `agile-coach` conta `PERGUNTA: nenhuma` como zero; o exemplo da skill trocou a opção B de custo por aviso impresso, e a recomendação mantém "decidam vocês" sem opção de custo. Em `tests/config.json` só entradas novas nos invariantes. `python3 -m unittest tests.test_clareza tests.test_forge -q`: 239 testes, OK.
 
 ## Plano em cartões
 - S1 e S2: um cartão para o autor da branch, de esforço P. Não bloqueiam este parecer. Se forem corrigidos nesta branch, o novo HEAD precisa de novo parecer (o `commit:` muda).
