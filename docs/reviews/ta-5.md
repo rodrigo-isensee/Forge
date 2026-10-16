@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: ta-5
 branch: melhoria/ta-5-fechamento
-commit: 27f38686da3f52bcbd5cdd3aade87fc42e8c45ee
-parecer: reprovado
+commit: 24883170f8fd067b5ba1efff2f3180a98707e4d1
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
 ---
@@ -12,7 +12,7 @@ data: 2026-10-16
 
 Escopo: `15660a3...27f3868` (base 15660a346640; o autor não é este revisor). 6 arquivos, 2 commits (`ab924c6` feat, `27f3868` docs).
 
-Veredito: **REPROVADO** por 1 achado que bloqueia (o merge não fica preso ao head conferido). Os outros 5 são recomendados. Tudo volta ao autor; este revisor não corrige o diff.
+Veredito (rodada 1, sobre `27f3868`): **REPROVADO** por 1 achado que bloqueia (o merge não fica preso ao head conferido). Os outros 5 são recomendados. Tudo volta ao autor; este revisor não corrige o diff.
 
 ## Ferramentas (citadas, não refeitas)
 - `python3 -m unittest tests.test_fechar -q`: `Ran 10 tests in 4.847s` / `OK`.
@@ -42,3 +42,21 @@ Veredito: **REPROVADO** por 1 achado que bloqueia (o merge não fica preso ao he
 
 ## Fora deste parecer
 Segurança (`docs/security/`, em paralelo) e QA (`docs/qa/`, depois). Sem pipeline, contêiner nem IaC no diff: sem parecer de devops.
+
+## Revalidação após a volta do autor
+Escopo: `27f3868..2488317` em `bin/`, `tests/`, `docs/` e `changelog.d/` (commits `d404695` fix e `2488317` docs). Veredito: **APROVADO**.
+
+- `python3 -m unittest tests.test_fechar -q`: `Ran 22 tests in 7.763s` / `OK` (eram 10). `bash -n bin/forge-fechar`: ok; modo `100755`. shellcheck segue ausente nesta máquina: **pendência** para a bateria do CI no PR.
+
+| Achado | Correção | Teste |
+|---|---|---|
+| 1 (bloqueia) | `gh pr merge ... --match-head-commit "$remoto_sha"` (`bin/forge-fechar:141`); antes, relê base e rascunho (`:135-140`) | `gh` falso recusa sem a opção ou com head diferente; `test_commit_novo_na_branch_durante_a_espera_impede_o_merge` (para no passo 6, sem `MERGED`, branch preservada), `test_merge_passa_quando_o_head_confere`, fluxo completo confere o sha |
+| 2 | "no checks reported" ou saída vazia contam como pendente dentro de `--espera` (`:107-116`) | `test_espera_os_checks_aparecerem_em_pr_recem_aberto`, `test_sem_checks_ate_o_limite_para_no_passo_4` |
+| 3 | `origin/homolog` saiu do script e do guia; promoção à `homolog` declarada manual | base fora do fluxo já coberta |
+| 4 | `isDraft` lido no passo 6; rascunho vira pronto (`gh pr ready`) só depois do passo 1 | `test_pr_em_rascunho_vira_pronto_antes_do_merge` (ordem ready < merge) |
+| 5 | sem `|| true`; erro de leitura para no passo 5 (`:128-129`) | `test_erro_do_gh_no_passo_5_para_o_fluxo` |
+| 6 | recusa fora do repositório do Forge (`plugin.json` com `name` `forge`, `:68-72`), antes até do `--dry-run` | `test_recusa_rodar_fora_do_repositorio_do_forge`; avaliação de segurança é do `security-engineer` |
+
+Além dos achados (vindos do parecer de segurança, não reavaliados aqui): trava `FORGE_FECHAR_TESTE=1` para `FORGE_CHECK`/`FORGE_GH`, `git check-ref-format --branch` no `--ref`, base do PR reusado exigida igual a `develop` no passo 3, `push --delete refs/heads/<ref>`; cada um com teste. Sem efeito colateral: os 10 testes antigos seguem verdes; o `--dry-run` continua sem `git` remoto, `gh` nem `forge-check`; nada de `--force`, `--no-verify` ou rótulo (teste de leitura do código). A linha trocada em `changelog.d/ta-5-fechamento.md` (`2488317`) descreve o comportamento novo ("merge preso ao head conferido"): correta. O guia (`docs/fechamento-integrador.md`) bate com o script e registra o limite do passo 5 (texto livre; o controle do rótulo segue na Catraca).
+
+Recomendado (não bloqueia; volta ao autor se o integrador quiser antes do PR): `agents/tech-lead.md:29` ainda diz "merge pelo método da base"; com a base única, trocar por "merge `--squash` preso ao head conferido", como no fragmento.
