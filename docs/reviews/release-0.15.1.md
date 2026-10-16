@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: pos-release-0.15.0
 branch: melhoria/release-0.15.1
-commit: d155d291006eefb467d77148377b472cfdeb7d97
+commit: 82d0d52111a274a2a166e4ab7e08fc2f2c45a3b1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-15
@@ -39,3 +39,9 @@ Veredito: **APROVADO** para a branch. No arquivo de comandos, dois ajustes recom
 
 ## Pendências (não são deste review)
 - Suíte e `scripts/validar-plugin.sh`: QA (brief 3). Sem mudança em pipeline, container, IaC nem superfície de segurança: sem parecer de `devops-engineer` ou `security-engineer`.
+
+## Revalidação após merge da develop
+Merge `82d0d52` trouxe da `develop` (930d6bb, K1 do conferente) `agents/conferente.md`, `agents/jarvis.md`, regras `R-BRIEF`/`R-DECISAO`/`R-PROVA`, modelo de pedido, `tests/` e os pareceres da K1: já revisados e aprovados nos PRs da K1, fora deste escopo. `origin/develop` (930d6bb) está contida no HEAD.
+- Diff próprio (`git diff origin/develop...HEAD`): `plugin.json` 0.15.1, `CHANGELOG.md`, `changelog.d/ci-local-jobs-consolidados.md` removido e os pareceres de review e QA. Igual ao aprovado em `d155d29`: `git diff d155d29..82d0d52 -- CHANGELOG.md .claude-plugin/plugin.json` vazio.
+- `changelog.d/conferente-k1.md` (da `develop`) segue como fragmento pendente e não entra na `[0.15.1]`, conforme a decisão técnica do pedido; os comandos ao dono não mudam por causa disso.
+- Achados 1 a 3 (recomendados, só no arquivo de comandos) continuam valendo; nada novo. Suíte e `validar-plugin` sobre `82d0d52`: do autor (653 OK, "Validation passed"); QA roda de novo.
