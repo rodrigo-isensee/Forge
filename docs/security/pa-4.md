@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: pa-4
 branch: melhoria/pa-4-parecer-commitado
-commit: 4a28e23c1c4f05ba7e0270d5acf6364b18b21f3c
+commit: 7424d5c2a9ed7c74b62cbc19d3964f8a492d40d1
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-16
@@ -41,5 +41,11 @@ Escopo: `git diff b38cd283fcb521db573815170d03a435f880e619...4a28e23c1c4f05ba7e0
 - **Esforço:** P · **Dono:** tech-lead (opcional).
 
 ## Riscos aceitos e ferramentas
-- Riscos aceitos: nenhum. B-PA4-1 pode ser corrigido nesta branch ou virar cartão; I-PA4-1 é opcional.
+- Riscos aceitos: nenhum. B-PA4-1 corrigido na volta do autor (ver abaixo); I-PA4-1 segue opcional.
 - Ferramentas: revisão estática do diff; sondagem de `parecer_commitado` em repositório temporário (`$TMPDIR`); `tests.test_forge.ForgeCheck`. Lacuna: `gitleaks`, `semgrep` e afins não foram usados (nada instalado por mim); o diff não traz segredo nem toca workflow, conferido por leitura.
+
+## Revalidação após a volta do autor
+Escopo: `git diff 4a28e23c1c4f05ba7e0270d5acf6364b18b21f3c..7424d5c2a9ed7c74b62cbc19d3964f8a492d40d1 -- bin/ tests/ agents/ changelog.d/` (da2f537 e 7424d5c). **Aprovado; B-PA4-1 corrigido, sem desvio novo.**
+- **B-PA4-1 corrigido.** `parecer_commitado` (`bin/forge-check:478-485`) não usa mais `git status`: compara os bytes de `git show HEAD:<rel>` (`bruto=True`, `:284-285`) com `(raiz / rel).read_bytes()`, o mesmo arquivo cujo texto o portão julga (`:504`). `--skip-worktree` e `--assume-unchanged` só mexem no índice, então não alteram a comparação. Falha do `git show` com HEAD legível dá `cod != 0` e devolve `False` (recusa): fecha, não libera. Sem HEAD continua `True`, coberto pelo `commit_vale` como antes.
+- **Teste.** `tests/test_forge.py:1647-1659` (`test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged`) edita o parecer commitado sob cada marca e espera a recusa; depois desfaz e espera aprovação. Mutação: com o `bin/forge-check` de 4a28e23 (cópia em `$TMPDIR`) o teste falha; com o de 7424d5c passa. `python3 -m unittest tests.test_forge -q`: 237 testes, OK.
+- **Sem desvio novo.** O resto da volta é texto: ajuda do `pr` e do `--ref` (`bin/forge-check:33`, `:2056`) e a retirada do rótulo de cartão interno nos quatro agentes; a regra (só o arquivo do parecer, `git add` explícito, e para o security-engineer só `docs/security/` fora de `docs/security/aceites/`) ficou intacta. `tests/config.json` e `changelog.d/` não mudaram. Comparação por bytes não passa por filtros de checkout; num clone com `core.autocrlf` ou filtro `smudge` no parecer, o efeito é recusa indevida (falha fechada), não liberação: só registro.
