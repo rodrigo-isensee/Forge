@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: ta-6-pa-3-pa-9
 branch: melhoria/ta-6-sobreposicao-fila-quadro
-commit: c7a2b6af58a96ebbe1e9f4566c7411af9dcd116b
+commit: f257b67d7c0405f133980382fff7b5f06bb8591b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
@@ -34,3 +34,12 @@ Veredito: **APROVADO**, com 4 ajustes recomendados (nenhum bloqueia). Eles volta
 
 ## Pendências
 - Nenhuma regra "ferramenta" sem comando: a validação do plugin e a suíte completa ficam com o QA (R-QA).
+
+## Revalidação após a volta do autor
+Escopo: `c7a2b6a..f257b67` em `bin/`, `agents/` e `tests/` (2d94038 e f257b67). Veredito mantido: **APROVADO**.
+- Ajuste 1 corrigido (`bin/forge-check`, `cmd_movimento`): lê o último byte e escreve `\n` se faltar; teste `test_arquivo_sem_quebra_final_nao_cola_a_linha_nova`.
+- Ajuste 2 corrigido: a fila de integração foi para "No repositório Forge (a fábrica)" em `agents/tech-lead.md`; só moveu a linha, sem mudar o texto.
+- Ajuste 4 corrigido: `test_branch_so_no_remoto_continua_listada` apaga a branch local depois do `fetch` e confere o par.
+- Ajuste 3 (falso par por branch já mesclada por squash) segue como estava: era recomendado, o erro cai para o lado seguro e a limpeza pós-merge o reduz. Não bloqueia.
+- Itens I-TA6-1 e I-TA6-2 da segurança: controle de caracteres de controle removidos e recusa de link simbólico em `historico.md`, ambos com teste. Sem efeito colateral: o `limpo` só retira `[\x00-\x1f\x7f]` depois de normalizar espaços, e o caminho normal não mudou.
+- `python3 -m unittest tests.test_sobreposicao_quadro -q`: `Ran 15 tests in 1.198s` / `OK`. A suíte completa fica com o QA.
