@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: pa-4
 branch: melhoria/pa-4-parecer-commitado
-commit: 7424d5c2a9ed7c74b62cbc19d3964f8a492d40d1
+commit: 54bfcf9d56fb9f7f1f18c4ca9edca84947f9703f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
@@ -47,5 +47,10 @@ Escopo: `4a28e23c..7424d5c2` em `bin/`, `tests/`, `agents/` e `changelog.d/` (co
 - **Teste** `test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged`: cobre as duas marcas do índice e a volta ao verde depois de desfeitas. Vermelho antes do verde conferido: com o `bin/forge-check` de `4a28e23` numa cópia em `$TMPDIR`, o teste falha (`FAILED (failures=1)`).
 - **Ferramenta:** `python3 -m unittest tests.test_forge -q` no HEAD `7424d5c`, árvore limpa: `Ran 237 tests in 24.688s` / `OK`.
 - **Informativo:** com filtros de checkout (`core.autocrlf`, `smudge`) o disco pode diferir do blob sem edição e o parecer seria recusado; falha fechada e rara nos pareceres em Markdown; cartão só se aparecer.
+
+Parecer da revalidação: **aprovado**.
+
+## Revalidação após a segunda volta do autor
+Escopo: `7424d5c..54bfcf9` em `bin/`, `tests/`, `agents/` e `changelog.d/` (`54bfcf9`, BUG-1 do QA): a mudança é só o `help=` do subparser `pr` (`bin/forge-check:2054`) e o teste `test_ajuda_geral_cita_parecer_commitado_no_pr`, sem efeito colateral; `agents/` e `changelog.d/` intactos. `python3 -m unittest tests.test_forge -q` no HEAD `54bfcf9`: `Ran 238 tests` / `OK`.
 
 Parecer da revalidação: **aprovado**.
