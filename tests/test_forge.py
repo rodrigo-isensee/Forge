@@ -2356,6 +2356,15 @@ class MedirAlucinacao(unittest.TestCase):
         self.assertNotIn("abc1234", saida)
         self.assertNotIn("a1", saida.replace("afirmacoes", ""))
 
+    def test_total_zero_vira_na_e_nao_zero_por_cento(self):
+        # M07 do estudo de mutação: `taxa` com total zero devolve "n/a", nunca "0.0%" nem divisão por zero.
+        # M14 (hooks/vigia.py, `<` por `<=` em `podar`) é equivalente: a igualdade exata de dois instantes
+        # em ponto flutuante não ocorre num teste real. M15 (`>=` por `>` em `arquivos_em_vigor`) é limite de
+        # proteção: matá-lo pede 3000 arquivos num teste, custo alto para ganho pequeno; fica sem teste.
+        saida = self.lastro("Nada a afirmar aqui.", "qualquer saida")
+        self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", saida)
+        self.assertNotIn("0.0%", saida)
+
     def test_decisao_unica_com_recomendo_e_ok(self):
         saida, _ = self.rodar("decisoes", self.jarvis("Qual caminho?\n- **A)** copiar\n- **B)** mover\nRecomendo A, e so isso."))
         self.assertIn("decisoes: sessao s1: respostas=1 com_grupo=1 violacoes=0 taxa=0.0%", saida)
