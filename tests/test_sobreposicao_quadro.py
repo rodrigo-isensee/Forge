@@ -77,6 +77,19 @@ class Sobreposicao(unittest.TestCase):
         self.assertIn("entre 2 branch(es)", saida)
         self.assertEqual(saida.count("<->"), 1)
 
+    def test_branch_so_no_remoto_continua_listada(self):
+        self.ramo("melhoria/a", comum__txt="a\n")
+        self.ramo("melhoria/b", comum__txt="b\n")
+        origem = tempfile.TemporaryDirectory()
+        self.addCleanup(origem.cleanup)
+        git(self.repo, "clone", "-q", "--bare", str(self.repo), origem.name)
+        git(self.repo, "remote", "add", "origin", origem.name)
+        git(self.repo, "fetch", "-q", "origin")
+        git(self.repo, "branch", "-D", "melhoria/b")
+        rc, saida = checar(self.repo, "sobreposicao", "--base", "develop")
+        self.assertEqual(rc, 0)
+        self.assertIn("melhoria/a <-> melhoria/b: comum.txt", saida)
+
     def test_base_inexistente_nao_falha(self):
         git(self.repo, "branch", "-m", "outra")
         rc, saida = checar(self.repo, "sobreposicao", "--base", "nao-existe-xyz")
@@ -109,6 +122,31 @@ class Movimento(unittest.TestCase):
         self.assertEqual(linhas[2], "| antiga | K-0 | a | b | — |")
         self.assertEqual(len(linhas), 4)
         self.assertTrue(linhas[3].endswith("| K-2 | a/b | c d | x / y |"), linhas[3])
+
+    def test_arquivo_sem_quebra_final_nao_cola_a_linha_nova(self):
+        self.arq.parent.mkdir(parents=True)
+        self.arq.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n| antiga | K-0 | a | b | — |", encoding="utf-8")
+        self.assertEqual(checar(self.raiz, "movimento", "K-3", "--de", "a", "--para", "b")[0], 0)
+        linhas = self.arq.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(linhas[2], "| antiga | K-0 | a | b | — |")
+        self.assertEqual(len(linhas), 4)
+        self.assertIn("| K-3 | a | b | — |", linhas[3])
+
+    def test_remove_caracteres_de_controle(self):
+        checar(self.raiz, "movimento", "K-4", "--de", "a\x1b[31mb", "--para", "c\x01d\x7f", "--motivo", "e\x07f")
+        linha = self.arq.read_text(encoding="utf-8").splitlines()[-1]
+        self.assertTrue(linha.endswith("| K-4 | a[31mb | cd | ef |"), linha)
+        self.assertNotRegex(linha, r"[\x00-\x08\x0b-\x1f\x7f]")
+
+    def test_link_simbolico_e_recusado_sem_escrever(self):
+        self.arq.parent.mkdir(parents=True)
+        alvo = self.raiz / "alvo.md"
+        alvo.write_text("intacto\n", encoding="utf-8")
+        self.arq.symlink_to(alvo)
+        rc, saida = checar(self.raiz, "movimento", "K-5", "--de", "a", "--para", "b")
+        self.assertEqual(rc, 1)
+        self.assertIn("link simbólico", saida)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), "intacto\n")
 
     def test_campo_vazio_falha_e_nao_grava(self):
         rc, saida = checar(self.raiz, "movimento", " ", "--de", "a", "--para", "b")

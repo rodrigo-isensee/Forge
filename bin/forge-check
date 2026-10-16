@@ -576,18 +576,28 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
     def limpo(t):
-        return re.sub(r"\s+", " ", t.replace("|", "/")).strip()
+        return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
     arq = raiz / "docs" / "kanban" / "historico.md"
+    if arq.is_symlink():
+        return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
     arq.parent.mkdir(parents=True, exist_ok=True)
     existe = arq.is_file() and arq.stat().st_size > 0
+    if existe:
+        with arq.open("rb") as f:
+            f.seek(-1, 2)
+            falta_quebra = f.read(1) != b"\n"
+    else:
+        falta_quebra = False
     hora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {limpo(motivo) or '—'} |\n"
     with arq.open("a", encoding="utf-8") as f:
         if not existe:
             f.write("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
+        elif falta_quebra:
+            f.write("\n")
         f.write(linha)
     return [linha.rstrip("\n")]
 
