@@ -7,9 +7,13 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 
@@ -29,9 +33,11 @@ class Base(unittest.TestCase):
         self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.home / "gitconfig"),
                         PATH=f"{bin_falso}:{os.environ['PATH']}")
+        self.env = sem_manutencao(self.env)
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
         self.git("clone", "-q", str(self.remoto), str(self.proj), cwd=self.tmp)
         self.escrever("README.md", "um\n")
         self.git("add", "-A")
