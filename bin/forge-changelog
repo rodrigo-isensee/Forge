@@ -57,6 +57,11 @@ def fragmentos(pasta=PASTA):
     return sorted(p for p in Path(pasta).glob("*.md") if p.name.lower() != "readme.md")
 
 
+def slug_da_branch(branch):
+    """Nome do fragmento de uma branch: o que vem depois do primeiro `/`, só com letras, dígitos, `.`, `_` e `-`."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", branch.split("/", 1)[-1]).strip("-.")
+
+
 def novo(args):
     texto = args.texto.strip()
     if not texto or "\n" in texto:
@@ -64,7 +69,7 @@ def novo(args):
     branch = git("rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch in PROTEGIDAS:
         sys.exit(f"Branch '{branch}': rode numa branch de trabalho (melhoria/<tema>).")
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", branch.split("/", 1)[-1]).strip("-.")
+    slug = slug_da_branch(branch)
     if not slug:
         sys.exit(f"Não consegui um nome de arquivo a partir da branch '{branch}'.")
     arquivo = Path(PASTA) / f"{slug}.md"

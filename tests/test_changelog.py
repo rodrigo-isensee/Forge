@@ -1,4 +1,6 @@
 """Fragmentos de changelog: `bin/forge-changelog` (novo, release, conferir) e o uso dele no CI."""
+import importlib.machinery
+import importlib.util
 import os
 import subprocess
 import sys
@@ -196,6 +198,51 @@ class ConferirRelease(Base):
         r = forge_changelog(self.dir, "conferir-release")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("changelog.d", r.stdout + r.stderr)
+
+
+def carregar_ferramenta():
+    carregador = importlib.machinery.SourceFileLoader("forge_changelog_teste", str(FERRAMENTA))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
+
+
+def fragmentos_com_outro_nome(branch, novos):
+    """Fragmentos novos de changelog.d/ cujo nome não é o da branch (`<branch-sem-prefixo>.md`)."""
+    esperado = f"{carregar_ferramenta().slug_da_branch(branch)}.md"
+    return [n for n in novos if Path(n).name != esperado]
+
+
+class FragmentoTemONomeDaBranch(unittest.TestCase):
+    """S-6: o fragmento de uma branch chama-se `<branch-sem-prefixo>.md`; outro nome falha."""
+
+    def test_nome_certo_passa_e_nome_errado_falha(self):
+        self.assertEqual(fragmentos_com_outro_nome("melhoria/conferente-k2", ["changelog.d/conferente-k2.md"]), [])
+        self.assertEqual(fragmentos_com_outro_nome("melhoria/conferente-k2", ["changelog.d/conferente-k1.md"]),
+                         ["changelog.d/conferente-k1.md"])
+        self.assertEqual(fragmentos_com_outro_nome("melhoria/a", ["changelog.d/a.md", "changelog.d/b.md"]),
+                         ["changelog.d/b.md"])
+
+    def test_forge_changelog_novo_grava_com_o_nome_da_branch(self):
+        with tempfile.TemporaryDirectory() as d:
+            git(d, "init", "-q", "-b", "melhoria/minha-mudanca")
+            git(d, "commit", "-q", "--allow-empty", "-m", "base")
+            r = forge_changelog(d, "novo", "Adicionado", "x")
+            self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertEqual(sorted(p.name for p in (Path(d) / "changelog.d").glob("*.md")), ["minha-mudanca.md"])
+
+    def test_fragmentos_novos_desta_branch_tem_o_nome_dela(self):
+        branch = os.environ.get("GITHUB_HEAD_REF") or subprocess.run(
+            ["git", "-C", str(RAIZ), "rev-parse", "--abbrev-ref", "HEAD"], capture_output=True, text=True).stdout.strip()
+        if not branch.startswith("melhoria/"):
+            self.skipTest(f"branch '{branch}' não é de melhoria; a regra vale para melhoria/*")
+        r = subprocess.run(["git", "-C", str(RAIZ), "diff", "--name-only", "--no-renames", "--diff-filter=A",
+                            "origin/develop...HEAD", "--", "changelog.d"], capture_output=True, text=True)
+        if r.returncode != 0:
+            self.skipTest("sem origin/develop para comparar")
+        novos = [n for n in r.stdout.split() if n.endswith(".md") and Path(n).name.lower() != "readme.md"]
+        self.assertEqual(fragmentos_com_outro_nome(branch, novos), [],
+                         f"fragmento de changelog.d/ sem o nome da branch '{branch}' (esperado <branch-sem-prefixo>.md)")
 
 
 class CIUsaOsFragmentos(unittest.TestCase):
