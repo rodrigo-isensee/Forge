@@ -2,6 +2,7 @@
 import importlib.machinery
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -41,18 +42,19 @@ class Mapa(unittest.TestCase):
 
     def test_caminhos_conhecidos_rodam_so_os_modulos_do_mapa(self):
         casos = {
-            "bin/forge-changelog": ["test_changelog"],
-            "bin/forge-doutor": ["test_doutor"],
-            "bin/forge-sugerir": ["test_sugerir"],
-            "scripts/ci-local": ["test_ci_local"],
+            "bin/forge-changelog": ["test_changelog", "test_forge"],
+            "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge"],
+            "bin/forge-sugerir": ["test_forge", "test_sugerir"],
+            "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
         }
         for caminho, esperado in casos.items():
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("dirigido", esperado))
 
-    def test_forge_check_roda_os_tres_modulos(self):
+    def test_forge_check_roda_os_quatro_modulos(self):
         self.assertEqual(self.plano("bin/forge-check"),
-                         ("dirigido", ["test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro"]))
+                         ("dirigido", ["test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro",
+                                      "test_testes_tocados"]))
 
     def test_hooks_incluem_hooks_e_catraca(self):
         modo, modulos = self.plano("hooks/conformidade.py")
@@ -68,12 +70,30 @@ class Mapa(unittest.TestCase):
                 self.assertEqual(modo, "dirigido")
                 self.assertIn("test_forge", modulos)
 
+    def test_caminhos_do_forge_publicado_incluem_test_atualizar(self):
+        for caminho in ("migrations/0.7.0/migrar", "templates/projeto/CLAUDE.md", ".claude-plugin/plugin.json",
+                        "bin/forge-doutor", "bin/forge", "hooks/doutor.py", "bin/forge-upgrade"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertIn("test_atualizar", modulos)
+
+    def test_stacks_incluem_test_hooks(self):
+        modo, modulos = self.plano("stacks/node-react/pesados.json")
+        self.assertEqual(modo, "dirigido")
+        self.assertIn("test_hooks", modulos)
+
+    def test_modulo_importado_roda_quem_importa(self):
+        modo, modulos = self.plano("tests/test_forge.py")
+        self.assertEqual(modo, "dirigido")
+        self.assertEqual(modulos, ["test_forge", "test_guarda_git", "test_hooks"])
+
     def test_o_proprio_modulo_de_teste_roda_sozinho(self):
         self.assertEqual(self.plano("tests/test_sugerir.py"), ("dirigido", ["test_sugerir"]))
 
     def test_varios_caminhos_unem_os_modulos(self):
         self.assertEqual(self.plano("bin/forge-sugerir", "tests/test_doutor.py"),
-                         ("dirigido", ["test_doutor", "test_sugerir"]))
+                         ("dirigido", ["test_doutor", "test_forge", "test_sugerir"]))
 
     def test_caminho_sem_mapa_cai_na_completa(self):
         for caminho in ("coisa-nova/x.py", ".github/workflows/ci.yml", ".githooks/pre-push", "LICENSE",
@@ -97,6 +117,39 @@ class Mapa(unittest.TestCase):
         for m in sorted(modulos):
             with self.subTest(m):
                 self.assertTrue((RAIZ / "tests" / f"{m}.py").is_file())
+
+
+class MapaCobreOQueOsTestesLeem(unittest.TestCase):
+    """Cada `RAIZ / "..."` de um tests/test_*.py que aponta para um arquivo do Forge tem de levar a esse módulo."""
+
+    CAMINHO = re.compile(r'RAIZ\s*/\s*"([^"]+)"((?:\s*/\s*"[^"]+")*)')
+    # Testes que só montam o próprio projeto de brinquedo e não dependem do conteúdo do Forge ficam de fora
+    # por não citarem RAIZ; os módulos abaixo citam e são conferidos.
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def lidos(self, modulo):
+        texto = (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8")
+        achados = set()
+        for inicio, resto in self.CAMINHO.findall(texto):
+            partes = [inicio] + re.findall(r'"([^"]+)"', resto)
+            caminho = "/".join(partes)
+            if (RAIZ / caminho).is_file():
+                achados.add(caminho)
+        return achados
+
+    def test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo(self):
+        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test_*.py"))
+        total = 0
+        for modulo in modulos:
+            for caminho in sorted(self.lidos(modulo)):
+                total += 1
+                with self.subTest(modulo=modulo, caminho=caminho):
+                    modo, planejados = self.f.planejar([caminho], RAIZ)
+                    self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
+        self.assertGreaterEqual(total, 40)
 
 
 class Execucao(unittest.TestCase):
@@ -164,6 +217,30 @@ class Execucao(unittest.TestCase):
                            capture_output=True, text=True)
         self.assertIn("suíte completa (não consegui ler o git", r.stdout)
 
+    def test_arquivo_protegido_renomeado_cai_na_completa(self):
+        (self.dir / "tests" / "config.json").write_text("{}\n", encoding="utf-8")
+        (self.dir / "docs").mkdir()
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "config")
+        git(self.dir, "switch", "-q", "-c", "melhoria/y")
+        git(self.dir, "mv", "tests/config.json", "docs/config.json")
+        git(self.dir, "commit", "-qm", "move")
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
+                           env=AMBIENTE, capture_output=True, text=True)
+        self.assertIn("suíte completa (tests/config.json altera o mapa ou a configuração)", r.stdout)
+
+    def test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo(self):
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")
+        (self.dir / "tests" / "test_forge.py").write_text("x = 1\n", encoding="utf-8")  # o mapa também o cita
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "bin")
+        git(self.dir, "switch", "-q", "-c", "melhoria/z")
+        git(self.dir, "mv", "bin/forge-sugerir", "tests/test_novo.py")
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
+                           env=AMBIENTE, capture_output=True, text=True)
+        self.assertIn("dirigido (test_forge, test_novo, test_sugerir)", r.stdout)
+
     def test_nada_alterado_nao_roda(self):
         r = self.rodar()
         self.assertIn("nada alterado", r.stdout)
@@ -174,7 +251,8 @@ class NaoEPortao(unittest.TestCase):
     """Decisão do dono: "A, desde que para main rode tudo." Nenhum portão chama o script."""
 
     def test_nenhum_portao_cita_o_script(self):
-        alvos = [RAIZ / ".githooks", RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local"]
+        alvos = [RAIZ / ".githooks", RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local",
+                 RAIZ / "bin" / "forge-check"]
         arquivos = []
         for alvo in alvos:
             arquivos += [alvo] if alvo.is_file() else [p for p in alvo.rglob("*") if p.is_file()]

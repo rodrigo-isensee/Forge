@@ -32,29 +32,48 @@ SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "
 # Mapa caminho -> módulos de teste. Primeira regra que casa vence; o caminho vira a união dos módulos.
 # Cada regra é (expressão regular sobre o caminho relativo à raiz, módulos em tests/). Prefira ser largo
 # a ser estreito: o que sobra sem regra roda a suíte completa. Mudar este mapa roda a suíte completa.
-FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro")
+# O mapa foi conferido contra o que cada tests/test_*.py lê ou executa; o teste `MapaCobreOQueOsTestesLeem`
+# refaz essa conferência para os caminhos citados com `RAIZ / "..."`.
+# `test_forge` varre bin/, scripts/, hooks/, agents/, skills/, stacks/, docs/ e templates/ (neutralidade,
+# anti-duplicação), então entra em quase toda regra de conteúdo e de script.
+# `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
+FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro", "test_testes_tocados")
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor")
+# O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
+# .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
+PUBLICADO = CONTEUDO + ("test_atualizar",)
 MAPA = [
-    (r"tests/(test_[a-z0-9_]+)\.py", None),  # o próprio módulo de teste (caso especial abaixo)
-    (r"bin/forge-changelog", ("test_changelog",)),
+    (r"tests/(test_[a-z0-9_]+)\.py", None),  # o próprio módulo de teste (caso especial em `planejar`)
+    (r"bin/forge-changelog", ("test_changelog", "test_forge")),
     (r"bin/forge-check", FORGE_CHECK),
-    (r"bin/forge-doutor", ("test_doutor",)),
+    (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge")),
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge")),
-    (r"bin/(forge-atualizar|forge-upgrade|forge-voltar-versao|forge_versoes\.py)", ("test_atualizar",)),
-    (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer",)),
-    (r"bin/forge-sugerir", ("test_sugerir",)),
-    (r"bin/forge-testes", ("test_testes_tocados",)),
-    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge")),
-    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor")),
-    (r"scripts/ci-local", ("test_ci_local",)),
+    (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
+    (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
+    (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
+    (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
+    (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
+    (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
+    (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor")),
+    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados")),
+    (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
-    (r"(agents|skills|stacks|templates|docs|migrations|\.claude-plugin)/.*", CONTEUDO),
-    (r"(README|CONTRIBUTING)\.md", ("test_forge",)),
+    (r"stacks/.*", CONTEUDO + ("test_hooks",)),
+    (r"\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
+    (r"(migrations|templates)/.*", PUBLICADO),
+    (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
+    (r"(agents|skills|docs)/.*", CONTEUDO),
+    (r"README\.md", ("test_forge",)),
+    (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
     (r"(CHANGELOG\.md|changelog\.d/.*)", ("test_forge", "test_changelog")),
 ]
-# Sem regra (de propósito): .github/, .githooks/, tests/config.json, tests/*.py de apoio, fixtures, LICENSE.
+# Sem regra (de propósito), por exemplo: .github/, .githooks/, tests/config.json, tests/catraca.py e os outros
+# arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
+# CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa.
 # O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
+# Módulos de teste que importam outro módulo de teste: mexer no importado roda também quem o importa.
+IMPORTADO_POR = {"test_forge": ("test_hooks", "test_guarda_git")}
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 
@@ -69,7 +88,8 @@ def git(*args):
 def caminhos_alterados(base):
     """Alterados desde o ancestral comum com `base` (commitados ou não) e os novos ainda não versionados."""
     ancora = git("merge-base", base, "HEAD").strip()
-    nomes = set(git("diff", "--name-only", ancora).splitlines())
+    # --no-renames: um arquivo movido lista os dois caminhos, e o antigo (se protegido ou sem mapa) cai na completa.
+    nomes = set(git("diff", "--name-only", "--no-renames", ancora).splitlines())
     nomes |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
     return sorted(n for n in nomes if n)
 
@@ -88,6 +108,8 @@ def planejar(caminhos, raiz=Path(".")):
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
+        for modulo in casou:
+            modulos.update(IMPORTADO_POR.get(modulo, ()) if MODULO_DE_TESTE.fullmatch(caminho) else ())
     ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
