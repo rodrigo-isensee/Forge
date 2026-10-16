@@ -115,7 +115,24 @@
       "\\*\\*última linha\\*\\* é o veredito",
       "`R-PROVA`",
       "`R-BRIEF`",
-      "`R-CUSTO`"
+      "`R-CUSTO`",
+      "use só a seção Modo brief",
+      "use só a seção Modo entrega",
+      "corte: etapa \\(ok\\)",
+      "Base-sha",
+      "numstat",
+      "escopo: anexo com remoção",
+      "pendente:",
+      "sem espera",
+      "só a marca ou a citação",
+      "Base-sha fora da branch",
+      "escopo: brief sem arquivo",
+      "linhas>=N",
+      "menos `não verificável` e `corte: etapa \\(ok\\)`",
+      "precisa ser ancestral das duas",
+      "etapa do papel do destino que falta",
+      "forma: sem PQ que o conferente confira",
+      "`cmd` → rode o comando"
     ],
     "hooks/conformidade.json": [
       "\"conferente\": \\[\"forge:conferente\"\\]",
@@ -143,6 +160,10 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "brief único",
+      "worktree: <nome>` na Obs\\.",
+      "comando de pronto do projeto verde, rodado da raiz do repositório",
+      "suba mais instâncias iguais dele",
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
       "\\*\\*em qualquer projeto\\*\\*",
@@ -180,13 +201,20 @@
       "Retira do escopo original",
       "\\*\\*Fora do escopo\\*\\*",
       "\\*\\*pedido × entregue\\*\\*",
-      "`<<<BRIEF`"
+      "`<<<BRIEF`",
+      "docs/briefs/",
+      "`Base-sha:`",
+      "`## Etapas`",
+      "`Arquivo:` \\(o caminho do brief",
+      "linhas>=N"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
       "Retira do escopo original",
       "PQ-1",
-      "DECISÃO DO DONO"
+      "DECISÃO DO DONO",
+      "## Etapas",
+      "E1\\.1 \\(<agente>\\)"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
@@ -200,6 +228,9 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "quem deu o parecer revalida",
+      "não decide o alcance",
+      "\\*\\*uma vez, antes do review\\*\\*",
       "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
@@ -276,10 +307,16 @@
       "\\*\\*Todo pedido começa com discovery\\.\\*\\*"
     ],
     "docs/regras/R-REVIEW.md": [
+      "a instância autora não revisa o próprio cartão",
       "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, antes do QA"
     ],
     "docs/regras/R-FLUXO.md": [
+      "Depois do QA só se atualiza se houver conflito real",
+      "Quem resolveu o conflito não decide o alcance",
+      "quem deu o parecer revalida",
+      "invalida os pareceres dos arquivos que ela tocou",
       "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "\\*\\*Atualize a branch com a integração uma vez, antes do review\\*\\*",
       "Nada pula degrau",
       "\\*\\*Depois do merge, limpe tudo\\*\\*",
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
@@ -296,6 +333,12 @@
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
     ],
     "docs/regras/R-WIP.md": [
+      "sem folga no teto, a fila espera",
+      "respeitando o `R-TETO` inteiro: o teto de agentes, o limite de 2 worktrees além do principal, as tarefas pesadas uma por vez",
+      "são no máximo 3 \\(o diretório principal e as 2 worktrees",
+      "`worktree: <nome>`",
+      "não faz o review do próprio cartão",
+      "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
       "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
     ],
     ".githooks/pre-push": [
@@ -321,6 +364,10 @@
       "afirma um mínimo de itens"
     ],
     "skills/engineering-practices/SKILL.md": [
+      "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
+      "nem conta como volta de `R-QA`",
+      "## Definição de pronto",
+      "documentação afetada pela mudança atualizada na mesma entrega",
       "Teste de ausência .* cujo alvo mudou é relido"
     ],
     "tests/test_forge.py": [
@@ -357,7 +404,8 @@
       "\\*\\*Uma pergunta por vez\\*\\* em tudo, também no entendimento inicial",
       "Retira do escopo original",
       "Fora do escopo",
-      "corte: sem marca"
+      "corte: sem marca",
+      "na entrega, `pendente:`"
     ],
     "docs/regras/R-PROVA.md": [
       "tipo de prova",
@@ -365,13 +413,17 @@
       "copiada da saída de uma ferramenta",
       "Item sem prova conta como \\*\\*não feito\\*\\*",
       "Ele não recebe o relatório do autor",
-      "retrabalho"
+      "retrabalho",
+      "espera:",
+      "linhas>=N",
+      "\"do autor\""
     ],
     "docs/regras/R-BRIEF.md": [
       "\\*\\*antes\\*\\* de chegar ao agente",
       "literal, exatamente como será enviado",
       "corte de escopo marcado",
-      "O agente só recebe o texto aprovado"
+      "O agente só recebe o texto aprovado",
+      "docs/briefs/"
     ],
     "docs/regras/R-CONFORMIDADE.md": [
       "\\*\\*Nenhum agente desliga, enfraquece ou dribla um controle\\*\\*",

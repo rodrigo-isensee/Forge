@@ -366,6 +366,33 @@ class Hooks(unittest.TestCase):
             self.assertEqual(saida.exception.code, 2)
             self.assertIn("erro interno do hook parecer", erro.getvalue())
 
+    def test_suite_do_forge_e_pesada(self):
+        # TA-2: no clone do Forge a suíte completa é pesada; em projeto, só o que a config lista.
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+        import pesado
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        clone, projeto = tmp / "Forge", tmp / "proj"
+        for pasta in (clone, projeto):
+            (pasta / ".claude-plugin").mkdir(parents=True)
+            (pasta / ".claude-plugin" / "plugin.json").write_text('{"name": "forge"}\n', encoding="utf-8")
+            git("init", "-q", "-b", "develop", cwd=pasta)
+        (projeto / ".forge").mkdir()
+        (projeto / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        suite = "python3 -m unittest discover -s tests -q"
+        hook = _comum.Hook("pesado")
+        raiz = hook.projeto(clone, clone_do_forge=True)
+        self.assertEqual(raiz, clone)
+        self.assertTrue(pesado.pesado(suite, pesado.pesados_da_raiz(hook, raiz)))
+        self.assertTrue(pesado.pesado("cd tests && PYTHONPATH=. python -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
+        self.assertFalse(pesado.pesado("python3 -m unittest tests.test_forge", pesado.pesados_da_raiz(hook, raiz)))
+        self.assertFalse(pesado.pesado("echo python3 -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
+        hook = _comum.Hook("pesado")
+        raiz = hook.projeto(projeto, clone_do_forge=True)
+        self.assertEqual(raiz, projeto)
+        self.assertFalse(pesado.pesado(suite, pesado.pesados_da_raiz(hook, raiz)))  # projeto: só o que a config lista
+
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
