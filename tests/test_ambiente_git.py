@@ -2,15 +2,20 @@
 
 `ambiente_git.sem_manutencao` é o ponto único. Aqui: (1) ele junta as chaves em vez de sobrescrevê-las; (2) uma leitura
 estática (ast) de todos os `tests/test_*.py` falha se uma chamada direta a `git` (subprocess) não receber um ambiente
-montado por ele. Origem: erros de tearDown por `maintenance.lock` só em worktree (S-9)."""
+montado por ele; (3) os módulos de tests/ carregam também no modo dirigido (`python3 -m unittest
+tests.<módulo>`). Origem: erros de tearDown por `maintenance.lock` só em worktree (S-9)."""
 import ast
 import os
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
-from ambiente_git import CONFIGURACAO, sem_manutencao
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import CONFIGURACAO, sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
+RAIZ = AQUI.parent
 CHAMADAS = {"run", "Popen", "check_output", "check_call", "call"}
 CONSTRUTORES = {"sem_manutencao", "ambiente_limpo"}   # funções que devolvem o ambiente sem manutenção
 NOMES_DE_AMBIENTE = {"env", "ambiente", "AMBIENTE", "self.env"}
@@ -106,6 +111,27 @@ class LeituraEstatica(unittest.TestCase):
         for modulo in modulos:
             with self.subTest(modulo=modulo.name):
                 self.assertEqual(problemas(modulo.read_text(encoding="utf-8"), modulo.name), [])
+
+
+class ModoDirigido(unittest.TestCase):
+    """O `bin/forge-testes` roda `python3 -m unittest tests.<módulo>`: sem `tests/` no caminho, todo módulo carrega."""
+
+    def test_todo_modulo_de_tests_carrega_como_tests_modulo(self):
+        nomes = sorted(m.stem for m in AQUI.glob("*.py"))
+        self.assertGreaterEqual(len(nomes), 15)
+        # cada módulo carrega do zero: caminho e módulos de antes restaurados, para um não carregar pelo outro
+        codigo = ("import importlib, sys\n"
+                  "caminho, modulos = list(sys.path), set(sys.modules)\n"
+                  "assert not any(p.rstrip('/').endswith('tests') for p in caminho), caminho\n"
+                  "for n in sys.argv[1:]:\n"
+                  "    importlib.import_module('tests.' + n)\n"
+                  "    sys.path[:] = caminho\n"
+                  "    for m in set(sys.modules) - modulos:\n"
+                  "        del sys.modules[m]\n")
+        env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+        r = subprocess.run([sys.executable, "-c", codigo, *nomes], cwd=RAIZ, env=env, capture_output=True, text=True,
+                           timeout=120)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
 
 
 if __name__ == "__main__":

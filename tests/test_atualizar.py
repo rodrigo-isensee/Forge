@@ -16,7 +16,8 @@ import time
 import unittest
 from pathlib import Path
 
-from ambiente_git import sem_manutencao
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"

@@ -8,11 +8,13 @@ import json
 import re
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from ambiente_git import sem_manutencao
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")

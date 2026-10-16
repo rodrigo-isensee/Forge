@@ -9,9 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ambiente_git import sem_manutencao
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent

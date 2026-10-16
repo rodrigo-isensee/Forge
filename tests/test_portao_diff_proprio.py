@@ -3,12 +3,14 @@ real da branch, mas qualquer linha da branch a mais, a menos ou em outro lugar, 
 sim (o HEAD tem de ser o patch do parecer aplicado sobre a base nova)."""
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
-from ambiente_git import sem_manutencao
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 fc = SourceFileLoader("forge_check_portao", str(AQUI.parent / "bin" / "forge-check")).load_module()
