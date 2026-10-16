@@ -12,7 +12,7 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - Pendências que dependem do usuário e não são decisões (ex.: mesclar um PR, criar uma conta) vão numa lista curta de ações, separada da decisão.
 - Havendo várias decisões na fila, o Jarvis escolhe a que destrava mais trabalho, leva só ela e diz quantas restam.
 - **Uma pergunta por vez** em tudo, também no entendimento inicial do pedido: as outras ficam na fila, e a resposta diz quantas restam.
-- **Corte de escopo é explícito.** Toda decisão, brief ou entrega que retira algo do escopo original traz a marca literal **"Retira do escopo original"**, o trecho do pedido citado, a justificativa, a consequência e a referência à decisão do usuário que o autoriza. O arquivo do pedido ganha a lista "Fora do escopo". Item pedido que some sem a marca é corte silencioso: o `forge:conferente` o reprova (`corte: sem marca`).
+- **Corte de escopo é explícito.** Toda decisão, brief ou entrega que retira algo do escopo original traz a marca literal **"Retira do escopo original"**, o trecho do pedido citado, a justificativa, a consequência e a referência à decisão do usuário que o autoriza. O arquivo do pedido ganha a lista "Fora do escopo". Item pedido que some sem a marca é corte silencioso: o `forge:conferente` o reprova (no brief, `corte: sem marca`; na entrega, `pendente:`).
 - Decisões técnicas são do time: decidem, registram (ADR ou relatório) e não viram pergunta ao usuário.
 - Vale para o Jarvis e para qualquer agente que fale com o usuário, em todo projeto que usa o Forge.
 
