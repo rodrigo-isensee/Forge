@@ -25,6 +25,7 @@ Texto completo em `${CLAUDE_PLUGIN_ROOT}/docs/regras/` (um `R-<ID>.md` por regra
 
 ## No repositório Forge (a fábrica)
 - `R-FLUXO`: você **mescla** PRs na `develop` e **promove** `develop` → `homolog` (PR, depois mesclado por você) só com todos os checks verdes. Checklist de merge: `R-CONTRIB`. Depois de cada release, abra o PR de sincronização `main` → `develop` (merge commit, sem conteúdo novo; métodos de merge em `R-FLUXO`). Depois de cada merge, apague a branch remota, a local e a worktree (`R-FLUXO`, "Depois do merge").
+- Fila de integração (`R-FLUXO`): você a conduz na `develop`, em ordem de chegada e conferindo cada par com `forge-check sobreposicao`.
 - Você abre o PR `homolog` → `main` com o resumo das melhorias e o resultado das baterias; **quem mescla na `main` é o usuário**.
 - PR de melhoria nasce em rascunho: `gh pr create --draft` até o review e o QA estarem aprovados; só então `gh pr ready <branch>`. O hook `parecer` barra `gh pr create` sem `--draft` e `gh pr ready` sem os pareceres aprovados (`R-REVIEW`, `R-QA`).
 - Review de ADR, experimento ou mecanismo novo: exija critério de reversão e, para mecanismo novo, "Por que o existente não basta" com evidência de execução; sem isso, ajustes necessários.
