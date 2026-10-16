@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: pos-release-0.15.0
 branch: melhoria/release-0.15.1
-commit: d69feef
+commit: 82d0d52111a274a2a166e4ab7e08fc2f2c45a3b1
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -42,6 +42,15 @@ Sem UX nem API. Código testado: d155d29 (versão, CHANGELOG, fragmento removido
 
 ## Lacunas
 O sandbox nega `api.anthropic.com` e `datadoghq.com`; validação e e2e passaram mesmo assim. O `claude plugin validate . --strict` do CI não foi rodado literalmente; `scripts/validar-plugin.sh` o substitui. Os comandos `gh` e `git push` do arquivo não foram executados (sem credencial, fora do escopo); conferidos por leitura e pelos fatos do repositório.
+
+## Revalidação após merge da develop
+O merge da develop (930d6bb, K1; 82d0d52) trouxe `agents/conferente.md`, `agents/jarvis.md`, regras R-BRIEF/R-DECISAO/R-PROVA, o modelo de pedido, `tests/` e o fragmento `changelog.d/conferente-k1.md`. O 468f7c4 só acrescenta o parecer de review. Commit testado: 82d0d52 (o diff próprio da branch contra `origin/develop` é versão, CHANGELOG, remoção do fragmento do #145 e os dois pareceres).
+- Suíte: `python3 -m unittest discover -s tests -q` = 653 testes, OK.
+- `scripts/validar-plugin.sh`: "Validation passed".
+- Versão: `plugin.json` = 0.15.1 e a primeira seção datada do CHANGELOG = `[0.15.1]`; `[Não publicado]` vazia.
+- Notas extraíveis (awk do release.yml): 0.15.0 = 14 linhas, com a entrada `scripts/ci-local` do #145 nas linhas 2 e 12; 0.15.1 = 4 linhas.
+- `forge-check pr pos-release-0.15.0 --ref melhoria/release-0.15.1 --base origin/develop`: rc=0.
+- Mudança de resultado: o PQ-1d (`forge-changelog conferir-release`) agora dá rc=1, porque o fragmento `changelog.d/conferente-k1.md` veio da develop. Não é defeito desta branch: o gate roda no PR para a main (ci.yml) e o fragmento é da K1, ainda não publicada. Risco para o tech-lead: antes do PR homolog -> main, ou a K1 entra numa release própria (`forge-changelog release`, versão acima de 0.15.1, que junta e apaga o fragmento), ou o gate reprova.
 
 ## Resultado
 APROVADO. Zero bugs abertos.
