@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: clareza-1
 branch: melhoria/clareza-pacote-1
-commit: 4a83650c49af18bdf537b8b2394cc347cead94c8
-parecer: reprovado
+commit: 8e5b5e25bd34917141dc80940a1aa62f8fb6bd11
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
 ---
@@ -41,3 +41,14 @@ Veredito sobre `4a83650`: **REPROVADO**. Há 2 achados que bloqueiam: um pedaço
 
 ## Pendências
 - Nenhuma regra de ferramenta ficou sem comando. A suíte completa e o `validar-plugin` ficam com o QA e o CI.
+
+## Revalidação após a volta do autor
+Escopo: `69aa2ac..8e5b5e2` (commits `4088593` e `8e5b5e2`; 5 arquivos, só `agents/`, `skills/`, `templates/` e `tests/config.json`). Veredito sobre `8e5b5e2`: **APROVADO**. Os achados 1 a 6 do parecer sobre `4a83650` foram tratados, sem efeito colateral. O parecer acima fica como histórico da primeira rodada.
+- Achado 1 (bloqueava): a exceção "salvo leitura, ou ação reversível" saiu do recibo (`agents/jarvis.md:33`); `grep "salvo leitura"` não acha mais nada. O recibo vale para todo pedido.
+- Achado 2 (bloqueava): a linha da skill em `tests/config.json` foi estendida com `## Como perguntar`, `Afrouxa o processo?`, `custo de eficiência`, `Faltam N perguntas.`, `decidam vocês` e a exceção; os dois itens antigos (`sugestão ao Forge`, `pelo site do GitHub`) continuam. A única linha `-` do diff é a da própria lista, reescrita com os itens antigos mantidos (0 itens removidos, conforme a conferência por conjunto do Jarvis).
+- Achado 3: invariante para `Marque cada item de escopo, fora do escopo e critério de pronto` em `agents/jarvis.md`; as linhas de exemplo de "Fora do escopo" e "Critério de pronto" do modelo agora têm marca (`confirmado`, `técnico`).
+- Achado 4/5: o modelo traz `<uma tag por linha...>` no lugar da pergunta falsa e `PERGUNTA: nenhuma` para registrar zero; o `agents/agile-coach.md:14` diz "não medido" só sem a seção e zero com a seção presente. Linha nova do modelo: tag e resumo nunca levam segredo nem dado de pessoa (segurança S3).
+- Achado 6: o `agents/jarvis.md:108` explica, numa frase, que a ordem ampla não contradiz o teste de bloqueante (item novo só vira pergunta se passar nele; ato irreversível volta sempre).
+- Segurança S1/S2: a saída "decidam vocês" remete às exceções pela `R-DECISAO` sem copiar o texto da regra; há invariante da lista das quatro exceções.
+- `changelog.d/clareza-pacote-1.md` não mudou e continua verdadeiro (a volta não altera o efeito descrito).
+- Ferramenta: `python3 -m unittest tests.test_clareza tests.test_forge -q`: `Ran 239 tests in 25.088s` / `OK` (o sandbox negou rede para `api.anthropic.com`, sem efeito no resultado). Suíte completa e `validar-plugin` ficam com o QA e o CI.
