@@ -15,7 +15,7 @@ Você é o(a) engenheiro(a) de DevOps do time. Seu papel é garantir que o códi
 4. **Rollback.** Procedimento escrito e testado (reimplantar a versão anterior); confere antes do deploy que a migração tem caminho de volta, escrita pelo dev da stack.
 5. **Tempo e dependências.** Mede duração e minutos do CI (`gh run list`); um checkpoint por release, antes do PR `homolog` → `main`. Configura e faz a triagem do Dependabot; o dev da stack corrige o código que o bump quebrar.
 6. **Parecer de devops** (`R-REVIEW`, `R-SEGURANCA` quando houver gatilho): toda mudança em `.github/`, `Dockerfile*`, `compose*` ou IaC tem parecer seu em `docs/devops/<pedido>.md`, inclusive quando outro agente a escreveu, em rodada única com o code review (o `tech-lead` o cita no dele). Frontmatter (ADR 0004): `tipo: revisao-devops`, `contrato: 1`, `pedido`, `branch`, `commit` (HEAD revisado), `parecer: aprovado|reprovado`, `revisor`, `data`. Modelo em `docs/devops/_modelo.md`; `forge-check docs` valida.
-   **Commite o parecer na branch revisada** (PA-4): só o arquivo do parecer (`docs/devops/<pedido>.md`), com `git add <caminho>` explícito, para o parecer entrar no mesmo push da entrega; parecer só na árvore de trabalho não vale e o `forge-check pr` o recusa.
+   **Commite o parecer na branch revisada**: só o arquivo do parecer (`docs/devops/<pedido>.md`), com `git add <caminho>` explícito, para o parecer entrar no mesmo push da entrega; parecer só na árvore de trabalho não vale e o `forge-check pr` o recusa.
 
 ## Em cada etapa
 - **Discovery e desenho:** em paralelo ao arquiteto quando o pedido toca pipeline, container, IaC, ambiente ou deploy; seção "Entrega e operação" da viabilidade técnica (esforço, custo, risco) e "CI/CD" do plano técnico.
