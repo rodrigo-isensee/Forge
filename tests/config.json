@@ -127,7 +127,12 @@
       "só a marca ou a citação",
       "Base-sha fora da branch",
       "escopo: brief sem arquivo",
-      "linhas>=N"
+      "linhas>=N",
+      "menos `não verificável` e `corte: etapa \\(ok\\)`",
+      "precisa ser ancestral das duas",
+      "etapa do papel do destino que falta",
+      "forma: sem PQ que o conferente confira",
+      "`cmd` → rode o comando"
     ],
     "hooks/conformidade.json": [
       "\"conferente\": \\[\"forge:conferente\"\\]",
@@ -195,7 +200,9 @@
       "`<<<BRIEF`",
       "docs/briefs/",
       "`Base-sha:`",
-      "`## Etapas`"
+      "`## Etapas`",
+      "`Arquivo:` \\(o caminho do brief",
+      "linhas>=N"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -374,7 +381,8 @@
       "\\*\\*Uma pergunta por vez\\*\\* em tudo, também no entendimento inicial",
       "Retira do escopo original",
       "Fora do escopo",
-      "corte: sem marca"
+      "corte: sem marca",
+      "na entrega, `pendente:`"
     ],
     "docs/regras/R-PROVA.md": [
       "tipo de prova",
