@@ -2419,6 +2419,233 @@ class MedirAlucinacao(unittest.TestCase):
         self.assertIn("respostas=1 com_grupo=0 violacoes=0", saida)
 
 
+class ConferirBrief(unittest.TestCase):
+    """`forge-check brief` (C2, C4) e `brief gerar` (PA-2): forma e corte do brief por regra, sobre fixtures sintéticos."""
+
+    PASTA = RAIZ / "tests" / "fixtures" / "brief"
+    PEDIDO = PASTA / "pedido.md"
+
+    def rodar(self, *args, cwd=None):
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *map(str, args)],
+                           capture_output=True, text=True, cwd=cwd or RAIZ)
+        return r.returncode, r.stdout
+
+    def conferir(self, nome, *extra, pedido=None):
+        return self.rodar(self.PASTA / nome, "--pedido", pedido or self.PEDIDO, *extra)
+
+    def variante(self, nome, troca, pedido=False):
+        """Cópia temporária do fixture com uma troca de texto (a troca tem de acertar o texto)."""
+        origem = (self.PEDIDO if pedido else self.PASTA / nome).read_text(encoding="utf-8")
+        velho, novo = troca
+        self.assertIn(velho, origem)
+        tmp = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        destino = tmp / ("pedido.md" if pedido else nome)
+        destino.write_text(origem.replace(velho, novo), encoding="utf-8")
+        return destino
+
+    def test_etapa_de_outro_papel_nao_e_corte(self):
+        rc, saida = self.conferir("etapa-outro-papel.md")
+        self.assertIn('corte: etapa (ok) "E3" por E3.1, E3.2, E3.3', saida)
+        self.assertNotIn("corte: sem marca", saida)
+        self.assertEqual(rc, 0, saida)
+        self.assertTrue(saida.endswith("resultado: aprovado\n"))
+
+    def test_corte_sem_marca_reprova(self):
+        rc, saida = self.conferir("corte-sem-marca.md")
+        self.assertIn('corte: sem marca "E2"', saida)
+        self.assertEqual(rc, 1)
+        self.assertTrue(saida.endswith("resultado: reprovado\n"))
+
+    def test_corte_completo_passa_e_cada_campo_da_marca_conta(self):
+        rc, saida = self.conferir("corte-completo.md")
+        self.assertIn('corte: real (marca completa) "E2"', saida)
+        self.assertEqual(rc, 0, saida)
+        for campo in ("justificativa", "consequência", "decisão"):
+            with self.subTest(campo=campo):
+                arq = self.variante("corte-completo.md", (f"{campo}:", "motivo:"))
+                rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+                self.assertIn(f'corte: sem marca "E2" (falta: {campo}', saida)
+                self.assertEqual(rc, 1)
+
+    def test_marca_sem_a_frase_literal_nao_vale(self):
+        arq = self.variante("corte-completo.md", ("Retira do escopo original", "Retira do escopo"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('corte: sem marca "E2"', saida)
+        self.assertEqual(rc, 1)
+
+    def test_trecho_citado_precisa_existir_no_pedido(self):
+        arq = self.variante("corte-completo.md", ("Atualizar a documentação do recurso A.", "Escrever outra coisa qualquer."))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('corte: trecho fora do pedido "E2"', saida)
+        self.assertEqual(rc, 1)
+
+    def test_pq_cmd_sem_espera_reprova(self):
+        rc, saida = self.conferir("pq-cmd-sem-espera.md")
+        self.assertIn("forma: PQ-2 sem espera", saida)
+        self.assertEqual(rc, 1)
+
+    def test_espera_invalida_e_tipo_desconhecido_reprovam(self):
+        arq = self.variante("etapa-outro-papel.md", ("espera: contém 'recurso'", "espera: parecido com recurso"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("forma: PQ-2 sem espera", saida)
+        arq = self.variante("etapa-outro-papel.md", ("PQ-3 (push)", "PQ-3 (print)"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('forma: PQ-3 tipo desconhecido "print"', saida)
+        arq = self.variante("etapa-outro-papel.md", ("PQ-3 (push)", "PQ-3"))
+        self.assertIn("forma: PQ-3 sem tipo", self.rodar(arq, "--pedido", self.PEDIDO)[1])
+
+    def test_espera_combinada_e_espera_fraca(self):
+        arq = self.variante("etapa-outro-papel.md", ("espera: contém 'recurso'", "espera: rc=0 e contém 'recurso'"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertEqual(rc, 0, saida)
+        arq = self.variante("etapa-outro-papel.md", ("espera: contém 'recurso'", "espera: contém '1'"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("aviso: PQ-2 espera fraca", saida)
+        self.assertEqual(rc, 0, "aviso não reprova")
+
+    def test_pedido_sem_ids_nao_reprova_o_corte(self):
+        rc, saida = self.conferir("corte-sem-marca.md", pedido=self.PASTA / "pedido-sem-ids.md")
+        self.assertIn("corte: não verificável (pedido sem IDs)", saida)
+        self.assertNotIn("corte: sem marca", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_item_que_so_existe_em_etapas_e_etapa(self):
+        rc, saida = self.conferir("item-so-em-etapas.md")
+        self.assertIn('corte: etapa (ok) "E3" por E3.2', saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_item_que_so_existe_em_escopo_e_corte_real(self):
+        arq = self.variante("item-so-em-etapas.md", ('"validação de qualidade da branch"', '"Revisão, QA e publicação de cada branch."'))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('corte: sem marca "E3" (item de ## Escopo retirado sem a marca)', saida)
+        self.assertEqual(rc, 1)
+
+    def test_item_do_escopo_sumido_do_brief_e_corte(self):
+        arq = self.variante("item-so-em-etapas.md", ("- Documentação do recurso A (E2).\n", ""))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('corte: sem marca "E2" (nem no Entregar nem no Fora do escopo)', saida)
+        self.assertEqual(rc, 1)
+
+    def test_citacao_parecida_nao_cobre_o_item(self):
+        for falsa in ("(E10)", "(E1.2)", "E1 sem parênteses"):
+            with self.subTest(falsa=falsa):
+                arq = self.variante("item-so-em-etapas.md", ("(E1)", falsa))
+                self.assertIn('corte: sem marca "E1"', self.rodar(arq, "--pedido", self.PEDIDO)[1])
+
+    def test_etapa_do_papel_do_destino_que_falta_e_corte(self):
+        pedido = self.variante("", ("E3.3 (dono)", "E3.4 (dev-exemplo): ajustes pedidos na revisão. E3.3 (dono)"), pedido=True)
+        rc, saida = self.conferir("etapa-outro-papel.md", pedido=pedido)
+        self.assertIn('corte: sem marca "E3.4" (etapa do papel do destino fora do Entregar)', saida)
+        self.assertIn('corte: etapa (ok) "E3"', saida)
+        self.assertEqual(rc, 1)
+        # outro destino: a etapa passa a ser de outro papel
+        rc, saida = self.conferir("etapa-outro-papel.md", "--destino", "forge:revisor", pedido=pedido)
+        self.assertNotIn('"E3.4"', saida)
+
+    def test_forma_exige_as_secoes_e_nao_aceita_bloco_sem_preencher(self):
+        arq = self.variante("etapa-outro-papel.md", ("## Relatório", "## Outra coisa"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn('forma: falta seção "Relatório"', saida)
+        self.assertEqual(rc, 1)
+        arq = self.variante("etapa-outro-papel.md", ("## Objetivo\n", "## Objetivo\nPREENCHER\n"))
+        self.assertIn("forma: bloco gerado sem preencher (PREENCHER)", self.rodar(arq, "--pedido", self.PEDIDO)[1])
+
+    def test_brief_com_commit_precisa_de_pq_que_o_conferente_confira(self):
+        arq = self.variante("etapa-outro-papel.md", ("- PQ-1 (sha)", "- PQ-1 (cmd): `pytest` · espera: rc=0 · antes: "))
+        arq.write_text(re.sub(r"- PQ-3 \(push\).*\n", "", arq.read_text(encoding="utf-8")), encoding="utf-8")
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("forma: sem PQ que o conferente confira", saida)
+        self.assertIn("PQ-1: cmd · espera ok · verificador: autor", saida)
+        self.assertEqual(rc, 1)
+
+    def test_verificador_do_cmd_segue_a_lista_do_conferente(self):
+        fc = carregar_forge_check()
+        for cmd in ("git log -1 --format=%h", "gh pr view 12 --json state", "grep -c x a.md && test -e b",
+                    "forge-check pr p1", "git -C wt rev-parse HEAD", "bin/forge-check brief a.md --pedido p"):
+            with self.subTest(cmd=cmd):
+                self.assertTrue(fc.comando_do_conferente(cmd))
+        for cmd in ("python3 -m unittest -q", "scripts/validar-plugin.sh", "git push origin x", "gh pr merge 1",
+                    "cat a > b", "echo $(id)", "git log | sed 's/a/b/'", "forge-check transcricao custo"):
+            with self.subTest(cmd=cmd):
+                self.assertFalse(fc.comando_do_conferente(cmd))
+
+    def test_saida_igual_nas_tres_execucoes(self):
+        saidas = {self.conferir("etapa-outro-papel.md")[1] for _ in range(3)}
+        self.assertEqual(len(saidas), 1)
+
+    def test_linha_do_arquivo_traz_o_hash_completo_e_o_caminho_e_conferido(self):
+        arq = self.PASTA / "etapa-outro-papel.md"
+        _, saida = self.conferir("etapa-outro-papel.md")
+        esperado = hashlib.sha256(arq.read_bytes()).hexdigest()
+        self.assertIn(f"arquivo: {len(arq.read_bytes())} bytes sha256 {esperado}", saida)
+        self.assertEqual(len(esperado), 64)
+        self.assertNotIn("arquivo-caminho", saida)  # sem --destino o caminho não é conferido
+        rc, saida = self.conferir("etapa-outro-papel.md", "--destino", "forge:dev-exemplo")
+        self.assertIn("forma: Arquivo fora do padrão docs/briefs/pedido-sintetico-dev-exemplo-<n>.md", saida)
+        self.assertEqual(rc, 1)
+        tmp = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "docs" / "briefs").mkdir(parents=True)
+        certo = tmp / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-1.md"
+        certo.write_bytes(arq.read_bytes())
+        rc, saida = self.rodar(certo, "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo")
+        self.assertIn("arquivo-caminho: ok", saida)
+        self.assertEqual(rc, 0, saida)
+        outro = tmp / "docs" / "briefs" / "pedido-sintetico-outro-1.md"
+        outro.write_bytes(arq.read_bytes())
+        self.assertIn("forma: Arquivo fora do padrão", self.rodar(outro, "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo")[1])
+
+    def test_arquivo_ou_pedido_ilegivel_sai_com_2(self):
+        rc, saida = self.rodar(self.PASTA / "nao-existe.md", "--pedido", self.PEDIDO)
+        self.assertEqual(rc, 2)
+        rc, saida = self.conferir("etapa-outro-papel.md", pedido=self.PASTA / "nao-existe.md")
+        self.assertEqual(rc, 2)
+
+    def test_pedido_por_id_le_docs_pedidos(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        (tmp / "docs" / "pedidos").mkdir(parents=True)
+        shutil.copy(self.PEDIDO, tmp / "docs" / "pedidos" / "pedido-sintetico.md")
+        rc, saida = self.rodar(self.PASTA / "etapa-outro-papel.md", "--pedido", "pedido-sintetico", "--raiz", tmp)
+        self.assertEqual(rc, 0, saida)
+
+    # PA-2: brief gerar
+    def test_gerar_copia_as_decisoes_literalmente_e_traz_a_marca_e_as_provas(self):
+        rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")
+        self.assertEqual(rc, 0, saida)
+        for linha in self.PEDIDO.read_text(encoding="utf-8").splitlines():
+            if "DECISÃO DO DONO" in linha:
+                self.assertIn(f"- {linha}\n", saida)
+        self.assertIn("Retira do escopo original", saida)
+        self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
+        self.assertNotIn("E1.1 (dev-exemplo)", saida)  # etapa do papel do destino não vai para o Fora do escopo
+        self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
+        self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
+        self.assertEqual(self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")[1], saida)
+
+    def test_gerar_sem_destino_pede_o_destino_e_o_brief_gerado_nao_passa_sem_preencher(self):
+        rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO)
+        self.assertIn("PREENCHER: rode com --destino", saida)
+        tmp = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        arq = tmp / "gerado.md"
+        arq.write_text(saida, encoding="utf-8")
+        rc, conferido = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("forma: bloco gerado sem preencher (PREENCHER)", conferido)
+        self.assertEqual(rc, 1)
+
+    def test_gerar_com_pedido_ilegivel_sai_com_2(self):
+        self.assertEqual(self.rodar("gerar", "--pedido", self.PASTA / "nao-existe.md")[0], 2)
+
+    def test_conferente_lista_o_comando_e_a_passada_unica(self):
+        conferente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
+        self.assertIn("forge-check brief <arquivo> --pedido <pedido>", conferente)
+        for rel in ("agents/conferente.md", "docs/regras/R-BRIEF.md", "agents/jarvis.md"):
+            with self.subTest(arquivo=rel):
+                self.assertIn("todos os achados", (RAIZ / rel).read_text(encoding="utf-8"))
+
+
 class PraticasDeEspecificacao(unittest.TestCase):
     """Critérios EARS, bug, constituição e DORA presentes nos lugares certos."""
 
