@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -68,6 +68,7 @@ class Base(unittest.TestCase):
         self.env.pop("XDG_STATE_HOME", None)
         self.env = sem_manutencao(self.env)
         self.git("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
+        remoto_sem_manutencao(self.publicado)
         self.montar_projeto()
         self.escrever_home(".claude/plugins/installed_plugins.json",
                            json.dumps({"version": 2, "plugins": {"forge@forge": [{"scope": "user", "version": VERSAO}]}}))
@@ -80,6 +81,7 @@ class Base(unittest.TestCase):
         remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", "-b", "main", str(remoto), cwd=self.tmp)
+        remoto_sem_manutencao(remoto)
         self.git("clone", "-q", str(remoto), str(self.proj), cwd=self.tmp)
         self.escrever(".forge/versao", VERSAO + "\n")
         self.escrever(".forge/perfil", "iniciante\n")

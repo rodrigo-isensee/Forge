@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 DOUTOR = RAIZ / "bin" / "forge-doutor"
@@ -46,6 +46,7 @@ class Base(unittest.TestCase):
         self.remoto = self.tmp / "remoto.git"
         self.proj = self.tmp / "proj"
         self.git("init", "-q", "--bare", "-b", "main", str(self.remoto), cwd=self.tmp)
+        remoto_sem_manutencao(self.remoto)
         self.git("clone", "-q", str(self.remoto), str(self.proj), cwd=self.tmp)
         self.escrever(".forge/versao", VERSAO + "\n")
         self.escrever(".claude/settings.json", json.dumps({"agent": "forge:jarvis", "enabledPlugins": {"forge@forge": True}}))

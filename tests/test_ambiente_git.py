@@ -8,11 +8,12 @@ import ast
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import CONFIGURACAO, sem_manutencao  # noqa: E402
+from ambiente_git import CONFIGURACAO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 RAIZ = AQUI.parent
@@ -111,6 +112,44 @@ class LeituraEstatica(unittest.TestCase):
         for modulo in modulos:
             with self.subTest(modulo=modulo.name):
                 self.assertEqual(problemas(modulo.read_text(encoding="utf-8"), modulo.name), [])
+
+
+class RemotoSemManutencao(unittest.TestCase):
+    """O push local roda o receive-pack sem as `GIT_CONFIG_*` do ambiente; o config do remoto é o que vale."""
+
+    def git(self, *args, cwd):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t",
+                   GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
+        return subprocess.run(["git", *args], cwd=cwd, env=sem_manutencao(env), check=True, capture_output=True,
+                              text=True, timeout=60)
+
+    def test_config_chega_ao_receive_pack_so_pelo_remoto(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            repo = d / "repo"
+            self.git("init", "-q", "-b", "main", str(repo), cwd=d)
+            self.git("commit", "-q", "--allow-empty", "-m", "x", cwd=repo)
+            vistos = {}
+            for nome, preparar in (("sem", False), ("com", True)):
+                remoto, saida = d / f"{nome}.git", d / f"{nome}.txt"
+                self.git("init", "-q", "--bare", str(remoto), cwd=d)
+                if preparar:
+                    remoto_sem_manutencao(remoto)
+                gancho = remoto / "hooks" / "post-receive"
+                gancho.parent.mkdir(exist_ok=True)
+                gancho.write_text("#!/bin/sh\nfor c in receive.autogc gc.auto maintenance.auto; do\n"
+                                  f'  printf "%s=%s\\n" "$c" "$(git config --get "$c")" >> "{saida}"\n'
+                                  f'done\nprintf "COUNT=%s\\n" "$GIT_CONFIG_COUNT" >> "{saida}"\n', encoding="utf-8")
+                gancho.chmod(0o755)
+                self.git("push", "-q", str(remoto), "main", cwd=repo)
+                vistos[nome] = saida.read_text(encoding="utf-8").split()
+            # o ambiente do push não chega ao remoto (por isso o ambiente sozinho não basta) ...
+            self.assertEqual(vistos["sem"], ["receive.autogc=", "gc.auto=", "maintenance.auto=", "COUNT="])
+            # ... e o config gravado por remoto_sem_manutencao chega
+            self.assertEqual(vistos["com"], [f"{c}={v}" for c, v in (("receive.autogc", "false"), ("gc.auto", "0"),
+                                                                      ("maintenance.auto", "false"))] + ["COUNT="])
+            self.assertEqual(dict(CONFIGURACAO), {"receive.autogc": "false", "gc.auto": "0", "maintenance.auto": "false"})
 
 
 class ModoDirigido(unittest.TestCase):

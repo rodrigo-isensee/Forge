@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -656,8 +656,7 @@ class HookPrePush(unittest.TestCase):
         self.remoto = self.tmp / "remoto.git"
         self.repo = self.tmp / "repo"
         git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
-        # o receive-pack local não herda GIT_CONFIG_*: sem isto ele dispara a manutenção em segundo plano no remoto
-        git("config", "receive.autogc", "false", cwd=self.remoto)
+        remoto_sem_manutencao(self.remoto)  # o receive-pack local não herda GIT_CONFIG_* (ver ambiente_git.py)
         git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp)
         for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
             git("config", k, v, cwd=self.repo)
@@ -1133,6 +1132,7 @@ class JarvisForgeAbrir(unittest.TestCase):
         self.origem = self.tmp / "origem.git"
         semente = self.tmp / "semente"
         git("init", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
         git("clone", "-q", str(self.origem), str(semente), cwd=self.tmp)
         (semente / "bin").mkdir()
         self.chamadas_fontes = self.tmp / "fontes.log"

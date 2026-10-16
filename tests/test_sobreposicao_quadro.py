@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-check"
@@ -75,6 +75,7 @@ class Sobreposicao(unittest.TestCase):
         origem = tempfile.TemporaryDirectory()
         self.addCleanup(origem.cleanup)
         git(self.repo, "clone", "-q", "--bare", str(self.repo), origem.name)
+        remoto_sem_manutencao(origem.name)
         git(self.repo, "remote", "add", "origin", origem.name)
         git(self.repo, "fetch", "-q", "origin")
         rc, saida = checar(self.repo, "sobreposicao", "--base", "develop")
@@ -87,6 +88,7 @@ class Sobreposicao(unittest.TestCase):
         origem = tempfile.TemporaryDirectory()
         self.addCleanup(origem.cleanup)
         git(self.repo, "clone", "-q", "--bare", str(self.repo), origem.name)
+        remoto_sem_manutencao(origem.name)
         git(self.repo, "remote", "add", "origin", origem.name)
         git(self.repo, "fetch", "-q", "origin")
         git(self.repo, "branch", "-D", "melhoria/b")

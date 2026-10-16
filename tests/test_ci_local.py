@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 _loader = importlib.machinery.SourceFileLoader("ci_local", str(RAIZ / "scripts" / "ci-local"))
@@ -445,6 +445,7 @@ class SinalTest(unittest.TestCase):
                                                                      "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}))
         self.git = git
         git("init", "-q", "--bare", str(origem), cwd=self.dir)
+        remoto_sem_manutencao(origem)
         git("init", "-q", "-b", "develop", str(repo), cwd=self.dir)
         (repo / ".github" / "workflows").mkdir(parents=True)
         (repo / ".github" / "workflows" / "ci.yml").write_text(
