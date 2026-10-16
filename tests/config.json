@@ -160,6 +160,10 @@
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "brief único",
+      "worktree: <nome>` na Obs\\.",
+      "comando de pronto do projeto verde, rodado da raiz do repositório",
+      "suba mais instâncias iguais dele",
       "## Fábrica × projeto: onde cada mudança vai",
       "\\*\\*Todos os projetos usam só a `main` do Forge\\.\\*\\*",
       "\\*\\*em qualquer projeto\\*\\*",
@@ -224,6 +228,9 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "quem deu o parecer revalida",
+      "não decide o alcance",
+      "\\*\\*uma vez, antes do review\\*\\*",
       "regras \"decidida por: leitura\"",
       "\\*\\*Code review obrigatório\\*\\*",
       "quem mescla na `main` é o usuário",
@@ -300,10 +307,16 @@
       "\\*\\*Todo pedido começa com discovery\\.\\*\\*"
     ],
     "docs/regras/R-REVIEW.md": [
+      "a instância autora não revisa o próprio cartão",
       "\\*\\*Code review\\*\\* do `tech-lead` em toda entrega, antes do QA"
     ],
     "docs/regras/R-FLUXO.md": [
+      "Depois do QA só se atualiza se houver conflito real",
+      "Quem resolveu o conflito não decide o alcance",
+      "quem deu o parecer revalida",
+      "invalida os pareceres dos arquivos que ela tocou",
       "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "\\*\\*Atualize a branch com a integração uma vez, antes do review\\*\\*",
       "Nada pula degrau",
       "\\*\\*Depois do merge, limpe tudo\\*\\*",
       "\\*\\*Nunca\\*\\* apague `develop`, `homolog` nem `main`",
@@ -320,6 +333,12 @@
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
     ],
     "docs/regras/R-WIP.md": [
+      "sem folga no teto, a fila espera",
+      "respeitando o `R-TETO` inteiro: o teto de agentes, o limite de 2 worktrees além do principal, as tarefas pesadas uma por vez",
+      "são no máximo 3 \\(o diretório principal e as 2 worktrees",
+      "`worktree: <nome>`",
+      "não faz o review do próprio cartão",
+      "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
       "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
     ],
     ".githooks/pre-push": [
@@ -345,6 +364,10 @@
       "afirma um mínimo de itens"
     ],
     "skills/engineering-practices/SKILL.md": [
+      "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
+      "nem conta como volta de `R-QA`",
+      "## Definição de pronto",
+      "documentação afetada pela mudança atualizada na mesma entrega",
       "Teste de ausência .* cujo alvo mudou é relido"
     ],
     "tests/test_forge.py": [

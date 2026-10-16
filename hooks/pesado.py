@@ -4,6 +4,8 @@
 PreToolUse (Bash): se um comando simples da linha começa com um item de `pesados` (.forge/config.json) e outra
 sessão ou agente tem tarefa pesada ativa (trava com PID vivo, com menos de TRAVA_S), bloqueia; senão pega a trava.
 PostToolUse, PostToolUseFailure e PermissionDenied (Bash) do mesmo comando soltam a trava.
+No clone do Forge (cópia principal e worktrees), que não tem `.forge/config.json`, valem também os PESADOS_DO_FORGE
+abaixo: duas suítes completas ao mesmo tempo esgotam a memória (R-TETO).
 Estado em .forge/run/pesado.json.
 """
 import os
@@ -11,7 +13,7 @@ import re
 import time
 from pathlib import Path
 
-from _comum import bloquear, executar, gravar_json, ler_json, segmentos, sem_atribuicoes
+from _comum import bloquear, e_clone_do_forge, executar, gravar_json, ler_json, segmentos, sem_atribuicoes
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
 EVENTOS = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionDenied"}
@@ -21,6 +23,14 @@ TRAVA_S = 600
 LANCADORES = {"sudo", "env", "time", "nice", "nohup", "exec", "command", "npx", "pnpx", "bunx", "uvx"}
 GERENCIADORES = {"npm", "pnpm", "yarn", "bun", "uv", "poetry"}
 SUBCOMANDOS_DE_LANCE = {"exec", "run", "dlx", "x"}
+# A suíte completa do Forge é tarefa pesada (R-TETO): o `.forge/` do clone é protegido e não traz esta lista.
+PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover"]
+
+
+def pesados_da_raiz(hook, raiz):
+    """`pesados` da config do projeto; no clone do Forge, mais os PESADOS_DO_FORGE."""
+    lista = list(hook.config()["pesados"])
+    return lista + PESADOS_DO_FORGE if e_clone_do_forge(raiz) else lista
 
 
 def normalizar(texto):
@@ -91,7 +101,8 @@ def principal(hook):
     evento = hook.campo("hook_event_name")
     if not isinstance(comando, str) or evento not in EVENTOS:
         return
-    if not hook.projeto(hook.cwd()) or not pesado(comando, hook.config()["pesados"]):
+    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+    if not raiz or not pesado(comando, pesados_da_raiz(hook, raiz)):
         return
     uso = hook.campo("tool_use_id")
     with hook.trava():
