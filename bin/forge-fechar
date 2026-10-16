@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
-# Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop|origin/homolog] [--titulo T] [--origem T] [--muda T]
+# Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir T] [--espera SEGUNDOS] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
-# (4) espera e lê os checks; (5) recusa rótulo pedido e ainda não aplicado; (6) merge pelo método da base; (7) limpeza.
+# (4) espera e lê os checks; (5) recusa rótulo pedido e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
+# Só para a develop: a promoção develop -> homolog segue manual (R-FLUXO). Roda só no repositório do Forge (R-CONTRIB).
 # Nunca: mescla na main, aplica rótulo, usa --force ou --no-verify, apaga develop/homolog/main, dispensa parecer ou check.
 # --dry-run só imprime cada passo; não roda forge-check, git remoto nem gh.
-# Para teste: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre leituras dos checks).
+# Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre
+# leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as duas primeiras são ignoradas, com aviso.
 set -euo pipefail
 
 die() { echo "forge-fechar: $*" >&2; exit 1; }
@@ -31,16 +33,24 @@ done
 [ -n "$pedido" ] || die "informe o pedido (forge-fechar <pedido> --ref <branch>)"
 [ -n "$ref" ] || die "informe --ref <branch>"
 case "$ref" in main|develop|homolog) die "a branch da entrega não pode ser $ref (R-FLUXO)" ;; esac
+git check-ref-format --branch "$ref" >/dev/null 2>&1 || die "--ref não é um nome de branch válido: $ref"
 case "$base" in
   origin/develop) alvo=develop; metodo=--squash ;;
-  origin/homolog) alvo=homolog; metodo=--merge ;;
   origin/main|main) die "base main recusada: a main é só do dono (R-MAIN)" ;;
-  *) die "base fora do fluxo: $base (use origin/develop ou origin/homolog)" ;;
+  *) die "base fora do fluxo: $base (use origin/develop; a promoção à homolog é manual)" ;;
 esac
 [[ "$espera" =~ ^[0-9]+$ ]] || die "--espera pede um número de segundos"
 
-check="${FORGE_CHECK:-forge-check}"
-gh="${FORGE_GH:-gh}"
+if [ "${FORGE_FECHAR_TESTE:-}" = 1 ]; then
+  check="${FORGE_CHECK:-forge-check}"
+  gh="${FORGE_GH:-gh}"
+else
+  if [ -n "${FORGE_CHECK:-}${FORGE_GH:-}" ]; then
+    echo "aviso: FORGE_CHECK/FORGE_GH só valem com FORGE_FECHAR_TESTE=1; usando forge-check e gh reais." >&2
+  fi
+  check=forge-check
+  gh=gh
+fi
 intervalo="${FORGE_FECHAR_INTERVALO:-30}"
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
@@ -55,6 +65,12 @@ ${muda:-Ver o diff e o pedido $pedido.}
 ## Como medir
 ${medir:-Ver a seção de medição do pedido $pedido.}"
 
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "rode dentro do repositório do Forge"
+cd "$(git rev-parse --show-toplevel)"
+if ! grep -qE '"name"[[:space:]]*:[[:space:]]*"forge"' .claude-plugin/plugin.json 2>/dev/null; then
+  die "este não é o repositório do Forge (sem .claude-plugin/plugin.json com name forge); o fechamento é do tech-lead no Forge (R-CONTRIB)"
+fi
+
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
   passo 1 "$check pr $pedido --ref $ref --base $base"
@@ -62,13 +78,10 @@ if [ "$seco" = 1 ]; then
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto)"
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
   passo 5 "$gh pr view $ref --json labels (recusa se o rótulo afrouxa-regra foi pedido e não está aplicado)"
-  passo 6 "$gh pr merge $ref $metodo (base $alvo; nunca a main)"
+  passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto)"
   passo 7 "git push origin --delete $ref; git worktree remove <worktree de $ref>; git branch -D $ref"
   exit 0
 fi
-
-git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "rode dentro do repositório"
-cd "$(git rev-parse --show-toplevel)"
 
 passo 1 "pareceres: $check pr $pedido --ref $ref --base $base"
 "$check" pr "$pedido" --ref "$ref" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
@@ -80,8 +93,9 @@ remoto_sha="$(git ls-remote origin "refs/heads/$ref" | awk '{print $1}')"
 [ "$remoto_sha" = "$local_sha" ] || die "parou no passo 2: o head local ($local_sha) difere do remoto ($remoto_sha); envie a branch"
 
 passo 3 "PR para $alvo"
-if numero="$("$gh" pr view "$ref" --json number,state --jq 'select(.state=="OPEN") | .number' 2>/dev/null)" && [ -n "$numero" ]; then
-  echo "PR #$numero já aberto; reusado."
+if aberto="$("$gh" pr view "$ref" --json number,state,baseRefName --jq 'select(.state=="OPEN") | "\(.number) \(.baseRefName)"' 2>/dev/null)" && [ -n "$aberto" ]; then
+  [ "${aberto#* }" = "$alvo" ] || die "parou no passo 3: o PR aberto #${aberto%% *} tem base ${aberto#* }, não $alvo; feche-o ou corrija a base (R-MAIN)"
+  echo "PR #${aberto%% *} já aberto; reusado."
 else
   "$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo" || die "parou no passo 3: não consegui abrir o PR"
 fi
@@ -90,9 +104,16 @@ passo 4 "checks (até ${espera}s)"
 inicio=$SECONDS
 while :; do
   saida="$("$gh" pr checks "$ref" 2>&1 || true)"
-  [ -n "$saida" ] || die "parou no passo 4: o PR não tem checks"
   estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
-  [ -n "$estados" ] || die "parou no passo 4: não consegui ler os checks: $saida"
+  if [ -z "$estados" ]; then
+    # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
+    if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
+      [ $((SECONDS - inicio)) -lt "$espera" ] || die "parou no passo 4: nenhum check apareceu após ${espera}s"
+      sleep "$intervalo"
+      continue
+    fi
+    die "parou no passo 4: não consegui ler os checks: $saida"
+  fi
   if printf '%s\n' "$estados" | grep -qvE '^(pass|skipping|pending|queued|in_progress)$'; then
     printf '%s\n' "$saida" >&2
     die "parou no passo 4: há check vermelho ou desconhecido; corrija e rode de novo"
@@ -104,19 +125,25 @@ done
 echo "checks verdes."
 
 passo 5 "rótulo"
-rotulos="$("$gh" pr view "$ref" --json labels --jq '.labels[].name' 2>/dev/null || true)"
-texto="$("$gh" pr view "$ref" --json title,body --jq '.title, .body' 2>/dev/null || true)"
+rotulos="$("$gh" pr view "$ref" --json labels --jq '.labels[].name' 2>/dev/null)" || die "parou no passo 5: não consegui ler os rótulos do PR"
+texto="$("$gh" pr view "$ref" --json title,body --jq '.title, .body' 2>/dev/null)" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
 if printf '%s' "$texto" | grep -qi 'afrouxa-regra' && ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
   die "parou no passo 5: o PR pede o rótulo afrouxa-regra e o dono ainda não o aplicou; o script nunca aplica rótulo"
 fi
 
 passo 6 "merge ($metodo) em $alvo"
-"$gh" pr merge "$ref" "$metodo" || die "parou no passo 6: o merge falhou"
+pre="$("$gh" pr view "$ref" --json baseRefName,isDraft --jq '"\(.baseRefName) \(.isDraft)"' 2>/dev/null)" || die "parou no passo 6: não consegui ler a base do PR"
+[ "${pre%% *}" != main ] || die "parou no passo 6: o PR tem base main; a main é só do dono (R-MAIN)"
+[ "${pre%% *}" = "$alvo" ] || die "parou no passo 6: o PR tem base ${pre%% *}, não $alvo"
+if [ "${pre#* }" = true ]; then
+  "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
+fi
+"$gh" pr merge "$ref" "$metodo" --match-head-commit "$remoto_sha" || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
 estado="$("$gh" pr view "$ref" --json state --jq .state 2>/dev/null || true)"
 [ "$estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${estado:-desconhecido})"
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
-git push origin --delete "$ref" || echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $ref)." >&2
+git push origin --delete "refs/heads/$ref" || echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $ref)." >&2
 atual="$(pwd -P)"
 arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=$2} $1=="branch" && $2==b {print w}')"
 if [ -n "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
