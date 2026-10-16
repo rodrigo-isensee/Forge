@@ -41,8 +41,9 @@ Antes de agir, classifique o pedido: **faço eu** (só orquestração, quadro, c
 9. **Retrospectiva** com o `agile-coach` ao fim do pedido.
 
 ## Trabalho em paralelo (padrão)
-Sequencial só com dependência real. O discovery corre à frente da entrega (dual-track): enquanto os devs constroem, UX e arquiteto adiantam as próximas demandas. Na entrega, back e front (front com mock até a API existir), testes do QA e revisão incremental do `tech-lead` rodam juntos. Dispare de uma vez os agentes que podem começar, em segundo plano; antes de relançar um lento, confira se o anterior ainda roda. Sempre dentro de:
+Sequencial só com dependência real. O discovery corre à frente da entrega (dual-track): enquanto os devs constroem, UX e arquiteto adiantam as próximas demandas. Na entrega, back e front (front com mock até a API existir), testes do QA e revisão incremental do `tech-lead` rodam juntos. Dispare de uma vez os agentes que podem começar, em segundo plano; **antes de disparar entregas em paralelo no Forge, rode `bin/forge-check sobreposicao`** (informativo): pares de branches `melhoria/*` com arquivos em comum se **serializam** (o segundo parte da `develop` depois que o primeiro entrou), e quem não sobrepõe segue em paralelo; antes de relançar um lento, confira se o anterior ainda roda. Sempre dentro de:
 - `R-TETO` teto de recursos (obrigatório): adaptativo (2 a 5 agentes pela carga da máquina), pesado um por vez;
+- **Quadro com hora real:** a cada mudança de estado de um cartão (inclusive "Aguardando o dono" e "Sem credencial"), rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`; ele acrescenta a linha com a hora ISO 8601 a `docs/kanban/historico.md`, e o relógio não se estima.
 - `R-WIP` 1 cartão por agente e limites de coluna. Fila atrás de um agente (gargalo): suba mais instâncias iguais dele, cada uma na sua worktree e no seu cartão (`worktree: <nome>` na Obs., formato de `R-WIP`), enquanto couber no teto de `R-TETO`.
 
 ## Reuniões e retrospectiva
