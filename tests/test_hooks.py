@@ -24,6 +24,7 @@ Formato do fixture:
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
 """
+import concurrent.futures
 import contextlib
 import io
 import json
@@ -216,58 +217,86 @@ class Hooks(unittest.TestCase):
         outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
         self.addCleanup(outro.wait)
         self.addCleanup(outro.kill)
-        for f in self.fixtures:
+        em_serie = [f for f in self.fixtures if self.depende_de_pid_ou_trava(f)]
+        em_paralelo = [f for f in self.fixtures if f not in em_serie]
+        verificados = []
+        # Montar e rodar é espera de subprocesso (não segura o GIL); cada fixture tem a sua pasta temporária.
+        # As falhas voltam como objeto e viram subTest na thread principal, com o mesmo nome de caso.
+        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
+            futuros = [(f, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
+                       for f in em_paralelo]
+            for f, futuro in futuros:
+                with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
+                    verificados.append(f)
+                    erro = futuro.exception()
+                    if erro is not None:
+                        raise erro
+        for f in em_serie:  # PID e trava global do `pesado`: um de cada vez, depois do paralelo
             with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
-                tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
-                self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
-                raiz, entrada = f.montar(tmp, outro.pid)
-                proc = montar_proc(tmp, f.dados.get("proc"))
-                extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
-                f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
-                r = rodar(f.hook, entrada, raiz, proc, extra)
-                esperado = f.dados["esperado"]
-                if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
-                    self.assertEqual(f.hook, "vigia")
-                    self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
-                    saida = json.loads(r.stdout)
-                    self.assertEqual(list(saida), ["systemMessage"])
-                    self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
-                    self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
-                    self.assertIn(esperado["saida"], saida["systemMessage"])
-                elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
-                    self.assertEqual(f.hook, "conformidade")
-                    saida = json.loads(r.stdout)["hookSpecificOutput"]
-                    self.assertEqual((saida["hookEventName"], saida["permissionDecision"]), ("PreToolUse", "ask"))
-                    self.assertNotIn("\n", saida["permissionDecisionReason"], "uma linha só")
-                    self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
-                else:
-                    self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
-                self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
-                if esperado["codigo"] == 0:
-                    self.assertEqual(r.stderr, "", "sem violação, sem saída")
-                else:
-                    linha = r.stderr.rstrip("\n")
-                    self.assertNotIn("\n", linha, "uma linha só")
-                    self.assertLessEqual(len(linha), 200)
-                    self.assertRegex(linha, r"^R-[A-Z]+: ")
-                    self.assertIn(esperado["stderr"], linha)
-                run = raiz / ".forge" / "run"
-                if esperado.get("sem_run"):
-                    self.assertFalse(run.exists(), ".forge/run/ não deveria ser criado")
-                for nome, conf in esperado.get("estado", {}).items():
-                    conteudo = (run / nome).read_text(encoding="utf-8")
-                    for trecho in conf.get("contem", []):
-                        self.assertIn(trecho, conteudo)
-                    for trecho in conf.get("ausente", []):
-                        self.assertNotIn(trecho, conteudo)
-                for nome in esperado.get("sem_arquivo", []):
-                    self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
-                if "erros_log" in esperado:
-                    self.assertIn(esperado["erros_log"], (run / "erros.log").read_text(encoding="utf-8"))
-                elif run.exists():
-                    self.assertFalse((run / "erros.log").exists(), "erro interno inesperado")
-                if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
-                    self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
+                verificados.append(f)
+                self.executar_fixture(f, self._pasta_temporaria(), outro.pid)
+        self.assertEqual(len(verificados), len(self.fixtures), "todo fixture é verificado")
+
+    def _pasta_temporaria(self):
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        return tmp
+
+    @staticmethod
+    def depende_de_pid_ou_trava(f):
+        return f.hook == "pesado" or "{pid_" in json.dumps(f.dados)
+
+    def executar_fixture(self, f, tmp, outro_pid):
+        raiz, entrada = f.montar(tmp, outro_pid)
+        proc = montar_proc(tmp, f.dados.get("proc"))
+        extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
+        f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
+        r = rodar(f.hook, entrada, raiz, proc, extra)
+        esperado = f.dados["esperado"]
+        if "saida" in esperado:  # só o vigia: aviso ao usuário, nunca contexto para o modelo
+            self.assertEqual(f.hook, "vigia")
+            self.assertNotEqual(entrada.get("hook_event_name"), "SessionStart", "SessionStart é silencioso")
+            saida = json.loads(r.stdout)
+            self.assertEqual(list(saida), ["systemMessage"])
+            self.assertNotIn("\n", saida["systemMessage"], "uma linha só")
+            self.assertRegex(saida["systemMessage"], r"^Forge: \d+ (violação\(ões\)|aviso\(s\)|mudança\(s\))(, \d+ \S+)* — ")
+            self.assertIn(esperado["saida"], saida["systemMessage"])
+        elif "pergunta" in esperado:  # só o conformidade: pede a confirmação da pessoa, com a consequência
+            self.assertEqual(f.hook, "conformidade")
+            saida = json.loads(r.stdout)["hookSpecificOutput"]
+            self.assertEqual((saida["hookEventName"], saida["permissionDecision"]), ("PreToolUse", "ask"))
+            self.assertNotIn("\n", saida["permissionDecisionReason"], "uma linha só")
+            self.assertIn(esperado["pergunta"], saida["permissionDecisionReason"])
+        else:
+            self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
+        self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
+        if esperado["codigo"] == 0:
+            self.assertEqual(r.stderr, "", "sem violação, sem saída")
+        else:
+            linha = r.stderr.rstrip("\n")
+            self.assertNotIn("\n", linha, "uma linha só")
+            self.assertLessEqual(len(linha), 200)
+            self.assertRegex(linha, r"^R-[A-Z]+: ")
+            self.assertIn(esperado["stderr"], linha)
+        run = raiz / ".forge" / "run"
+        if esperado.get("sem_run"):
+            self.assertFalse(run.exists(), ".forge/run/ não deveria ser criado")
+        for nome, conf in esperado.get("estado", {}).items():
+            conteudo = (run / nome).read_text(encoding="utf-8")
+            for trecho in conf.get("contem", []):
+                self.assertIn(trecho, conteudo)
+            for trecho in conf.get("ausente", []):
+                self.assertNotIn(trecho, conteudo)
+        for nome in esperado.get("sem_arquivo", []):
+            self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
+        if "erros_log" in esperado:
+            self.assertIn(esperado["erros_log"], (run / "erros.log").read_text(encoding="utf-8"))
+        elif run.exists():
+            self.assertFalse((run / "erros.log").exists(), "erro interno inesperado")
+        if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
+            self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
+
 
     def test_cada_hook_tem_caso_que_passa_e_que_bloqueia(self):
         scripts = {p.stem for p in minimo(HOOKS.glob("*.py"), 5, "scripts de hook") if not p.name.startswith("_")}
