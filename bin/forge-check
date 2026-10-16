@@ -10,6 +10,8 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop]
      forge-check fontes
+     forge-check sobreposicao [--base REF]
+     forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -37,6 +39,7 @@ toca um gatilho que o diff mostra (R-SEGURANCA) ou o plano técnico do pedido ma
 Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do Forge pendente (ADR 0005).
 """
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -536,6 +539,57 @@ BLOQUEIO_HOOK = re.compile(r"blocking error|exit code 2\W+(?-i:R-[A-Z])|(?:PreTo
 BLOQUEIO_PERMISSAO = re.compile(r"permission[^\n]{0,60}(?:denied|not allowed)|was denied|doesn't want to proceed|"
                                 r"requires approval|not allowed to use", re.I)
 OPCAO = re.compile(r"^\s*(?:[-*]\s+)?(?:\*\*)?(?:op[cç][aã]o\s+\w+|\(?[A-Da-d]\)|[A-Da-d][.)]|\d[.)])\s", re.I | re.M)
+
+
+def branches_de_melhoria(raiz):
+    """Nomes curtos (sem o remoto) das branches `melhoria/*`, locais e remotas, sem repetir e em ordem."""
+    cod, saida = git(raiz, "for-each-ref", "--format=%(refname)", "refs/heads/melhoria/", "refs/remotes/")
+    nomes = set()
+    for ref in saida.splitlines() if not cod else []:
+        curto = ref[len("refs/heads/"):] if ref.startswith("refs/heads/") else ref[len("refs/remotes/"):].split("/", 1)[-1]
+        if curto.startswith("melhoria/"):
+            nomes.add(curto)
+    return sorted(nomes)
+
+
+def cmd_sobreposicao(raiz, base=None):
+    """Informativo (TA-6): arquivos que cada par de branches `melhoria/*` muda em comum sobre a base.
+    Uma linha por par com sobreposição, ordenada, e uma linha de resumo; nunca falha."""
+    b = base_da_entrega(raiz, base)
+    if not b:
+        return [f"sobreposicao: base não encontrada ({base or ', '.join(BASES)}); nada comparado"]
+    tocados = {}
+    for nome in branches_de_melhoria(raiz):
+        ref = nome if not git(raiz, "rev-parse", "--verify", "--quiet", f"refs/heads/{nome}")[0] else f"origin/{nome}"
+        tocados[nome] = set(arquivos_da_entrega(raiz, ref, b))
+    saida, nomes = [], sorted(tocados)
+    for i, a in enumerate(nomes):
+        for c in nomes[i + 1:]:
+            comum = sorted(tocados[a] & tocados[c])
+            if comum:
+                saida.append(f"{a} <-> {c}: {', '.join(comum)}")
+    saida.append(f"sobreposicao: {len(saida)} par(es) com arquivos em comum entre {len(nomes)} branch(es) melhoria/* (base {b})")
+    return saida
+
+
+def cmd_movimento(raiz, cartao, de, para, motivo):
+    """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
+    coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
+    def limpo(t):
+        return re.sub(r"\s+", " ", t.replace("|", "/")).strip()
+    campos = [limpo(x) for x in (cartao, de, para)]
+    if not all(campos):
+        return ["movimento: cartão, --de e --para não podem ser vazios"]
+    arq = raiz / "docs" / "kanban" / "historico.md"
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    existe = arq.is_file() and arq.stat().st_size > 0
+    hora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {limpo(motivo) or '—'} |\n"
+    with arq.open("a", encoding="utf-8") as f:
+        if not existe:
+            f.write("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
+        f.write(linha)
+    return [linha.rstrip("\n")]
 
 
 def carregar_politica():
@@ -1966,6 +2020,13 @@ def main():
     br.add_argument("--destino", help="agente destino, forge:<nome> (padrão: `Agente destino:` do brief ou o nome do arquivo)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
+    so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
+    so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
+    mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
+    mv.add_argument("cartao")
+    mv.add_argument("--de", required=True, help="coluna de origem")
+    mv.add_argument("--para", required=True, help="coluna de destino")
+    mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —)")
     pr = sub.add_parser("pr", parents=[comum])
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
@@ -2006,6 +2067,12 @@ def executar(a, raiz):
         if a.alvo == "gerar":
             return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino)
+    if a.cmd in ("sobreposicao", "movimento"):
+        linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
+                  else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))
+        for linha in linhas:
+            print(linha)
+        return 1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0
     if a.cmd == "fontes":
         linhas, codigo = cmd_fontes()
         for linha in linhas:
