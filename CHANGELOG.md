@@ -4,6 +4,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.17.0] - 2026-10-16
+### Adicionado
+- **Conferente confiável, fatia K2:** `forge-check brief <arquivo> --pedido <pedido>` confere forma e corte do brief por regra (etapa de outro papel, corte com marca completa, PQ com tipo e `espera:`, quem confere cada PQ, hash do arquivo) e `forge-check brief gerar` monta os blocos fixos do brief; o conferente lista todos os achados de uma vez e o Jarvis se autoconfere antes de reenviar (`R-BRIEF`); `Base:` limitada às branches de integração, `Brief-sha256:` na entrega, `tests/config.json` nunca é anexo, `forma: modo ausente`; teste de que o fragmento de changelog tem o nome da branch; invariantes novos nos textos do conferente, do Jarvis e de `R-BRIEF`/`R-PROVA`.
+
 ## [0.16.0] - 2026-10-16
 ### Adicionado
 - **Conferente confiável, fatia K1 (texto e forma):** o modelo de pedido ganha IDs (`E1`) e `## Etapas` com papel; o brief é gravado em `docs/briefs/` e conferido contra o arquivo (`R-BRIEF`); PQ `cmd` passa a trazer `espera:` (`R-PROVA`); a entrega ganha `Base-sha:`; o conferente separa os modos brief e entrega, trata etapa de outro papel como `corte: etapa (ok)`, devolve `do autor` para PQ que ele não roda e só aceita anexo implícito sem remoção de linhas.

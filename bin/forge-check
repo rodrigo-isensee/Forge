@@ -7,7 +7,18 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]]
      forge-check transcricao lastro [<pasta ou .jsonl>]
      forge-check transcricao decisoes [<pasta ou .jsonl>]
+     forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
+     forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop]
      forge-check fontes
+`brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
+do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
+cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
+(`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
+`corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
+(saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
+`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. `brief gerar` monta os blocos fixos (decisões
+do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
+o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um.
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
@@ -1505,6 +1516,366 @@ def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den):
     return 0
 
 
+# --- brief (C2, C4): forma e corte de um brief, só leitura e determinístico (R-BRIEF, R-PROVA, R-DECISAO) ---
+SECOES_BRIEF = ("Objetivo", "Ler", "Entregar", "Fora do escopo", "Decisões e restrições", "Pronto quando", "Relatório")
+TIPOS_PROVA = ("sha", "push", "pr", "run", "cmd", "arquivo", "merge")
+PROVAS_DO_CONFERENTE = ("sha", "push", "arquivo")  # o que o conferente confere sozinho (R-PROVA, C6)
+CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF) + r")\b")
+CABECALHO_PEDIDO = re.compile(r"^#{2,6}\s+(.*?)\s*$")
+ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+")
+PQ = re.compile(r"\bPQ-(\d+)\b\s*(?:\(([^)]*)\))?")
+SAIDA_DE = re.compile(r"\bsaída de\b")
+ESPERA_UNIDADE = r"(?:contém '[^']+'|igual '[^']*'|linhas>?=\d+)"
+ESPERA = re.compile(r"espera:\s*(rc=0(?:\s+e\s+" + ESPERA_UNIDADE + r")?|" + ESPERA_UNIDADE + r")")
+ID_CITADO = re.compile(r"\bE(\d+)(?:\.(\d+))?\b")
+CITACAO = re.compile(r"\(\s*(E\d+(?:\.\d+)?(?:\s*(?:,|;|e|\+|/)\s*E\d+(?:\.\d+)?)*)\s*\)")
+ASPAS = re.compile(r"[\"“]([^\"”]+)[\"”]")
+MARCA_DE_CORTE = "Retira do escopo original"
+CAMPOS_DA_MARCA = ("justificativa", "consequência", "decisão")
+PREENCHER = "PREENCHER"
+COMANDOS_DO_CONFERENTE = {
+    "git": ("log", "show", "diff", "ls-remote", "rev-parse", "merge-base", "status", "cat-file"),
+    "gh": None,  # conferido à parte (gh pr view|list|checks|diff, gh run list|view)
+    "forge-check": ("pr", "docs", "brief"),
+}
+SIMPLES_DO_CONFERENTE = ("ls", "test", "grep", "cat", "head", "tail", "wc", "cut", "tr", "echo", "pwd", "cd")
+GH_DO_CONFERENTE = {"pr": ("view", "list", "checks", "diff"), "run": ("list", "view")}
+
+
+def normalizar_espacos(texto):
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def secoes_por(texto, cabecalho):
+    """Seção -> linhas, pelo primeiro cabeçalho de cada nome; o que vem antes do primeiro cabeçalho não entra."""
+    secoes, atual = {}, None
+    for linha in texto.splitlines():
+        m = cabecalho.match(linha)
+        if m:
+            nome = m.group(1)
+            atual = None if nome in secoes else nome  # cabeçalho repetido: o que vem depois não é desta seção
+            if atual:
+                secoes[atual] = []
+            continue
+        if atual is not None:
+            secoes[atual].append(linha)
+    return secoes
+
+
+def itens_de(linhas):
+    """Agrupa as linhas em itens: cada marcador de lista abre um; continuação (indentada ou não) cola no anterior."""
+    itens = []
+    for linha in linhas:
+        if not linha.strip():
+            continue
+        if ITEM.match(linha) or not itens:
+            itens.append(ITEM.sub("", linha, count=1).strip())
+        else:
+            itens[-1] += " " + linha.strip()
+    return itens
+
+
+def ler_pedido_brief(texto):
+    """Escopo (n -> item), etapas ((n, m) -> (papel, texto)) e as linhas `DECISÃO DO DONO` do pedido."""
+    secoes = secoes_por(texto, CABECALHO_PEDIDO)
+    escopo = {}
+    for item in itens_de(secoes.get("Escopo", [])):
+        m = re.match(r"\*{0,2}E(\d+)\.\*{0,2}\s+\S", item)
+        if m:
+            escopo[int(m.group(1))] = item
+    etapas = {}
+    corpo = " ".join(l.strip() for l in secoes.get("Etapas", []))
+    marcas = list(re.finditer(r"\bE(\d+)\.(\d+)\s*\(([^)]*)\)\s*:", corpo))
+    for i, m in enumerate(marcas):
+        fim = marcas[i + 1].start() if i + 1 < len(marcas) else len(corpo)
+        papel = m.group(3).split(",")[0].strip().lower()
+        etapas[(int(m.group(1)), int(m.group(2)))] = (papel, corpo[m.start():fim].strip(" -"))
+    decisoes = [l.strip() for l in texto.splitlines() if "DECISÃO DO DONO" in l]
+    return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "texto": normalizar_espacos(texto)}
+
+
+def nome_do_papel(destino):
+    return destino.split(":", 1)[-1].strip().lower() if destino else None
+
+
+def destino_do_brief(texto, nome_do_arquivo, pedido_id, passado):
+    if passado:
+        return passado
+    m = re.search(r"^\s*Agente destino:\s*(\S+)", texto, re.M)
+    if m:
+        return m.group(1)
+    m = re.fullmatch(re.escape(pedido_id) + r"-(.+)-\d+\.md", nome_do_arquivo) if pedido_id else None
+    return f"forge:{m.group(1)}" if m else None
+
+
+def ids_do_texto(texto):
+    return {f"E{m.group(1)}" + (f".{m.group(2)}" if m.group(2) else "") for m in ID_CITADO.finditer(texto)}
+
+
+def ids_em_citacao(texto):
+    achados = set()
+    for m in CITACAO.finditer(texto):
+        achados |= ids_do_texto(m.group(1))
+    return achados
+
+
+def fragmentos_citados(item):
+    """Trechos entre aspas de um item, sem as reticências, para comparar literalmente com o pedido."""
+    saida = []
+    for citado in ASPAS.findall(item):
+        for parte in re.split(r"\.\.\.|…", citado):
+            parte = normalizar_espacos(parte)
+            if parte:
+                saida.append(parte)
+    return saida
+
+
+def referencias_do_item(item, pedido):
+    """Ids do pedido a que um item de `Fora do escopo` se refere: ids escritos e trechos literais de `Escopo` ou `Etapas`."""
+    citados = ASPAS.findall(item)
+    zona = " ".join(citados) if citados else item
+    refs = ids_do_texto(zona)
+    entradas = {f"E{n}": t for n, t in pedido["escopo"].items()}
+    entradas.update({f"E{n}.{m}": t for (n, m), (_, t) in pedido["etapas"].items()})
+    for frag in fragmentos_citados(item):
+        for chave, texto in entradas.items():
+            if frag in normalizar_espacos(texto):
+                refs.add(chave)
+    return {r for r in refs if r in entradas}
+
+
+def comando_do_conferente(comando):
+    """O comando cabe na lista de só leitura do conferente (agents/conferente.md)? Qualquer outra coisa é do autor."""
+    if re.search(r"[$`\\#{}<>*?]|\(", comando):
+        return False
+    segmentos = [s.strip() for s in re.split(r"&&|\|\||;|\|", comando)]
+    for seg in segmentos:
+        palavras = re.findall(r"'[^']*'|\S+", seg)
+        while len(palavras) > 1 and palavras[0] == "git" and palavras[1] in ("--no-pager",):
+            palavras = [palavras[0]] + palavras[2:]
+        if len(palavras) > 2 and palavras[0] == "git" and palavras[1] == "-C":
+            palavras = [palavras[0]] + palavras[3:]
+        if not palavras:
+            return False
+        nome = palavras[0].rsplit("/", 1)[-1] if palavras[0].startswith(("bin/", "./")) else palavras[0]
+        if nome in SIMPLES_DO_CONFERENTE:
+            continue
+        if nome == "gh":
+            if len(palavras) < 3 or palavras[2] not in GH_DO_CONFERENTE.get(palavras[1], ()):
+                return False
+            continue
+        if nome in COMANDOS_DO_CONFERENTE and COMANDOS_DO_CONFERENTE[nome]:
+            if len(palavras) < 2 or palavras[1] not in COMANDOS_DO_CONFERENTE[nome]:
+                return False
+            continue
+        return False
+    return bool(segmentos)
+
+
+def conferir_pq(linhas_pq):
+    """Linhas do `Pronto quando` -> (linhas de saída com a marca de reprovação, tipos achados)."""
+    saida, tipos, vistos = [], [], set()
+    for linha in linhas_pq:
+        m = PQ.search(linha)
+        if not m or not re.match(r"^\s*(?:[-*]\s+)?(?:\*\*)?PQ-\d+", linha):
+            continue
+        n, rotulo = m.group(1), m.group(2)
+        if n in vistos:
+            saida.append((f"forma: PQ-{n} repetido", True))
+        vistos.add(n)
+        if rotulo is None:
+            saida.append((f"forma: PQ-{n} sem tipo", True))
+            continue
+        partes = [p.strip() for p in rotulo.split(",")]
+        tipo = partes[0]
+        if tipo not in TIPOS_PROVA:
+            saida.append((f"forma: PQ-{n} tipo desconhecido \"{tipo}\"", True))
+            continue
+        tipos.append(tipo)
+        resto = linha[m.end():]
+        espera = "não se aplica"
+        verificador = "conferente"
+        if tipo == "cmd":
+            comando = re.search(r"`([^`]+)`", resto)
+            fonte = comando.group(1) if comando else ""
+            e = ESPERA.search(resto)
+            if e:
+                espera = "ok"
+                unidade = re.search(r"contém '([^']*)'|linhas>=(\d+)", e.group(1))
+                if unidade and ((unidade.group(1) is not None and len(unidade.group(1)) < 3) or unidade.group(2) == "1"):
+                    saida.append((f"aviso: PQ-{n} espera fraca ({e.group(1)}); prefira igual ou linhas=N", False))
+            elif SAIDA_DE.search(resto):
+                espera = "ok (saída de X vale como contém, transição)"
+            else:
+                espera = "ausente"
+                saida.append((f"forma: PQ-{n} sem espera", True))
+            if "do autor" in rotulo or not comando_do_conferente(fonte):
+                verificador = "autor"
+        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}", False))
+    if not vistos:
+        saida.append(("forma: sem PQ", True))
+    return saida, tipos
+
+
+def conferir_corte(brief_secoes, pedido, destino):
+    """Corte de escopo por IDs (C2): cada `E<n>` do escopo está no Entregar, em `Fora do escopo` como etapa ou como corte real."""
+    if not pedido["escopo"]:
+        return [("corte: não verificável (pedido sem IDs)", False)]
+    entregar = " ".join(brief_secoes.get("Entregar", []))
+    citados = ids_em_citacao(entregar)
+    fora = itens_de(brief_secoes.get("Fora do escopo", []))
+    papel_destino = nome_do_papel(destino)
+    itens = []
+    for item in fora:
+        itens.append({"marca": MARCA_DE_CORTE in item, "refs": referencias_do_item(item, pedido), "item": item})
+    saida = []
+
+    def marca_de(chave):
+        return next((i for i in itens if i["marca"] and chave in i["refs"]), None)
+
+    def avaliar_marca(rotulo, item):
+        faltas = [c for c in CAMPOS_DA_MARCA if not re.search(rf"\b{c}\s*:", item.lower())]
+        if not ASPAS.search(item):
+            faltas.append("trecho do pedido entre aspas")
+        if faltas:
+            return [(f"corte: sem marca \"{rotulo}\" (falta: {', '.join(faltas)})", True)]
+        fora_do_pedido = [f for f in fragmentos_citados(item) if f not in pedido["texto"]]
+        if fora_do_pedido:
+            return [(f"corte: trecho fora do pedido \"{rotulo}\" ({fora_do_pedido[0][:60]})", True)]
+        return [(f"corte: real (marca completa) \"{rotulo}\"", False)]
+
+    for n in sorted(pedido["escopo"]):
+        chave = f"E{n}"
+        filhas = sorted(m for (k, m) in pedido["etapas"] if k == n)
+        if chave in citados:
+            saida.append((f"corte: ok \"{chave}\" no Entregar", False))
+            continue
+        marcado = marca_de(chave)
+        if marcado:
+            saida += avaliar_marca(chave, marcado["item"])
+            continue
+        em_fora = {f"E{n}.{m}" for m in filhas if any(f"E{n}.{m}" in i["refs"] for i in itens)}
+        if em_fora:
+            if papel_destino is None:
+                saida.append((f"corte: não verificável \"{chave}\" (destino desconhecido; use --destino)", False))
+                continue
+            etapas_ok = []
+            for m in filhas:
+                filha = f"E{n}.{m}"
+                papel = pedido["etapas"][(n, m)][0]
+                if papel != papel_destino:
+                    if filha in em_fora and not marca_de(filha):
+                        etapas_ok.append(filha)
+                    elif filha in em_fora:
+                        saida += avaliar_marca(filha, marca_de(filha)["item"])
+                    continue
+                if filha in citados:
+                    continue
+                if marca_de(filha):
+                    saida += avaliar_marca(filha, marca_de(filha)["item"])
+                else:
+                    saida.append((f"corte: sem marca \"{filha}\" (etapa do papel do destino fora do Entregar)", True))
+            if etapas_ok:
+                saida.append((f"corte: etapa (ok) \"{chave}\" por {', '.join(etapas_ok)}", False))
+            continue
+        if any(chave in i["refs"] for i in itens):
+            saida.append((f"corte: sem marca \"{chave}\" (item de ## Escopo retirado sem a marca)", True))
+        else:
+            saida.append((f"corte: sem marca \"{chave}\" (nem no Entregar nem no Fora do escopo)", True))
+    return saida
+
+
+def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None):
+    """Linhas de saída do `forge-check brief`: lista de (linha, reprova). Mesmo texto, mesma saída."""
+    secoes = secoes_por(texto, CABECALHO_BRIEF)
+    pedido = ler_pedido_brief(pedido_txt)
+    destino = destino_do_brief(texto, nome_do_arquivo, pedido_id, destino)
+    saida = [(f"destino: {destino}" if destino else "destino: não verificável (sem --destino nem `Agente destino:`)", False)]
+    faltam = [s for s in SECOES_BRIEF if s not in secoes]
+    forma = [(f"forma: falta seção \"{s}\"", True) for s in faltam]
+    if re.search(rf"\b{PREENCHER}\b", texto):
+        forma.append((f"forma: bloco gerado sem preencher ({PREENCHER})", True))
+    pqs, tipos = conferir_pq(secoes.get("Pronto quando", []))
+    com_commit = re.search(r"(?<!sem )\bcommit", " ".join(secoes.get("Entregar", []) + secoes.get("Pronto quando", [])), re.I)
+    if com_commit and not any(t in PROVAS_DO_CONFERENTE for t in tipos):
+        forma.append(("forma: sem PQ que o conferente confira", True))
+    saida += forma + pqs
+    if not any(r for _, r in forma + pqs):
+        saida.append(("forma: ok", False))
+    saida += conferir_corte(secoes, pedido, destino)
+    saida.append((f"arquivo: {len(conteudo)} bytes sha256 {hashlib.sha256(conteudo).hexdigest()}", False))
+    if destino and caminho is not None:  # só com --destino: o conferente passa o agente da delegação
+        esperado = f"docs/briefs/{pedido_id}-{nome_do_papel(destino)}-"
+        norm = str(caminho).replace(os.sep, "/")
+        ok = re.search(re.escape(esperado) + r"\d+\.md$", norm)
+        saida.append(("arquivo-caminho: ok" if ok else f"forma: Arquivo fora do padrão {esperado}<n>.md", not ok))
+    return saida
+
+
+def cmd_brief_conferir(raiz, arquivo, pedido, destino):
+    caminho_pedido = Path(pedido)
+    if not caminho_pedido.is_file():
+        caminho_pedido = Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
+    brief = Path(arquivo)
+    try:
+        conteudo = brief.read_bytes()
+        pedido_txt = caminho_pedido.read_text(encoding="utf-8")
+        texto = conteudo.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"brief: não consegui ler {getattr(e, 'filename', None) or arquivo}: {getattr(e, 'strerror', None) or e}")
+        return 2
+    m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
+    pedido_id = m.group(1) if m else caminho_pedido.stem
+    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, arquivo if destino else None)
+    reprovado = any(r for _, r in linhas)
+    print(f"conferencia-brief-regra: {pedido_id} → {brief.name}")
+    for linha, _ in linhas:
+        print(linha)
+    print(f"resultado: {'reprovado' if reprovado else 'aprovado'}")
+    return 1 if reprovado else 0
+
+
+def cmd_brief_gerar(raiz, pedido, destino, branch, base):
+    """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`."""
+    caminho_pedido = Path(pedido)
+    if not caminho_pedido.is_file():
+        caminho_pedido = Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
+    try:
+        pedido_txt = caminho_pedido.read_text(encoding="utf-8")
+    except OSError as e:
+        print(f"brief gerar: não consegui ler {e.filename}: {e.strerror}")
+        return 2
+    dados = ler_pedido_brief(pedido_txt)
+    papel_destino = nome_do_papel(destino)
+    saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_pedido.name}; complete e apague toda linha com {PREENCHER} -->"]
+    if destino:
+        saida.append(f"Agente destino: {destino}")
+    saida.append(f"Pedido: {pedido}")
+    if branch:
+        rc, sha = git(raiz, "rev-parse", f"origin/{base}")
+        sha = sha if rc == 0 and re.fullmatch(r"[0-9a-f]{40}", sha) else PREENCHER
+        saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {sha}")
+    saida += ["", "## Decisões e restrições (linhas `DECISÃO DO DONO` copiadas literalmente do pedido)"]
+    saida += [f"- {d}" for d in dados["decisoes"]] or [f"- {PREENCHER}: o pedido não tem linha `DECISÃO DO DONO`"]
+    saida += ["", "## Fora do escopo (etapas de outro papel, citadas de ## Etapas, sem a marca)"]
+    if papel_destino is None:
+        saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as etapas de outro papel")
+    else:
+        etapas = [t for (_, (papel, t)) in sorted(dados["etapas"].items()) if papel != papel_destino]
+        saida += [f"- \"{t}\" · etapa de outro papel ou do dono; continua no pedido" for t in etapas] or ["- (o pedido não tem etapa de outro papel)"]
+    saida += ["", f"## Marca de corte (só item de `## Escopo` retirado, `R-DECISAO`; copie uma linha por item)",
+              f"- {MARCA_DE_CORTE}: \"{PREENCHER}: trecho literal do pedido\" · justificativa: {PREENCHER} · consequência: {PREENCHER} · decisão: {PREENCHER}"]
+    saida += ["", "## Pronto quando: formato das provas (`R-PROVA`; numere PQ-1, PQ-2… e apague o que não usar)",
+              f"- PQ-N (cmd): `<comando>` · espera: rc=0 | contém '<t>' | igual '<t>' | linhas=N | linhas>=N · {PREENCHER}",
+              f"- PQ-N (arquivo): `test -e <caminho>` · {PREENCHER}"]
+    if branch:
+        saida.append(f"- PQ-N (push): `git ls-remote origin refs/heads/{branch}` igual ao head local · {PREENCHER}")
+    saida += ["", "## Relatório",
+              "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo."]
+    print("\n".join(saida))
+    return 0
+
+
 def versao(texto):
     try:
         return tuple(int(p) for p in texto.strip().split("."))
@@ -1589,6 +1960,12 @@ def main():
     sub.add_parser("docs", parents=[comum])
     sub.add_parser("kanban", parents=[comum])
     sub.add_parser("fontes", help="confere se as fontes de boas práticas do registro local têm versão nova")
+    br = sub.add_parser("brief", parents=[comum], help="forma e corte de um brief (C2, C4); `brief gerar` monta os blocos fixos")
+    br.add_argument("alvo", help="arquivo do brief, ou `gerar`")
+    br.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
+    br.add_argument("--destino", help="agente destino, forge:<nome> (padrão: `Agente destino:` do brief ou o nome do arquivo)")
+    br.add_argument("--branch", help="só em `gerar`: branch da delegação")
+    br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
     pr = sub.add_parser("pr", parents=[comum])
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD)")
@@ -1625,6 +2002,10 @@ def executar(a, raiz):
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0)
+    if a.cmd == "brief":
+        if a.alvo == "gerar":
+            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base)
+        return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino)
     if a.cmd == "fontes":
         linhas, codigo = cmd_fontes()
         for linha in linhas:
