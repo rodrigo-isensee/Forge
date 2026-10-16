@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: clareza-1
 branch: melhoria/clareza-pacote-1
-commit: 8e5b5e25bd34917141dc80940a1aa62f8fb6bd11
+commit: 6b3eca09da5005b02f9cf5775b38aeeb14b09f67
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-16
@@ -52,3 +52,12 @@ Escopo: `69aa2ac..8e5b5e2` (commits `4088593` e `8e5b5e2`; 5 arquivos, só `agen
 - Segurança S1/S2: a saída "decidam vocês" remete às exceções pela `R-DECISAO` sem copiar o texto da regra; há invariante da lista das quatro exceções.
 - `changelog.d/clareza-pacote-1.md` não mudou e continua verdadeiro (a volta não altera o efeito descrito).
 - Ferramenta: `python3 -m unittest tests.test_clareza tests.test_forge -q`: `Ran 239 tests in 25.088s` / `OK` (o sandbox negou rede para `api.anthropic.com`, sem efeito no resultado). Suíte completa e `validar-plugin` ficam com o QA e o CI.
+
+## Revalidação após a segunda volta do autor (QA B1 a B4)
+Escopo: `8e130be..6b3eca0` (commits `4e045d7`, `720ae37`, `75e8ac3`, `6b3eca0`; 5 arquivos, `agents/`, `skills/`, `docs/regras/` e `tests/config.json`, só acréscimos de texto e de invariantes; `changelog.d/` não mudou e segue verdadeiro). Veredito sobre `6b3eca0`: **APROVADO**. Decisões do dono mantidas (C-9: ordem ampla só cobre `confirmado`/`delegado`; `técnico` é decisão do time).
+- B2: `R-DECISAO.md` ganhou "Item `técnico` não depende de ordem" (decisão do time) e "`Suposição` e `no-protótipo` seguem fora da ordem ampla"; a regra de ordem ampla não mudou.
+- B1: `agents/jarvis.md:108` agora diz "volta ao usuário como pergunta, sem passar pelo teste de bloqueante (`R-DECISAO`, "Complemento")", igual à regra; sem contradição entre os dois.
+- B3: `agents/agile-coach.md:14` diz que `PERGUNTA: nenhuma` conta zero.
+- B4: a opção B do exemplo da skill deixou de custar dinheiro (aviso impresso na caixa), então "decidam vocês" no exemplo não fere o item 6.
+- Invariantes só por acréscimo (4 linhas `+` em `tests/config.json`, 0 removidas). Observação sem bloqueio: o `jarvis.md:108` não repete que `técnico` roda sem ordem, mas remete à regra e fecha com "Decisões técnicas são do time".
+- Ferramenta: `python3 -m unittest tests.test_clareza tests.test_forge -q`: `Ran 239 tests in 23.231s` / `OK` (rede para `api.anthropic.com` negada pelo sandbox, sem efeito). Suíte completa e `validar-plugin` ficam com o QA e o CI.
