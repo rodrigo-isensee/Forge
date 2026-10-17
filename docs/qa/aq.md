@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: c8acc52ededd96fb9c0159d19308feca63b95237
+commit: 03789a2e9656b85648d3701c02ba72c9b3f99f10
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -46,3 +46,6 @@ Cópia de `c8acc52` em `$TMPDIR` com `hooks/conformidade.py`, `hooks/conformidad
 
 ## Fora do escopo
 E1.4 (integração), E3.1 (estudo do AQ), E3.2 (decisão do dono) e a segurança 7 (AQ-OPERACAO).
+
+## Revalidação após a terceira volta (03789a2)
+A volta só trocou o caminho fictício da fixture `aq-arquitetura-em-outro-repositorio-bloqueia.json` (de `{tmp}/home/proj-x` para `{tmp}/outro-repo/proj-x`, e o `HOME` e a chave do repositório junto): 1 arquivo, 3 linhas, nenhum código de produção. Entrada, agente `forge-dev:aq` e saída esperada (bloqueio, stderr "o papel aq escreve só em") intactos, então o teste prova o mesmo: o AQ é barrado em outro repositório git. Suíte completa `python3 -m unittest discover -s tests -q`: 785 testes, OK (180 s). Parecer mantido: aprovado, sem bugs abertos.
