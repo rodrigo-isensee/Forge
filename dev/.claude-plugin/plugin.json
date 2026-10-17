@@ -1,0 +1,13 @@
+{
+  "name": "forge-dev",
+  "version": "0.19.0",
+  "description": "Forge, desenvolvimento da fábrica: agentes que só a sessão do Forge carrega (AQ). Não é instalado nos projetos.",
+  "author": {
+    "name": "Rodrigo Isensee"
+  },
+  "repository": "https://github.com/rodrigo-isensee/Forge",
+  "license": "MIT",
+  "agents": [
+    "./agents/aq.md"
+  ]
+}

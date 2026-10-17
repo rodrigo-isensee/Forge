@@ -1,0 +1,18 @@
+{
+  "descricao": "AQ edita desenho em docs/arquitetura/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Edit",
+    "tool_input": {
+      "file_path": "{raiz}/docs/arquitetura/desenho.md"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

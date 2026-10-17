@@ -1,0 +1,31 @@
+{
+  "descricao": "AQ barrado em agents/ de uma worktree fora da raiz.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/agents/jarvis.md"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o papel aq escreve só em"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "1\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

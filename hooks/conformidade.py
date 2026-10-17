@@ -408,11 +408,31 @@ class Guarda:
         if posix.endswith("/.forge/perfil") and self.h.iniciante():
             return ("R-CONFORMIDADE", "o perfil iniciante (.forge/perfil) não é mudado por agente",
                     f"só o usuário muda o perfil, à mão; {SUGESTAO}", "perfil")
+        fora_da_lista = self.fora_da_lista_de_escrita(caminho, formas)
+        if fora_da_lista:
+            return fora_da_lista
         no_manifesto = any(t == "proj" and casa(r, MANIFESTO) for t, r in formas)
         if no_manifesto and not self.sessao_forge and self.raiz_e_projeto():
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def fora_da_lista_de_escrita(self, caminho, formas):
+        """Papel com `escrita_permitida` (ADR 0009, seção 6): escreve só nos caminhos da lista, pelo caminho normalizado.
+        Entrada `~/...` vale a partir do home; as demais, a partir da raiz do projeto ou da raiz de uma cópia do Forge
+        que contém o arquivo (worktree em `~/.forge-contrib/`; qualquer outro repositório não vale). Fora disso,
+        recusa: a lista só nega mais, nunca libera o que `caminhos` barra."""
+        lista = self.pol.get("escrita_permitida", {}).get(self.papel)
+        if lista is None:
+            return None
+        topo = self.raiz_git(caminho.parent)
+        if topo and topo in {caminho, *caminho.parents} and e_clone_do_forge(topo) and (
+                em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz or raiz_declarada()))):
+            formas = [*formas, ("proj", caminho.relative_to(topo).as_posix())]
+        if any(casa(r, c) for c in lista for t, r in formas if t == ("home" if c.startswith("~/") else "proj")):
+            return None
+        return ("R-CONFORMIDADE", f"o papel {self.papel} escreve só em {', '.join(lista)}: {caminho.as_posix()}",
+                "grave o estudo ou parecer nesses caminhos; o resto é de outro papel (R-DECISAO)")
 
     def raiz_e_projeto(self):
         return (Path(self.h.raiz) / ".forge" / "versao").is_file()
@@ -1110,6 +1130,11 @@ def leitura_valida(v):
     return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
 
 
+def escrita_valida(v):
+    """`escrita_permitida` é opcional; presente, mapeia papel a uma lista não vazia de caminhos (lista vazia barraria tudo)."""
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(c) and c for c in v.values()))
+
+
 def politica_valida(pol):
     """Forma de toda a política: o hook lê estas chaves sem checar, então qualquer desvio liberaria por erro interno."""
     def texto(v):
@@ -1123,7 +1148,7 @@ def politica_valida(pol):
             and isinstance(pacotes, dict) and all(pacote_valido(c) for c in pacotes.values())
             and lista_de_textos(pol.get("flags_congeladas"))
             and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos)
-            and leitura_valida(pol.get("so_leitura")))
+            and leitura_valida(pol.get("so_leitura")) and escrita_valida(pol.get("escrita_permitida")))
 
 
 def politica():
@@ -1251,12 +1276,30 @@ def principal(hook):
     if not isinstance(entrada, dict) or (ferramenta != "Bash" and ferramenta not in FERRAMENTAS_DE_ARQUIVO):
         return
     externo = identificar_sessao(hook)
+    pol = politica()  # fora da falha fechada: o papel só se conhece depois dela (uma política malformada já falha fechado)
+    papel = papel_de(pol, hook.campo("agent_type"))
+    com_lista = papel in pol.get("escrita_permitida", {})
     if externo is False:
-        return
-    pol = politica()
-    guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
-    guarda.externo = externo
-    guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
+        raiz = raiz_declarada()
+        # Sessão do Forge com a pasta corrente fora de projeto: só o papel com lista de permissão é avaliado (ADR 0009, 6)
+        if not (com_lista and raiz and e_clone_do_forge(raiz) and hook.campo("hook_event_name") != "PostToolUse"):
+            return
+        externo, hook.raiz = None, raiz
+    try:
+        guarda = Guarda(hook, pol, papel)
+        guarda.externo = externo
+        guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
+        decidir(hook, guarda, ferramenta, entrada)
+    except Exception as erro:  # noqa: BLE001 - papel com lista de permissão falha fechado (ADR 0009, seção 7)
+        if not com_lista or hook.campo("hook_event_name") == "PostToolUse":
+            raise
+        hook.registrar_erro(erro)
+        bloquear("R-CONFORMIDADE", f"erro interno do hook conformidade para o papel {papel}, que só escreve na "
+                                   "lista de permissão; ele não pôde decidir. Corrigir: veja .forge/run/erros.log e "
+                                   "leve ao usuário (R-DECISAO)")
+
+
+def decidir(hook, guarda, ferramenta, entrada):
     if hook.campo("hook_event_name") == "PostToolUse":
         if ferramenta == "Bash":
             alvos = alvos_de_escrita(entrada["command"]) if isinstance(entrada.get("command"), str) else []

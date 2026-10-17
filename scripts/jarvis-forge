@@ -5,11 +5,12 @@
 # e, ao abrir, é atualizada sozinha só por fast-forward para a origin/develop (recusa e avisa se tiver mudança ou
 # commit local, ou se estiver sem rede; sessão tmux já aberta não é tocada). Uma vez por dia consulta, com
 # `forge-check fontes`, a fonte de harness e mostra uma linha se houver versão nova. Retoma a última conversa, com
-# chat remoto e, se instalado, o canal do Telegram. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
+# chat remoto e, se instalado, o canal do Telegram. Carrega também o plugin de desenvolvimento `forge-dev` (a pasta
+# `dev/` da mesma cópia, com o agente AQ), só nesta sessão. Dentro do tmux (criado/anexado automaticamente) a sessão sobrevive ao fechamento do terminal.
 # Uso: jarvis-forge [--sem-tmux] [--dev] | jarvis-forge --atualizar-vigente
 #   --sem-tmux           abre direto no terminal, sem criar ou anexar a sessão do tmux
 #   --atualizar-vigente  atualiza a cópia vigente para a origin/develop (recusa se tiver mudanças ou commits locais) e sai
-#   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir .), sem a proteção da cópia vigente
+#   --dev                teste manual do dono: usa a cópia de trabalho (--plugin-dir . e ./dev), sem a proteção da cópia vigente
 #   -h, --help           mostra esta ajuda
 set -euo pipefail
 sem_tmux=0
@@ -152,7 +153,11 @@ if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1;
 fi
 plugin_dir="$vigente"; [ "$dev" = 1 ] && plugin_dir=.
 nome_remoto="Jarvis - Forge"; [ "$dev" = 1 ] && nome_remoto="Jarvis - Forge (dev)"
-args=(--plugin-dir "$plugin_dir" --agent forge:jarvis --remote-control "$nome_remoto")
+args=(--plugin-dir "$plugin_dir")
+# forge-dev (agente AQ): plugin de desenvolvimento do Forge, só desta sessão; nunca instalado nos projetos.
+# A cópia vigente anterior a ele não tem a pasta: nesse caso abre só com o forge.
+[ -f "$plugin_dir/dev/.claude-plugin/plugin.json" ] && args+=(--plugin-dir "$plugin_dir/dev")
+args+=(--agent forge:jarvis --remote-control "$nome_remoto")
 # retoma a conversa do Forge se já existir uma (o diretório do projeto é o caminho com "/" trocado por "-")
 if [ -d "$HOME/.claude/projects/${PWD//\//-}" ]; then args=(--continue "${args[@]}"); fi
 if claude plugin list 2>/dev/null | grep -q 'telegram@claude-plugins-official'; then

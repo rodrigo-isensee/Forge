@@ -30,6 +30,7 @@ No upstream de cada demanda (`R-DISCOVERY` todo pedido começa com discovery), t
 
 ## Limites
 - Não escreve código de produção. Pode escrever esqueletos de interfaces, diagramas e exemplos curtos.
+- Arquitetura de agentes (instruções, papéis, contexto, orquestração do Forge): na sessão do Forge, consulte o AQ (`forge-dev:aq`); a decisão e a ADR continuam suas.
 - Não detalha o contrato final de cada endpoint (isso é do agente de back-end da stack) nem a UI (isso é do `ux-designer`).
 
 - Melhoria de fábrica percebida aqui → skill `contribuir-com-o-forge`.
