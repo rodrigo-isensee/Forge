@@ -1,6 +1,6 @@
 # 0008 - Governança de contribuições: portões para todos
 
-Estado: vigente. Data: 2026-10-12. Decisões do dono em 2026-10-13: conta de máquina para os agentes (A); preparar já e tornar público quando chegar o primeiro colaborador (A); licença MIT (A).
+Estado: vigente; a parte do método de merge da `main` (decisão 2) foi substituída pela [ADR 0012](0012-main-por-merge-commit.md). Data: 2026-10-12. Decisões do dono em 2026-10-13: conta de máquina para os agentes (A); preparar já e tornar público quando chegar o primeiro colaborador (A); licença MIT (A).
 Propósito: impedir que contribuições, de qualquer pessoa ou agente e inclusive do dono, piorem a fábrica. Público: quem mantém o Forge e quem contribui de um projeto. Revisão: 2026-10-12.
 
 ## Contexto
@@ -18,7 +18,7 @@ Os agentes (Jarvis, `tech-lead` e sessões de projeto) usam uma **conta de máqu
 
 ### 2. Servidor (vale com o repositório público; definida como código em `.github/rulesets/`)
 1. **Ruleset `portoes`** em `develop`, `homolog` e `main`, **sem ator de bypass, nem administrador**: PR obrigatório; checks obrigatórios fixados à origem GitHub Actions; branch atualizada com a base; bloqueio de force push e de deleção.
-2. **Métodos de merge:** `develop` só squash, com histórico linear (um PR vira um commit); `homolog` só merge commit; `main` por squash, mesclado pelo usuário. *Decisão do dono em 2026-10-13: antes, `homolog` e `main` eram só merge commit; a `main` passa a receber squash para ter apenas commits do usuário (as branches de trabalho acumularam commits com identidade de teste). Consequência: o commit da `main` não existe na `homolog` nem na `develop`, então, depois de cada release, um PR de sincronização `main` → `develop` (merge commit, sem conteúdo novo) mantém a base comum; o CI de fluxo aceita PR para a `develop` vindo de qualquer branch.*
+2. **Métodos de merge (a parte da `main` foi substituída pela ADR 0012: `main` por merge commit, sem PR de sincronização):** `develop` só squash, com histórico linear (um PR vira um commit); `homolog` só merge commit; `main` por squash, mesclado pelo usuário. *Decisão do dono em 2026-10-13: antes, `homolog` e `main` eram só merge commit; a `main` passa a receber squash para ter apenas commits do usuário (as branches de trabalho acumularam commits com identidade de teste). Consequência: o commit da `main` não existe na `homolog` nem na `develop`, então, depois de cada release, um PR de sincronização `main` → `develop` (merge commit, sem conteúdo novo) mantém a base comum; o CI de fluxo aceita PR para a `develop` vindo de qualquer branch.*
 3. **Ruleset `aprovacao`**: 1 aprovação e revisão de code owner; aprovação descartada a cada push; bypass **só deste ruleset**, só para o dono, no modo "somente pull request" — o dono mescla o próprio PR sem segunda pessoa, mas nunca sem os checks do `portoes`, nem por push direto.
 4. **Ruleset `main-do-dono`**: "restringir atualizações" na `main`, bypass só do dono; a conta de máquina não mescla na `main` (`R-MAIN` garantida pelo servidor).
 5. **`.github/CODEOWNERS`** com o dono em `*`: PR de quem não é o dono exige a aprovação dele.
