@@ -90,8 +90,8 @@ Toda linha cita o comando e a saída copiada. Sem comando rodado, a linha é `n�
 | `review` | Commit do autor existe e está no remoto | `git ls-remote origin <b>` |
 | `qa` | Parecer de review `aprovado` com `commit:` igual ao head, ou ancestral sem diff de código depois | `forge-check pr <pedido>` (linhas de `R-REVIEW`) |
 | `pr` (abrir PR) | Review **e** QA aprovados para a branch, menos em diff só de `.md` (isento de QA, `R-QA`) | `forge-check pr <pedido>` sem violação |
-| `merge-integracao` | O mesmo de `pr`, mais checks verdes no head e o rótulo `afrouxa-regra` quando o diff toca arquivo protegido | `gh pr checks <b>` (nenhuma linha `fail` nem `pending`), `gh pr view <b> --json labels` |
-| `pedido-de-merge-ao-dono` | O mesmo de `merge-integracao`, sobre o PR `homolog` → `main` | idem |
+| `merge-integracao` | O mesmo de `pr`, mais checks verdes no head, conferidos pela execução mais recente de cada check (uma linha `fail` antiga, substituída por `pass` mais nova do mesmo check no mesmo head, não reprova), e o rótulo `afrouxa-regra` só quando o check `catraca` do head pede (`fail` por falta de rótulo) | `gh pr checks <b>` (a execução mais recente de cada check, sem `fail` nem `pending`), `gh pr view <b> --json labels` |
+| `pedido-de-merge-ao-dono` | O mesmo de `merge-integracao` (inclusive o rótulo só quando a `catraca` pede), sobre o PR `homolog` → `main` | idem |
 | Qualquer etapa | O ato não aconteceu antes da pré-condição: `createdAt`/`mergedAt` do PR depois do commit do parecer aprovado | `gh pr view <b> --json createdAt,mergedAt` e `git log -1 --format=%cI -- <parecer>` |
 
 Saída: `etapa: em ordem` ou `etapa: fora de ordem | <comando> → <evidência>`.
