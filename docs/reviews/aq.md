@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: 679aaf17dcd55fc74183c95476621e50df534ddc
+commit: c8acc52ededd96fb9c0159d19308feca63b95237
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-17
@@ -72,3 +72,26 @@ Escopo: `6060bec..679aaf1` (commits `e812309` e `679aaf1`), 10 arquivos. Conferi
 ### Outros pareceres
 - A revalidação da segurança (`docs/security/aq.md`) roda em paralelo e não é refeita aqui. Quem decide o achado 4 do ponto de vista de segurança é ela.
 
+
+## Revalidação após a segunda volta
+Escopo: `4fcaf22..c8acc52` (commits `96a21aa` e `c8acc52`), 8 arquivos: `hooks/conformidade.py`, cinco fixtures `aq-sessao-forge-*`, a ADR 0009 e `changelog.d/aq.md`. Conferi o achado 8 da segurança e a observação acima contra esse diff e reli só os trechos tocados (`principal`, `Guarda` na linha 430, `identificar_sessao`, `politica`). Veredito sobre `c8acc52ededd96fb9c0159d19308feca63b95237`: **APROVADO**.
+
+### Ferramentas (saída citada)
+- `python3 -m unittest tests.test_forge tests.test_hooks -q`: `Ran 263 tests in 52.987s` / `OK`. As fixtures novas rodam como subTest do laço de fixtures (`tests/test_hooks.py:230-236`), por isso o total não muda.
+- `claude plugin validate dev --strict`: `✔ Validation passed` (rc 0).
+- A suíte completa e o `scripts/validar-plugin.sh` ficam com o QA e o CI.
+
+### Achado 8 da segurança: resolvido
+- `principal` (`conformidade.py:1278-1288`): quando `identificar_sessao` devolve `False`, o papel com `escrita_permitida` segue avaliado se a raiz declarada for clone do Forge e o evento não for `PostToolUse`. A raiz da sessão vira `hook.raiz` e `externo` fica `None`. Os outros papéis continuam saindo sem guarda, como antes.
+- `Guarda` (`conformidade.py:430`): a raiz extra usa `raiz_declarada()` quando `hook.raiz` vem `None`. Se as duas faltarem, o `realpath(None)` levanta erro, e para o `aq` isso cai na falha fechada.
+- As fixtures cobrem o que o brief pede, todas com `CLAUDE_PROJECT_DIR` num clone do Forge e a pasta corrente em `~`. O `aq` é barrado em `agents/` do Forge, em `agents/` de uma worktree `melhoria/*` e em `~/.forge-contrib/docs/pedidos/`. É liberado em `docs/propostas/`. O `forge:dev` grava em `agents/` sem guarda, como hoje.
+- A ADR 0009 muda só na linha 70, que este PR acrescentou. O texto ganha a frase sobre a sessão do Forge e nada anterior ao PR sai. O `changelog.d/aq.md` acompanha a mudança.
+
+### Observação sobre `conformidade.py:1281-1284`: resolvida, com justificativa
+- A construção da `Guarda` e a marcação da sessão entraram no `try`. O `politica()` ficou fora, com comentário: o papel só se conhece depois dela, e política malformada já falha fechado por conta própria. O motivo procede.
+
+### Ponto novo trazido pela volta (recomendado, não bloqueia)
+- `conformidade.py:1279`: o `politica()` passou para antes do `return` de `externo is False`. Em qualquer sessão fora de projeto, o arquivo agora é lido e validado em toda chamada de ferramenta, para todos os papéis. Com política malformada, essas chamadas passam a ser barradas, quando antes o hook ficava calado. Isso só acontece com defeito no `conformidade.json` versionado, que a suíte já pega, e falhar fechado nesse caso é coerente com a seção 7. Fica registrado para o QA conferir e para quem mexer ali depois. **Sugestão:** se a leitura extra pesar, carregar a política só quando houver raiz do Forge.
+
+### Outros pareceres
+- A revalidação da segurança (`docs/security/aq.md`) roda em paralelo na mesma worktree e não é refeita aqui.
