@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: c8acc52ededd96fb9c0159d19308feca63b95237
+commit: 03789a2e9656b85648d3701c02ba72c9b3f99f10
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-17
@@ -95,3 +95,9 @@ Escopo: `4fcaf22..c8acc52` (commits `96a21aa` e `c8acc52`), 8 arquivos: `hooks/c
 
 ### Outros pareceres
 - A revalidação da segurança (`docs/security/aq.md`) roda em paralelo na mesma worktree e não é refeita aqui.
+
+## Revalidação após a terceira volta (03789a2)
+- A volta tocou só a fixture `aq-arquitetura-em-outro-repositorio-bloqueia.json`: o caminho fictício `home/proj-x` virou `outro-repo/proj-x` (arquivo, `HOME` e chave de `repos`), para a bateria não apontar caminho pessoal. Nada mais mudou.
+- O teste prova o mesmo: o `forge-dev:aq` escrevendo em `docs/arquitetura/` de outro repositório git é barrado ("o papel aq escreve só em").
+- `python3 -m unittest tests.test_hooks -q`: `Ran 16 tests` / `OK`.
+- Parecer mantido: **aprovado**.
