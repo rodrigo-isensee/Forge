@@ -154,10 +154,24 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"]["aq"][:2], ["docs/propostas/", "docs/arquitetura/"])
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
-        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit, WebFetch$")
-        self.assertNotRegex(texto, r"(?m)^tools:.*Bash")
+        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
+        self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
+
+    def test_dev_so_tem_manifesto_e_agentes(self):
+        """O Claude Code descobre `hooks/`, `skills/`, `commands/` e `.mcp.json` por convenção: em `dev/` entrariam em
+        toda sessão do Forge sem passar pelo manifesto."""
+        arquivos = minimo([p.relative_to(RAIZ / "dev").as_posix() for p in (RAIZ / "dev").rglob("*") if p.is_file()],
+                          2, "arquivos de dev")
+        fora = [a for a in arquivos if a != ".claude-plugin/plugin.json" and not re.fullmatch(r"agents/[^/]+\.md", a)]
+        self.assertEqual(fora, [], "dev/ só pode ter .claude-plugin/plugin.json e agents/*.md")
+
+    def test_caminhos_citados_pelos_agentes_de_dev_existem(self):
+        for agente in minimo(sorted((RAIZ / "dev/agents").glob("*.md")), 1, "agentes de dev"):
+            for caminho in sorted(set(re.findall(r"`(docs/[\w./-]+\.md)`", agente.read_text(encoding="utf-8")))):
+                with self.subTest(agente=agente.name, caminho=caminho):
+                    self.assertTrue((RAIZ / caminho).is_file(), f"{caminho} não existe no Forge")
 
 
 class PacotesDeStack(unittest.TestCase):

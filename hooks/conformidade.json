@@ -12,7 +12,7 @@
     "aq": ["forge-dev:aq"]
   },
   "escrita_permitida": {
-    "aq": ["docs/propostas/", "docs/arquitetura/", "~/.forge-contrib/docs/"]
+    "aq": ["docs/propostas/", "docs/arquitetura/"]
   },
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",
