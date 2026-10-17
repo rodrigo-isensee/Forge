@@ -59,8 +59,9 @@ SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help"
 GAWK_LONGAS = ("assign", "bignum", "characters-as-bytes", "copyright", "debug", "dump-variables", "exec", "field-separator",
                "file", "gen-pot", "help", "include", "lint", "lint-old", "load", "non-decimal-data", "optimize", "posix",
                "pretty-print", "profile", "re-interval", "sandbox", "source", "traditional", "use-lc-numeric", "version")
-# comando `w`/`W arquivo` do sed, com ou sem endereço antes (`$w`, `1,2w`, `/x/!w`, `1~2w`) e flag `s/a/b/w arquivo` (`Mw`, `gw`)
-SED_ESCREVE = re.compile(r"(?:^|[\s;{}/!,$~+gpimMeI0-9])[wW]\s*(\S+)")
+# comando `w`/`W arquivo` do sed, com ou sem endereço antes (`$w`, `1,2w`), flag `s/a/b/w arquivo` e delimitador do usuário
+# (`s|a|b|w arquivo`, `\%a%w arquivo`): qualquer `w`/`W` seguido de palavra; o custo (lado fechado) só aparece se for caminho protegido
+SED_ESCREVE = re.compile(r"[wW]\s*(\S+)")
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
@@ -638,7 +639,7 @@ class Guarda:
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
-            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`]+", dono)):
+            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>\"'\\]+", dono)):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
