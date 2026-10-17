@@ -1,2 +1,2 @@
 ### Corrigido
-- Hooks: `git rm|mv|checkout|restore` de caminho em vigor passam pela conferência de escrita e remoção, e a falta de `.forge/versao` numa sessão marcada como projeto falha fechado nas ações críticas (o vigia avisa), em vez de desligar os hooks (BP-1).
+- Hooks: `git rm|mv|checkout|restore` de caminho em vigor passam pela conferência de escrita e remoção, com o pathspec resolvido pelo git (curinga, magia, `-r .`) e `--pathspec-from-file` recusado; a falta de `.forge/versao` numa sessão marcada como projeto falha fechado nas ações críticas (o vigia avisa), em vez de desligar os hooks. A marca da sessão fica dentro do `.git/` (protegida), fora do alcance de `git clean`, `stash` e `sparse-checkout` (BP-1).
