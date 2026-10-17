@@ -26,7 +26,8 @@ Formato do fixture:
               projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
-              sem_run (true: .forge/run/ não foi criado), sem_caminho ([caminho]: não existem; {tmp} vale), erros_log (trecho)
+              sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
+              sem_caminho ([caminho]: não existem; {tmp} vale)
 """
 import concurrent.futures
 import contextlib
