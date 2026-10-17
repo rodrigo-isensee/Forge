@@ -230,6 +230,17 @@ class Agentes(unittest.TestCase):
                 self.assertTrue(fm.get("tools"), "tools vazio")
                 self.assertIn(fm.get("model"), MODELOS_VALIDOS)
 
+    def test_conferente_lista_de_anexos_implicitos(self):
+        """Escopo da entrega (agents/conferente.md): os pareceres de outro papel na mesma branch (segurança, devops)
+        são anexo implícito, junto dos demais; `tests/config.json` continua fora da lista."""
+        texto = (AGENTES / "conferente.md").read_text(encoding="utf-8")
+        m = re.search(r"salvo os anexos implícitos \((.*?)\): `escopo: ok \(anexo\)` \*\*só por acréscimo\*\*", texto)
+        self.assertIsNotNone(m, "trecho da lista de anexos implícitos não encontrado")
+        itens = [i.strip().strip("`") for i in m.group(1).split(", ")]
+        self.assertEqual(itens, ["CHANGELOG.md", ".claude-plugin/plugin.json", "teste do que mudou", "docs/reviews/",
+                                 "docs/qa/", "docs/kanban/", "docs/security/", "docs/devops/"])
+        self.assertIn("`tests/config.json` nunca é anexo", texto)
+
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
         com o papel só de leitura na política do hook `conformidade` (o Bash dele fica na lista branca de leitura)."""
