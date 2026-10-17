@@ -66,12 +66,12 @@ class Voltas(Raiz):
         self.assertEqual(linhas, [
             "voltas: XPTO conferencia inicio=2026-10-17T10:12:00-03:00 minutos=18",
             "voltas: XPTO review inicio=2026-10-17T10:15:00-03:00 minutos=21",
-            "voltas: XPTO revalidacao inicio=2026-10-17T10:36:00-03:00 minutos=aberta",
+            "voltas: XPTO revalidacao inicio=2026-10-17T10:36:00-03:00 minutos=22",
             "voltas: XPTO nao-classificado inicio=2026-10-17T10:50:00-03:00 minutos=8",
             "voltas: XPTO barrada inicio=2026-10-17T11:00:00-03:00 minutos=20",
             "voltas: XPTO resumo: brief=0 conferencia=1 review=1 revalidacao=1 barrada=1 nao-classificado=1 "
-            "minutos=52 construcao=10 razao=5.20",  # união: conferência e review se sobrepõem em 10:15-10:30
-            "voltas: total: pedidos=1 voltas=5 minutos=52",
+            "minutos=66 construcao=10 razao=6.60",  # união: conferência e review se sobrepõem; revalidação e ajuste também
+            "voltas: total: pedidos=1 voltas=5 minutos=66",
         ])
 
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
@@ -145,7 +145,21 @@ class RodadasDeBrief(Raiz):
                     "| 2026-10-17T11:00:00-03:00 | xpto | Em andamento | Review | entregue |\n")
         _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
         self.assertEqual(len([l for l in linhas if l.startswith("voltas: xpto review ")]), 1, linhas)
-        self.assertIn("minutos=50 ", linhas[-2])
+        self.assertIn("minutos=60 ", linhas[-2])  # revalidação 10:00-11:00 contém a volta de review (10:20-11:00)
+
+    def test_revalidacao_do_fluxo_paralelo_fecha_na_chegada_a_review_sem_conferencia(self):
+        """Q-1: Em andamento -> Review (VV-4) fecha a volta de revalidação; sem isso ela ficava `aberta`."""
+        self.gravar("docs/kanban/historico.md",
+                    "| 2026-10-17T10:00:00-03:00 | xpto | Conferência | Review | revalidação |\n"
+                    "| 2026-10-17T10:10:00-03:00 | xpto | Review | Em andamento | retrabalho |\n"
+                    "| 2026-10-17T10:30:00-03:00 | xpto | Em andamento | Review | entregue, em paralelo |\n")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertIn("voltas: xpto revalidacao inicio=2026-10-17T10:00:00-03:00 minutos=30", linhas)
+        self.gravar("docs/kanban/historico.md",
+                    "| 2026-10-17T10:00:00-03:00 | xpto | Conferência | Review | revalidação |\n"
+                    "| 2026-10-17T10:20:00-03:00 | xpto | Review | QA | aprovado |\n")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertIn("voltas: xpto revalidacao inicio=2026-10-17T10:00:00-03:00 minutos=20", linhas)
 
     def test_historico_ilegivel_da_mensagem_e_rc_1(self):
         self.gravar("docs/kanban/historico.md", HISTORICO)
