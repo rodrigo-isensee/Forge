@@ -12,6 +12,10 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check fontes
      forge-check sobreposicao [--base REF]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
+     forge-check voltas [--pedido ID]
+`voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
+reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
+uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -48,6 +52,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent
@@ -614,6 +619,187 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
             f.write("\n")
         f.write(linha)
     return [linha.rstrip("\n")]
+
+
+# ---- rodadas de brief e voltas (T-1, M13): o vai e volta lido do disco, só leitura ----
+def _sem_acento(texto):
+    return "".join(c for c in unicodedata.normalize("NFD", str(texto)) if not unicodedata.combining(c)).casefold()
+
+
+def _ler_tabela(arq):
+    """Células (sem as bordas) de cada linha de tabela de um arquivo; vazio se não abre. Só leitura."""
+    try:
+        texto = arq.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    return [[c.strip() for c in l.strip().strip("|").split("|")] for l in texto.splitlines() if l.startswith("|")]
+
+
+def _hora(texto):
+    """datetime de uma hora ISO (aceita `Z` e `+0300`; sem fuso vale o local) ou None."""
+    t = re.sub(r"Z$", "+00:00", texto.strip())
+    t = re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", t)
+    try:
+        h = datetime.datetime.fromisoformat(t)
+    except ValueError:
+        return None
+    return h if h.tzinfo else h.astimezone()
+
+
+def _minutos(de, ate):
+    return round((ate - de).total_seconds() / 60, 1)
+
+
+def rodadas_de_brief(raiz, pedido):
+    """Rodadas de brief de um pedido, do disco. Fonte, na ordem: linhas de modo `brief` de docs/kanban/conferencias.md;
+    sem elas, os briefs `docs/briefs/<pedido>-<destino>-<n>.md`, que provam delegações (o `<n>` conta cada delegação ao
+    destino, e a rodada seguinte da conferência reescreve o mesmo arquivo), não rodadas: `fonte=briefs`, sem extras.
+    Devolve `total`, `por_destino` (destino sem `forge:`), `fonte` e `extras` [(rótulo, rodada, hora|None, minutos|None)]:
+    as rodadas depois da primeira (só com `conferencias`)."""
+    pid = pedido.casefold()
+    destino_de = re.compile(rf"^{re.escape(pid)}-([a-z][a-z-]*)-\d+$")
+    total, por_destino, extras = 0, {}, []
+    linhas = [c for c in _ler_tabela(raiz / "docs" / "kanban" / "conferencias.md")
+              if len(c) >= 5 and c[1].casefold() == pid and c[3].casefold() == "brief" and c[4].isdigit()]
+    if linhas:
+        horas = {(c[2], int(c[4])): c[0] for c in linhas}
+        for c in linhas:
+            total += 1
+            achou = destino_de.match(c[2].casefold())
+            if achou:
+                por_destino[achou.group(1)] = por_destino.get(achou.group(1), 0) + 1
+            if int(c[4]) > 1:
+                antes, agora = _hora(horas.get((c[2], int(c[4]) - 1), "")), _hora(c[0].replace(" ", "T"))
+                extras.append((c[2], int(c[4]), c[0], _minutos(antes, agora) if antes and agora else None))
+        return {"total": total, "por_destino": por_destino, "fonte": "conferencias", "extras": extras}
+    pasta = raiz / "docs" / "briefs"
+    for arq in sorted(pasta.glob("*.md")) if pasta.is_dir() else []:
+        achou = re.match(rf"^{re.escape(pid)}-([a-z][a-z-]*)-\d+\.md$", arq.name.casefold())
+        if achou:
+            por_destino[achou.group(1)] = por_destino.get(achou.group(1), 0) + 1
+    if por_destino:
+        return {"total": sum(por_destino.values()), "por_destino": por_destino, "fonte": "briefs", "extras": []}
+    return {"total": 0, "por_destino": {}, "fonte": "nenhuma", "extras": []}
+
+
+RANGO_DA_COLUNA = {"em andamento": 1, "conferencia": 2, "review": 3}  # colunas em que voltar é andar para trás
+
+
+def classificar_volta(de, para, motivo):
+    """Tipo da volta de uma transição do quadro, por padrão fixo de colunas e motivo; None se não é volta;
+    `nao-classificado` se anda para trás fora do vocabulário (nunca some)."""
+    d, p, m = _sem_acento(de), _sem_acento(para), _sem_acento(motivo)
+    if d == "conferencia" and p == "review":
+        return "conferencia" if "nao cumpriu" in m else "revalidacao" if "revalida" in m else None
+    if d == "review" and "reprov" in m:
+        return "review"
+    if d == "em andamento" and p == "aguardando o dono" and ("barrad" in m or "hook" in m):
+        return "barrada"
+    if d in RANGO_DA_COLUNA and p in RANGO_DA_COLUNA and RANGO_DA_COLUNA[p] < RANGO_DA_COLUNA[d]:
+        return "nao-classificado"
+    return None
+
+
+TIPOS_DE_VOLTA = ("brief", "conferencia", "review", "revalidacao", "barrada", "nao-classificado")
+
+
+def _fecha_volta(coluna, de, para):
+    """A volta que saiu de `coluna` termina quando o cartão chega a ela; no fluxo paralelo (VV-4) o cartão sai de Em
+    andamento direto para Review e nunca passa por Conferência: aí a volta termina nessa chegada a Review, ou na
+    entrada em QA ou Integração."""
+    d, p = _sem_acento(de), _sem_acento(para)
+    if p == coluna or p in ("qa", "integracao"):
+        return True
+    return coluna == "conferencia" and p == "review" and d not in ("conferencia", "review")
+
+
+def voltas_do_cartao(movimentos):
+    """De [(hora, de, para, motivo)] em ordem de hora: ([(tipo, hora, minutos|None)], minutos de construção|None).
+    Minutos da volta: da linha dela até a próxima do cartão que volta à coluna de onde ela saiu, ou que fecha o fluxo
+    paralelo (`_fecha_volta`) (None: ainda aberta);
+    saída da mesma coluna dentro de uma volta dela ainda aberta não abre outra (a janela é uma só).
+    Construção: da primeira entrada em Em andamento até a primeira saída dele para a Conferência."""
+    voltas, abertas = [], {}  # abertas: coluna de saída -> hora em que a volta que saiu dela termina (None: aberta)
+    for i, (hora, de, para, motivo) in enumerate(movimentos):
+        tipo = classificar_volta(de, para, motivo)
+        if tipo:
+            coluna = _sem_acento(de)
+            if coluna in abertas and (abertas[coluna] is None or hora < abertas[coluna]):
+                continue  # mesma saída já contada: a janela é uma só
+            volta = next((h for h, d2, p, _ in movimentos[i + 1:] if _fecha_volta(coluna, d2, p)), None)
+            abertas[coluna] = volta
+            voltas.append((tipo, hora, _minutos(hora, volta) if volta else None))
+    inicio = next((h for h, _, p, _ in movimentos if _sem_acento(p) == "em andamento"), None)
+    fim = next((h for h, d, p, _ in movimentos if inicio and h >= inicio and _sem_acento(d) == "em andamento"
+                and _sem_acento(p) == "conferencia"), None)
+    return voltas, (_minutos(inicio, fim) if inicio and fim else None)
+
+
+def _uniao_de_minutos(janelas):
+    """Minutos da união de [(inicio, fim)]: janelas que se sobrepõem contam uma vez."""
+    total, fim = 0.0, None
+    for ini, f in sorted(janelas):
+        if fim is None or ini >= fim:
+            total += (f - ini).total_seconds() / 60
+        elif f > fim:
+            total += (f - fim).total_seconds() / 60
+        fim = f if fim is None or f > fim else fim
+    return round(total, 1)
+
+
+def _numero(n):
+    return f"{n:g}"
+
+
+def cmd_voltas(raiz, pedido=None):
+    """Imprime as voltas por pedido (linhas fixas, números e tipos). Só lê docs/kanban/historico.md, conferencias.md,
+    docs/briefs e docs/pedidos."""
+    historico = raiz / "docs" / "kanban" / "historico.md"
+    if not historico.is_file():
+        print("voltas: aviso: docs/kanban/historico.md ausente", file=sys.stderr)
+    else:
+        try:
+            historico.read_text(encoding="utf-8", errors="replace")
+        except OSError as erro:
+            print(f"voltas: docs/kanban/historico.md ilegivel ({erro.strerror or erro}); nada medido", file=sys.stderr)
+            return 1
+    por_cartao, nomes = {}, {}
+    for c in _ler_tabela(historico):
+        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
+        if hora:
+            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
+            nomes.setdefault(c[1].casefold(), c[1])
+    pasta = raiz / "docs" / "pedidos"
+    pedidos = {p.stem.casefold(): p.stem for p in pasta.glob("*.md")} if pasta.is_dir() else {}
+    pedidos.update(nomes)
+    if pedido and pedido.casefold() not in pedidos and not rodadas_de_brief(raiz, pedido)["total"]:
+        print(f"voltas: pedido {pedido} nao existe (nem em docs/pedidos/ nem no historico)", file=sys.stderr)
+        return 1
+    escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)
+    pedidos.setdefault(pedido.casefold() if pedido else "", pedido or "")
+    soma = [0, 0, 0.0]
+    for chave in escolhidos:
+        voltas, construcao = voltas_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))
+        rodadas = rodadas_de_brief(raiz, chave)
+        linhas = [("brief", h, m, f" ref={o}") for o, r, h, m in rodadas["extras"]] + \
+                 [(t, h.isoformat(timespec="seconds"), m, "") for t, h, m in voltas]
+        if not linhas and not pedido:
+            continue
+        nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
+        for tipo, inicio, minutos, ref in linhas:
+            contagem[tipo] += 1
+            print(f"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos="
+                  f"{_numero(minutos) if minutos is not None else 'sem-hora' if inicio is None else 'aberta'}{ref}")
+        janelas = [(_hora(h.replace(" ", "T")), m, True) for _, _, h, m in rodadas["extras"] if h and m is not None]
+        janelas += [(h, m, False) for _, h, m in voltas if m is not None]
+        total = _uniao_de_minutos([(j[0] - datetime.timedelta(minutes=j[1]), j[0]) if j[2] else (j[0], j[0] + datetime.timedelta(minutes=j[1]))
+                                   for j in janelas if j[0]])
+        razao = f"{total / construcao:.2f}" if construcao else "-"
+        print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
+              + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+        soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
+    print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
+    return 0
 
 
 def carregar_politica():
@@ -1192,9 +1378,30 @@ def arquivos_de_transcricao(alvo):
     raise FileNotFoundError(2, "No such file or directory", str(alvo))
 
 
-def pasta_padrao_de_transcricoes():
-    """Onde o Claude Code guarda as sessões do diretório atual: ~/.claude/projects/<cwd com não alfanuméricos em `-`>."""
-    return Path.home() / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", os.getcwd())
+def _pasta_de_sessao(caminho):
+    """Nome da pasta de sessões do Claude Code para um diretório: o caminho com cada não alfanumérico trocado por `-`."""
+    return re.sub(r"[^A-Za-z0-9]", "-", str(caminho))
+
+
+def pastas_padrao_de_transcricoes():
+    """Pastas de sessões em ~/.claude/projects que existem: a do diretório atual, a de ~/.forge-contrib e as das
+    worktrees de ~/.forge-contrib/wt/ (inclusive as já apagadas: a sessão fica gravada)."""
+    base = Path.home() / ".claude" / "projects"
+    contrib = _pasta_de_sessao(Path.home() / ".forge-contrib")
+    nomes = {_pasta_de_sessao(os.getcwd()), contrib}
+    if base.is_dir():
+        nomes |= {p.name for p in base.iterdir() if p.name.startswith(contrib + "-wt-")}
+    return [base / n for n in sorted(nomes) if (base / n).is_dir()]
+
+
+def transcricoes_do_alvo(alvo):
+    """(arquivos .jsonl, onde) do alvo dado ou, sem alvo, das pastas padrão. FileNotFoundError se nada existe."""
+    if alvo:
+        return arquivos_de_transcricao(alvo), alvo
+    pastas = pastas_padrao_de_transcricoes()
+    if not pastas:
+        raise FileNotFoundError(2, "No such file or directory", str(Path.home() / ".claude" / "projects" / _pasta_de_sessao(os.getcwd())))
+    return [a for pasta in pastas for a in arquivos_de_transcricao(pasta)], f"{len(pastas)} pasta(s) de sessoes"
 
 
 def ler_uso(arquivos):
@@ -1298,35 +1505,38 @@ def linhas_do_custo(dados, r):
     return saida
 
 
-def linhas_de_entregas(dados, r, entrega):
-    """Linhas no formato de `docs/kanban/entregas.md` (Data, Entrega, Agente, Tokens, Duração, Rodadas, Observação)."""
-    def linha(agente, uso, extra=""):
+def linhas_de_entregas(dados, r, entrega, rodadas=None):
+    """Linhas no formato de `docs/kanban/entregas.md` (data, entrega, agente, tokens, rodadas de brief, voltas de review,
+    nota). `rodadas` (de `rodadas_de_brief`): a linha do Jarvis traz o total do pedido; a de cada agente, as do seu destino."""
+    rodadas = rodadas or {"total": 0, "por_destino": {}, "fonte": "nenhuma"}
+
+    def linha(agente, uso, n_rodadas, extra=""):
         obs = f"calculado das transcricoes: ent={uso['entrada']} sai={uso['saida']} cache={uso['cache_criacao'] + uso['cache_leitura']}{extra}"
-        return f"| {dados['data'] or '-'} | {entrega} | {agente} | {total_uso(uso)} | - | - | {obs} |"
+        celula = f"{n_rodadas} delegações" if n_rodadas and rodadas["fonte"] == "briefs" else n_rodadas or "-"
+        return f"| {dados['data'] or '-'} | {entrega} | {agente} | {total_uso(uso)} | {celula} | - | {obs} |"
     c = dados["compactacoes"]
-    saida = [linha("jarvis (principal)", r["principal"],
-                   f"; compactacoes={c['quantidade']}; relancamentos={r['relancamentos']}")]
+    saida = [linha("jarvis (principal)", r["principal"], rodadas["total"],
+                   f"; compactacoes={c['quantidade']}; relancamentos={r['relancamentos']}; rodadas de brief: fonte={rodadas['fonte']}")]
     por_tipo = {}
     for (tipo, _), reg in r["sub"].items():
         somar = por_tipo.setdefault(tipo, zerar_uso())
         for nome in somar:
             somar[nome] += reg["uso"][nome]
-    saida += [linha(tipo, uso) for tipo, uso in sorted(por_tipo.items())]
+    saida += [linha(tipo, uso, rodadas["por_destino"].get(tipo.removeprefix("forge:"))) for tipo, uso in sorted(por_tipo.items())]
     return saida
 
 
-def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>"):
+def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>", raiz=None):
     """Anuncia (stderr) o que vai ler, lê, imprime o relatório (stdout). Devolve o código de saída."""
-    alvo = alvo or str(pasta_padrao_de_transcricoes())
     try:
-        arquivos = arquivos_de_transcricao(alvo)
-    except OSError:
-        print(f"custo: caminho inexistente: {alvo}")
+        arquivos, onde = transcricoes_do_alvo(alvo)
+    except OSError as erro:
+        print(f"custo: caminho inexistente: {erro.filename or alvo}")
         return 1
     if not arquivos:
-        print(f"custo: nenhum arquivo .jsonl em {alvo}")
+        print(f"custo: nenhum arquivo .jsonl em {onde}")
         return 1
-    print(f"custo: vai ler {len(arquivos)} arquivo(s) .jsonl em {alvo}; só disco local, sem rede; "
+    print(f"custo: vai ler {len(arquivos)} arquivo(s) .jsonl em {onde}; só disco local, sem rede; "
           "a saída traz números e tipos de agente, nunca texto, caminho ou prompt", file=sys.stderr)
     dados = ler_uso(arquivos)
     if dados["ignoradas"]:
@@ -1335,7 +1545,8 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>"):
         print("custo: nenhuma mensagem com usage encontrada; nada a somar (formato desconhecido, arquivos ilegiveis ou sessao sem uso)")
         return 1
     resumo = resumir_custo(dados)
-    for linha in (linhas_de_entregas(dados, resumo, entrega) if entregas else linhas_do_custo(dados, resumo)):
+    rodadas = rodadas_de_brief(Path(raiz or "."), entrega) if entregas else None
+    for linha in (linhas_de_entregas(dados, resumo, entrega, rodadas) if entregas else linhas_do_custo(dados, resumo)):
         print(linha)
     return 0
 
@@ -1572,16 +1783,15 @@ def taxa(parte, total):
 
 def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den):
     """Anuncia (stderr), lê e imprime uma linha por sessão e o total, só com números. `campos`: nomes das colunas."""
-    alvo = alvo or str(pasta_padrao_de_transcricoes())
     try:
-        arquivos = arquivos_de_transcricao(alvo)
-    except OSError:
-        print(f"{rotulo}: caminho inexistente: {alvo}")
+        arquivos, onde = transcricoes_do_alvo(alvo)
+    except OSError as erro:
+        print(f"{rotulo}: caminho inexistente: {erro.filename or alvo}")
         return 1
     if not arquivos:
-        print(f"{rotulo}: nenhum arquivo .jsonl em {alvo}")
+        print(f"{rotulo}: nenhum arquivo .jsonl em {onde}")
         return 1
-    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {alvo}; só disco local, sem rede; "
+    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {onde}; só disco local, sem rede; "
           "a saída traz só números, nunca texto, nome ou caminho", file=sys.stderr)
     medida = medir(ler(arquivos))
     soma = [0] * len(campos)
@@ -2044,6 +2254,8 @@ def main():
     br.add_argument("--destino", help="agente destino, forge:<nome> (padrão: `Agente destino:` do brief ou o nome do arquivo)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
+    vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
+    vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
@@ -2062,14 +2274,14 @@ def main():
     an.add_argument("saida")
     ve = tsub.add_parser("verificar")
     ve.add_argument("arquivo")
-    cu = tsub.add_parser("custo", help="tokens por sessão, agente e tipo lidos das transcrições locais (sem rede)")
-    cu.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual em ~/.claude/projects)")
+    cu = tsub.add_parser("custo", parents=[comum], help="tokens por sessão, agente e tipo lidos das transcrições locais (sem rede)")
+    cu.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     cu.add_argument("--entregas", action="store_true", help="gera as linhas de docs/kanban/entregas.md")
     cu.add_argument("--entrega", default="<entrega>", help="nome da entrega na linha gerada por --entregas")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
                         ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)")):
         medida = tsub.add_parser(nome, help=ajuda)
-        medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual em ~/.claude/projects)")
+        medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
     raiz = Path(a.raiz).resolve()
@@ -2082,11 +2294,13 @@ def main():
 
 def executar(a, raiz):
     if a.cmd == "transcricao" and a.acao == "custo":
-        return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega)
+        return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz)
     if a.cmd == "transcricao" and a.acao == "lastro":
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0)
+    if a.cmd == "voltas":
+        return cmd_voltas(raiz, a.pedido)
     if a.cmd == "brief":
         if a.alvo == "gerar":
             return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base)
