@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: efdd72e6d4a90d1da6b11b919bc41bab155afe1b
+commit: 679aaf17dcd55fc74183c95476621e50df534ddc
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-17
@@ -68,3 +68,29 @@ STRIDE, por prioridade:
 
 ## Riscos aceitos e ferramentas
 Riscos aceitos: nenhum. Ferramentas: `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH (lacuna; o diff não tem dependência nem workflow). Conferi por leitura que o diff não traz segredo. A execução foi só local: o hook do commit revisado sobre fixtures temporárias em `$TMPDIR`.
+
+## Revalidação após a volta única
+Escopo: `git diff 6060bec..679aaf17dcd55fc74183c95476621e50df534ddc` (commits `e812309` e `679aaf1`, 10 arquivos, +105 / -17), revisto contra os achados acima. Rodado no HEAD: `test_hooks.Hooks.test_fixtures`, `test_erro_interno_com_lista_de_permissao_falha_fechado` (executou, não foi ignorado), `test_escrita_permitida_malformada_bloqueia` e `test_forge.PluginDeDesenvolvimento`: 9 testes OK. Também rodei o hook do HEAD à mão, com fixtures descartáveis em `$TMPDIR` (cópia por `git archive`).
+
+### Situação dos achados anteriores
+| # | Situação | Evidência |
+|---|---|---|
+| 1 | resolvido no hook, sem efeito na sessão do Forge (ver achado 8) | `hooks/conformidade.json:15` sem `~/.forge-contrib/docs/`; ADR 0009, item 6, e `dev/agents/aq.md:28` sem "artefatos do pedido"; a fixture virou `aq-escreve-docs-do-pedido-bloqueia` (código 2). À mão, com a pasta corrente na worktree: `~/.forge-contrib/docs/briefs/x.md` saiu com código 2. |
+| 2 | resolvido | `dev/agents/aq.md:4` sem `WebFetch`; `:17` diz que a pesquisa externa chega como dado. `tests/test_forge.py:159-160` exige `tools:` exato e barra Bash e WebFetch. O canal sem rede (gravar o dado em `docs/propostas/`) continua e fica como recomendação: quem commita o estudo do AQ lê o que commita. |
+| 3 | resolvido no hook, sem efeito na sessão do Forge (ver achado 8) | `hooks/conformidade.py:429-430`: a raiz extra só vale com `e_clone_do_forge(topo)` e (`em_contrib(topo)` ou a raiz da sessão). Fixture nova `aq-arquitetura-em-outro-repositorio-bloqueia` (código 2). À mão: um repositório fora de `~/.forge-contrib` com o manifesto do Forge saiu com código 2. |
+| 4 | resolvido | `hooks/conformidade.py:1285-1293`: erro interno em `decidir` para papel com lista barra, exceto no `PostToolUse`. `bloquear` sai por `SystemExit`, que o `except Exception` não captura. O teste força `PermissionError` e confere 2 para `forge-dev:aq` e 0 para `forge:dev`. Erro antes de `decidir` (montar a `Guarda`) segue a regra geral; sem caminho realista, fica como está. |
+| 5 | parcial (não bloqueia) | `tests/test_forge.py:157` compara a política inteira. As três fixtures de regressão (`..`, relativo, link simbólico) não vieram. À mão, no HEAD, com a pasta corrente na worktree: `{wt}/docs/propostas/../../hooks/x.py`, o relativo `docs/propostas/../../hooks/x.py` e `docs/propostas/l/x.py` (com `l` como link para `hooks/`) saíram com código 2. |
+| 6 | resolvido | `tests/test_forge.py:162-168` (`test_dev_so_tem_manifesto_e_agentes`). A proteção de `dev/.claude-plugin/` em `caminhos` não veio e continua recomendação. |
+| 7 | fora desta revalidação | Cartão AQ-OPERACAO (operação E2). |
+
+### Suposições do autor
+- (a) Raiz extra igual a `e_clone_do_forge(topo)` e (`em_contrib(topo)` ou a raiz da sessão), com `wt/pr-<n>` aceitas: aceito. O ganho máximo é gravar estudo em `docs/propostas/` ou `docs/arquitetura/` de uma cópia do Forge, que só chega à `develop` por PR revisado. Um `.git` falso com manifesto plantado dentro de `docs/propostas/` gera uma raiz nova, mas ela fica dentro de um caminho já permitido, então não há fuga. `~/.forge-contrib` não é repositório git, então `~/.forge-contrib/docs/arquitetura/` não vira raiz extra (confirmado). Recomendação: a docstring de `tem_manifesto_do_forge` (`hooks/_comum.py:57-58`) diz que o manifesto nunca dá poder, e agora ele compõe uma condição que libera. Vale ajustar o texto.
+- (b) Sem fixtures para `..`, relativo e link simbólico: não bloqueia. O comportamento está certo no HEAD (ver achado 5), e a lacuna é só de regressão. O teste de erro interno é ignorado como root; os executores do CI não rodam como root, então ele roda lá. Aceito.
+
+### Achado novo
+| # | Severidade | Evidência | Problema e caminho de ataque | Correção mínima | Esforço | Dono |
+|---|---|---|---|---|---|---|
+| 8 | média (bloqueia) | `hooks/conformidade.py:1253-1254` (`identificar_sessao`) e `:1279-1280` (`principal`); `scripts/jarvis-forge:147` e `:170` | Com a raiz da sessão num clone do Forge, o hook só age se a pasta corrente estiver num projeto. Fora disso, `principal` retorna antes de olhar o papel. O `forge-dev` só é carregado pelo `jarvis-forge`, que abre o Claude Code em `~/Forge`. Assim, na única sessão em que o AQ existe, `escrita_permitida` nunca é avaliada. Prova no HEAD, com `CLAUDE_PROJECT_DIR` apontando para um clone do Forge e o papel `forge-dev:aq`: Write em `{Forge}/agents/x.md`, `{wt}/agents/x.md` e `~/.forge-contrib/docs/pedidos/x.md` saiu com código 0. Sem `CLAUDE_PROJECT_DIR` e com a pasta corrente na worktree, os mesmos casos dão 2. As fixtures não pegam isso porque rodam com a pasta corrente num projeto e sem raiz declarada. Caminho: é o mesmo do achado 1 (instrução no corpo ou no diff de um PR de terceiro leva o AQ a gravar uma decisão falsa em `pedidos/`, a alterar um brief ou a editar `agents/` e `hooks/`), agora pela falta de guarda e não pela lista. O que resta é o pedido de permissão do Claude Code ao Write, que depende do modo da sessão e não é controle do Forge, mais o merge da `main` pelo dono. O achado já existia em `efdd72e`, e o parecer anterior não o pegou: a seção "Verificado" se apoiou nas fixtures. | Em `principal`, quando o `agent_type` cai num papel com `escrita_permitida`, o hook age em qualquer sessão (não retorna em `externo is False`) e aplica pelo menos a lista de permissão. Na raiz extra, use a raiz da sessão (`raiz_declarada()`), porque nesse ramo `hook.raiz` pode vir `None` e `os.path.realpath(None)` levantaria erro, o que hoje barraria tudo para o AQ, inclusive `docs/propostas/`. Fixtures com `env.CLAUDE_PROJECT_DIR` num clone do Forge (manifesto, sem `.forge/versao`) e a pasta corrente nele: AQ em `{Forge}/docs/propostas/a.md` dá 0; em `{Forge}/agents/x.md`, em `{wt}/agents/x.md` e em `~/.forge-contrib/docs/pedidos/x.md` dá 2. Os outros papéis seguem sem guarda na sessão do Forge, como hoje. | P | `tech-lead` (autor) |
+
+### Veredito da revalidação
+Reprovado. Os achados 2, 4 e 6 estão resolvidos, e os achados 1 e 3 estão corretos na lógica da lista. Mas o achado 8 mostra que a lista não roda na sessão em que o AQ opera, então a contenção pedida no achado 1 ainda não vale na prática. Para aprovar: o achado 8 corrigido, com as fixtures de sessão do Forge. As fixtures do achado 5 continuam recomendadas, sem bloquear. Riscos aceitos: nenhum. Ferramentas: as mesmas lacunas de antes (`gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` fora do PATH); o diff da volta não traz dependência, workflow nem segredo (conferido por leitura).
