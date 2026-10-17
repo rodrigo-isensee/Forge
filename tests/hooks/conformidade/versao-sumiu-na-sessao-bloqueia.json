@@ -1,0 +1,34 @@
+{
+  "descricao": "A marca de projeto do SessionStart (`.forge/run/projeto`) existe e o `.forge/versao` sumiu: a ação crítica falha fechado (R-CONFORMIDADE) em vez de os hooks se desligarem.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "remover": [
+        ".forge/versao"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "sumiu"
+  },
+  "estado": {
+    "projeto": "2026-10-17T00:00:00\n"
+  }
+}

@@ -19,7 +19,8 @@ Formato do fixture:
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
-              {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
+              {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto);
+              {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu)
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
@@ -157,6 +158,8 @@ class Fixture:
                 entrada = substituir(passo["entrada"], self.mapa, self.agora)
                 entrada.setdefault("cwd", str(raiz))
                 conferir_passo(entrada, rodar_hook(entrada))
+            for caminho in passo.get("remover", []):
+                (raiz / substituir(caminho, self.mapa, 0)).unlink()
             for modo, chave in (("w", "gravar"), ("a", "anexar")):
                 for caminho, conteudo in passo.get(chave, {}).items():
                     alvo = raiz / substituir(caminho, self.mapa, 0)
