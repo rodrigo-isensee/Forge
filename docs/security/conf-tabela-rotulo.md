@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conf-tabela-rotulo
 branch: melhoria/conf-tabela-rotulo
-commit: b2e425060e736316920d52a75eddcc29961d0a69
+commit: 0adabf58936dde660aaabe9a23cf554784594ec1
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-17
@@ -27,6 +27,8 @@ Escopo: `git diff 0095d299b9b9383ecf9eba336e83c764f707ae5f...51500c2f60488d9b872
 
 ## Revalidação após a volta curta
 Revalidação após a volta curta (b2e4250, B-1 do QA): `git diff b8634fb..b2e4250` toca só `agents/conferente.md:93` (+1 / -1); `tests/config.json` e `changelog.d/` sem mudança. A volta só acrescentou à coluna de comando da linha `merge-integracao` leituras `gh pr view <b> --json statusCheckRollup,headRefOid` e `gh run view <id> --json headSha,conclusion`, ambas já cobertas por `gh pr view` e `gh run view` (com `--json`) em "Comandos permitidos" (`agents/conferente.md:23`): a lista não ganhou comando, é só leitura e sem custo. A regra do rótulo ficou igual (só quando o check `catraca` do head está em `fail` por falta dele; execução mais recente de cada check, mesmo head). O achado 1 (informativo) foi atendido: o head agora entra na conferência. Observação informativa do conferente: no `gh` local 2.4.0 o campo `headRefOid` é recusado; o efeito é fail-safe (a linha vira `não verificável`, nunca aprovação indevida) e `gh run view --json headSha` serve de alternativa; sem ação de segurança. Parecer mantido: aprovado.
+
+Revalidação após a segunda volta curta (0adabf5, B-2 do review): `git diff 7d4aad6..0adabf5` toca só `agents/conferente.md`, linhas 70 e 93 (+2 / -2); `tests/config.json` e `changelog.d/` sem mudança. A volta trocou `headRefOid`, recusado pelo gh 2.4.0, por leituras `gh pr view <b> --json statusCheckRollup`, `gh pr view <n> --json commits --jq '.commits[-1].oid'` e `gh run view <id> --json headSha,conclusion`, todas dentro de `gh pr view` e `gh run view` (com `--json`) em "Comandos permitidos" (`agents/conferente.md:23`): a lista não ganhou comando, é só leitura e sem custo. A regra do rótulo ficou igual (só quando o check `catraca` do head está em `fail` por falta dele; execução mais recente, mesmo head). Parecer mantido: aprovado.
 
 ## Lacunas
 Nenhuma ferramenta usada; sem varredura de segredo, pois o diff não contém valores sensíveis.
