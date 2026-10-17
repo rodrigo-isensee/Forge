@@ -20,14 +20,14 @@ import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, diretorio_comum, e_clone_do_forge,
                     em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
-    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/(config|hooks|forge)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
+    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
 LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
@@ -1260,27 +1260,6 @@ def politica():
         bloquear("R-CONFORMIDADE", "política de conformidade inválida: chave ausente ou com tipo errado "
                                    "(hooks/conformidade.json). Corrigir: leve ao usuário (R-DECISAO)")
     return pol
-
-
-def diretorio_comum(topo):
-    """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git). Cópia principal: o próprio
-    `.git`. Worktree vinculada: o `.git` é um arquivo `gitdir: <comum>/worktrees/<n>` e o `gitdir` de volta dessa
-    pasta tem de apontar para ele; um `.git` forjado, que não é o registrado, não vale. Senão, None."""
-    marca = topo / ".git"
-    if marca.is_symlink():
-        return None
-    if marca.is_dir():
-        return Path(os.path.realpath(marca))
-    try:
-        apontado = marca.read_text(encoding="utf-8").strip()
-        pasta = Path(os.path.realpath(topo / apontado[len("gitdir:"):].strip()))
-        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
-    except (OSError, ValueError):
-        return None
-    if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":
-        return None
-    esperado = os.path.join(os.path.realpath(os.path.dirname(volta)), os.path.basename(volta))
-    return Path(os.path.realpath(pasta.parent.parent)) if esperado == str(marca) else None
 
 
 def raiz_do_parecer(hook, p):

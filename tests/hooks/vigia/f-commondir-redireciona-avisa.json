@@ -1,0 +1,38 @@
+{
+  "descricao": "Achado F: o `commondir` escrito fora dos hooks no clone principal, com o `.forge/versao` fora: a marca não se consulta, falha fechado e o vigia avisa no Stop.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "remover": [
+        ".forge/versao"
+      ]
+    },
+    {
+      "gravar": {
+        ".git/commondir": "{tmp}/outro/.git\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "versao-sumiu"
+  }
+}

@@ -24,8 +24,8 @@ import sys
 import time
 from pathlib import Path
 
-from _comum import (LIMITE_LOG, PLUGIN, executar, git, gravar_json, ler_json, marcar_projeto, raiz_declarada,
-                    versao_sumiu)
+from _comum import (LIMITE_LOG, PLUGIN, copia_de_trabalho, executar, git, gravar_json, ler_json, marcar_projeto,
+                    motivo_da_falha, raiz_declarada, versao_sumiu)
 
 LIMITE_ARQUIVO = 2 * 1024 * 1024
 LIMITE_ARQUIVOS = 3000
@@ -316,10 +316,17 @@ def verificar(hook, raiz):
 
 
 def avisar_versao_sumiu(hook):
-    """Sessão marcada como projeto sem `.forge/versao`: os outros hooks se calaram, então o vigia é quem avisa."""
-    hook.raiz = raiz_declarada()
-    detalhe = (".forge/versao sumiu desde o início da sessão: os hooks do Forge só barram as ações críticas até o "
-               "arquivo voltar; peça ao usuário que o restaure")
+    """Sessão marcada como projeto sem `.forge/versao`, com a raiz movida ou com o `.git` que não se resolve: os outros
+    hooks se calaram, então o vigia é quem avisa. Raiz que sumiu: o estado vai para a pasta corrente, para não recriar
+    a raiz antiga."""
+    motivo = motivo_da_falha()
+    hook.raiz = (copia_de_trabalho(hook.cwd()) or hook.cwd()) if motivo == "raiz" else raiz_declarada()
+    detalhe = {"versao": (".forge/versao sumiu desde o início da sessão: os hooks do Forge só barram as ações críticas "
+                          "até o arquivo voltar; peça ao usuário que o restaure"),
+               "raiz": ("a pasta da sessão foi movida ou apagada: os hooks do Forge só barram as ações críticas; peça "
+                        "ao usuário que a restaure e abra uma sessão nova"),
+               "git": (".git da raiz da sessão não se resolve e não há .forge/versao: os hooks do Forge só barram as ações "
+                       "críticas; peça ao usuário que repare o .git")}[motivo]
     with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
                             "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),

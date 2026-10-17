@@ -1,0 +1,32 @@
+{
+  "descricao": "R7: pasta sem Forge cujo `.git` não se resolve (`commondir` num clone principal): a falha fechada da raiz da sessão fica, e a mensagem diz o motivo real, não que o `.forge/versao` sumiu.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "forge": false,
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "gravar": {
+        ".git/commondir": "/nada\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge 1"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não se resolve"
+  }
+}

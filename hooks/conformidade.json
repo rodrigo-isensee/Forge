@@ -34,6 +34,7 @@
     {"caminho": ".git", "quem": [], "motivo": "o .git da raiz (pasta ou arquivo de worktree) liga o repositório às marcas e aos hooks (.git)"},
     {"caminho": ".git/config", "quem": [], "motivo": "configuração do git (.git/config)"},
     {"caminho": ".git/hooks/", "quem": [], "motivo": "hooks do git (.git/hooks/)"},
+    {"caminho": ".git/", "quem": [], "motivo": "o .git/ resolve onde o git e os hooks acham o repositório (commondir, worktrees/, gitdir, HEAD): só os comandos do git o alteram, nunca escrita ou remoção direta (.git/)"},
     {"caminho": "~/.claude/settings.json", "quem": [], "motivo": "configuração do usuário"},
     {"caminho": "~/.claude/settings.local.json", "quem": [], "motivo": "configuração do usuário"},
     {"caminho": "~/.claude/CLAUDE.md", "quem": [], "motivo": "instruções do usuário"},
