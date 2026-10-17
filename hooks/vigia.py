@@ -318,7 +318,8 @@ def verificar(hook, raiz):
 def avisar_versao_sumiu(hook):
     """Sessão marcada como projeto sem `.forge/versao`: os outros hooks se calaram, então o vigia é quem avisa."""
     hook.raiz = raiz_declarada()
-    detalhe = ".forge/versao sumiu desde o início da sessão: os hooks do Forge estão desligados neste projeto"
+    detalhe = (".forge/versao sumiu desde o início da sessão: os hooks do Forge só barram as ações críticas até o "
+               "arquivo voltar; peça ao usuário que o restaure")
     with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
         f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
                             "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),

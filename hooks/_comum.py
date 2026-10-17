@@ -88,9 +88,21 @@ def raiz_declarada():
     return Path(raiz) if raiz and Path(raiz).is_absolute() else None
 
 
+def dir_do_git(raiz):
+    """O diretório comum do git da raiz (`git rev-parse --git-common-dir`: o `.git/` do clone, também numa worktree),
+    ou None se a raiz não for repositório. Nenhum comando de cópia de trabalho (`clean`, `stash`, `sparse-checkout`,
+    `reset`) mexe nele."""
+    cod, saida = git(raiz, "rev-parse", "--git-common-dir")
+    if cod == 0 and saida:
+        return Path(raiz, saida)
+    return Path(raiz, ".git") if (Path(raiz) / ".git").is_dir() else None
+
+
 def marca_de_projeto(raiz):
-    """`.forge/run/projeto`: o SessionStart grava aqui que a raiz da sessão é projeto (não versionado)."""
-    return Path(raiz) / ".forge" / "run" / "projeto"
+    """`<git-common-dir>/forge/projeto`: o SessionStart grava aqui que a raiz da sessão é projeto. Fica dentro do `.git/`
+    (protegido em `hooks/conformidade.json`) e não na árvore de trabalho, onde o próprio git a apagaria."""
+    pasta = dir_do_git(raiz)
+    return pasta / "forge" / "projeto" if pasta else None
 
 
 def marcar_projeto(raiz, continuacao):
@@ -98,11 +110,10 @@ def marcar_projeto(raiz, continuacao):
     tirou o Forge do projeto antes de abrir a sessão); `resume`/`compact`/`clear` a mantêm, porque acontecem no meio
     de uma sessão em que um agente pode ter apagado o arquivo."""
     marca = marca_de_projeto(raiz)
+    if marca is None:
+        return
     if (Path(raiz) / ".forge" / "versao").is_file():
         marca.parent.mkdir(parents=True, exist_ok=True)
-        ignorar = marca.parent / ".gitignore"
-        if not ignorar.exists():
-            ignorar.write_text("*\n", encoding="utf-8")
         marca.write_text(time.strftime("%Y-%m-%dT%H:%M:%S") + "\n", encoding="utf-8")
     elif not continuacao and marca.is_file():
         marca.unlink()
@@ -110,10 +121,13 @@ def marcar_projeto(raiz, continuacao):
 
 def versao_sumiu(raiz=None):
     """A sessão (`CLAUDE_PROJECT_DIR`) foi marcada como projeto e o `.forge/versao` não existe mais: alguém o apagou
-    (`git rm`, `git mv`, troca de branch...). Sem ele os hooks se desligariam (ADR 0003, item 3): isto falha fechado."""
+    (`git rm`, `git sparse-checkout`, troca de branch...). Sem ele os hooks se desligariam (ADR 0003, item 3): isto
+    falha fechado."""
     raiz = raiz or raiz_declarada()
-    return (raiz is not None and not (raiz / ".forge" / "versao").is_file()
-            and marca_de_projeto(raiz).is_file())
+    if raiz is None or (raiz / ".forge" / "versao").is_file():
+        return False
+    marca = marca_de_projeto(raiz)
+    return marca is not None and marca.is_file()
 
 
 def contrib():
@@ -650,13 +664,21 @@ def falhar_fechado(hook, critico, bruto, clone_do_forge=False):
                                "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")
 
 
+def desligado_na_config(hook):
+    """O `.forge/config.json` da raiz da sessão (arquivo em vigor, ainda lá) desliga este hook (`hooks_desligados`)."""
+    config = ler_json(raiz_declarada() / ".forge" / "config.json", {})
+    lista = config.get("hooks_desligados") if isinstance(config, dict) else None
+    return isinstance(lista, list) and hook.nome in lista
+
+
 def barrar_sem_versao(hook, critico, bruto):
     """Ação crítica numa sessão que era de projeto e perdeu o `.forge/versao`: bloqueia (R-CONFORMIDADE), em vez de
-    deixar os hooks se desligarem junto com o arquivo. Nunca depois da ferramenta."""
+    deixar os hooks se desligarem junto com o arquivo. Nunca depois da ferramenta; respeita `hooks_desligados`."""
     if (hook.entrada.get("hook_event_name") != "PostToolUse" and critico.search(texto_da_acao(hook, bruto))
-            and versao_sumiu()):
+            and versao_sumiu() and not desligado_na_config(hook)):
         bloquear("R-CONFORMIDADE", "o .forge/versao da sessão sumiu (os hooks do Forge se desligam sem ele). "
-                                   "Corrigir: não apague nem mova .forge/; restaure o arquivo ou leve ao usuário (R-DECISAO)")
+                                   "Corrigir: não apague nem mova .forge/; peça ao usuário que o restaure "
+                                   "(o agente não pode: .forge/versao é arquivo em vigor) (R-DECISAO)")
 
 
 def executar(nome, funcao, critico=None, clone_do_forge=False):
