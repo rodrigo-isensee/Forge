@@ -16,3 +16,5 @@ git ls-files -z | while IFS= read -r -d '' f; do
 done | tar --null -T - -cf - | tar -xf - -C "$dir"
 
 claude plugin validate "$dir" --strict
+# O forge-dev (pasta dev/, só da sessão do Forge) tem manifesto próprio e também é validado.
+claude plugin validate "$dir/dev" --strict
