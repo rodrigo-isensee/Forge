@@ -240,6 +240,10 @@ class Agentes(unittest.TestCase):
         self.assertEqual(itens, ["CHANGELOG.md", ".claude-plugin/plugin.json", "teste do que mudou", "docs/reviews/",
                                  "docs/qa/", "docs/kanban/", "docs/security/", "docs/devops/"])
         self.assertIn("`tests/config.json` nunca é anexo", texto)
+        # a lista vale a partir da raiz e o aceite de risco (só o dono grava) fica fora dela
+        self.assertIn("a lista vale a partir da raiz do repositório", texto)
+        self.assertIn("`docs/security/aceites/` fica fora dela (aceite na entrega é `escopo: fora`)", texto)
+        self.assertNotIn("docs/security/aceites/", m.group(1))
 
     def test_conferente_so_leitura(self):
         """R-PROVA e R-BRIEF: o conferente confere sem escrever. Sem ferramenta de escrita no frontmatter, em haiku, e
