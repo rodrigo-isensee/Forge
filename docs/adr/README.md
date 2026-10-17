@@ -18,9 +18,10 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0009](0009-conformidade-dos-agentes.md) | Conformidade dos agentes por construção: sandbox, papéis, vigia (proposta) |
 | [0010](0010-agentes-devops-e-seguranca.md) | Agentes `devops-engineer` e `security-engineer`; parecer de segurança com gatilho (`R-SEGURANCA`) (proposta) |
 | [0011](0011-analisador-de-comandos-gramatica-positiva.md) | Analisador de comandos dos hooks: gramática positiva e falha fechada no que não modela (proposta) |
+| [0012](0012-main-por-merge-commit.md) | `main` mesclada por merge commit; sem PR de sincronização `main` → `develop` (substitui em parte a 0008) |
 
 ## Substituídas
 Nenhuma.
 
 ## Ordem de implementação
-0006 (versão no CI, destrava PRs paralelos) → 0002 (regras com ID) → 0004 (contrato e `forge-check`) → 0003 (hooks, que usam os dois) → 0001 (stacks) → 0005 (migração, que leva os projetos ao novo formato) → 0007 → 0008 → 0009 → 0010.
+0006 (versão no CI, destrava PRs paralelos) → 0002 (regras com ID) → 0004 (contrato e `forge-check`) → 0003 (hooks, que usam os dois) → 0001 (stacks) → 0005 (migração, que leva os projetos ao novo formato) → 0007 → 0008 → 0009 → 0010 → 0012.
