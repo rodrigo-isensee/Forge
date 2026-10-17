@@ -3,13 +3,15 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 740d7dd41b90b78bef891fc6cd6245e27320e7ec
+commit: 592098a3b3f6ba38bdb5313c5900c5de89cfcb05
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-17
 ---
 # Review de segurança: bp-1
 
+> **Rodada 6** (`592098a`, depois do retrabalho 5): **aprovado**. A mitigação barata do L e a parte do K pedida no retrabalho 5 (sufixo livre do `-i`, nome com versão, `inplace` do gawk, `W`/`--expression`/`-e` colado do `sed`) funcionam, o R10 não dá falso positivo e nenhuma cadeia das cinco rodadas voltou a calar os hooks (nenhuma linha passou de rc=2 para rc=0). Ficam abertos, com a BP-5: o L por grafia não literal (aspas no meio, curinga, `cd .git`) e por lançadores fora da lista, e um resto do K (endereço `$`/`!` antes do `w` do `sed`, `nawk`, `gawk -l inplace`, `perl5.34-x86_64-linux-gnu`). Detalhes na seção "Revalidação após o retrabalho 5", no fim.
+>
 > **Rodada 5** (`740d7dd`, depois do retrabalho 4): **aprovado**. I e J estão fechados, sem regressão nas cadeias das quatro rodadas, e a tabela de 1117 linhas do autor confere. O que fica aberto é anterior à entrega, não cala os hooks em uma linha como na base e tem dono (BP-5, BP-2); a cobertura da BP-5 depende de o sandbox negar escrita em `.git/forge/` e `.forge/versao` (condição registrada). Detalhes na seção "Revalidação após o retrabalho 4", no fim.
 >
 > **Rodada 4** (`7ec8c60`, depois do retrabalho 3): **reprovado**. F, G e H estão fechados, e o `.git/` protegido fecha a classe dos ponteiros. Mas o commit `faa4f06` trouxe uma regressão, o achado I (alta): com `perl -i`, o texto do script deixou de ser conferido, e duas linhas voltam a desligar tudo. Junto vai o J (média, anterior à entrega): `perl -0pi` escreve em caminho em vigor. Detalhes na seção "Revalidação após o retrabalho 3", no fim.
@@ -370,3 +372,70 @@ Numa cópia `git archive 740d7dd` em `$TMPDIR`, num repositório descartável co
 
 ### Ferramentas (rodada 5)
 Só os hooks de `740d7dd`, `7ec8c60` e `f636d27`, de cópias `git archive` em `$TMPDIR`, e o `git` 2.55.0 local, em repositórios descartáveis sem `origin`: os `push` liberados pelo hook falharam no próprio git, e nenhum remoto foi tocado. `busybox`, `gawk`, `vim`, `gdb` e `gio` só foram usados nesses repositórios. `gitleaks`, `zizmor` e `actionlint` não se aplicam, porque a entrega não mexe em workflow nem traz segredo.
+
+## Revalidação após o retrabalho 5
+Escopo: `git diff bbacc2c8515ef1df0d1c38f16470df3f898f4cc3...592098a3b3f6ba38bdb5313c5900c5de89cfcb05`, commits `b500364` e `592098a`, 10 arquivos (+203 / -9): `hooks/conformidade.py`, seis fixtures novas, ADR 0009 (item 2), `docs/hooks.md:36` e `changelog.d/bp-1.md`. O método é o das rodadas anteriores: os hooks de `592098a` rodados com `python3` a partir de uma cópia `git archive` em `$TMPDIR`, em repositórios descartáveis (git 2.55.0, sem `origin`), com a marca gravada pelo `SessionStart`. Em cada cadeia, um passo só foi executado de verdade quando o hook deu rc=0. Para comparar, usei uma cópia de `740d7dd`. `python3 -m unittest tests.test_hooks` na cópia deu 19 testes, OK, inclusive as seis fixtures novas (a suíte inteira não foi rodada, R-TETO). Na worktree, só este arquivo foi tocado.
+
+### Veredito da rodada 6
+**Aprovado.** A mitigação barata do L fecha o que prometia: a forma literal da marca e os seis lançadores. A parte do K pedida no retrabalho 5 também está fechada, e o R10 não dá falso positivo. Nenhuma linha das baterias das rodadas anteriores passou de rc=2 para rc=0. O que sobra é da classe "quem escreve fora do hook" (L) ou "escritor e forma de edição fora do modelo" (K). Essas classes já existiam na base, onde uma linha só desligava tudo, e têm dono na BP-5. Abaixo, por classe, com o comando que reproduz e quem cobre.
+
+### Mitigação do L (marca citada e lançadores): funciona
+`hooks/conformidade.py:51-52, 581-583, 718-719`. Com o `.forge/versao` presente, dão **rc=2** na própria linha:
+- forma literal, para qualquer programa: `busybox rm -rf .git/forge`, `busybox rm -rf .git/forge/`, `perl5.34.0 -e 'unlink glob q(.git/forge/projeto-*)'`, `busybox sh -c 'rm <marca>'`, `gio remove|trash|move <marca>`, `vim -es -c '!rm -rf .git/forge' -c q`, `ex -sc 'call delete("<marca>")' -c q`, `gdb -batch -ex 'shell rm <marca>'`, `chmod 000 .git/forge`, e também `rm $(git rev-parse --git-common-dir)/forge/projeto-*` e `git -c alias.x='!rm -rf .git/forge' x`, porque a regex pega `forge/projeto-`. As duas últimas eram extras da rodada 5 e fecham na forma literal;
+- lançadores: `ionice`, `chrt -o 0`, `taskset 1`, `flock /tmp/l`, `unshare` e `script -qc`, também por `env ionice`, `nice ionice`, `sh -c 'ionice …'`, `bash -c "taskset 1 true"`, `xargs flock …` e `/usr/bin/script`.
+
+Em cadeia (`<linha>`, depois `git sparse-checkout set src`, depois `git push --force origin main`, `git config core.hooksPath /dev/null` e `rm -rf .githooks`), `busybox rm -rf .git/forge`, `ionice rm -rf .git/forge`, `perl5.34.0 -e 'unlink …'`, `vim -es -c '!rm …'`, `gio remove` e `chmod 000 .git/forge` deixam o push em **rc=2** e o `vigia` avisando. Em `740d7dd`, os quatro primeiros calavam tudo, e o `chmod` derrubava os hooks com erro interno.
+
+### K, parte do retrabalho 5: fechada
+`hooks/conformidade.py:47-48, 212-246, 734, 754, 765, 784`. Sobre os cinco alvos (`.githooks/pre-push`, `.claude/settings.json`, `.git/config`, `.forge/versao` e a marca), dão **rc=2**; em `740d7dd`, todas davam rc=0:
+- **sufixo livre do `-i`:** `perl -i~`, `-i_bak`, `-i-old`, `-i,b`, `-pi~`, `-i'*.orig'`, `-pi'/tmp/*'`, `-s -pi~`, `-l0pi`, `-x -i`, `-C -i`, `-E 'say 1' -i`, `-Mstrict -pi`, `-I lib -pi`, `ruby -i~`, `ruby -W0 -i`, `ruby -rfileutils -i`, `sed -i~`, `sed -E -i~` e `sed --in-place=~`;
+- **nome com versão:** `perl5.34.0`, `/usr/bin/perl5.34.0`, `env perl5.34.0`, `ruby3.0`, `ruby3.2` e `python3.12 -c "open(…,'w')"`;
+- **`inplace` do gawk:** `-i inplace.awk`, `-i /usr/share/awk/inplace.awk`, `-iinplace`, `-i INPLACE`, `--include inplace`, `--include=…/inplace.awk`, `-f …/inplace.awk -e`, `-f …/inplace.awk -f prog.awk`, `@include "inplace"` no programa e `AWKPATH=… gawk -i inplace`;
+- **`sed`:** `'W <alvo>'`, `--expression='W <alvo>'`, `--expression 'W <alvo>'`, `-ne'W <alvo>'`, `-e 1d -e'w <alvo>'` e `-s -n 'W <alvo>'`.
+
+**R10, sem falso positivo.** Dão rc=0, corretamente: `perl -Mstrict -e 'print' .githooks/pre-push` (só leitura), `perl -ne print <alvo>`, `perl -CSDi -pe 1 <alvo>` (o `i` do `-C` é a camada de entrada, não edição no lugar) e `perl -w -- -pi <alvo>` (depois do `--`, `-pi` é o nome do script). Comandos comuns sobre `src/` também dão **rc=0**: `sed 's/a/b/'`, `sed -n '/W/p'`, `sed -e 's/Warn/x/'`, `sed -i 's/w x/y/'`, `awk '{print}'`, `perl -pi -e 's/a/b/'` e `perl -i~ -pe 1`. Os 17 comuns da rodada 5 continuam em rc=0.
+
+### Rodadas 1 a 5, de novo: sem regressão
+Usei os mesmos arquivos de comandos e de cadeias da rodada 5, contra `740d7dd` e contra `592098a`:
+- **comandos soltos** (bateria da rodada 1, 298; dos lançadores e da marca, 29; da comparação da rodada 5, 332; comuns, 17): nenhuma linha passou de rc=2 para rc=0. Passaram de rc=0 para rc=2: 105 da primeira, 22 da segunda e 126 da terceira. Os 17 comuns seguem em rc=0;
+- **89 cadeias** (A, B, B', as quatro formas diretas, D.1 a D.4, F, G, extras): todas iguais a `740d7dd` ou melhores. Mudaram para melhor as sete que citam a marca (acima). O G e o apagamento do clone principal a partir da worktree continuam como na rodada 5;
+- **busca de classe do autor** (o mesmo gerador): **1117 linhas, 1082 com rc=2 e 35 com rc=0**, contra 1076 e 41 em `740d7dd`. As seis que saíram são as do alvo "marca" (literal). Os 35 são: 24 de script por arquivo ou pela entrada padrão (BP-5), 6 cadeias git (fechadas pela marca), 1 `mv proj x` (G, falha fechado depois) e 4 de `ed`, `patch`, `sponge` e `chmod 000` em `.githooks/pre-push` (K, BP-5).
+
+### O que fica aberto, por classe
+**L, por grafia não literal e lançadores fora da lista · média (não muda; anterior à entrega; BP-5).** A mitigação procura o texto `.git/forge` ou `forge/projeto-` na linha. A mesma marca, escrita de outro jeito, passa. Reprodução: clone principal, `.forge/versao` presente, uma chamada por linha, tudo **rc=0**. Cada uma das cinco cadeias abaixo, seguida de `git sparse-checkout set src`, deixa push, `core.hooksPath` e `rm -rf .githooks` em rc=0 e o `vigia` mudo:
+- aspas no meio: `busybox rm -rf '.git/'forge`; também rc=0 na linha: `".git"/forge` e `.git/fo''rge`;
+- curinga e caminho equivalente: `busybox rm -rf .git/fo*`; também rc=0 na linha: `.git/fo?ge`, `.git/[f]orge`, `.git//forge` e `.git/./forge`;
+- `cd .git && busybox rm -rf forge`;
+- `busybox rm -rf "$(git rev-parse --git-common-dir)/forge"` e `busybox find .git -name 'projeto-*' -delete` (rc=0 na linha);
+- lançadores fora da lista: `setpriv rm -rf .git/fo*`; também rc=0 na linha: `prlimit`, `setarch x86_64`, `strace -o /dev/null` e `/lib64/ld-linux-x86-64.so.2 /bin/rm`.
+
+Com o `rm` simples, todas essas grafias dão rc=2, porque o `.git/` é protegido. O que escapa é a combinação de programa fora do modelo com grafia não literal. É a classe que eu já tinha descrito na rodada 5 ("o que monta o caminho em tempo de execução continua com a BP-5"), agora com grafias mais simples que o `$(…)`. A ADR 0009 (item 2) diz "a forma literal da marca fecha para qualquer programa". O texto é verdadeiro se "literal" for lido como a grafia exata. Para não ler mais do que o código faz, convém escrever "a grafia `.git/forge` ou `forge/projeto-` na linha" (informativa). **Cobertura:** BP-5, com a condição da rodada 5: o sandbox nega a escrita em `.git/forge/` e `.forge/versao`. Mais regex no hook não fecha a classe, porque cada grafia nova pede outra. Não recomendo uma rodada 7 por isso.
+
+**K, resto · baixa (anterior à entrega; BP-5).** Reprodução nas mesmas condições: dão **rc=0** e, executados numa pasta descartável, reescrevem o arquivo-alvo (conferido):
+- `w`/`W` do `sed` precedido de endereço `$`, `!` ou `,`, ou da flag `M`: `sed -n '$w .githooks/pre-push' src/app.js`, `sed -n '1,$w …'`, `sed -n '1!W …'`, `sed '\,a,w …'` e `sed 's/a/b/Mw …'`. A classe antes do `[wW]` em `SED_ESCREVE` (`hooks/conformidade.py:54`) não inclui `$`, `!`, `,` nem `M`. A `docs/hooks.md:36` e a ADR 0009 dizem que "o `w`/`W arquivo` do `sed` conta como escrita, no script solto"; com esses endereços, não conta. **Correção mínima** (P, `tech-lead`): incluir `$!,M` na classe, ou ressalvar o texto;
+- `nawk -i inplace '{print "X"}' .githooks/pre-push`: aqui o `nawk` é o `gawk` (alternativa do Debian), e `AWKS` não o lista;
+- `gawk -l inplace 'BEGINFILE{inplace::begin(FILENAME,"")} ENDFILE{inplace::end(FILENAME,"")} 1' <alvo>`, e o mesmo com `--load=inplace` ou com `@load "inplace"` no programa. O `awk_no_lugar` olha só `-i`, `--include`, `-f` e `@include`, e a documentação também cita só esses;
+- `perl5.34-x86_64-linux-gnu -pi -e 1 <alvo>`: o binário está em `/usr/bin` no Debian e no Ubuntu, e o nome com sufixo não casa com `^(perl|ruby)[\d.]*$`;
+- o que já estava na rodada 5 e a documentação já entrega à BP-5: `ed`, `ex`, `vim -es`, `patch`, `sponge`, `split`, `chmod`, `chown`, `busybox sed -i`, `chmod 000 .forge` (M). E também: `sed 'e …'` e `s/…/…/e` (executam comando, por exemplo `sed 'e rm .forge/versao' src/app.js`, que dá rc=0 e cuja remoção a marca segura), caminho só no argumento (`awk -v f=<alvo> 'BEGIN{print 1 > f}'`, `awk 'BEGIN{print 1 > ARGV[1]}' <alvo>`, `perl -e 'open F,">",$ARGV[0]' <alvo>`), alvo pela entrada padrão (`echo <alvo> | xargs perl -pi -e 1`), `gawk -E prog.awk <alvo>`, `setfacl`, `php -r 'copy(…)'` e `git apply`/`patch -p1 < x.diff`. Estes não são citados um a um na `docs/hooks.md:36` (lá está "`busybox` e afins"). Convém acrescentar "`sed` com `e`, caminho só no argumento ou na entrada padrão" à lista da BP-5 (informativa).
+
+Nenhuma linha do K apaga a marca: só na grafia literal ela é alvo, e essa grafia dá rc=2 pela mitigação. Para `.githooks/` e `.claude/`, o `vigia` avisa no `Stop` (conferido com `nawk` e com `sed '$w'`).
+
+**Falso positivo da mitigação · informativa.** Com o `.forge/versao` presente, também dão rc=2: `ls .git/forge`, `cat .git/forge/projeto-*`, `grep -rn '.git/forge' docs`, `git log --grep=forge/projeto-`, `ionice -c3 git status` e `./script` (um programa local de nome `script`). Isso está de acordo com a decisão do Jarvis ("a linha que cite `.git/forge` … é recusada"). Falha para o lado fechado, e o custo é só atrito. Se incomodar, a correção é liberar a leitura pura, como eu tinha sugerido na rodada 5.
+
+### O que fica aberto e quem cobre (rodada 6)
+- **Fechados nesta rodada:** a mitigação do L na forma literal e com os seis lançadores; do K, o sufixo livre, o nome com versão, o `inplace` por `-i`/`--include`/`-f`/`@include` e o `W`/`--expression`/`-e` colado; e o R10. Nenhum achado bloqueia.
+- **BP-5:** o L por grafia não literal e por lançadores fora da lista; o resto do K acima; o M (`chmod 000 .forge`); os 24 casos de script por arquivo ou pela entrada padrão; `find -delete`; `$(…)`; os extratores. **Condição, repetida:** a BP-5 nega a escrita em `.git/forge/`, `.forge/versao`, `.git/config`, `.git/commondir`, `.git/worktrees/`, `.githooks/` e `.claude/`. A ADR 0009 e a `docs/hooks.md:36` já trazem essa lista.
+- **BP-2:** o alias por `-c` com grafia não literal (`git -c alias.x='!rm -rf .git/fo*' x`). A forma literal agora dá rc=2.
+- **Recomendado, sem bloquear** (P, `tech-lead`, nesta entrega ou na BP-5): `$!,M` na classe do `SED_ESCREVE`, `nawk` em `AWKS`, `-l`/`--load`/`@load` no `awk_no_lugar`, e `^(perl|ruby)[\d.]*(-[\w-]+)?$` no `PERL_OU_RUBY` e no `INTERPRETES`. A alternativa é ressalvar o texto da `docs/hooks.md:36` e da ADR 0009 sobre o `sed`, que hoje promete um pouco mais do que o código cobre.
+- O C continua informativo.
+
+### Comandos para reproduzir (VV-1)
+Use uma cópia `git archive 592098a` em `$TMPDIR` e um repositório descartável com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/app.js` commitados. Antes, rode o `SessionStart` do `vigia` (`CLAUDE_PROJECT_DIR` na raiz). Para cada linha `<L>`: `echo '{"tool_name":"Bash","tool_input":{"command":"<L>"},"agent_type":"forge:dev","hook_event_name":"PreToolUse","tool_use_id":"t","cwd":"'$PWD'"}' | python3 <cópia>/hooks/conformidade.py; echo $?`.
+- Mitigação: `busybox rm -rf .git/forge` → 2; `ionice rm -rf .git/forge` → 2.
+- K fechado: `perl -i~ -pe 1 .git/config` → 2; `perl5.34.0 -pi -e 1 .githooks/pre-push` → 2; `gawk --include=/usr/share/awk/inplace.awk '{print}' .githooks/pre-push` → 2; `sed --expression='W .githooks/pre-push' src/app.js` → 2.
+- R10: `perl -Mstrict -e 'print' .githooks/pre-push` → 0.
+- L aberto: `busybox rm -rf .git/fo*` → 0; execute; `git sparse-checkout set src` → 0; execute; `git push --force origin main` → 0; e `echo '{"hook_event_name":"Stop","session_id":"s"}' | python3 <cópia>/hooks/vigia.py` não imprime nada.
+- K aberto: `sed -n '$w .githooks/pre-push' src/app.js` → 0; `nawk -i inplace 1 .githooks/pre-push` → 0; `perl5.34-x86_64-linux-gnu -pi -e 1 .githooks/pre-push` → 0.
+
+### Ferramentas (rodada 6)
+Usei só os hooks de `592098a` e de `740d7dd`, de cópias `git archive` em `$TMPDIR`, os arquivos de comandos e de cadeias da rodada 5, o gerador de classe do autor e o `git` 2.55.0 local, em repositórios descartáveis sem `origin`: os `push` liberados pelo hook falharam no próprio git, e nenhum remoto foi tocado. `busybox`, `gawk`/`nawk`, `perl5.34-x86_64-linux-gnu` e `setpriv` só rodaram nesses repositórios. `gitleaks`, `zizmor` e `actionlint` não se aplicam: a entrega não mexe em workflow nem traz segredo.
