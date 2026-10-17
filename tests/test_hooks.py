@@ -471,6 +471,33 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("política de conformidade inválida", r.stderr)
 
+    def test_erro_interno_com_lista_de_permissao_falha_fechado(self):
+        """ADR 0009, seções 6.6 e 7: erro interno na decisão do papel com `escrita_permitida` barra (o caminho não
+        tem marcador crítico, e sem isso o hook liberaria). Outro papel segue a regra geral (libera)."""
+        tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        raiz = tmp / "proj"
+        (raiz / ".forge").mkdir(parents=True)
+        (raiz / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        git("init", "-q", "-b", "develop", cwd=raiz)
+        ilegivel = raiz / "docs" / "propostas" / "ilegivel"  # `exists()` em pasta sem permissão levanta PermissionError
+        (ilegivel / "sub").mkdir(parents=True)
+        ilegivel.chmod(0)
+        self.addCleanup(ilegivel.chmod, 0o755)
+        if os.access(ilegivel / "sub", os.X_OK):
+            self.skipTest("o processo ignora permissões de pasta (root)")
+        env = ambiente_limpo()
+        env.pop("FORGE_GUARDA_ABERTA", None)
+        for papel, esperado in {"forge-dev:aq": 2, "forge:dev": 0}.items():
+            with self.subTest(papel):
+                entrada = {"tool_name": "Write", "tool_input": {"file_path": str(ilegivel / "sub" / "x.md")},
+                           "agent_type": papel, "hook_event_name": "PreToolUse", "cwd": str(raiz)}
+                r = subprocess.run([sys.executable, str(HOOKS / "conformidade.py")], input=json.dumps(entrada), cwd=raiz,
+                                   env=env, capture_output=True, text=True, timeout=30)
+                self.assertEqual(r.returncode, esperado, r.stderr)
+                if esperado:
+                    self.assertIn("erro interno do hook conformidade para o papel aq", r.stderr)
+
     def rodar_com_politica(self, politica, comando, agent_type):
         """Roda o hook sobre uma cópia do plugin com a política dada; devolve o processo."""
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))

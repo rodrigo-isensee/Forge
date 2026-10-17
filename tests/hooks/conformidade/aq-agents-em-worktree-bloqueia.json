@@ -22,7 +22,8 @@
   "repos": {
     "home/.forge-contrib/wt/x": {
       "arquivos": {
-        "a.txt": "1\n"
+        "a.txt": "1\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
       },
       "branch": "melhoria/x"
     }

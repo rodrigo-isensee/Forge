@@ -419,13 +419,15 @@ class Guarda:
 
     def fora_da_lista_de_escrita(self, caminho, formas):
         """Papel com `escrita_permitida` (ADR 0009, seção 6): escreve só nos caminhos da lista, pelo caminho normalizado.
-        Entrada `~/...` vale a partir do home; as demais, a partir da raiz do projeto ou da raiz git que contém o
-        arquivo (worktree `melhoria/*`). Fora disso, recusa: a lista só nega mais, nunca libera o que `caminhos` barra."""
+        Entrada `~/...` vale a partir do home; as demais, a partir da raiz do projeto ou da raiz de uma cópia do Forge
+        que contém o arquivo (worktree em `~/.forge-contrib/`; qualquer outro repositório não vale). Fora disso,
+        recusa: a lista só nega mais, nunca libera o que `caminhos` barra."""
         lista = self.pol.get("escrita_permitida", {}).get(self.papel)
         if lista is None:
             return None
         topo = self.raiz_git(caminho.parent)
-        if topo and topo in {caminho, *caminho.parents}:
+        if topo and topo in {caminho, *caminho.parents} and e_clone_do_forge(topo) and (
+                em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz))):
             formas = [*formas, ("proj", caminho.relative_to(topo).as_posix())]
         if any(casa(r, c) for c in lista for t, r in formas if t == ("home" if c.startswith("~/") else "proj")):
             return None
@@ -1280,6 +1282,18 @@ def principal(hook):
     guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
     guarda.externo = externo
     guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
+    try:
+        decidir(hook, guarda, ferramenta, entrada)
+    except Exception as erro:  # noqa: BLE001 - papel com lista de permissão falha fechado (ADR 0009, seção 7)
+        if guarda.papel not in pol.get("escrita_permitida", {}) or hook.campo("hook_event_name") == "PostToolUse":
+            raise
+        hook.registrar_erro(erro)
+        bloquear("R-CONFORMIDADE", f"erro interno do hook conformidade para o papel {guarda.papel}, que só escreve na "
+                                   "lista de permissão; ele não pôde decidir. Corrigir: veja .forge/run/erros.log e "
+                                   "leve ao usuário (R-DECISAO)")
+
+
+def decidir(hook, guarda, ferramenta, entrada):
     if hook.campo("hook_event_name") == "PostToolUse":
         if ferramenta == "Bash":
             alvos = alvos_de_escrita(entrada["command"]) if isinstance(entrada.get("command"), str) else []

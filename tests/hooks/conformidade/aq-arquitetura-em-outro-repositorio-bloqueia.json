@@ -1,0 +1,30 @@
+{
+  "descricao": "AQ barrado em docs/arquitetura/ de outro repositório git (não é cópia do Forge).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/proj-x/docs/arquitetura/plano.md"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o papel aq escreve só em"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "repos": {
+    "home/proj-x": {
+      "arquivos": {
+        "a.txt": "1\n"
+      },
+      "branch": "main"
+    }
+  }
+}
