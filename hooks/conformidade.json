@@ -31,6 +31,7 @@
     {"caminho": ".forge/config.json", "quem": [], "motivo": "arquivo em vigor (.forge/config.json)"},
     {"caminho": ".forge/run/", "quem": [], "motivo": "estado dos hooks (.forge/run/)"},
     {"caminho": ".git/forge/", "quem": [], "motivo": "marca de sessão dos hooks (.git/forge/)"},
+    {"caminho": ".git", "quem": [], "motivo": "o .git da raiz (pasta ou arquivo de worktree) liga o repositório às marcas e aos hooks (.git)"},
     {"caminho": ".git/config", "quem": [], "motivo": "configuração do git (.git/config)"},
     {"caminho": ".git/hooks/", "quem": [], "motivo": "hooks do git (.git/hooks/)"},
     {"caminho": "~/.claude/settings.json", "quem": [], "motivo": "configuração do usuário"},

@@ -37,6 +37,10 @@ LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R
               "timeout": {"-k", "-s", "--kill-after", "--signal"},
               "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "--max-args", "--max-procs",
                         "--delimiter", "--arg-file", "--max-lines", "--max-chars"}}
+# Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
+PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
+                         "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", *PATHSPECS_NO_AMBIENTE}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
@@ -612,7 +616,7 @@ class Guarda:
         antes = {}
         for a in atribuicoes:
             nome, _, valor = a.partition("=")
-            if nome in ("GH_REPO", "GIT_DIR") and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor:
                 antes.setdefault(nome, self.ambiente.get(nome))
                 self.ambiente[nome] = valor
         try:
@@ -648,7 +652,7 @@ class Guarda:
             [] if palavras else atribuicoes
         for a in definidas:
             nome, _, valor = a.partition("=")
-            if nome in ("GH_REPO", "GIT_DIR") and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in palavras:  # substituição entre aspas: a palavra chega inteira e o conteúdo dela é conferido aqui
             if "`" in p:
@@ -685,7 +689,7 @@ class Guarda:
             if prog.startswith("python") and args[:2] == ["-m", "pip"]:
                 self.pacote("pip", args[2:])
         elif prog == "git":
-            self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"))
+            self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
             self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
         elif prog == "claude":
@@ -783,8 +787,15 @@ class Guarda:
         chave = raiz.resolve() if raiz else None
         return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
 
-    def git(self, palavras, parte, pasta, ramos, git_dir=None):
-        i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, []
+    def pathspecs_da_linha(self, atribuicoes):
+        """As opções `--*-pathspecs` que as variáveis `GIT_*_PATHSPECS` da linha (atribuição, `env`, `export`) ligam. Só
+        um falso explícito (`0`, `false`, `no`, `off`, vazio) as desliga; na dúvida, vale como ligada (mais recusa)."""
+        valores = {nome: self.da_atribuicao(atribuicoes, nome) for nome in PATHSPECS_NO_AMBIENTE}
+        return [opcao for nome, opcao in PATHSPECS_NO_AMBIENTE.items()
+                if valores[nome] is not None and valores[nome].strip().lower() not in ("", "0", "false", "no", "off")]
+
+    def git(self, palavras, parte, pasta, ramos, git_dir=None, atribuicoes=()):
+        i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, self.pathspecs_da_linha(atribuicoes)
         while i < len(palavras) and palavras[i].startswith("-"):
             if palavras[i].endswith("-pathspecs"):  # `--literal-pathspecs`...: valem também para o `ls-files` do hook
                 opcoes.append(palavras[i])

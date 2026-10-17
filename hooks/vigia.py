@@ -331,9 +331,9 @@ def avisar_versao_sumiu(hook):
 def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento == "SessionStart" and raiz_declarada() is not None:
-        marcar_projeto(raiz_declarada(), hook.campo("source") in ("resume", "compact", "clear"))
+        marcar_projeto(raiz_declarada())
     raiz = hook.projeto(hook.cwd())
-    if raiz is None and evento in ("Stop", "SubagentStop") and versao_sumiu():
+    if versao_sumiu() and evento in ("Stop", "SubagentStop"):
         novas = avisar_versao_sumiu(hook)
     elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
         return

@@ -1,5 +1,5 @@
 {
-  "descricao": "A marca de projeto do SessionStart (`.git/forge/projeto`) existe e o `.forge/versao` sumiu: a ação crítica falha fechado (R-CONFORMIDADE) em vez de os hooks se desligarem.",
+  "descricao": "A marca de projeto do SessionStart (`.git/forge/projeto-<hash da raiz>`) existe e o `.forge/versao` sumiu: a ação crítica falha fechado (R-CONFORMIDADE) em vez de os hooks se desligarem.",
   "arquivos": {
     ".githooks/pre-push": "#!/bin/sh\n",
     "src/app.js": "v1\n",
@@ -14,7 +14,7 @@
         ".forge/versao"
       ],
       "gravar": {
-        ".git/forge/projeto": "2026-10-17T00:00:00\n"
+        "{marca}": "2026-10-17T00:00:00\n"
       }
     }
   ],

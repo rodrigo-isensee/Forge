@@ -11,7 +11,7 @@
   "passos": [
     {
       "gravar": {
-        ".git/forge/projeto": "2026-10-17T00:00:00\n"
+        "{marca}": "2026-10-17T00:00:00\n"
       }
     },
     {

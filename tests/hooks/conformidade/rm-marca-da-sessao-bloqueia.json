@@ -1,5 +1,5 @@
 {
-  "descricao": "A marca da sessão (`.git/forge/projeto`) é protegida contra escrita e remoção pelos agentes.",
+  "descricao": "A marca da sessão (`.git/forge/projeto-<hash da raiz>`) é protegida contra escrita e remoção pelos agentes.",
   "arquivos": {
     ".githooks/pre-push": "#!/bin/sh\n",
     "src/app.js": "v1\n"
@@ -10,14 +10,14 @@
   "passos": [
     {
       "gravar": {
-        ".git/forge/projeto": "2026-10-17T00:00:00\n"
+        "{marca}": "2026-10-17T00:00:00\n"
       }
     }
   ],
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "rm .git/forge/projeto"
+      "command": "rm {marca}"
     },
     "agent_type": "forge:dev",
     "hook_event_name": "PreToolUse",

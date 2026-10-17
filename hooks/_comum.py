@@ -1,12 +1,13 @@
 """Forge: base comum dos hooks do plugin (ADR 0003).
 
 Silenciosos (sem saída quando tudo está certo), determinísticos (só estado em disco e git local),
-só agem em projeto com `.forge/versao` (o `parecer` também no clone do Forge, `raiz_de_estado`) e liberam em erro
+só agem em projeto com `.forge/versao` ou com a marca da sessão (`projeto_marcado`) (o `parecer` também no clone do Forge, `raiz_de_estado`) e liberam em erro
 interno (registrado em `.forge/run/erros.log`).
 Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
 bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
 import functools
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -42,9 +43,12 @@ def copia_de_trabalho(inicio):
 
 
 def raiz_do_projeto(inicio):
-    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge (tem `.forge/versao`); senão None."""
+    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge: tem `.forge/versao` ou tem a marca da
+    sessão (`projeto_marcado`: o arquivo sumiu, a sessão continua sendo de projeto). Senão None."""
     raiz = copia_de_trabalho(inicio)
-    return raiz if raiz is not None and (raiz / ".forge" / "versao").is_file() else None
+    if raiz is None:
+        return None
+    return raiz if (raiz / ".forge" / "versao").is_file() or projeto_marcado(raiz) else None
 
 
 def e_projeto(raiz):
@@ -90,8 +94,8 @@ def raiz_declarada():
 
 def dir_do_git(raiz):
     """O diretório comum do git da raiz (`git rev-parse --git-common-dir`: o `.git/` do clone, também numa worktree),
-    ou None se a raiz não for repositório. Nenhum comando de cópia de trabalho (`clean`, `stash`, `sparse-checkout`,
-    `reset`) mexe nele."""
+    ou None se a raiz não se resolve como repositório. Nenhum comando de cópia de trabalho (`clean`, `stash`,
+    `sparse-checkout`, `reset`) mexe nele."""
     cod, saida = git(raiz, "rev-parse", "--git-common-dir")
     if cod == 0 and saida:
         return Path(raiz, saida)
@@ -99,35 +103,44 @@ def dir_do_git(raiz):
 
 
 def marca_de_projeto(raiz):
-    """`<git-common-dir>/forge/projeto`: o SessionStart grava aqui que a raiz da sessão é projeto. Fica dentro do `.git/`
-    (protegido em `hooks/conformidade.json`) e não na árvore de trabalho, onde o próprio git a apagaria."""
+    """`<git-common-dir>/forge/projeto-<hash da raiz>`: o SessionStart grava aqui que a raiz da sessão é projeto. Uma
+    marca por raiz (a chave é o caminho real da cópia de trabalho): a worktree irmã, com ou sem Forge, não apaga nem
+    herda a marca de outra. Fica dentro do `.git/` (protegido em `hooks/conformidade.json`) e não na árvore de
+    trabalho, onde o próprio git a apagaria."""
     pasta = dir_do_git(raiz)
-    return pasta / "forge" / "projeto" if pasta else None
+    if pasta is None:
+        return None
+    chave = hashlib.sha256(os.path.realpath(raiz).encode("utf-8")).hexdigest()[:16]
+    return pasta / "forge" / f"projeto-{chave}"
 
 
-def marcar_projeto(raiz, continuacao):
-    """SessionStart: raiz com `.forge/versao` grava a marca. Sem `.forge/versao`, um `startup` apaga a marca (o usuário
-    tirou o Forge do projeto antes de abrir a sessão); `resume`/`compact`/`clear` a mantêm, porque acontecem no meio
-    de uma sessão em que um agente pode ter apagado o arquivo."""
+def marcar_projeto(raiz):
+    """SessionStart: raiz com `.forge/versao` grava a marca. Nada a apaga: só o usuário, à mão, ao tirar o Forge do
+    projeto (o `startup` também chega por chamada à mão do hook, e `resume`/`compact`/`clear` acontecem no meio de uma
+    sessão em que um agente pode ter apagado o arquivo)."""
     marca = marca_de_projeto(raiz)
-    if marca is None:
-        return
-    if (Path(raiz) / ".forge" / "versao").is_file():
+    if marca is not None and (Path(raiz) / ".forge" / "versao").is_file():
         marca.parent.mkdir(parents=True, exist_ok=True)
         marca.write_text(time.strftime("%Y-%m-%dT%H:%M:%S") + "\n", encoding="utf-8")
-    elif not continuacao and marca.is_file():
-        marca.unlink()
+
+
+def projeto_marcado(raiz):
+    """A raiz foi marcada como projeto (`marcar_projeto`). Falha fechado quanto ao git: se existe `.git` (pasta ou
+    arquivo de worktree) e ele não se resolve, a marca não pode ser consultada e a raiz da sessão vale como marcada."""
+    marca = marca_de_projeto(raiz)
+    if marca is not None:
+        return marca.is_file()
+    declarada = raiz_declarada()
+    return (Path(raiz) / ".git").exists() and declarada is not None and (
+        os.path.realpath(declarada) == os.path.realpath(raiz))
 
 
 def versao_sumiu(raiz=None):
     """A sessão (`CLAUDE_PROJECT_DIR`) foi marcada como projeto e o `.forge/versao` não existe mais: alguém o apagou
-    (`git rm`, `git sparse-checkout`, troca de branch...). Sem ele os hooks se desligariam (ADR 0003, item 3): isto
-    falha fechado."""
+    (`git rm`, `git sparse-checkout`, troca de branch...). Sem ele os hooks se desligariam (ADR 0003, item 3): a
+    sessão segue sendo de projeto (`raiz_do_projeto`) e as ações críticas falham fechado."""
     raiz = raiz or raiz_declarada()
-    if raiz is None or (raiz / ".forge" / "versao").is_file():
-        return False
-    marca = marca_de_projeto(raiz)
-    return marca is not None and marca.is_file()
+    return raiz is not None and not (raiz / ".forge" / "versao").is_file() and projeto_marcado(raiz)
 
 
 def contrib():
