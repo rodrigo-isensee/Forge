@@ -25,6 +25,7 @@
   },
   "neutralidade_nucleo": {
     "pastas": [
+      "dev",
       "agents",
       "skills",
       "docs",
@@ -91,6 +92,7 @@
   "anti_duplicacao": {
     "palavras": 12,
     "pastas": [
+      "dev",
       "agents",
       "skills",
       "stacks",
