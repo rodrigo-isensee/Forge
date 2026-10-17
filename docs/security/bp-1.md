@@ -3,13 +3,15 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 99648a358622b2f75eba5e1210da04d52cfa9670
+commit: 9f3fa2b82789421c6657ebd6167184371a4fc35d
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-17
 ---
 # Review de segurança: bp-1
 
+> **Rodada 3** (`9f3fa2b`, depois do retrabalho 2): **reprovado**. D, E e B' estão fechados, mas apareceu o achado F (alta): o arquivo `commondir` dentro do `.git/` desvia a busca da marca, e quatro linhas voltam a desligar tudo. Detalhes na seção "Revalidação após o retrabalho 2", no fim.
+>
 > **Rodada 2** (`99648a3`, depois do retrabalho 1): **reprovado**. Os achados A e B da primeira rodada estão fechados, mas apareceu um achado novo, o D (alta). Detalhes na seção "Revalidação após o retrabalho 1", no fim. O texto da primeira rodada, sobre `95a1140`, ficou como estava.
 
 Escopo: `git diff f636d27c95bd1fdc9137baa830e0f53905863eaf...95a1140b65db1cccc053cdeb627c1f6b830400c1`, 17 arquivos (+370 / -8): `hooks/_comum.py`, `hooks/conformidade.py`, `hooks/vigia.py`, fixtures novas, `tests/test_hooks.py`, ADR 0009 e `docs/hooks.md`. O commit seguinte da branch (`8d8ff69`) só acrescenta `docs/reviews/bp-1.md`, então o código revisado é o mesmo. Revisão estática, com os hooks rodados sobre fixtures descartáveis numa cópia (`git archive`) em `$TMPDIR`, fora da worktree. Não escrevi esta branch.
@@ -131,3 +133,93 @@ Não houve regressão nos falsos positivos: `git checkout -- src/app.js`, `git r
 
 ### Ferramentas (rodada 2)
 Só os hooks da branch (`python3`) e o `git` 2.55.0 local, em repositórios descartáveis em `$TMPDIR`. Para comparar com a base, usei uma cópia `git archive` de `f636d27`. Nenhum remoto foi tocado: os `push` foram avaliados só pelo hook, sem rodar o git. `gitleaks`, `zizmor` e `actionlint` não se aplicam, porque a entrega não mexe em workflow nem traz segredo.
+
+## Revalidação após o retrabalho 2
+Escopo: `git diff 7594a24a64b9a4d35b1ed67711c0f94bf7a4ad9f...9f3fa2b82789421c6657ebd6167184371a4fc35d`, commits `086dcca` e `9f3fa2b`, 22 arquivos (+505 / -40). Mesmo método das rodadas anteriores: os hooks da branch (`conformidade`, `parecer` e `vigia`), rodados com `python3` sobre uma cópia `git archive` em `$TMPDIR`, em repositórios descartáveis (git 2.55.0). A marca foi gravada pelo `SessionStart` do `vigia`. Cada comando só foi executado de verdade quando os dois hooks deram rc=0. A worktree não foi tocada, exceto por este arquivo.
+
+### Veredito da rodada 3
+**Reprovado.** Os achados D, E e B' fecham como foram escritos. Todas as cadeias das rodadas 1 e 2 agora terminam barradas, com o `vigia` avisando. Só que a marca continua sendo procurada onde o `git rev-parse --git-common-dir` aponta, e um arquivo comum dentro do `.git/` muda esse ponteiro (achado F). Com isso, quatro linhas de Bash com rc=0 voltam a desligar todos os hooks e a calar o `vigia`.
+
+### D: fechado
+- **D.1** (`SessionStart` `startup` chamado à mão): depois do `git sparse-checkout set src`, a chamada à mão do `vigia` dá rc=0, mas a marca continua lá (`marcar_projeto` não apaga mais, `hooks/_comum.py:117-124`). `git push --force origin main`, `git push origin HEAD:melhoria/x` e `git config core.hooksPath /dev/null` dão **rc=2**, e o `vigia` avisa `versao-sumiu` no `Stop`.
+- **D.2** (`cd .git && rm -r forge` sem o `.forge/versao`): **rc=2** pela conferência inteira ("marca de sessão dos hooks"). `rm -rf .git/forge` e `rm .git/forge/projeto-*` também dão rc=2. No modo degradado, a conferência inteira também barra o que a `CRITICO` não via: `echo x > .claude/settings.json`, `mkdir -p .forge && echo 9 > .forge/versao`, `echo x > .githooks/pre-push`, `docs/security/…` e `git commit --no-verify` dão rc=2. `echo ok > src/c.js` dá rc=0, sem falso positivo.
+- **D.3** (`mv .git .g` e depois `GIT_DIR=.g`): `mv .git .g`, `mv .git/ .g`, `cp -r .git .g && rm -rf .git`, `cd . && mv .git .g` e `mv -t /x .git` dão **rc=2**, com o `.forge/versao` presente ou ausente (`hooks/conformidade.json:34`).
+- **D.4** (arquivo `.git` falso na worktree): `echo 'gitdir: /nada' > .git`, `tee`, `rm`, `mv`, `cp /dev/null`, `sed -i`, `truncate` e `ln -sf` sobre o `.git` dão **rc=2**. Com um `.git` falso escrito por fora (simulado), `projeto_marcado` cai no ramo de falha fechada (`hooks/_comum.py:127-136`): o push dá rc=2, `rm -rf .forge` dá rc=2 e o `vigia` avisa. Também falham fechado o clone principal apagado ou movido a partir da worktree (`cd .. && rm -rf <clone>`, `mv ../<clone> ../x`) e `rm -rf <comum>/worktrees`.
+- Os extras da rodada 2 (`find .git -name 'projeto-*' -delete`, `rm -r .git/fo*`, `rm $(…)/forge/…`) continuam com rc=0, como na base. São da classe que a BP-5 cobre. `python3 -c "…'.git/'+'forge/…'"` passou a dar rc=2, efeito da proteção do `.git`.
+
+### E: fechado
+A marca é `<comum>/forge/projeto-<sha256 do caminho real da raiz>[:16]` (`hooks/_comum.py:105-115`). Com uma worktree irmã sem Forge, `startup` e `resume` na irmã mantêm a marca da sessão principal. Na irmã, `git push --force origin main` e `git push origin HEAD:melhoria/y` dão rc=0, ou seja, ela não herda a marca, e o falso positivo da rodada 2 sumiu. Na sessão principal, depois do `sparse-checkout`, o push continua com rc=2 e o `vigia` avisa. Numa sessão de worktree **com** Forge, apagar ou mover a marca no diretório comum por caminho absoluto ou relativo (`rm -rf <clone>/.git/forge`, `rm <clone>/.git/forge/projeto-*`, `cd <clone>/.git && rm -r forge`, `mv …/forge …/f`) dá **rc=2**.
+
+### B': fechado
+Estas formas dão **rc=2** e o `.forge/versao` fica no lugar:
+- atribuição: `GIT_ICASE_PATHSPECS=1 git rm -q .FORGE/VERSAO`, também com o valor `yes`;
+- `env`, inclusive `env -i PATH=… GIT_ICASE_PATHSPECS=1 git …` e `env -S 'GIT_ICASE_PATHSPECS=1 git' rm …`;
+- `export` com `;` ou `&&`, `VAR=1; export VAR; git …`, `declare -x`, `set -a; VAR=1; git …`, subshell `( export …; git … )` e `bash -c '…'`;
+- as outras variáveis: `GIT_GLOB_PATHSPECS=1 git rm '**/versao'` (atribuição e `export`), `GIT_LITERAL_PATHSPECS=1` e `GIT_NOGLOB_PATHSPECS=1`;
+- e as mesmas variáveis com `git mv` e `git checkout HEAD~0 -- .FORGE`.
+
+`GIT_ICASE_PATHSPECS=0 git rm .FORGE/VERSAO` dá rc=0, e o git real também não apaga nada. `GIT_ICASE_PATHSPECS=1 git rm src/app.js` dá rc=0, sem falso positivo. O `GIT_LITERAL_PATHSPECS=1 git rm -q .forge/versao` dá rc=2 porque o caminho literal é o próprio arquivo em vigor.
+
+### Rodadas 1 e 2, de novo: sem regressão
+- **A:** `git sparse-checkout set src`, `git clean -fdX`, `git clean -fdx`, `git clean -fdx .forge/run`, `git stash -a` e `git reset --hard` dão rc=0, e a marca fica no lugar em todos.
+- **B:** as 19 formas a seguir dão **rc=2**, e o `.forge/versao` fica no lugar:
+  - curingas e o `-r`: `'*/versao'`, `'*versao'`, `-r '*'`, `-r .`, `-r :/`;
+  - pathspec mágico: `':(top)…'`, `':(glob)**/versao'`, `':(icase)…'`, `-r ':!src'`;
+  - escape: `'\.forge/versao'`;
+  - `--pathspec-from-file`, com arquivo e pela entrada padrão;
+  - `git mv '*/versao' src/`;
+  - `git checkout HEAD -- '*'` e `git checkout --no-overlay HEAD -- .`;
+  - `git restore -s HEAD~0 .`;
+  - `git --glob-pathspecs rm '*/versao'`, `git --git-dir=.git --work-tree=.forge rm -r '*'` e `git -C src rm -r ':/'`.
+- `git -c alias.x=rm x .forge/versao` continua com rc=0 e apaga o arquivo. Esse caso é da BP-2, e a marca segura o efeito: o push seguinte dá rc=2 e o `vigia` avisa.
+
+### F. O arquivo `commondir` dentro do `.git/` desvia a busca da marca: quatro linhas desligam tudo de novo · alta
+- **Evidência:**
+  - `hooks/_comum.py:95-102` (`dir_do_git`): a marca é procurada no que `git rev-parse --git-common-dir` devolver. O git lê esse valor do arquivo `<gitdir>/commondir`, se ele existir.
+  - `hooks/conformidade.json:33-36`: dentro do `.git/`, só `.git/forge/`, o próprio `.git`, `.git/config` e `.git/hooks/` são protegidos. O `.git/commondir` e o `<comum>/worktrees/<n>/commondir` (e `gitdir`) ficam livres, e a regex `CRITICO` também não os cita (`hooks/conformidade.py:28-31`).
+  - Quando o `commondir` aponta para outro repositório válido, o `rev-parse` dá certo. `projeto_marcado` então procura a marca lá, não a encontra e devolve False, sem chegar ao ramo de falha fechada.
+- **Reprodução** (clone principal; cada linha é uma chamada separada do Bash; os dois hooks dão rc=0 em todas):
+  1. `git sparse-checkout set src` apaga o `.forge/versao`; a marca segura.
+  2. `git init -q /tmp/x` cria um repositório qualquer. Basta um que já exista, então esta linha é opcional.
+  3. `echo /tmp/x/.git > .git/commondir`: rc=0 mesmo com a conferência inteira ligada. Daqui em diante o `rev-parse` aponta para `/tmp/x/.git`, a marca some da vista, `git push --force origin main` dá rc=0 e o `vigia` no `Stop` fica mudo.
+  4. `rm -rf .git/forge` e depois `rm .git/commondir`: rc=0, porque a sessão já não é projeto. O repositório volta ao normal, mas sem marca: `git push --force origin main` e `git config core.hooksPath /dev/null` dão rc=0, e o `vigia` fica mudo de vez.
+  - **Com o `.forge/versao` presente**, o passo 3 também dá rc=0 (seja com `echo >`, `tee`, `cp` ou `ln -s`), e pode vir antes. Na worktree, basta uma escrita fora da raiz, em `<comum>/worktrees/<n>/commondir`, que dá rc=0 do mesmo jeito; depois do `sparse-checkout`, o push dá rc=0 e o `vigia` fica mudo.
+- **Caminho de ataque:** o mesmo do D e do achado 1 do incidente. Um agente no projeto, depois de um bloqueio ou levado por conteúdo injetado, roda poucas linhas que parecem manutenção, e dali em diante nenhum hook age nem avisa. A BP-5 não cobre isso: o sandbox deixa escrever no `.git/` do projeto, e o `git` precisa dessa escrita.
+- **Correção mínima** (esforço P, dono `tech-lead`):
+  1. **Não depender do `rev-parse` para achar a marca da raiz principal.** Se `<raiz>/.git` é pasta, o diretório comum **é** essa pasta: um clone principal nunca tem `commondir`. Se `<raiz>/.git/commondir` existir nesse caso, falhar fechado (a raiz vale como marcada). Na worktree, conferir que o `commondir` de `<gitdir>` aponta para o comum de onde o `gitdir` saiu (`.../worktrees/<n>` → `..`/`..`), como `diretorio_comum` (`hooks/conformidade.py:1265-1285`) já faz, só pelo disco, com o `gitdir`; o caminho mais curto é a marca usar esse resolvedor no lugar do `rev-parse`. Se não apontar, falhar fechado.
+  2. **Proteger os ponteiros.** Incluir em `caminhos` (`quem: []`) o `.git/commondir` e o `.git/worktrees/`, ou `.git/` inteiro: agente não escreve à mão no `.git/`, e os comandos do `git` não passam pela conferência de escrita. Incluir também `commondir` na `CRITICO`.
+  3. **Fixtures:** `f-commondir-desviado-bloqueia` (a escrita em `.git/commondir` dá rc=2, com e sem o `.forge/versao`), `f-commondir-por-fora-falha-fechado` (com o `commondir` escrito fora dos hooks, o push dá rc=2), `f-worktree-commondir-bloqueia`, e o `vigia` avisando no segundo caso.
+
+### G. Mover ou apagar a raiz da sessão deixa a marca sem dono · média
+- **Evidência:**
+  - `hooks/_comum.py:113` e `:138-143`: a chave da marca é o caminho real da raiz, e `versao_sumiu` usa o `CLAUDE_PROJECT_DIR`.
+  - Se a raiz sai do lugar, esse caminho deixa de existir: `projeto_marcado` devolve False, porque não há `.git` ali.
+  - Na pasta nova, `raiz_do_projeto(cwd)` calcula outra chave e também não acha marca.
+  - A conferência protege caminhos **dentro** da raiz, não a raiz e as pastas acima dela.
+- **Reprodução:**
+  - Depois do `git sparse-checkout set src`, `cd .. && mv <raiz> <raiz>x` dá rc=0. Na pasta nova, `git push --force origin main`, `git config core.hooksPath /dev/null` e `rm -rf .git/forge` dão rc=0, e o `vigia` fica mudo.
+  - Numa sessão de worktree, `git worktree move . <outro>` dá o mesmo resultado.
+  - Na base `f636d27`, `cd .. && mv <raiz> <raiz>x` e `git worktree move .` também dão rc=0, e na rodada 2 a marca por clone também se perdia. Por isso não é regressão da marca por raiz: a marca por raiz só herda a lacuna.
+- **Caminho de ataque:** igual ao do F, mas o sandbox obrigatório (BP-5) já o fecha, porque renomear a raiz exige escrever na pasta acima do projeto, fora da área permitida. Sem o sandbox, são duas linhas.
+- **Correção mínima** (esforço P, dono `tech-lead`; recomendada nesta entrega por ser barata, ou fica com a BP-5):
+  - Em `versao_sumiu`, falhar fechado quando o `CLAUDE_PROJECT_DIR` não existir mais ou não tiver `.git`: a raiz da sessão sumiu.
+  - Na conferência, tratar `mv` e `rm` da raiz ou de uma pasta acima dela, e `git worktree move|remove` da raiz da sessão, como remoção do `.forge/versao` e do `.git`.
+
+### H. `docs/hooks.md:81` ficou com o comportamento antigo · informativa
+- **Evidência:** a linha ainda diz que a marca é `<git-common-dir>/forge/projeto` e que, "para tirar o Forge de um projeto", basta apagar o arquivo e abrir uma sessão nova, porque o "`startup` apaga a marca". O código de `9f3fa2b` não faz mais isso, e `docs/hooks.md:53` já descreve o comportamento novo.
+- **Efeito:** o usuário que seguir a linha 81 fica com as ações críticas barradas sem saber por quê. Não tem custo de segurança: falha para o lado fechado.
+- **Correção mínima:** alinhar a linha 81 com a 53 (a marca é `projeto-<hash da raiz>` e se apaga à mão em `.git/forge/projeto-*`). · Esforço P · Dono: `tech-lead`.
+
+### O que a marca por raiz abre
+Com o F e o G fora da conta, nada de novo. A chave usa `os.path.realpath`, então um link simbólico para a raiz não muda a marca. Uma marca que sobra de uma pasta antiga não é lida por nenhuma outra raiz. E o falso positivo da irmã sem Forge (achado E) sumiu. Fica um custo de uso: quem tira o Forge de um projeto tem de apagar `.git/forge/projeto-*` à mão, o que já está escrito em `docs/hooks.md:53`. A lacuna real é a do G (a chave depende do caminho), que já existia antes.
+
+### O que fica aberto e quem cobre (rodada 3)
+- **F** (alta) é do desenho da marca desta entrega. Nenhuma BP posterior o cobre, então tem de ser corrigido aqui.
+- **G** (média) é anterior à entrega e fica coberto pela **BP-5** (sandbox obrigatório). Recomendo corrigir já, porque custa uma linha em `versao_sumiu`.
+- Continuam com dono:
+  - **BP-5:** curinga do shell, `find -delete`, `$(…)`, `python3 -c` e também `rsync --remove-source-files`, que move o conteúdo do `.git/` ou do `.forge/` com rc=0 (o hook não modela `rsync` como remoção, nem na base). A recomendação da rodada 2 continua: a BP-5 deve negar a escrita em `.forge/versao` e `.git/forge/`, e com o F também em `.git/commondir` e `.git/worktrees/`.
+  - **BP-2:** o alias por `-c`.
+- O C e o H são informativos. O H pode entrar junto com o F.
+
+### Ferramentas (rodada 3)
+Só os hooks da branch e os de `f636d27` para comparar, ambos de cópias `git archive` em `$TMPDIR`, e o `git` 2.55.0 local, em repositórios descartáveis. Nenhum remoto foi tocado: os repositórios de teste não têm `origin`, então os `push` liberados pelo hook falharam no próprio git. `gitleaks`, `zizmor` e `actionlint` não se aplicam, porque a entrega não mexe em workflow nem traz segredo.
