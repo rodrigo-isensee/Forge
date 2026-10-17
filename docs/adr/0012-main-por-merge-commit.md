@@ -14,7 +14,7 @@ Decisão do dono (2026-10-16): S-15 -> "A": a `main` passa a ser mesclada por **
 - Manter como está: o custo de cada release continua.
 
 ## Consequências
-- Melhora: o commit de merge da `main` tem a `homolog` como pai; some o PR de sincronização e o conflito que ele causou.
+- Melhora: o commit de merge da `main` tem a `homolog` como pai; a `main` acumula só os commits de merge do PR `homolog` → `main`, sem conteúdo próprio, e por isso não precisa de PR de sincronização nem gera o conflito que ele causou. Os históricos da `main` e da `develop` continuam diferentes (a `develop` é por squash); o conteúdo é que não diverge.
 - Piora: a `main` passa a ter os commits de promoção (um por PR da `develop`, já em squash) além do commit de merge.
 - Fica a manter: o texto de `R-FLUXO` e seu invariante em `tests/config.json`; nenhum portão muda (review, QA, CI, `R-MAIN` e o merge do dono ficam).
 - Os PRs de sincronização anteriores à mudança continuam no histórico.
@@ -29,3 +29,5 @@ Se a `main` ou a `develop` voltar a divergir uma da outra depois de uma release 
 | Data | Medida | Veredito (manter, ajustar, reverter) |
 |---|---|---|
 | 2026-10-16 | PRs de sincronização por release (antes: 1 a 2) | pendente |
+
+Conferência do dono antes da próxima release (fora do repositório): o método de merge permitido na `main` (merge commit habilitado) e a regra "branch atualizada com a base" do ruleset `portoes` são configuração do servidor, que o diff não versiona. Conferir que o merge commit é permitido para a `main`, que o ruleset `main-do-dono` e o `portoes` seguem sem ator de bypass além do aprovado, e que o PR `homolog` → `main` não fica bloqueado por "desatualizada" por causa do último commit de merge da `main`. Registrar o resultado na primeira leitura acima.
