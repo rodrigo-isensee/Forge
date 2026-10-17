@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: conf-anexo-pareceres
 branch: melhoria/conf-anexo-pareceres
-commit: d574bf4c1c6fce19c655200c7d1d594f2e8246f0
-parecer: reprovado
+commit: 135ee4ed8018078c88d059d18bd9a4aaf3d529d9
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-17
 ---
@@ -42,3 +42,29 @@ Sim, num ponto só: o achado 1 (`docs/security/aceites/`). Fora isso, a mudança
 
 ## Pareceres de outros papéis
 O parecer de segurança (E2.2, R-SEGURANCA) corre em paralelo (VV-4) e não é refeito aqui. O achado 1 também é matéria de controle de segurança e fica registrado para o `security-engineer`.
+
+## Revalidação após o retrabalho 1
+Escopo: só o retrabalho, `68a1490...135ee4e` (`agents/conferente.md` +1/-1, `changelog.d/conf-anexo-pareceres.md` +1, `tests/test_forge.py` +4; o `docs/reviews/` do diff é o meu parecer anterior). O HEAD `135ee4e` é igual ao remoto (`git ls-remote origin melhoria/conf-anexo-pareceres`). Não sou o autor.
+
+Veredito sobre `135ee4e`: **APROVADO**. O achado 1 fecha e não há achado novo.
+
+### Cobertura declarada (VV-1)
+- **Lido:** o diff do retrabalho inteiro; em `agents/conferente.md`, só o item 2 "Escopo" do modo entrega (linha 71); `tests/test_forge.py:233-246`; `hooks/conformidade.json:47`.
+- **Rodado:** `python3 -m unittest tests.test_forge -q` → `Ran 248 tests ... OK`. Pela R-TETO, não rodei a suíte inteira nem o `validar-plugin` (o autor rodou, 786 OK; QA e CI rodam de novo).
+- **Não lido:** o resto de `agents/conferente.md` e o parecer de segurança (outro papel).
+
+### Achado 1 (afrouxamento, `docs/security/aceites/`): fecha
+- **Reprodução:** `git -C ~/.forge-contrib/wt/conf-anexo show 135ee4e:agents/conferente.md | grep -c 'docs/security/aceites'` → `1` (era `0` em `d574bf4`). O trecho diz: "`docs/security/aceites/` fica fora dela (aceite na entrega é `escopo: fora`)", ou seja, o aceite volta ao comportamento da base.
+- **Teste:** `test_conferente_lista_de_anexos_implicitos` ganhou `assertIn` da exceção e da âncora na raiz, e `assertNotIn("docs/security/aceites/", <lista>)`. Ele falha na versão anterior: em `d574bf4:agents/conferente.md` os dois textos procurados não existem (conferido em Python: `raiz: False`, `aceites: False`) e passa em `135ee4e`.
+
+### Achados novos por classe
+- **Afrouxamento de verificação:** nenhum. O retrabalho só acrescenta restrições ao anexo (âncora na raiz, que tira `templates/projeto/docs/...`, e a exceção do aceite); a lista de 8 itens, o "só por acréscimo", `anexo com remoção` e "`tests/config.json` nunca é anexo" ficam iguais (`git diff --numstat --no-renames 68a1490...135ee4e` → `1 1 agents/conferente.md`, troca de uma linha).
+- **Correção funcional:** nenhum. Segue a DECISÃO TÉCNICA do Jarvis de 2026-10-17 (aceites fora, lista a partir da raiz, sem a linha "aceite do usuário"); nada além disso.
+- **Testes (checklist 11):** nenhum. O `assertEqual` da lista exata continua como mínimo de itens; os textos procurados existem no alvo.
+- **Commits e regras:** nenhum. Um commit `fix(conferente): ...` em português com atribuição; sem `--no-verify` nem `--force`; fragmento em `changelog.d/` (sem editar o `CHANGELOG.md`); R-NEUTRO e R-CUSTO intactos.
+
+### Afrouxa alguma verificação?
+Não. Com o retrabalho, a mudança inteira (`f636d27...135ee4e`) só tira de `escopo: fora` os pareceres de outro papel em `docs/security/` e `docs/devops/` da raiz, por acréscimo; o aceite de risco continua reprovando como antes.
+
+### Pendência fora do escopo (inalterada)
+O cartão da ADR 0004:20 (caminhos livres sem `docs/devops/` e `docs/security/`) segue à parte, como registrado na decisão técnica.
