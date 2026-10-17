@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conf-anexo-pareceres
 branch: melhoria/conf-anexo-pareceres
-commit: d574bf4c1c6fce19c655200c7d1d594f2e8246f0
+commit: 135ee4ed8018078c88d059d18bd9a4aaf3d529d9
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-17
@@ -50,3 +50,25 @@ Comando para reproduzir a análise de escopo de qualquer classe: `git -C <worktr
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. C2 e C5 são de severidade baixa ou informativa e ficam como recomendação, sem bloquear. Ferramentas: leitura estática e o teste focado acima. Faltam no PATH `gitleaks`, `zizmor`, `actionlint` e `semgrep`, que não se aplicam a esta mudança (nenhum workflow, segredo ou código executável no diff).
+
+## Revalidação após o retrabalho 1
+Diff revisado: `git diff 68a1490b8aaa75467aa06a9d78c358d508dd8437...135ee4ed8018078c88d059d18bd9a4aaf3d529d9` (agents/conferente.md:71, tests/test_forge.py:243-246, changelog.d/conf-anexo-pareceres.md; o resto do intervalo é o parecer de review, `docs/reviews/conf-anexo-pareceres.md`, anexo por acréscimo). Veredito sobre `135ee4e`: **aprovado**.
+
+Cobertura declarada (VV-1): lido o diff inteiro do retrabalho, o item 2 "Escopo" de `agents/conferente.md` (linha 71), `hooks/conformidade.json:44-48` e `bin/forge-check:443-456,517`. Rodado: `python3 -m unittest tests.test_forge.Agentes.test_conferente_lista_de_anexos_implicitos -q` → OK. Não rodei a suíte inteira (R-TETO).
+
+**C2 (aceite de risco forjado) · fecha.**
+- `agents/conferente.md:71` agora diz que `docs/security/aceites/` fica fora da lista e que o aceite na entrega é `escopo: fora`: volta ao comportamento anterior a esta mudança, sem afrouxar.
+- O teste prende a exceção (`tests/test_forge.py:245`) e que ela não entra na lista (`:246`).
+- Cenário que reproduz: `git -C <worktree> show 135ee4e:agents/conferente.md | grep -c 'docs/security/aceites/'` → `1` (era `0` em `d574bf4`).
+- O caminho excluído é o mesmo que o hook bloqueia para todo agente (`hooks/conformidade.json:47`) e que o `forge-check` lê como aceite (`bin/forge-check:446`).
+
+**C5 (âncora na raiz) · fecha.**
+- `agents/conferente.md:71`: "a lista vale a partir da raiz do repositório (`templates/projeto/docs/...` não é anexo)". O teste prende a frase (`tests/test_forge.py:244`).
+- Cenário que reproduz: uma entrega que altere `templates/projeto/docs/security/_modelo.md` sem item no "Entregar" deve sair `escopo: fora`. Com o texto novo, a leitura por substring deixa de valer como anexo.
+
+**Achados novos, por classe**
+- **N1. Teste que prende o texto, não o lugar** · informativa. As duas frases novas são conferidas com `assertIn` no arquivo inteiro (`tests/test_forge.py:244-245`), e não no item 2. Se uma edição futura mover a frase para outro trecho de `agents/conferente.md`, o teste continua passando, mas a exceção deixa de valer para o escopo. Cenário: mover a frase do aceite para o modo de outro item e rodar o teste focado → OK. Cobertura: o trecho fica a poucos caracteres do `re.search` da lista, e o review vê o diff. Recomendação (P, `tech-lead`, sem bloquear): ampliar o `re.search` até o fim da frase do aceite. Não há caminho de ataque realista: o efeito depende de uma edição do próprio Forge, que passa pelo review e pelo dono.
+- **N2. Aceite legítimo do dono na branch** · informativa, comportamento anterior mantido. Quando o dono grava o aceite na branch revisada, o conferente marca `escopo: fora`. Era assim antes deste pedido, e a DECISÃO TÉCNICA de 2026-10-17 deixa a linha própria para um cartão, se o dono quiser. Não é vulnerabilidade: o erro fica do lado seguro, porque reprova e leva o caso ao Jarvis.
+- **Sem achado:** em outras subpastas de `docs/security/` e `docs/devops/` (`ameacas/`, pareceres). O hook só dá escrita a elas ao papel dono (`hooks/conformidade.json:46,48`). C1, C3 e C4 continuam como na rodada anterior.
+
+Nenhum risco aceito. As ferramentas ausentes são as mesmas da rodada anterior, e nenhuma se aplica a este diff.
