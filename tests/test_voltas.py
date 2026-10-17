@@ -70,8 +70,8 @@ class Voltas(Raiz):
             "voltas: XPTO nao-classificado inicio=2026-10-17T10:50:00-03:00 minutos=8",
             "voltas: XPTO barrada inicio=2026-10-17T11:00:00-03:00 minutos=20",
             "voltas: XPTO resumo: brief=0 conferencia=1 review=1 revalidacao=1 barrada=1 nao-classificado=1 "
-            "minutos=67 construcao=10 razao=6.70",
-            "voltas: total: pedidos=1 voltas=5 minutos=67",
+            "minutos=52 construcao=10 razao=5.20",  # união: conferência e review se sobrepõem em 10:15-10:30
+            "voltas: total: pedidos=1 voltas=5 minutos=52",
         ])
 
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
@@ -128,8 +128,43 @@ class RodadasDeBrief(Raiz):
             self.gravar(f"docs/briefs/{nome}.md")
         self.gravar("docs/kanban/historico.md", "")
         _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
-        self.assertEqual(linhas[:2], ["voltas: xpto brief inicio=sem-hora minutos=sem-hora ref=xpto-tech-lead-2",
-                                      "voltas: xpto brief inicio=sem-hora minutos=sem-hora ref=xpto-tech-lead-3"])
+        self.assertFalse([l for l in linhas if " brief inicio=" in l], linhas)  # delegações não são voltas
+        self.assertIn("brief=0 ", linhas[0])
+        self.assertTrue(linhas[0].startswith("voltas: xpto resumo:"), linhas)
+
+    def test_sem_conferencias_nem_briefs_o_historico_nao_inventa_rodada(self):
+        self.gravar("docs/kanban/historico.md", "| 2026-10-17T10:00:00-03:00 | xpto | Review | Review | segurança rodada 3 reprovou |\n")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertFalse([l for l in linhas if " brief inicio=" in l], linhas)
+
+    def test_voltas_sobrepostas_nao_somam_minutos_em_dobro(self):
+        self.gravar("docs/kanban/historico.md",
+                    "| 2026-10-17T10:00:00-03:00 | xpto | Conferência | Review | revalidação |\n"
+                    "| 2026-10-17T10:10:00-03:00 | xpto | Review | Review | rodada 3 reprovou |\n"
+                    "| 2026-10-17T10:20:00-03:00 | xpto | Review | Em andamento | retrabalho delegado |\n"
+                    "| 2026-10-17T11:00:00-03:00 | xpto | Em andamento | Review | entregue |\n")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual(len([l for l in linhas if l.startswith("voltas: xpto review ")]), 1, linhas)
+        self.assertIn("minutos=50 ", linhas[-2])
+
+    def test_historico_ilegivel_da_mensagem_e_rc_1(self):
+        self.gravar("docs/kanban/historico.md", HISTORICO)
+        arq = self.tmp / "docs/kanban/historico.md"
+        arq.chmod(0)
+        try:
+            if os.access(arq, os.R_OK):
+                self.skipTest("o usuário ignora permissões de arquivo")
+            cod, _, erro = self.rodar("voltas", "--pedido", "xpto")
+        finally:
+            arq.chmod(0o644)
+        self.assertEqual(cod, 1)
+        self.assertIn("ilegivel", erro)
+        self.assertNotIn("Traceback", erro)
+
+    def test_pedido_inexistente_avisa_e_sai_com_1(self):
+        cod, linhas, erro = self.rodar("voltas", "--pedido", "nao-existe")
+        self.assertEqual((cod, linhas), (1, []))
+        self.assertIn("nao existe", erro)
 
     def test_entregas_traz_as_rodadas_na_coluna_do_quadro(self):
         self.gravar("docs/briefs/xpto-tech-lead-1.md")
@@ -142,7 +177,7 @@ class RodadasDeBrief(Raiz):
         (pasta / "a.jsonl").write_text(json.dumps(msg) + "\n", encoding="utf-8")
         cod, linhas, _ = self.rodar("transcricao", "custo", str(pasta), "--entregas", "--entrega", "xpto")
         self.assertEqual(cod, 0)
-        self.assertTrue(linhas[0].startswith("| 2026-10-17 | xpto | jarvis (principal) | 2 | 3 | - |"), linhas)
+        self.assertTrue(linhas[0].startswith("| 2026-10-17 | xpto | jarvis (principal) | 2 | 3 delegações | - |"), linhas)
         self.assertIn("rodadas de brief: fonte=briefs", linhas[0])
         sem = self.rodar("transcricao", "custo", str(pasta), "--entregas", "--entrega", "nenhum")[1][0]
         self.assertTrue(sem.startswith("| 2026-10-17 | nenhum | jarvis (principal) | 2 | - | - |"), sem)

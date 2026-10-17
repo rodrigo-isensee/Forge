@@ -652,9 +652,10 @@ def _minutos(de, ate):
 
 def rodadas_de_brief(raiz, pedido):
     """Rodadas de brief de um pedido, do disco. Fonte, na ordem: linhas de modo `brief` de docs/kanban/conferencias.md;
-    sem elas, os briefs `docs/briefs/<pedido>-<destino>-<n>.md`; sem eles, o maior `rodada N` citado no histórico.
+    sem elas, os briefs `docs/briefs/<pedido>-<destino>-<n>.md`, que provam delegações (o `<n>` conta cada delegação ao
+    destino, e a rodada seguinte da conferência reescreve o mesmo arquivo), não rodadas: `fonte=briefs`, sem extras.
     Devolve `total`, `por_destino` (destino sem `forge:`), `fonte` e `extras` [(rótulo, rodada, hora|None, minutos|None)]:
-    as rodadas depois da primeira."""
+    as rodadas depois da primeira (só com `conferencias`)."""
     pid = pedido.casefold()
     destino_de = re.compile(rf"^{re.escape(pid)}-([a-z][a-z-]*)-\d+$")
     total, por_destino, extras = 0, {}, []
@@ -671,23 +672,13 @@ def rodadas_de_brief(raiz, pedido):
                 antes, agora = _hora(horas.get((c[2], int(c[4]) - 1), "")), _hora(c[0].replace(" ", "T"))
                 extras.append((c[2], int(c[4]), c[0], _minutos(antes, agora) if antes and agora else None))
         return {"total": total, "por_destino": por_destino, "fonte": "conferencias", "extras": extras}
-    achados = {}
     pasta = raiz / "docs" / "briefs"
     for arq in sorted(pasta.glob("*.md")) if pasta.is_dir() else []:
-        achou = re.match(rf"^{re.escape(pid)}-([a-z][a-z-]*)-(\d+)\.md$", arq.name.casefold())
+        achou = re.match(rf"^{re.escape(pid)}-([a-z][a-z-]*)-\d+\.md$", arq.name.casefold())
         if achou:
-            achados.setdefault(achou.group(1), []).append(int(achou.group(2)))
-    if achados:
-        for destino, numeros in sorted(achados.items()):
-            por_destino[destino] = len(numeros)
-            extras += [(f"{pedido}-{destino}-{n}", n, None, None) for n in sorted(numeros)[1:]]
-        return {"total": sum(por_destino.values()), "por_destino": por_destino, "fonte": "briefs", "extras": extras}
-    rodadas = [int(m) for l in (raiz / "docs" / "kanban" / "historico.md").read_text(encoding="utf-8", errors="replace").splitlines()
-               if re.search(rf"(?<![0-9a-z-]){re.escape(pid)}(?![0-9a-z-])", l.casefold())
-               for m in re.findall(r"rodada (\d+)", l.casefold())] if (raiz / "docs" / "kanban" / "historico.md").is_file() else []
-    if rodadas:
-        return {"total": max(rodadas), "por_destino": {}, "fonte": "historico",
-                "extras": [(pedido, n, None, None) for n in range(2, max(rodadas) + 1)]}
+            por_destino[achou.group(1)] = por_destino.get(achou.group(1), 0) + 1
+    if por_destino:
+        return {"total": sum(por_destino.values()), "por_destino": por_destino, "fonte": "briefs", "extras": []}
     return {"total": 0, "por_destino": {}, "fonte": "nenhuma", "extras": []}
 
 
@@ -714,18 +705,35 @@ TIPOS_DE_VOLTA = ("brief", "conferencia", "review", "revalidacao", "barrada", "n
 
 def voltas_do_cartao(movimentos):
     """De [(hora, de, para, motivo)] em ordem de hora: ([(tipo, hora, minutos|None)], minutos de construção|None).
-    Minutos da volta: da linha dela até a próxima do cartão que volta à coluna de onde ela saiu (None: ainda aberta).
+    Minutos da volta: da linha dela até a próxima do cartão que volta à coluna de onde ela saiu (None: ainda aberta);
+    saída da mesma coluna dentro de uma volta dela ainda aberta não abre outra (a janela é uma só).
     Construção: da primeira entrada em Em andamento até a primeira saída dele para a Conferência."""
-    voltas = []
+    voltas, abertas = [], {}  # abertas: coluna de saída -> hora em que a volta que saiu dela termina (None: aberta)
     for i, (hora, de, para, motivo) in enumerate(movimentos):
         tipo = classificar_volta(de, para, motivo)
         if tipo:
-            volta = next((h for h, _, p, _ in movimentos[i + 1:] if _sem_acento(p) == _sem_acento(de)), None)
+            coluna = _sem_acento(de)
+            if coluna in abertas and (abertas[coluna] is None or hora < abertas[coluna]):
+                continue  # mesma saída já contada: a janela é uma só
+            volta = next((h for h, _, p, _ in movimentos[i + 1:] if _sem_acento(p) == coluna), None)
+            abertas[coluna] = volta
             voltas.append((tipo, hora, _minutos(hora, volta) if volta else None))
     inicio = next((h for h, _, p, _ in movimentos if _sem_acento(p) == "em andamento"), None)
     fim = next((h for h, d, p, _ in movimentos if inicio and h >= inicio and _sem_acento(d) == "em andamento"
                 and _sem_acento(p) == "conferencia"), None)
     return voltas, (_minutos(inicio, fim) if inicio and fim else None)
+
+
+def _uniao_de_minutos(janelas):
+    """Minutos da união de [(inicio, fim)]: janelas que se sobrepõem contam uma vez."""
+    total, fim = 0.0, None
+    for ini, f in sorted(janelas):
+        if fim is None or ini >= fim:
+            total += (f - ini).total_seconds() / 60
+        elif f > fim:
+            total += (f - fim).total_seconds() / 60
+        fim = f if fim is None or f > fim else fim
+    return round(total, 1)
 
 
 def _numero(n):
@@ -738,6 +746,12 @@ def cmd_voltas(raiz, pedido=None):
     historico = raiz / "docs" / "kanban" / "historico.md"
     if not historico.is_file():
         print("voltas: aviso: docs/kanban/historico.md ausente", file=sys.stderr)
+    else:
+        try:
+            historico.read_text(encoding="utf-8", errors="replace")
+        except OSError as erro:
+            print(f"voltas: docs/kanban/historico.md ilegivel ({erro.strerror or erro}); nada medido", file=sys.stderr)
+            return 1
     por_cartao, nomes = {}, {}
     for c in _ler_tabela(historico):
         hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
@@ -747,6 +761,9 @@ def cmd_voltas(raiz, pedido=None):
     pasta = raiz / "docs" / "pedidos"
     pedidos = {p.stem.casefold(): p.stem for p in pasta.glob("*.md")} if pasta.is_dir() else {}
     pedidos.update(nomes)
+    if pedido and pedido.casefold() not in pedidos and not rodadas_de_brief(raiz, pedido)["total"]:
+        print(f"voltas: pedido {pedido} nao existe (nem em docs/pedidos/ nem no historico)", file=sys.stderr)
+        return 1
     escolhidos = [pedido.casefold()] if pedido else sorted(pedidos)
     pedidos.setdefault(pedido.casefold() if pedido else "", pedido or "")
     soma = [0, 0, 0.0]
@@ -762,7 +779,10 @@ def cmd_voltas(raiz, pedido=None):
             contagem[tipo] += 1
             print(f"voltas: {nome} {tipo} inicio={inicio or 'sem-hora'} minutos="
                   f"{_numero(minutos) if minutos is not None else 'sem-hora' if inicio is None else 'aberta'}{ref}")
-        total = sum(m for _, _, m, _ in linhas if m is not None)
+        janelas = [(_hora(h.replace(" ", "T")), m, True) for _, _, h, m in rodadas["extras"] if h and m is not None]
+        janelas += [(h, m, False) for _, h, m in voltas if m is not None]
+        total = _uniao_de_minutos([(j[0] - datetime.timedelta(minutes=j[1]), j[0]) if j[2] else (j[0], j[0] + datetime.timedelta(minutes=j[1]))
+                                   for j in janelas if j[0]])
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
@@ -1481,7 +1501,8 @@ def linhas_de_entregas(dados, r, entrega, rodadas=None):
 
     def linha(agente, uso, n_rodadas, extra=""):
         obs = f"calculado das transcricoes: ent={uso['entrada']} sai={uso['saida']} cache={uso['cache_criacao'] + uso['cache_leitura']}{extra}"
-        return f"| {dados['data'] or '-'} | {entrega} | {agente} | {total_uso(uso)} | {n_rodadas or '-'} | - | {obs} |"
+        celula = f"{n_rodadas} delegações" if n_rodadas and rodadas["fonte"] == "briefs" else n_rodadas or "-"
+        return f"| {dados['data'] or '-'} | {entrega} | {agente} | {total_uso(uso)} | {celula} | - | {obs} |"
     c = dados["compactacoes"]
     saida = [linha("jarvis (principal)", r["principal"], rodadas["total"],
                    f"; compactacoes={c['quantidade']}; relancamentos={r['relancamentos']}; rodadas de brief: fonte={rodadas['fonte']}")]
