@@ -3,8 +3,8 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: 679aaf17dcd55fc74183c95476621e50df534ddc
-parecer: reprovado
+commit: c8acc52ededd96fb9c0159d19308feca63b95237
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-17
 ---
@@ -94,3 +94,22 @@ Escopo: `git diff 6060bec..679aaf17dcd55fc74183c95476621e50df534ddc` (commits `e
 
 ### Veredito da revalidação
 Reprovado. Os achados 2, 4 e 6 estão resolvidos, e os achados 1 e 3 estão corretos na lógica da lista. Mas o achado 8 mostra que a lista não roda na sessão em que o AQ opera, então a contenção pedida no achado 1 ainda não vale na prática. Para aprovar: o achado 8 corrigido, com as fixtures de sessão do Forge. As fixtures do achado 5 continuam recomendadas, sem bloquear. Riscos aceitos: nenhum. Ferramentas: as mesmas lacunas de antes (`gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` fora do PATH); o diff da volta não traz dependência, workflow nem segredo (conferido por leitura).
+
+## Revalidação após a segunda volta
+Escopo: `git diff 4fcaf22..c8acc52ededd96fb9c0159d19308feca63b95237` (commits `96a21aa` e `c8acc52`, 8 arquivos, +158 / -10): `hooks/conformidade.py` (`Guarda`, raiz extra, e `principal`), cinco fixtures `aq-sessao-forge-*`, a ADR 0009 (item 6, linha deste PR) e `changelog.d/aq.md`. Rodado numa cópia do HEAD (`git archive`) em `$TMPDIR`: `test_hooks` (fixtures, erro interno, política malformada) e `test_forge.PluginDeDesenvolvimento`, 12 testes OK. Também rodei o hook do HEAD à mão, num clone do Forge descartável com `CLAUDE_PROJECT_DIR` nele, HOME falso com `.forge-contrib/wt/x` (worktree `melhoria/x`) e um projeto.
+
+### Situação
+| # | Situação | Evidência |
+|---|---|---|
+| 8 | resolvido | `hooks/conformidade.py:1282-1287`: com `externo is False`, o hook segue só se o papel tem `escrita_permitida`, a raiz declarada é um clone do Forge e o evento não é `PostToolUse`; nesse caso a raiz da sessão passa a ser `hook.raiz`. `:430` usa `raiz_declarada()` quando `hook.raiz` vem `None`. À mão, papel `forge-dev:aq` com a pasta corrente no clone: Write e Edit em `{Forge}/agents/x.md`, `{Forge}/hooks/x.py`, relativo `agents/x.md`, `{wt}/agents/x.md`, `~/.forge-contrib/docs/pedidos/x.md`, `~/.bashrc` e `docs/propostas/` de um repositório fora de `~/.forge-contrib` deram código 2. Com a pasta corrente na worktree, `~/.forge-contrib/docs/briefs/x.md` e `{Forge}/agents/x.md` deram 2. `{Forge}/docs/propostas/a.md` (absoluto e relativo), `{Forge}/docs/arquitetura/a.md` e `{wt}/docs/propostas/a.md` deram 0. As fugas por `..` (absoluta e relativa) e por link simbólico dentro de `docs/propostas/` deram 2 também nessa sessão. `forge:dev` e a sessão principal em `{Forge}/agents/x.md` seguem com 0, como antes. As cinco fixtures cobrem o que o achado pedia. |
+| Obs. do review (`:1281-1284` da volta anterior) | resolvido na parte que cabe | A `Guarda` e a leitura de `sessao_forge` entraram no `try` (`:1289-1292`); o bloqueio usa `com_lista`, calculado antes, e não depende mais de `guarda` existir. `politica()` e `papel_de` ficaram fora, com justificativa aceita abaixo. |
+
+### Suposições do autor
+- (a) Fora da lista, a sessão do Forge com a pasta corrente fora de projeto só ganha guarda no `PreToolUse`: aceito. A decisão de escrita do Write, Edit e NotebookEdit é tomada no `PreToolUse`; o `PostToolUse` faz autoria, que não barra nada. O AQ não tem Bash (`tests/test_forge.py:159-160`), então não há alvo de Bash para conferir depois. Os outros papéis seguem como antes, sem guarda nessa sessão, o que não muda a superfície que já existia.
+- (b) `politica()` fora da falha fechada: aceito. `politica()` (`:1154-1163`) já bloqueia sozinha qualquer JSON ilegível ou forma inválida, e `papel_de` sobre uma política válida não levanta. O que fica fora do `try` e ainda pode levantar é `identificar_sessao` (só leitura de disco e de ambiente). Um erro ali cai no tratamento geral de `executar`, que barra só o que casa com `CRITICO`. Não achei caminho realista para o AQ provocar esse erro de propósito, então fica como informativo.
+
+### Achado novo trazido pela volta
+Nenhum. Uma nota informativa, que vem de `efdd72e` e não desta volta: na sessão do Forge com a pasta corrente dentro de um projeto, a raiz é a do projeto, e o AQ consegue gravar em `docs/propostas/` e `docs/arquitetura/` desse projeto (código 0 à mão; `src/a.js` dá 2). O ganho máximo é um documento num projeto, que só entra por commit revisado, e o AQ não trabalha em projetos por instrução. Recomendação, sem bloquear: limitar as entradas relativas da lista à raiz de um clone do Forge.
+
+### Veredito da revalidação
+Aprovado no HEAD `c8acc52`. O achado 8 está resolvido, e por isso a contenção dos achados 1 e 3 agora vale na sessão em que o AQ opera. Seguem como recomendação, sem bloquear: as fixtures de regressão do achado 5, que nesta volta conferi à mão também na sessão do Forge; a docstring de `tem_manifesto_do_forge`; a proteção de `dev/.claude-plugin/` em `caminhos`; e a nota informativa acima. O achado 7 continua no cartão AQ-OPERACAO. Riscos aceitos: nenhum. As lacunas de ferramenta são as mesmas (`gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` fora do PATH). Pela leitura, o diff da volta não traz dependência, workflow nem segredo.
