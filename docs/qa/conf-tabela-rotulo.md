@@ -3,19 +3,18 @@ tipo: qa
 contrato: 1
 pedido: conf-tabela-rotulo
 branch: melhoria/conf-tabela-rotulo
-commit: 51500c2f60488d9b8729cd58b19a0afb9f474f28
+commit: 0adabf58936dde660aaabe9a23cf554784594ec1
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 1
-aceite_usuario: sim
+bugs_baixos: 0
 data: 2026-10-17
 ---
 # QA - conf-tabela-rotulo (tabela do conferente alinhada à Catraca)
 
-Sem UX nem API. Diff `0095d29...51500c2`: uma linha alterada em `agents/conferente.md` (`merge-integracao`, e a remissão em `pedido-de-merge-ao-dono`), dois invariantes novos em `tests/config.json` (nada removido) e o fragmento de changelog. Os commits depois de 51500c2 só trazem pareceres. Não escrevi o diff. Review e segurança com `parecer: aprovado` e `commit: 51500c2f...`; `forge-check pr conf-tabela-rotulo --ref HEAD --base origin/develop` só apontava a falta deste parecer.
+Sem UX nem API. Diff `0095d29...51500c2`: uma linha alterada em `agents/conferente.md` (`merge-integracao`, e a remissão em `pedido-de-merge-ao-dono`), dois invariantes novos em `tests/config.json` (nada removido) e o fragmento de changelog. Revalidação proporcional sobre `0adabf5` (voltas curtas `b2e4250`, B-1 deste parecer, e `0adabf5`, B-2 do review): só a linha `merge-integracao` e a remissão do `push` em `agents/conferente.md` mudaram; o resto são pareceres. Não escrevi o diff. Review e segurança com `parecer: aprovado` e `commit: 0adabf58...`; `forge-check pr conf-tabela-rotulo --ref HEAD --base origin/develop` só apontava a falta deste parecer.
 
 ## Obrigação -> teste -> resultado
 | ID | Obrigação (pedido E1) | Teste (comando real) | Fronteira protegida | Resultado |
@@ -31,10 +30,17 @@ Sem UX nem API. Diff `0095d29...51500c2`: uma linha alterada em `agents/conferen
 Mutação: não se aplica (diff só de texto e dados de invariantes; sem código de produção).
 
 ## Bugs
-- B-1 (baixa, aberto): o comando da linha, `gh pr checks <b>`, não mostra hora nem head de cada run (esta versão do `gh` não aceita `--json` em `pr checks`). A ordem das linhas coincidiu com a cronológica no #182, mas nada garante. Para provar "execução mais recente" e "mesmo head", o conferente precisa de `gh pr view <b> --json statusCheckRollup` (campos `startedAt`, `completedAt`) e `gh run view <id> --json headSha`, que a coluna de comando não cita.
+- B-1 (baixa, CORRIGIDO em `0adabf5`; ver revalidação abaixo): o comando da linha, `gh pr checks <b>`, não mostra hora nem head de cada run (esta versão do `gh` não aceita `--json` em `pr checks`). A ordem das linhas coincidiu com a cronológica no #182, mas nada garante. Para provar "execução mais recente" e "mesmo head", o conferente precisa de `gh pr view <b> --json statusCheckRollup` (campos `startedAt`, `completedAt`) e `gh run view <id> --json headSha`, que a coluna de comando não cita.
   - Passos: `gh pr checks 182` (duas linhas `catraca`, `fail` e `pass`, sem hora) e comparar com `gh pr view 182 --json statusCheckRollup`.
   - Esperado: comando que mostra a hora de cada execução. Obtido: lista sem hora.
   - Responsável sugerido: tech-lead (autor da linha), em pedido à parte (CONF-CMDS está fora deste pedido). Não bloqueia: contorno simples e o texto da regra está correto.
 
+## Revalidação em 0adabf5 (B-1 fechado)
+A coluna de comando de `merge-integracao` agora cita `gh pr view <b> --json statusCheckRollup`, `gh pr view <b> --json commits --jq '.commits[-1].oid'` e `gh run view <id> --json headSha,conclusion`, com `gh pr checks <b>` só como leitura rápida; sem `headRefOid` (inexistente no gh local). Comandos rodados contra o PR 189 (e o 182):
+- `gh pr view 189 --json statusCheckRollup`: catraca SUCCESS, bateria SUCCESS, checagem rápida SKIPPED, com `startedAt`/`completedAt`. `gh pr view 189 --json commits --jq '.commits[-1].oid'`: `e61d0e417b99dd7a5a0397322921b21d5af0ad3a`. Os três comandos funcionam no gh local.
+- Caso (b), #182: `statusCheckRollup` mostra catraca FAILURE (21:29:58Z) e catraca SUCCESS (23:24:08Z); `gh run view 38969773946` = failure e `gh run view 38981236093` = success, ambos `headSha` 484acacf..., igual ao `commits[-1].oid` do PR; rótulo `afrouxa-regra` presente. A linha aprova (fail antigo substituído por pass mais novo, mesmo check e head).
+- Caso (d), #186: `commits[-1].oid` = 4b4bb09a...; `gh run view 38982456520` (catraca do #186) traz `headSha` de 4b4bb09 (diferente de 484acac), então um `pass` de outro head não substitui a `fail` do #182.
+- Suíte completa na worktree: `python3 -m unittest discover -s tests -q`: 774 testes, OK (134 s).
+
 ## Resultado da execução
-Aprovado, com um baixo aberto (aceite do usuário). Nenhum crítico, alto ou médio.
+Aprovado. Nenhum bug aberto (B-1 corrigido). Nenhum crítico, alto, médio ou baixo.
