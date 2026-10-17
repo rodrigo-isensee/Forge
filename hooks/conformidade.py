@@ -427,7 +427,7 @@ class Guarda:
             return None
         topo = self.raiz_git(caminho.parent)
         if topo and topo in {caminho, *caminho.parents} and e_clone_do_forge(topo) and (
-                em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz))):
+                em_contrib(topo) or topo == Path(os.path.realpath(self.h.raiz or raiz_declarada()))):
             formas = [*formas, ("proj", caminho.relative_to(topo).as_posix())]
         if any(casa(r, c) for c in lista for t, r in formas if t == ("home" if c.startswith("~/") else "proj")):
             return None
@@ -1276,19 +1276,25 @@ def principal(hook):
     if not isinstance(entrada, dict) or (ferramenta != "Bash" and ferramenta not in FERRAMENTAS_DE_ARQUIVO):
         return
     externo = identificar_sessao(hook)
+    pol = politica()  # fora da falha fechada: o papel só se conhece depois dela (uma política malformada já falha fechado)
+    papel = papel_de(pol, hook.campo("agent_type"))
+    com_lista = papel in pol.get("escrita_permitida", {})
     if externo is False:
-        return
-    pol = politica()
-    guarda = Guarda(hook, pol, papel_de(pol, hook.campo("agent_type")))
-    guarda.externo = externo
-    guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
+        raiz = raiz_declarada()
+        # Sessão do Forge com a pasta corrente fora de projeto: só o papel com lista de permissão é avaliado (ADR 0009, 6)
+        if not (com_lista and raiz and e_clone_do_forge(raiz) and hook.campo("hook_event_name") != "PostToolUse"):
+            return
+        externo, hook.raiz = None, raiz
     try:
+        guarda = Guarda(hook, pol, papel)
+        guarda.externo = externo
+        guarda.sessao_forge = e_clone_do_forge(raiz_declarada())
         decidir(hook, guarda, ferramenta, entrada)
     except Exception as erro:  # noqa: BLE001 - papel com lista de permissão falha fechado (ADR 0009, seção 7)
-        if guarda.papel not in pol.get("escrita_permitida", {}) or hook.campo("hook_event_name") == "PostToolUse":
+        if not com_lista or hook.campo("hook_event_name") == "PostToolUse":
             raise
         hook.registrar_erro(erro)
-        bloquear("R-CONFORMIDADE", f"erro interno do hook conformidade para o papel {guarda.papel}, que só escreve na "
+        bloquear("R-CONFORMIDADE", f"erro interno do hook conformidade para o papel {papel}, que só escreve na "
                                    "lista de permissão; ele não pôde decidir. Corrigir: veja .forge/run/erros.log e "
                                    "leve ao usuário (R-DECISAO)")
 
