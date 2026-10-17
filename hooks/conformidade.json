@@ -8,7 +8,11 @@
     "coach": ["forge:agile-coach"],
     "devops": ["forge:devops-engineer"],
     "seguranca": ["forge:security-engineer"],
-    "conferente": ["forge:conferente"]
+    "conferente": ["forge:conferente"],
+    "aq": ["forge-dev:aq"]
+  },
+  "escrita_permitida": {
+    "aq": ["docs/propostas/", "docs/arquitetura/"]
   },
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",

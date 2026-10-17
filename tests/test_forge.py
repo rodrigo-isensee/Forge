@@ -68,7 +68,7 @@ def skills_do_plugin():
 
 def arquivos_texto():
     achados = []
-    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "tests/transcricoes"):
+    for pasta in ("agents", "skills", "stacks", "docs", "templates", "bin", "scripts", "hooks", "dev", "tests/transcricoes"):
         achados += [p for p in (RAIZ / pasta).rglob("*") if p.is_file()]
     return minimo(achados, 150, "arquivos de texto varridos")
 
@@ -117,6 +117,61 @@ class ManifestoDoPlugin(unittest.TestCase):
                 self.assertTrue((RAIZ / s / "SKILL.md").is_file(), f"{s} sem SKILL.md")
         existentes = {p.parent.resolve() for p in minimo(STACKS.glob("*/skills/*/SKILL.md"), 1, "skills de stack em disco")}
         self.assertEqual({p.relative_to(RAIZ).as_posix() for p in existentes - listadas}, set(), "skill de stack fora do manifesto")
+
+
+class PluginDeDesenvolvimento(unittest.TestCase):
+    """O `forge-dev` (pasta `dev/`, agente AQ) só é carregado pela sessão do Forge: o manifesto dele lista os agentes
+    e o do `forge` nunca os lista, nem o marketplace o oferece (zero custo nos projetos)."""
+
+    def setUp(self):
+        self.manifesto = json.loads((RAIZ / "dev/.claude-plugin/plugin.json").read_text(encoding="utf-8"))
+        self.do_forge = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))
+
+    def test_agentes_de_dev_no_manifesto_de_dev_e_vice_versa(self):
+        self.assertEqual(self.manifesto["name"], "forge-dev")
+        existentes = minimo(sorted((RAIZ / "dev/agents").glob("*.md")), 1, "agentes de dev")
+        listados = {(RAIZ / "dev" / a).resolve() for a in self.manifesto["agents"]}
+        self.assertEqual({p.relative_to(RAIZ).as_posix() for p in {e.resolve() for e in existentes} - listados}, set(),
+                         "agente de dev fora do manifesto de dev")
+        for a in self.manifesto["agents"]:
+            self.assertTrue(a.startswith("./agents/") and (RAIZ / "dev" / a).is_file(), f"{a} listado e inexistente")
+        self.assertEqual(len(listados), len(self.manifesto["agents"]), "agente listado duas vezes")
+
+    def test_agentes_de_dev_nunca_no_plugin_do_forge(self):
+        nomes = {p.name for p in (RAIZ / "dev/agents").glob("*.md")}
+        for a in self.do_forge["agents"]:
+            with self.subTest(agente=a):
+                self.assertNotIn(a.rsplit("/", 1)[-1], nomes)
+                self.assertFalse(a.startswith(("./dev", "dev/")))
+        marketplace = (RAIZ / ".claude-plugin/marketplace.json").read_text(encoding="utf-8")
+        self.assertNotIn("forge-dev", marketplace)
+        self.assertNotIn("dev/", marketplace)
+        self.assertEqual(self.do_forge.get("skills", []), [s for s in self.do_forge.get("skills", []) if "dev/" not in s])
+
+    def test_versao_igual_a_do_forge(self):
+        self.assertEqual(self.manifesto["version"], self.do_forge["version"], "suba as duas versões juntas")
+
+    def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
+        politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
+        self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/"]})
+        texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
+        self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
+        self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
+
+    def test_dev_so_tem_manifesto_e_agentes(self):
+        """O Claude Code descobre `hooks/`, `skills/`, `commands/` e `.mcp.json` por convenção: em `dev/` entrariam em
+        toda sessão do Forge sem passar pelo manifesto."""
+        arquivos = minimo([p.relative_to(RAIZ / "dev").as_posix() for p in (RAIZ / "dev").rglob("*") if p.is_file()],
+                          2, "arquivos de dev")
+        fora = [a for a in arquivos if a != ".claude-plugin/plugin.json" and not re.fullmatch(r"agents/[^/]+\.md", a)]
+        self.assertEqual(fora, [], "dev/ só pode ter .claude-plugin/plugin.json e agents/*.md")
+
+    def test_caminhos_citados_pelos_agentes_de_dev_existem(self):
+        for agente in minimo(sorted((RAIZ / "dev/agents").glob("*.md")), 1, "agentes de dev"):
+            for caminho in sorted(set(re.findall(r"`(docs/[\w./-]+\.md)`", agente.read_text(encoding="utf-8")))):
+                with self.subTest(agente=agente.name, caminho=caminho):
+                    self.assertTrue((RAIZ / caminho).is_file(), f"{caminho} não existe no Forge")
 
 
 class PacotesDeStack(unittest.TestCase):
@@ -989,6 +1044,29 @@ class JarvisForgeVigente(unittest.TestCase):
         self.assertFalse([c for c in self.chamadas() if c.startswith("git ") and "remote get-url" not in c
                           and (" clone " in c or " reset " in c or " checkout " in c)], "recriou ou resetou a cópia vigente")
         self.assertIn(f"--plugin-dir {self.vigente} ", [c for c in self.chamadas() if c.startswith("claude --")][0] + " ")
+
+    def test_carrega_o_forge_dev_quando_a_copia_tem_dev(self):
+        (self.vigente / ".git").mkdir(parents=True)
+        (self.vigente / "dev/.claude-plugin").mkdir(parents=True)
+        (self.vigente / "dev/.claude-plugin/plugin.json").write_text("{}", encoding="utf-8")
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertIn(f"--plugin-dir {self.vigente} --plugin-dir {self.vigente}/dev ", claude + " ")
+
+    def test_sem_dev_na_copia_abre_so_com_o_forge(self):
+        r = self.rodar("--sem-tmux")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertEqual(claude.count("--plugin-dir"), 1, claude)
+
+    def test_dev_carrega_a_pasta_dev_da_copia_de_trabalho(self):
+        (self.home / "Forge/dev/.claude-plugin").mkdir(parents=True)
+        (self.home / "Forge/dev/.claude-plugin/plugin.json").write_text("{}", encoding="utf-8")
+        r = self.rodar("--sem-tmux", "--dev")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        claude = [c for c in self.chamadas() if c.startswith("claude --")][0]
+        self.assertIn("--plugin-dir . --plugin-dir ./dev ", claude + " ")
 
     def test_respeita_xdg_data_home(self):
         outro = Path(self._tmp.name) / "dados"
