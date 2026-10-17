@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 9f3fa2b82789421c6657ebd6167184371a4fc35d
-parecer: aprovado
+commit: 7ec8c60b7a793fb911e8ab6c6230f725a6dffbcc
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-17
 ---
@@ -86,3 +86,40 @@ Nenhum que bloqueie do lado do code review.
 
 ### Parecer da revalidação
 **Aprovado** do lado do code review: B2 fecha, e o retrabalho de D e E está coerente com o ADR 0009 e com as fixtures. R5 a R7 são riscos de falso positivo do lado fechado, para o QA; R8 é recomendado. Os achados F e G da segurança (rodada 3) são do parecer dela e seguem valendo para o portão: se o retrabalho deles mexer em `hooks/_comum.py`, este parecer se revalida na proporção do que mudar (`commit_vale`).
+
+## Revalidação após o retrabalho 3
+Diff revisado: `5cfa661...7ec8c60` (3 commits: 96032bd, faa4f06, 7ec8c60; 19 arquivos). Brief do autor: `bp-1-tech-lead-7.md`, "Entregar" 1 a 7.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 7ec8c60: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo; F e G são dele e não os refaço, só registro o que conferi rodando o hook.
+
+### R7 e R8
+- **R7 · fecha.** `motivo_da_falha` (`hooks/_comum.py:164`) separa `raiz`, `git` e `versao`, e `TEXTO_DA_FALHA` (`:173`) dá a mensagem de cada um. `barrar_sem_versao` (`:725`) e o aviso do `vigia` (`hooks/vigia.py:320`) usam o motivo. Conferido: numa pasta sem Forge com `.git` = `gitdir: /nada/x`, `gh pr merge 1` dá rc=2 com "o .git da raiz da sessão não se resolve", e não mais "o .forge/versao sumiu". A falha fechada continua como estava. Fixture: `r7-git-nao-resolve-mensagem-bloqueia`.
+- **R8 · fecha.** `marca_de_projeto` agora usa `diretorio_comum` (`hooks/_comum.py:95`), que só lê o disco. Sai o `git rev-parse` que `raiz_do_projeto` (`:45`) rodava a cada chamada.
+
+### O resto do retrabalho (conferido rodando o hook num projeto temporário)
+- `.git/` inteiro (`hooks/conformidade.json:37`): `touch .git/commondir`, `cp ... .git/worktrees/x/gitdir`, `ln -s /x .git/commondir`, `echo x > ./.git/info/exclude` e `cd .git && echo x > commondir` dão rc=2. `git commit`, `git fetch`, `cat .git/HEAD`, `echo x > .github/w.yml`, `echo x > .gitignore` e `touch src/b.js` dão rc=0, sem falso positivo nos usos comuns. `commondir` e `\.git/` estão na regex `CRITICO` (`hooks/conformidade.py:30`).
+- G: depois de `mv proj x`, `git push` dá rc=2 com a mensagem `raiz`. `motivo_da_falha` e o `vigia` tratam a raiz que sumiu sem recriá-la.
+- O `diretorio_comum` saiu de `conformidade.py` para `_comum.py` com as duas conferências novas, `commondir` no clone principal e `commondir` da worktree (`hooks/_comum.py:95`-`:116`). O `raiz_do_parecer` passa a usar a versão mais estrita.
+- O texto do ADR 0009 (limite 2), de `docs/hooks.md` (`:35` caminhos, `:53` `versao-sumiu`, `:81` `hooks_desligados`, o que fecha H) e de `changelog.d/bp-1.md` bate com o código e é neutro (R-NEUTRO).
+- Commits: 3, em Conventional Commits em português, coerentes (fix, fix, docs).
+
+### Achados novos
+- **B3 · `hooks/conformidade.py:680` e `:687` · regressão do commit faa4f06: `perl -i` deixou de passar pela conferência de texto de interpretador.**
+  - Com `perl_no_lugar`, o ramo `INTERPRETES` (o `checar_texto`) é pulado, e o código do `-e` vai só para a `checar_escrita`, como se fosse um caminho.
+  - Conferido em 7ec8c60, todos com rc=0:
+    - `perl -pi -e 'unlink q(.forge/versao)' src/a.js`
+    - `perl -pi -e 'open(F,">.claude/settings.json")' src/a.js`
+    - `perl -pi -e 'unlink q(.git/forge/projeto-<hash>)' src/a.js`, que apaga a marca da sessão e anula a segunda camada.
+  - Na base `5cfa661`, os dois primeiros davam rc=2 ("arquivo em vigor"). Sem o `-i` (`perl -e 'unlink q(.forge/versao)'`), continua rc=2.
+  - Não é a exceção "interpretador" da BP-5: o caminho está em literal no texto, e a guarda o pegava antes desta entrega.
+  - Sugestão: com `perl_no_lugar`, rodar as duas conferências, `checar_texto` em cada argumento e `checar_escrita` nos arquivos. Por exemplo, tirar o `and not perl_no_lugar` de `:687` e manter o `or perl_no_lugar` de `:699` num `if` próprio, fora da cadeia de `elif`. Fixture: `perl-pi-texto-protegido-bloqueia`, com as três formas acima no subTest.
+  - Severidade: bloqueia. A entrega afrouxa uma guarda que já existia (R-CONFORMIDADE) e reabre a remoção da marca por um caminho literal.
+- **B4 · `hooks/_comum.py:100` e `:115` · falso positivo novo, fora do Forge, numa worktree aberta por um caminho com link simbólico.**
+  - `diretorio_comum` compara o `gitdir` de volta, que está resolvido (`realpath`), com `Path(topo) / ".git"`, que não está. Com `CLAUDE_PROJECT_DIR` passando por um link (por exemplo `/tmp` ou `/var` no macOS, ou uma pasta de projetos ligada por link), a worktree legítima não se resolve. `projeto_marcado` a toma como marcada, e as ações críticas falham fechado num repositório sem Forge.
+  - Conferido: numa worktree sem Forge, `gh pr merge 1` dá rc=0 pelo caminho real e rc=2 pelo caminho com link ("o .git da raiz da sessão não se resolve").
+  - Na base, com `git rev-parse`, isso não acontecia. Num projeto com Forge, a mesma worktree fica sem marca gravável.
+  - Sugestão: resolver o topo antes de comparar, `marca = Path(os.path.realpath(topo)) / ".git"` (ou `esperado == os.path.realpath(marca)`), mantendo a checagem de `is_symlink` no `.git` em si. Fixture: worktree aberta por link, rc=0 sem Forge.
+  - Severidade: bloqueia. Barra `git push` e `gh pr merge` legítimos em qualquer repositório com o plugin ativo, a correção é de uma linha, e a entrega já volta ao autor por B3.
+- **R9 · `hooks/vigia.py:321` · recomendado.** Com a raiz movida, o estado vai para `copia_de_trabalho(cwd) or cwd`. Fora de uma cópia de trabalho, isso cria `.forge/run/` na pasta corrente, qualquer que seja. Sugestão: só a cópia de trabalho, e, sem ela, não gravar (o aviso no `Stop` basta).
+
+### Parecer da revalidação
+**Reprovado** por B3 (regressão de guarda) e B4 (falso positivo fora do Forge). R7 e R8 fecham. `.git/` protegido, `commondir` e G se comportam como pedido, e a documentação bate com o código. R5 e R6 continuam como riscos para o QA, e R9 é recomendado. A volta é pequena (`hooks/conformidade.py:680`-`:699` e `hooks/_comum.py:100`-`:115`). Este parecer se revalida só nesse trecho.
