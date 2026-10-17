@@ -4,6 +4,13 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.20.0] - 2026-10-17
+### Adicionado
+- AQ, arquiteto de IA com agentes só do desenvolvimento do Forge: plugin `forge-dev` em `dev/` carregado só pelo `jarvis-forge`, papel `aq` e lista de permissão de escrita (`escrita_permitida`) no hook `conformidade`, avaliada também na sessão do Forge com a pasta corrente fora de projeto (ADR 0009).
+### Alterado
+- Tabela de etapas do conferente: o rótulo `afrouxa-regra` só é exigido quando o check `catraca` do head pede, e os checks são conferidos pela execução mais recente de cada um.
+- A main passa a ser mesclada por merge commit e acaba o PR de sincronização main -> develop (ADR 0012, R-FLUXO).
+
 ## [0.19.0] - 2026-10-16
 ### Adicionado
 - Pacote 1 de clareza: marcas por item e tags de registro no modelo de pedido, recibo do pedido, formato fixo de pergunta com "Afrouxa o processo?" e custo de eficiência, "tanto faz" como item delegado, ordem ampla que não confirma item novo e medição por pedido na retrospectiva. Afrouxa o processo? Não: só acrescenta registro e confirmação. Eficiência (estimativa): de 1 a 3 minutos a mais por pedido (recibo e registro), média 2, contra menos retrabalho por entendimento errado (não medido ainda).
