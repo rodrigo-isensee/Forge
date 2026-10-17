@@ -1,0 +1,36 @@
+{
+  "descricao": "Sessão do Forge, pasta corrente fora de projeto: AQ barrado em agents/ de uma worktree.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/agents/x.md",
+      "content": "x\n"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "o papel aq escreve só em"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "1\n",
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}
