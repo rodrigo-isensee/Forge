@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: conf-tabela-rotulo
 branch: melhoria/conf-tabela-rotulo
-commit: 51500c2f60488d9b8729cd58b19a0afb9f474f28
-parecer: aprovado
+commit: b2e425060e736316920d52a75eddcc29961d0a69
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-17
 ---
@@ -28,3 +28,8 @@ Veredito sobre `51500c2`: **APROVADO**, sem achados que bloqueiem.
 ## Achados
 Nenhum que bloqueie.
 - `agents/conferente.md:93` · linha longa na tabela, difícil de ler · sem ação necessária (padrão das linhas vizinhas) · severidade: recomendado, não exige mudança.
+
+## Revalidação após a volta curta
+Escopo: `b8634fb..b2e4250`, 1 arquivo, 1 linha trocada. O B-1 do QA foi corrigido só na coluna de comando de `merge-integracao` (`agents/conferente.md:93`): a regra, as outras linhas e `tests/config.json` (nenhuma linha removida nos invariantes) não mudaram. Mas o comando novo não funciona no `gh` local, e o parecer passa a **REPROVADO** (ajustes necessários).
+
+- B-2 · `agents/conferente.md:93` · severidade: bloqueia · `gh pr view <b> --json statusCheckRollup,headRefOid` é recusado no `gh` 2.4.0 (`Unknown JSON field: "headRefOid"`; executado contra o PR 189). Como a chamada inteira falha, o conferente não obtém nem `statusCheckRollup`, que sozinho funciona (traz `name`, `status`, `conclusion`, `startedAt`, `completedAt`, `detailsUrl`). O comando prometido para provar "execução mais recente" e "mesmo head" fica inexecutável para quem o usa. Sugestão: trocar `headRefOid` por `commits` com `--jq '.commits[-1].oid'` (funciona no 2.4.0 e dá o head) e manter `gh run view <id> --json headSha,conclusion` para ligar cada execução ao head; confirmar `gh run view --json headSha` no 2.4.0 antes de citá-lo, pois não foi testado aqui. O `statusCheckRollup` não traz o sha do head, então o par com `commits` é necessário.
