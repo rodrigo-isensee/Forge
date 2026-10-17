@@ -45,9 +45,12 @@ SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
 INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl|ruby|php|deno|bun)$")
+AWKS = {"awk", "gawk", "mawk"}
+SED_ESCREVE = re.compile(r"(?:^|[\s;{}/gpimeI0-9])w\s*(\S+)")  # comando `w arquivo` e flag `s/a/b/w arquivo` do sed
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
-    r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\bopen\w*\([^)]*[\"'][wa][bt+]?[\"']|>", re.I)
+    r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
+    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(", re.I)
 TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir", "touch"}
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
@@ -568,7 +571,7 @@ class Guarda:
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
-            elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
+            elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby|php|deno|bun|g?awk|mawk)\b", dono):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
 
@@ -677,18 +680,30 @@ class Guarda:
             self.atualizacao(palavras, so_binarios=True)
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
             self.atualizacao(palavras)
-        perl_no_lugar = prog == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*", a) for a in args)
+        no_lugar = prog in ("perl", "ruby") and any(re.fullmatch(r"-[0-9a-zA-Z]*i[0-9a-zA-Z.]*", a) for a in args)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
                     self.aninhado(args[i + 1], pasta, nivel, atribuicoes)
         elif prog == "eval":
             self.aninhado(" ".join(args), pasta, nivel, atribuicoes)
-        elif INTERPRETES.match(prog) and not perl_no_lugar:
+        elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
+            if no_lugar:  # edição no lugar (`-i`, `-pi`, `-0777pi`, `-i.bak`): os arquivos-alvo também são escrita
+                for i, a in enumerate(args):
+                    if not a.startswith("-") and not (i and args[i - 1] in ("-e", "-E")):
+                        self.checar_escrita(a, pasta)
             if prog.startswith("python") and args[:2] == ["-m", "pip"]:
                 self.pacote("pip", args[2:])
+        elif prog in AWKS:  # programa no texto (`print > arq`, `system("rm ...")`) e, com `-i inplace`, os arquivos-alvo
+            for a in args:
+                if re.search(r"[\s{(;]", a):
+                    self.checar_texto(a)
+            if "inplace" in args or any(re.fullmatch(r"-i\s*inplace|--include=?inplace", a) for a in args):
+                for a in args:
+                    if not a.startswith("-") and a != "inplace" and not re.search(r"[\s{(;=]", a):
+                        self.checar_escrita(a, pasta)
         elif prog == "git":
             self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
@@ -696,7 +711,7 @@ class Guarda:
         elif prog == "claude":
             self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
-                re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)) or perl_no_lugar:
+                re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)):
             for a in args:
                 if not a.startswith("-"):
                     self.checar_escrita(a, pasta)
@@ -713,6 +728,10 @@ class Guarda:
                     self.checar_escrita(a[3:], pasta)
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
+        if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
+            for a in args:
+                for destino in [] if a.startswith("-") else SED_ESCREVE.findall(a):
+                    self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
                 nome = Path(a).name
