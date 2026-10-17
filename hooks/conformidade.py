@@ -44,9 +44,14 @@ VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", *PATHSPECS_NO_AMBIENTE}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
-INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl|ruby|php|deno|bun)$")
+INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl[\d.]*|ruby[\d.]*|php|deno|bun)$")
+PERL_OU_RUBY = re.compile(r"^(perl|ruby)[\d.]*$")
+OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/ruby, o resto é o valor delas (`-Mstrict`, `-I lib`)
+# Marca da sessão (`.git/forge/projeto-*`): citá-la, ou usar um lançador que o hook não modela, é recusado no projeto.
+CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
+LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
 AWKS = {"awk", "gawk", "mawk"}
-SED_ESCREVE = re.compile(r"(?:^|[\s;{}/gpimeI0-9])w\s*(\S+)")  # comando `w arquivo` e flag `s/a/b/w arquivo` do sed
+SED_ESCREVE = re.compile(r"(?:^|[\s;{}/gpimeI0-9])[wW]\s*(\S+)")  # comando `w`/`W arquivo` e flag `s/a/b/w arquivo` do sed
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
@@ -204,6 +209,43 @@ def tirar_heredocs(comando):
     return "\n".join(saida), corpos
 
 
+def edita_no_lugar(args):
+    """`perl`/`ruby` com `-i`: sozinho, agrupado (`-pi`, `-0777pi`) ou com sufixo qualquer (`-i~`, `-i_bak`, `-i,o`,
+    `-pi~`: o que vem depois do `i` é o sufixo). Opção que leva o resto do grupo como valor (`-Mstrict`, `-Ilib`,
+    `-e...`) encerra a busca; o valor de `-e`/`-E` e o que vem depois de `--` não são opções."""
+    for k, a in enumerate(args):
+        if a == "--":
+            return False
+        if k and args[k - 1] in ("-e", "-E") or not re.match(r"-[^-]", a):
+            continue
+        for letra in a[1:]:
+            if letra == "i":
+                return True
+            if letra in OPCAO_COM_RESTO:
+                break
+    return False
+
+
+def awk_no_lugar(args):
+    """`awk`/`gawk` que carrega a extensão `inplace` (`-i inplace`, `-i inplace.awk`, `-iinplace`, `--include=/x/inplace.awk`,
+    `-f inplace.awk`, `@include`), em qualquer forma do nome: os arquivos-alvo são escritos."""
+    for k, a in enumerate(args):
+        valor = args[k + 1] if a in ("-i", "-f", "--include", "--file") and k + 1 < len(args) else \
+            a.split("=", 1)[1] if a.startswith(("--include=", "--file=")) else a[2:] if a.startswith(("-i", "-f")) else ""
+        if "inplace" in valor.lower() or "@include" in a.lower() and "inplace" in a.lower():
+            return True
+    return False
+
+
+def script_do_sed(arg):
+    """O texto de script de um argumento do `sed`: o argumento solto, `--expression=<texto>` ou `-e<texto>` colado (também
+    no grupo, `-ne<texto>`); opção sem script (`-n`, `-i.bak`) devolve vazio."""
+    if arg.startswith("--expression="):
+        return arg.split("=", 1)[1]
+    colado = re.match(r"-[a-zA-Z]*e(.+)", arg) if not arg.startswith("--") else None
+    return colado.group(1) if colado else "" if arg.startswith("-") else arg
+
+
 def separar_lancadores(palavras):
     """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
     deles, para classificar o comando de verdade; opções do comando seguinte não se perdem. Devolve (comando,
@@ -277,6 +319,7 @@ class Guarda:
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
+        self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
@@ -535,6 +578,9 @@ class Guarda:
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
         achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
         original = comando
+        if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
+            self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
+                        f"não cite .git/forge; {SUGESTAO}")
         comando, corpos = tirar_heredocs(comando)
         comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
         try:
@@ -574,6 +620,9 @@ class Guarda:
             elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby|php|deno|bun|g?awk|mawk)\b", dono):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
+        if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
+            self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
+                                          "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -666,6 +715,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
+        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
+            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
         if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
             alvo = next((a for a in args if not a.startswith("-")), None)
@@ -680,7 +731,7 @@ class Guarda:
             self.atualizacao(palavras, so_binarios=True)
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
             self.atualizacao(palavras)
-        no_lugar = prog in ("perl", "ruby") and any(re.fullmatch(r"-[0-9a-zA-Z]*i[0-9a-zA-Z.]*", a) for a in args)
+        no_lugar = bool(PERL_OU_RUBY.match(prog)) and edita_no_lugar(args)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -700,7 +751,7 @@ class Guarda:
             for a in args:
                 if re.search(r"[\s{(;]", a):
                     self.checar_texto(a)
-            if "inplace" in args or any(re.fullmatch(r"-i\s*inplace|--include=?inplace", a) for a in args):
+            if awk_no_lugar(args):
                 for a in args:
                     if not a.startswith("-") and a != "inplace" and not re.search(r"[\s{(;=]", a):
                         self.checar_escrita(a, pasta)
@@ -711,7 +762,7 @@ class Guarda:
         elif prog == "claude":
             self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
-                re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)):
+                re.fullmatch(r"-[a-zA-Z]*i.*|--in-place(=.*)?", a) for a in args)):
             for a in args:
                 if not a.startswith("-"):
                     self.checar_escrita(a, pasta)
@@ -730,7 +781,7 @@ class Guarda:
             self.pacote(prog, args)
         if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
             for a in args:
-                for destino in [] if a.startswith("-") else SED_ESCREVE.findall(a):
+                for destino in SED_ESCREVE.findall(script_do_sed(a)):
                     self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
