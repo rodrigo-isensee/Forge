@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 740d7dd41b90b78bef891fc6cd6245e27320e7ec
+commit: 592098a3b3f6ba38bdb5313c5900c5de89cfcb05
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-17
@@ -178,3 +178,64 @@ Viram cartão para o `security-engineer` (BP-5 ou uma BP nova). A prioridade é 
 **Reprovado** por B5 e B6, os dois da mesma classe que esta volta pretendia fechar e já presentes na base: a documentação da entrega declara uma cobertura que o código não tem. B3, B4 e R9 fecham. R10 e R11 são recomendados e podem ir no mesmo brief, e R5 e R6 seguem como riscos para o QA. A volta é pequena: `hooks/conformidade.py:47`, `:683`, `:703` e `:731`-`:734`, mais as fixtures. Este parecer se revalida só nesse trecho.
 
 Para não abrir uma rodada 6, o autor deve repetir antes do push a cobertura declarada acima, com as formas de sufixo e de opção longa ou colada.
+
+## Revalidação após o retrabalho 5
+Diff revisado: `bbacc2c...592098a` (2 commits: b500364, 592098a; 10 arquivos). Brief do autor: `bp-1-tech-lead-11.md`, "Entregar" 1 a 7.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 592098a: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo; não refeito aqui.
+
+Como reproduzir: o mesmo da rodada anterior (projeto temporário com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/a.js` commitados; cada linha é o `command` de um PreToolUse Bash de `forge:dev` passado a `python3 hooks/conformidade.py`). "Base" é o hook de `bbacc2c` (`git archive bbacc2c hooks`), igual ao de 740d7dd. O efeito real das fugas foi conferido numa cópia do projeto.
+
+Cobertura declarada (VV-1): as cadeias de B5, B6, R10 e da mitigação listadas abaixo; nomes de binário presentes nesta máquina (`perl`, `perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `python3.10`, `gawk` 5.1.0, `mawk`, GNU `sed`); `ruby3.2` só pelo hook (não instalado); opções do perl `-C`, `-l`, `-x`, `-I`, `-s`, `-e` antes do `-i`; opções longas abreviadas do `sed` e do `gawk`; heredoc para interpretador versionado. Fora da cobertura: `ed`, `patch`, `sponge`, `chmod` e script lido de arquivo (BP-5, declarados); `node`, `php` e `deno` versionados; o vigia (R11 não está no diff).
+
+### B5, B6, R10 e a mitigação
+- **B5 · fecha nas formas pedidas.** `edita_no_lugar` (`hooks/conformidade.py:212`) toma o resto do grupo depois do `i` como sufixo e para nas opções que levam valor (`OPCAO_COM_RESTO`, `:49`). `PERL_OU_RUBY` e `INTERPRETES` (`:47`-`:48`) aceitam a versão no nome. Na HEAD dão rc=2, e na base rc=0: `perl -i~`, `perl -pi~`, `perl -i_bak`, `perl -i,o`, `perl -i'orig_*'`, `ruby -i~`, `perl5.34.0 -pi -e ...` e `ruby3.2 -i -pe ...` sobre `.githooks/pre-push`, além de `perl5.34.0 -e 'unlink q(.forge/versao)'`. Também dão rc=2 `perl -l -i`, `-x -i`, `-I lib -pi`, `-e 1 -i`, `-s -i` e `ruby -r json -i`. Lacuna da mesma classe em B7.
+- **B6 · fecha nas formas pedidas.** `awk_no_lugar` (`:229`), `script_do_sed` (`:240`), `SED_ESCREVE` com `[wW]` (`:54`) e o laço do sed (`:782`-`:785`). Dão rc=2, e na base rc=0: `gawk -i inplace.awk`, `gawk --include=inplace.awk`, `gawk -i /usr/share/awk/inplace.awk`, `sed --expression='w .claude/settings.json'`, `sed -e'1w ...'`, `sed '1W ...'`, `sed -i --expression='w ...'` e `sed -E -e'1W ...'`. Lacuna da mesma classe em B8.
+- **R10 · fecha.** `perl -Mstrict -e 'print 1' .githooks/pre-push` dá rc=0 (na base, rc=2). `perl -CSDi -e 'print 1' .githooks/pre-push` também dá rc=0, o que está certo: o `i` ali é flag do `-C`.
+- **Mitigação · cumprida.** `CITA_A_MARCA` (`:51`) é conferida em `:581`, e `LANCADORES_RECUSADOS` (`:52`) em `:718` e `:623`. `cat .git/forge/projeto-x`, `ionice -c3 rm src/a.js`, `flock /tmp/l true`, `script -qc 'rm .forge/versao' /dev/null`, `taskset 1 true`, `bash -c 'ionice ...'`, `env flock ...` e `nice script ...` dão rc=2.
+- **Sem falso positivo nos usos comuns:** rc=0 em `perl -pi -e 's/a/b/' src/a.js`, `ruby -i -pe 'x' src/a.js`, `sed -i 's/a/b/' src/a.js`, `sed -n '1p' .githooks/pre-push`, `gawk -i inplace '{print}' src/a.js`, `ls .git`, `git log`, `grep -rn 'git/forge' docs` e `npm run script`.
+- **Falso positivo da mitigação · relevante? Não.** Ela vale só numa sessão de projeto (`raiz_e_projeto`). O clone do Forge sem `.forge/versao` não é afetado, e nesta worktree não há `.forge/`. Os casos que achei são raros e têm saída simples:
+  - `git commit -m '... .git/forge ...'`, ou um `gh pr create --body` que cite a marca, dá rc=2. A saída é `-F`/`--body-file`.
+  - Um executável do projeto chamado `script` (`./script`) dá rc=2, porque o nome-base coincide.
+
+  Registro os dois como risco para o QA, não como ajuste.
+- **Documentação:** o ADR 0009 (limite 2) e `docs/hooks.md:36` passaram a listar o que fica com a BP-5 (`ed`, `ex`, `vim -es`, `patch`, `sponge`, `split`, `chmod`/`chown`, `chmod 000 .forge`, script lido de arquivo, `busybox`), e o fragmento `changelog.d/bp-1.md` também, em texto neutro (R-NEUTRO). O texto ainda afirma duas coberturas que o código não tem (B7 e B8).
+- Commits: 2, em Conventional Commits em português, coerentes (fix, docs).
+
+### Achados novos (por classe)
+- **B7 · `hooks/conformidade.py:620` e `:47`-`:48` · classe "interpretador com versão no nome", item 1 do brief: o nome versionado não é reconhecido em todos os pontos.**
+  - (a) O heredoc. O dono do heredoc é testado por uma terceira lista, `\b(python[\d.]*|node|nodejs|perl|ruby|...)\b` (`:620`), que não ganhou a versão, e `\bperl\b` não casa `perl5.34.0`. Com rc=0 (base também rc=0):
+    - `perl5.34.0 <<'X'` / `unlink q(.forge/versao)` / `X`
+    - `ruby3.2 <<'X'` / `File.delete(".forge/versao")` / `X`
+
+    Na mesma forma, `perl <<'X'` e `python3.10 <<'X'` dão rc=2.
+  - (b) O nome com arquitetura. `perl5.34-x86_64-linux-gnu`, que existe em `/usr/bin` nesta máquina (é o nome do Debian e do Ubuntu), não casa `perl[\d.]*`. Com rc=0, e o arquivo de fato reescrito numa cópia (`#!/bin/sh` virou `#!/bin/XX`):
+    - `perl5.34-x86_64-linux-gnu -pi -e 's/sh/XX/' .githooks/pre-push`
+    - `perl5.34-x86_64-linux-gnu -e 'unlink q(.forge/versao)'`
+
+    Na base, também rc=0.
+  - Por que bloqueia: o item 1 do brief pede que o "nome de interpretador com versão" seja "reconhecido como o interpretador", e `docs/hooks.md:36` e o ADR 0009 dizem "também com versão no nome" para "`-e`, heredoc".
+  - Sugestão: uma fonte única para o nome. Por exemplo, `NOME_INTERPRETE = r"(python|perl|ruby)[\d.]*(-[\w-]+)?|node(js)?|php|deno|bun"`, usada em `INTERPRETES`, em `PERL_OU_RUBY` e no teste do heredoc (`:620`, com `Path(dono).name` em vez de `\b`).
+  - Fixtures: `b7-heredoc-perl-versao-bloqueia` e `b7-perl-arquitetura-bloqueia`.
+  - Severidade: bloqueia.
+- **B8 · `hooks/conformidade.py:233`-`:234`, `:243` e `:765` · classe "opção longa abreviada": o GNU `sed` e o `gawk` aceitam qualquer prefixo único da opção longa, e o hook só reconhece o nome inteiro.**
+  - Com rc=0 (base também rc=0), e o efeito conferido numa cópia:
+    - `sed --expr='1w .githooks/pre-push' src/a.js` grava o arquivo. O mesmo vale para `--e=`.
+    - `sed --i 's/sh/XX/' .githooks/pre-push` reescreve o arquivo (`--i` é o `--in-place`). O mesmo vale para `--in-pl`.
+    - `gawk --inc=inplace '{sub(/sh/,"XX")}1' .githooks/pre-push` reescreve o arquivo. O mesmo vale para `--incl inplace`.
+  - Na mesma classe "carrega `inplace` sem passar pelo `-i`/`-f`":
+    - `gawk -E /usr/share/awk/inplace.awk .githooks/pre-push` dá rc=0 e esvazia o arquivo (conferido).
+    - `gawk -l inplace 'BEGINFILE{inplace_begin(...)} ...' .githooks/pre-push` dá rc=0.
+  - Por que bloqueia: `docs/hooks.md:36` e o ADR 0009 declaram `--expression=` e `--include=` cobertos, o item 2 do brief pede "`--include` que carregue inplace" e "`--expression=`", e a variação custa só apagar letras (o critério de B1, B5 e B6).
+  - Sugestão, que fecha a classe e não só as variantes:
+    - Normalizar `--<prefixo>[=v]` para a opção longa que ele abrevia, à maneira do `getopt_long`. No sed, `expression`, `in-place` e `file`. No gawk, `include`, `file`, `exec` e `load`. Na ambiguidade, recusar.
+    - No awk, do lado fechado, qualquer argumento que contenha `inplace` liga a conferência dos alvos, o que cobre `-E`, `-l`, `--load` e `@load`.
+  - Fixtures: `b8-sed-expr-abreviada-bloqueia`, `b8-sed-in-place-abreviada-bloqueia` e `b8-gawk-inc-abreviada-bloqueia`.
+  - Severidade: bloqueia.
+- **R11 · segue recomendado** (`hooks/vigia.py`, cosmético). Não entrou no brief desta volta.
+
+### Parecer da revalidação
+**Reprovado** por B7 e B8, as duas da mesma classe de B5 e B6 e já presentes na base (não são regressão). B5, B6 (nas formas pedidas), R10 e a mitigação fecham, sem falso positivo relevante. R5, R6 e os dois casos da mitigação seguem como riscos para o QA, e R11 é recomendado.
+
+A volta é mecânica e cabe em `hooks/conformidade.py:47`-`:48`, `:229`-`:246`, `:620` e `:765`, mais as fixtures. Há outra saída para os dois achados, que é uma decisão técnica de quem conduz o pedido e não deste parecer: o texto do ADR 0009 e de `docs/hooks.md:36` deixa de afirmar essas formas, e elas viram cartão da BP-5. Este parecer se revalida só nesse trecho.
+
+Para não abrir uma rodada 7, o autor deve repetir antes do push as cadeias de B7 e B8, as de B5 e B6 e a busca da classe acima: nome versionado em todos os pontos (opção, `-e` e heredoc) e opções longas por prefixo.
