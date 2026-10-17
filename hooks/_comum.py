@@ -96,7 +96,8 @@ def diretorio_comum(topo):
     """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git e sem seguir o que o git resolveria).
     Cópia principal: o próprio `.git`, que nunca tem `commondir` (se tem, alguém o escreveu para desviar a busca). Worktree
     vinculada: o `.git` é um arquivo `gitdir: <comum>/worktrees/<n>`; o `gitdir` de volta dessa pasta tem de apontar
-    para ele e o `commondir` dela, para o `<comum>`; um `.git` forjado ou desviado não vale. Senão, None."""
+    para ele (comparado com o caminho real do topo: a worktree aberta por link simbólico vale) e o `commondir` dela, para
+    o `<comum>`; um `.git` forjado ou desviado não vale. Senão, None."""
     marca = Path(topo) / ".git"
     if marca.is_symlink():
         return None
@@ -113,7 +114,8 @@ def diretorio_comum(topo):
         return None
     comum = Path(os.path.realpath(pasta.parent.parent))
     esperado = os.path.join(os.path.realpath(os.path.dirname(volta)), os.path.basename(volta))
-    return comum if esperado == str(marca) and Path(os.path.realpath(pasta / desvio)) == comum else None
+    real = str(Path(os.path.realpath(topo)) / ".git")
+    return comum if esperado == real and Path(os.path.realpath(pasta / desvio)) == comum else None
 
 
 def marca_de_projeto(raiz):

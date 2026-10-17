@@ -317,21 +317,23 @@ def verificar(hook, raiz):
 
 def avisar_versao_sumiu(hook):
     """Sessão marcada como projeto sem `.forge/versao`, com a raiz movida ou com o `.git` que não se resolve: os outros
-    hooks se calaram, então o vigia é quem avisa. Raiz que sumiu: o estado vai para a pasta corrente, para não recriar
-    a raiz antiga."""
+    hooks se calaram, então o vigia é quem avisa. Raiz que sumiu: o estado vai para a cópia de trabalho da pasta
+    corrente, se houver; sem ela, nada é gravado (o aviso do `Stop` basta), para não recriar a raiz antiga nem criar
+    `.forge/run/` numa pasta qualquer."""
     motivo = motivo_da_falha()
-    hook.raiz = (copia_de_trabalho(hook.cwd()) or hook.cwd()) if motivo == "raiz" else raiz_declarada()
+    hook.raiz = copia_de_trabalho(hook.cwd()) if motivo == "raiz" else raiz_declarada()
     detalhe = {"versao": (".forge/versao sumiu desde o início da sessão: os hooks do Forge só barram as ações críticas "
                           "até o arquivo voltar; peça ao usuário que o restaure"),
                "raiz": ("a pasta da sessão foi movida ou apagada: os hooks do Forge só barram as ações críticas; peça "
                         "ao usuário que a restaure e abra uma sessão nova"),
                "git": (".git da raiz da sessão não se resolve e não há .forge/versao: os hooks do Forge só barram as ações "
                        "críticas; peça ao usuário que repare o .git")}[motivo]
-    with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
-        f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
-                            "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),
-                            "gravidade": GRAVIDADE["versao-sumiu"][1], "tipo": "versao-sumiu", "detalhe": detalhe},
-                           ensure_ascii=False) + "\n")
+    if hook.raiz is not None:
+        with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
+                                "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),
+                                "gravidade": GRAVIDADE["versao-sumiu"][1], "tipo": "versao-sumiu", "detalhe": detalhe},
+                               ensure_ascii=False) + "\n")
     return [("versao-sumiu", detalhe)]
 
 

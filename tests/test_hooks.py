@@ -26,7 +26,7 @@ Formato do fixture:
               projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
-              sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
+              sem_run (true: .forge/run/ não foi criado), sem_caminho ([caminho]: não existem; {tmp} vale), erros_log (trecho)
 """
 import concurrent.futures
 import contextlib
@@ -299,6 +299,8 @@ class Hooks(unittest.TestCase):
                 self.assertIn(trecho, conteudo)
             for trecho in conf.get("ausente", []):
                 self.assertNotIn(trecho, conteudo)
+        for caminho in esperado.get("sem_caminho", []):
+            self.assertFalse(Path(substituir(caminho, f.mapa, 0)).exists(), f"{caminho} não deveria existir")
         for nome in esperado.get("sem_arquivo", []):
             self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
         if "erros_log" in esperado:
