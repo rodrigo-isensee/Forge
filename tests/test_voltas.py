@@ -1,6 +1,7 @@
 """T-1: `forge-check voltas`, rodadas de brief em `transcricao custo --entregas` e as pastas padrão de transcrições."""
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -151,7 +152,7 @@ class PastasPadrao(Raiz):
     def test_acha_a_pasta_do_contrib_e_as_das_worktrees_sem_rede(self):
         home = self.tmp / "home"
         projetos = home / ".claude" / "projects"
-        enc = str(home / ".forge-contrib").replace("/", "-").replace(".", "-")
+        enc = re.sub(r"[^A-Za-z0-9]", "-", str(home / ".forge-contrib"))  # a mesma regra do código
         msg = {"type": "assistant", "timestamp": "2026-10-17T10:00:00Z", "isSidechain": False,
                "message": {"id": "m", "model": "m", "usage": {"input_tokens": 5, "output_tokens": 5}}}
         for nome, sid in ((enc, "c1"), (enc + "-wt-t-1", "w1"), (enc + "-wt-bp-1", "w2"), ("-outro-projeto", "x")):
