@@ -24,7 +24,8 @@ import sys
 import time
 from pathlib import Path
 
-from _comum import LIMITE_LOG, PLUGIN, executar, git, gravar_json, ler_json
+from _comum import (LIMITE_LOG, PLUGIN, executar, git, gravar_json, ler_json, marcar_projeto, raiz_declarada,
+                    versao_sumiu)
 
 LIMITE_ARQUIVO = 2 * 1024 * 1024
 LIMITE_ARQUIVOS = 3000
@@ -40,7 +41,7 @@ _ESCRITA = re.compile(r"(?<![\w.-])(?:tee|cp|mv|install|ln|rm|touch|dd|truncate|
                       r"sh|bash|zsh|eval|source)(?![\w.-])|>|<<")
 PODADOS = {".git", "node_modules"}  # nunca se desce neles
 # Gravidade: só o contorno acusa (violação); arquivo em vigor mudado pode ser o usuário ou o `forge-upgrade` (mudança).
-GRAVIDADE = {"contorno": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)")}
+GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)")}
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 
@@ -314,14 +315,31 @@ def verificar(hook, raiz):
         return novas
 
 
+def avisar_versao_sumiu(hook):
+    """Sessão marcada como projeto sem `.forge/versao`: os outros hooks se calaram, então o vigia é quem avisa."""
+    hook.raiz = raiz_declarada()
+    detalhe = ".forge/versao sumiu desde o início da sessão: os hooks do Forge estão desligados neste projeto"
+    with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
+        f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
+                            "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),
+                            "gravidade": GRAVIDADE["versao-sumiu"][1], "tipo": "versao-sumiu", "detalhe": detalhe},
+                           ensure_ascii=False) + "\n")
+    return [("versao-sumiu", detalhe)]
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
+    if evento == "SessionStart" and raiz_declarada() is not None:
+        marcar_projeto(raiz_declarada(), hook.campo("source") in ("resume", "compact", "clear"))
     raiz = hook.projeto(hook.cwd())
-    if raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
+    if raiz is None and evento in ("Stop", "SubagentStop") and versao_sumiu():
+        novas = avisar_versao_sumiu(hook)
+    elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
         return
-    if evento == "SessionStart":
+    elif evento == "SessionStart":
         return iniciar(hook, raiz)
-    novas = verificar(hook, raiz)
+    else:
+        novas = verificar(hook, raiz)
     if novas:
         novas = sorted(novas, key=lambda n: GRAVIDADE[n[0]][0])  # o resumo é do mais grave (a ordenação é estável)
         contagem = {}

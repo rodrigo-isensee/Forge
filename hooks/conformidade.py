@@ -9,6 +9,7 @@ PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
+import glob
 import hashlib
 import json
 import os
@@ -80,6 +81,7 @@ CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
 VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 SIMPLES = {
@@ -795,6 +797,8 @@ class Guarda:
         if sub == "config" and not ativacao:
             self.git_config(args)
         self.git_trava(sub, args, pasta_git, ramos)
+        if sub in CAMINHOS_NO_GIT:
+            self.git_caminhos(sub, args, [pasta, pasta_git])
         if sub == "push":
             self.git_push(args, pasta_git, ramos)
         elif parte and parte[0] == "merge" and parte[2]:
@@ -805,6 +809,29 @@ class Guarda:
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
+
+    def git_caminhos(self, sub, args, pastas):
+        """`git rm|mv|checkout|restore` mexem nos arquivos como `rm`/`mv`: os caminhos passam pela mesma conferência de
+        escrita e de remoção (`.forge/versao` apagado por `git rm` desligaria os hooks). `checkout` só leva caminhos
+        depois do `--` (ou palavra que já existe como caminho); `git checkout -- arquivo-comum` segue livre, porque só
+        o caminho protegido barra. Caminho com curinga (`*?[`) vale por tudo que ele alcança."""
+        if sub == "checkout" and "--" in args:
+            candidatos = args[args.index("--") + 1:]
+        elif sub == "checkout":
+            candidatos = [a for a in args if not a.startswith("-")]
+        elif sub == "restore":
+            candidatos = [a for i, a in enumerate(args) if not a.startswith("-") and not (
+                i and args[i - 1] in ("-s", "--source"))]
+        else:
+            candidatos = [a for a in args if not a.startswith("-")]
+        for pasta in dict.fromkeys(pastas):
+            for c in candidatos:
+                if sub == "checkout" and "--" not in args and not os.path.lexists(self.resolver(c, pasta)):
+                    continue  # `git checkout <branch>`: não é caminho
+                alvos = sorted(glob.glob(str(pasta / c))) if re.search(r"[*?\[]", c) else []
+                for alvo in alvos or [c]:
+                    self.checar_escrita(alvo, pasta)
+                    self.checar_remocao(alvo, pasta)
 
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
