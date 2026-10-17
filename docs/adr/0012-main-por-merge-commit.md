@@ -14,7 +14,7 @@ Decisão do dono (2026-10-16): S-15 -> "A": a `main` passa a ser mesclada por **
 - Manter como está: o custo de cada release continua.
 
 ## Consequências
-- Melhora: o commit de merge da `main` tem a `homolog` como pai; a `main` acumula só os commits de merge do PR `homolog` → `main`, sem conteúdo próprio, e por isso não precisa de PR de sincronização nem gera o conflito que ele causou. Os históricos da `main` e da `develop` continuam diferentes (a `develop` é por squash); o conteúdo é que não diverge.
+- Melhora: o commit de merge da `main` tem a `homolog` como pai; a `main` só ganha os commits de merge da promoção e nenhum conteúdo próprio (ver `R-FLUXO`), então não precisa de PR de sincronização nem gera o conflito que ele causou. Os históricos da `main` e da `develop` continuam diferentes (a `develop` é por squash); o conteúdo é que não diverge.
 - Piora: a `main` passa a ter os commits de promoção (um por PR da `develop`, já em squash) além do commit de merge.
 - Fica a manter: o texto de `R-FLUXO` e seu invariante em `tests/config.json`; nenhum portão muda (review, QA, CI, `R-MAIN` e o merge do dono ficam).
 - Os PRs de sincronização anteriores à mudança continuam no histórico.
