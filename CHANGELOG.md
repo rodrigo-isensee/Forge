@@ -4,6 +4,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.19.0] - 2026-10-16
+### Adicionado
+- Pacote 1 de clareza: marcas por item e tags de registro no modelo de pedido, recibo do pedido, formato fixo de pergunta com "Afrouxa o processo?" e custo de eficiência, "tanto faz" como item delegado, ordem ampla que não confirma item novo e medição por pedido na retrospectiva. Afrouxa o processo? Não: só acrescenta registro e confirmação. Eficiência (estimativa): de 1 a 3 minutos a mais por pedido (recibo e registro), média 2, contra menos retrabalho por entendimento errado (não medido ainda).
+- `bin/forge-testes`: teste dirigido durante a iteração do autor (só os módulos do que mudou, com falha fechada para caminho sem mapa e log de duração em `.forge/run/testes.log`); não é portão, a suíte completa segue em pre-push, CI, review, QA e no caminho para a main (TA-3).
+- `bin/forge-fechar`: fecha a entrega (forge-check pr, ls-remote, PR, checks, merge preso ao head conferido, limpeza) parando no primeiro erro, com `--dry-run`; nunca mescla na main nem aplica rótulo (TA-5).
+### Alterado
+- forge-check pr recusa parecer na árvore de trabalho e fora do commit; quem emite o parecer (tech-lead, QA, devops, segurança) o commita na branch revisada, só o arquivo, no mesmo push (PA-4)
+### Corrigido
+- Teste de `taxa` com total zero (`n/a`) nas medições de transcrição; fecha o mutante M07 do estudo de mutação (M14 e M15 registrados como equivalente e limite de proteção).
+- Testes sem manutenção automática do git: ponto único em tests/ambiente_git.py (maintenance.auto, gc.auto, receive.autogc) no ambiente de todo teste que roda git num repositório temporário; como o push local não passa as GIT_CONFIG_* ao receive-pack, todo repositório bare dos testes grava as mesmas chaves no próprio config (remoto_sem_manutencao). Um teste lê todos os tests/*.py (exceção explícita: catraca.py) e falha se uma chamada a git não recebe o ambiente do ponto único, ou se um bare fica sem a configuração; os módulos de tests/ carregam também no modo dirigido (tests.<módulo>). Some o erro de tearDown por maintenance.lock em worktree.
+
 ## [0.18.0] - 2026-10-16
 ### Adicionado
 - **Sobreposição, fila de integração e registro do quadro:** `forge-check sobreposicao` lista os arquivos em comum entre branches `melhoria/*`, a fila de integração da `develop` (R-FLUXO) entra um PR por vez e `forge-check movimento` grava hora e coluna de cada movimento do quadro

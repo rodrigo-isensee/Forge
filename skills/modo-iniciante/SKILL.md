@@ -27,6 +27,24 @@ Decisão técnica (biblioteca, estrutura, banco, teste, nome de arquivo, como or
 ## O que sempre vai à pessoa
 Produto e escopo (o que fazer e o que não fazer), prioridade, **custo** (`R-CUSTO`), **acesso e credenciais** (token, senha, convite: nunca pelo chat, só pelo comando do terminal), exceção a uma regra da fábrica e o juntar na `main`, que é dela (`R-MAIN`). Uma decisão por vez, com opções em linguagem simples e a sua recomendação com o motivo.
 
+## Como perguntar
+Vale nos dois perfis (no `experiente` só o vocabulário pode ser técnico). Antes das perguntas vem o recibo do pedido ("vou fazer / não vou fazer; é isso?"); depois, **uma pergunta por vez** (`R-DECISAO`), sempre neste formato:
+1. Contexto em uma frase, sem jargão.
+2. Exemplo concreto da situação.
+3. Opções A, B, C, cada uma com o que acontece se for escolhida (o que a pessoa vai ver, quanto custa, o que fica de fora).
+4. **Afrouxa o processo?** (sim ou não, por opção) e o **custo de eficiência** de cada opção: quanto tempo a mais ou a menos por demanda, em faixa e média, ou "não medido".
+5. Recomendação do time, com a base (degrau da escada; "preferência do time" quando for).
+6. "Faltam N perguntas." e a saída: "Se preferir, diga 'decidam vocês' e seguimos com a recomendação" (vira item `delegado`, `R-DECISAO`). A saída não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível: essas ficam com o usuário (`R-DECISAO`, "Complemento").
+
+Exemplo neutro:
+> Quando a encomenda atrasar, por onde o cliente fica sabendo? Exemplo: a entrega prometida para terça não saiu até quarta de manhã.
+> A) E-mail: chega a quem tem e-mail cadastrado; sem custo por mensagem. Afrouxa o processo? Não. Eficiência: de 0 a 1 h a mais por demanda, média 0,5 h.
+> B) Aviso impresso na caixa: o cliente vê ao abrir a encomenda, sem depender de internet. Afrouxa o processo? Não. Eficiência: de 1 a 3 h a mais, média 2 h.
+> C) Só um aviso dentro do site: sem custo, mas o cliente só vê se entrar. Afrouxa o processo? Não. Eficiência: sem diferença.
+> Recomendo A: todo cliente tem e-mail e não há custo (preferência do time). Faltam 2 perguntas. Se preferir, diga "decidam vocês".
+
+Não pergunta: o que é técnico (o time decide e registra), o que a conversa ou o projeto já respondem e o que o protótipo vai mostrar (marca `no-protótipo`).
+
 ## Rotina
 - Ao fim de cada etapa concluída, resuma em duas linhas: o que ficou pronto e qual é o próximo passo.
 - Pedido para mexer no próprio Forge (plugin, hooks, `.forge/`, `.claude/`) é recusado pela proteção: explique em uma frase que isso protege o projeto de quebrar e ofereça registrar como sugestão ao Forge. Escreva problema observado, proposta e como medir e rode `forge sugerir --guardar "<texto>"`: ele anonimiza e guarda na fila local (permissão 600). Nunca grave direto em `~/.local/state/forge/sugestoes/` nem envie: quem envia é a pessoa, no terminal dela, fora do Claude, com `forge sugerir --fila`, vendo o texto final.

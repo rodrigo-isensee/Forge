@@ -22,3 +22,8 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - **Escada da recomendação**, nesta ordem: o que o usuário disse, depois o fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
 - **Recomendar sempre, com a base declarada:** toda recomendação diz o degrau da escada que a decidiu. Em escopo, prioridade ou custo, leva a marca "preferência do time", separada dos fatos.
 - **Decisão só vale gravada.** Quem recebe a resposta do usuário a grava, no mesmo turno, no arquivo do pedido ou no diário de retomada. Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
+
+## Complemento: "tanto faz" e ordem ampla
+- **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.
+- **Ordem ampla não confirma.** "Resolva", "acabe tudo" e "pode fazer" só cobrem itens já marcados `confirmado` ou `delegado` no pedido. Item novo ou ato irreversível dentro dela volta ao usuário como pergunta, uma por vez.
+- **Item `técnico` não depende de ordem.** É decisão do time ("Decisões técnicas são do time", acima): executa sem ordem do usuário. `Suposição` e `no-protótipo` seguem fora da ordem ampla: ela não os confirma.
