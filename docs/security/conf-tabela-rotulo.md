@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conf-tabela-rotulo
 branch: melhoria/conf-tabela-rotulo
-commit: 51500c2f60488d9b8729cd58b19a0afb9f474f28
+commit: b2e425060e736316920d52a75eddcc29961d0a69
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-17
@@ -24,6 +24,9 @@ Escopo: `git diff 0095d299b9b9383ecf9eba336e83c764f707ae5f...51500c2f60488d9b872
 
 ## Achados
 1. **Informativo, `agents/conferente.md:93`:** a regra é prosa e depende de o conferente ler a saída de `gh pr checks <b>` pela execução mais recente e pelo head certo; a saída não traz o head, então a conferência do "mesmo head" exige olhar também o head do PR. Caminho de ataque: nenhum realista, pois o controle efetivo é o check `catraca` exigido na proteção de branch, e o conferente é checagem de processo, não barreira. Sugestão (opcional, fora deste pedido): citar `gh pr view <b> --json headRefOid` no comando para fixar o head. Dono: `tech-lead`.
+
+## Revalidação após a volta curta
+Revalidação após a volta curta (b2e4250, B-1 do QA): `git diff b8634fb..b2e4250` toca só `agents/conferente.md:93` (+1 / -1); `tests/config.json` e `changelog.d/` sem mudança. A volta só acrescentou à coluna de comando da linha `merge-integracao` leituras `gh pr view <b> --json statusCheckRollup,headRefOid` e `gh run view <id> --json headSha,conclusion`, ambas já cobertas por `gh pr view` e `gh run view` (com `--json`) em "Comandos permitidos" (`agents/conferente.md:23`): a lista não ganhou comando, é só leitura e sem custo. A regra do rótulo ficou igual (só quando o check `catraca` do head está em `fail` por falta dele; execução mais recente de cada check, mesmo head). O achado 1 (informativo) foi atendido: o head agora entra na conferência. Observação informativa do conferente: no `gh` local 2.4.0 o campo `headRefOid` é recusado; o efeito é fail-safe (a linha vira `não verificável`, nunca aprovação indevida) e `gh run view --json headSha` serve de alternativa; sem ação de segurança. Parecer mantido: aprovado.
 
 ## Lacunas
 Nenhuma ferramenta usada; sem varredura de segredo, pois o diff não contém valores sensíveis.
