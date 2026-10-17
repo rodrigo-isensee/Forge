@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: aq
 branch: melhoria/aq
-commit: efdd72e6d4a90d1da6b11b919bc41bab155afe1b
-parecer: reprovado
+commit: 679aaf17dcd55fc74183c95476621e50df534ddc
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-17
 ---
@@ -43,3 +43,32 @@ Veredito sobre `efdd72e`: **REPROVADO**. São 2 achados que bloqueiam (os dois d
 ## Pendências e outros pareceres
 - A segurança (`docs/security/`) roda em paralelo e não é refeita aqui. O achado 4 vai a ela como cartão.
 - Depois da correção, a revisão confere só os arquivos tocados pelos achados 1 a 3 e as fixtures afetadas.
+
+## Revalidação após a volta única
+Escopo: `6060bec..679aaf1` (commits `e812309` e `679aaf1`), 10 arquivos. Conferi cada achado acima contra esse diff e reli só os arquivos tocados. Veredito sobre `679aaf17dcd55fc74183c95476621e50df534ddc`: **APROVADO**.
+
+### Ferramentas (saída citada)
+- `python3 -m unittest tests.test_forge tests.test_hooks -q`: `Ran 263 tests in 53.840s` / `OK`. O teste novo de falha fechada rodou de fato, sem skip.
+- `claude plugin validate dev --strict`: `✔ Validation passed` (rc 0).
+- `git diff 0095d29...679aaf1 -- tests/config.json docs/adr/0009-conformidade-dos-agentes.md | grep -cE '^-[^-]'`: `0`. Nada anterior ao PR foi removido. A linha da seção 6 trocada no `679aaf1` é a que o próprio PR tinha acrescentado.
+- A suíte completa e o `scripts/validar-plugin.sh` ficam com o QA e o CI.
+
+### Achados do parecer anterior
+1. **Resolvido.** `~/.forge-contrib/docs/` saiu de `hooks/conformidade.json:15`, da ADR 0009 (seção 6, item 6) e de `dev/agents/aq.md:28`. A fixture foi renomeada para `aq-escreve-docs-do-pedido-bloqueia.json` e espera saída 2 em `~/.forge-contrib/docs/pedidos/`. `grep` por `forge-contrib/docs` em `dev/`, na política e na ADR não acha nada.
+2. **Resolvido.** `dev/agents/aq.md:15` agora aponta para a linha de base de `docs/melhoria-continua.md`, que existe. O teste de ausência sugerido entrou: `test_caminhos_citados_pelos_agentes_de_dev_existem` exige que todo `docs/...md` citado em `dev/agents/*.md` exista, com mínimo de itens (`minimo`).
+3. **Resolvido.** `tests/test_forge.py:157` compara o mapa `escrita_permitida` inteiro por igualdade, então ampliar a lista ou dar lista a outro papel exige mudar o teste.
+4. **Resolvido** (a decisão foi da segurança). Em `hooks/conformidade.py:429-430`, a forma relativa à raiz git só vale se essa raiz for cópia do Forge (`e_clone_do_forge`) e estiver em `~/.forge-contrib/` ou for a raiz do projeto. A nova fixture `aq-arquitetura-em-outro-repositorio-bloqueia.json` cobre outro repositório, e as fixtures de worktree ganharam o manifesto do Forge.
+5. **Resolvido.** O item 6 da ADR cita os "alvos de escrita do Bash".
+
+### Pontos trazidos pela volta, todos conformes
+- `WebFetch` saiu das ferramentas do AQ, conforme a decisão técnica do pedido. A instrução diz que pesquisa externa chega a ele como dado, pelo Jarvis ou pelo `software-architect`. O teste do manifesto barra `Bash` e `WebFetch`.
+- Falha fechada em erro interno (`conformidade.py:1285-1293`): só a chamada a `decidir` fica no `try`. `bloquear` encerra com `SystemExit`, que não é `Exception`, então as decisões normais passam intactas. Papel sem lista e `PostToolUse` relançam e seguem a regra geral da seção 7. O teste cobre os dois lados (`aq` barra, `dev` libera).
+- `test_dev_so_tem_manifesto_e_agentes` limita `dev/` ao manifesto e a `agents/*.md`, com mínimo de itens.
+- Os commits estão limpos, em Conventional Commits em português, um por grupo de achados e sem `--amend`. O `changelog.d/aq.md` continua correto e não precisou mudar.
+
+### Observação (não bloqueia)
+- `politica()` e a construção de `Guarda` ficam fora do `try` (`conformidade.py:1281-1284`). Hoje isso está coberto: a política malformada já falha fechado, e o papel ainda não é conhecido antes da `Guarda`. Fica só o registro, para quem mexer ali depois.
+
+### Outros pareceres
+- A revalidação da segurança (`docs/security/aq.md`) roda em paralelo e não é refeita aqui. Quem decide o achado 4 do ponto de vista de segurança é ela.
+
