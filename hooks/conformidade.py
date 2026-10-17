@@ -408,11 +408,29 @@ class Guarda:
         if posix.endswith("/.forge/perfil") and self.h.iniciante():
             return ("R-CONFORMIDADE", "o perfil iniciante (.forge/perfil) não é mudado por agente",
                     f"só o usuário muda o perfil, à mão; {SUGESTAO}", "perfil")
+        fora_da_lista = self.fora_da_lista_de_escrita(caminho, formas)
+        if fora_da_lista:
+            return fora_da_lista
         no_manifesto = any(t == "proj" and casa(r, MANIFESTO) for t, r in formas)
         if no_manifesto and not self.sessao_forge and self.raiz_e_projeto():
             return ("R-CONTRIB", f"manifesto de plugin no projeto ({MANIFESTO}): só a sessão do Forge escreve",
                     "proponha a mudança ao usuário (R-DECISAO)")
         return None
+
+    def fora_da_lista_de_escrita(self, caminho, formas):
+        """Papel com `escrita_permitida` (ADR 0009, seção 6): escreve só nos caminhos da lista, pelo caminho normalizado.
+        Entrada `~/...` vale a partir do home; as demais, a partir da raiz do projeto ou da raiz git que contém o
+        arquivo (worktree `melhoria/*`). Fora disso, recusa: a lista só nega mais, nunca libera o que `caminhos` barra."""
+        lista = self.pol.get("escrita_permitida", {}).get(self.papel)
+        if lista is None:
+            return None
+        topo = self.raiz_git(caminho.parent)
+        if topo and topo in {caminho, *caminho.parents}:
+            formas = [*formas, ("proj", caminho.relative_to(topo).as_posix())]
+        if any(casa(r, c) for c in lista for t, r in formas if t == ("home" if c.startswith("~/") else "proj")):
+            return None
+        return ("R-CONFORMIDADE", f"o papel {self.papel} escreve só em {', '.join(lista)}: {caminho.as_posix()}",
+                "grave o estudo ou parecer nesses caminhos; o resto é de outro papel (R-DECISAO)")
 
     def raiz_e_projeto(self):
         return (Path(self.h.raiz) / ".forge" / "versao").is_file()
@@ -1110,6 +1128,11 @@ def leitura_valida(v):
     return v is None or (isinstance(v, dict) and all(lista_de_textos(v.get(k)) for k in ("papeis", "comandos", "saidas")))
 
 
+def escrita_valida(v):
+    """`escrita_permitida` é opcional; presente, mapeia papel a uma lista não vazia de caminhos (lista vazia barraria tudo)."""
+    return v is None or (isinstance(v, dict) and all(lista_de_textos(c) and c for c in v.values()))
+
+
 def politica_valida(pol):
     """Forma de toda a política: o hook lê estas chaves sem checar, então qualquer desvio liberaria por erro interno."""
     def texto(v):
@@ -1123,7 +1146,7 @@ def politica_valida(pol):
             and isinstance(pacotes, dict) and all(pacote_valido(c) for c in pacotes.values())
             and lista_de_textos(pol.get("flags_congeladas"))
             and isinstance(caminhos, list) and all(entrada_valida(e) for e in caminhos)
-            and leitura_valida(pol.get("so_leitura")))
+            and leitura_valida(pol.get("so_leitura")) and escrita_valida(pol.get("escrita_permitida")))
 
 
 def politica():

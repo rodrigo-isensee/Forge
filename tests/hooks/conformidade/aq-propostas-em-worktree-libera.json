@@ -1,0 +1,29 @@
+{
+  "descricao": "AQ grava em docs/propostas/ de uma worktree melhoria/* fora da raiz.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/wt/x/docs/propostas/aq-tema.md"
+    },
+    "agent_type": "forge-dev:aq",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "repos": {
+    "home/.forge-contrib/wt/x": {
+      "arquivos": {
+        "a.txt": "1\n"
+      },
+      "branch": "melhoria/x"
+    }
+  }
+}

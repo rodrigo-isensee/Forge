@@ -461,6 +461,16 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("política de conformidade inválida", r.stderr)
 
+    def test_escrita_permitida_malformada_bloqueia(self):
+        """ADR 0009, seção 6.6: `escrita_permitida` com forma errada (ou lista vazia) falha fechado, não libera."""
+        base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        for nome, valor in {"não objeto": ["docs/"], "papel sem lista": {"aq": "docs/propostas/"},
+                            "lista vazia": {"aq": []}, "item não texto": {"aq": [7]}}.items():
+            with self.subTest(nome):
+                r = self.rodar_com_politica(dict(base, escrita_permitida=valor), "ls", "forge-dev:aq")
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("política de conformidade inválida", r.stderr)
+
     def rodar_com_politica(self, politica, comando, agent_type):
         """Roda o hook sobre uma cópia do plugin com a política dada; devolve o processo."""
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
