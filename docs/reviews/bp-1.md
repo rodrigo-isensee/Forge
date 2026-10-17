@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 7ec8c60b7a793fb911e8ab6c6230f725a6dffbcc
+commit: 740d7dd41b90b78bef891fc6cd6245e27320e7ec
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-17
@@ -123,3 +123,58 @@ Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 
 
 ### Parecer da revalidação
 **Reprovado** por B3 (regressão de guarda) e B4 (falso positivo fora do Forge). R7 e R8 fecham. `.git/` protegido, `commondir` e G se comportam como pedido, e a documentação bate com o código. R5 e R6 continuam como riscos para o QA, e R9 é recomendado. A volta é pequena (`hooks/conformidade.py:680`-`:699` e `hooks/_comum.py:100`-`:115`). Este parecer se revalida só nesse trecho.
+
+## Revalidação após o retrabalho 4
+Diff revisado: `ae998d1...740d7dd` (4 commits: 7a3114a, 2827834, 56e8144, 740d7dd; 16 arquivos). Brief do autor: `bp-1-tech-lead-9.md`, "Entregar" 1 a 8.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 740d7dd: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo; não refeito aqui.
+
+Como reproduzir: projeto temporário com `git init`, `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/a.js` commitados; cada linha é o `command` de um PreToolUse Bash de `forge:dev`, com `CLAUDE_PROJECT_DIR` no projeto, passado a `python3 hooks/conformidade.py`. "Base" é o mesmo hook extraído de `ae998d1` (`git archive ae998d1 hooks`).
+
+Cobertura declarada (VV-1): `perl`, `perl5.34.0`, `ruby`, `awk`/`gawk`, `sed`, com `-i` nas formas `-i`, `-pi`, `-0pi`, `-0777pi`, `-p -i`, `-i.bak`, `-i''`, `-pie`, `-i~`, `-pi~`, `-i_bak`, `-i,o`, `-i'orig_*'`; script por `-e`, `-e` colado, `--expression=`, argumento solto e comando `w`/`W`; alvos `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e a marca `.git/forge/projeto-<hash>`; casos comuns em `src/a.js`. Fora da cobertura: script lido de arquivo ou da entrada padrão (BP-5, declarado em `docs/hooks.md`), `python3`/`node`/`php` (só o subTest do autor), worktree por link e vigia (só as fixtures do autor, que passam).
+
+### B3, B4 e R9
+- **B3 · fecha.** `hooks/conformidade.py:690`-`:697`: o ramo `INTERPRETES` roda sempre a `checar_texto`, e, com `no_lugar` (`:683`), roda também a `checar_escrita` nos alvos; nenhuma pula a outra. As três cadeias de B3 dão rc=2: `perl -pi -e 'unlink q(.forge/versao)' src/a.js`, `perl -pi -e 'open(F,">.claude/settings.json")' src/a.js` e `perl -pi -e 'unlink q(.git/forge/projeto-<hash>)' src/a.js`. Também dão rc=2: `-0777pi`, `-0pi`, `-p -i`, `-i.bak`, `-pie`, `-i -pe ... -- <alvo>` e `env perl -pi`, além de `ruby -i -pe`, `ruby -i.bak` e `ruby -pi -e 'File.delete(...)'`. Já `perl -pi -e 's/a/b/' src/a.js` e `ruby -i -pe 'x' src/a.js` dão rc=0, sem falso positivo.
+- **B4 · fecha.** `hooks/_comum.py:117`-`:118` comparam o `gitdir` de volta com o caminho real do topo, e a checagem `is_symlink` continua sobre o `.git` em si (`:101`-`:102`). A fixture `b4-worktree-por-link-libera` (rc=0) passa.
+- **R9 · fecha.** Com a raiz movida, `hooks/vigia.py:324` usa só `copia_de_trabalho(cwd)`, e `:331` não grava sem ela. A fixture `vigia/r9-raiz-apagada-nao-cria-run` (`sem_caminho`) passa. O `sem_caminho` do harness (`tests/test_hooks.py:28` e `:303`) entra só por acréscimo.
+
+### Achados novos (por classe)
+- **B5 · `hooks/conformidade.py:683` e `:47` · classe "interpretador com edição no lugar": o `-i` com sufixo fora de `[0-9a-zA-Z.]` e o interpretador de nome versionado escapam.**
+  - O `-i` do perl e do ruby aceita qualquer sufixo de cópia, e o resto do grupo depois do `i` é o sufixo. A regex só aceita letras, dígitos e ponto.
+  - Com rc=0, e o arquivo de fato reescrito (conferido numa cópia: `.githooks/pre-push` passou de `#!/bin/sh` a `#!/bin/XX`):
+    - `perl -i~ -pe 's/a/b/' .githooks/pre-push`
+    - `perl -pi~ -e ...`
+    - `perl -i_bak ...`
+    - `perl -i,o ...`
+    - `perl -i'orig_*' ...`
+    - `ruby -i~ -pe 'x' .githooks/pre-push`
+  - `INTERPRETES` (`:47`) só reconhece `perl` e `ruby` pelo nome exato, então `perl5.34.0 -pi -e ... .githooks/pre-push` e `perl5.34.0 -e 'unlink q(.forge/versao)'` também dão rc=0. Esse binário existe em `/usr/bin` nesta máquina. Não é a exceção do "nome montado" da BP-5: o nome está literal na linha, como o `python[\d.]*` que a regex já aceita.
+  - Base: rc=0 nas mesmas cadeias, então não é regressão. Mas o item 1 do brief pede "`-i` em qualquer combinação", e o ADR 0009 (limite 2) e `docs/hooks.md:36` dizem que isso está coberto.
+  - Sugestão:
+    - `re.fullmatch(r"-[0-9a-zA-Z]*i.*", a)`, porque tudo depois do `i` é sufixo.
+    - `perl[\d.]*` e `ruby[\d.]*` em `INTERPRETES` e no `no_lugar`.
+    - Fixtures `perl-i-til-bloqueia` e `perl-versionado-bloqueia`, mais as formas acima no subTest.
+  - Severidade: bloqueia. É o item 1 do brief, e a documentação afirma uma cobertura que o código não tem.
+- **B6 · `hooks/conformidade.py:703` e `:731`-`:734` (com `:49`) · classe "script do awk/sed que escreve": as variantes da mesma forma que o retrabalho declarou coberta escapam.**
+  - Com rc=0, e o efeito conferido numa cópia:
+    - `gawk -i inplace.awk 1 .githooks/pre-push` reescreve o arquivo. O mesmo vale para `--include=inplace.awk` e para `-i /usr/share/awk/inplace.awk`. O teste em `:703` só aceita a palavra exata `inplace`.
+    - `sed --expression='w .claude/settings.json' src/a.js` grava `.forge/versao`/`.claude/settings.json` (conferido). Também escapam `sed -e'1w .githooks/pre-push' src/a.js` (`-e` colado), `sed '1W .githooks/pre-push' src/a.js` (`W` maiúsculo, conferido) e `sed -i --expression='w .githooks/pre-push' src/a.js`. Em `:732`, o laço pula tudo que começa com `-`, e `SED_ESCREVE` só casa `w` minúsculo.
+  - Base: rc=0, então não é regressão. Mas `docs/hooks.md:36` e o ADR 0009 dizem "`awk -i inplace` confere os alvos" e "o `w arquivo` do `sed` conta como escrita", e o item 7 do brief pede rc=2 para toda forma de passar o script (`-e`) no `sed` e no `awk -i inplace`.
+  - Sugestão:
+    - awk: qualquer argumento de `-i`/`--include` cujo nome-base, sem `.awk`, seja `inplace` liga a conferência dos alvos. Do lado fechado, basta qualquer argumento que contenha `inplace`.
+    - sed: aplicar a `SED_ESCREVE`, com `[wW]`, ao valor de `-e`, de `-e<colado>` e de `--expression=` (não só às palavras sem `-`).
+    - Fixtures `gawk-include-inplace-awk-bloqueia` e `sed-expression-w-bloqueia`.
+  - Severidade: bloqueia, pelo mesmo critério de B1 e de B5: a variação custa uma opção, o caminho é protegido e o texto da entrega declara a cobertura. Fica no mesmo trecho que B5, o que dá uma volta pequena.
+- **R10 · `hooks/conformidade.py:683` · recomendado, falso positivo do lado fechado, já na base.** `perl -Mstrict -e 'print 1' .githooks/pre-push`, uma leitura, dá rc=2: `-Mstrict` contém `i` e liga o `no_lugar`. Sugestão: no grupo, parar em `-M`/`-m`/`-I`/`-x`/`-C` (o resto do grupo é valor dessas opções) antes de procurar o `i`. Isso entra junto com B5.
+- **R11 · `hooks/vigia.py:360` · recomendado, cosmético.** Com R9, quando nada é gravado, o `systemMessage` continua apontando para `.forge/run/violacoes.jsonl`. Sugestão: omitir o caminho quando `hook.raiz` é `None`.
+
+### `ed`, `patch`, `sponge` e `chmod` em `.githooks/`
+Vão para outra BP, não para esta. Na HEAD e na base, dão rc=0: `chmod -x .githooks/pre-push`, `sponge .githooks/pre-push < src/a.js` e `patch .githooks/pre-push x.diff`. O `ed -s .githooks/pre-push <<< $'1d\nw'` dá rc=2 nas duas, mas outras formas do `ed` podem passar, como o autor relatou.
+
+O motivo para ficarem fora é que essa é a classe "comando do shell que escreve e não está em `TODOS_OS_ARGUMENTOS`/`SO_DESTINO`" (`hooks/conformidade.py:54`-`:55`), e não a de interpretador com edição no lugar que a decisão técnica trouxe para a BP-1. Também não é regressão, e a correção é de lista de política, noutro trecho.
+
+Viram cartão para o `security-engineer` (BP-5 ou uma BP nova). A prioridade é o `chmod -x .githooks/pre-push`, que desliga o `pre-push` (R-VERIFY, R-MAIN) e merece o mesmo tratamento do `rm`.
+
+### Parecer da revalidação
+**Reprovado** por B5 e B6, os dois da mesma classe que esta volta pretendia fechar e já presentes na base: a documentação da entrega declara uma cobertura que o código não tem. B3, B4 e R9 fecham. R10 e R11 são recomendados e podem ir no mesmo brief, e R5 e R6 seguem como riscos para o QA. A volta é pequena: `hooks/conformidade.py:47`, `:683`, `:703` e `:731`-`:734`, mais as fixtures. Este parecer se revalida só nesse trecho.
+
+Para não abrir uma rodada 6, o autor deve repetir antes do push a cobertura declarada acima, com as formas de sufixo e de opção longa ou colada.
