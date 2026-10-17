@@ -165,7 +165,7 @@
     "hooks/conformidade.py": [
       "def checar_so_leitura",
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
-    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub"],
+    "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
       "## Leituras",
@@ -185,6 +185,18 @@
     ],
     "agents/jarvis.md": [
       "bin/forge-check sobreposicao",
+      "Recibo antes de acionar o time",
+      "Marque cada item de escopo, fora do escopo e critério de pronto",
+      "que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível",
+      "não contradiz o teste de bloqueante",
+      "sem passar pelo teste de bloqueante",
+      "vou fazer: \\.\\.\\.; não vou fazer: \\.\\.\\.; é isso\\?",
+      "frase literal entre aspas com as duas leituras",
+      "Ordem ampla não confirma:\\*\\* diante de",
+      "`NAO-ENTENDI:`",
+      "Como perguntar",
+      "Afrouxa o processo\\?",
+      "decidam vocês",
       "forge-check movimento",
       "lista \\*\\*todos os achados\\*\\* de uma vez; corrija todos",
       "Autoconferência fixa do brief",
@@ -241,6 +253,15 @@
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
+      "### Marcas de clareza",
+      "`no-protótipo`",
+      "- \\*\\*Clareza:\\*\\*",
+      "### Tags de registro",
+      "`PERGUNTA: <data>",
+      "## Registro de clareza",
+      "Custo, acesso, exceção a regra e ato irreversível nunca são delegáveis",
+      "`PERGUNTA: nenhuma`",
+      "nunca levam segredo nem dado de pessoa",
       "Retira do escopo original",
       "PQ-1",
       "DECISÃO DO DONO",
@@ -259,6 +280,7 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "Commite o parecer na branch revisada",
       "Fila de integração",
       "ordem de chegada",
       "quem deu o parecer revalida",
@@ -279,6 +301,7 @@
       "Por que o existente não basta"
     ],
     "agents/devops-engineer.md": [
+      "Commite o parecer na branch revisada",
       "O token do bot não tem o escopo `workflow`, de propósito",
       "para o \\*\\*dono\\*\\* executar",
       "`R-CUSTO`",
@@ -290,6 +313,8 @@
       "`R-CONTRIB`"
     ],
     "agents/security-engineer.md": [
+      "Commite o parecer na branch revisada",
+      "e só em `docs/security/`",
       "\\*\\*Defensiva e estática:\\*\\*",
       "\\*\\*Segredo nunca é exibido:\\*\\*",
       "\\*\\*não instala\\*\\* nada",
@@ -381,6 +406,12 @@
     ],
     "agents/agile-coach.md": [
       "nunca para avaliar um agente ou uma pessoa individualmente",
+      "Medição de clareza, por pedido",
+      "`PERGUNTA: nenhuma` conta zero",
+      "`NAO-ENTENDI:`",
+      "`ESCOPO\\+:`/`ESCOPO-:`",
+      "`DEVOLVIDA:`",
+      "tag ausente é",
       "vira PR no repositório \\*\\*Forge\\*\\*",
       "`R-WIP`"
     ],
@@ -389,6 +420,7 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "Commite o parecer na branch revisada",
       "`R-QA`"
     ],
     "skills/qa-testing/SKILL.md": [
@@ -428,6 +460,14 @@
     ],
     "docs/regras/R-DECISAO.md": [
       "\\*\\*uma de cada vez\\*\\*",
+      "Complemento: \\\"tanto faz\\\" e ordem ampla",
+      "viram item `delegado`",
+      "nunca são delegáveis assim",
+      "\\*\\*custo\\*\\* \\(`R-CUSTO`\\), \\*\\*acesso\\*\\*, \\*\\*exceção a regra\\*\\* \\(`R-CONFORMIDADE`\\) e \\*\\*ato irreversível\\*\\*",
+      "Ordem ampla não confirma",
+      "`confirmado` ou `delegado`",
+      "Item `técnico` não depende de ordem",
+      "`Suposição` e `no-protótipo` seguem fora da ordem ampla",
       "\\*\\*as opções\\*\\*",
       "\\*\\*a recomendação\\*\\*",
       "Teste de bloqueante",

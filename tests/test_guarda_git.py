@@ -1,11 +1,13 @@
 """A guarda do `.git/config` comum (tests/guarda_git.py) enxerga uma mudança de identidade."""
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import guarda_git
-from test_forge import git
-from guarda_git import setUpModule, tearDownModule  # noqa: F401
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+import guarda_git  # noqa: E402
+from test_forge import git  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 
 class GuardaGit(unittest.TestCase):

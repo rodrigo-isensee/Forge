@@ -1,8 +1,12 @@
 """Testes da lógica pura do scripts/ci-local (resumo, status, regra do pulado, leitura dos workflows), sem rede e sem git."""
 import importlib.machinery
 import importlib.util
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 _loader = importlib.machinery.SourceFileLoader("ci_local", str(RAIZ / "scripts" / "ci-local"))
@@ -349,18 +353,20 @@ class PortoesDeSegurancaTest(unittest.TestCase):
         import subprocess
         def git(*a):
             subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", *a],
-                           cwd=d, check=True, capture_output=True)
+                           cwd=d, check=True, capture_output=True, env=sem_manutencao())
         git("init", "-q")
         for nome in antes:
             (Path(d) / nome).parent.mkdir(parents=True, exist_ok=True)
             (Path(d) / nome).write_text("conteudo identico\n" * 20, encoding="utf-8")
         git("add", "-A")
         git("commit", "-q", "-m", "base")
-        base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True).stdout.strip()
+        base = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True,
+                              env=sem_manutencao()).stdout.strip()
         depois(git, Path(d))
         git("add", "-A")
         git("commit", "-q", "-m", "cabeca")
-        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True).stdout.strip()
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=d, text=True, capture_output=True,
+                              env=sem_manutencao()).stdout.strip()
         return base, sha
 
     def test_publicar_recusa_renomear_a_catraca(self):
@@ -435,10 +441,11 @@ class SinalTest(unittest.TestCase):
         for d in (binp, self.tmp):
             d.mkdir()
         git = lambda *a, cwd=repo: subprocess.run(["git", *a], cwd=cwd, check=True, capture_output=True, text=True,
-                                                  env={**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
-                                                       "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"})
+                                                  env=sem_manutencao({**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+                                                                     "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}))
         self.git = git
         git("init", "-q", "--bare", str(origem), cwd=self.dir)
+        remoto_sem_manutencao(origem)
         git("init", "-q", "-b", "develop", str(repo), cwd=self.dir)
         (repo / ".github" / "workflows").mkdir(parents=True)
         (repo / ".github" / "workflows" / "ci.yml").write_text(

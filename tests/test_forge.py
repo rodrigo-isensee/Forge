@@ -21,6 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -397,11 +398,7 @@ def ambiente_limpo():
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-    # O git 2.55 dispara `maintenance run --auto --detach` depois do commit; o repack em segundo plano escreve
-    # (maintenance.lock, tmp de pack) enquanto o tearDown apaga o repositório temporário e o rmtree falha.
-    env.update(GIT_CONFIG_COUNT="2", GIT_CONFIG_KEY_0="maintenance.auto", GIT_CONFIG_VALUE_0="false",
-               GIT_CONFIG_KEY_1="gc.auto", GIT_CONFIG_VALUE_1="0")
-    return env
+    return sem_manutencao(env)  # sem manutenção automática do git (ver ambiente_git.py)
 
 
 def git(*args, cwd):
@@ -659,8 +656,7 @@ class HookPrePush(unittest.TestCase):
         self.remoto = self.tmp / "remoto.git"
         self.repo = self.tmp / "repo"
         git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
-        # o receive-pack local não herda GIT_CONFIG_*: sem isto ele dispara a manutenção em segundo plano no remoto
-        git("config", "receive.autogc", "false", cwd=self.remoto)
+        remoto_sem_manutencao(self.remoto)  # o receive-pack local não herda GIT_CONFIG_* (ver ambiente_git.py)
         git("init", "-q", "-b", "main", str(self.repo), cwd=self.tmp)
         for k, v in (("user.email", "t@t"), ("user.name", "t"), ("commit.gpgsign", "false")):
             git("config", k, v, cwd=self.repo)
@@ -1136,6 +1132,7 @@ class JarvisForgeAbrir(unittest.TestCase):
         self.origem = self.tmp / "origem.git"
         semente = self.tmp / "semente"
         git("init", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
         git("clone", "-q", str(self.origem), str(semente), cwd=self.tmp)
         (semente / "bin").mkdir()
         self.chamadas_fontes = self.tmp / "fontes.log"
@@ -1625,7 +1622,52 @@ class ForgeCheck(unittest.TestCase):
 
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
+        self.commitar("pareceres")
         self.assertEqual(self.check("pr", "p1"), (0, ""))
+
+    def test_pr_parecer_so_na_arvore_de_trabalho_falha(self):
+        """PA-4: o parecer no disco e fora do commit não vale (novo, só no índice ou editado depois)."""
+        self.pareceres(self.head())
+        saida = self.check("pr", "p1")
+        self.assertEqual(saida[0], 1)
+        self.assertIn("docs/reviews/p1.md: parecer presente na árvore de trabalho e ausente no commit (HEAD)", saida[1])
+        self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit (HEAD)", saida[1])
+        git("add", "docs/reviews/p1.md", "docs/qa/p1.md", cwd=self.tmp)  # no índice, ainda não commitado
+        self.assertIn("ausente no commit", self.check("pr", "p1")[1])
+        self.commitar("pareceres")
+        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "revalidado\n")
+        saida = self.check("pr", "p1")[1]  # versão nova no disco, a do commit é a antiga
+        self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida)
+        self.assertNotIn("docs/reviews/p1.md: parecer presente", saida)
+
+    def test_pr_parecer_editado_nao_escapa_por_skip_worktree_nem_assume_unchanged(self):
+        """PA-4: a conferência compara os bytes do disco com os do HEAD; o índice não a engana."""
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        for marca in ("--skip-worktree", "--assume-unchanged"):
+            git("update-index", marca, "docs/qa/p1.md", cwd=self.tmp)
+            self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "editado\n")
+            saida = self.check("pr", "p1")
+            self.assertEqual(saida[0], 1, marca)
+            self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida[1])
+            git("update-index", "--no-" + marca[2:], "docs/qa/p1.md", cwd=self.tmp)
+            git("checkout", "--", "docs/qa/p1.md", cwd=self.tmp)
+            self.assertEqual(self.check("pr", "p1"), (0, ""), marca)
+
+    def test_ajuda_geral_cita_parecer_commitado_no_pr(self):
+        """PA-4 (BUG-1 do QA): `forge-check --help` lista o `pr` e cita a exigência de parecer commitado."""
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--help"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
+        self.assertRegex(r.stdout, r"(?s)\bpr\b[^\n]*\n?[^\n]*commitado")
+
+    def test_pr_com_ref_nao_olha_a_arvore_de_trabalho(self):
+        git("switch", "-q", "-c", "develop", cwd=self.tmp)
+        git("switch", "-q", "melhoria/x", cwd=self.tmp)
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        git("switch", "-q", "develop", cwd=self.tmp)
+        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
 
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
@@ -1638,6 +1680,7 @@ class ForgeCheck(unittest.TestCase):
 
     def test_pr_com_autoria_do_papel_certo_vale(self):
         self.pareceres(self.head())
+        self.commitar("pareceres")
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
         self.assertEqual(self.check("pr", "p1"), (0, ""))
 
@@ -1665,6 +1708,7 @@ class ForgeCheck(unittest.TestCase):
 
     def test_pr_sem_arquivo_de_autoria_nao_exige(self):
         self.pareceres(self.head())
+        self.commitar("pareceres")
         self.assertFalse((self.tmp / ".forge/run/autoria.jsonl").exists())
         self.assertEqual(self.check("pr", "p1"), (0, ""))
 
@@ -1736,6 +1780,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/devops/p1.md", "---\ntipo: revisao-devops\ncontrato: 1\npedido: p1\nbranch: melhoria/x\n"
                       f"commit: {head}\nparecer: aprovado\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
         self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="aprovado", extra="") + "---\n")
+        self.commitar("pareceres")
         self.assertEqual(self.check("pr", "p1"), (0, ""))
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"), ("docs/devops/p1.md", "tech-lead"),
                      ("docs/security/p1.md", "seguranca"))
@@ -1744,6 +1789,7 @@ class ForgeCheck(unittest.TestCase):
     def test_pr_sem_gatilho_nao_exige_devops_nem_seguranca(self):
         self.entrega("src/outro.txt")
         self.pareceres(self.head())
+        self.commitar("pareceres")
         self.assertEqual(self.check("pr", "p1"), (0, ""))
 
     def test_pr_gatilhos_de_seguranca_pelo_diff(self):
@@ -1822,6 +1868,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="riscos-aceitos", extra="") + "---\n")
         if texto is not None:
             self.escrever("docs/security/aceites/p1.md", texto.replace("{HEAD}", commit or head))
+        self.commitar("pareceres")
         return self.check("pr", "p1")
 
     def test_riscos_aceitos_sem_o_arquivo_de_aceite_reprova(self):
@@ -2355,6 +2402,15 @@ class MedirAlucinacao(unittest.TestCase):
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", saida)
         self.assertNotIn("abc1234", saida)
         self.assertNotIn("a1", saida.replace("afirmacoes", ""))
+
+    def test_total_zero_vira_na_e_nao_zero_por_cento(self):
+        # M07 do estudo de mutação: `taxa` com total zero devolve "n/a", nunca "0.0%" nem divisão por zero.
+        # M14 (hooks/vigia.py, `<` por `<=` em `podar`) é equivalente: a igualdade exata de dois instantes
+        # em ponto flutuante não ocorre num teste real. M15 (`>=` por `>` em `arquivos_em_vigor`) é limite de
+        # proteção: matá-lo pede 3000 arquivos num teste, custo alto para ganho pequeno; fica sem teste.
+        saida = self.lastro("Nada a afirmar aqui.", "qualquer saida")
+        self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", saida)
+        self.assertNotIn("0.0%", saida)
 
     def test_decisao_unica_com_recomendo_e_ok(self):
         saida, _ = self.rodar("decisoes", self.jarvis("Qual caminho?\n- **A)** copiar\n- **B)** mover\nRecomendo A, e so isso."))

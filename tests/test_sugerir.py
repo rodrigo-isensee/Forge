@@ -13,6 +13,9 @@ import time
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 SUGERIR = RAIZ / "bin" / "forge-sugerir"
 TOKEN = "ghp_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8"
@@ -53,6 +56,7 @@ class Base(unittest.TestCase):
                     if not k.startswith(("GIT_", "CLAUDE", "XDG_", "FORGE_")) and k not in ("USER", "LOGNAME")}
         self.env.update(HOME=str(self.home), USER="fulano", GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.home / "gitconfig"),
                         PATH=f"{bin_falso}:{os.environ['PATH']}", FAKE_DIR=str(self.fake))
+        self.env = sem_manutencao(self.env)
         self.proj = self.home / "meu-projeto-secreto"
         (self.proj / ".forge").mkdir(parents=True)
         subprocess.run(["git", "init", "-q", str(self.proj)], env=self.env, check=True)
