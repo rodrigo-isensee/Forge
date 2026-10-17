@@ -44,14 +44,23 @@ VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", *PATHSPECS_NO_AMBIENTE}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
-INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl[\d.]*|ruby[\d.]*|php|deno|bun)$")
-PERL_OU_RUBY = re.compile(r"^(perl|ruby)[\d.]*$")
+# Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
+# `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
+INTERPRETES = re.compile(r"^((python|perl|ruby)([\d][\w.-]*)?|node(js)?|php|deno|bun)$")
+PERL_OU_RUBY = re.compile(r"^(perl|ruby)([\d][\w.-]*)?$")
 OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/ruby, o resto é o valor delas (`-Mstrict`, `-I lib`)
 # Marca da sessão (`.git/forge/projeto-*`): citá-la, ou usar um lançador que o hook não modela, é recusado no projeto.
 CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
 LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
-AWKS = {"awk", "gawk", "mawk"}
-SED_ESCREVE = re.compile(r"(?:^|[\s;{}/gpimeI0-9])[wW]\s*(\S+)")  # comando `w`/`W arquivo` e flag `s/a/b/w arquivo` do sed
+AWKS = {"awk", "gawk", "mawk", "nawk"}
+# Opções longas do sed e do gawk: o getopt_long do GNU aceita qualquer prefixo não ambíguo (`--expr`, `--i`, `--inc`).
+SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help", "in-place", "line-length", "null-data",
+              "zero-terminated", "posix", "quiet", "regexp-extended", "sandbox", "separate", "silent", "unbuffered", "version")
+GAWK_LONGAS = ("assign", "bignum", "characters-as-bytes", "copyright", "debug", "dump-variables", "exec", "field-separator",
+               "file", "gen-pot", "help", "include", "lint", "lint-old", "load", "non-decimal-data", "optimize", "posix",
+               "pretty-print", "profile", "re-interval", "sandbox", "source", "traditional", "use-lc-numeric", "version")
+# comando `w`/`W arquivo` do sed, com ou sem endereço antes (`$w`, `1,2w`, `/x/!w`, `1~2w`) e flag `s/a/b/w arquivo` (`Mw`, `gw`)
+SED_ESCREVE = re.compile(r"(?:^|[\s;{}/!,$~+gpimMeI0-9])[wW]\s*(\S+)")
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
@@ -226,24 +235,36 @@ def edita_no_lugar(args):
     return False
 
 
+def longa_do_gnu(opcao, longas):
+    """A opção longa inteira que `--<prefixo>[=valor]` abrevia (`--expr` -> `expression`), à maneira do `getopt_long`:
+    o nome exato ou o prefixo que só um nome de `longas` tem; ambíguo ou desconhecido devolve vazio."""
+    if not opcao.startswith("--") or len(opcao) < 3:
+        return ""
+    nome = opcao[2:].split("=", 1)[0]
+    achadas = [o for o in longas if o.startswith(nome)]
+    return nome if nome in longas else achadas[0] if len(achadas) == 1 else ""
+
+
 def awk_no_lugar(args):
-    """`awk`/`gawk` que carrega a extensão `inplace` (`-i inplace`, `-i inplace.awk`, `-iinplace`, `--include=/x/inplace.awk`,
-    `-f inplace.awk`, `@include`), em qualquer forma do nome: os arquivos-alvo são escritos."""
-    for k, a in enumerate(args):
-        valor = args[k + 1] if a in ("-i", "-f", "--include", "--file") and k + 1 < len(args) else \
-            a.split("=", 1)[1] if a.startswith(("--include=", "--file=")) else a[2:] if a.startswith(("-i", "-f")) else ""
-        if "inplace" in valor.lower() or "@include" in a.lower() and "inplace" in a.lower():
-            return True
-    return False
+    """`awk`/`gawk`/`nawk` que carrega a extensão `inplace` por qualquer caminho (`-i inplace`, `-iinplace`, `-E inplace.awk`,
+    `-l inplace`, `--include`/`--inc`/`--load`/`--lo` abreviados, `-f inplace.awk`, `@include`/`@load`): do lado fechado,
+    qualquer argumento que cite `inplace` liga a conferência, e os arquivos-alvo contam como escrita."""
+    return any("inplace" in a.lower() for a in args)
 
 
 def script_do_sed(arg):
-    """O texto de script de um argumento do `sed`: o argumento solto, `--expression=<texto>` ou `-e<texto>` colado (também
-    no grupo, `-ne<texto>`); opção sem script (`-n`, `-i.bak`) devolve vazio."""
-    if arg.startswith("--expression="):
+    """O texto de script de um argumento do `sed`: o argumento solto, `--expression=<texto>` (ou abreviada, `--expr=`) ou
+    `-e<texto>` colado (também no grupo, `-ne<texto>`); opção sem script (`-n`, `-i.bak`) devolve vazio."""
+    if longa_do_gnu(arg, SED_LONGAS) == "expression" and "=" in arg:
         return arg.split("=", 1)[1]
     colado = re.match(r"-[a-zA-Z]*e(.+)", arg) if not arg.startswith("--") else None
     return colado.group(1) if colado else "" if arg.startswith("-") else arg
+
+
+def sed_no_lugar(args):
+    """`sed` com edição no lugar: `-i` sozinho, agrupado ou com sufixo (`-ni`, `-i.bak`) ou `--in-place[=sufixo]` em
+    qualquer abreviação (`--i`, `--in-pl=~`)."""
+    return any(re.fullmatch(r"-[a-zA-Z]*i.*", a) or longa_do_gnu(a, SED_LONGAS) == "in-place" for a in args)
 
 
 def separar_lancadores(palavras):
@@ -617,7 +638,7 @@ class Guarda:
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
-            elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby|php|deno|bun|g?awk|mawk)\b", dono):
+            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`]+", dono)):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
@@ -761,8 +782,7 @@ class Guarda:
             self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
         elif prog == "claude":
             self.claude(args)
-        elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
-                re.fullmatch(r"-[a-zA-Z]*i.*|--in-place(=.*)?", a) for a in args)):
+        elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
             for a in args:
                 if not a.startswith("-"):
                     self.checar_escrita(a, pasta)
