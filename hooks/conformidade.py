@@ -9,25 +9,25 @@ PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
-import glob
 import hashlib
 import json
 import os
 import re
 import tempfile
 import shlex
+import subprocess
 import time
 from pathlib import Path
 
 import parecer
 from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
-                    em_contrib, executar, fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada,
+                    em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
-    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
+    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/(config|hooks|forge)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
 LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
@@ -83,6 +83,10 @@ GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
 CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
+GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
+CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
+
 VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
@@ -780,8 +784,10 @@ class Guarda:
         return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
 
     def git(self, palavras, parte, pasta, ramos, git_dir=None):
-        i, pasta_git = 1, self.caminho(pasta, git_dir) if git_dir else pasta
+        i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, []
         while i < len(palavras) and palavras[i].startswith("-"):
+            if palavras[i].endswith("-pathspecs"):  # `--literal-pathspecs`...: valem também para o `ls-files` do hook
+                opcoes.append(palavras[i])
             if palavras[i] in ("-C", "--git-dir") and i + 1 < len(palavras):
                 pasta_git = self.caminho(pasta, palavras[i + 1])
             elif palavras[i].startswith("--git-dir="):
@@ -798,7 +804,7 @@ class Guarda:
             self.git_config(args)
         self.git_trava(sub, args, pasta_git, ramos)
         if sub in CAMINHOS_NO_GIT:
-            self.git_caminhos(sub, args, [pasta, pasta_git])
+            self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
         if sub == "push":
             self.git_push(args, pasta_git, ramos)
         elif parte and parte[0] == "merge" and parte[2]:
@@ -810,28 +816,83 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
 
-    def git_caminhos(self, sub, args, pastas):
+    def git_caminhos(self, sub, args, pastas, opcoes=()):
         """`git rm|mv|checkout|restore` mexem nos arquivos como `rm`/`mv`: os caminhos passam pela mesma conferência de
-        escrita e de remoção (`.forge/versao` apagado por `git rm` desligaria os hooks). `checkout` só leva caminhos
-        depois do `--` (ou palavra que já existe como caminho); `git checkout -- arquivo-comum` segue livre, porque só
-        o caminho protegido barra. Caminho com curinga (`*?[`) vale por tudo que ele alcança."""
-        if sub == "checkout" and "--" in args:
-            candidatos = args[args.index("--") + 1:]
-        elif sub == "checkout":
-            candidatos = [a for a in args if not a.startswith("-")]
-        elif sub == "restore":
-            candidatos = [a for i, a in enumerate(args) if not a.startswith("-") and not (
-                i and args[i - 1] in ("-s", "--source"))]
-        else:
-            candidatos = [a for a in args if not a.startswith("-")]
+        escrita e de remoção (`.forge/versao` apagado por `git rm` desligaria os hooks). Quem resolve o pathspec é o
+        próprio git (`git ls-files`: `*` atravessa `/` e casa ponto inicial, `.` e `-r .` valem pelos arquivos, e a
+        magia `:(top)`, `:(literal)`, `:(glob)`, `:(icase)`, `:/` vale como o git a entende), então o hook não refaz a
+        semântica dele. `--pathspec-from-file` é recusado: o hook não lê o arquivo nem a entrada padrão. `checkout` e
+        `restore` sem origem só devolvem o que o índice já tem: `git checkout -- .` segue livre, e só o caminho
+        protegido nomeado barra; com origem (`-s`, `git checkout <ref> -- ...`) o pathspec vale pelo que ele alcança."""
+        if any(a.startswith("--pathspec-fr") and "--pathspec-from-file".startswith(a.split("=", 1)[0]) for a in args):
+            self.barrar("R-CONFORMIDADE", f"git {sub} --pathspec-from-file: o hook não lê a lista de caminhos",
+                        "passe os caminhos na linha de comando; o que for protegido é do usuário (R-DECISAO)")
+        caminhos, com_origem = self.pathspecs_do_git(sub, args, pastas[0])
         for pasta in dict.fromkeys(pastas):
-            for c in candidatos:
-                if sub == "checkout" and "--" not in args and not os.path.lexists(self.resolver(c, pasta)):
-                    continue  # `git checkout <branch>`: não é caminho
-                alvos = sorted(glob.glob(str(pasta / c))) if re.search(r"[*?\[]", c) else []
-                for alvo in alvos or [c]:
-                    self.checar_escrita(alvo, pasta)
-                    self.checar_remocao(alvo, pasta)
+            for c in caminhos:
+                self.checar_escrita(c, pasta)
+                self.checar_remocao(c, pasta)
+                if com_origem or sub in ("rm", "mv") or not self.varredura(c):
+                    for alvo in filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes)):
+                        self.checar_escrita(alvo, pasta)
+                        self.checar_remocao(alvo, pasta)
+
+    def pode_ser_protegido(self, caminho):
+        """Filtro barato para `git rm -r <pasta grande>`: só confere um por um o arquivo cujo caminho cita algum caminho
+        da política (mais o perfil e o manifesto), ou todos se o papel só escreve numa lista (`escrita_permitida`).
+        Só deixa de fora o que `caminho_barrado` não barraria."""
+        if self.pol.get("escrita_permitida", {}).get(self.papel) is not None:
+            return True
+        if not hasattr(self, "_citacoes"):
+            self._citacoes = tuple({e["caminho"].removeprefix("~/").rstrip("/") for e in self.pol["caminhos"]}
+                                   | {".forge/perfil", MANIFESTO})
+        return any(t in caminho for t in self._citacoes)
+
+    @staticmethod
+    def varredura(pathspec):
+        """O pathspec seleciona tudo (`.`, `*`, `:/`, `:(top)`): `git checkout -- .` não troca arquivo que já está igual."""
+        return MAGIA_DE_PATHSPEC.sub("", pathspec, 1) in ("", ".", "./", "*")
+
+    def pathspecs_do_git(self, sub, args, pasta):
+        """(pathspecs do comando, tem origem): o que é caminho em `git rm|mv|checkout|restore`. `checkout` sem `--` toma
+        como caminho a palavra que existe, tem curinga ou magia (`git checkout <branch>` não é caminho); a primeira
+        palavra que não for caminho é a origem (`git checkout <ref> <caminho>`)."""
+        antes, depois = (args[:args.index("--")], args[args.index("--") + 1:]) if "--" in args else (args, [])
+        positivas, i = [], 0
+        while i < len(antes):
+            if antes[i].startswith("-"):
+                valor = ("-s", "--source") if sub == "restore" else CHECKOUT_COM_VALOR if sub == "checkout" else ()
+                i += 2 if antes[i] in valor else 1
+            else:
+                positivas.append(antes[i])
+                i += 1
+        com_origem = sub == "restore" and any(a in ("-s", "--source") or a.startswith("--source=") for a in args)
+        if sub == "checkout":
+            if depois:  # `git checkout <ref> -- <caminhos>`: o que vem antes do `--` é a origem
+                com_origem = bool(positivas)
+                positivas = []
+            else:
+                caminhos = [a for a in positivas if GLOB_DE_PATHSPEC.search(a) or a.startswith(":")
+                            or os.path.lexists(self.resolver(a, pasta))]
+                com_origem = len(caminhos) < len(positivas) and bool(caminhos)
+                positivas = caminhos
+        return positivas + depois, com_origem
+
+    def tracked_do_pathspec(self, pathspec, pasta, opcoes):
+        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura). Se o git não responde
+        (fora de repositório, limite de tempo), vale o pathspec literal: o `git rm` também não teria o que fazer."""
+        if not Path(pasta).is_dir():
+            return []
+        try:
+            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", "--", pathspec, bruto=True)
+        except (OSError, subprocess.SubprocessError):
+            cod, saida = 1, b""
+        if cod:
+            if GLOB_DE_PATHSPEC.search(pathspec) or pathspec.startswith(":"):
+                self.barrar("R-CONFORMIDADE", f"o git não resolveu o pathspec {pathspec!r}",
+                            "use o caminho do arquivo, sem magia nem curinga (na dúvida, recusa)")
+            return []
+        return [str(Path(pasta) / n) for n in forge_check().nomes_z(saida)]
 
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",

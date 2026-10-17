@@ -19,8 +19,9 @@ Formato do fixture:
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
-              {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto);
-              {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu)
+              {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
+              Também em passos: {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu) e
+              {"git": [argumentos]} roda o git no projeto (como um comando que o hook não viu, ex.: sparse-checkout)
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
@@ -160,6 +161,8 @@ class Fixture:
                 conferir_passo(entrada, rodar_hook(entrada))
             for caminho in passo.get("remover", []):
                 (raiz / substituir(caminho, self.mapa, 0)).unlink()
+            if "git" in passo:
+                git(*substituir(passo["git"], self.mapa, 0), cwd=raiz)
             for modo, chave in (("w", "gravar"), ("a", "anexar")):
                 for caminho, conteudo in passo.get(chave, {}).items():
                     alvo = raiz / substituir(caminho, self.mapa, 0)
@@ -300,6 +303,26 @@ class Hooks(unittest.TestCase):
         if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
             self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
+
+    def test_git_rm_com_pathspec_magico_bloqueia(self):
+        """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
+        resolve, como `:(top)` (fixture `git-rm-pathspec-magica-bloqueia`); pathspec que não alcança caminho em vigor passa."""
+        formas = {"git rm ':(literal).forge/versao'": 2, "git rm ':(glob)**/versao'": 2, "git rm ':(icase).FORGE/VERSAO'": 2,
+                  "git rm ':/.forge/versao'": 2, "git rm '*versao'": 2, "git rm -r ':/'": 2, "git rm -r '*'": 2,
+                  "git checkout HEAD -- ':(top).forge/versao'": 2, "git restore -s HEAD ':(glob)**/versao'": 2,
+                  "git rm ':(top)src/app.js'": 0, "git rm 'src/*.js'": 0, "git checkout -- .": 0, "git restore .": 0}
+        for comando, codigo in formas.items():
+            with self.subTest(comando=comando):
+                tmp = self._pasta_temporaria()
+                dados = {"arquivos": {"src/app.js": "v1\n", ".githooks/pre-push": "#!/bin/sh\n"},
+                         "env": {"CLAUDE_PROJECT_DIR": "{tmp}/proj"},
+                         "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:dev",
+                                     "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
+                         "esperado": {"codigo": codigo, "stderr": "R-CONFORMIDADE"}}
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
     def test_cada_hook_tem_caso_que_passa_e_que_bloqueia(self):
         scripts = {p.stem for p in minimo(HOOKS.glob("*.py"), 5, "scripts de hook") if not p.name.startswith("_")}
