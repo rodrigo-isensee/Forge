@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 99648a358622b2f75eba5e1210da04d52cfa9670
-parecer: reprovado
+commit: 9f3fa2b82789421c6657ebd6167184371a4fc35d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-17
 ---
@@ -63,3 +63,26 @@ Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 
 
 ### Parecer da revalidação
 **Reprovado** por B2. B1 (casos pedidos), R1 (proposta A), R2, R3 e R4 fecham. R5 e R6 são riscos de falso positivo do lado fechado, para o QA.
+
+## Revalidação após o retrabalho 2
+Diff revisado: `7594a24...9f3fa2b` (2 commits: 086dcca, 9f3fa2b; 22 arquivos). Brief do autor: `bp-1-tech-lead-5.md`, "Entregar" 1 a 8.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 9f3fa2b: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo (`docs/security/bp-1.md`, rodada 3, achados F e G); não refeito aqui.
+
+### B2: fecha
+- `PATHSPECS_NO_AMBIENTE` (`hooks/conformidade.py:41`) liga as quatro `GIT_*_PATHSPECS` às opções `--*-pathspecs`, e `VARIAVEIS_DA_LINHA` (`:43`) as guarda no ambiente da linha (`:619`, `:655`, o que cobre atribuição, `env`, `export` e `declare -x`). `pathspecs_da_linha` (`:790`) passa a opção ao `ls-files` (`:798`), e só um falso explícito a desliga (na dúvida, recusa).
+- Conferido rodando o hook num projeto temporário: `GIT_ICASE_PATHSPECS=1 git rm .FORGE/VERSAO`, `GIT_ICASE_PATHSPECS=yes git rm -r .FORGE`, `declare -x GIT_ICASE_PATHSPECS=1; git rm ...`, `env -i GIT_ICASE_PATHSPECS=1 git rm ...`, `sudo GIT_ICASE_PATHSPECS=1 git rm ...` e `GIT_ICASE_PATHSPECS=1 bash -c 'git rm .FORGE/VERSAO'` dão rc=2. `GIT_LITERAL_PATHSPECS=1 git rm src/app.js`, `git rm src/app.js` e `git checkout develop` dão rc=0, sem falso positivo.
+- Fixture `git-rm-env-icase-pathspecs-bloqueia` e o subTest com as formas `env`, `export`, `checkout`, glob, falso explícito e caminho comum (`tests/test_hooks.py:332`), só por acréscimo.
+
+### O resto do retrabalho (D e E da segurança, conferido como código)
+- Marca por raiz: `marca_de_projeto` (`hooks/_comum.py:105`) usa o hash do caminho real da raiz. `marcar_projeto` (`:117`) só grava, e o `vigia` a chama sem distinguir a origem (`hooks/vigia.py:334`). `projeto_marcado` (`hooks/_comum.py:127`) falha fechado com `.git` que existe e não se resolve, e `raiz_do_projeto` (`:45`) trata a raiz marcada como projeto, então a conferência roda inteira. Conferido: sem `.forge/versao` e com a marca, `echo x > .claude/settings.json`, `cat .forge/config.json`, `rm .git` e `echo 'gitdir: /x' > .git` dão rc=2, e `echo x > src/app.js` e `git commit -m x` dão rc=0. Numa worktree, a marca é a dela, e a do clone não se apaga (`tests/test_hooks.py:353`).
+- `.git` protegido por igualdade exata (`hooks/conformidade.json:34`): `mv .git .git2`, `rm -rf .git` e `cd .git && rm -r forge` dão rc=2, enquanto `.gitignore` e `.github/` continuam livres (rc=0).
+- O texto do ADR 0009 (limite 2), o de `docs/hooks.md` (`versao-sumiu`) e o de `changelog.d/bp-1.md` batem com o código: marca por raiz, nada a apaga, conferência inteira com a marca, `.git` protegido, `GIT_*_PATHSPECS`. O "Resta" declara o `.git` renomeado por fora (conferido: rc=0 nesse caso).
+- Commits: 2, em Conventional Commits em português e coerentes (fix, docs).
+
+### Achados novos
+Nenhum que bloqueie do lado do code review.
+- **R7 · `hooks/_comum.py:127`-`:136` · falso positivo fora do Forge, com mensagem enganosa.** Uma pasta sem Forge, com um `.git` que não se resolve (por exemplo `gitdir:` de uma worktree já apagada) e que é a raiz da sessão, conta como projeto marcado. Conferido: `gh pr merge 1` dá rc=2 com "o .forge/versao da sessão sumiu", num projeto que nunca teve o arquivo. Esse caminho segue a decisão técnica (".git que existe e não se resolve falha fechado") e cai do lado fechado, então não bloqueia. Sugestão: a mensagem citar também o `.git` que não se resolve. Fica como risco para o QA.
+- **R8 · `hooks/_comum.py:45` · custo:** num repositório sem Forge, cada `raiz_do_projeto` agora roda um `git rev-parse` a mais (`marca_de_projeto`). É recomendado guardar o resultado por raiz dentro da chamada do hook, se o QA medir lentidão.
+
+### Parecer da revalidação
+**Aprovado** do lado do code review: B2 fecha, e o retrabalho de D e E está coerente com o ADR 0009 e com as fixtures. R5 a R7 são riscos de falso positivo do lado fechado, para o QA; R8 é recomendado. Os achados F e G da segurança (rodada 3) são do parecer dela e seguem valendo para o portão: se o retrabalho deles mexer em `hooks/_comum.py`, este parecer se revalida na proporção do que mudar (`commit_vale`).
