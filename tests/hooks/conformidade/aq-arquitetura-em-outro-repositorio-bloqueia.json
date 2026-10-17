@@ -6,7 +6,7 @@
   "entrada": {
     "tool_name": "Write",
     "tool_input": {
-      "file_path": "{tmp}/home/proj-x/docs/arquitetura/plano.md"
+      "file_path": "{tmp}/outro-repo/proj-x/docs/arquitetura/plano.md"
     },
     "agent_type": "forge-dev:aq",
     "hook_event_name": "PreToolUse",
@@ -17,10 +17,10 @@
     "stderr": "o papel aq escreve só em"
   },
   "env": {
-    "HOME": "{tmp}/home"
+    "HOME": "{tmp}/outro-repo"
   },
   "repos": {
-    "home/proj-x": {
+    "outro-repo/proj-x": {
       "arquivos": {
         "a.txt": "1\n"
       },
