@@ -1,0 +1,42 @@
+{
+  "descricao": "Achado D, cadeia 2: o `cd .git && rm -r forge` é barrado pelo conformidade (a marca fica); sem o `.forge/versao`, o vigia avisa no Stop.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "git": [
+        "sparse-checkout",
+        "set",
+        "src"
+      ]
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "versao-sumiu",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "versao-sumiu"
+        ]
+      }
+    }
+  }
+}

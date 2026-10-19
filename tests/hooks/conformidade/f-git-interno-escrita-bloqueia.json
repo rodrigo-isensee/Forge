@@ -1,0 +1,24 @@
+{
+  "descricao": "Decisão técnica do retrabalho 3: escrita direta (fora de comandos git) em qualquer caminho dentro de `.git/` é barrada, mesmo com `.forge/versao`; aqui `.git/info/exclude`.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo x > .git/info/exclude"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

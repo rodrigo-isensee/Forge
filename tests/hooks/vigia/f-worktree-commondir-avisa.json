@@ -1,0 +1,44 @@
+{
+  "descricao": "Achado F, worktree: o `commondir` da worktree desviado por fora e o `.forge/versao` fora: falha fechado e o vigia avisa no Stop.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "remover": [
+        "../wt/.forge/versao"
+      ]
+    },
+    {
+      "gravar": {
+        "../proj/.git/worktrees/wt/commondir": "{tmp}/outro/.git\n"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "versao-sumiu"
+  }
+}

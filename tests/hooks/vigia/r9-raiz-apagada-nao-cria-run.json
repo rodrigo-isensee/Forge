@@ -1,0 +1,46 @@
+{
+  "descricao": "R9: a raiz da sessão sumiu e a pasta corrente não é cópia de trabalho: o vigia avisa no Stop e não cria `.forge/run/` nessa pasta.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "git": [
+        "worktree",
+        "remove",
+        "--force",
+        "{tmp}/wt"
+      ]
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "cwd": "{tmp}"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "movida ou apagada",
+    "sem_caminho": [
+      "{tmp}/.forge"
+    ]
+  }
+}

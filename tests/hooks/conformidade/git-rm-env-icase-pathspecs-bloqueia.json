@@ -1,0 +1,25 @@
+{
+  "descricao": "B2: `GIT_ICASE_PATHSPECS=1` na linha liga o pathspec sem diferenciar maiúsculas, como `--icase-pathspecs`: `.FORGE/VERSAO` alcança `.forge/versao` e a remoção é bloqueada.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GIT_ICASE_PATHSPECS=1 git rm .FORGE/VERSAO"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

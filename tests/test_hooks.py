@@ -20,12 +20,18 @@ Formato do fixture:
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
               {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
+              Também em passos: {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu) e
+              {"git": [argumentos]} roda o git no projeto (como um comando que o hook não viu, ex.: sparse-checkout)
+              Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
+              projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
               `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
+              sem_caminho ([caminho]: não existem; {tmp} vale)
 """
 import concurrent.futures
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -94,6 +100,8 @@ class Fixture:
         d = self.dados
         mapa = {"{tmp}": str(tmp), "{raiz}": str(raiz), "{pid_vivo}": os.getpid(), "{pid_outro}": outro,
                 "{pid_morto}": pid_morto()}
+        for chave, pasta in (("{marca}", raiz), ("{marca_wt}", tmp / "wt")):  # a marca da sessão: uma por raiz
+            mapa[chave] = f".git/forge/projeto-{hashlib.sha256(os.path.realpath(pasta).encode()).hexdigest()[:16]}"
         git("init", "-q", "-b", "develop", cwd=raiz)
         git("config", "user.email", "t@example.com", cwd=raiz)
         git("config", "user.name", "Teste", cwd=raiz)
@@ -157,6 +165,10 @@ class Fixture:
                 entrada = substituir(passo["entrada"], self.mapa, self.agora)
                 entrada.setdefault("cwd", str(raiz))
                 conferir_passo(entrada, rodar_hook(entrada))
+            for caminho in passo.get("remover", []):
+                (raiz / substituir(caminho, self.mapa, 0)).unlink()
+            if "git" in passo:
+                git(*substituir(passo["git"], self.mapa, 0), cwd=raiz)
             for modo, chave in (("w", "gravar"), ("a", "anexar")):
                 for caminho, conteudo in passo.get(chave, {}).items():
                     alvo = raiz / substituir(caminho, self.mapa, 0)
@@ -288,6 +300,8 @@ class Hooks(unittest.TestCase):
                 self.assertIn(trecho, conteudo)
             for trecho in conf.get("ausente", []):
                 self.assertNotIn(trecho, conteudo)
+        for caminho in esperado.get("sem_caminho", []):
+            self.assertFalse(Path(substituir(caminho, f.mapa, 0)).exists(), f"{caminho} não deveria existir")
         for nome in esperado.get("sem_arquivo", []):
             self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
         if "erros_log" in esperado:
@@ -297,6 +311,72 @@ class Hooks(unittest.TestCase):
         if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
             self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
+
+    def test_git_rm_com_pathspec_magico_bloqueia(self):
+        """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
+        resolve, como `:(top)` (fixture `git-rm-pathspec-magica-bloqueia`); pathspec que não alcança caminho em vigor passa."""
+        formas = {"git rm ':(literal).forge/versao'": 2, "git rm ':(glob)**/versao'": 2, "git rm ':(icase).FORGE/VERSAO'": 2,
+                  "git rm ':/.forge/versao'": 2, "git rm '*versao'": 2, "git rm -r ':/'": 2, "git rm -r '*'": 2,
+                  "git checkout HEAD -- ':(top).forge/versao'": 2, "git restore -s HEAD ':(glob)**/versao'": 2,
+                  "git rm ':(top)src/app.js'": 0, "git rm 'src/*.js'": 0, "git checkout -- .": 0, "git restore .": 0}
+        for comando, codigo in formas.items():
+            with self.subTest(comando=comando):
+                tmp = self._pasta_temporaria()
+                dados = {"arquivos": {"src/app.js": "v1\n", ".githooks/pre-push": "#!/bin/sh\n"},
+                         "env": {"CLAUDE_PROJECT_DIR": "{tmp}/proj"},
+                         "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:dev",
+                                     "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
+                         "esperado": {"codigo": codigo, "stderr": "R-CONFORMIDADE"}}
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    def test_pathspecs_por_variavel_de_ambiente_valem_como_as_opcoes(self):
+        """`GIT_*_PATHSPECS` (atribuição na linha, `env`, `export`) ligam o modo de pathspec como as opções `--*-pathspecs`
+        (fixture `git-rm-env-icase-pathspecs-bloqueia`); falso explícito e pathspec que não alcança caminho em vigor passam."""
+        formas = {"GIT_ICASE_PATHSPECS=1 git rm .FORGE/VERSAO": 2, "env GIT_ICASE_PATHSPECS=1 git rm -q .FORGE/VERSAO": 2,
+                  "export GIT_ICASE_PATHSPECS=1; git rm .FORGE/VERSAO": 2,
+                  "GIT_ICASE_PATHSPECS=1 git checkout HEAD -- .FORGE/VERSAO": 2,
+                  "GIT_GLOB_PATHSPECS=1 git rm '**/versao'": 2, "GIT_ICASE_PATHSPECS=0 git rm .FORGE/VERSAO": 0,
+                  "GIT_ICASE_PATHSPECS=1 git rm src/app.js": 0}
+        for comando, codigo in formas.items():
+            with self.subTest(comando=comando):
+                tmp = self._pasta_temporaria()
+                dados = {"arquivos": {"src/app.js": "v1\n", ".githooks/pre-push": "#!/bin/sh\n"},
+                         "env": {"CLAUDE_PROJECT_DIR": "{tmp}/proj"},
+                         "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:dev",
+                                     "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
+                         "esperado": {"codigo": codigo, "stderr": "R-CONFORMIDADE"}}
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    def test_marca_de_projeto_por_raiz_e_nunca_apagada(self):
+        """A chave da marca é a raiz da cópia de trabalho: a worktree irmã tem marca própria e não herda a do clone; o
+        `SessionStart` só grava, nunca apaga."""
+        import _comum
+        tmp = self._pasta_temporaria()
+        clone, wt = tmp / "clone", tmp / "wt"
+        clone.mkdir()
+        git("init", "-q", "-b", "develop", cwd=clone)
+        git("config", "user.email", "t@example.com", cwd=clone)
+        git("config", "user.name", "Teste", cwd=clone)
+        (clone / ".forge").mkdir()
+        (clone / ".forge" / "versao").write_text("0.5.0\n", encoding="utf-8")
+        git("add", "-A", cwd=clone)
+        git("commit", "-q", "-m", "base", cwd=clone)
+        git("worktree", "add", "-q", "-b", "melhoria/w", str(wt), cwd=clone)
+        self.assertNotEqual(_comum.marca_de_projeto(clone), _comum.marca_de_projeto(wt))
+        self.assertEqual(_comum.marca_de_projeto(clone).parent, _comum.marca_de_projeto(wt).parent)
+        _comum.marcar_projeto(clone)
+        (wt / ".forge" / "versao").unlink()
+        self.assertTrue(_comum.projeto_marcado(clone))
+        self.assertFalse(_comum.projeto_marcado(wt), "a worktree irmã não herda a marca do clone")
+        self.assertIsNone(_comum.raiz_do_projeto(wt))
+        _comum.marcar_projeto(wt)  # sem `.forge/versao`: não grava e, sobretudo, não apaga a marca do clone
+        self.assertTrue(_comum.marca_de_projeto(clone).is_file())
 
     def test_cada_hook_tem_caso_que_passa_e_que_bloqueia(self):
         scripts = {p.stem for p in minimo(HOOKS.glob("*.py"), 5, "scripts de hook") if not p.name.startswith("_")}

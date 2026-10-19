@@ -1,0 +1,38 @@
+{
+  "descricao": "Achado D, cadeia 3: sem `.forge/versao`, `mv .git .g` (para depois usar `GIT_DIR=.g`) cai na conferência inteira: o `.git` da raiz é protegido.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{marca}": "2026-10-17T00:00:00\n"
+      }
+    },
+    {
+      "git": [
+        "sparse-checkout",
+        "set",
+        "src"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "mv .git .g"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "descricao": "Achado F: com o `commondir` escrito fora dos hooks no clone principal (a marca não se consulta) e sem `.forge/versao`, o push falha fechado.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{marca}": "2026-10-17T00:00:00\n"
+      }
+    },
+    {
+      "git": [
+        "sparse-checkout",
+        "set",
+        "src"
+      ]
+    },
+    {
+      "gravar": {
+        ".git/commondir": "{tmp}/outro/.git\n"
+      }
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não se resolve"
+  }
+}

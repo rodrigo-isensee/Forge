@@ -1,12 +1,13 @@
 """Forge: base comum dos hooks do plugin (ADR 0003).
 
 Silenciosos (sem saída quando tudo está certo), determinísticos (só estado em disco e git local),
-só agem em projeto com `.forge/versao` (o `parecer` também no clone do Forge, `raiz_de_estado`) e liberam em erro
+só agem em projeto com `.forge/versao` ou com a marca da sessão (`projeto_marcado`) (o `parecer` também no clone do Forge, `raiz_de_estado`) e liberam em erro
 interno (registrado em `.forge/run/erros.log`).
 Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
 bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
 import functools
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -42,9 +43,12 @@ def copia_de_trabalho(inicio):
 
 
 def raiz_do_projeto(inicio):
-    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge (tem `.forge/versao`); senão None."""
+    """Raiz da cópia de trabalho que contém `inicio`, se for projeto do Forge: tem `.forge/versao` ou tem a marca da
+    sessão (`projeto_marcado`: o arquivo sumiu, a sessão continua sendo de projeto). Senão None."""
     raiz = copia_de_trabalho(inicio)
-    return raiz if raiz is not None and (raiz / ".forge" / "versao").is_file() else None
+    if raiz is None:
+        return None
+    return raiz if (raiz / ".forge" / "versao").is_file() or projeto_marcado(raiz) else None
 
 
 def e_projeto(raiz):
@@ -86,6 +90,97 @@ def raiz_declarada():
     subagentes). O Bash roda em outro processo: `export` ou `VAR=...` na linha de comando não a mudam."""
     raiz = os.environ.get("CLAUDE_PROJECT_DIR")
     return Path(raiz) if raiz and Path(raiz).is_absolute() else None
+
+
+def diretorio_comum(topo):
+    """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git e sem seguir o que o git resolveria).
+    Cópia principal: o próprio `.git`, que nunca tem `commondir` (se tem, alguém o escreveu para desviar a busca). Worktree
+    vinculada: o `.git` é um arquivo `gitdir: <comum>/worktrees/<n>`; o `gitdir` de volta dessa pasta tem de apontar
+    para ele (comparado com o caminho real do topo: a worktree aberta por link simbólico vale) e o `commondir` dela, para
+    o `<comum>`; um `.git` forjado ou desviado não vale. Senão, None."""
+    marca = Path(topo) / ".git"
+    if marca.is_symlink():
+        return None
+    if marca.is_dir():
+        return None if os.path.lexists(marca / "commondir") else Path(os.path.realpath(marca))
+    try:
+        apontado = marca.read_text(encoding="utf-8").strip()
+        pasta = Path(os.path.realpath(Path(topo) / apontado[len("gitdir:"):].strip()))
+        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
+        desvio = (pasta / "commondir").read_text(encoding="utf-8").strip()
+    except (OSError, ValueError):
+        return None
+    if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":
+        return None
+    comum = Path(os.path.realpath(pasta.parent.parent))
+    esperado = os.path.join(os.path.realpath(os.path.dirname(volta)), os.path.basename(volta))
+    real = str(Path(os.path.realpath(topo)) / ".git")
+    return comum if esperado == real and Path(os.path.realpath(pasta / desvio)) == comum else None
+
+
+def marca_de_projeto(raiz):
+    """`<diretório comum>/forge/projeto-<hash da raiz>`: o SessionStart grava aqui que a raiz da sessão é projeto. Uma
+    marca por raiz (a chave é o caminho real da cópia de trabalho): a worktree irmã, com ou sem Forge, não apaga nem
+    herda a marca de outra. Fica dentro do `.git/` (protegido em `hooks/conformidade.json`) e não na árvore de
+    trabalho, onde o próprio git a apagaria. O diretório comum é o lido do disco (`diretorio_comum`), não o que o
+    `git rev-parse` aponta: um `commondir` escrito dentro do `.git/` não desvia a busca."""
+    pasta = diretorio_comum(raiz)
+    if pasta is None:
+        return None
+    chave = hashlib.sha256(os.path.realpath(raiz).encode("utf-8")).hexdigest()[:16]
+    return pasta / "forge" / f"projeto-{chave}"
+
+
+def marcar_projeto(raiz):
+    """SessionStart: raiz com `.forge/versao` grava a marca. Nada a apaga: só o usuário, à mão, ao tirar o Forge do
+    projeto (o `startup` também chega por chamada à mão do hook, e `resume`/`compact`/`clear` acontecem no meio de uma
+    sessão em que um agente pode ter apagado o arquivo)."""
+    marca = marca_de_projeto(raiz)
+    if marca is not None and (Path(raiz) / ".forge" / "versao").is_file():
+        marca.parent.mkdir(parents=True, exist_ok=True)
+        marca.write_text(time.strftime("%Y-%m-%dT%H:%M:%S") + "\n", encoding="utf-8")
+
+
+def projeto_marcado(raiz):
+    """A raiz foi marcada como projeto (`marcar_projeto`). Falha fechado quanto ao git: se existe `.git` (pasta ou
+    arquivo de worktree) e ele não se resolve (inclui `commondir` num clone principal ou desviado numa worktree), a
+    marca não pode ser consultada e a raiz da sessão vale como marcada."""
+    marca = marca_de_projeto(raiz)
+    if marca is not None:
+        return marca.is_file()
+    declarada = raiz_declarada()
+    return (Path(raiz) / ".git").exists() and declarada is not None and (
+        os.path.realpath(declarada) == os.path.realpath(raiz))
+
+
+def versao_sumiu(raiz=None):
+    """A sessão (`CLAUDE_PROJECT_DIR`) foi marcada como projeto e o `.forge/versao` não existe mais: alguém o apagou
+    (`git rm`, `git sparse-checkout`, troca de branch...). Sem ele os hooks se desligariam (ADR 0003, item 3): a
+    sessão segue sendo de projeto (`raiz_do_projeto`) e as ações críticas falham fechado. A raiz da sessão que deixou
+    de existir (movida ou removida: `mv`, `git worktree move`) também falha fechado: a marca é por caminho."""
+    raiz = raiz or raiz_declarada()
+    return raiz is not None and (not Path(raiz).exists() or (
+        not (raiz / ".forge" / "versao").is_file() and projeto_marcado(raiz)))
+
+
+def motivo_da_falha(raiz=None):
+    """Por que `versao_sumiu` vale, para a mensagem dizer a causa: `raiz` (a pasta da sessão sumiu), `git` (o `.git` não
+    se resolve: a marca não se consulta e o `.forge/versao` não está lá) ou `versao` (o arquivo sumiu, com marca)."""
+    raiz = raiz or raiz_declarada()
+    if raiz is None or not Path(raiz).exists():
+        return "raiz"
+    return "git" if marca_de_projeto(raiz) is None else "versao"
+
+
+TEXTO_DA_FALHA = {
+    "versao": ("o .forge/versao da sessão sumiu (os hooks do Forge se desligam sem ele). Corrigir: não apague nem mova "
+               ".forge/; peça ao usuário que o restaure (o agente não pode: .forge/versao é arquivo em vigor) (R-DECISAO)"),
+    "raiz": ("a pasta da sessão (CLAUDE_PROJECT_DIR) sumiu ou foi movida (a marca do projeto é por caminho). Corrigir: "
+             "não mova nem apague a raiz da sessão; peça ao usuário que a restaure e abra uma sessão nova (R-DECISAO)"),
+    "git": ("o .git da raiz da sessão não se resolve (arquivo de worktree inválido, `commondir` inesperado, ligação "
+            "desfeita) e não há .forge/versao: os hooks não conseguem conferir a marca do projeto. Corrigir: não mexa no "
+            ".git; peça ao usuário que o repare (R-DECISAO)"),
+}
 
 
 def contrib():
@@ -622,6 +717,21 @@ def falhar_fechado(hook, critico, bruto, clone_do_forge=False):
                                "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")
 
 
+def desligado_na_config(hook):
+    """O `.forge/config.json` da raiz da sessão (arquivo em vigor, ainda lá) desliga este hook (`hooks_desligados`)."""
+    config = ler_json(raiz_declarada() / ".forge" / "config.json", {})
+    lista = config.get("hooks_desligados") if isinstance(config, dict) else None
+    return isinstance(lista, list) and hook.nome in lista
+
+
+def barrar_sem_versao(hook, critico, bruto):
+    """Ação crítica numa sessão que era de projeto e perdeu o `.forge/versao`: bloqueia (R-CONFORMIDADE), em vez de
+    deixar os hooks se desligarem junto com o arquivo. Nunca depois da ferramenta; respeita `hooks_desligados`."""
+    if (hook.entrada.get("hook_event_name") != "PostToolUse" and critico.search(texto_da_acao(hook, bruto))
+            and versao_sumiu() and not desligado_na_config(hook)):
+        bloquear("R-CONFORMIDADE", TEXTO_DA_FALHA[motivo_da_falha()])
+
+
 def executar(nome, funcao, critico=None, clone_do_forge=False):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
@@ -634,6 +744,8 @@ def executar(nome, funcao, critico=None, clone_do_forge=False):
         entrada = json.loads(bruto or "{}")
         if isinstance(entrada, dict):
             hook.entrada = entrada
+            if critico is not None:
+                barrar_sem_versao(hook, critico, bruto)
             funcao(hook)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)

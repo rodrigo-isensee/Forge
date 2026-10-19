@@ -15,18 +15,19 @@ import os
 import re
 import tempfile
 import shlex
+import subprocess
 import time
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, e_clone_do_forge,
-                    em_contrib, executar, fora_da_gramatica_de_leitura, git, mensagem, nome_da_branch, raiz_declarada,
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, diretorio_comum, e_clone_do_forge,
+                    em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
     r"\b(git|gh)\b[^\n]*\b(merge|push|edit|close|reopen|ready|review|label)\b|\bpr\b.*\bcreate\b|--no-verify|hookspath|--force|"
-    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/(config|hooks)|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
+    r"\.claude/|\.claude-plugin|\.githooks|\.forge/|docs/reviews|docs/qa|docs/devops|docs/security|CLAUDE\.md|\.git/|commondir|docs/regras|tests/config\.json|catraca|tests/hooks|conformidade\.json",
     re.I)
 # Prefixo -> opções dele que levam valor (as demais são booleanas).
 LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
@@ -36,14 +37,36 @@ LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R
               "timeout": {"-k", "-s", "--kill-after", "--signal"},
               "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "--max-args", "--max-procs",
                         "--delimiter", "--arg-file", "--max-lines", "--max-chars"}}
+# Variáveis definidas antes na linha que os comandos seguintes herdam; as `GIT_*_PATHSPECS` são as opções `--*-pathspecs`.
+PATHSPECS_NO_AMBIENTE = {"GIT_GLOB_PATHSPECS": "--glob-pathspecs", "GIT_NOGLOB_PATHSPECS": "--noglob-pathspecs",
+                         "GIT_LITERAL_PATHSPECS": "--literal-pathspecs", "GIT_ICASE_PATHSPECS": "--icase-pathspecs"}
+VARIAVEIS_DA_LINHA = {"GH_REPO", "GIT_DIR", *PATHSPECS_NO_AMBIENTE}
 SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 MANIFESTO = ".claude-plugin/"  # no projeto, só a sessão do Forge escreve (R-CONTRIB): a identidade não vem dele
-INTERPRETES = re.compile(r"^(python[\d.]*|node(js)?|perl|ruby|php|deno|bun)$")
+# Nome do interpretador, com versão ou plataforma depois do nome (`perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby3.2`,
+# `python3.12`): fonte única para as três conferências (`-e`, edição no lugar, heredoc).
+INTERPRETES = re.compile(r"^((python|perl|ruby)([\d][\w.-]*)?|node(js)?|php|deno|bun)$")
+PERL_OU_RUBY = re.compile(r"^(perl|ruby)([\d][\w.-]*)?$")
+OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/ruby, o resto é o valor delas (`-Mstrict`, `-I lib`)
+# Marca da sessão (`.git/forge/projeto-*`): citá-la, ou usar um lançador que o hook não modela, é recusado no projeto.
+CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
+LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
+AWKS = {"awk", "gawk", "mawk", "nawk"}
+# Opções longas do sed e do gawk: o getopt_long do GNU aceita qualquer prefixo não ambíguo (`--expr`, `--i`, `--inc`).
+SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help", "in-place", "line-length", "null-data",
+              "zero-terminated", "posix", "quiet", "regexp-extended", "sandbox", "separate", "silent", "unbuffered", "version")
+GAWK_LONGAS = ("assign", "bignum", "characters-as-bytes", "copyright", "debug", "dump-variables", "exec", "field-separator",
+               "file", "gen-pot", "help", "include", "lint", "lint-old", "load", "non-decimal-data", "optimize", "posix",
+               "pretty-print", "profile", "re-interval", "sandbox", "source", "traditional", "use-lc-numeric", "version")
+# comando `w`/`W arquivo` do sed, com ou sem endereço antes (`$w`, `1,2w`), flag `s/a/b/w arquivo` e delimitador do usuário
+# (`s|a|b|w arquivo`, `\%a%w arquivo`): qualquer `w`/`W` seguido de palavra; o custo (lado fechado) só aparece se for caminho protegido
+SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")  # lookahead: acha também o `w` dentro do nome/arquivo de outro `w` (`s/aw/b/w x`, `;w x`)
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
-    r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\bopen\w*\([^)]*[\"'][wa][bt+]?[\"']|>", re.I)
-TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir"}
+    r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
+    r"file_put_contents|\bf(write|puts)\b|File\.(delete|rename)|FileUtils|inplace|system\(", re.I)
+TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir", "touch"}
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
@@ -80,7 +103,12 @@ CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
 REPO_APAGAR = re.compile(r"^/?repos/[^/]+/[^/]+/?$")
 GRAPHQL_APAGAR = re.compile(r"mutation[^}]*deleteRepository", re.I)
 VISIBILIDADE_PUBLICA = re.compile(r"\bprivate[\"']?\s*[=:]\s*[\"']?false\b|\bvisibility[\"']?\s*[=:]\s*[\"']?public\b", re.I)
+CAMINHOS_NO_GIT = {"rm", "mv", "checkout", "restore"}  # subcomandos que mexem em arquivos do projeto
 PASTAS_PROTEGIDAS = {".forge", ".githooks", ".claude"}
+MAGIA_DE_PATHSPEC = re.compile(r"^:(\(.*?\)|[/!^]*)")  # `:(top)`, `:(literal)`, `:/`, `:!`...
+GLOB_DE_PATHSPEC = re.compile(r"[*?\[\\]")
+CHECKOUT_COM_VALOR = {"-b", "-B", "--orphan"}
+
 VARIAVEL = re.compile(r"\$\{?(\w+)\}?|\$\(|`")
 SIMPLES = {
     "apagar": "Apagar o projeto no GitHub perde todo o trabalho, sem volta. Se quiser mesmo, faça pelo site do GitHub.",
@@ -191,6 +219,55 @@ def tirar_heredocs(comando):
     return "\n".join(saida), corpos
 
 
+def edita_no_lugar(args):
+    """`perl`/`ruby` com `-i`: sozinho, agrupado (`-pi`, `-0777pi`) ou com sufixo qualquer (`-i~`, `-i_bak`, `-i,o`,
+    `-pi~`: o que vem depois do `i` é o sufixo). Opção que leva o resto do grupo como valor (`-Mstrict`, `-Ilib`,
+    `-e...`) encerra a busca; o valor de `-e`/`-E` e o que vem depois de `--` não são opções."""
+    for k, a in enumerate(args):
+        if a == "--":
+            return False
+        if k and args[k - 1] in ("-e", "-E") or not re.match(r"-[^-]", a):
+            continue
+        for letra in a[1:]:
+            if letra == "i":
+                return True
+            if letra in OPCAO_COM_RESTO:
+                break
+    return False
+
+
+def longa_do_gnu(opcao, longas):
+    """A opção longa inteira que `--<prefixo>[=valor]` abrevia (`--expr` -> `expression`), à maneira do `getopt_long`:
+    o nome exato ou o prefixo que só um nome de `longas` tem; ambíguo ou desconhecido devolve vazio."""
+    if not opcao.startswith("--") or len(opcao) < 3:
+        return ""
+    nome = opcao[2:].split("=", 1)[0]
+    achadas = [o for o in longas if o.startswith(nome)]
+    return nome if nome in longas else achadas[0] if len(achadas) == 1 else ""
+
+
+def awk_no_lugar(args):
+    """`awk`/`gawk`/`nawk` que carrega a extensão `inplace` por qualquer caminho (`-i inplace`, `-iinplace`, `-E inplace.awk`,
+    `-l inplace`, `--include`/`--inc`/`--load`/`--lo` abreviados, `-f inplace.awk`, `@include`/`@load`): do lado fechado,
+    qualquer argumento que cite `inplace` liga a conferência, e os arquivos-alvo contam como escrita."""
+    return any("inplace" in a.lower() for a in args)
+
+
+def script_do_sed(arg):
+    """O texto de script de um argumento do `sed`: o argumento solto, `--expression=<texto>` (ou abreviada, `--expr=`) ou
+    `-e<texto>` colado (também no grupo, `-ne<texto>`); opção sem script (`-n`, `-i.bak`) devolve vazio."""
+    if longa_do_gnu(arg, SED_LONGAS) == "expression" and "=" in arg:
+        return arg.split("=", 1)[1]
+    colado = re.match(r"-[a-zA-Z]*e(.+)", arg) if not arg.startswith("--") else None
+    return colado.group(1) if colado else "" if arg.startswith("-") else arg
+
+
+def sed_no_lugar(args):
+    """`sed` com edição no lugar: `-i` sozinho, agrupado ou com sufixo (`-ni`, `-i.bak`) ou `--in-place[=sufixo]` em
+    qualquer abreviação (`--i`, `--in-pl=~`)."""
+    return any(re.fullmatch(r"-[a-zA-Z]*i.*", a) or longa_do_gnu(a, SED_LONGAS) == "in-place" for a in args)
+
+
 def separar_lancadores(palavras):
     """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
     deles, para classificar o comando de verdade; opções do comando seguinte não se perdem. Devolve (comando,
@@ -264,6 +341,7 @@ class Guarda:
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
+        self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
@@ -522,6 +600,9 @@ class Guarda:
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
         achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
         original = comando
+        if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
+            self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
+                        f"não cite .git/forge; {SUGESTAO}")
         comando, corpos = tirar_heredocs(comando)
         comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
         try:
@@ -558,9 +639,12 @@ class Guarda:
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
-            elif re.search(r"\b(python[\d.]*|node|nodejs|perl|ruby)\b", dono):
+            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
+        if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
+            self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
+                                          "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -606,7 +690,7 @@ class Guarda:
         antes = {}
         for a in atribuicoes:
             nome, _, valor = a.partition("=")
-            if nome in ("GH_REPO", "GIT_DIR") and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor:
                 antes.setdefault(nome, self.ambiente.get(nome))
                 self.ambiente[nome] = valor
         try:
@@ -642,7 +726,7 @@ class Guarda:
             [] if palavras else atribuicoes
         for a in definidas:
             nome, _, valor = a.partition("=")
-            if nome in ("GH_REPO", "GIT_DIR") and valor:
+            if nome in VARIAVEIS_DA_LINHA and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
         for p in palavras:  # substituição entre aspas: a palavra chega inteira e o conteúdo dela é conferido aqui
             if "`" in p:
@@ -653,6 +737,8 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
+        if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
+            self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
         if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
             alvo = next((a for a in args if not a.startswith("-")), None)
@@ -667,6 +753,7 @@ class Guarda:
             self.atualizacao(palavras, so_binarios=True)
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
             self.atualizacao(palavras)
+        no_lugar = bool(PERL_OU_RUBY.match(prog)) and edita_no_lugar(args)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -676,17 +763,27 @@ class Guarda:
         elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
+            if no_lugar:  # edição no lugar (`-i`, `-pi`, `-0777pi`, `-i.bak`): os arquivos-alvo também são escrita
+                for i, a in enumerate(args):
+                    if not a.startswith("-") and not (i and args[i - 1] in ("-e", "-E")):
+                        self.checar_escrita(a, pasta)
             if prog.startswith("python") and args[:2] == ["-m", "pip"]:
                 self.pacote("pip", args[2:])
+        elif prog in AWKS:  # programa no texto (`print > arq`, `system("rm ...")`) e, com `-i inplace`, os arquivos-alvo
+            for a in args:
+                if re.search(r"[\s{(;]", a):
+                    self.checar_texto(a)
+            if awk_no_lugar(args):
+                for a in args:
+                    if not a.startswith("-") and a != "inplace" and not re.search(r"[\s{(;=]", a):
+                        self.checar_escrita(a, pasta)
         elif prog == "git":
-            self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"))
+            self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
             self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
         elif prog == "claude":
             self.claude(args)
-        elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and any(
-                re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*|--in-place(=.*)?", a) for a in args)) or (
-                prog == "perl" and any(re.fullmatch(r"-[a-zA-Z]*i[a-zA-Z.]*", a) for a in args)):
+        elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
             for a in args:
                 if not a.startswith("-"):
                     self.checar_escrita(a, pasta)
@@ -703,6 +800,10 @@ class Guarda:
                     self.checar_escrita(a[3:], pasta)
         elif prog in self.pol["pacotes"]:
             self.pacote(prog, args)
+        if prog == "sed":  # `w arquivo` no script escreve, com ou sem `-i`
+            for a in args:
+                for destino in SED_ESCREVE.findall(script_do_sed(a)):
+                    self.checar_escrita(destino, pasta)
         if prog in LEITORES:
             for a in args:
                 nome = Path(a).name
@@ -777,9 +878,18 @@ class Guarda:
         chave = raiz.resolve() if raiz else None
         return ramos[chave] if chave in ramos else git(pasta, "branch", "--show-current")[1]
 
-    def git(self, palavras, parte, pasta, ramos, git_dir=None):
-        i, pasta_git = 1, self.caminho(pasta, git_dir) if git_dir else pasta
+    def pathspecs_da_linha(self, atribuicoes):
+        """As opções `--*-pathspecs` que as variáveis `GIT_*_PATHSPECS` da linha (atribuição, `env`, `export`) ligam. Só
+        um falso explícito (`0`, `false`, `no`, `off`, vazio) as desliga; na dúvida, vale como ligada (mais recusa)."""
+        valores = {nome: self.da_atribuicao(atribuicoes, nome) for nome in PATHSPECS_NO_AMBIENTE}
+        return [opcao for nome, opcao in PATHSPECS_NO_AMBIENTE.items()
+                if valores[nome] is not None and valores[nome].strip().lower() not in ("", "0", "false", "no", "off")]
+
+    def git(self, palavras, parte, pasta, ramos, git_dir=None, atribuicoes=()):
+        i, pasta_git, opcoes = 1, self.caminho(pasta, git_dir) if git_dir else pasta, self.pathspecs_da_linha(atribuicoes)
         while i < len(palavras) and palavras[i].startswith("-"):
+            if palavras[i].endswith("-pathspecs"):  # `--literal-pathspecs`...: valem também para o `ls-files` do hook
+                opcoes.append(palavras[i])
             if palavras[i] in ("-C", "--git-dir") and i + 1 < len(palavras):
                 pasta_git = self.caminho(pasta, palavras[i + 1])
             elif palavras[i].startswith("--git-dir="):
@@ -795,6 +905,8 @@ class Guarda:
         if sub == "config" and not ativacao:
             self.git_config(args)
         self.git_trava(sub, args, pasta_git, ramos)
+        if sub in CAMINHOS_NO_GIT:
+            self.git_caminhos(sub, args, [pasta, pasta_git], opcoes)
         if sub == "push":
             self.git_push(args, pasta_git, ramos)
         elif parte and parte[0] == "merge" and parte[2]:
@@ -805,6 +917,84 @@ class Guarda:
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
+
+    def git_caminhos(self, sub, args, pastas, opcoes=()):
+        """`git rm|mv|checkout|restore` mexem nos arquivos como `rm`/`mv`: os caminhos passam pela mesma conferência de
+        escrita e de remoção (`.forge/versao` apagado por `git rm` desligaria os hooks). Quem resolve o pathspec é o
+        próprio git (`git ls-files`: `*` atravessa `/` e casa ponto inicial, `.` e `-r .` valem pelos arquivos, e a
+        magia `:(top)`, `:(literal)`, `:(glob)`, `:(icase)`, `:/` vale como o git a entende), então o hook não refaz a
+        semântica dele. `--pathspec-from-file` é recusado: o hook não lê o arquivo nem a entrada padrão. `checkout` e
+        `restore` sem origem só devolvem o que o índice já tem: `git checkout -- .` segue livre, e só o caminho
+        protegido nomeado barra; com origem (`-s`, `git checkout <ref> -- ...`) o pathspec vale pelo que ele alcança."""
+        if any(a.startswith("--pathspec-fr") and "--pathspec-from-file".startswith(a.split("=", 1)[0]) for a in args):
+            self.barrar("R-CONFORMIDADE", f"git {sub} --pathspec-from-file: o hook não lê a lista de caminhos",
+                        "passe os caminhos na linha de comando; o que for protegido é do usuário (R-DECISAO)")
+        caminhos, com_origem = self.pathspecs_do_git(sub, args, pastas[0])
+        for pasta in dict.fromkeys(pastas):
+            for c in caminhos:
+                self.checar_escrita(c, pasta)
+                self.checar_remocao(c, pasta)
+                if com_origem or sub in ("rm", "mv") or not self.varredura(c):
+                    for alvo in filter(self.pode_ser_protegido, self.tracked_do_pathspec(c, pasta, opcoes)):
+                        self.checar_escrita(alvo, pasta)
+                        self.checar_remocao(alvo, pasta)
+
+    def pode_ser_protegido(self, caminho):
+        """Filtro barato para `git rm -r <pasta grande>`: só confere um por um o arquivo cujo caminho cita algum caminho
+        da política (mais o perfil e o manifesto), ou todos se o papel só escreve numa lista (`escrita_permitida`).
+        Só deixa de fora o que `caminho_barrado` não barraria."""
+        if self.pol.get("escrita_permitida", {}).get(self.papel) is not None:
+            return True
+        if not hasattr(self, "_citacoes"):
+            self._citacoes = tuple({e["caminho"].removeprefix("~/").rstrip("/") for e in self.pol["caminhos"]}
+                                   | {".forge/perfil", MANIFESTO})
+        return any(t in caminho for t in self._citacoes)
+
+    @staticmethod
+    def varredura(pathspec):
+        """O pathspec seleciona tudo (`.`, `*`, `:/`, `:(top)`): `git checkout -- .` não troca arquivo que já está igual."""
+        return MAGIA_DE_PATHSPEC.sub("", pathspec, 1) in ("", ".", "./", "*")
+
+    def pathspecs_do_git(self, sub, args, pasta):
+        """(pathspecs do comando, tem origem): o que é caminho em `git rm|mv|checkout|restore`. `checkout` sem `--` toma
+        como caminho a palavra que existe, tem curinga ou magia (`git checkout <branch>` não é caminho); a primeira
+        palavra que não for caminho é a origem (`git checkout <ref> <caminho>`)."""
+        antes, depois = (args[:args.index("--")], args[args.index("--") + 1:]) if "--" in args else (args, [])
+        positivas, i = [], 0
+        while i < len(antes):
+            if antes[i].startswith("-"):
+                valor = ("-s", "--source") if sub == "restore" else CHECKOUT_COM_VALOR if sub == "checkout" else ()
+                i += 2 if antes[i] in valor else 1
+            else:
+                positivas.append(antes[i])
+                i += 1
+        com_origem = sub == "restore" and any(a in ("-s", "--source") or a.startswith("--source=") for a in args)
+        if sub == "checkout":
+            if depois:  # `git checkout <ref> -- <caminhos>`: o que vem antes do `--` é a origem
+                com_origem = bool(positivas)
+                positivas = []
+            else:
+                caminhos = [a for a in positivas if GLOB_DE_PATHSPEC.search(a) or a.startswith(":")
+                            or os.path.lexists(self.resolver(a, pasta))]
+                com_origem = len(caminhos) < len(positivas) and bool(caminhos)
+                positivas = caminhos
+        return positivas + depois, com_origem
+
+    def tracked_do_pathspec(self, pathspec, pasta, opcoes):
+        """Os arquivos do índice que o git alcança com o pathspec (`git ls-files`, só leitura). Se o git não responde
+        (fora de repositório, limite de tempo), vale o pathspec literal: o `git rm` também não teria o que fazer."""
+        if not Path(pasta).is_dir():
+            return []
+        try:
+            cod, saida = forge_check().git(pasta, *opcoes, "ls-files", "-z", "--", pathspec, bruto=True)
+        except (OSError, subprocess.SubprocessError):
+            cod, saida = 1, b""
+        if cod:
+            if GLOB_DE_PATHSPEC.search(pathspec) or pathspec.startswith(":"):
+                self.barrar("R-CONFORMIDADE", f"o git não resolveu o pathspec {pathspec!r}",
+                            "use o caminho do arquivo, sem magia nem curinga (na dúvida, recusa)")
+            return []
+        return [str(Path(pasta) / n) for n in forge_check().nomes_z(saida)]
 
     def reescreve_historico(self, o_que):
         self.barrar("R-VERIFY", f"reescrever histórico ({o_que}) da main, develop ou homolog",
@@ -1161,27 +1351,6 @@ def politica():
         bloquear("R-CONFORMIDADE", "política de conformidade inválida: chave ausente ou com tipo errado "
                                    "(hooks/conformidade.json). Corrigir: leve ao usuário (R-DECISAO)")
     return pol
-
-
-def diretorio_comum(topo):
-    """Diretório comum de git de uma cópia de trabalho, lido só do disco (sem git). Cópia principal: o próprio
-    `.git`. Worktree vinculada: o `.git` é um arquivo `gitdir: <comum>/worktrees/<n>` e o `gitdir` de volta dessa
-    pasta tem de apontar para ele; um `.git` forjado, que não é o registrado, não vale. Senão, None."""
-    marca = topo / ".git"
-    if marca.is_symlink():
-        return None
-    if marca.is_dir():
-        return Path(os.path.realpath(marca))
-    try:
-        apontado = marca.read_text(encoding="utf-8").strip()
-        pasta = Path(os.path.realpath(topo / apontado[len("gitdir:"):].strip()))
-        volta = (pasta / "gitdir").read_text(encoding="utf-8").strip()
-    except (OSError, ValueError):
-        return None
-    if not apontado.startswith("gitdir:") or pasta.parent.name != "worktrees":
-        return None
-    esperado = os.path.join(os.path.realpath(os.path.dirname(volta)), os.path.basename(volta))
-    return Path(os.path.realpath(pasta.parent.parent)) if esperado == str(marca) else None
 
 
 def raiz_do_parecer(hook, p):
