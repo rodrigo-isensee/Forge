@@ -61,7 +61,7 @@ GAWK_LONGAS = ("assign", "bignum", "characters-as-bytes", "copyright", "debug", 
                "pretty-print", "profile", "re-interval", "sandbox", "source", "traditional", "use-lc-numeric", "version")
 # comando `w`/`W arquivo` do sed, com ou sem endereço antes (`$w`, `1,2w`), flag `s/a/b/w arquivo` e delimitador do usuário
 # (`s|a|b|w arquivo`, `\%a%w arquivo`): qualquer `w`/`W` seguido de palavra; o custo (lado fechado) só aparece se for caminho protegido
-SED_ESCREVE = re.compile(r"[wW]\s*(\S+)")
+SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")  # lookahead: acha também o `w` dentro do nome/arquivo de outro `w` (`s/aw/b/w x`, `;w x`)
 ESCRITA_NO_TEXTO = re.compile(  # só escrita de arquivo: `.replace(` de texto e `list.append(` não contam
     r"\.write\w*\(|writeFile|appendFile|unlink|\bos\.(remove|rename|replace)|shutil\.|rmtree|truncate|symlink|"
     r"rmSync|rmdir|copyFile|renameSync|cpSync|chmod|WriteStream|\w*open\w*\([^)]*[\"'][wa][bt+]?[\"']|>|"
@@ -639,7 +639,7 @@ class Guarda:
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
-            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>\"'\\]+", dono)):
+            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
