@@ -1,0 +1,19 @@
+{
+  "descricao": "VV-2, B2: o conferente não herda uma opção que grava (`--gerar-entrada`) da liberação do subcomando.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check entrega p1 --branch melhoria/x --base develop --base-sha 0123456789012345678901234567890123456789 --etapa codigo --gerar-entrada"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "opção que grava"
+  }
+}

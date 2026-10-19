@@ -2,21 +2,20 @@
 tipo: review
 contrato: 1
 pedido: release-0.21.0
-branch: melhoria/release-0.21.0
-commit: 06b6a9e0959474fb787a58cc60725cc65a837b60
+branch: melhoria/release-0.21.0-fragmento
+commit: b7cf5775be1168c85c17af586378070ead7d87bd
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-19
 ---
-# Review: release 0.21.0
+# Review: release 0.22.0 (E6, subida de versão sobre a junção da 0.21.0)
 
-Escopo: `7226ba7...06b6a9e` (1 commit, 7 arquivos). Revisor diferente do autor.
+Escopo: delta `36696f3..b7cf577`, 3 arquivos (`CHANGELOG.md` e os dois `plugin.json`). Revisor diferente do autor. Substitui o parecer anterior (e65a7a8). Decisão do dono (2026-10-19, "B"): a 0.21.0 fica como decidida e VV-2 e reconciliação viram a 0.22.0.
 
-- Entrada `[0.21.0] - 2026-10-19` do `CHANGELOG.md`: as 5 linhas dos 4 fragmentos (`bp-1`, `conf-anexo-pareceres` com 2, `s-18`, `t-1`) estão presentes, literais (conferido com `grep -cxF`, 1 ocorrência cada), sob `### Adicionado` e `### Corrigido`. Sem perda.
-- Versão: `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` passam de 0.20.0 para 0.21.0; batem entre si e com o CHANGELOG.
-- SemVer: há funcionalidades novas compatíveis (`conferencia registrar`, `voltas`, `--entregas`) e correções, sem quebra para os projetos: minor correto.
-- Os 4 fragmentos foram apagados (`changelog.d/` vazio); `## [Não publicado]` ficou vazio.
-- Nada além dos 7 arquivos mudou.
-- `R-NEUTRO`, `R-CUSTO`: sem texto novo fora do changelog, nada que custe dinheiro. Nenhuma regra afrouxada.
+- `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em 0.22.0, batendo com o CHANGELOG.
+- A entrada `## [0.22.0] - 2026-10-19` está acima da `[0.21.0]` e traz as 4 linhas literais dos fragmentos `vv-2` e `reconcilia-homolog-main` (`grep -cxF`, 1 ocorrência cada), nas subseções de origem: `### Adicionado` (1), `### Alterado` (2) e `### Corrigido` (1).
+- A entrada `[0.21.0]` é idêntica à da develop (c0d85ee), verificada por `cmp` do trecho até `[0.20.0]`.
+- `bin/forge-changelog conferir --base origin/develop`: rc 0 (versão base 0.21.0, versão do PR 0.22.0; changelog fechado conferido na promoção). `conferir-release`: rc 0 ("ok: changelog.d/ sem fragmentos pendentes").
+- `R-NEUTRO`, `R-CUSTO`: só texto de changelog e versão; nada que custe dinheiro; nenhuma regra afrouxada.
 
-Pendências: nenhuma.
+## Achados
