@@ -5,6 +5,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -637,6 +638,26 @@ class BriefDeVolta(Repositorio):
         self.assertIn("volta: ok", conferencia)
         self.assertIn("forma: ok", conferencia)
         self.assertEqual(rc, 0, conferencia)
+
+    def test_parecer_escrito_pelo_modelo_passa_no_gerar_volta(self):  # R-A1: o modelo e o leitor falam o mesmo formato
+        modelos = {"review": ("docs/reviews", RAIZ / "templates/projeto/docs/reviews/_modelo.md"),
+                   "qa": ("docs/qa", RAIZ / "templates/projeto/docs/qa/_modelo.md"),
+                   "security": ("docs/security", RAIZ / "docs/security/_modelo.md"),
+                   "security-template": ("docs/security", RAIZ / "templates/projeto/docs/security/_modelo.md")}
+        for nome, (pasta, modelo) in modelos.items():
+            with self.subTest(nome):
+                texto = modelo.read_text(encoding="utf-8")
+                self.assertEqual(texto.count("\n## Achados\n"), 1)
+                texto = re.sub(r"^pedido: .*$", "pedido: pedido-sintetico", texto, flags=re.M)
+                texto = re.sub(r"^commit: .*$", f"commit: {self.c1[:7]}", texto, flags=re.M)
+                texto = re.sub(r"^parecer: .*$", "parecer: reprovado", texto, flags=re.M)
+                texto = re.sub(r"^data: .*$", "data: 2026-10-19", texto, flags=re.M)
+                texto = texto.replace("\n## Achados\n", "\n## Achados\n- A1 (bloqueante) src/app.txt:3 · achado do modelo\n", 1)
+                self.repo.joinpath(".git", "info", "exclude").write_text("docs/briefs/\n", encoding="utf-8")
+                self.commitar({f"{pasta}/modelo-{nome}.md": texto}, "parecer do modelo")
+                rc, saida = self.gerar("--parecer", f"{pasta}/modelo-{nome}.md")
+                self.assertEqual(rc, 0, saida)
+                self.assertIn("src/app.txt:3", saida)
 
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
