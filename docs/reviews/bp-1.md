@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: de999e0a0d7b5f3c04fd2c186cdfb2ca78264fc8
+commit: 61ddf7e457bccc5429082f58c162404867729c3d
 parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-10-17
+data: 2026-10-19
 ---
 # Code review: BP-1 (`.forge/versao` protegido contra o git; hook que não desliga sem ele)
 
@@ -274,3 +274,46 @@ Cobertura declarada (VV-1): as cadeias de B7, B8 e do K listadas abaixo; as cade
 **Reprovado** por B9, regressão de uma linha introduzida em `hooks/conformidade.py:641`. B7 (nos pontos de opção e `-e`), B8 e o resto do K fecham como classe, sem falso positivo relevante; o do awk que cita `inplace` é aceitável e vai como risco para o QA, com R5, R6 e os dois casos da mitigação. R11 é recomendado.
 
 A volta cabe em `hooks/conformidade.py:641` e duas fixtures. Este parecer se revalida só nesse trecho: antes do push, o autor roda as cinco cadeias de B9 acima, mais as de heredoc desta seção (com espaço, pipe, `env`, caminho), e lista o rc de cada uma.
+
+## Revalidação após o retrabalho 7
+Diff revisado: `3789092...61ddf7e` (2 commits: e79e971, 61ddf7e; 8 arquivos). Brief do autor: `bp-1-tech-lead-15.md`, "Entregar" 1 a 5.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em 61ddf7e: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo; não refeito aqui.
+
+Como reproduzir: o mesmo das rodadas anteriores (projeto temporário com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/a.js` commitados; cada linha é o `command` de um PreToolUse Bash de `forge:dev` passado a `python3 hooks/conformidade.py`, com `CLAUDE_PROJECT_DIR` na raiz). "Base" é o hook de `3789092` (`git archive 3789092 hooks`), igual ao de de999e0. O efeito real das duas fugas novas foi conferido com `bash` e GNU `sed` numa cópia do projeto.
+
+Cobertura declarada (VV-1): matriz de 225 linhas de heredoc, 9 donos (`perl`, `perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby`, `ruby3.2`, `python3`, `python3.12`, `python`, `node`) × 25 formas (com espaço, colado a `<<`, `<<X` sem aspas, `<<-`, `<<"X"`, `>`/`<` colado antes do `<<`, entre aspas duplas e simples, aspas coladas ao `<<`, com barra, caminho absoluto com e sem aspas, `env`, `command`, `exec`, `nice`, subshell, `2>&1`, `-`, pipe com e sem espaço, aspas no meio do nome); mais `$'perl'`, `{ perl; }`, atribuição antes, `time`, `sudo`, e as mesmas formas de nome na linha (`p''erl -e`, `"p"erl -e`, `p\erl -e`); 20 linhas do `w` do `sed` (delimitador do usuário, colado, `-e`, `;w`, `w` antes no script, usos comuns). Fora: L, M e o restante da BP-5 (declarados), inclusive a cópia do `inplace.awk` com outro nome; o vigia (R11 fora do diff).
+
+### B9 (N da segurança)
+- **Fecha nas formas pedidas, não como classe.** `hooks/conformidade.py:642` corta as palavras do dono também em `<`, `>`, aspas e `\`. Na HEAD dão rc=2 (na base, rc=0) as 72 linhas da matriz com o nome colado a `<<`/`<`/`>`, entre aspas inteiras (`"perl" <<'X'`, `'python3' <<'X'`, `"/usr/bin/perl"<<'X'`) e com barra na frente (`\python3 <<'X'`); as 135 que já davam rc=2 seguem rc=2. Nenhuma linha passou de rc=2 a rc=0.
+- **Resta a mesma classe com o nome quebrado por aspas ou barra no meio** (B10, abaixo): o corte trata aspas e barra como separador, e o shell as tira. A linha comum já usa o tokenizador do shell e barra essas formas (`p''erl -e 'unlink q(.forge/versao)'` dá rc=2); só o dono do heredoc diverge.
+- Fixtures: as 3 do N (`n-heredoc-dono-colado/aspas/barra-bloqueia`), rc=2.
+
+### `w` do sed com delimitador do usuário (K)
+- **Fecha nas formas pedidas.** `SED_ESCREVE` (`:64`) virou `[wW]\s*(\S+)`: `s|a|b|w .githooks/pre-push`, `\%a%w ...`, `sxaxbxw ...` e `s|a|b|w.githooks/pre-push` dão rc=2 (na base, rc=0). Fixture `k-sed-delimitador-w-bloqueia`, rc=2.
+- **Abriu uma regressão** (B11, abaixo): o `findall` não se sobrepõe, e um `w` anterior no script engole o `w` do comando.
+- **Falso positivo novo · aceitável.** Qualquer `w`/`W` seguido de palavra que seja caminho protegido conta como escrita: `sed -n '/show .githooks/p' src/a.js`, uma leitura, dá rc=2 (na base, rc=0). Só ocorre com o caminho protegido logo depois de um `w` no script, é do lado fechado e tem saída simples (`grep`); `sed -n '/w/p' .githooks/pre-push`, `sed 's/word/x/' .githooks/pre-push`, `sed 's/x/y/w out.txt' src/a.js` e `sed -i 's/a/b/' src/a.js` seguem rc=0. Vai como risco para o QA, junto com o do awk que cita `inplace`.
+
+### Documentação
+ADR 0009 (limite 2), `docs/hooks.md` e `changelog.d/bp-1.md` passam a citar o dono colado, entre aspas e com barra, o `w` depois de delimitador do usuário e a cópia do `inplace.awk` com outro nome na BP-5, em texto neutro (R-NEUTRO). "Entre aspas ou com barra" e o `s/a/b/w` só ficam verdadeiros com B10 e B11 corrigidos. Commits: 2, Conventional Commits em português, coerentes (fix, docs).
+
+### Achados novos (por classe)
+- **B10 · `hooks/conformidade.py:642` · classe "dono do heredoc", nome que o shell normaliza (aspas ou barra no meio).** rc=0 na HEAD e na base, com o `.forge/versao` de fato apagado ao rodar com `bash` (corpo `unlink q(.forge/versao)`, ou o equivalente de cada linguagem):
+  - `p''erl <<'X'`, `"p"erl <<'X'`, `p\erl <<'X'`, `pe\rl<<'X'`
+  - a mesma forma com `perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby`, `ruby3.2`, `python3`, `python3.12`, `python` e `node` (18 linhas da matriz)
+  - Por que bloqueia: está na classe de B9, que a documentação desta entrega promete ("entre aspas ou com barra"), e a linha comum já barra as mesmas formas.
+  - Sugestão (fecha a classe): tirar `"`, `'` e `\` do dono antes de cortar, `re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))`, ou usar o mesmo tokenizador da linha. Conferido fora do hook: a forma sugerida reconhece as 4 acima, `"/usr/bin/perl"<<X`, `'python3' <<'X'`, `perl>/dev/null <<X` e o pipe, e não reconhece `cat <<'X'`.
+  - Fixture: `b10-heredoc-aspas-no-meio-bloqueia` (`p''erl <<'X'` e `p\erl <<'X'`).
+  - Severidade: bloqueia.
+- **B11 · `hooks/conformidade.py:64` · classe "`w` do sed precedido de outro `w`/`W` no script", regressão do próprio retrabalho.** `[wW]\s*(\S+)` com `findall` consome o primeiro `w` e a palavra colada a ele, e o `w` do comando, dentro dessa palavra, não é mais visto. rc=0 na HEAD, com o `.githooks/pre-push` de fato sobrescrito pelo GNU `sed`:
+  - `sed 's/aw/b/w .githooks/pre-push' src/a.js` (na base, rc=2: regressão)
+  - `sed 's|w|b|w .githooks/pre-push' src/a.js`, `sed 's/new/old/w .githooks/pre-push' src/a.js`, `sed -n '/www/w .githooks/pre-push' src/a.js` (na base, rc=0)
+  - Por que bloqueia: regressão no trecho que esta volta mexeu, sobre a forma básica `s/a/b/w arquivo` que a documentação declara coberta.
+  - Sugestão (fecha a classe): busca sobreposta, `SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")`; conferido fora do hook, acha `.githooks/pre-push` nas 4 linhas acima. O falso positivo aceito não muda.
+  - Fixture: `b11-sed-w-engolido-bloqueia` (`s/aw/b/w .githooks/pre-push`).
+  - Severidade: bloqueia.
+- **R11 · segue recomendado** (`hooks/vigia.py`, cosmético), fora do diff.
+
+### Parecer da revalidação
+**Reprovado** por B10 e B11. B9 fecha nas formas pedidas (colado, aspas inteiras, barra na frente; 72 linhas que eram rc=0 passam a rc=2, nenhuma regride), mas a classe fica aberta com aspas ou barra no meio do nome; o `w` do sed com delimitador do usuário fecha nas formas pedidas, mas a regex nova perde o `w` do comando quando há outro `w` antes no script, inclusive em `s/aw/b/w`, que a base barrava. O falso positivo novo (palavra depois de `w`/`W` que é caminho protegido) é aceitável e vai como risco para o QA, com o do awk que cita `inplace`, R5, R6 e os dois casos da mitigação.
+
+A volta cabe em duas linhas (`hooks/conformidade.py:64` e `:642`) e duas fixtures. Este parecer se revalida só nesses dois trechos: antes do push, o autor roda a matriz de heredoc desta seção (os 9 donos × as formas listadas, inclusive aspas e barra no meio) e as 20 linhas do `sed`, e lista o rc de cada grupo; nenhuma linha que dá rc=2 em 61ddf7e pode passar a rc=0.
