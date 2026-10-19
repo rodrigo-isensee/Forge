@@ -3,47 +3,43 @@ tipo: review
 contrato: 1
 pedido: vv-2
 branch: melhoria/vv-2
-commit: e925152b3886dc7de006676f213328fec0c58d34
-parecer: reprovado
+commit: 6396f2da9d1344b665ed829634fc84d3670e0499
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-19
 ---
 # Code review: VV-2 (volta por delta)
 
-Diff revisado: `7226ba7...e925152` (6 commits, 31 arquivos, 1625+/31-). Brief do autor: `vv-2-tech-lead-1.md`, "Entregar" 1 a 7. Desenho: `docs/planos/vv-2.md`; modelo de ameaças: `docs/security/ameacas/vv-2.md` (cópias em `~/.forge-contrib/docs/`).
-Ferramentas rodadas nesta revisão, em e925152: `python3 -m unittest tests.test_volta_por_delta tests.test_testes_tocados` → `Ran 74 tests ... OK`; `forge-check docs` → rc 0; `git merge-tree --write-tree origin/develop HEAD` (develop em 0c77d23, release 0.21.0) → merge limpo. Suíte inteira (861 OK) e `scripts/validar-plugin.sh` não refeitos (R-TETO; provas do autor, o QA as refaz no head). Segurança: parecer próprio do `security-engineer` (E2.2), não refeito aqui; a lista negra `FORGE_CHECK_GRAVA` (risco c do autor) é dele.
+Rodada 2 (E2.1, revalidação só do delta da volta 1): `29fea96..6396f2d`, 6 commits, 13 arquivos, 121+/11-. A rodada 1 (`7226ba7...e925152`, reprovada por A1 e A2) fica resumida no fim; o que ela aprovou fora do delta não foi relido. Revisor diferente do autor da volta (D-ETAPAS-INST).
 
-## Contra o plano e o "Entregar"
-- **E1 (`forge-check entrega`, A1 a A6, B1, B4):** cumprido. `cmd_entrega` faz as duas checagens de base, valida o `--desde` pela `conferida` mais recente do `## Histórico` (sha40, ancestral do head), reprova `--desde` nas etapas de branch inteira, a `conferida` commitada na entrega (`pedido_na_entrega`, falha fechada se o `git log` falhar) e o intervalo vazio na etapa `codigo`; `ok (parecer de ...)` exige a mesma autoria (hash do texto com `strip`, igual ao `cmd_pr`) e não esconde remoção (A6). Refs por `rev-parse --verify --end-of-options`, git interno com `--no-ext-diff --no-textconv -z` e `--`.
-- **Hook (A1, B2):** cumprido. `caminhos` ganha `docs/pedidos/`, `docs/briefs/` e as cópias em `~/.forge-contrib/docs/`, só `jarvis`; nenhum outro agente ou skill grava nessas pastas (conferido por `grep -rn "docs/pedidos\|docs/briefs" agents skills`). `so_leitura.comandos` só ganha `entrega` e `delta` (teste novo em `tests/test_hooks.py` fixa a lista inteira). 14 fixtures.
-- **E2 (`delta`, `brief --anterior`, B3, B5):** `delta` cumprido. `brief --anterior` funciona só com o anterior dentro de `docs/briefs/` da raiz; com a cópia do Forge em `~/.forge-contrib/docs/briefs/` (o caso real deste repositório) dá rc 2 (A2). O `--volta` e o `Volta-de:` já aceitam essa pasta (`caminho_de_brief`), o `--anterior` não.
-- **E5:** cumprido (`pq_de_merge`, nas etapas de merge do `gerar` e do `gerar --volta`).
-- **E3 (`gerar --volta`, C1 a C5):** cumprido na mecânica, com testes de cada caso. Mas o bloco `## Achados` colide com o cabeçalho de mesmo nome que o modelo de parecer de segurança já tem, em outro formato (A1).
-- **E4 (agentes, docs, changelog):** os quatro agentes e o `docs/hooks.md` estão coerentes com o código; `changelog.d/vv-2.md` é neutro (R-NEUTRO). Faltam os modelos de parecer (A1). `agents/jarvis.md` (uma frase: gravar a `conferida` no Histórico no formato que o `CONFERIDA` casa e usar `gerar --volta`) e `bin/forge-testes` (o módulo novo no mapa do `bin/forge-check`, exigido por `tests/test_testes_tocados.py`): conferidos, corretos e no tamanho mínimo (DECISÃO TÉCNICA do Jarvis no pedido).
-- **Testes:** os 10 casos do plano estão em `tests/test_volta_por_delta.py` (classes `Entrega`, `Pareceres`, `Delta`, `BriefAnterior`, `PqDeMerge`, `BriefDeVolta`, `TextoDosAgentes`), mais os itens 8 (só leitura) e 10 (regressão) da lista da E2.2. Nenhum teste cobre parecer em formato antigo com cabeçalho `## Achados` nem o `--anterior` em `~/.forge-contrib` (são os dois bloqueantes).
-- **Commits:** um por item, Conventional Commits em português, na ordem do plano; corpo explica o porquê.
+Ferramentas rodadas nesta rodada, em 6396f2d: `python3 -m unittest tests.test_volta_por_delta tests.test_hooks tests.test_testes_tocados` → `Ran 98 tests ... OK` (rc 0); `forge-check docs` → rc 0; `git merge-tree --write-tree origin/develop HEAD` (develop em 092af03, não contida na branch) → rc 0, merge limpo. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO; o QA os refaz no head; `forge-testes --base 29fea96 --listar` pede a suíte completa porque o delta toca `bin/forge-testes`). Segurança (S-A1 a S-A5): parecer próprio do `security-engineer`, não refeito aqui; só confiro que o código da S-A1 não quebra o que eu aprovei.
 
-## Suposições do autor
-1. `--desde` "não ancestral do Base-sha" em vez de "descendente": aceita; é o que deixa o Base-sha regravado depois do merge da base funcionar (A5), e o caso "anterior ao Base-sha" segue reprovando (teste).
-2. Reprovado sem o bloco sai `não verificável`; `forge-check docs` só cobra quem adotou o formato: aceita como transição, mas a premissa "sem o bloco" não vale para segurança, cujo modelo já tem `## Achados` (A1).
-3. `DECISÃO TÉCNICA` copiadas pela ordem das linhas depois da que cita o sha256 do anterior: aceita (mais seguro que comparar datas sem hora).
-4. Volta cita os `E<n>` da entrega original numa linha de cobertura: aceita; a entrega original já foi conferida e o corte por IDs continua valendo para o que não foi.
-5. `--volta` e `--anterior` valem em `docs/briefs/` da raiz ou de `~/.forge-contrib`: não aceita; vale para o `--volta`, não para o `--anterior` (A2).
-6. Fixtures do AQ com a mensagem nova: aceita; seguem rc 2.
-7. `bin/forge-testes`, `docs/hooks.md` e a frase do `agents/jarvis.md`: aceita (ver E4).
+## Achados da rodada 1, fechamento
+| Achado | Estado | Reprodução nesta rodada | rc novo |
+|---|---|---|---|
+| R-A1 (bloqueante) modelos de parecer sem o bloco no formato | fechado | R1 com uma linha `A1 (bloqueante) x.py:1 · teste` inserida no `## Achados` de `templates/projeto/docs/{security,reviews,qa}/_modelo.md` e `docs/security/_modelo.md` → `problemas_do_bloco` devolve `[]` nos quatro; `python3 -m unittest tests.test_volta_por_delta.BriefDeVolta.test_parecer_escrito_pelo_modelo_passa_no_gerar_volta` | 0 |
+| R-A2 (bloqueante) `brief --anterior` fora de `~/.forge-contrib` | fechado | R2 (`forge-check brief ~/.forge-contrib/docs/briefs/vv-2-tech-lead-2.md ... --anterior ~/.forge-contrib/docs/briefs/vv-2-tech-lead-1.md`) → `resultado: aprovado`; `...BriefAnterior.test_anterior_na_raiz_de_brief_do_forge` (inclui o caso fora de `docs/briefs/`, que segue rc 2) | 0 (antes 2) |
+| R-A3 (recomendado) `-z` em `arquivos_da_entrega` sem teste nem changelog | fechado | `...Entrega.test_nome_acentuado_chega_sem_aspas_e_o_fragmento_do_changelog_conta` (`docs/decisões.md` sem aspas, com e sem `--desde`); linha nova em `changelog.d/vv-2.md` | 0 |
+| R-A4 (recomendado) `Volta-de:` sem `--ref` sem tratamento | fechado | `agents/conferente.md:25`: "é `não verificável` no veredito, peça a ref"; `...TextoDosAgentes.test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato` | 0 |
+
+Sobre o "tratar o formato antigo" de R-A1: não foi feito e não bloqueia. Os pareceres antigos (`docs/security/aq.md` e afins, de pedidos fechados) seguem fora do formato (R1 neles ainda lista as linhas de tabela), mas o `forge-check docs` passa (rc 0) e o `gerar --volta` só lê pareceres do pedido em curso na ref; num parecer antigo ele recusa com rc 2 (falha fechada, nada some em silêncio). Com os modelos corrigidos, todo parecer novo nasce no formato.
+
+## Suposições do autor (volta 1)
+1. Modelos de devops fora: aceita. `docs/devops/_modelo.md` e `templates/projeto/docs/devops/_modelo.md` não têm `## Achados` (`grep -n Achados` vazio), então não há colisão, e o `gerar --volta` não lê `docs/devops/`.
+2. `--destino-arquivo` por nome inteiro: aceita. `FORGE_CHECK_GRAVA_EXATA` compara `a.split("=", 1)[0]`, então `--destino` (opção real do `brief`) volta a passar e `--destino-arquivo` e `--destino-arquivo=x` são barrados; fixtures `conferente-brief-destino-libera.json` e `...-arquivo-bloqueia.json`, rc 0 na `tests.test_hooks`. Risco residual baixo: quando a opção existir, a abreviação do argparse (`--destino-a`) também a alcançaria; o comentário em `hooks/conformidade.py:128` já diz que o nome que gravar nasce na lista por prefixo, e aí ele sai da lista exata.
+3. Não existem `docs/reviews/_modelo.md` nem `docs/qa/_modelo.md` no Forge: aceita (`ls` → "No such file or directory" nos dois); só `docs/security/_modelo.md` existe na raiz, e foi corrigido igual ao do modelo de projeto.
+
+## Delta lido
+- `bin/forge-check:2680`: `--anterior` pelo `caminho_de_brief`, a mesma função do `--volta`; correto e mínimo. A E5 (`pq_de_merge`, 79d42f9) não é tocada pelo delta (o único trecho alterado de `bin/forge-check` é a linha 2680).
+- `bin/forge-testes`: as duas entradas novas vêm antes de `(migrations|templates)/.*` e de `(agents|skills|docs)/.*`, e o mapa usa a primeira que casa: os modelos ganham `test_volta_por_delta` sem perder o `PUBLICADO`/`CONTEUDO`. Correto (DECISÃO TÉCNICA do Jarvis no pedido).
+- Modelos: o bloco `## Achados` fica vazio no modelo, com a regra de formato no texto de instrução e a prosa movida para `## Detalhe dos achados` (segurança) e `## Parecer` (review); o QA ganha o bloco. O teste fixa um único cabeçalho `## Achados` por modelo.
+- `agents/conferente.md` e `agents/jarvis.md` (`Desde:` da mensagem, conferido contra o Histórico; texto do hook exato): coerentes com o código e cobertos por teste de texto. São S-A2 e S-A5, do `security-engineer`.
+- Commits: um por achado, Conventional Commits em português, cada um citando o achado que fecha. Sem achado novo no delta.
 
 ## Achados
-- A1 (bloqueante) templates/projeto/docs/security/_modelo.md:18 · o modelo (e docs/security/_modelo.md:18) já tem ## Achados em prosa: todo parecer de segurança reprovado no formato atual é recusado pelo gerar --volta e reprova a conferência da volta; atualizar os modelos de reviews, qa e security e tratar o formato antigo; reproduzir: R1
-- A2 (bloqueante) bin/forge-check:2680 · brief --anterior só aceita docs/briefs/ da raiz; o anterior em ~/.forge-contrib/docs/briefs/ (o fluxo do Forge que o conferente.md manda rodar) dá rc 2; usar caminho_de_brief, como o --volta, e testar; reproduzir: R2
-- A3 (recomendado) bin/forge-check:441 · médio: arquivos_da_entrega passou a usar -z, e nome com acento deixa de vir entre aspas (core.quotePath); muda gatilhos e pr para melhor, mas sem teste nem linha no changelog; reproduzir: R3
-- A4 (recomendado) bin/forge-check:1018 · baixo: brief com Volta-de conferido sem --ref sai "volta: pareceres não verificáveis" sem reprovar, e o conferente.md não diz como tratá-la; dizer que é não verificável no veredito ou reprovar; reproduzir: R4
-
-## Reprodução
-- R1: `cd ~/.forge-contrib/wt/vv-2 && python3 -c 'import importlib.machinery as M;m=M.SourceFileLoader("fc","bin/forge-check").load_module();print(m.problemas_do_bloco(*m.achados_do_parecer(open("docs/security/aq.md").read()),{"parecer":"reprovado"},True)[:2])'` → `['linha do bloco ## Achados fora do formato ...', ...]` (o mesmo com `templates/projeto/docs/security/_modelo.md`; 16 pareceres de `docs/security/` têm o cabeçalho e nenhum casa o formato). Parecer novo que siga o modelo e acrescente uma linha `- A1 (...)` faz o `forge-check docs` falhar (modo de transição: com um achado lido, a linha de prosa vira erro), e com ele o `forge-check pr`.
-- R2: `cd ~/.forge-contrib/wt/vv-2 && python3 bin/forge-check brief ~/.forge-contrib/docs/briefs/vv-2-tech-lead-2.md --pedido ~/.forge-contrib/docs/pedidos/vv-2.md --destino forge:tech-lead --anterior ~/.forge-contrib/docs/briefs/vv-2-tech-lead-1.md; echo rc=$?` → `brief: --anterior ".../vv-2-tech-lead-1.md": fora da raiz ou de docs/briefs/` e `rc=2`; com `cd ~/.forge-contrib` e caminhos relativos, rc 0.
-- R3: repositório com `docs/decisões.md` alterado na branch: `git diff --name-only base...HEAD` imprime `"docs/decis\303\265es.md"` (o código antigo comparava esse texto com prefixos), o novo imprime `docs/decisões.md`.
-- R4: `tests/test_volta_por_delta.py` `test_conferencia_reprova_anterior_bloco_e_achado`, último caso (`ref=None`): a linha sai e o rc não muda por ela.
 
 ## Parecer
-**Reprovado** por A1 e A2. O núcleo (E1, hook, `delta`, E5, a mecânica do E3) está correto, testado e não afrouxa nada: o `--desde` só nasce de linha que só o Jarvis grava e as etapas de branch inteira ficam travadas por máquina. A volta é pequena: os três modelos de parecer no formato novo e uma decisão sobre o `## Achados` antigo (ignorar linha de prosa sem prefixo `- A<n>`, ou tratar bloco sem nenhum achado lido como `não verificável`; a escolha toca C3 e passa pelo `security-engineer`), mais o `--anterior` pelo `caminho_de_brief`, cada um com teste. A3 e A4 podem entrar na mesma volta ou virar corte.
-Para a E2.2 em curso: o parecer de segurança desta rodada, escrito pelo modelo atual, não deve misturar a prosa do modelo com linhas `- A<n> (...)` no `## Achados`, ou o `forge-check docs` desta branch o recusa (R1). Para a E2.4: a develop andou (0c77d23) e o merge é limpo; trazê-la uma vez antes da revalidação.
+**Aprovado.** Os dois bloqueantes e os dois recomendados da rodada 1 estão fechados, cada um com teste que falharia sem a correção; o delta não toca a E5, não afrouxa nenhum portão (a S-A1 só deixa de barrar a opção legítima `--destino`, e a futura `--destino-arquivo` continua barrada) e não traz achado novo.
+Para a E2.4: a develop andou para 092af03 e o merge é limpo (`merge-tree` rc 0); trazê-la uma vez antes do QA, conforme R-FLUXO.
+
+Rodada 1 (e925152, reprovado): A1 modelos de parecer em colisão com o `## Achados` de máquina; A2 `brief --anterior` só na raiz; A3 `-z` sem teste; A4 `Volta-de:` sem `--ref`. Texto completo no histórico deste arquivo (`git show 25970f2:docs/reviews/vv-2.md`).
