@@ -2,8 +2,8 @@
 tipo: qa
 contrato: 1
 pedido: release-0.21.0
-branch: melhoria/release-0.21.0
-commit: 06b6a9e0959474fb787a58cc60725cc65a837b60
+branch: melhoria/release-0.21.0-fragmento
+commit: e65a7a88a80e1a16d41d18641178859be8a48e78
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -12,29 +12,30 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-19
 ---
-# QA - release 0.21.0
+# QA - release 0.21.0 (E5: junção dos fragmentos reconcilia-homolog-main e vv-2)
 
-Links: `~/.forge-contrib/docs/pedidos/release-0.21.0.md` (E1, E2.2), `docs/reviews/release-0.21.0.md` (aprovado). Não há UX nem API. Offline (`R-CUSTO`). Testado `06b6a9e`; o HEAD da worktree (`1d50b11`) só soma o parecer de review por cima (`git diff --stat 06b6a9e HEAD`: 1 arquivo, `docs/reviews/release-0.21.0.md`).
+Links: `~/.forge-contrib/docs/pedidos/release-0.21.0.md` (E5.3), `docs/reviews/release-0.21.0.md` (review do E5, aprovado sobre `e65a7a8`). Não há UX nem API. Offline (`R-CUSTO`). Testado `e65a7a8`; o HEAD da worktree (`9d034a1`) soma só o parecer de review por cima (`git diff --name-only e65a7a8 HEAD`: `docs/reviews/release-0.21.0.md`). O QA anterior (`06b6a9e`, E1/E2.2) fica substituído por este.
 
 ## Escopo
-A release só move a versão e o texto do changelog (E1); o código das quatro melhorias (T-1, CONF-ANEXO-PARECERES, S-18, BP-1) já passou por QA próprio. Aqui: suíte inteira, validação do plugin, instalação de ponta a ponta, versões e changelog.
+Esta etapa cobre o que o E5 mudou: `CHANGELOG.md` (entrada `[0.21.0]`) e a remoção dos fragmentos `changelog.d/vv-2.md` e `changelog.d/reconcilia-homolog-main.md`. Versão e código não mudaram desde o `06b6a9e`; por isso a suíte e a validação do plugin rodam inteiras, e a instalação de ponta a ponta não foi repetida aqui (o CI a roda no `develop` e no `homolog`).
 
 ## Resultado
 
 | Obrigação | Verificação | Resultado |
 |---|---|---|
-| Suíte inteira verde (R-QA) | `python3 -m unittest discover -s tests` na raiz da worktree (nenhuma outra suíte rodando, conferido com `pgrep -af "unittest discover"`) | Ran 813 tests in 163.239s, OK |
-| Plugin válido | `scripts/validar-plugin.sh` | "Validation passed" nos manifestos do marketplace, do plugin e de `dev/` |
-| Instalação de ponta a ponta (como o CI) | `git archive 06b6a9e` extraído em `$TMPDIR` e `bash tests/e2e-instalacao.sh` | `e2e-instalacao: ok (plugin instalado, 8 agentes, 9 skills, projeto inicializado)`, rc 0 (CLI 2.1.303; o CI fixa 2.1.296) |
-| Versão 0.21.0 nos dois manifestos | `grep -n version .claude-plugin/plugin.json dev/.claude-plugin/plugin.json` | `"version": "0.21.0"` nos dois (linha 3) |
-| Entrada no CHANGELOG | `sed -n '/^## \[0.21.0\]/,/^## \[0.20/p' CHANGELOG.md` | `## [0.21.0] - 2026-10-19` com S-18, T-1 (Adicionado) e BP-1, CONF-ANEXO-PARECERES (Corrigido) |
-| Fragmentos consumidos | `ls changelog.d \| grep -E '^(t-1\|conf-anexo-pareceres\|s-18\|bp-1)\.md$'` | nenhum (0) |
-| Árvore limpa após a bateria | `git status --short` | vazio |
+| Suíte inteira verde (R-QA) | `python3 -m unittest discover -s tests -v` na raiz da worktree, com `pgrep -f "unittest discover"` vazio antes | Ran 865 tests in 158.377s, OK, rc 0; 853 linhas `... ok` mais 12 `ok` isoladas (docstring), 0 FAIL/ERROR, 0 skipped |
+| Plugin válido | `scripts/validar-plugin.sh` na raiz da worktree | rc 0; "Validation passed" no marketplace, no plugin e em `dev/`. Os avisos de rede são telemetria negada pelo sandbox |
+| `conferir-release` (etapa que reprovou o #208) | `bin/forge-changelog conferir-release` | rc 0: `ok: changelog.d/ sem fragmentos pendentes` |
+| Fragmentos consumidos | `ls changelog.d` (a pasta existe e está vazia) | 0 fragmentos; `vv-2.md` e `reconcilia-homolog-main.md` apagados |
+| Linhas dos fragmentos na entrada `[0.21.0]` | para cada linha de conteúdo de `origin/develop:changelog.d/vv-2.md` e `reconcilia-homolog-main.md`, `grep -cxF` no `CHANGELOG.md` | 1 ocorrência cada (3 linhas de Adicionado/Alterado do vv-2 e 1 de Corrigido da reconciliação; as linhas de Adicionado e Corrigido ficam nas subseções já existentes e a de Alterado na subseção nova) |
+| Nada além do previsto | `git diff --numstat origin/develop e65a7a8` | `CHANGELOG.md` com 5 inserções e 0 remoções; mais os dois fragmentos apagados. `git diff origin/develop e65a7a8 -- CHANGELOG.md` sem nenhuma linha removida |
+| Versão e data | `grep -n '"version"' .claude-plugin/plugin.json dev/.claude-plugin/plugin.json` | `"version": "0.21.0"` nos dois; `## [0.21.0] - 2026-10-19` no CHANGELOG; `## [Não publicado]` vazio |
+| Árvore limpa | `git status --short` antes de gravar este parecer | vazio |
 
 ## Achados
-Crítico 0, alto 0, médio 0, baixo 0. Sem bug aberto; `aceite_usuario` não se aplica.
+- Parecer aprovado: nenhum achado bloqueante ou recomendado.
 
-Observações sem severidade: (1) as saídas dos comandos mostram negações de rede para `api.anthropic.com` e `datadoghq.com` do sandbox (telemetria do CLI); não afetaram nenhum resultado. (2) `docs/qa/_modelo.md` não existe na raiz do Forge (só em `templates/projeto/docs/qa/`); o formato seguiu o parecer `docs/qa/bp-1.md`. (3) Vermelho antes do verde e mutação não se aplicam: a release não traz teste nem código de produção novos.
+Observações sem severidade: (1) a subseção `### Alterado` na `[0.21.0]` é nova no CHANGELOG; é a decisão técnica do Jarvis (Keep a Changelog põe Alterado antes de Corrigido) e o review a confere. (2) O sandbox nega a telemetria do CLI (`api.anthropic.com`, `datadoghq.com`); não afetou nenhum resultado.
 
 ## Riscos
-Nenhum novo; o CI de `homolog` repete a bateria completa sobre o conjunto.
+Nenhum novo. A versão e o código são os de `06b6a9e`, já testados; a diferença do E5 é só changelog e fragmentos. O CI de `develop` e `homolog` repete a bateria completa sobre o conjunto. O commit deste parecer é `e65a7a8`; o HEAD da branch só ganha arquivos de `docs/reviews/` e `docs/qa/`, que a regra de pareceres aceita.
