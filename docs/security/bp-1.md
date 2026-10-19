@@ -3,13 +3,15 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: de999e0a0d7b5f3c04fd2c186cdfb2ca78264fc8
+commit: 61ddf7e457bccc5429082f58c162404867729c3d
 parecer: reprovado
 revisor: forge:security-engineer
-data: 2026-10-17
+data: 2026-10-19
 ---
 # Review de segurança: bp-1
 
+> **Rodada 8** (`61ddf7e`, depois do retrabalho 7): **reprovado**. O N está fechado: o dono do heredoc colado ao `<<`, `<` ou `>`, entre aspas ou com barra dá rc=2 em todas as formas testadas, e nenhuma linha do heredoc passou de rc=2 para rc=0. O `w` do `sed` depois de delimitador do usuário também fecha. Mas a regex nova do `w` (`hooks/conformidade.py:64`), que eu mesmo propus na rodada 7, trouxe uma regressão, o achado O (média): um `w` anterior no mesmo trecho sem espaço (`s/saw/x/;w .git/config`) consome o `w` de verdade, e o caminho protegido deixa de ser conferido. Com isso, `sed` volta a gravar `core.hooksPath = /dev/null` no `.git/config`, sem aviso do `vigia`. Em `de999e0`, essa linha dava rc=2. A correção é de uma linha (lookahead). Detalhes na seção "Revalidação após o retrabalho 7", no fim.
+>
 > **Rodada 7** (`de999e0`, depois do retrabalho 6): **reprovado**. O resto do K pedido no retrabalho 6 está fechado: nome com plataforma, opção longa abreviada, `gawk -E`/`-l`/`--load`/`@load`, `nawk` e o `sed` com endereço antes do `w`/`W`. Nenhuma linha das baterias das seis rodadas passou de rc=2 para rc=0. Mas o commit `14b3ac5` trouxe uma regressão, o achado N (média): o dono do heredoc passou a ser conferido por palavra, e o interpretador colado ao `<<` (`perl<<'EOF'`), entre aspas (`"python3" <<'EOF'`) ou com barra (`\python3 <<'EOF'`) deixou de ser reconhecido. Com isso, uma linha volta a gravar `core.hooksPath = /dev/null` no `.git/config`, sem aviso do `vigia`. A correção é de uma linha. Detalhes na seção "Revalidação após o retrabalho 6", no fim.
 >
 > **Rodada 6** (`592098a`, depois do retrabalho 5): **aprovado**. A mitigação barata do L e a parte do K pedida no retrabalho 5 (sufixo livre do `-i`, nome com versão, `inplace` do gawk, `W`/`--expression`/`-e` colado do `sed`) funcionam, o R10 não dá falso positivo e nenhuma cadeia das cinco rodadas voltou a calar os hooks (nenhuma linha passou de rc=2 para rc=0). Ficam abertos, com a BP-5: o L por grafia não literal (aspas no meio, curinga, `cd .git`) e por lançadores fora da lista, e um resto do K (endereço `$`/`!` antes do `w` do `sed`, `nawk`, `gawk -l inplace`, `perl5.34-x86_64-linux-gnu`). Detalhes na seção "Revalidação após o retrabalho 5", no fim.
@@ -508,3 +510,69 @@ Use uma cópia `git archive de999e0` em `$TMPDIR` e um repositório descartável
 
 ### Ferramentas (rodada 7)
 Usei só os hooks de `de999e0` e de `592098a`, de cópias `git archive` em `$TMPDIR`, os arquivos de comandos e de cadeias das rodadas 5 e 6, o gerador de classe do autor e o `git` 2.55.0 local, em repositórios descartáveis sem `origin`: os `push` liberados pelo hook falharam no próprio git, e nenhum remoto foi tocado. A cópia com as duas correções propostas também ficou em `$TMPDIR` e não entrou na worktree. `gitleaks`, `zizmor` e `actionlint` não se aplicam: a entrega não mexe em workflow nem traz segredo.
+
+## Revalidação após o retrabalho 7
+Escopo: `git diff 3789092142afbf4d386a0b405a1b5761f24d2f76...61ddf7e457bccc5429082f58c162404867729c3d`, commits `e79e971` e `61ddf7e`, 8 arquivos (+103 / -6): `hooks/conformidade.py` (linhas 62-64 e 642), quatro fixtures novas, ADR 0009 (item 2), `docs/hooks.md:36` e `changelog.d/bp-1.md`. Método das rodadas anteriores: os hooks de `61ddf7e`, `de999e0` e `592098a` rodados com `python3` a partir de cópias `git archive` em `$TMPDIR`, em repositórios descartáveis (git 2.55.0, sem `origin`), com a marca gravada pelo `SessionStart` do `vigia`. Comparei as três versões linha a linha. Em cada cadeia, um passo só foi executado de verdade quando o hook deu rc=0. `python3 -m unittest tests.test_hooks` na cópia de `61ddf7e`: 19 testes, OK, inclusive as quatro fixtures novas (a suíte inteira não foi rodada, R-TETO). Os arquivos de comandos das rodadas 5 a 7 não estavam mais em `$TMPDIR`, então montei baterias novas, descritas abaixo. Na worktree, só este arquivo foi tocado.
+
+### Veredito da rodada 8
+**Reprovado.** O N fecha, e o `w` do `sed` depois de delimitador do usuário também. Mas a troca do `SED_ESCREVE` abriu formas que `de999e0` e `592098a` barravam (achado O, abaixo). Pelo critério das rodadas anteriores (I na rodada 4, N na rodada 7), uma regressão trazida pela entrega bloqueia. A regex que regrediu é a que eu propus na rodada 7, como "correção por classe". Eu conferi que ela pegava os cinco casos do delimitador, mas não conferi o que ela deixava de pegar. A falha é da minha proposta, não da implementação, que é literal. A correção é mecânica, de uma linha, e já foi conferida numa cópia.
+
+### N: fechado
+`hooks/conformidade.py:642`. A bateria tem 9 interpretadores (`python3`, `python3.10-dbg`, `perl`, `perl5.34-x86_64-linux-gnu`, `ruby`, `gawk`, `awk`, `node` e `/usr/bin/perl`) em 16 formas de dono cada: com espaço, colado a `<<` (com e sem aspas no delimitador, `<<-`), entre aspas duplas e simples, com barra, `>/dev/null <<`, `</dev/null<<`, `- <<`, `cat <<'EOF' | x`, `env x<<`, `(x<<`, `x=1 x<<` e `2>&1<<`. Em cada uma, o corpo remove `.forge/versao`. Além disso, os dois caminhos de ataque da rodada 7 (`perl<<'EOF'` com `hooksPath` no `.git/config` e `"python3" <<'EOF'` escrevendo em `.claude/settings.json`) e 8 grafias extras. Total: 154 linhas de heredoc, na ordem `592098a`/`de999e0`/`61ddf7e`:
+- **2/0/2**: 83. São as formas do N, que voltam a ser barradas;
+- **0/0/2**: 10. O nome com plataforma colado, entre aspas ou com barra (`perl5.34-x86_64-linux-gnu<<'EOF'`). Melhorou em relação às duas versões;
+- **0/2/2**: 4. **2/2/2**: 54;
+- **0/0/0**: 3. São as grafias com aspas ou barra **no meio** do nome (`p''erl<<'EOF'`, `p"erl"<<'EOF'`, `pe\rl<<'EOF'`). Davam rc=0 também em `592098a`. É a classe "grafia não literal" do L, anterior à entrega, com a BP-5;
+- **nenhuma** linha passou de rc=2 para rc=0 em `61ddf7e`.
+
+O corte novo só acrescenta pedaços. Um nome que casava antes continua no último pedaço do token, então o conjunto que casa com `INTERPRETES`/`AWKS` só cresce. `command perl<<` e `exec perl<<` também voltam a 2/0/2. Os comuns (`perl<<'EOF'` com `print 1;`, `"python3" <<'EOF'` só lendo e `python3 - <<'EOF'`) seguem com rc=0.
+
+### K do `w` com delimitador do usuário: fechado
+`hooks/conformidade.py:64`. `s|a|b|w`, `s#a#b#w`, `\%a%w`, `\|a|w`, `s|a|b|W`, `s,a,b,w`, `s_v_b_w`, `s|a|b|gw` e a forma `s|^|[core]…|w`, sobre `.githooks/pre-push`, `.git/config`, `.forge/versao` e `.claude/settings.json`, por `-n '…'`, `-e '…'` e `--expr='…'`, dão rc=2 em `61ddf7e`. Em `de999e0` e `592098a`, davam rc=0.
+
+### O. Um `w` anterior no mesmo trecho consome o `w` de verdade: `sed` grava `core.hooksPath` sem aviso · média (regressão de `e79e971`)
+**Evidência:** `hooks/conformidade.py:64` e `hooks/conformidade.py:805`. A regex nova é `[wW]\s*(\S+)`, e ela é usada com `findall`, que não sobrepõe os casamentos. O primeiro `w` ou `W` do script, mesmo dentro de um padrão ou de uma substituição (`saw`, `|w|`, `ow`), casa, e o `\S+` engole o trecho até o próximo espaço, inclusive o `w` que é o comando. O caminho que vem depois desse `w` fica sem casamento e não é conferido. A regex antiga exigia um caractere de uma lista antes do `w` (`[\s;{}/!,$~+gpimMeI0-9]`), e por isso pulava o `w` de `saw` e casava o `;w` seguinte.
+
+**Reprodução** (clone principal com `.forge/versao` e marca presentes). Na ordem `592098a`/`de999e0`/`61ddf7e`, dão **2/2/0**:
+- `sed -n 's/saw/x/;w .git/config' src/app.js`
+- `sed -n 's|w|x|;w .git/config' src/app.js`
+- `sed -n 's/xw/y/;w .githooks/pre-push' src/app.js`
+- `sed -n '/saw/!d;w .git/config' src/app.js`
+- `sed -n '/ow/w .githooks/pre-push' src/app.js`
+
+Na varredura por caractere (465 linhas: cada caractere imprimível em cinco formas, `s/a<c>w/b/;w`, `/<c>w/w`, `s<c>a<c>b<c>w`, `1<c>w` e `s/a/b/<c>w`, todas sobre `.git/config`), **130 linhas passam de rc=2 em `de999e0` para rc=0 em `61ddf7e`**. Também existe uma variante que é anterior à entrega e já dava rc=0 nas três versões: o `w` anterior vem depois de um caractere da lista antiga (`y/w/w/;w`, `/w/w`, `/www/w`, `s/w/x/w`, `s/new/old/;w`, `1{s/w/W/};w`; 72 linhas da bateria do N/K, 0/0/0 em `de999e0` e `61ddf7e`). A mesma correção fecha essa variante.
+
+**Caminho de ataque:** um agente da sessão, sem permissão especial, grava em `src/app.js` (escrita livre) as linhas `[core]` e `hooksPath = /dev/null`. Depois roda `sed -n 's/saw/x/;w .git/config' src/app.js`. O hook dá rc=0, o `sed` sobrescreve o `.git/config`, e `git config --get core.hooksPath` passa a responder `/dev/null`. O `vigia` fica **mudo** no `Stop`, porque não acompanha o `.git/config`. A camada do git (`.githooks/pre-push`, R-VERIFY e R-FLUXO) cai em silêncio. Conferi a cadeia inteira de ponta a ponta numa cópia descartável. O `conformidade` continua barrando `git push --force origin main` (rc=2): não é "uma linha cala tudo" como em A, D, F e I. É o mesmo efeito do N, por outro programa, numa forma que `de999e0` barrava e que a ADR 0009 e a `docs/hooks.md:36` prometem cobrir ("o `w`/`W arquivo` do `sed` … conta como escrita").
+
+**Correção mínima** (P, `tech-lead`): conferir o caminho depois de **cada** `w`/`W`, com sobreposição: `SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")`. Com o lookahead, o `findall` devolve a palavra seguinte a cada posição de `w`, e nenhum `w` anterior esconde o que vem depois. Conferi numa cópia de `61ddf7e` com só essa mudança:
+- as 130 linhas da varredura que regrediram, as 72 que já eram 0/0/0 e todas as do K do delimitador dão rc=2. Na bateria do N/K, sobram só as 3 grafias de heredoc acima;
+- a bateria geral (121 linhas: `git rm`/`mv`/`checkout`/`restore` e pathspecs, `rm`, `mv`, `>`, `touch`, `cp`, `tee`, `perl -i`/`-0777pi`, `ruby -i`, `gawk -i inplace`, `sed -i`/`--in-pl`, `python3 -c`, `node -e`, nomes com plataforma, `nice`, `ionice`, `-c core.hooksPath`, push forçado e direto, `--no-verify`, sobre cinco caminhos protegidos): 118 com rc=2 e 3 com rc=0 (`git sparse-checkout set src`, `git clean -fdX` e `git stash -a`, livres por desenho desde a rodada 2). O resultado é idêntico nas três versões `de999e0`, `61ddf7e` e corrigida;
+- os 26 comuns (os 17 das rodadas anteriores, mais `sed 's/www/w/g'`, `sed -n '/w/p'`, `sed -i 's/new/old/' src/app.js`, `sed -n 's/a/b/w out.txt'`, `sed -e 'w /dev/stdout'`, os heredocs só de leitura e `cat <<'EOF' > docs/nota.md` com `w .git/config` no corpo) seguem com rc=0;
+- a cadeia A (`git sparse-checkout set src`, depois `git push --force origin main`) dá rc=2, e o `vigia` avisa `versao-sumiu`;
+- `tests.test_hooks`: OK.
+
+Fixtures sugeridas, todas com rc=2: `o-sed-w-mascarado-bloqueia`, com `sed -n 's/saw/x/;w .git/config' src/app.js` e `sed -n 's|w|x|;w .githooks/pre-push' src/app.js`, e `o-sed-w-depois-de-w-bloqueia`, com `sed -n 'y/w/w/;w .git/config' src/app.js`. Também vale acrescentar à busca de classe do autor um `w` dentro do padrão antes do comando `w`.
+
+### Rodadas 1 a 7: sem regressão fora do O
+Nas baterias desta rodada, nenhuma linha fora do `sed` mudou de rc=2 para rc=0 entre `de999e0` e `61ddf7e`. Isso vale para a bateria geral, os comuns, os heredocs e a cadeia A. As 787 fixtures de `tests/hooks/conformidade/` passam em `61ddf7e` e na cópia corrigida. O diff de código tem duas linhas (`hooks/conformidade.py:64` e `:642`). Pela análise acima, a `:642` só amplia o que casa. Portanto a superfície de regressão é o `SED_ESCREVE`, e é nele que está o O. Ressalva: não reproduzi as 89 cadeias e a busca de classe de 1117 linhas da rodada 7, porque os arquivos não estavam mais em `$TMPDIR`. A afirmação "sem regressão" se apoia na comparação das três versões nas baterias novas, nas fixtures e no diff restrito a essas duas linhas.
+
+### O que fica aberto, por classe (rodada 8)
+- **Bloqueia:** O (média, regressão de `e79e971`), com correção de uma linha em `hooks/conformidade.py:64` e duas fixtures (`tech-lead`). A mesma linha fecha a variante anterior à entrega (`y/w/w/;w`, `/w/w`).
+- **L · média (não muda; anterior à entrega; BP-5):** grafia não literal, inclusive no dono do heredoc com aspas ou barra no meio do nome (`p''erl<<`, `pe\rl<<`), lançadores fora da lista e `busybox`.
+- **K, resto · baixa (BP-5):** `inplace.awk` copiado com outro nome (a ADR 0009 e a `docs/hooks.md:36` agora o listam com a BP-5), `sed` com `e`, escritores fora do modelo (`ed`, `ex`, `vim -es`, `patch`, `sponge`, `split`, `chmod`, `chown`, `busybox`), script lido de arquivo ou da entrada padrão e interpretadores fora da lista. Vale a condição do sandbox já registrada: escrita negada em `.git/forge/`, `.forge/versao`, `.git/config`, `.git/commondir`, `.git/worktrees/`, `.githooks/` e `.claude/`.
+- **M · informativa (BP-5)** e **C · informativa**: sem mudança.
+- **BP-2:** alias por `-c` com grafia não literal (sem mudança).
+- **Documentação:** a ADR 0009 (item 2), a `docs/hooks.md:36` e o `changelog.d/bp-1.md` batem com o código no heredoc (colado, aspas, barra) e no delimitador do `sed`. A cópia do `inplace.awk`, o L e o M estão listados com a BP-5. A única diferença é o O: o texto promete que o `w arquivo` do `sed` conta como escrita, e em `61ddf7e` isso falha quando há um `w` anterior no mesmo trecho. A correção acima faz o código bater com o texto, sem mudar o texto.
+- **Fechados nesta rodada:** N (dono do heredoc colado, entre aspas ou com barra) e o K do `w` com delimitador do usuário.
+
+### Comandos para reproduzir (VV-1)
+Use cópias `git archive 61ddf7e` e `git archive de999e0` em `$TMPDIR` e um repositório descartável com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/app.js` commitados. Antes, rode o `SessionStart` do `vigia` (`CLAUDE_PROJECT_DIR` na raiz). Para cada linha `<L>`, rode `python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","tool_input":{"command":sys.argv[1]},"agent_type":"forge:dev","hook_event_name":"PreToolUse","tool_use_id":"t","cwd":sys.argv[2]}))' "<L>" "$PWD" | CLAUDE_PROJECT_DIR=$PWD python3 <cópia>/hooks/conformidade.py; echo $?`.
+- N fechado: `perl<<'EOF'⏎open(F,'>>','.git/config'); print F "[core]\n\thooksPath = /dev/null\n";⏎EOF` → 2; `"python3" <<'EOF'⏎open('.claude/settings.json','w').write('x')⏎EOF` → 2; `\python3 <<'EOF'⏎import os; os.remove('.forge/versao')⏎EOF` → 2.
+- K do delimitador fechado: `sed 's|a|b|w .githooks/pre-push' src/app.js` → 2; `sed -n '\%a%w .git/config' src/app.js` → 2.
+- O (regressão): `sed -n 's/saw/x/;w .git/config' src/app.js` → 0 em `61ddf7e` e 2 em `de999e0`. Ponta a ponta: `printf '[core]\n\thooksPath = /dev/null\n' > src/app.js`, depois a linha acima, executada. Em seguida `git config --get core.hooksPath` imprime `/dev/null`, e `echo '{"hook_event_name":"Stop","session_id":"s"}' | CLAUDE_PROJECT_DIR=$PWD python3 <cópia>/hooks/vigia.py` não imprime nada.
+- O, variante anterior: `sed -n 'y/w/w/;w .git/config' src/app.js` → 0 nas três versões.
+- Correção: na cópia, `SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")`; as linhas de O dão 2 e `sed -n '/w/p' src/app.js` dá 0.
+- L aberto: `p''erl<<'EOF'⏎unlink q(.forge/versao);⏎EOF` → 0 nas três versões.
+
+### Ferramentas (rodada 8)
+Usei só os hooks de `61ddf7e`, `de999e0` e `592098a` e uma cópia de `61ddf7e` com a correção proposta, todos de cópias `git archive` em `$TMPDIR`, mais baterias geradas nesta rodada (154 linhas de heredoc, 180 de `sed` com delimitador e `w` anterior, 465 da varredura por caractere, 121 gerais e 26 comuns) e o `git` 2.55.0 local, em repositórios descartáveis sem `origin`: nenhum remoto foi tocado. A cópia corrigida não entrou na worktree. `gitleaks`, `zizmor` e `actionlint` não se aplicam: a entrega não mexe em workflow nem traz segredo.
