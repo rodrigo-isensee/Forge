@@ -177,7 +177,9 @@ GIT_EXATAS = {"--text", "--filter"}
 FORMATO_ASSINATURA = re.compile(r"%[-+ ]?G")
 # Opção do `forge-check` que grava (hoje nenhuma existe; o Pacote A prevê `--gerar-entrada` no `entrega`): o papel só de leitura
 # nunca a herda da liberação do subcomando (VV-2, B2); a opção que gravar nasce aqui, ou em subcomando fora da lista.
-FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar", "--destino-arquivo")
+FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
+# Nomes que ainda não existem casam só por inteiro: `--destino` do `forge-check brief` é prefixo de `--destino-arquivo`.
+FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
@@ -837,7 +839,8 @@ class Guarda:
         if prog == "test" and (len(args) != 2 or args[0] not in TESTE_LEITURA):
             self.barrar("R-CONFORMIDADE", f"`test` fora da forma `test -e|-f|-d|-s <caminho>` (papel só de leitura: "
                                           f"{self.papel})", "um teste por chamada, com um caminho")
-        if prog == "forge-check" and any(abreviacao_de(a, FORGE_CHECK_GRAVA) for a in args):
+        if prog == "forge-check" and any(
+                abreviacao_de(a, FORGE_CHECK_GRAVA) or a.split("=", 1)[0] in FORGE_CHECK_GRAVA_EXATA for a in args):
             self.barrar("R-CONFORMIDADE", f"`{chave}` com opção que grava arquivo (papel só de leitura: {self.papel})",
                         DICA_LEITURA)
         if prog == "forge-check" and any(re.match(r"--[\w-]+=-", a) for a in args):
