@@ -722,6 +722,13 @@ class TextoDosAgentes(unittest.TestCase):
                        "nunca use `--desde`", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
             self.assertIn(trecho, t)
 
+    def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
+        conferente, jarvis = self.texto("conferente"), self.texto("jarvis")
+        for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
+                       "peça a ref da branch da entrega ao Jarvis"):
+            self.assertIn(trecho, conferente)
+        self.assertIn("`Desde:` (o sha40 da última linha `conferida`", jarvis)
+
     def test_pareceres_trazem_achados_e_leem_o_delta(self):
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
             with self.subTest(agente):
