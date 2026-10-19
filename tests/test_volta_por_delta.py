@@ -670,3 +670,26 @@ class BriefDeVolta(Repositorio):
             self.assertEqual(self.check("docs"), (0, ""), corpo)
         (self.repo / "docs" / "reviews" / "p1.md").write_text(self.REVIEW.format(c="abc1234", p="reprovado", corpo=self.ACHADOS + "achado em prosa\n"), encoding="utf-8")
         self.assertIn("fora do formato", self.check("docs")[1])
+
+
+class TextoDosAgentes(unittest.TestCase):
+    """E4: os agentes usam o que a VV-2 entrega, e a política do hook só ganha o que o plano pede."""
+
+    def texto(self, nome):
+        return (RAIZ / "agents" / f"{nome}.md").read_text(encoding="utf-8")
+
+    def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
+        t = self.texto("conferente")
+        for trecho in ("forge-check entrega <Pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> --desde",
+                       "nunca use `--desde`", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
+            self.assertIn(trecho, t)
+
+    def test_pareceres_trazem_achados_e_leem_o_delta(self):
+        for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
+            with self.subTest(agente):
+                t = self.texto(agente)
+                self.assertIn("`## Achados`", t)
+                self.assertIn("- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>", t)
+                self.assertIn(f"forge-check delta --parecer docs/{pasta}/<pedido>.md", t)
+        self.assertIn("sempre sobre o head", self.texto("qa-engineer"))
+        self.assertIn("sem dispensar a releitura", self.texto("security-engineer"))
