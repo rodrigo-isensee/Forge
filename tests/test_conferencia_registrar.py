@@ -1,6 +1,7 @@
 """S-18: `forge-check conferencia registrar` grava a conferência em formato fixo e o leitor da T-1 a lê."""
 import re
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -53,6 +54,21 @@ class Registrar(Raiz):
                 self.assertNotEqual(cod, 0)
                 self.assertTrue(saida and saida[0].startswith("conferencia:"), saida)
                 self.assertFalse((self.tmp / ARQ).exists())
+
+    def test_recusa_separadores_de_linha_unicode_em_cada_campo(self):
+        # O leitor usa str.splitlines(); U+2028, U+2029, U+0085 e afins partiriam a linha gravada (S-18-R1).
+        # Cada subcaso tem o diretório próprio, para a falha de um não cair nos outros.
+        separadores = {"U+2028": "\u2028", "U+2029": "\u2029", "U+0085": "\x85", "U+000B": "\x0b", "U+000C": "\x0c",
+                       "U+001C": "\x1c", "U+001D": "\x1d", "U+001E": "\x1e"}
+        for nome, sep in separadores.items():
+            for campo in ("pedido", "brief", "resultado", "nota"):
+                with self.subTest(separador=nome, campo=campo), tempfile.TemporaryDirectory() as pasta:
+                    self.tmp = Path(pasta)
+                    args = com(BASE, **{campo: f"a{sep}b"}) if campo != "nota" else BASE + ["--nota", f"a{sep}b"]
+                    cod, saida, _ = self.rodar(*args)
+                    self.assertNotEqual(cod, 0)
+                    self.assertTrue(saida and saida[0].startswith("conferencia:"), saida)
+                    self.assertFalse((Path(pasta) / ARQ).exists())
 
     def test_vocabulario_aceito(self):
         for modo in ("brief", "entrega"):

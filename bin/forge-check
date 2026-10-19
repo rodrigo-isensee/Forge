@@ -631,7 +631,7 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
     """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 8 colunas no formato do cabeçalho, hora
     real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar. Recusa sem gravar."""
     for nome, valor in (("pedido", pedido), ("brief", brief), ("resultado", resultado), ("nota", nota)):
-        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor):
+        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
             return [f"conferencia: {nome} não pode ter `|` nem quebra de linha"]
     pedido, brief, resultado, nota = (x.strip() for x in (pedido, brief, resultado, nota))
     if not (pedido and brief and resultado):
