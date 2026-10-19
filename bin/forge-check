@@ -10,6 +10,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop]
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA]
+     forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
      forge-check fontes
      forge-check sobreposicao [--base REF]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
@@ -34,6 +35,11 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
+`delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
+de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
+fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
+ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `anterior: <bytes> sha256 <64>` e uma linha
+`delta: +|- <seção>: <linha>` por linha que entrou ou saiu em cada seção (`delta: nenhum` sem mudança); o resto da saída e o rc não mudam.
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
@@ -54,6 +60,7 @@ Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do F
 """
 import argparse
 import datetime
+import difflib
 import hashlib
 import json
 import os
@@ -693,6 +700,75 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde):
     for linha, _ in linhas:
         print(linha)
     return 1 if any(r for _, r in linhas) else 0
+
+
+def dentro_da_raiz(raiz, caminho, pastas):
+    """O caminho resolvido (`realpath`, que segue symlink) se estiver dentro da raiz e de uma das `pastas`; senão None (B3)."""
+    real = Path(os.path.realpath(Path(raiz) / caminho))
+    try:
+        rel = real.relative_to(Path(os.path.realpath(raiz))).as_posix()
+    except ValueError:
+        return None
+    return real if any(rel.startswith(p.rstrip("/") + "/") for p in pastas) else None
+
+
+def sem_controle(texto):
+    """Linha de texto sem caractere de controle (a saída é lida por um modelo: nada imita outra linha)."""
+    return re.sub(r"[\x00-\x1f\x7f]+", " ", texto).strip()
+
+
+HUNK = re.compile(rb"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
+
+
+def trechos_novos(raiz, de, ate, nome):
+    """(início, fim) das linhas do lado novo de cada trecho do `git diff -U0` de `nome`."""
+    cod, saida = git(raiz, "--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-ext-diff", "--no-textconv",
+                     f"{de}..{ate}", "--", nome, bruto=True)
+    trechos = []
+    for m in ([] if cod else HUNK.finditer(saida)):
+        inicio, tamanho = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+        trechos.append((inicio, inicio + max(tamanho, 1) - 1))
+    return trechos
+
+
+def cmd_delta(raiz, refs, parecer):
+    """O que mudou desde um commit (ou desde o `commit:` de um parecer) fora de LIVRES (VV-2, M12). Só leitura; não reprova.
+    rc 2 se o commit não existe, não é ancestral do fim ou o parecer não abre."""
+    if parecer:
+        arquivo = dentro_da_raiz(raiz, parecer, PASTAS_DE_PARECER)
+        if arquivo is None or len(refs) > 1:
+            print(f"delta: --parecer {nome_seguro(parecer)}: use um arquivo de {', '.join(PASTAS_DE_PARECER)} dentro da raiz, e no máximo um fim")
+            return 2
+        try:
+            campos = ler_frontmatter(arquivo.read_text(encoding="utf-8"))[0] or {}
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"delta: não consegui ler {nome_seguro(parecer)}: {getattr(e, 'strerror', None) or e}")
+            return 2
+        inicio_txt, fim_txt = campos.get("commit", ""), refs[0] if refs else "HEAD"
+    elif 1 <= len(refs) <= 2:
+        inicio_txt, fim_txt = refs[0], refs[1] if len(refs) > 1 else "HEAD"
+    else:
+        print("delta: use `delta <commit> [<fim>]` ou `delta --parecer <arquivo> [<fim>]`")
+        return 2
+    inicio, fim = sha_do_commit(raiz, inicio_txt), sha_do_commit(raiz, fim_txt)
+    if not inicio or not fim:
+        print(f"delta: commit {nome_seguro(inicio_txt if not inicio else fim_txt)} não existe")
+        return 2
+    if not e_ancestral(raiz, inicio, fim):
+        print(f"delta: {inicio[:7]} não é ancestral de {fim[:7]}")
+        return 2
+    print(f"intervalo: {inicio}..{fim}")
+    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not n.startswith(LIVRES)]
+    if not nomes:
+        print("delta: nenhum")
+        return 0
+    contagens = contagens_do_intervalo(raiz, inicio, fim)
+    for nome in nomes:
+        acrescidas, removidas = contagens.get(nome, ("?", "?"))
+        print(f"delta: {nome_seguro(nome)} +{acrescidas} -{removidas}")
+        for de, ate in trechos_novos(raiz, inicio, fim, nome):
+            print(f"delta: {nome_seguro(nome)}:{de}-{ate}")
+    return 0
 
 
 # --- Transcrições (ADR 0007; propriedades de conformidade: ADR 0009, seção 8) ---------------------
@@ -2281,7 +2357,22 @@ def conferir_corte(brief_secoes, pedido, destino):
     return saida
 
 
-def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None):
+def delta_de_brief(texto, anterior):
+    """`delta: +|- <seção>: <linha>` por linha que entrou ou saiu em cada seção, na ordem de SECOES_BRIEF; `delta: nenhum` sem mudança."""
+    novas, velhas = secoes_por(texto, CABECALHO_BRIEF), secoes_por(anterior, CABECALHO_BRIEF)
+    saida = []
+    for nome in SECOES_BRIEF:
+        antes = [sem_controle(l) for l in velhas.get(nome, []) if l.strip()]
+        depois = [sem_controle(l) for l in novas.get(nome, []) if l.strip()]
+        for op, i1, i2, j1, j2 in difflib.SequenceMatcher(None, antes, depois, autojunk=False).get_opcodes():
+            if op in ("delete", "replace"):
+                saida += [f"delta: - {nome}: {l}" for l in antes[i1:i2]]
+            if op in ("insert", "replace"):
+                saida += [f"delta: + {nome}: {l}" for l in depois[j1:j2]]
+    return saida or ["delta: nenhum"]
+
+
+def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_id="", conteudo=b"", caminho=None, anterior=None):
     """Linhas de saída do `forge-check brief`: lista de (linha, reprova). Mesmo texto, mesma saída."""
     secoes = secoes_por(texto, CABECALHO_BRIEF)
     pedido = ler_pedido_brief(pedido_txt)
@@ -2305,10 +2396,13 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
         norm = str(caminho).replace(os.sep, "/")
         ok = re.search(re.escape(esperado) + r"\d+\.md$", norm)
         saida.append(("arquivo-caminho: ok" if ok else f"forma: Arquivo fora do padrão {esperado}<n>.md", not ok))
+    if anterior is not None:  # M12: só informa (nunca reprova); a rodada de confirmação lê estas linhas
+        saida.append((f"anterior: {len(anterior)} bytes sha256 {hashlib.sha256(anterior).hexdigest()}", False))
+        saida += [(linha, False) for linha in delta_de_brief(texto, anterior.decode("utf-8", "replace"))]
     return saida
 
 
-def cmd_brief_conferir(raiz, arquivo, pedido, destino):
+def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None):
     caminho_pedido = Path(pedido)
     if not caminho_pedido.is_file():
         caminho_pedido = Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
@@ -2322,7 +2416,17 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino):
         return 2
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
-    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, arquivo if destino else None)
+    bytes_anterior = None
+    if anterior:
+        caminho_anterior = dentro_da_raiz(raiz, anterior, ("docs/briefs",))
+        try:
+            if caminho_anterior is None:
+                raise ValueError("fora da raiz ou de docs/briefs/")
+            bytes_anterior = caminho_anterior.read_bytes()
+        except (OSError, ValueError) as e:
+            print(f"brief: --anterior {nome_seguro(anterior)}: {getattr(e, 'strerror', None) or e}")
+            return 2
+    linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, arquivo if destino else None, bytes_anterior)
     reprovado = any(r for _, r in linhas)
     print(f"conferencia-brief-regra: {pedido_id} → {brief.name}")
     for linha, _ in linhas:
@@ -2460,8 +2564,12 @@ def main():
     br.add_argument("alvo", help="arquivo do brief, ou `gerar`")
     br.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
     br.add_argument("--destino", help="agente destino, forge:<nome> (padrão: `Agente destino:` do brief ou o nome do arquivo)")
+    br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
+    de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
+    de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
+    de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
@@ -2525,6 +2633,8 @@ def executar(a, raiz):
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0)
+    if a.cmd == "delta":
+        return cmd_delta(raiz, a.refs, a.parecer)
     if a.cmd == "entrega":
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde)
     if a.cmd == "voltas":
@@ -2532,7 +2642,7 @@ def executar(a, raiz):
     if a.cmd == "brief":
         if a.alvo == "gerar":
             return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base)
-        return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino)
+        return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior)
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
                   else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))

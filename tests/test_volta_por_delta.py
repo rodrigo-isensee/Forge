@@ -323,3 +323,121 @@ class Pareceres(Repositorio):
         rc, saida = self.entrega(desde=c2, etapa="qa")
         self.assertIn("anexo com remoção", saida)
         self.assertNotIn("ok (parecer", saida)
+
+
+class Delta(Repositorio):
+    REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: reprovado\n"
+              "revisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n")
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"a.txt": "1\n2\n3\n", "docs/reviews/p1.md": self.REVIEW.format(c="x")}, "entrega")
+        self.parecer = "docs/reviews/p1.md"
+        (self.repo / self.parecer).write_text(self.REVIEW.format(c=self.c1), encoding="utf-8")
+        self.c2 = self.commitar({"a.txt": "1\n2\n3\n4\n5\n", "b.txt": "x\n"}, "correção")
+
+    def delta(self, *args):
+        return self.check("delta", *args)
+
+    def test_delta_por_commit_mostra_arquivos_e_trechos(self):
+        rc, saida = self.delta(self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c1}..{self.c2}", 'delta: "a.txt" +2 -0', 'delta: "a.txt":4-5',
+                                              'delta: "b.txt" +1 -0', 'delta: "b.txt":1-1'])
+
+    def test_parecer_traz_o_commit_do_frontmatter(self):
+        self.assertEqual(self.delta("--parecer", self.parecer), self.delta(self.c1))
+        self.assertEqual(self.delta("--parecer", self.parecer, self.c2), self.delta(self.c1, self.c2))
+
+    def test_so_o_que_e_livre_da_nenhum(self):
+        c3 = self.commitar({"docs/reviews/p1.md": "outro\n", "docs/qa/p1.md": "qa\n", "KANBAN.md": "k\n",
+                            "docs/security/s.md": "s\n"}, "só pareceres")
+        rc, saida = self.delta(self.c2)
+        self.assertEqual((rc, saida.splitlines()), (0, [f"intervalo: {self.c2}..{c3}", "delta: nenhum"]))
+
+    def test_commit_inexistente_e_sem_parentesco_dao_rc_2(self):  # B5
+        self.assertEqual(self.delta(SHA_FALSO)[0], 2)
+        rc, saida = self.delta(self.c2, self.c1)
+        self.assertEqual(rc, 2)
+        self.assertIn("não é ancestral de", saida)
+        git("switch", "-q", "develop", cwd=self.repo)
+        so_da_base = self.commitar({"x.txt": "x\n"}, "só na develop")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.assertEqual(self.delta(so_da_base)[0], 2)
+
+    def test_caminho_fora_da_raiz_ou_da_pasta_do_tipo_recusa(self):  # B3
+        fora = self.tmp / "fora.md"
+        fora.write_text(self.REVIEW.format(c=self.c1), encoding="utf-8")
+        (self.repo / "docs" / "reviews" / "elo.md").symlink_to(fora)
+        for alvo in (str(fora), "../fora.md", "docs/reviews/elo.md", "a.txt", "docs/reviews/nao-existe.md"):
+            with self.subTest(alvo):
+                self.assertEqual(self.delta("--parecer", alvo)[0], 2)
+
+    def test_referencia_nao_vira_opcao(self):  # B1
+        rc, _ = self.delta("--", "--output=saida")
+        self.assertEqual(rc, 2)
+        self.assertFalse((self.repo / "saida").exists())
+        self.assertEqual(self.delta("--parecer=-x")[0], 2)
+
+    def test_nome_forjado_sai_entre_aspas(self):  # B4
+        self.commitar({'z"\ndelta: nenhum': "x\n"})
+        linhas = self.delta(self.c2)[1].splitlines()
+        self.assertEqual(linhas[1], 'delta: "z\\"\\ndelta: nenhum" +1 -0')
+        self.assertEqual(len(linhas), 3)
+
+    def test_delta_so_le(self):  # item 8 da lista da E2.2
+        antes = self.arvore()
+        self.delta(self.c1)
+        self.delta("--parecer", self.parecer)
+        self.assertEqual(self.arvore(), antes)
+
+
+class BriefAnterior(unittest.TestCase):
+    PASTA = RAIZ / "tests" / "fixtures" / "brief"
+    PEDIDO = PASTA / "pedido.md"
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-vv2-brief-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        (self.tmp / "docs" / "briefs").mkdir(parents=True)
+        self.texto = (self.PASTA / "etapa-outro-papel.md").read_text(encoding="utf-8")
+        self.anterior = self.tmp / "docs" / "briefs" / "p-dev-exemplo-1.md"
+        self.anterior.write_text(self.texto, encoding="utf-8")
+
+    def brief(self, texto, *extra, nome="p-dev-exemplo-2.md"):
+        arq = self.tmp / "docs" / "briefs" / nome
+        arq.write_text(texto, encoding="utf-8")
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "brief", str(arq), "--pedido", str(self.PEDIDO), *extra],
+                           capture_output=True, text=True)
+        return r.returncode, r.stdout
+
+    def test_linha_acrescentada_removida_e_nenhuma_mudanca(self):
+        sha = hashlib.sha256(self.texto.encode()).hexdigest()
+        rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
+        self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
+        novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Documentação do recurso A (E2).\n", "")
+        rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
+        linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
+        self.assertEqual(linhas, ["delta: - Entregar: - Documentação do recurso A (E2).",
+                                  "delta: + Decisões e restrições: - Nova restrição."])
+        self.assertEqual(rc, 1, "o corte do E2 reprova como sempre; o delta não muda o rc")
+
+    def test_sem_anterior_a_saida_e_a_mesma(self):
+        sem = self.brief(self.texto)
+        com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
+        self.assertEqual(com[0], sem[0])
+        linhas_sem = sem[1].splitlines()
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:"))], linhas_sem)
+        self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
+
+    def test_anterior_fora_de_docs_briefs_ou_da_raiz_rc_2(self):  # B3
+        (self.tmp / "docs" / "outro.md").write_text("x\n", encoding="utf-8")
+        fora = self.tmp.parent / (self.tmp.name + "-fora.md")
+        fora.write_text("x\n", encoding="utf-8")
+        self.addCleanup(fora.unlink)
+        (self.tmp / "docs" / "briefs" / "elo.md").symlink_to(fora)
+        for alvo in ("docs/outro.md", str(fora), "docs/briefs/elo.md", "docs/briefs/nao-existe.md"):
+            with self.subTest(alvo):
+                self.assertEqual(self.brief(self.texto, "--anterior", alvo)[0], 2)
