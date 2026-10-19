@@ -1,0 +1,21 @@
+{
+  "descricao": "VV-2, A1: o Jarvis grava em ~/.forge-contrib/docs/pedidos/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/docs/pedidos/vv-2.md",
+      "content": "- 2026-10-19 16:30: conferida 0123456789012345678901234567890123456789\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}
