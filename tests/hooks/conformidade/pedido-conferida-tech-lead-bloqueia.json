@@ -1,0 +1,20 @@
+{
+  "descricao": "VV-2, A1: o autor (tech-lead) não grava a linha `conferida` no pedido do projeto.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/docs/pedidos/p1.md",
+      "content": "- 2026-10-19 16:30: conferida 0123456789012345678901234567890123456789\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "são do jarvis"
+  }
+}

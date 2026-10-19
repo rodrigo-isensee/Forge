@@ -14,7 +14,7 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "o papel aq escreve só em"
+    "stderr": "são do jarvis"
   },
   "env": {
     "HOME": "{tmp}/home"

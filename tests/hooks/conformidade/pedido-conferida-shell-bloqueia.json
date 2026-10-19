@@ -1,0 +1,19 @@
+{
+  "descricao": "VV-2, A1: contorno pelo shell (echo >>) no pedido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo '- conferida abc' >> docs/pedidos/p1.md"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "docs/pedidos/"
+  }
+}
