@@ -61,8 +61,10 @@ MAPA = [
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
     (r"stacks/.*", CONTEUDO + ("test_hooks",)),
     (r"\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
+    (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
+    (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta",)),
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge",)),
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
