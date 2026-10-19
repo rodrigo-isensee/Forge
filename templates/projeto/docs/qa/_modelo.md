@@ -16,6 +16,10 @@ data: AAAA-MM-DD
 
 Copie para `docs/qa/<pedido>.md`. Formato: ADR 0004 do Forge; `forge-check docs` valida. Médio ou baixo abertos com parecer aprovado exigem a linha `aceite_usuario: sim` no frontmatter. Bugs em `docs/qa/bugs/`.
 
+Formato do bloco `## Achados` (lido por máquina em `forge-check brief gerar --volta` e conferido por `forge-check docs`): uma linha por achado, `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`, sem quebra de linha nem caractere de controle, com até 300 caracteres no texto; só essas linhas entram no bloco (a prosa fica nas outras seções), e parecer reprovado traz ao menos um `bloqueante`. Parecer aprovado deixa o bloco vazio.
+
+## Achados
+
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|

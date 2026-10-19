@@ -714,6 +714,17 @@ class Hooks(unittest.TestCase):
         self.assertEqual(list(estado["transcricoes"]), [str(tmp / "t.jsonl")])
         self.assertEqual(len(estado["bloqueios"]), 1)
 
+    def test_vv2_politica_libera_so_entrega_e_delta_e_protege_pedidos(self):  # VV-2, A1 e B2
+        politica = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
+        comandos = politica["so_leitura"]["comandos"]
+        self.assertIn("forge-check entrega", comandos)
+        self.assertIn("forge-check delta", comandos)
+        self.assertEqual([c for c in comandos if c.startswith("forge-check")],
+                         ["forge-check pr", "forge-check docs", "forge-check brief", "forge-check entrega", "forge-check delta"])
+        protegidos = {e["caminho"]: e["quem"] for e in politica["caminhos"]}
+        for caminho in ("docs/pedidos/", "~/.forge-contrib/docs/pedidos/", "docs/briefs/", "~/.forge-contrib/docs/briefs/"):
+            self.assertEqual(protegidos[caminho], ["jarvis"], caminho)
+
 
 if __name__ == "__main__":
     unittest.main()

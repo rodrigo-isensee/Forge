@@ -1,0 +1,23 @@
+{
+  "descricao": "VV-2, A1: o autor não grava em ~/.forge-contrib/docs/briefs/.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/docs/briefs/p1-tech-lead-1.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "é do jarvis"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}

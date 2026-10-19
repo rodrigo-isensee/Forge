@@ -53,10 +53,10 @@ class Mapa(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("dirigido", esperado))
 
-    def test_forge_check_roda_os_cinco_modulos(self):
+    def test_forge_check_roda_os_seis_modulos(self):
         self.assertEqual(self.plano("bin/forge-check"),
                          ("dirigido", ["test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-                                      "test_testes_tocados", "test_voltas"]))
+                                      "test_testes_tocados", "test_volta_por_delta", "test_voltas"]))
 
     def test_hooks_incluem_hooks_e_catraca(self):
         modo, modulos = self.plano("hooks/conformidade.py")
