@@ -3,13 +3,15 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 61ddf7e457bccc5429082f58c162404867729c3d
-parecer: reprovado
+commit: d986c37136ceb9a7790fa8c1dba993b6ae28ee0d
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-19
 ---
 # Review de segurança: bp-1
 
+> **Rodada 9** (`d986c37`, depois do retrabalho 8): **aprovado**. O O fecha como classe: com o lookahead em `hooks/conformidade.py:64`, cada `w`/`W` do script é conferido, e as 563 linhas de `sed` desta rodada (as do O, a varredura por caractere e todo par de `w`) dão rc=2. As aspas ou a barra no meio do nome do dono do heredoc também fecham (`:642`): 2832 linhas, todas com rc=2. Nenhuma linha que dava rc=2 em `61ddf7e` passou a rc=0 com caminho de ataque; os 26 usos comuns seguem livres. Ficam abertos, com a BP-5: o resto do L (grafia não literal fora do heredoc), o M e a cópia do `inplace.awk`. Detalhes na seção "Revalidação após o retrabalho 8", no fim.
+>
 > **Rodada 8** (`61ddf7e`, depois do retrabalho 7): **reprovado**. O N está fechado: o dono do heredoc colado ao `<<`, `<` ou `>`, entre aspas ou com barra dá rc=2 em todas as formas testadas, e nenhuma linha do heredoc passou de rc=2 para rc=0. O `w` do `sed` depois de delimitador do usuário também fecha. Mas a regex nova do `w` (`hooks/conformidade.py:64`), que eu mesmo propus na rodada 7, trouxe uma regressão, o achado O (média): um `w` anterior no mesmo trecho sem espaço (`s/saw/x/;w .git/config`) consome o `w` de verdade, e o caminho protegido deixa de ser conferido. Com isso, `sed` volta a gravar `core.hooksPath = /dev/null` no `.git/config`, sem aviso do `vigia`. Em `de999e0`, essa linha dava rc=2. A correção é de uma linha (lookahead). Detalhes na seção "Revalidação após o retrabalho 7", no fim.
 >
 > **Rodada 7** (`de999e0`, depois do retrabalho 6): **reprovado**. O resto do K pedido no retrabalho 6 está fechado: nome com plataforma, opção longa abreviada, `gawk -E`/`-l`/`--load`/`@load`, `nawk` e o `sed` com endereço antes do `w`/`W`. Nenhuma linha das baterias das seis rodadas passou de rc=2 para rc=0. Mas o commit `14b3ac5` trouxe uma regressão, o achado N (média): o dono do heredoc passou a ser conferido por palavra, e o interpretador colado ao `<<` (`perl<<'EOF'`), entre aspas (`"python3" <<'EOF'`) ou com barra (`\python3 <<'EOF'`) deixou de ser reconhecido. Com isso, uma linha volta a gravar `core.hooksPath = /dev/null` no `.git/config`, sem aviso do `vigia`. A correção é de uma linha. Detalhes na seção "Revalidação após o retrabalho 6", no fim.
@@ -576,3 +578,53 @@ Use cópias `git archive 61ddf7e` e `git archive de999e0` em `$TMPDIR` e um repo
 
 ### Ferramentas (rodada 8)
 Usei só os hooks de `61ddf7e`, `de999e0` e `592098a` e uma cópia de `61ddf7e` com a correção proposta, todos de cópias `git archive` em `$TMPDIR`, mais baterias geradas nesta rodada (154 linhas de heredoc, 180 de `sed` com delimitador e `w` anterior, 465 da varredura por caractere, 121 gerais e 26 comuns) e o `git` 2.55.0 local, em repositórios descartáveis sem `origin`: nenhum remoto foi tocado. A cópia corrigida não entrou na worktree. `gitleaks`, `zizmor` e `actionlint` não se aplicam: a entrega não mexe em workflow nem traz segredo.
+
+## Revalidação após o retrabalho 8
+Escopo: `git diff 1ad71cc9d764ae2eba5eca5a06c706d7ec8e1d73...d986c37136ceb9a7790fa8c1dba993b6ae28ee0d`, commits `ae55b7d` e `d986c37`, 7 arquivos. No código, duas linhas: `hooks/conformidade.py:64` (`SED_ESCREVE` com lookahead) e `:642` (aspas e barra tiradas do dono do heredoc antes do corte). Além disso, três fixtures novas, a ADR 0009 (item 2), `docs/hooks.md:36` e `changelog.d/bp-1.md`. O método é o das rodadas anteriores: hooks de `d986c37`, `61ddf7e` e `de999e0` rodados com `python3` a partir de cópias `git archive` em `$TMPDIR`, em repositórios descartáveis (sem `origin`) com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json`, `src/app.js` e `docs/nota.md` commitados e a marca gravada pelo `SessionStart` do `vigia`. Nenhum comando de ataque foi executado: só o hook decide, e o rc é comparado entre as versões. `python3 -m unittest tests.test_hooks` na cópia de `d986c37`: 19 testes, OK, inclusive as três fixtures novas (a suíte inteira não foi rodada, R-TETO). Na worktree, só este arquivo foi tocado.
+
+### Veredito da rodada 9
+**Aprovado.** O O e as aspas ou barra no meio do nome do dono do heredoc fecham como classe, e não só nas formas citadas. A superfície de regressão é de duas linhas, e as duas só acrescentam candidatos: o lookahead acha o `w` em toda posição em que a regex antiga achava, e mais; tirar as aspas e a barra só junta pedaços de um nome. Por isso, nada que casava antes deixa de casar, com uma exceção sem caminho de ataque (informativa, abaixo). O que fica aberto é anterior à base, está fora da promessa da documentação e tem dono (BP-5).
+
+### O (o `w` do `sed` depois de outro `w`): fechado · era regressão da volta anterior (`e79e971`), dentro da promessa
+`hooks/conformidade.py:64`: `SED_ESCREVE = re.compile(r"(?=[wW]\s*(\S+))")`, a correção proposta na rodada 8, aplicada literalmente. Bateria de 563 linhas, na ordem `d986c37`/`61ddf7e`/`de999e0`:
+- as 20 formas do O e do brief (`s/saw/x/;w`, `s|w|x|;w`, `s/xw/y/;w`, `/saw/!d;w`, `/ow/w`, `s/aw/b/w`, `s/new/old/w`, `/www/w`, `y/w/w/;w`, `/w/w`, `s/w/x/w`, `s/new/old/;w`, `1{s/w/W/};w`, `W` depois de `W`, `-e` em dois pedaços, `--expr=`, `-e` colado, `w` colado ao caminho), sobre `.git/config`, `.githooks/pre-push`, `.forge/versao` e `.claude/settings.json` (80 linhas);
+- a varredura por caractere da rodada 8 (cada caractere imprimível em cinco formas, sobre `.git/config`; 465 linhas);
+- todo par de `w` antes do comando (`w`, `ww`, `www`, `wW`, `Ww`, `w w`, `w;w`, `w/w`, `w|w`, no padrão do `s` e no endereço; 18 linhas).
+
+Resultado: **563 de 563 com rc=2 em `d986c37`**. Combinações: 2/0/0, 110 (a regressão O e a variante anterior, que `de999e0` também deixava passar); 2/0/2, 170 (o O propriamente dito); 2/2/0, 192 (o K do delimitador, fechado na rodada 8); 2/2/2, 91. Nenhuma linha com rc=0 em `d986c37`.
+
+### Aspas ou barra no meio do nome do dono do heredoc (B10 do review; L no heredoc): fechado · anterior à base, mas dentro da promessa
+`hooks/conformidade.py:642`: o dono passa por `re.sub(r"[\"'\\]", "", dono)` antes do corte, como o shell faz com a palavra. Bateria de 2832 linhas, em 10 interpretadores (`perl`, `python3`, `ruby`, `gawk`, `awk`, `node`, `nawk`, `python3.10-dbg`, `perl5.34-x86_64-linux-gnu` e `/usr/bin/perl`). Em cada posição do nome entram `''`, `""` e `\`, além de aspas que abrem ou fecham no meio (`"p"erl`, `p"erl"`, `'p'erl`), e as formas inteiras (`"perl"`, `'perl'`, `\perl`). Cada uma vai em seis aberturas: `<<'X'` com e sem espaço, `<<X`, `<<-X`, `- <<'X'` e `>/dev/null <<'X'`. O corpo remove `.forge/versao`. Resultado, na ordem `d986c37`/`61ddf7e`: 2/0, 744 (a classe que fecha agora); 2/2, 2088. **Nenhuma linha com rc=0 em `d986c37`.**
+
+Formas extras, na ordem `d986c37`/`61ddf7e`/`de999e0`: `command p''erl<<`, `env p\erl <<`, o caminho de ataque com `hooksPath` no `.git/config` por `p''erl <<'X'` e a escrita em `.claude/settings.json` por `"py"thon3 <<'X'` dão 2/0/0. `/usr/bin/"perl" <<` e `$("perl") <<` dão 2/2/0, e `{ "p"erl <<X; }` dá 2/2/2. Sem falso positivo novo: `p''erl <<'X'⏎print 1;`, `"py"thon3 <<'X'⏎print(1)` e `c''at <<'X' > docs/nota.md` seguem com rc=0.
+
+**Informativa, não é regressão com caminho de ataque:** `x"perl" <<'X'` dá 0/2/0. O shell executa o comando `xperl`, e não o `perl`; com as aspas tiradas, o hook passou a ver o mesmo nome que o shell vê. `xperl <<'X'` sem aspas dava rc=0 em todas as versões. Um interpretador com outro nome (cópia ou link) é a classe "interpretadores fora da lista" do K, que já estava com a BP-5. Em `61ddf7e`, o rc=2 dessa linha era um acerto por acaso.
+
+### Rodadas 1 a 8, de novo: sem regressão
+- Bateria geral (111 linhas: `rm`, `mv`, `>`, `touch`, `cp`, `tee`, `perl -i`/`-0777pi`, `ruby -i`, `gawk -i inplace`, `sed -i`/`--in-pl`, `python3 -c`, `node -e`, nome com plataforma, `nice`, `ionice`, `git rm|mv|checkout|restore`, pathspec mágico, `--pathspec-from-file`, `GIT_LITERAL_PATHSPECS`, `-c core.hooksPath`, push forçado e direto, `--no-verify`, escrita em `.git/forge/`, `.git/worktrees`, `.git/commondir` e o `w` com delimitador, sobre quatro caminhos protegidos): 108 com rc=2 em `d986c37` e `61ddf7e`. As 3 com rc=0 nas três versões são `git sparse-checkout set src`, `git clean -fdX` e `git stash -a`, livres por desenho desde a rodada 2 e cobertas pela marca. Nenhuma linha passou de rc=2 para rc=0.
+- Comuns (26 linhas, inclusive `sed 's/www/w/g'`, `sed -n '/w/p'`, `sed -i 's/new/old/' src/app.js`, `sed -n 's/a/b/w out.txt'`, `sed -e 'w /dev/stdout'`, `sed 's/wow/x/'`, os heredocs só de leitura, `perl -Mstrict` lendo `.forge/versao`, `git push origin melhoria/x`): 26 com rc=0 nas três versões.
+- As 790 fixtures de `tests/hooks/conformidade/` passam em `d986c37` (`tests.test_hooks`, OK).
+- Ressalva, como na rodada 8: as 89 cadeias e a busca de classe de 1117 linhas da rodada 7 não estão mais em `$TMPDIR`. A afirmação "sem regressão" se apoia nas baterias desta rodada, nas fixtures e no diff, que tem só duas linhas, ambas só ampliando o que casa.
+
+### Documentação
+A ADR 0009 (item 2), a `docs/hooks.md:36` e o `changelog.d/bp-1.md` acrescentam só "inclusive no meio do nome (`p''erl`, `pe\rl`)" e "depois de outro `w` no mesmo script (`s/aw/b/w arq`, `;w arq`)". As duas coisas batem com o código e com as baterias acima. O resto do L, o M e a cópia do `inplace.awk` continuam listados com a BP-5. Cosmético, sem efeito: na ADR, "e depois de outro `w` … e depois de delimitador" repete o "e".
+
+### O que fica aberto, por classe (rodada 9)
+- **Bloqueia:** nada.
+- **L · média (anterior à base; fora da promessa; BP-5):** grafia não literal fora do heredoc, como o caminho montado em tempo de execução dentro do script (`'.g'+'it/fo*'`), lançadores fora da lista (`setpriv`, `prlimit`, `strace`) e `busybox`. Fechou só a parte do dono do heredoc. Informativa: `rm .git/fo*/projeto-*`, `cd .git && rm fo*/projeto-*` e `cd .g''it && rm -r forge` já dão rc=2 em `d986c37` e em `61ddf7e`, barrados pelo `.git/` inteiro. A ADR 0009 ainda lista `.git/fo*` e `cd .git` como abertos. O texto promete menos do que o código faz, e não mais, então isso não bloqueia; a BP-5 pode ajustar.
+- **K, resto · baixa (anterior à base; fora da promessa; BP-5):** `inplace.awk` copiado com outro nome, `sed` com `e`, escritores fora do modelo (`ed`, `ex`, `vim -es`, `patch`, `sponge`, `split`, `chmod`, `chown`), script lido de arquivo ou da entrada padrão e interpretadores fora da lista (inclusive o `x"perl"` acima). A condição do sandbox continua registrada: escrita negada em `.git/forge/`, `.forge/versao`, `.git/config`, `.git/commondir`, `.git/worktrees/`, `.githooks/` e `.claude/`.
+- **M · informativa (BP-5)** e **C · informativa**: sem mudança.
+- **BP-2:** alias por `-c` com grafia não literal (sem mudança).
+- **Falso positivo (lado fechado, aceito desde a rodada 7):** uma palavra depois de qualquer `w`/`W` que seja caminho protegido barra a linha. Com o lookahead, isso vale também para o `w` dentro de um padrão. Nos 26 comuns, não apareceu nenhum caso.
+- **Fechados nesta rodada:** O e as aspas ou barra no meio do nome do dono do heredoc.
+
+### Comandos para reproduzir (VV-1)
+Use cópias `git archive d986c37` e `git archive 61ddf7e` em `$TMPDIR` e o repositório descartável da rodada 8, com o `SessionStart` do `vigia` rodado antes. Para cada linha `<L>`, rode `python3 -c 'import json,sys; print(json.dumps({"tool_name":"Bash","tool_input":{"command":sys.argv[1]},"agent_type":"forge:dev","hook_event_name":"PreToolUse","tool_use_id":"t","cwd":sys.argv[2]}))' "<L>" "$PWD" | CLAUDE_PROJECT_DIR=$PWD python3 <cópia>/hooks/conformidade.py; echo $?`.
+- O fechado: `sed -n 's/saw/x/;w .git/config' src/app.js` dá 2 (era 0 em `61ddf7e`); `sed -n 'y/w/w/;w .git/config' src/app.js` dá 2 (era 0); `sed -n 's/w;w/x/;w .git/config' src/app.js` dá 2.
+- Heredoc fechado: `p''erl <<'X'⏎open(F,'>>','.git/config'); print F "[core]\n\thooksPath = /dev/null\n";⏎X` dá 2 (era 0); `pe\rl<<'X'⏎unlink q(.forge/versao);⏎X` dá 2 (era 0); `"py"thon3 <<'X'⏎open('.claude/settings.json','w').write('x')⏎X` dá 2 (era 0).
+- Comuns livres: `sed -n '/w/p' src/app.js` dá 0; `p''erl <<'X'⏎print 1;⏎X` dá 0.
+- Informativa: `x"perl" <<'X'⏎unlink q(.forge/versao);⏎X` dá 0 em `d986c37` e 2 em `61ddf7e`; `xperl <<'X'…` dá 0 nas duas.
+- L aberto (BP-5): `python3 -c "import os,glob;[os.remove(f) for f in glob.glob('.g'+'it/fo*/*')]"` dá 0 e `setpriv rm .forge/versao` dá 0, nas duas versões (anteriores à base); `rm .git/fo*/projeto-*` dá 2 nas duas.
+
+### Ferramentas (rodada 9)
+Usei só os hooks de `d986c37`, `61ddf7e` e `de999e0`, de cópias `git archive` em `$TMPDIR`, mais baterias geradas nesta rodada (563 linhas de `sed`, 2832 de heredoc, 111 gerais, 26 comuns, 15 extras e 4 do L) e o `git` local, em repositórios descartáveis sem `origin`: nenhum remoto foi tocado, e nenhuma linha de ataque foi executada. `gitleaks`, `zizmor` e `actionlint` não se aplicam: a entrega não mexe em workflow nem traz segredo.
