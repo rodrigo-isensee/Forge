@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: bp-1
 branch: melhoria/bp-1
-commit: 61ddf7e457bccc5429082f58c162404867729c3d
-parecer: reprovado
+commit: d986c37136ceb9a7790fa8c1dba993b6ae28ee0d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-19
 ---
@@ -317,3 +317,32 @@ ADR 0009 (limite 2), `docs/hooks.md` e `changelog.d/bp-1.md` passam a citar o do
 **Reprovado** por B10 e B11. B9 fecha nas formas pedidas (colado, aspas inteiras, barra na frente; 72 linhas que eram rc=0 passam a rc=2, nenhuma regride), mas a classe fica aberta com aspas ou barra no meio do nome; o `w` do sed com delimitador do usuário fecha nas formas pedidas, mas a regex nova perde o `w` do comando quando há outro `w` antes no script, inclusive em `s/aw/b/w`, que a base barrava. O falso positivo novo (palavra depois de `w`/`W` que é caminho protegido) é aceitável e vai como risco para o QA, com o do awk que cita `inplace`, R5, R6 e os dois casos da mitigação.
 
 A volta cabe em duas linhas (`hooks/conformidade.py:64` e `:642`) e duas fixtures. Este parecer se revalida só nesses dois trechos: antes do push, o autor roda a matriz de heredoc desta seção (os 9 donos × as formas listadas, inclusive aspas e barra no meio) e as 20 linhas do `sed`, e lista o rc de cada grupo; nenhuma linha que dá rc=2 em 61ddf7e pode passar a rc=0.
+
+## Revalidação após o retrabalho 8
+Diff revisado: `1ad71cc...d986c37` (2 commits: ae55b7d, d986c37; 7 arquivos). Brief do autor: `bp-1-tech-lead-17.md`, "Entregar" 1 a 5.
+Ferramentas: `python3 -m unittest tests.test_hooks -q` rodado nesta revisão em d986c37: `Ran 19 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO). Segurança: parecer próprio do `security-engineer` (E3.2), revalidado em paralelo (VV-4); não refeito aqui.
+
+Como reproduzir: o mesmo das rodadas anteriores (projeto temporário com `.forge/versao`, `.githooks/pre-push`, `.claude/settings.json` e `src/a.js` commitados; cada linha é o `command` de um PreToolUse Bash de `forge:dev` passado a `python3 hooks/conformidade.py`, com `CLAUDE_PROJECT_DIR` na raiz). "Base" é o hook de `61ddf7e` (`git archive 61ddf7e hooks`); "HEAD", o de `d986c37`.
+
+Cobertura declarada (VV-1): heredoc, 1925 linhas: os 9 donos da rodada 7 (`perl`, `perl5.34.0`, `perl5.34-x86_64-linux-gnu`, `ruby`, `ruby3.2`, `python3`, `python3.12`, `python`, `node`) com `''`, `""` e `\` inseridos em cada posição do nome e com aspas abrindo ou fechando no meio (`"p"erl`, `pe'rl'`), × 5 formas de abrir (`<<'X'` com e sem espaço, `<<X`, `<<-X`, `<<"X"`); 15 linhas com expansão antes do nome (`${X}"perl"`, `$(true)"perl"`, `` `true`"perl" ``, `"$X"perl`, e na linha comum), para ver se tirar as aspas do dono abre alguma; `sed`, 37 linhas: as 6 do brief, as 20 da rodada 7, 9 com `w` depois de `w` (`s/ww/ww/w`, `w x;w`, `/w/{w ...}`, `gw`, `w` com tabulação, `Ww`) e 8 usos comuns que devem seguir livres; a linha comum com aspas e barra no meio (9 linhas, não deve regredir). Fora: L (grafia não literal fora do heredoc), M e a cópia do `inplace.awk` com outro nome (BP-5, declarados); o vigia (R11, fora do diff).
+
+### B10 (dono do heredoc com aspas ou barra no meio)
+- **Fecha como classe.** `hooks/conformidade.py:642` tira `"`, `'` e `\` do dono antes de cortar (`re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))`), como o shell faz. As 1925 linhas dão rc=2 na HEAD; 495 eram rc=0 na base (as 18 do B10, `p''erl`, `"p"erl`, `p\erl`, `pe\rl<<'X'`, e as demais posições e donos) e 1430 já eram rc=2. Nenhuma linha passa de rc=2 a rc=0.
+- As 15 linhas com expansão antes do nome seguem rc=2 na base e na HEAD (juntar os pedaços não esconde o nome de outra conferência); `cat <<'X'`, `cat<<X` com `perl` no corpo e `echo perl <<'X'` seguem rc=0 (sem falso positivo novo).
+- Fixture: `b10-heredoc-dono-aspas-no-meio-bloqueia` (`p''erl <<'X'`), rc=2.
+
+### B11 (`w` do sed depois de outro `w`; O da segurança)
+- **Fecha como classe.** `hooks/conformidade.py:64` virou busca sobreposta, `(?=[wW]\s*(\S+))`: cada `w`/`W` do script é candidato, inclusive dentro da palavra de outro. As 6 do brief (`s/aw/b/w`, `s/saw/x/;w .git/config`, `s|w|x|;w`, `s/new/old/w`, `/www/w`, `y/w/w/;w .git/config`), `s|w|b|w` e as 9 de `w` depois de `w` dão rc=2 na HEAD (8 delas eram rc=0 na base; `-e 's/aw/b/' -e 'w ...'` já era rc=2); as 20 da rodada 7 seguem rc=2.
+- Os usos comuns seguem rc=0: `sed -n '/w/p' .githooks/pre-push`, `sed 's/word/x/' .githooks/pre-push`, `sed 's/x/y/w out.txt' src/a.js`, `sed 's/aw/b/w out.txt' src/a.js`, `sed -n 's/www/x/p' src/a.js`, `sed -i 's/a/b/' src/a.js`. O falso positivo aceito na rodada 7 (palavra depois de `w`/`W` que é caminho protegido) não muda de alcance.
+- Fixtures: `o-sed-w-mascarado-bloqueia` (`s/aw/b/w .githooks/pre-push`) e `o-sed-w-depois-de-w-bloqueia` (`s/saw/x/;w .git/config`), rc=2.
+
+### Documentação
+ADR 0009, `docs/hooks.md` e `changelog.d/bp-1.md` acrescentam só "inclusive no meio do nome (`p''erl`, `pe\rl`)" e "depois de outro `w` no mesmo script (`s/aw/b/w arq`, `;w arq`)": batem com o código desta volta e com a matriz acima; o resto de L, M e a cópia do `inplace.awk` seguem com a BP-5. Texto neutro (R-NEUTRO). Commits: 2, Conventional Commits em português, coerentes (fix com as fixtures, docs).
+
+### Achados novos (por classe)
+- Nenhum que bloqueie. Nenhuma regressão desta volta na cobertura declarada acima.
+- **R12 · recomendado · `tests/hooks/conformidade/b10-heredoc-dono-aspas-no-meio-bloqueia.json` · dentro do que a documentação promete.** A fixture cobre só as aspas (`p''erl`); a documentação cita também a barra no meio (`pe\rl`), que a matriz confirma (rc=2), mas sem fixture que a prenda. Sugestão: uma fixture com `pe\rl<<'X'` numa próxima volta que mexa nesse trecho; não abre rodada.
+- **R11 · segue recomendado** (`hooks/vigia.py`, cosmético), fora do diff.
+
+### Parecer da revalidação
+**Aprovado.** B10 e B11 fecham como classe nas linhas `hooks/conformidade.py:642` e `:64`: aspas ou barra em qualquer posição do nome do dono do heredoc e `w` do sed depois de outro `w` dão rc=2, nenhuma linha que dava rc=2 em 61ddf7e passa a rc=0, e os usos comuns seguem livres. A documentação diz o que o código cobre. Riscos para o QA, sem mudança: o falso positivo do `w` seguido de caminho protegido, o do awk que cita `inplace`, R5, R6 e os dois casos da mitigação; L, M e a cópia do `inplace.awk` ficam com a BP-5.
