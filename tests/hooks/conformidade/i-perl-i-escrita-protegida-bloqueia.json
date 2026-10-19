@@ -1,0 +1,24 @@
+{
+  "descricao": "Achado I: `perl -pi` com texto inofensivo, mas com arquivo-alvo protegido (`.githooks/`), dá bloqueio pela conferência de escrita; a de texto também roda e não pula esta.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "perl -pi -e 's/a/b/' .githooks/pre-push"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

@@ -621,6 +621,48 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     return [linha.rstrip("\n")]
 
 
+MODOS_DE_CONFERENCIA = ("brief", "entrega")
+MERITOS_DE_CONFERENCIA = ("s", "n", "parcial", "—")
+CABECALHO_CONFERENCIAS = ("| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota |\n"
+                          "|---|---|---|---|---|---|---|---|\n")
+
+
+def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota):
+    """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 8 colunas no formato do cabeçalho, hora
+    real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar. Recusa sem gravar."""
+    for nome, valor in (("pedido", pedido), ("brief", brief), ("resultado", resultado), ("nota", nota)):
+        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
+            return [f"conferencia: {nome} não pode ter `|` nem quebra de linha"]
+    pedido, brief, resultado, nota = (x.strip() for x in (pedido, brief, resultado, nota))
+    if not (pedido and brief and resultado):
+        return ["conferencia: --pedido, --brief e --resultado não podem ser vazios"]
+    if modo not in MODOS_DE_CONFERENCIA:
+        return [f"conferencia: --modo deve ser {' ou '.join(MODOS_DE_CONFERENCIA)}"]
+    if merito not in MERITOS_DE_CONFERENCIA:
+        return [f"conferencia: --merito deve ser um de {', '.join(MERITOS_DE_CONFERENCIA)}"]
+    if not re.fullmatch(r"[0-9]+", rodada) or int(rodada) < 1:
+        return ["conferencia: --rodada deve ser um inteiro a partir de 1"]
+    arq = raiz / "docs" / "kanban" / "conferencias.md"
+    if arq.is_symlink():
+        return ["conferencia: docs/kanban/conferencias.md é link simbólico; não escrevo através dele"]
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    existe = arq.is_file() and arq.stat().st_size > 0
+    falta_quebra = False
+    if existe:
+        with arq.open("rb") as f:
+            f.seek(-1, 2)
+            falta_quebra = f.read(1) != b"\n"
+    hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+    linha = f"| {hora} | {pedido} | {brief} | {modo} | {int(rodada)} | {resultado} | {merito} | {nota} |\n"
+    with arq.open("a", encoding="utf-8") as f:
+        if not existe:
+            f.write(CABECALHO_CONFERENCIAS)
+        elif falta_quebra:
+            f.write("\n")
+        f.write(linha)
+    return [linha.rstrip("\n")]
+
+
 # ---- rodadas de brief e voltas (T-1, M13): o vai e volta lido do disco, só leitura ----
 def _sem_acento(texto):
     return "".join(c for c in unicodedata.normalize("NFD", str(texto)) if not unicodedata.combining(c)).casefold()
@@ -2263,6 +2305,16 @@ def main():
     mv.add_argument("--de", required=True, help="coluna de origem")
     mv.add_argument("--para", required=True, help="coluna de destino")
     mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —)")
+    cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
+    csub = cf.add_subparsers(dest="acao", required=True)
+    rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
+    rg.add_argument("--pedido", required=True)
+    rg.add_argument("--brief", required=True, help="nome do brief (docs/briefs/<nome>.md)")
+    rg.add_argument("--modo", required=True, help="brief ou entrega")
+    rg.add_argument("--rodada", required=True, help="inteiro a partir de 1")
+    rg.add_argument("--resultado", required=True, help="texto do veredito, ex.: aprovado, reprovado, não cumpriu (PQ-3)")
+    rg.add_argument("--merito", required=True, help="s, n, parcial ou — (o achado procedia?)")
+    rg.add_argument("--nota", default="")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -2311,6 +2363,11 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return 1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0
+    if a.cmd == "conferencia":
+        linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota)
+        for linha in linhas:
+            print(linha)
+        return 1 if linhas[0].startswith("conferencia:") else 0
     if a.cmd == "fontes":
         linhas, codigo = cmd_fontes()
         for linha in linhas:

@@ -1,0 +1,43 @@
+{
+  "descricao": "Achado E: a marca é uma por raiz (`projeto-<hash do caminho real>`, no common dir do clone). A sessão está na worktree `wt`, que perdeu o `.forge/versao`; a marca dela, e não a do clone, é a que vale e o push falha fechado.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "gravar": {
+        "{marca_wt}": "2026-10-17T00:00:00\n"
+      }
+    },
+    {
+      "remover": [
+        "../wt/.forge/versao"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "sumiu"
+  }
+}

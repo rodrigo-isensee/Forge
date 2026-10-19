@@ -1,0 +1,38 @@
+{
+  "descricao": "Achado F: sem `.forge/versao` e com a marca, `echo <outro repositório> > .git/commondir` (que desviaria a busca da marca) é escrita direta dentro do `.git/` e dá bloqueio.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{marca}": "2026-10-17T00:00:00\n"
+      }
+    },
+    {
+      "git": [
+        "sparse-checkout",
+        "set",
+        "src"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo {tmp}/outro/.git > .git/commondir"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
