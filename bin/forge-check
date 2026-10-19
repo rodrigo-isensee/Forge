@@ -8,7 +8,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check transcricao lastro [<pasta ou .jsonl>]
      forge-check transcricao decisoes [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
-     forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop]
+     forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA]
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
      forge-check fontes
@@ -26,7 +26,8 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
 `--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
-o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um.
+o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
+acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
 o `--desde` vale só se for a `conferida <sha40>` mais recente do `## Histórico` do pedido (lido da cópia principal, não da
@@ -2435,7 +2436,16 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None):
     return 1 if reprovado else 0
 
 
-def cmd_brief_gerar(raiz, pedido, destino, branch, base):
+ETAPAS_DE_MERGE = ("merge-integracao", "pedido-de-merge-ao-dono")
+
+
+def pq_de_merge(base):
+    """PQ do merge por ancestralidade (S-18): o commit do merge está na base, não o `gh pr view` do estado."""
+    return (f"- PQ-N (cmd): `git merge-base --is-ancestor <mergeCommit> origin/{base}` · espera: rc=0 · "
+            f"{PREENCHER}: troque <mergeCommit> pelo sha do commit do merge")
+
+
+def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`."""
     caminho_pedido = Path(pedido)
     if not caminho_pedido.is_file():
@@ -2470,6 +2480,8 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base):
               f"- PQ-N (arquivo): `test -e <caminho>` · {PREENCHER}"]
     if branch:
         saida.append(f"- PQ-N (push): `git ls-remote origin refs/heads/{branch}` igual ao head local · {PREENCHER}")
+    if etapa in ETAPAS_DE_MERGE:
+        saida.append(pq_de_merge(base))
     saida += ["", "## Relatório",
               "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo."]
     print("\n".join(saida))
@@ -2567,6 +2579,7 @@ def main():
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
+    br.add_argument("--etapa", choices=("codigo", "review", "qa", "pr") + ETAPAS_DE_MERGE, help="só em `gerar`: etapa da delegação; merge-integracao e pedido-de-merge-ao-dono acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`")
     de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
@@ -2641,7 +2654,7 @@ def executar(a, raiz):
         return cmd_voltas(raiz, a.pedido)
     if a.cmd == "brief":
         if a.alvo == "gerar":
-            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base)
+            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base, a.etapa)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior)
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
