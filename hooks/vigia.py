@@ -24,7 +24,8 @@ import sys
 import time
 from pathlib import Path
 
-from _comum import LIMITE_LOG, PLUGIN, executar, git, gravar_json, ler_json
+from _comum import (LIMITE_LOG, PLUGIN, copia_de_trabalho, executar, git, gravar_json, ler_json, marcar_projeto,
+                    motivo_da_falha, raiz_declarada, versao_sumiu)
 
 LIMITE_ARQUIVO = 2 * 1024 * 1024
 LIMITE_ARQUIVOS = 3000
@@ -40,7 +41,7 @@ _ESCRITA = re.compile(r"(?<![\w.-])(?:tee|cp|mv|install|ln|rm|touch|dd|truncate|
                       r"sh|bash|zsh|eval|source)(?![\w.-])|>|<<")
 PODADOS = {".git", "node_modules"}  # nunca se desce neles
 # Gravidade: só o contorno acusa (violação); arquivo em vigor mudado pode ser o usuário ou o `forge-upgrade` (mudança).
-GRAVIDADE = {"contorno": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)")}
+GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)")}
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 
 
@@ -314,14 +315,41 @@ def verificar(hook, raiz):
         return novas
 
 
+def avisar_versao_sumiu(hook):
+    """Sessão marcada como projeto sem `.forge/versao`, com a raiz movida ou com o `.git` que não se resolve: os outros
+    hooks se calaram, então o vigia é quem avisa. Raiz que sumiu: o estado vai para a cópia de trabalho da pasta
+    corrente, se houver; sem ela, nada é gravado (o aviso do `Stop` basta), para não recriar a raiz antiga nem criar
+    `.forge/run/` numa pasta qualquer."""
+    motivo = motivo_da_falha()
+    hook.raiz = copia_de_trabalho(hook.cwd()) if motivo == "raiz" else raiz_declarada()
+    detalhe = {"versao": (".forge/versao sumiu desde o início da sessão: os hooks do Forge só barram as ações críticas "
+                          "até o arquivo voltar; peça ao usuário que o restaure"),
+               "raiz": ("a pasta da sessão foi movida ou apagada: os hooks do Forge só barram as ações críticas; peça "
+                        "ao usuário que a restaure e abra uma sessão nova"),
+               "git": (".git da raiz da sessão não se resolve e não há .forge/versao: os hooks do Forge só barram as ações "
+                       "críticas; peça ao usuário que repare o .git")}[motivo]
+    if hook.raiz is not None:
+        with open(hook.run() / "violacoes.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps({"hora": time.strftime("%Y-%m-%dT%H:%M:%S"), "evento": hook.campo("hook_event_name"),
+                                "sessao": hook.campo("session_id"), "agente": hook.campo("agent_type"),
+                                "gravidade": GRAVIDADE["versao-sumiu"][1], "tipo": "versao-sumiu", "detalhe": detalhe},
+                               ensure_ascii=False) + "\n")
+    return [("versao-sumiu", detalhe)]
+
+
 def principal(hook):
     evento = hook.campo("hook_event_name")
+    if evento == "SessionStart" and raiz_declarada() is not None:
+        marcar_projeto(raiz_declarada())
     raiz = hook.projeto(hook.cwd())
-    if raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
+    if versao_sumiu() and evento in ("Stop", "SubagentStop"):
+        novas = avisar_versao_sumiu(hook)
+    elif raiz is None or evento not in ("SessionStart", "Stop", "SubagentStop"):
         return
-    if evento == "SessionStart":
+    elif evento == "SessionStart":
         return iniciar(hook, raiz)
-    novas = verificar(hook, raiz)
+    else:
+        novas = verificar(hook, raiz)
     if novas:
         novas = sorted(novas, key=lambda n: GRAVIDADE[n[0]][0])  # o resumo é do mais grave (a ordenação é estável)
         contagem = {}

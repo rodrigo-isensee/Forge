@@ -1,0 +1,24 @@
+{
+  "descricao": "Busca de classe do retrabalho 3: `perl -pi` (edição no lugar, como `sed -i`) em arquivo dentro do `.git/` dá bloqueio; o `perl` não cai mais só na conferência de texto de interpretador.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "perl -pi -e 's/a/b/' .git/config"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

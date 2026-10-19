@@ -1,0 +1,23 @@
+{
+  "descricao": "Comandos git comuns (add, commit, fetch, worktree list, rev-parse) seguem livres: só a escrita direta no `.git/` é barrada.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git add -A && git commit -q -m x; git fetch origin; git worktree list; git rev-parse --git-common-dir; cat .git/HEAD"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

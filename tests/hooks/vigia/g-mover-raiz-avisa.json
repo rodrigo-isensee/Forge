@@ -1,0 +1,43 @@
+{
+  "descricao": "Achado G: a raiz da sessão movida (`git worktree move`): o vigia avisa no Stop, no estado da pasta nova, e não recria a raiz antiga.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1"
+      }
+    },
+    {
+      "git": [
+        "worktree",
+        "move",
+        "{tmp}/wt",
+        "{tmp}/wt2"
+      ]
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "cwd": "{tmp}/wt2"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "movida"
+  }
+}

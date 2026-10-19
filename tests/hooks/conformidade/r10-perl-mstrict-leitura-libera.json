@@ -1,0 +1,23 @@
+{
+  "descricao": "R10 do review: `perl -Mstrict` só lê o arquivo protegido; o `i` de `-Mstrict` não liga a edição no lugar e a linha passa (sem falso positivo).",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "perl -Mstrict -e 'print 1' .githooks/pre-push"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

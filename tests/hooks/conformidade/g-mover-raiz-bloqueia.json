@@ -1,0 +1,46 @@
+{
+  "descricao": "Achado G: a raiz da sessão (`{tmp}/wt`) foi movida (`git worktree move`); a sessão segue na pasta nova, sem `.forge/versao`, e o push falha fechado.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "git": [
+        "worktree",
+        "move",
+        "{tmp}/wt",
+        "{tmp}/wt2"
+      ]
+    },
+    {
+      "remover": [
+        "../wt2/.forge/versao"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt2"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "movida"
+  }
+}

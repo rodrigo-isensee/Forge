@@ -1,0 +1,24 @@
+{
+  "descricao": "B5 do review: interpretador de nome com versão (`perl5.34.0`) é reconhecido como o interpretador: o texto do script que apaga o `.forge/versao` dá bloqueio.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "perl5.34.0 -e 'unlink q(.forge/versao)'"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

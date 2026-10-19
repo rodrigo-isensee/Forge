@@ -1,0 +1,24 @@
+{
+  "descricao": "Achado I (e B3 do review): `perl -i` com o texto do script apagando a marca da sessão passa pela conferência de texto de interpretador e dá bloqueio; `-i` não dispensa uma conferência pela outra.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "perl -i -e 'unlink glob q(.git/forge/projeto-*)' src/app.js"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

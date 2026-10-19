@@ -1,0 +1,43 @@
+{
+  "descricao": "Achado F, worktree: a escrita em `<comum>/worktrees/<n>/commondir`, por caminho absoluto e fora da raiz da sessão, dá bloqueio.",
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/wt"
+  },
+  "git": [
+    {
+      "worktree": "wt",
+      "branch": "melhoria/w"
+    }
+  ],
+  "passos": [
+    {
+      "gravar": {
+        "{marca_wt}": "2026-10-17T00:00:00\n"
+      }
+    },
+    {
+      "remover": [
+        "../wt/.forge/versao"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo {tmp}/outro/.git > {tmp}/proj/.git/worktrees/wt/commondir"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/wt"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

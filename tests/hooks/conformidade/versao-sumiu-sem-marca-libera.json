@@ -1,0 +1,31 @@
+{
+  "descricao": "Sem a marca da sessão, a falta de `.forge/versao` não barra (o hook age só em projeto, como antes).",
+  "forge": true,
+  "arquivos": {
+    ".githooks/pre-push": "#!/bin/sh\n",
+    "src/app.js": "v1\n",
+    "docs/nota.md": "n\n"
+  },
+  "env": {
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "passos": [
+    {
+      "remover": [
+        ".forge/versao"
+      ]
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git push origin HEAD:melhoria/x"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
