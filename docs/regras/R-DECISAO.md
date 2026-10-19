@@ -1,13 +1,13 @@
 ---
 id: R-DECISAO
 titulo: Uma decisão por vez, com opções e recomendação
-verificada_por: conferente (corte de escopo) e revisão (transcrições, ADR 0007)
+verificada_por: conferente (corte de escopo) e revisão (transcrições, ADR 0007); retrospectiva (linhas `MELHORIA:`)
 ---
 # R-DECISAO: Uma decisão por vez, com opções e recomendação
 
-Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto. Revisão: 2026-10-14.
+Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time, em qualquer projeto. Revisão: 2026-10-19.
 
-- Toda decisão que cabe ao usuário (produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a uma regra) é levada **uma de cada vez**: a próxima só depois que ele responder a anterior.
+- Toda decisão que cabe ao usuário (produto, escopo, prioridade, regra de negócio, custo, acesso, exceção a uma regra, aumento de tokens ou de tempo de entrega) é levada **uma de cada vez**: a próxima só depois que ele responder a anterior.
 - Cada decisão vem com: o contexto em uma ou duas linhas; **as opções** (A, B, C…), cada uma com o principal prós e contra; e **a recomendação** do time, com o motivo.
 - Pendências que dependem do usuário e não são decisões (ex.: mesclar um PR, criar uma conta) vão numa lista curta de ações, separada da decisão.
 - Havendo várias decisões na fila, o Jarvis escolhe a que destrava mais trabalho, leva só ela e diz quantas restam.
@@ -27,3 +27,10 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.
 - **Ordem ampla não confirma.** "Resolva", "acabe tudo" e "pode fazer" só cobrem itens já marcados `confirmado` ou `delegado` no pedido. Item novo ou ato irreversível dentro dela volta ao usuário como pergunta, uma por vez.
 - **Item `técnico` não depende de ordem.** É decisão do time ("Decisões técnicas são do time", acima): executa sem ordem do usuário. `Suposição` e `no-protótipo` seguem fora da ordem ampla: ela não os confirma.
+
+## Complemento: melhoria vista e entrada direta
+- **(a) Linha `Melhoria vista:`.** Todo relatório de agente termina com a linha `Melhoria vista:` (menos o do `forge:conferente`): o problema, a evidência (arquivo e linha, saída de ferramenta ou transcrição) e a mudança sugerida, ou `nenhuma`. Sem evidência vale `nenhuma`; não se inventa melhoria para preenchê-la.
+- **(b) Retrospectiva.** O Jarvis grava no pedido, no mesmo turno, cada linha diferente de `nenhuma` como `MELHORIA: <agente>: <texto>`. Na retrospectiva o `agile-coach` classifica cada uma em `cartão`, `ao usuário` (com o critério que falhou) ou `descartada` (sem evidência ou duplicada, citando o cartão que a cobre), e o Jarvis abre os cartões.
+- **(c) Entrada direta na fila, sem perguntar ao usuário,** só com as quatro condições juntas: não custa dinheiro real, sem exceção (`R-CUSTO`); não afrouxa controle, regra nem item de `tests/config.json`; não é decisão de produto; não aumenta tokens nem tempo de entrega dos pedidos seguintes (passo, rodada, agente ou texto lido a cada delegação). O usuário fica sabendo no resumo da etapa.
+- **(d) Faltando uma condição, ou na dúvida,** vai ao usuário como decisão, com o aumento estimado; melhoria que custa dinheiro real não entra na fila.
+- **(e) Vale igual em todo projeto que usa o Forge:** melhoria técnica do projeto entra no quadro do projeto; melhoria de fábrica vista num projeto só vira proposta por PR no Forge (`R-CONTRIB`).
