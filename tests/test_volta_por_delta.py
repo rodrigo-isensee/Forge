@@ -254,6 +254,12 @@ class Entrega(Repositorio):
         self.entrega()
         self.assertEqual(self.arvore(), antes)
 
+    def test_nome_acentuado_chega_sem_aspas_e_o_fragmento_do_changelog_conta(self):  # R-A3 (-z, core.quotePath)
+        self.commitar({"docs/decisões.md": "x\n", "changelog.d/vv-2.md": "- x\n"}, "acento")
+        modulo = carregar_forge_check()
+        self.assertEqual(modulo.arquivos_da_entrega(self.repo, "melhoria/x", "develop"), ["changelog.d/vv-2.md", "docs/decisões.md"])
+        self.assertEqual(modulo.arquivos_da_entrega(self.repo, "melhoria/x", "develop", desde=self.base), ["changelog.d/vv-2.md", "docs/decisões.md"])
+
     def test_arquivos_da_entrega_sem_desde_e_igual_ao_de_antes(self):  # regressão (teste 5 do plano)
         self.tres_delegacoes()
         modulo = carregar_forge_check()
