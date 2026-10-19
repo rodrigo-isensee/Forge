@@ -2677,7 +2677,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
     pedido_id = m.group(1) if m else caminho_pedido.stem
     bytes_anterior = None
     if anterior:
-        caminho_anterior = dentro_da_raiz(raiz, anterior, ("docs/briefs",))
+        caminho_anterior, _ = caminho_de_brief(raiz, anterior)  # como o --volta: docs/briefs/ da raiz ou de ~/.forge-contrib
         try:
             if caminho_anterior is None:
                 raise ValueError("fora da raiz ou de docs/briefs/")

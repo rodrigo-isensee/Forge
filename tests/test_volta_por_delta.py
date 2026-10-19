@@ -4,6 +4,7 @@ import hashlib
 import importlib.machinery
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -441,6 +442,22 @@ class BriefAnterior(unittest.TestCase):
         for alvo in ("docs/outro.md", str(fora), "docs/briefs/elo.md", "docs/briefs/nao-existe.md"):
             with self.subTest(alvo):
                 self.assertEqual(self.brief(self.texto, "--anterior", alvo)[0], 2)
+
+    def test_anterior_na_raiz_de_brief_do_forge(self):  # R-A2: ~/.forge-contrib/docs/briefs/, como o --volta
+        casa = self.tmp / "home"
+        (casa / ".forge-contrib" / "docs" / "briefs").mkdir(parents=True)
+        anterior = casa / ".forge-contrib" / "docs" / "briefs" / "p-dev-exemplo-1.md"
+        anterior.write_text(self.texto, encoding="utf-8")
+        arq = self.tmp / "docs" / "briefs" / "p-dev-exemplo-2.md"
+        arq.write_text(self.texto, encoding="utf-8")
+        cmd = [sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "brief", str(arq), "--pedido", str(self.PEDIDO)]
+        r = subprocess.run([*cmd, "--anterior", str(anterior)], capture_output=True, text=True, env={**os.environ, "HOME": str(casa)})
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("delta: nenhum", r.stdout)
+        (casa / ".forge-contrib" / "docs" / "outro.md").write_text("x\n", encoding="utf-8")  # fora de docs/briefs/ segue recusado
+        r = subprocess.run([*cmd, "--anterior", str(casa / ".forge-contrib" / "docs" / "outro.md")], capture_output=True, text=True,
+                           env={**os.environ, "HOME": str(casa)})
+        self.assertEqual(r.returncode, 2, r.stdout)
 
 
 class PqDeMerge(unittest.TestCase):
