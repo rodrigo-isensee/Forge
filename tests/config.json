@@ -185,9 +185,12 @@
       "Por que o existente não basta"
     ],
     "docs/melhoria-continua.md": [
+      "`Melhoria vista:`",
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "Última linha: `Melhoria vista:`",
+      "o pedido só fecha com ela gravada",
       "bin/forge-check sobreposicao",
       "Recibo antes de acionar o time",
       "Marque cada item de escopo, fora do escopo e critério de pronto",
@@ -411,6 +414,7 @@
       "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
     ],
     "agents/agile-coach.md": [
+      "`MELHORIA:`",
       "nunca para avaliar um agente ou uma pessoa individualmente",
       "Medição de clareza, por pedido",
       "`PERGUNTA: nenhuma` conta zero",
@@ -464,7 +468,14 @@
       "\"agent\": \"forge:jarvis\"",
       "Bash\\(git \\* --no-verify\\*\\)"
     ],
+    "bin/forge-check": [
+      "Melhoria vista:"
+    ],
     "docs/regras/R-DECISAO.md": [
+      "Complemento: melhoria vista e entrada direta",
+      "não custa dinheiro real, sem exceção",
+      "não aumenta tokens nem tempo de entrega",
+      "não se inventa melhoria para preenchê-la",
       "\\*\\*uma de cada vez\\*\\*",
       "Complemento: \\\"tanto faz\\\" e ordem ampla",
       "viram item `delegado`",
