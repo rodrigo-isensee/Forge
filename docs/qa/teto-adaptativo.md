@@ -47,7 +47,7 @@ Escopo: E1 (R-TETO), E2 (hook `agentes`, `forge-check kanban`, R-WIP) e E3 (test
 | E3: testes por hardware e fragmento de changelog | `tests/hooks/agentes/` (nproc 3, 4, 8, 16), `test_hooks` (limites), `changelog.d/teto-adaptativo.md` | 1, 8 e 16 núcleos | aprovado |
 
 ## Vermelho antes do verde
-Com o `hooks/agentes.py` e o `bin/forge-check` de `origin/develop`, `python3 -m unittest tests.test_hooks.Hooks.test_fixtures` falha em 10 fixtures da branch, entre elas `nproc-16-libera` ("15 agentes ativos, teto 4"), `nproc-8-libera` ("7 agentes ativos, teto 5"), `nproc-3-bloqueia` e `nproc-4-bloqueia` (saída 0, esperado 2), `load-acima-de-80-bloqueia` e `memoria-abaixo-do-piso-bloqueia` (mensagem sem os núcleos e o limite novo). Os testes novos não passam sem a implementação.
+Com o `hooks/agentes.py` e o `bin/forge-check` de `origin/develop`, `python3 -m unittest tests.test_hooks.Hooks.test_fixtures` falha em 13 fixtures da branch, entre elas `nproc-16-libera` ("15 agentes ativos, teto 4"), `nproc-8-libera` ("7 agentes ativos, teto 5"), `nproc-3-bloqueia` e `nproc-4-bloqueia` (saída 0, esperado 2), `load-acima-de-80-bloqueia` e `memoria-abaixo-do-piso-bloqueia` (mensagem sem os núcleos e o limite novo). Os testes novos não passam sem a implementação.
 
 ## Mutação em hooks/agentes.py
 | Mutante | Resultado |
