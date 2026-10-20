@@ -828,6 +828,30 @@ class Hooks(unittest.TestCase):
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("política de conformidade inválida", r.stderr)
 
+    def test_aq_grava_so_nas_duas_pastas_do_clone_de_contribuicao(self):
+        """FC-AQ-HOOK (ADR 0009, seção 6): o aq escreve em `~/.forge-contrib/docs/propostas/` e `.../arquitetura/` e em mais
+        nenhuma pasta do clone; travessia (`..`) e link simbólico para fora são recusados."""
+        casos = {
+            "propostas": ("~/.forge-contrib/docs/propostas/x.md", 0, None, {}),
+            "arquitetura": ("~/.forge-contrib/docs/arquitetura/x.md", 0, None, {}),
+            "pedidos": ("~/.forge-contrib/docs/pedidos/x.md", 2, "R-", {}),
+            "quadro": ("~/.forge-contrib/KANBAN.md", 2, "o papel aq escreve só em", {}),
+            "outra pasta de docs": ("~/.forge-contrib/docs/reviews/x.md", 2, "o papel aq escreve só em", {}),
+            "fora do clone": ("~/outra/docs/propostas/x.md", 2, "o papel aq escreve só em", {}),
+            "travessia": ("~/.forge-contrib/docs/propostas/../pedidos/x.md", 2, "R-", {}),
+            "link para fora": ("~/.forge-contrib/docs/propostas/x.md", 2, "o papel aq escreve só em",
+                               {"links": {"../home/.forge-contrib/docs/propostas": "{tmp}/fora"}}),
+        }
+        for nome, (caminho, codigo, trecho, extra) in casos.items():
+            with self.subTest(nome):
+                esperado = {"codigo": codigo}
+                if trecho:
+                    esperado["stderr"] = trecho
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home"}, **extra,
+                                  "entrada": {"tool_name": "Write", "tool_input": {"file_path": caminho.replace("~", "{tmp}/home")},
+                                              "agent_type": "forge-dev:aq", "hook_event_name": "PreToolUse",
+                                              "tool_use_id": "toolu_9"}, "esperado": esperado})
+
     def test_escrita_permitida_malformada_bloqueia(self):
         """ADR 0009, seção 6.6: `escrita_permitida` com forma errada (ou lista vazia) falha fechado, não libera."""
         base = json.loads((HOOKS / "conformidade.json").read_text(encoding="utf-8"))
