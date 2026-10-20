@@ -5,25 +5,56 @@
 # R-TETO: tarefas pesadas uma de cada vez. A suíte do Forge é pesada; duas na mesma máquina e para o mesmo
 # usuário esperam a vez por uma trava de arquivo (flock), fora do repositório. O kernel solta a trava quando
 # o processo morre, então não existe trava órfã. `--status` diz se há suíte rodando (saída 0) ou não (1).
+# Pasta da trava: XDG_RUNTIME_DIR (privada do usuário) ou, no recuo para $TMPDIR e /tmp (que podem ser
+# compartilhados), a subpasta forge-<uid>, criada com modo 700 e conferida (do próprio usuário, não é link).
+# Se a subpasta não puder ser criada ou conferida, falha fechado: não há recuo para outra pasta.
+# $1 = criar: cria a subpasta se faltar; vazio (--status): só confere, sem criar nada.
 trava_arquivo() {
-  local d
+  local d sub uid
+  uid="$(id -u)"
   for d in "${XDG_RUNTIME_DIR:-}" "${TMPDIR:-}" /tmp; do
     if [ -n "$d" ] && [ -d "$d" ] && [ -w "$d" ]; then
-      printf '%s/forge-suite-%s.lock\n' "${d%/}" "$(id -u)"
+      d="${d%/}"
+      if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ "$d" = "${XDG_RUNTIME_DIR%/}" ]; then
+        printf '%s/forge-suite-%s.lock\n' "$d" "$uid"
+        return 0
+      fi
+      sub="$d/forge-$uid"
+      if [ ! -e "$sub" ] && [ ! -L "$sub" ] && [ -n "${1:-}" ]; then
+        mkdir -m 700 "$sub" 2>/dev/null || true
+      fi
+      if [ ! -e "$sub" ] && [ ! -L "$sub" ] && [ -z "${1:-}" ]; then
+        printf '%s/forge-suite-%s.lock\n' "$sub" "$uid"
+        return 0
+      fi
+      if [ -L "$sub" ] || [ ! -d "$sub" ] || [ ! -O "$sub" ]; then
+        echo "pre-push: ${sub} não é uma pasta do próprio usuário (ou é link, ou não pôde ser criada); recusada. Apague-a e tente de novo." >&2
+        return 1
+      fi
+      printf '%s/forge-suite-%s.lock\n' "$sub" "$uid"
       return 0
     fi
   done
+  echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2
   return 1
 }
-trava="$(trava_arquivo)" || { echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2; exit 1; }
-if [ -L "$trava" ]; then
-  echo "pre-push: ${trava} é um link simbólico; recusado. Apague-o e tente de novo." >&2
-  exit 1
-fi
-if [ "${1:-}" = "--status" ]; then
+# Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
+trava_confere() {
+  if [ -L "$trava" ] || [ ! -O /proc/self/fd/9 ]; then
+    echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
+    return 1
+  fi
+}
+# Modo --status só quando chamado à mão com exatamente um argumento; o git passa nome e URL do remoto
+# (dois argumentos), então um remoto chamado "--status" cai no caminho normal.
+if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
+  trava="$(trava_arquivo)" || exit 1
+  if [ -L "$trava" ]; then echo "pre-push: ${trava} é link simbólico; recusado." >&2; exit 1; fi
   if [ ! -e "$trava" ]; then echo "nenhuma suíte do Forge rodando"; exit 1; fi
-  exec 9>>"$trava" || exit 1
-  if flock -n 9; then echo "nenhuma suíte do Forge rodando"; exit 1; fi
+  # Só testa: abre para leitura (não cria nem trunca) e solta na hora.
+  exec 9<"$trava" || exit 1
+  trava_confere || exit 1
+  if flock -n 9; then flock -u 9; echo "nenhuma suíte do Forge rodando"; exit 1; fi
   echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true))"
   exit 0
 fi
@@ -60,7 +91,14 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_C
 cd "$(git rev-parse --show-toplevel)" || exit 1
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+trava="$(trava_arquivo criar)" || exit 1
+if [ -L "$trava" ]; then
+  echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
+  exit 1
+fi
+# Abre uma vez (sem truncar) e confere o arquivo aberto; o pid vai pelo mesmo descritor.
 exec 9>>"$trava" || { echo "pre-push: não consegui abrir a trava ${trava}." >&2; exit 1; }
+trava_confere || exit 1
 if ! flock -n 9; then
   echo "pre-push: outra suíte do Forge está rodando ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
   if ! flock -w "$espera" 9; then
@@ -68,6 +106,7 @@ if ! flock -n 9; then
     exit 1
   fi
 fi
-printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" > "$trava"
-python3 -m unittest discover -s tests -q >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+: > /proc/self/fd/9
+printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
+python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 exit 0

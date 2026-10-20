@@ -39,6 +39,11 @@ class T(unittest.TestCase):
     def test_falha(self):
         self.fail("de proposito")
 '''
+SUITE_VE_DESCRITOR = '''import unittest, pathlib, os
+class T(unittest.TestCase):
+    def test_descritor(self):
+        pathlib.Path("fd9").write_text(str(os.path.exists("/proc/self/fd/9")))
+'''
 SEGURA_TRAVA = '''import fcntl, sys, time
 f = open(sys.argv[1], "a")
 fcntl.flock(f, fcntl.LOCK_EX)
@@ -74,17 +79,33 @@ class PrePushTrava(unittest.TestCase):
     def suite(self, texto):
         (self.repo / "tests" / "test_x.py").write_text(texto)
 
-    def hook(self, *args, **extra):
-        env = dict(self.env, **extra)
-        return subprocess.Popen(
-            [str(HOOK), *args], cwd=self.repo, env=env, stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    def hook(self, *args, entrada="", env=None, **extra):
+        env = dict(self.env if env is None else env, **extra)
+        arquivo = Path(self._tmp.name) / f"entrada-{len(self.filhos)}-{time.monotonic_ns()}"
+        arquivo.write_text(entrada)
+        with arquivo.open() as stdin:
+            return subprocess.Popen(
+                [str(HOOK), *args], cwd=self.repo, env=env, stdin=stdin,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def roda(self, *args, **extra):
-        p = self.hook(*args, **extra)
+    def roda(self, *args, entrada="", env=None, **extra):
+        p = self.hook(*args, entrada=entrada, env=env, **extra)
         self.filhos.append(p)
         saida, erro = p.communicate(timeout=60)
         return p.returncode, saida, erro
+
+    def env_recuo(self):
+        """Sem XDG_RUNTIME_DIR: a trava cai em $TMPDIR, numa subpasta forge-<uid>."""
+        env = {k: v for k, v in self.env.items() if k != "XDG_RUNTIME_DIR"}
+        env["TMPDIR"] = str(self.run_dir)
+        return env
+
+    def subpasta(self):
+        return self.run_dir / f"forge-{os.getuid()}"
+
+    @staticmethod
+    def refs(destino, local="1" * 40, remoto="0" * 40):
+        return f"refs/heads/x {local} refs/heads/{destino} {remoto}\n"
 
     def espera_ate(self, condicao, limite=15):
         fim = time.monotonic() + limite
@@ -182,6 +203,85 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(codigo, 1)
         self.assertIn("link simbólico", erro)
         self.assertFalse((self.run_dir / "alvo").exists())
+
+    def test_remoto_chamado_status_segue_o_caminho_normal(self):
+        # o git chama o pre-push com dois argumentos (nome e URL do remoto): "--status" aí não é o modo status
+        self.suite(SUITE_RAPIDA)
+        self.segura_trava()
+        codigo, saida, erro = self.roda("--status", "/algum/lugar", entrada=self.refs("melhoria/x"),
+                                        FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1, (saida, erro))
+        self.assertNotIn("suíte do Forge rodando", saida)
+        self.assertIn("esperando a vez", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+        # só o argumento "--status" sozinho é o modo status; "--status extra" não
+        codigo, saida, _ = self.roda("--status", "extra", entrada=self.refs("melhoria/x"),
+                                     FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("suíte do Forge rodando", saida)
+
+    def test_envio_direto_continua_barrado_com_trava_e_com_status(self):
+        self.suite(SUITE_RAPIDA)
+        self.segura_trava()
+        for destino in ("develop", "homolog", "main"):
+            with self.subTest(destino=destino):
+                for args in (("origin", "/url"), ("--status", "/url")):
+                    codigo, saida, erro = self.roda(*args, entrada=self.refs(destino), FORGE_TRAVA_ESPERA="1")
+                    self.assertEqual(codigo, 1, (saida, erro))
+                    self.assertIn(f"envio direto para {destino} bloqueado", erro)
+                    self.assertNotIn("suíte do Forge rodando", saida)
+        self.assertFalse((self.repo / "rodou").exists())
+
+    def test_recuo_cria_subpasta_700_do_usuario(self):
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda(env=self.env_recuo())
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(self.subpasta().stat().st_mode & 0o777, 0o700)
+        self.assertTrue((self.subpasta() / f"forge-suite-{os.getuid()}.lock").exists())
+
+    def test_status_nao_cria_subpasta_nem_trava(self):
+        codigo, saida, _ = self.roda("--status", env=self.env_recuo())
+        self.assertEqual((codigo, saida.strip()), (1, "nenhuma suíte do Forge rodando"))
+        self.assertEqual(list(self.run_dir.iterdir()), [])
+
+    def test_subpasta_que_e_link_e_recusada(self):
+        self.suite(SUITE_RAPIDA)
+        alvo = self.run_dir / "alvo"
+        alvo.mkdir()
+        self.subpasta().symlink_to(alvo)
+        codigo, _, erro = self.roda(env=self.env_recuo())
+        self.assertEqual(codigo, 1)
+        self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertEqual(list(alvo.iterdir()), [])
+        self.assertFalse((self.repo / "rodou").exists())
+        codigo, _, erro = self.roda("--status", env=self.env_recuo())
+        self.assertEqual(codigo, 1)
+        self.assertIn("não é uma pasta do próprio usuário", erro)
+
+    def test_trava_link_dentro_da_subpasta_e_recusada(self):
+        self.suite(SUITE_RAPIDA)
+        self.subpasta().mkdir(mode=0o700)
+        (self.subpasta() / f"forge-suite-{os.getuid()}.lock").symlink_to(self.run_dir / "alvo")
+        codigo, _, erro = self.roda(env=self.env_recuo())
+        self.assertEqual(codigo, 1)
+        self.assertIn("link simbólico", erro)
+        self.assertFalse((self.run_dir / "alvo").exists())
+        self.assertFalse((self.repo / "rodou").exists())
+
+    def test_subpasta_que_nao_da_para_criar_falha_fechado(self):
+        # um arquivo comum com o nome da subpasta impede o mkdir: o hook não pula a suíte nem recua
+        self.suite(SUITE_RAPIDA)
+        self.subpasta().write_text("ocupado")
+        codigo, _, erro = self.roda(env=self.env_recuo())
+        self.assertEqual(codigo, 1)
+        self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+
+    def test_descritor_da_trava_nao_vaza_para_a_suite(self):
+        self.suite(SUITE_VE_DESCRITOR)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual((self.repo / "fd9").read_text(), "False")
 
 
 if __name__ == "__main__":
