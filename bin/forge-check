@@ -2751,8 +2751,7 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
     saida += ["", "## Relatório",
-              "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo.",
-              " Última linha: `Melhoria vista:` com o problema e a evidência, ou `nenhuma` (`R-DECISAO`)."]
+              "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo. Última linha: `Melhoria vista:` com o problema e a evidência, ou `nenhuma` (`R-DECISAO`)."]
     print("\n".join(saida))
     return 0
 
