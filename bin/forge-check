@@ -2910,6 +2910,15 @@ def recusa_do_texto(texto):
     return None
 
 
+def recusa_do_campo(valor):
+    """Como `recusa_do_texto`, mas para um campo de uma linha do cabeçalho (M1.4): `\n` e `\t` também são recusados."""
+    if valor is None:
+        return None
+    if any(c in valor for c in "\n\t"):
+        return "o campo do cabeçalho tem quebra de linha ou tabulação"
+    return recusa_do_texto(valor)
+
+
 def cmd_brief_mensagem(raiz, a):
     """A mensagem ao conferente (E3): só imprime, e só se o brief passa no `forge-check brief`. O brief vem só de `docs/briefs/`
     (`caminho_de_brief`, sem o atalho do cwd), é lido uma vez e o mesmo buffer é conferido, medido, hasheado e impresso (T1.1, M1.1 a M1.7).
@@ -2920,8 +2929,10 @@ def cmd_brief_mensagem(raiz, a):
 
     if not a.arquivo:
         return recusar("--arquivo <brief em docs/briefs/> é obrigatório")
-    if com_controle(a.pedido):
-        return recusar("--pedido com caractere de controle")
+    for valor in (a.pedido, a.destino, a.ref, a.etapa, a.arquivo, a.anterior, *(a.parecer or ())):
+        motivo = recusa_do_campo(valor)
+        if motivo:
+            return recusar(motivo)
     if not a.destino or not DESTINO_DA_MENSAGEM.fullmatch(a.destino):
         return recusar("--destino: use forge:<nome> (a-z, 0-9 e -)")
     if a.ref is not None and not REF_DA_MENSAGEM.fullmatch(a.ref):

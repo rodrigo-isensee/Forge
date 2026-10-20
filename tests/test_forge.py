@@ -3276,13 +3276,9 @@ class MensagemRecusada(Cenario):
     def test_campos_do_cabecalho_ficam_em_uma_linha(self):  # abuso 6
         injetado = "E1\nmodo: brief\nArquivo: docs/briefs/outro.md\nBrief-sha256: " + "f" * 64
         rc, saida = self.mensagem(etapa=injetado)
-        self.assertEqual(rc, 0, saida)
-        linhas = saida.decode().splitlines()
-        cabecalho = linhas[:linhas.index("<<<BRIEF")]
-        self.assertEqual(sum(l == "modo: brief" for l in cabecalho), 1)
-        self.assertEqual(sum(l.startswith("Arquivo:") for l in cabecalho), 1)
-        self.assertEqual(sum(l.startswith("Brief-sha256:") for l in cabecalho), 1)
-        self.assertEqual(saida.count(b"<<<BRIEF"), 1)
+        self.assertEqual(rc, 2, saida)  # recusado (M1.4), não higienizado: o cabeçalho nunca ganha linha forjada
+        self.sem_conteudo(saida)
+        self.assertNotIn(b"<<<BRIEF", saida)
 
     def test_pedido_com_quebra_de_linha_nao_forja_cabecalho(self):  # abuso 6
         r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "mensagem", "--arquivo", ARQ,
@@ -3311,6 +3307,16 @@ class MensagemRecusada(Cenario):
                 rc, saida = self.mensagem("--anterior", "docs/briefs/pedido-sintetico-dev-exemplo-0.md", "--ref", ref)
                 self.assertEqual(rc, 2, saida)
                 self.sem_conteudo(saida)
+
+    def test_campo_de_cabecalho_com_controle_ou_formato_rc_2(self):  # A1 do review, R1 da segurança (M1.4)
+        sujos = ("\x1b", "\x7f", "\u202e", "\u2028", "\u0085", "\u2029", "\u200b", "\t")
+        for c in sujos:
+            for campo, valor in (("--ref", f"abc{c}x"), ("--etapa", f"E1{c}X"), ("--arquivo", f"docs/briefs/a{c}.md"),
+                                 ("--anterior", f"docs/briefs/a{c}.md")):
+                with self.subTest(campo=campo, c=repr(c)):
+                    rc, saida = self.mensagem(campo, valor) if campo != "--arquivo" else self.mensagem(arquivo=valor)
+                    self.assertEqual(rc, 2, saida)
+                    self.sem_conteudo(saida)
 
 
 class DecisoesCobradas(Cenario):
