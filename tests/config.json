@@ -432,14 +432,22 @@
     ],
     "agents/qa-engineer.md": [
       "Commite o parecer na branch revisada",
-      "`R-QA`"
+      "`R-QA`",
+      "sem ler o código",
+      "testes dos casos de abuso do modelo de ameaças"
     ],
     "skills/qa-testing/SKILL.md": [
       "## Teste nasce de obrigação, e para quando ela está coberta",
       "Teste redundante não entra",
       "uma amostra por classe de equivalência mais cada fronteira",
       "fronteira protegida",
-      "afirma um mínimo de itens"
+      "afirma um mínimo de itens",
+      "## Plano antecipado",
+      "conferir o diff contra a lista de `CA-n`",
+      "só sobre o commit final e depois do review"
+    ],
+    "skills/cyber-security/SKILL.md": [
+      "lista os \\*\\*casos de abuso\\*\\*"
     ],
     "skills/engineering-practices/SKILL.md": [
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",

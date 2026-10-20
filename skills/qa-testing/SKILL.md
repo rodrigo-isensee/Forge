@@ -40,6 +40,12 @@ Data, ambiente, aprovados/falhos, links para bugs.
 
 Para cada critério de aceite da especificação, pelo menos um cenário. A tabela critério → teste → resultado do parecer traz a coluna "fronteira protegida" (o limite que o teste guarda: vazio, máximo, permissão; `n/a` se não houver). Sempre incluir: entradas inválidas, limites (vazio, máximo, caracteres especiais), usuário sem permissão, falha da API e navegação só por teclado.
 
+## Plano antecipado (o plano sai do caminho crítico)
+- **Durante a implementação:** o QA escreve `docs/qa/<feature>.md` a partir da especificação (`CA-n`, fronteiras, dados), sem ler o código do autor, o que preserva a independência. Pedido de correção sem especificação nova não tem plano antecipado.
+- **Quando o código chega:** a primeira tarefa é conferir o diff contra a lista de `CA-n` (escopo que mudou invalida o plano), completar as bordas que o código revelar, rodar vermelho antes do verde e executar.
+- **Parecer:** só sobre o commit final e depois do review; `R-REVIEW` e `R-QA` ficam intactos, e só a escrita do plano e dos testes antecipados sai do caminho crítico.
+- **Casos de abuso:** com gatilho de segurança (`R-SEGURANCA`), o QA transforma os casos de abuso do modelo de ameaças em testes, em arquivo seu, na mesma janela; o formato dos casos está na skill `cyber-security`.
+
 ## E2E
 - Seletores por papel e texto acessível; `data-testid` só em último caso.
 - Nada de espera fixa; use as esperas automáticas da ferramenta.
