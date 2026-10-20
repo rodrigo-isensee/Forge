@@ -63,7 +63,7 @@ O `.claude/settings.json` do Forge liga o sandbox do Bash (ADR 0009, seção 5) 
 ## Branches
 Os projetos usam **só a `main`**. Melhorias entram por `develop` (bateria no PR; no push, só a checagem rápida), passam pela `homolog` (mesma bateria sobre o conjunto da release; nada que custe uso de API) e chegam à `main` por PR mesclado pelo dono do Forge.
 
-**Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre).
+**Hooks `pre-push` (assimetria proposital):** o do Forge bloqueia `develop`, `homolog` e `main`, pois a fábrica tem as três como degraus protegidos; o do modelo de projeto bloqueia só a `main`, porque o projeto usa apenas ela como branch protegida (o resto é livre). O do Forge também espera a vez por uma trava antes de rodar a suíte (`R-TETO`); `.githooks/pre-push --status` diz se há suíte rodando (ver `docs/hooks.md`).
 
 ## Hooks
 Em projeto com `.forge/versao`, o plugin garante por código, sem gastar contexto, o teto de agentes, o parecer antes de PR e merge, uma tarefa pesada por vez e o quadro válido (ADR 0003). Ajustes e como desligar um hook: [`docs/hooks.md`](docs/hooks.md).
