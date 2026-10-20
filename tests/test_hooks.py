@@ -380,6 +380,23 @@ class Hooks(unittest.TestCase):
         arquivo.write_text(json.dumps(dados), encoding="utf-8")
         self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
+    def test_fixtures_da_sessao_do_forge_que_citam_o_rotulo_usam_o_gh_falso(self):
+        """Nenhum resultado depende da credencial da máquina: toda fixture da sessão do Forge (`forge: false` com o
+        `plugin.json` do Forge na raiz) que cita o rótulo traz o `gh` falso executável e o põe à frente no PATH."""
+        achadas = []
+        for f in self.fixtures:
+            d = f.dados
+            if d.get("forge") is not False or ".claude-plugin/plugin.json" not in d.get("arquivos", {}):
+                continue
+            if "afrouxa-regra" not in json.dumps(d.get("entrada", {})):
+                continue
+            achadas.append(f.caminho.name)
+            with self.subTest(fixture=f.caminho.name):
+                self.assertIn("bin/gh", d.get("arquivos", {}))
+                self.assertIn("bin/gh", d.get("executaveis", []))
+                self.assertTrue(d.get("env", {}).get("PATH", "").startswith("{tmp}/proj/bin:"))
+        self.assertGreaterEqual(len(achadas), 10, "fixtures da sessão do Forge com o rótulo")
+
     def test_rotulo_so_dono_formas_alternativas(self):
         """Volta 1 (segurança A2, A3, A4 e R2): GraphQL por caminho ou URL, REST com `?…` ou `#…`, crase (fora de aspas
         simples) e criar ou renomear rótulo com o nome barram outra conta; a conta do dono passa; o resto não muda."""
