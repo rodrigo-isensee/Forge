@@ -581,9 +581,10 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
 
 # --- Escopo da entrega pelo intervalo da delegação (VV-2, M9) ------------------------------------
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
-ETAPAS_DE_CODIGO = ("codigo", "review", "qa")  # etapas em que `--desde` vale
+ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")  # etapas em que `--desde` vale
 ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # o Base-sha é sempre o ponto de partida
 BASES_DO_FLUXO = ("develop", "homolog", "main")
+ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
 
@@ -745,6 +746,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde):
     for nome in arquivos:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         tipo = next((t for t, (pasta, _) in PASTA_E_REGRA.items() if nome.startswith(pasta + "/")), None)
+        if nome.startswith(ACEITES_DO_USUARIO):  # M5.1: o aceite é do usuário e nunca é parecer, ainda que o registro de autoria exista
+            tipo = None
         mostrado = nome_seguro(nome)
         if tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
             if removidas != "0":  # A6: parecer com autoria não dispensa a regra do anexo "só por acréscimo"
@@ -3001,25 +3004,56 @@ TETO_DO_BRIEF = 256 * 1024
 DELIMITADORES = ("<<<BRIEF", "BRIEF>>>")
 
 
+def caractere_recusado(c, tolera_quebra=True):
+    """O caractere não pode ir na mensagem: controle (fora de `\\n` e `\\t`, que o texto do brief tolera), formato (Cf: bidi, largura
+    zero), separador de linha ou de parágrafo (Zl, Zp)."""
+    categoria = unicodedata.category(c)
+    return (categoria == "Cc" and not (tolera_quebra and c in "\n\t")) or categoria in ("Cf", "Zl", "Zp")
+
+
 def recusa_do_texto(texto):
     """Por que o texto não pode ir entre `<<<BRIEF` e `BRIEF>>>` (T1.2, M1.3), ou None: delimitador em qualquer posição, controle
-    fora de `\\n` e `\\t`, caractere de formato (Cf: bidi, largura zero) ou separador de linha ou de parágrafo (Zl, Zp)."""
+    fora de `\\n` e `\\t`, caractere de formato (Cf: bidi, largura zero) ou separador de linha ou de parágrafo (Zl, Zp). Diz onde
+    (linha e coluna, de 1) e qual (U+XXXX); nunca o trecho do texto (M9.11)."""
     if any(d in texto for d in DELIMITADORES):
         return "o brief contém um dos delimitadores da mensagem"
-    for c in texto:
-        categoria = unicodedata.category(c)
-        if (categoria == "Cc" and c not in "\n\t") or categoria in ("Cf", "Zl", "Zp"):
-            return f"o brief tem o caractere de controle ou de formato U+{ord(c):04X}"
+    for numero, linha in enumerate(texto.split("\n"), 1):
+        for coluna, caractere in enumerate(linha, 1):
+            if caractere_recusado(caractere):
+                return f"texto do brief, linha {numero}, coluna {coluna}, U+{ord(caractere):04X}: caractere de controle ou de formato"
     return None
 
 
-def recusa_do_campo(valor):
-    """Como `recusa_do_texto`, mas para um campo de uma linha do cabeçalho (M1.4): `\n` e `\t` também são recusados."""
+def recusa_do_campo(valor, nome):
+    """Como `recusa_do_texto`, para um campo de uma linha do cabeçalho (M1.4): `\\n` e `\\t` também são recusados. Cita o campo
+    pelo `nome` fixo do código e o caractere por U+XXXX, nunca o valor (E9d, M9.11)."""
     if valor is None:
         return None
-    if any(c in valor for c in "\n\t"):
-        return "o campo do cabeçalho tem quebra de linha ou tabulação"
-    return recusa_do_texto(valor)
+    if any(d in valor for d in DELIMITADORES):
+        return f"o campo {nome} contém um dos delimitadores da mensagem"
+    for caractere in valor:
+        if caractere_recusado(caractere, tolera_quebra=False):
+            return f"o campo {nome} tem o caractere de controle ou de formato U+{ord(caractere):04X}"
+    return None
+
+
+def destino_da_mensagem(texto, passado):
+    """(destino, recusa): o `--destino` ou, sem ele, o `Agente destino:` do CABEÇALHO do brief (antes da primeira seção), exatamente
+    uma linha (M9.8). Com os dois, têm de ser iguais. A linha que aparece depois de uma seção é texto do brief e não escolhe destino."""
+    cabecalho = []
+    for linha in texto.splitlines():
+        if CABECALHO_BRIEF.match(linha):
+            break
+        cabecalho.append(linha)
+    do_brief = [m.group(1) for linha in cabecalho if (m := re.match(r"^\s*Agente destino:\s*(\S+)\s*$", linha))]
+    if passado is not None:
+        if do_brief and do_brief != [passado]:
+            return None, "--destino difere do `Agente destino:` do brief"
+        return passado, None
+    if len(do_brief) != 1 or not DESTINO_DA_MENSAGEM.fullmatch(do_brief[0]):
+        return None, ("--destino é obrigatório quando o brief não tem exatamente uma linha `Agente destino: forge:<nome>` no cabeçalho "
+                      "(antes da primeira seção)")
+    return do_brief[0], None
 
 
 def cmd_brief_mensagem(raiz, a):
@@ -3032,11 +3066,13 @@ def cmd_brief_mensagem(raiz, a):
 
     if not a.arquivo:
         return recusar("--arquivo <brief em docs/briefs/> é obrigatório")
-    for valor in (a.pedido, a.destino, a.ref, a.etapa, a.arquivo, a.anterior, *(a.parecer or ())):
-        motivo = recusa_do_campo(valor)
+    campos = [("--pedido", a.pedido), ("--destino", a.destino), ("--ref", a.ref), ("--etapa", a.etapa), ("--arquivo", a.arquivo),
+              ("--anterior", a.anterior)] + [(f"--parecer {i}", valor) for i, valor in enumerate(a.parecer or (), 1)]
+    for nome, valor in campos:
+        motivo = recusa_do_campo(valor, nome)
         if motivo:
             return recusar(motivo)
-    if not a.destino or not DESTINO_DA_MENSAGEM.fullmatch(a.destino):
+    if a.destino is not None and not DESTINO_DA_MENSAGEM.fullmatch(a.destino):
         return recusar("--destino: use forge:<nome> (a-z, 0-9 e -)")
     if a.ref is not None and not REF_DA_MENSAGEM.fullmatch(a.ref):
         return recusar("--ref: sem espaço, sem controle e sem começar por `-`")
@@ -3058,6 +3094,9 @@ def cmd_brief_mensagem(raiz, a):
     motivo = recusa_do_texto(texto)
     if motivo:
         return recusar(motivo)
+    destino, motivo = destino_da_mensagem(texto, a.destino)
+    if motivo:
+        return recusar(motivo)
     bytes_anterior, rel_anterior = None, None
     if a.anterior:
         if a.ref is None and re.search(r"^Volta-de:", texto, re.M):
@@ -3074,7 +3113,7 @@ def cmd_brief_mensagem(raiz, a):
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return recusar(f"não consegui ler o pedido {nome_seguro(sem_controle(a.pedido))}")
-    _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, a.destino, rel, bytes_anterior, a.ref, a.parecer)
+    _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, bytes_anterior, a.ref, a.parecer)
     if any(r for _, r in linhas):
         print("brief mensagem: o brief reprova no `forge-check brief`; corrija antes de enviar ao conferente")
         for linha, reprova in linhas:
@@ -3082,7 +3121,7 @@ def cmd_brief_mensagem(raiz, a):
                 print(linha)
         print("resultado: reprovado")
         return 1
-    cabecalho = ["modo: brief", f"Pedido: {pedido_no_cabecalho}     Agente destino: {a.destino}   Etapa: {etapa}", f"Arquivo: {sem_controle(rel)}",
+    cabecalho = ["modo: brief", f"Pedido: {pedido_no_cabecalho}     Agente destino: {destino}   Etapa: {etapa}", f"Arquivo: {caminho_impresso(arquivo)}",
                  f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}   Bytes: {len(conteudo)}"]
     if a.anterior:
         cabecalho.append(f"Anterior: {sem_controle(rel_anterior)}   Ref: {a.ref}" if a.ref is not None else f"Anterior: {sem_controle(rel_anterior)}")
@@ -3097,7 +3136,7 @@ def cmd_brief_mensagem(raiz, a):
 
 
 ETAPAS_DE_MERGE = ("merge-integracao", "pedido-de-merge-ao-dono")
-ETAPAS_DO_GERAR = ("codigo", "review", "qa", "pr") + ETAPAS_DE_MERGE
+ETAPAS_DO_GERAR = ("codigo", "review", "seguranca", "qa", "pr") + ETAPAS_DE_MERGE
 
 
 def pq_de_merge(base):
@@ -3241,6 +3280,7 @@ ATUALIZAR_NO_FORGE = "`jarvis-forge --atualizar-vigente` e reinicie a sessão do
 ATUALIZAR_NO_PROJETO = "`forge atualizar`"
 BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega")  # nos projetos, e `brief gerar` e `brief mensagem`; no Forge e nos outros subcomandos só avisa
 NAO_CONFERIDA_DESLIGADA = "verificação desligada"
+MARCADOR_DA_DECISAO_D = "decisão D: não muda o veredito"  # a linha que o conferente aceita como não reprovante (conferente.md)
 SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao")  # não conferem repositório
 
 
@@ -3259,7 +3299,7 @@ def versao_da_propria_copia():
 def e_o_forge(raiz):
     """A raiz é um clone do Forge: tem o manifesto dele e não é projeto (sem `.forge/versao`, como em `e_clone_do_forge` dos hooks);
     escrever o manifesto num projeto não o faz virar o Forge, onde a guarda só avisa."""
-    if any((pasta / ".forge" / "versao").is_file() for pasta in (raiz, *raiz.parents)):
+    if any((pasta / ".forge" / "versao").is_file() for pasta in (raiz, *raiz.parents, raiz_principal(raiz))):  # a worktree não decide sozinha (M1.3)
         return False
     try:
         return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
@@ -3348,6 +3388,8 @@ def avaliar_versao(a, raiz):
         return None, ""
     if estado == "erro":
         return "aviso", f"forge-check: aviso: versão não conferida ({texto})"
+    if forge:  # O1 = A (dono, 2026-10-20): só no Forge, e só neste estado, o aviso diz que não muda o veredito; nos projetos, nada muda
+        return "aviso", f"forge-check: aviso: cópia vigente {texto} atrás do repositório ({MARCADOR_DA_DECISAO_D}); para atualizar: {comando}"
     mensagem = f"forge-check {texto} atrás do repositório; a conferência não vale; peça à pessoa: {comando}"
     if not forge and (a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo in ("gerar", "mensagem"))):
         return "bloqueio", mensagem
@@ -3378,7 +3420,7 @@ def main():
     br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
     br.add_argument("--arquivo", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib)")
     br.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
-    br.add_argument("--destino", help="agente destino, forge:<nome> (padrão: `Agente destino:` do brief ou o nome do arquivo)")
+    br.add_argument("--destino", help="agente destino, forge:<nome>. Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")

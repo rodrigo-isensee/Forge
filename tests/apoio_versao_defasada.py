@@ -18,6 +18,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ / "bin" / "forge-check"
 HOJE = "2026-10-20"
 FRASE = "atrás do repositório; a conferência não vale; peça à pessoa:"
+MARCADOR_D = "decisão D: não muda o veredito"  # só no Forge, e só no aviso da cópia vigente atrás (O1 = A, FORGE-CHECK-LOTE E1)
+FRASE_NO_FORGE = f"atrás do repositório ({MARCADOR_D}); para atualizar:"
 
 
 def ambiente(home):
