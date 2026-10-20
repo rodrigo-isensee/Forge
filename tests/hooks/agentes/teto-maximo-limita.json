@@ -1,11 +1,13 @@
 {
-  "descricao": "Máquina folgada (teto 5) com teto_maximo 4: quatro ativos bloqueiam.",
+  "descricao": "Máquina folgada (8 núcleos, teto 8) com teto_maximo 4: quatro ativos bloqueiam.",
   "config": {
     "teto_maximo": 4
   },
   "proc": {
     "loadavg": "1.0 1.0 1.0 1/100 1",
-    "mem_gb": 6
+    "mem_gb": 6,
+    "mem_total_gb": 16,
+    "nproc": 8
   },
   "estado": {
     "agentes.json": {
@@ -49,6 +51,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "4 agentes ativos, teto 4 (adaptativo: load 1.0, 6.0 GB disponíveis, limitado por teto_maximo 4)"
+    "stderr": "4 agentes ativos, teto 4 (adaptativo: load 1.0 de 8 núcleos, 6.0 GB disponíveis, limitado por teto_maximo 4)"
   }
 }

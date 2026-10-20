@@ -1,0 +1,77 @@
+{
+  "descricao": "8 núcleos, load 1: teto 8; oito ativos bloqueiam e a mensagem traz as medidas.",
+  "proc": {
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 6,
+    "mem_total_gb": 16,
+    "nproc": 8
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a0",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 0",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a1",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 2",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 3",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a4",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 4",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a5",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 5",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a6",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 6",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a7",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 7",
+          "desde": "{agora-60}"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "8 agentes ativos, teto 8 (adaptativo: load 1.0 de 8 núcleos, 6.0 GB disponíveis)"
+  }
+}

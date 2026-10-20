@@ -1,8 +1,10 @@
 {
-  "descricao": "Load acima de 6: a trava de carga alta bloqueia (R-TETO).",
+  "descricao": "16 GB no total (piso 2,4 GB), 2,5 GB livres: dispara.",
   "proc": {
-    "loadavg": "7.0 1.0 1.0 1/100 1",
-    "mem_gb": 8
+    "loadavg": "0.5 1.0 1.0 1/100 1",
+    "mem_gb": 2.5,
+    "mem_total_gb": 16,
+    "nproc": 8
   },
   "estado": {
     "agentes.json": {
@@ -11,12 +13,6 @@
           "id": "a0",
           "tipo": "forge:tech-lead",
           "descricao": "Tarefa 0",
-          "desde": "{agora-60}"
-        },
-        {
-          "id": "a1",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 1",
           "desde": "{agora-60}"
         }
       ]
@@ -33,7 +29,6 @@
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "R-TETO: carga alta (load 7.0"
+    "codigo": 0
   }
 }

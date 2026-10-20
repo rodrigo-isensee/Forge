@@ -1,11 +1,13 @@
 {
-  "descricao": "FORGE_CARGA_LIVRE=1 pula só a trava de carga: o teto cheio (load 7 = teto 2) segue valendo.",
+  "descricao": "FORGE_CARGA_LIVRE=1 pula só a trava de carga: o teto (2 núcleos = teto 2) segue valendo.",
   "env": {
     "FORGE_CARGA_LIVRE": "1"
   },
   "proc": {
     "loadavg": "7.0 1.0 1.0 1/100 1",
-    "mem_gb": 8
+    "mem_gb": 8,
+    "mem_total_gb": 16,
+    "nproc": 2
   },
   "estado": {
     "agentes.json": {

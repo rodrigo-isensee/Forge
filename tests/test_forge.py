@@ -1606,9 +1606,18 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
         self.escrever("docs/qa/p1.md", "---\n" + self.QA.format(c=commit, p=p, a=a, m=m, extra=extra) + "---\n# q\n")
 
-    def check(self, *args):
+    def check(self, *args, nproc=3):
+        """O `kanban` mede o teto de R-TETO: por padrão com 3 núcleos simulados (FORGE_NPROC) e um /proc de
+        máquina folgada (FORGE_PROC), para o resultado não depender do hardware que roda os testes."""
+        env = ambiente_limpo()
+        if args[:1] == ("kanban",):
+            proc = self.tmp.parent / (self.tmp.name + "-proc")
+            proc.mkdir(exist_ok=True)
+            (proc / "loadavg").write_text("0.10 0.10 0.10 1/100 1\n", encoding="utf-8")
+            (proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
+            env.update(FORGE_NPROC=str(nproc), FORGE_PROC=str(proc))
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
-                           env=ambiente_limpo(), capture_output=True, text=True)
+                           env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
 
     def test_docs_validos_e_ignorados(self):
@@ -1701,7 +1710,7 @@ class ForgeCheck(unittest.TestCase):
     def test_instancias_acima_do_teto_barram(self):
         quatro = ("worktree: a", "worktree: b", "worktree: c", "worktree: d")
         self.cartoes(*quatro)
-        codigo, saida = self.check("kanban")
+        codigo, saida = self.check("kanban")  # 3 núcleos: teto 3
         self.assertEqual(codigo, 1)
         self.assertIn("limite 3 instâncias", saida)
         self.assertIn("R-TETO", saida)
@@ -1712,6 +1721,37 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("limite 2 instâncias", saida)
         self.cartoes("worktree: a", "worktree: b")
         self.assertEqual(self.check("kanban"), (0, ""))
+
+    def test_instancias_seguem_o_teto_adaptativo(self):
+        """R-WIP: o limite de instâncias é o teto calculado de R-TETO (nproc), sem o 3 fixo."""
+        seis = tuple(f"worktree: w{i}" for i in range(6))
+        self.cartoes(*seis)
+        codigo, saida = self.check("kanban", nproc=4)
+        self.assertEqual(codigo, 1)
+        self.assertIn("limite 4 instâncias", saida)
+        self.assertEqual(self.check("kanban", nproc=6), (0, ""))
+        self.assertEqual(self.check("kanban", nproc=16), (0, ""))
+        self.escrever(".forge/config.json", json.dumps({"teto_agentes": 2}))  # teto fixo sobrepõe o adaptativo
+        self.assertIn("limite 2 instâncias", self.check("kanban", nproc=16)[1])
+        self.escrever(".forge/config.json", json.dumps({"teto_agentes": 8, "teto_maximo": 5}))  # o mais estrito vale
+        self.assertIn("limite 5 instâncias", self.check("kanban", nproc=16)[1])
+
+    def test_limites_de_coluna_escalam_com_o_teto(self):
+        """R-WIP: o limite do cabeçalho é o mínimo (teto até 3) e cresce na proporção teto // 3."""
+        def coluna(n):
+            linhas = "".join(f"| C{i} | a | p | usuário | d | d | |\n" for i in range(n))
+            self.kanban("## QA (WIP 2)\n{cab}" + linhas)
+        coluna(3)
+        codigo, saida = self.check("kanban", nproc=1)  # mínimo: o limite de hoje
+        self.assertEqual(codigo, 1)
+        self.assertIn("limite 2", saida)
+        self.assertEqual(self.check("kanban", nproc=3)[0], 1)
+        self.assertEqual(self.check("kanban", nproc=6), (0, ""))  # fator 2: limite 4
+        coluna(5)
+        self.assertIn("limite 4", self.check("kanban", nproc=7)[1])
+        self.assertEqual(self.check("kanban", nproc=16), (0, ""))  # fator 5: limite 10
+        coluna(11)
+        self.assertIn("limite 10", self.check("kanban", nproc=16)[1])
 
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
