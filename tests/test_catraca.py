@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -394,7 +395,7 @@ class Custo(Base):
 
 class Protegidos(Base):
     def test_mudanca_em_arquivo_protegido_barra(self):
-        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py"):
+        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py", "scripts/conferir-release.py"):
             with self.subTest(rel):
                 repo = Repo()
                 self.addCleanup(repo.fecha)
@@ -430,6 +431,44 @@ class Protegidos(Base):
                 repo.escreve(rel, "mudou\n")
                 repo.commit()
                 self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_regra_de_release_e_protegida(self):
+        self.repo.escreve("scripts/conferir-release.py", "mudou\n")
+        self.barra("mudança em scripts/conferir-release.py", "R-CONFORMIDADE")
+
+    def test_git_diff_com_erro_vira_violacao(self):
+        """Falha fechada: base inexistente faz o `git diff` falhar, e a lista vazia não pode virar 'nada mudou'."""
+        achadas = catraca.violacoes_das_regras(self.repo.dir, "ref-que-nao-existe", "HEAD")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-CONFORMIDADE: não consegui listar os arquivos alterados entre ref-que-nao-existe e HEAD .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_base_inexistente_deixa_a_catraca_vermelha_mesmo_com_rotulo(self):
+        eventos = self.repo.dir / "eventos.json"
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "ref-que-nao-existe", "--eventos", str(eventos), "--ultimo-push", "2026-01-01T10:00:00Z"]
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1)
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+
+    def test_git_diff_falho_com_base_valida_e_rotulo_do_dono_nao_libera(self):
+        """Decisão técnica do pedido: com a base legível (dono definido) e o rótulo do dono depois do push, o erro do
+        `git diff` continua vermelho; só a guarda `SEM_LISTA in x` da catraca impede o rótulo de liberar."""
+        eventos = self.repo.dir / "eventos.json"
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(eventos), "--ultimo-push", "2026-01-02T09:00:00Z"]
+
+        def diff_que_falha(raiz, base, head):
+            raise catraca.ErroDeDiff(catraca.msg_diff(base, head))
+        with mock.patch.object(catraca, "alterados", diff_que_falha), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+        self.assertNotIn("liberada", saida.getvalue())
+
+    def test_alterados_levanta_quando_o_git_diff_falha(self):
+        with self.assertRaises(catraca.ErroDeDiff):
+            catraca.alterados(self.repo.dir, "ref-que-nao-existe", "HEAD")
 
     def test_outros_arquivos_passam(self):
         self.repo.escreve(".github/pull_request_template.md", "x\n")
@@ -1140,6 +1179,29 @@ class RotuloSobreviveAoConteudo(Base):
         fantasma = "0" * 40
         self.assertEqual(self.roda([execucao(fantasma, "2026-01-02T09:00:00Z"), execucao(fantasma, "2026-01-02T10:00:03Z")]).returncode, 1)
 
+    def test_git_diff_falho_no_head_rotulado_nao_libera_pelo_conteudo(self):
+        """O `git diff` falha só ao listar os pareceres do head rotulado: o rótulo por conteúdo não vale, rc 1."""
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.repo.commit()
+        pasta = Path(tempfile.mkdtemp(dir=self.repo.dir.parent))
+        self.addCleanup(lambda: [f.unlink() for f in pasta.iterdir()] and pasta.rmdir())
+        (pasta / "eventos.json").write_text(json.dumps([rotulo()]), encoding="utf-8")
+        (pasta / "execucoes.json").write_text(json.dumps([execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "develop", "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", "--ramo=melhoria/ped"]
+        original = catraca.alterados
+
+        def falha_no_rotulado(raiz, base, head):
+            if head == self.rotulado:
+                raise catraca.ErroDeDiff(catraca.msg_diff(base, head))
+            return original(raiz, base, head)
+        with contextlib.redirect_stdout(io.StringIO()) as controle:
+            self.assertEqual(catraca.main(argv), 0, controle.getvalue())  # com o git funcionando, o rótulo vale
+        with mock.patch.object(catraca, "alterados", falha_no_rotulado), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+
     def test_rotulo_nao_libera_custo_nem_pelo_conteudo(self):
         self.repo.git("reset", "-q", "--hard", "base")
         self.repo.escreve("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
@@ -1184,6 +1246,281 @@ class ExecucoesDoPr(unittest.TestCase):
         self.assertIsNone(catraca.execucoes_do_pr())
         del os.environ["GITHUB_TOKEN"]
         self.assertIsNone(catraca.execucoes_do_pr())
+
+
+REPO_GH = "o/r"
+
+
+def lado(ref, repo=REPO_GH):
+    return {"ref": ref, "repo": {"full_name": repo}}
+
+
+def corrida(sha, quando, ramo="develop", repo=REPO_GH, evento="pull_request"):
+    """Execução do Actions como a API devolve para PR já fechado: `pull_requests` vazio."""
+    return {"event": evento, "head_sha": sha, "head_branch": ramo, "created_at": quando, "pull_requests": [],
+            "head_repository": {"full_name": repo}}
+
+
+class RotuloDePrMesclado(Base):
+    """S-16: na promoção, a violação "mudança em <arquivo>" fica coberta pelo rótulo do dono já posto num PR mesclado
+    em base..head, se o arquivo tem o mesmo blob e modo do head rotulado; tudo o mais pede o rótulo (A1-A14 da segurança)."""
+
+    def setUp(self):
+        super().setUp()
+        r = self.repo
+        r.git("branch", "main", "base")
+        r.git("checkout", "-q", "-b", "fonte", "base")  # head do PR #10 (develop -> homolog), rotulado pelo dono
+        r.escreve(".github/workflows/ci.yml", "name: CI\non: push\n")
+        r.escreve("tests/catraca.py", "# mudou no PR 10\n")
+        r.commit()
+        self.s = r.git("rev-parse", "HEAD").strip()
+        r.git("checkout", "-q", "-b", "homolog", "base")
+        r.git("merge", "-q", "--no-ff", "-m", "Merge pull request #10 from o/develop", "fonte")
+        self.m = r.git("rev-parse", "HEAD").strip()
+        self.pull = {"number": 10, "created_at": "2026-01-02T08:00:00Z", "merged_at": "2026-01-02T10:30:00Z",
+                     "merge_commit_sha": self.m, "base": lado("homolog"), "head": lado("develop")}
+        self.eventos = [rotulo()]
+        self.execs = [corrida(self.s, "2026-01-02T09:00:00Z"), corrida(self.s, "2026-01-02T10:00:03Z")]
+        self.pr = {"head": lado("homolog"), "base": lado("main")}
+
+    def roda(self, **troca):
+        dados = {"repo": REPO_GH, "pr": self.pr, "pulls": {"10": self.pull}, "eventos": {"10": self.eventos},
+                 "execucoes": {"10": self.execs}}
+        dados.update(troca)
+        arq = self.repo.dir.parent / (self.repo.dir.name + "-mesclados.json")
+        arq.write_text(json.dumps(dados), encoding="utf-8")
+        self.addCleanup(arq.unlink, missing_ok=True)
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
+        return subprocess.run(["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "main", "--head", "homolog",
+                               "--mesclados", str(arq)], capture_output=True, text=True, env=env)
+
+    def pede(self, **troca):
+        r = self.roda(**troca)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("mudança em", r.stdout)
+        return r
+
+    def depois_do_merge(self, rel, texto, msg="pr"):
+        self.repo.escreve(rel, texto)
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", msg)
+
+    def test_a14_conteudo_identico_ao_rotulado_e_mesclado_passa(self):
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("mesmo conteúdo já rotulado no PR mesclado #10", r.stdout)
+
+    def test_branch_apagada_depois_do_merge_nao_invalida(self):
+        """O `head_ref_deleted` do fechamento vem depois do merge: o que foi mesclado não muda."""
+        self.eventos = [rotulo(), {"event": "head_ref_deleted", "created_at": "2026-01-02T10:31:00Z"}]
+        self.assertEqual(self.roda().returncode, 0)
+
+    def test_arquivo_alterado_depois_pede(self):
+        """Casos 2, A6 e A7: uma linha a mais ou o trecho movido no mesmo arquivo mudam o blob."""
+        for texto in ("# mudou no PR 10\n# e mais uma linha\n", "on: push\nname: CI\n"):
+            with self.subTest(texto=texto):
+                self.repo.git("reset", "-q", "--hard", self.m)
+                rel = "tests/catraca.py" if texto.startswith("#") else ".github/workflows/ci.yml"
+                self.depois_do_merge(rel, texto)
+                self.pede()
+
+    def test_a1_push_depois_do_rotulo_e_merge_pede(self):
+        self.repo.git("checkout", "-q", "fonte")
+        self.depois_do_merge("tests/catraca.py", "# mudou de novo depois do rótulo\n")
+        s2 = self.repo.git("rev-parse", "HEAD").strip()
+        self.repo.git("checkout", "-q", "homolog")
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.git("merge", "-q", "--no-ff", "-m", "Merge pull request #10 from o/develop", "fonte")
+        self.pull["merge_commit_sha"] = self.repo.git("rev-parse", "HEAD").strip()
+        self.execs.append(corrida(s2, "2026-01-02T10:10:00Z"))
+        self.pede()
+
+    def test_a2_caso_3_pr_nao_mesclado_pede(self):
+        self.pull["merged_at"] = None
+        self.pede()
+
+    def test_a3_caso_4_rotulo_de_outra_conta_por_app_ou_removido_pede(self):
+        app = dict(rotulo(), performed_via_github_app={"slug": "x"})
+        for eventos in ([rotulo("intrusa")], [app], [rotulo(), rotulo(quando="2026-01-02T11:00:00Z", tipo="unlabeled")], []):
+            with self.subTest(eventos=eventos):
+                self.eventos = eventos
+                self.pede()
+
+    def test_a5_pr_contra_outra_base_ou_de_fork_pede(self):
+        for chave, valor in (("base", lado("outra")), ("base", lado("homolog", "fork/r")), ("head", lado("develop", "fork/r"))):
+            with self.subTest(chave=chave, valor=valor):
+                pull = dict(self.pull, **{chave: valor})
+                self.pede(pulls={"10": pull})
+
+    def test_a8_renomear_o_arquivo_rotulado_pede(self):
+        self.repo.git("mv", ".github/workflows/ci.yml", ".github/workflows/ci2.yml")
+        self.repo.git("commit", "-q", "-m", "renomeia")
+        self.pede()
+
+    def test_modo_link_simbolico_e_submodulo_pedem(self):
+        self.repo.git("update-index", "--chmod=+x", "tests/catraca.py")
+        self.repo.git("commit", "-q", "-m", "modo")
+        self.pede()
+        self.assertIsNone(catraca.entrada_da_arvore(self.repo.dir, "base", "tests"))  # pasta
+        self.repo.git("reset", "-q", "--hard", self.m)
+        os.symlink("alvo", self.repo.dir / "link")
+        sub = "160000,{},sub".format("1" * 40)
+        self.repo.git("update-index", "--add", "--cacheinfo", sub)
+        self.repo.git("add", "link")
+        self.repo.git("commit", "-q", "-m", "link e submódulo")
+        self.assertIsNone(catraca.entrada_da_arvore(self.repo.dir, "HEAD", "link"))
+        self.assertIsNone(catraca.entrada_da_arvore(self.repo.dir, "HEAD", "sub"))
+        self.assertIsNotNone(catraca.entrada_da_arvore(self.repo.dir, "HEAD", "tests/catraca.py"))
+        self.assertFalse(catraca.mesmo_arquivo(self.repo.dir, "HEAD", "HEAD", "link"))
+
+    def test_a9_caso_9_falha_da_api_ou_sem_execucoes_pede(self):
+        self.pede(pulls={})
+        self.pede(eventos={})
+        self.pede(execucoes={})
+        self.execs = []
+        self.pede()
+
+    def test_execucao_de_fork_de_outra_branch_ou_fora_da_vida_do_pr_nao_conta(self):
+        for execs in ([corrida(self.s, "2026-01-02T09:00:00Z", repo="fork/r"), corrida(self.s, "2026-01-02T10:00:03Z", repo="fork/r")],
+                      [corrida(self.s, "2026-01-02T09:00:00Z", ramo="outra"), corrida(self.s, "2026-01-02T10:00:03Z", ramo="outra")],
+                      [corrida(self.s, "2026-01-02T07:00:00Z"), corrida(self.s, "2026-01-02T10:40:00Z")]):
+            with self.subTest(execs=execs):
+                self.execs = execs
+                self.pede()
+
+    def test_force_push_antes_do_merge_pede(self):
+        self.eventos = [rotulo(), {"event": "head_ref_force_pushed", "created_at": "2026-01-02T10:05:00Z"}]
+        self.pede()
+
+    def test_a10_sha_rotulado_ausente_no_git_local_pede(self):
+        fantasma = "0" * 40
+        self.execs = [corrida(fantasma, "2026-01-02T09:00:00Z"), corrida(fantasma, "2026-01-02T10:00:03Z")]
+        self.pede()
+
+    def test_a11_caso_7_um_arquivo_coberto_e_outro_nao_pede(self):
+        self.depois_do_merge("hooks/parecer.py", "# veio sem rótulo\n")
+        r = self.pede()
+        self.assertIn("mudança em hooks/parecer.py", r.stdout)
+
+    def test_a12_caso_8_custo_pede_sempre(self):
+        self.depois_do_merge("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        r = self.pede()
+        self.assertIn("R-CUSTO:", r.stdout)
+
+    def test_violacao_sem_arquivo_continua_pedindo(self):
+        """Decisão do dono (alcance A): chaves do tests/config.json e contagem de testes seguem pedindo o rótulo."""
+        self.depois_do_merge("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
+        r = self.pede()
+        self.assertIn("testes `test_*` caíram", r.stdout)
+
+    def test_a13_pr_de_melhoria_para_a_develop_pede(self):
+        for pr in ({"head": lado("melhoria/x"), "base": lado("develop")}, {"head": lado("homolog", "fork/r"), "base": lado("main")}):
+            with self.subTest(pr=pr):
+                self.pede(pr=pr)
+
+    def test_caso_5_e_6_merge_fora_do_intervalo_ou_numero_forjado_pede(self):
+        """O conteúdo volta ao rotulado em #10, mas o merge de #10 já está na base; a mensagem que cita #10 não basta."""
+        self.repo.git("branch", "-f", "main", self.m)
+        self.repo.git("checkout", "-q", "main")
+        self.depois_do_merge("tests/catraca.py", "# outro conteúdo na main\n")
+        self.repo.git("checkout", "-q", "homolog")
+        self.repo.git("merge", "-q", "--no-ff", "--no-edit", "main")
+        self.depois_do_merge("tests/catraca.py", "# mudou no PR 10\n", "volta ao rotulado (#10)")
+        self.pede()
+        self.repo.git("reset", "-q", "--hard", self.m)
+        self.depois_do_merge("tests/catraca.py", "# conteúdo sem rótulo\n", "outra coisa (#10)")
+        self.pede()
+
+    def test_sem_transitividade_pr_mesclado_sem_o_proprio_rotulo_pede(self):
+        """#10 passou sem rótulo (ex.: por este mesmo caminho); só o rótulo do dono no próprio PR vale."""
+        self.eventos = [{"event": "merged", "actor": {"login": "dona"}, "created_at": "2026-01-02T10:30:00Z"}]
+        self.pede()
+
+    def test_sem_fonte_ou_sem_dono_nao_libera(self):
+        viol = catraca.violacoes_das_regras(self.repo.dir, "main", "homolog")
+        self.assertIsNone(catraca.liberado_por_pr_mesclado(self.repo.dir, "main", "homolog", viol, None, "dona"))
+        fonte = catraca.FonteJson({"repo": REPO_GH, "pr": self.pr, "pulls": {"10": self.pull}, "eventos": {"10": self.eventos},
+                                   "execucoes": {"10": self.execs}})
+        self.assertIsNone(catraca.liberado_por_pr_mesclado(self.repo.dir, "main", "homolog", viol, fonte, None))
+        self.assertEqual(catraca.liberado_por_pr_mesclado(self.repo.dir, "main", "homolog", viol, fonte, "dona"), ["10"])
+
+    def test_limite_de_candidatos(self):
+        for i in range(catraca.LIMITE_CANDIDATOS + 5):
+            self.depois_do_merge(".github/workflows/x.yml", f"v{i}\n", f"x (#{100 + i})")
+        intervalo, numeros = catraca.candidatos_mesclados(self.repo.dir, "main", "homolog", {".github/workflows/x.yml"})
+        self.assertEqual(len(numeros), catraca.LIMITE_CANDIDATOS)
+        self.assertEqual(numeros[0], str(100 + catraca.LIMITE_CANDIDATOS + 4))  # do mais novo ao mais antigo
+        self.assertIn(self.m, intervalo)
+        self.assertEqual(catraca.candidatos_mesclados(self.repo.dir, "main", "homolog", {"docs/nada.md"})[1], [])
+
+    def test_arquivo_da_violacao_so_reconhece_a_mensagem_exata(self):
+        v = catraca.msg_protegido("tests/catraca.py")
+        self.assertEqual(catraca.arquivo_da_violacao(v), "tests/catraca.py")
+        self.assertIsNone(catraca.arquivo_da_violacao(v.replace("Por quê: workflows", "Por quê: outro")))
+        self.assertIsNone(catraca.arquivo_da_violacao("R-CONFORMIDADE: testes `test_*` caíram de 2 para 1. Por quê: x. Corrigir: y (z)"))
+
+
+class DonoSoDaBase(Base):
+    """S-16 E4: o dono vem só do tests/config.json da base; sem ele, nenhum rótulo vale (o head é do autor)."""
+
+    def test_base_sem_config_falha_fechado_mesmo_com_dono_no_head(self):
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.git("rm", "-q", "tests/config.json")
+        self.repo.git("commit", "-q", "-m", "sem config")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("checkout", "-q", "pr")
+        self.repo.git("reset", "-q", "--hard", "develop")
+        self.repo.escreve("tests/config.json", json.dumps(CONFIG))  # o head traz `dono: dona`
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
+        arq.write_text(json.dumps([rotulo()]), encoding="utf-8")
+        self.addCleanup(arq.unlink, missing_ok=True)
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY")}
+        r = subprocess.run(["python3", str(AQUI / "catraca.py"), "--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(arq),
+                            "--ultimo-push", "2026-01-02T09:00:00Z"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("mudança em tests/catraca.py", r.stdout)
+
+
+class FonteDoGithub(unittest.TestCase):
+    """S-16: as consultas dos PRs mesclados (só leitura, gratuitas) e a falha fechada sem token, com erro ou além do teto."""
+
+    def setUp(self):
+        self.antigo = dict(os.environ)
+        self.original = catraca.requisicao
+        self.addCleanup(lambda: setattr(catraca, "requisicao", self.original))
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(self.antigo)))
+
+    def test_sem_token_repositorio_ou_numero_e_none(self):
+        for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER"):
+            os.environ.update({"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7"})
+            del os.environ[k]
+            self.assertIsNone(catraca.fonte_do_github(), k)
+
+    def test_consultas_e_teto_de_paginas(self):
+        chamadas = []
+        catraca.requisicao = lambda caminho, token: chamadas.append(caminho) or ({"workflow_runs": []} if "runs" in caminho else [])
+        f = catraca.FonteGithub("t", "o/r", "7")
+        pull = {"created_at": "2026-01-02T08:00:00Z", "merged_at": "2026-01-02T10:30:00Z", "head": {"ref": "melhoria/a"}}
+        self.assertEqual(f.eventos(10), [])
+        self.assertEqual(f.execucoes(10, pull), [])
+        self.assertEqual(chamadas, ["/repos/o/r/issues/10/events?per_page=100&page=1",
+                                    "/repos/o/r/actions/runs?event=pull_request&branch=melhoria%2Fa"
+                                    "&created=2026-01-02T08%3A00%3A00Z..2026-01-02T10%3A30%3A00Z&per_page=100&page=1"])
+        catraca.requisicao = lambda caminho, token: [{}] * 100
+        self.assertIsNone(f.eventos(10))  # lista além do teto não decide nada
+        self.assertIsNone(catraca.api_com_teto("/x", "t", teto=5))
+
+    def test_falha_da_api_e_none(self):
+        def falha(*a, **k):
+            raise OSError("limite de taxa")
+        catraca.requisicao = falha
+        f = catraca.FonteGithub("t", "o/r", "7")
+        self.assertIsNone(f.pull(10))
+        self.assertIsNone(f.pr_atual())
+        self.assertIsNone(f.eventos(10))
+        self.assertIsNone(f.execucoes(10, {"created_at": "a", "merged_at": "b", "head": {"ref": "x"}}))
 
 
 class Workflows(unittest.TestCase):
