@@ -6,6 +6,7 @@ Formato do fixture:
   forge       false para projeto sem .forge/versao (padrão: true)
   arquivos    {caminho: texto ou lista de linhas} gravados antes do commit inicial (branch develop)
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
+  executaveis [caminho] relativos à raiz que ganham permissão de execução (ex.: um `gh` falso, sem rede, no PATH do `env`)
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b} (com "solto": true, HEAD solto)
@@ -116,6 +117,8 @@ class Fixture:
             arquivos[".forge/config.json"] = d["config_bruta"]
         arquivos[".gitignore"] = ".forge/run/\n"
         self.gravar(raiz, arquivos, mapa)
+        for rel in d.get("executaveis", []):
+            (raiz / rel).chmod(0o755)
         for rel, alvo in d.get("links", {}).items():
             (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (raiz / rel).symlink_to(substituir(alvo, mapa, 0))

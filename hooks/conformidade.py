@@ -90,6 +90,7 @@ CONTRIB_API = re.compile(r"(^|/)pulls/[^/]+|/issues/[^/]+/labels|/issues/[^/]+$|
 CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequest|addLabelsToLabelable|"
                              r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
+ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
 PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
@@ -1119,10 +1120,10 @@ class Guarda:
                                              f"branch `{propria}<tema>`", "abra o PR da sua branch e espere o Forge integrar")
 
     # gh ----------------------------------------------------------------------------------------------
-    def graphql_perigoso(self, args, pasta):
-        """Mutação do GraphQL que fecha, edita ou rotula PR: o ID é global (sem slug), então vale para toda sessão
-        de projeto. O texto vem inline ou de arquivo (`-F query=@arq`, `--input arq`); o que não dá para ler
-        (`--input -`, arquivo ausente) falha fechado."""
+    @staticmethod
+    def textos_da_api(args, pasta):
+        """(textos, ilegivel) do `gh api`: o texto vem inline ou de arquivo (`-F query=@arq`, `--input arq`); o que não
+        dá para ler (`--input -`, arquivo ausente) marca `ilegivel`."""
         textos = []
         for i, a in enumerate(args):
             valor = args[i + 1] if a == "--input" and i + 1 < len(args) else a.split("=", 1)[-1]
@@ -1132,10 +1133,109 @@ class Guarda:
                 try:
                     textos.append((pasta / os.path.expandvars(arq)).expanduser().read_text(encoding="utf-8"))
                 except (OSError, ValueError):
-                    return True
+                    return textos, True
             else:
                 textos.append(a)
-        return any("mutation" in t and CONTRIB_GRAPHQL.search(t) for t in textos)
+        return textos, False
+
+    def graphql_perigoso(self, args, pasta):
+        """Mutação do GraphQL que fecha, edita ou rotula PR: o ID é global (sem slug), então vale para toda sessão
+        de projeto. O que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
+        textos, ilegivel = self.textos_da_api(args, pasta)
+        return ilegivel or any("mutation" in t and CONTRIB_GRAPHQL.search(t) for t in textos)
+
+    # R-CONTRIB: o rótulo afrouxa-regra é só do dono do Forge ------------------------------------------
+    @staticmethod
+    def conta_do_gh():
+        """Login da conta autenticada no `gh` (`gh api user`); vazio se não der para ler (falha fechado)."""
+        try:
+            r = subprocess.run(["gh", "api", "user", "--jq", ".login"], capture_output=True, text=True, timeout=15)
+        except (OSError, subprocess.SubprocessError):
+            return ""
+        return r.stdout.strip().lower() if r.returncode == 0 else ""
+
+    @staticmethod
+    def rotulos_pedidos(args):
+        """Rótulos que `gh pr|issue edit|create` aplica (`--add-label`, `--label`, `-l`; vírgulas separam)."""
+        saida = []
+        for i, a in enumerate(args):
+            if a in ("--add-label", "--label", "-l") and i + 1 < len(args):
+                saida.append(args[i + 1])
+            elif a.startswith(("--add-label=", "--label=")):
+                saida.append(a.split("=", 1)[1])
+            elif a.startswith("-l") and not a.startswith("--") and len(a) > 2:
+                saida.append(a[2:].removeprefix("="))
+        return [r.strip().lower() for v in saida for r in v.split(",")]
+
+    def aplica_afrouxa_regra(self, palavras, pasta):
+        """True se o comando `gh` aplica (ou pode aplicar) o rótulo `afrouxa-regra`: `gh pr|issue edit|create` com o
+        rótulo, `gh api` em `issues/<n>/labels` ou `issues/<n>` com o nome no texto e a mutação GraphQL de rótulo
+        (o ID do rótulo não traz o nome: toda `addLabelsToLabelable`/`labelIds` conta). Corpo ilegível conta."""
+        pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
+        grupo, sub = (pos + [None, None])[:2]
+        if grupo in ("pr", "issue") and sub in ("edit", "create"):
+            return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:])
+        if grupo != "api" or not parecer.metodo_mutante(palavras[2:]):
+            return False
+        args = palavras[2:]
+        endpoint = parecer.endpoint_da_api(args)
+        textos, ilegivel = self.textos_da_api(args, pasta)
+        junto = " ".join(textos).lower()
+        if endpoint == "graphql":
+            return ilegivel or any("mutation" in t and re.search(r"addLabelsToLabelable|labelIds", t, re.I) for t in textos)
+        if re.search(r"/issues/[^/]+(/labels)?/?$", endpoint):
+            return ilegivel or ROTULO_PROTEGIDO in junto
+        return False
+
+    def rotulo_na_sessao_do_forge(self, comando, pasta, nivel=0):
+        """R-CONTRIB: na sessão do Forge (pasta fora de projeto, onde o hook não aplica as demais regras), só confere o
+        rótulo `afrouxa-regra`: percorre os comandos da linha, por baixo de lançadores, `bash -c`, `eval` e `$(...)`.
+        Linha que não dá para analisar e cita o rótulo (ou a mutação de rótulo do GraphQL) exige a conta do dono."""
+        if nivel > PROFUNDIDADE:
+            return
+        try:
+            sem_heredoc, corpos = tirar_heredocs(comando)
+            partes = list(comandos(sem_heredoc))
+            for palavras, _, _ in partes:
+                while palavras and palavras[0] in CORPO_DE_LACO:
+                    palavras = palavras[1:]
+                palavras, _ = separar_lancadores(palavras)
+                for p in palavras:
+                    if "`" in p or "$(" in p.replace(OPACO["$"], ""):
+                        self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
+                prog = Path(palavras[0].lstrip("`")).name if palavras else ""
+                if prog == "gh":
+                    self.gh_rotulo(palavras, pasta)
+                elif prog in SHELLS:
+                    for i, a in enumerate(palavras[1:]):
+                        if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
+                            self.rotulo_na_sessao_do_forge(palavras[i + 2], pasta, nivel + 1)
+                elif prog == "eval":
+                    self.rotulo_na_sessao_do_forge(" ".join(palavras[1:]), pasta, nivel + 1)
+            for dono, corpo in corpos:
+                if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+                    self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
+        except ValueError:
+            if re.search(rf"{ROTULO_PROTEGIDO}|addLabelsToLabelable|labelIds", comando, re.I):
+                self.exigir_dono()
+
+    def gh_rotulo(self, palavras, pasta):
+        """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
+        ou erro ao ler a conta ou o dono, barra. Os outros rótulos e comandos não mudam."""
+        if not self.aplica_afrouxa_regra(palavras, pasta):
+            return
+        self.exigir_dono()
+
+    def exigir_dono(self):
+        """Barra se a conta do `gh` não é a dona do Forge (dono lido do `repository` do `plugin.json`) ou se não deu para ler."""
+        try:
+            dono = parecer.slug_do_forge().split("/")[0].lower()
+        except (OSError, ValueError):
+            dono = ""
+        conta = self.conta_do_gh()
+        if not dono or not conta or conta != dono:
+            self.barrar("R-CONTRIB", f"só o dono do Forge aplica ou delega o rótulo afrouxa-regra (conta do gh: {conta or 'ilegível'})",
+                        "avise o dono: só ele aplica, na conta dele")
 
     def gh_contrib(self, palavras, pasta, repo_env):
         """R-CONTRIB: a sessão de outro projeto abre o PR e para; não mescla, edita, fecha, revisa nem rotula no
@@ -1249,6 +1349,8 @@ class Guarda:
     def gh(self, palavras, parte, pasta, repo_env=None):
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
+        if self.sessao_forge:
+            self.gh_rotulo(palavras, pasta)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -1460,7 +1562,12 @@ def principal(hook):
     if externo is False:
         raiz = raiz_declarada()
         # Sessão do Forge com a pasta corrente fora de projeto: só o papel com lista de permissão é avaliado (ADR 0009, 6)
-        if not (com_lista and raiz and e_clone_do_forge(raiz) and hook.campo("hook_event_name") != "PostToolUse"):
+        na_sessao_do_forge = bool(raiz and e_clone_do_forge(raiz) and hook.campo("hook_event_name") != "PostToolUse")
+        if na_sessao_do_forge and ferramenta == "Bash" and not com_lista and isinstance(entrada.get("command"), str):
+            guarda = Guarda(hook, pol, papel)  # R-CONTRIB: só o rótulo afrouxa-regra é conferido aqui
+            guarda.sessao_forge = True
+            guarda.rotulo_na_sessao_do_forge(entrada["command"], hook.cwd())
+        if not (com_lista and na_sessao_do_forge):
             return
         externo, hook.raiz = None, raiz
     try:
