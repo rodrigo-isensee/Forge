@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -2091,6 +2092,136 @@ class Orcamento(unittest.TestCase):
         for p in skills_do_plugin():
             with self.subTest(skill=p.parent.name):
                 self.assertLessEqual(len(p.read_text(encoding="utf-8").splitlines()), lim["skill"])
+
+
+class FerramentaDefasadaNoForge(ap.ForgeFalso):
+    def test_atrasada_sem_o_objeto_bloqueia_os_quatro_subcomandos(self):
+        for nome, args in self.comandos().items():
+            with self.subTest(nome):
+                r = self.check(self.antiga_sem_objeto, *args)
+                self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn(f"forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE} `jarvis-forge --atualizar-vigente`", r.stdout)
+
+    def test_atrasada_com_o_objeto_tambem_bloqueia(self):
+        for nome, args in self.comandos().items():
+            with self.subTest(nome):
+                r = self.check(self.antiga_com_objeto, *args)
+                self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn(ap.FRASE, r.stdout)
+
+    def test_igual_e_mais_nova_nao_bloqueiam_nem_avisam(self):
+        for copia in (self.igual, self.nova):
+            for nome, args in self.comandos().items():
+                with self.subTest(copia=copia.name, comando=nome):
+                    r = self.check(copia, *args)
+                    self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+                    self.assertNotIn("versão não conferida", r.stderr)
+        self.assertEqual(self.check(self.igual, "docs").returncode, 0)
+
+    def test_os_outros_subcomandos_so_avisam(self):
+        for args in (["docs"], ["kanban"], ["sobreposicao"], ["voltas"], ["brief", "p", "--pedido", "p"]):
+            with self.subTest(args):
+                r = self.check(self.antiga_sem_objeto, *args)
+                self.assertIn(f"forge-check: aviso: forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE}", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout)
+
+    def test_fontes_e_transcricao_nao_conferem_versao(self):
+        r = self.check(self.antiga_sem_objeto, "transcricao", "custo", str(self.tmp / "vazio"))
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+
+    def test_base_declarada_na_entrega_vale_no_lugar_da_origin_develop(self):
+        # a base declarada (v1) está na cópia antiga: não há prova de atraso, mesmo com a develop da origem já na v2
+        args = ["entrega", "p", "--branch", "develop", "--base", "develop", "--base-sha", self.v1, "--etapa", "codigo"]
+        r = self.check(self.antiga_com_objeto, *args)
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+
+    def test_erro_na_comparacao_vira_aviso_e_segue(self):
+        # (1) a cópia em uso não é um clone git
+        sem_git = self.tmp / "sem-git"
+        (sem_git / "bin").mkdir(parents=True)
+        shutil.copy(ap.FORGE_CHECK, sem_git / "bin" / "forge-check")
+        for nome, args in self.comandos().items():
+            with self.subTest(caso="sem git", comando=nome):
+                r = self.check(sem_git, *args)
+                self.assertIn("forge-check: aviso: versão não conferida (a cópia em uso do forge-check não é um clone git)", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+        # (2) o repositório não tem origin/develop para comparar
+        orfao = self.tmp / "orfao"
+        self.g("init", "-q", "-b", "develop", str(orfao), cwd=self.tmp)
+        (orfao / ".claude-plugin").mkdir()
+        (orfao / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge", "version": "0.1.0"}), encoding="utf-8")
+        r = self.check(self.antiga_sem_objeto, "pr", "p", raiz=orfao)
+        self.assertIn("versão não conferida", r.stderr)
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+        # (3) --base-sha ilegível na entrega
+        r = self.check(self.antiga_sem_objeto, "entrega", "p", "--branch", "develop", "--base", "develop", "--base-sha", "xyz", "--etapa", "codigo")
+        self.assertIn("versão não conferida", r.stderr)
+
+    def test_a_propria_copia_como_repositorio_nao_se_compara(self):
+        # `forge-check` rodando dentro do repositório que confere (o caso da suíte e de quem trabalha na worktree)
+        r = self.check(self.igual, "docs", raiz=self.igual)
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+        r = self.check(self.antiga_com_objeto, "docs", raiz=self.antiga_com_objeto)
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+
+
+class FerramentaDefasadaNoProjeto(ap.Base):
+    def setUp(self):
+        super().setUp()
+        self.proj = self.tmp / "proj"
+        (self.proj / ".forge/run").mkdir(parents=True)
+        (self.proj / ".forge/versao").write_text("0.20.0\n", encoding="utf-8")
+        self.plugin = self.tmp / "plugin"
+        (self.plugin / "bin").mkdir(parents=True)
+        (self.plugin / ".claude-plugin").mkdir()
+        (self.plugin / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge", "version": "0.20.0"}), encoding="utf-8")
+        shutil.copy(ap.FORGE_CHECK, self.plugin / "bin" / "forge-check")
+
+    def cache(self, conteudo):
+        texto = conteudo if isinstance(conteudo, str) else json.dumps(conteudo)
+        (self.proj / ".forge/run/versao-nova").write_text(texto, encoding="utf-8")
+
+    def check(self, *args):
+        return subprocess.run([sys.executable, str(self.plugin / "bin" / "forge-check"), *args, "--raiz", str(self.proj)],
+                              env=self.env, capture_output=True, text=True, timeout=60)
+
+    def test_cache_com_atraso_bloqueia_pr_entrega_delta_e_brief_gerar(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        for args in (["pr", "p"], ["delta", "HEAD"], ["brief", "gerar", "--pedido", "p"],
+                     ["entrega", "p", "--branch", "b", "--base", "develop", "--base-sha", "a" * 40, "--etapa", "codigo"]):
+            with self.subTest(args):
+                r = self.check(*args)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn(f"forge-check 0.20.0 {ap.FRASE} `forge atualizar`", r.stdout)
+
+    def test_cache_com_atraso_so_avisa_nos_outros(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        r = self.check("docs")
+        self.assertIn(f"forge-check: aviso: forge-check 0.20.0 {ap.FRASE} `forge atualizar`", r.stderr)
+        self.assertNotIn(ap.FRASE, r.stdout)
+
+    def test_sem_prova_positiva_nao_bloqueia(self):
+        casos = {"em dia": {"defasado": False, "atual": "0.20.0", "ultima": "0.20.0"},
+                 "cache de outra versao do plugin": {"defasado": True, "atual": "0.19.0", "ultima": "0.22.0"},
+                 "ultima nao maior": {"defasado": True, "atual": "0.20.0", "ultima": "0.20.0"}}
+        for nome, cache in casos.items():
+            with self.subTest(nome):
+                self.cache(cache)
+                r = self.check("pr", "p")
+                self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+                self.assertNotIn("versão não conferida", r.stderr)
+        (self.proj / ".forge/run/versao-nova").unlink()  # nunca consultou: sem prova, em silêncio
+        r = self.check("pr", "p")
+        self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+        self.assertNotIn("versão não conferida", r.stderr)
+
+    def test_cache_ilegivel_vira_aviso_e_segue(self):
+        for texto in ("{nao e json", "[1, 2]", json.dumps({"defasado": True})):
+            with self.subTest(texto):
+                self.cache(texto)
+                r = self.check("pr", "p")
+                self.assertIn("forge-check: aviso: versão não conferida", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
 
 
 if __name__ == "__main__":
