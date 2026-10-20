@@ -141,8 +141,11 @@ class Base(unittest.TestCase):
         self.git("tag", f"v{versao}", cwd=trabalho)
         self.git("push", "-q", str(self.publicado), f"v{versao}", cwd=trabalho)
 
-    def rodar(self, script, *args, respostas=None, cwd=None, env=None):
-        """Com `respostas`, num terminal (pty) que responde cada pergunta na ordem; sem elas, sem terminal."""
+    def rodar(self, script, *args, respostas=None, cwd=None, env=None, ocioso=20, limite=120):
+        """Com `respostas`, num terminal (pty) que responde cada pergunta na ordem; sem elas, sem terminal.
+
+        Espera o processo terminar (ou a saída fechar) por até `limite` s; só o dá por travado se ficar vivo sem
+        produzir saída por `ocioso` s (pergunta sem resposta). Máquina lenta atrasa, não reprova."""
         env = env or self.env
         if respostas is None:
             r = subprocess.run([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, capture_output=True,
@@ -153,8 +156,9 @@ class Base(unittest.TestCase):
         p = subprocess.Popen([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, stdin=escravo,
                              stdout=escravo, stderr=escravo, close_fds=True)
         os.close(escravo)
-        saida, limite = b"", time.time() + 25
-        while time.time() < limite:
+        saida, fim = b"", time.time() + limite
+        ultima_saida = time.time()
+        while time.time() < fim and time.time() - ultima_saida < ocioso:
             if not select.select([mestre], [], [], 1)[0]:
                 continue
             try:
@@ -164,6 +168,7 @@ class Base(unittest.TestCase):
             if not bloco:
                 break
             saida += bloco
+            ultima_saida = time.time()
         if p.poll() is None:  # pergunta sem resposta: o teste falha em vez de travar
             p.kill()
             saida += b"\n[TRAVOU esperando resposta]"
@@ -314,6 +319,29 @@ class Atualizar(Base):
         self.assertNotIn("Pronto", saida, "o resultado final é um só")
         self.assertIn("Algo não saiu como esperado", saida)
         self.assertIn("forge/upgrade-9.9.2", saida)
+
+
+class EsperaDoTerminal(Base):
+    """`rodar` com respostas: lentidão do processo não reprova; pergunta sem resposta continua reprovando."""
+
+    def script_falso(self, corpo):
+        arq = self.tmp / "falso.py"
+        arq.write_text(corpo, encoding="utf-8")
+        return arq
+
+    def test_processo_lento_depois_da_ultima_linha_termina_sem_marcar_travou(self):
+        falso = self.script_falso("import time\nfor i in range(4):\n    print('passo', i, flush=True)\n    time.sleep(1.5)\nprint('pronto', flush=True)\ntime.sleep(1.5)\n")
+        # o total (~7,5 s) passa do intervalo ocioso (3 s), mas nunca ficam 3 s seguidos sem saída
+        codigo, saida = self.rodar(falso, respostas=[], ocioso=3, limite=30)
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("pronto", saida)
+        self.assertNotIn("TRAVOU", saida)
+
+    def test_pergunta_sem_resposta_continua_marcada_como_travou(self):
+        falso = self.script_falso("import sys\nsys.stdout.write('Continuar? ')\nsys.stdout.flush()\nsys.stdin.readline()\n")
+        codigo, saida = self.rodar(falso, respostas=[], ocioso=2, limite=30)
+        self.assertIn("[TRAVOU esperando resposta]", saida)
+        self.assertNotEqual(codigo, 0, saida)
 
 
 class Dentro(Base):
