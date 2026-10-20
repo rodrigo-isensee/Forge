@@ -224,22 +224,31 @@ def cmd_docs(raiz):
 
 
 WORKTREE = re.compile(r"worktree:\s*([^\s;,|]+)")
-INSTANCIAS_MAX = 3  # o diretório principal e as 2 worktrees de R-TETO
+TETO_BASE = 3  # o teto sem leitura de /proc e a base dos limites de coluna do modelo (R-WIP): com teto <= 3, valem como estão
 
 
-def teto_instancias(raiz):
-    """Instâncias simultâneas do mesmo agente: no máximo INSTANCIAS_MAX (R-TETO, 2 worktrees além do principal),
-    ou menos se `teto_maximo` ou `teto_agentes` de .forge/config.json for menor. Lê só o arquivo, sem medir carga."""
-    teto = INSTANCIAS_MAX
+def teto_calculado(raiz):
+    """Teto de agentes de R-TETO: a mesma função do hook `agentes` (hooks/agentes.py), sem repetir a fórmula.
+    `teto_agentes` e `teto_maximo` de .forge/config.json valem como lá; só entram inteiros >= 1."""
+    sys.path.insert(0, str(PLUGIN / "hooks"))
+    try:
+        import agentes
+    finally:
+        sys.path.remove(str(PLUGIN / "hooks"))
     try:
         config = json.loads((raiz / ".forge" / "config.json").read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return teto
-    for chave in ("teto_maximo", "teto_agentes"):
-        v = config.get(chave) if isinstance(config, dict) else None
-        if isinstance(v, int) and not isinstance(v, bool) and v >= 1:
-            teto = min(teto, v)
-    return teto
+        config = {}
+    valido = {k: v for k, v in (config.items() if isinstance(config, dict) else [])
+              if k in ("teto_agentes", "teto_maximo") and isinstance(v, int) and not isinstance(v, bool) and v >= 1}
+    teto = agentes.calcular_teto(valido)[0]
+    return min(teto, valido["teto_maximo"]) if "teto_maximo" in valido else teto
+
+
+def fator_de_coluna(teto):
+    """Os limites de coluna do modelo de KANBAN.md são o mínimo (teto <= TETO_BASE); acima disso, escalam
+    na proporção teto // TETO_BASE (R-WIP)."""
+    return max(1, teto // TETO_BASE)
 
 
 def instancias_do_agente(secao, quem, cartoes, limite, teto):
@@ -249,7 +258,7 @@ def instancias_do_agente(secao, quem, cartoes, limite, teto):
     if q <= limite:
         return []
     if q > max(teto, limite):
-        return [f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {max(teto, limite)} instâncias por agente (R-WIP, R-TETO)"]
+        return [f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {max(teto, limite)} instâncias por agente, o teto de agentes (R-WIP, R-TETO)"]
     nomes = [(WORKTREE.search(c[6]) or [None, None])[1] for c in cartoes]
     if None in nomes or len(set(nomes)) < q:
         return [f"KANBAN.md: {secao}: {quem} com {q} cartões, limite {limite} por agente; instância extra exige "
@@ -262,18 +271,20 @@ def cmd_kanban(raiz):
     if not arq.is_file():
         return ["KANBAN.md: arquivo: não encontrado (R-WIP)"]
     saida, ids, secao, wip, linhas, cabecalho = [], {}, None, None, [], False
+    teto = teto_calculado(raiz)
+    fator = fator_de_coluna(teto)
 
     def fechar():
         if secao is None:
             return
-        if wip and wip[1] == "total" and len(linhas) > wip[0]:
-            saida.append(f"KANBAN.md: {secao}: {len(linhas)} cartões, limite {wip[0]} (R-WIP)")
+        if wip and wip[1] == "total" and len(linhas) > wip[0] * fator:
+            saida.append(f"KANBAN.md: {secao}: {len(linhas)} cartões, limite {wip[0] * fator} (R-WIP)")
         if wip and wip[1] == "agente":
             por = {}
             for r in linhas:
                 por.setdefault(r[3], []).append(r)
             for quem, cartoes in por.items():
-                saida.extend(instancias_do_agente(secao, quem, cartoes, wip[0], teto_instancias(raiz)))
+                saida.extend(instancias_do_agente(secao, quem, cartoes, wip[0], teto))
 
     for n, linha in enumerate(arq.read_text(encoding="utf-8").split("\n"), 1):
         if linha.startswith("## "):
