@@ -7,7 +7,9 @@ Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pa
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde o rótulo e
 cujas violações já existiam no head rotulado. Na promoção (PROMOCOES), também vale o rótulo do dono já posto num PR mesclado
-em base..head, só para as violações "mudança em <arquivo>" cujo arquivo tem o mesmo blob e modo do head rotulado (S-16).
+em base..head, só para as violações "mudança em <arquivo>" cujo arquivo tem o mesmo blob e modo do head rotulado (S-16). Com squash
+(develop → homolog) o head rotulado vem de `refs/pull/<n>/head`, buscado num namespace próprio (`refs/catraca/pull/<n>`), e vale
+o mesmo arquivo no merge e no head rotulado no lugar da ancestralidade (S-16-PROMOCAO-DEVELOP); qualquer falha vale como sem rótulo.
 Eventos e execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
 do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
@@ -15,6 +17,7 @@ import argparse
 import ast
 from collections import Counter
 import hashlib
+import http.client
 import importlib.util
 import itertools
 import json
@@ -623,7 +626,7 @@ class FonteGithub:
     def _ou_none(self, f):
         try:
             return f()
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
             return None
 
     def pr_atual(self):
@@ -718,10 +721,52 @@ def candidatos_mesclados(raiz, base, head, arquivos):
     return intervalo, numeros[:LIMITE_CANDIDATOS]
 
 
-def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo):
-    """(S, M) do PR `n`: mesclado no `ramo` do próprio repositório (base e head), com `merge_commit_sha` M em base..head,
+REF_BUSCADA = "refs/catraca/pull/{}"  # namespace só da catraca: o fetch nunca escreve em branch, remoto ou tag (M1)
+SHA_COMPLETO = re.compile(r"[0-9a-f]{40}")
+
+
+def aviso(texto):
+    print(f"catraca: {texto}; vale como sem rótulo.")
+
+
+def buscar_cabeca_do_pr(raiz, n):
+    """Traz `refs/pull/<n>/head` do `origin` para `refs/catraca/pull/<n>` (só objetos, sem checkout, sem FETCH_HEAD, sem tags).
+    True se o git terminou bem; `TimeoutExpired` sobe para quem chama (falha fechada em `liberado_por_pr_mesclado_ou_none`)."""
+    n = int(n)
+    cod, _ = git(raiz, "-c", "maintenance.auto=false", "-c", "gc.auto=0", "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head", "origin",
+                 f"refs/pull/{n}/head:{REF_BUSCADA.format(n)}")
+    if cod:
+        aviso(f"não consegui buscar refs/pull/{n}/head")
+    return not cod
+
+
+def tem_commit(raiz, sha):
+    return not git(raiz, "cat-file", "-e", f"{sha}^{{commit}}")[0]
+
+
+def prova_do_squash(raiz, pull, n, s, m, base, head):
+    """Substituto da ancestralidade quando o merge M é squash (S nunca é ancestral dele): M tem um pai só e está na cadeia de
+    primeiro pai de base..head; S, o head rotulado, é ancestral do `head.sha` da API, que é o que `refs/pull/<n>/head` traz."""
+    cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", m)
+    if cod or len(pais.split()) != 2 or m not in git(raiz, "rev-list", "--first-parent", f"{base}..{head}")[1].split():
+        return False
+    final = (pull.get("head") or {}).get("sha")
+    if not isinstance(final, str) or not SHA_COMPLETO.fullmatch(final):
+        return False
+    if not (tem_commit(raiz, s) and tem_commit(raiz, final)):
+        if not buscar_cabeca_do_pr(raiz, n):
+            return False
+        cod, trazido = git(raiz, "rev-parse", "--verify", "-q", f"{REF_BUSCADA.format(int(n))}^{{commit}}")
+        if cod or trazido.strip() != final or not tem_commit(raiz, s):
+            return False
+    return not git(raiz, "merge-base", "--is-ancestor", s, final)[0]
+
+
+def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo, base=None, head=None):
+    """(S, M, squash) do PR `n`: mesclado no `ramo` do próprio repositório (base e head), com `merge_commit_sha` M em base..head,
     último evento do rótulo `labeled` pelo dono (sem app) e S, o head no instante do rótulo (`commit_do_rotulo`), presente
-    no git local e ancestral de M. Qualquer dúvida devolve None (sem rótulo)."""
+    no git local e ancestral de M. Sem isso, e só se M for squash (`prova_do_squash`), S pode vir de `refs/pull/<n>/head`.
+    Qualquer dúvida devolve None (sem rótulo)."""
     try:
         pull = fonte.pull(n)
         if not isinstance(pull, dict) or not pull.get("merged_at") or pull.get("merge_commit_sha") not in intervalo:
@@ -745,9 +790,13 @@ def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo):
         s, m = commit_do_rotulo(antes_do_merge, do_pr, n, dono), pull["merge_commit_sha"]
     except (KeyError, TypeError, ValueError, AttributeError):
         return None
-    if not s or git(raiz, "cat-file", "-e", f"{s}^{{commit}}")[0] or git(raiz, "merge-base", "--is-ancestor", s, m)[0]:
+    if not s:
         return None
-    return s, m
+    if tem_commit(raiz, s) and not git(raiz, "merge-base", "--is-ancestor", s, m)[0]:
+        return s, m, False
+    if base is None or head is None or not prova_do_squash(raiz, pull, n, s, m, base, head):
+        return None
+    return s, m, True
 
 
 def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono):
@@ -766,18 +815,29 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono):
     intervalo, numeros = candidatos_mesclados(raiz, base, head, set(arquivos))
     pendentes, usados = set(arquivos), []
     for n in numeros:
-        sm = sha_rotulado_do_mesclado(raiz, fonte, n, pr["head"]["ref"], dono, intervalo)
+        sm = sha_rotulado_do_mesclado(raiz, fonte, n, pr["head"]["ref"], dono, intervalo, base, head)
         if not sm:
             continue
-        s, m = sm
+        s, m, squash = sm
         de_s = set(regra_protegidos(raiz, base_efetiva(raiz, f"{m}^1", s), s))  # a mesma violação, texto exato (sem normalizar números)
-        cobertos = {a for a in pendentes if msg_protegido(a) in de_s and mesmo_arquivo(raiz, head, s, a)}
+        # No squash o que vale é o arquivo que o merge gravou: igual ao rotulado, byte a byte e no modo (M3)
+        cobertos = {a for a in pendentes if msg_protegido(a) in de_s and mesmo_arquivo(raiz, head, s, a)
+                    and (not squash or mesmo_arquivo(raiz, m, s, a))}
         if cobertos:
             pendentes -= cobertos
             usados.append(n)
         if not pendentes:
             return usados
     return None
+
+
+def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
+    """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem."""
+    try:
+        return liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono)
+    except (subprocess.TimeoutExpired, OSError) as e:
+        aviso(f"o git não terminou ({type(e).__name__})")
+        return None
 
 
 # --- Outros modos -----------------------------------------------------------------------------------------
@@ -921,7 +981,7 @@ def _main(argv=None):
             if not custo and not liberado:
                 fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
                     None if a.eventos else fonte_do_github())
-                prs = liberado_por_pr_mesclado(raiz, a.base, a.head, viol, fonte, dono)
+                prs = liberado_por_pr_mesclado_ou_none(raiz, a.base, a.head, viol, fonte, dono)
                 if prs:
                     liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"
             if liberado:
