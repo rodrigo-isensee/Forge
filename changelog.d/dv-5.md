@@ -1,0 +1,2 @@
+### Alterado
+- **O integrador não mescla na `develop` PR de fora durante a release (DV-5).** `forge-check sobreposicao --ref <branch>` sai com erro e diz esperar a promoção quando a versão da `origin/develop` é maior que a da `origin/homolog` e a branch não é `melhoria/release-<versão>`; sem `--ref`, sem release em curso ou com a versão ilegível segue informativo (rc 0, aviso no último caso). A "Fila de integração" de R-FLUXO ganhou a frase; só restringe, sem rede e sem custo (R-CUSTO).

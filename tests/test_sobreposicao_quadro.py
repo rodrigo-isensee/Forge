@@ -103,6 +103,77 @@ class Sobreposicao(unittest.TestCase):
         self.assertIn("base não encontrada", saida)
 
 
+class TravaDeRelease(unittest.TestCase):
+    """DV-5: com release em curso, `sobreposicao --ref` barra a branch que não é a da release."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.repo = Path(self._tmp.name)
+        git(self.repo, "init", "-q", "-b", "develop")
+        (self.repo / "base.txt").write_text("base\n", encoding="utf-8")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "-m", "base")
+
+    def versao(self, remoto, texto):
+        """Grava plugin.json com `texto` num commit e aponta refs/remotes/origin/<remoto> para ele (sem rede)."""
+        pasta = self.repo / ".claude-plugin"
+        pasta.mkdir(exist_ok=True)
+        (pasta / "plugin.json").write_text(texto, encoding="utf-8")
+        git(self.repo, "add", ".")
+        git(self.repo, "commit", "-q", "--allow-empty", "-m", f"v {remoto}")
+        git(self.repo, "update-ref", f"refs/remotes/origin/{remoto}", "HEAD")
+
+    def par(self, dev, hom):
+        self.versao("homolog", '{"version": "%s"}' % hom)
+        self.versao("develop", '{"version": "%s"}' % dev)
+
+    def test_release_em_curso_e_branch_de_fora_barra(self):
+        self.par("0.24.0", "0.23.0")
+        rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
+        self.assertEqual(rc, 1)
+        self.assertIn("release 0.24.0 em curso", saida)
+        self.assertIn("espere a promoção", saida)
+
+    def test_branch_da_release_passa(self):
+        self.par("0.24.0", "0.23.0")
+        for ref in ("melhoria/release-0.24.0", "origin/melhoria/release-0.24.0"):
+            self.assertEqual(checar(self.repo, "sobreposicao", "--ref", ref)[0], 0)
+
+    def test_release_de_outra_versao_nao_passa(self):
+        self.par("0.24.0", "0.23.0")
+        self.assertEqual(checar(self.repo, "sobreposicao", "--ref", "melhoria/release-0.23.0")[0], 1)
+
+    def test_sem_release_em_curso_nada_muda(self):
+        for dev, hom in (("0.23.0", "0.23.0"), ("0.22.0", "0.23.0")):
+            self.par(dev, hom)
+            rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
+            self.assertEqual(rc, 0)
+            self.assertNotIn("release", saida)
+
+    def test_versao_numerica_compara_por_numero_nao_por_texto(self):
+        self.par("0.9.0", "0.10.0")
+        self.assertEqual(checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")[0], 0)
+
+    def test_sem_ref_nada_muda_mesmo_com_release_em_curso(self):
+        self.par("0.24.0", "0.23.0")
+        rc, saida = checar(self.repo, "sobreposicao")
+        self.assertEqual(rc, 0)
+        self.assertNotIn("release", saida)
+
+    def test_versao_ilegivel_so_avisa(self):
+        self.par("0.24.0", "0.23.0")
+        self.versao("develop", "isto nao e json")
+        rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
+        self.assertEqual(rc, 0)
+        self.assertIn("aviso: versão ilegível em origin/develop", saida)
+
+    def test_versao_ausente_so_avisa(self):
+        rc, saida = checar(self.repo, "sobreposicao", "--ref", "melhoria/outra")
+        self.assertEqual(rc, 0)
+        self.assertIn("aviso: não li", saida)
+
+
 class Movimento(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
