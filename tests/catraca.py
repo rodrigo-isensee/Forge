@@ -6,7 +6,9 @@ Exceção estreita: PR de `dependabot[bot]` que só troca SHA de `uses:` em work
 Modos (`--modo`): `regras` (padrão), `pr-texto` (corpo do PR em $PR_BODY) e `pareceres`.
 Exceção única das regras (menos `R-CUSTO`, que só tem `custo_permitido`): rótulo `afrouxa-regra` aplicado pelo `dono` (de tests/config.json da base) depois do
 último push, ou cujo diff efetivo (merge-base, fora dos pareceres dos pedidos desta branch) não mudou desde o rótulo e
-cujas violações já existiam no head rotulado. Eventos e execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
+cujas violações já existiam no head rotulado. Na promoção (PROMOCOES), também vale o rótulo do dono já posto num PR mesclado
+em base..head, só para as violações "mudança em <arquivo>" cujo arquivo tem o mesmo blob e modo do head rotulado (S-16).
+Eventos e execuções vêm da API do GitHub com $GITHUB_TOKEN (somente leitura); sem token, sem $HEAD_SHA ou sem execução
 do head no servidor, vale como sem rótulo. Cada violação: `<R-ID>: <o quê>. Por quê: <motivo>. Corrigir: <ação> (<doc>)`.
 """
 import argparse
@@ -381,12 +383,24 @@ def regra_custo(raiz, ref, permitido):
     return v
 
 
+def msg_protegido(a):
+    return msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS, hooks do git, dependabot, a catraca, os hooks que decidem o bloqueio e o forge-check são os próprios controles",
+               f"só passa com o rótulo `{ROTULO}` do dono, aplicado depois do último push", ADR)
+
+
+def arquivo_da_violacao(v):
+    """O caminho de uma violação "mudança em <arquivo>" de `regra_protegidos`; None para qualquer outra violação."""
+    prefixo, sufixo = msg_protegido("\0").split("\0")
+    if not (v.startswith(prefixo) and v.endswith(sufixo)) or len(v) <= len(prefixo) + len(sufixo):
+        return None
+    a = v[len(prefixo):-len(sufixo)]
+    return a if msg_protegido(a) == v else None
+
+
 def regra_protegidos(raiz, b, h):
     if ler(raiz, b, "tests/catraca.py") is None:  # introdução da própria catraca
         return []
-    return [msg("R-CONFORMIDADE", f"mudança em {a}", "workflows, rulesets, CODEOWNERS, hooks do git, dependabot, a catraca, os hooks que decidem o bloqueio e o forge-check são os próprios controles",
-                f"só passa com o rótulo `{ROTULO}` do dono, aplicado depois do último push", ADR)
-            for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
+    return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
 
 
 def regra_arquivos_de_regras(raiz, b, h, cfg_base):
@@ -555,6 +569,193 @@ def execucoes_do_pr():
         return None
 
 
+# --- Rótulo já posto num PR mesclado (S-16) ----------------------------------------------------------------
+LIMITE_CANDIDATOS = 20  # PRs consultados por execução: tempo dentro do timeout de 10 min da catraca
+TETO_PAGINAS = 3  # páginas de 100 por consulta; além disso, falha fechada
+MODOS_COMUNS = ("100644", "100755")  # arquivo comum; link simbólico (120000) e submódulo (160000) nunca contam como o mesmo conteúdo
+NUMERO_DE_PR = re.compile(r"#(\d+)\b")
+
+
+def api_com_teto(caminho, token, chave=None, teto=TETO_PAGINAS):
+    """GET paginado como `api`, mas None se a resposta passa de `teto` páginas (lista incompleta não decide nada)."""
+    itens = []
+    for pagina in range(1, teto + 1):
+        lote = requisicao(f"{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}", token)
+        lote = lote[chave] if chave else lote
+        if not isinstance(lote, list):
+            return None
+        itens += lote
+        if len(lote) < 100:
+            return itens
+    return None
+
+
+class FonteGithub:
+    """PR atual e PRs mesclados pela API do GitHub com o $GITHUB_TOKEN de leitura; cada falha vira None (falha fechada)."""
+
+    def __init__(self, token, repo, numero):
+        self.token, self.repo, self.numero = token, repo, numero
+
+    def _ou_none(self, f):
+        try:
+            return f()
+        except (OSError, ValueError, KeyError, TypeError):
+            return None
+
+    def pr_atual(self):
+        return self.pull(self.numero)
+
+    def pull(self, n):
+        return self._ou_none(lambda: api_objeto(f"/repos/{self.repo}/pulls/{n}", self.token))
+
+    def eventos(self, n):
+        return self._ou_none(lambda: api_com_teto(f"/repos/{self.repo}/issues/{n}/events", self.token))
+
+    def execucoes(self, n, pull):
+        """Execuções `pull_request` da branch do PR criadas entre a abertura e o merge (filtro do servidor; reconferido)."""
+        janela = urllib.parse.quote(f"{pull['created_at']}..{pull['merged_at']}", safe="")
+        ramo = urllib.parse.quote(pull["head"]["ref"], safe="")
+        return self._ou_none(lambda: api_com_teto(f"/repos/{self.repo}/actions/runs?event=pull_request&branch={ramo}&created={janela}",
+                                                  self.token, "workflow_runs"))
+
+
+class FonteJson:
+    """O mesmo que `FonteGithub`, lido de um JSON (testes, `--mesclados`): {"repo", "pr", "pulls": {n}, "eventos": {n}, "execucoes": {n}}."""
+
+    def __init__(self, dados):
+        self.dados = dados if isinstance(dados, dict) else {}
+        self.repo = self.dados.get("repo")
+
+    def _de(self, chave, n):
+        return (self.dados.get(chave) or {}).get(str(n))
+
+    def pr_atual(self):
+        return self.dados.get("pr")
+
+    def pull(self, n):
+        return self._de("pulls", n)
+
+    def eventos(self, n):
+        return self._de("eventos", n)
+
+    def execucoes(self, n, pull):
+        return self._de("execucoes", n)
+
+
+def fonte_do_github():
+    """`FonteGithub` do PR atual; None sem token, repositório ou número do PR (falha fechada)."""
+    token, repo, numero = (os.environ.get(k) for k in ("GITHUB_TOKEN", "GITHUB_REPOSITORY", "PR_NUMBER"))
+    return FonteGithub(token, repo, numero) if token and repo and numero else None
+
+
+def _repo_de(lado):
+    return ((lado or {}).get("repo") or {}).get("full_name")
+
+
+def eh_promocao(pr, repo):
+    """PR de promoção (PROMOCOES) com as duas pontas no próprio repositório (branch `develop` de um fork não conta)."""
+    if not isinstance(pr, dict) or not repo:
+        return False
+    head, base = pr.get("head") or {}, pr.get("base") or {}
+    return (head.get("ref"), base.get("ref")) in PROMOCOES and _repo_de(head) == repo and _repo_de(base) == repo
+
+
+def entrada_da_arvore(raiz, ref, caminho):
+    """(modo, objeto) do arquivo comum em `ref`; None se ausente, pasta, link simbólico, submódulo ou erro do git."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "-z", "--full-tree", ref, "--", caminho)
+    entradas = [e for e in saida.split("\0") if e] if not cod else []
+    if len(entradas) != 1:
+        return None
+    meta, _, nome = entradas[0].partition("\t")
+    modo, tipo, objeto = (meta.split(" ") + ["", "", ""])[:3]
+    return (modo, objeto) if nome == caminho and tipo == "blob" and modo in MODOS_COMUNS else None
+
+
+def mesmo_arquivo(raiz, a, b, caminho):
+    """True se o caminho tem o mesmo blob e o mesmo modo (arquivo comum) nos dois commits."""
+    x = entrada_da_arvore(raiz, a, caminho)
+    return x is not None and x == entrada_da_arvore(raiz, b, caminho)
+
+
+def candidatos_mesclados(raiz, base, head, arquivos):
+    """(commits de base..head, números de PR candidatos): os citados (`#n`) no assunto dos commits do intervalo que tocam um
+    dos arquivos, do mais novo ao mais antigo, até LIMITE_CANDIDATOS. O assunto só sugere: a API confirma o merge."""
+    cod, saida = git(raiz, "-c", "core.quotePath=false", "log", "--no-renames", "--diff-merges=first-parent", "--name-only",
+                     "--format=%x1e%H%x1f%s", f"{base}..{head}")
+    if cod:
+        return set(), []
+    intervalo, numeros = set(), []
+    for bloco in saida.split("\x1e")[1:]:
+        cabeca, _, nomes = bloco.partition("\n")
+        sha, _, assunto = cabeca.partition("\x1f")
+        intervalo.add(sha)
+        if set(nomes.splitlines()) & arquivos:
+            numeros += [n for n in NUMERO_DE_PR.findall(assunto) if n not in numeros]
+    return intervalo, numeros[:LIMITE_CANDIDATOS]
+
+
+def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo):
+    """(S, M) do PR `n`: mesclado no `ramo` do próprio repositório (base e head), com `merge_commit_sha` M em base..head,
+    último evento do rótulo `labeled` pelo dono (sem app) e S, o head no instante do rótulo (`commit_do_rotulo`), presente
+    no git local e ancestral de M. Qualquer dúvida devolve None (sem rótulo)."""
+    try:
+        pull = fonte.pull(n)
+        if not isinstance(pull, dict) or not pull.get("merged_at") or pull.get("merge_commit_sha") not in intervalo:
+            return None
+        if (pull.get("base") or {}).get("ref") != ramo or _repo_de(pull.get("base")) != fonte.repo or _repo_de(pull.get("head")) != fonte.repo:
+            return None
+        eventos = fonte.eventos(n)
+        ultimo = rotulo_do_dono(eventos, dono) if isinstance(eventos, list) else None
+        if not ultimo or ultimo.get("performed_via_github_app"):
+            return None
+        execucoes = fonte.execucoes(n, pull)
+        if not isinstance(execucoes, list):
+            return None
+        inicio, fim, ramo_pr = instante(pull["created_at"]), instante(pull["merged_at"]), pull["head"]["ref"]
+        # O `pull_requests` das execuções de PR fechado vem vazio: valem as da branch dele, do próprio repositório, na vida do PR.
+        do_pr = [{**e, "pull_requests": [{"number": n}]} for e in execucoes
+                 if e.get("event") == "pull_request" and e.get("head_branch") == ramo_pr and e.get("created_at")
+                 and ((e.get("head_repository") or {}).get("full_name")) == fonte.repo and inicio <= instante(e["created_at"]) <= fim]
+        # Apagar ou restaurar a branch depois do merge não muda o que foi mesclado; antes dele, reescrita segue falhando fechado.
+        antes_do_merge = [e for e in eventos if not (e.get("event") in REESCRITA and instante(e["created_at"]) > fim)]
+        s, m = commit_do_rotulo(antes_do_merge, do_pr, n, dono), pull["merge_commit_sha"]
+    except (KeyError, TypeError, ValueError, AttributeError):
+        return None
+    if not s or git(raiz, "cat-file", "-e", f"{s}^{{commit}}")[0] or git(raiz, "merge-base", "--is-ancestor", s, m)[0]:
+        return None
+    return s, m
+
+
+def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono):
+    """Números dos PRs mesclados que cobrem todas as violações, ou None. Só em promoção e só violações "mudança em <arquivo>":
+    cada uma fica coberta se o arquivo tem em `head` o mesmo blob e modo que no head rotulado S de um PR candidato e a mesma
+    violação existia em S sobre o merge-base dele com o primeiro pai do merge (o rótulo cobriu aquele arquivo). Sem
+    transitividade: o PR candidato precisa do próprio rótulo do dono."""
+    if fonte is None or not dono:
+        return None
+    arquivos = [arquivo_da_violacao(v) for v in viol]
+    if not arquivos or None in arquivos:
+        return None
+    pr = fonte.pr_atual()
+    if not eh_promocao(pr, fonte.repo):
+        return None
+    intervalo, numeros = candidatos_mesclados(raiz, base, head, set(arquivos))
+    pendentes, usados = set(arquivos), []
+    for n in numeros:
+        sm = sha_rotulado_do_mesclado(raiz, fonte, n, pr["head"]["ref"], dono, intervalo)
+        if not sm:
+            continue
+        s, m = sm
+        de_s = set(regra_protegidos(raiz, base_efetiva(raiz, f"{m}^1", s), s))  # a mesma violação, texto exato (sem normalizar números)
+        cobertos = {a for a in pendentes if msg_protegido(a) in de_s and mesmo_arquivo(raiz, head, s, a)}
+        if cobertos:
+            pendentes -= cobertos
+            usados.append(n)
+        if not pendentes:
+            return usados
+    return None
+
+
 # --- Outros modos -----------------------------------------------------------------------------------------
 def secao(corpo, titulo):
     corpo = re.sub(r"<!--.*?-->", "", corpo or "", flags=re.S)
@@ -648,6 +849,7 @@ def main(argv=None):
     ap.add_argument("--ultimo-push", help="instante ISO do último push (com --eventos)")
     ap.add_argument("--execucoes", help="JSON com as execuções do Actions do PR (testes, com --eventos); ignora a API")
     ap.add_argument("--pr", default=os.environ.get("PR_NUMBER", ""), help="número do PR")
+    ap.add_argument("--mesclados", help="JSON com o PR atual e os PRs mesclados (testes; formato em FonteJson); ignora a API")
     a = ap.parse_args(argv)
     raiz = Path(a.raiz).resolve()
     if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):
@@ -664,7 +866,8 @@ def main(argv=None):
                 eventos, push = json.loads(Path(a.eventos).read_text(encoding="utf-8")), a.ultimo_push
             else:
                 eventos, push = eventos_do_github()
-            cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json") or json_de(raiz, a.head, "tests/config.json") or {}
+            cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
+            cfg = cfg if isinstance(cfg, dict) else {}
             custo = [x for x in viol if x.startswith("R-CUSTO:")]  # só `custo_permitido` abre exceção de custo, nunca o rótulo
             dono, liberado = cfg.get("dono"), None
             if not custo and eventos is not None:
@@ -675,6 +878,12 @@ def main(argv=None):
                     ramo = a.ramo or ("" if a.eventos else ramo_do_pr())
                     if execucoes is not None and rotulo_vale_pelo_conteudo(raiz, a.base, a.head, eventos, execucoes, a.pr, dono, ramo, viol):
                         liberado = "diff efetivo igual ao do instante do rótulo"
+            if not custo and not liberado:
+                fonte = FonteJson(json.loads(Path(a.mesclados).read_text(encoding="utf-8"))) if a.mesclados else (
+                    None if a.eventos else fonte_do_github())
+                prs = liberado_por_pr_mesclado(raiz, a.base, a.head, viol, fonte, dono)
+                if prs:
+                    liberado = f"mesmo conteúdo já rotulado no PR mesclado {', '.join('#' + n for n in prs)}"
             if liberado:
                 resumo(titulo, [f"liberado pelo rótulo `{ROTULO}` do dono ({liberado}): {len(viol)} violação(ões) aceita(s)"] + viol)
                 print(f"catraca: {len(viol)} violação(ões) liberada(s) pelo rótulo `{ROTULO}` do dono ({liberado}).")
