@@ -4,6 +4,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.26.0] - 2026-10-20
+### Alterado
+- Catraca: quando o `git diff` que lista os arquivos alterados falha, a catraca fica vermelha com a mensagem "não consegui listar os arquivos alterados" (falha fechada; o rótulo `afrouxa-regra` não libera esta violação), em vez de tratar como "nada mudou"; `scripts/conferir-release.py` passa a ser arquivo protegido e pede o rótulo do dono (CATRACA-ENDURECER).
+- O conferente faz a passada única de verdade e recebe o brief inteiro (CONF-CORRECAO): primeira passada em ordem fixa, com o achado tardio marcado `tardio:` e reprovando; `forge-check brief` cobra todas as linhas `DECISÃO DO DONO` do pedido e dos registros citados em `docs/pedidos/` (um nível) e as ADRs citadas, e a referência a fonte fora da regra sai `não verificável`; novo `forge-check brief mensagem`, que imprime a mensagem integral ao conferente, com `Brief-sha256:`, só se o brief passa (recusa delimitador, controle e caractere de formato).
+- Catraca: na promoção, a violação "mudança em <arquivo>" não pede de novo o rótulo afrouxa-regra quando o arquivo é, byte a byte e no mesmo modo, o que o dono já rotulou num PR mesclado em base..head (falha fechada em qualquer dúvida; violações sem arquivo e R-CUSTO seguem pedindo); o dono passa a vir só do tests/config.json da base (S-16).
+### Corrigido
+- forge-fechar não abre PR duplicado nem mescla squash vazio (head já mesclado ou PR MERGED é reconhecido), repete até 3 vezes só leituras e o push --delete da limpeza em erro passageiro do GitHub, e o modelo de PR ganha o item do rótulo afrouxa-regra
+
 ## [0.25.0] - 2026-10-20
 ### Adicionado
 - CI: a checagem de release (versão nova e changelog fechado) também roda no PR develop -> homolog quando a versão subiu, via scripts/conferir-release.py compartilhado com a main (DV-4)
