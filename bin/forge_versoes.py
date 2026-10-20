@@ -135,15 +135,37 @@ def resumo_do_changelog(texto, depois_de, ate):
     return linhas
 
 
-def aviso_de_versao_nova(limite):
-    """Uma frase avisando que saiu versão nova do Forge, ou "" (em dia, sem rede, consulta desligada ou endereço inválido)."""
+SUPERFICIES = {"projeto": "`forge atualizar`", "forge": "`jarvis-forge --atualizar-vigente` e reinicie a sessão do Forge"}
+
+
+def comando_de_atualizacao(superficie):
+    """O comando que a PESSOA roda para atualizar, conforme a superfície (projeto ou sessão do Forge). Nenhum agente o roda (R-CONFORMIDADE)."""
+    return SUPERFICIES[superficie]
+
+
+def consultar_versao(limite):
+    """A consulta às releases, com o resultado distinguível: {"estado", "atual", "ultima"}. `estado`: `desligada` (consulta desligada,
+    endereço inválido ou versão local ilegível), `falhou` (sem conexão), `em_dia` ou `defasada` (há tag mais nova que o plugin)."""
     url, atual = url_do_forge(), versao_do_plugin()
     if url is None or versao_de(atual) is None:
-        return ""
-    nova, _ = ultima_versao(url, limite)
+        return {"estado": "desligada", "atual": atual, "ultima": ""}
+    nova, erro = ultima_versao(url, limite)
+    if erro:
+        return {"estado": "falhou", "atual": atual, "ultima": ""}
     if nova is None or versao_de(nova) <= versao_de(atual):
-        return ""
-    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar com ponto de retorno, rode no terminal: `forge atualizar`"
+        return {"estado": "em_dia", "atual": atual, "ultima": nova or ""}
+    return {"estado": "defasada", "atual": atual, "ultima": nova}
+
+
+def texto_de_versao_nova(atual, nova, superficie="projeto"):
+    ponto = " com ponto de retorno" if superficie == "projeto" else ""
+    return f"Saiu a versão {nova} do Forge (você usa a {atual}). Para atualizar{ponto}, rode no terminal: {comando_de_atualizacao(superficie)}"
+
+
+def aviso_de_versao_nova(limite, superficie="projeto"):
+    """Uma frase avisando que saiu versão nova do Forge, ou "" (em dia, sem rede, consulta desligada ou endereço inválido)."""
+    r = consultar_versao(limite)
+    return texto_de_versao_nova(r["atual"], r["ultima"], superficie) if r["estado"] == "defasada" else ""
 
 
 # Plugin ----------------------------------------------------------------------------------------

@@ -2841,6 +2841,135 @@ def cmd_fontes():
     return linhas, 3 if falhou else 0
 
 
+# A ferramenta defasada (versão-defasada, VD-3): a conferência feita por uma cópia do forge-check atrás do repositório não vale -----
+ATUALIZAR_NO_FORGE = "`jarvis-forge --atualizar-vigente` e reinicie a sessão do Forge"
+ATUALIZAR_NO_PROJETO = "`forge atualizar`"
+BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega")  # nos projetos, e `brief gerar`; no Forge e nos outros subcomandos só avisa
+NAO_CONFERIDA_DESLIGADA = "verificação desligada"
+SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao")  # não conferem repositório
+
+
+def versao_em_tupla(texto):
+    achou = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", str(texto).strip())
+    return tuple(int(n) for n in achou.groups()) if achou else None
+
+
+def versao_da_propria_copia():
+    try:
+        return json.loads((PLUGIN / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("version", "")
+    except (OSError, ValueError, AttributeError):
+        return ""
+
+
+def e_o_forge(raiz):
+    """A raiz é um clone do Forge: tem o manifesto dele e não é projeto (sem `.forge/versao`, como em `e_clone_do_forge` dos hooks);
+    escrever o manifesto num projeto não o faz virar o Forge, onde a guarda só avisa."""
+    if any((pasta / ".forge" / "versao").is_file() for pasta in (raiz, *raiz.parents)):
+        return False
+    try:
+        return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
+def base_do_repositorio(raiz, a):
+    """sha40 da base do repositório sob conferência: a base declarada na entrega (`--base-sha`) ou o commit de `origin/<base>`
+    (padrão develop). None se não der para saber."""
+    if a.cmd == "entrega":
+        return a.base_sha if SHA40.match(a.base_sha or "") else None
+    nome = getattr(a, "base", None) or "develop"
+    return sha_do_commit(raiz, f"refs/remotes/origin/{nome}")
+
+
+def comparar_com_o_forge(raiz, a):
+    """("ok" | "atrasada" | "erro", texto): a base do repositório tem de estar no histórico da cópia em uso do forge-check."""
+    toplevel = git(raiz, "rev-parse", "--show-toplevel")
+    if toplevel[0] == 0 and Path(toplevel[1]).resolve() == PLUGIN:
+        return "ok", ""  # a cópia em uso é o próprio repositório conferido
+    base = base_do_repositorio(raiz, a)
+    if base is None:
+        return "erro", "o repositório não tem a base (origin/develop ou --base-sha) para comparar"
+    topo_da_copia = git(PLUGIN, "rev-parse", "--show-toplevel")
+    if topo_da_copia[0] != 0 or Path(topo_da_copia[1]).resolve() != PLUGIN:
+        return "erro", "a cópia em uso do forge-check não é um clone git"
+    cabeca = sha_do_commit(PLUGIN, "HEAD")
+    if cabeca is None:
+        return "erro", "a cópia em uso do forge-check não tem commit"
+    quem = f"{versao_da_propria_copia() or '?'} (commit {cabeca[:7]})"
+    if git(PLUGIN, "cat-file", "-e", f"{base}^{{commit}}")[0] != 0:
+        return "atrasada", quem  # a cópia nem conhece o commit que o repositório já tem
+    cod = git(PLUGIN, "merge-base", "--is-ancestor", base, cabeca)[0]
+    if cod == 0:
+        return "ok", ""
+    return ("atrasada", quem) if cod == 1 else ("erro", "git não conseguiu comparar as duas cópias")
+
+
+def comparar_com_o_cache_do_projeto(raiz):
+    """O doutor grava `.forge/run/versao-nova` com `defasado`, `atual` (o plugin que ele viu) e `ultima`; só vale como prova se
+    `atual` é esta cópia e ela é mesmo menor que `ultima`. Sem projeto ou sem cache: nada a provar."""
+    desligada = os.environ.get("FORGE_VERIFICAR_VERSAO") == "0"
+    for pasta in (raiz, *raiz.parents):
+        if (pasta / ".forge" / "versao").is_file():
+            cache = pasta / ".forge" / "run" / "versao-nova"
+            break
+    else:
+        return "ok", ""
+    if not cache.is_file():
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada else ("ok", "")
+    try:
+        dados = json.loads(cache.read_text(encoding="utf-8"))
+        if not isinstance(dados, dict):
+            raise ValueError("não é um objeto")
+    except (OSError, ValueError, UnicodeDecodeError):
+        return "erro", "o cache .forge/run/versao-nova está ilegível"
+    if dados.get("defasado") is not True:
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada or dados.get("consulta") == "desligada" else ("ok", "")
+    minha, atual, ultima = versao_da_propria_copia(), versao_em_tupla(dados.get("atual")), versao_em_tupla(dados.get("ultima"))
+    if versao_em_tupla(minha) is None or atual is None or ultima is None:
+        return "erro", "o cache .forge/run/versao-nova não traz as versões"
+    if atual != versao_em_tupla(minha):
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada else ("ok", "")  # cache de outra versão (já atualizado desde então)
+    return ("atrasada", minha) if versao_em_tupla(minha) < ultima else ("ok", "")
+
+
+def avaliar_versao(a, raiz):
+    """(nível, texto): nível None (seguir), "aviso" (texto para o stderr) ou "bloqueio" (texto para a saída). Só bloqueia com prova
+    positiva de atraso e só nos projetos: no Forge e nos clones de contribuição a guarda só avisa; erro na comparação (e
+    verificação desligada) vira o aviso `versão não conferida`. Sem rede: só `git` local e arquivos. `a` traz `cmd`, `alvo` e `base`."""
+    if a.cmd in SEM_GUARDA_DE_VERSAO:
+        return None, ""
+    forge = False
+    try:
+        forge = e_o_forge(raiz)
+        if forge:
+            estado, texto = comparar_com_o_forge(raiz, a)
+            comando = ATUALIZAR_NO_FORGE
+        else:
+            estado, texto = comparar_com_o_cache_do_projeto(raiz)
+            comando = ATUALIZAR_NO_PROJETO
+    except (OSError, subprocess.SubprocessError, ValueError) as e:
+        estado, texto = "erro", str(getattr(e, "strerror", None) or e)
+    if estado == "ok":
+        return None, ""
+    if estado == "erro":
+        return "aviso", f"forge-check: aviso: versão não conferida ({texto})"
+    mensagem = f"forge-check {texto} atrás do repositório; a conferência não vale; peça à pessoa: {comando}"
+    if not forge and (a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo == "gerar")):
+        return "bloqueio", mensagem
+    return "aviso", f"forge-check: aviso: {mensagem}"
+
+
+def guarda_de_versao(a, raiz):
+    """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
+    nivel, texto = avaliar_versao(a, raiz)
+    if nivel == "bloqueio":
+        print(texto)
+        return 1
+    if nivel == "aviso":
+        print(texto, file=sys.stderr)
+    return None
+
+
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
@@ -2921,6 +3050,9 @@ def main():
 
 
 def executar(a, raiz):
+    bloqueio = guarda_de_versao(a, raiz)
+    if bloqueio is not None:
+        return bloqueio
     if a.cmd == "transcricao" and a.acao == "custo":
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz)
     if a.cmd == "transcricao" and a.acao == "lastro":

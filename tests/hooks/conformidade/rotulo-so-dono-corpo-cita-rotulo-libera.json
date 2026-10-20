@@ -1,0 +1,28 @@
+{
+  "descricao": "Sessão do Forge: citar o nome do rótulo no corpo não é aplicá-lo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr edit 70 --body 'pede o rotulo afrouxa-regra ao dono'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
