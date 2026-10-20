@@ -231,12 +231,16 @@ def e_graphql(endpoint):
 
 def conteudos_de_crase(comando):
     """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
-    aspas duplas; a barra invertida escapa. Crase sem par levanta ValueError (a linha não se analisa)."""
+    aspas duplas; a barra invertida escapa; comentário (`#` no início de palavra, fora de aspas) não conta. Crase sem par levanta ValueError (a linha não se analisa)."""
     saida, inicio, simples, duplas, i = [], None, False, False, 0
     while i < len(comando):
         c = comando[i]
         if c == "\\" and not simples and i + 1 < len(comando):
             i += 2
+            continue
+        if c == "#" and inicio is None and not simples and not duplas and (i == 0 or comando[i - 1] in " \t\n;&|("):
+            fim = comando.find("\n", i)  # comentário (`# don't`): vai até o fim da linha e não abre aspa
+            i = len(comando) if fim < 0 else fim
             continue
         if inicio is not None:
             if c == "`":
@@ -749,6 +753,8 @@ class Guarda:
                 self.ambiente[nome] = valor
         try:
             self.bash(comando, pasta, nivel + 1)
+            if "\\`" in comando:  # entre aspas duplas o shell de fora troca `\`` por crase: o de dentro a executa (R-CONTRIB)
+                self.bash(comando.replace("\\`", "`"), pasta, nivel + 1)
         finally:
             for nome, valor in antes.items():
                 if valor is None:
@@ -1226,8 +1232,20 @@ class Guarda:
                 saida.append(a[2:].removeprefix("="))
         return [r.strip().lower() for v in saida for r in v.split(",")]
 
+    @staticmethod
+    def rotulos_removidos(args):
+        """Rótulos que `gh pr|issue edit` tira (`--remove-label`; vírgulas separam): tirar o rótulo exige o dono como o
+        `DELETE` em `issues/<n>/labels/<nome>`."""
+        saida = []
+        for i, a in enumerate(args):
+            if a == "--remove-label" and i + 1 < len(args):
+                saida.append(args[i + 1])
+            elif a.startswith("--remove-label="):
+                saida.append(a.split("=", 1)[1])
+        return [r.strip().lower() for v in saida for r in v.split(",")]
+
     def aplica_afrouxa_regra(self, palavras, pasta):
-        """True se o comando `gh` aplica (ou pode aplicar) o rótulo `afrouxa-regra`, ou cria ou renomeia um rótulo com
+        """True se o comando `gh` aplica (ou pode aplicar) ou tira o rótulo `afrouxa-regra` (`--remove-label` como o `DELETE`), `gh label clone`, ou cria ou renomeia um rótulo com
         esse nome: `gh pr|issue edit|create` com o rótulo, `gh label create|edit` que o cita, `gh api` em
         `issues/<n>[/labels]` ou `labels[/<nome>]` com o nome no texto e a mutação GraphQL de rótulo (o ID do rótulo
         não traz o nome: toda `addLabelsToLabelable`/`labelIds`/`createLabel`/`updateLabel` conta). O endpoint é
@@ -1235,7 +1253,9 @@ class Guarda:
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         if grupo in ("pr", "issue") and sub in ("edit", "create"):
-            return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:])
+            return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
+        if grupo == "label" and sub == "clone":  # cria ou sobrescreve rótulos de outro repositório, sem citar o nome
+            return True
         if grupo == "label" and sub in ("create", "edit"):
             return any(ROTULO_PROTEGIDO in a.lower() for a in palavras[2:])
         if grupo != "api" or not parecer.metodo_mutante(palavras[2:]):
@@ -1275,15 +1295,22 @@ class Guarda:
                 elif prog in SHELLS:
                     for i, a in enumerate(palavras[1:]):
                         if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
-                            self.rotulo_na_sessao_do_forge(palavras[i + 2], pasta, nivel + 1)
+                            self.rotulo_no_argumento(palavras[i + 2], pasta, nivel + 1)
                 elif prog == "eval":
-                    self.rotulo_na_sessao_do_forge(" ".join(palavras[1:]), pasta, nivel + 1)
+                    self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
             for dono, corpo in corpos:
                 if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                     self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
         except ValueError:
             if CITA_ROTULO.search(comando):
                 self.exigir_dono()
+
+    def rotulo_no_argumento(self, texto, pasta, nivel):
+        """Argumento de `bash -c`/`eval`: o `shlex` mantém `\\`` entre aspas duplas, e o shell de fora o troca por crase antes
+        de passar ao de dentro; confere o texto como veio e com `\\`` já virado crase (o que o shell de dentro executa)."""
+        self.rotulo_na_sessao_do_forge(texto, pasta, nivel)
+        if "\\`" in texto:
+            self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
 
     def gh_rotulo(self, palavras, pasta):
         """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
