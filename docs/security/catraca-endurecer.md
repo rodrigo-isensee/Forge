@@ -3,13 +3,23 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: catraca-endurecer
 branch: melhoria/catraca-endurecer
-commit: 60328dad4d4fe9c4921d15b32882ea2dfd7f9ef2
+commit: fb5028ea246f6f884260c96ad6ed9e24019093cc
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-20
 ---
 # Review de segurança: catraca-endurecer
 
+Revalidação por delta (volta 1): HEAD fb5028e. `bin/forge-check delta --parecer` sobre o parecer anterior (60328da) lista só `tests/test_catraca.py` (+40 -3, linhas 14, 440, 445, 454-468 e 1182-1204). `git diff --quiet 60328da fb5028e -- tests/catraca.py bin/ scripts/ .github/ .githooks/` dá rc 0: nenhum controle mudou. O resto deste parecer, abaixo de "Revisão inicial", fica como já lido em 60328da e vale igual em fb5028e.
+
+## Delta lido (volta 1)
+- `import mock` (linha 14) e preparação tirada de `test_git_diff_com_erro_vira_violacao` (linhas 440-441): o teste continua usando base inexistente. O teste de base inexistente com rótulo só foi renomeado (linha 445).
+- `test_git_diff_falho_com_base_valida_e_rotulo_do_dono_nao_libera` (linhas 454-468): base válida, dono definido, rótulo depois do push e `alterados` trocado por um que levanta `ErroDeDiff`. Exige rc 1 e a ausência de "liberada". Prova que o rótulo não libera a violação de diff.
+- `test_git_diff_falho_no_head_rotulado_nao_libera_pelo_conteudo` (linhas 1182-1204): primeiro roda o controle (com o git funcionando, o rótulo por conteúdo da S-16 vale, rc 0). Depois o `git diff` falha só no head rotulado, e o teste exige rc 1. Prova que o caminho por conteúdo falha fechado.
+- Mutação numa cópia própria de fb5028e em `$TMPDIR`: a suíte `tests.test_catraca` passa (161 OK). Tirar a guarda `SEM_LISTA in x` (tests/catraca.py:911) derruba só o primeiro teste novo. Fazer `rotulo_vale_pelo_conteudo` devolver True diante de `ErroDeDiff` (tests/catraca.py:518-525) derruba o segundo teste novo (e `test_sem_execucoes_ou_commit_desconhecido_falha_fechado`). Os testes provam o que dizem provar.
+- Sem rede nem custo novo (`R-CUSTO`): o `mock` é da biblioteca padrão.
+
+## Revisão inicial (60328da, já lida)
 Escopo: o commit 60328da sobre ef71b3c (`tests/catraca.py`, `tests/test_catraca.py`, `changelog.d/catraca-endurecer.md`). Os workflows não mudam. O CI roda a cópia da base do script (catraca.yml:41-45), então este PR ainda é julgado pela catraca antiga. Ela barra a mudança em `tests/catraca.py` e exige o rótulo do dono. O comportamento novo vale depois do merge.
 
 ## Gatilhos
