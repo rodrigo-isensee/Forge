@@ -1,0 +1,2 @@
+### Alterado
+- catraca: na promoção develop → homolog, o arquivo de controle cujo conteúdo (blob e modo) o dono já rotulou num PR mesclado por squash na develop passa sem novo rótulo; o head rotulado vem de refs/pull/N/head num namespace próprio, com a prova do squash (um pai, primeiro pai de base..head, mesmo arquivo no merge e no head rotulado) e falha fechada em qualquer erro do fetch ou da API (S-16-PROMOCAO-DEVELOP)
