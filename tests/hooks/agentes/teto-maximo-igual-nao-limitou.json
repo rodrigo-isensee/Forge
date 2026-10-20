@@ -1,11 +1,13 @@
 {
-  "descricao": "Máquina folgada (teto 5) com teto_maximo 5: o máximo só empata, a mensagem não diz que limitou.",
+  "descricao": "Máquina com 5 núcleos e teto_maximo 5: o máximo só empata, a mensagem não diz que limitou.",
   "config": {
     "teto_maximo": 5
   },
   "proc": {
     "loadavg": "1.0 1.0 1.0 1/100 1",
-    "mem_gb": 6
+    "mem_gb": 6,
+    "mem_total_gb": 16,
+    "nproc": 5
   },
   "estado": {
     "agentes.json": {
@@ -55,6 +57,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "5 agentes ativos, teto 5 (adaptativo: load 1.0, 6.0 GB disponíveis)"
+    "stderr": "5 agentes ativos, teto 5 (adaptativo: load 1.0 de 5 núcleos, 6.0 GB disponíveis)"
   }
 }

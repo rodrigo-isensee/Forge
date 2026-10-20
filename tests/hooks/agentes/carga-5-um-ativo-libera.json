@@ -1,5 +1,5 @@
 {
-  "descricao": "Load 5 está abaixo do limite de 6: um ativo libera.",
+  "descricao": "Load 5 está abaixo de 80% de 8 núcleos (6,4): um ativo libera.",
   "proc": {
     "loadavg": "5.0 1.0 1.0 1/100 1",
     "mem_gb": 8

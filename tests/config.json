@@ -361,7 +361,7 @@
     "docs/regras/R-TETO.md": [
       "Teto de recursos da máquina \\(obrigatório\\)",
       "teto de agentes adaptativo",
-      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "menor que 0,8 × nproc",
       "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*"
     ],

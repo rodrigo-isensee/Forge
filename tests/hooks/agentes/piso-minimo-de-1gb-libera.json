@@ -1,8 +1,10 @@
 {
-  "descricao": "Load 5 e 3,5 GB livres: teto padrão 3.",
+  "descricao": "4 GB no total (vale o piso de 1 GB): 1,1 GB livres dispara.",
   "proc": {
-    "loadavg": "5.0 1.0 1.0 1/100 1",
-    "mem_gb": 3.5
+    "loadavg": "0.5 1.0 1.0 1/100 1",
+    "mem_gb": 1.1,
+    "mem_total_gb": 4,
+    "nproc": 8
   },
   "estado": {
     "agentes.json": {
@@ -11,18 +13,6 @@
           "id": "a0",
           "tipo": "forge:tech-lead",
           "descricao": "Tarefa 0",
-          "desde": "{agora-60}"
-        },
-        {
-          "id": "a1",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 1",
-          "desde": "{agora-60}"
-        },
-        {
-          "id": "a2",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 2",
           "desde": "{agora-60}"
         }
       ]
@@ -39,7 +29,6 @@
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "3 agentes ativos, teto 3 (adaptativo: load 5.0"
+    "codigo": 0
   }
 }
