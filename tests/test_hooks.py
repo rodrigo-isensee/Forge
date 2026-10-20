@@ -14,8 +14,8 @@ Formato do fixture:
               | {"arquivos": {...}, "commit": msg}  ({HEAD} no texto vira o hash do commit atual)
   repos       {pasta relativa a {tmp}: {"arquivos": {...}, "branch": b, "remotos": {nome: url}}} outros repositórios git
               (ex.: um clone do Forge em {tmp}/home/Forge), com um commit inicial
-  proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": número} ou {"ausente": true}
-              (padrão: load 5, 3 GB livres, ou seja, teto adaptativo 3)
+  proc        /proc simulado do hook `agentes`: {"loadavg": texto, "mem_gb": disponível, "mem_total_gb": total (16),
+              "nproc": núcleos (8)} ou {"ausente": true} (padrão: sem leitura, ou seja, o padrão 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
               sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
@@ -203,11 +203,12 @@ def montar_proc(tmp, proc):
     """/proc simulado em tmp/proc (FORGE_PROC); `{"ausente": true}` aponta para uma pasta sem os arquivos."""
     pasta = tmp / "proc"
     pasta.mkdir()
-    proc = proc or {"loadavg": "5.00 5.00 5.00 1/100 1", "mem_gb": 3}
+    proc = proc or {"ausente": True}
     if not proc.get("ausente"):
         (pasta / "loadavg").write_text(proc["loadavg"] + "\n", encoding="utf-8")
         kb = int(proc["mem_gb"] * 1024 * 1024)
-        (pasta / "meminfo").write_text(f"MemTotal:       16000000 kB\nMemFree:  1 kB\nMemAvailable:   {kb} kB\n",
+        total = int(proc.get("mem_total_gb", 16) * 1024 * 1024)
+        (pasta / "meminfo").write_text(f"MemTotal:       {total} kB\nMemFree:  1 kB\nMemAvailable:   {kb} kB\n",
                                        encoding="utf-8")
     return pasta
 
@@ -266,6 +267,7 @@ class Hooks(unittest.TestCase):
         raiz, entrada = f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, f.dados.get("proc"))
         extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
+        extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
         r = rodar(f.hook, entrada, raiz, proc, extra)
         esperado = f.dados["esperado"]
@@ -309,8 +311,9 @@ class Hooks(unittest.TestCase):
             self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
         if "erros_log" in esperado:
             self.assertIn(esperado["erros_log"], (run / "erros.log").read_text(encoding="utf-8"))
-        elif run.exists():
-            self.assertFalse((run / "erros.log").exists(), "erro interno inesperado")
+        elif (run / "erros.log").exists():  # só o aviso do FORGE_NPROC/FORGE_PROC (que os testes fixam) é esperado
+            outras = [l for l in (run / "erros.log").read_text(encoding="utf-8").splitlines() if " Aviso: FORGE_" not in l]
+            self.assertEqual(outras, [], "erro interno inesperado")
         if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
             self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
@@ -600,20 +603,88 @@ class Hooks(unittest.TestCase):
     def test_medicao_do_proc_real_nao_quebra(self):
         sys.path.insert(0, str(HOOKS))
         import agentes
-        carga, memoria = agentes.medir()
+        carga, memoria, total = agentes.medir()
         self.assertTrue(carga is None or carga >= 0)
         self.assertTrue(memoria is None or memoria > 0)
-        self.assertEqual(agentes.medir(Path("/nao/existe")), (None, None))
+        self.assertTrue(total is None or total >= (memoria or 0))
+        self.assertEqual(agentes.medir(Path("/nao/existe")), (None, None, None))
+        self.assertTrue((agentes.nucleos() or 1) >= 1)
 
-    def test_faixas_do_teto_adaptativo(self):
+    def test_faixas_do_teto_segue_o_hardware(self):
+        """R-TETO: bloqueia com load >= 0,8 x nproc ou MemAvailable <= max(1 GB, 15% do total); o teto é nproc."""
         sys.path.insert(0, str(HOOKS))
         import agentes
-        casos = [((1, 6), 5), ((2.9, 4.1), 5), ((3, 6), 4), ((3.9, 3.1), 4), ((4, 6), 3), ((3.5, 3), 3),
-                 ((6, 8), 3), ((6.1, 8), 2), ((0.1, 1.9), 2), ((0.1, 2), 3), ((1, 4), 4)]
-        for (carga, memoria), esperado in casos:
-            with self.subTest(carga=carga, memoria=memoria):
-                self.assertEqual(agentes.teto_adaptativo(carga, memoria), esperado)
-        self.assertEqual(agentes.teto_adaptativo(None, 6), 3)
+        casos = [  # (load, disponível, total, nproc, carga alta)
+            (3, 6, 8, 16, False), (12.7, 6, 8, 16, False), (12.8, 6, 8, 16, True),
+            (6.39, 8, 16, 8, False), (6.4, 8, 16, 8, True), (0.1, 2.5, 16, 8, False), (0.1, 2.4, 16, 8, True),
+            (0.1, 1.1, 4, 8, False), (0.1, 1.0, 4, 8, True), (0.8, 8, 16, 1, True), (0.7, 8, 16, 1, False)]
+        for carga, memoria, total, nproc, alta in casos:
+            with self.subTest(carga=carga, memoria=memoria, total=total, nproc=nproc):
+                self.assertEqual(agentes.carga_alta(carga, memoria, total, nproc), alta)
+                self.assertEqual(agentes.teto_adaptativo(carga, memoria, total, nproc), nproc)
+        for faltando in range(4):  # sem uma das medidas: nunca é carga alta e o teto cai no padrão 3
+            medidas = [1.0, 6.0, 16.0, 8]
+            medidas[faltando] = None
+            self.assertFalse(agentes.carga_alta(*medidas))
+            self.assertEqual(agentes.teto_adaptativo(*medidas), 3)
+
+    def test_teto_sem_leitura_nunca_passa_de_nproc(self):  # A3
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        for nproc, esperado in ((1, 1), (2, 2), (3, 3), (8, 3), (None, 3)):
+            with self.subTest(nproc=nproc):
+                self.assertEqual(agentes.teto_adaptativo(None, None, None, nproc), esperado)
+
+    def test_teto_maximo_vale_igual_sobre_o_fixo_e_o_adaptativo(self):  # A2
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        pasta = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "loadavg").write_text("0.1\n", encoding="utf-8")
+        (pasta / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "16"}):
+            self.assertEqual(agentes.calcular_teto({"teto_agentes": 8, "teto_maximo": 5}, pasta)[0], 5)
+            self.assertEqual(agentes.calcular_teto({"teto_agentes": 4, "teto_maximo": 5}, pasta)[0], 4)
+            self.assertEqual(agentes.calcular_teto({"teto_maximo": 5}, pasta)[0], 5)
+            self.assertEqual(agentes.calcular_teto({}, pasta)[0], 16)
+
+    def test_nucleos_respeita_a_afinidade(self):  # A4
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        env = {k: v for k, v in os.environ.items() if k != "FORGE_NPROC"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(agentes.nucleos(), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertIsNone(agentes.nucleos())
+            with mock.patch.object(os, "cpu_count", return_value=4):
+                saved = getattr(os, "sched_getaffinity", None)
+                if saved is not None:
+                    del os.sched_getaffinity
+                try:
+                    self.assertEqual(agentes.nucleos(), 4)
+                finally:
+                    if saved is not None:
+                        os.sched_getaffinity = saved
+
+    def test_variaveis_de_substituicao_ficam_no_erros_log(self):  # R1
+        raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", cwd=raiz)
+        (raiz / ".forge").mkdir()
+        (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
+        proc = montar_proc(raiz, {"loadavg": "0.1 0.1 0.1", "mem_gb": 8})
+        entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(raiz),
+                   "tool_input": {"subagent_type": "x", "description": "d"}}
+        r = rodar("agentes", entrada, raiz, proc, {"FORGE_NPROC": "8"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        logs = list(raiz.glob("**/erros.log"))
+        self.assertEqual(len(logs), 1, "um erros.log")
+        texto = logs[0].read_text(encoding="utf-8")
+        self.assertIn("agentes Aviso: FORGE_NPROC=8", texto)
+        self.assertIn("agentes Aviso: FORGE_PROC=", texto)
 
     def test_raiz_de_estado_no_clone_do_forge(self):
         """Anti-alucinação, fatia 3: a raiz do clone do Forge (cópia principal e worktree) é achada; o projeto vem antes

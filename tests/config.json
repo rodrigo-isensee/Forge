@@ -366,7 +366,7 @@
     "docs/regras/R-TETO.md": [
       "Teto de recursos da máquina \\(obrigatório\\)",
       "teto de agentes adaptativo",
-      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "menor que 0,8 × nproc",
       "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*"
     ],
@@ -405,8 +405,9 @@
     ],
     "docs/regras/R-WIP.md": [
       "sem folga no teto, a fila espera",
-      "respeitando o `R-TETO` inteiro: o teto de agentes, o limite de 2 worktrees além do principal, as tarefas pesadas uma por vez",
-      "são no máximo 3 \\(o diretório principal e as 2 worktrees",
+      "respeitando o `R-TETO` inteiro: o teto de agentes, as worktrees \\(uma por instância, com disco livre\\), as tarefas pesadas uma por vez",
+      "são no máximo o teto de agentes de `R-TETO`",
+      "cresce na proporção \\*\\*teto ÷ 3, arredondado para baixo\\*\\*",
       "`worktree: <nome>`",
       "não faz o review do próprio cartão",
       "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
