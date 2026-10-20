@@ -3450,8 +3450,19 @@ class DecisoesCobradas(Cenario):
         fora = [l for l in saida if l.startswith("decisões: fonte fora da regra")]
         self.assertEqual(len(fora), 2, saida)
         self.assertIn("(não verificável)", fora[0])
-        self.assertIn('"docs/migracao-x.md" em docs/pedidos/pedido-sintetico.md:', fora[0])
-        self.assertIn("docs/outro-registro.md", fora[1])
+        self.assertIn('"docs/migracao-x.md:55" em docs/pedidos/pedido-sintetico.md:', fora[0])
+        self.assertIn('"docs/outro-registro.md:7" em docs/pedidos/pedido-sintetico.md:', fora[1])
+
+    def test_fonte_fora_da_regra_com_linha_citada_d_etapas_inst(self):  # A2 do review (M2.2)
+        pedido = PEDIDO + ('D-ETAPAS-INST = A (dono, 2026-10-16; ~/.forge-contrib/docs/migracao-2026-10-15.md:55): instâncias '
+                           'diferentes contam como outro papel.\n')
+        self.gravar("docs/pedidos/pedido-sintetico.md", pedido)
+        self.gravar(ARQ, BRIEF)
+        rc, saida = self.linhas()
+        fora = [l for l in saida if l.startswith("decisões: fonte fora da regra")]
+        self.assertEqual(len(fora), 1, saida)
+        self.assertIn('"~/.forge-contrib/docs/migracao-2026-10-15.md:55"', fora[0])
+        self.assertIn("(não verificável)", fora[0])
 
     def test_fonte_fora_da_regra_nao_reprova_por_si(self):
         pedido = PEDIDO + 'DECISÃO DO DONO (2026-01-03): "B" (registro em docs/migracao-x.md:55).\n'

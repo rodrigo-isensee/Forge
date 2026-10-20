@@ -2721,7 +2721,7 @@ def delta_de_brief(texto, anterior):
 
 
 # --- Decisões cobradas do pedido e dos registros que ele cita (CONF-CORRECAO, E2) -------------------
-TOKEN_DE_MD = re.compile(r"[^\s\"'`()\[\]<>,;:*]+\.md")
+TOKEN_DE_MD = re.compile(r"([^\s\"'`()\[\]<>,;:*]+\.md)(?::(\d+))?")  # (arquivo, linha citada ou "")
 PREFIXO_DE_REGISTRO = "~/.forge-contrib/"
 REGISTRO_VALIDO = re.compile(r"docs/pedidos/[A-Za-z0-9._-]+\.md")
 ADR_CITADA = re.compile(r"\bADR[ -]?(\d{4})\b|\bdocs/adr/(\d{4})-")
@@ -2771,7 +2771,7 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
                                   if DECISAO_COM_ID.match(l) and "DECISÃO DO DONO" not in l]
     for n, linha in citantes:
         e_decisao_do_dono = "DECISÃO DO DONO" in linha
-        for token in dict.fromkeys(TOKEN_DE_MD.findall(linha)):
+        for token, linha_citada in dict.fromkeys(TOKEN_DE_MD.findall(linha)):
             rel = token[len(PREFIXO_DE_REGISTRO):] if token.startswith(PREFIXO_DE_REGISTRO) else token
             if e_decisao_do_dono and "docs/pedidos/" in token:
                 if not REGISTRO_VALIDO.fullmatch(rel):
@@ -2789,7 +2789,8 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
                     else:
                         fontes.append((rel, linhas_de_decisao(texto)))
             elif rel != proprio and not rel.startswith("docs/adr/"):
-                avisos.append((f"decisões: fonte fora da regra {nome_seguro(sem_controle(token))} em {proprio}:{n} (não verificável)", False))
+                local = f"{token}:{linha_citada}" if linha_citada else token  # `<arquivo>:<linha>` do registro citado (M2.2)
+                avisos.append((f"decisões: fonte fora da regra {nome_seguro(sem_controle(local))} em {proprio}:{n} (não verificável)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
     return {"fontes": fontes, "adrs": adrs, "avisos": avisos}
 
