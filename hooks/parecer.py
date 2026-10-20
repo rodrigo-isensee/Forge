@@ -16,6 +16,7 @@ Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do F
 import json
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
                     raiz_de_estado, segmentos, sem_atribuicoes, separar_regra)
@@ -155,6 +156,15 @@ def existe(raiz, ref):
     return git(raiz, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] == 0
 
 
+def guarda_de_versao(fc, raiz):
+    """A mesma guarda do `forge-check pr` (versão defasada): num projeto, a cópia comprovadamente atrás do repositório bloqueia o
+    portão (`R-CONFORMIDADE`). No Forge, nos clones de contribuição e quando a comparação falha, o hook segue mudo (ADR 0003,
+    item 1: sem violação, sem saída); o aviso chega pelo `forge-check` e pelo `forge-fechar`."""
+    nivel, texto = fc.avaliar_versao(SimpleNamespace(cmd="pr", alvo=None, base=None), raiz)
+    if nivel == "bloqueio":
+        bloquear("R-CONFORMIDADE", texto)
+
+
 def verificar(hook, raiz, branch, ref, base, dica=""):
     """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido. `dica` abre o motivo."""
     if base:
@@ -162,6 +172,7 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
         if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
             return  # só documentação: não passa por QA (R-QA)
     fc = forge_check()
+    guarda_de_versao(fc, raiz)
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "

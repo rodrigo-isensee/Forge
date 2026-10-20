@@ -480,7 +480,20 @@
       "Bash\\(git \\* --no-verify\\*\\)"
     ],
     "bin/forge-check": [
-      "Melhoria vista:"
+      "Melhoria vista:",
+      "atrás do repositório; a conferência não vale; peça à pessoa:",
+      "versão não conferida"
+    ],
+    "hooks/parecer.py": [
+      "avaliar_versao",
+      "R-CONFORMIDADE"
+    ],
+    "docs/hooks.md": [
+      "a guarda só avisa"
+    ],
+    "scripts/jarvis-forge": [
+      "ATRASADO desde",
+      "a sessão aberta usa a cópia de"
     ],
     "docs/regras/R-DECISAO.md": [
       "Complemento: melhoria vista e entrada direta",
