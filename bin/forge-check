@@ -13,7 +13,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA]
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
      forge-check fontes
-     forge-check sobreposicao [--base REF]
+     forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
@@ -1100,6 +1100,38 @@ def cmd_sobreposicao(raiz, base=None):
                 saida.append(f"{a} <-> {c}: {', '.join(comum)}")
     saida.append(f"sobreposicao: {len(saida)} par(es) com arquivos em comum entre {len(nomes)} branch(es) melhoria/* (base {b})")
     return saida
+
+
+def versao_do_plugin(raiz, ref):
+    """(versão como tupla de inteiros, None) lida de .claude-plugin/plugin.json em `ref`; (None, motivo) se não der."""
+    cod, texto = git(raiz, "show", f"{ref}:.claude-plugin/plugin.json")
+    if cod:
+        return None, f"não li .claude-plugin/plugin.json em {ref}"
+    try:
+        v = json.loads(texto)["version"]
+        if not re.fullmatch(r"\d+\.\d+\.\d+", v):
+            raise ValueError(v)
+        return tuple(int(x) for x in v.split(".")), None
+    except (ValueError, KeyError, TypeError):
+        return None, f"versão ilegível em {ref}"
+
+
+def release_em_curso(raiz, ref):
+    """(linhas, rc) da trava de release (DV-5): com release em curso (versão da origin/develop maior que a da
+    origin/homolog), só a branch `melhoria/release-<versão da develop>` entra na develop; as outras saem com rc 1.
+    Sem release em curso, rc 0 e nada a dizer; erro de leitura vira aviso e rc 0 (não bloqueia sem prova)."""
+    dev, erro_dev = versao_do_plugin(raiz, "origin/develop")
+    hom, erro_hom = versao_do_plugin(raiz, "origin/homolog")
+    if erro_dev or erro_hom:
+        return [f"sobreposicao: aviso: {erro_dev or erro_hom}; trava de release não conferida"], 0
+    if dev <= hom:
+        return [], 0
+    versao = ".".join(map(str, dev))
+    nome = ref.removeprefix("refs/heads/").removeprefix("origin/")
+    if nome == f"melhoria/release-{versao}":
+        return [], 0
+    return [f"sobreposicao: release {versao} em curso (origin/homolog está em {'.'.join(map(str, hom))}); "
+            f"{nome} não é melhoria/release-{versao}: espere a promoção da release para a homolog antes de mesclar na develop"], 1
 
 
 def cmd_movimento(raiz, cartao, de, para, motivo):
@@ -2997,6 +3029,7 @@ def main():
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
+    so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem")
@@ -3072,9 +3105,10 @@ def executar(a, raiz):
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
                   else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))
-        for linha in linhas:
+        extra, rc = release_em_curso(raiz, a.ref) if a.cmd == "sobreposicao" and a.ref else ([], 0)
+        for linha in linhas + extra:
             print(linha)
-        return 1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0
+        return rc or (1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0)
     if a.cmd == "conferencia":
         linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota)
         for linha in linhas:
