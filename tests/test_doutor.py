@@ -625,6 +625,16 @@ class DoutorVersao(ap.Base):
         cache = self.cache()
         self.assertEqual((cache["defasado"], cache["ultima"], cache["data"]), (True, nova, "2026-10-19"))
 
+    def test_consulta_desligada_fica_no_cache_e_nao_apaga_a_prova_de_atraso(self):
+        self.env["FORGE_VERIFICAR_VERSAO"] = "0"
+        self.stop()
+        self.assertEqual(self.cache()["consulta"], "desligada")  # o forge-check diz `versão não conferida`, não fica mudo
+        antigo = {"data": "2026-10-19", "defasado": True, "atual": self.versao, "ultima": self.mais_nova(), "texto": "x"}
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(antigo), encoding="utf-8")
+        self.stop()
+        cache = self.cache()
+        self.assertEqual((cache["defasado"], cache["ultima"], cache["consulta"]), (True, antigo["ultima"], "desligada"))
+
     def test_o_aviso_do_hook_nunca_entra_no_contexto_do_modelo(self):
         self.tag(f"v{self.mais_nova()}")
         saida = json.loads(self.stop().stdout)
@@ -707,6 +717,15 @@ class JarvisForgeDefasagem(ap.Base):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn(f"ATRASADO desde {self.data_da_copia()}", r.stderr)
         self.assertIn("jarvis-forge --atualizar-vigente", r.stderr)
+
+    def test_rev_list_com_falha_depois_do_fetch_diz_atrasado_desde_a_data(self):
+        git_real = shutil.which("git", path=self.env["PATH"])
+        falso = self.tmp / "bin" / "git"
+        falso.write_text(f'#!/usr/bin/env bash\n[[ " $* " == *" rev-list "* ]] && exit 128\nexec "{git_real}" "$@"\n', encoding="utf-8")
+        falso.chmod(0o755)
+        r = self.rodar(sem_tmux=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"ATRASADO desde {self.data_da_copia()}", r.stderr)
 
     def test_abertura_sem_rede_diz_atrasado_desde_a_data(self):
         self.origem.rename(self.tmp / "sumiu.git")

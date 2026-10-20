@@ -2844,7 +2844,8 @@ def cmd_fontes():
 # A ferramenta defasada (versão-defasada, VD-3): a conferência feita por uma cópia do forge-check atrás do repositório não vale -----
 ATUALIZAR_NO_FORGE = "`jarvis-forge --atualizar-vigente` e reinicie a sessão do Forge"
 ATUALIZAR_NO_PROJETO = "`forge atualizar`"
-BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega", "delta")  # e `brief gerar`; os outros subcomandos só avisam
+BLOQUEIAM_COM_FERRAMENTA_ATRASADA = ("pr", "entrega")  # nos projetos, e `brief gerar`; no Forge e nos outros subcomandos só avisa
+NAO_CONFERIDA_DESLIGADA = "verificação desligada"
 SEM_GUARDA_DE_VERSAO = ("fontes", "transcricao")  # não conferem repositório
 
 
@@ -2861,6 +2862,10 @@ def versao_da_propria_copia():
 
 
 def e_o_forge(raiz):
+    """A raiz é um clone do Forge: tem o manifesto dele e não é projeto (sem `.forge/versao`, como em `e_clone_do_forge` dos hooks);
+    escrever o manifesto num projeto não o faz virar o Forge, onde a guarda só avisa."""
+    if any((pasta / ".forge" / "versao").is_file() for pasta in (raiz, *raiz.parents)):
+        return False
     try:
         return json.loads((raiz / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8")).get("name") == "forge"
     except (OSError, ValueError, AttributeError):
@@ -2902,6 +2907,7 @@ def comparar_com_o_forge(raiz, a):
 def comparar_com_o_cache_do_projeto(raiz):
     """O doutor grava `.forge/run/versao-nova` com `defasado`, `atual` (o plugin que ele viu) e `ultima`; só vale como prova se
     `atual` é esta cópia e ela é mesmo menor que `ultima`. Sem projeto ou sem cache: nada a provar."""
+    desligada = os.environ.get("FORGE_VERIFICAR_VERSAO") == "0"
     for pasta in (raiz, *raiz.parents):
         if (pasta / ".forge" / "versao").is_file():
             cache = pasta / ".forge" / "run" / "versao-nova"
@@ -2909,7 +2915,7 @@ def comparar_com_o_cache_do_projeto(raiz):
     else:
         return "ok", ""
     if not cache.is_file():
-        return "ok", ""
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada else ("ok", "")
     try:
         dados = json.loads(cache.read_text(encoding="utf-8"))
         if not isinstance(dados, dict):
@@ -2917,22 +2923,25 @@ def comparar_com_o_cache_do_projeto(raiz):
     except (OSError, ValueError, UnicodeDecodeError):
         return "erro", "o cache .forge/run/versao-nova está ilegível"
     if dados.get("defasado") is not True:
-        return "ok", ""
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada or dados.get("consulta") == "desligada" else ("ok", "")
     minha, atual, ultima = versao_da_propria_copia(), versao_em_tupla(dados.get("atual")), versao_em_tupla(dados.get("ultima"))
     if versao_em_tupla(minha) is None or atual is None or ultima is None:
         return "erro", "o cache .forge/run/versao-nova não traz as versões"
     if atual != versao_em_tupla(minha):
-        return "ok", ""  # cache de outra versão do plugin (já atualizado desde então)
+        return ("erro", NAO_CONFERIDA_DESLIGADA) if desligada else ("ok", "")  # cache de outra versão (já atualizado desde então)
     return ("atrasada", minha) if versao_em_tupla(minha) < ultima else ("ok", "")
 
 
-def guarda_de_versao(a, raiz):
-    """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia. Só bloqueia com
-    prova positiva de atraso; erro na comparação vira o aviso `versão não conferida`. Sem rede: só `git` local e arquivos."""
+def avaliar_versao(a, raiz):
+    """(nível, texto): nível None (seguir), "aviso" (texto para o stderr) ou "bloqueio" (texto para a saída). Só bloqueia com prova
+    positiva de atraso e só nos projetos: no Forge e nos clones de contribuição a guarda só avisa; erro na comparação (e
+    verificação desligada) vira o aviso `versão não conferida`. Sem rede: só `git` local e arquivos. `a` traz `cmd`, `alvo` e `base`."""
     if a.cmd in SEM_GUARDA_DE_VERSAO:
-        return None
+        return None, ""
+    forge = False
     try:
-        if e_o_forge(raiz):
+        forge = e_o_forge(raiz)
+        if forge:
             estado, texto = comparar_com_o_forge(raiz, a)
             comando = ATUALIZAR_NO_FORGE
         else:
@@ -2941,15 +2950,23 @@ def guarda_de_versao(a, raiz):
     except (OSError, subprocess.SubprocessError, ValueError) as e:
         estado, texto = "erro", str(getattr(e, "strerror", None) or e)
     if estado == "ok":
-        return None
+        return None, ""
     if estado == "erro":
-        print(f"forge-check: aviso: versão não conferida ({texto})", file=sys.stderr)
-        return None
+        return "aviso", f"forge-check: aviso: versão não conferida ({texto})"
     mensagem = f"forge-check {texto} atrás do repositório; a conferência não vale; peça à pessoa: {comando}"
-    if a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo == "gerar"):
-        print(mensagem)
+    if not forge and (a.cmd in BLOQUEIAM_COM_FERRAMENTA_ATRASADA or (a.cmd == "brief" and a.alvo == "gerar")):
+        return "bloqueio", mensagem
+    return "aviso", f"forge-check: aviso: {mensagem}"
+
+
+def guarda_de_versao(a, raiz):
+    """None para seguir; um código de saída se a ferramenta está atrás do repositório e o subcomando bloqueia (`avaliar_versao`)."""
+    nivel, texto = avaliar_versao(a, raiz)
+    if nivel == "bloqueio":
+        print(texto)
         return 1
-    print(f"forge-check: aviso: {mensagem}", file=sys.stderr)
+    if nivel == "aviso":
+        print(texto, file=sys.stderr)
     return None
 
 

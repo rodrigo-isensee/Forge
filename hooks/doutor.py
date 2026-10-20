@@ -106,6 +106,10 @@ def aviso_de_versao_nova(hook, superficie="projeto"):
         novo = antigo if antigo.get("data") == hoje() else {
             "data": hoje(), "texto": texto, "defasado": resultado["estado"] == "defasada",
             "atual": resultado["atual"], "ultima": resultado["ultima"]}
+        if novo is not antigo and resultado["estado"] == "desligada":
+            novo["consulta"] = "desligada"  # o `forge-check` diz `versão não conferida`, não fica mudo
+            if antigo.get("defasado") is True and antigo.get("atual") == resultado["atual"]:
+                novo.update(defasado=True, ultima=antigo.get("ultima", ""))  # consulta desligada não apaga uma prova de atraso
         gravar_json(hook.run() / "versao-nova", {**novo, "avisado": avisado or avisa})
     return texto if avisa else None
 

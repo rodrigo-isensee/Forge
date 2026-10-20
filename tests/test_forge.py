@@ -2095,19 +2095,29 @@ class Orcamento(unittest.TestCase):
 
 
 class FerramentaDefasadaNoForge(ap.ForgeFalso):
-    def test_atrasada_sem_o_objeto_bloqueia_os_quatro_subcomandos(self):
+    """No Forge e nos clones de contribuição a guarda só avisa (decisão do dono, 2026-10-20): rc inalterado, em todos os subcomandos."""
+
+    def test_atrasada_sem_o_objeto_so_avisa_nos_quatro_subcomandos(self):
         for nome, args in self.comandos().items():
             with self.subTest(nome):
                 r = self.check(self.antiga_sem_objeto, *args)
-                self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
-                self.assertIn(f"forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE} `jarvis-forge --atualizar-vigente`", r.stdout)
+                self.assertIn(f"forge-check: aviso: forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE} `jarvis-forge --atualizar-vigente`", r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout)
+                self.assertNotIn("a conferência não vale", r.stdout)
 
-    def test_atrasada_com_o_objeto_tambem_bloqueia(self):
+    def test_o_aviso_nao_muda_o_codigo_de_saida(self):
+        for nome, args in self.comandos().items():
+            with self.subTest(nome):
+                com = self.check(self.antiga_sem_objeto, *args).returncode
+                sem = self.check(self.nova, *args).returncode
+                self.assertEqual(com, sem)
+
+    def test_atrasada_com_o_objeto_tambem_so_avisa(self):
         for nome, args in self.comandos().items():
             with self.subTest(nome):
                 r = self.check(self.antiga_com_objeto, *args)
-                self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
-                self.assertIn(ap.FRASE, r.stdout)
+                self.assertIn(ap.FRASE, r.stderr)
+                self.assertNotIn(ap.FRASE, r.stdout)
 
     def test_igual_e_mais_nova_nao_bloqueiam_nem_avisam(self):
         for copia in (self.igual, self.nova):
@@ -2118,7 +2128,7 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
                     self.assertNotIn("versão não conferida", r.stderr)
         self.assertEqual(self.check(self.igual, "docs").returncode, 0)
 
-    def test_os_outros_subcomandos_so_avisam(self):
+    def test_os_outros_subcomandos_tambem_avisam(self):
         for args in (["docs"], ["kanban"], ["sobreposicao"], ["voltas"], ["brief", "p", "--pedido", "p"]):
             with self.subTest(args):
                 r = self.check(self.antiga_sem_objeto, *args)
@@ -2185,14 +2195,43 @@ class FerramentaDefasadaNoProjeto(ap.Base):
         return subprocess.run([sys.executable, str(self.plugin / "bin" / "forge-check"), *args, "--raiz", str(self.proj)],
                               env=self.env, capture_output=True, text=True, timeout=60)
 
-    def test_cache_com_atraso_bloqueia_pr_entrega_delta_e_brief_gerar(self):
+    def test_cache_com_atraso_bloqueia_pr_entrega_e_brief_gerar(self):
         self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
-        for args in (["pr", "p"], ["delta", "HEAD"], ["brief", "gerar", "--pedido", "p"],
+        for args in (["pr", "p"], ["brief", "gerar", "--pedido", "p"],
                      ["entrega", "p", "--branch", "b", "--base", "develop", "--base-sha", "a" * 40, "--etapa", "codigo"]):
             with self.subTest(args):
                 r = self.check(*args)
                 self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
                 self.assertIn(f"forge-check 0.20.0 {ap.FRASE} `forge atualizar`", r.stdout)
+
+    def test_delta_so_avisa_nos_projetos(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        r = self.check("delta", "HEAD")
+        self.assertIn(f"forge-check: aviso: forge-check 0.20.0 {ap.FRASE} `forge atualizar`", r.stderr)
+        self.assertNotIn(ap.FRASE, r.stdout)
+
+    def test_manifesto_do_forge_num_projeto_nao_o_torna_o_forge(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        (self.proj / ".claude-plugin").mkdir()
+        (self.proj / ".claude-plugin/plugin.json").write_text(json.dumps({"name": "forge"}), encoding="utf-8")
+        self.assertEqual(self.check("pr", "p").returncode, 1)
+
+    def test_verificacao_desligada_aparece_na_saida(self):
+        aviso = "forge-check: aviso: versão não conferida (verificação desligada)"
+        self.cache({"data": ap.HOJE, "defasado": False, "atual": "0.20.0", "ultima": "", "consulta": "desligada"})
+        self.assertIn(aviso, self.check("pr", "p").stderr)
+        self.cache({"data": ap.HOJE, "defasado": False, "atual": "0.20.0", "ultima": "0.20.0"})
+        self.env["FORGE_VERIFICAR_VERSAO"] = "0"
+        self.assertIn(aviso, self.check("pr", "p").stderr)
+        (self.proj / ".forge/run/versao-nova").unlink()
+        self.assertIn(aviso, self.check("docs").stderr)
+
+    def test_verificacao_desligada_nao_apaga_a_prova_de_atraso(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        self.env["FORGE_VERIFICAR_VERSAO"] = "0"
+        r = self.check("pr", "p")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn(ap.FRASE, r.stdout)
 
     def test_cache_com_atraso_so_avisa_nos_outros(self):
         self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
@@ -2222,6 +2261,58 @@ class FerramentaDefasadaNoProjeto(ap.Base):
                 r = self.check("pr", "p")
                 self.assertIn("forge-check: aviso: versão não conferida", r.stderr)
                 self.assertNotIn(ap.FRASE, r.stdout + r.stderr)
+
+
+def hook_parecer_com(copia):
+    """O módulo do hook `parecer` carregando o `forge-check` da cópia dada (como o hook faz com a cópia do plugin em uso)."""
+    import importlib.machinery
+    import importlib.util
+    sys.path.insert(0, str(RAIZ / "hooks"))
+    import parecer
+    carregador = importlib.machinery.SourceFileLoader("forge_check_copia", str(copia / "bin" / "forge-check"))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check_copia", carregador))
+    carregador.exec_module(modulo)
+    return parecer, modulo
+
+
+class HookParecerGuardaDaVersaoNoProjeto(FerramentaDefasadaNoProjeto):
+    """A1: gh pr create, ready e merge passam pela mesma guarda do `forge-check pr` (R-CONFORMIDADE nos projetos)."""
+
+    def chamar(self):
+        import contextlib
+        import io
+        parecer, fc = hook_parecer_com(self.plugin)
+        erro = io.StringIO()
+        with contextlib.redirect_stderr(erro):
+            try:
+                aviso = parecer.guarda_de_versao(fc, self.proj)
+            except SystemExit as e:
+                return e.code, erro.getvalue()
+        return None, (aviso or "") + erro.getvalue()
+
+    def test_copia_atrasada_barra_o_portao(self):
+        self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
+        codigo, erro = self.chamar()
+        self.assertEqual(codigo, 2, erro)
+        self.assertIn("R-CONFORMIDADE", erro)
+        self.assertIn(f"forge-check 0.20.0 {ap.FRASE} `forge atualizar`", erro)
+
+    def test_em_dia_passa_em_silencio(self):
+        self.cache({"data": ap.HOJE, "defasado": False, "atual": "0.20.0", "ultima": "0.20.0"})
+        self.assertEqual(self.chamar(), (None, ""))
+
+    def test_erro_de_comparacao_so_avisa(self):
+        self.cache("{nao e json")
+        codigo, erro = self.chamar()
+        self.assertIsNone(codigo)
+        self.assertIn("versão não conferida", erro)
+
+
+class HookParecerGuardaDaVersaoNoForge(ap.ForgeFalso):
+    def test_no_forge_a_copia_atrasada_so_avisa(self):
+        parecer, fc = hook_parecer_com(self.antiga_sem_objeto)
+        aviso = parecer.guarda_de_versao(fc, self.repo)  # sem SystemExit
+        self.assertIn(f"forge-check: aviso: forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE}", aviso)
 
 
 if __name__ == "__main__":

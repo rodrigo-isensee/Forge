@@ -111,7 +111,7 @@ sessao_aberta() {
 }
 # Com a sessão tmux aberta o plugin não é trocado (a atualização espera o reinício), mas a pessoa fica sabendo se está atrás.
 avisar_na_sessao_aberta() {
-  local data
+  local data novidades
   [ -d "$vigente/.git" ] || return 0
   data="$(data_da_copia)"
   if ! timeout 30 git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"; then
@@ -119,7 +119,9 @@ avisar_na_sessao_aberta() {
     echo "jarvis-forge: ATRASADO desde $data: não consegui consultar a origin; a sessão aberta usa a cópia de $data e pode estar atrás da develop. Para atualizar, saia do Jarvis, rode 'jarvis-forge --atualizar-vigente' e reabra a sessão." >&2
     return 0
   fi
-  if [ -n "$(git -C "$vigente" rev-list HEAD..refs/remotes/origin/develop 2>/dev/null)" ]; then
+  if ! novidades="$(git -C "$vigente" rev-list HEAD..refs/remotes/origin/develop 2>/dev/null)"; then
+    atrasado  # a comparação falhou depois do fetch: sem prova de que está em dia, nunca fica mudo
+  elif [ -n "$novidades" ]; then
     avisou_defasagem=1
     echo "jarvis-forge: AVISO: a sessão aberta usa a cópia de $data e a origin/develop já tem novidades. Para valer, saia do Jarvis, rode 'jarvis-forge --atualizar-vigente' e reabra a sessão." >&2
   fi

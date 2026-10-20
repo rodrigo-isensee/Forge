@@ -65,6 +65,7 @@
     }
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 0,
+    "stderr": "forge-check: aviso: versão não conferida"
   }
 }

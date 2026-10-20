@@ -285,7 +285,9 @@ class Hooks(unittest.TestCase):
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
-        if esperado["codigo"] == 0:
+        if esperado["codigo"] == 0 and "stderr" in esperado and f.hook == "parecer":  # o aviso de versão do `parecer` (liberado, com aviso)
+            self.assertIn(esperado["stderr"], r.stderr)
+        elif esperado["codigo"] == 0:
             self.assertEqual(r.stderr, "", "sem violação, sem saída")
         else:
             linha = r.stderr.rstrip("\n")

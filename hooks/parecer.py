@@ -15,7 +15,9 @@ Falha fechado nas ações críticas (ADR 0009, seção 7), também no clone do F
 """
 import json
 import re
+import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
                     raiz_de_estado, segmentos, sem_atribuicoes, separar_regra)
@@ -155,6 +157,16 @@ def existe(raiz, ref):
     return git(raiz, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")[0] == 0
 
 
+def guarda_de_versao(fc, raiz):
+    """A mesma guarda do `forge-check pr` (versão defasada): num projeto, a cópia comprovadamente atrás do repositório bloqueia o
+    portão (`R-CONFORMIDADE`); no Forge e nos clones de contribuição, e quando a comparação falha, devolve só o aviso (o
+    chamador o escreve no stderr se o portão passar, para a mensagem de um bloqueio seguir em uma linha)."""
+    nivel, texto = fc.avaliar_versao(SimpleNamespace(cmd="pr", alvo=None, base=None), raiz)
+    if nivel == "bloqueio":
+        bloquear("R-CONFORMIDADE", texto)
+    return texto if nivel == "aviso" else None
+
+
 def verificar(hook, raiz, branch, ref, base, dica=""):
     """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido. `dica` abre o motivo."""
     if base:
@@ -162,6 +174,7 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
         if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
             return  # só documentação: não passa por QA (R-QA)
     fc = forge_check()
+    aviso = guarda_de_versao(fc, raiz)
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "
@@ -173,6 +186,8 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
             bloquear(rid, f"{dica}{texto}{extra}; confira com forge-check pr {pedido}.")
+    if aviso:
+        print(aviso, file=sys.stderr)
 
 
 def pull_request(hook, pasta, base, head, rascunho):
