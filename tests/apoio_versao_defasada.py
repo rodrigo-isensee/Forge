@@ -94,7 +94,9 @@ class ForgeFalso(Base):
                               env=self.env, capture_output=True, text=True, timeout=60)
 
     def comandos(self):
-        """Os quatro subcomandos que bloqueiam, com argumentos mínimos (o bloqueio vem antes de qualquer leitura do pedido)."""
+        """Os subcomandos que bloqueiam (`pr`, `delta`, `entrega`, `brief gerar` e `brief mensagem`), com argumentos mínimos (o bloqueio vem antes de qualquer leitura do pedido)."""
         return {"pr": ["pr", "p"], "delta": ["delta", self.v2],
                 "entrega": ["entrega", "p", "--branch", "develop", "--base", "develop", "--base-sha", self.v2, "--etapa", "codigo"],
-                "brief gerar": ["brief", "gerar", "--pedido", "p", "--destino", "forge:tech-lead"]}
+                "brief gerar": ["brief", "gerar", "--pedido", "p", "--destino", "forge:tech-lead"],
+                "brief mensagem": ["brief", "mensagem", "--arquivo", "docs/briefs/p-tech-lead-1.md", "--pedido", "p",
+                                   "--destino", "forge:tech-lead"]}
