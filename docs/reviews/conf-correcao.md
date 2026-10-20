@@ -52,10 +52,14 @@ Escopo: `git diff 74e5bb75dfc87d54d9228e8357c7f027a3646c64 13099560a326fc268c47c
 - `.githooks/pre-push --status` antes do push → `nenhuma suíte do Forge rodando`, rc 1.
 
 ## Achados
+- A1 (bloqueante) bin/forge-check:2896 · `--ref` aceita ESC, controles e Cf e a linha 2974 o imprime cru no cabeçalho (rc 0), contra a M1.4. Recuse com `com_controle`/Cf (rc 2) e acrescente o caso `\x1b` ao `test_destino_e_ref_invalidos_rc_2`.
+- A2 (bloqueante) agents/conferente.md:47 · O grep de `DECISÃO DO DONO` não acha a linha `D-<ID> = ...` (migracao-2026-10-15.md:55), e a decisão fica sem cobrança (M2.2). Mantenha o `:<linha>` do registro na saída (bin/forge-check:2724, 2792), mande conferir essa linha e acrescente o teste.
+
+## Detalhe dos achados
+Detalhe dos achados bloqueantes:
 - A1 (bloqueante) bin/forge-check:2896 · `REF_DA_MENSAGEM` (`[^\s-]\S*`) aceita caractere de controle que não é espaço (ESC, `\x00`..`\x08`, `\x7f`) e Cf, e as linhas 2974 e 2976 imprimem `a.ref` cru no cabeçalho (sonda: `--ref $'abc\x1b[2Jx'` → rc 0, `Ref: abc^[[2Jx`). A M1.4 exige `sem_controle` em todo campo de cabeçalho vindo de argumento, e a própria mensagem de recusa promete "sem controle". Recuse `--ref` com `com_controle` ou com Cf (rc 2) e acrescente o caso `\x1b` ao `test_destino_e_ref_invalidos_rc_2`.
 - A2 (bloqueante) agents/conferente.md:47 · Para `decisões: fonte fora da regra`, o agente manda rodar `grep -n 'DECISÃO DO DONO'` só no arquivo impresso. No caso que motivou a M2.2 (D-ETAPAS-INST em `~/.forge-contrib/docs/migracao-2026-10-15.md:55`, no formato `D-<ID> = <opção> (dono, ...)`), esse grep acha 0 linhas, e a decisão volta a não ser cobrada por ninguém (T2.3). Isso contraria a M2.2 e a decisão do dono de não afrouxar. Ainda, `TOKEN_DE_MD` (bin/forge-check:2724) corta o `:<linha>` da citação, e a linha 2792 imprime a linha do pedido, não a do registro (a M2.2 pede `"<rel>:<linha>"`). Mantenha o `:<linha>` citado na saída e mande o conferente conferir essa linha do arquivo (ou também `grep -n -E '^\W*D-[A-Z0-9-]+ *='`), e acrescente o teste.
 
-## Detalhe dos achados
 Recomendações, que não bloqueiam:
 - R1 · bin/forge-check:2929-2930 · `--etapa` e `--pedido` passam por `sem_controle`, que só tira o ASCII de controle; U+202E e outros Cf entram no cabeçalho (sonda: `--etapa $'E1‮X'` sai com o caractere). A M1.4 pede só `sem_controle`, então não bloqueia. Mas `recusa_do_texto` já existe e fecharia o mesmo vetor da M1.3 no cabeçalho.
 - R2 · bin/forge-check:2971 · `Arquivo:` sai relativo à raiz que achou o brief (`docs/briefs/...`), mesmo quando ela é `~/.forge-contrib`. Com o cwd no clone `~/Forge`, `test -e docs/briefs/conf-correcao-tech-lead-2.md` dá 1, enquanto o `forge-check brief` acha pelo fallback. É a convenção que o agente já documenta, então não é regressão. Imprimir o caminho absoluto quando a raiz não é a do cwd evitaria um falso `forma: brief sem arquivo`.
