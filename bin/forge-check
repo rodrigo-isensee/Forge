@@ -4,14 +4,14 @@
 Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (--raiz também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
-     forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]]
+     forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
      forge-check transcricao lastro [<pasta ou .jsonl>]
      forge-check transcricao decisoes [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
-     forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> --destino forge:<nome> [--etapa TEXTO] [--anterior <brief> --ref <branch>]
-     forge-check brief gerar --pedido <arquivo ou id> --volta <brief aprovado> --ref <branch da entrega> [--parecer <arquivo>...] [--base develop] [--etapa E]
-     forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA]
+     forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>]
+     forge-check brief gerar --pedido <arquivo ou id> --volta <brief aprovado> --ref <branch da entrega> [--parecer <arquivo>...] [--incluir <parecer>:R<n>...] [--base develop] [--etapa E]
+     forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA] [--brief <brief>]...
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
      forge-check fontes
      forge-check sobreposicao [--base REF] [--ref BRANCH]
@@ -34,6 +34,7 @@ acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <merg
 a byte do anterior (`Volta-de: <arquivo> sha256 <64>`), toda linha `DECISÃO DO DONO` do pedido, `## Entregar (volta N)` com um item por
 achado `bloqueante` do bloco `## Achados` dos pareceres (lidos da --ref; formato `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>`,
 numa linha, sem caractere de controle e até 300 caracteres), os recomendados à parte com `PREENCHER` e o PQ `forge-check entrega --desde`.
+`--incluir <parecer>:R<n>` copia para o Entregar, literal e com a origem (`(incluído <tipo> <sha7> R<n> de <parecer>)`), a recomendação `R<n>` (ou `A<n>` recomendado) do bloco `## Achados` do parecer lido da --ref; a conferência da volta a relê e reprova o texto diferente (`volta: recomendação R<n> difere do parecer`). O Base-sha gravado é o merge-base da branch com `origin/<base>` (ou a `origin/<base>` de agora, se a branch ainda não existe), e `brief` avisa (`aviso: Base-sha ... não está na branch`) quando o do brief não está nela.
 Parecer reprovado com o bloco e sem achado bloqueante é recusado; sem o bloco, sai `não verificável`. Um brief com `Volta-de:` ganha
 linhas `volta:` na conferência: anterior diferente (sha256), bloco copiado alterado, decisão do dono faltando e achado bloqueante que
 não está no Entregar nem cortado com a marca (com `--ref`, e `--parecer` para escolher os pareceres).
@@ -41,9 +42,9 @@ não está no Entregar nem cortado com a marca (com `--ref`, e `--parecer` para 
 da raiz, a cópia principal na frente; `~/.forge-contrib/` é aceito como prefixo) e toda `ADR NNNN` citada no pedido: `fonte:` por fonte lida,
 `decisões: falta ...` (reprova) por linha ausente de `Decisões e restrições`, `decisões: registro citado ausente` e `grande demais` (reprovam),
 `decisões: fonte fora da regra ... (não verificável)` para referência a outro `.md` (não reprova, nunca some) e `decisões: ok`; a contradição
-literal continua do conferente (CONF-CORRECAO, E2). `brief mensagem` (E3; só imprime) devolve a mensagem integral ao conferente (`modo: brief`,
+literal continua do conferente (CONF-CORRECAO, E2). A frase só conta quando abre a linha (recuo, marcador de lista, `>` e ênfase antes dela): citada no meio do texto sai `decisões: menção fora do início ...` (informativo, nunca some). `brief mensagem` (E3; só imprime) devolve a mensagem integral ao conferente (`modo: brief`,
 cabeçalho, `Brief-sha256:` e o brief entre `<<<BRIEF` e `BRIEF>>>`) só se o brief passa em `forge-check brief`: resolve o arquivo só em `docs/briefs/`,
-lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato; reprovado, rc 1 e sem o texto.
+lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
 o `--desde` vale só se for a `conferida <sha40>` mais recente do `## Histórico` do pedido (lido da cópia principal, não da
@@ -52,6 +53,7 @@ reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própr
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale nas quatro primeiras). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
@@ -67,7 +69,7 @@ e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` 
 principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo". Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sem `--ref`, `pr` lê o parecer do disco e exige que ele seja igual ao do HEAD (parecer commitado, bytes idênticos).
-`pr --base` aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou.
+`pr --base` (só `develop`, `homolog`, `main` ou `origin/<essas>`, lida de `refs/remotes/origin/<base>`) aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou: o merge da base depois do parecer não o invalida, mas qualquer byte a mais no commit de merge sim (por conteúdo, nunca por nome); base que já contém o head vale só pelo diff literal (aviso no stderr).
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
 Se existir `.forge/run/autoria.jsonl` (hook `conformidade`, ADR 0009), `pr` também exige que o parecer atual tenha
 sido gravado pelo papel certo (review: tech-lead; QA: qa; devops: devops; segurança: seguranca); sem o arquivo, como antes
@@ -921,7 +923,6 @@ ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
 TETO_DO_ACHADO = 300
-CONTROLE = re.compile(r"[\x00-\x1f\x7f]")  # `com_controle` cobre também C1, Cf, Zl e Zp (E7); este só serve a quem lê bytes crus
 SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
 RAIZES_DE_BRIEF = (Path.home() / ".forge-contrib",)  # onde o Jarvis do Forge guarda docs/briefs/ (fora do clone)

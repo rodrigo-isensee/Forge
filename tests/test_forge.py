@@ -4001,6 +4001,18 @@ class VoltaComRecomendacao(unittest.TestCase):
         id_novo = texto.replace(" R1 de ", " R7 de ")
         self.assertIn("volta: recomendação R7", self.conferir(id_novo)[1])
 
+    def test_a_volta_cobra_o_mesmo_conjunto_de_decisoes_do_gerar_e_do_brief(self):  # abuso 16 (conferir_volta)
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + '- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n- 2026-10-20: ajuste, conforme DECISÃO DO DONO acima\n', encoding="utf-8")
+        saida = self.gerar().stdout
+        self.assertIn('- DECISÃO DO DONO (2026-10-20): "V1" na volta.', saida)
+        self.assertNotIn("conforme DECISÃO DO DONO acima", saida)  # a menção não é decisão: o gerar não a copia
+        texto = self.preenchido(saida)
+        rc, conferencia = self.conferir(texto)
+        self.assertNotIn("falta decisão do dono", conferencia)  # e a conferência da volta não a cobra
+        self.assertIn("decisões: menção fora do início", conferencia)
+        sem_a_linha = self.conferir(texto.replace('- DECISÃO DO DONO (2026-10-20): "V1" na volta.\n', ""))[1]
+        self.assertIn('volta: falta decisão do dono "- DECISÃO DO DONO (2026-10-20): "V1" na volta."', sem_a_linha)
+
     def test_objetivo_alterado_continua_reprovando(self):  # M2.4
         texto = self.preenchido(self.gerar("--incluir", "docs/reviews/p1.md:R1").stdout)
         rc, conferencia = self.conferir(texto.replace("Entregar o recurso A (exemplo sintético).", "Entregar outra coisa."))
@@ -4334,7 +4346,10 @@ class PrAposMergeDaBase(RepoComOrigem):
 
     def test_uma_linha_a_mais_num_arquivo_trazido_pela_develop_invalida(self):  # abuso 8
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
-        self.mescla_a_develop(lambda: (self.repo / "src" / "y.txt").open("a", encoding="utf-8").write("y9 maligna\n"))
+        def acrescentar():
+            with (self.repo / "src" / "y.txt").open("a", encoding="utf-8") as f:
+                f.write("y9 maligna\n")
+        self.mescla_a_develop(acrescentar)
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "ajuste escondido no merge", cwd=self.repo)
         rc, saida, _ = self.pr("--base", "develop")
