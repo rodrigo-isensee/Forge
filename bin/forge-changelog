@@ -116,6 +116,9 @@ def linhas_nao_publicado(texto):
     return {l.strip() for l in (m.group(1) if m else "").splitlines() if l.strip().startswith("-")}
 
 
+PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")
+
+
 def fragmentos_alterados(filtro, base):
     """Fragmentos de changelog.d/ (só a pasta raiz, sem o README) adicionados ("A") ou apagados ("D") entre base e HEAD."""
     caminhos = git("diff", "--name-only", "--no-renames", f"--diff-filter={filtro}", base, "HEAD", "--", PASTA).split()
@@ -145,7 +148,9 @@ def conferir(args):
         return
     novos = fragmentos_alterados("A", base)
     apagados = fragmentos_alterados("D", base)
-    if not mudou and not novos and apagados:
+    # Pareceres do próprio pedido (review, QA, segurança, devops) não são outra mudança da fábrica no fechamento.
+    outras = [m for m in mudou if not m.startswith(PASTAS_DE_PARECER)]
+    if not outras and not novos and apagados:
         conferir_fechamento(base, apagados)
         return
     if not mudou:

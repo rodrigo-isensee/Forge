@@ -223,6 +223,25 @@ class ConferirNoCI(Base):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("fragmento novo", r.stdout + r.stderr)
 
+    def _fechar_com_arquivo(self, caminho):
+        self._base_com_fragmento()
+        (self.dir / "changelog.d" / "dv-x.md").unlink()
+        texto = (self.dir / "CHANGELOG.md").read_text(encoding="utf-8")
+        (self.dir / "CHANGELOG.md").write_text(texto + "- Linha do fragmento\n", encoding="utf-8")
+        (self.dir / caminho).parent.mkdir(parents=True, exist_ok=True)
+        (self.dir / caminho).write_text("x\n", encoding="utf-8")
+        self.commitar()
+        return self.conferir()
+
+    def test_fechamento_com_parecer_em_docs_reviews_passa(self):
+        r = self._fechar_com_arquivo("docs/reviews/dv-x.md")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def test_fechamento_com_docs_regras_continua_exigindo_fragmento(self):
+        r = self._fechar_com_arquivo("docs/regras/R-X.md")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("fragmento novo", r.stdout + r.stderr)
+
     def test_pr_de_release_passa_sem_fragmento(self):
         self.mudar_fabrica()
         (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.2.0"}\n', encoding="utf-8")
