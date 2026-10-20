@@ -2,6 +2,31 @@
 # Forge: develop, homolog e main só mudam por pull request (develop e homolog mesclados pelo tech-lead
 # com os testes verdes; main mesclada pelo usuário). Ninguém envia direto para elas.
 # Diferente do hook do modelo de projeto (só main): a fábrica tem três degraus protegidos.
+# R-TETO: tarefas pesadas uma de cada vez. A suíte do Forge é pesada; duas na mesma máquina e para o mesmo
+# usuário esperam a vez por uma trava de arquivo (flock), fora do repositório. O kernel solta a trava quando
+# o processo morre, então não existe trava órfã. `--status` diz se há suíte rodando (saída 0) ou não (1).
+trava_arquivo() {
+  local d
+  for d in "${XDG_RUNTIME_DIR:-}" "${TMPDIR:-}" /tmp; do
+    if [ -n "$d" ] && [ -d "$d" ] && [ -w "$d" ]; then
+      printf '%s/forge-suite-%s.lock\n' "${d%/}" "$(id -u)"
+      return 0
+    fi
+  done
+  return 1
+}
+trava="$(trava_arquivo)" || { echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2; exit 1; }
+if [ -L "$trava" ]; then
+  echo "pre-push: ${trava} é um link simbólico; recusado. Apague-o e tente de novo." >&2
+  exit 1
+fi
+if [ "${1:-}" = "--status" ]; then
+  if [ ! -e "$trava" ]; then echo "nenhuma suíte do Forge rodando"; exit 1; fi
+  exec 9>>"$trava" || exit 1
+  if flock -n 9; then echo "nenhuma suíte do Forge rodando"; exit 1; fi
+  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true))"
+  exit 0
+fi
 while read -r _ local_sha remote_ref remote_sha; do
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
@@ -33,5 +58,16 @@ done
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
+espera="${FORGE_TRAVA_ESPERA:-1200}"
+case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
+exec 9>>"$trava" || { echo "pre-push: não consegui abrir a trava ${trava}." >&2; exit 1; }
+if ! flock -n 9; then
+  echo "pre-push: outra suíte do Forge está rodando ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+  if ! flock -w "$espera" 9; then
+    echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
+    exit 1
+  fi
+fi
+printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" > "$trava"
 python3 -m unittest discover -s tests -q >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 exit 0
