@@ -379,6 +379,7 @@
     ],
     "docs/regras/R-FLUXO.md": [
       "Fila de integração na `develop`",
+      "forge-check sobreposicao --ref <branch>` antes de mesclar na `develop` e espera a promoção se ele barrar",
       "ordem de chegada",
       "Depois do QA só se atualiza se houver conflito real",
       "Quem resolveu o conflito não decide o alcance",

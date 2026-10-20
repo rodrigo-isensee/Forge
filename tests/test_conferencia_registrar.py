@@ -21,6 +21,10 @@ def com(base, **troca):
 
 
 class Registrar(Raiz):
+    def setUp(self):
+        super().setUp()
+        self.gravar("KANBAN.md", "# Quadro\n")  # sem quadro o registro recusa (FC-PEDIDO-FORA)
+
     def lido(self):
         return (self.tmp / ARQ).read_text(encoding="utf-8")
 

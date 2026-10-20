@@ -155,7 +155,8 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/"]})
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
         self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
         self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
@@ -850,8 +851,9 @@ class CI(unittest.TestCase):
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        for trecho in ("github.base_ref == 'develop'", "github.base_ref == 'main'", "changelog.d", "a <= b"):
+        for trecho in ("github.base_ref == 'develop'", "github.base_ref == 'main'", "changelog.d"):
             self.assertIn(trecho, texto)
+        self.assertIn("a <= b", (RAIZ / "scripts" / "conferir-release.py").read_text(encoding="utf-8"))
 
     def test_dependabot_para_actions(self):
         texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
