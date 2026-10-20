@@ -28,7 +28,7 @@ Sem UX nem API. Revalidação por delta da volta 3 (`3b266e4...d6b9b35`, só `te
 
 ## Vermelho antes do verde
 Cópia em `$TMPDIR` (`git archive HEAD`), sem tocar a worktree: removi `bin/gh` de `arquivos` e de `executaveis` nas 10 fixtures da sessão do Forge que citam o rótulo, e rodei `python3 -m unittest tests.test_hooks -k fixtures_da_sessao_do_forge_que_citam` com o gh sem credencial.
-- Sem o gh falso: `FAIL` em subTest para as fixtures alteradas (`assertIn("bin/gh", ...)`); com a fixture original no mesmo teste: `Ran 1 test`, `OK`.
+- Sem o gh falso: ``FAILED (failures=10)`, um subTest por fixture alterada (`assertIn("bin/gh", ...)`); com a fixture original no mesmo teste: `Ran 1 test`, `OK`.
 
 ## Mutação
 Sem ferramenta de mutação gratuita para Python na stack; o vermelho acima mostra que o teste novo falha quando o gh falso some da fixture.
