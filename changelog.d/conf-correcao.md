@@ -1,0 +1,2 @@
+### Alterado
+- O conferente faz a passada única de verdade e recebe o brief inteiro (CONF-CORRECAO): primeira passada em ordem fixa, com o achado tardio marcado `tardio:` e reprovando; `forge-check brief` cobra todas as linhas `DECISÃO DO DONO` do pedido e dos registros citados em `docs/pedidos/` (um nível) e as ADRs citadas, e a referência a fonte fora da regra sai `não verificável`; novo `forge-check brief mensagem`, que imprime a mensagem integral ao conferente, com `Brief-sha256:`, só se o brief passa (recusa delimitador, controle e caractere de formato).
