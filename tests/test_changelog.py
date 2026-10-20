@@ -309,7 +309,9 @@ class CIUsaOsFragmentos(unittest.TestCase):
     def test_ci_chama_a_ferramenta_e_instrucoes_apontam_para_ela(self):
         ci = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
         self.assertIn("bin/forge-changelog conferir", ci)
-        self.assertIn("bin/forge-changelog conferir-release", ci)
+        script = (RAIZ / "scripts" / "conferir-release.py").read_text(encoding="utf-8")
+        self.assertIn("scripts/conferir-release.py", ci)  # o passo de release (main e homolog) chama o script
+        self.assertIn('"conferir-release"', script)  # e o script chama a mesma listagem de fragmentos
         self.assertNotIn("__import__", ci)
         for caminho in ("agents/tech-lead.md", "skills/contribuir-com-o-forge/SKILL.md", "CONTRIBUTING.md",
                         ".github/pull_request_template.md", ".claude/CLAUDE.md"):
