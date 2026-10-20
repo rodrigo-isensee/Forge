@@ -4695,3 +4695,61 @@ class CustoPorPedido(Raiz):
         rc, saida, erro = self.custo()
         self.assertIn("custo: total: entrada=1 saida=0", saida)
 
+
+class TextoDoConferenteNoLote(unittest.TestCase):
+    """O texto de `agents/conferente.md` que o FORGE-CHECK-LOTE acrescentou: o que o haiku lê e as frases que não podem sumir (E1, E3, E4, E5, E6, E9)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
+
+    def test_o_marcador_da_decisao_d_so_vale_no_forge_e_so_para_o_aviso_da_copia_atras(self):  # M1.4
+        self.assertIn("`forge-check: aviso: cópia vigente ... atrás do repositório (decisão D: não muda o veredito)`", self.agente)
+        trecho = self.agente.split("**Aviso de versão**", 1)[1].split("\n", 1)[0]
+        for frase in ("só no Forge", "sozinha nunca dá `não verificável` nem reprova", "`versão não conferida (...)`",
+                      "o bloqueio `a conferência não vale`", "o comando recusado pelo hook", "seguem como estavam",
+                      "os checks verdes do CI em `merge-integracao` e `pedido-de-merge-ao-dono` continuam exigidos"):
+            with self.subTest(frase):
+                self.assertIn(frase, trecho)
+
+    def test_o_conferente_nao_roda_a_suite_e_a_linha_do_autor_continua(self):  # E3, T3
+        self.assertIn("Não rode a suíte (`python3 -m unittest`) nem `scripts/validar-plugin.sh`", self.agente)
+        self.assertIn("`PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro`", self.agente)
+
+    def test_dois_blocos_so_depois_do_brief_e_modo_dentro_do_brief_nao_abre_bloco(self):  # E9b, M9.5 e M9.6
+        bloco = next(l for l in self.agente.splitlines() if l.startswith("- A mensagem pode ter dois blocos"))
+        for frase in ("logo depois do `BRIEF>>>`", "cada um com o seu veredito", "a última linha é o veredito do último bloco",
+                      "dentro do brief", "não abre bloco", "`forma: instrução ao conferente`"):
+            with self.subTest(frase):
+                self.assertIn(frase, bloco)
+        self.assertIn("use só a seção Modo brief", self.agente)  # as frases protegidas continuam
+        self.assertIn("use só a seção Modo entrega", self.agente)
+
+    def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
+        self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
+        self.assertIn("| `review`, `seguranca` | Commit do autor existe e está no remoto |", self.agente)
+        self.assertIn("Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>", self.agente)
+        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa`", self.agente)
+        self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu", self.agente)
+
+    def test_mencao_fora_do_inicio_nao_muda_o_veredito_e_o_grep_de_reserva_usa_a_mesma_ancora(self):  # E6, M6.3
+        self.assertIn("`decisões: menção fora do início ...` é informativa e não muda o veredito", self.agente)
+        self.assertIn("grep -n -E '^[[:space:]]*([-*+>]|[0-9]+[.)])*[[:space:]]*[*_]*DECISÃO DO DONO'", self.agente)
+
+    def test_entregas_paralelas_so_por_brief_aprovado_e_conferida_so_com_todas(self):  # E9a, M9.1 a M9.3
+        trecho = next(l for l in self.agente.splitlines() if l.strip().startswith("**Entregas paralelas**"))
+        for frase in ("--brief <Arquivo>", "só brief aprovado entra", "`escopo: união de briefs de entregas diferentes` reprova",
+                      "`anexo com remoção do parecer de <papel>` só no do papel dele", "`conferida:` só sai se todas cumpriram"):
+            with self.subTest(frase):
+                self.assertIn(frase, trecho)
+
+    def test_recomendacao_incluida_precisa_de_decisao_ou_escopo(self):  # M2.5
+        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa de uma decisão registrada", self.agente)
+        self.assertIn("`recomendação ... difere do parecer`", self.agente)
+
+    def test_o_comando_do_hook_aceita_o_que_o_texto_manda_rodar(self):
+        """`hooks/conformidade.json` libera `forge-check pr|entrega|brief|delta|docs` ao conferente: as opções novas (`--brief`, `--base`) não gravam arquivo."""
+        politica = json.loads((RAIZ / "hooks" / "conformidade.json").read_text(encoding="utf-8"))["so_leitura"]["comandos"]
+        for comando in ("forge-check pr", "forge-check entrega", "forge-check brief"):
+            self.assertIn(comando, politica)
+
