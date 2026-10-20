@@ -168,7 +168,9 @@
     ],
     "hooks/conformidade.py": [
       "def checar_so_leitura",
-      "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO"],
+      "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
+      "def endpoint_normalizado", "def conteudos_de_crase", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
+      "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
     "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
     "docs/adr/_modelo.md": [
       "## Critério de reversão",
@@ -544,6 +546,9 @@
       "criar \\*\\*uma\\*\\* branch própria `melhoria/<projeto>-<tema>`",
       "resolver conflitos nem revalidar pareceres de PR alheio",
       "fechar ou editar PR alheio; aplicar rótulos",
+      "O rótulo `afrouxa-regra` é só do dono do Forge",
+      "só cria ou renomeia um rótulo com esse nome",
+      "aplicar ou delegar esse rótulo a um agente é \\*\\*proibido\\*\\*",
       "avisa o usuário e \\*\\*para\\*\\*"
     ]
   },
