@@ -164,18 +164,60 @@ class Fechar(unittest.TestCase):
         self.assertIn("pendentes", r.stderr)
         self.assertFalse(any("pr merge" in c for c in self.chamadas()))
 
-    def test_recusa_quando_rotulo_pedido_e_nao_aplicado(self):
-        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\ncorpo\n")
+    ITEM_MARCADO = "feat: x\n## Checklist\n- [x] Rótulo `afrouxa-regra` pedido ao dono (afrouxa regra, motivo no corpo)\n"
+
+    def test_recusa_quando_item_do_rotulo_marcado_e_rotulo_nao_aplicado(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 5", r.stderr)
         chamadas = self.chamadas()
         self.assertFalse(any("pr merge" in c or "pr edit" in c or "--add-label" in c for c in chamadas))
 
+    def test_texto_que_so_cita_o_nome_do_rotulo_nao_para(self):
+        (self.estado / "texto").write_text(
+            "feat: x (afrouxa-regra)\nO #222 só o dono aplica o rótulo afrouxa-regra.\n"
+            "- [ ] Rótulo afrouxa-regra pedido ao dono\n- [x] Testes verdes\n")
+        self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+
     def test_rotulo_pedido_e_aplicado_pelo_dono_segue(self):
-        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\ncorpo\n")
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
         (self.estado / "rotulos").write_text("afrouxa-regra\n")
         self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+
+    def test_item_marcado_com_x_maiusculo_e_marcador_asterisco_tambem_para(self):
+        (self.estado / "texto").write_text("feat: x\n  * [X] pede o rótulo afrouxa-regra\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+
+    def _com_diff_em(self, caminho):
+        self.git("switch", "-q", "melhoria/x")
+        alvo = self.proj / caminho
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text("x\n")
+        self.git("add", caminho)
+        self.git("commit", "-q", "-m", "feat: controle")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+
+    def test_dry_run_avisa_quando_o_diff_toca_caminho_de_controle_da_catraca(self):
+        self._com_diff_em("hooks/parecer.py")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("hooks/parecer.py", r.stdout)
+        self.assertIn("rótulo", r.stdout)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_dry_run_nao_avisa_sem_caminho_de_controle(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("vai ser pedido", r.stdout)
+
+    def test_lista_de_controles_vem_da_catraca_e_nao_e_copiada_no_script(self):
+        codigo = SCRIPT.read_text()
+        self.assertIn("catraca.py", codigo)
+        self.assertNotIn(".githooks/", codigo)
 
     def test_commit_novo_na_branch_durante_a_espera_impede_o_merge(self):
         (self.estado / "head").write_text("0" * 40)
