@@ -414,6 +414,50 @@ class Hooks(unittest.TestCase):
             with self.subTest(comando=comando, gh=gh.split()[-1], codigo=codigo):
                 self.rodar_dados(self.dados_da_sessao_do_forge(comando, gh, codigo))
 
+    def test_rotulo_so_dono_volta_2_crase_escapada_comentario_clone_e_remocao(self):
+        """Volta 2 (segurança B1, review 1 a 3): a crase escapada em `bash -c`/`sh -c`/`eval`, a aspa simples de um comentário
+        antes da crase, `gh label clone` e `--remove-label afrouxa-regra` exigem o dono; a conta do dono passa; o resto não muda."""
+        rotulo = "gh pr edit 70 --add-label afrouxa-regra"
+        barram = [
+            f'bash -c "echo \\`{rotulo}\\`"',
+            f'sh -c "x=\\`{rotulo}\\`"',
+            f'eval "echo \\`{rotulo}\\`"',
+            f"echo hi # don't\nx=`{rotulo}`",
+            f"echo hi # don't\necho \"`{rotulo}`\"",
+            "gh label clone o/outro",
+            "gh label clone o/outro --force",
+            "gh pr edit 70 --remove-label afrouxa-regra",
+            "gh issue edit 70 --remove-label=afrouxa-regra",
+            "gh pr edit 70 --remove-label bug,afrouxa-regra",
+            "gh api -X DELETE repos/o/r/issues/70/labels/afrouxa-regra",
+        ]
+        passam = [f'bash -c "echo \\`date\\`"', f'echo "\\`{rotulo}\\`"', f"echo hi # don't\nx=`date`",
+                  "echo a # `" + rotulo + "`", "gh pr edit 70 --remove-label bug", "gh label list"]
+        casos = [(c, "#!/bin/sh\necho outra-pessoa\n", 2) for c in barram]
+        casos += [(c, "#!/bin/sh\necho outra-pessoa\n", 0) for c in passam]
+        casos += [(c, "#!/bin/sh\necho Rodrigo-Isensee\n", 0) for c in barram]
+        for comando, gh, codigo in minimo(casos, 20, "casos de rótulo da volta 2"):
+            with self.subTest(comando=comando, gh=gh.split()[-1], codigo=codigo):
+                self.rodar_dados(self.dados_da_sessao_do_forge(comando, gh, codigo))
+
+    def test_rotulo_so_dono_volta_2_sessao_de_projeto(self):
+        """Segurança R5: as formas da crase escapada e do comentário também são barradas na sessão de projeto (R-CONTRIB),
+        quando apontam para o Forge; a mesma linha sem apontar para o Forge passa."""
+        alvo = "gh pr edit https://github.com/rodrigo-isensee/Forge/pull/70 --add-label afrouxa-regra"
+        casos = [
+            (f'bash -c "echo \\`{alvo}\\`"', 2), (f'sh -c "x=\\`{alvo}\\`"', 2), (f'eval "echo \\`{alvo}\\`"', 2),
+            (f"echo hi # don't\nx=`{alvo}`", 2), (f"echo hi # don't\necho \"`{alvo}`\"", 2),
+            ('bash -c "echo \\`date\\`"', 0), ("echo hi # don't\nx=`date`", 0),
+        ]
+        for comando, codigo in minimo(casos, 6, "casos de projeto da volta 2"):
+            with self.subTest(comando=comando):
+                esperado = {"codigo": codigo}
+                if codigo:  # barra por R-CONTRIB (alvo no Forge) ou R-CONFORMIDADE (crase com ação crítica, não modelada)
+                    esperado["stderr"] = "R-CON"
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home", "CLAUDE_PROJECT_DIR": "{tmp}/proj"},
+                                  "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
+                                              "tool_use_id": "toolu_9"}, "esperado": esperado})
+
     def test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook(self):
         """Segurança A1: `gh` que não responde (com um filho segurando a saída) barra dentro do timeout do hook."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]

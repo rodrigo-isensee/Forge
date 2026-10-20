@@ -1,5 +1,5 @@
 {
-  "descricao": "Sessão do Forge: tirar o rótulo não muda.",
+  "descricao": "Sessão do Forge: tirar o rótulo afrouxa-regra exige o dono (coerente com o DELETE em issues/<n>/labels/<nome>); conta ilegível barra.",
   "arquivos": {
     "src/app.js": "v1\n",
     "bin/gh": "#!/bin/sh\nexit 1\n",
@@ -23,6 +23,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONTRIB: "
   }
 }
