@@ -2,6 +2,7 @@
 
 `gh` e `forge-check` são falsos (FORGE_GH e FORGE_CHECK); cada chamada vai para um registro, para provar o que rodou.
 """
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -164,18 +165,103 @@ class Fechar(unittest.TestCase):
         self.assertIn("pendentes", r.stderr)
         self.assertFalse(any("pr merge" in c for c in self.chamadas()))
 
-    def test_recusa_quando_rotulo_pedido_e_nao_aplicado(self):
-        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\ncorpo\n")
+    ITEM_MARCADO = "feat: x\n## Checklist\n- [x] Rótulo `afrouxa-regra` pedido ao dono (afrouxa regra, motivo no corpo)\n"
+
+    def test_recusa_quando_item_do_rotulo_marcado_e_rotulo_nao_aplicado(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 5", r.stderr)
         chamadas = self.chamadas()
         self.assertFalse(any("pr merge" in c or "pr edit" in c or "--add-label" in c for c in chamadas))
 
-    def test_rotulo_pedido_e_aplicado_pelo_dono_segue(self):
-        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\ncorpo\n")
+    def test_corpo_que_so_cita_o_nome_do_rotulo_nao_para(self):
+        (self.estado / "texto").write_text(
+            "feat: x\nO #222 só o dono aplica o rótulo afrouxa-regra.\n"
+            "- [ ] Rótulo afrouxa-regra pedido ao dono\n- [x] Testes verdes\n")
+        self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+
+    def test_titulo_que_cita_o_rotulo_sem_o_rotulo_aplicado_para(self):
+        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\nCorpo sem item marcado.\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_titulo_que_cita_o_rotulo_com_o_rotulo_aplicado_segue(self):
+        (self.estado / "texto").write_text("feat: x (afrouxa-regra)\nCorpo.\n")
         (self.estado / "rotulos").write_text("afrouxa-regra\n")
         self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+
+    def test_item_marcado_com_mais_ou_lista_numerada_tambem_para(self):
+        for item in ("+ [x] pede o rótulo afrouxa-regra", "1. [x] pede o rótulo afrouxa-regra",
+                     "12) [X] pede o rótulo afrouxa-regra"):
+            with self.subTest(item=item):
+                (self.estado / "texto").write_text(f"feat: x\n{item}\n")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("passo 5", r.stderr)
+
+    def test_corpo_gerado_traz_o_item_do_rotulo_desmarcado(self):
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        criacao = self.registro.read_text()  # o corpo tem várias linhas; o registro guarda o argumento inteiro
+        self.assertIn("- [ ] ", criacao)
+        self.assertIn("afrouxa-regra", criacao)
+        self.assertNotIn("[x]", criacao.lower())
+
+    def test_rotulo_pedido_e_aplicado_pelo_dono_segue(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        (self.estado / "rotulos").write_text("afrouxa-regra\n")
+        self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+
+    def test_item_marcado_com_x_maiusculo_e_marcador_asterisco_tambem_para(self):
+        (self.estado / "texto").write_text("feat: x\n  * [X] pede o rótulo afrouxa-regra\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+
+    def _com_diff_em(self, caminho):
+        self.git("switch", "-q", "melhoria/x")
+        alvo = self.proj / caminho
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        alvo.write_text("x\n")
+        self.git("add", caminho)
+        self.git("commit", "-q", "-m", "feat: controle")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+
+    def test_dry_run_avisa_quando_o_diff_toca_caminho_de_controle_da_catraca(self):
+        self._com_diff_em("hooks/parecer.py")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("hooks/parecer.py", r.stdout)
+        self.assertIn("rótulo", r.stdout)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_dry_run_nao_avisa_sem_caminho_de_controle(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("vai ser pedido", r.stdout)
+        self.assertNotIn("aviso", r.stdout)
+        self.assertNotIn("aviso", r.stderr)
+
+    def test_dry_run_avisa_quando_nao_consegue_ler_o_diff(self):
+        r = self.fechar("p1", "--ref", "melhoria/inexistente", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("não consegui conferir", r.stdout)
+
+    def test_lista_de_controles_vem_da_catraca_e_nao_e_copiada_no_script(self):
+        codigo = SCRIPT.read_text()
+        self.assertIn("catraca.py", codigo)
+        spec = importlib.util.spec_from_file_location("catraca_lida", RAIZ / "tests" / "catraca.py")
+        catraca = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(catraca)
+        self.assertGreater(len(catraca.PROTEGIDOS), 5)
+        for caminho in catraca.PROTEGIDOS:
+            if caminho == "tests/catraca.py":  # o próprio arquivo da lista, que o script precisa citar para carregá-la
+                continue
+            self.assertNotIn(caminho, codigo)
 
     def test_commit_novo_na_branch_durante_a_espera_impede_o_merge(self):
         (self.estado / "head").write_text("0" * 40)
