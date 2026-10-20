@@ -492,7 +492,7 @@ def gatilhos(raiz, pedido, ref=None, base=None):
                        ("controles do Forge", lambda a: a.startswith(CONTROLES_DO_FORGE))):
         quais = [a for a in arquivos if casa and casa(a)]
         if quais:
-            achados.append(f"{nome}: {quais[0]}")
+            achados.append(f"{nome}: {caminho_impresso(quais[0])}")
     for rel, texto in documentos(raiz, "plano-tecnico", ref):
         campos = ler_frontmatter(texto)[0] or {}
         marcados = campos.get("gatilhos_seguranca", "").strip("[] ")

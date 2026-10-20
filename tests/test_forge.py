@@ -3659,7 +3659,7 @@ def rodar_fc(*args, raiz, home, cwd=None, env_extra=None):
 class SaidaSanitizada(Raiz):
     """E7 (FC-SAIDA-SANITIZADA): todo caminho impresso passa por `sem_controle` ou `nome_seguro`; C1, Cf, Zl e Zp também."""
     CONTROLES = ("\x00", "\n", "\r", "\x7f", "\x85", "\u2028", "\u2029", "\u202e", "\u200b", "\u2066")
-    LISTA = {"caminho", "arquivo", "real", "raiz", "rel", "rel_volta", "alvo", "onde", "filename", "token", "pedido_id", "name"}
+    LISTA = {"caminho", "arquivo", "real", "raiz", "rel", "rel_volta", "alvo", "onde", "filename", "token", "pedido_id", "name", "quais"}
     # f-strings com um nome da lista que NÃO vão à saída (argumento do git, índice de evento); cada uma com o motivo
     EXCECOES = {"HEAD:{rel}": "argumento do git", "{ref}:{rel}": "argumento do git", "(evento {onde})": "índice de evento, número"}
 
@@ -3691,6 +3691,8 @@ class SaidaSanitizada(Raiz):
                 return valor.attr
             if isinstance(valor, ast.Subscript) and isinstance(valor.slice, ast.Constant) and isinstance(valor.slice.value, str):
                 return valor.slice.value
+            if isinstance(valor, ast.Subscript):  # índice (`quais[0]`) ou fatia (`quais[:9]`): vale o nome da base
+                return nome_de(valor.value)
             return None
 
         crus = []
@@ -3705,13 +3707,17 @@ class SaidaSanitizada(Raiz):
 
     def test_o_ast_pega_o_print_novo_sem_sanitizador(self):  # abuso 18
         import ast
-        ruim = ast.parse('print(f"origem: {real}")')
-        bom = ast.parse('print(f"origem: {caminho_impresso(real)}")')
         def cru(arvore):
+            def base(v):
+                while isinstance(v, ast.Subscript):
+                    v = v.value
+                return v
             return [p for n in ast.walk(arvore) if isinstance(n, ast.JoinedStr) for p in n.values
-                    if isinstance(p, ast.FormattedValue) and isinstance(p.value, ast.Name) and p.value.id in self.LISTA]
-        self.assertTrue(cru(ruim))
-        self.assertFalse(cru(bom))
+                    if isinstance(p, ast.FormattedValue) and isinstance(base(p.value), ast.Name) and base(p.value).id in self.LISTA]
+        for ruim in ('print(f"origem: {real}")', 'print(f"origem: {quais[0]}")', 'print(f"origem: {quais[:9]}")'):
+            self.assertTrue(cru(ast.parse(ruim)), ruim)
+        self.assertFalse(cru(ast.parse('print(f"origem: {caminho_impresso(real)}")')))
+        self.assertFalse(cru(ast.parse('print(f"origem: {caminho_impresso(quais[0])}")')))
 
     def uma_linha_so(self, r, permitidas=("resultado: aprovado", "resultado: reprovado", "PQ-*", "forma: ok", "fonte: docs/pedidos/*", "decisões: ok (*")):
         saida = r.stdout + r.stderr
