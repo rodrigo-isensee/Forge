@@ -37,7 +37,8 @@ PARECERES = ("docs/reviews/", "docs/qa/")  # mudar só o parecer do pedido não 
 CURINGA = re.compile(r"[*?\[\]\\]")  # pathspec do git casa curinga: caminho com eles nunca é ignorado
 REESCRITA = ("head_ref_force_pushed", "head_ref_deleted", "head_ref_restored")
 PROTEGIDOS = (".github/workflows/", ".github/rulesets/", ".github/CODEOWNERS", ".github/dependabot.yml", ".githooks/", "tests/catraca.py",
-              "tests/neutralidade.py", "hooks/conformidade.py", "hooks/parecer.py", "hooks/_comum.py", "bin/forge-check")
+              "tests/neutralidade.py", "hooks/conformidade.py", "hooks/parecer.py", "hooks/_comum.py", "bin/forge-check",
+              "scripts/conferir-release.py")
 SENSIVEIS = ("hooks/", "bin/", "scripts/", "migrations/", ".github/workflows/", "tests/catraca.py")
 PASTAS_CUSTO = ("hooks/", "bin/", "scripts/", ".github/")
 CUSTO = {
@@ -77,10 +78,26 @@ def json_de(raiz, ref, caminho):
         return {}
 
 
+class ErroDeDiff(Exception):
+    """O `git diff` que lista os arquivos alterados falhou: sem a lista, a catraca não pode dizer que nada mudou."""
+
+
+SEM_LISTA = "não consegui listar os arquivos alterados"
+
+
+def msg_diff(base, head):
+    return msg("R-CONFORMIDADE", f"{SEM_LISTA} entre {base} e {head} (o `git diff` falhou)",
+               "sem a lista a catraca não sabe o que mudou, e lista vazia deixaria passar mudança em arquivo protegido",
+               "confira se a base e o head existem no clone (`git fetch`) e rode de novo; o rótulo não libera esta violação", ADR)
+
+
 def alterados(raiz, base, head):
-    """Caminhos tocados entre base e head. `--no-renames`: mover ou apagar conta como mudança do caminho antigo também."""
+    """Caminhos tocados entre base e head. `--no-renames`: mover ou apagar conta como mudança do caminho antigo também.
+    Falha fechada: se o `git diff` falha, levanta `ErroDeDiff` em vez de devolver lista vazia."""
     cod, saida = git(raiz, "diff", "--no-renames", "--name-only", "-z", base, head)
-    return [] if cod else [a for a in saida.split("\0") if a]
+    if cod:
+        raise ErroDeDiff(msg_diff(base, head))
+    return [a for a in saida.split("\0") if a]
 
 
 def base_efetiva(raiz, base, head):
@@ -414,6 +431,13 @@ def regra_arquivos_de_regras(raiz, b, h, cfg_base):
 
 
 def violacoes_das_regras(raiz, base, head="HEAD"):
+    try:
+        return _violacoes_das_regras(raiz, base, head)
+    except ErroDeDiff as e:
+        return [str(e)]
+
+
+def _violacoes_das_regras(raiz, base, head):
     b = base_efetiva(raiz, base, head)
     cb, ch = json_de(raiz, b, "tests/config.json"), json_de(raiz, head, "tests/config.json")
     permitido = (ch or {}).get("custo_permitido", {})
@@ -805,6 +829,13 @@ def so_troca_sha_de_acoes(raiz, b, h):
 
 
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
+    try:
+        return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
+    except ErroDeDiff as e:
+        return [str(e)]
+
+
+def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     if (ramo, base_ref) in PROMOCOES:
         return []
     b = base_efetiva(raiz, base, head)
@@ -837,6 +868,15 @@ def resumo(titulo, linhas):
 
 
 def main(argv=None):
+    try:
+        return _main(argv)
+    except ErroDeDiff as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
+        print(e)
+        resumo("catraca", [str(e)])
+        return 1
+
+
+def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres"), default="regras")
     ap.add_argument("--base", default=os.environ.get("BASE", "origin/develop"))
@@ -868,7 +908,7 @@ def main(argv=None):
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
             cfg = cfg if isinstance(cfg, dict) else {}
-            custo = [x for x in viol if x.startswith("R-CUSTO:")]  # só `custo_permitido` abre exceção de custo, nunca o rótulo
+            custo = [x for x in viol if x.startswith("R-CUSTO:") or SEM_LISTA in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem sem a lista de arquivos
             dono, liberado = cfg.get("dono"), None
             if not custo and eventos is not None:
                 if push and rotulo_liberado(eventos, dono, push):

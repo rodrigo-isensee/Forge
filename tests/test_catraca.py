@@ -394,7 +394,7 @@ class Custo(Base):
 
 class Protegidos(Base):
     def test_mudanca_em_arquivo_protegido_barra(self):
-        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py"):
+        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py", "scripts/conferir-release.py"):
             with self.subTest(rel):
                 repo = Repo()
                 self.addCleanup(repo.fecha)
@@ -430,6 +430,31 @@ class Protegidos(Base):
                 repo.escreve(rel, "mudou\n")
                 repo.commit()
                 self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_regra_de_release_e_protegida(self):
+        self.repo.escreve("scripts/conferir-release.py", "mudou\n")
+        self.barra("mudança em scripts/conferir-release.py", "R-CONFORMIDADE")
+
+    def test_git_diff_com_erro_vira_violacao(self):
+        """Falha fechada: base inexistente faz o `git diff` falhar, e a lista vazia não pode virar 'nada mudou'."""
+        self.repo.escreve("tests/catraca.py", "mudou\n")
+        self.repo.commit()
+        achadas = catraca.violacoes_das_regras(self.repo.dir, "ref-que-nao-existe", "HEAD")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-CONFORMIDADE: não consegui listar os arquivos alterados entre ref-que-nao-existe e HEAD .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_git_diff_com_erro_deixa_a_catraca_vermelha_e_o_rotulo_nao_libera(self):
+        eventos = self.repo.dir / "eventos.json"
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "ref-que-nao-existe", "--eventos", str(eventos), "--ultimo-push", "2026-01-01T10:00:00Z"]
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1)
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+
+    def test_alterados_levanta_quando_o_git_diff_falha(self):
+        with self.assertRaises(catraca.ErroDeDiff):
+            catraca.alterados(self.repo.dir, "ref-que-nao-existe", "HEAD")
 
     def test_outros_arquivos_passam(self):
         self.repo.escreve(".github/pull_request_template.md", "x\n")
