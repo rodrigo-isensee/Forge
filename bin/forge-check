@@ -629,13 +629,31 @@ def raiz_principal(raiz):
 
 
 def caminho_do_pedido(raiz, pedido):
-    """Arquivo do pedido: o caminho dado ou `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1)."""
+    """Arquivo do pedido: o caminho dado, `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e,
+    por último, de cada raiz de brief (só em `docs/pedidos/`, `realpath`: travessia e link para fora não valem)."""
     if Path(pedido).is_file():
         return Path(pedido)
     for pasta in (raiz_principal(raiz), Path(raiz)):
         if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
             return pasta / "docs" / "pedidos" / f"{pedido}.md"
+    for base in RAIZES_DE_BRIEF:
+        achado = dentro_da_raiz(base, Path("docs") / "pedidos" / f"{pedido}.md", ("docs/pedidos",))
+        if achado is not None and achado.is_file():
+            return achado
     return Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
+
+
+def linha_de_origem(arquivo):
+    """`origem: <caminho>` se o arquivo mora numa raiz de brief (fora do repositório); senão None. Só informa, nunca reprova."""
+    real = Path(os.path.realpath(arquivo))
+    for base in RAIZES_DE_BRIEF:
+        try:
+            rel = real.relative_to(Path(os.path.realpath(base))).as_posix()
+        except ValueError:
+            continue
+        if rel.startswith(("docs/pedidos/", "docs/briefs/")):  # só o que a busca achou ali; o resto da árvore não conta
+            return f"origem: {real}"
+    return None
 
 
 def conferidas_do_pedido(texto):
@@ -678,6 +696,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde):
     except (OSError, UnicodeDecodeError) as e:
         print(f"entrega: não consegui ler o pedido {caminho}: {getattr(e, 'strerror', None) or e}")
         return 2
+    if origem := linha_de_origem(caminho):
+        print(origem)
     head, inicio = sha_do_commit(raiz, branch), sha_do_commit(raiz, base_sha)
     if not head or inicio != base_sha:
         print(f"entrega: ref ilegível (--branch {nome_seguro(branch)} e --base-sha precisam ser commits; o Base-sha, sha40)")
@@ -862,11 +882,13 @@ def bloco_sem_final(linhas):
 
 def caminho_de_brief(raiz, caminho):
     """(arquivo resolvido, caminho relativo à raiz que o achou) de um brief em `docs/briefs/`, dentro da raiz ou de uma raiz de brief; (None, None) se fora (B3)."""
+    validos = []
     for base in (Path(raiz), *RAIZES_DE_BRIEF):
         achado = dentro_da_raiz(base, caminho, ("docs/briefs",))
         if achado is not None:
-            return achado, achado.relative_to(Path(os.path.realpath(base))).as_posix()
-    return None, None
+            validos.append((achado, achado.relative_to(Path(os.path.realpath(base))).as_posix()))
+    # a ordem é fixa (a raiz do repositório vence); entre os válidos, o primeiro que existe; nenhum existe: o primeiro
+    return next((v for v in validos if v[0].is_file()), validos[0] if validos else (None, None))
 
 
 def pareceres_da_volta(raiz, pedido_id, ref, arquivos):
@@ -1134,6 +1156,9 @@ def release_em_curso(raiz, ref):
             f"{nome} não é melhoria/release-{versao}: espere a promoção da release para a homolog antes de mesclar na develop"], 1
 
 
+SEM_QUADRO = "{cmd}: {raiz} não tem KANBAN.md; não crio docs/kanban/ numa pasta sem quadro (rode na raiz do projeto ou passe --raiz)"
+
+
 def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
@@ -1142,6 +1167,8 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     campos = [limpo(x) for x in (cartao, de, para)]
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
+    if not (raiz / "KANBAN.md").is_file():
+        return [SEM_QUADRO.format(cmd="movimento", raiz=raiz)]
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
@@ -1185,6 +1212,8 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
         return [f"conferencia: --merito deve ser um de {', '.join(MERITOS_DE_CONFERENCIA)}"]
     if not re.fullmatch(r"[0-9]+", rodada) or int(rodada) < 1:
         return ["conferencia: --rodada deve ser um inteiro a partir de 1"]
+    if not (raiz / "KANBAN.md").is_file():
+        return [SEM_QUADRO.format(cmd="conferencia", raiz=raiz)]
     arq = raiz / "docs" / "kanban" / "conferencias.md"
     if arq.is_symlink():
         return ["conferencia: docs/kanban/conferencias.md é link simbólico; não escrevo através dele"]
@@ -2704,10 +2733,11 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
 
 
 def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, pareceres=None):
-    caminho_pedido = Path(pedido)
-    if not caminho_pedido.is_file():
-        caminho_pedido = Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
+    caminho_pedido = caminho_do_pedido(raiz, pedido)
     brief = Path(arquivo)
+    if not brief.is_file():  # primeiro como dado (cwd); depois docs/briefs/ da raiz ou de uma raiz de brief
+        achado, _ = caminho_de_brief(raiz, arquivo)
+        brief = achado if achado is not None and achado.is_file() else brief
     try:
         conteudo = brief.read_bytes()
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
@@ -2728,6 +2758,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
             print(f"brief: --anterior {nome_seguro(anterior)}: {getattr(e, 'strerror', None) or e}")
             return 2
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, arquivo if destino else None, bytes_anterior)
+    linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres)
     reprovado = any(r for _, r in linhas)
@@ -2750,9 +2781,7 @@ def pq_de_merge(base):
 def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`."""
-    caminho_pedido = Path(pedido)
-    if not caminho_pedido.is_file():
-        caminho_pedido = Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
+    caminho_pedido = caminho_do_pedido(raiz, pedido)
     try:
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
     except OSError as e:
