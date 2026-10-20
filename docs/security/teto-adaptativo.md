@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: teto-adaptativo
 branch: melhoria/teto-adaptativo
-commit: 119bc506d0b199535b01eb9d367001921365079b
+commit: 54852d4e5bde991de5a2691dc4fa979d9ce01d4e
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-19
 ---
-# Review de segurança: teto-adaptativo
+# Review de segurança: teto-adaptativo (volta 2, revalidação por delta)
 
-Escopo: `git diff origin/develop 119bc506...`: `hooks/agentes.py`, `bin/forge-check` (kanban), `docs/regras/R-TETO.md`, `docs/regras/R-WIP.md`, fixtures e testes. Revisão estática; `tests.test_hooks` rodou verde (20 testes).
+Escopo: `git diff da15a888..54852d4e` (`hooks/agentes.py`, `bin/forge-check`, `docs/hooks.md`, `docs/regras/R-TETO.md`, testes). Revisão estática; `tests.test_hooks` rodou verde (24 testes). Substitui o parecer da volta 1 (119bc506).
 
 ## Gatilhos
 Hook de controle (`hooks/agentes.py`, ADR 0003) e regra de conformidade (R-TETO, R-WIP); `forge-check kanban` é verificador de regra.
@@ -18,19 +18,16 @@ Hook de controle (`hooks/agentes.py`, ADR 0003) e regra de conformidade (R-TETO,
 ## Achados
 
 ## Detalhe dos achados
-Conferências pedidas (todas cumpridas):
-- Sem leitura de /proc o teto cai em 3: `hooks/agentes.py:62-63` (`teto_adaptativo` devolve `RESERVA["teto_agentes"]`, que é 3 em `hooks/_comum.py:27`) e `agentes.py:80-81` (explicação). Sem medida, `carga_alta` não bloqueia (`agentes.py:55-56`), mas o teto de 3 segue valendo: falha segura, igual ao comportamento anterior.
-- `teto_agentes` e `teto_maximo` continuam sobrepondo: `agentes.py:70-71` (fixo vence) e `agentes.py:75-77` (máximo limita); `bin/forge-check:243-245` usa a mesma função. A trava de carga vale antes e não é desligada por eles (`agentes.py:101`).
-- FORGE_NPROC e FORGE_PROC (`agentes.py:32,40`): são variáveis do ambiente do processo do hook, que o Claude Code herda do dono; um agente, pelo Bash, não altera o ambiente do hook. Não são caminho realista para um agente desligar o teto; equivalem a `FORGE_CARGA_LIVRE=1`, já aceito como escape do dono (mas aquele registra no erros.log e estes não). Ver R1.
-- Tarefas pesadas uma por vez: `hooks/pesado.py` não está no diff e não usa o teto; R-TETO mantém o texto (`docs/regras/R-TETO.md`, "tarefas pesadas uma de cada vez").
-- Fator de coluna não remove o 1 cartão por agente: `bin/forge-check:274-275,281-287`: o fator só multiplica limites de tipo `total`; o tipo `agente` segue com `wip[0]` (1) e só instâncias extras com `worktree:` distinto até o teto (`instancias_do_agente`, `:254-265`). Entrada inválida (valor ausente, não inteiro, bool, 0) é descartada em `:242-243`. FORGE_NPROC inválido ou 0 cai em None, logo em 3; negativo bloqueia tudo (falha fechada).
-- Erro interno do hook: `_comum.py:750-752` registra e libera (ADR 0003), inalterado.
+Conferências pedidas (todas cumpridas em 54852d4e):
+- Sem leitura de /proc o teto cai em 3 (falha segura): `hooks/agentes.py:67-73` devolve `min(3, nproc)` se nproc é conhecido, senão 3; nunca acima de 3. Sem medida, `carga_alta` não bloqueia (`:62-63`), mas o teto segue valendo.
+- `teto_agentes` e `teto_maximo` continuam sobrepondo: `calcular_teto` (`:76-92`) aplica o fixo e depois `teto_maximo` aos dois (agora limita também o fixo, mais restritivo, nunca mais frouxo). O `forge-check kanban` (`bin/forge-check:244`) chama a mesma função, sem a lógica duplicada que divergia. A trava de carga vale antes e não é desligada por eles (`agentes.py:113`).
+- FORGE_NPROC e FORGE_PROC (R1 da volta 1, corrigido): `agentes.py:110-112` registra no erros.log cada uso (`registrar_escape`, `_comum.py:693`, nunca bloqueia), documentado em `docs/hooks.md`. São variáveis do ambiente do processo do hook, herdado do dono; um agente pelo Bash não as altera. Não abrem caminho para desligar o teto: FORGE_NPROC inválido ou 0 cai em None (teto 3); negativo bloqueia tudo (falha fechada); FORGE_PROC inexistente zera a medida (teto 3, trava de carga inerte, igual ao escape FORGE_CARGA_LIVRE já aceito, agora com registro). O `forge-check kanban` não registra, mas só lê o quadro.
+- nproc por afinidade (R2 corrigido): `agentes.py:30-39` usa `os.sched_getaffinity(0)` com queda para `cpu_count()`; `OSError` tratado.
+- Tarefas pesadas uma por vez: `hooks/pesado.py` fora do delta e intacto; `R-TETO.md` mantém o texto.
+- Fator de coluna não remove o 1 cartão por agente: o delta não toca `fator_de_coluna` nem `instancias_do_agente`; a verificação da volta 1 segue valendo (só limites `total` escalam; tipo `agente` mantém 1).
+- Erro interno do hook: registra e libera (ADR 0003), inalterado.
 
-Recomendações (não bloqueiam; sem caminho de ataque realista, por isso fora do bloco de achados):
-- R1 (baixa, informativa, P, dono tech-lead): `FORGE_NPROC`/`FORGE_PROC` valem em uso real e sem registro. Se o dono ou um `settings.json` de projeto os definir, o teto e a trava de carga somem em silêncio e o `forge-check kanban` afrouxa os limites. Correção mínima: registrar no erros.log como o `FORGE_CARGA_LIVRE`, ou só honrá-los com uma variável de teste.
-- R2 (baixa, P, tech-lead): `os.cpu_count()` (`agentes.py:32`) ignora afinidade e cota de cgroup; em container com cota menor que o host, nproc e o limite de 80% ficam superestimados. Preferir `len(os.sched_getaffinity(0))` quando existir. No WSL do dono (`.wslconfig`) não afeta.
-- R3 (informativa): o load de 1 min atrasa; uma rajada de disparos antes de o load subir pode chegar a nproc agentes. O limite é o próprio nproc e a memória só é checada no disparo; aceitável para agentes de trabalho leve (R-TETO), observar na prática.
-- R4 (informativa): o resultado de `forge-check kanban` agora depende da máquina (teto medido na hora); o mesmo quadro pode passar numa máquina e falhar em outra. É consequência da decisão do dono (adaptativo por hardware), não risco de segurança.
+Recomendações anteriores: R2 resolvida, R1 resolvida. R3 (load de 1 min atrasa; rajada pode chegar a nproc) e R4 (resultado do kanban depende da máquina, decisão do dono) seguem informativas, sem caminho de ataque realista.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura estática e `unittest` do hook; gitleaks, osv-scanner e semgrep não foram necessários (sem dependência nem segredo novo no diff) nem executados.
+Nenhum risco aceito. Ferramentas: leitura estática e `unittest`; gitleaks, osv-scanner e semgrep não necessários (sem dependência nem segredo novo no delta) nem executados.
