@@ -99,25 +99,50 @@ if [ "$dev" = 1 ]; then
 elif [ ! -e "$vigente" ]; then
   criar_vigente
 fi
+# Defasagem nunca é muda (versao-defasada, VD-1): a data do commit da cópia vigente diz desde quando ela está parada.
+avisou_defasagem=0
+data_da_copia() { git -C "$vigente" log -1 --format=%cs HEAD 2>/dev/null || true; }
+atrasado() {
+  avisou_defasagem=1
+  echo "jarvis-forge: ATRASADO desde $(data_da_copia): a cópia vigente não foi atualizada e pode estar atrás da origin/develop. Para atualizar, saia do Jarvis, rode 'jarvis-forge --atualizar-vigente' e reabra a sessão." >&2
+}
+sessao_aberta() {
+  [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1 && tmux has-session -t jarvis-Forge 2>/dev/null
+}
+# Com a sessão tmux aberta o plugin não é trocado (a atualização espera o reinício), mas a pessoa fica sabendo se está atrás.
+avisar_na_sessao_aberta() {
+  local data
+  [ -d "$vigente/.git" ] || return 0
+  data="$(data_da_copia)"
+  if ! timeout 30 git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"; then
+    avisou_defasagem=1
+    echo "jarvis-forge: ATRASADO desde $data: não consegui consultar a origin; a sessão aberta usa a cópia de $data e pode estar atrás da develop. Para atualizar, saia do Jarvis, rode 'jarvis-forge --atualizar-vigente' e reabra a sessão." >&2
+    return 0
+  fi
+  if [ -n "$(git -C "$vigente" rev-list HEAD..refs/remotes/origin/develop 2>/dev/null)" ]; then
+    avisou_defasagem=1
+    echo "jarvis-forge: AVISO: a sessão aberta usa a cópia de $data e a origin/develop já tem novidades. Para valer, saia do Jarvis, rode 'jarvis-forge --atualizar-vigente' e reabra a sessão." >&2
+  fi
+}
 # Só fast-forward: nunca reset nem merge; qualquer dúvida vira um aviso de uma linha e a sessão abre com a cópia atual.
 atualizar_ao_abrir() {
   local antes depois
   [ -d "$vigente/.git" ] || return 0
   if [ "$(git -C "$vigente" symbolic-ref --short HEAD 2>/dev/null || true)" != develop ]; then
-    echo "jarvis-forge: a cópia vigente não está na develop; não atualizei, sigo com a cópia atual." >&2; return 0
+    echo "jarvis-forge: a cópia vigente não está na develop; não atualizei, sigo com a cópia atual." >&2; atrasado; return 0
   fi
   if [ -n "$(git -C "$vigente" status --porcelain)" ]; then
-    echo "jarvis-forge: a cópia vigente tem mudanças locais; não atualizei, sigo com a cópia atual." >&2; return 0
+    echo "jarvis-forge: a cópia vigente tem mudanças locais; não atualizei, sigo com a cópia atual." >&2; atrasado; return 0
   fi
   if ! timeout 30 git -C "$vigente" fetch --quiet --no-tags origin "$refspec_develop"; then
-    echo "jarvis-forge: sem rede (ou sem acesso à origin); sigo com a cópia vigente atual." >&2; return 0
+    echo "jarvis-forge: sem rede (ou sem acesso à origin); sigo com a cópia vigente atual." >&2; atrasado; return 0
   fi
   if [ -n "$(git -C "$vigente" rev-list refs/remotes/origin/develop..HEAD)" ]; then
-    echo "jarvis-forge: a cópia vigente tem commits locais fora da origin/develop; não atualizei, sigo com a cópia atual." >&2; return 0
+    echo "jarvis-forge: a cópia vigente tem commits locais fora da origin/develop; não atualizei, sigo com a cópia atual." >&2; atrasado; return 0
   fi
   antes="$(git -C "$vigente" rev-parse HEAD)"
   if ! git -C "$vigente" merge --quiet --ff-only refs/remotes/origin/develop; then
-    echo "jarvis-forge: a cópia vigente não avança por fast-forward; não atualizei, sigo com a cópia atual." >&2; return 0
+    echo "jarvis-forge: a cópia vigente não avança por fast-forward; não atualizei, sigo com a cópia atual." >&2; atrasado; return 0
   fi
   depois="$(git -C "$vigente" rev-parse HEAD)"
   [ "$antes" = "$depois" ] || echo "jarvis-forge: cópia vigente atualizada para a origin/develop ($(git -C "$vigente" rev-parse --short HEAD))." >&2
@@ -137,12 +162,13 @@ consultar_fontes() {
 }
 # O que ocorre uma vez por abertura: dentro do tmux a sessão reentra neste script (FORGE_ABERTURA_FEITA) e não repete.
 if [ -z "${FORGE_ABERTURA_FEITA:-}" ]; then
-  # sessão tmux já aberta só é reanexada: não troca o plugin sob ela (a atualização espera o reinício)
-  if [ "$dev" = 0 ] && ! { [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1 \
-      && tmux has-session -t jarvis-Forge 2>/dev/null; }; then
-    atualizar_ao_abrir
+  # sessão tmux já aberta só é reanexada: não troca o plugin sob ela (a atualização espera o reinício), mas avisa se está atrás
+  if [ "$dev" = 0 ]; then
+    if sessao_aberta; then avisar_na_sessao_aberta; else atualizar_ao_abrir; fi
   fi
   consultar_fontes
+  # o tmux toma a tela logo em seguida: com terminal, dá tempo de ler o aviso de defasagem
+  if [ "$avisou_defasagem" = 1 ] && [ -t 2 ]; then sleep 3; fi
 fi
 cd "$HOME/Forge"
 if [ "$sem_tmux" = 0 ] && [ -z "${TMUX:-}" ] && command -v tmux >/dev/null 2>&1; then

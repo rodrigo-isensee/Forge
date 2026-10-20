@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+import apoio_versao_defasada as ap  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 DOUTOR = RAIZ / "bin" / "forge-doutor"
@@ -531,6 +532,204 @@ class Frequencia(Base):
     def test_o_tech_lead_roda_o_doutor_antes_de_abrir_pr(self):
         texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
         self.assertIn("forge doutor --rapido", texto)
+
+
+class DoutorVersao(ap.Base):
+    """VD-2 reduzida: consulta com falha não marca o dia; o cache diz `defasado`; o texto certo por superfície."""
+
+    def setUp(self):
+        super().setUp()
+        self.publicado = self.tmp / "publicado.git"
+        self.g("init", "-q", "--bare", "-b", "main", str(self.publicado), cwd=self.tmp)
+        remoto_sem_manutencao(self.publicado)
+        semente = self.tmp / "semente"
+        self.g("clone", "-q", str(self.publicado), str(semente), cwd=self.tmp)
+        (semente / "a").write_text("1\n", encoding="utf-8")
+        self.g("add", "-A", cwd=semente)
+        self.g("commit", "-q", "-m", "a", cwd=semente)
+        self.g("push", "-q", "origin", "main", cwd=semente)
+        self.semente = semente
+        self.proj = self.tmp / "proj"
+        self.g("init", "-q", "-b", "main", str(self.proj), cwd=self.tmp)
+        (self.proj / ".forge").mkdir()
+        (self.proj / ".forge/versao").write_text("0.1.0\n", encoding="utf-8")
+        self.env.update(FORGE_HOJE=HOJE, FORGE_PERMITE_LOCAL="1", FORGE_REPO_URL=str(self.publicado))
+        self.versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+
+    def tag(self, nome):
+        self.g("tag", nome, cwd=self.semente)
+        self.g("push", "-q", "origin", f"refs/tags/{nome}", cwd=self.semente)
+
+    def stop(self):
+        entrada = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(self.proj)}
+        r = subprocess.run([sys.executable, str(HOOK)], input=json.dumps(entrada), env=self.env, cwd=self.proj,
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r
+
+    def cache(self):
+        arq = self.proj / ".forge/run/versao-nova"
+        return json.loads(arq.read_text(encoding="utf-8")) if arq.exists() else None
+
+    def mais_nova(self):
+        a, b, c = (int(n) for n in self.versao.split("."))
+        return f"{a}.{b}.{c + 1}"
+
+    def test_versao_nova_avisa_com_o_comando_do_projeto_e_grava_o_cache(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        r = self.stop()
+        self.assertIn(f"Saiu a versão {nova}", r.stdout)
+        self.assertIn("`forge atualizar`", r.stdout)
+        self.assertNotIn("jarvis-forge", r.stdout)
+        cache = self.cache()
+        self.assertEqual((cache["data"], cache["defasado"], cache["atual"], cache["ultima"]), (HOJE, True, self.versao, nova))
+
+    def test_em_dia_grava_o_cache_sem_defasado_e_marca_o_dia(self):
+        self.tag(f"v{self.versao}")
+        self.assertNotIn("Saiu a versão", self.stop().stdout)
+        cache = self.cache()
+        self.assertEqual((cache["data"], cache["defasado"]), (HOJE, False))
+
+    def test_consulta_com_falha_nao_marca_o_dia_e_tenta_de_novo(self):
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        self.assertNotIn("Saiu a versão", self.stop().stdout)
+        cache = self.cache()
+        self.assertNotEqual(cache.get("data"), HOJE)
+        self.assertIn("falhou_em", cache)
+        # o endereço volta e a espera da falha passou: a próxima consulta avisa (o dia não tinha sido marcado)
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        self.env["FORGE_REPO_URL"] = str(self.publicado)
+        cache["falhou_em"] = time.time() - 3600
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(cache), encoding="utf-8")
+        self.assertIn(f"Saiu a versão {nova}", self.stop().stdout)
+        self.assertEqual(self.cache()["data"], HOJE)
+
+    def test_depois_de_uma_falha_espera_antes_de_consultar_de_novo(self):
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        self.stop()
+        primeira = self.cache()["falhou_em"]
+        self.stop()  # dentro da espera: não consulta, não regrava
+        self.assertEqual(self.cache()["falhou_em"], primeira)
+
+    def test_falha_nao_apaga_a_prova_de_atraso_ja_gravada(self):
+        nova = self.mais_nova()
+        self.tag(f"v{nova}")
+        self.stop()
+        antigo = self.cache()
+        antigo["data"] = "2026-10-19"  # outro dia, e agora a consulta falha
+        (self.proj / ".forge/run/versao-nova").write_text(json.dumps(antigo), encoding="utf-8")
+        self.env["FORGE_REPO_URL"] = str(self.tmp / "nao-existe.git")
+        self.stop()
+        cache = self.cache()
+        self.assertEqual((cache["defasado"], cache["ultima"], cache["data"]), (True, nova, "2026-10-19"))
+
+    def test_o_aviso_do_hook_nunca_entra_no_contexto_do_modelo(self):
+        self.tag(f"v{self.mais_nova()}")
+        saida = json.loads(self.stop().stdout)
+        self.assertEqual(list(saida), ["systemMessage"])  # ADR 0003: só ao usuário
+
+    def test_o_texto_da_sessao_do_forge_manda_o_comando_da_copia_vigente(self):
+        sys.path.insert(0, str(RAIZ / "bin"))
+        import forge_versoes
+        texto = forge_versoes.texto_de_versao_nova("0.20.0", "0.22.0", "forge")
+        self.assertIn("jarvis-forge --atualizar-vigente", texto)
+        self.assertNotIn("forge atualizar`", texto.replace("jarvis-forge --atualizar-vigente", ""))
+        self.assertIn("`forge atualizar`", forge_versoes.texto_de_versao_nova("0.20.0", "0.22.0", "projeto"))
+
+
+class JarvisForgeDefasagem(ap.Base):
+    """VD-1: o `jarvis-forge` avisa em toda abertura e reanexação quando a cópia vigente está atrás da origin/develop."""
+
+    def setUp(self):
+        super().setUp()
+        self.origem = self.tmp / "origem.git"
+        self.g("init", "-q", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
+        self.semente = self.tmp / "semente"
+        self.g("clone", "-q", str(self.origem), str(self.semente), cwd=self.tmp)
+        (self.semente / "bin").mkdir()
+        fc = self.semente / "bin/forge-check"
+        fc.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        fc.chmod(0o755)
+        self.publicar("inicial")
+        self.g("clone", "-q", str(self.origem), str(self.home / "Forge"), cwd=self.tmp)
+        self.vigente = self.home / ".local/share/forge/vigente"
+        self.log = self.tmp / "chamadas"
+        falsos = self.tmp / "bin"
+        falsos.mkdir()
+        for nome in ("claude", "tmux"):
+            falso = falsos / nome
+            falso.write_text(f'#!/usr/bin/env bash\necho "{nome} $*" >> "{self.log}"\n', encoding="utf-8")
+            falso.chmod(0o755)
+        self.env.update(PATH=f"{falsos}:{self.env['PATH']}", XDG_STATE_HOME=str(self.tmp / "estado"))
+        self.assertEqual(self.rodar().returncode, 0)  # cria a cópia vigente
+        self.head_inicial = self.head()
+
+    def publicar(self, msg):
+        (self.semente / "a.txt").write_text(msg + "\n", encoding="utf-8")
+        self.g("add", "-A", cwd=self.semente)
+        self.g("commit", "-q", "-m", msg, cwd=self.semente)
+        self.g("push", "-q", "origin", "develop", cwd=self.semente)
+
+    def head(self):
+        return self.g("rev-parse", "HEAD", cwd=self.vigente)
+
+    def data_da_copia(self):
+        return self.g("log", "-1", "--format=%cs", "HEAD", cwd=self.vigente)
+
+    def rodar(self, *args, sem_tmux=True):
+        return subprocess.run(["bash", str(RAIZ / "scripts/jarvis-forge"), *args, *(["--sem-tmux"] if sem_tmux else [])],
+                              env=self.env, capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=90, cwd=self.tmp)
+
+    def test_com_a_sessao_aberta_atras_avisa_a_data_e_o_comando_sem_trocar_o_plugin(self):
+        self.publicar("novo")
+        r = self.rodar(sem_tmux=False)  # o tmux falso diz que a sessão já existe
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"a sessão aberta usa a cópia de {self.data_da_copia()}", r.stderr)
+        self.assertIn("jarvis-forge --atualizar-vigente", r.stderr)
+        self.assertEqual(self.head(), self.head_inicial, "o plugin foi trocado sob a sessão aberta")
+
+    def test_o_aviso_se_repete_em_toda_reanexacao(self):
+        self.publicar("novo")
+        for _ in range(2):
+            self.assertIn("a sessão aberta usa a cópia de", self.rodar(sem_tmux=False).stderr)
+
+    def test_com_a_sessao_aberta_em_dia_fica_em_silencio(self):
+        r = self.rodar(sem_tmux=False)
+        self.assertNotIn("ATRASADO", r.stderr)
+        self.assertNotIn("a sessão aberta usa", r.stderr)
+
+    def test_com_a_sessao_aberta_e_sem_rede_diz_atrasado_desde_a_data(self):
+        self.origem.rename(self.tmp / "sumiu.git")
+        r = self.rodar(sem_tmux=False)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"ATRASADO desde {self.data_da_copia()}", r.stderr)
+        self.assertIn("jarvis-forge --atualizar-vigente", r.stderr)
+
+    def test_abertura_sem_rede_diz_atrasado_desde_a_data(self):
+        self.origem.rename(self.tmp / "sumiu.git")
+        r = self.rodar()
+        self.assertIn(f"ATRASADO desde {self.data_da_copia()}", r.stderr)
+        self.assertEqual(len([l for l in r.stderr.splitlines() if "sem rede" in l]), 1)
+
+    def test_abertura_com_recusa_diz_atrasado_desde_a_data(self):
+        (self.vigente / "a.txt").write_text("sujo\n", encoding="utf-8")
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertIn("mudanças locais", r.stderr)
+        self.assertIn(f"ATRASADO desde {self.data_da_copia()}", r.stderr)
+
+    def test_abertura_que_atualiza_nao_avisa_atraso(self):
+        self.publicar("novo")
+        r = self.rodar()
+        self.assertIn("atualizada", r.stderr)
+        self.assertNotIn("ATRASADO", r.stderr)
+
+    def test_dev_nao_avisa(self):
+        self.publicar("novo")
+        self.assertNotIn("ATRASADO", self.rodar("--dev").stderr)
 
 
 if __name__ == "__main__":
