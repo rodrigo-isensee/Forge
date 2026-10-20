@@ -120,7 +120,7 @@ Um cartão por (origem, área, faixa de severidade), revisável de uma vez: bloq
 1. Dados do pedido: lead time, cycle time, vazão, retrabalho, bloqueios e as quatro métricas DORA, lendo velocidade e estabilidade juntas.
 2. O que funcionou.
 3. O que atrapalhou (fatos, não pessoas).
-4. Até 3 ações — cada uma com responsável, mudança exata e como medir.
+4. Até 3 ações — cada uma com responsável, mudança exata e como medir — e a tabela das linhas `MELHORIA:` (`R-DECISAO`).
 5. Revisão das ações da retrospectiva anterior: funcionou, não funcionou, abandonar.
 
 ## Experimentos de melhoria (`docs/kanban/melhorias.md`)
