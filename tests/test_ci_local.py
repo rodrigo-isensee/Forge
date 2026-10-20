@@ -123,7 +123,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
                       if j["id"] == "bateria"]
         comandos = "\n".join(p["run"] for p in bateria["passos"])
         for trecho in ("unittest discover", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
-                       "[Não publicado]", "Nada pula degrau", "verificar-contribuicao"):
+                       "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
 
     def test_passo_com_bloco_env_e_if(self):

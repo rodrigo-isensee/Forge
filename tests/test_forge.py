@@ -849,8 +849,9 @@ class CI(unittest.TestCase):
     def test_job_versao_cobre_develop_e_main(self):
         """ADR 0006: develop exige linha em [Não publicado]; main exige versão nova e changelog fechado."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        for trecho in ("github.base_ref == 'develop'", "github.base_ref == 'main'", "changelog.d", "a <= b"):
+        for trecho in ("github.base_ref == 'develop'", "github.base_ref == 'main'", "changelog.d"):
             self.assertIn(trecho, texto)
+        self.assertIn("a <= b", (RAIZ / "scripts" / "conferir-release.py").read_text(encoding="utf-8"))
 
     def test_dependabot_para_actions(self):
         texto = (RAIZ / ".github" / "dependabot.yml").read_text(encoding="utf-8")
