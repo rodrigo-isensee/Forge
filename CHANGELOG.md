@@ -4,6 +4,18 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.25.0] - 2026-10-20
+### Adicionado
+- CI: a checagem de release (versão nova e changelog fechado) também roda no PR develop -> homolog quando a versão subiu, via scripts/conferir-release.py compartilhado com a main (DV-4)
+- O pre-push do Forge espera a vez por uma trava (flock) antes de rodar a suíte, para duas suítes não rodarem juntas na máquina (R-TETO); `.githooks/pre-push --status` diz se há suíte rodando.
+- A trava do pre-push é aberta uma vez, só do próprio usuário e sem seguir link; no recuo para `$TMPDIR` e `/tmp` fica na subpasta `forge-<uid>` (modo 700); o `--status` só vale com um único argumento (um remoto chamado `--status` não pula a suíte) e o descritor da trava não vai para a suíte.
+### Alterado
+- **O integrador não mescla na `develop` PR de fora durante a release (DV-5).** `forge-check sobreposicao --ref <branch>` sai com erro e diz esperar a promoção quando a versão da `origin/develop` é maior que a da `origin/homolog` e a branch não é `melhoria/release-<versão>`; sem `--ref`, sem release em curso ou com a versão ilegível segue informativo (rc 0, aviso no último caso). A "Fila de integração" de R-FLUXO ganhou a frase; só restringe, sem rede e sem custo (R-CUSTO).
+- o hook conformidade libera ao papel aq gravar também em ~/.forge-contrib/docs/propostas/ e ~/.forge-contrib/docs/arquitetura/ (só essas duas; o resto do clone segue recusado)
+- forge-fechar: o passo 5 para quando o título do PR cita afrouxa-regra sem o rótulo aplicado, ou quando o corpo traz item marcado (`-`, `*`, `+`, lista numerada) que o cita; só citar o nome no corpo não para. O corpo gerado traz o item do rótulo desmarcado, e o --dry-run avisa quando o diff toca caminho de controle da catraca (ou quando não consegue ler o diff).
+### Corrigido
+- forge-check: brief e entrega acham o pedido e o brief em ~/.forge-contrib (com a linha informativa origem:), e movimento e conferencia registrar recusam, sem criar docs/kanban/, quando a raiz não tem KANBAN.md.
+
 ## [0.24.0] - 2026-10-20
 ### Alterado
 - QA escreve o plano de testes e, com gatilho de segurança, os testes de abuso durante a implementação; o parecer segue só no commit final, depois do review
