@@ -6,6 +6,7 @@ Formato do fixture:
   forge       false para projeto sem .forge/versao (padrão: true)
   arquivos    {caminho: texto ou lista de linhas} gravados antes do commit inicial (branch develop)
   config      objeto gravado em .forge/config.json; `config_bruta` grava o texto como está
+  executaveis [caminho] relativos à raiz que ganham permissão de execução (ex.: um `gh` falso, sem rede, no PATH do `env`)
   links       {caminho: alvo} links simbólicos criados depois dos arquivos ({raiz} e {tmp} valem no alvo)
   env         variáveis de ambiente do processo do hook ({tmp} vale; ex.: FORGE_GUARDA_ABERTA, HOME)
   git         passos depois do commit inicial: {"branch": b} | {"checkout": b} | {"worktree": pasta, "branch": b} (com "solto": true, HEAD solto)
@@ -116,6 +117,8 @@ class Fixture:
             arquivos[".forge/config.json"] = d["config_bruta"]
         arquivos[".gitignore"] = ".forge/run/\n"
         self.gravar(raiz, arquivos, mapa)
+        for rel in d.get("executaveis", []):
+            (raiz / rel).chmod(0o755)
         for rel, alvo in d.get("links", {}).items():
             (raiz / rel).parent.mkdir(parents=True, exist_ok=True)
             (raiz / rel).symlink_to(substituir(alvo, mapa, 0))
@@ -370,6 +373,204 @@ class Hooks(unittest.TestCase):
                 arquivo.parent.mkdir()
                 arquivo.write_text(json.dumps(dados), encoding="utf-8")
                 self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    # R-CONTRIB: o rótulo afrouxa-regra só do dono (fixtures `rotulo-so-dono-*`); aqui, as formas da volta 1 -----------
+    @staticmethod
+    def dados_da_sessao_do_forge(comando, gh, codigo):
+        """Sessão do Forge (a raiz é um clone do Forge, sem `.forge/versao`) com um `gh` falso no PATH, sem rede."""
+        esperado = {"codigo": codigo}
+        if codigo:
+            esperado["stderr"] = "R-CONTRIB: "
+        return {"arquivos": {"src/app.js": "v1\n", "bin/gh": gh, ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"},
+                "executaveis": ["bin/gh"], "forge": False,
+                "env": {"HOME": "{tmp}/home", "CLAUDE_PROJECT_DIR": "{tmp}/proj", "PATH": "{tmp}/proj/bin:/usr/bin:/bin"},
+                "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
+                            "tool_use_id": "toolu_9"},
+                "esperado": esperado}
+
+    def rodar_dados(self, dados):
+        tmp = self._pasta_temporaria()
+        arquivo = tmp / "conformidade" / "caso.json"
+        arquivo.parent.mkdir()
+        arquivo.write_text(json.dumps(dados), encoding="utf-8")
+        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    def test_fixtures_da_sessao_do_forge_que_citam_o_rotulo_usam_o_gh_falso(self):
+        """Nenhum resultado depende da credencial da máquina: toda fixture da sessão do Forge (`forge: false` com o
+        `plugin.json` do Forge na raiz) que cita o rótulo traz o `gh` falso executável e o põe à frente no PATH."""
+        achadas = []
+        for f in self.fixtures:
+            d = f.dados
+            if d.get("forge") is not False or ".claude-plugin/plugin.json" not in d.get("arquivos", {}):
+                continue
+            if "afrouxa-regra" not in json.dumps(d.get("entrada", {})):
+                continue
+            achadas.append(f.caminho.name)
+            with self.subTest(fixture=f.caminho.name):
+                self.assertIn("bin/gh", d.get("arquivos", {}))
+                self.assertIn("bin/gh", d.get("executaveis", []))
+                self.assertTrue(d.get("env", {}).get("PATH", "").startswith("{tmp}/proj/bin:"))
+        self.assertGreaterEqual(len(achadas), 10, "fixtures da sessão do Forge com o rótulo")
+
+    def test_rotulo_so_dono_formas_alternativas(self):
+        """Volta 1 (segurança A2, A3, A4 e R2): GraphQL por caminho ou URL, REST com `?…` ou `#…`, crase (fora de aspas
+        simples) e criar ou renomear rótulo com o nome barram outra conta; a conta do dono passa; o resto não muda."""
+        mutacao = "mutation { addLabelsToLabelable(input:{labelableId:\\\"X\\\", labelIds:[\\\"Y\\\"]}) { clientMutationId } }"
+        barram = [
+            f"gh api /graphql -f query=\"{mutacao}\"",
+            f"gh api https://api.github.com/graphql -f query=\"{mutacao}\"",
+            f"gh api https://ghe.exemplo/api/graphql -f query=\"{mutacao}\"",
+            f"gh api 'graphql?x=1' -f query=\"{mutacao}\"",
+            "gh api 'repos/o/r/issues/70/labels?x=1' -f 'labels[]=afrouxa-regra'",
+            "gh api 'repos/o/r/issues/70/labels#x' -f 'labels[]=afrouxa-regra'",
+            "gh api 'https://api.github.com/repos/o/r/issues/70/labels/' -f 'labels[]=afrouxa-regra'",
+            "echo `gh pr edit 70 --add-label afrouxa-regra`",
+            "x=`gh pr edit 70 --add-label afrouxa-regra`",
+            "echo \"a `gh issue edit 70 --add-label afrouxa-regra` b\"",
+            "bash -c 'echo `gh pr edit 70 --add-label afrouxa-regra`'",
+            "echo `gh pr edit 70 --add-label afrouxa-regra",  # crase sem par: não se analisa e cita o rótulo
+            "gh label create afrouxa-regra",
+            "gh label edit tmp --name afrouxa-regra",
+            "gh label edit afrouxa-regra --name tmp",
+            "gh api -X PATCH repos/o/r/labels/afrouxa-regra -f new_name=tmp",
+            "gh api repos/o/r/labels/tmp -X PATCH -f new_name=afrouxa-regra",
+            "gh api repos/o/r/labels -f name=afrouxa-regra",
+            "gh api graphql -f query='mutation { updateLabel(input:{id:\"L\", name:\"x\"}) { clientMutationId } }'",
+            "gh api /graphql -f query='mutation { createLabel(input:{repositoryId:\"R\", name:\"x\"}) { clientMutationId } }'",
+        ]
+        passam = ["echo 'a `gh pr edit 70 --add-label afrouxa-regra` b'", "gh issue comment 70 --body 'cite `afrouxa-regra`'",
+                  "gh label create bug", "gh label edit bug --name defeito", "gh pr edit 70 --add-label bug",
+                  "gh api /graphql -f query='query { viewer { login } }'", "gh api 'repos/o/r/issues/70/labels?x=1' -f 'labels[]=bug'",
+                  "echo `date`"]
+        casos = [(c, "#!/bin/sh\necho outra-pessoa\n", 2) for c in barram]
+        casos += [(c, "#!/bin/sh\necho outra-pessoa\n", 0) for c in passam]
+        casos += [(c, "#!/bin/sh\necho Rodrigo-Isensee\n", 0) for c in barram[:9] + barram[12:15]]
+        for comando, gh, codigo in minimo(casos, 40, "casos de rótulo"):
+            with self.subTest(comando=comando, gh=gh.split()[-1], codigo=codigo):
+                self.rodar_dados(self.dados_da_sessao_do_forge(comando, gh, codigo))
+
+    def test_rotulo_so_dono_volta_2_crase_escapada_comentario_clone_e_remocao(self):
+        """Volta 2 (segurança B1, review 1 a 3): a crase escapada em `bash -c`/`sh -c`/`eval`, a aspa simples de um comentário
+        antes da crase, `gh label clone` e `--remove-label afrouxa-regra` exigem o dono; a conta do dono passa; o resto não muda."""
+        rotulo = "gh pr edit 70 --add-label afrouxa-regra"
+        barram = [
+            f'bash -c "echo \\`{rotulo}\\`"',
+            f'sh -c "x=\\`{rotulo}\\`"',
+            f'eval "echo \\`{rotulo}\\`"',
+            f"echo hi # don't\nx=`{rotulo}`",
+            f"echo hi # don't\necho \"`{rotulo}`\"",
+            "gh label clone o/outro",
+            "gh label clone o/outro --force",
+            "gh pr edit 70 --remove-label afrouxa-regra",
+            "gh issue edit 70 --remove-label=afrouxa-regra",
+            "gh pr edit 70 --remove-label bug,afrouxa-regra",
+            "gh api -X DELETE repos/o/r/issues/70/labels/afrouxa-regra",
+        ]
+        passam = [f'bash -c "echo \\`date\\`"', f'echo "\\`{rotulo}\\`"', f"echo hi # don't\nx=`date`",
+                  "echo a # `" + rotulo + "`", "gh pr edit 70 --remove-label bug", "gh label list"]
+        casos = [(c, "#!/bin/sh\necho outra-pessoa\n", 2) for c in barram]
+        casos += [(c, "#!/bin/sh\necho outra-pessoa\n", 0) for c in passam]
+        casos += [(c, "#!/bin/sh\necho Rodrigo-Isensee\n", 0) for c in barram]
+        for comando, gh, codigo in minimo(casos, 20, "casos de rótulo da volta 2"):
+            with self.subTest(comando=comando, gh=gh.split()[-1], codigo=codigo):
+                self.rodar_dados(self.dados_da_sessao_do_forge(comando, gh, codigo))
+
+    def test_rotulo_so_dono_volta_2_sessao_de_projeto(self):
+        """Segurança R5: as formas da crase escapada e do comentário também são barradas na sessão de projeto (R-CONTRIB),
+        quando apontam para o Forge; a mesma linha sem apontar para o Forge passa."""
+        alvo = "gh pr edit https://github.com/rodrigo-isensee/Forge/pull/70 --add-label afrouxa-regra"
+        casos = [
+            (f'bash -c "echo \\`{alvo}\\`"', 2), (f'sh -c "x=\\`{alvo}\\`"', 2), (f'eval "echo \\`{alvo}\\`"', 2),
+            (f"echo hi # don't\nx=`{alvo}`", 2), (f"echo hi # don't\necho \"`{alvo}`\"", 2),
+            ('bash -c "echo \\`date\\`"', 0), ("echo hi # don't\nx=`date`", 0),
+        ]
+        for comando, codigo in minimo(casos, 6, "casos de projeto da volta 2"):
+            with self.subTest(comando=comando):
+                esperado = {"codigo": codigo}
+                if codigo:  # barra por R-CONTRIB (alvo no Forge) ou R-CONFORMIDADE (crase com ação crítica, não modelada)
+                    esperado["stderr"] = "R-CON"
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home", "CLAUDE_PROJECT_DIR": "{tmp}/proj"},
+                                  "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "hook_event_name": "PreToolUse",
+                                              "tool_use_id": "toolu_9"}, "esperado": esperado})
+
+    def test_rotulo_so_dono_gh_pendurado_decide_antes_do_timeout_do_hook(self):
+        """Segurança A1: `gh` que não responde (com um filho segurando a saída) barra dentro do timeout do hook."""
+        limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+                     for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        inicio = time.monotonic()
+        self.rodar_dados(self.dados_da_sessao_do_forge("gh pr edit 70 --add-label afrouxa-regra",
+                                                       "#!/bin/sh\nsleep 30\necho outra-pessoa\n", 2))
+        self.assertLess(time.monotonic() - inicio, limite - 1, "a decisão sai antes do Claude Code matar o hook")
+
+    def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
+        """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
+        menor timeout do hooks.json; senão o Claude Code mata o hook e o comando segue (falha aberta)."""
+        import ast
+        d = json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+        limite = min(h["timeout"] for grupos in d["hooks"].values() for g in grupos for h in g["hooks"])
+        rede, git_rede = {"gh", "curl", "wget", "ssh"}, {"fetch", "pull", "push", "ls-remote", "clone"}
+        achados = []
+        for arquivo in minimo(sorted(HOOKS.glob("*.py")), 5, "scripts de hook"):
+            arvore = ast.parse(arquivo.read_text(encoding="utf-8"))
+            constantes = {alvo.id: no.value.value for no in arvore.body if isinstance(no, ast.Assign)
+                          and isinstance(no.value, ast.Constant) for alvo in no.targets if isinstance(alvo, ast.Name)}
+            for funcao in (n for n in ast.walk(arvore) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+                listas = [n for n in ast.walk(funcao) if isinstance(n, ast.List) and n.elts
+                          and isinstance(n.elts[0], ast.Constant)]
+                de_rede = [n for n in listas if n.elts[0].value in rede or n.elts[0].value == "git" and any(
+                    isinstance(e, ast.Constant) and e.value in git_rede for e in n.elts[1:])]
+                if not de_rede:
+                    continue
+                prazos = [k.value for n in ast.walk(funcao) if isinstance(n, ast.Call) for k in n.keywords if k.arg == "timeout"]
+                with self.subTest(arquivo=arquivo.name, funcao=funcao.name):
+                    achados.append(funcao.name)
+                    self.assertTrue(prazos, "subprocesso de rede sem timeout")
+                    for prazo in prazos:
+                        valor = prazo.value if isinstance(prazo, ast.Constant) else constantes.get(getattr(prazo, "id", None))
+                        self.assertIsInstance(valor, (int, float), f"timeout não resolvido: {ast.dump(prazo)}")
+                        self.assertLess(valor, limite, f"timeout {valor} s não fica abaixo dos {limite} s do hooks.json")
+        minimo(achados, 1, "subprocessos de rede nos hooks")
+
+    def test_rotulo_so_dono_erro_inesperado_falha_fechado(self):
+        """Revisão (4) e segurança R3: erro do analisador que não é ValueError barra na sessão do Forge quando a linha
+        cita o rótulo (mesmo com a conta do dono: o hook não pôde decidir); a linha que não cita segue a regra geral."""
+        for comando, codigo in {"gh pr edit 70 --add-label afrouxa-regra": 2, "gh pr edit 70 --add-label bug": 0,
+                                "gh api graphql -f query='mutation { addLabelsToLabelable(input:{}) { x } }'": 2}.items():
+            with self.subTest(comando=comando):
+                tmp = self._pasta_temporaria()
+                f = Fixture.__new__(Fixture)
+                f.caminho, f.hook = tmp / "conformidade" / "caso.json", "conformidade"
+                f.dados = self.dados_da_sessao_do_forge(comando, "#!/bin/sh\necho Rodrigo-Isensee\n", codigo)
+                raiz, entrada = f.montar(tmp, os.getpid())
+                envoltorio = tmp / "envoltorio.py"
+                envoltorio.write_text(
+                    f"import sys\nsys.path.insert(0, {str(HOOKS)!r})\nimport conformidade\n"
+                    "def quebra(*a, **k):\n    raise RuntimeError('quebra de teste')\n"
+                    "conformidade.conteudos_de_crase = quebra\n"
+                    "conformidade.executar('conformidade', conformidade.principal, conformidade.CRITICO)\n", encoding="utf-8")
+                env = ambiente_limpo()
+                env.pop("FORGE_GUARDA_ABERTA", None)
+                env.update({k: v.replace("{tmp}", str(tmp)) for k, v in f.dados["env"].items()})
+                r = subprocess.run([sys.executable, str(envoltorio)], input=json.dumps(entrada), cwd=raiz, env=env,
+                                   capture_output=True, text=True, timeout=30)
+                self.assertEqual(r.returncode, codigo, r.stderr)
+                if codigo:
+                    self.assertIn("R-CONTRIB: erro interno ao conferir o rótulo afrouxa-regra", r.stderr)
+
+    def test_contrib_graphql_por_caminho_na_sessao_de_projeto(self):
+        """Segurança R4: na sessão de projeto, `/graphql` e a URL completa do GraphQL valem como `graphql` (R-CONTRIB)."""
+        consulta = "mutation { closePullRequest(input:{pullRequestId:\"X\"}) { clientMutationId } }"
+        casos = {f"gh api /graphql -f query='{consulta}'": 2, f"gh api https://api.github.com/graphql -f query='{consulta}'": 2,
+                 "gh api /graphql -f query='mutation { addLabelsToLabelable(input:{labelableId:\"X\"}) { x } }'": 2,
+                 "gh api 'graphql?a=1' -f query='mutation { updatePullRequest(input:{}) { x } }'": 2,
+                 "gh api /graphql -f query='query { viewer { login } }'": 0}
+        for comando, codigo in casos.items():
+            with self.subTest(comando=comando):
+                esperado = {"codigo": codigo, **({"stderr": "R-CONTRIB: gh api"} if codigo else {})}
+                self.rodar_dados({"arquivos": {"src/app.js": "v1\n"}, "env": {"HOME": "{tmp}/home"},
+                                  "entrada": {"tool_name": "Bash", "tool_input": {"command": comando},
+                                              "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
+                                  "esperado": esperado})
 
     def test_marca_de_projeto_por_raiz_e_nunca_apagada(self):
         """A chave da marca é a raiz da cópia de trabalho: a worktree irmã tem marca própria e não herda a do clone; o

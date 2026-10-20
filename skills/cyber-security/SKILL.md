@@ -15,7 +15,7 @@ description: Revisão de cibersegurança e boas práticas de um sistema (checkli
 2. **Ameaças (STRIDE)** por fronteira; priorize por probabilidade × impacto.
 3. **Checklists por camada** (abaixo), com evidência `arquivo:linha`.
 4. **Severidade:** crítica (exploração remota sem autenticação ou vazamento de dado pessoal/segredo), alta, média, baixa, informativa. Para cada achado: evidência, caminho de ataque, correção mínima, esforço (P/M/G), dono (agente).
-5. **Saída:** o parecer `docs/security/<pedido>.md` (modelo em `docs/security/_modelo.md`: resumo, achados, plano em cartões, riscos aceitos) e o modelo de ameaças em `docs/security/ameacas/<demanda>.md`. Atualizar, não duplicar. O parecer é portão quando há gatilho (`R-SEGURANCA`, que traz a lista).
+5. **Saída:** o parecer `docs/security/<pedido>.md` (modelo em `docs/security/_modelo.md`: resumo, achados, plano em cartões, riscos aceitos) e o modelo de ameaças em `docs/security/ameacas/<demanda>.md`. Atualizar, não duplicar. Com gatilho, o modelo de ameaças lista os **casos de abuso**, um por linha: entrada, caminho (de onde chega até onde) e resultado esperado (o que o sistema deve fazer); o `qa-engineer` os escreve como teste durante a implementação (`qa-testing`, "Plano antecipado"). Sem gatilho, não se aplica. O parecer é portão quando há gatilho (`R-SEGURANCA`, que traz a lista).
 
 ## Checklists
 **Da stack do projeto:** leia a stack no `CLAUDE.md` do projeto (seção "Stack") e aplique `${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/seguranca.md` (API, front, banco e cadeia de suprimentos do gerenciador de pacotes). Stack sem esse arquivo: aplique OWASP Top 10 e API Security Top 10 às camadas que o projeto tem e registre a lacuna.
