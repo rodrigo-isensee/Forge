@@ -4,6 +4,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.24.0] - 2026-10-20
+### Alterado
+- QA escreve o plano de testes e, com gatilho de segurança, os testes de abuso durante a implementação; o parecer segue só no commit final, depois do review
+- Só o dono do Forge aplica ou delega o rótulo afrouxa-regra: na sessão do Forge, o hook conformidade barra o rótulo (gh pr|issue edit|create, gh api em issues/<n>/labels, mutação GraphQL de rótulo) quando a conta do gh não é a dona do repositório ou não dá para conferir (R-CONTRIB)
+### Corrigido
+- O teste do `forge atualizar` deixa de falhar por relógio em runner lento: `rodar` espera o processo terminar e só dá por travado quem fica sem saída por 20 s; pergunta sem resposta continua reprovando.
+- **O plugin instalado deixa de ficar atrás sem que se saiba (versão defasada).** O `forge-check` compara a própria cópia com o repositório sob conferência (no Forge e nos clones, a base `origin/develop` ou o `--base-sha` tem de estar no histórico da cópia; nos projetos, lê o cache `.forge/run/versao-nova` do doutor): nos projetos, só com prova positiva de atraso, `pr`, `entrega` e `brief gerar` (e o hook `parecer` em `gh pr create/ready/merge`) terminam com erro e pedem à pessoa o comando de atualização; no Forge e nos clones de contribuição, e nos outros subcomandos, a guarda só avisa; erro na comparação ou verificação desligada vira o aviso `versão não conferida`. O `jarvis-forge` avisa em toda abertura e reanexação (inclusive com o tmux aberto) quando a cópia vigente está atrás da `origin/develop` e diz `ATRASADO desde <data>` quando não consegue atualizar. O doutor não marca o dia em consulta que falha, grava `defasado` no cache e manda o comando certo por superfície. Nada atualiza o plugin sozinho (R-CONFORMIDADE); sem rede nova e sem custo (R-CUSTO).
+
 ## [0.23.0] - 2026-10-20
 ### Alterado
 - Pareceres de devops e de segurança alinhados ao texto da TL-1: um push por rodada, e recomendações de parecer aprovado no detalhe dos achados
