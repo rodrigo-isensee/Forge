@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: proatividade
+pedido: proatividade-melhoria
 branch: melhoria/proatividade
 commit: 3a8e376866ccdcd4e49176f3b9531080e217dd95
 parecer: aprovado
