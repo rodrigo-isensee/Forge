@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: proatividade-melhoria
 branch: melhoria/proatividade
-commit: 640f304da65c32375ea1d9cedac3fac0db06405a
+commit: 3a8e376866ccdcd4e49176f3b9531080e217dd95
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-19
@@ -34,9 +34,17 @@ Ferramentas rodadas em 640f304: `python3 -m unittest tests.test_forge.Neutralida
 - Fragmento `changelog.d/proatividade.md` presente, e o `CHANGELOG.md` não foi tocado. Commits seguem Conventional Commits em português, um por camada (a regra, depois quem a cita).
 - Critério de reversão: está no pedido (Desenho, "Custo"). Não exijo "por que o existente não basta", porque o passo 9 e o "Registro por papel" já existiam e a mudança os reforça, sem criar mecanismo novo.
 
-## Recomendações (não bloqueiam; viram cartão)
-- `agents/agile-coach.md:21`: "Melhorias você mesmo implementa, sem aprovação prévia" segue listando só "decisões de produto e mudanças nas regras invioláveis" como dependentes do usuário. Faltam custo, controle e tokens/tempo. A linha 19 e o R-DECISAO prevalecem, mas a frase lida sozinha contradiz o limite do dono. Sugestão: trocar a lista por "o que não passa no critério de entrada direta (`R-DECISAO`)". Fica fora de D1 a D8 e por isso não bloqueia.
-- `bin/forge-check:2755`: a linha começa com espaço e sai como linha própria (`"\n".join`), não no fim da frase anterior. O efeito é cosmético no brief. Sugestão: tirar o espaço inicial.
-- `docs/melhoria-continua.md:7`: "junta as respostas" ficou desatualizado, já que não há mais pergunta por papel. Sugestão: "junta as linhas `MELHORIA:`".
+## Revalidação por delta (volta 1)
+Delta `eb45334..3a8e376`: 4 arquivos, 4+/5-. Revisor é outra instância, não o autor da volta (D-ETAPAS-INST). O restante do parecer da rodada 1 (conferência contra o desenho, limites do dono, texto único e neutralidade) vale, pois o delta só toca os pontos abaixo.
+
+| Recomendação | Correção | Resultado |
+|---|---|---|
+| `agents/agile-coach.md:21` (limites do dono ausentes) | "sem aprovação prévia só para o que passa no critério de entrada direta (`R-DECISAO`, "Melhoria vista")" | Resolvida |
+| `bin/forge-check:2755` (espaço inicial) | a frase "Última linha" foi para o fim da linha anterior, sem espaço | Resolvida |
+| `docs/melhoria-continua.md:7` ("junta as respostas") | "junta as linhas `MELHORIA:` do pedido" | Resolvida |
+| Segurança R1 (`R-DECISAO.md`, parêntese de (c)) | "por exemplo, passo, rodada, agente ou texto..." | Resolvida |
+| Segurança R2 (`controle` sem fonte) | "não afrouxa controle (`R-CONFORMIDADE`)" | Resolvida |
+
+Ferramentas: `git diff eb45334 3a8e376 -- tests/config.json | grep -c '^-[^-]'` dá `0` (nenhum invariante saiu ou mudou; o arquivo nem aparece no delta); `python3 -m unittest tests.test_forge.RegrasInviolaveis tests.test_forge.RegrasComId tests.test_forge.Neutralidade` dá `Ran 6 tests ... OK`. Suíte inteira e `validar-plugin.sh` não refeitos (R-TETO): o autor relatou 865 OK, o conferente deu "cumpriu" e o QA (E1.4) roda no head. O ajuste em `bin/forge-check` só junta duas strings do brief, sem mudar a lógica.
 
 ## Achados
