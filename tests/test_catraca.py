@@ -11,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -394,7 +395,7 @@ class Custo(Base):
 
 class Protegidos(Base):
     def test_mudanca_em_arquivo_protegido_barra(self):
-        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py"):
+        for rel in (".github/workflows/ci.yml", ".github/rulesets/main.json", ".github/CODEOWNERS", "tests/catraca.py", "scripts/conferir-release.py"):
             with self.subTest(rel):
                 repo = Repo()
                 self.addCleanup(repo.fecha)
@@ -430,6 +431,44 @@ class Protegidos(Base):
                 repo.escreve(rel, "mudou\n")
                 repo.commit()
                 self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
+
+    def test_regra_de_release_e_protegida(self):
+        self.repo.escreve("scripts/conferir-release.py", "mudou\n")
+        self.barra("mudança em scripts/conferir-release.py", "R-CONFORMIDADE")
+
+    def test_git_diff_com_erro_vira_violacao(self):
+        """Falha fechada: base inexistente faz o `git diff` falhar, e a lista vazia não pode virar 'nada mudou'."""
+        achadas = catraca.violacoes_das_regras(self.repo.dir, "ref-que-nao-existe", "HEAD")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-CONFORMIDADE: não consegui listar os arquivos alterados entre ref-que-nao-existe e HEAD .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_base_inexistente_deixa_a_catraca_vermelha_mesmo_com_rotulo(self):
+        eventos = self.repo.dir / "eventos.json"
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "ref-que-nao-existe", "--eventos", str(eventos), "--ultimo-push", "2026-01-01T10:00:00Z"]
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1)
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+
+    def test_git_diff_falho_com_base_valida_e_rotulo_do_dono_nao_libera(self):
+        """Decisão técnica do pedido: com a base legível (dono definido) e o rótulo do dono depois do push, o erro do
+        `git diff` continua vermelho; só a guarda `SEM_LISTA in x` da catraca impede o rótulo de liberar."""
+        eventos = self.repo.dir / "eventos.json"
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"}, "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(eventos), "--ultimo-push", "2026-01-02T09:00:00Z"]
+
+        def diff_que_falha(raiz, base, head):
+            raise catraca.ErroDeDiff(catraca.msg_diff(base, head))
+        with mock.patch.object(catraca, "alterados", diff_que_falha), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
+        self.assertNotIn("liberada", saida.getvalue())
+
+    def test_alterados_levanta_quando_o_git_diff_falha(self):
+        with self.assertRaises(catraca.ErroDeDiff):
+            catraca.alterados(self.repo.dir, "ref-que-nao-existe", "HEAD")
 
     def test_outros_arquivos_passam(self):
         self.repo.escreve(".github/pull_request_template.md", "x\n")
@@ -1139,6 +1178,29 @@ class RotuloSobreviveAoConteudo(Base):
         self.assertEqual(self.roda([]).returncode, 1)
         fantasma = "0" * 40
         self.assertEqual(self.roda([execucao(fantasma, "2026-01-02T09:00:00Z"), execucao(fantasma, "2026-01-02T10:00:03Z")]).returncode, 1)
+
+    def test_git_diff_falho_no_head_rotulado_nao_libera_pelo_conteudo(self):
+        """O `git diff` falha só ao listar os pareceres do head rotulado: o rótulo por conteúdo não vale, rc 1."""
+        self.repo.escreve("docs/reviews/ped.md", "parecer\n")
+        self.repo.commit()
+        pasta = Path(tempfile.mkdtemp(dir=self.repo.dir.parent))
+        self.addCleanup(lambda: [f.unlink() for f in pasta.iterdir()] and pasta.rmdir())
+        (pasta / "eventos.json").write_text(json.dumps([rotulo()]), encoding="utf-8")
+        (pasta / "execucoes.json").write_text(json.dumps([execucao(self.rotulado, "2026-01-02T09:00:00Z"), execucao(self.rotulado, "2026-01-02T10:00:03Z")]), encoding="utf-8")
+        argv = ["--raiz", str(self.repo.dir), "--base", "develop", "--eventos", str(pasta / "eventos.json"), "--ultimo-push", "2026-01-02T11:00:00Z",
+                "--execucoes", str(pasta / "execucoes.json"), "--pr", "7", "--ramo=melhoria/ped"]
+        original = catraca.alterados
+
+        def falha_no_rotulado(raiz, base, head):
+            if head == self.rotulado:
+                raise catraca.ErroDeDiff(catraca.msg_diff(base, head))
+            return original(raiz, base, head)
+        with contextlib.redirect_stdout(io.StringIO()) as controle:
+            self.assertEqual(catraca.main(argv), 0, controle.getvalue())  # com o git funcionando, o rótulo vale
+        with mock.patch.object(catraca, "alterados", falha_no_rotulado), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("não consegui listar os arquivos alterados", saida.getvalue())
 
     def test_rotulo_nao_libera_custo_nem_pelo_conteudo(self):
         self.repo.git("reset", "-q", "--hard", "base")
