@@ -16,3 +16,4 @@
 - [ ] `scripts/verificar-contribuicao.sh` sem achados
 - [ ] Fragmento novo em `changelog.d/` (`bin/forge-changelog novo`; versão não alterada, `CHANGELOG.md` intocado)
 - [ ] Neutralidade: nada do projeto de origem; sem afrouxar `tests/config.json` (ou destacado no título)
+- [ ] Rótulo `afrouxa-regra` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)

@@ -19,15 +19,27 @@ SCRIPT = RAIZ / "bin" / "forge-fechar"
 
 GH_FALSO = r'''#!/usr/bin/env bash
 echo "gh $*" >> "$REGISTRO"
+# falha_n <arquivo>: se o arquivo guarda um número > 0, desconta um e falha (erro passageiro, como o 502 do GitHub)
+falha_n() {
+  local f="$ESTADO/$1" n
+  [ -f "$f" ] || return 1
+  n="$(cat "$f")"
+  [ "$n" -gt 0 ] || return 1
+  echo $((n - 1)) > "$f"
+}
 case "$1 $2" in
+  "pr list")
+    falha_n falha_lista && { echo "HTTP 502" >&2; exit 1; }
+    [ -f "$ESTADO/aberto" ] && awk '{print $1 " OPEN " $2 " -"}' "$ESTADO/aberto"
+    cat "$ESTADO/lista_extra" 2>/dev/null; exit 0 ;;
   "pr view")
     case "$*" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
-      *baseRefName,isDraft*) cat "$ESTADO/pre" 2>/dev/null || echo "develop false"; exit 0 ;;
+      *baseRefName,isDraft*) echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN)"; exit 0 ;;
       *labels*|*title,body*) [ -f "$ESTADO/falha_leitura" ] && exit 1 ;;&
       *labels*) cat "$ESTADO/rotulos" 2>/dev/null; exit 0 ;;
       *title,body*) cat "$ESTADO/texto" 2>/dev/null; exit 0 ;;
-      *state*) cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
+      *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
   "pr create") echo "7 develop" > "$ESTADO/aberto"; exit 0 ;;
   "pr ready") exit 0 ;;
@@ -35,8 +47,11 @@ case "$1 $2" in
     if [ -f "$ESTADO/sem_checks_ate" ] && [ "$(wc -l < "$REGISTRO")" -lt "$(cat "$ESTADO/sem_checks_ate")" ]; then
       echo "no checks reported on the 'melhoria/x' branch"; exit 1
     fi
+    falha_n falha_checks && { echo "HTTP 502"; exit 1; }
     cat "$ESTADO/checks"; exit 0 ;;
   "pr merge")
+    [ -f "$ESTADO/merge_502" ] && exit 1
+    [ -f "$ESTADO/merge_502_mas_mescla" ] && { echo MERGED > "$ESTADO/estado"; exit 1; }
     # como o GitHub: recusa se o head do PR (arquivo "head", quando existe) não é o do --match-head-commit
     if [ -f "$ESTADO/head" ]; then
       [[ "$*" == *"--match-head-commit $(cat "$ESTADO/head")"* ]] || exit 1
@@ -45,6 +60,15 @@ case "$1 $2" in
     echo MERGED > "$ESTADO/estado"; exit 0 ;;
 esac
 exit 64
+'''
+# git falso: o `push --delete` falha as primeiras N vezes (N em $ESTADO/falha_delete) e depois chama o git real
+GIT_FALSO = r'''#!/usr/bin/env bash
+if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
+  echo "git $*" >> "$REGISTRO"
+  n="$(cat "$ESTADO/falha_delete" 2>/dev/null || echo 0)"
+  if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
+fi
+exec "$REAL_GIT_FALSO" "$@"
 '''
 CHECK_FALSO = '#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\nexit "${CHECK_RC:-0}"\n'
 
@@ -65,6 +89,10 @@ class Fechar(unittest.TestCase):
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
                         FORGE_FECHAR_TESTE="1")
+        (self.tmp / "bin").mkdir()
+        (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
+        (self.tmp / "bin" / "git").chmod(0o755)
+        self.env.update(REAL_GIT_FALSO=shutil.which("git"), FORGE_FECHAR_PAUSA="0", PATH=f"{self.tmp / 'bin'}:{os.environ['PATH']}")
         self.env = sem_manutencao(self.env)
         self.remoto, self.proj = self.tmp / "remoto.git", self.tmp / "proj"
         self.git("init", "-q", "--bare", str(self.remoto), cwd=self.tmp)
@@ -308,8 +336,126 @@ class Fechar(unittest.TestCase):
             self.assertIn("nome de branch válido", r.stderr)
         self.assertEqual(self.chamadas(), [])
 
+    def merges(self):
+        return [c for c in self.chamadas() if c.startswith("gh pr merge")]
+
+    def criacoes(self):
+        return [c for c in self.chamadas() if c.startswith("gh pr create")]
+
+    def test_estado_desconhecido_e_relido_e_merged_nao_abre_pr_nem_mescla_de_novo(self):
+        (self.estado / "falha_estado").write_text("2")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.criacoes()), 1)
+        self.assertEqual(len(self.merges()), 1)
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_estado_desconhecido_nas_tres_leituras_para_sem_repetir_o_merge(self):
+        (self.estado / "falha_estado").write_text("3")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 6", r.stderr)
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_nova_rodada_com_pr_ja_mesclado_no_head_nao_abre_pr_nem_mescla(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        (self.estado / "estado").write_text("MERGED")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.merges(), [])
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_pr_mesclado_com_outro_head_nao_impede_o_pr_novo(self):
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {'0' * 40}\n")
+        self.assertEqual(self.fechar("p1", "--ref", "melhoria/x").returncode, 0)
+        self.assertEqual(len(self.criacoes()), 1)
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_head_ja_mesclado_na_base_nao_abre_pr(self):
+        self.git("merge", "-q", "--no-ff", "melhoria/x", "-m", "merge x")
+        self.git("push", "-q", "origin", "develop")
+        self.git("fetch", "-q", "origin")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.merges(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+
+    def test_502_na_leitura_do_pr_repete_e_passa(self):
+        (self.estado / "falha_lista").write_text("2")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("gh pr list")]), 3)
+        self.assertEqual(len(self.criacoes()), 1)
+
+    def test_502_na_leitura_do_pr_em_tres_tentativas_para_sem_abrir_pr(self):
+        (self.estado / "falha_lista").write_text("3")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 3", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+        self.assertEqual(self.merges(), [])
+
+    def test_502_na_leitura_dos_checks_repete_e_passa(self):
+        (self.estado / "falha_checks").write_text("2")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_502_nos_checks_em_tres_leituras_seguidas_para_no_passo_4(self):
+        (self.estado / "falha_checks").write_text("3")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 4", r.stderr)
+        self.assertEqual(self.merges(), [])
+
+    def test_502_no_merge_nao_repete_o_merge(self):
+        (self.estado / "merge_502").write_text("")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 6", r.stderr)
+        self.assertEqual(len(self.merges()), 1)
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_merge_com_erro_mas_pr_merged_segue_sem_repetir(self):
+        (self.estado / "merge_502_mas_mescla").write_text("")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
+
+    def test_502_no_push_delete_da_limpeza_repete_e_apaga(self):
+        (self.estado / "falha_delete").write_text("2")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_push_delete_que_falha_tres_vezes_so_avisa(self):
+        (self.estado / "falha_delete").write_text("9")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("não apaguei a branch remota", r.stderr)
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
+
+    def test_criacao_de_pr_ready_e_merge_nunca_passam_pela_repeticao(self):
+        codigo = [l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#")]
+        for l in codigo:
+            if any(t in l for t in ("pr merge", "pr create", "pr ready")):
+                self.assertNotIn("ler ", l)
+                self.assertNotIn("repetir ", l)
+
+    def test_modelo_de_pr_traz_o_item_do_rotulo_desmarcado_igual_ao_do_script(self):
+        modelo = (RAIZ / ".github" / "pull_request_template.md").read_text(encoding="utf-8")
+        itens = [l for l in modelo.splitlines() if "afrouxa-regra" in l]
+        self.assertEqual(len(itens), 1)
+        self.assertTrue(itens[0].startswith("- [ ] "))
+        self.assertIn(itens[0].replace("`", "\\`"), SCRIPT.read_text(encoding="utf-8"))
+
     def test_limpeza_apaga_a_branch_remota_por_refs_heads(self):
-        self.assertIn('push origin --delete "refs/heads/$ref"', SCRIPT.read_text())
+        self.assertIn('git push origin --delete "refs/heads/$ref"', SCRIPT.read_text())
 
     def test_espera_os_checks_aparecerem_em_pr_recem_aberto(self):
         (self.estado / "sem_checks_ate").write_text("6")
