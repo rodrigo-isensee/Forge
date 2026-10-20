@@ -1,8 +1,10 @@
 {
-  "descricao": "Menos de 2 GB livres: a trava de carga alta bloqueia (R-TETO).",
+  "descricao": "4 núcleos, load 1: teto 4; três ativos liberam.",
   "proc": {
-    "loadavg": "0.5 1.0 1.0 1/100 1",
-    "mem_gb": 1.5
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 8,
+    "mem_total_gb": 16,
+    "nproc": 4
   },
   "estado": {
     "agentes.json": {
@@ -17,6 +19,12 @@
           "id": "a1",
           "tipo": "forge:tech-lead",
           "descricao": "Tarefa 1",
+          "desde": "{agora-60}"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 2",
           "desde": "{agora-60}"
         }
       ]
@@ -33,7 +41,6 @@
     }
   },
   "esperado": {
-    "codigo": 2,
-    "stderr": "R-TETO: carga alta (load 0.5, 1.5 GB"
+    "codigo": 0
   }
 }

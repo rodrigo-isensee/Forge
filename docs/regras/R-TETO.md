@@ -7,16 +7,12 @@ verificada_por: revisão e hooks `agentes` e `pesado`
 
 Propósito: texto único desta regra; os outros arquivos citam o ID. Público: todo o time. Revisão: 2026-10-12.
 
-Teto de recursos da máquina (obrigatório). Padrão da fábrica, pensado para uma estação de desenvolvimento (ex.: WSL com 8 GB e 8 núcleos), onde paralelismo sem teto já esgotou a memória e travou tudo. O `CLAUDE.md` do projeto pode ajustar os números; na falta dele, vale:
-- **teto de agentes adaptativo** (somando todos os pedidos), decidido antes de cada disparo com `uptime` (load de 1 min) e `free -m` (coluna *available*):
-  - **5 agentes** com load abaixo de 3 e mais de 4 GB disponíveis;
-  - **4 agentes** com load abaixo de 4 e mais de 3 GB disponíveis;
-  - **3 agentes** (padrão) nos demais casos;
-  - **2 agentes** com load acima de 6 ou menos de 2 GB disponíveis; nesse caso não dispare nada novo até a carga baixar;
-  - equilíbrio: subir o teto nunca relaxa as regras abaixo (pesadas uma por vez, worktrees), e agentes extras vão para trabalho leve (discovery, documentação, revisão de código), não para tarefas pesadas;
-- o hook de teto (ADR 0003) aplica essa regra sozinho: lê o load de 1 min em `/proc/loadavg` e `MemAvailable` em `/proc/meminfo` antes de cada disparo (sem leitura, usa 3). `teto_agentes` em `.forge/config.json` fixa o teto e sobrepõe o adaptativo; `teto_maximo` limita o adaptativo. O Jarvis ainda decide por disparo dentro do teto;
+Teto de recursos da máquina (obrigatório). O teto se adapta ao hardware de cada máquina, calculado na hora; nenhum número fixo de máquina vale. O Linux já limita a memória; o que se protege é o processador. O `CLAUDE.md` do projeto só diverge dele com motivo, e o modelo da fábrica não fixa um teto menor por padrão. Na falta de ajuste, vale:
+- **teto de agentes adaptativo** (somando todos os pedidos), decidido antes de cada disparo: dispara enquanto o load de 1 min (`/proc/loadavg`) for **menor que 0,8 × nproc** (80% dos núcleos) **e** `MemAvailable` (`/proc/meminfo`) for **maior que max(1 GB, 15% de `MemTotal`)**; o total de agentes ativos nunca passa de **nproc**. Com load a partir de 80% ou memória no piso, nada novo dispara até a carga baixar;
+  - equilíbrio: o teto nunca relaxa as regras abaixo (pesadas uma por vez, worktrees), e agentes extras vão para trabalho leve (discovery, documentação, revisão de código), não para tarefas pesadas;
+- o hook de teto (ADR 0003) aplica essa regra sozinho, lendo `nproc` (`os.sched_getaffinity(0)`, senão `os.cpu_count()`), o load e a memória antes de cada disparo; sem leitura, usa 3 (ou nproc, se menor). `teto_agentes` em `.forge/config.json` fixa o teto e sobrepõe o adaptativo; `teto_maximo` limita os dois. O Jarvis ainda decide por disparo dentro do teto;
 - **tarefas pesadas uma de cada vez**, nunca em paralelo: testes E2E, testes de banco, build de produção, `docker compose up` de pilha completa, carga de volume para teste de performance;
-- no máximo **2 cópias de trabalho** (`git worktree`) além do diretório principal; cada instância paralela usa a sua, e a worktree é removida assim que a branch dela for mesclada;
-- antes de disparar uma tarefa pesada, confira `uptime` e `free -m`: com load average acima de 8 ou menos de 1,5 GB disponíveis, espere a carga baixar;
+- o limite de **cópias de trabalho** (`git worktree`) segue os agentes ativos (cada instância paralela usa a sua) e o disco livre, sem número fixo; a worktree é removida assim que a branch dela for mesclada;
+- antes de disparar uma tarefa pesada, confira o load e a memória disponível: com load a partir de 80% de nproc ou memória no piso, espere a carga baixar;
 - containers e servidores de desenvolvimento que não estão em uso são parados ao fim da etapa;
 - melhoria da fábrica também entra no teto, como cartão próprio.

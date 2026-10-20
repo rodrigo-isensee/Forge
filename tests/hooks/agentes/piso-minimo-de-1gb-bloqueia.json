@@ -1,8 +1,10 @@
 {
-  "descricao": "Load 1 e 6 GB livres: teto 5, quatro ativos liberam.",
+  "descricao": "4 GB no total (15% = 0,6 GB; vale o piso de 1 GB): 1 GB livre bloqueia.",
   "proc": {
-    "loadavg": "1.0 1.0 1.0 1/100 1",
-    "mem_gb": 6
+    "loadavg": "0.5 1.0 1.0 1/100 1",
+    "mem_gb": 1.0,
+    "mem_total_gb": 4,
+    "nproc": 8
   },
   "estado": {
     "agentes.json": {
@@ -17,18 +19,6 @@
           "id": "a1",
           "tipo": "forge:tech-lead",
           "descricao": "Tarefa 1",
-          "desde": "{agora-60}"
-        },
-        {
-          "id": "a2",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 2",
-          "desde": "{agora-60}"
-        },
-        {
-          "id": "a3",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 3",
           "desde": "{agora-60}"
         }
       ]
@@ -45,6 +35,7 @@
     }
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "e 1.0 GB)"
   }
 }
