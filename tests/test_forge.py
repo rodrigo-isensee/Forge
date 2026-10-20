@@ -4145,8 +4145,8 @@ class MensagemDestinoDoBrief(Cenario):
         self.assertIn("precisa ser igual ao do brief", texto)
 
 
-class EtapaDeSegurancaNaEntrega(unittest.TestCase):
-    """E5 (CONF-ETAPA-SEGURANCA): `entrega --etapa seguranca`; aceite do usuário nunca vira `escopo: ok (parecer ...)` (M5.1, M5.2)."""
+class RepoDeSeguranca(unittest.TestCase):
+    """Repositório com parecer de segurança, aceite do usuário e registro de autoria (sem testes próprios)."""
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-seg-"))
@@ -4180,6 +4180,10 @@ class EtapaDeSegurancaNaEntrega(unittest.TestCase):
         r = rodar_fc("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", etapa, *extra,
                      raiz=self.repo, home=self.tmp / "home")
         return r.returncode, r.stdout, r.stderr
+
+
+class EtapaDeSegurancaNaEntrega(RepoDeSeguranca):
+    """E5 (CONF-ETAPA-SEGURANCA): `entrega --etapa seguranca`; aceite do usuário nunca vira `escopo: ok (parecer ...)` (M5.1, M5.2)."""
 
     def test_seguranca_e_uma_etapa_como_a_review(self):
         rc, saida, erro = self.entrega("seguranca")
@@ -4242,4 +4246,452 @@ class WorktreeDeProjetoNaoViraForge(unittest.TestCase):
         (clone_do_forge / ".claude-plugin").mkdir(parents=True)
         (clone_do_forge / ".claude-plugin" / "plugin.json").write_text(json.dumps({"name": "forge"}), encoding="utf-8")
         self.assertTrue(modulo.e_o_forge(clone_do_forge.resolve()))
+
+
+class RepoComOrigem(unittest.TestCase):
+    """Repositório com remoto bare, a `develop` e a branch `melhoria/x` com uma entrega e os pareceres de review e QA (sem testes próprios)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-merge-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.home = self.tmp / "home"
+        self.origem = self.tmp / "origem.git"
+        git("init", "-q", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
+        self.semente = self.clone("semente")
+        self.commitar(self.semente, {"src/x.txt": "x1\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n", "src/y.txt": "y1\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n",
+                                     "hooks/conformidade.json": "{}\n", "docs/pedidos/p1.md": "# p1\n"}, "base")
+        git("push", "-q", "origin", "develop", cwd=self.semente)
+        self.repo = self.clone("repo")
+        git("switch", "-q", "-c", "melhoria/x", cwd=self.repo)
+        self.c1 = self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "entrega")
+        self.pareceres(self.c1)
+
+    def clone(self, nome):
+        destino = self.tmp / nome
+        git("clone", "-q", str(self.origem), str(destino), cwd=self.tmp)
+        git("config", "user.email", "t@example.com", cwd=destino)
+        git("config", "user.name", "Teste", cwd=destino)
+        return destino
+
+    def commitar(self, repo, arquivos, mensagem):
+        for rel, texto in arquivos.items():
+            arq = repo / rel
+            arq.parent.mkdir(parents=True, exist_ok=True)
+            arq.write_text(texto, encoding="utf-8")
+        git("add", "-A", cwd=repo)
+        git("commit", "-q", "-m", mensagem, cwd=repo)
+        return git("rev-parse", "HEAD", cwd=repo).stdout.strip()
+
+    def pareceres(self, commit):
+        review = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+                  "revisor: forge:tech-lead\ndata: 2026-10-12\n---\n# r\n")
+        qa = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+              "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-12\n---\n# q\n")
+        self.commitar(self.repo, {"docs/reviews/p1.md": review.format(c=commit), "docs/qa/p1.md": qa.format(c=commit)}, "pareceres")
+
+    def develop_anda(self, arquivos, mensagem="outro PR na develop"):
+        """Outro PR mesclado na develop (no remoto); a develop LOCAL do `repo` não anda."""
+        git("pull", "-q", "--ff-only", "origin", "develop", cwd=self.semente)
+        sha = self.commitar(self.semente, arquivos, mensagem)
+        git("push", "-q", "origin", "develop", cwd=self.semente)
+        git("fetch", "-q", "origin", cwd=self.repo)
+        return sha
+
+    def mescla_a_develop(self, resolver=None):
+        r = subprocess.run(["git", "-C", str(self.repo), "merge", "--no-edit", "origin/develop"], capture_output=True, text=True, env=ambiente_limpo())
+        if resolver:
+            resolver()
+        if r.returncode:  # conflito: a resolução entra no commit de merge
+            git("add", "-A", cwd=self.repo)
+            git("commit", "-q", "--no-edit", cwd=self.repo)
+        return r.returncode
+
+    def pr(self, *extra, ref="melhoria/x"):
+        r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout, r.stderr
+
+
+class PrAposMergeDaBase(RepoComOrigem):
+    """E4 (CONF-MERGE-ESCOPO): o merge da develop depois do parecer não o invalida, por CONTEÚDO e lendo `origin/<base>`; nenhum byte
+    do commit de merge escapa; `--base` só aceita as bases do fluxo; os gatilhos de segurança seguem o diff da branch (abusos 7 a 13)."""
+
+    def test_merge_limpo_da_develop_com_arquivo_de_outro_pedido_nao_invalida(self):  # abuso 7
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida), (0, ""), saida)
+
+    def test_develop_local_parada_e_origin_adiante_vale_pela_remota(self):  # abuso 10
+        antiga = git("rev-parse", "develop", cwd=self.repo).stdout.strip()
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        self.assertEqual(git("rev-parse", "develop", cwd=self.repo).stdout.strip(), antiga)  # a local ficou para trás
+        for base in ("develop", "origin/develop"):
+            with self.subTest(base):
+                rc, saida, _ = self.pr("--base", base)
+                self.assertEqual((rc, saida), (0, ""), saida)
+
+    def test_uma_linha_a_mais_num_arquivo_trazido_pela_develop_invalida(self):  # abuso 8
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop(lambda: (self.repo / "src" / "y.txt").open("a", encoding="utf-8").write("y9 maligna\n"))
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "-m", "ajuste escondido no merge", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/y.txt mudou depois do parecer", saida)
+        sha = git("rev-parse", "refs/remotes/origin/develop", cwd=self.repo).stdout.strip()[:7]
+        self.assertIn(f"(base origin/develop {sha})", saida)  # (c): o motivo cita a base usada
+
+    def test_conflito_resolvido_a_mao_no_arquivo_do_pedido_invalida(self):  # abuso 9
+        self.develop_anda({"src/x.txt": "x1 da develop\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"})
+        self.mescla_a_develop(lambda: (self.repo / "src" / "x.txt").write_text("x1 resolvido\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n", encoding="utf-8"))
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/x.txt", saida)
+
+    def test_a_branch_muda_o_proprio_arquivo_depois_do_parecer(self):  # o teste do dono
+        self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/x.txt", saida)
+
+    def test_sem_origin_e_com_a_develop_local_atrasada_continua_desatualizado(self):  # falha fechada
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        git("update-ref", "-d", "refs/remotes/origin/develop", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/y.txt", saida)
+
+    def test_base_fora_do_fluxo_e_recusada(self):  # abuso 11
+        self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
+        head = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        for base in (head, "melhoria/x", "HEAD", "origin/melhoria/x", "x\nmaligna", "refs/heads/develop", ""):
+            with self.subTest(base):
+                rc, saida, _ = self.pr("--base", base)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("pr: --base", saida)
+                self.assertEqual(len([l for l in saida.splitlines() if l.startswith("pr: --base")]), 1)
+                self.assertEqual(linhas_forjadas(saida, ("pr: --base*",)), [], saida)
+
+    def test_develop_local_movida_para_o_head_nao_abre_a_validade(self):  # abuso 11
+        self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
+        git("branch", "-f", "develop", "melhoria/x", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/x.txt", saida)
+
+    def test_head_ja_contido_na_base_vale_so_pelo_diff_literal(self):  # M4.3
+        self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
+        git("push", "-q", "origin", "melhoria/x:develop", cwd=self.repo)  # a base passa a conter a branch
+        git("fetch", "-q", "origin", cwd=self.repo)
+        rc, saida, erro = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: src/x.txt", saida)
+        self.assertIn("já contido em origin/develop", erro)
+
+    def test_o_gatilho_de_seguranca_segue_o_diff_da_branch(self):  # abuso 12
+        self.commitar(self.repo, {"hooks/conformidade.json": "{\"a\": 1}\n"}, "muda o controle")
+        self.pareceres(git("rev-parse", "HEAD", cwd=self.repo).stdout.strip())
+        self.develop_anda({"hooks/conformidade.json": "{\"b\": 2}\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop(lambda: (self.repo / "hooks" / "conformidade.json").write_text("{\"a\": 1, \"b\": 2}\n", encoding="utf-8"))
+        for preparo in (lambda: None, lambda: git("branch", "-f", "develop", "melhoria/x", cwd=self.repo)):
+            preparo()
+            rc, saida, _ = self.pr("--base", "develop")
+            self.assertEqual(rc, 1, saida)
+            self.assertIn("controles do Forge: hooks/conformidade.json", saida)
+
+    def test_escopo_da_etapa_de_merge_tira_o_que_veio_da_develop_por_conteudo(self):  # abuso 13
+        base_sha = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        self.pedido = self.tmp / "p1.md"
+        self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
+
+        def rodar(etapa):
+            r = rodar_fc("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", base_sha, "--etapa", etapa,
+                         raiz=self.repo, home=self.home)
+            return r.returncode, r.stdout
+        for etapa in ("merge-integracao", "pedido-de-merge-ao-dono"):
+            rc, saida = rodar(etapa)
+            self.assertIn('"src/x.txt"', saida)
+            self.assertNotIn('"src/y.txt"', saida, saida)  # veio da develop, igual ao conteúdo dela
+        self.assertIn('"src/y.txt"', rodar("pr")[1])  # fora da etapa de merge, a regra é a de sempre
+        self.commitar(self.repo, {"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\ny9 um byte a mais\n"}, "mexe no que a develop trouxe")
+        self.assertIn('escopo: confira "src/y.txt"', rodar("merge-integracao")[1])
+
+
+class BaseShaDoBrief(RepoComOrigem):
+    """E11 (BRIEF-BASE-ATUAL): `brief gerar` grava o Base-sha real e `brief` avisa quando o Base-sha do brief não está na branch."""
+    PEDIDO_TXT = PEDIDO
+
+    def setUp(self):
+        super().setUp()
+        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido.write_text(self.PEDIDO_TXT, encoding="utf-8")
+
+    def gerar(self, branch, base="develop"):
+        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--branch", branch, "--base", base,
+                     raiz=self.repo, home=self.home)
+        linha = next((l for l in r.stdout.splitlines() if l.startswith("Branch:")), "")
+        return r.returncode, linha
+
+    def test_branch_que_existe_grava_o_merge_base_com_a_origin(self):
+        base_original = git("rev-parse", "refs/remotes/origin/develop", cwd=self.repo).stdout.strip()
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        ponta = git("rev-parse", "refs/remotes/origin/develop", cwd=self.repo).stdout.strip()
+        self.assertNotEqual(base_original, ponta)
+        rc, linha = self.gerar("melhoria/x")
+        self.assertEqual(rc, 0, linha)
+        self.assertIn(f"Base-sha: {base_original}", linha)  # onde a branch nasceu, não a ponta que a develop tem agora
+        self.mescla_a_develop()
+        self.assertIn(f"Base-sha: {ponta}", self.gerar("melhoria/x")[1])  # depois do merge da base, o merge-base anda
+
+    def test_branch_que_ainda_nao_existe_grava_a_origin_na_hora(self):
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        ponta = git("rev-parse", "refs/remotes/origin/develop", cwd=self.repo).stdout.strip()
+        rc, linha = self.gerar("melhoria/nova")
+        self.assertIn(f"Base-sha: {ponta}", linha)
+
+    def test_sem_origin_vira_preencher(self):
+        git("update-ref", "-d", "refs/remotes/origin/develop", cwd=self.repo)
+        self.assertIn("Base-sha: PREENCHER", self.gerar("melhoria/nova")[1])
+
+    def brief_com_base(self, sha, branch="melhoria/x"):
+        cabecalho = f"Agente destino: forge:dev-exemplo\nBranch: {branch}   Base: develop   Base-sha: {sha}\n"
+        texto = BRIEF.replace("Agente destino: forge:dev-exemplo\n", cabecalho, 1)
+        arq = self.repo / "docs" / "briefs" / f"{ID}-dev-exemplo-1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+        r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout
+
+    def test_aviso_quando_o_base_sha_nao_esta_na_branch(self):
+        velho = self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # commit da develop que a branch não tem
+        rc, saida = self.brief_com_base(velho)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"aviso: Base-sha {velho[:7]} do brief não está na branch melhoria/x", saida)
+        base_ok = git("merge-base", "origin/develop", "melhoria/x", cwd=self.repo).stdout.strip()
+        rc, saida = self.brief_com_base(base_ok)
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("aviso: Base-sha", saida)
+
+    def test_sem_a_linha_branch_nao_ha_o_que_avisar_e_branch_ausente_confere_a_base(self):
+        arq = self.repo / "docs" / "briefs" / f"{ID}-dev-exemplo-1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(BRIEF, encoding="utf-8")
+        r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
+        self.assertNotIn("aviso: Base-sha", r.stdout)
+        rc, saida = self.brief_com_base("0" * 40, branch="melhoria/ainda-nao-existe")
+        self.assertIn("aviso: Base-sha 0000000 do brief não está em origin/develop", saida)
+
+    def test_volta_grava_o_base_sha_real(self):
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        ponta = git("rev-parse", "refs/remotes/origin/develop", cwd=self.repo).stdout.strip()
+        anterior = self.repo / "docs" / "briefs" / f"{ID}-dev-exemplo-1.md"
+        anterior.parent.mkdir(parents=True, exist_ok=True)
+        anterior.write_text(BRIEF.replace("Agente destino: forge:dev-exemplo\n", f"Agente destino: forge:dev-exemplo\nBranch: melhoria/x   Base: develop   Base-sha: {'1' * 40}\n", 1), encoding="utf-8")
+        (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
+        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--volta", f"docs/briefs/{ID}-dev-exemplo-1.md",
+                     "--ref", "melhoria/x", raiz=self.repo, home=self.home)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"Base-sha: {ponta}", r.stdout)
+        self.assertNotIn("1" * 40, r.stdout)
+
+
+class EntregasParalelas(RepoDeSeguranca):
+    """E9a (CONF-ANEXO-PARALELO): o anexo com remoção diz de quem é o parecer; `--brief` junta os Entregar só de briefs da mesma Branch,
+    Base e Base-sha (M9.1 a M9.3, abuso 20). Reaproveita o repositório de `RepoDeSeguranca`."""
+
+    def setUp(self):
+        super().setUp()
+        self.parecer_v2 = "---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\n---\n# Parecer\nlinha nova\n"
+
+    def revalidar_removendo(self, texto):
+        (self.repo / "docs" / "security" / "p1.md").write_text(texto, encoding="utf-8")
+        git("add", "-A", cwd=self.repo)
+        git("commit", "-q", "-m", "revalidação", cwd=self.repo)
+        registros = [{"caminho": "docs/security/p1.md", "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": "seguranca"}]
+        with (self.repo / ".forge" / "run" / "autoria.jsonl").open("a", encoding="utf-8") as f:
+            f.write("".join(json.dumps(r) + "\n" for r in registros))
+
+    def test_anexo_com_remocao_diz_de_quem_e_o_parecer(self):
+        c1 = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        self.revalidar_removendo("---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\n---\n")  # tira o título
+        self.pedido.write_text(f"# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- 2026-10-19 16:00: entrega conferida {c1}\n", encoding="utf-8")
+        _, saida, _ = self.entrega("review", "--desde", c1)
+        self.assertIn('escopo: confira "docs/security/p1.md" +0 -1 (anexo com remoção do parecer de seguranca: reprova se fora do "Entregar" da entrega do seguranca)', saida)
+
+    def test_sem_autoria_a_linha_e_a_de_sempre(self):
+        (self.repo / ".forge" / "run" / "autoria.jsonl").unlink()
+        _, saida, _ = self.entrega("review")
+        self.assertIn('escopo: confira "docs/security/p1.md" +6 -0\n', saida)
+        self.assertNotIn("do parecer de", saida)
+
+    def cabecalho(self, branch="melhoria/x", base="develop", base_sha=None, pedido="p1"):
+        return f"Agente destino: forge:x\nPedido: docs/pedidos/{pedido}.md\nBranch: {branch}   Base: {base}   Base-sha: {base_sha or self.base}\n\n## Objetivo\nx\n"
+
+    def brief(self, nome, **campos):
+        arq = self.repo / "docs" / "briefs" / nome
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(self.cabecalho(**campos), encoding="utf-8")
+        return f"docs/briefs/{nome}"
+
+    def test_uniao_de_briefs_da_mesma_entrega(self):
+        a, b = self.brief("p1-tech-lead-1.md"), self.brief("p1-seguranca-1.md")
+        rc, saida, _ = self.entrega("review", "--brief", a, "--brief", b)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"brief: {a} sha256 {hashlib.sha256((self.repo / a).read_bytes()).hexdigest()}", saida)
+        self.assertIn("escopo: união de 2 briefs (mesma Branch, Base, Base-sha e pedido)", saida)
+
+    def test_brief_de_outra_branch_base_sha_ou_pedido_reprova_a_uniao(self):  # abuso 20
+        ok = self.brief("p1-tech-lead-1.md")
+        outro_sha = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        casos = {"outra branch": self.brief("p1-a-1.md", branch="melhoria/y"), "outro Base-sha": self.brief("p1-b-1.md", base_sha=outro_sha),
+                 "outra base": self.brief("p1-c-1.md", base="homolog"), "outro pedido": self.brief("p1-d-1.md", pedido="p2")}
+        for nome, brief in casos.items():
+            with self.subTest(nome):
+                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", brief)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(f"escopo: união de briefs de entregas diferentes {brief}", saida)
+                self.assertNotIn("escopo: união de 2 briefs", saida)
+
+    def test_brief_ilegivel_ou_fora_de_docs_briefs_reprova(self):
+        for brief in ("docs/briefs/nao-existe.md", "src/app.txt", "../x.md"):
+            with self.subTest(brief):
+                rc, saida, _ = self.entrega("review", "--brief", brief)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("escopo: brief", saida)
+
+    def test_sem_brief_a_saida_e_a_de_sempre(self):
+        rc, saida, _ = self.entrega("review")
+        self.assertNotIn("brief:", saida)
+        self.assertNotIn("união", saida)
+
+
+class CustoPorPedido(Raiz):
+    """E8 (CUSTO-POR-PEDIDO): `transcricao custo` lê as pastas da raiz e das worktrees (não a do cwd), separa por janela e por pedido
+    existente, e nunca sai texto de prompt nem caminho (M8.1 a M8.3, abuso 19)."""
+
+    def setUp(self):
+        super().setUp()
+        self.home = self.tmp / "home"
+        self.raiz = self.tmp / "projeto"
+        self.raiz.mkdir()
+        self.projetos = self.home / ".claude" / "projects"
+
+    def pasta_de(self, caminho):
+        d = self.projetos / re.sub(r"[^A-Za-z0-9]", "-", str(Path(caminho).resolve()))
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def mensagens(self, pasta, horas, nome="s.jsonl", entrada=1, extra=None):
+        linhas = []
+        for i, hora in enumerate(horas):
+            o = {"type": "assistant", "sessionId": "s", "isSidechain": False, **({"timestamp": hora} if hora else {}),
+                 "message": {"id": f"m{i}-{nome}", "model": "m", "usage": {"input_tokens": entrada, "output_tokens": 0}}}
+            if extra:
+                o["message"]["content"] = [{"type": "text", "text": extra}]
+            linhas.append(json.dumps(o))
+        (pasta / nome).write_text("\n".join(linhas) + "\n", encoding="utf-8")
+
+    def custo(self, *args, raiz=None, cwd=None):
+        r = rodar_fc("transcricao", "custo", *args, raiz=raiz or self.raiz, home=self.home, cwd=cwd or self.tmp)
+        return r.returncode, r.stdout, r.stderr
+
+    def test_acha_a_pasta_da_raiz_mesmo_com_o_cwd_em_outro_lugar(self):
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"] * 3)
+        rc, saida, _ = self.custo()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("custo: total: entrada=3 saida=0", saida)
+
+    def test_le_a_pasta_da_copia_principal_quando_a_raiz_e_uma_worktree(self):
+        git("init", "-q", "-b", "develop", cwd=self.raiz)
+        git("config", "user.email", "t@example.com", cwd=self.raiz)
+        git("config", "user.name", "Teste", cwd=self.raiz)
+        (self.raiz / "a.txt").write_text("1\n", encoding="utf-8")
+        git("add", "-A", cwd=self.raiz)
+        git("commit", "-q", "-m", "base", cwd=self.raiz)
+        wt = self.tmp / "wt"
+        git("worktree", "add", "-q", "--no-track", "-b", "melhoria/y", str(wt), cwd=self.raiz)
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"] * 2, nome="principal.jsonl")
+        self.mensagens(self.pasta_de(wt), ["2026-10-20T10:00:00Z"] * 5, nome="wt.jsonl")
+        rc, saida, _ = self.custo(raiz=wt)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("custo: total: entrada=7 saida=0", saida)
+
+    def test_pasta_de_outro_projeto_nao_e_lida_sem_alvo(self):  # M8.1
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"])
+        self.mensagens(self.pasta_de(self.tmp / "outro-cliente"), ["2026-10-20T10:00:00Z"] * 9)
+        rc, saida, _ = self.custo()
+        self.assertIn("custo: total: entrada=1 saida=0", saida)
+        rc, saida, _ = self.custo(str(self.pasta_de(self.tmp / "outro-cliente")))  # a pasta pedida explicitamente continua valendo
+        self.assertIn("custo: total: entrada=9 saida=0", saida)
+
+    def test_janela_desde_ate_soma_so_o_de_dentro_e_conta_o_de_fora(self):
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T09:00:00Z", "2026-10-20T11:00:00Z", "2026-10-20T11:10:00Z", "2026-10-20T13:00:00Z", None])
+        rc, saida, _ = self.custo("--desde", "2026-10-20T10:30:00Z", "--ate", "2026-10-20T12:00:00Z")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("custo: total: entrada=2 saida=0", saida)
+        self.assertIn("custo: janela: fora_da_janela=3", saida)  # 09:00, 13:00 e a linha sem timestamp: contada, nunca somada
+
+    def test_janela_invalida_rc_2(self):
+        for args in (("--desde", "ontem"), ("--ate", "2026-13-45"), ("--desde", "2026-10-20T12:00:00Z", "--ate", "2026-10-20T10:00:00Z")):
+            with self.subTest(args):
+                rc, saida, _ = self.custo(*args)
+                self.assertEqual(rc, 2, saida)
+
+    def historico(self, linhas):
+        self.gravar("projeto/docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(linhas))
+
+    def test_pedido_existente_usa_a_janela_do_historico_e_avisa_dos_paralelos(self):
+        self.gravar("projeto/docs/pedidos/meu-pedido.md", "# Pedido\n")
+        self.historico(["| 2026-10-20T10:00:00-00:00 | MEU-PEDIDO | Backlog | Em andamento | x |\n", "| 2026-10-20T10:30:00-00:00 | OUTRO | Backlog | Em andamento | y |\n",
+                        "| 2026-10-20T12:00:00-00:00 | MEU-PEDIDO | Review | QA | z |\n", "| 2026-10-20T15:00:00-00:00 | TARDE | Backlog | Em andamento | w |\n"])
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T09:00:00Z", "2026-10-20T10:15:00Z", "2026-10-20T11:00:00Z", "2026-10-20T14:00:00Z"])
+        rc, saida, _ = self.custo("--pedido", "meu-pedido")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("custo: pedido: meu-pedido janela 2026-10-20T10:00:00+00:00 a 2026-10-20T12:00:00+00:00", saida)
+        self.assertIn("custo: total: entrada=2 saida=0", saida)
+        self.assertIn("custo: aviso: 1 outros cartões em movimento na janela (o principal se mistura)", saida)
+
+    def test_pedido_inexistente_ou_com_id_estranho_rc_2(self):  # M8.2
+        self.gravar("projeto/docs/pedidos/existe.md", "# Pedido\n")
+        for id_ in ("nao-existe", "../existe", "a/b", "existe\nresultado: ok", "x|y", ""):
+            with self.subTest(id_):
+                rc, saida, _ = self.custo("--pedido", id_)
+                self.assertEqual(rc, 2, saida)
+                self.assertEqual(linhas_forjadas(saida), [], saida)
+        rc, saida, _ = self.custo("--pedido", "existe")  # existe, mas o cartão não tem movimento no histórico
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("sem movimento", saida)
+
+    def test_nada_do_prompt_nem_caminho_vai_a_saida(self):  # M8.2, abuso 19
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"], extra="TOKEN-SENTINELA /home/pessoa/segredo")
+        rc, saida, erro = self.custo()
+        for proibido in ("TOKEN-SENTINELA", "/home/pessoa", str(self.raiz), str(self.home)):
+            self.assertNotIn(proibido, saida + erro)
+
+    def test_entrega_com_pipe_ou_quebra_de_linha_rc_2(self):  # M8.3, abuso 19
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"])
+        for entrega in ("a|b", "a\nb", "a\x1bb", "a b"):
+            with self.subTest(repr(entrega)):
+                rc, saida, _ = self.custo("--entregas", "--entrega", entrega)
+                self.assertEqual(rc, 2, saida)
+                self.assertNotIn("| ", saida)
+        rc, saida, _ = self.custo("--entregas", "--entrega", "ok-1")
+        self.assertEqual(rc, 0, saida)
+
+    def test_link_simbolico_para_fora_nao_e_lido(self):
+        pasta = self.pasta_de(self.raiz)
+        self.mensagens(pasta, ["2026-10-20T10:00:00Z"])
+        fora = self.tmp / "fora"
+        fora.mkdir()
+        self.mensagens(fora, ["2026-10-20T10:00:00Z"] * 8, nome="alheio.jsonl")
+        (pasta / "elo.jsonl").symlink_to(fora / "alheio.jsonl")
+        (pasta / "pasta-elo").symlink_to(fora)
+        rc, saida, erro = self.custo()
+        self.assertIn("custo: total: entrada=1 saida=0", saida)
 
