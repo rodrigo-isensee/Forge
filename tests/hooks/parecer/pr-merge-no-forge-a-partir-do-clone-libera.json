@@ -65,7 +65,6 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0,
-    "stderr": "forge-check: aviso: versão não conferida"
+    "codigo": 0
   }
 }

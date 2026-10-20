@@ -2285,10 +2285,10 @@ class HookParecerGuardaDaVersaoNoProjeto(FerramentaDefasadaNoProjeto):
         erro = io.StringIO()
         with contextlib.redirect_stderr(erro):
             try:
-                aviso = parecer.guarda_de_versao(fc, self.proj)
+                parecer.guarda_de_versao(fc, self.proj)
             except SystemExit as e:
                 return e.code, erro.getvalue()
-        return None, (aviso or "") + erro.getvalue()
+        return None, erro.getvalue()
 
     def test_copia_atrasada_barra_o_portao(self):
         self.cache({"data": ap.HOJE, "defasado": True, "atual": "0.20.0", "ultima": "0.22.0"})
@@ -2301,18 +2301,15 @@ class HookParecerGuardaDaVersaoNoProjeto(FerramentaDefasadaNoProjeto):
         self.cache({"data": ap.HOJE, "defasado": False, "atual": "0.20.0", "ultima": "0.20.0"})
         self.assertEqual(self.chamar(), (None, ""))
 
-    def test_erro_de_comparacao_so_avisa(self):
+    def test_erro_de_comparacao_nao_bloqueia_e_o_hook_fica_mudo(self):
         self.cache("{nao e json")
-        codigo, erro = self.chamar()
-        self.assertIsNone(codigo)
-        self.assertIn("versão não conferida", erro)
+        self.assertEqual(self.chamar(), (None, ""))  # ADR 0003, item 1: o aviso é do forge-check, não do hook
 
 
 class HookParecerGuardaDaVersaoNoForge(ap.ForgeFalso):
-    def test_no_forge_a_copia_atrasada_so_avisa(self):
+    def test_no_forge_a_copia_atrasada_nao_bloqueia_e_o_hook_fica_mudo(self):
         parecer, fc = hook_parecer_com(self.antiga_sem_objeto)
-        aviso = parecer.guarda_de_versao(fc, self.repo)  # sem SystemExit
-        self.assertIn(f"forge-check: aviso: forge-check 0.20.0 (commit {self.v1[:7]}) {ap.FRASE}", aviso)
+        self.assertIsNone(parecer.guarda_de_versao(fc, self.repo))  # sem SystemExit e sem saída (ADR 0003, item 1)
 
 
 if __name__ == "__main__":

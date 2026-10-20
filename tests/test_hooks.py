@@ -285,9 +285,7 @@ class Hooks(unittest.TestCase):
         else:
             self.assertEqual(r.stdout, "", "hook nunca escreve no stdout (ADR 0003: silencioso)")
         self.assertEqual(r.returncode, esperado["codigo"], r.stderr)
-        if esperado["codigo"] == 0 and "stderr" in esperado and f.hook == "parecer":  # o aviso de versão do `parecer` (liberado, com aviso)
-            self.assertIn(esperado["stderr"], r.stderr)
-        elif esperado["codigo"] == 0:
+        if esperado["codigo"] == 0:
             self.assertEqual(r.stderr, "", "sem violação, sem saída")
         else:
             linha = r.stderr.rstrip("\n")
@@ -316,6 +314,21 @@ class Hooks(unittest.TestCase):
         if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
             self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
+
+    def test_projeto_com_copia_atrasada_barra_o_pr_de_ponta_a_ponta(self):
+        """Num projeto, com o cache do doutor dizendo `defasado` para esta versão do plugin, `gh pr create` sai com código 2 e uma
+        linha com `R-CONFORMIDADE`, mesmo com review e QA aprovados; sem o atraso, o mesmo caso libera em silêncio."""
+        versao = json.loads((RAIZ / ".claude-plugin/plugin.json").read_text(encoding="utf-8"))["version"]
+        base = json.loads((FIXTURES / "parecer/pr-com-pareceres-aprovados.json").read_text(encoding="utf-8"))
+        for atrasada, esperado in ((True, {"codigo": 2, "stderr": "R-CONFORMIDADE: forge-check"}), (False, {"codigo": 0})):
+            with self.subTest(atrasada=atrasada):
+                tmp = self._pasta_temporaria()
+                cache = {"data": time.strftime("%Y-%m-%d"), "defasado": atrasada, "atual": versao, "ultima": "999.0.0"}
+                dados = {**base, "estado": {"versao-nova": cache}, "esperado": esperado}
+                arquivo = tmp / "parecer" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
     def test_git_rm_com_pathspec_magico_bloqueia(self):
         """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
