@@ -3,7 +3,7 @@
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir T] [--espera SEGUNDOS] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
-# (4) espera e lê os checks; (5) recusa rótulo pedido (item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
+# (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Só para a develop: a promoção develop -> homolog segue manual (R-FLUXO). Roda só no repositório do Forge (R-CONTRIB).
 # Nunca: mescla na main, aplica rótulo, usa --force ou --no-verify, apaga develop/homolog/main, dispensa parecer ou check.
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
@@ -63,7 +63,10 @@ Pedido $pedido, branch $ref.
 ${muda:-Ver o diff e o pedido $pedido.}
 
 ## Como medir
-${medir:-Ver a seção de medição do pedido $pedido.}"
+${medir:-Ver a seção de medição do pedido $pedido.}
+
+## Checklist
+- [ ] Rótulo \`afrouxa-regra\` pedido ao dono (marque só se a mudança afrouxa regra protegida; o dono aplica o rótulo)"
 
 catraca="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)/tests/catraca.py"
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "rode dentro do repositório do Forge"
@@ -78,7 +81,7 @@ if [ "$seco" = 1 ]; then
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto)"
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
-  passo 5 "$gh pr view $ref --json labels (recusa se o item do rótulo afrouxa-regra está marcado no corpo e o rótulo não está aplicado)"
+  passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado)"
   passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto)"
   passo 7 "git push origin --delete $ref; git worktree remove <worktree de $ref>; git branch -D $ref"
   # Aviso: os caminhos de controle vêm da lista PROTEGIDOS da própria catraca (tests/catraca.py), sem cópia aqui.
@@ -89,7 +92,10 @@ sys.path.insert(0, pasta)
 spec = importlib.util.spec_from_file_location("catraca", pasta + "/catraca.py")
 c = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(c)
-for a in c.alterados(raiz, c.base_efetiva(raiz, base, ref), ref):
+cod, saida = c.git(raiz, "diff", "--no-renames", "--name-only", "-z", c.base_efetiva(raiz, base, ref), ref)
+if cod:  # alterados() devolve lista vazia em erro; aqui o erro tem de aparecer
+    sys.exit(1)
+for a in (x for x in saida.split("\0") if x):
     if a.startswith(c.PROTEGIDOS):
         print(a)
 PY
@@ -145,9 +151,13 @@ echo "checks verdes."
 passo 5 "rótulo"
 rotulos="$("$gh" pr view "$ref" --json labels --jq '.labels[].name' 2>/dev/null)" || die "parou no passo 5: não consegui ler os rótulos do PR"
 texto="$("$gh" pr view "$ref" --json title,body --jq '.title, .body' 2>/dev/null)" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
-# Só a linha de item de checklist marcada (`- [x]`/`* [X]`) que cita o rótulo vale como pedido; texto que apenas o menciona não para.
-if printf '%s\n' "$texto" | grep -qiE '^[[:space:]]*[-*][[:space:]]+\[x\].*afrouxa-regra' && ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
-  die "parou no passo 5: o PR pede o rótulo afrouxa-regra e o dono ainda não o aplicou; o script nunca aplica rótulo"
+# O título é o lugar oficial do sinal de afrouxamento (primeira linha do texto): citar o rótulo nele já para.
+# No corpo, só a linha de item marcado (`- [x]`, `* [X]`, `+ [x]`, `1. [x]`, `1) [x]`) que cita o rótulo; texto que apenas o menciona não para.
+if ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
+  if printf '%s\n' "$texto" | head -n 1 | grep -qi 'afrouxa-regra' \
+    || printf '%s\n' "$texto" | tail -n +2 | grep -qiE '^[[:space:]]*([-*+]|[0-9]+[.)])[[:space:]]+\[x\].*afrouxa-regra'; then
+    die "parou no passo 5: o PR pede o rótulo afrouxa-regra (no título ou em item marcado) e o dono ainda não o aplicou; o script nunca aplica rótulo"
+  fi
 fi
 
 passo 6 "merge ($metodo) em $alvo"
