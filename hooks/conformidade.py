@@ -9,14 +9,18 @@ PostToolUse registra a autoria dos pareceres em `.forge/run/autoria.jsonl`.
 Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambiente do processo abre a guarda.
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
+import contextlib
 import hashlib
 import json
 import os
 import re
+import signal
 import tempfile
 import shlex
 import subprocess
 import time
+import urllib.parse
+from functools import lru_cache
 from pathlib import Path
 
 import parecer
@@ -91,6 +95,10 @@ CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequ
                              r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
+# Mutações do GraphQL que aplicam, criam ou renomeiam rótulo: o ID não traz o nome, então toda ocorrência conta
+GRAPHQL_DE_ROTULO = re.compile(r"addLabelsToLabelable|labelIds|createLabel|updateLabel", re.I)
+CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.I)  # falha fechado pelo texto
+TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
 PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
@@ -206,6 +214,46 @@ def casa(rel, caminho):
 
 def em_qualquer_lugar(posix, caminho):
     return ("/" + caminho) in posix + "/" if caminho.endswith("/") else posix.endswith("/" + caminho)
+
+
+def endpoint_normalizado(endpoint):
+    """O endpoint do `gh api` como o GitHub o lê: sem `?…` nem `#…`, sem esquema e host (`https://api.github.com/`), sem a
+    barra inicial e sem o prefixo do GitHub Enterprise (`api/v3/`, `api/`). `/graphql` e a URL completa viram `graphql`."""
+    e = re.split(r"[?#]", endpoint.strip(), maxsplit=1)[0]
+    e = re.sub(r"^[a-z][a-z0-9+.-]*://[^/]*", "", e, flags=re.I).lstrip("/")
+    return re.sub(r"^api/(v3/)?", "", e, flags=re.I).rstrip("/")
+
+
+def e_graphql(endpoint):
+    """O endpoint normalizado é o do GraphQL (`graphql`, `/graphql`, `https://<host>/graphql`, `.../api/graphql`)."""
+    return endpoint_normalizado(endpoint).lower() == "graphql"
+
+
+def conteudos_de_crase(comando):
+    """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
+    aspas duplas; a barra invertida escapa. Crase sem par levanta ValueError (a linha não se analisa)."""
+    saida, inicio, simples, duplas, i = [], None, False, False, 0
+    while i < len(comando):
+        c = comando[i]
+        if c == "\\" and not simples and i + 1 < len(comando):
+            i += 2
+            continue
+        if inicio is not None:
+            if c == "`":
+                saida.append(comando[inicio:i].replace("\\`", "`"))
+                inicio = None
+        elif simples:
+            simples = c != "'"
+        elif c == "'" and not duplas:
+            simples = True
+        elif c == '"':
+            duplas = not duplas
+        elif c == "`":
+            inicio = i + 1
+        i += 1
+    if inicio is not None:
+        raise ValueError("crase sem par")
+    return saida
 
 
 def tirar_heredocs(comando):
@@ -1146,13 +1194,24 @@ class Guarda:
 
     # R-CONTRIB: o rótulo afrouxa-regra é só do dono do Forge ------------------------------------------
     @staticmethod
+    @lru_cache(maxsize=1)
     def conta_do_gh():
-        """Login da conta autenticada no `gh` (`gh api user`); vazio se não der para ler (falha fechado)."""
-        try:
-            r = subprocess.run(["gh", "api", "user", "--jq", ".login"], capture_output=True, text=True, timeout=15)
+        """Login da conta autenticada no `gh` (`gh api user`), uma consulta por chamada do hook; vazio se não der para
+        ler (falha fechado). O limite de tempo fica abaixo do timeout do hook (`TIMEOUT_DA_CONTA`)."""
+        try:  # grupo próprio: no limite de tempo, o `kill` alcança também os filhos que seguram a saída aberta
+            p = subprocess.Popen(["gh", "api", "user", "--jq", ".login"], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                 stderr=subprocess.DEVNULL, text=True, start_new_session=True)
         except (OSError, subprocess.SubprocessError):
             return ""
-        return r.stdout.strip().lower() if r.returncode == 0 else ""
+        try:
+            saida, _ = p.communicate(timeout=TIMEOUT_DA_CONTA)
+        except subprocess.TimeoutExpired:
+            with contextlib.suppress(OSError):
+                os.killpg(p.pid, signal.SIGKILL)
+            p.kill()
+            p.wait()
+            return ""
+        return saida.strip().lower() if p.returncode == 0 else ""
 
     @staticmethod
     def rotulos_pedidos(args):
@@ -1168,40 +1227,47 @@ class Guarda:
         return [r.strip().lower() for v in saida for r in v.split(",")]
 
     def aplica_afrouxa_regra(self, palavras, pasta):
-        """True se o comando `gh` aplica (ou pode aplicar) o rótulo `afrouxa-regra`: `gh pr|issue edit|create` com o
-        rótulo, `gh api` em `issues/<n>/labels` ou `issues/<n>` com o nome no texto e a mutação GraphQL de rótulo
-        (o ID do rótulo não traz o nome: toda `addLabelsToLabelable`/`labelIds` conta). Corpo ilegível conta."""
+        """True se o comando `gh` aplica (ou pode aplicar) o rótulo `afrouxa-regra`, ou cria ou renomeia um rótulo com
+        esse nome: `gh pr|issue edit|create` com o rótulo, `gh label create|edit` que o cita, `gh api` em
+        `issues/<n>[/labels]` ou `labels[/<nome>]` com o nome no texto e a mutação GraphQL de rótulo (o ID do rótulo
+        não traz o nome: toda `addLabelsToLabelable`/`labelIds`/`createLabel`/`updateLabel` conta). O endpoint é
+        comparado normalizado (`endpoint_normalizado`). Corpo ilegível conta."""
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         if grupo in ("pr", "issue") and sub in ("edit", "create"):
             return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:])
+        if grupo == "label" and sub in ("create", "edit"):
+            return any(ROTULO_PROTEGIDO in a.lower() for a in palavras[2:])
         if grupo != "api" or not parecer.metodo_mutante(palavras[2:]):
             return False
         args = palavras[2:]
-        endpoint = parecer.endpoint_da_api(args)
+        endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
         textos, ilegivel = self.textos_da_api(args, pasta)
-        junto = " ".join(textos).lower()
-        if endpoint == "graphql":
-            return ilegivel or any("mutation" in t and re.search(r"addLabelsToLabelable|labelIds", t, re.I) for t in textos)
-        if re.search(r"/issues/[^/]+(/labels)?/?$", endpoint):
+        junto = urllib.parse.unquote(" ".join(textos)).lower()
+        if endpoint.lower() == "graphql":
+            return ilegivel or any("mutation" in t and GRAPHQL_DE_ROTULO.search(t) for t in textos)
+        if re.search(r"(^|/)(issues/[^/]+(/labels)?|labels(/[^/]+)?)$", endpoint, re.I):
             return ilegivel or ROTULO_PROTEGIDO in junto
         return False
 
     def rotulo_na_sessao_do_forge(self, comando, pasta, nivel=0):
         """R-CONTRIB: na sessão do Forge (pasta fora de projeto, onde o hook não aplica as demais regras), só confere o
-        rótulo `afrouxa-regra`: percorre os comandos da linha, por baixo de lançadores, `bash -c`, `eval` e `$(...)`.
-        Linha que não dá para analisar e cita o rótulo (ou a mutação de rótulo do GraphQL) exige a conta do dono."""
+        rótulo `afrouxa-regra`: percorre os comandos da linha, por baixo de lançadores, `bash -c`, `eval`, `$(...)` e
+        crase. Linha que não dá para analisar e cita o rótulo (ou a mutação de rótulo do GraphQL) exige a conta do dono;
+        outro erro sobe a `principal`, que barra se a linha cita o rótulo."""
         if nivel > PROFUNDIDADE:
             return
         try:
             sem_heredoc, corpos = tirar_heredocs(comando)
+            for interno in conteudos_de_crase(sem_heredoc):  # a crase é um `$(...)`: o mesmo caminho
+                self.rotulo_na_sessao_do_forge(interno, pasta, nivel + 1)
             partes = list(comandos(sem_heredoc))
             for palavras, _, _ in partes:
                 while palavras and palavras[0] in CORPO_DE_LACO:
                     palavras = palavras[1:]
                 palavras, _ = separar_lancadores(palavras)
                 for p in palavras:
-                    if "`" in p or "$(" in p.replace(OPACO["$"], ""):
+                    if "$(" in p.replace(OPACO["$"], ""):
                         self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                 prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                 if prog == "gh":
@@ -1216,7 +1282,7 @@ class Guarda:
                 if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                     self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
         except ValueError:
-            if re.search(rf"{ROTULO_PROTEGIDO}|addLabelsToLabelable|labelIds", comando, re.I):
+            if CITA_ROTULO.search(comando):
                 self.exigir_dono()
 
     def gh_rotulo(self, palavras, pasta):
@@ -1263,7 +1329,7 @@ class Guarda:
             dono = re.match(r"^/?repos/([^/]+/[^/]+)", endpoint)
             if not parecer.metodo_mutante(args):
                 return
-            if endpoint == "graphql":
+            if e_graphql(endpoint):  # `/graphql` e a URL completa também (o ID é global, sem slug)
                 alvo, perigoso = True, self.graphql_perigoso(args, pasta)
             else:
                 slug = dono.group(1) if dono and "{" not in dono.group(1) else repo_env  # {owner}/{repo} = GH_REPO
@@ -1566,7 +1632,14 @@ def principal(hook):
         if na_sessao_do_forge and ferramenta == "Bash" and not com_lista and isinstance(entrada.get("command"), str):
             guarda = Guarda(hook, pol, papel)  # R-CONTRIB: só o rótulo afrouxa-regra é conferido aqui
             guarda.sessao_forge = True
-            guarda.rotulo_na_sessao_do_forge(entrada["command"], hook.cwd())
+            try:
+                guarda.rotulo_na_sessao_do_forge(entrada["command"], hook.cwd())
+            except Exception as erro:  # noqa: BLE001 - linha que cita o rótulo falha fechado (R-CONTRIB)
+                if not CITA_ROTULO.search(entrada["command"]):
+                    raise
+                hook.registrar_erro(erro)
+                bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "
+                                      "Corrigir: veja .forge/run/erros.log e leve ao dono do Forge (R-DECISAO)")
         if not (com_lista and na_sessao_do_forge):
             return
         externo, hook.raiz = None, raiz
