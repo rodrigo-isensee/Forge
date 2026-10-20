@@ -185,9 +185,12 @@
       "Por que o existente não basta"
     ],
     "docs/melhoria-continua.md": [
+      "`Melhoria vista:`",
       "critério de reversão"
     ],
     "agents/jarvis.md": [
+      "Última linha: `Melhoria vista:`",
+      "o pedido só fecha com ela gravada",
       "bin/forge-check sobreposicao",
       "Recibo antes de acionar o time",
       "Marque cada item de escopo, fora do escopo e critério de pronto",
@@ -361,7 +364,7 @@
     "docs/regras/R-TETO.md": [
       "Teto de recursos da máquina \\(obrigatório\\)",
       "teto de agentes adaptativo",
-      "\\*\\*2 agentes\\*\\* com load acima de 6",
+      "menor que 0,8 × nproc",
       "nunca relaxa as regras abaixo",
       "\\*\\*tarefas pesadas uma de cada vez\\*\\*"
     ],
@@ -400,8 +403,9 @@
     ],
     "docs/regras/R-WIP.md": [
       "sem folga no teto, a fila espera",
-      "respeitando o `R-TETO` inteiro: o teto de agentes, o limite de 2 worktrees além do principal, as tarefas pesadas uma por vez",
-      "são no máximo 3 \\(o diretório principal e as 2 worktrees",
+      "respeitando o `R-TETO` inteiro: o teto de agentes, as worktrees \\(uma por instância, com disco livre\\), as tarefas pesadas uma por vez",
+      "são no máximo o teto de agentes de `R-TETO`",
+      "cresce na proporção \\*\\*teto ÷ 3, arredondado para baixo\\*\\*",
       "`worktree: <nome>`",
       "não faz o review do próprio cartão",
       "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
@@ -411,6 +415,7 @@
       "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
     ],
     "agents/agile-coach.md": [
+      "`MELHORIA:`",
       "nunca para avaliar um agente ou uma pessoa individualmente",
       "Medição de clareza, por pedido",
       "`PERGUNTA: nenhuma` conta zero",
@@ -464,7 +469,14 @@
       "\"agent\": \"forge:jarvis\"",
       "Bash\\(git \\* --no-verify\\*\\)"
     ],
+    "bin/forge-check": [
+      "Melhoria vista:"
+    ],
     "docs/regras/R-DECISAO.md": [
+      "Complemento: melhoria vista e entrada direta",
+      "não custa dinheiro real, sem exceção",
+      "não aumenta tokens nem tempo de entrega",
+      "não se inventa melhoria para preenchê-la",
       "\\*\\*uma de cada vez\\*\\*",
       "Complemento: \\\"tanto faz\\\" e ordem ampla",
       "viram item `delegado`",

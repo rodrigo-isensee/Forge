@@ -1,8 +1,10 @@
 {
-  "descricao": "Load 3,5 e 3,5 GB livres: teto 4, três ativos liberam.",
+  "descricao": "4 núcleos, load 1: teto 4; quatro ativos bloqueiam.",
   "proc": {
-    "loadavg": "3.5 1.0 1.0 1/100 1",
-    "mem_gb": 3.5
+    "loadavg": "1.0 1.0 1.0 1/100 1",
+    "mem_gb": 8,
+    "mem_total_gb": 16,
+    "nproc": 4
   },
   "estado": {
     "agentes.json": {
@@ -24,6 +26,12 @@
           "tipo": "forge:tech-lead",
           "descricao": "Tarefa 2",
           "desde": "{agora-60}"
+        },
+        {
+          "id": "a3",
+          "tipo": "forge:tech-lead",
+          "descricao": "Tarefa 3",
+          "desde": "{agora-60}"
         }
       ]
     }
@@ -39,6 +47,7 @@
     }
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "4 agentes ativos, teto 4 (adaptativo: load 1.0 de 4 núcleos, 8.0 GB disponíveis)"
   }
 }

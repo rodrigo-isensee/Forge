@@ -4,6 +4,16 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.23.0] - 2026-10-20
+### Alterado
+- Pareceres de devops e de segurança alinhados ao texto da TL-1: um push por rodada, e recomendações de parecer aprovado no detalhe dos achados
+- Mecanismo de melhoria vista e entrada direta: linha `Melhoria vista:` em todo relatório, retrospectiva que vira cartão e critério de entrada direta, também nos projetos (R-DECISAO).
+- Regra 7 de economia-de-tokens: o tamanho do relatório do agente segue o item 6 do prompt-padrão (agents/jarvis.md), sem o limite de 5 linhas.
+- R-TETO: o teto de agentes passa a ser adaptativo ao hardware (dispara com load de 1 min < 0,8 × nproc e MemAvailable > max(1 GB, 15% do total), no máximo nproc agentes; sem número fixo de worktrees); o hook agentes aplica a regra lendo nproc, /proc/loadavg e /proc/meminfo
+- Pareceres de review, segurança e QA continuam commitados um a um, mas a rodada do mesmo SHA sai num push só.
+### Corrigido
+- `forge-changelog conferir` aceita o PR que só fecha fragmentos (apaga `changelog.d/` e leva as linhas ao `CHANGELOG.md`) e reprova se faltar uma linha (DV-6).
+
 ## [0.22.0] - 2026-10-19
 ### Adicionado
 - forge-check entrega confere o escopo da entrega só pelo intervalo da delegação (--desde a partir da linha conferida <sha40> do Histórico do pedido, que só o Jarvis grava; branch inteira nas etapas pr e merge), forge-check delta e brief --anterior mostram o que mudou entre rodadas, e brief gerar --volta monta o brief de volta dos achados bloqueantes dos pareceres (bloco ## Achados) com Volta-de e sha256, conferido por forge-check brief; o PQ de merge do brief de integração prova por git merge-base --is-ancestor (VV-2)

@@ -1,19 +1,14 @@
 {
-  "descricao": "Load 5 (adaptativo 3): um ativo libera.",
+  "descricao": "8 núcleos, load 7 (>= 6,4): nada novo, mesmo com 0 ativos.",
   "proc": {
-    "loadavg": "5.0 1.0 1.0 1/100 1",
-    "mem_gb": 8
+    "loadavg": "7.0 1.0 1.0 1/100 1",
+    "mem_gb": 8,
+    "mem_total_gb": 16,
+    "nproc": 8
   },
   "estado": {
     "agentes.json": {
-      "agentes": [
-        {
-          "id": "a0",
-          "tipo": "forge:tech-lead",
-          "descricao": "Tarefa 0",
-          "desde": "{agora-60}"
-        }
-      ]
+      "agentes": []
     }
   },
   "entrada": {
@@ -27,6 +22,7 @@
     }
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-TETO: carga alta (load 7.0 de 8 núcleos, 8.0 GB disponíveis; limite: load 6.4"
   }
 }
