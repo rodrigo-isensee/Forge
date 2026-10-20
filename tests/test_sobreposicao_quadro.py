@@ -179,6 +179,7 @@ class Movimento(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.raiz = Path(self._tmp.name)
+        (self.raiz / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")  # sem quadro o movimento recusa (FC-PEDIDO-FORA)
         self.arq = self.raiz / "docs" / "kanban" / "historico.md"
 
     def test_cria_o_arquivo_e_acrescenta_com_hora_iso_e_fuso(self):
