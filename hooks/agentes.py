@@ -27,10 +27,15 @@ PISO_FRACAO = 0.15
 
 
 def nucleos():
-    """nproc: os.cpu_count(); FORGE_NPROC o substitui (usado nos testes). None se não der."""
+    """nproc: os.sched_getaffinity(0) (respeita afinidade e cpuset) quando existir, senão os.cpu_count();
+    FORGE_NPROC o substitui (usado nos testes). None se não der."""
     try:
-        return int(os.environ.get("FORGE_NPROC") or os.cpu_count() or 0) or None
-    except ValueError:
+        if hasattr(os, "sched_getaffinity"):
+            padrao = len(os.sched_getaffinity(0))
+        else:
+            padrao = os.cpu_count() or 0
+        return int(os.environ.get("FORGE_NPROC") or padrao or 0) or None
+    except (ValueError, OSError):
         return None
 
 
@@ -62,25 +67,28 @@ def carga_alta(carga, memoria, total, nproc):
 
 def teto_adaptativo(carga, memoria, total, nproc):
     """R-TETO: teto absoluto de nproc agentes ao mesmo tempo; a carga alta é outra trava (carga_alta) e
-    vale antes dele. Sem medida (None), o padrão de 3."""
+    vale antes dele. Sem medida (None), o padrão de 3, nunca acima de nproc quando ele é conhecido."""
     if None in (carga, memoria, total, nproc):
-        return RESERVA["teto_agentes"]
+        padrao = RESERVA["teto_agentes"]
+        return min(padrao, nproc) if nproc else padrao
     return nproc
 
 
 def calcular_teto(config, proc=None):
-    """(teto, explicação para a mensagem). `teto_agentes` fixo sobrepõe o adaptativo."""
-    if config.get("teto_agentes"):
-        return config["teto_agentes"], "fixo em .forge/config.json: teto_agentes"
-    carga, memoria, total = medir(proc)
-    nproc = nucleos()
-    teto = teto_adaptativo(carga, memoria, total, nproc)
+    """(teto, explicação para a mensagem). `teto_agentes` fixo sobrepõe o adaptativo; `teto_maximo` limita
+    os dois (hook e forge-check usam esta função)."""
     maximo = config.get("teto_maximo")
+    if config.get("teto_agentes"):
+        teto, origem = config["teto_agentes"], "fixo em .forge/config.json: teto_agentes"
+    else:
+        carga, memoria, total = medir(proc)
+        nproc = nucleos()
+        teto = teto_adaptativo(carga, memoria, total, nproc)
+        origem = f"adaptativo sem leitura de /proc: padrão {teto}" if None in (carga, memoria, total, nproc) \
+            else f"adaptativo: load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis"
     limitado = bool(maximo) and teto > maximo
     if limitado:
         teto = maximo
-    origem = "adaptativo sem leitura de /proc: padrão 3" if None in (carga, memoria, total, nproc) \
-        else f"adaptativo: load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis"
     return teto, origem + (f", limitado por teto_maximo {maximo}" if limitado else "")
 
 
@@ -99,6 +107,9 @@ def lancar(hook, agentes, agora):
                                "não relance, espere o resultado dele.")
     carga, memoria, total = medir()
     nproc = nucleos()
+    for variavel in ("FORGE_NPROC", "FORGE_PROC"):  # substituem a medida real: ficam registrados
+        if os.environ.get(variavel):
+            hook.registrar_escape(f"{variavel}={os.environ[variavel]} substitui a medida real do teto de agentes")
     if carga_alta(carga, memoria, total, nproc):  # vale para qualquer teto: teto_agentes e teto_maximo não desligam
         if os.environ.get("FORGE_CARGA_LIVRE") == "1":  # escape só do dono: pula só a trava de carga
             hook.registrar_escape(f"FORGE_CARGA_LIVRE=1 liberou o disparo com carga alta (load {carga:.1f} de {nproc} núcleos, "

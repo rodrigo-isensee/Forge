@@ -308,8 +308,9 @@ class Hooks(unittest.TestCase):
             self.assertFalse((run / nome).exists(), f"{nome} deveria ter sido removido")
         if "erros_log" in esperado:
             self.assertIn(esperado["erros_log"], (run / "erros.log").read_text(encoding="utf-8"))
-        elif run.exists():
-            self.assertFalse((run / "erros.log").exists(), "erro interno inesperado")
+        elif (run / "erros.log").exists():  # só o aviso do FORGE_NPROC/FORGE_PROC (que os testes fixam) é esperado
+            outras = [l for l in (run / "erros.log").read_text(encoding="utf-8").splitlines() if " Aviso: FORGE_" not in l]
+            self.assertEqual(outras, [], "erro interno inesperado")
         if run.exists() and not f.dados.get("estado"):  # o hook criou .forge/run/
             self.assertEqual((run / ".gitignore").read_text(encoding="utf-8"), "*\n")
 
@@ -442,6 +443,64 @@ class Hooks(unittest.TestCase):
             medidas[faltando] = None
             self.assertFalse(agentes.carga_alta(*medidas))
             self.assertEqual(agentes.teto_adaptativo(*medidas), 3)
+
+    def test_teto_sem_leitura_nunca_passa_de_nproc(self):  # A3
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        for nproc, esperado in ((1, 1), (2, 2), (3, 3), (8, 3), (None, 3)):
+            with self.subTest(nproc=nproc):
+                self.assertEqual(agentes.teto_adaptativo(None, None, None, nproc), esperado)
+
+    def test_teto_maximo_vale_igual_sobre_o_fixo_e_o_adaptativo(self):  # A2
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        pasta = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, pasta, True)
+        (pasta / "loadavg").write_text("0.1\n", encoding="utf-8")
+        (pasta / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "16"}):
+            self.assertEqual(agentes.calcular_teto({"teto_agentes": 8, "teto_maximo": 5}, pasta)[0], 5)
+            self.assertEqual(agentes.calcular_teto({"teto_agentes": 4, "teto_maximo": 5}, pasta)[0], 4)
+            self.assertEqual(agentes.calcular_teto({"teto_maximo": 5}, pasta)[0], 5)
+            self.assertEqual(agentes.calcular_teto({}, pasta)[0], 16)
+
+    def test_nucleos_respeita_a_afinidade(self):  # A4
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        env = {k: v for k, v in os.environ.items() if k != "FORGE_NPROC"}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(agentes.nucleos(), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertIsNone(agentes.nucleos())
+            with mock.patch.object(os, "cpu_count", return_value=4):
+                saved = getattr(os, "sched_getaffinity", None)
+                if saved is not None:
+                    del os.sched_getaffinity
+                try:
+                    self.assertEqual(agentes.nucleos(), 4)
+                finally:
+                    if saved is not None:
+                        os.sched_getaffinity = saved
+
+    def test_variaveis_de_substituicao_ficam_no_erros_log(self):  # R1
+        raiz = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, raiz, True)
+        git("init", "-q", cwd=raiz)
+        (raiz / ".forge").mkdir()
+        (raiz / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
+        proc = montar_proc(raiz, {"loadavg": "0.1 0.1 0.1", "mem_gb": 8})
+        entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(raiz),
+                   "tool_input": {"subagent_type": "x", "description": "d"}}
+        r = rodar("agentes", entrada, raiz, proc, {"FORGE_NPROC": "8"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        logs = list(raiz.glob("**/erros.log"))
+        self.assertEqual(len(logs), 1, "um erros.log")
+        texto = logs[0].read_text(encoding="utf-8")
+        self.assertIn("agentes Aviso: FORGE_NPROC=8", texto)
+        self.assertIn("agentes Aviso: FORGE_PROC=", texto)
 
     def test_raiz_de_estado_no_clone_do_forge(self):
         """Anti-alucinação, fatia 3: a raiz do clone do Forge (cópia principal e worktree) é achada; o projeto vem antes

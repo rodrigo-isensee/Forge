@@ -241,8 +241,7 @@ def teto_calculado(raiz):
         config = {}
     valido = {k: v for k, v in (config.items() if isinstance(config, dict) else [])
               if k in ("teto_agentes", "teto_maximo") and isinstance(v, int) and not isinstance(v, bool) and v >= 1}
-    teto = agentes.calcular_teto(valido)[0]
-    return min(teto, valido["teto_maximo"]) if "teto_maximo" in valido else teto
+    return agentes.calcular_teto(valido)[0]
 
 
 def fator_de_coluna(teto):
