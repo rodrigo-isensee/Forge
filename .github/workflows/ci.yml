@@ -129,28 +129,17 @@ jobs:
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: python3 bin/forge-changelog conferir --base "$BASE"
-      - name: main - release exige versão nova e changelog fechado
-        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'main' }}
+      - name: release exige versão nova e changelog fechado (main sempre; homolog só se a versão subiu)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && (github.base_ref == 'main' || github.base_ref == 'homolog') }}
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          atual=$(python3 -c "import json;print(json.load(open('.claude-plugin/plugin.json'))['version'])")
-          base=$(git show "$BASE:.claude-plugin/plugin.json" 2>/dev/null | python3 -c "import json,sys;print(json.load(sys.stdin)['version'])" 2>/dev/null || echo "0.0.0")
-          echo "versão base: $base | versão da release: $atual"
-          python3 - "$base" "$atual" CHANGELOG.md <<'PY'
-          import re, sys
-
-          b, a = (tuple(map(int, v.split("."))) for v in sys.argv[1:3])
-          if a <= b:
-              sys.exit(f"Suba a versão em .claude-plugin/plugin.json (base {sys.argv[1]}, release {sys.argv[2]}).")
-          texto = open(sys.argv[3], encoding="utf-8").read()
-          if not re.search(rf"^## \[{re.escape(sys.argv[2])}\]", texto, re.M):
-              sys.exit(f"CHANGELOG.md sem a entrada '## [{sys.argv[2]}]'.")
-          m = re.search(r"^## \[Não publicado\][^\n]*\n(.*?)(?=^## |\Z)", texto, re.M | re.S)
-          if m and any(l.strip() for l in m.group(1).splitlines()):
-              sys.exit("Converta '## [Não publicado]' em '## [" + sys.argv[2] + "] - data': a seção deve estar vazia na release.")
-          PY
-          python3 bin/forge-changelog conferir-release
+          if [ "$BASE_REF" = homolog ]; then
+            python3 scripts/conferir-release.py --base "$BASE" --so-se-versao-mudou
+          else
+            python3 scripts/conferir-release.py --base "$BASE"
+          fi
       - name: Nada pula degrau
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
         env:
