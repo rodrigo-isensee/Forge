@@ -116,6 +116,24 @@ def linhas_nao_publicado(texto):
     return {l.strip() for l in (m.group(1) if m else "").splitlines() if l.strip().startswith("-")}
 
 
+def fragmentos_alterados(filtro, base):
+    """Fragmentos de changelog.d/ (só a pasta raiz, sem o README) adicionados ("A") ou apagados ("D") entre base e HEAD."""
+    caminhos = git("diff", "--name-only", "--no-renames", f"--diff-filter={filtro}", base, "HEAD", "--", PASTA).split()
+    return [p for p in caminhos if p.endswith(".md") and Path(p).name.lower() != "readme.md"
+            and Path(p).parent == Path(PASTA)]
+
+
+def conferir_fechamento(base, apagados):
+    """PR que só fecha fragmentos: cada linha de cada fragmento apagado precisa estar no CHANGELOG.md do HEAD."""
+    changelog = Path("CHANGELOG.md").read_text(encoding="utf-8")
+    for p in apagados:
+        for linhas in ler_fragmento(git("show", f"{base}:{p}"), p).values():
+            for linha in linhas:
+                if linha not in changelog:
+                    sys.exit(f"{p}: a linha apagada não está no CHANGELOG.md: {linha}")
+    print(f"ok: fechamento de {len(apagados)} fragmento(s), linhas no CHANGELOG")
+
+
 def conferir(args):
     base = args.base
     mudou = git("diff", "--name-only", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
@@ -125,11 +143,13 @@ def conferir(args):
     if atual != anterior:
         print("PR de release (versão mudou): o changelog fechado é conferido na promoção para a main.")
         return
+    novos = fragmentos_alterados("A", base)
+    apagados = fragmentos_alterados("D", base)
+    if not mudou and not novos and apagados:
+        conferir_fechamento(base, apagados)
+        return
     if not mudou:
         return
-    novos = [p for p in git("diff", "--name-only", "--no-renames", "--diff-filter=A", base, "HEAD", "--", PASTA).split()
-             if p.startswith(f"{PASTA}/") and p.endswith(".md") and Path(p).name.lower() != "readme.md"
-             and Path(p).parent == Path(PASTA)]
     for p in novos:
         ler_fragmento(git("show", f"HEAD:{p}"), p)
     if novos:

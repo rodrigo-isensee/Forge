@@ -186,6 +186,43 @@ class ConferirNoCI(Base):
         self.commitar()
         self.assertEqual(self.conferir().returncode, 0)
 
+    def _base_com_fragmento(self, texto="### Corrigido\n- Linha do fragmento\n"):
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "dv-x.md").write_text(texto, encoding="utf-8")
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "frag")
+        git(self.dir, "branch", "-f", "develop", "HEAD")
+
+    def test_fechamento_com_todas_as_linhas_no_changelog_passa(self):
+        self._base_com_fragmento()
+        (self.dir / "changelog.d" / "dv-x.md").unlink()
+        texto = (self.dir / "CHANGELOG.md").read_text(encoding="utf-8")
+        (self.dir / "CHANGELOG.md").write_text(texto + "- Linha do fragmento\n", encoding="utf-8")
+        self.commitar()
+        r = self.conferir()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("fechamento de 1 fragmento(s)", r.stdout)
+
+    def test_fechamento_sem_a_linha_no_changelog_reprova(self):
+        self._base_com_fragmento()
+        (self.dir / "changelog.d" / "dv-x.md").unlink()
+        self.commitar()
+        r = self.conferir()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("dv-x.md", r.stdout + r.stderr)
+        self.assertIn("Linha do fragmento", r.stdout + r.stderr)
+
+    def test_apagar_fragmento_com_outra_mudanca_da_fabrica_exige_fragmento_novo(self):
+        self._base_com_fragmento()
+        (self.dir / "changelog.d" / "dv-x.md").unlink()
+        texto = (self.dir / "CHANGELOG.md").read_text(encoding="utf-8")
+        (self.dir / "CHANGELOG.md").write_text(texto + "- Linha do fragmento\n", encoding="utf-8")
+        self.mudar_fabrica()
+        self.commitar()
+        r = self.conferir()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("fragmento novo", r.stdout + r.stderr)
+
     def test_pr_de_release_passa_sem_fragmento(self):
         self.mudar_fabrica()
         (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.2.0"}\n', encoding="utf-8")
