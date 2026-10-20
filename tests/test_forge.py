@@ -155,7 +155,8 @@ class PluginDeDesenvolvimento(unittest.TestCase):
     def test_aq_tem_papel_e_lista_de_escrita_no_hook(self):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
-        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/"]})
+        self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
         self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
         self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
