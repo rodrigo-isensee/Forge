@@ -154,21 +154,21 @@ def validar_documento(rel, texto):
     """Devolve (campos ou None se ignorado, violações)."""
     campos, erros = ler_frontmatter(texto)
     if campos is None:
-        return None, [f"{rel}: frontmatter: {erros[0]} (ADR-0004)"]
-    saida = [f"{rel}: frontmatter: {e} (ADR-0004)" for e in erros]
+        return None, [f"{caminho_impresso(rel)}: frontmatter: {erros[0]} (ADR-0004)"]
+    saida = [f"{caminho_impresso(rel)}: frontmatter: {e} (ADR-0004)" for e in erros]
     if campos.get("contrato") == "0":
         return None, saida  # documento anterior ao contrato
     if campos.get("contrato") != "1":
-        saida.append(f"{rel}: contrato: esperado `1` (ADR-0004)")
+        saida.append(f"{caminho_impresso(rel)}: contrato: esperado `1` (ADR-0004)")
     tipo = campos.get("tipo")
     if tipo not in CONTRATOS:
-        return campos, saida + [f"{rel}: tipo: esperado um de {', '.join(CONTRATOS)} (ADR-0004)"]
+        return campos, saida + [f"{caminho_impresso(rel)}: tipo: esperado um de {', '.join(CONTRATOS)} (ADR-0004)"]
     pasta, rid, obrigatorios = CONTRATOS[tipo]
     if not rel.startswith(pasta + "/"):
-        saida.append(f"{rel}: tipo: `{tipo}` pertence a {pasta}/ ({rid})")
+        saida.append(f"{caminho_impresso(rel)}: tipo: `{tipo}` pertence a {pasta}/ ({rid})")
 
     def erro(campo, problema):
-        saida.append(f"{rel}: {campo}: {problema} ({rid})")
+        saida.append(f"{caminho_impresso(rel)}: {campo}: {problema} ({rid})")
 
     for c in obrigatorios:
         if not campos.get(c):
@@ -428,7 +428,7 @@ def commit_vale(raiz, commit, ate="HEAD", base=None):
     if div == []:
         return None
     alvo = div[0] if div else fora[0]
-    return f"desatualizado: {alvo} mudou depois do parecer; peça novo parecer"
+    return f"desatualizado: {caminho_impresso(alvo)} mudou depois do parecer; peça novo parecer"
 
 
 def pedidos_da_branch(raiz, branch, ref=None):
@@ -559,23 +559,23 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
         _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
         saida += viol
         if ref is None and not parecer_commitado(raiz, rel):
-            saida.append(f"{rel}: parecer presente na árvore de trabalho e ausente no commit (HEAD); quem o emitiu "
+            saida.append(f"{caminho_impresso(rel)}: parecer presente na árvore de trabalho e ausente no commit (HEAD); quem o emitiu "
                          f"o commita na branch revisada, só esse arquivo, no mesmo push da entrega ({rid})")
         if registros is not None:
             hash_atual, papel = hashlib.sha256(texto.strip().encode()).hexdigest(), PAPEL_DO_PARECER[tipo]
             if not any(r.get("caminho") == rel and r.get("sha256") == hash_atual and r.get("papel") == papel
                        for r in registros):
-                saida.append(f"{rel}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
+                saida.append(f"{caminho_impresso(rel)}: autoria: sem registro de que o papel `{papel}` gravou esta versão; "
                              f"o {papel} deve escrevê-lo ({rid})")
         if campos.get("parecer") == "riscos-aceitos" and not aceite_do_usuario(raiz, pedido, campos.get("commit"), ref):
-            saida.append(f"{rel}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
+            saida.append(f"{caminho_impresso(rel)}: parecer: `riscos-aceitos` só vale com o aceite do usuário em "
                          f"docs/security/aceites/{pedido}.md (`aceite: sim` e `commit:` igual ao do parecer, gravado à mão por ele) ({rid})")
         elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
-            saida.append(f"{rel}: parecer: o último parecer não é aprovado ({rid})")
+            saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
             motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base)
             if motivo:
-                saida.append(f"{rel}: commit: {motivo} ({rid})")
+                saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida
 
 
@@ -600,13 +600,21 @@ def e_ancestral(raiz, antigo, novo):
     return git(raiz, "merge-base", "--is-ancestor", antigo, novo)[0] == 0
 
 
+CATEGORIAS_DE_CONTROLE = ("Cc", "Cf", "Zl", "Zp")  # C0, DEL e C1, formato (bidi, largura zero), separador de linha e de parágrafo
+
+
+def e_controle(c):
+    return unicodedata.category(c) in CATEGORIAS_DE_CONTROLE
+
+
 def nome_seguro(nome):
-    """O nome entre aspas e com escape (B4): quebra de linha ou aspas num nome não imita outra linha da saída."""
-    return json.dumps(nome, ensure_ascii=False)
+    """O nome entre aspas e com escape (B4): quebra de linha ou aspas num nome não imita outra linha da saída. Além do que o
+    JSON já escapa (C0), escapa DEL, C1 (inclusive NEL), Cf, Zl e Zp como `\\uXXXX`: as mesmas categorias de `sem_controle`."""
+    return "".join(f"\\u{ord(c):04x}" if e_controle(c) else c for c in json.dumps(nome, ensure_ascii=False))
 
 
 def com_controle(nome):
-    return any(ord(c) < 32 or ord(c) == 127 for c in nome)
+    return any(e_controle(c) for c in nome)
 
 
 def nomes_do_intervalo(raiz, de, ate, tres_pontos=False):
@@ -660,7 +668,7 @@ def linha_de_origem(arquivo):
         except ValueError:
             continue
         if rel.startswith(("docs/pedidos/", "docs/briefs/")):  # só o que a busca achou ali; o resto da árvore não conta
-            return f"origem: {real}"
+            return f"origem: {caminho_impresso(real)}"
     return None
 
 
@@ -702,7 +710,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde):
     try:
         texto = caminho.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError) as e:
-        print(f"entrega: não consegui ler o pedido {caminho}: {getattr(e, 'strerror', None) or e}")
+        print(f"entrega: não consegui ler o pedido {caminho_impresso(caminho)}: {sem_controle(getattr(e, 'strerror', None) or e)}")
         return 2
     if origem := linha_de_origem(caminho):
         print(origem)
@@ -762,8 +770,20 @@ def dentro_da_raiz(raiz, caminho, pastas):
 
 
 def sem_controle(texto):
-    """Linha de texto sem caractere de controle (a saída é lida por um modelo: nada imita outra linha)."""
-    return re.sub(r"[\x00-\x1f\x7f]+", " ", texto).strip()
+    """Linha de texto sem caractere de controle (a saída é lida por um modelo: nada imita outra linha): Cc (C0, DEL e C1,
+    inclusive NEL), Cf (bidi, largura zero), Zl e Zp (U+2028 e U+2029) viram um espaço só por sequência."""
+    saida, anterior = [], False
+    for c in str(texto):
+        controle = e_controle(c)
+        if not (controle and anterior):
+            saida.append(" " if controle else c)
+        anterior = controle
+    return "".join(saida).strip()
+
+
+def caminho_impresso(caminho):
+    """Todo caminho, nome ou arquivo que a saída do forge-check imprime passa por aqui (E7): nunca forja uma linha de veredito."""
+    return sem_controle(caminho)
 
 
 HUNK = re.compile(rb"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", re.M)
@@ -821,10 +841,12 @@ def cmd_delta(raiz, refs, parecer):
 
 
 # --- Brief de volta gerado dos pareceres (VV-2, M7) --------------------------------------------
-ACHADO = re.compile(r"^- (A\d+) \((bloqueante|recomendado)\) (\S+?):(\d+) · (.+?)\s*$")
+ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
+ID_DE_ACHADO = re.compile(r"[AR]\d+")
+INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
 TETO_DO_ACHADO = 300
-CONTROLE = re.compile(r"[\x00-\x1f\x7f]")
+CONTROLE = re.compile(r"[\x00-\x1f\x7f]")  # `com_controle` cobre também C1, Cf, Zl e Zp (E7); este só serve a quem lê bytes crus
 SECOES_COPIADAS = ("Objetivo", "Fora do escopo", "Relatório")  # byte a byte do brief anterior (a volta só muda o Entregar)
 VOLTA_DE = re.compile(r"^Volta-de:\s*(\S+)\s+sha256\s+([0-9a-f]{64})\s*$", re.M)
 RAIZES_DE_BRIEF = (Path.home() / ".forge-contrib",)  # onde o Jarvis do Forge guarda docs/briefs/ (fora do clone)
@@ -850,7 +872,7 @@ def achados_do_parecer(texto):
         if not dentro or not linha.strip():
             continue
         m = ACHADO.match(linha)
-        if CONTROLE.search(linha) or not m:
+        if com_controle(linha) or not m:
             erros.append(f"linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle): {nome_seguro(linha[:80])}")
         elif len(m.group(5)) > TETO_DO_ACHADO:
             erros.append(f"achado {m.group(1)} com mais de {TETO_DO_ACHADO} caracteres")
@@ -911,7 +933,7 @@ def pareceres_da_volta(raiz, pedido_id, ref, arquivos):
             rel = real.relative_to(Path(os.path.realpath(raiz))).as_posix()
             cod, bruto = git(raiz, "cat-file", "blob", f"{ref}:{rel}", bruto=True)
             if cod:
-                return None, f"o parecer {rel} não está em {ref[:7]} (a ref da entrega)"
+                return None, f"o parecer {caminho_impresso(rel)} não está em {ref[:7]} (a ref da entrega)"
             lidos.append((rel, bruto.decode("utf-8", "replace")))
     else:
         for tipo in PASTA_E_REGRA:
@@ -933,6 +955,41 @@ def pareceres_da_volta(raiz, pedido_id, ref, arquivos):
 
 def marca_do_achado(parecer, achado, ref):
     return f"({parecer['tipo']} {ref[:7]} {achado['id']})"
+
+
+def texto_do_achado(achado):
+    """O que entra no Entregar (e que a conferência relê): o texto do parecer e a posição, como na linha dos bloqueantes."""
+    return f"{achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}]"
+
+
+def incluidas_da_volta(raiz, pedido_id, ref, especificacoes):
+    """([(parecer, achado)], erro): cada `--incluir <parecer>:<id>` (`R<n>`, ou `A<n>` recomendado) do bloco `## Achados` do parecer
+    lido da `ref` (nunca do disco do Jarvis), só em PASTAS_DE_PARECER, do mesmo pedido (E2, M2.1 a M2.3). Nada do corpo livre do parecer é copiado."""
+    incluidas = []
+    for especificacao in dict.fromkeys(especificacoes or []):
+        arquivo, _, ident = especificacao.rpartition(":")
+        rotulo = f"--incluir {nome_seguro(sem_controle(especificacao))}"
+        if not arquivo or not ID_DE_ACHADO.fullmatch(ident):
+            return None, f"{rotulo}: use <parecer>:R<n> (o id de um achado do bloco ## Achados)"
+        parecer, erro = pareceres_da_volta(raiz, pedido_id, ref, [arquivo])
+        if erro:
+            return None, f"{rotulo}: {erro}"
+        parecer = parecer[0]
+        if parecer["campos"].get("pedido") != pedido_id:
+            return None, f"{rotulo}: o parecer não é do pedido {caminho_impresso(pedido_id)}"
+        if parecer["problemas"]:
+            return None, f"{rotulo}: {parecer['problemas'][0]}"
+        achado = next((a for a in parecer["achados"] if a["id"] == ident), None)
+        if achado is None:
+            return None, f"{rotulo}: {ident} não está no bloco ## Achados de {caminho_impresso(parecer['rel'])} (só esse bloco é copiado)"
+        if achado["gravidade"] != "recomendado":
+            return None, f"{rotulo}: {ident} é bloqueante e já entra no Entregar da volta"
+        incluidas.append((parecer, achado))
+    return incluidas, None
+
+
+def marca_da_inclusao(parecer, achado, ref):
+    return f"(incluído {parecer['tipo']} {ref[:7]} {achado['id']} de {caminho_impresso(parecer['rel'])})"
 
 
 def acrescentar(linhas, novas):
@@ -962,24 +1019,32 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     pareceres, erro = pareceres_da_volta(raiz, pedido_id, ref, a.parecer)
     if erro:
         return None, 2, [f"brief gerar --volta: {erro}"]
-    recusas = [f"{p['rel']}: {problema} (C3, C4)" for p in pareceres for problema in p["problemas"]]
+    recusas = [f"{caminho_impresso(p['rel'])}: {problema} (C3, C4)" for p in pareceres for problema in p["problemas"]]
     if recusas:
         return None, 1, ["brief gerar --volta: parecer recusado, corrija o bloco ## Achados antes de gerar a volta:"] + recusas
+    incluidas, erro = incluidas_da_volta(raiz, pedido_id, ref, getattr(a, "incluir", None))
+    if erro:
+        return None, 2, [f"brief gerar --volta: {erro}"]
+    pareceres_lidos = list(pareceres)  # os que entram em "Ler": os da volta e o de cada inclusão, uma vez
+    for parecer, _ in incluidas:
+        if all(parecer["rel"] != lido["rel"] for lido in pareceres_lidos):
+            pareceres_lidos.append(parecer)
+    incluidos = {(p["rel"], a_["id"]) for p, a_ in incluidas}
     blocos = blocos_literais(anterior)
     dados = ler_pedido_brief(pedido_txt)
     destino = a.destino or grupo(r"^\s*Agente destino:\s*(\S+)", anterior)
     branch = a.branch or a.ref
-    saida = [f"<!-- forge-check brief gerar --volta: blocos de {rel_volta}, achados lidos de {a.ref} ({ref[:7]}); complete e apague toda linha com {PREENCHER} -->\n",
-             f"Agente destino: {destino}\n" if destino else f"Agente destino: {PREENCHER}\n", f"Pedido: {pedido_id}\n"]
+    saida = [f"<!-- forge-check brief gerar --volta: blocos de {caminho_impresso(rel_volta)}, achados lidos de {a.ref} ({ref[:7]}); complete e apague toda linha com {PREENCHER} -->\n",
+             f"Agente destino: {destino}\n" if destino else f"Agente destino: {PREENCHER}\n", f"Pedido: {caminho_impresso(pedido_id)}\n"]
     sha_base = grupo(r"Base-sha:\s*([0-9a-f]{40})\b", anterior) or sha_do_commit(raiz, f"origin/{a.base}") or PREENCHER
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
-    saida.append(f"Volta-de: {rel_volta} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
+    saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 
     def copiado(nome):
         return blocos.get(nome) or [f"## {nome}\n", f"- {PREENCHER}: o brief anterior não tem esta seção\n", "\n"]
 
     saida += copiado("Objetivo")
-    saida += acrescentar(copiado("Ler"), [f"- {p['rel']} (parecer, lido de {ref[:7]})" for p in pareceres])
+    saida += acrescentar(copiado("Ler"), [f"- {caminho_impresso(p['rel'])} (parecer, lido de {ref[:7]})" for p in pareceres_lidos])
     anteriores = " ".join(blocos.get("Entregar", []))
     n = int(grupo(r"\bvolta (\d+)", (blocos.get("Entregar") or [""])[0]) or 0) + 1
     entregar = [f"## Entregar (volta {n})\n"]
@@ -989,20 +1054,22 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     bloqueantes = recomendados = 0
     for p in pareceres:
         if not p["tem_bloco"]:
-            entregar += [f"<!-- achados: não verificável em {p['rel']} -->\n", f"- {PREENCHER}: achados de {p['rel']} (sem bloco ## Achados; redija o Entregar desta parte)\n"]
+            entregar += [f"<!-- achados: não verificável em {caminho_impresso(p['rel'])} -->\n", f"- {PREENCHER}: achados de {caminho_impresso(p['rel'])} (sem bloco ## Achados; redija o Entregar desta parte)\n"]
         for achado in p["achados"]:
             if achado["gravidade"] == "bloqueante":
                 bloqueantes += 1
-                entregar.append(f"- {marca_do_achado(p, achado, ref)} {achado['texto']} [{achado['arquivo']}:{achado['linha']}]\n")
-    if not bloqueantes and not any(not p["tem_bloco"] for p in pareceres):
+                entregar.append(f"- {marca_do_achado(p, achado, ref)} {achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}]\n")
+    for parecer, achado in incluidas:  # a recomendação escolhida (O3 = B): literal, com a origem verificável na conferência
+        entregar.append(f"- {marca_da_inclusao(parecer, achado, ref)} {texto_do_achado(achado)}\n")
+    if not bloqueantes and not incluidas and not any(not p["tem_bloco"] for p in pareceres):
         entregar.append(f"- {PREENCHER}: nenhum achado bloqueante lido dos pareceres\n")
     for p in pareceres:
         for achado in p["achados"]:
-            if achado["gravidade"] == "recomendado":
+            if achado["gravidade"] == "recomendado" and (p["rel"], achado["id"]) not in incluidos:
                 if not recomendados:
                     entregar.append("Recomendados (cada um entra no Entregar acima ou vira corte com a marca \"Retira do escopo original\" em Fora do escopo):\n")
                 recomendados += 1
-                entregar.append(f"- {marca_do_achado(p, achado, ref)} {achado['texto']} [{achado['arquivo']}:{achado['linha']}] · {PREENCHER}: entra ou corta\n")
+                entregar.append(f"- {marca_do_achado(p, achado, ref)} {achado['texto']} [{caminho_impresso(achado['arquivo'])}:{achado['linha']}] · {PREENCHER}: entra ou corta\n")
     saida += entregar + ["\n"]
     saida += copiado("Fora do escopo")
     linhas_pedido = pedido_txt.splitlines()
@@ -1010,7 +1077,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     depois = next((i for i, l in enumerate(linhas_pedido) if sha_anterior in l), None)
     texto_decisoes = normalizar_espacos(" ".join(blocos.get("Decisões e restrições", [])))
     novas = [l.strip().lstrip("-* ").strip() for i, l in enumerate(linhas_pedido)
-             if "DECISÃO DO DONO" in l or ("DECISÃO TÉCNICA" in l and (depois is None or i > depois))]
+             if e_linha_de_decisao(l) or (e_linha_de_decisao(l, FRASE_TECNICA) and (depois is None or i > depois))]
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
     do_registro = []
     for rel, linhas in cobradas["fontes"][1:]:
@@ -1022,7 +1089,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     saida += acrescentar(copiado("Decisões e restrições"), [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro)
     conferidas = conferidas_do_pedido(pedido_txt)
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
-    pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {pedido_id} --branch {branch} --base {a.base} --base-sha {sha_base} "
+    pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
               f"--etapa codigo --desde {conferidas[-1] if conferidas else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
@@ -1072,11 +1139,24 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
     entregar = " ".join(novos.get("Entregar", []))
     cortes = " ".join(l for l in secoes_por(texto, CABECALHO_BRIEF).get("Fora do escopo", []) if MARCA_DE_CORTE in l)
     for p in pareceres:
-        saida += [(f"volta: parecer {p['rel']}: {problema}", True) for problema in p["problemas"]]
+        saida += [(f"volta: parecer {caminho_impresso(p['rel'])}: {problema}", True) for problema in p["problemas"]]
         for achado in p["achados"]:
             marca = re.compile(rf"\({re.escape(p['tipo'])} [0-9a-f]{{7,40}} {achado['id']}\)")
             if achado["gravidade"] == "bloqueante" and not (marca.search(entregar) or marca.search(cortes)):
-                saida.append((f"volta: falta achado \"{achado['id']}\" de {p['rel']}", True))
+                saida.append((f"volta: falta achado \"{achado['id']}\" de {caminho_impresso(p['rel'])}", True))
+    for linha in novos.get("Entregar", []):  # a recomendação incluída é relida da ref: o texto ao lado da marca é o do parecer
+        marca = INCLUIDO.search(linha)
+        if not marca:
+            continue
+        tipo, _, ident, rel, texto_copiado = marca.groups()
+        achado = None
+        lidos, erro_de_leitura = pareceres_da_volta(raiz, pedido_id, sha_ref, [rel])
+        if not erro_de_leitura and lidos[0]["campos"].get("pedido") == pedido_id and lidos[0]["tipo"] == tipo and not lidos[0]["problemas"]:
+            achado = next((a for a in lidos[0]["achados"] if a["id"] == ident), None)
+        if achado is None:
+            saida.append((f"volta: recomendação {ident} não está no parecer {nome_seguro(caminho_impresso(rel))}", True))
+        elif achado["gravidade"] != "recomendado" or texto_copiado != texto_do_achado(achado):
+            saida.append((f"volta: recomendação {ident} difere do parecer", True))
     return saida or [("volta: ok", False)]
 
 
@@ -1186,7 +1266,7 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     if not all(campos):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
     if not (raiz / "KANBAN.md").is_file():
-        return [SEM_QUADRO.format(cmd="movimento", raiz=raiz)]
+        return [SEM_QUADRO.format(cmd="movimento", raiz=caminho_impresso(raiz))]
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
@@ -1231,7 +1311,7 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
     if not re.fullmatch(r"[0-9]+", rodada) or int(rodada) < 1:
         return ["conferencia: --rodada deve ser um inteiro a partir de 1"]
     if not (raiz / "KANBAN.md").is_file():
-        return [SEM_QUADRO.format(cmd="conferencia", raiz=raiz)]
+        return [SEM_QUADRO.format(cmd="conferencia", raiz=caminho_impresso(raiz))]
     arq = raiz / "docs" / "kanban" / "conferencias.md"
     if arq.is_symlink():
         return ["conferencia: docs/kanban/conferencias.md é link simbólico; não escrevo através dele"]
@@ -1860,7 +1940,7 @@ def quem_pode(e, politica):
     if e["ev"] == "escrita":
         for item in politica.get("caminhos", []):
             if e["alvo"] and item.get("caminho") == e["alvo"] and not item.get("so_forge"):  # só o hook sabe se é o Forge
-                return f"escrita em `{e['alvo']}`", item.get("quem", [])
+                return f"escrita em `{caminho_impresso(e['alvo'])}`", item.get("quem", [])
         return None
     c = e["cmd"]
     acao = {"gh pr create": "pr_criar", "gh pr merge": "pr_merge_integracao", "pacote instalar": "instalar_pacote",
@@ -1873,7 +1953,7 @@ def quem_pode(e, politica):
 def alvos_do_evento(e):
     """Identidade da ação para o contorno: o mesmo alvo por outra via é o mesmo desejo."""
     if e["ev"] == "escrita":
-        return ({f"escrita {e['alvo']}"} if e["alvo"] else set()) | ({"escrita copia"} if e["copia"] else set())
+        return ({f"escrita {caminho_impresso(e['alvo'])}"} if e["alvo"] else set()) | ({"escrita copia"} if e["copia"] else set())
     c = e["cmd"]
     alvos = {c} if not c.startswith("executa ") else set()
     if c.startswith("git push --force"):
@@ -2163,12 +2243,12 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>", raiz=None):
     try:
         arquivos, onde = transcricoes_do_alvo(alvo)
     except OSError as erro:
-        print(f"custo: caminho inexistente: {erro.filename or alvo}")
+        print(f"custo: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
         return 1
     if not arquivos:
-        print(f"custo: nenhum arquivo .jsonl em {onde}")
+        print(f"custo: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
         return 1
-    print(f"custo: vai ler {len(arquivos)} arquivo(s) .jsonl em {onde}; só disco local, sem rede; "
+    print(f"custo: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
           "a saída traz números e tipos de agente, nunca texto, caminho ou prompt", file=sys.stderr)
     dados = ler_uso(arquivos)
     if dados["ignoradas"]:
@@ -2418,12 +2498,12 @@ def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den):
     try:
         arquivos, onde = transcricoes_do_alvo(alvo)
     except OSError as erro:
-        print(f"{rotulo}: caminho inexistente: {erro.filename or alvo}")
+        print(f"{rotulo}: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
         return 1
     if not arquivos:
-        print(f"{rotulo}: nenhum arquivo .jsonl em {onde}")
+        print(f"{rotulo}: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
         return 1
-    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {onde}; só disco local, sem rede; "
+    print(f"{rotulo}: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
           "a saída traz só números, nunca texto, nome ou caminho", file=sys.stderr)
     medida = medir(ler(arquivos))
     soma = [0] * len(campos)
@@ -2510,7 +2590,7 @@ def ler_pedido_brief(texto):
         fim = marcas[i + 1].start() if i + 1 < len(marcas) else len(corpo)
         papel = m.group(3).split(",")[0].strip().lower()
         etapas[(int(m.group(1)), int(m.group(2)))] = (papel, corpo[m.start():fim].strip(" -"))
-    decisoes = [l.strip() for l in texto.splitlines() if "DECISÃO DO DONO" in l]
+    decisoes = [l.strip() for l in texto.splitlines() if e_linha_de_decisao(l)]
     return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "texto": normalizar_espacos(texto)}
 
 
@@ -2736,9 +2816,25 @@ def chave_da_decisao(texto):
     return normalizar_espacos(sem_controle(texto.strip().lstrip("-* ")))
 
 
+FRASE_DO_DONO = "DECISÃO DO DONO"
+FRASE_TECNICA = "DECISÃO TÉCNICA"
+TETO_DE_MENCOES = 20  # linhas `menção fora do início` por conferência; o resto vira uma linha de contagem
+
+
+def e_linha_de_decisao(linha, frase=FRASE_DO_DONO):
+    """Única regra da fábrica para "esta linha é uma decisão" (DECISAO-ANCORA, E6): a frase abre a linha, depois só de recuo,
+    marcador de lista (`-`, `*`, `+`, `N.`, `N)`), `>` e ênfase (`**`, `__`, `*`, `_`). Citar a frase no meio de um texto não conta."""
+    return re.match(rf"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*{re.escape(frase)}(?![^\W_])", linha) is not None
+
+
 def linhas_de_decisao(texto):
-    """[(número da linha como o `grep -n` conta, linha)] das linhas com `DECISÃO DO DONO`."""
-    return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if "DECISÃO DO DONO" in l]
+    """[(número da linha como o `grep -n` conta, linha)] das linhas de decisão do dono (`e_linha_de_decisao`)."""
+    return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if e_linha_de_decisao(l)]
+
+
+def mencoes_da_frase(texto):
+    """[(número da linha, linha)] que citam a frase do dono sem abri-la: não são cobradas, mas nunca somem (aparecem como informativas)."""
+    return [(n, l.strip()) for n, l in enumerate(texto.split("\n"), 1) if FRASE_DO_DONO in l and not e_linha_de_decisao(l)]
 
 
 def ler_registro(raiz, rel):
@@ -2764,13 +2860,14 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
     `docs/pedidos/` que uma delas cita (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
     `{"fontes": [(rel, [(n, linha)])] (a primeira é o pedido), "adrs": [NNNN], "avisos": [(linha de saída, reprova)]}`. Ordem fixa:
     mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2)."""
-    proprio = f"docs/pedidos/{caminho_pedido.name}"
+    proprio = f"docs/pedidos/{caminho_impresso(caminho_pedido.name)}"
     do_pedido = linhas_de_decisao(pedido_txt)
     fontes, avisos, vistos = [(proprio, do_pedido)], [], set()
+    mencoes = [(proprio, n) for n, _ in mencoes_da_frase(pedido_txt)]
     citantes = list(do_pedido) + [(n, l.strip()) for n, l in enumerate(pedido_txt.split("\n"), 1)
-                                  if DECISAO_COM_ID.match(l) and "DECISÃO DO DONO" not in l]
+                                  if DECISAO_COM_ID.match(l) and not e_linha_de_decisao(l)]
     for n, linha in citantes:
-        e_decisao_do_dono = "DECISÃO DO DONO" in linha
+        e_decisao_do_dono = e_linha_de_decisao(linha)
         for token, linha_citada in dict.fromkeys(TOKEN_DE_MD.findall(linha)):
             rel = token[len(PREFIXO_DE_REGISTRO):] if token.startswith(PREFIXO_DE_REGISTRO) else token
             if e_decisao_do_dono and "docs/pedidos/" in token:
@@ -2788,9 +2885,14 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
                         avisos.append((f"decisões: registro citado ausente {nome_seguro(rel)}", True))
                     else:
                         fontes.append((rel, linhas_de_decisao(texto)))
+                        mencoes += [(rel, n) for n, _ in mencoes_da_frase(texto)]
             elif rel != proprio and not rel.startswith("docs/adr/"):
-                local = f"{token}:{linha_citada}" if linha_citada else token  # `<arquivo>:<linha>` do registro citado (M2.2)
+                local = f"{caminho_impresso(token)}:{linha_citada}" if linha_citada else caminho_impresso(token)  # `<arquivo>:<linha>` do registro citado (M2.2)
                 avisos.append((f"decisões: fonte fora da regra {nome_seguro(sem_controle(local))} em {proprio}:{n} (não verificável)", False))
+    for rel, n in mencoes[:TETO_DE_MENCOES]:  # a citação no meio da linha não é decisão e não reprova, mas nunca some (M6.2)
+        avisos.append((f"decisões: menção fora do início {caminho_impresso(rel)}:{n} (informativo; não cobrada)", False))
+    if len(mencoes) > TETO_DE_MENCOES:
+        avisos.append((f"decisões: menção fora do início: mais {len(mencoes) - TETO_DE_MENCOES} linhas (informativo; não cobradas)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
     return {"fontes": fontes, "adrs": adrs, "avisos": avisos}
 
@@ -2799,13 +2901,13 @@ def conferir_decisoes(cobradas, secoes):
     """Linhas `fonte:` e `decisões:` do `brief` (lista de (linha, reprova)): cada linha cobrada e cada ADR precisa estar em
     `Decisões e restrições`. Só presença: a contradição literal é do conferente (M2.3)."""
     presentes = chave_da_decisao(" ".join(secoes.get("Decisões e restrições", [])))
-    saida = [(f"fonte: {rel} ({len(linhas)} decisões)", False) for rel, linhas in cobradas["fontes"]]
+    saida = [(f"fonte: {caminho_impresso(rel)} ({len(linhas)} decisões)", False) for rel, linhas in cobradas["fontes"]]
     saida += cobradas["avisos"]
     faltas = []
     for rel, linhas in cobradas["fontes"]:
         for n, linha in linhas:
             if chave_da_decisao(linha) not in presentes:
-                faltas.append((f"decisões: falta {nome_seguro(chave_da_decisao(linha)[:60])} ({rel}:{n})", True))
+                faltas.append((f"decisões: falta {nome_seguro(chave_da_decisao(linha)[:60])} ({caminho_impresso(rel)}:{n})", True))
     for adr in cobradas["adrs"]:
         if not re.search(rf"\bADR[ -]?{adr}\b|\bdocs/adr/{adr}-", presentes):
             faltas.append((f"decisões: falta {nome_seguro('ADR ' + adr)}", True))
@@ -2839,7 +2941,7 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
         saida += conferir_decisoes(cobradas, secoes)
     saida.append((f"arquivo: {len(conteudo)} bytes sha256 {hashlib.sha256(conteudo).hexdigest()}", False))
     if destino and caminho is not None:  # só com --destino: o conferente passa o agente da delegação
-        esperado = f"docs/briefs/{pedido_id}-{nome_do_papel(destino)}-"
+        esperado = f"docs/briefs/{caminho_impresso(pedido_id)}-{caminho_impresso(nome_do_papel(destino))}-"
         norm = str(caminho).replace(os.sep, "/")
         ok = re.search(re.escape(esperado) + r"\d+\.md$", norm)
         saida.append(("arquivo-caminho: ok" if ok else f"forma: Arquivo fora do padrão {esperado}<n>.md", not ok))
@@ -2872,7 +2974,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
         texto = conteudo.decode("utf-8")
     except (OSError, UnicodeDecodeError) as e:
-        print(f"brief: não consegui ler {getattr(e, 'filename', None) or arquivo}: {getattr(e, 'strerror', None) or e}")
+        print(f"brief: não consegui ler {caminho_impresso(getattr(e, 'filename', None) or arquivo)}: {sem_controle(getattr(e, 'strerror', None) or e)}")
         return 2
     bytes_anterior = None
     if anterior:
@@ -2886,7 +2988,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
             return 2
     pedido_id, linhas = avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, arquivo, bytes_anterior, ref, pareceres)
     reprovado = any(r for _, r in linhas)
-    print(f"conferencia-brief-regra: {pedido_id} → {brief.name}")
+    print(f"conferencia-brief-regra: {caminho_impresso(pedido_id)} → {caminho_impresso(brief.name)}")
     for linha, _ in linhas:
         print(linha)
     print(f"resultado: {'reprovado' if reprovado else 'aprovado'}")
@@ -3011,7 +3113,7 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
     try:
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
     except OSError as e:
-        print(f"brief gerar: não consegui ler {e.filename}: {e.strerror}")
+        print(f"brief gerar: não consegui ler {caminho_impresso(e.filename)}: {sem_controle(e.strerror)}")
         return 2
     if volta is not None:
         texto, rc, mensagens = gerar_volta(raiz, caminho_pedido, pedido_txt, volta)
@@ -3022,7 +3124,7 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
         return rc
     dados = ler_pedido_brief(pedido_txt)
     papel_destino = nome_do_papel(destino)
-    saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_pedido.name}; complete e apague toda linha com {PREENCHER} -->"]
+    saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
     if destino:
         saida.append(f"Agente destino: {destino}")
     saida.append(f"Pedido: {pedido}")
@@ -3280,6 +3382,7 @@ def main():
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")
+    br.add_argument("--incluir", nargs="+", metavar="PARECER:R<n>", help="só em `gerar --volta`: copia, literal e com a origem, a recomendação `R<n>` (ou `A<n>` recomendado) do bloco ## Achados do parecer (lido da --ref) para o Entregar da volta")
     br.add_argument("--ref", help="branch ou commit da entrega, de onde se leem os pareceres (obrigatório em `gerar --volta`)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
@@ -3338,6 +3441,8 @@ def main():
     a = ap.parse_args()
     if a.cmd == "brief" and a.alvo == "gerar" and a.etapa is not None and a.etapa not in ETAPAS_DO_GERAR:
         ap.error(f"argument --etapa: invalid choice: {a.etapa!r} (choose from {', '.join(map(repr, ETAPAS_DO_GERAR))})")
+    if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
+        ap.error("argument --incluir: só vale em `brief gerar --volta`")
     raiz = Path(a.raiz).resolve()
     try:
         return executar(a, raiz)
@@ -3390,7 +3495,7 @@ def executar(a, raiz):
             violacoes = (cmd_transcricao_anonimizar(a.entrada, a.saida) if a.acao == "anonimizar"
                          else cmd_transcricao_verificar(a.arquivo, a.teto))
         except OSError as e:
-            print(f"transcricao: arquivo: {e.strerror}: {e.filename}")
+            print(f"transcricao: arquivo: {sem_controle(e.strerror)}: {caminho_impresso(e.filename)}")
             return 1
         for v in violacoes:
             print(v)
