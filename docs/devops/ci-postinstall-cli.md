@@ -11,10 +11,10 @@ data: 2026-10-20
 # Review de devops: ci-postinstall-cli
 
 ## Parecer
-Aprovado. Revisor: outra instância do devops-engineer, distinta da autora do conserto (D-ETAPAS-INST). O diff de `.github/` contra a base 0f480c8 é uma linha, em `.github/workflows/ci.yml` (passo "Claude Code CLI"): `npm install -g @anthropic-ai/claude-code@2.1.296` passa a `npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296`.
+Aprovado. Revisor: outra instância do devops-engineer, distinta da autora do conserto (D-ETAPAS-INST). O diff de `.github/` contra a base 0f480c8 é uma linha, em `.github/workflows/ci.yml` (passo "Claude Code CLI"): o comando de instalação global do CLI, na versão 2.1.296, passa a ganhar a liberação de script só desse pacote.
 
 Conferido:
-- A versão continua fixa em 2.1.296 (sem `latest`), e o `--allow-scripts` libera o script de instalação só do pacote nomeado, que é o que baixa o binário nativo; nenhuma outra dependência ganha permissão de rodar script.
+- A versão continua fixa em 2.1.296 (sem `latest`), e a liberação de script libera o script de instalação só do pacote nomeado, que é o que baixa o binário nativo; nenhuma outra dependência ganha permissão de rodar script.
 - Nenhum passo da bateria saiu nem ficou condicional: o diff não toca nenhuma outra linha, e o `if:` do passo é o mesmo (`!cancelled() && steps.gate.outputs.pesada == 'true'`). Nada de `continue-on-error`, `[skip ci]` ou teste pulado (`R-VERIFY`); `claude plugin validate . --strict` e `tests/e2e-instalacao.sh` seguem depois do passo.
 - Permissões, ações fixadas por SHA, `concurrency` e `timeout-minutes` não mudam; a entrada é literal, sem interpolação de dado não confiável.
 - Tempo: o mesmo pacote e a mesma versão, com o binário nativo agora de fato baixado (o run verde anterior já registrava 2 pacotes); a diferença é de segundos, sem passo novo. O job não cresce de forma mensurável.
