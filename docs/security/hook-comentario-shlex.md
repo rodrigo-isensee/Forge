@@ -3,23 +3,22 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 742f828b5cd58b85719f65e390706b9d415169d6
-parecer: reprovado
+commit: 136ad09ee16661bd2d10975ec1c5549890ff78e9
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-21
 ---
 # Review de segurança: hook-comentario-shlex
 
-Diff revisado: `10c838f..742f828` (volta 0 sobre `74dc3f6`; voltas 1 a 5 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
+Diff revisado: `10c838f..136ad09` (volta 0 sobre `74dc3f6`; voltas 1 a 6 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
 
 ## Gatilhos
 Controles do Forge (R-SEGURANCA): a entrega muda a leitura da linha do shell (`fichas`), base de todas as checagens dos hooks `conformidade` (R-MAIN, R-VERIFY, escrita protegida, `sugerir`), `parecer` (R-REVIEW) e `pesado` (R-TETO), desde a volta 5 por `leituras`.
 
 ## Achados
-- A8 (bloqueante) hooks/_comum.py:326 · `#` dentro de crase é comentário no bash e termina na crase; o hook o lê como palavra e a aspa dele casa com outra: ``x=`#'`; gh repo delete dono/proj --yes # '`` sai 0 (203 das 561 recusas). Não é regressão (a base também passa).
 
 ## Detalhe dos achados
-A1 a A7 (voltas 0 a 4) estão resolvidos; o histórico fica abaixo, e o A8 está na seção "Volta 5".
+A1 a A8 (voltas 0 a 5) estão resolvidos; o histórico fica abaixo. O A8 está na seção "Volta 5" e a conferência dele, com a recomendação nova (R1), na "Volta 6".
 
 **A1 (volta 0, resolvido na volta 1).** Evidência: hooks/_comum.py:222 (`ANTES_DE_COMENTARIO` inclui `(`), usado em :243; a guarda da linha crítica faz o mesmo em :388/:459 (`#` depois de `(` encerra a varredura com "comentário até o fim da linha"), então nem o analisador nem a recusa por construção não modelada veem o resto da linha.
 - Reprodução (estática, local, em cópia por `git archive` do 74dc3f6 no diretório temporário, pelo `rodar_dados` da suíte, com a fixture `comentario-colado-push-force-bloqueia` como base): `[[ a =~ (#b) ]]; git push --force origin main`, `((#x)); git push --force origin main` e `[[ a =~ (#b) ]]; git push --no-verify origin feature/x` saem com código 0; o controle `true; git push --force origin main` sai com 2. No bash (`bash -c`, com `echo` no lugar do push): `((#x)); echo R1` imprime R1 (erro aritmético não interrompe a lista) e `[[ a =~ (#b) ]]; echo R4` imprime R4; o `#` ali não é comentário.
@@ -132,5 +131,16 @@ Delta revisado: `f02f482..742f828` (hooks/_comum.py: gramática G em `varrer_com
 
 **Fora desta volta (cartão HEREDOC-FURO-HOOK, já na base):** `x=$(date) # <<E⏎gh repo delete dono/proj --yes⏎E` sai 0 no 742f828 e na base: `tirar_heredocs` não conhece comentário e tira o "corpo".
 
+## Volta 6
+Delta revisado: `9e2bec1..136ad09` (`forge-check delta --parecer` sobre o parecer da volta 5: hooks/_comum.py:312-337, `ANTES_DE_CANDIDATO` com a crase e a regra da última linha física em `comentario_ambiguo`; tests/test_hooks.py com `PARES_QUE_O_BASH_IGNORA` no T1 e no T2 e `FORA_DO_T2`; três fixtures; ADR 0013 itens 2 e 6 e o índice; o fragmento do changelog), contra o A8 desta revisão e o A6 do review. Ferramenta: como na volta 5, as fixtures de recusa de Bash dos três hooks (564, mesmo filtro do T1) pelo harness da suíte, em cópias por `git archive` de 136ad09 e de 10c838f no diretório temporário; `bash -c` só com `echo`.
+
+**A8: resolvido.** Evidência: hooks/_comum.py:314 (crase em `ANTES_DE_CANDIDATO`) e :334 (na última linha física, crase e aspa no resto do candidato deixam a linha ilegível). Com as quatro variantes em par do T1 (`` x=`#'`; `` + ` # '`, a de aspa dupla e as duas do A6 do review, `` echo `# it's`; `` e `` echo `true # it's`;⏎ ``), as 564 recusas × 4 saem 2 no `conformidade` e no `parecer`; soltam 19, todas do `pesado` (5 fixtures). O A6 do review, pelas mesmas variantes, também sai 2. `tests.test_hooks` na cópia: 41 testes, OK. A forma é a correção mínima proposta na volta 5; a regra nova só recusa a mais (linha com crase, `#` candidato e aspa depois), nunca libera.
+
+**`FORA_DO_T2` com a crase em par no `pesado`: aceitável.** Evidência: tests/test_hooks.py:123 e a tabela do item 5 da ADR 0013. A leitura fiel não fecha, a antiga perde o comando, e o `pesado` libera como na develop (base 10c838f: as mesmas 5 fixtures soltam). O `pesado` guarda R-TETO (vez da tarefa pesada na máquina), não integridade de branch, parecer nem credencial: quem contorna ganha só concorrência de carga, sem caminho para dado ou para as travas de R-MAIN, R-VERIFY, R-REVIEW ou R-CONTRIB, que ficam nos outros dois hooks e recusam. A exclusão é a mesma do `$'…'`, já aceita na volta 5, e está declarada na ADR.
+
+**Conferido sem achado:** a crase como candidata não tira comentário provado (G para na primeira crase, então todo `#` depois dela já estava fora de G); `` x=`date` # nota ``, `` echo `echo a #b`; ls `` e `` echo `# nota`; ls # fim `` continuam lidas (tests/test_hooks.py:1192); `` x=`#$(`; case … ; esac # ) ``, `` x=`#${`; … # } `` e o `#` depois de crase escapada na crase aninhada saem 2 ou são lidos inteiros; o fragmento e a ADR descrevem o que o código faz.
+
+**R1 (recomendação, alta, fora do escopo do `#`; não é regressão).** Aspa sem par dentro de crase, sem nenhum `#`, esconde o comando entre duas crases: `` x=`'`; gh repo delete dono/proj --yes; y=`'` `` sai 0. No bash, cada corpo de crase falha sozinho no subshell e o comando do meio roda (`bash -c` com `echo` imprime). O hook casa a aspa da primeira crase com a da segunda e lê o meio como texto entre aspas. Com essa variante, soltam 196 das 564 recusas em 136ad09 (146 do `conformidade`, 45 do `parecer`, 5 do `pesado`) e 207 na base 10c838f: a classe já estava na develop e a entrega a reduz. O A6 e o A8 eram casos dela em que a aspa vinha de um comentário; o resto não passa pelo `#`, e a correção fica na leitura da crase em `fichas` (hooks/_comum.py:342), não na do comentário, por isso não reprova esta entrega (como o HEREDOC-FURO-HOOK). Caminho de ataque: o do A7 e do A8 (agente por engano, ou instrução injetada num arquivo lido). Correção mínima sugerida: a linha fica ilegível quando o corpo de uma crase (fechada na crase seguinte não escapada, como o bash faz, sem olhar aspas) tem aspa sem par pela leitura do hook; teste no T1 com a variante em par `` x=`'`; `` + `` ; y=`'` `` e fixture no `conformidade` e no `parecer`. Esforço P. Dono: tech-lead. Pedido novo proposto ao Jarvis como entrada direta (cartão CRASE-ASPA-HOOK); pode ir na 0.27.1 se o dono quiser juntar, ou logo depois.
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (nas voltas 3 a 5, as fixtures de recusa com sufixo e prefixo; na volta 5, dos três hooks), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (nas voltas 3 a 5, as fixtures de recusa com sufixo e prefixo; nas voltas 5 e 6, dos três hooks), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
