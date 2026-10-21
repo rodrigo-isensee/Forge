@@ -1,2 +1,2 @@
 ### Alterado
-- O pre-push de um push que só acrescenta pareceres (docs/reviews, security, qa, devops) sobre código cuja árvore já passou na suíte roda só as classes de teste que leem pareceres; qualquer outro arquivo, prova ausente ou dúvida roda a suíte inteira, e o CI repete tudo (PREPUSH-SO-PARECER).
+- O pre-push de um push que só acrescenta pareceres (docs/reviews, security, qa, devops) sobre código cuja árvore já passou na suíte roda só as classes de teste que leem essas pastas (inclui NeutralidadeDoNucleo); modelos (arquivo começado em `_`), docs/security/ameacas e docs/security/aceites, qualquer outro arquivo, prova ausente ou dúvida rodam a suíte inteira; a prova grava a árvore do início da suíte; o CI repete tudo (PREPUSH-SO-PARECER).

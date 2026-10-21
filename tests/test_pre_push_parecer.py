@@ -31,11 +31,17 @@ class Referencias(unittest.TestCase):
 class AntiDuplicacao(unittest.TestCase):
     def test_a(self):
         marca("rodou-antiduplicacao")
+class NeutralidadeDoNucleo(unittest.TestCase):
+    def test_a(self):
+        marca("rodou-nucleo")
+        for f in pathlib.Path("docs").rglob("*"):
+            if f.is_file() and f.parts[1] in ("security", "devops") and "React" in f.read_text():
+                self.fail("termo de stack em " + str(f))
 class Outra(unittest.TestCase):
     def test_a(self):
         marca("rodou-outra")
 '''
-CURTAS = ("rodou-neutralidade", "rodou-referencias", "rodou-antiduplicacao")
+CURTAS = ("rodou-neutralidade", "rodou-referencias", "rodou-antiduplicacao", "rodou-nucleo")
 
 
 class PrePushSoParecer(unittest.TestCase):
@@ -182,6 +188,43 @@ class PrePushSoParecer(unittest.TestCase):
         quebrado = self.commit_parecer()  # o commit leva também o teste alterado: fora das 4 pastas
         _, marcas, _ = self.roda(quebrado, self.codigo)
         self.assertIn("rodou-outra", marcas)
+
+    def test_termo_de_stack_em_parecer_de_seguranca_e_barrado_no_caminho_curto(self):
+        self.verde()
+        novo = self.commit("parecer", docs__security__p="usa React\n")
+        codigo, marcas, _ = self.roda(novo, self.codigo)
+        self.assertEqual(codigo, 1)
+        self.assertEqual(marcas, set(CURTAS))
+        arvore = self.git("rev-parse", "HEAD^{tree}")
+        prova = self.run_dir / f"forge-suite-{os.getuid()}.verde"
+        self.assertNotIn(arvore, prova.read_text().split())
+
+    def test_prova_grava_a_arvore_do_inicio_da_suite(self):
+        # a suíte faz um commit no meio da execução: a árvore anotada tem de ser a do início
+        (self.repo / "tests" / "test_forge.py").write_text(SUITE.replace(
+            'marca("rodou-outra")',
+            'import subprocess; '
+            'pathlib.Path("tests/novo.txt").write_text("a"); '
+            'subprocess.run(["git", "add", "tests/novo.txt"]); '
+            'subprocess.run(["git", "commit", "-q", "-m", "y"]); marca("rodou-outra")'))
+        base = self.commit("suite que commita")
+        inicio = self.git("rev-parse", "HEAD^{tree}")
+        codigo, _, erro = self.roda(base, ZERO)
+        self.assertEqual(codigo, 0, erro)
+        fim = self.git("rev-parse", "HEAD^{tree}")
+        self.assertNotEqual(inicio, fim)
+        prova = (self.run_dir / f"forge-suite-{os.getuid()}.verde").read_text().split()
+        self.assertIn(inicio, prova)
+        self.assertNotIn(fim, prova)
+
+    def test_modelo_e_pastas_de_controle_rodam_a_suite_inteira(self):
+        self.verde()
+        for caminho in ("docs__reviews___modelo.md", "docs__security___x.md", "docs__qa___modelo.md",
+                        "docs__security__ameacas__t.md", "docs__security__aceites__a.md"):
+            with self.subTest(caminho):
+                novo = self.commit("controle", **{caminho: "x\n"})
+                _, marcas, _ = self.roda(novo, self.codigo)
+                self.assertIn("rodou-outra", marcas)
 
     def test_varias_refs_rodam_a_suite_inteira(self):
         self.verde()
