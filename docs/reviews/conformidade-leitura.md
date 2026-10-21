@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: conformidade-leitura
 branch: melhoria/conformidade-leitura
-commit: f6cd7ae74ab4389fedbb4d440d3673a5e9baed1c
-parecer: reprovado
+commit: a0f766fa6e4a9504ec28a150996fd9de51a3f66a
+parecer: aprovado
 revisor: forge:tech-lead (outra instância, E1.2)
 data: 2026-10-21
 ---
@@ -13,7 +13,14 @@ data: 2026-10-21
 Escopo lido: `git diff f911dfa0b2ebd9692d45c374f9ff4bab8523ed6b f6cd7ae74ab4389fedbb4d440d3673a5e9baed1c` (`hooks/conformidade.py`, 13 fixtures `tests/hooks/conformidade/leitura-*.json`, `changelog.d/conformidade-leitura.md`), a seção M1 da proposta e a decisão técnica do recorte de leitores no Histórico do pedido. A revisão de segurança é da E1.3 (`docs/security/conformidade-leitura.md`) e não se refaz aqui.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:179 · `so_leitura` confia em `comandos()`, cujo shlex trata `#` colado à palavra como comentário; o bash não. `grep sugerir f#;forge sugerir --fila` passa (rc 0, base f911dfa: rc 2). Recusar `#` na linha e fixture de recusa.
+
+## Volta 1
+Delta lido (`forge-check delta --parecer` sobre o parecer anterior, intervalo f6cd7ae..590579d; o código muda só em a0f766f, os demais commits são pareceres): `hooks/conformidade.py`:176 e :179 e as 3 fixtures `leitura-cerquilha-colada-*-bloqueia.json`. O resto da branch ficou como "já lido" na rodada anterior.
+
+- A1 (volta 0) resolvido: `so_leitura` recusa qualquer `#` na linha antes do `comandos()`, e a docstring diz por quê. Recusar a linha toda é conservador: quem lê com `#` só perde a exceção e volta à F6 de antes, sem afrouxar nada.
+- Fixtures cobrem as três formas do A1 (`f#;forge`, `a#&&forge`, `f#; forge`), todas com rc 2 e o stderr da F6.
+- Sondas (cópia em `$TMPDIR` de a0f766f): `python3 -m unittest tests.test_hooks` 34 testes OK; `so_leitura` dá True para `grep -n forge README.md` e False para `grep sugerir f#;forge sugerir --fila`, `grep "#" f`, `cat a\#;forge sugerir` e `grep x f;# forge sugerir`.
+- Achado A1 encerrado; sem achado novo. As recomendações R1 a R3 seguem como estavam.
 
 ## O que confere
 - Faz o que o E1 e o E2 pedem: a exceção vale só quando todo segmento é leitor sem execução ou `git log|show|diff`, sem `$`, crase, quebra de linha, substituição, subshell nem redirecionamento de saída; fora disso, a F6 segue como estava. Nenhuma fixture de recusa existente saiu (o diff só adiciona).
@@ -25,7 +32,7 @@ Escopo lido: `git diff f911dfa0b2ebd9692d45c374f9ff4bab8523ed6b f6cd7ae74ab4389f
 - R1: a causa do A1 é anterior a esta entrega e mais larga: em f911dfa, `cat a#&&git push origin main` passa no hook (rc 0), contra rc 2 de `git push origin main` (R-MAIN). Vira cartão para o `security-engineer` (parser `fichas`/`comandos` em `hooks/_comum.py`); a correção do A1 aqui não depende dele.
 - R2: palavra com glob no início (`rg sugerir *`) pode expandir para um arquivo chamado `--pre=...`. O vetor já existe sem a exceção (`rg x *`), então fica para o GREP-OPCOES-EXEC; se a correção do A1 quiser fechar junto, basta recusar na exceção a palavra que começa com `*`, `?` ou `[`.
 - R3: `2>/dev/null` e `git --no-pager log` saem da exceção (conservador, aceito). Se a métrica do M1 mostrar recusas por eles, dá para tratar `2>/dev/null` como destino nulo.
-- R4: a docstring de `sugerir_na_linha` (hooks/conformidade.py:784) tem uma linha bem mais longa que as vizinhas; quebrar como o resto.
+- R4: a docstring de `sugerir_na_linha` (hooks/conformidade.py:784) tem uma linha bem mais longa que as vizinhas; quebrar como o resto. A primeira linha da docstring de `so_leitura` (hooks/conformidade.py:176, 175 caracteres) ficou no mesmo caso na volta 1.
 
 ## Ferramentas
 A suíte (`python3 -m unittest discover -s tests -v`) e o `scripts/validar-plugin.sh` são decididos por ferramenta e rodam no pre-push deste parecer; não foram refeitos à mão. O autor relatou 1194 OK em f6cd7ae (Histórico do pedido).
