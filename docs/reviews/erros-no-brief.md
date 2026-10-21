@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: erros-no-brief
 branch: melhoria/erros-no-brief
-commit: f5d78db45fd9c57053635cf898b095b632ec69bc
-parecer: reprovado
+commit: 8f03c9c43e84752cf596ce36142eb9fb09e83727
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -12,7 +12,7 @@ data: 2026-10-21
 
 Escopo: `10c838f...f5d78db` (base 10c838fa35c96229d04ca96b0897cec19cbaa631), 6 arquivos em 4 commits (`efa986f`, `265c415`, `d7e4efb`, `f5d78db`). O revisor não é o autor (outra instância, D-ETAPAS-INST). Comparei o diff com o Entregar de `erros-no-brief-tech-lead-1.md`, com o desenho do aq (`docs/propostas/aq/erros-no-brief.md`) e com o modelo de ameaças (`docs/propostas/security/erros-no-brief.md`, T1 a T9).
 
-Veredito sobre `f5d78db`: **REPROVADO**, por um achado bloqueante de documentação (A1). O código segue o desenho e o modelo de ameaças, e cada caso tem teste. Este revisor não corrige o diff.
+Veredito sobre `f5d78db` (rodada 1): **REPROVADO**, por um achado bloqueante de documentação (A1). Veredito sobre `8f03c9c` (volta 1): **APROVADO**; ver "## Volta 1". O código segue o desenho e o modelo de ameaças, e cada caso tem teste. Este revisor não corrige o diff.
 
 ## Ferramentas (citadas, não refeitas)
 - `python3 -m unittest tests.test_erros_no_brief tests.test_conferencia_registrar` numa cópia limpa de `f5d78db` (`git archive` em `$TMPDIR`): `Ran 47 tests in 12.141s` / `OK`.
@@ -29,8 +29,8 @@ Veredito sobre `f5d78db`: **REPROVADO**, por um achado bloqueante de documentaç
 - E4 (PA-7). O arquivo vivo existe no Forge e no modelo `templates/projeto/`. O formato tem só classe, ID de regra, contagem e `arquivo:linha`, com teto de 20 linhas e aviso em stderr para linha fora do formato (casos 11 e 12, T9). A linha do arquivo entra em `## Ler` nas etapas `codigo` e `volta`. Não segue link simbólico.
 - E5. O fragmento `changelog.d/erros-no-brief.md` existe. Nenhum `agents/*.md` foi tocado, conforme a decisão do dono de 2026-10-21 00:35. Também não foram tocados `docs/regras/`, `tests/config.json` nem os hooks (R-NEUTRO e R-CUSTO preservados).
 
-## Achados
-- A1 (bloqueante) docs/transcricoes.md:33 · a referência de `conferencia registrar` ainda diz "linha de 8 colunas" e não traz `--classe` (obrigatória quando reprova) nem `--autor`; `conferencia classes` não aparece em nenhum doc. A definição de pronto pede o doc afetado na mesma entrega.
+## Achados da rodada 1 (resolvidos na volta 1)
+- A1 (resolvido em `8f03c9c`) docs/transcricoes.md:33 · a referência de `conferencia registrar` dizia "linha de 8 colunas" e não trazia `--classe` nem `--autor`; `conferencia classes` não aparecia em nenhum doc.
 
 ## Recomendações (não bloqueiam)
 - R1 `agents/jarvis.md:64`: o comando de registro que o Jarvis segue não traz `--classe`, então toda reprovação registrada por ele recebe rc 1 até o PR da E6. A recusa lista as classes, então dá para corrigir na hora. Leve isso ao PR da E6 como primeiro item.
@@ -40,3 +40,20 @@ Veredito sobre `f5d78db`: **REPROVADO**, por um achado bloqueante de documentaç
 ## Riscos
 - O Jarvis classifica os próprios erros (viés que o aq já aceitou). A retro audita uma amostra.
 - O caso 4 (supressão por edição do registro) é risco aceito pelo dono (2026-10-21 01:17): o git local em `~/.forge-contrib/docs`.
+
+## Volta 1
+Escopo: `f5d78db...8f03c9c`, um commit (`8f03c9c`), lido por `forge-check delta --parecer docs/reviews/erros-no-brief.md`:
+- delta lido: `docs/melhoria-continua.md:10-10` (+1 -0) e `docs/transcricoes.md:33-35` (+3 -1).
+- já lido na rodada 1, sem mudança: `bin/forge-check`, os testes, `templates/projeto/`, `changelog.d/erros-no-brief.md` e o arquivo vivo de achados. Os pareceres de segurança (`271caf0`) e o da rodada 1 (`b6f3898`) só entram no intervalo como documentos e não foram relidos. A segurança aprovou a entrega e não se repete nesta volta.
+
+Conferido contra o código (sondas numa raiz vazia em `$TMPDIR`, sem trocar o HEAD da worktree):
+- A1 resolvido. `docs/transcricoes.md:33` traz `--classe` e `--autor` na sinopse, a linha de 10 colunas, o catálogo das 10 classes na ordem de `CLASSES_DE_FALHA`, os autores de `AUTORES_DE_FALHA` e o padrão por modo (`jarvis` no `brief`, `destino` na `entrega`), tudo igual ao `bin/forge-check`. `conferencia classes` ganhou parágrafo próprio (`:35`), com janela padrão de 30 dias, rc 0, `outra` ignorada e proposta a partir de 3 briefs.
+- R2 atendida. O passo 5 de `docs/melhoria-continua.md:10` faz a retro partir de `conferencia classes`, audita uma amostra e traz o critério de reversão do aq (mais de 10% em `outra`).
+
+Veredito sobre `8f03c9c`: **APROVADO**. Nada bloqueia.
+
+## Achados
+
+## Recomendações da volta 1 (não bloqueiam)
+- R4 `docs/transcricoes.md:35`: o parágrafo novo foi inserido no meio do de `registrar`. Por isso a frase "Sem `KANBAN.md` na `--raiz` recusa (rc 1 ...)" e a busca do pedido em `~/.forge-contrib` ficaram sob `conferencia classes`. Sonda: `conferencia classes --raiz <pasta sem KANBAN.md>` dá rc 0 ("nenhuma falha classificada"), e `registrar` na mesma pasta dá rc 1. Basta pôr o parágrafo de `classes` depois do resto do de `registrar`. Fica para a próxima mudança nesse doc, como no PR da E6. O texto continua na seção e nenhum comportamento muda.
+- R1 e R3 da rodada 1 continuam valendo como recomendação. O R1 é o primeiro item do PR da E6.
