@@ -714,6 +714,13 @@ def heredocs(comando):
                     k = comando.find("\n", j)
                     k = n if k < 0 else k
                     linha = comando[j:k].lstrip("\t") if tabs else comando[j:k]
+                    fisica = j  # o começo da linha física corrente
+                    while not literal and k < n and barra_impar_no_fim(comando[fisica:k]):
+                        # sem aspas no delimitador, o bash junta `\` + quebra com a linha seguinte (sem tirar as tabs
+                        # dela) antes de comparar: `a\`⏎`X` é `aX` e não fecha; `\`⏎`X` é `X` e fecha (A2)
+                        proxima = comando.find("\n", k + 1)
+                        proxima = n if proxima < 0 else proxima
+                        linha, fisica, k = linha[:-1] + comando[k + 1:proxima], k + 1, proxima
                     if linha == delimitador:  # como o bash: igual, e com `<<-` só as tabs do começo saem (R2)
                         achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, j), min(k + 1, n)))
                         j = k + 1
@@ -749,6 +756,11 @@ def heredocs(comando):
                 continue
             i += 1
     return achados, duvida
+
+
+def barra_impar_no_fim(linha):
+    """A linha acaba numa quantidade ímpar de `\\`: a última escapa a quebra de linha (continuação)."""
+    return (len(linha) - len(linha.rstrip("\\"))) % 2 == 1
 
 
 def expandido(corpo):

@@ -1456,6 +1456,11 @@ class Hooks(unittest.TestCase):
             f"cat <<X\nX \ncat <<Y\nX\n{L}\nY": ["X \ncat <<Y"],
             f"cat <<-X\n  X\ncat <<Y\nX\n{L}\nY": ["  X\ncat <<Y"],  # `<<-` só tira tab
             "cat <<-X\n\tcorpo\n\tX\nls": ["\tcorpo"],
+            f"cat <<X\na\\\nX\ncat <<Y\nX\n{L}\nY": ["a\\\nX\ncat <<Y"],  # A2: `a\\` + `X` é `aX`, não fecha
+            "cat <<X\n\\\nX\nls": [""],  # `\\` + `X` é `X`, e fecha
+            "cat <<X\na\\\\\nX\nls": ["a\\\\"],  # `a\\\\`: barra escapada, sem continuação
+            "cat <<'X'\na\\\nX\nls": ["a\\"],  # delimitador entre aspas: o bash não junta
+            "cat <<-X\n\ta\\\n\tX\nX\nls": ["\ta\\\n\tX"],  # com `<<-`, a linha juntada mantém a tab
         }
         for linha, esperado in casos.items():
             with self.subTest(linha=linha):
