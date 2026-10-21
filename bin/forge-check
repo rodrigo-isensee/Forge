@@ -3538,16 +3538,29 @@ TIPO_CITADO = re.compile(r"\btipo:\s*`?([a-z][a-z0-9-]*)")
 ETAPA_CITADA = re.compile(r"--etapa\s+`?([a-z][a-z0-9-]*)")
 
 
+NOME_DE_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")  # o mesmo padrão do hook conformidade (`ARQUIVO_ENV`), aqui sem exceção de exemplo
+
+
+def fonte_citavel(caminho):
+    """Revisão de segurança A2: só `.md` é fonte de citação, e nunca um nome de `.env` (`.env.md` inclusive). Vale para o nome dado
+    e para o resolvido (`realpath`): um `.md` que é link para o `.env` também não é lido."""
+    nome = Path(str(caminho)).name
+    return nome.endswith(".md") and not NOME_DE_ENV.match(nome)
+
+
 def linhas_da_fonte(raiz, fonte):
     """(linhas citadas, None) da fonte de uma citação (P3), ou (None, motivo): `R-<ID>` é `docs/regras/<ID>.md` desta cópia do
     plugin (o arquivo inteiro); `<arquivo>:<n>[-<m>]`, as linhas `n` a `m`, com o arquivo resolvido (realpath) dentro da raiz ou de
-    ~/.forge-contrib, até 1 MiB. O conteúdo nunca vai à saída."""
+    ~/.forge-contrib, até 1 MiB. Só documento: arquivo `.md` cujo nome não é de `.env` (revisão de segurança A2: o `--citar`
+    imprime a linha e a conferência responde se um trecho está nela; segredo nunca é fonte). O conteúdo nunca vai à saída."""
     if fonte.startswith("R-"):
         arq = PLUGIN / "docs" / "regras" / f"{fonte}.md"
         return (arq.read_text(encoding="utf-8").splitlines(), None) if arq.is_file() else (None, "regra ausente")
     m = FONTE_DE_ARQUIVO.fullmatch(fonte)
     caminho, de = m.group(1), int(m.group(2))
     ate = int(m.group(3) or de)
+    if not fonte_citavel(caminho):
+        return None, "só documento .md é fonte de citação"
     if caminho.startswith("~/"):
         candidatos = [Path.home() / caminho[2:]]
     elif Path(caminho).is_absolute():
@@ -3557,7 +3570,8 @@ def linhas_da_fonte(raiz, fonte):
     raizes = [Path(os.path.realpath(r)) for r in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF)]
     for candidato in candidatos:
         real = Path(os.path.realpath(candidato))
-        if any(r in real.parents for r in raizes) and real.is_file() and real.stat().st_size <= TETO_DE_REGISTRO:
+        if (any(r in real.parents for r in raizes) and fonte_citavel(real.name) and real.is_file()
+                and real.stat().st_size <= TETO_DE_REGISTRO):
             linhas = real.read_text(encoding="utf-8", errors="replace").splitlines()
             return linhas[de - 1:ate] if 1 <= de <= ate else [], None
     return None, "fora da raiz, ausente ou grande demais"

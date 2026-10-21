@@ -104,6 +104,26 @@ class TrechoComFonte(Base):
                 self.assertNotIn("segredo", saida.replace(f'"segredo" ({fonte})', ""))
                 self.assertEqual(rc, 0, saida)
 
+    def test_arquivo_de_segredo_e_o_que_nao_e_md_nao_sao_lidos(self):
+        """Revisão de segurança A2: `.env` (e outro arquivo que não é `.md`) nem imprime no `--citar` nem responde à conferência."""
+        valor = "VALOR_" + "FALSO_9z"
+        for rel in (".env", ".env.local", "docs/.env.md", "segredo.json", "docs/b.txt"):
+            with self.subTest(fonte=rel):
+                self.gravar(rel, f"CHAVE={valor}\n")
+                for trecho in (f"CHAVE={valor}", "CHAVE=outro"):
+                    rc, saida = self.conferir(brief(extra=f'- "{trecho}" ({rel}:1)\n'))
+                    self.assertIn(f"citação: fonte não verificável {rel}:1", saida)
+                    self.assertNotIn("citação: ok", saida)
+                    self.assertNotIn("trecho fora da fonte", saida)
+                    self.assertEqual(rc, 0, saida)
+                rc, saida = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--citar", f"{rel}:1")
+                self.assertIn(f"- PREENCHER: --citar {rel}:1:", saida)
+                self.assertNotIn(valor, saida)
+        (self.tmp / "docs" / "env.md").symlink_to(self.tmp / ".env")  # `.md` que aponta para o `.env`: vale o nome resolvido
+        rc, saida = self.conferir(brief(extra=f'- "CHAVE={valor}" (docs/env.md:1)\n'))
+        self.assertIn("citação: fonte não verificável docs/env.md:1", saida)
+        self.assertIn("citação: ok docs/a.md:3", self.conferir(brief(extra='- "primeira metade" (docs/a.md:3)\n'))[1])
+
     def test_aspas_sem_fonte_nao_sao_conferidas(self):
         rc, saida = self.conferir(brief(extra='- "qualquer coisa que não está em lugar nenhum".\n'))
         self.assertNotIn("citação:", saida)
