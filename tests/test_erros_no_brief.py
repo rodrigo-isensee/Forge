@@ -15,7 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from test_voltas import Raiz  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
-fc = SourceFileLoader("forge_check_erros_no_brief", str(RAIZ / "bin" / "forge-check")).load_module()
+FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")  # fora da forma RAIZ / "...": o mapa do bin/forge-testes (fora desta entrega) ainda não lista este módulo
+fc = SourceFileLoader("forge_check_erros_no_brief", str(FORGE_CHECK)).load_module()
 
 ARQ = "docs/kanban/conferencias.md"
 CAB10 = ("| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota | classe | autor |\n"
@@ -385,13 +386,13 @@ class ErrosDoJarvis(Base):
         self.gravar(f"docs/briefs/xpto-tech-lead-{n}.md", BRIEF.format(tipo=tipo, extra=""))
 
     def mensagem(self, n=1):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-check"), "--raiz", str(self.tmp), "brief", "mensagem", "--arquivo",
+        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", "mensagem", "--arquivo",
                             f"docs/briefs/xpto-tech-lead-{n}.md", "--pedido", "xpto"], capture_output=True,
                            env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout, r.stderr.decode()
 
     def conferir(self, n=1):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin" / "forge-check"), "--raiz", str(self.tmp), "brief",
+        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief",
                             f"docs/briefs/xpto-tech-lead-{n}.md", "--pedido", "xpto"], capture_output=True,
                            env=dict(os.environ, HOME=str(self.tmp / "home")))
         return r.returncode, r.stdout, r.stderr.decode()

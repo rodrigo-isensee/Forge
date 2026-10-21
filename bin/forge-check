@@ -1612,8 +1612,8 @@ def erros_do_jarvis(raiz, tipo):
     """([linha], aviso): até 3 linhas `jarvis-recorrente:` das classes com `LIMIAR_DO_BRIEF` ou mais briefs do Jarvis naquele tipo de brief
     (`desconhecido`: de qualquer tipo). Só classe, contagem e texto do catálogo."""
     grupos, aviso = recorrencias(raiz, quem="jarvis", tipo=tipo)
-    onde = f"{tipo} (30 dias)" if tipo != "desconhecido" else "de qualquer tipo (30 dias)"
-    return [f"jarvis-recorrente: {g['classe']} em {g['n']} briefs {onde} · confira: {CLASSES_DE_FALHA[g['classe']]}"
+    escopo = f"{tipo} (30 dias)" if tipo != "desconhecido" else "de qualquer tipo (30 dias)"
+    return [f"jarvis-recorrente: {g['classe']} em {g['n']} briefs {escopo} · confira: {CLASSES_DE_FALHA[g['classe']]}"
             for g in grupos if g["n"] >= LIMIAR_DO_BRIEF][:LINHAS_NO_BRIEF], aviso
 
 
