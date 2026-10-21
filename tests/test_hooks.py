@@ -281,8 +281,22 @@ def rodar(hook, entrada, cwd, proc=None, extra=None):
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
-    return subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=json.dumps(entrada), cwd=cwd,
-                          env=env, capture_output=True, text=True, timeout=30)
+    return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd,
+                          env=env, capture_output=True, text=True, timeout=120)
+
+
+# O git dos hooks tem 5 s (o hook inteiro tem 10 s em hooks.json); com os processos da suíte em paralelo a máquina
+# carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
+# o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
+PRAZO_GIT_NOS_TESTES = 120
+LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; "
+            "_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3]); "
+            "sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
+
+
+def lancador(hook):
+    """Comando que roda hooks/<hook>.py como o Claude Code o roda, com o prazo do git largo para os testes."""
+    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES)]
 
 
 class Hooks(unittest.TestCase):
@@ -399,6 +413,28 @@ class Hooks(unittest.TestCase):
                 arquivo.parent.mkdir()
                 arquivo.write_text(json.dumps(dados), encoding="utf-8")
                 self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    def test_vigia_com_git_lento_nao_falha_por_carga(self):
+        """O git lento (carga da máquina com a suíte em processos) não derruba o vigia: o primeiro `git` do PATH demora 6 s, mais que
+        os 5 s de produção, e o fixture `settings-local-nao-conta` segue verde; com o prazo de produção ele falharia."""
+        base = json.loads((FIXTURES / "vigia/settings-local-nao-conta.json").read_text(encoding="utf-8"))
+        real = shutil.which("git")
+        for prazo, passa in ((120, True), (5, False)):
+            with self.subTest(prazo=prazo), mock.patch(f"{__name__}.PRAZO_GIT_NOS_TESTES", prazo):
+                tmp = self._pasta_temporaria()
+                (tmp / "lento").mkdir()
+                atalho = tmp / "lento" / "git"
+                atalho.write_text(f'#!/bin/sh\n[ -e "{tmp}/lento/ja" ] || {{ : > "{tmp}/lento/ja"; sleep 6; }}\nexec "{real}" "$@"\n', encoding="utf-8")
+                atalho.chmod(0o755)
+                dados = {**base, "env": {"PATH": f"{tmp / 'lento'}{os.pathsep}{os.environ['PATH']}"}}
+                arquivo = tmp / "vigia" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                if passa:
+                    self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
     def test_git_rm_com_pathspec_magico_bloqueia(self):
         """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
