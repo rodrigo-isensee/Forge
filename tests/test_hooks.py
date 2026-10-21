@@ -1043,6 +1043,37 @@ class Hooks(unittest.TestCase):
         for caminho in ("docs/pedidos/", "~/.forge-contrib/docs/pedidos/", "docs/briefs/", "~/.forge-contrib/docs/briefs/"):
             self.assertEqual(protegidos[caminho], ["jarvis"], caminho)
 
+    def test_cerquilha_so_abre_comentario_no_inicio_de_palavra(self):  # HOOK-COMENTARIO-SHLEX
+        """Como no bash: `#` colado a uma palavra é parte dela e não esconde o resto da linha; no início de palavra
+        (depois de espaço, `;`, `&`, `|`, `(` ou quebra de linha), o comentário vai até a quebra de linha, que segue
+        separando comandos. Na dúvida (`)`, redirecionamento, `\r`), a linha é lida por inteiro."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        def palavras(linha):
+            return [p for p, _, _ in _comum.comandos(linha) if p]
+
+        casos = {
+            "echo a#; git push --force origin main": [["echo", "a#"], ["git", "push", "--force", "origin", "main"]],
+            "cat a#&&git push origin main": [["cat", "a#"], ["git", "push", "origin", "main"]],
+            "grep x f#; forge sugerir --fila": [["grep", "x", "f#"], ["forge", "sugerir", "--fila"]],
+            "ls # nota; git push --force": [["ls"]],
+            "ls;#nota; git push": [["ls"]],
+            "ls&&#x|y": [["ls"]],
+            "# só comentário": [],
+            "ls # nota\ngit push --force origin main": [["ls"], ["git", "push", "--force", "origin", "main"]],
+            "git commit -m x # don't": [["git", "commit", "-m", "x"]],
+            "echo a\\ #b; git push": [["echo", "a #b"], ["git", "push"]],
+            "echo \"#\"x; git push": [["echo", "#x"], ["git", "push"]],
+            "echo $#; git push": [["echo", "$#"], ["git", "push"]],
+            "echo $(echo a)#b; git push": [["echo", "a"], ["echo", "$(…)#b"], ["git", "push"]],
+            "echo >#x; git push": [["echo"], ["git", "push"]],
+            "echo a\r#b; git push": [["echo", "a", "#b"], ["git", "push"]],
+        }
+        for linha, esperado in casos.items():
+            with self.subTest(linha=linha):
+                self.assertEqual(palavras(linha), esperado)
+
 
 if __name__ == "__main__":
     unittest.main()

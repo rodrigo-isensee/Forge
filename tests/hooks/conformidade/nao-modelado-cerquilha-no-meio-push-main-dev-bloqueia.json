@@ -1,5 +1,5 @@
 {
-  "descricao": "ADR 0011 (item 2): # no meio da palavra.",
+  "descricao": "ADR 0011 (item 2): # no meio da palavra não esconde a linha seguinte: o push na main é lido e recusado pela regra (HOOK-COMENTARIO-SHLEX); a recusa por não modelada está em nao-modelado-cerquilha-no-meio-push-dev-bloqueia.",
   "arquivos": {
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "não modela"
+    "stderr": "R-MAIN: push direto para main"
   }
 }

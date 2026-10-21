@@ -217,24 +217,45 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
+# Antes do `#`, o que faz dele início de palavra e, portanto, comentário (como no bash). Fora daqui (`)`, `<`, `>`, `\r`,
+# colado a uma palavra), o `#` é lido como parte da palavra: na dúvida, a linha é lida por inteiro.
+ANTES_DE_COMENTARIO = " \t\n;&|("
+
+
 def fichas(comando):
     """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
-    Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando)."""
+    Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando).
+
+    O `shlex` toma por comentário um `#` em qualquer ponto da palavra (`a#; git push` esconderia o push) e engole a
+    quebra de linha que o encerra: aqui ele não conhece comentário, e o `#` só abre um no início de palavra, fora de
+    aspas; o comentário vai até a quebra de linha, que continua separando comandos."""
     lex = shlex.shlex(comando, posix=True, punctuation_chars=PONTUACAO)
-    lex.whitespace, lex.whitespace_split = " \t\r", True
+    lex.whitespace, lex.whitespace_split, lex.commenters = " \t\r", True, ""
     # O `shlex` devolve o caractere que encerrou a palavra (sem espaço no meio) em `_pushback_chars`: é por ele que se
     # sabe o que está colado (`$(`, `)/x`), e pela posição na linha, se o sinal estava entre aspas (`")"`).
     def posicao():
         return lex.instream.tell() - len(lex._pushback_chars)
 
-    inicio = posicao()
+    def pular_comentario():
+        """Entre duas fichas: se a próxima começa com `#` em início de palavra, pula até a quebra de linha (ou o fim)."""
+        atual = posicao()
+        proximo = len(comando) - len(comando[atual:].lstrip(" \t\r"))
+        if comando[proximo:proximo + 1] != "#" or (proximo and comando[proximo - 1] not in ANTES_DE_COMENTARIO):
+            return atual
+        fim = comando.find("\n", proximo)
+        fim = len(comando) if fim < 0 else fim
+        lex._pushback_chars.clear()
+        lex.instream.seek(fim)
+        return fim
+
+    inicio = pular_comentario()
     while (tok := lex.get_token()) is not None:
         fim = posicao()
         bruto = comando[inicio:fim].rstrip(" \t\r")
         sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
             len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
         yield tok, sinal, bool(lex._pushback_chars)
-        inicio = fim
+        inicio = pular_comentario()
 
 
 def comandos(comando):
