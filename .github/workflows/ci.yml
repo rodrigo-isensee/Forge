@@ -117,7 +117,7 @@ jobs:
           node-version: "24"
       - name: Claude Code CLI
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: npm install -g @anthropic-ai/claude-code@2.1.296
+        run: npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296
       - name: claude plugin validate --strict
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: claude plugin validate . --strict

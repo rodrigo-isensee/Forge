@@ -43,6 +43,14 @@ Dentro da topologia, do provedor e da ferramenta decididos pelo arquiteto em ADR
 - Release: tag `vX.Y.Z`, notas a partir do `CHANGELOG`, conferência de que versão e `CHANGELOG` batem. O nível SemVer e o texto são do `tech-lead`.
 - Rollback: reimplantar a versão anterior; confira a migração reversível **antes** do deploy.
 
+## Simulação de merge (a base certa)
+Para saber como a entrega fica sobre a base de integração, simule o merge fora da árvore de trabalho:
+1. Use um clone ou uma worktree **com as refs remotas** e rode `git fetch origin <base>`.
+2. Faça `git merge --no-ff refs/remotes/origin/<base>` na cópia descartável.
+3. Rode a checagem **contra essa base** (a mesma da validação), nunca contra a base local.
+
+Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
+
 ## Tempo e dependências
 - Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).

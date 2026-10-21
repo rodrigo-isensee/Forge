@@ -68,6 +68,14 @@ Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando se
 ## Mutação no código alterado
 Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
 
+## Simulação de merge (a base certa)
+Para saber como a entrega fica sobre a base de integração, simule o merge fora da árvore de trabalho:
+1. Use um clone ou uma worktree **com as refs remotas** e rode `git fetch origin <base>`.
+2. Faça `git merge --no-ff refs/remotes/origin/<base>` na cópia descartável.
+3. Rode a checagem **contra essa base** (a mesma da validação), nunca contra a base local.
+
+Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
+
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown
 # <id> - <título curto>
