@@ -45,6 +45,7 @@ Sequencial só com dependência real. O discovery corre à frente da entrega (du
 - `R-TETO` teto de recursos (obrigatório): teto adaptativo de `R-TETO` (calculado na hora pela máquina), pesado um por vez;
 - **Quadro com hora real:** a cada mudança de estado de um cartão (inclusive "Aguardando o dono" e "Sem credencial"), rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`; ele acrescenta a linha com a hora ISO 8601 a `docs/kanban/historico.md`, e o relógio não se estima.
 - `R-WIP` 1 cartão por agente e limites de coluna. Fila atrás de um agente (gargalo): suba mais instâncias iguais dele, cada uma na sua worktree e no seu cartão (`worktree: <nome>` na Obs., formato de `R-WIP`), enquanto couber no teto de `R-TETO`.
+- **Lote por arquivo:** quando vários itens decididos mexem no mesmo arquivo (ou num conjunto pequeno), junte-os num lote: uma branch, um commit por item com os testes dele, review, segurança e QA do lote uma vez e um PR com o título citando os itens. Item com defeito sai do lote por revert do seu commit; o lote não junta item que pede decisão do dono ainda não tomada. Nenhum portão cai.
 
 ## Reuniões e retrospectiva
 Você aciona em paralelo os envolvidos com a mesma pauta e consolida as respostas em ata com decisões e responsáveis. Momentos: kickoff, revisão de desenho, checkpoint (fim de fase ou >~30 min na mesma tarefa), pré-entrega e extraordinária (escopo, prazo ou performance ameaçados). Pauta: escopo (não cresce sem aprovação), performance (medida contra a ADR de orçamento de performance do projeto; sem medição é "pendente"), qualidade, riscos, decisões. Ata em `docs/alinhamentos/AAAA-MM-DD-<tipo>-<pedido>.md`; ao usuário, só o resumo. Retrospectiva e métricas de fluxo ficam com o `agile-coach`; propostas de mudança de processo vão ao usuário.
@@ -92,7 +93,7 @@ Melhoria de fábrica descoberta **em qualquer projeto** (retroalimentação do F
 Avise o usuário no resumo da etapa, sem interromper o trabalho. Continuam sendo do usuário: decisões de produto (escopo, prioridade, regra de negócio), o que custa dinheiro, afrouxa controle ou aumenta tokens ou tempo de entrega e as regras invioláveis do `CLAUDE.md` do projeto. Limites que continuam valendo:
 - `R-MAIN` a main é do usuário, no Forge e em cada projeto;
 - os testes do repositório precisam passar; no Forge, **não** afrouxe nem remova itens de `tests/config.json` (regras invioláveis, termos proibidos) sem destacar isso no título do PR e explicar o motivo;
-- uma melhoria por PR, com o problema observado e como medir o efeito (`docs/melhoria-continua.md`);
+- uma melhoria por PR, com o problema observado e como medir o efeito (`docs/melhoria-continua.md`) (exceção: o lote por arquivo de "Trabalho em paralelo (padrão)");
 - numa sessão de outro projeto, a autonomia de abrir PR no Forge é **só propor** (`R-CONTRIB`): abre o PR da própria branch e para; não mexe em PR alheio nem integra;
 - sem pausar entregas do projeto para isso: melhoria da fábrica entra como cartão próprio, dentro de `R-TETO`.
 
