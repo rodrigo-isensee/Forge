@@ -98,7 +98,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1")
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
         (self.tmp / "bin" / "git").chmod(0o755)
@@ -570,6 +570,37 @@ class Fechar(unittest.TestCase):
         codigo = "\n".join(l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#"))
         for proibido in ("--force", "--no-verify", "--add-label", "gh label", "-u origin", "origin main"):
             self.assertNotIn(proibido, codigo)
+
+
+    def test_log_em_arquivo_com_um_registro_por_passo_e_caminho_na_primeira_linha(self):
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        primeira = r.stdout.splitlines()[0]
+        self.assertTrue(primeira.startswith("log: "), primeira)
+        log = Path(primeira[len("log: "):])
+        self.assertTrue(log.is_file())
+        self.assertEqual(log.parent, self.tmp / "logs")
+        linhas = log.read_text().splitlines()
+        for n in "1234567":
+            self.assertEqual(sum(1 for x in linhas if f" [{n}] " in x), 1, (n, linhas))
+        self.assertTrue(all(x[:4].isdigit() and x[10] == "T" for x in linhas), linhas)
+        self.assertIn("Entrega p1 fechada em develop.", linhas[-1])
+        self.assertEqual(oct(log.stat().st_mode & 0o777), "0o600")
+
+    def test_log_tambem_guarda_a_saida_de_erro_e_mascara_segredo(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\thttps://x/?token=ghp_ABCDEF123456\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        log = Path(r.stdout.splitlines()[0][len("log: "):])
+        texto = log.read_text()
+        self.assertIn("parou no passo 4", texto)
+        self.assertNotIn("ghp_ABCDEF123456", texto)
+        self.assertIn("ghp_ABCDEF123456", r.stderr)  # a tela continua igual
+
+    def test_dry_run_tambem_grava_o_log(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        log = Path(r.stdout.splitlines()[0][len("log: "):])
+        self.assertIn("[7]", log.read_text())
 
 
 if __name__ == "__main__":
