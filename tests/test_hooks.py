@@ -342,6 +342,7 @@ MODELOS_EM_G = (
     "echo \"it's\" #x\necho R", "git log -1 # don't\necho R",
 )
 _CORPUS = []
+FIXTURE_DE_ORCAMENTO = "crase-aninhada-em-60-pastas-no-verify-bloqueia"  # só o teste de orçamento de tempo a usa
 
 
 def bash_aceita(linha):
@@ -774,7 +775,7 @@ class Hooks(unittest.TestCase):
         decidiu a tempo). O `conformidade` recusa (saída 2) em uma fração do prazo."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
-        dados = json.loads((FIXTURES / "conformidade" / "crase-aninhada-em-60-pastas-no-verify-bloqueia.json")
+        dados = json.loads((FIXTURES / "conformidade" / f"{FIXTURE_DE_ORCAMENTO}.json")
                            .read_text(encoding="utf-8"))
         comando = dados["entrada"]["tool_input"]["command"]
         self.assertGreaterEqual(comando.count("cd d"), 60, "a linha adversária tem as 60 pastas")
@@ -1473,7 +1474,8 @@ class Hooks(unittest.TestCase):
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""
         if not _CORPUS:
             todas = [f for f in self.fixtures if f.hook in ("conformidade", "parecer", "pesado")
-                     and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"]
+                     and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"
+                     and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
             self.assertLessEqual(len(fora), 8, fora)
