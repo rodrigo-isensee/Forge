@@ -542,7 +542,7 @@ def fora_da_gramatica_de_leitura(linha):
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
-# palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
+# palavra. É a forma que `tirar_heredocs` separa igual ao bash; qualquer outro `<<` é não modelado.
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
 
 
@@ -563,6 +563,219 @@ def corpos_de_heredoc(linha, inicio, delimitadores):
             if atual.strip() == delimitador:
                 return None
     return min(j, len(linha))
+
+
+Heredoc = collections.namedtuple("Heredoc", "operador fim_do_operador delimitador literal corpo fim")
+SEM_PALAVRA = frozenset(" \t\n;&|()<>")  # o que encerra a palavra do delimitador fora de aspas
+
+
+def palavra_do_delimitador(comando, j):
+    """A palavra do delimitador que começa em `j`: (delimitador sem aspas nem `\\`, se tinha aspa ou `\\`, fim)."""
+    partes, literal, n = [], False, len(comando)
+    while j < n and comando[j] not in SEM_PALAVRA:
+        c = comando[j]
+        if c == "'":
+            fim = comando.find("'", j + 1)
+            fim = n if fim < 0 else fim
+            partes.append(comando[j + 1:fim])
+            literal, j = True, fim + 1
+        elif c == '"':
+            k = j + 1
+            while k < n and comando[k] != '"':
+                k += 2 if comando[k] == "\\" else 1
+            partes.append(re.sub(r"\\(.)", r"\1", comando[j + 1:k], flags=re.S))
+            literal, j = True, k + 1
+        elif c == "\\":
+            partes.append(comando[j + 1:j + 2])
+            literal, j = True, j + 2
+        else:
+            partes.append(c)
+            j += 1
+    return "".join(partes), literal, min(j, n)
+
+
+def heredocs(comando):
+    """HEREDOC-FURO-HOOK: os heredocs cujo operador a varredura prova, e a posição do primeiro `<<` em dúvida (ou None).
+    Um `<<` é operador provado fora de aspas, de escape e de comentário provado (`comentarios`), no nível da linha, num
+    subshell ou dentro de `$(` (também `"$(cat <<'EOF'…"`), e não é `<<<`. Entre aspas simples, duplas ou `$'…'`,
+    escapado ou em comentário provado, é literal. É dúvida dentro de crase, de `${…}`, de `((…))`, `$((…))` ou `$[…]`,
+    depois de um `#` que pode ser comentário e que G não prova (até o fim da linha física), numa linha com `case` e
+    `$(` (o `)` do padrão fecharia o `$(`) e com um heredoc pendente numa quebra de linha que não está no nível da
+    linha. O estado das aspas atravessa as linhas físicas, e os corpos provados são pulados. O corpo acaba na primeira
+    linha igual ao delimitador sem os espaços em volta (nunca depois do bash) ou no fim do texto."""
+    provados = comentarios(comando)
+    com_case = bool(CASE.search(comando)) and "$(" in comando
+    pilha = [["fora", 0]]  # fora | subst | simples | ansi | duplas | crase | chave | aritm | colchete (com a profundidade)
+    achados, pendentes, duvida, i, n = [], [], None, 0, len(comando)
+
+    def duvidar(posicao):
+        nonlocal duvida
+        duvida = posicao if duvida is None else duvida
+
+    while i < n:
+        c, contexto = comando[i], pilha[-1]
+        tipo = contexto[0]
+        if tipo == "simples":
+            if c == "'":
+                pilha.pop()
+            elif c == "\n" and pendentes:
+                duvidar(i)
+            i += 1
+            continue
+        if tipo == "crase":
+            if c == "\\":
+                i += 2
+                continue
+            if c == "`":
+                pilha.pop()
+            elif comando.startswith("<<", i) or (c == "\n" and pendentes):
+                duvidar(i)
+            i += 1
+            continue
+        if c == "\\":
+            i += 2  # o caractere seguinte é literal (`\\<<X`; `\\` + quebra de linha continua a linha)
+            continue
+        if tipo == "ansi":
+            if c == "'":
+                pilha.pop()
+            i += 1
+            continue
+        if tipo == "duplas":
+            if c == '"':
+                pilha.pop()
+                i += 1
+                continue
+            if c == "\n" and pendentes:
+                duvidar(i)
+            if c not in "$`":
+                i += 1
+                continue
+        # fora, subst, chave, aritm, colchete e os `$`/crase entre aspas duplas
+        nivel_da_linha = tipo in ("fora", "subst")
+        if c == "`":
+            pilha.append(["crase", 0])
+            i += 1
+        elif comando.startswith("$((", i):
+            pilha.append(["aritm", 2])
+            i += 3
+        elif comando.startswith("$(", i):
+            pilha.append(["subst", 0])
+            i += 2
+        elif comando.startswith("${", i):
+            pilha.append(["chave", 1])
+            i += 2
+        elif comando.startswith("$[", i):
+            pilha.append(["colchete", 1])
+            i += 2
+        elif tipo == "duplas":
+            i += 1  # `$` comum entre aspas duplas
+        elif comando.startswith("$'", i):
+            pilha.append(["ansi", 0])
+            i += 2
+        elif c == "'":
+            pilha.append(["simples", 0])
+            i += 1
+        elif c == '"':
+            pilha.append(["duplas", 0])
+            i += 1
+        elif c == "#" and nivel_da_linha and (i in provados or i == 0 or comando[i - 1] in ANTES_DE_CANDIDATO):
+            fim = comando.find("\n", i)
+            fim = n if fim < 0 else fim
+            resto = comando[i:fim]
+            if i not in provados and ("<<" in resto or any(x in resto for x in "'\"`\\") or "$(" in resto):
+                duvidar(i)  # pode ser comentário ou palavra: nenhuma das duas leituras se prova
+            i = fim
+        elif comando.startswith("<<<", i):
+            i += 3
+        elif comando.startswith("<<", i):
+            if not nivel_da_linha or com_case:
+                duvidar(i)
+                i += 2
+                continue
+            j = i + 2 + (comando[i + 2:i + 3] == "-")
+            while j < n and comando[j] in " \t":
+                j += 1
+            delimitador, literal, fim = palavra_do_delimitador(comando, j)
+            if not delimitador:
+                duvidar(i)
+                i = max(fim, i + 2)
+                continue
+            pendentes.append((i, fim, delimitador, literal))
+            i = fim
+        elif c == "\n" and pendentes:
+            if not nivel_da_linha:
+                duvidar(i)
+                i += 1
+                continue
+            j = i + 1
+            for operador, fim_do_operador, delimitador, literal in pendentes:
+                corpo = j
+                while j < n:
+                    k = comando.find("\n", j)
+                    k = n if k < 0 else k
+                    if comando[j:k].strip() == delimitador:
+                        achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, j), min(k + 1, n)))
+                        j = k + 1
+                        break
+                    j = k + 1
+                else:
+                    achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, n), n))  # até o fim
+                    j = n
+            pendentes, i = [], min(j, n)
+        else:
+            if tipo in ("subst", "aritm") and c == "(":
+                contexto[1] += 1
+            elif tipo == "subst" and c == ")":
+                if contexto[1]:
+                    contexto[1] -= 1
+                else:
+                    pilha.pop()
+            elif tipo == "aritm" and c == ")":
+                contexto[1] -= 1
+                if not contexto[1]:
+                    pilha.pop()
+            elif tipo == "chave" and c in "{}":
+                contexto[1] += 1 if c == "{" else -1
+                if not contexto[1]:
+                    pilha.pop()
+            elif tipo == "colchete" and c in "[]":
+                contexto[1] += 1 if c == "[" else -1
+                if not contexto[1]:
+                    pilha.pop()
+            elif tipo == "fora" and comando.startswith("((", i):
+                pilha.append(["aritm", 2])
+                i += 2
+                continue
+            i += 1
+    return achados, duvida
+
+
+def tirar_heredocs(comando):
+    """Separa o corpo dos heredocs provados (`heredocs`), que não são comandos, da linha: devolve (comando sem os corpos,
+    [(linha do dono, corpo)]). O operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois
+    (`"$(cat <<'X'⏎X⏎L⏎Y)"`) não tira de novo, como corpo, a linha que o bash roda. ValueError (quem chama trata como linha ilegível): um `<<` em dúvida com uma linha não
+    vazia depois dele (lido como comando, o corpo que não se tira esconderia o resto com uma aspa; tirado, esconderia
+    a linha que o bash roda), ou um corpo que o bash expande (delimitador sem aspa nem `\\`) com `$(` ou crase (H9)."""
+    achados, duvida = heredocs(comando)
+    if duvida is not None:
+        fim = comando.find("\n", duvida)
+        if fim >= 0 and comando[fim:].strip():
+            raise ValueError("heredoc em dúvida")
+    cortes, corpos = [], []
+    for h in achados:
+        corpo = comando[h.corpo[0]:h.corpo[1]].rstrip("\n")
+        if not h.literal and re.search(r"(?<!\\)(\$\(|`)", corpo):
+            raise ValueError("corpo de heredoc com substituição")
+        dono_ini = comando.rfind("\n", 0, h.operador) + 1
+        dono_fim = comando.find("\n", h.operador)
+        corpos.append((comando[dono_ini:len(comando) if dono_fim < 0 else dono_fim], corpo))
+        cortes += [(h.operador, h.fim_do_operador, " "), (h.corpo[0], h.fim, "")]
+    saida, inicio = [], 0
+    for ini, fim, troca in sorted(cortes):
+        saida += [comando[inicio:ini], troca]
+        inicio = fim
+    saida.append(comando[inicio:])
+    return "".join(saida), corpos
 
 
 def construcao_nao_modelada(linha):
@@ -646,8 +859,9 @@ def construcao_nao_modelada(linha):
         i += 1
     if pendentes:
         return "heredoc"
-    # O `tirar_heredocs` acha `<<` em qualquer lugar da linha física (entre aspas, depois de `\\`): com várias linhas,
-    # todo `<<` fora dos heredocs modelados e dos corpos deles é não modelado.
+    # O `tirar_heredocs` só separa o corpo de um `<<` que `heredocs` prova ser operador, e a linha com `<<` em dúvida é
+    # ilegível; esta regra continua mais estrita (só com `CRITICO`): com várias linhas, todo `<<` fora dos heredocs
+    # modelados e dos corpos deles é não modelado, também entre aspas ou depois de `\\`.
     if "\n" in linha and any(m.start() not in modelados for m in re.finditer("<<", linha)):
         return "heredoc"
     return "case" if CASE.search("".join(esqueleto)) else None

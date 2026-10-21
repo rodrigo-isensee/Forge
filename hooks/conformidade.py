@@ -27,7 +27,7 @@ import parecer
 from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios, construcao_nao_modelada,
                     conteudos_de_crase, contrib, diretorio_comum, e_clone_do_forge, em_contrib, executar,
                     fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
-                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -91,7 +91,6 @@ LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-
                    "since", "until", "no-ext-diff", "no-textconv"}
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
-HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][\w-]*)\1")
 PUSH_COM_VALOR = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
 API_ADMIN = re.compile(r"/(git/refs|contents/|rulesets|branches/[^/]+/protection|collaborators|actions/(secrets|variables)"
                        r"|hooks|keys|transfer)")
@@ -282,23 +281,6 @@ def endpoint_normalizado(endpoint):
 def e_graphql(endpoint):
     """O endpoint normalizado é o do GraphQL (`graphql`, `/graphql`, `https://<host>/graphql`, `.../api/graphql`)."""
     return endpoint_normalizado(endpoint).lower() == "graphql"
-
-
-def tirar_heredocs(comando):
-    """Separa o corpo dos heredocs (que não são comandos) da linha: devolve (comando, [(linha do dono, corpo)])."""
-    linhas, saida, corpos, i = comando.split("\n"), [], [], 0
-    while i < len(linhas):
-        linha = linhas[i]
-        saida.append(linha)
-        i += 1
-        for m in HEREDOC.finditer(linha):
-            corpo = []
-            while i < len(linhas) and linhas[i].strip() != m.group(2):
-                corpo.append(linhas[i])
-                i += 1
-            i += 1  # o marcador de fim
-            corpos.append((linha, "\n".join(corpo)))
-    return "\n".join(saida), corpos
 
 
 def edita_no_lugar(args):
@@ -685,10 +667,14 @@ class Guarda:
         if nivel == 0 and self.h.raiz and self.raiz_e_projeto() and CITA_A_MARCA.search(comando):
             self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
                         f"não cite .git/forge; {SUGESTAO}")
-        comando, corpos = tirar_heredocs(comando)
-        comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
-        lidas = leituras(comando)
-        if lidas.ilegivel:
+        try:
+            comando, corpos = tirar_heredocs(comando)
+        except ValueError:  # HEREDOC-FURO-HOOK: `<<` em dúvida com linha depois, ou corpo que o bash expande com `$(`
+            lidas, corpos = None, []
+        else:
+            comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
+            lidas = leituras(comando)
+        if lidas is None or lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
             self.nao_modelada(achado)
@@ -697,9 +683,10 @@ class Guarda:
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
             if not self.leitura:
-                self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, ou # que ele não prova ser comentário: "
-                                              "o hook não modela a linha",
-                            "feche as aspas, tire aspas e # do comentário ou separe os comandos")
+                self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, # que ele não prova ser comentário ou "
+                                              "<< que ele não prova ser heredoc: o hook não modela a linha",
+                            "feche as aspas, tire aspas e # do comentário, use heredoc só com <<'FIM' ou separe os "
+                            "comandos")
             return
         if nivel == 0:
             self.ambiente = {}
@@ -1650,7 +1637,10 @@ def autoria(hook, guarda, alvos):
 def alvos_de_escrita(comando):
     """Alvos de `>`, `>>` e `tee` na linha (para a autoria dos pareceres escritos pelo Bash): a união das leituras
     (`leituras`, ADR 0013); a que não fecha não dá alvo."""
-    comando, _ = tirar_heredocs(comando)
+    try:
+        comando, _ = tirar_heredocs(comando)
+    except ValueError:
+        pass  # lê os corpos como comando: é só autoria, e ler a mais não esconde alvo
     alvos = []
     for partes in leituras(comando).partes:
         try:

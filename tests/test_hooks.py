@@ -113,7 +113,15 @@ PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `#
                            # N1: a substituição entre aspas numa atribuição; N2: `$(…)` entre aspas duplas (parecer)
                            *(SUBSTITUICAO_ENTRE_ASPAS := (
                                ('x="$(', ')"'), ("x='a'\"$(", ')"'), ('x="$(', ')" true'),
-                               ('echo "$(', ')"'), ('echo "a $(', ') b"'), ('echo "$(true; ', ')"'))))
+                               ('echo "$(', ')"'), ('echo "a $(', ') b"'), ('echo "$(true; ', ')"'))),
+                           # HEREDOC-FURO-HOOK: um `<<` que o bash não lê como heredoc (H1-H8) tomava a ação por corpo;
+                           # H9: o corpo de heredoc sem aspas no delimitador expande `$(…)` e crase
+                           *(HEREDOC_FALSO := (("echo '<<X'\n", "\nX"), ('echo "<<X"\n', "\nX"), ("echo \\<<X\n", "\nX"),
+                                               ("ls # <<X\n", "\nX"), ("x=$(date) # <<X\n", "\nX"), ("x=`# <<X`\n", "\nX"),
+                                               ("echo 'a\n<<X'\n", "\nX"), ("echo $((1<<X))\n", "\nX"),
+                                               ("cat <<EOF\n$(", ")\nEOF"), ("cat <<EOF\n`", "`\nEOF"),
+                                               # o corpo já tirado não volta a ser tirado na palavra relida
+                                               ("x=\"$(cat <<'X'\nX\n", "\n)\""))))
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
@@ -123,7 +131,8 @@ MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `ech
                             "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1],
                             "aspa na crase": PARES_QUE_O_BASH_IGNORA[4], "dentro de crase": CRASE_EM_VOLTA[0],
                             "crase entre aspas com texto": CRASE_EM_VOLTA[3], "atribuição com $( entre aspas":
-                            SUBSTITUICAO_ENTRE_ASPAS[0], "$( entre aspas": SUBSTITUICAO_ENTRE_ASPAS[3]}
+                            SUBSTITUICAO_ENTRE_ASPAS[0], "$( entre aspas": SUBSTITUICAO_ENTRE_ASPAS[3],
+                            "heredoc entre aspas": HEREDOC_FALSO[0], "heredoc em comentário": HEREDOC_FALSO[3]}
 FAMILIAS_DE_RECUSA = {
     "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
     "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
@@ -195,7 +204,7 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
     if nivel > conformidade.PROFUNDIDADE:
         return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
     try:
-        linha, corpos = conformidade.tirar_heredocs(linha)
+        linha, corpos = _comum.tirar_heredocs(linha)
     except ValueError:
         raise Ilegivel(linha) from None
     linha = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", linha)
@@ -1391,6 +1400,50 @@ class Hooks(unittest.TestCase):
         self.assertTrue(lidas.ilegivel)
         self.assertIn(["docker", "compose", "up"], [p for p, _, _ in lidas.partes[0]], "a antiga fecha e fica")
 
+    def test_heredocs_operador_provado(self):  # HEREDOC-FURO-HOOK
+        """O `tirar_heredocs` só separa o corpo de um `<<` que a varredura prova ser operador; o `<<` em dúvida com linha
+        depois e o corpo que o bash expande (H9) levantam ValueError. Cada linha: o texto e os corpos separados, ou
+        None (ilegível)."""
+        _comum, _, _ = modulos_dos_hooks()
+        L = "gh repo delete d/p --yes"
+        casos = {
+            f"echo '<<X'\n{L}\nX": [],  # H1
+            f"x=$(date) # <<X\n{L}\nX": None,  # H2: `#` que G não prova
+            f"x=`# <<X`\n{L}\nX": None,  # H3: dentro de crase
+            f'echo "<<X"\n{L}\nX': [],  # H4
+            f"echo \\<<X\n{L}\nX": [],  # H5
+            f"ls # <<X\n{L}\nX": [],  # H6: comentário provado
+            f"echo 'a\n<<X'\n{L}\nX": [],  # H7
+            f"echo $((1<<X))\n{L}\nX": None,  # H8
+            f"echo ${{x:-<<X}}\n{L}\nX": None,
+            f"x=$(case a in a) cat <<X;; esac)\n{L}\nX": None,
+            f"cat <<EOF\n$({L})\nEOF": None,  # H9
+            f"cat <<EOF\n`{L}`\nEOF": None,  # H9c
+            f"cat <<'EOF'\n$({L})\nEOF": ["$(" + L + ")"],  # controle negativo: o bash não roda o corpo literal
+            f"cat <<EOF\n\\$(x)\nEOF": ["\\$(x)"],
+            "git commit -F - <<'EOF'\nit's\nEOF": ["it's"],
+            "gh pr create --body \"$(cat <<'EOF'\na \"b\"\nEOF\n)\"": ['a "b"'],
+            "cat <<-'E'\n\tx\n\tE\nls": ["\tx"],
+            "cat <<'A' <<'B'\na\nA\nb\nB\nls": ["a", "b"],
+            "bash <<'X'\ngit push origin main\nX": ["git push origin main"],
+            "cat <<\"E\"OF\nx\nEOF\nls": ["x"],  # delimitador parcialmente entre aspas
+            "cat <<E\\OF\nx\nEOF\nls": ["x"],
+            "cat <<<x\nls": [],
+            "echo $((1<<2))": [],  # dúvida sem linha depois: nada a esconder
+            "cat <<'X'\nsem fim": ["sem fim"],
+        }
+        for linha, esperado in casos.items():
+            with self.subTest(linha=linha):
+                if esperado is None:
+                    with self.assertRaises(ValueError):
+                        _comum.tirar_heredocs(linha)
+                    continue
+                resto, corpos = _comum.tirar_heredocs(linha)
+                self.assertEqual([corpo for _, corpo in corpos], esperado)
+                self.assertNotIn("<<'", resto, "o operador sai com o corpo")
+        resto, corpos = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
+        self.assertEqual((resto.split(), corpos), (["bash", "ls"], [("bash <<'X'", "git push origin main")]))
+
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""
@@ -1420,14 +1473,12 @@ class Hooks(unittest.TestCase):
         for linha in self.corpus_de_recusas():
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
-                if (prefixo, sufixo) in SUBSTITUICAO_ENTRE_ASPAS and ('"' in linha or _comum.CASE.search(linha)):
+                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)):
                     # O hook relê a palavra que o `shlex` já tirou das aspas: a aspa dupla da linha fecha a de fora, e o
                     # `)` de um padrão de `case` fecha o `$(` (achado do lote, cartão próprio; o T5 cobre as ações)
                     continue
                 if "`" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
                     continue  # crase não se aninha sem `\``: em volta de outra, a variante muda o que o bash roda
-                if "<<" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
-                    continue  # heredoc dentro de crase: HEREDOC-FURO-HOOK, o próximo commit do lote
                 variante = prefixo + linha + sufixo
                 outra = lidos(variante)
                 lidas += 1

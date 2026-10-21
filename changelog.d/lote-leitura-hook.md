@@ -1,0 +1,2 @@
+### Corrigido
+- Hooks: a leitura do comando deixa de perder o que o bash roda dentro de crase (também com aspa sem par no corpo), na substituição entre aspas duplas de uma atribuição (x="$(git push origin main)" passava pelo R-MAIN) e no parecer, e num << que não é heredoc; o heredoc em dúvida e o corpo sem aspas com $( ou crase recusam; o teste T5 confere a leitura contra o bash (LOTE-LEITURA-HOOK).
