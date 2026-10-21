@@ -3,22 +3,33 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conformidade-leitura
 branch: melhoria/conformidade-leitura
-commit: f6cd7ae74ab4389fedbb4d440d3673a5e9baed1c
-parecer: reprovado
+commit: a0f766fa6e4a9504ec28a150996fd9de51a3f66a
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-21
 ---
 # Review de segurança: conformidade-leitura
 
-Escopo: `git diff f911dfa0b2ebd9692d45c374f9ff4bab8523ed6b f6cd7ae74ab4389fedbb4d440d3673a5e9baed1c` (hooks/conformidade.py, 13 fixtures `tests/hooks/conformidade/leitura-*.json`, fragmento `changelog.d/conformidade-leitura.md`), contra a decisão M1 do dono (registrada no pedido) e o cartão GREP-OPCOES-EXEC.
+Escopo: `git diff f911dfa0b2ebd9692d45c374f9ff4bab8523ed6b a0f766fa6e4a9504ec28a150996fd9de51a3f66a` (volta 0 sobre `f6cd7ae`) (hooks/conformidade.py, 13 fixtures `tests/hooks/conformidade/leitura-*.json`, fragmento `changelog.d/conformidade-leitura.md`), contra a decisão M1 do dono (registrada no pedido) e o cartão GREP-OPCOES-EXEC.
 
 ## Gatilhos
 `R-SEGURANCA`, gatilho controles do Forge: a entrega estreita o alcance de um bloqueio do hook `conformidade` (F6, `R-CONFORMIDADE`).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:179 · so_leitura confia em comandos(), cujo shlex lê # colado à palavra como comentário (o bash não): `grep x f#; forge sugerir --fila` passa o hook (rc 0) e o bash roda o forge; na base f911dfa recusa. Correção: recusar # em so_leitura, com fixture.
 
-## Detalhe dos achados
+## Volta 1
+Revalidação sobre `a0f766fa6e4a9504ec28a150996fd9de51a3f66a`, delta `git diff ab0ed70 a0f766fa` (`hooks/conformidade.py`, docstring e regex de `so_leitura`; três fixtures novas `leitura-cerquilha-colada-*.json`).
+
+- A1 (anterior) corrigido: `hooks/conformidade.py:179` agora recusa a linha com `#` (`[$`\n#]`), antes de `comandos()`; as fixtures `leitura-cerquilha-colada-bloqueia.json`, `leitura-cerquilha-colada-ponto-e-virgula-bloqueia.json` e `leitura-cerquilha-colada-e-e-bloqueia.json` esperam código 2 com a mensagem da F6. Sonda em cópia (`git archive` em `$TMPDIR`): `grep x f#; forge sugerir --fila` dá `so_leitura` falso.
+- Releitura do controle (gatilho controles do Forge) além do delta, contra a divergência shlex × bash: `&`, `|`, `||`, `;;`, `|&` e NUL separam e recusam; aspas simples com barra (`'a\'; forge sugerir --fila`) recusa; aspas duplas com `\"` ficam dado nos dois lados; `\r` e `\v` colados, `!palavra`, chaves e `~palavra` liberam, mas no bash são argumento do leitor (sem execução). Nenhum segmento de não leitor passa.
+- Nada removido nem afrouxado no delta além do que a decisão M1 prevê; o delta só estreita a exceção.
+
+Parecer: aprovado. R1 a R3 seguem como recomendação; a divergência do `#` em `fichas()` (`hooks/_comum.py:223`), anterior à entrega, continua para cartão próprio (abaixo).
+
+## Volta 0 (commit f6cd7ae, reprovado)
+Achado da volta 0, já corrigido: A1 (bloqueante) `hooks/conformidade.py:179`, `#` colado escondia o `forge` da F6.
+
+## Detalhe dos achados (volta 0)
 **A1.** Evidência: `hooks/conformidade.py:179` (`so_leitura` só exclui `$`, crase e quebra de linha antes de chamar `comandos()`); a divisão vem de `fichas()` em `hooks/_comum.py:223`, `shlex.shlex(posix=True)` com o `commenters` padrão (`#`). O `shlex` corta a linha no primeiro `#`, mesmo no meio de uma palavra; o bash só abre comentário com `#` no início de palavra (`bash -c 'echo a#; echo b'` imprime `a#` e `b`). Resultado: para `grep x f#; forge sugerir --fila`, `comandos()` devolve um segmento só (`grep x f`), `so_leitura` responde verdadeiro e a F6 é pulada; o bash executa `grep x f#` e depois `forge sugerir --fila`. Sonda ponta a ponta numa cópia em `$TMPDIR` (o executor de fixtures do `tests/test_hooks.py` com fixtures extras, sem tocar a worktree): no commit revisado, `grep x f#; forge sugerir --fila`, `cat README.md#;forge sugerir --fila` e uma variante com `#&&` saem com código 0; na base `f911dfa` as três saem com código 2 e a mensagem da F6. Caminho de ataque: o agente (ou um texto injetado no contexto dele) monta a linha com um leitor na frente e `#` colado, e envia a sugestão no lugar do usuário, o que a F6 existe para impedir; nenhuma fixture de ofuscação pega o caso. Severidade: alta (contorna por inteiro o controle que a decisão M1 mandou preservar; a decisão só libera linha em que todos os segmentos são de leitura, e aqui há um segmento que não é). Correção mínima: em `so_leitura`, recusar a linha com `#` (por exemplo, `[$`\n#]` na regex da linha 179) e uma fixture `leitura-cerquilha-colada-bloqueia.json` com `grep x f#; forge sugerir --fila` esperando código 2. Esforço: P. Dono: `tech-lead` (autor da E1.1).
 
 **Recomendações (não bloqueiam):**
