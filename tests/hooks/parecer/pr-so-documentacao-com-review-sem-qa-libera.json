@@ -1,0 +1,43 @@
+{
+  "descricao": "Diff só de .md comum com review aprovado e sem QA: isento de QA (R-QA, M13), libera.",
+  "git": [
+    {
+      "branch": "docs/guia"
+    },
+    {
+      "arquivos": {
+        "docs/guia.md": "# Guia\n"
+      },
+      "commit": "docs: mudança"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: docs/guia",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ]
+      },
+      "commit": "docs: review"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'docs: x' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

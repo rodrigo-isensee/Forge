@@ -502,6 +502,24 @@ def gatilhos(raiz, pedido, ref=None, base=None):
     return infra, achados
 
 
+MD_DE_CONTROLE = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents|skills)/|docs/regras/)")  # instrução executável e regras (D-M13)
+
+
+def isencoes_do_diff(arquivos):
+    """Tipos de parecer que um diff dispensa (M13, D-M13 = A): só o QA, num diff não vazio todo de `.md` fora de `agents/`,
+    `skills/`, `stacks/*/agents/`, `stacks/*/skills/` e `docs/regras/` (R-QA: documentação não passa por QA). O review é sempre
+    exigido (R-REVIEW), e o `.md` de controle não tem isenção nenhuma."""
+    if arquivos and all(a.endswith(".md") and not MD_DE_CONTROLE.match(a) for a in arquivos):
+        return {"qa"}
+    return set()
+
+
+def isencoes_da_entrega(raiz, ref=None, base=None):
+    """A regra única de isenção (M13): o que o diff da entrega sobre a base dispensa. Usada pelo `cmd_pr`, pelo hook `parecer` e pelo
+    `brief gerar` (P2); ninguém tem regra própria."""
+    return isencoes_do_diff(arquivos_da_entrega(raiz, ref, base))
+
+
 def aceite_do_usuario(raiz, pedido, commit, ref=None):
     """True se `docs/security/aceites/<pedido>.md` existe com `pedido` igual, `aceite: sim` e `commit` igual ao
     do parecer de segurança (o usuário aceitou exatamente esses riscos; parecer novo pede aceite novo). Nenhum papel o grava
@@ -551,6 +569,9 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
     qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR."""
     if base is None:
+        if isencoes_da_entrega(raiz, ref, None):
+            print("pr: isento de QA: diff só de .md fora de agents/, skills/, stacks/*/agents|skills e docs/regras/ (R-QA); o review continua exigido (R-REVIEW)",
+                  file=sys.stderr)
         return cmd_pr(raiz, pedido, ref, None)
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
@@ -562,6 +583,9 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
         print(f"pr: aviso: o head {head[:7]} já contido em {resolvida.removeprefix('refs/remotes/').removeprefix('refs/heads/')} (a base contém a branch); "
               "o parecer vale só pelo diff literal, sem o merge simulado da base", file=sys.stderr)
         resolvida = None
+    if isencoes_da_entrega(raiz, ref, resolvida):
+        print("pr: isento de QA: diff só de .md fora de agents/, skills/, stacks/*/agents|skills e docs/regras/ (R-QA); o review continua exigido (R-REVIEW)",
+              file=sys.stderr)
     return cmd_pr(raiz, pedido, ref, resolvida)
 
 
@@ -569,7 +593,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
     infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
-    exigidos = ["review", "qa"] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
+    isentos = isencoes_da_entrega(raiz, ref, base)
+    exigidos = [t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
         achados = []
