@@ -80,6 +80,7 @@ Avisa no stderr, sem mudar o código de saída, se o projeto tem migração do F
 import argparse
 import datetime
 import difflib
+import errno
 import hashlib
 import json
 import os
@@ -742,6 +743,30 @@ def cabecalho_do_brief(texto):
     return "\n".join(linhas)
 
 
+ETAPA_PARA_TIPO = {"codigo": "codigo", "review": "review", "seguranca": "review", "qa": "qa", "pr": "merge",
+                   "merge-integracao": "merge", "pedido-de-merge-ao-dono": "merge"}
+
+
+def tipo_da_etapa(etapa, volta=False):
+    """O `Tipo:` que o `brief gerar` grava: `volta` com --volta; senão o da etapa (sem etapa, `codigo`)."""
+    return "volta" if volta else ETAPA_PARA_TIPO.get(etapa or "codigo", "desconhecido")
+
+
+def tipo_do_brief(texto):
+    """O tipo de um brief: a linha `Tipo:` do cabeçalho se for de `TIPOS_DE_BRIEF`; senão, para brief antigo, deduzido (`Volta-de:` é volta,
+    destino qa-engineer é qa, security-engineer é review, PQ de ancestralidade é merge); senão `desconhecido`."""
+    cabecalho = cabecalho_do_brief(texto)
+    gravado = grupo(r"^\s*Tipo:\s*(\S+)\s*$", cabecalho)
+    if gravado in TIPOS_DE_BRIEF:
+        return gravado
+    if re.search(r"^Volta-de:", cabecalho, re.M):
+        return "volta"
+    papel = nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho))
+    if papel in ("qa-engineer", "security-engineer"):
+        return "qa" if papel == "qa-engineer" else "review"
+    return "merge" if "merge-base --is-ancestor" in texto else "desconhecido"
+
+
 def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
     """Linhas `(texto, reprova)` da união dos Entregar de entregas paralelas conferidas juntas (E9a, M9.1): cada `--brief` precisa ser um
     brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida; um só diferente reprova a união. Imprime o
@@ -1367,16 +1392,51 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
 
 MODOS_DE_CONFERENCIA = ("brief", "entrega")
 MERITOS_DE_CONFERENCIA = ("s", "n", "parcial", "—")
-CABECALHO_CONFERENCIAS = ("| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota |\n"
-                          "|---|---|---|---|---|---|---|---|\n")
+CABECALHO_CONFERENCIAS = ("| data-hora | pedido | brief | modo | rodada | resultado | mérito (s/n/parcial) | nota | classe | autor |\n"
+                          "|---|---|---|---|---|---|---|---|---|---|\n")
+# OK-7: a classe da falha é de um catálogo fixo; o texto "evita" é o único que vai a brief ou tela (nunca a nota nem o resultado).
+CLASSES_DE_FALHA = {
+    "decisao": "grave a decisão no pedido antes do brief; o `brief gerar` copia as linhas de decisão do dono (R-BRIEF)",
+    "etapa": "confira a ordem das etapas do pedido e `forge-check pr <pedido>`; marque toda etapa de outra instância do mesmo agente (D-ETAPAS)",
+    "escopo": "cada item do Entregar cita a etapa `(E<n>)` do pedido; só corta com a marca de corte (R-BRIEF, R-DECISAO)",
+    "prova": "cada prova com tipo e `espera:` do vocabulário, e que falhe sem a mudança (R-PROVA)",
+    "base": "gere o brief de novo com `--branch`, para o Base-sha real (BRIEF-BASE-ATUAL)",
+    "forma": "cole inteira a saída de `forge-check brief mensagem` (R-BRIEF)",
+    "citacao": "cite regra, número e trecho copiando o texto da fonte (R-BRIEF, autoconferência)",
+    "implementacao": "rode a suíte inteira e cada prova antes do relatório (R-PROVA)",
+    "ambiente": "rode o `forge-check` da versão vigente; limitação de ferramenta vira melhoria (R-DECISAO)",
+    "outra": "—",
+}
+AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
+TIPOS_DE_BRIEF = ("codigo", "volta", "review", "qa", "merge", "desconhecido")
+TETO_DA_TABELA = 1024 * 1024
+JANELA_DE_RECORRENCIA = 30  # dias
+LIMIAR_DA_PROPOSTA = 3  # entregas distintas com a mesma classe e o mesmo autor
+LIMIAR_DO_BRIEF = 2  # briefs distintos para a linha entrar no brief (1 ocorrência não é "recorrente"; reversível aqui)
+LINHAS_NO_BRIEF = 3
+NOME_DE_REGISTRO = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,120}")
+HORA_DO_REGISTRO = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 
 
-def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota):
-    """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 8 colunas no formato do cabeçalho, hora
-    real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar. Recusa sem gravar."""
+def _aprovou(resultado):
+    return _sem_acento(resultado.strip()).startswith(("aprovado", "cumpriu"))
+
+
+def _autor_padrao(modo):
+    return "jarvis" if modo == "brief" else "destino"
+
+
+def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, merito, nota, classe=None, autor=None):
+    """Registra uma conferência em docs/kanban/conferencias.md (S-18): linha de 10 colunas no formato do cabeçalho (as 8 de antes mais
+    `classe` e `autor`, OK-7), hora real `AAAA-MM-DD HH:MM`. Só acrescenta; cria o arquivo com o cabeçalho se faltar; linhas antigas
+    ficam como estão. Recusa sem gravar; a recusa cita o campo, nunca o valor. Depois de gravar, imprime a proposta se o par chegou a 3."""
     for nome, valor in (("pedido", pedido), ("brief", brief), ("resultado", resultado), ("nota", nota)):
         if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
             return [f"conferencia: {nome} não pode ter `|` nem quebra de linha"]
+    for nome, valor in (("pedido", pedido), ("brief", brief), ("resultado", resultado), ("nota", nota), ("--classe", classe), ("--autor", autor)):
+        motivo = recusa_do_campo(valor, nome)
+        if motivo:
+            return [f"conferencia: {motivo}"]
     pedido, brief, resultado, nota = (x.strip() for x in (pedido, brief, resultado, nota))
     if not (pedido and brief and resultado):
         return ["conferencia: --pedido, --brief e --resultado não podem ser vazios"]
@@ -1386,6 +1446,15 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
         return [f"conferencia: --merito deve ser um de {', '.join(MERITOS_DE_CONFERENCIA)}"]
     if not re.fullmatch(r"[0-9]+", rodada) or int(rodada) < 1:
         return ["conferencia: --rodada deve ser um inteiro a partir de 1"]
+    if autor is not None and autor not in AUTORES_DE_FALHA:
+        return [f"conferencia: --autor deve ser um de {', '.join(AUTORES_DE_FALHA)}"]
+    if _aprovou(resultado):
+        if classe is not None:
+            return ["conferencia: --classe só vale com resultado reprovado ou não cumpriu"]
+        classe = "—"
+    elif classe is None or classe not in CLASSES_DE_FALHA:
+        return [f"conferencia: --classe é obrigatória quando reprova ou não cumpre e deve ser uma de {', '.join(CLASSES_DE_FALHA)}"]
+    autor = autor or _autor_padrao(modo)
     if not (raiz / "KANBAN.md").is_file():
         return [SEM_QUADRO.format(cmd="conferencia", raiz=caminho_impresso(raiz))]
     arq = raiz / "docs" / "kanban" / "conferencias.md"
@@ -1399,14 +1468,109 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
             f.seek(-1, 2)
             falta_quebra = f.read(1) != b"\n"
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
-    linha = f"| {hora} | {pedido} | {brief} | {modo} | {int(rodada)} | {resultado} | {merito} | {nota} |\n"
+    linha = f"| {hora} | {pedido} | {brief} | {modo} | {int(rodada)} | {resultado} | {merito} | {nota} | {classe} | {autor} |\n"
     with arq.open("a", encoding="utf-8") as f:
         if not existe:
             f.write(CABECALHO_CONFERENCIAS)
         elif falta_quebra:
             f.write("\n")
         f.write(linha)
-    return [linha.rstrip("\n")]
+    saida = [linha.rstrip("\n")]
+    if classe not in ("—", "outra"):
+        quem = autor if autor != "destino" else f"destino:{agente_do_brief(pedido, brief)}"
+        grupos, _ = recorrencias(raiz)
+        saida += [proposta_de(g) for g in grupos if g["classe"] == classe and g["quem"] == quem and g["n"] >= LIMIAR_DA_PROPOSTA]
+    return saida
+
+
+def agentes_conhecidos():
+    """Nomes dos agentes do plugin e dos pacotes de stack (`agents/*.md`), sem `forge:`."""
+    pastas = [PLUGIN / "agents", *sorted((PLUGIN / "stacks").glob("*/agents"))]
+    return {arq.stem for pasta in pastas if pasta.is_dir() for arq in pasta.glob("*.md")}
+
+
+def agente_do_brief(pedido, brief):
+    """O agente de destino de `<pedido>-<agente>-<n>`, com o pedido da própria linha como prefixo exato e conferido contra os agentes
+    conhecidos (um pedido com hífen não desloca o nome); None se não casa."""
+    achou = re.fullmatch(rf"{re.escape(pedido.casefold())}-([a-z][a-z-]*)-\d+", brief.casefold())
+    return achou.group(1) if achou and achou.group(1) in agentes_conhecidos() else None
+
+
+def falhas_do_registro(raiz, dias=JANELA_DE_RECORRENCIA, agora=None):
+    """([falha], aviso) das linhas de docs/kanban/conferencias.md que valem como falha classificada na janela: exatamente 10 células,
+    hora `AAAA-MM-DD HH:MM` nem futura nem velha, rodada inteira, nomes seguros, classe do catálogo (e não `outra`) e autor da lista.
+    Linha antiga, forjada ou fora do formato é ignorada. Falha = dict(data, pedido, brief, classe, quem). Só leitura."""
+    agora = agora or datetime.datetime.now()
+    agora = agora.astimezone().replace(tzinfo=None) if agora.tzinfo else agora
+    desde = agora - datetime.timedelta(days=dias)
+    linhas, aviso = _tabela_segura(raiz / "docs" / "kanban" / "conferencias.md")
+    falhas = []
+    for c in linhas:
+        if len(c) != 10 or not HORA_DO_REGISTRO.fullmatch(c[0]) or not c[4].isdigit() or int(c[4]) < 1:
+            continue
+        data, pedido, brief, modo, _, _, _, _, classe, autor = c
+        if (modo not in MODOS_DE_CONFERENCIA or classe not in CLASSES_DE_FALHA or classe == "outra" or autor not in AUTORES_DE_FALHA
+                or not NOME_DE_REGISTRO.fullmatch(pedido) or not NOME_DE_REGISTRO.fullmatch(brief)):
+            continue
+        try:
+            quando = datetime.datetime.strptime(data, "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        if not desde <= quando <= agora:
+            continue
+        quem = autor
+        if autor == "destino":
+            agente = agente_do_brief(pedido, brief)
+            if not agente:
+                continue
+            quem = f"destino:{agente}"
+        falhas.append({"data": quando, "pedido": pedido, "brief": brief, "classe": classe, "quem": quem})
+    return falhas, aviso
+
+
+def tipo_do_brief_em_disco(raiz, brief):
+    """O tipo do brief `docs/briefs/<brief>.md` (da raiz ou de ~/.forge-contrib); `desconhecido` se sumiu ou é ilegível."""
+    arquivo, _ = caminho_de_brief(raiz, f"docs/briefs/{brief}.md")
+    try:
+        with open(arquivo, "rb") as f:
+            return tipo_do_brief(f.read(TETO_DO_BRIEF + 1).decode("utf-8"))
+    except (OSError, TypeError, UnicodeDecodeError):
+        return "desconhecido"
+
+
+def recorrencias(raiz, dias=JANELA_DE_RECORRENCIA, agora=None, quem=None, tipo=None):
+    """([grupo], aviso): por (classe, quem), os briefs DISTINTOS (pedido e brief; rodadas do mesmo brief contam 1) com falha classificada
+    na janela. Grupo = dict(classe, quem, briefs, n, ultima), do mais frequente ao menos e, no empate, do mais recente. `quem` filtra
+    (`jarvis`, `destino:<agente>`...); `tipo` (diferente de `desconhecido`) filtra pelo tipo do brief em disco. Só leitura."""
+    falhas, aviso = falhas_do_registro(raiz, dias, agora)
+    if quem is not None:
+        falhas = [f for f in falhas if f["quem"] == quem]
+    if tipo not in (None, "desconhecido"):
+        tipos = {}
+        falhas = [f for f in falhas if tipos.setdefault(f["brief"], tipo_do_brief_em_disco(raiz, f["brief"])) == tipo]
+    grupos = {}
+    for f in falhas:
+        g = grupos.setdefault((f["classe"], f["quem"]), {"classe": f["classe"], "quem": f["quem"], "briefs": set(), "ultima": f["data"]})
+        g["briefs"].add((f["pedido"], f["brief"]))
+        g["ultima"] = max(g["ultima"], f["data"])
+    saida = [dict(g, briefs=sorted(b for _, b in g["briefs"]), n=len(g["briefs"])) for g in grupos.values()]
+    return sorted(saida, key=lambda g: (-g["n"], -g["ultima"].timestamp(), g["classe"])), aviso
+
+
+def proposta_de(grupo_):
+    """Linha `proposta:` (só imprime; texto fixo por classe, sem nada do registro): vire regra ou checagem, por decisão do dono."""
+    nomes = ", ".join(grupo_["briefs"][:10]) + (", ..." if len(grupo_["briefs"]) > 10 else "")
+    return (f"proposta: {grupo_['classe']} de {grupo_['quem']} em {grupo_['n']} briefs ({nomes}): "
+            f"vire regra ou checagem: {CLASSES_DE_FALHA[grupo_['classe']]}")
+
+
+def cmd_conferencia_classes(raiz, dias=JANELA_DE_RECORRENCIA):
+    """`conferencia classes`: classe · autor · briefs por par e, com 3 ou mais, a proposta. Só leitura, rc 0."""
+    grupos, aviso = recorrencias(raiz, dias)
+    saida = [f"classes: aviso: docs/kanban/conferencias.md {aviso}; sem contagem"] if aviso else []
+    saida.append(f"classes: janela de {dias} dias")
+    saida += [f"classes: {g['classe']} · {g['quem']} · {g['n']} briefs" for g in grupos] or ["classes: nenhuma falha classificada na janela"]
+    return saida + [proposta_de(g) for g in grupos if g["n"] >= LIMIAR_DA_PROPOSTA]
 
 
 # ---- rodadas de brief e voltas (T-1, M13): o vai e volta lido do disco, só leitura ----
@@ -1414,13 +1578,27 @@ def _sem_acento(texto):
     return "".join(c for c in unicodedata.normalize("NFD", str(texto)) if not unicodedata.combining(c)).casefold()
 
 
-def _ler_tabela(arq):
-    """Células (sem as bordas) de cada linha de tabela de um arquivo; vazio se não abre. Só leitura."""
+def _tabela_segura(arq):
+    """(células por linha de tabela, aviso): sem seguir link simbólico e com teto de bytes (`TETO_DA_TABELA`); arquivo que não abre dá
+    ([], None); link ou arquivo grande dá ([], motivo) e nada é contado. Só leitura."""
     try:
-        texto = arq.read_text(encoding="utf-8", errors="replace")
+        fd = os.open(arq, os.O_RDONLY | os.O_NOFOLLOW)
+    except OSError as e:
+        return [], ("é link simbólico" if e.errno == errno.ELOOP else None)
+    try:
+        with os.fdopen(fd, "rb") as f:
+            dados = f.read(TETO_DA_TABELA + 1)
     except OSError:
-        return []
-    return [[c.strip() for c in l.strip().strip("|").split("|")] for l in texto.splitlines() if l.startswith("|")]
+        return [], None
+    if len(dados) > TETO_DA_TABELA:
+        return [], f"passa de {TETO_DA_TABELA} bytes"
+    texto = dados.decode("utf-8", errors="replace")
+    return [[c.strip() for c in l.strip().strip("|").split("|")] for l in texto.splitlines() if l.startswith("|")], None
+
+
+def _ler_tabela(arq):
+    """Células (sem as bordas) de cada linha de tabela de um arquivo; vazio se não abre, é link simbólico ou passa do teto. Só leitura."""
+    return _tabela_segura(arq)[0]
 
 
 def _hora(texto):
@@ -3640,6 +3818,10 @@ def main():
     rg.add_argument("--resultado", required=True, help="texto do veredito, ex.: aprovado, reprovado, não cumpriu (PQ-3)")
     rg.add_argument("--merito", required=True, help="s, n, parcial ou — (o achado procedia?)")
     rg.add_argument("--nota", default="")
+    rg.add_argument("--classe", help=f"classe da falha (obrigatória quando reprova ou não cumpre): {', '.join(CLASSES_DE_FALHA)}")
+    rg.add_argument("--autor", help=f"quem errou: {', '.join(AUTORES_DE_FALHA)} (padrão: jarvis no modo brief, destino no modo entrega)")
+    cl = csub.add_parser("classes", parents=[comum], help="conta as falhas classificadas por classe e autor nos últimos dias e propõe regra com 3 ou mais briefs (só imprime)")
+    cl.add_argument("--dias", type=int, default=JANELA_DE_RECORRENCIA, help=f"janela em dias (padrão {JANELA_DE_RECORRENCIA})")
     pr = sub.add_parser("pr", parents=[comum], help="pareceres de review e QA de um pedido; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD")
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
@@ -3714,8 +3896,12 @@ def executar(a, raiz):
         for linha in linhas + extra:
             print(linha)
         return rc or (1 if a.cmd == "movimento" and linhas[0].startswith("movimento:") else 0)
+    if a.cmd == "conferencia" and a.acao == "classes":
+        for linha in cmd_conferencia_classes(raiz, a.dias):
+            print(linha)
+        return 0
     if a.cmd == "conferencia":
-        linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota)
+        linhas = cmd_conferencia_registrar(raiz, a.pedido, a.brief, a.modo, a.rodada, a.resultado, a.merito, a.nota, a.classe, a.autor)
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("conferencia:") else 0

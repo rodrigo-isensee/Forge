@@ -28,14 +28,14 @@ class Registrar(Raiz):
     def lido(self):
         return (self.tmp / ARQ).read_text(encoding="utf-8")
 
-    def test_cria_o_arquivo_com_cabecalho_e_grava_linha_de_8_colunas_com_hora_real(self):
+    def test_cria_o_arquivo_com_cabecalho_e_grava_linha_de_10_colunas_com_hora_real(self):
         cod, saida, _ = self.rodar(*BASE, "--nota", "tudo certo")
         self.assertEqual(cod, 0)
         linhas = self.lido().splitlines()
         self.assertTrue(linhas[0].startswith("| data-hora | pedido | brief | modo | rodada | resultado |"))
-        self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|---|")
+        self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|---|---|---|")
         self.assertRegex(linhas[2], r"^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| xpto \| xpto-tech-lead-1 \| brief \| 1 \| "
-                                    r"aprovado \| — \| tudo certo \|$")
+                                    r"aprovado \| — \| tudo certo \| — \| jarvis \|$")
         self.assertEqual(saida, [linhas[2]])
         self.assertEqual(len(linhas), 3)
 
@@ -89,7 +89,7 @@ class Registrar(Raiz):
         self.assertEqual(alvo.read_text(encoding="utf-8"), "x\n")
 
     def test_o_voltas_e_a_soma_de_rodadas_leem_a_linha_gravada(self):
-        self.assertEqual(self.rodar(*com(BASE, resultado="reprovado", merito="s"))[0], 0)
+        self.assertEqual(self.rodar(*com(BASE, resultado="reprovado", merito="s"), "--classe", "forma")[0], 0)
         self.assertEqual(self.rodar(*com(BASE, rodada="2"))[0], 0)
         self.assertEqual(self.rodar(*com(BASE, modo="entrega"))[0], 0)  # entrega não conta como rodada de brief
         cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
