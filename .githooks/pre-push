@@ -130,6 +130,13 @@ while read -r _ local_sha remote_ref remote_sha; do
       exit 1 ;;
   esac
 done
+# PREPUSH-JA-NO-REMOTO: sem nenhuma ref a enviar (a branch já é igual à remota, o git chama o hook com o stdin vazio)
+# não há o que testar. Só este caso: o push que apaga ref traz uma linha e segue rodando a suíte; o modo --suite
+# também não lê refs e roda sempre.
+if [ "$modo_suite" -eq 0 ] && [ "$n_refs" -eq 0 ]; then
+  echo "pre-push: nada a enviar (a branch já é igual à remota); suíte não roda." >&2
+  exit 0
+fi
 # Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);
 # limpa para que nada rodado aqui escreva em outro repositório.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR

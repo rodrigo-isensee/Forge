@@ -96,7 +96,8 @@ class PrePushTrava(unittest.TestCase):
     def suite(self, texto):
         (self.repo / "tests" / "test_x.py").write_text(texto)
 
-    def hook(self, *args, entrada="", env=None, **extra):
+    def hook(self, *args, entrada=None, env=None, **extra):
+        entrada = self.refs("melhoria/x") if entrada is None else entrada  # um push de verdade traz ao menos uma ref
         env = dict(self.env if env is None else env, **extra)
         arquivo = Path(self._tmp.name) / f"entrada-{len(self.filhos)}-{time.monotonic_ns()}"
         arquivo.write_text(entrada)
@@ -105,7 +106,7 @@ class PrePushTrava(unittest.TestCase):
                 [str(HOOK), *args], cwd=self.repo, env=env, stdin=stdin,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def roda(self, *args, entrada="", env=None, **extra):
+    def roda(self, *args, entrada=None, env=None, **extra):
         p = self.hook(*args, entrada=entrada, env=env, **extra)
         self.filhos.append(p)
         saida, erro = p.communicate(timeout=60)
@@ -358,6 +359,28 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("espera sem a ordem de chegada", erro)
         self.assertEqual(list(alvo.iterdir()), [])
         self.assertTrue((self.repo / "rodou").exists())
+
+    def test_push_sem_refs_a_enviar_nao_roda_a_suite(self):  # PREPUSH-JA-NO-REMOTO (decisão do dono, 2026-10-21 14:12)
+        """A branch já igual à remota: o git chama o hook sem nenhuma linha no stdin; não há o que testar nem a trava a pegar."""
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("origin", "u", entrada="")
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("nada a enviar", erro)
+        self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou sem ref a enviar")
+        self.assertEqual(list(self.run_dir.iterdir()), [], "sem ref a enviar, o hook não pega trava nem entra na fila")
+
+    def test_push_que_so_apaga_ainda_roda_a_suite(self):  # PREPUSH-DELETE-SEM-SUITE fica fora: apagar continua testando
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("melhoria/x", local="0" * 40, remoto="1" * 40))
+        self.assertEqual(codigo, 0, erro)
+        self.assertTrue((self.repo / "rodou").exists(), "o push que só apaga deixou de rodar a suíte")
+
+    def test_ref_para_a_develop_segue_barrada(self):
+        """Pular a suíte sem refs não afrouxa o bloqueio: uma ref para a develop barra como sempre."""
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
 
     def test_modo_suite_usa_a_trava_e_nao_le_refs(self):
         self.suite(SUITE_RAPIDA)
