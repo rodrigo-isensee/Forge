@@ -268,7 +268,8 @@
       "linhas>=N",
       "toca sempre o máximo de itens ao mesmo tempo",
       "vale para o Forge e para todos os projetos que o usam",
-      "\\*\\*Lote por arquivo:\\*\\*"
+      "\\*\\*Lote por arquivo:\\*\\*",
+      "Na abertura de cada pedido, confira com o time se ele cabe num lote"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
