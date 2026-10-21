@@ -125,6 +125,7 @@ def lancar(hook, agentes, agora):
     if faltas:
         bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a inteira; "
                             f"faltou: {faltas}.")
+    descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
             bloquear("R-TETO", f"já há um agente {tipo} ativo com a descrição \"{descricao[:60]}\"; "

@@ -2,10 +2,12 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import ARQ, Cenario  # noqa: E402
 from test_hooks import montar_proc, rodar as rodar_hook  # noqa: E402  (só funções)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
