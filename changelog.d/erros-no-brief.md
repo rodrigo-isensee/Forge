@@ -1,2 +1,0 @@
-### Adicionado
-- Erros recorrentes voltam ao próximo brief (ERROS-NO-BRIEF): o registro das conferências ganha a classe fixa da falha (`conferencia registrar --classe` e `--autor`, `conferencia classes` com proposta de regra a partir de 3 briefs em 30 dias), o `brief gerar` põe até 3 linhas de erros recorrentes do destino e mostra ao Jarvis, em stderr, os que ele mais repete por tipo de brief (`Tipo:` gravado pelo `gerar`), e o arquivo vivo `docs/engineering/achados-recorrentes.md` entra no `## Ler` das etapas de código.
