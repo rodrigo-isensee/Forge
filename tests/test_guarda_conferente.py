@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import ARQ, Cenario  # noqa: E402
 from test_hooks import montar_proc, rodar as rodar_hook  # noqa: E402  (só funções)
+from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 
@@ -22,7 +23,7 @@ class GuardaDoConferente(Cenario):
         super().setUp()
         self.projeto = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.projeto, True)
-        subprocess.run(["git", "init", "-q"], cwd=self.projeto, check=True, env=dict(os.environ, HOME=str(self.projeto)))
+        subprocess.run(["git", "init", "-q"], cwd=self.projeto, check=True, env=sem_manutencao(dict(os.environ, HOME=str(self.projeto))))
         (self.projeto / ".forge").mkdir()
         (self.projeto / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
         self.proc = montar_proc(self.projeto, {"loadavg": "0.1 0.1 0.1", "mem_gb": 8})
