@@ -217,9 +217,10 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
-# Antes do `#`, o que faz dele início de palavra e, portanto, comentário (como no bash). Fora daqui (`)`, `<`, `>`, `\r`,
-# colado a uma palavra), o `#` é lido como parte da palavra: na dúvida, a linha é lida por inteiro.
-ANTES_DE_COMENTARIO = " \t\n;&|("
+# Antes do `#`, o que faz dele início de palavra e, portanto, comentário (como no bash). Fora daqui (`(`, `)`, `<`, `>`,
+# `\r`, colado a uma palavra), o `#` é lido como parte da palavra: na dúvida, a linha é lida por inteiro. O `(` fica
+# fora porque em `((#x))` e em `[[ a =~ (#b) ]]` o bash não abre comentário ali.
+ANTES_DE_COMENTARIO = " \t\n;&|"
 
 
 def fichas(comando):
@@ -385,7 +386,9 @@ def fora_da_gramatica_de_leitura(linha):
 
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
-INICIO_DE_PALAVRA = " \t\n;&|()"
+# Antes do `#` que encerra a varredura como comentário. Sem `(`: em `((#x))` e em `[[ a =~ (#b) ]]` o bash não abre
+# comentário ali (na dúvida, a linha é lida por inteiro).
+INICIO_DE_PALAVRA = " \t\n;&|)"
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
 # palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")

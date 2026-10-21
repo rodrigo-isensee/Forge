@@ -1045,8 +1045,8 @@ class Hooks(unittest.TestCase):
 
     def test_cerquilha_so_abre_comentario_no_inicio_de_palavra(self):  # HOOK-COMENTARIO-SHLEX
         """Como no bash: `#` colado a uma palavra é parte dela e não esconde o resto da linha; no início de palavra
-        (depois de espaço, `;`, `&`, `|`, `(` ou quebra de linha), o comentário vai até a quebra de linha, que segue
-        separando comandos. Na dúvida (`)`, redirecionamento, `\r`), a linha é lida por inteiro."""
+        (depois de espaço, `;`, `&`, `|` ou quebra de linha), o comentário vai até a quebra de linha, que segue
+        separando comandos. Na dúvida (`(`, `)`, redirecionamento, `\r`), a linha é lida por inteiro."""
         sys.path.insert(0, str(HOOKS))
         import _comum
 
@@ -1069,6 +1069,9 @@ class Hooks(unittest.TestCase):
             "echo $(echo a)#b; git push": [["echo", "a"], ["echo", "$(…)#b"], ["git", "push"]],
             "echo >#x; git push": [["echo"], ["git", "push"]],
             "echo a\r#b; git push": [["echo", "a", "#b"], ["git", "push"]],
+            "((#x)); git push --force origin main": [["#x"], ["git", "push", "--force", "origin", "main"]],
+            "[[ a =~ (#b) ]]; git push": [["[[", "a", "=~"], ["#b"], ["]]"], ["git", "push"]],
+            "echo $((#x)); git push": [["#x"], ["echo", "$(…)"], ["git", "push"]],
         }
         for linha, esperado in casos.items():
             with self.subTest(linha=linha):
