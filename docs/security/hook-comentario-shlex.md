@@ -3,23 +3,23 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: f02f482b7e9d5eb46f10beed1e4795d8d637a9f0
+commit: 742f828b5cd58b85719f65e390706b9d415169d6
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-21
 ---
 # Review de segurança: hook-comentario-shlex
 
-Diff revisado: `10c838f..f02f482` (volta 0 sobre `74dc3f6`; voltas 1 a 4 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
+Diff revisado: `10c838f..742f828` (volta 0 sobre `74dc3f6`; voltas 1 a 5 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
 
 ## Gatilhos
-Controles do Forge (R-SEGURANCA): a entrega muda a leitura da linha do shell (`fichas`), base de todas as checagens do hook `conformidade` (R-MAIN, R-VERIFY, escrita protegida, `sugerir`).
+Controles do Forge (R-SEGURANCA): a entrega muda a leitura da linha do shell (`fichas`), base de todas as checagens dos hooks `conformidade` (R-MAIN, R-VERIFY, escrita protegida, `sugerir`), `parecer` (R-REVIEW) e `pesado` (R-TETO), desde a volta 5 por `leituras`.
 
 ## Achados
-- A7 (bloqueante) hooks/_comum.py:227 · `#` depois de espaço dentro de `${…}` ou de crase abre comentário no hook, não no bash: `echo ${x:- #b}; gh repo delete dono/proj --yes` sai 0 (147 das 499 recusas com esse prefixo). Não é regressão (a base também passa).
+- A8 (bloqueante) hooks/_comum.py:326 · `#` dentro de crase é comentário no bash e termina na crase; o hook o lê como palavra e a aspa dele casa com outra: ``x=`#'`; gh repo delete dono/proj --yes # '`` sai 0 (203 das 561 recusas). Não é regressão (a base também passa).
 
 ## Detalhe dos achados
-A1 a A6 (voltas 0 a 3) estão resolvidos; o histórico fica abaixo, e o A7 está na seção "Volta 4".
+A1 a A7 (voltas 0 a 4) estão resolvidos; o histórico fica abaixo, e o A8 está na seção "Volta 5".
 
 **A1 (volta 0, resolvido na volta 1).** Evidência: hooks/_comum.py:222 (`ANTES_DE_COMENTARIO` inclui `(`), usado em :243; a guarda da linha crítica faz o mesmo em :388/:459 (`#` depois de `(` encerra a varredura com "comentário até o fim da linha"), então nem o analisador nem a recusa por construção não modelada veem o resto da linha.
 - Reprodução (estática, local, em cópia por `git archive` do 74dc3f6 no diretório temporário, pelo `rodar_dados` da suíte, com a fixture `comentario-colado-push-force-bloqueia` como base): `[[ a =~ (#b) ]]; git push --force origin main`, `((#x)); git push --force origin main` e `[[ a =~ (#b) ]]; git push --no-verify origin feature/x` saem com código 0; o controle `true; git push --force origin main` sai com 2. No bash (`bash -c`, com `echo` no lugar do push): `((#x)); echo R1` imprime R1 (erro aritmético não interrompe a lista) e `[[ a =~ (#b) ]]; echo R4` imprime R4; o `#` ali não é comentário.
@@ -110,5 +110,27 @@ Delta revisado: `50bf8f8..f02f482` (hooks/conformidade.py:668-679, `except Value
 
 **Recomendação (não bloqueante):** pôr no teste gerado também os prefixos da sonda (a classe do ValueError é a mesma, mas o prefixo pega o caso em que o resto da linha some antes da ação, e não depois).
 
+## Volta 5
+Delta revisado: `f02f482..742f828` (hooks/_comum.py: gramática G em `varrer_comentarios`/`comentarios`, `comentario_ambiguo`, `fichas(legado=)`, `leituras` no lugar de `segmentos`, a guarda com o mesmo conjunto; hooks/conformidade.py: `Guarda.bash` por leitura em `conferir_partes`, `rotulo_na_sessao_do_forge`, `alvos_de_escrita`, `conteudos_de_crase`; hooks/parecer.py e hooks/pesado.py por `leituras`; T1 a T4; 16 fixtures; ADR 0013), contra o desenho `docs/propostas/hook-comentario/desenho.md` (seções 2 a 5 e 10), e de novo a entrega inteira contra a base 10c838f. Ferramenta: as fixtures de recusa de Bash dos três hooks (561, mesmo filtro do corpus do T1) rodadas pelo próprio harness da suíte, com prefixo e sufixo, em cópias por `git archive` de 742f828 e de 10c838f (para a base, a árvore de testes do 742f828 com `hooks/` do 10c838f) no diretório temporário; `bash -c` só com `echo`.
+
+**A7: resolvido.** `echo ${x:- #b}; gh repo delete dono/proj --yes`, a crase e `echo $[1 #x]; …` saem 2 (na base, 0). **P1: confirmado na f02f482 pelo desenho e resolvido:** no `parecer`, `…--merge; (true)#'`, `(( 1 )) && …--merge # it's` e `…--merge; echo $'it\'s'` saem 2 pela recusa da linha ilegível (hooks/parecer.py:338), e `echo ${x:- #b}; …--merge` sai 2 pela conferência do parecer. **P2 e P3: resolvidos** (`a\ #b; git push origin ${B:-main}` recusado por `${`; `$[` fora de G). **I2:** `gh repo # x⏎delete dono/proj --yes` e `gh pr # x⏎merge …` saem 2. Liberações do desenho conferidas: `ls # it's ((` e `git log -1 # don't` saem 0; `x=$(date) # it's` passa a 2 (recusa a mais prevista na tabela 2.5).
+
+**Gramática G, conferida no código:** só avança por literais, separadores, aspas fechadas (duplas só com `\x` e `$nome`), `\x` fora de aspas e `$nome`; `(`, `)`, crase, `${`, `$[`, `$'`, `=~`, `<<`, `\` no fim, aspa aberta e controle encerram a varredura (hooks/_comum.py:256). `#` depois de `>`/`<` encerra (o bash leria comentário e daria erro de sintaxe: recusar não custa). `#` dentro de `[[ … ]]` em G: o bash também comenta (`[[ a == a #b⏎]]` roda). A guarda `construcao_nao_modelada` usa o mesmo conjunto (o P2 sumiu). T1 a T4 passam (4,7 s na cópia); o T4 por árvore sintática impede leitura por fora de `leituras`.
+
+**Itens além do desenho:**
+- `comentario_ambiguo` (hooks/_comum.py:316): endurece, e é a peça certa para o furo que o desenho deixou na premissa da I1 ("na dúvida, o `#` é palavra e a linha é lida inteira"). Ler o `#` como palavra lê a mais só se o comentário não tiver aspa: a aspa dele casa com outra e engole comandos. A função cobre o comentário que termina na quebra de linha; não cobre o que termina na crase (A8).
+- `conteudos_de_crase` por `comentarios`: o conjunto novo está contido no antigo (G para na primeira crase, então todo `#` provado fica fora de crase e de aspas); menos comentário quer dizer ler a mais. Quando isso abre uma aspa que a leitura não fecha, a linha fica ilegível e `rotulo_na_sessao_do_forge` exige o dono se a linha citar o rótulo (hooks/conformidade.py:1308), como antes.
+- Recusas a mais aceitas: o `parecer` lê também o corpo do heredoc e recusa o que tem aspa sem par (risco 4 do desenho, com contorno). Não afrouxa nada.
+- A linha da 0013 fora de `docs/adr/README.md`: só documentação, sem efeito de segurança.
+
+**A8 (novo, bloqueante, não é regressão).** Evidência: hooks/_comum.py:313 (`ANTES_DE_CANDIDATO` sem a crase) e :326 (na última linha física, `comentario_ambiguo` devolve False sem olhar o resto). No bash, o corpo da crase é lido à parte e o comentário de dentro termina na crase, não na quebra de linha; G para na crase, o hook lê `#'` como palavra, e a aspa casa com a de um comentário de verdade no fim.
+- Reprodução (método acima): com prefixo `` x=`#'`; `` e sufixo ` # '`, 203 das 561 recusas saem diferente de 2 no 742f828 (152 do `conformidade`, 46 do `parecer`, 5 do `pesado`); na base, 207, e toda linha solta no 742f828 também solta na base. Exemplos: ``x=`#'`; gh repo delete dono/proj --yes # '``, as travas de `gh api` (proteção de branch, refs, rótulos do Forge, `mergePullRequest`), `claude plugin install`; no `parecer`, ``echo `#'`⏎gh pr merge … # '`` e ``echo `#"`; gh pr merge … # "``. A linha com marcador crítico do `conformidade` continua recusada pela guarda (crase). No bash, ``x=`#'`; echo RODOU # '`` imprime RODOU.
+- Caminho de ataque: o mesmo do A7 (agente por engano, ou instrução injetada num arquivo lido, põe uma crase com comentário antes da ação e um comentário com aspa depois); as travas de R-CONFORMIDADE e R-CONTRIB e a conferência de R-REVIEW no `parecer` deixam de valer naquela chamada. Severidade: alta. Bloqueia pelo motivo do A1, do A2, do A5 e do A7 (correção dedicada da leitura do `#`, release só dela) e pela DECISÃO DO DONO de 09:29 (critério B).
+- Correção mínima, testada numa cópia: crase em `ANTES_DE_CANDIDATO` (:313); na última linha física, em vez de `return False`, a linha fica ilegível se o resto do candidato tiver crase e aspa (True quando o resto tem crase e alguma aspa; senão, segue para o próximo candidato). Com ela, as 561 recusas com as duas variantes (aspa simples e dupla) saem 2, menos 5 do `pesado`, que libera a linha ilegível por decisão da tabela 2.4; `tests.test_hooks` inteiro passa (41 testes, OK). Teste: uma variante com prefixo e sufixo juntos (`` x=`#'`; `` + ` # '`) em `VARIANTES_QUE_O_BASH_IGNORA` e em `MECANISMOS_DO_COMENTARIO` (as variantes de hoje são só prefixo ou só sufixo, e este caso precisa dos dois), mais uma fixture de recusa em `conformidade` e uma em `parecer`. Esforço P. Dono: tech-lead.
+
+**Conferido sem achado na volta 5:** cada leitura roda com ambiente novo e a pasta e o ambiente que seguem são os da fiel (risco 2 do desenho); `alvos_de_escrita` une as leituras; o papel só de leitura continua pela gramática dele (a linha ilegível ali não é conferida, mas a gramática já recusou `#` e aspa sem par); o `pesado` libera só quando nenhuma leitura fecha, como na develop; a mensagem nova não repete a linha.
+
+**Fora desta volta (cartão HEREDOC-FURO-HOOK, já na base):** `x=$(date) # <<E⏎gh repo delete dono/proj --yes⏎E` sai 0 no 742f828 e na base: `tirar_heredocs` não conhece comentário e tira o "corpo".
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (nas voltas 3 e 4, as fixtures de recusa com sufixo e prefixo), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (nas voltas 3 a 5, as fixtures de recusa com sufixo e prefixo; na volta 5, dos três hooks), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
