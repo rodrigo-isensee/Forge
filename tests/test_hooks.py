@@ -854,7 +854,8 @@ class Hooks(unittest.TestCase):
         # D4: a suíte dividida em processos (o que o pre-push e o CI chamam) também é a suíte inteira
         for comando in ("python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
                         "scripts/suite-paralela.py", "./scripts/suite-paralela.py",
-                        "FORGE_SUITE_PROCS=2 python3 scripts/suite-paralela.py 2>&1 | tail -1"):
+                        "FORGE_SUITE_PROCS=2 python3 scripts/suite-paralela.py 2>&1 | tail -1",
+                        ".githooks/pre-push --suite"):
             with self.subTest(comando=comando):
                 self.assertTrue(pesado.pesado(comando, pesado.pesados_da_raiz(hook, raiz)))
         self.assertFalse(pesado.pesado("cat scripts/suite-paralela.py", pesado.pesados_da_raiz(hook, raiz)))

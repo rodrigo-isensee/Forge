@@ -17,7 +17,8 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+# FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
 SUITE_RAPIDA = '''import unittest, pathlib
 class T(unittest.TestCase):
@@ -43,6 +44,12 @@ SUITE_VE_DESCRITOR = '''import unittest, pathlib, os
 class T(unittest.TestCase):
     def test_descritor(self):
         pathlib.Path("fd9").write_text(str(os.path.exists("/proc/self/fd/9")))
+'''
+SUITE_ORDEM = '''import unittest, pathlib, os
+class T(unittest.TestCase):
+    def test_ordem(self):
+        with open("ordem", "a") as f:
+            f.write(os.environ["QUEM"] + "\\n")
 '''
 SEGURA_TRAVA = '''import fcntl, sys, time
 f = open(sys.argv[1], "a")
@@ -275,6 +282,94 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda(env=self.env_recuo())
         self.assertEqual(codigo, 1)
         self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+
+    # SUITE-FILA-JUSTA: ordem de chegada pela fila de senhas ao lado da trava.
+    def fila(self):
+        return self.run_dir / f"forge-suite-{os.getuid()}.fila"
+
+    def senhas(self):
+        return sorted(p.name for p in self.fila().iterdir() if not p.name.startswith(".")) if self.fila().is_dir() else []
+
+    def segura_senha(self, nome="0000000000000000001-1"):
+        """Uma espera anterior viva: a senha presa por um processo externo."""
+        self.fila().mkdir(mode=0o700, exist_ok=True)
+        senha = self.fila() / nome
+        senha.write_text("")
+        p = subprocess.Popen([sys.executable, "-I", "-c", SEGURA_TRAVA, str(senha)], stdout=subprocess.PIPE, text=True)
+        self.filhos.append(p)
+        self.assertEqual(p.stdout.readline().strip(), "pronto")
+        return p
+
+    def test_espera_anterior_viva_tem_a_vez_mesmo_com_a_trava_livre(self):
+        self.suite(SUITE_RAPIDA)
+        self.segura_senha()
+        codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("esperando a vez", erro)
+        self.assertIn("a vez não chegou", erro)
+        self.assertFalse((self.repo / "rodou").exists(), "passou na frente de quem chegou antes")
+        self.assertEqual(self.senhas(), ["0000000000000000001-1"], "a senha de quem desistiu ficou na fila")
+
+    def test_senha_de_processo_morto_e_descartada(self):
+        self.suite(SUITE_RAPIDA)
+        self.fila().mkdir(mode=0o700)
+        (self.fila() / "0000000000000000001-1").write_text("")
+        codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="5")
+        self.assertEqual(codigo, 0, erro)
+        self.assertTrue((self.repo / "rodou").exists())
+        self.assertEqual(self.senhas(), [])
+
+    def test_quem_chega_antes_roda_antes(self):
+        self.suite(SUITE_ORDEM)
+        dono = self.segura_trava()
+        b = self.hook(QUEM="B")
+        self.filhos.append(b)
+        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 1), "B não entrou na fila")
+        c = self.hook(QUEM="C")
+        self.filhos.append(c)
+        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 2), "C não entrou na fila")
+        _, saida, _ = self.roda("--status")
+        self.assertIn("2 na fila", saida)
+        dono.kill()
+        dono.wait()
+        self.assertEqual(b.wait(timeout=60), 0)
+        self.assertEqual(c.wait(timeout=60), 0)
+        self.assertEqual((self.repo / "ordem").read_text().split(), ["B", "C"])
+        self.assertEqual(self.senhas(), [])
+
+    def test_fila_que_e_link_espera_so_pela_trava(self):
+        self.suite(SUITE_RAPIDA)
+        alvo = self.run_dir / "alvo"
+        alvo.mkdir()
+        self.fila().symlink_to(alvo)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("espera sem a ordem de chegada", erro)
+        self.assertEqual(list(alvo.iterdir()), [])
+        self.assertTrue((self.repo / "rodou").exists())
+
+    def test_modo_suite_usa_a_trava_e_nao_le_refs(self):
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("--suite", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 0, erro)  # não lê o stdin: nenhuma ref, nada a barrar
+        self.assertTrue((self.repo / "rodou").exists())
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists(), "o modo --suite anotou prova")
+        (self.repo / "rodou").unlink()
+        self.segura_trava()
+        codigo, _, erro = self.roda("--suite", FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("a vez não chegou", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+        self.suite(SUITE_FALHA)
+        codigo, _, _ = self.roda("--suite", FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+
+    def test_remoto_chamado_suite_segue_o_caminho_normal(self):
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("--suite", "/url", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
         self.assertFalse((self.repo / "rodou").exists())
 
     def test_descritor_da_trava_nao_vaza_para_a_suite(self):

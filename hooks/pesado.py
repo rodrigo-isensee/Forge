@@ -27,7 +27,7 @@ SUBCOMANDOS_DE_LANCE = {"exec", "run", "dlx", "x"}
 # scripts/suite-paralela.py é a mesma suíte dividida em processos (D4), que o pre-push e o CI chamam.
 PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover",
                     "python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
-                    "scripts/suite-paralela.py", "./scripts/suite-paralela.py"]
+                    "scripts/suite-paralela.py", "./scripts/suite-paralela.py", ".githooks/pre-push --suite"]
 
 
 def pesados_da_raiz(hook, raiz):

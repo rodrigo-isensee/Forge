@@ -129,6 +129,10 @@ class Brinquedo(unittest.TestCase):
         (self.repo / "scripts").mkdir(parents=True)
         (self.repo / "tests").mkdir()
         shutil.copy(SCRIPT, self.repo / "scripts" / "suite-paralela.py")
+        (self.repo / ".githooks").mkdir()
+        shutil.copy(RAIZ / ".githooks" / "pre-push", self.repo / ".githooks" / "pre-push")
+        self.run_dir = base / "run"
+        self.run_dir.mkdir()
         for apoio in ("guarda_git.py", "ambiente_git.py"):
             shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
         (self.repo / ".gitignore").write_text("__pycache__/\n")
@@ -137,7 +141,9 @@ class Brinquedo(unittest.TestCase):
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
-        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3")
+        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
+                        XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
+        self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("GITHUB_ACTIONS", None)
         self.env.pop("GITHUB_STEP_SUMMARY", None)
 
@@ -236,6 +242,39 @@ class Brinquedo(unittest.TestCase):
         codigo, saida, erro = self.roda()
         self.assertEqual(codigo, 1, saida + erro)
         self.assertIn("árvore de trabalho mudou", erro)
+
+    def segura_trava(self):
+        trava = self.run_dir / f"forge-suite-{os.getuid()}.lock"
+        p = subprocess.Popen([sys.executable, "-I", "-c", "import fcntl, sys, time\nf = open(sys.argv[1], 'a')\n"
+                              "fcntl.flock(f, fcntl.LOCK_EX)\nprint('pronto', flush=True)\ntime.sleep(600)\n", str(trava)],
+                             stdout=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: (p.kill(), p.wait(), p.stdout.close()))
+        self.assertEqual(p.stdout.readline().strip(), "pronto")
+        return trava
+
+    def test_a_mao_espera_a_trava_do_pre_push(self):  # SUITE-FILA-JUSTA, AB-7
+        self.segura_trava()
+        codigo, saida, erro = self.roda(FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("a vez não chegou", erro)
+        self.assertEqual(self.rodaram(), [])
+
+    def test_trava_informada_que_nao_esta_presa_e_recusada(self):
+        trava = self.run_dir / "falsa.lock"
+        trava.write_text(f"pid {os.getpid()} desde 00:00:00\n")
+        codigo, saida, erro = self.roda(FORGE_SUITE_TRAVA=str(trava))
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("não está presa", erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "FAILED (trava)")
+        self.assertEqual(self.rodaram(), [])
+
+    def test_trava_presa_por_outro_processo_e_recusada(self):
+        trava = self.segura_trava()
+        trava.write_text("pid 1 desde 00:00:00\n")
+        codigo, saida, erro = self.roda(FORGE_SUITE_TRAVA=str(trava))
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("não é do processo que chamou", erro)
+        self.assertEqual(self.rodaram(), [])
 
     def test_procs_acima_do_teto_e_recusado(self):
         codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")

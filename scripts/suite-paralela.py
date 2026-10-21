@@ -14,10 +14,14 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   zero testes ou não deixa o relatório reprova. Também reprova se a árvore de trabalho (`git status`) ou o
   `.git/config` comum mudarem durante a suíte.
 - SIGTERM, SIGINT e SIGHUP encerram o grupo de cada processo e apagam os TMPDIR; a saída é diferente de 0.
+- Uma suíte por vez (R-TETO, SUITE-FILA-JUSTA): o pre-push chama o script já com a trava e passa o caminho dela em
+  FORGE_SUITE_TRAVA; o script confere que a trava está presa e anotada pelo hook (o pid nela). Chamado à mão,
+  sem a variável, ele se executa de novo por `.githooks/pre-push --suite`, que pega a mesma trava e a mesma fila.
 - FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações da execução, se tudo passou.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
+import fcntl
 import json
 import os
 import shutil
@@ -38,6 +42,7 @@ TETO = 4
 CARGA_MAX, PISO_GB, PISO_FRACAO = 0.8, 1.0, 0.15
 SINAIS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 ESPERA_TERMINO_S = 10
+HOOK = RAIZ / ".githooks" / "pre-push"
 
 
 class Interrompido(Exception):
@@ -412,6 +417,27 @@ def orquestrar():
     return 0
 
 
+def conferir_trava(caminho, donos):
+    """"" se a trava `caminho` está presa e anotada por um dos `donos` (o hook que chamou o script ou, no modo
+    `--suite`, o próprio processo, que tomou o lugar do hook); senão, o motivo."""
+    trava = Path(caminho)
+    try:
+        if trava.is_symlink() or not trava.is_file() or trava.stat().st_uid != os.getuid():
+            return f"{caminho} não é um arquivo do próprio usuário"
+        anotado = trava.read_text(encoding="utf-8", errors="replace").split()[:2]
+        if len(anotado) != 2 or anotado[0] != "pid" or anotado[1] not in {str(d) for d in donos}:
+            return f"a trava {caminho} não é do processo que chamou o script"
+        with trava.open("rb") as f:
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                return ""
+            fcntl.flock(f, fcntl.LOCK_UN)
+            return f"a trava {caminho} não está presa"
+    except OSError as e:
+        return f"não consegui conferir a trava {caminho}: {e}"
+
+
 def main(argv=None):
     argv = sys.argv[1:] if argv is None else argv
     if len(argv) == 3 and argv[0] == "--processo":
@@ -419,6 +445,20 @@ def main(argv=None):
     if argv:
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2
+    caminho = os.environ.get("FORGE_SUITE_TRAVA")
+    if not caminho:  # à mão: pela mesma trava e pela mesma fila do pre-push
+        if not os.access(HOOK, os.X_OK):
+            print(f"suite-paralela: sem {HOOK.relative_to(RAIZ)} para pegar a trava da suíte (R-TETO).", file=sys.stderr)
+            print("FAILED (trava)")
+            return 1
+        os.chdir(RAIZ)
+        sys.stdout.flush()
+        os.execv(str(HOOK), [str(HOOK), "--suite"])
+    motivo = conferir_trava(caminho, (os.getppid(), os.getpid()))
+    if motivo:
+        print(f"suite-paralela: FORGE_SUITE_TRAVA: {motivo}; a suíte não roda sem a trava (R-TETO).", file=sys.stderr)
+        print("FAILED (trava)")
+        return 1
     return orquestrar()
 
 
