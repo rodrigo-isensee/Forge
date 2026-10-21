@@ -59,6 +59,14 @@ class Base(unittest.TestCase):
         finally:
             fc.datetime = original
 
+    def anotar_em(self, pedido):
+        original = fc.datetime
+        fc.datetime = RelogioFixo
+        try:
+            return fc.cmd_anotar(self.tmp, str(pedido), "decisao", "forjada")
+        finally:
+            fc.datetime = original
+
     def rodar(self, *args):
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), *map(str, args)], capture_output=True,
                            text=True, env=dict(os.environ, HOME=str(self.tmp / "home")), timeout=60)
@@ -114,6 +122,37 @@ class Anotar(Base):
         _, rc = self.anotar("decisao", "x")
         self.assertEqual(rc, 2)
         self.assertEqual(fora.read_text(encoding="utf-8"), COM_SECAO)
+
+    def test_so_o_id_de_pedido_em_docs_pedidos_e_aceito(self):
+        """Revisão de segurança A1: `--pedido` é o id, resolvido em `docs/pedidos/<id>.md`; caminho de arquivo (aceite de segurança,
+        regra, `.json`, o próprio pedido por caminho) e travessia não gravam nada."""
+        self.com(COM_SECAO)
+        alvos = {}
+        for rel in ("docs/security/aceites/p1.md", "docs/regras/R-X.md", "dados.json"):
+            arq = self.tmp / rel
+            arq.parent.mkdir(parents=True, exist_ok=True)
+            arq.write_text("# original\n", encoding="utf-8")
+            alvos[rel] = arq
+        for pedido in (*alvos.values(), *alvos, str(self.pedido), "docs/pedidos/exemplo.md", "../pedidos/exemplo", "exemplo/..", ".."):
+            with self.subTest(pedido=str(pedido)):
+                linhas, rc = self.anotar_em(pedido)
+                self.assertEqual(rc, 2, linhas)
+        for arq in alvos.values():
+            self.assertEqual(arq.read_text(encoding="utf-8"), "# original\n")
+        self.assertEqual(self.pedido.read_text(encoding="utf-8"), COM_SECAO)
+        rc, saida, _ = self.rodar("anotar", "--pedido", alvos["docs/regras/R-X.md"], "--tipo", "decisao", "--literal", "C")
+        self.assertEqual(rc, 2, saida)
+        self.assertEqual(alvos["docs/regras/R-X.md"].read_text(encoding="utf-8"), "# original\n")
+
+    def test_link_simbolico_na_pasta_dos_pedidos_e_recusado(self):
+        fora = Path(tempfile.mkdtemp(prefix="forge-fora-"))
+        self.addCleanup(shutil.rmtree, fora, ignore_errors=True)
+        (fora / "exemplo.md").write_text(COM_SECAO, encoding="utf-8")
+        shutil.rmtree(self.pedido.parent)
+        self.pedido.parent.symlink_to(fora)
+        _, rc = self.anotar("decisao", "x")
+        self.assertEqual(rc, 2)
+        self.assertEqual((fora / "exemplo.md").read_text(encoding="utf-8"), COM_SECAO)
 
     def test_pela_linha_de_comando_sem_opcao_de_hora(self):
         self.com(COM_SECAO)

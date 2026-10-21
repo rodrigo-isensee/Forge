@@ -1454,6 +1454,20 @@ def fim_da_secao(linhas, titulo):
     return fim
 
 
+def pedido_para_anotar(raiz, pedido):
+    """Revisão de segurança A1: o arquivo que o `anotar` grava é só `docs/pedidos/<id>.md` (cópia principal, raiz, depois cada raiz de
+    brief), com `<id>` de `ID_DE_PEDIDO` e sem caminho; resolvido por `realpath` dentro de `docs/pedidos/` (pasta ou arquivo que é
+    link para fora não vale). Sem o atalho de caminho do `caminho_do_pedido`: o anotar nunca escreve em outro arquivo. Ou None."""
+    if not ID_DE_PEDIDO.fullmatch(pedido) or pedido.strip(".") == "":
+        return None
+    rel = Path("docs") / "pedidos" / f"{pedido}.md"
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        achado = dentro_da_raiz(base, rel, ("docs/pedidos",))
+        if achado is not None and achado.parent == Path(os.path.realpath(base)) / "docs" / "pedidos" and achado.is_file():
+            return Path(base) / rel
+    return None
+
+
 def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
     """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
     se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
@@ -1465,9 +1479,10 @@ def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
     literal, contexto = literal.strip(), (contexto or "").strip()
     if not literal:
         return ["anotar: --literal não pode ser vazio"], 2
-    arq = caminho_do_pedido(raiz, pedido)
-    if arq.is_symlink() or not arq.is_file():
-        return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente ou link simbólico; nada gravado"], 2
+    arq = pedido_para_anotar(raiz, pedido)
+    if arq is None or arq.is_symlink() or not arq.is_file():
+        return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente, fora de docs/pedidos/ ou link simbólico (use o id do "
+                "pedido); nada gravado"], 2
     texto = arq.read_text(encoding="utf-8")
     linhas = texto.split("\n")
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
@@ -4335,7 +4350,7 @@ def main():
     br = sub.add_parser("brief", parents=[comum], help="forma, corte e decisões de um brief (C2, C4); `brief gerar` monta os blocos fixos; `brief mensagem` imprime a mensagem ao conferente")
     br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
     br.add_argument("--arquivo", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib)")
-    br.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
+    br.add_argument("--pedido", required=True, help="id do pedido: grava só em docs/pedidos/<id>.md (caminho de arquivo é recusado)")
     br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
