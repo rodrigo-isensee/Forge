@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: s-16-promocao-develop
 branch: melhoria/s-16-promocao-develop
-commit: 571bba08cc1c030c3b19d18551c7e25dae5b3775
-parecer: reprovado
+commit: f804072b4d48680bd65e8d38f2bf6cfb36517f9f
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-20
 ---
@@ -38,9 +38,8 @@ Veredito sobre `571bba0`: **REPROVADO** por um achado de teste (A1): o código c
 O texto de `EXCECOES["catraca.py"]` (`tests/test_ambiente_git.py:29-31`) diz que o arquivo só lê o repositório, sem criar; com o fetch novo ele grava objetos e o ref `refs/catraca/pull/<n>`, então a frase ficou falsa. O motivo da isenção continua de pé: a única escrita liga `-c maintenance.auto=false -c gc.auto=0` na própria chamada, logo não dispara a manutenção que o teste protege. É recomendação (A2), com cartão, porque o arquivo está fora do escopo.
 
 ## Achados
-- A1 (bloqueante) tests/test_catraca.py:1681 · test_b8 aponta `lateral` para o M do setUp e não para o M do pull; só são o mesmo commit se os dois squash caem no mesmo segundo. Com sleep(1.2) antes do squash e sem M4, o teste passa (pede pelo filtro do intervalo). Usar o M criado no próprio teste.
 
-## Detalhe dos achados
+## Detalhe dos achados (rodada sobre 571bba0, mantido)
 - A1 (bloqueante) `tests/test_catraca.py:1678-1689` · Prova: na cópia em `$TMPDIR`, com `time.sleep(1.2)` antes de `checkout -b lateral` e o filtro de primeiro pai removido de `prova_do_squash`, `test_b8` dá `OK`; sem o sleep, a mesma mutação falha. A causa: `self.pull["merge_commit_sha"] = self.squash(ROTULADO)` cria um M novo, mas `branch -f lateral self.m` e o `assertIn(self.m, ...)` usam o M do `setUp`; os SHAs só coincidem quando árvore, pai, mensagem e data em segundos são iguais. Quando o segundo vira, o M do pull fica fora de `base..head` e o caso para no filtro antigo do intervalo, não em M4. Vai contra a prática de testes determinísticos, sem dependência da hora atual (skill `engineering-practices`). Sugestão: `self.m = self.squash(ROTULADO)`, `self.pull["merge_commit_sha"] = self.m` e manter as duas asserções sobre esse M (ou fixar `GIT_AUTHOR_DATE` e `GIT_COMMITTER_DATE` no fixture). Correção de teste, volta ao autor.
 - A2 (recomendado, fora do escopo; cartão CATRACA-ISENCAO-AMBIENTE) `tests/test_ambiente_git.py:29-31` · reescrever o motivo da isenção: o catraca.py lê e, na promoção com squash, faz um fetch com a manutenção desligada na chamada; não dispara a manutenção. Sem ação nesta entrega.
 - A3 (recomendado) `tests/catraca.py:803-806` · o docstring de `liberado_por_pr_mesclado` ainda descreve só o caminho do merge commit; o do módulo (`:10-12`) e o de `sha_rotulado_do_mesclado` já falam do squash. Uma frase basta, pode ir junto com A1.
@@ -48,3 +47,10 @@ O texto de `EXCECOES["catraca.py"]` (`tests/test_ambiente_git.py:29-31`) diz que
 
 ## Commits
 Dois commits coerentes, Conventional Commits em português; fragmento `changelog.d/s-16-promocao-develop.md` com `### Alterado`, neutro (`R-NEUTRO`), sem editar o `CHANGELOG.md`. Nada de `docs/regras/`, `hooks/`, `tests/config.json` nem invariantes tocado; nada que custe dinheiro (`R-CUSTO`): fetch anônimo do repositório público e GETs com o token do run.
+
+## Volta 1 (delta 571bba0..f804072, parecer aprovado)
+Delta lido com `forge-check delta`-equivalente por `git diff 571bba0 f804072 -- tests/`: só `tests/test_catraca.py` (+7 -4); o resto do diff entre os SHAs são os pareceres (review e segurança). Já lido e inalterado: `tests/catraca.py` e demais arquivos da rodada anterior.
+- **A1 corrigido:** `test_b8` agora faz `time.sleep(1.2)` antes do squash, cria o próprio M (`m = self.pull["merge_commit_sha"] = self.squash(ROTULADO)`), afirma `assertNotEqual(m, self.m)`, aponta `lateral` para esse M e as duas asserções de `rev-list` usam `m`. Nada mais muda no delta (o import de `time` é o único acréscimo fora do teste).
+- **Prova (cópia em `$TMPDIR` de `git archive f804072`):** sem o filtro de primeiro pai (M4) em `prova_do_squash`, `RotuloDePrSquash` falha (`FAILED (failures=1)`, duas execuções seguidas); com o código original, `Ran 21 tests` / `OK`. O teste deixou de depender do segundo do relógio.
+- A2, A3 e A4 seguem como recomendações/cartões da rodada anterior, sem bloqueio.
+- Suíte completa: a do pre-push deste commit, esperando a trava (`R-TETO`).
