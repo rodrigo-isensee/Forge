@@ -138,19 +138,27 @@ class RegraUnicaDeMarca(Base):
         self.assertEqual(rc, 1)
 
 
-def preencher(gerado):
-    """O que o Jarvis faz com a saída do `gerar`: apaga o que tem PREENCHER e o bloco da marca não usado, põe Objetivo, Ler e um PQ."""
+SHA = "0123456789abcdef0123456789abcdef01234567"
+
+
+def preencher(gerado, pq_proprio=True):
+    """O que o Jarvis faz com a saída do `gerar`: apaga o que tem PREENCHER e o bloco da marca não usado, põe Objetivo, Ler e um PQ
+    (ou, com `pq_proprio=False`, fica só com o PQ de merge do gerar, com o sha no lugar de <mergeCommit>)."""
     linhas, pula = [], False
     for linha in gerado.splitlines():
         if linha.startswith("## "):
             pula = linha.startswith("## Marca de corte")
+        if not pq_proprio and "<mergeCommit>" in linha:
+            linhas.append(linha.split(" · PREENCHER", 1)[0].replace("<mergeCommit>", SHA).replace("PQ-N", "PQ-1"))
+            continue
         if pula or "PREENCHER" in linha:
             continue
-        if linha.startswith("## Pronto quando"):
+        if linha.startswith("## Entregar"):
+            linhas += ["## Objetivo", "Exemplo.", "", "## Ler", "- o pedido.", "", linha, "- Mesclar o commit aprovado."]
+            continue
+        if linha.startswith("## Pronto quando") and pq_proprio:
             linhas += [linha, "- PQ-1 (push): `git ls-remote origin refs/heads/melhoria/x` igual ao head local."]
             continue
-        if linha.startswith("## Entregar"):
-            linhas = ["## Objetivo", "Exemplo.", "", "## Ler", "- o pedido.", ""] + linhas
         linhas.append(linha)
     texto = "\n".join(linhas) + "\n"
     if "## Entregar" not in texto:
@@ -196,6 +204,38 @@ class GerarComCobre(Base):
         self.assertEqual(rc, 0, conferido)
         self.assertNotIn("corte: sem marca", conferido)
         self.assertIn('corte: etapa (ok) "E1.5"', conferido)
+
+
+class ProvaDoConferente(Base):
+    """M4: o PQ `cmd` que o conferente roda e o PQ `merge` contam como prova do conferente num brief com commit."""
+
+    def com_pq(self, *pqs):
+        texto = brief("revisor-exemplo", ["Mesclar o commit aprovado (E1.5)."], fora_sem("E1.5"))
+        cabeca, _ = texto.split("## Pronto quando\n", 1)
+        return cabeca + "## Pronto quando\n" + "".join(f"- {pq}\n" for pq in pqs) + "\n## Relatório\nAté 8 linhas.\n"
+
+    def test_cmd_do_conferente_e_merge_valem_como_prova(self):
+        for pq in (f"PQ-1 (cmd): `git merge-base --is-ancestor {SHA} origin/develop` · espera: rc=0",
+                   "PQ-1 (merge): `gh pr view melhoria/x --json state,mergedAt` mostra MERGED"):
+            with self.subTest(pq=pq):
+                rc, saida = self.conferir(self.com_pq(pq))
+                self.assertNotIn("forma: sem PQ que o conferente confira", saida)
+                self.assertEqual(rc, 0, saida)
+
+    def test_cmd_do_autor_continua_sem_valer(self):
+        rc, saida = self.conferir(self.com_pq("PQ-1 (cmd): `python3 -m unittest -q` · espera: rc=0"))
+        self.assertIn("forma: sem PQ que o conferente confira", saida)
+        self.assertEqual(rc, 1)
+
+    def test_ida_e_volta_do_brief_de_merge_gerado(self):
+        rc, saida = self.rodar("brief", "gerar", "--pedido", self.pedido, "--destino", "forge:revisor-exemplo",
+                               "--etapa", "merge-integracao", "--cobre", "E1.5")
+        self.assertEqual(rc, 0, saida)
+        preenchido = preencher(saida, pq_proprio=False)
+        self.assertIn(f"git merge-base --is-ancestor {SHA} origin/develop", preenchido)
+        rc, conferido = self.conferir(preenchido)
+        self.assertNotIn("forma: sem PQ que o conferente confira", conferido)
+        self.assertEqual(rc, 0, conferido)
 
 
 if __name__ == "__main__":

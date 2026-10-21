@@ -2979,7 +2979,8 @@ def cmd_transcricao_medida(rotulo, alvo, ler, medir, campos, den, raiz=None):
 # --- brief (C2, C4): forma e corte de um brief, só leitura e determinístico (R-BRIEF, R-PROVA, R-DECISAO) ---
 SECOES_BRIEF = ("Objetivo", "Ler", "Entregar", "Fora do escopo", "Decisões e restrições", "Pronto quando", "Relatório")
 TIPOS_PROVA = ("sha", "push", "pr", "run", "cmd", "arquivo", "merge")
-PROVAS_DO_CONFERENTE = ("sha", "push", "arquivo")  # o que o conferente confere sozinho (R-PROVA, C6)
+CMD_DO_CONFERENTE = "cmd:conferente"  # o PQ `cmd` que o próprio conferente roda (`verificador: conferente`)
+PROVAS_DO_CONFERENTE = ("sha", "push", "arquivo", "merge", CMD_DO_CONFERENTE)  # o que o conferente confere sozinho (R-PROVA, C6, M4)
 CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF) + r")\b")
 CABECALHO_PEDIDO = re.compile(r"^#{2,6}\s+(.*?)\s*$")
 ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+")
@@ -3184,6 +3185,8 @@ def conferir_pq(linhas_pq):
                 saida.append((f"forma: PQ-{n} sem espera", True))
             if "do autor" in rotulo or not comando_do_conferente(fonte):
                 verificador = "autor"
+            else:
+                tipos.append(CMD_DO_CONFERENTE)
         saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}", False))
     if not vistos:
         saida.append(("forma: sem PQ", True))

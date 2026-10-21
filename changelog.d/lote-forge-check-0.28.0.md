@@ -4,3 +4,6 @@
 
 ### Adicionado
 - P2: `forge-check brief gerar --cobre E<n>.<m>` escreve a linha `Etapa: ... Cobre: ...`, abre o Entregar com a etapa coberta e lista no Fora do escopo todas as outras etapas do pedido, sem a marca; sem `--cobre`, deduz a única etapa do destino e recusa (rc 2) quando ele tem mais de uma ou quando a etapa é de outro papel.
+
+### Corrigido
+- M4: `forge-check brief` aceita como prova do conferente o PQ `merge` e o PQ `cmd` com `verificador: conferente` (antes só `sha`, `push` ou `arquivo`); o brief de merge que o próprio `brief gerar` monta deixa de reprovar com "forma: sem PQ que o conferente confira" (teste de ida e volta).

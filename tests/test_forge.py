@@ -2998,7 +2998,8 @@ class ConferirBrief(unittest.TestCase):
 
     def test_brief_com_commit_precisa_de_pq_que_o_conferente_confira(self):
         arq = self.variante("etapa-outro-papel.md", ("- PQ-1 (sha)", "- PQ-1 (cmd): `pytest` · espera: rc=0 · antes: "))
-        arq.write_text(re.sub(r"- PQ-3 \(push\).*\n", "", arq.read_text(encoding="utf-8")), encoding="utf-8")
+        # M4: o `cmd` que o conferente roda (o `grep` do PQ-2) conta como prova dele; sem ele e sem o push, só o do autor sobra
+        arq.write_text(re.sub(r"- PQ-[23] \((push|cmd)\).*\n", "", arq.read_text(encoding="utf-8")), encoding="utf-8")
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("forma: sem PQ que o conferente confira", saida)
         self.assertIn("PQ-1: cmd · espera ok · verificador: autor", saida)
