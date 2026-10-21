@@ -3,23 +3,23 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 371ac6dea55f44a2b0c5bb6e4d48005cc48ce1da
+commit: f02f482b7e9d5eb46f10beed1e4795d8d637a9f0
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-21
 ---
 # Review de segurança: hook-comentario-shlex
 
-Diff revisado: `10c838f..371ac6d` (volta 0 sobre `74dc3f6`; voltas 1 a 3 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
+Diff revisado: `10c838f..f02f482` (volta 0 sobre `74dc3f6`; voltas 1 a 4 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
 
 ## Gatilhos
 Controles do Forge (R-SEGURANCA): a entrega muda a leitura da linha do shell (`fichas`), base de todas as checagens do hook `conformidade` (R-MAIN, R-VERIFY, escrita protegida, `sugerir`).
 
 ## Achados
-- A6 (bloqueante) hooks/conformidade.py:672 · a recusa da linha ilegível só vale com CRITICO; sem ele, 146 das 448 linhas de recusa das fixtures passam com `; (true)#'` ou ` # it's ((` no fim (ex.: `gh repo delete dono/proj --yes; (true)#'` sai 0; a base barra). Regressão.
+- A7 (bloqueante) hooks/_comum.py:227 · `#` depois de espaço dentro de `${…}` ou de crase abre comentário no hook, não no bash: `echo ${x:- #b}; gh repo delete dono/proj --yes` sai 0 (147 das 499 recusas com esse prefixo). Não é regressão (a base também passa).
 
 ## Detalhe dos achados
-A1 a A5 (voltas 0 a 2) estão resolvidos; o histórico fica abaixo, e o A6 está na seção "Volta 3".
+A1 a A6 (voltas 0 a 3) estão resolvidos; o histórico fica abaixo, e o A7 está na seção "Volta 4".
 
 **A1 (volta 0, resolvido na volta 1).** Evidência: hooks/_comum.py:222 (`ANTES_DE_COMENTARIO` inclui `(`), usado em :243; a guarda da linha crítica faz o mesmo em :388/:459 (`#` depois de `(` encerra a varredura com "comentário até o fim da linha"), então nem o analisador nem a recusa por construção não modelada veem o resto da linha.
 - Reprodução (estática, local, em cópia por `git archive` do 74dc3f6 no diretório temporário, pelo `rodar_dados` da suíte, com a fixture `comentario-colado-push-force-bloqueia` como base): `[[ a =~ (#b) ]]; git push --force origin main`, `((#x)); git push --force origin main` e `[[ a =~ (#b) ]]; git push --no-verify origin feature/x` saem com código 0; o controle `true; git push --force origin main` sai com 2. No bash (`bash -c`, com `echo` no lugar do push): `((#x)); echo R1` imprime R1 (erro aritmético não interrompe a lista) e `[[ a =~ (#b) ]]; echo R4` imprime R4; o `#` ali não é comentário.
@@ -90,5 +90,25 @@ Delta revisado: `7e03786..371ac6d` (hooks/conformidade.py:668-674, `except Value
 
 **Recomendação (não bloqueante):** o cartão FICHAS-CORPUS-BASH ganharia a varredura desta volta (fixtures de recusa com sufixos que o bash ignora) como teste permanente.
 
+## Volta 4
+Delta revisado: `50bf8f8..f02f482` (hooks/conformidade.py:668-679, `except ValueError`; tests/test_hooks.py: `executar_em_lote` extraído de `test_fixtures` e `test_recusas_com_sufixo_que_o_bash_ignora_continuam_recusadas` no lugar das 11 linhas; `shell-aspas-desbalanceadas-libera` virou `-bloqueia`; fragmento do changelog), e de novo a entrega inteira contra a base 10c838f. Ferramenta: varredura das fixtures de recusa pela própria suíte (subclasse de `Hooks` que usa `executar_em_lote`), em cópias por `git archive` de f02f482 e de 10c838f no diretório temporário; para a base, a árvore de testes do f02f482 com `hooks/` do 10c838f.
+
+**A6: resolvido.** Fora do papel só de leitura, o `except ValueError` recusa sempre (hooks/conformidade.py:675), depois de `ilegivel` (aninhado) e de `nao_modelada` (a mensagem mais específica fala primeiro); o papel só de leitura fica de fora e já recusa aspa sem par e `#` pela gramática positiva (hooks/_comum.py:371). Sonda: as 499 fixtures de recusa de Bash (sem as 5 de fora) com cada um de nove textos que o bash ignora ou roda à toa, como sufixo (`; (true)#'`, ` # it's ((`, `; (true)#x`, quebra de linha e `# it's`, `; echo $'it\'s'`) ou como prefixo (`(true)#'` e quebra de linha, `(( 1 )) # it's` e quebra de linha, `true #'` e quebra de linha, `echo $'it\'s'; `): nenhuma sai 0 no f02f482. O prefixo e o `$'…'` não estão no teste gerado, e passam: a classe do ValueError está fechada, não só os dois sufixos. A barra no fim e o `$'it\'s'` que eu tinha apontado como furos da base também ficam fechados.
+
+**Teste gerado: sem furo.** Ele cobre todas as fixtures de recusa de Bash do hook com os dois sufixos (o método da sonda da volta 3) e falha em 371ac6d, como o autor relata. As 5 fixtures fora não escondem furo:
+- `conferente-gramatica-aspas-abertas-bloqueia` e `shell-aspas-desbalanceadas-bloqueia` têm aspa aberta: o sufixo cai dentro dela e muda a linha (com `; (true)#'`, a primeira vira um `grep` com a aspa fechada, linha legítima do papel só de leitura, que sai 0 com razão). Não há comentário a esconder, e o bash recusa a linha original.
+- As 3 com `erros_log` (`erro-interno-push-bloqueia` e as duas `contrib-falha-fechada-pela-raiz-*`) recusam por erro interno, que não depende de ler a linha; com o sufixo, sai 2 do mesmo jeito (sonda: erro interno e "aspas sem par", respectivamente).
+- O teto (6) e o mínimo (400) seguram a lista: uma fixture nova que o `bash -n` rejeite ou que espere erro interno não some do teste sem aparecer no diff.
+
+**A7 (novo, bloqueante, não é regressão).** Evidência: hooks/_comum.py:227 (`SEM_COMENTARIO`) e :230 (`abre_comentario`): o `#` depois de espaço abre comentário até o fim da linha, mas dentro de `${…}` (`${x:- #b}`, `${x/ #y/z}`) e de crase (`` `echo a #b` ``) o bash não abre; ele lê a expansão até o fecho e roda o resto da linha.
+- Reprodução (mesmo método): com o prefixo `` echo `echo a #b`; ``, `echo ${x:- #b}; ` ou `x=abc; echo ${x/ #y/z}; `, 147 das 499 recusas saem 0 no f02f482 e na base, por exemplo `echo ${x:- #b}; gh repo delete dono/proj --yes` (papel de desenvolvimento), as travas de `git config`, `claude plugin install`, `git filter-branch`, `gh api` com DELETE e instalação de pacote. A linha com marcador crítico (`git push --force`) continua recusada, porque a guarda acha `${` ou a crase antes do `#`. No bash (`bash -c` só com `echo`): `echo ${x:- #b}; echo R1` imprime `#b` e R1; `` echo `echo a #b`; echo R2 `` imprime `a` e R2.
+- Caminho de ataque: o mesmo do A6 (agente por engano, ou instrução injetada num arquivo lido, põe uma expansão com padrão ou valor padrão antes da ação); as travas de R-CONFORMIDADE e R-CONTRIB deixam de valer naquela chamada. Severidade: alta.
+- Bloqueia pelo motivo do A1, do A2 e do A5: a entrega é a correção dedicada da leitura do `#`, sai sozinha na 0.27.1, e o comentário de :218 diz que o `#` é comentário "como no bash". Falha minha nas voltas anteriores: não varri `${` nem a crase.
+- Correção mínima: o `#` não abre comentário dentro de `${…}` ou de crase. A forma grossa é incluir `\$\{` e a crase em `SEM_COMENTARIO`; com o fechamento da volta 4, ler a mais é falha fechada. Sonda numa cópia temporária: as 147 passam a sair 2, e na suíte de hooks só muda um caso de liberação, `echo hi # don't` com quebra de linha e `` x=`date` `` em `test_rotulo_so_dono_volta_2_sessao_de_projeto` (passa a recusar, o que é falha fechada, mas muda o que se espera de uma linha legítima). A forma fina é o `fichas` e a guarda acompanharem `${` e a crase abertos antes do `#`, sem esse efeito. Com qualquer das duas: fixtures de recusa para `echo ${x:- #b}; gh repo delete dono/proj --yes` e para a crase, e os dois prefixos no teste gerado. Esforço P (grossa) ou M (fina). Dono: tech-lead; pela decisão do dono de 2026-10-21 07:48, o arquiteto entra.
+
+**Conferido sem achado na volta 4:** `executar_em_lote` só reorganiza `test_fixtures` (a mesma divisão série/paralelo, a mesma contagem); a fixture renomeada espera 2 com a mensagem nova (endurece); a mensagem da recusa não repete a linha; o fragmento do changelog descreve a recusa fora do papel só de leitura sem afrouxar nada; nenhuma outra mudança de código no delta.
+
+**Recomendação (não bloqueante):** pôr no teste gerado também os prefixos da sonda (a classe do ValueError é a mesma, mas o prefixo pega o caso em que o resto da linha some antes da ação, e não depois).
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (na volta 3, as fixtures de recusa com sufixo), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (nas voltas 3 e 4, as fixtures de recusa com sufixo e prefixo), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
