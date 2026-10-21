@@ -1,0 +1,30 @@
+{
+  "descricao": "Orçamento: 60 cd e 60 crases aninhadas terminando em push com --no-verify: o hook recusa sem estourar o timeout (a base recusava em 0,34 s).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd d0 && cd d1 && cd d2 && cd d3 && cd d4 && cd d5 && cd d6 && cd d7 && cd d8 && cd d9 && cd d10 && cd d11 && cd d12 && cd d13 && cd d14 && cd d15 && cd d16 && cd d17 && cd d18 && cd d19 && cd d20 && cd d21 && cd d22 && cd d23 && cd d24 && cd d25 && cd d26 && cd d27 && cd d28 && cd d29 && cd d30 && cd d31 && cd d32 && cd d33 && cd d34 && cd d35 && cd d36 && cd d37 && cd d38 && cd d39 && cd d40 && cd d41 && cd d42 && cd d43 && cd d44 && cd d45 && cd d46 && cd d47 && cd d48 && cd d49 && cd d50 && cd d51 && cd d52 && cd d53 && cd d54 && cd d55 && cd d56 && cd d57 && cd d58 && cd d59 && `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `echo \\`echo \\\\\\`ls\\\\\\`\\`` `git push --no-verify origin feature/x`"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

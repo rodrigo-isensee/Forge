@@ -768,6 +768,22 @@ class Hooks(unittest.TestCase):
                                                        "#!/bin/sh\nsleep 30\necho outra-pessoa\n", 2))
         self.assertLess(time.monotonic() - inicio, limite - 1, "a decisão sai antes do Claude Code matar o hook")
 
+    def test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento(self):
+        """Segurança A1 do LOTE-LEITURA-HOOK: 60 `cd` e 60 crases aninhadas terminando em push com --no-verify refaziam a
+        conferência 37 630 vezes (10,9 s, acima do timeout do hooks.json, e o Claude Code libera o comando que o hook não
+        decidiu a tempo). O `conformidade` recusa (saída 2) em uma fração do prazo."""
+        limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+                     for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        dados = json.loads((FIXTURES / "conformidade" / "crase-aninhada-em-60-pastas-no-verify-bloqueia.json")
+                           .read_text(encoding="utf-8"))
+        comando = dados["entrada"]["tool_input"]["command"]
+        self.assertGreaterEqual(comando.count("cd d"), 60, "a linha adversária tem as 60 pastas")
+        self.assertGreaterEqual(comando.count("`echo"), 60, "a linha adversária tem as 60 crases aninhadas")
+        self.assertTrue(comando.endswith("--no-verify origin feature/x`"), "e termina na ação que a base recusava")
+        inicio = time.monotonic()
+        self.rodar_dados(dados)
+        self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
         menor timeout do hooks.json; senão o Claude Code mata o hook e o comando segue (falha aberta)."""

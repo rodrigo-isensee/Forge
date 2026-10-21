@@ -28,6 +28,7 @@ from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentari
                     conteudos_de_crase, contrib, diretorio_comum, e_clone_do_forge, em_contrib, executar,
                     fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
+TETO_DE_CONFERENCIAS = 400  # conferências de `Guarda.bash` por linha: acima, a linha é recusada (fecha na dúvida, como PROFUNDIDADE)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -402,6 +403,7 @@ class Guarda:
         self.externo = None  # nome da sessão de outro projeto (prefixo `melhoria/<nome>-`), quando vem da raiz dela
         self.sessao_forge = False  # a raiz da sessão (`CLAUDE_PROJECT_DIR`) é um clone do Forge
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
+        self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
         self._repos = {}     # (raiz git, remoto) -> é o Forge
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
@@ -650,7 +652,24 @@ class Guarda:
     # Bash ----------------------------------------------------------------------------------------
     def bash(self, comando, pasta, nivel=0, so_substituicoes=False):
         """Confere a linha. `so_substituicoes`: a linha é uma palavra entre aspas (`"$(git log)"`), e só o conteúdo das
-        substituições dela é comando."""
+        substituições dela é comando. Orçamento por linha (a linha adversária de crases e `cd` aninhados refaria a
+        mesma conferência milhares de vezes e estouraria o timeout do hook, que o Claude Code trata como liberado): o
+        mesmo (corpo, pasta, nível, ambiente) não é conferido duas vezes, e acima de `TETO_DE_CONFERENCIAS` a linha é
+        recusada."""
+        if nivel == 0:
+            self.conferidas, self.conferencias = {}, 0
+        chave = (comando, pasta, nivel, so_substituicoes, tuple(sorted(self.ambiente.items())))
+        if chave in self.conferidas:
+            self.ambiente = dict(self.conferidas[chave])  # o resultado é o mesmo que a primeira conferência deixou
+            return
+        self.conferencias += 1
+        if self.conferencias > TETO_DE_CONFERENCIAS:
+            self.barrar("R-CONFORMIDADE", "linha com crases e substituições demais para o hook conferir dentro do prazo",
+                        "separe em comandos menores, sem crase nem $( aninhados")
+        self.conferir_linha(comando, pasta, nivel, so_substituicoes)
+        self.conferidas[chave] = dict(self.ambiente or {})
+
+    def conferir_linha(self, comando, pasta, nivel, so_substituicoes):
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
