@@ -95,12 +95,16 @@ PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; 
                               "(true)#'\n", "(( 1 )) # it's\n", "true #'\n", "echo $'it\\'s'; ", "[[ a =~ ( #b) ]]; ",
                               "[[ a == @(a| #b) ]]; ", "echo a\\ #b; ")
 SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#x", "\n# it's", "; echo $'it\\'s'", "; (true)#'", " # it's ((")
+# Em par: a aspa de um comentário dentro de crase (que o bash fecha na crase) casaria com a do outro lado da linha.
+PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `# it's`; ", "; echo `# it's`"),
+                           ("echo `true # it's`;\n", "\necho `true # it's`"))
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
-                               + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA))
+                               + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
 MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("echo $[1 #x]; ", ""),
                             "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
-                            "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's")}
+                            "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
+                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1]}
 FAMILIAS_DE_RECUSA = {
     "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
     "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
@@ -114,8 +118,10 @@ FAMILIAS_DE_RECUSA = {
     "pesado/outra-ativa-bloqueia": "tarefa pesada de outra sessão (R-TETO)",
 }
 # Tabela 2.4 da ADR 0013: no `pesado`, a trava de recurso fica aberta quando nenhuma das duas leituras fecha (como na
-# develop); o `$'…'` sem `#` não tem leitura antiga.
-FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'")}
+# develop); o `$'…'` sem `#` não tem leitura antiga, e na crase em par a antiga (a da develop) tira o comando com o
+# comentário que começa na crase.
+FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
+              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas")}
 # T3: modelos `<construção> #x⏎echo R`. Fora de G, nenhum `#` pode abrir comentário; em G, todo `#` marcado tem de ser
 # comentário também para o bash.
 MODELOS_FORA_DE_G = (
@@ -1177,9 +1183,15 @@ class Hooks(unittest.TestCase):
         self.assertEqual(len(_comum.leituras("ls # nota").partes), 1, "leituras iguais não se repetem")
         self.assertEqual(len(_comum.leituras("git push origin main").partes), 1, "sem #, só a fiel")
         for linha in ("echo ${x} # a\\\ngh repo delete d/p --yes", "echo ${x:- #b} # \"\ngh repo delete d/p\n# \"",
-                      "x=$(date) # it's\nls", "gh pr merge x; (true)#'"):
+                      "x=$(date) # it's\nls", "gh pr merge x; (true)#'",
+                      # volta 6: dentro de crase o comentário acaba na crase, e a aspa dele casaria com outra adiante
+                      "x=`#'`; gh repo delete dono/proj --yes # '", "echo `# it's`; gh pr merge x --merge; echo `# it's`",
+                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`"):
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.leituras(linha).ilegivel)
+        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim"):
+            with self.subTest(linha=linha):
+                self.assertFalse(_comum.leituras(linha).ilegivel, "crase com comentário sem aspa: lida inteira")
         lidas = _comum.leituras("docker compose up; (true)#'")
         self.assertTrue(lidas.ilegivel)
         self.assertIn(["docker", "compose", "up"], [p for p, _, _ in lidas.partes[0]], "a antiga fecha e fica")

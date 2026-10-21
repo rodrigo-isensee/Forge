@@ -309,24 +309,32 @@ def comentarios(linha):
     return varrer_comentarios(linha)[0]
 
 
-# Antes de um `#`, o que pode fazer dele início de palavra para o bash (fora de G, o hook não sabe se é comentário).
-ANTES_DE_CANDIDATO = frozenset(" \t\n;&|<>()")
+# Antes de um `#`, o que pode fazer dele início de palavra para o bash (fora de G, o hook não sabe se é comentário). A
+# crase entra porque o corpo dela é lido à parte: o `#` logo depois da crase que abre começa palavra.
+ANTES_DE_CANDIDATO = frozenset(" \t\n;&|<>()`")
 
 
 def comentario_ambiguo(linha):
-    """Depois do ponto em que a varredura de G parou, um `#` que o bash pode ler como comentário, seguido de aspa,
-    crase ou `\\` no fim da linha física, com outra linha depois: lido como palavra (como o hook o lê), ele levaria a
-    aspa ou a barra para a linha seguinte e esconderia dela o que o bash roda. A linha não se lê com segurança."""
+    """Depois do ponto em que a varredura de G parou, um `#` que o bash pode ler como comentário e que, lido como
+    palavra (como o hook o lê), levaria uma aspa ou uma barra para fora do comentário e esconderia o que o bash roda. A
+    linha não se lê com segurança quando o resto da linha física depois do `#`:
+    - tem aspa, crase ou `\\` no fim, e há outra linha depois (o comentário acaba na quebra de linha); ou
+    - tem crase e aspa, na última linha física: dentro de crase o comentário acaba na crase que fecha, não na quebra de
+      linha, e a aspa dele casaria com outra mais adiante (`` x=`#'`; gh repo delete d/p --yes # ' ``)."""
     _, parada = varrer_comentarios(linha)
     for m in re.finditer("#", linha[parada:]):
         i = parada + m.start()
         if i and linha[i - 1] not in ANTES_DE_CANDIDATO:
             continue
         fim = linha.find("\n", i)
-        if fim < 0 or not linha[fim:].strip():
-            return False
-        resto = linha[i:fim].rstrip(" \t\r")
-        if any(c in resto for c in "'\"`") or resto.endswith("\\"):
+        ultima = fim < 0 or not linha[fim:].strip()
+        resto = linha[i:len(linha) if fim < 0 else fim].rstrip(" \t\r")
+        aspa = any(c in resto for c in "'\"")
+        if ultima:
+            if "`" in resto and aspa:
+                return True
+            continue
+        if aspa or "`" in resto or resto.endswith("\\"):
             return True
     return False
 
