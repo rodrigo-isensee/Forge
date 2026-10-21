@@ -426,12 +426,12 @@ class BriefAnterior(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
         self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
-        novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Documentação do recurso A (E2).\n", "")
+        novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Recurso A no módulo de exemplo, em um commit (E1, E1.1).\n", "")
         rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
-        self.assertEqual(linhas, ["delta: - Entregar: - Documentação do recurso A (E2).",
+        self.assertEqual(linhas, ["delta: - Entregar: - Recurso A no módulo de exemplo, em um commit (E1, E1.1).",
                                   "delta: + Decisões e restrições: - Nova restrição."])
-        self.assertEqual(rc, 1, "o corte do E2 reprova como sempre; o delta não muda o rc")
+        self.assertEqual(rc, 1, "o corte do E1 e da E1.1 reprova como sempre; o delta não muda o rc")
 
     def test_sem_anterior_a_saida_e_a_mesma(self):
         sem = self.brief(self.texto)
@@ -557,7 +557,7 @@ class BriefDeVolta(Repositorio):
         entregar = saida.split("## Entregar (volta 1)")[1].split("## Fora do escopo")[0]
         self.assertIn("Recomendados", entregar)
         self.assertRegex(entregar, r"\(review \w{7} A2\) nome pouco claro \[src/app.txt:7\] · PREENCHER: entra ou corta")
-        self.assertIn("esta volta só corrige os achados abaixo (E1, E2)", saida)  # o escopo original segue coberto no corte por IDs
+        self.assertIn("esta volta só corrige os achados abaixo (E1, E1.1, E2)", saida)  # o escopo original e a etapa seguem cobertos no corte por IDs
         for decisao in ('DECISÃO DO DONO (2026-01-01): "A".', 'DECISÃO DO DONO (2026-01-02): "sem custo".'):
             self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)

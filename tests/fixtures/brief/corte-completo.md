@@ -7,7 +7,7 @@ Entregar o recurso A (exemplo sintético).
 - docs/pedidos/pedido-sintetico.md: Escopo.
 
 ## Entregar
-- Recurso A no módulo de exemplo, em um commit (E1).
+- Recurso A no módulo de exemplo, em um commit (E1, E1.1).
 
 ## Fora do escopo
 - Retira do escopo original: "E2. Atualizar a documentação do recurso A." · justificativa: a documentação espera o recurso estável · consequência: o recurso fica sem texto até a próxima entrega · decisão: DECISÃO DO DONO (2026-01-02): "sem custo".

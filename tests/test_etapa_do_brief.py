@@ -139,6 +139,19 @@ class RegraUnicaDeMarca(Base):
         self.assertIn('corte: sem marca "E1.2" (etapa do papel do destino fora do Entregar)', saida)
         self.assertEqual(rc, 1)
 
+    def test_item_citado_nao_cobre_a_outra_etapa_do_papel_do_destino(self):
+        """Review A1 (8b018b1): citar o item `(E1)` no Entregar não dispensa a etapa do papel do destino; a E1.5 do revisor, omitida
+        no brief que delega a E1.2, reprova como qualquer etapa sem menção (R-BRIEF, M5)."""
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2).", "Do recurso (E1)."], fora_sem("E1.2", "E1.5")))
+        self.assertIn('corte: sem marca "E1.5" (etapa do papel do destino fora do Entregar)', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("dev-exemplo", ["Recurso (E1)."], fora_sem("E1.1")))
+        self.assertIn('corte: sem marca "E1.1" (etapa do papel do destino fora do Entregar)', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2).", "Do recurso (E1)."], fora_sem("E1.2")))
+        self.assertIn('corte: etapa (ok) "E1.5"', saida)
+        self.assertEqual(rc, 0, saida)
+
     def test_etapa_fora_do_escopo_tambem_e_conferida(self):
         rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5", "E0.1")))
         self.assertIn('corte: sem marca "E0.1" (etapa sem menção)', saida)

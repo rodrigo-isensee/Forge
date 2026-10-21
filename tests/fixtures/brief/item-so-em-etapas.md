@@ -7,10 +7,11 @@ Entregar o recurso A (exemplo sintético).
 - docs/pedidos/pedido-sintetico.md: Escopo.
 
 ## Entregar
-- Recurso A no módulo de exemplo, em um commit (E1).
+- Recurso A no módulo de exemplo, em um commit (E1, E1.1).
 - Documentação do recurso A (E2).
 
 ## Fora do escopo
+- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.
 - "validação de qualidade da branch" é de outro papel.
 - "E3.1 (revisor): revisão de código da branch." e "E3.3 (dono): merge final na branch principal." · outras etapas do pedido; continuam nele.
 

@@ -2967,7 +2967,9 @@ class ConferirBrief(unittest.TestCase):
         self.assertEqual(rc, 1)
 
     def test_item_do_escopo_sumido_do_brief_e_corte(self):
-        arq = self.variante("item-so-em-etapas.md", ("- Documentação do recurso A (E2).\n", ""))
+        # a E2.1 sai junto (Review A1): no Fora, ela cobriria o E2 como etapa de outra delegação
+        sumido = '- Documentação do recurso A (E2).\n\n## Fora do escopo\n- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.\n'
+        arq = self.variante("item-so-em-etapas.md", (sumido, "\n## Fora do escopo\n"))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn('corte: sem marca "E2" (nem no Entregar nem no Fora do escopo)', saida)
         self.assertEqual(rc, 1)
@@ -2975,7 +2977,7 @@ class ConferirBrief(unittest.TestCase):
     def test_citacao_parecida_nao_cobre_o_item(self):
         for falsa in ("(E10)", "(E1.2)", "E1 sem parênteses"):
             with self.subTest(falsa=falsa):
-                arq = self.variante("item-so-em-etapas.md", ("(E1)", falsa))
+                arq = self.variante("item-so-em-etapas.md", ("(E1, E1.1)", falsa))
                 self.assertIn('corte: sem marca "E1"', self.rodar(arq, "--pedido", self.PEDIDO)[1])
 
     def test_etapa_do_papel_do_destino_que_falta_e_corte(self):

@@ -3364,8 +3364,6 @@ def conferir_corte(brief_secoes, pedido, destino):
         item = item_da_etapa(etapa)
         if etapa in citados or item in cortados or etapa in agregadas:
             continue
-        if papel_destino is not None and papel == papel_destino and item in citados:
-            continue  # o item de escopo citado cobre a etapa do papel do destino
         marcado = marca_de(etapa)
         if marcado:
             saida += avaliar_marca(etapa, marcado["item"])

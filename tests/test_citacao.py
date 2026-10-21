@@ -34,7 +34,7 @@ DECISÃO DO DONO (2026-01-01): "A".
 """
 
 
-def brief(entregar="- Recurso (E1), texto (E2) e medida (E3).", extra=""):
+def brief(entregar="- Recurso (E1), texto (E2) e medida (E3), na etapa (E1.1).", extra=""):
     return ("Agente destino: forge:dev-exemplo\n\n## Objetivo\nExemplo.\n\n## Ler\n- o pedido.\n\n## Entregar\n" + entregar + "\n" + extra
             + "\n## Fora do escopo\n- nada.\n\n## Decisões e restrições\n- DECISÃO DO DONO (2026-01-01): \"A\".\n\n## Pronto quando\n"
               "- PQ-1 (push): `git ls-remote origin refs/heads/melhoria/x` igual ao head local.\n\n## Relatório\nAté 8 linhas.\n")
@@ -64,7 +64,7 @@ class Base(unittest.TestCase):
 
 class IdsCitados(Base):
     def test_id_que_nao_existe_no_pedido_reprova(self):
-        rc, saida = self.conferir(brief("- Recurso (E1), texto (E2), medida (E3) e outra coisa (E8)."))
+        rc, saida = self.conferir(brief("- Recurso (E1), texto (E2), medida (E3), na etapa (E1.1), e outra coisa (E8)."))
         self.assertIn("citação: E8 não existe no pedido", saida)
         self.assertEqual(rc, 1)
         rc, saida = self.conferir(brief())
@@ -168,7 +168,7 @@ class Gerar(Base):
 
 class ProvaDePr(Base):
     def test_pq_pr_vale_como_prova_do_conferente(self):
-        texto = brief("- Abrir o PR do commit (E1, E2, E3).").replace(
+        texto = brief("- Abrir o PR do commit (E1, E2, E3), da etapa (E1.1).").replace(
             "- PQ-1 (push): `git ls-remote origin refs/heads/melhoria/x` igual ao head local.",
             "- PQ-1 (pr): `gh pr view melhoria/x --json number,state` mostra OPEN")
         rc, saida = self.conferir(texto)

@@ -264,7 +264,7 @@ Fazer a coisa (E1).
 - docs/pedidos/xpto.md
 
 ## Entregar
-- (E1) Fazer a coisa.
+- (E1, E1.1) Fazer a coisa.
 
 ## Fora do escopo
 - (nada)
