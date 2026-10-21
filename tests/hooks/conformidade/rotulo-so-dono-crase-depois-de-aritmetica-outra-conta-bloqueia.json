@@ -1,0 +1,29 @@
+{
+  "descricao": "HOOK-COMENTARIO-SHLEX (ADR 0013): o `#` colado a `((` não abre comentário: a crase depois dele é conferida.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "((#x)); echo `gh pr edit 70 --add-label afrouxa-regra`"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB: só o dono do Forge aplica"
+  }
+}
