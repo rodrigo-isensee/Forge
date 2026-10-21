@@ -3,12 +3,30 @@ tipo: review
 contrato: 1
 pedido: suite-paralela-d4
 branch: melhoria/suite-paralela-d4
-commit: 1bdd3e8522da941d89a8620a980196401e751126
+commit: 36e913dc903714d77335271a70804bb7dd7a191d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
 # Code review: SUITE-PARALELA-D4 (E1.2)
+
+## Rodada 2: revalidação por delta (`1bdd3e8..36e913d`)
+
+Motivo da volta: a `bateria` do PR #277 (run 39690069997, 4 processos) falhou em dois testes de `tests/test_atualizar.py` com `[TRAVOU esperando resposta]` e a saída completa. Revisor diferente do autor (D-ETAPAS-INST).
+
+**Delta lido** (`forge-check delta --parecer` sobre este parecer: intervalo `1bdd3e8..36e913d`):
+- `70359f5`, merge da develop `c092f1b` (release 0.28.0, #273 e #274), sem conflito. Conferido mecanicamente: `git diff c092f1b 70359f5` só traz os arquivos desta entrega, e `git diff 8201795 70359f5` nos arquivos desta entrega é vazio; os dois lados entraram intactos. Os arquivos que vieram da develop (`bin/forge-fechar`, `tests/test_fechar.py`, `tests/test_clareza.py`, `skills/modo-iniciante/SKILL.md`, `CHANGELOG.md`, versão, fragmentos apagados pela release) ficam como "já lido": revisados nos PRs deles. As duas asserções removidas que aparecem em `git diff 8201795 36e913d -- tests` são de `tests/test_fechar.py`, que é idêntico ao da develop (`git diff c092f1b 36e913d -- tests/test_fechar.py` vazio): vieram do #274, não desta entrega.
+- `36e913d`, lido inteiro. `tests/test_atualizar.py:158-182`: EIO no mestre do pty passa a valer como terminal fechado (antes era `break` direto); com o terminal fechado, o `rodar` espera o processo até o `limite` e só então confere `p.poll()`. `tests/test_sugerir.py:85-96`: a mesma corrida, a mesma correção, com o prazo absoluto de 25 s que já existia.
+
+**R-VERIFY.** Nenhuma asserção removida nem afrouxada no `36e913d` (só acréscimos); nenhum teste pulado, nenhuma repetição. A pergunta sem resposta continua marcada como travou: o processo bloqueado no `readline` mantém o terminal aberto, então o laço sai pelo `ocioso` sem `fechou`, `p.poll()` é `None` e a marca entra (`test_pergunta_sem_resposta_continua_marcada_como_travou`, `tests/test_atualizar.py:357`, passa). O efeito colateral é só de tempo: um processo que fecha o terminal e não termina passa a esperar até o `limite` antes de ser marcado; o prazo segue limitado.
+
+**Teste novo.** `EsperaDoTerminal.test_saida_fechada_antes_do_fim_do_processo_nao_marca_travou` (`tests/test_atualizar.py:347`) alarga a janela de propósito (fecha 0, 1 e 2 e dorme 2 s). Conferido em cópia própria (`$TMPDIR/rv7`, HEAD destacado em 36e913d): com o teste novo enxertado no `rodar` antigo (`70359f5`), `EsperaDoTerminal` dá `FAILED (failures=1)`; no HEAD, `python3 -m unittest tests.test_atualizar tests.test_sugerir` → `Ran 95 tests in 42.319s OK`. Vermelho antes, verde depois. O `rodar` de `tests/test_sugerir.py` não ganhou teste próprio; é o mesmo laço, e o teste de `test_atualizar` cobre o comportamento.
+
+Suíte inteira não refeita aqui (R-TETO): o pre-push deste envio a roda, e a volta registrou 1372 OK em 193 s, 196 s e 173 s. A prova no runner é a próxima `bateria` do PR #277. O alerta de conexão negada a `api.anthropic.com` durante a suíte (cartão SUITE-REDE-API) é de segurança (E1.3), não refeito aqui.
+
+Recomendações R1 a R7 da rodada 1 seguem válidas e não bloqueiam. Parecer: aprovado.
+
+## Rodada 1 (sobre `1bdd3e8`)
 
 Rodada 1, entrega inteira: `ad6d96c..1bdd3e8` (merge-base real; o merge `a615047` da develop fica fora do diff), 9 commits, 13 arquivos, 1213+/19-. Lote: D4, SUITE-FILA-JUSTA, PREPUSH-PKILL-ALHEIO e PREPUSH-JA-NO-REMOTO (decisão do dono de 2026-10-21 14:12, opção B). Revisor diferente do autor (D-ETAPAS-INST). Lido contra o desenho (E0.1) e o modelo de ameaças (E0.2, T1 a T9, AB-1 a AB-14).
 
