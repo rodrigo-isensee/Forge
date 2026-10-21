@@ -1508,7 +1508,7 @@ class Hooks(unittest.TestCase):
         executados = ("bash <<'EOF'", "source /dev/stdin <<'EOF'", ". /dev/stdin <<'EOF'", "ksh <<'EOF'",
                       "eval \"$(cat <<'EOF'", "cat <<'EOF' | sh", "done <<'EOF'", "sudo tee x <<'EOF'",
                       "git -c alias.x=!sh x <<'EOF'", "gh x <<'EOF'", "/bin/cat <<'EOF'", "xargs -0 <<'EOF'",
-                      "python3 - <<'EOF'")
+                      "python3 - <<'EOF'", "sort -S 1k --compress-program=sh <<'EOF'")
         for dono in lidos:
             with self.subTest(dono=dono):
                 self.assertTrue(_comum.corpo_so_lido(dono))

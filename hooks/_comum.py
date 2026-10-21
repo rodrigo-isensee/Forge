@@ -951,8 +951,9 @@ def abertos_na_linha(linha, pilha):
 # LOTE-LEITURA-HOOK (A1 de segurança): os programas que leem o corpo de um heredoc como texto e não o executam. A lista
 # é positiva: qualquer outro dono (shell, `source`, `.`, `eval`, `xargs`, um laço, um lançador, um caminho) roda ou pode
 # rodar o corpo, que então é conferido como comando. `git` e `gh` só com um subcomando embutido (alias não os sobrepõe)
-# e, no `git`, sem `-c` (que pode definir um alias `!sh`).
-LEITORES_DO_CORPO = frozenset({"cat", "tee", "grep", "egrep", "fgrep", "head", "tail", "wc", "sort", "uniq", "cut", "tr",
+# e, no `git`, sem `-c` (que pode definir um alias `!sh`). Sem `sort`: `--compress-program=sh` roda os dados (A3 de
+# segurança, volta 4).
+LEITORES_DO_CORPO = frozenset({"cat", "tee", "grep", "egrep", "fgrep", "head", "tail", "wc", "uniq", "cut", "tr",
                                "base64", "diff", "cmp", "nl", "tac", "jq", "md5sum", "sha1sum", "sha256sum", "read"})
 GIT_LE_O_CORPO = frozenset({"commit", "tag", "notes", "apply", "am", "hash-object", "interpret-trailers", "stripspace",
                             "check-ignore", "check-attr", "cat-file"})
