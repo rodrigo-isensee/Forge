@@ -53,10 +53,11 @@ class Mapa(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("dirigido", esperado))
 
-    def test_forge_check_roda_os_seis_modulos(self):
-        self.assertEqual(self.plano("bin/forge-check"),
-                         ("dirigido", ["test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-                                      "test_testes_tocados", "test_volta_por_delta", "test_voltas"]))
+    def test_forge_check_roda_os_treze_modulos(self):
+        modo, modulos = self.plano("bin/forge-check")
+        self.assertEqual(modo, "dirigido")
+        self.assertEqual(len(modulos), 13)
+        self.assertIn("test_erros_no_brief", modulos)
 
     def test_hooks_incluem_hooks_e_catraca(self):
         modo, modulos = self.plano("hooks/conformidade.py")
@@ -274,6 +275,39 @@ class NaoEPortao(unittest.TestCase):
 
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
+
+
+class MapaDoForgeCheck(unittest.TestCase):
+    """O mapa de `bin/forge-check` lista todo módulo que importa ou executa o script (FORGE-TESTES-MAPA)."""
+
+    CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)')
+    IMPORTA = re.compile(r"^\s*(?:from|import)\s+(test_[a-z0-9_]+)\b", re.M)
+
+    def modulos_que_usam(self):
+        textos = {p.stem: p.read_text(encoding="utf-8") for p in (RAIZ / "tests").glob("test_*.py")}
+        usam = {m for m, t in textos.items() if self.CITA.search(t)}
+        usam.discard("test_doutor")  # só grava um `bin/forge-check` falso na semente; não executa o real
+        usam.add("test_catraca")  # carrega o script por `catraca.forge_check()`, sem citar o caminho
+        mudou = True
+        while mudou:  # quem importa um módulo que usa o script também o executa
+            mudou = False
+            for m, t in textos.items():
+                if m not in usam and usam & set(self.IMPORTA.findall(t)):
+                    usam.add(m)
+                    mudou = True
+        return usam
+
+    def test_mapa_lista_todo_modulo_que_usa_o_forge_check(self):
+        usam = self.modulos_que_usam()
+        self.assertGreaterEqual(len(usam), 8)
+        listados = set(carregar().FORGE_CHECK)
+        self.assertEqual(sorted(usam - listados), [], "faltam no mapa FORGE_CHECK")
+        self.assertEqual(sorted(listados - usam), [], "sobram no mapa FORGE_CHECK")
+
+    def test_erros_no_brief_roda_quando_so_o_forge_check_muda(self):
+        modo, modulos = carregar().planejar(["bin/forge-check"], RAIZ)
+        self.assertEqual(modo, "dirigido")
+        self.assertIn("test_erros_no_brief", modulos)
 
 
 if __name__ == "__main__":
