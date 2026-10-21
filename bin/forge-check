@@ -3631,9 +3631,26 @@ def aviso_de_base_sha(raiz, texto):
     return []
 
 
-def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None):
+def etapa_coberta(dados, papel_destino, cobre):
+    """(etapa do pedido que o brief cobre ou None, erro ou None), P2: `--cobre` explícito precisa ser do papel do destino; sem ele,
+    a única etapa do destino no pedido; com mais de uma, `--cobre` é obrigatório."""
+    do_destino = [e for e, (papel, _) in dados["etapas"].items() if papel == papel_destino] if papel_destino else []
+    if cobre:
+        if cobre not in dados["etapas"]:
+            return None, f"brief gerar: --cobre {nome_seguro(cobre)} não existe em ## Etapas do pedido"
+        papel = dados["etapas"][cobre][0]
+        if papel_destino and papel != papel_destino:
+            return None, f"brief gerar: {cobre} é de {sem_controle(papel)}, não de {sem_controle(papel_destino)}"
+        return cobre, None
+    if len(do_destino) > 1:
+        return None, f"brief gerar: --cobre obrigatório (forge:{sem_controle(papel_destino)} tem {', '.join(do_destino)})"
+    return (do_destino[0] if do_destino else None), None
+
+
+def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
-    (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`."""
+    (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
+    delega: ela abre o Entregar e todas as outras vão ao Fora do escopo sem a marca (R-BRIEF)."""
     caminho_pedido = caminho_do_pedido(raiz, pedido)
     try:
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
@@ -3650,6 +3667,10 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
         return rc
     dados = ler_pedido_brief(pedido_txt)
     papel_destino = nome_do_papel(destino)
+    coberta, erro = etapa_coberta(dados, papel_destino, cobre)
+    if erro:
+        print(erro)
+        return 2
     saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
     if destino:
         saida.append(f"Agente destino: {destino}")
@@ -3659,6 +3680,11 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
     lembrar_do_jarvis(raiz, tipo)
     if branch:
         saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {base_sha_real(raiz, base, branch) or PREENCHER}")
+    if etapa or coberta:
+        saida.append(f"Etapa: {etapa or 'codigo'}" + (f"   Cobre: {coberta}" if coberta else ""))
+    if coberta:
+        saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
+                  f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
     if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
         existe_achados, problemas_achados = achados_recorrentes(raiz)
         avisar_dos_achados(problemas_achados)
@@ -3674,12 +3700,12 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None)
     saida += [f"- ADR {adr} (citada no pedido): {PREENCHER}: o que ela decide para esta entrega" for adr in cobradas["adrs"]]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     saida += erros
-    saida += ["", "## Fora do escopo (etapas de outro papel, citadas de ## Etapas, sem a marca)"]
+    saida += ["", "## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)"]
     if papel_destino is None:
-        saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as etapas de outro papel")
+        saida.append(f"- {PREENCHER}: rode com --destino forge:<nome> para listar as outras etapas do pedido")
     else:
-        etapas = [t for (_, (papel, t)) in sorted(dados["etapas"].items()) if papel != papel_destino]
-        saida += [f"- \"{t}\" · etapa de outro papel ou do dono; continua no pedido" for t in etapas] or ["- (o pedido não tem etapa de outro papel)"]
+        etapas = [t for e, (papel, t) in dados["etapas"].items() if e != coberta and (coberta or papel != papel_destino)]
+        saida += [f"- \"{sem_controle(t)}\" · etapa de outra delegação; continua no pedido" for t in etapas] or ["- (o pedido não tem outra etapa)"]
     saida += ["", f"## Marca de corte (só item de `## Escopo` retirado, `R-DECISAO`; copie uma linha por item)",
               f"- {MARCA_DE_CORTE}: \"{PREENCHER}: trecho literal do pedido\" · justificativa: {PREENCHER} · consequência: {PREENCHER} · decisão: {PREENCHER}"]
     saida += ["", "## Pronto quando: formato das provas (`R-PROVA`; numere PQ-1, PQ-2… e apague o que não usar)",
@@ -3924,6 +3950,7 @@ def main():
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
     br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: texto de uma linha (ex.: E1.1)")
+    br.add_argument("--cobre", metavar="E<n>.<m>", help="só em `gerar`: a etapa de ## Etapas do pedido que o brief delega (P2, R-BRIEF); abre o Entregar, e as outras vão ao Fora do escopo sem a marca; sem ela, a única etapa do destino no pedido (obrigatória se ele tem mais de uma)")
     de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
@@ -4014,7 +4041,7 @@ def executar(a, raiz):
         return cmd_voltas(raiz, a.pedido)
     if a.cmd == "brief":
         if a.alvo == "gerar":
-            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base, a.etapa, a if a.volta else None)
+            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre)
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)

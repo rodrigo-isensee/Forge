@@ -138,5 +138,65 @@ class RegraUnicaDeMarca(Base):
         self.assertEqual(rc, 1)
 
 
+def preencher(gerado):
+    """O que o Jarvis faz com a saída do `gerar`: apaga o que tem PREENCHER e o bloco da marca não usado, põe Objetivo, Ler e um PQ."""
+    linhas, pula = [], False
+    for linha in gerado.splitlines():
+        if linha.startswith("## "):
+            pula = linha.startswith("## Marca de corte")
+        if pula or "PREENCHER" in linha:
+            continue
+        if linha.startswith("## Pronto quando"):
+            linhas += [linha, "- PQ-1 (push): `git ls-remote origin refs/heads/melhoria/x` igual ao head local."]
+            continue
+        if linha.startswith("## Entregar"):
+            linhas = ["## Objetivo", "Exemplo.", "", "## Ler", "- o pedido.", ""] + linhas
+        linhas.append(linha)
+    texto = "\n".join(linhas) + "\n"
+    if "## Entregar" not in texto:
+        texto = texto.replace("## Decisões e restrições", "## Objetivo\nExemplo.\n\n## Ler\n- o pedido.\n\n## Entregar\n- O recurso (E1).\n\n## Decisões e restrições", 1)
+    return texto
+
+
+class GerarComCobre(Base):
+    """P2: `brief gerar --cobre E<n>.<m>` escreve a etapa no Entregar e as outras no Fora do escopo sem a marca."""
+
+    def gerar(self, destino, *extra):
+        return self.rodar("brief", "gerar", "--pedido", self.pedido, "--destino", f"forge:{destino}", *extra)
+
+    def test_mais_de_uma_etapa_do_destino_exige_cobre(self):
+        rc, saida = self.gerar("revisor-exemplo")
+        self.assertEqual(rc, 2)
+        self.assertIn("brief gerar: --cobre obrigatório (forge:revisor-exemplo tem E1.2, E1.5)", saida)
+
+    def test_cobre_de_outro_papel_e_recusado(self):
+        rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.4")
+        self.assertEqual(rc, 2)
+        self.assertIn("brief gerar: E1.4 é de qa-exemplo, não de revisor-exemplo", saida)
+        rc, saida = self.gerar("revisor-exemplo", "--cobre", "E9.9")
+        self.assertEqual(rc, 2)
+
+    def test_etapa_unica_do_destino_e_deduzida_e_as_outras_vao_sem_marca(self):
+        rc, saida = self.gerar("dev-exemplo", "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("Etapa: codigo   Cobre: E1.1\n", saida)
+        self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso X." (E1.1)\n', saida)
+        self.assertIn("## Fora do escopo (outras etapas do pedido, sem a marca; R-BRIEF)", saida)
+        for etapa, trecho in ETAPAS.items():
+            if etapa != "E1.1":
+                self.assertIn(f"- {trecho} · etapa de outra delegação; continua no pedido\n", saida)
+        fora = saida.split("## Fora do escopo", 1)[1].split("## Marca de corte", 1)[0]
+        self.assertNotIn("Retira do escopo original", fora)
+        self.assertNotIn("E1.1 (dev-exemplo)", fora)
+
+    def test_ida_e_volta_o_brief_gerado_e_preenchido_passa_no_corte(self):
+        rc, saida = self.gerar("revisor-exemplo", "--etapa", "review", "--cobre", "E1.2")
+        self.assertEqual(rc, 0, saida)
+        rc, conferido = self.conferir(preencher(saida))
+        self.assertEqual(rc, 0, conferido)
+        self.assertNotIn("corte: sem marca", conferido)
+        self.assertIn('corte: etapa (ok) "E1.5"', conferido)
+
+
 if __name__ == "__main__":
     unittest.main()

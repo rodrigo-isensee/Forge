@@ -3057,17 +3057,19 @@ class ConferirBrief(unittest.TestCase):
 
     # PA-2: brief gerar
     def test_gerar_copia_as_decisoes_literalmente_e_traz_a_marca_e_as_provas(self):
-        rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")
+        args = ("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
+        rc, saida = self.rodar(*args)
         self.assertEqual(rc, 0, saida)
         for linha in self.PEDIDO.read_text(encoding="utf-8").splitlines():
             if "DECISÃO DO DONO" in linha:
                 self.assertIn(f"- {linha}\n", saida)
         self.assertIn("Retira do escopo original", saida)
         self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
-        self.assertNotIn("E1.1 (dev-exemplo)", saida)  # etapa do papel do destino não vai para o Fora do escopo
+        self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
+        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação', saida)  # a outra do mesmo papel, sem marca
         self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
         self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
-        self.assertEqual(self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")[1], saida)
+        self.assertEqual(self.rodar(*args)[1], saida)
 
     def test_gerar_sem_destino_pede_o_destino_e_o_brief_gerado_nao_passa_sem_preencher(self):
         rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO)
@@ -3414,7 +3416,7 @@ class DecisoesCobradas(Cenario):
                 texto = "\n".join(saida)
                 self.assertEqual(rc, 1, texto)
                 self.assertIn("decisões: registro citado ausente", texto)
-                gerar = "\n".join(self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")[1])
+                gerar = "\n".join(self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")[1])
                 for conteudo in ("segredo de fora", "segredo da docs"):
                     self.assertNotIn(conteudo, texto)
                     self.assertNotIn(conteudo, gerar)
@@ -3519,7 +3521,7 @@ class DecisoesCobradas(Cenario):
         self.assertTrue([l for l in saida if l.startswith("decisões: falta") and "do registro de fora" in l and "s.md:1" in l], saida)
 
     def test_gerar_copia_o_registro_sob_o_subtitulo(self):  # 13
-        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         texto = "\n".join(saida)
         self.assertEqual(rc, 0, texto)
         sub = [l for l in saida if l.startswith("### Do registro citado docs/pedidos/r.md")]
@@ -3532,7 +3534,7 @@ class DecisoesCobradas(Cenario):
         self.assertLess(texto.index(CITA_R), texto.index(sub[0]))
 
     def test_brief_gerado_e_completado_passa_sem_falta(self):  # 13
-        _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         inicio = saida.index(next(l for l in saida if l.startswith("## Decisões e restrições"))) + 1
         fim = next(i for i in range(inicio, len(saida)) if saida[i].startswith("## "))
         decisoes = [l for l in saida[inicio:fim] if l.strip()]
@@ -3545,7 +3547,7 @@ class DecisoesCobradas(Cenario):
 
     def test_gerar_com_registro_ausente_deixa_preencher(self):
         (self.tmp / "docs" / "pedidos" / "r.md").unlink()
-        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         self.assertTrue([l for l in saida if "PREENCHER" in l and "docs/pedidos/r.md" in l], saida)
 
     def test_a_copia_da_branch_nao_vence_a_principal(self):  # abuso 12
@@ -3856,7 +3858,7 @@ class DecisaoAncora(Raiz):
 
     def test_gerar_copia_o_mesmo_conjunto_que_o_brief_cobra(self):  # abuso 16
         self.pedido_com(f'\n{self.MENCAO}\n- DECISÃO DO DONO (2026-10-20): "G1".\n')
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo"],
+        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1"],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
         self.assertIn('- DECISÃO DO DONO (2026-10-20): "G1".', r.stdout)
         self.assertNotIn("ajuste conforme", r.stdout)
@@ -4455,7 +4457,7 @@ class BaseShaDoBrief(RepoComOrigem):
         self.pedido.write_text(self.PEDIDO_TXT, encoding="utf-8")
 
     def gerar(self, branch, base="develop"):
-        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--branch", branch, "--base", base,
+        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--cobre", "E1.1", "--branch", branch, "--base", base,
                      raiz=self.repo, home=self.home)
         linha = next((l for l in r.stdout.splitlines() if l.startswith("Branch:")), "")
         return r.returncode, linha
