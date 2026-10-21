@@ -58,8 +58,28 @@ def versao_de(texto):
 
 
 def versao_do_plugin():
-    dados, _ = ler_json(RAIZ / ".claude-plugin" / "plugin.json")
+    """A versão carregada na sessão: o `plugin.json` de CLAUDE_PLUGIN_ROOT (sem ela, o desta cópia)."""
+    pasta = Path(os.environ["CLAUDE_PLUGIN_ROOT"]) if os.environ.get("CLAUDE_PLUGIN_ROOT") else RAIZ
+    dados, _ = ler_json(pasta / ".claude-plugin" / "plugin.json")
     return dados.get("version", "") if isinstance(dados, dict) else ""
+
+
+def versao_instalada():
+    """A maior versão do Forge em ~/.claude/plugins/installed_plugins.json (só leitura): {"plugins": {"forge@...": [{"version": ...}]}}.
+    None se o arquivo, a chave ou o campo não estiverem como se espera: sem leitura certa, sem aviso."""
+    instalados, _ = ler_json(casa() / ".claude" / "plugins" / "installed_plugins.json")
+    plugins = instalados.get("plugins") if isinstance(instalados, dict) else None
+    if not isinstance(plugins, dict):
+        return None
+    versoes = []
+    for chave, entradas in plugins.items():
+        if not str(chave).startswith("forge@"):
+            continue
+        for entrada in entradas if isinstance(entradas, list) else [entradas]:
+            v = versao_de(str(entrada.get("version", ""))) if isinstance(entrada, dict) else None
+            if v:
+                versoes.append(v)
+    return ".".join(map(str, max(versoes))) if versoes else None
 
 
 def raiz_do_projeto(inicio):
@@ -102,11 +122,23 @@ def conferir_versao(raiz):
         return [Problema(f"O arquivo .forge/versao está ilegível (diz `{projeto[:30]}`). Peça ao Jarvis para conferir a versão do projeto.")]
     if b is None or a == b:
         return []
+    instalada = versao_de(versao_instalada() or "")
+    if a > b and instalada is not None and instalada >= a:
+        return []  # o plugin certo já está instalado: falta só reabrir a sessão, e quem diz isso é conferir_sessao
     if a < b:
         return [Problema(f"O projeto está na versão {projeto} do Forge e o Forge instalado é o {plugin}: "
                          "atualize o projeto com `forge-upgrade --simular` (mostra o que muda) e depois `forge-upgrade`.")]
     return [Problema(f"O projeto já usa a versão {projeto} do Forge, mas o plugin instalado é o {plugin}: "
                      "atualize o plugin com `claude plugin update forge@forge`.")]
+
+
+def conferir_sessao():
+    """Só aviso: a sessão carregou uma versão menor que a instalada (o `claude plugin update` não troca a sessão aberta)."""
+    carregada, instalada = versao_do_plugin(), versao_instalada()
+    a, b = versao_de(carregada), versao_de(instalada or "")
+    if a is None or b is None or b <= a:
+        return []
+    return [Problema(f"O Forge {instalada} está instalado, mas esta sessão roda a {carregada}: feche e abra a sessão.")]
 
 
 def nao_consegui_git():
@@ -232,7 +264,7 @@ def diagnosticar(raiz, rapido=True):
     for linha in saida.splitlines() if codigo == 0 else []:
         chave, _, valor = linha.partition("=")
         config_git[chave.lower()] = valor
-    problemas = conferir_plugin(raiz) + conferir_versao(raiz)
+    problemas = conferir_plugin(raiz) + conferir_versao(raiz) + conferir_sessao()
     if codigo is not None:  # sem a configuração do git, proteção e identidade não se conferem
         problemas += conferir_protecao_do_git(raiz, config_git)
     if not rapido:

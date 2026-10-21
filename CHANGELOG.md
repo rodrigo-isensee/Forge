@@ -4,6 +4,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.27.0] - 2026-10-21
+### Alterado
+- forge-check e conferente: saída sanitizada (C1, Cf, Zl, Zp), a frase do dono só conta quando abre a linha, `brief gerar --volta --incluir`, destino lido do brief, recusa por campo, aviso da decisão D no Forge, etapa de segurança, `pr` com o merge da base por conteúdo, entregas paralelas por `--brief`, Base-sha real e `transcricao custo` por raiz e por pedido (FORGE-CHECK-LOTE).
+- catraca: na promoção develop → homolog, o arquivo de controle cujo conteúdo (blob e modo) o dono já rotulou num PR mesclado por squash na develop passa sem novo rótulo; o head rotulado vem de refs/pull/N/head num namespace próprio, com a prova do squash (um pai, primeiro pai de base..head, mesmo arquivo no merge e no head rotulado) e falha fechada em qualquer erro do fetch ou da API (S-16-PROMOCAO-DEVELOP)
+- Trava da release lê a develop do remoto depois de git fetch; testes a mais do hook do aq (maiúsculas, clone como link, .git aninhado); roteiro de simulação de merge nas skills de QA e CI/CD.
+### Corrigido
+- CI: o passo do Claude Code CLI passa a permitir o postinstall só do pacote fixo (npm --allow-scripts), e a bateria volta a instalar o binário nativo
+- O conferente passa a ser só de leitura também na sessão do Forge: `escrita_permitida` do papel em `hooks/conformidade.json` faz o hook avaliá-lo fora de projeto (antes liberava `python3 -m unittest` e redirecionamento), com três fixtures de sessão do Forge.
+
 ## [0.26.0] - 2026-10-20
 ### Alterado
 - Catraca: quando o `git diff` que lista os arquivos alterados falha, a catraca fica vermelha com a mensagem "não consegui listar os arquivos alterados" (falha fechada; o rótulo `afrouxa-regra` não libera esta violação), em vez de tratar como "nada mudou"; `scripts/conferir-release.py` passa a ser arquivo protegido e pede o rótulo do dono (CATRACA-ENDURECER).

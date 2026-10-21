@@ -58,7 +58,9 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true))"
   exit 0
 fi
+n_refs=0; unico_local=""; unico_remoto=""; unico_ref=""
 while read -r _ local_sha remote_ref remote_sha; do
+  n_refs=$((n_refs + 1)); unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -108,5 +110,57 @@ if ! flock -n 9; then
 fi
 : > /proc/self/fd/9
 printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
-python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+# Push que só acrescenta pareceres sobre código que já passou na suíte roda só as classes de teste que leem
+# pareceres (as que varrem ou conferem os pareceres; o gate do CI usa um subconjunto próprio); o CI repete tudo. A prova é a árvore verde: depois de cada suíte
+# verde com a árvore de trabalho limpa, a árvore testada é anotada ao lado da trava, fora do git. Falha fechada:
+# mais de uma ref, ref que não é branch, ref nova, árvore suja ou diferente do commit enviado, prova ausente,
+# delta ilegível ou qualquer arquivo fora de docs/{reviews,security,qa,devops}/ rodam a suíte inteira. Também
+# rodam a suíte inteira os modelos (arquivo cujo nome começa em "_") e docs/security/{ameacas,aceites}/, que
+# a suíte lê com outras regras que não as das classes curtas. A classe NeutralidadeDoNucleo entra no caminho
+# curto porque varre docs/security e docs/devops. A árvore anotada é a do início da suíte, não a do fim.
+arvore_inicio="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
+[ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && inicio_limpo=1 || inicio_limpo=0
+verde="${trava%.lock}.verde"
+so_parecer() {
+  local arvore_remota delta arquivo
+  [ "$n_refs" -eq 1 ] || return 1
+  case "$unico_ref" in refs/heads/*) ;; *) return 1 ;; esac
+  case "$unico_local" in ''|*[!0-9a-f]*) return 1 ;; esac
+  case "$unico_local" in *[!0]*) ;; *) return 1 ;; esac
+  case "$unico_remoto" in ''|*[!0-9a-f]*) return 1 ;; esac
+  case "$unico_remoto" in *[!0]*) ;; *) return 1 ;; esac
+  [ -f "$verde" ] && [ ! -L "$verde" ] && [ -O "$verde" ] || return 1
+  [ "$(git rev-parse HEAD 2>/dev/null)" = "$unico_local" ] || return 1
+  [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] || return 1
+  arvore_remota="$(git rev-parse --verify -q "${unico_remoto}^{tree}" 2>/dev/null)" || return 1
+  [ -n "$arvore_remota" ] || return 1
+  grep -qxF -- "$arvore_remota" "$verde" || return 1
+  # Apagar ou renomear (o rename aparece como D mais A, por --no-renames) não é "só acrescentar".
+  [ -z "$(git -c core.quotepath=false diff --diff-filter=D --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" ] || return 1
+  delta="$(git -c core.quotepath=false diff --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" || return 1
+  while IFS= read -r arquivo; do
+    case "$arquivo" in
+      */_*|docs/security/ameacas/*|docs/security/aceites/*) return 1 ;;
+      docs/reviews/*|docs/security/*|docs/qa/*|docs/devops/*) ;;
+      *) return 1 ;;
+    esac
+  done <<< "$delta"
+  return 0
+}
+if so_parecer; then
+  echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
+  python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+else
+  python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+fi
+# Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}
+# não mudou durante a suíte, para valer a do commit) como prova do próximo push.
+arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
+  arvore_testada="$arvore_inicio"
+  if [ -n "$arvore_testada" ]; then
+    { (umask 077; tail -n 199 "$verde" 2>/dev/null || true; printf '%s\n' "$arvore_testada") > "${verde}.novo" \
+      && mv -f "${verde}.novo" "$verde"; } 2>/dev/null || true
+  fi
+fi
 exit 0

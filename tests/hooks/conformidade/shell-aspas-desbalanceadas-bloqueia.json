@@ -1,5 +1,5 @@
 {
-  "descricao": "Aspas desbalanceadas: o shell recusa, o hook não decide.",
+  "descricao": "Aspas desbalanceadas: o hook não lê a linha e recusa (fora do papel só de leitura), em vez de contar com o shell (HOOK-COMENTARIO-SHLEX).",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -12,6 +12,7 @@
     "tool_use_id": "toolu_9"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: aspas sem par"
   }
 }
