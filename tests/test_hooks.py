@@ -32,12 +32,15 @@ Formato do fixture:
 """
 import concurrent.futures
 import contextlib
+import functools
 import hashlib
 import io
 import json
 import os
 import re
+import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -91,7 +94,9 @@ def conferir_passo(entrada, r):
 
 # HOOK-COMENTARIO-SHLEX (ADR 0013): o que o bash ignora (ou roda à toa) antes ou depois de uma linha. Cada variante põe
 # um `#` num contexto em que uma leitura errada do comentário esconderia o resto, ou deixa a linha ilegível para o hook.
-PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; echo ${x/ #y/z}; ", "echo $[1 #x]; ",
+# O bash roda a linha depois de cada uma (o T5 confere): o `$[1 #x]` é erro de aritmética, que encerra o `bash -c`, e
+# por isso fica depois de `true ||`, que o bash lê e não avalia.
+PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; echo ${x/ #y/z}; ", "true || echo $[1 #x]; ",
                               "(true)#'\n", "(( 1 )) # it's\n", "true #'\n", "echo $'it\\'s'; ", "[[ a =~ ( #b) ]]; ",
                               "[[ a == @(a| #b) ]]; ", "echo a\\ #b; ")
 SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#x", "\n# it's", "; echo $'it\\'s'", "; (true)#'", " # it's ((")
@@ -101,7 +106,7 @@ PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `#
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
-MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("echo $[1 #x]; ", ""),
+MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("true || echo $[1 #x]; ", ""),
                             "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
                             "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
                             "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1]}
@@ -122,6 +127,161 @@ FAMILIAS_DE_RECUSA = {
 # comentário que começa na crase.
 FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
               ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas")}
+# FICHAS-CORPUS-BASH (T5): a ação de cada família de recusa, numa linha só, e o hook cuja leitura a confere (o
+# `conformidade` lê todas). Guarda do corpus (`PROIBIDO_NO_ORACULO`): nenhuma palavra começa por `/` (`core.hooksPath h`
+# no lugar de `/tmp/h`).
+ACOES_DO_CORPUS = {
+    "gh repo delete dono/proj --yes": "conformidade",
+    "git push origin main": "conformidade",
+    "git push --no-verify origin feature/x": "conformidade",
+    "rm -rf .githooks": "conformidade",
+    "forge sugerir --fila": "conformidade",
+    "claude plugin install forge@forge": "conformidade",
+    "git config core.hooksPath h": "conformidade",
+    "gh pr merge feature/x --repo rodrigo-isensee/Forge --merge": "parecer",
+    "gh pr create --base develop --title t --body x": "parecer",
+    "docker compose up -d": "pesado",
+}
+# O oráculo roda o bash de verdade (modelo de ameaças do lote, seção 4): com `PATH` numa pasta que não existe, todo
+# comando externo cai em `command_not_found_handle`, que registra o comando expandido no stderr (o stdout é capturado
+# por `$(…)` e pelo corpo de heredoc). O `-r` recusa nome de comando com `/` (mesmo montado), redirecionamento de saída,
+# `exec`, `enable` e mudar `PATH`; o que ele não barra (`kill`, `trap`, `ulimit`, segundo plano...) a guarda recusa no
+# texto, antes de rodar.
+PROLOGO_DO_ORACULO = "command_not_found_handle() { printf 'RODOU %s\\n' \"$*\" >&2; }\n"
+PROIBIDO_NO_ORACULO = re.compile(
+    r"(?:^|[\s;&|()`'\"=<>{}$])\.{0,2}/"  # palavra que começa por / ou ./ (programa por caminho, /dev/tcp, /dev/udp)
+    r"|(?:^|[\s;&|()`'\"{}])(?:kill|trap|ulimit|umask|disown|exec|eval|source|enable|hash|command|builtin|\.)"
+    r"(?=[\s;&|()`'\"]|$)"
+    r"|>|(?<!&)&(?!&)")  # redirecionamento de saída (`>`, `2>`, `&>`) e comando em segundo plano
+
+
+class Ilegivel(Exception):
+    """A composição de teste não lê a linha: o hook a recusa por isso (fora do papel só de leitura)."""
+
+
+def modulos_dos_hooks():
+    if str(HOOKS) not in sys.path:
+        sys.path.insert(0, str(HOOKS))
+    import _comum
+    import conformidade
+    import parecer
+    return _comum, conformidade, parecer
+
+
+def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
+    """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
+    `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
+    False lê só a leitura fiel do nível de fora (a base do T1)."""
+    _comum, conformidade, _ = modulos_dos_hooks()
+    if nivel > conformidade.PROFUNDIDADE:
+        return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
+    try:
+        linha, corpos = conformidade.tirar_heredocs(linha)
+    except ValueError:
+        raise Ilegivel(linha) from None
+    linha = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", linha)
+    lidas = _comum.leituras(linha)
+    if lidas.ilegivel:
+        raise Ilegivel(linha)
+    lidos = []
+    for partes in lidas.partes if todas or nivel else lidas.partes[:1]:
+        for palavras, destinos, sub in partes:
+            if so_substituicoes and not sub:
+                continue
+            lidos.append((palavras, destinos))
+            lidos += ler_dentro_do_comando(palavras, nivel)
+    for dono, corpo in corpos:
+        if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+            lidos += ler_como_o_conformidade(corpo, nivel + 1)
+    return lidos
+
+
+def ler_dentro_do_comando(palavras, nivel):
+    """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`."""
+    _, conformidade, _ = modulos_dos_hooks()
+    while palavras and palavras[0] in conformidade.CORPO_DE_LACO:
+        palavras = palavras[1:]
+    try:
+        palavras, _ = conformidade.separar_lancadores(palavras)
+    except ValueError:
+        return []  # `env -S` com aspas abertas: o hook só dá o R-CONTRIB para o Forge
+    lidos = []
+    for p in palavras:
+        if "`" in p:
+            lidos += ler_como_o_conformidade(p, nivel + 1)
+        elif "$(" in p.replace(conformidade.OPACO["$"], ""):
+            lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+    prog = Path(palavras[0].lstrip("`")).name if palavras else ""
+    internos = []
+    if prog in conformidade.SHELLS:
+        internos = [palavras[i + 2] for i, a in enumerate(palavras[1:-1]) if re.fullmatch(r"-[a-z]*c[a-z]*", a)]
+    elif prog == "eval":
+        internos = [" ".join(palavras[1:])]
+    for interno in internos:
+        lidos += ler_como_o_conformidade(interno, nivel + 1)
+        if "\\`" in interno:
+            lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+    return lidos
+
+
+def ler_como_o_parecer(linha):
+    """Composição de teste do `parecer.principal`: os comandos de cada leitura da linha, ou `Ilegivel`."""
+    _comum, _, _ = modulos_dos_hooks()
+    lidas = _comum.leituras(linha)
+    if lidas.ilegivel:
+        raise Ilegivel(linha)
+    return [(palavras, destinos) for leitura in lidas.partes for palavras, destinos, _ in leitura]
+
+
+COMPOSICOES = {"conformidade": ler_como_o_conformidade, "parecer": ler_como_o_parecer}
+
+
+def le_a_acao(composicao, variante, acao):
+    """Afirmação 2 do T5: a composição dá ilegível (o hook recusa) ou tem um comando que começa pelas palavras da ação."""
+    try:
+        lidos = composicao(variante)
+    except Ilegivel:
+        return True
+    return any(palavras[:len(acao)] == acao for palavras, _ in lidos)
+
+
+@functools.lru_cache(maxsize=1)
+def bash_do_oraculo():
+    """(caminho absoluto do bash, None) ou (None, motivo): o oráculo precisa do bash 4 ou mais novo
+    (`command_not_found_handle`) e do modo restrito (`-r`)."""
+    caminho = shutil.which("bash")
+    if not caminho:
+        return None, "sem bash no PATH"
+    caminho = os.path.realpath(caminho)
+    r = subprocess.run([caminho, "--norc", "--noprofile", "-r", "-c",
+                        'echo "${BASH_VERSINFO[0]}"; shopt -q restricted_shell && echo restrito'],
+                       capture_output=True, text=True, env={}, stdin=subprocess.DEVNULL, timeout=5)
+    linhas = r.stdout.split()
+    if not linhas or not linhas[0].isdigit() or int(linhas[0]) < 4:
+        return None, f"bash {linhas[:1]} anterior ao 4"
+    if "restrito" not in linhas:
+        return None, "bash sem o modo restrito (-r)"
+    return caminho, None
+
+
+def rodado_pelo_bash(bash, variante):
+    """O que o bash executa da variante, pelo oráculo: os comandos externos, cada um como `nome args` já expandidos.
+    `HOME` e a pasta de trabalho numa pasta temporária nova, ambiente só com `PATH` e `HOME`, stdin vazio, prazo de
+    5 s e o grupo de processos inteiro morto ao terminar."""
+    with tempfile.TemporaryDirectory(prefix="forge-oraculo-") as tmp:
+        env = {"PATH": str(Path(tmp) / "inexistente"), "HOME": tmp}
+        p = subprocess.Popen([bash, "--norc", "--noprofile", "-r", "-c", PROLOGO_DO_ORACULO + variante], cwd=tmp,
+                             env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        try:
+            _, erro = p.communicate(timeout=5)
+        finally:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(p.pid, signal.SIGKILL)
+            p.wait()
+    return [linha[len("RODOU "):] for linha in erro.splitlines() if linha.startswith("RODOU ")]
+
+
 # T3: modelos `<construção> #x⏎echo R`. Fora de G, nenhum `#` pode abrir comentário; em G, todo `#` marcado tem de ser
 # comentário também para o bash.
 MODELOS_FORA_DE_G = (
@@ -1211,25 +1371,25 @@ class Hooks(unittest.TestCase):
     def test_t1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T1, inclusão no leitor: com qualquer variante que o bash ignora, todo comando da leitura fiel da linha continua
         lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
-        (e quem confere recusa). Chamadas diretas, sem subprocesso."""
-        sys.path.insert(0, str(HOOKS))
-        import _comum
-
-        def fiel(linha):
-            lidas = _comum.leituras(linha)
-            return None if lidas.ilegivel else lidas.partes[0]
+        (e quem confere recusa). Pela composição de teste do `conformidade` (heredoc, palavras relidas, `bash -c`), sem
+        subprocesso."""
+        def lidos(linha, todas=True):
+            try:
+                return ler_como_o_conformidade(linha, todas=todas)
+            except Ilegivel:
+                return None
 
         lidas = 0
         for linha in self.corpus_de_recusas():
-            base = fiel(linha) or []
+            base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
                 variante = prefixo + linha + sufixo
-                outra = fiel(variante)
+                outra = lidos(variante)
                 lidas += 1
                 if outra is None:
                     continue
-                for palavras, destinos, _ in base:
-                    achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d, _ in outra)
+                for palavras, destinos in base:
+                    achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d in outra)
                     if not achou:
                         self.fail(f"{variante!r}: some {palavras} {destinos}")
         self.assertGreaterEqual(lidas, 500 * len(VARIANTES_QUE_O_BASH_IGNORA))
@@ -1301,6 +1461,59 @@ class Hooks(unittest.TestCase):
         # O alvo do teste de ausência ainda existe: as duas chamadas permitidas estão lá.
         self.assertIn(("_comum.py", "leituras", "comandos"), achadas)
         self.assertIn(("_comum.py", "comandos", "fichas"), achadas)
+
+    def test_t5_guarda_do_corpus_do_oraculo(self):  # FICHAS-CORPUS-BASH (modelo de ameaças do lote, 4.2 e 4.3)
+        """Antes do T5: nenhuma ação nem variante tem o que o oráculo não pode rodar, e a guarda pega cada forma proibida."""
+        proibidas = ("kill -9 -1", "trap 'x' EXIT", "ulimit -n 1", "umask 0", "ls; disown", "exec ls", "eval ls",
+                     "source x", ". x", "enable -n echo", "hash -p x ls", "command -p ls", "builtin cd", "/bin/true",
+                     "./x", "x=/bin/true; $x", "cat </dev/tcp/h/80", "echo a > f", "ls 2>e", "ls &>e", "sleep 1 &",
+                     "echo `kill 1`", "(exec ls)")
+        for linha in proibidas:
+            with self.subTest(proibida=linha):
+                self.assertTrue(PROIBIDO_NO_ORACULO.search(linha), linha)
+        for linha in ("rm -rf .githooks", "gh pr merge a --repo dono/proj", "true && ls || ls", "echo a.b"):
+            with self.subTest(permitida=linha):
+                self.assertIsNone(PROIBIDO_NO_ORACULO.search(linha))
+        for acao in ACOES_DO_CORPUS:
+            for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
+                with self.subTest(variante=prefixo + acao + sufixo):
+                    self.assertIsNone(PROIBIDO_NO_ORACULO.search(prefixo + acao + sufixo))
+        # ADR 0013: o que prova início de palavra está contido no que gera dúvida (a "constante única" do cartão)
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertLessEqual(_comum.SEPARADORES_DE_G, _comum.ANTES_DE_CANDIDATO)
+
+    def test_t5_o_que_o_bash_roda_esta_no_que_o_hook_le(self):  # FICHAS-CORPUS-BASH
+        """T5, oráculo do bash: para cada ação do corpus e cada variante, (1) o bash roda a ação, com todas as palavras
+        (senão a variante está errada); (2) a composição de teste do `conformidade`, e a do `parecer` para as ações
+        dele, dá ilegível ou lê a ação. É a leitura que conta, não a saída do hook: a recusa pela rede da ADR 0011
+        (`construcao_nao_modelada`, só com marcador crítico) não prova que a ação foi lida. O `pesado` não lê a crase
+        (ADR 0013, tabela 2.4) e fica de fora da afirmação 2."""
+        bash, motivo = bash_do_oraculo()
+        if bash is None:
+            if os.environ.get("CI"):
+                self.fail(f"o CI tem bash 5: {motivo}")
+            self.skipTest(motivo)
+        # Controles do oráculo: registra o comando externo, também dentro de `$(…)`, e não o corpo literal de heredoc.
+        self.assertEqual(rodado_pelo_bash(bash, "x=$(gh a 'b c')"), ["gh a b c"])
+        self.assertEqual(rodado_pelo_bash(bash, "cat <<'EOF'\n$(gh a)\nEOF"), ["cat"])
+        casos = [(acao, prefixo + acao + sufixo) for acao in ACOES_DO_CORPUS
+                 for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA]
+        for _, variante in casos:
+            self.assertIsNone(PROIBIDO_NO_ORACULO.search(variante), variante)
+        inicio = time.monotonic()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            rodados = list(pool.map(lambda caso: rodado_pelo_bash(bash, caso[1]), casos))
+        duracao = time.monotonic() - inicio
+        for (acao, variante), rodou in zip(casos, rodados):
+            palavras = shlex.split(acao)
+            with self.subTest(variante=variante):
+                self.assertIn(" ".join(palavras), rodou, "o bash não roda a ação: a variante não serve ao corpus")
+                hooks = ["conformidade"] + ([ACOES_DO_CORPUS[acao]] if ACOES_DO_CORPUS[acao] == "parecer" else [])
+                for hook in hooks:
+                    self.assertTrue(le_a_acao(COMPOSICOES[hook], variante, palavras),
+                                    f"o bash roda {acao!r} e a leitura do {hook} não a vê")
+        self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
+        self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
 
 if __name__ == "__main__":
