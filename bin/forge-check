@@ -21,7 +21,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
 (`pode-comecar:`); o resto sai `espera:` (dependência, ciclo ou teto) e a sobreposição de arquivos com outra branch `melhoria/*`
-só avisa (`aviso:`). A última linha é o resumo `fila: N podem começar, V vagas de T (A ativos), M esperam`; sem KANBAN.md, uma
+só avisa (`aviso:`), como a falta da coluna "Pronto para fazer" ou "Pronto" no quadro. Os agentes ativos são os da cópia principal (o hook grava lá), também numa worktree. A última linha é o resumo `fila: N podem começar, V vagas de T (A ativos), M esperam`; sem KANBAN.md, uma
 linha `fila: ... não tem KANBAN.md` (SEM_QUADRO).
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
 reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
@@ -1405,7 +1405,8 @@ def em_ciclo(raiz, pedido):
 
 
 def agentes_vigentes(raiz):
-    """Quantos agentes vigentes há em .forge/run/agentes.json (a mesma função `vigentes` do hook `agentes`); 0 sem o arquivo."""
+    """Quantos agentes vigentes há em .forge/run/agentes.json da cópia principal, onde o hook grava, mesmo de uma worktree
+    (a mesma função `vigentes` do hook `agentes`); 0 sem o arquivo."""
     sys.path.insert(0, str(PLUGIN / "hooks"))
     try:
         import agentes
@@ -1414,7 +1415,7 @@ def agentes_vigentes(raiz):
     try:
         config = json.loads((raiz / ".forge" / "config.json").read_text(encoding="utf-8"))
         horas = config.get("expiracao_horas") if isinstance(config, dict) else None
-        estado = json.loads((raiz / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))
+        estado = json.loads((raiz_principal(raiz) / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))
         lista = estado.get("agentes", [])
     except (OSError, ValueError, AttributeError):
         horas, lista = None, []
@@ -1478,6 +1479,9 @@ def cmd_fila(raiz):
         saida += extra
     if alta:
         saida.append("aviso: carga alta (R-TETO): 0 vagas")
+    for coluna in ("Pronto para fazer", "Pronto"):
+        if coluna not in quadro:
+            saida.append(f'aviso: o quadro não tem a coluna "{coluna}"')
     resumo = f"fila: {pode} podem começar, {vagas} vagas de {teto} ({ativos} ativos), {esperam} esperam"
     if len(saida) > FILA_LINHAS - 1:
         saida = saida[:FILA_LINHAS - 2] + [f"... (+{len(saida) - (FILA_LINHAS - 2)} linhas omitidas)"]

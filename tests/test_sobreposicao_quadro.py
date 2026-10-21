@@ -298,9 +298,9 @@ class Fila(unittest.TestCase):
         self.gravar(".forge/run/agentes.json", json.dumps({"agentes": [
             {"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(agentes)]}))
 
-    def rodar(self, *args):
+    def rodar(self, *args, raiz=None):
         env = {**AMBIENTE, "FORGE_PROC": str(self.proc), "FORGE_NPROC": str(self.nucleos), "HOME": str(self.tmp / "home")}
-        r = subprocess.run([sys.executable, str(FERRAMENTA), "--raiz", str(self.tmp), "fila", *args], capture_output=True, text=True, env=env)
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--raiz", str(raiz or self.tmp), "fila", *args], capture_output=True, text=True, env=env)
         return r.returncode, r.stdout.splitlines()
 
     def test_t1_dependencia_fora_de_pronto_espera(self):
@@ -377,6 +377,37 @@ class Fila(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertIn("pode-comecar: C1 (p1)", linhas)
         self.assertIn("aviso: p1 sem Depende de", linhas)
+
+    def test_agentes_ativos_vem_da_copia_principal_numa_worktree(self):
+        principal, wt = self.tmp / "principal", self.tmp / "wt"
+        principal.mkdir()
+        git(principal, "init", "-q", "-b", "develop")
+        (principal / "a.txt").write_text("a\n", encoding="utf-8")
+        git(principal, "add", "a.txt")
+        git(principal, "commit", "-q", "-m", "base")
+        git(principal, "worktree", "add", "-q", "--no-track", "-b", "melhoria/x", str(wt))
+        agentes = [{"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(2)]
+        (principal / ".forge" / "run").mkdir(parents=True)
+        (principal / ".forge" / "run" / "agentes.json").write_text(json.dumps({"agentes": agentes}), encoding="utf-8")
+        (wt / ".forge").mkdir()
+        (wt / ".forge" / "config.json").write_text(json.dumps({"teto_agentes": 3}), encoding="utf-8")
+        self.tmp, original = wt, self.tmp
+        try:
+            self.quadro(pronto_para_fazer=[("C1", "p1")])
+            self.pedido("p1", "nenhum")
+            rc, linhas = self.rodar(raiz=wt)
+        finally:
+            self.tmp = original
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[-1], "fila: 1 podem começar, 1 vagas de 3 (2 ativos), 0 esperam", linhas)
+
+    def test_quadro_sem_as_colunas_avisa_qual_falta(self):
+        self.gravar("KANBAN.md", f"# Quadro\n\n## Em andamento\n{CABECALHO_FILA}")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertIn("aviso: o quadro não tem a coluna \"Pronto para fazer\"", linhas)
+        self.assertIn("aviso: o quadro não tem a coluna \"Pronto\"", linhas)
+        self.assertTrue(linhas[-1].startswith("fila: 0 podem começar"), linhas)
 
     def test_t8_sem_quadro(self):
         rc, linhas = self.rodar()
