@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conformidade-leitura
 branch: melhoria/conformidade-leitura
-commit: a0f766fa6e4a9504ec28a150996fd9de51a3f66a
+commit: 2e1e7129d7494912f5de2dba382dae15a5d64c4b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-21
@@ -16,6 +16,16 @@ Escopo: `git diff f911dfa0b2ebd9692d45c374f9ff4bab8523ed6b a0f766fa6e4a9504ec28a
 `R-SEGURANCA`, gatilho controles do Forge: a entrega estreita o alcance de um bloqueio do hook `conformidade` (F6, `R-CONFORMIDADE`).
 
 ## Achados
+
+## Volta 2
+Revalidação sobre `2e1e7129d7494912f5de2dba382dae15a5d64c4b`: delta do autor `git diff 95a7321 2e1e712` (`so_leitura` em `hooks/conformidade.py:175` passa a ler a linha por `leituras()` da HOOK-COMENTARIO-SHLEX, #269) e a resolução do merge `95a7321`.
+
+- Merge: `git diff fa75b67 95a7321 -- hooks/conformidade.py` só traz o que a branch acrescentou (constantes da F6, `opcoes_sem_exec`, `so_leitura`, o `or so_leitura(linha)` em `sugerir_na_linha`); nada da develop foi desfeito. `git diff fa75b67 2e1e712` em `tests/` só acrescenta as 16 fixtures `leitura-*` (nenhuma removida nem alterada).
+- Delta: a linha com `#` continua recusada antes da leitura (`hooks/conformidade.py:179`); sem `#`, `leituras()` devolve só a leitura fiel, e `hooks/conformidade.py:181-183` recusa leitura ilegível (aspas sem par) e mais de uma leitura. Fecha na dúvida, como antes.
+- Sondas em cópia (`git archive` em `$TMPDIR`): as três liberações da decisão M1 passam; `#` colado, `;`, `&&`, `||`, `&`, `|&`, `;;`, `xargs`, `forge $S`, `sug""erir`, `bash -c`, subshell, chaves, `<(...)`, `>`, `--pre=`, `git -c`, `!`, NUL, `\v`, barra no fim e quebra escapada recusam. `grep x f\rforge sugerir` libera, mas no bash o `\r` cola na palavra e tudo é argumento do `grep` (sem execução). `python3 -m unittest tests.test_hooks`: 41 OK.
+- Nada liberado além do que a decisão M1 prevê.
+
+Parecer: aprovado. R1 a R3 (abaixo) seguem como recomendação.
 
 ## Volta 1
 Revalidação sobre `a0f766fa6e4a9504ec28a150996fd9de51a3f66a`, delta `git diff ab0ed70 a0f766fa` (`hooks/conformidade.py`, docstring e regex de `so_leitura`; três fixtures novas `leitura-cerquilha-colada-*.json`).
