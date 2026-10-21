@@ -173,18 +173,15 @@ def opcoes_sem_exec(args):
 
 
 def so_leitura(linha):
-    """F6: a linha só lê (todo segmento, depois de `comandos()`, é leitor sem execução ou `git log|show|diff`), sem `$`, crase, `#` (o shlex o lê como comentário, o bash não),
-    várias linhas, substituição, redirecionamento de saída nem opção que execute programa: `forge` e `sugerir` ali são dado.
+    """F6: a linha só lê (todo segmento da leitura fiel de `leituras()`, ADR 0013, é leitor sem execução ou
+    `git log|show|diff`), sem `$`, crase, `#` (sem comentário, a leitura é uma só e não há o que provar), várias linhas, substituição, redirecionamento de saída nem opção que execute programa: `forge` e `sugerir` ali são dado.
     `eval`, `xargs`, shell aninhado, variável antes do programa e programa com caminho não são leitor: recusam. Na dúvida, False."""
     if re.search(r"[$`\n#]", linha):
         return False
-    try:
-        partes = list(comandos(linha))
-    except ValueError:
+    lidas = leituras(linha)
+    if lidas.ilegivel or len(lidas.partes) != 1 or not lidas.partes[0]:
         return False
-    if not partes:
-        return False
-    for palavras, destinos, sub in partes:
+    for palavras, destinos, sub in lidas.partes[0]:
         if destinos or sub or not palavras:
             return False
         prog, args = palavras[0], palavras[1:]
