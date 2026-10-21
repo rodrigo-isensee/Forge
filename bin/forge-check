@@ -1415,10 +1415,13 @@ def agentes_vigentes(raiz):
     try:
         config = json.loads((raiz / ".forge" / "config.json").read_text(encoding="utf-8"))
         horas = config.get("expiracao_horas") if isinstance(config, dict) else None
+    except (OSError, ValueError):
+        horas = None  # sem config legível vale o padrão de 2 h; os agentes vigentes ainda são contados
+    try:
         estado = json.loads((raiz_principal(raiz) / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))
         lista = estado.get("agentes", [])
     except (OSError, ValueError, AttributeError):
-        horas, lista = None, []
+        lista = []
     if isinstance(horas, bool) or not isinstance(horas, (int, float)) or horas <= 0:
         horas = 2
     return len(agentes.vigentes(lista if isinstance(lista, list) else [], time.time(), horas * 3600))

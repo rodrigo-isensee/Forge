@@ -401,6 +401,27 @@ class Fila(unittest.TestCase):
         self.assertEqual(rc, 0)
         self.assertEqual(linhas[-1], "fila: 1 podem começar, 1 vagas de 3 (2 ativos), 0 esperam", linhas)
 
+    def test_agentes_vigentes_contados_sem_config_na_raiz(self):
+        principal, wt = self.tmp / "principal", self.tmp / "wt"
+        principal.mkdir()
+        git(principal, "init", "-q", "-b", "develop")
+        (principal / "a.txt").write_text("a\n", encoding="utf-8")
+        git(principal, "add", "a.txt")
+        git(principal, "commit", "-q", "-m", "base")
+        git(principal, "worktree", "add", "-q", "--no-track", "-b", "melhoria/x", str(wt))
+        agentes = [{"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(2)]
+        (principal / ".forge" / "run").mkdir(parents=True)
+        (principal / ".forge" / "run" / "agentes.json").write_text(json.dumps({"agentes": agentes}), encoding="utf-8")
+        self.tmp, original = wt, self.tmp
+        try:
+            self.quadro(pronto_para_fazer=[("C1", "p1")])
+            self.pedido("p1", "nenhum")
+            rc, linhas = self.rodar(raiz=wt)
+        finally:
+            self.tmp = original
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[-1], "fila: 1 podem começar, 6 vagas de 8 (2 ativos), 0 esperam", linhas)
+
     def test_quadro_sem_as_colunas_avisa_qual_falta(self):
         self.gravar("KANBAN.md", f"# Quadro\n\n## Em andamento\n{CABECALHO_FILA}")
         rc, linhas = self.rodar()
