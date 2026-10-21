@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: forge-check-lote
 branch: melhoria/forge-check-lote
-commit: 6779d74aaa592a04de124ef0c1068a7bc2c8bc9d
+commit: 9c09ae01ce0dba86cf150d1853a695f111837ffd
 parecer: aprovado
 revisor: forge:tech-lead (outra instância, E1.2)
 data: 2026-10-20
@@ -85,3 +85,14 @@ Nenhum bloqueia. São recomendações para o autor ou para o próximo pedido.
 - **R4 (recomendado) · `bin/forge-check:455` e `tests/test_forge.py:4409`.** A troca para `origin/<base>` primeiro em `base_da_entrega` (M4.4) não tem teste que a prenda: o mutante sobrevive porque a CLI chega com a base já resolvida. Sugestão: teste direto de `gatilhos(raiz, p, ref, "develop")` com a develop local movida para o head.
 - **R5 (recomendado) · `bin/forge-check:745` e `tests/test_forge.py:4564`.** Falta o caso do brief com `Base-sha:` ou `Branch:` só no corpo, fora do cabeçalho, que precisa reprovar a união. Hoje o mutante que lê o texto inteiro sobrevive.
 - **R6 (cartão para a segurança) · `bin/forge-check:547`.** Quando `origin/<base>` já contém o head (M4.3), `cmd_pr` recebe `base=None`, e `gatilhos` cai em `BASES` (`origin/develop`), cujo diff de três pontos fica vazio: o parecer de segurança deixa de ser exigido nesse estado. O comportamento é anterior ao lote (com `--base origin/develop` já era assim) e não é regressão. Levo à E1.3 como cartão.
+
+## Volta 1
+Re-review do delta `f1dbe1087c075ca08fa94575b00229dd0ff165e9..9c09ae01ce0dba86cf150d1853a695f111837ffd` (2 arquivos, +13 −7), sobre o achado A1 da segurança. Lido: o delta inteiro. Já lido: o restante da branch, no parecer acima, sem mudança no que o delta não toca.
+
+- `gatilhos()` imprime `caminho_impresso(quais[0])` (`bin/forge-check:495`). `grep quais` mostra que é o único uso na saída.
+- Teste `ast` (`SaidaSanitizada`): `quais` entrou na `LISTA`, e `nome_de` e o teste-sonda passam a enxergar índice e fatia pela base do `Subscript`. O teste-sonda exige que `{real}`, `{quais[0]}` e `{quais[:9]}` crus sejam pegos e que as versões com `caminho_impresso` não sejam.
+- Sonda de mutante (cópia em `$TMPDIR`, `git archive 9c09ae0`): a classe `SaidaSanitizada` dá 8 testes OK; revertendo a linha para `{quais[0]}` cru, falha 1. Mutante morto.
+- O delta não muda mais nada. As recomendações R1 a R6 do parecer anterior seguem como estavam, nenhuma bloqueia.
+- Suíte inteira: não rodei, o pre-push deste envio roda.
+
+Parecer: aprovado.
