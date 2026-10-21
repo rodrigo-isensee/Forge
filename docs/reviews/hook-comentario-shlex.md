@@ -4,7 +4,7 @@ contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
 commit: f02f482b7e9d5eb46f10beed1e4795d8d637a9f0
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -15,6 +15,8 @@ Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
 
 ## Volta 4
+**Correção depois do envio (5069a86 aprovava):** a segurança (0334081, A7) mostrou que o `#` depois de espaço dentro de `${…}` ou de crase abre comentário no hook e não no bash, e eu reproduzi na cópia de f02f482: `echo ${x:- #b}; gh repo delete dono/proj --yes` e `` echo `echo a #b`; gh repo delete dono/proj --yes `` saem com **0** (`AssertionError: 0 != 2`), e o `bash -c` com `gh` trocado por função imprime `RODOU gh repo delete dono/proj --yes`. Contradiz o meu item 4 da volta 2: lá eu sondei `${…}` e crase só com `git push`, que tem `CRITICO` e cai na guarda de construção não modelada; sem `CRITICO`, nada recusa. É o mesmo ponto cego da volta 3. Não é regressão (a base também libera), mas é o furo que o pedido corrige (E1: a linha lida como o bash lê). Vira o meu A5, abaixo; o resto desta volta (itens 1 a 7) continua valendo. Sugestão, para fechar a classe e não enumerar: `${` ou crase na linha entram em `SEM_COMENTARIO` (o `#` deixa de abrir comentário, como com `((` e `=~`), e o teste gerado ganha um terceiro caso com o prefixo `echo ${x:- #b}; ` além dos sufixos.
+
 Delta lido: `50bf8f8..f02f482` (1 commit de código, `f02f482`; `forge-check delta` não rodado, o delta é um commit só e foi lido inteiro): `hooks/conformidade.py:668-679` (no `except ValueError`, `ilegivel` no nível aninhado, depois `nao_modelada(achado)` e, fora do papel só de leitura, `barrar` R-CONFORMIDADE sempre, sem depender de `CRITICO`); `tests/test_hooks.py` (`executar_em_lote` extraído de `test_fixtures`; `SUFIXOS_QUE_O_BASH_IGNORA`; o teste de 11 linhas da volta 3 deu lugar a `test_recusas_com_sufixo_que_o_bash_ignora_continuam_recusadas`); a fixture `shell-aspas-desbalanceadas-libera` renomeada para `-bloqueia` (código 2); o fragmento do changelog. Já lido (rodada 1, voltas 1 a 3, abaixo): o resto da entrega, sem mudança.
 
 1. **A4 (meu) e A6 da segurança corrigidos pela causa.** O `return` do `except ValueError` deixou de pular as checagens em silêncio: fora do papel só de leitura a linha que o hook não lê é recusada, com ou sem marcador crítico, que é a correção mínima pedida nos dois pareceres e na decisão do dono de 07:48. A ordem preserva as mensagens mais específicas: `ilegivel` (R-CONTRIB, aninhado apontando para o Forge) e `nao_modelada` falam antes. O papel só de leitura fica como estava, e isso está certo: no nível 0 a gramática dele já recusa antes (fixture `conferente-gramatica-aspas-abertas-bloqueia`), e no nível aninhado ele já é barrado na entrada de `bash()`. O comentário desatualizado que eu apontei na volta 3 (`o próprio shell vai recusar`) saiu.
@@ -33,6 +35,7 @@ Recomendações da volta 4 (não bloqueiam):
 - As 3 fixtures de `erros_log` poderiam entrar no teste gerado com o esperado delas (código 2), no lugar de ficar fora; reduziria o teto para 2.
 
 ## Achados
+- A5 (bloqueante) hooks/_comum.py:227 · `#` depois de espaço dentro de `${…}` ou de crase abre comentário no hook, não no bash: `echo ${x:- #b}; gh repo delete dono/proj --yes` sai com 0 e o bash roda o delete. É o A7 da segurança; não é regressão.
 
 ## Volta 3
 **Correção depois do envio (becc0b7 aprovava):** a segurança (3d8b449, A6) mostrou que a recusa nova só vale com `CRITICO`, e eu reproduzi: na cópia de 371ac6d, a fixture `trava-repo-delete-bloqueia` com o sufixo `; (true)#'` e com ` # it's ((` sai com **0** (`AssertionError: 0 != 2`); na cópia da base 10c838f, as mesmas duas saem com 2. Minhas sondas do item 4 só usaram linhas com `CRITICO`, e eu não considerei que boa parte das recusas do hook (`gh repo delete`, caminho protegido fora de `CRITICO`, `forge sugerir`, `git filter-branch`…) não passa por ele. O `return` do `except ValueError` pula todas essas checagens. Vira o meu A4, abaixo; o item 1 vale só para linha com marcador crítico, e o item 6 (aviso do conferente) deixa de ser aceito: a não regressão precisa ser gerada das fixtures de recusa com os dois sufixos, como a sonda da segurança fez, não de 11 linhas escolhidas à mão. A correção mínima da segurança (no mesmo `except ValueError`, recusar sempre fora do papel só de leitura) me parece a certa; a fixture `shell-aspas-desbalanceadas-libera` passa a esperar 2, o que endurece.
