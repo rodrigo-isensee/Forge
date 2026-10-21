@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: prepush-so-parecer
 branch: melhoria/prepush-so-parecer
-commit: 6753dc7c6532e4d10bfa051277d69125f729dc50
-parecer: reprovado
+commit: 441ae2727f04a76299723ca79a2c2989117148de
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -15,10 +15,9 @@ Rodada 1, revisor diferente do autor (D-ETAPAS-INST). Diff lido: `10c838f..6753d
 Ferramentas rodadas, em cópia própria de 6753dc7 (`git archive` em `$TMPDIR`, sem tocar o HEAD da worktree): `python3 -m unittest tests.test_pre_push_parecer -q` → `Ran 14 tests ... OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO; o autor registrou 1208 OK no push e o QA os refaz no head). Segurança do hook (`.githooks` é controle): parecer próprio do `security-engineer`, não refeito aqui.
 
 ## Achados
-- A1 (bloqueante) .githooks/pre-push:144 · atalho aceita docs/security e docs/devops mas não roda NeutralidadeDoNucleo, que varre essas pastas: parecer com termo de stack passa no hook e a árvore vermelha vira verde (linha 149).
 
 ## Parecer
-Reprovado por A1. O resto do desenho está bom e é o que a decisão do dono pede.
+Rodada 1: reprovado por A1 (texto abaixo, mantido como histórico). Volta 1: aprovado, ver "## Volta 1". O resto do desenho está bom e é o que a decisão do dono pede.
 
 A1, evidência (sonda em `$TMPDIR`, cópia de 6753dc7): com `docs/security/sonda.md` citando `npm audit` e `pip-audit` e `docs/devops/sonda.md` citando `Node`, as três classes do hook dão `OK`, e `python3 -m unittest tests.test_forge.NeutralidadeDoNucleo` dá `FAIL` nos dois arquivos (`stack no núcleo (npm)`, `(Node)`, `pip-audit`). Motivo: em `tests/config.json`, `neutralidade_nucleo.ignorar` lista só `docs/adr/`, `docs/reviews/` e `docs/qa/`. O comentário da linha 114 diz que as classes são "as mesmas que o gate do CI usa", mas o gate do CI (`.github/workflows/ci.yml`, passo Gate) só pula para `docs/(reviews|qa)/`; o hook estendeu o atalho a duas pastas sem estender as classes. Parecer de segurança e de devops citar ferramenta de stack é o caso comum, não de borda. A anotação da linha 149 roda também depois do caminho curto, então a árvore que falharia a suíte entra no arquivo `.verde` e os próximos pushes de parecer em cima dela seguem curtos. O CI pega no PR (para essas pastas ele roda a bateria pesada), mas o hook prometeu falha fechada e aqui ela é aberta. Mesma família, menor: `tests/test_volta_por_delta.py` (`test_parecer_escrito_pelo_modelo_passa_no_gerar_volta`) lê `docs/security/_modelo.md`, e um push que só mexe nesse modelo também cairia no atalho.
 
@@ -33,3 +32,19 @@ O que foi lido e está certo (não precisa reler na volta):
 Recomendações (não bloqueiam):
 - `.githooks/pre-push:115`: o comentário diz que a árvore é anotada "depois de cada suíte verde", mas a anotação roda também depois do caminho curto; dizer isso, para quem ler saber que a prova é transitiva.
 - `.githooks/pre-push:149`: `git status` é chamado duas vezes no caminho curto (129 e 149); custo baixo, pode ficar.
+
+## Volta 1
+Revalidação por delta. `forge-check delta --parecer docs/reviews/prepush-so-parecer.md` listou `6753dc7..441ae27`: `.githooks/pre-push` 117-122, 141, 150, 154-157; `changelog.d/prepush-so-parecer.md` 2; `tests/test_pre_push_parecer.py` 34-39, 44, 192-228. Lido só isso, mais o comentário vizinho (114-116); o resto do hook e dos testes ficou como "já lido" na rodada 1.
+
+Ferramentas, em cópia própria de 441ae27 (`git archive` em `$TMPDIR`): `python3 -m unittest tests.test_pre_push_parecer -q` → `Ran 17 tests ... OK`; as quatro classes do caminho curto sobre a árvore real → `OK`; a mesma sonda da rodada 1 (`docs/security/sonda.md` com `npm audit` e `Node`) agora cai em `NeutralidadeDoNucleo` → `FAILED (failures=2)`, que é a classe que o caminho curto passou a rodar. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO; o pre-push deste envio e o QA os rodam).
+
+- A1 resolvido: `tests.test_forge.NeutralidadeDoNucleo` entrou no caminho curto (linha 150), e o teste `test_termo_de_stack_em_parecer_de_seguranca_e_barrado_no_caminho_curto` prova que ela roda, que o push é barrado e que a árvore vermelha não vira prova.
+- R2 da segurança, pela decisão do dono (R2 → "A"): a linha 141 manda à suíte inteira `*/_*` (modelos das quatro pastas), `docs/security/ameacas/*` e `docs/security/aceites/*`, e vem antes do padrão das quatro pastas, então ganha. O padrão exige `/_`, não pega `a_b.md`. Coberto por `test_modelo_e_pastas_de_controle_rodam_a_suite_inteira` (cinco casos, com subTest).
+- R1 da segurança: a árvore anotada passa a ser a do início (linhas 121-122 e 154-157), com a árvore de trabalho limpa no início e no fim. `test_prova_grava_a_arvore_do_inicio_da_suite` (a suíte faz um commit no meio) prova que a do fim não entra. No caminho curto a árvore do início é a do commit enviado (HEAD igual a `unico_local`, já conferido), então a cadeia continua certa.
+
+Suposição do autor (a prova só grava se a árvore estava limpa no início e no fim): é suficiente para o caso testado e mais segura que a rodada anterior, mas não fecha tudo. Limpa no início e no fim não garante que a árvore não mudou no meio: um `merge --ff-only` de outro revisor na worktree compartilhada durante os ~5 min deixa a árvore limpa no fim, e a suíte leu parte dos arquivos novos, ou seja, testou uma mistura e anota a do início. Não bloqueia: a árvore do início só vira prova se a mistura passou, o delta que a usa depois ainda precisa ser só de pareceres, e o CI repete tudo. Recomendação abaixo.
+
+Recomendações (não bloqueiam):
+- `.githooks/pre-push:156`: anotar só se, além de limpa, `HEAD^{tree}` no fim for igual a `arvore_inicio` (o que a R1 da segurança propôs); uma comparação, e o teste do commit no meio passaria a afirmar que nenhuma das duas árvores entra.
+- `.githooks/pre-push:115`: o comentário ainda diz que as classes são "as mesmas que o gate do CI usa"; o gate do CI pula só para `docs/(reviews|qa)/` (`.github/workflows/ci.yml:70`) e o hook agora roda quatro classes. Dizer em que difere (repete a recomendação da rodada 1).
+- Changelog atualizado e coerente com o comportamento; commit único da volta, Conventional Commits em português; nada de custo (R-CUSTO) nem de projeto (R-NEUTRO).
