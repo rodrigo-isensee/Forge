@@ -12,6 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_falso import com_gh_falso  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -43,7 +44,7 @@ def ambiente_do_git():
     """Sem GIT_* herdado (um hook do git exporta GIT_DIR) e sem config global ou de sistema: o git só vê o repositório temporário."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-    return env
+    return sem_manutencao(env)
 
 
 def git(*args, cwd):
@@ -56,6 +57,7 @@ class Repo(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         self.origem = self.tmp / "origem.git"
         git("init", "-q", "--bare", "-b", "develop", str(self.origem), cwd=self.tmp)
+        remoto_sem_manutencao(self.origem)
         self.semente = self.clone("semente")
         self.commitar(self.semente, {"README.md": "x\n", "src/app.py": "v1\n", "docs/pedidos/exemplo.md": PEDIDO}, "base")
         git("push", "-q", "origin", "develop", cwd=self.semente)
