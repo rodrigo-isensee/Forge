@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 742f828b5cd58b85719f65e390706b9d415169d6
-parecer: reprovado
+commit: 136ad09ee16661bd2d10975ec1c5549890ff78e9
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -13,6 +13,26 @@ data: 2026-10-21
 Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251+/8-. Revisor diferente do autor da E1.1 (D-ETAPAS-INST). Segurança (E1.3): parecer próprio do `security-engineer`, não refeito aqui.
 
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
+
+## Volta 6
+Delta lido (`forge-check delta --parecer docs/reviews/hook-comentario-shlex.md`, intervalo `742f828..136ad09`): `hooks/_comum.py` (312-314, 318-323, 330-337), `tests/test_hooks.py` (98-107, 121-124, 1186-1194), as três fixtures novas (`conformidade/comentario-com-aspa-dentro-de-crase-repo-delete-bloqueia`, `parecer/forge-clone-pr-merge-cerquilha-colada-a-crase-bloqueia`, `parecer/forge-clone-pr-merge-comentario-com-aspa-dentro-de-crase-bloqueia`), `changelog.d/hook-comentario-shlex.md:2`, `docs/adr/0013-leitura-do-comentario-nos-hooks.md` (27, 42-43) e `docs/adr/README.md:22`. Contra o A6 deste parecer e o A8 da segurança, ambos da volta 5. Já lido (voltas 0 a 5, abaixo): o resto da entrega; `c3a5d75` e `9e2bec1` são pareceres, sem código.
+
+1. **A6 e A8 corrigidos pela causa.** A crase entrou em `ANTES_DE_CANDIDATO` (o `#` logo depois da crase que abre é candidato) e, na última linha física, um candidato seguido de crase e aspa deixa a linha ilegível; antes, a função devolvia `False` ali sem olhar o resto. As linhas do A6 e do A8 caem em `leituras().ilegivel`, e o `conformidade` (fora do papel só de leitura) e o `parecer` as recusam pela regra que já existia; nenhuma porta nova.
+2. **Sondas pelo hook real** (cópias por `git archive` em $TMPDIR, fixtures temporárias montadas pelo `Fixture` da suíte, esperado 2 com `R-`; `136ad09` × base `10c838f`), em `trava-repo-delete`, `trava-push-main`, `forge-clone-pr-merge-reprovado` e `forge-clone-pr-create-sem-parecer`, com 14 formas do comentário dentro de crase: `` `true #'` `` em par, `` $(echo `#'`) ``, `` "`#'`" `` (crase dentro de aspas duplas), crase escapada aninhada, tab antes do `#`, `` `#"` ``, `(#'` e `|#'` dentro da crase, a crase na primeira linha e o comentário real na segunda, e `` `# $(` ``, `` `# ${` ``, `` `# ((` `` sem aspa. Na `136ad09` todas saem 2, menos uma; na base, 23 das 28 sondas de `repo-delete` e `pr-merge` saem 0.
+3. **A que sai 0 é o cartão HEREDOC-FURO-HOOK, já na base.** `` x=`# <<E`⏎gh repo delete dono/proj --yes⏎E `` sai 0 nas duas (o bash roda o `gh`: `RODOU gh repo delete dono/proj --yes`). O `tirar_heredocs` não conhece comentário e tira o "corpo" antes da leitura, como no `x=$(date) # <<E⏎…` que a segurança já registrou na volta 5. Não é regressão nem desta classe; segue no cartão.
+4. **Os testes pegam a classe.** Com o `hooks/_comum.py` de `9e2bec1` na cópia de `136ad09`, T1 e T2 saem `FAILED (failures=9)` (1 no T1, 8 no T2, nas variantes "crase em par"); com o de `136ad09`, T1 a T4, `test_leituras_piso_da_develop_e_linha_ambigua` e os dois `test_cerquilha_*`: `Ran 7 tests in 5.109s OK`. As linhas negativas do `test_leituras_*` (crase com comentário sem aspa, lida inteira) prendem o lado do excesso.
+5. **`FORA_DO_T2` com o `pesado` na crase em par: aceito.** A tabela do item 5 da ADR 0013 deixa a trava de recurso aberta quando a leitura fiel não fecha e a antiga, que é a da develop, perde o comando; é o mesmo resultado da develop, então não é regressão, e o `pesado` guarda a carga da máquina (R-TETO), não uma regra de conformidade nem de review. O motivo está escrito ao lado do conjunto, e a ADR e o T2 dizem a mesma coisa (item 6). O que pesa contra seria o `pesado` recusar o que a develop libera, o que inverte a decisão registrada na ADR; se for preciso, vira emenda à 0013, não ajuste deste pedido.
+6. **Recusa a mais, medida** (`leituras().ilegivel` na `136ad09`). Ficam ilegíveis, e portanto recusadas fora do papel só de leitura: `` git commit -m "fix: `a` e #12 `b`" ``, `` gh pr create --draft --title t --body "Muda `a.py` (#12, `b.py`)" `` e `` x=`date`; ls # nota `a` it's ``. Continuam lidas: `` git commit -m "fix(hooks): crase em `x` (#268)" `` e `` git commit -m "docs: `x` #3" ``. Basta uma referência `#n` seguida de crase na mesma mensagem, o que aparece em commits e PRs do próprio Forge. É a direção segura, decidida pelo dono (07:48), e o contorno é o `-F`/`--body-file`; vai como recomendação.
+7. **ADR, índice e changelog.** A 0013 descreve o comentário dentro de crase no item 2 e os pares no item 6; a linha da 0013 entrou no `docs/adr/README.md` (recomendação da volta 5 atendida). O fragmento do changelog cita a crase com aspa; o `CHANGELOG.md` não foi tocado. Dois commits em Conventional Commits (código com teste e fixtures; ADR e índice).
+8. **Regras.** Endurece; nenhuma fixture de recusa saiu; `invariantes` intactos; sem custo (R-CUSTO); nada de projeto (R-NEUTRO). Segurança da volta 6: parecer próprio do `security-engineer`, não refeito aqui.
+
+Ferramentas na volta 6: os 7 testes acima e as sondas, em cópias de `136ad09` e `10c838f`. A suíte inteira roda no pre-push deste envio e no QA (R-TETO).
+
+Recomendações da volta 6 (não bloqueiam):
+- `hooks/_comum.py:334`: a regra da última linha pega mensagens com `#n` seguido de crase dentro de aspas duplas (item 6). Se o verificador mostrar recusas, vale estreitar exigindo que a aspa depois do `#` não feche na mesma palavra entre aspas duplas que a leitura do hook já abriu; até lá, a mensagem da recusa podia citar o `-F`/`--body-file` como contorno.
+- `docs/adr/0013-leitura-do-comentario-nos-hooks.md:3`: segue a recomendação da volta 5 de decidir o estado ("aceita") no merge.
+
+## Achados
 
 ## Volta 5
 Delta lido (`forge-check delta --parecer docs/reviews/hook-comentario-shlex.md 742f828`, intervalo `f02f482..742f828`): `hooks/_comum.py` (221-346, 353, 356, 374, 415, 534, 572, 613-633), `hooks/conformidade.py` (27-29, 234-243, 668-709, 728, 1307-1312, 1620-1633), `hooks/parecer.py` (22, 337-347), `hooks/pesado.py` (82-88), `tests/test_hooks.py` (T1 a T4, `test_leituras_piso_da_develop_e_linha_ambigua`, tabelas `test_cerquilha_*`), as 16 fixtures novas, `changelog.d/hook-comentario-shlex.md:2`, `docs/adr/0011…:36` e `docs/adr/0013-leitura-do-comentario-nos-hooks.md` inteiro. Contra o desenho do arquiteto (seções 2 a 5 e 10). Já lido (voltas 0 a 4, abaixo): o resto da entrega. O `f1305b1` é o meu parecer da volta 4, sem código.
@@ -36,8 +56,8 @@ Recomendações da volta 5 (não bloqueiam):
 - `docs/adr/0013-leitura-do-comentario-nos-hooks.md:3`: decidir se o estado é "aceita" no merge, como a 0011.
 - `hooks/parecer.py:338`: a recusa da linha ilegível pega também `git commit` cuja mensagem cita `merge` ou `pull` (item 6). Se o verificador mostrar recusas, vale aplicar o `tirar_heredocs` antes da leitura, como o `conformidade` faz, depois do cartão HEREDOC-FURO-HOOK.
 
-## Achados
-- A6 (bloqueante) hooks/_comum.py:313 · `#` com aspa dentro de crase esconde o resto da linha do parecer: ``echo `# it's`; gh pr merge … --merge; echo `# it's` `` sai 0 com review reprovado (o bash roda o merge). Crase fora de ANTES_DE_CANDIDATO e o `:326` exige outra linha.
+Achados da volta 5 (resolvidos na volta 6):
+- A6 da volta 5 (resolvido) hooks/_comum.py:313 · `#` com aspa dentro de crase esconde o resto da linha do parecer: ``echo `# it's`; gh pr merge … --merge; echo `# it's` `` sai 0 com review reprovado (o bash roda o merge). Crase fora de ANTES_DE_CANDIDATO e o `:326` exige outra linha.
 
 ## Volta 4
 **Correção depois do envio (5069a86 aprovava):** a segurança (0334081, A7) mostrou que o `#` depois de espaço dentro de `${…}` ou de crase abre comentário no hook e não no bash, e eu reproduzi na cópia de f02f482: `echo ${x:- #b}; gh repo delete dono/proj --yes` e `` echo `echo a #b`; gh repo delete dono/proj --yes `` saem com **0** (`AssertionError: 0 != 2`), e o `bash -c` com `gh` trocado por função imprime `RODOU gh repo delete dono/proj --yes`. Contradiz o meu item 4 da volta 2: lá eu sondei `${…}` e crase só com `git push`, que tem `CRITICO` e cai na guarda de construção não modelada; sem `CRITICO`, nada recusa. É o mesmo ponto cego da volta 3. Não é regressão (a base também libera), mas é o furo que o pedido corrige (E1: a linha lida como o bash lê). Vira o meu A5, abaixo; o resto desta volta (itens 1 a 7) continua valendo. Sugestão, para fechar a classe e não enumerar: `${` ou crase na linha entram em `SEM_COMENTARIO` (o `#` deixa de abrir comentário, como com `((` e `=~`), e o teste gerado ganha um terceiro caso com o prefixo `echo ${x:- #b}; ` além dos sufixos.
