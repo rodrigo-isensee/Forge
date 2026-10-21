@@ -1,5 +1,5 @@
 {
-  "descricao": "ADR 0011 (item 2): o # engolia a quebra de linha no shlex.",
+  "descricao": "ADR 0011 (item 2): o # engolia a quebra de linha no shlex; agora o comentário vai só até ela e o push na main é lido e recusado pela regra (HOOK-COMENTARIO-SHLEX); a recusa por não modelada está em nao-modelado-comentario-push-dev-bloqueia.",
   "arquivos": {
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "não modela"
+    "stderr": "R-MAIN: push direto para main"
   }
 }

@@ -19,6 +19,7 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 | [0010](0010-agentes-devops-e-seguranca.md) | Agentes `devops-engineer` e `security-engineer`; parecer de segurança com gatilho (`R-SEGURANCA`) (proposta) |
 | [0011](0011-analisador-de-comandos-gramatica-positiva.md) | Analisador de comandos dos hooks: gramática positiva e falha fechada no que não modela (proposta) |
 | [0012](0012-main-por-merge-commit.md) | `main` mesclada por merge commit; sem PR de sincronização `main` → `develop` (substitui em parte a 0008) |
+| [0013](0013-leitura-do-comentario-nos-hooks.md) | Leitura do comentário nos hooks: só onde se prova, com a leitura antiga como piso (emenda o item 2 da 0011) (proposta) |
 
 ## Substituídas
 Nenhuma.

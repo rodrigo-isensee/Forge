@@ -24,9 +24,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comandos, construcao_nao_modelada, contrib, diretorio_comum, e_clone_do_forge,
-                    em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, mensagem, nome_da_branch, raiz_declarada,
-                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comentarios, construcao_nao_modelada, contrib, diretorio_comum,
+                    e_clone_do_forge, em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem,
+                    nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -74,6 +74,20 @@ TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir"
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
+# F6: leitor sem execução (sem `source`/`.`, pagers e `xxd`, que executam ou gravam por argumento) e as opções que não executam
+# programa nem gravam (curtas pela letra; longas pelo nome exato, sem abreviação: `--pre`, `--filter`, `--pager`, `--config`,
+# `--output`, `--ext-diff` ficam de fora, e na dúvida recusa)
+LEITORES_SEM_EXEC = {"cat", "head", "tail", "nl", "tac", "grep", "egrep", "rg", "od", "strings", "base64"}
+GIT_LEITURA = {"log", "show", "diff"}
+CURTAS_SEM_EXEC = set("AbBcCdeEfFGHhiIjklLmnNoqrRsStTuvwxX0123456789")
+LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-case", "count", "files-with-matches",
+                   "files-without-match", "fixed-strings", "no-filename", "with-filename", "include", "exclude",
+                   "exclude-dir", "max-count", "context", "after-context", "before-context", "extended-regexp",
+                   "word-regexp", "line-regexp", "invert-match", "only-matching", "quiet", "silent", "no-messages",
+                   "regexp", "bytes", "lines", "decode", "stat", "oneline", "name-only", "name-status", "no-color",
+                   "no-merges", "graph", "all", "abbrev-commit", "shortstat", "numstat", "cached", "staged", "patch",
+                   "summary", "follow", "merges", "reverse", "first-parent", "decorate", "pretty", "format", "author",
+                   "since", "until", "no-ext-diff", "no-textconv"}
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
 HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][\w-]*)\1")
@@ -139,6 +153,47 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def opcoes_sem_exec(args):
+    """Todas as opções são de leitura pura: curta só com letras de `CURTAS_SEM_EXEC`, longa só pelo nome exato em
+    `LONGAS_SEM_EXEC`; `+comando` (less) e qualquer outra forma recusam. Depois de `--` tudo é argumento."""
+    for a in args:
+        if a == "--":
+            return True
+        if a.startswith("--"):
+            if a[2:].split("=", 1)[0] not in LONGAS_SEM_EXEC:
+                return False
+        elif a.startswith("-") and len(a) > 1:
+            if not set(a[1:]) <= CURTAS_SEM_EXEC:
+                return False
+        elif a.startswith("+"):
+            return False
+    return True
+
+
+def so_leitura(linha):
+    """F6: a linha só lê (todo segmento da leitura fiel de `leituras()`, ADR 0013, é leitor sem execução ou
+    `git log|show|diff`), sem `$`, crase, `#` (sem comentário, a leitura é uma só e não há o que provar), várias linhas, substituição, redirecionamento de saída nem opção que execute programa: `forge` e `sugerir` ali são dado.
+    `eval`, `xargs`, shell aninhado, variável antes do programa e programa com caminho não são leitor: recusam. Na dúvida, False."""
+    if re.search(r"[$`\n#]", linha):
+        return False
+    lidas = leituras(linha)
+    if lidas.ilegivel or len(lidas.partes) != 1 or not lidas.partes[0]:
+        return False
+    for palavras, destinos, sub in lidas.partes[0]:
+        if destinos or sub or not palavras:
+            return False
+        prog, args = palavras[0], palavras[1:]
+        if prog == "git":
+            if not args or args[0] not in GIT_LEITURA:
+                return False
+            args = args[1:]
+        elif prog not in LEITORES_SEM_EXEC:
+            return False
+        if not opcoes_sem_exec(args):
+            return False
+    return True
 
 
 def guardar_exato(linha):
@@ -231,14 +286,16 @@ def e_graphql(endpoint):
 
 def conteudos_de_crase(comando):
     """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
-    aspas duplas; a barra invertida escapa; comentário (`#` no início de palavra, fora de aspas) não conta. Crase sem par levanta ValueError (a linha não se analisa)."""
+    aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
+    conta. Crase sem par levanta ValueError (a linha não se analisa)."""
     saida, inicio, simples, duplas, i = [], None, False, False, 0
+    provados = comentarios(comando)
     while i < len(comando):
         c = comando[i]
         if c == "\\" and not simples and i + 1 < len(comando):
             i += 2
             continue
-        if c == "#" and inicio is None and not simples and not duplas and (i == 0 or comando[i - 1] in " \t\n;&|("):
+        if i in provados:
             fim = comando.find("\n", i)  # comentário (`# don't`): vai até o fim da linha e não abre aspa
             i = len(comando) if fim < 0 else fim
             continue
@@ -663,18 +720,48 @@ class Guarda:
                         f"não cite .git/forge; {SUGESTAO}")
         comando, corpos = tirar_heredocs(comando)
         comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
-        try:
-            partes = list(comandos(comando))
-        except ValueError:
-            self.nao_modelada(achado)
+        lidas = leituras(comando)
+        if lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
-            return  # aspas desbalanceadas: o próprio shell vai recusar
-        ramos = {}
+            self.nao_modelada(achado)
+            # A linha que a leitura do hook não fecha (`(true)#'`, apóstrofo no comentário de `((…))`, barra no fim) o
+            # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
+            # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
+            # recusa aspas sem par e `#`).
+            if not self.leitura:
+                self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, ou # que ele não prova ser comentário: "
+                                              "o hook não modela a linha",
+                            "feche as aspas, tire aspas e # do comentário ou separe os comandos")
+            return
         if nivel == 0:
             self.ambiente = {}
             self.linha = original
             self.sugerir_na_linha(original)
+        # ADR 0013, I2: a leitura fiel e, se a linha tem `#` e a da develop deu outra, também ela, cada uma com estado
+        # novo (ambiente, `cd`, branch); a pasta dos corpos de heredoc e o ambiente que segue são os da fiel.
+        ambiente = dict(self.ambiente)
+        pasta_fiel, ambiente_fiel = None, None
+        for partes in lidas.partes:
+            self.ambiente = dict(ambiente)
+            depois = self.conferir_partes(partes, pasta, nivel, so_substituicoes)
+            if pasta_fiel is None:
+                pasta_fiel, ambiente_fiel = depois, self.ambiente
+        self.ambiente = ambiente_fiel
+        pasta = pasta_fiel
+        for dono, corpo in corpos:
+            if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+                self.bash(corpo, pasta, nivel + 1)
+            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
+                self.checar_texto(corpo)
+        self.nao_modelada(achado)
+        if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
+            self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
+                                          "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
+
+    def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
+        """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela."""
+        ramos = {}
         contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
 
         def contexto(sub):
@@ -693,16 +780,7 @@ class Guarda:
                                 DICA_LEITURA)
                 self.checar_escrita(d, pasta_sub)
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
-        pasta = contextos[()][0]
-        for dono, corpo in corpos:
-            if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
-                self.bash(corpo, pasta, nivel + 1)
-            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
-                self.checar_texto(corpo)
-        self.nao_modelada(achado)
-        if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
-            self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
-                                          "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
+        return contextos[()][0]
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -722,9 +800,9 @@ class Guarda:
                         "no lugar de echo $?: && echo contém || echo não contém")
 
     def sugerir_na_linha(self, linha):
-        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
-        outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
-        if guardar_exato(linha):
+        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira, ou a
+        linha só de leitura (`so_leitura`: `grep -n 'forge sugerir' README.md`). Qualquer outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
+        if guardar_exato(linha) or so_leitura(linha):
             return
         limpa = re.sub(r"[\"'\\`]", "", linha)
         if "sugerir" in limpa or re.search(r"(?:^|[\s;&|(])(?:\S*/)?forge[\"']?\s+[\"']?\S*[$`*?\[{~]", linha):
@@ -1281,8 +1359,12 @@ class Guarda:
             sem_heredoc, corpos = tirar_heredocs(comando)
             for interno in conteudos_de_crase(sem_heredoc):  # a crase é um `$(...)`: o mesmo caminho
                 self.rotulo_na_sessao_do_forge(interno, pasta, nivel + 1)
-            partes = list(comandos(sem_heredoc))
-            for palavras, _, _ in partes:
+            lidas = leituras(sem_heredoc)
+            if lidas.ilegivel:
+                if CITA_ROTULO.search(comando):
+                    self.exigir_dono()
+                return
+            for palavras, _, _ in (parte for partes in lidas.partes for parte in partes):  # ADR 0013: as duas leituras
                 while palavras and palavras[0] in CORPO_DE_LACO:
                     palavras = palavras[1:]
                 palavras, _ = separar_lancadores(palavras)
@@ -1590,18 +1672,20 @@ def autoria(hook, guarda, alvos):
 
 
 def alvos_de_escrita(comando):
-    """Alvos de `>`, `>>` e `tee` na linha (para a autoria dos pareceres escritos pelo Bash)."""
+    """Alvos de `>`, `>>` e `tee` na linha (para a autoria dos pareceres escritos pelo Bash): a união das leituras
+    (`leituras`, ADR 0013); a que não fecha não dá alvo."""
     comando, _ = tirar_heredocs(comando)
     alvos = []
-    try:
-        for palavras, destinos, _ in comandos(comando):
-            alvos += destinos
-            palavras = sem_lancadores(palavras)
-            if palavras[:1] == ["tee"]:
-                alvos += [a for a in palavras[1:] if not a.startswith("-")]
-    except ValueError:
-        pass
-    return alvos
+    for partes in leituras(comando).partes:
+        try:
+            for palavras, destinos, _ in partes:
+                alvos += destinos
+                palavras = sem_lancadores(palavras)
+                if palavras[:1] == ["tee"]:
+                    alvos += [a for a in palavras[1:] if not a.startswith("-")]
+        except ValueError:  # `env -S` com aspas abertas
+            pass
+    return list(dict.fromkeys(alvos))
 
 
 def identificar_sessao(hook):

@@ -13,7 +13,7 @@ import re
 import time
 from pathlib import Path
 
-from _comum import bloquear, e_clone_do_forge, executar, gravar_json, ler_json, segmentos, sem_atribuicoes
+from _comum import bloquear, e_clone_do_forge, executar, gravar_json, ler_json, leituras, sem_atribuicoes
 
 CASCAS = {"sh", "bash", "dash", "zsh"}
 EVENTOS = {"PreToolUse", "PostToolUse", "PostToolUseFailure", "PermissionDenied"}
@@ -82,10 +82,9 @@ def pesado(comando, padroes):
     padroes = [normalizar(p) for p in padroes]
     if not any(p in texto for p in padroes):
         return False  # pré-filtro barato: a maioria dos comandos para aqui
-    try:
-        partes = [inicios(s) for s in segmentos(comando)]
-    except ValueError:
-        return False  # aspas desbalanceadas: na dúvida, libera
+    # ADR 0013, tabela 2.4: pesado se qualquer leitura (a fiel e, se diferir, a da develop) for; se nenhuma fecha,
+    # libera, como na develop (a trava de recurso fica aberta na dúvida).
+    partes = [inicios(palavras) for leitura in leituras(comando).partes for palavras, _, _ in leitura]
     return any(t == p or t.startswith(p + " ") for inicio in partes for t in inicio for p in padroes)
 
 

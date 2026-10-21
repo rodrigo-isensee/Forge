@@ -33,6 +33,7 @@ Trocar a omissão: **o que o analisador não modela é recusado** onde importa, 
    - **`\` seguido de quebra de linha**;
    - **heredoc só como `<<'FIM'` exato** (delimitador entre aspas simples, ou duplas, sem `-`, terminado numa linha igual ao delimitador); o corpo dele não é lido. **Qualquer outro `<<` numa linha de várias linhas recusa** (sem aspas, `<<-`, `<<<`, escapado, entre aspas, sem fim, fim com espaço em volta). Isso mantém os usos legítimos (mensagem de commit por `<<'EOF'`, parecer do QA por heredoc) e fecha as formas em que o `tirar_heredocs` tomava por corpo uma linha que o bash executa.
    A linha que o `shlex` não consegue ler (aspas "desbalanceadas" que o bash lê bem) também recusa. Sem marcador crítico, nada muda. O comentário que engole a quebra de linha fica fechado por esta regra, sem mexer no `shlex`.
+   Emendado pela [0013](0013-leitura-do-comentario-nos-hooks.md): onde o `#` abre comentário e o que cada hook faz com a linha que não lê.
 3. **Critério de parada das rodadas.** A próxima rodada de review de segurança desta fatia reprova só por: (i) fixture dos critérios abaixo com rc errado; (ii) brecha numa construção que a gramática do item 1 aceita ou que a lista do item 2 não cobre **e** que atinge ação crítica sem outra camada (sandbox, pre-push, proteção de branch). Brecha que depende de estado gravado antes (configuração do git, ou arquivo versionado que o git lê, como S7 e S8) ou fora do escopo dos itens 1 e 2 vira cartão, não reprovação.
 4. **Viram cartão:** os da seção "Cartões", abaixo.
 

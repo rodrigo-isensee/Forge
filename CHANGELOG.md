@@ -4,6 +4,31 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.28.0] - 2026-10-21
+### Adicionado
+- Erros recorrentes voltam ao próximo brief (ERROS-NO-BRIEF): o registro das conferências ganha a classe fixa da falha (`conferencia registrar --classe` e `--autor`, `conferencia classes` com proposta de regra a partir de 3 briefs em 30 dias), o `brief gerar` põe até 3 linhas de erros recorrentes do destino e mostra ao Jarvis, em stderr, os que ele mais repete por tipo de brief (`Tipo:` gravado pelo `gerar`), e o arquivo vivo `docs/engineering/achados-recorrentes.md` entra no `## Ler` das etapas de código.
+- forge-fechar: --esperar-rotulo espera o rótulo do dono e a Catraca verde e mescla na mesma execução, preso ao head; prazo esgotado para como antes.
+- forge-fechar grava o log em arquivo e imprime o caminho
+- forge-check fila: o que pode começar agora (dependências, teto e sobreposição)
+- O hook de agentes recusa chamar o forge:conferente sem o cabeçalho da mensagem (modo, Arquivo em docs/briefs/, Brief-sha256 de 64 hex), antes de a rodada custar tokens (R-BRIEF, M6).
+- O Jarvis grava duas regras do dono: toca sempre o máximo de itens ao mesmo tempo (dentro de R-TETO e R-WIP) e toda melhoria do time vale para o Forge e para todos os projetos, salvo quando o dono disser que fica só no projeto.
+- O doutor avisa, sem bloquear, quando a sessão roda uma versão do Forge menor que a instalada (feche e abra a sessão), deixa de mandar `claude plugin update` quando o plugin certo já está instalado, e o `forge atualizar` termina com o mesmo aviso.
+- **Pré-requisitos do sistema na stack node-react:** o `pronto.md` traz o comando de instalação das bibliotecas do navegador de testes (para o usuário) e o pré-voo só de leitura (`ldd`) do `qa-engineer` antes da primeira suíte E2E.
+### Alterado
+- CI: a ferramenta (Claude Code, com conferência de versão e nova tentativa só na instalação) e as checagens baratas (validate, degrau, changelog, segredo, parecer) rodam antes dos testes, para o vermelho barato aparecer em segundos; testes iguais e obrigatórios
+- Hook conformidade: a F6 (forge sugerir) deixa de barrar a linha em que todos os segmentos são de leitura (grep, cat, git log|show|diff...), sem variável, crase, redirecionamento nem opção que execute programa; xargs, eval, shell aninhado e ofuscação seguem recusados (afrouxa um bloqueio, R-CONFORMIDADE)
+- bin/forge-fechar: log endurecido (pasta por usuário em modo 700, máscara ampliada, retenção de 14 dias, `fim: código N`), número da execução e do job de cada check no log e limpeza em função única, com o modo `--limpar` (só com prova de PR MERGED), resumo `limpeza: ...` e código de saída 3 para fechado com limpeza pendente (LOTE-FORGE-FECHAR)
+- tech-lead e qa-engineer acham o modelo de parecer também no repositório do próprio Forge (templates/projeto/docs/<tipo>/_modelo.md), com teste que confere os modelos citados pelos agentes (MODELOS-NO-FORGE)
+- Toda pergunta ao dono traz, por opção, Afrouxa o processo?, tempo e tokens (faixa, média e a marca medido, estimado ou não medido), na skill modo-iniciante, na R-DECISAO e no Jarvis; teste estrutural impede o padrão de sumir.
+- O pre-push de um push que só acrescenta pareceres (docs/reviews, security, qa, devops) sobre código cuja árvore já passou na suíte roda só as classes de teste que leem essas pastas (inclui NeutralidadeDoNucleo); modelos (arquivo começado em `_`), docs/security/ameacas e docs/security/aceites, qualquer outro arquivo, prova ausente ou dúvida rodam a suíte inteira; quem apaga ou renomeia arquivo também roda a suíte inteira; a prova só é gravada se a árvore não mudou durante a suíte; o CI repete tudo (PREPUSH-SO-PARECER).
+- registra na develop os pareceres de review, segurança e devops da release 0.27.0
+- Jarvis agrupa num lote os desenvolvimentos que mexem no mesmo arquivo
+- Jarvis, na abertura de cada pedido, confere com o time se ele cabe num lote com algo ainda não em andamento, só agrupando itens no mesmo estágio de discovery
+### Corrigido
+- forge-testes: o modo dirigido roda todos os testes do forge-check
+- Hooks: o '#' só abre comentário onde a leitura prova que o bash também o abre (gramática G da ADR 0013); colado a uma palavra (`echo a#; git push --force origin main`), dentro de `((…))`, `$((…))`, `$[…]`, `${…}`, crase (inclusive com aspa no comentário dela, que acaba na crase), regex do `=~` ou extglob, ou depois de um espaço escapado, ele não esconde mais o resto da linha das checagens. A leitura antiga (a da develop) fica como piso: o que ela recusava continua recusado (`gh repo # x⏎delete …`). `conformidade`, `parecer` e `pesado` leem a linha por uma função só (`leituras`); a linha que o hook não lê é recusada no `conformidade` (fora do papel só de leitura) e no `parecer` (que antes liberava o merge com `; (true)#'`), e o `pesado` cai na leitura antiga (HOOK-COMENTARIO-SHLEX)
+- modelo de parecer de segurança do template sincronizado com o da raiz (recomendações não bloqueantes, #217); teste de igualdade sem expectedFailure (MODELO-SEGURANCA-DERIVA)
+
 ## [0.27.0] - 2026-10-21
 ### Alterado
 - forge-check e conferente: saída sanitizada (C1, Cf, Zl, Zp), a frase do dono só conta quando abre a linha, `brief gerar --volta --incluir`, destino lido do brief, recusa por campo, aviso da decisão D no Forge, etapa de segurança, `pr` com o merge da base por conteúdo, entregas paralelas por `--brief`, Base-sha real e `transcricao custo` por raiz e por pedido (FORGE-CHECK-LOTE).
