@@ -43,10 +43,6 @@ class ModelosCitados(unittest.TestCase):
             with self.subTest(agente=nome):
                 self.assertIn(esperado, texto)
 
-    # Deriva real achada por este teste: a raiz tem a frase das recomendações não bloqueantes (#217) que o
-    # template não tem. Corrigir mexe em docs/ ou templates/ (fora do escopo de MODELOS-NO-FORGE): cartão à parte;
-    # ao sincronizar os dois, remover o expectedFailure.
-    @unittest.expectedFailure
     def test_modelo_de_seguranca_da_raiz_igual_ao_do_template(self):
         # Caminho montado em variável: o mapa de bin/forge-testes (fora do escopo deste pedido) ainda não
         # conhece estes dois arquivos; ao incluí-los lá, voltar aos literais.
