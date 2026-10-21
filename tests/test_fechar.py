@@ -584,7 +584,8 @@ class Fechar(unittest.TestCase):
         for n in "1234567":
             self.assertEqual(sum(1 for x in linhas if f" [{n}] " in x), 1, (n, linhas))
         self.assertTrue(all(x[:4].isdigit() and x[10] == "T" for x in linhas), linhas)
-        self.assertIn("Entrega p1 fechada em develop.", linhas[-1])
+        self.assertIn("Entrega p1 fechada em develop.", linhas[-2])
+        self.assertTrue(linhas[-1].endswith(" fim: código 0"), linhas[-1])
         self.assertEqual(oct(log.stat().st_mode & 0o777), "0o600")
 
     def test_log_tambem_guarda_a_saida_de_erro_e_mascara_segredo(self):
@@ -601,6 +602,126 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         log = Path(r.stdout.splitlines()[0][len("log: "):])
         self.assertIn("[7]", log.read_text())
+
+    # ---- C1: log endurecido (L1 a L6) ----
+    def fechar_sem(self, *args, remover=(), **extra):
+        env = {k: v for k, v in self.env.items() if k not in remover}
+        env.update(extra)
+        return subprocess.run(["bash", str(SCRIPT), *args], cwd=self.proj, env=env, capture_output=True, text=True,
+                              timeout=60)
+
+    def log_de(self, r):
+        return Path(r.stdout.splitlines()[0][len("log: "):])
+
+    def test_l1_pasta_padrao_e_por_usuario_com_xdg_ou_tmp(self):
+        xdg, tmpd = self.tmp / "xdg", self.tmp / "tmpd"
+        xdg.mkdir()
+        tmpd.mkdir()
+        r = self.fechar_sem("p1", "--ref", "melhoria/x", "--dry-run", remover=("FORGE_FECHAR_LOG_DIR",),
+                            XDG_RUNTIME_DIR=str(xdg), TMPDIR=str(tmpd))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.log_de(r).parent, xdg / "forge-fechar-logs")
+        self.assertEqual(oct((xdg / "forge-fechar-logs").stat().st_mode & 0o777), "0o700")
+        r = self.fechar_sem("p1", "--ref", "melhoria/x", "--dry-run", remover=("FORGE_FECHAR_LOG_DIR", "XDG_RUNTIME_DIR"),
+                            TMPDIR=str(tmpd))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.log_de(r).parent, tmpd / f"forge-fechar-logs-{os.getuid()}")
+
+    def test_l1_recusa_pasta_que_e_link_ou_tem_modo_diferente_de_700(self):
+        alvo = self.tmp / "alvo"
+        alvo.mkdir(mode=0o700)
+        link = self.tmp / "link"
+        link.symlink_to(alvo)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(link))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertEqual(list(alvo.iterdir()), [])
+        aberta = self.tmp / "aberta"
+        aberta.mkdir()
+        aberta.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(aberta))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("modo 700", r.stderr)
+        self.assertEqual(list(aberta.iterdir()), [])
+
+    def test_l1_arquivo_do_log_vem_de_mktemp_e_e_600(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        a, b = self.log_de(r), self.log_de(self.fechar("p1", "--ref", "melhoria/x", "--dry-run"))
+        self.assertNotEqual(a, b)
+        self.assertEqual(oct(a.stat().st_mode & 0o777), "0o600")
+
+    SEGREDOS = (
+        ("GH_TOKEN=abc123segredo", "abc123segredo"),
+        ("export MEU_SECRET=segredo9", "segredo9"),
+        ("DB_PASSWORD=senha777", "senha777"),
+        ('{"token": "valorjson1"}', "valorjson1"),
+        ("https://usuario:senhaurl@github.com/x", "senhaurl"),
+        ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA"),
+        ("authorization: token zzz999", "zzz999"),
+        ("Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA"),
+        ("BEARER segredo5", "segredo5"),
+        ("https://x/?access_token=qwerty42&a=1", "qwerty42"),
+        ("TOKEN=maiusculo1", "maiusculo1"),
+        ("Bearer abc123", "abc123"),
+        ("token=abc", "=abc"),
+    )
+
+    def test_l2_mascara_cada_forma_de_segredo_no_log_e_mantem_a_tela(self):
+        for linha, segredo in self.SEGREDOS:
+            with self.subTest(linha=linha):
+                (self.estado / "checks").write_text(f"bateria\tfail\t1m\t{linha}\n")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn(segredo, r.stderr)
+                self.assertNotIn(segredo, self.log_de(r).read_text())
+
+    def test_l3_a_mascara_nao_troca_prosa_com_a_palavra_token(self):
+        for linha in ("token inválido", "o token expirou", "o token foi lido"):
+            with self.subTest(linha=linha):
+                (self.estado / "checks").write_text(f"bateria\tfail\t1m\t{linha}\n")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertIn(linha, self.log_de(r).read_text())
+
+    def test_l4_retencao_apaga_so_log_velho_do_proprio_nome_dentro_da_pasta(self):
+        logs = self.tmp / "logs"
+        logs.mkdir(mode=0o700)
+        velho = logs / "forge-fechar-velho-1.log"
+        novo = logs / "forge-fechar-novo-1.log"
+        outro = logs / "outro-nome.log"
+        alvo = self.tmp / "fora.log"
+        link = logs / "forge-fechar-link-1.log"
+        for f in (velho, novo, outro, alvo):
+            f.write_text("x\n")
+        link.symlink_to(alvo)
+        antigo = 1_000_000_000
+        for f in (velho, outro, alvo):
+            os.utime(f, (antigo, antigo))
+        os.utime(link, (antigo, antigo), follow_symlinks=False)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(velho.exists())
+        self.assertTrue(novo.exists())
+        self.assertTrue(outro.exists())
+        self.assertTrue(alvo.exists())
+
+    def test_l5_todo_log_termina_em_fim_codigo_inclusive_em_erro(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertNotEqual(r.returncode, 0)
+        linhas = self.log_de(r).read_text().splitlines()
+        self.assertIn("parou no passo 1", linhas[-2])
+        self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+        self.assertIn("fim: código 0", r.stdout)
+
+    def test_l6_stderr_vai_ao_log_com_prefixo_err_e_sem_linha_partida(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        linhas = self.log_de(r).read_text().splitlines()
+        erros = [x for x in linhas if " [err] " in x]
+        self.assertTrue(any("parou no passo 4" in x for x in erros), linhas)
+        self.assertFalse(any("[4] checks" in x and "[err]" in x for x in linhas))
+        self.assertTrue(all(x[:4].isdigit() and x[10] == "T" and x[19] == "Z" for x in linhas), linhas)
 
 
 if __name__ == "__main__":
