@@ -169,7 +169,8 @@ def atualizar(projeto, url, atual, nova, forge_novo):
     resto = ("\nJá existiam antes da atualização (não mexi):\n" + "\n".join(f"- {p}" for p in antigos)) if antigos else ""
     print(f"\nPronto: o Forge está na versão {nova} e a checagem de saúde do projeto não achou nada novo.{resto}\n"
           f"Os arquivos do projeto foram atualizados na branch {ramo} (nada foi enviado ao GitHub). Revise as mudanças e abra o pull request; "
-          f"o merge é seu:\n  {abrir_pr}\nPara voltar: forge voltar-versao")
+          f"o merge é seu:\n  {abrir_pr}\nPara voltar: forge voltar-versao\n"
+          f"O Forge {nova} está instalado, mas esta sessão roda a {atual}: feche e abra a sessão.")
     return 0
 
 if __name__ == "__main__":
