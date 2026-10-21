@@ -36,8 +36,18 @@ case "$1 $2" in
     case "$*" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *baseRefName,isDraft*) echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN)"; exit 0 ;;
+      *headRefOid*) cat "$ESTADO/head" 2>/dev/null; exit 0 ;;
       *labels*|*title,body*) [ -f "$ESTADO/falha_leitura" ] && exit 1 ;;&
-      *labels*) cat "$ESTADO/rotulos" 2>/dev/null; exit 0 ;;
+      *labels*)
+        # rotulo_na_leitura N: o rótulo do dono só aparece a partir da N-ésima leitura (e a catraca passa a verde junto)
+        if [ -f "$ESTADO/rotulo_na_leitura" ]; then
+          n="$(( $(cat "$ESTADO/leituras_rotulo" 2>/dev/null || echo 0) + 1 ))"; echo "$n" > "$ESTADO/leituras_rotulo"
+          if [ "$n" -ge "$(cat "$ESTADO/rotulo_na_leitura")" ]; then
+            echo afrouxa-regra; [ -f "$ESTADO/checks_apos_rotulo" ] && cp "$ESTADO/checks_apos_rotulo" "$ESTADO/checks"; exit 0
+          fi
+          exit 0
+        fi
+        cat "$ESTADO/rotulos" 2>/dev/null; exit 0 ;;
       *title,body*) cat "$ESTADO/texto" 2>/dev/null; exit 0 ;;
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
@@ -248,6 +258,71 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 5", r.stderr)
+
+    def _espera_rotulo(self, leitura, catraca_vermelha=False):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        (self.estado / "rotulo_na_leitura").write_text(f"{leitura}\n")
+        if catraca_vermelha:
+            (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t5s\turl\n")
+            (self.estado / "checks_apos_rotulo").write_text("bateria\tpass\t1m\turl\ncatraca\tpass\t5s\turl\n")
+
+    def test_esperar_rotulo_mescla_quando_o_rotulo_aparece_na_leitura_n(self):
+        self._espera_rotulo(4, catraca_vermelha=True)
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "head").write_text(sha)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        chamadas = self.chamadas()
+        self.assertGreaterEqual(int((self.estado / "leituras_rotulo").read_text()), 4)
+        self.assertTrue(any(f"--match-head-commit {sha}" in c for c in chamadas if "pr merge" in c))
+        self.assertFalse(any("--add-label" in c or "pr edit" in c for c in chamadas))
+
+    def test_esperar_rotulo_prazo_esgotado_para_como_sem_a_opcao(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "0")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+        self.assertIn("o dono ainda não o aplicou", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_prazo_esgotado_com_catraca_vermelha_nao_mescla(self):
+        (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t5s\turl\n")
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "0")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("o dono ainda não o aplicou", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_head_que_muda_durante_a_espera_para(self):
+        self._espera_rotulo(50)
+        (self.estado / "head").write_text("0" * 40)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("head", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_outro_check_vermelho_para_sem_esperar(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 4", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_catraca_vermelha_com_rotulo_aplicado_para_apos_a_tolerancia(self):
+        (self.estado / "checks").write_text("catraca\tfail\t5s\turl\n")
+        (self.estado / "rotulos").write_text("afrouxa-regra\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "600")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 4", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_sem_a_opcao_o_rotulo_pedido_e_ausente_continua_parando(self):
+        self._espera_rotulo(2)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
 
     def _com_diff_em(self, caminho):
         self.git("switch", "-q", "melhoria/x")
