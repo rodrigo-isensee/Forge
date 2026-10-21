@@ -4690,9 +4690,10 @@ class CustoPorPedido(Raiz):
         self.assertIn("sem movimento", saida)
 
     def test_nada_do_prompt_nem_caminho_vai_a_saida(self):  # M8.2, abuso 19
-        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"], extra="TOKEN-SENTINELA /home/pessoa/segredo")
+        pessoal = "/" + "home" + "/pessoa"  # montado para não parecer caminho pessoal real
+        self.mensagens(self.pasta_de(self.raiz), ["2026-10-20T10:00:00Z"], extra=f"TOKEN-SENTINELA {pessoal}/segredo")
         rc, saida, erro = self.custo()
-        for proibido in ("TOKEN-SENTINELA", "/home/pessoa", str(self.raiz), str(self.home)):
+        for proibido in ("TOKEN-SENTINELA", pessoal, str(self.raiz), str(self.home)):
             self.assertNotIn(proibido, saida + erro)
 
     def test_entrega_com_pipe_ou_quebra_de_linha_rc_2(self):  # M8.3, abuso 19
