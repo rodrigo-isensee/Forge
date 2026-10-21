@@ -1077,6 +1077,25 @@ class Hooks(unittest.TestCase):
             with self.subTest(linha=linha):
                 self.assertEqual(palavras(linha), esperado)
 
+    def test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex(self):  # HOOK-COMENTARIO-SHLEX, volta 2
+        """Dentro de `((…))` e na regex do `=~` o bash não abre comentário nem no início de palavra: com `((` ou `=~` na
+        linha, `fichas` lê o `#` como palavra e a guarda de construção não modelada não para nele; o `#` colado a `)`
+        também não para a guarda. Na dúvida, a linha é lida por inteiro."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        for linha in ("((1 #x)); git push --force origin main", "(( 1 #x )); git push --no-verify origin feature/x",
+                      "for ((i=0; i<1 #x; i++)); do :; done; git push", "[[ a =~ ( #b) ]]; git push",
+                      "[[ a =~ (a|#b) ]]; git push", "echo $(( 1 #x )); git push"):
+            with self.subTest(linha=linha):
+                self.assertIn(["git", "push"], [p[:2] for p, _, _ in _comum.comandos(linha)])
+        for linha in ("echo $(echo a)#b; echo ${X}", "((1 #x)); echo ${X}", "[[ a =~ ( #b) ]]; echo $X"):
+            with self.subTest(linha=linha):
+                self.assertIsNotNone(_comum.construcao_nao_modelada(linha))
+        # Sem `((` nem `=~`, o comentário de verdade segue valendo.
+        self.assertEqual([p for p, _, _ in _comum.comandos("ls # nota $X; git push") if p], [["ls"]])
+        self.assertIsNone(_comum.construcao_nao_modelada("ls # nota $X"))
+
 
 if __name__ == "__main__":
     unittest.main()

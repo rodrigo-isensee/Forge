@@ -217,10 +217,19 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
-# Antes do `#`, o que faz dele início de palavra e, portanto, comentário (como no bash). Fora daqui (`(`, `)`, `<`, `>`,
-# `\r`, colado a uma palavra), o `#` é lido como parte da palavra: na dúvida, a linha é lida por inteiro. O `(` fica
-# fora porque em `((#x))` e em `[[ a =~ (#b) ]]` o bash não abre comentário ali.
-ANTES_DE_COMENTARIO = " \t\n;&|"
+# Antes do `#`, o que faz dele início de palavra e, portanto, comentário (como no bash), em `fichas` e em
+# `construcao_nao_modelada`. Fora daqui (`(`, `)`, `<`, `>`, `\r`, colado a uma palavra), o `#` é lido como parte da
+# palavra: na dúvida, a linha é lida por inteiro. Sem `(` por `((#x))` e `[[ a =~ (#b) ]]`; sem `)` por `$(echo a)#b`.
+INICIO_DE_PALAVRA = " \t\n;&|"
+# Dentro de `((…))` (comando aritmético, `for ((…))`, `$((…))`) e na regex do `=~`, o bash não abre comentário nem no
+# início de palavra (`((1 #x))`, `[[ a =~ ( #b) ]]`). Com um deles em qualquer ponto da linha, mesmo entre aspas, o `#`
+# não abre comentário nenhum: lê-se a mais, nunca a menos.
+SEM_COMENTARIO = re.compile(r"\(\(|=~")
+
+
+def abre_comentario(linha, i):
+    """Se o `#` em `linha[i]` (fora de aspas) abre comentário: no início de palavra e sem `((` nem `=~` na linha."""
+    return (i == 0 or linha[i - 1] in INICIO_DE_PALAVRA) and not SEM_COMENTARIO.search(linha)
 
 
 def fichas(comando):
@@ -229,7 +238,7 @@ def fichas(comando):
 
     O `shlex` toma por comentário um `#` em qualquer ponto da palavra (`a#; git push` esconderia o push) e engole a
     quebra de linha que o encerra: aqui ele não conhece comentário, e o `#` só abre um no início de palavra, fora de
-    aspas; o comentário vai até a quebra de linha, que continua separando comandos."""
+    aspas (`abre_comentario`); o comentário vai até a quebra de linha, que continua separando comandos."""
     lex = shlex.shlex(comando, posix=True, punctuation_chars=PONTUACAO)
     lex.whitespace, lex.whitespace_split, lex.commenters = " \t\r", True, ""
     # O `shlex` devolve o caractere que encerrou a palavra (sem espaço no meio) em `_pushback_chars`: é por ele que se
@@ -241,7 +250,7 @@ def fichas(comando):
         """Entre duas fichas: se a próxima começa com `#` em início de palavra, pula até a quebra de linha (ou o fim)."""
         atual = posicao()
         proximo = len(comando) - len(comando[atual:].lstrip(" \t\r"))
-        if comando[proximo:proximo + 1] != "#" or (proximo and comando[proximo - 1] not in ANTES_DE_COMENTARIO):
+        if comando[proximo:proximo + 1] != "#" or not abre_comentario(comando, proximo):
             return atual
         fim = comando.find("\n", proximo)
         fim = len(comando) if fim < 0 else fim
@@ -386,9 +395,6 @@ def fora_da_gramatica_de_leitura(linha):
 
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
-# Antes do `#` que encerra a varredura como comentário. Sem `(`: em `((#x))` e em `[[ a =~ (#b) ]]` o bash não abre
-# comentário ali (na dúvida, a linha é lida por inteiro).
-INICIO_DE_PALAVRA = " \t\n;&|)"
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
 # palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
@@ -459,7 +465,7 @@ def construcao_nao_modelada(linha):
         elif c == "#":
             if re.search(r"\n[ \t]*\S", linha[i:]):
                 return "# + outra linha"
-            if i == 0 or linha[i - 1] in INICIO_DE_PALAVRA:
+            if abre_comentario(linha, i):
                 break  # comentário até o fim da linha
             esqueleto.append(c)
         elif c in "{}":
