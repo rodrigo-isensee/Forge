@@ -265,7 +265,9 @@
       "`Base-sha:`",
       "`## Etapas`",
       "`Arquivo:` \\(o caminho do brief",
-      "linhas>=N"
+      "linhas>=N",
+      "toca sempre o máximo de itens ao mesmo tempo",
+      "vale para o Forge e para todos os projetos que o usam"
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
