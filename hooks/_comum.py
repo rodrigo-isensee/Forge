@@ -602,7 +602,7 @@ def heredocs(comando):
     depois de um `#` que pode ser comentário e que G não prova (até o fim da linha física), numa linha com `case` e
     `$(` (o `)` do padrão fecharia o `$(`) e com um heredoc pendente numa quebra de linha que não está no nível da
     linha. O estado das aspas atravessa as linhas físicas, e os corpos provados são pulados. O corpo acaba na primeira
-    linha igual ao delimitador sem os espaços em volta (nunca depois do bash) ou no fim do texto."""
+    linha igual ao delimitador, como no bash (com `<<-`, sem as tabs do começo; espaço em volta não vale), ou no fim do texto."""
     provados = comentarios(comando)
     com_case = bool(CASE.search(comando)) and "$(" in comando
     pilha = [["fora", 0]]  # fora | subst | simples | ansi | duplas | crase | chave | aritm | colchete (com a profundidade)
@@ -700,7 +700,7 @@ def heredocs(comando):
                 duvidar(i)
                 i = max(fim, i + 2)
                 continue
-            pendentes.append((i, fim, delimitador, literal))
+            pendentes.append((i, fim, delimitador, literal, comando[i + 2:i + 3] == "-"))
             i = fim
         elif c == "\n" and pendentes:
             if not nivel_da_linha:
@@ -708,12 +708,13 @@ def heredocs(comando):
                 i += 1
                 continue
             j = i + 1
-            for operador, fim_do_operador, delimitador, literal in pendentes:
+            for operador, fim_do_operador, delimitador, literal, tabs in pendentes:
                 corpo = j
                 while j < n:
                     k = comando.find("\n", j)
                     k = n if k < 0 else k
-                    if comando[j:k].strip() == delimitador:
+                    linha = comando[j:k].lstrip("\t") if tabs else comando[j:k]
+                    if linha == delimitador:  # como o bash: igual, e com `<<-` só as tabs do começo saem (R2)
                         achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, j), min(k + 1, n)))
                         j = k + 1
                         break
@@ -750,6 +751,24 @@ def heredocs(comando):
     return achados, duvida
 
 
+def expandido(corpo):
+    """O corpo de um heredoc sem aspas no delimitador como o bash o expande, só no que importa para achar `$(` e crase:
+    `\\` + quebra de linha some (junta as linhas: `$\\⏎(` vira `$(`) e `\\` escapa `$`, crase e `\\` (o par vira um
+    caractere neutro: `\\$(` é literal, mas `\\\\$(` é uma barra e um `$(` vivo)."""
+    saida, i, n = [], 0, len(corpo)
+    while i < n:
+        c = corpo[i]
+        if c == "\\" and corpo[i + 1:i + 2] == "\n":
+            i += 2
+        elif c == "\\" and corpo[i + 1:i + 2] in ("$", "`", "\\"):
+            saida.append("_")
+            i += 2
+        else:
+            saida.append(c)
+            i += 1
+    return "".join(saida)
+
+
 def tirar_heredocs(comando):
     """Separa o corpo dos heredocs provados (`heredocs`), que não são comandos, da linha: devolve (comando sem os corpos,
     [(linha do dono, corpo)]). O operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois
@@ -764,7 +783,7 @@ def tirar_heredocs(comando):
     cortes, corpos = [], []
     for h in achados:
         corpo = comando[h.corpo[0]:h.corpo[1]].rstrip("\n")
-        if not h.literal and re.search(r"(?<!\\)(\$\(|`)", corpo):
+        if not h.literal and re.search(r"\$\(|`", expandido(corpo)):
             raise ValueError("corpo de heredoc com substituição")
         dono_ini = comando.rfind("\n", 0, h.operador) + 1
         dono_fim = comando.find("\n", h.operador)

@@ -1447,6 +1447,14 @@ class Hooks(unittest.TestCase):
             "cat <<<x\nls": [],
             "echo $((1<<2))": [],  # dúvida sem linha depois: nada a esconder
             "cat <<'X'\nsem fim": ["sem fim"],
+            f"cat <<EOF\n\\\\$({L})\nEOF": None,  # R1: `\\\\$(` é uma barra e um `$(` vivo
+            f"cat <<EOF\n$\\\n({L})\nEOF": None,  # R1: `$\\` + quebra junta as linhas
+            f"cat <<EOF\n\\\\`{L}`\nEOF": None,  # R1: a crase depois de uma barra escapada
+            "cat <<EOF\n\\\\\\$(x)\nEOF": ["\\\\\\$(x)"],  # três barras: uma barra e `\\$` escapado
+            f"cat <<X\n X\ncat <<Y\nX\n{L}\nY": [" X\ncat <<Y"],  # R2: ` X` não fecha; o `<<Y` é corpo
+            f"cat <<X\nX \ncat <<Y\nX\n{L}\nY": ["X \ncat <<Y"],
+            f"cat <<-X\n  X\ncat <<Y\nX\n{L}\nY": ["  X\ncat <<Y"],  # `<<-` só tira tab
+            "cat <<-X\n\tcorpo\n\tX\nls": ["\tcorpo"],
         }
         for linha, esperado in casos.items():
             with self.subTest(linha=linha):
