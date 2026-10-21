@@ -841,6 +841,13 @@ class Hooks(unittest.TestCase):
             "travessia": ("~/.forge-contrib/docs/propostas/../pedidos/x.md", 2, "R-", {}),
             "link para fora": ("~/.forge-contrib/docs/propostas/x.md", 2, "o papel aq escreve só em",
                                {"links": {"../home/.forge-contrib/docs/propostas": "{tmp}/fora"}}),
+            # Regressões da recomendação do parecer de segurança (docs/security/fc-aq-hook.md): a comparação é sensível à caixa,
+            # `~/.forge-contrib` apontando para fora do home some da forma `home` e `.git/` dentro da pasta liberada é protegido.
+            "maiúsculas no caminho": ("~/.forge-contrib/docs/Propostas/x.md", 2, "o papel aq escreve só em", {}),
+            "maiúsculas na raiz do clone": ("~/.Forge-Contrib/docs/propostas/x.md", 2, "o papel aq escreve só em", {}),
+            "clone como link para fora do home": ("~/.forge-contrib/docs/propostas/x.md", 2, "o papel aq escreve só em",
+                                                  {"links": {"../home/.forge-contrib": "{tmp}/fora"}}),
+            ".git aninhado em propostas": ("~/.forge-contrib/docs/propostas/e/.git/config", 2, ".git", {}),
         }
         for nome, (caminho, codigo, trecho, extra) in casos.items():
             with self.subTest(nome):
