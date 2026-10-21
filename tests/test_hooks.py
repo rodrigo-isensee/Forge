@@ -1097,5 +1097,28 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(_comum.construcao_nao_modelada("ls # nota $X"))
 
 
+    def test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas(self):  # HOOK-COMENTARIO-SHLEX, volta 3
+        """Não regressão: linhas críticas com `#`, aspas e agrupamentos que a base (10c838fa) recusava seguem recusadas
+        (R-MAIN, R-VERIFY ou R-CONFORMIDADE); só ganham recusa as que a base deixava passar (fixtures `aritmetica-*`,
+        `extglob-*`)."""
+        linhas = ("echo a #b\ngit push origin main", "echo a#; git push --force origin main", "ls # nota\ngit push --force origin main",
+                  "((1 #x)); git push --force origin main", "[[ a =~ (#b) ]]; git push --force origin main",
+                  "echo $(echo a)#b; git push --force origin main", "(true)#x; git push --force origin main",
+                  "git push --force origin main; (true)# x",
+                  "(( 1 )) && git push origin main", "[[ a == @(a|b) ]]; git push --force origin main",
+                  "git push origin main # nota")
+        for comando in linhas:
+            with self.subTest(comando=comando):
+                tmp = self._pasta_temporaria()
+                dados = {"arquivos": {"src/app.js": "v1\n"},
+                         "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:dev",
+                                     "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
+                         "esperado": {"codigo": 2, "stderr": "R-"}}
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+
 if __name__ == "__main__":
     unittest.main()

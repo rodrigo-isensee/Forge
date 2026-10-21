@@ -221,10 +221,10 @@ def git(raiz, *args):
 # `construcao_nao_modelada`. Fora daqui (`(`, `)`, `<`, `>`, `\r`, colado a uma palavra), o `#` é lido como parte da
 # palavra: na dúvida, a linha é lida por inteiro. Sem `(` por `((#x))` e `[[ a =~ (#b) ]]`; sem `)` por `$(echo a)#b`.
 INICIO_DE_PALAVRA = " \t\n;&|"
-# Dentro de `((…))` (comando aritmético, `for ((…))`, `$((…))`) e na regex do `=~`, o bash não abre comentário nem no
+# Dentro de `((…))` (comando aritmético, `for ((…))`, `$((…))`), na regex do `=~` e no padrão extglob (`@(a|#b)`), o bash não abre comentário nem no
 # início de palavra (`((1 #x))`, `[[ a =~ ( #b) ]]`). Com um deles em qualquer ponto da linha, mesmo entre aspas, o `#`
 # não abre comentário nenhum: lê-se a mais, nunca a menos.
-SEM_COMENTARIO = re.compile(r"\(\(|=~")
+SEM_COMENTARIO = re.compile(r"\(\(|=~|[@!+*?]\(")
 
 
 def abre_comentario(linha, i):

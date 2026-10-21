@@ -666,9 +666,11 @@ class Guarda:
         try:
             partes = list(comandos(comando))
         except ValueError:
-            self.nao_modelada(achado)
             if nivel:
                 self.ilegivel(comando, pasta)
+            # Linha crítica que a leitura não fecha (aspas no comentário de `((…))`, por exemplo) o bash pode rodar: recusa.
+            critica = not self.leitura and CRITICO.search(original)
+            self.nao_modelada(achado or ("aspas que o hook não fecha" if critica else None))
             return  # aspas desbalanceadas: o próprio shell vai recusar
         ramos = {}
         if nivel == 0:
