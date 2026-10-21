@@ -338,11 +338,12 @@ def principal(hook):
     conferir_linha(hook, comando, [(hook.cwd(), {})])
 
 
-def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False):
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
     """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
     corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
     …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
-    linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras."""
+    linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras. `corpo_de_heredoc`:
+    a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem."""
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
@@ -353,20 +354,25 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False):
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
     lidas = leituras(comando)
+    if lidas.ilegivel and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
+        bloquear("R-REVIEW", "gh pr, gh api, merge ou pull e corpo de heredoc com aspa sem par, a programa que pode "
+                             "rodá-lo. Corrigir: grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o "
+                             "ao programa depois")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
-    internos = [(corpo, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
-    internos += [(corpo, False) for dono, corpo in corpos if not corpo_so_lido(dono)]  # um dono que não só lê pode rodá-lo
+    internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
+    internos += [(corpo, False, True) for dono, corpo in corpos if not corpo_so_lido(dono)]  # o dono pode rodá-lo
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]
         for pasta, branches in estados:
             for estado in conferir(hook, partes, pasta, branches):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items()))), estado)
-        internos += [(p, True) for palavras, _, _ in leitura for p in palavras if "$(" in p.replace(OPACO["$"], "")]
-    for texto, so in dict.fromkeys(internos):
-        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so)
+        internos += [(p, True, False) for palavras, _, _ in leitura for p in palavras
+                     if "$(" in p.replace(OPACO["$"], "")]
+    for texto, so, de_heredoc in dict.fromkeys(internos):
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc)
 
 
 def conferir(hook, partes, pasta, branches):

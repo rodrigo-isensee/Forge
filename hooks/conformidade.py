@@ -663,17 +663,19 @@ class Guarda:
             self.checar_escrita(caminho, self.h.cwd())
 
     # Bash ----------------------------------------------------------------------------------------
-    def bash(self, comando, pasta, nivel=0, so_substituicoes=False):
+    def bash(self, comando, pasta, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
         """Confere a linha. `so_substituicoes`: a linha é uma palavra entre aspas (`"$(git log)"`), e só o conteúdo das
-        substituições dela é comando. Orçamento por linha (a linha adversária de crases e `cd` aninhados refaria a
-        mesma conferência milhares de vezes e estouraria o timeout do hook, que o Claude Code trata como liberado): o
-        mesmo (corpo, pasta, nível, ambiente) não é conferido duas vezes, e a linha é recusada acima de
+        substituições dela é comando. `corpo_de_heredoc`: a linha é o corpo de um heredoc que vai a um programa fora da
+        lista dos que só o leem (a recusa por ilegível diz como passar o texto por arquivo). Orçamento por linha (a
+        linha adversária de crases e `cd` aninhados refaria a mesma conferência milhares de vezes e estouraria o
+        timeout do hook, que o Claude Code trata como liberado): o mesmo (corpo, pasta, nível, ambiente) não é
+        conferido duas vezes, e a linha é recusada acima de
         `TETO_DE_CONFERENCIAS` conferências, de `TETO_DE_CARACTERES` caracteres conferidos ao todo ou de
         `PRAZO_DA_LINHA_S` segundos."""
         if nivel == 0:
             self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
-        chave = (comando, pasta, nivel, so_substituicoes, tuple(sorted(self.ambiente.items())))
+        chave = (comando, pasta, nivel, so_substituicoes, corpo_de_heredoc, tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
             self.ambiente = dict(self.conferidas[chave])  # o resultado é o mesmo que a primeira conferência deixou
             return
@@ -684,10 +686,10 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "linha longa demais ou com crases e substituições demais para o hook "
                                               "conferir dentro do prazo",
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
-        self.conferir_linha(comando, pasta, nivel, so_substituicoes)
+        self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         self.conferidas[chave] = dict(self.ambiente or {})
 
-    def conferir_linha(self, comando, pasta, nivel, so_substituicoes):
+    def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
             return
@@ -719,6 +721,10 @@ class Guarda:
             # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
+            if not self.leitura and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
+                self.barrar("R-CONFORMIDADE", "corpo de heredoc com aspa sem par, dado a programa que pode rodá-lo",
+                            "grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o ao programa depois "
+                            "(patch -p1 < arq)")
             if not self.leitura:
                 self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, # que ele não prova ser comentário ou "
                                               "<< que ele não prova ser heredoc: o hook não modela a linha",
@@ -748,7 +754,7 @@ class Guarda:
                 self.bash(corpo, p, nivel + 1)
         for dono, corpo in corpos:  # o corpo é comando, a menos que todo dono da linha só o leia (ou o interprete)
             if not corpo_so_lido(dono, interprete):
-                self.bash(corpo, pasta, nivel + 1)
+                self.bash(corpo, pasta, nivel + 1, corpo_de_heredoc=True)
             if any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)

@@ -1,0 +1,30 @@
+{
+  "descricao": "A1 do review (volta 3): o corpo com apóstrofo de kubectl apply -f - <<'EOF' é conferido como comando e não se lê; a recusa manda gravar o texto num arquivo (a linha já usa <<'EOF').",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "kubectl apply -f - <<'EOF'\nkind: ConfigMap\ndata:\n  key: it's\nEOF"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "grave o texto num arquivo"
+  }
+}

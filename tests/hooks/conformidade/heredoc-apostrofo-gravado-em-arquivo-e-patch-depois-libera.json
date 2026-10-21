@@ -1,0 +1,29 @@
+{
+  "descricao": "A1 do review (volta 3): a saída que a recusa indica: o texto com apóstrofo gravado por cat > arquivo <<'EOF' e o arquivo passado ao patch na linha seguinte.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > mudanca.diff <<'EOF'\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-it's\n+it is\nEOF\npatch -p1 < mudanca.diff"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
