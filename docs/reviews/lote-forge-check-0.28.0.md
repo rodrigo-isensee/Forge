@@ -1,0 +1,55 @@
+---
+tipo: review
+contrato: 1
+pedido: lote-forge-check-0.28.0
+branch: melhoria/lote-forge-check-0.28.0
+commit: 389096eaea742a6a26ecb3b29f6de842400ad49a
+parecer: reprovado
+revisor: forge:tech-lead (outra instância, E1.2)
+data: 2026-10-21
+---
+# Review do LOTE-FORGE-CHECK-0.28.0 (E1.2)
+
+Code review (R-REVIEW) da entrega inteira, `26f71895c37f16628d8ff914aec564fa336546f6..389096eaea742a6a26ecb3b29f6de842400ad49a` (11 commits, 31 arquivos, +2037 −170). Li o diff de `bin/forge-check` commit a commit, `hooks/parecer.py`, `agents/conferente.md`, `docs/regras/R-BRIEF.md`, `docs/hooks.md`, `tests/config.json`, `bin/forge-testes`, o fragmento, as fixtures e os seis módulos de teste novos. Conferi contra `docs/propostas/aq/p2-m16-m5.md`, a seção M13 de `m12-m16.md`, a seção M4 de `m1-m11.md`, `p3-p6.md` (com a D1) e todas as decisões do dono do pedido. A segurança é da E1.3 (`docs/security/lote-forge-check-0.28.0.md`) e não a refaço aqui.
+
+Ferramenta: o Forge não tem `docs/engineering/praticas.md`; a regra de ferramenta é a suíte. Rodei numa cópia em $TMPDIR (`git archive` do HEAD) os seis módulos novos (`test_etapa_do_brief`, `test_isencoes`, `test_brief_gravar`, `test_anotar`, `test_citacao`, `test_estado_da_branch`): todos OK. A suíte completa (1330 OK, relato do autor) e o `validar-plugin` ficam com o QA (E1.4) e o pre-push.
+
+Sondas próprias, também na cópia: (1) o `forge-check brief` da base e o do HEAD sobre os 120 briefs mais recentes de `~/.forge-contrib/docs/briefs/`; (2) `brief gerar --cobre E1.2 --etapa review` sobre este pedido, preenchido e conferido; (3) variações desse brief.
+
+## Conferência item a item
+
+| Item | Veredito | Evidência |
+|---|---|---|
+| M16 (5f3ae67) | achado A1 | O parser lê `E1.3b` e etapas de qualquer `E<n>` (ordem natural, `ordem_do_id`), a junção de delegações reprova e a etapa sem menção reprova para qualquer papel. Mas o laço de etapas pula, sem linha nenhuma, a etapa do papel do destino quando o brief cita o item `(E<n>)` no Entregar (A1). |
+| P2 (84db057) | ok, com R2 | `--cobre`, a dedução da etapa única, as recusas de papel errado e de etapa inexistente, a linha `Etapa: ... Cobre: ...` e o Fora sem marca saem como o desenho pede. A ida e volta passa no fixture de um item de escopo só; no pedido real (E1.1 cita E1 a E5) o gerado só passa quando o Jarvis cita `(E1, E2, E3, E4, E5)` no Entregar (R2). |
+| M13 (8ccff9f) | ok | `isencoes_da_entrega` é a regra única: só o QA, em diff não vazio todo de `.md` fora de `agents/`, `skills/`, `stacks/*/agents|skills/` e `docs/regras/` (D-M13 = A, literal). O `cmd_pr`, a catraca e o hook usam a mesma função; o hook deixa de liberar `.md` sem parecer (endurece) e a base ausente dá diff vazio, sem isenção (falha fechada). O `pr` imprime `pr: isento de QA` e o conferente copia a linha. |
+| M4 (9921db8) | ok | `merge` e o `cmd` com `verificador: conferente` entram em `PROVAS_DO_CONFERENTE`; a mensagem e o invariante ficam; a frase do conferente acompanha; o teste de ida e volta do brief de merge existe (`test_ida_e_volta_do_brief_de_merge_gerado`) e o `cmd` do autor continua sem valer. |
+| M5 + P2, tabela (3101c0d) | ok, salvo A1 | Uma só fonte (`pr_da_cli`): `gerar` recusa `pr` e as de merge sem os pareceres (rc 1, nada impresso) e sem `--branch`, avisa no `qa`; `forge-check brief` lê `Etapa:` e `Branch:` e só avisa. A reprovação do brief que junta parecer e merge depende da junção, que A1 deixa escapar. |
+| P6 (bfed7d5, 9ffd14c) | ok, com R4 e R5 | `--gravar` com `open("xb")`, maior + 1 sem reaproveitar lacuna, lote por `--destino nargs="+"` só com `--gravar`, nome validado por `NOME_SEGURO_DE_BRIEF`, pasta link simbólico recusada; `conferencia registrar` aprovado faz `chmod 0444` sem seguir link. A hipótese refutada (o Write sobrescreve 0444) está registrada no commit e no fragmento, e o R-BRIEF diz só o que o 0444 faz; o 0444 segue útil contra o redirecionamento do shell. A trava contra o Write fica para a P6b (R4). |
+| P4 (c23ea30) | ok, com R6 | `anotar` com a hora do relógio (sem opção de hora), literal entre aspas e contexto fora, `recusa_do_campo` nos dois campos, link simbólico recusado, seção criada antes de `## Histórico`. O ajudante comum `acrescentar_ao_arquivo` mantém o comportamento do `movimento` e do `conferencia registrar`. `--retomada` confinado à raiz e a ~/.forge-contrib, até 1 MiB, e só avisa. |
+| P3 + D1 (8f8fa3c) | ok | (a) id citado inexistente reprova; (b) trecho com fonte explícita conferido na regra desta cópia do plugin ou no arquivo resolvido dentro das raízes, sem imprimir conteúdo; (c) vocabulário fechado com sugestão. Na sonda (1), em 300 briefs reais a P3 achou só o caso conhecido (`tipo "seguranca"`, use `revisao-seguranca`) e nenhum falso positivo. `--citar` e o PQ `forge-check docs` nas etapas de parecer conferem com o desenho; `pr` vira prova do conferente (D1 = A, rótulo do dono). |
+| P5 (158af43) | ok, com R3 | Linhas `estado:` no stderr, `gh pr view` com teto de 10 s e `não verificável` sem gh (grátis, R-CUSTO; os testes usam `tests/gh_falso.py`, sem rede), recusa de etapa não de merge com PR `MERGED`, `--volta` com Branch e Base-sha do anterior (o `--ref` não vira Branch) e rc 1 sem parecer lido. O Base-sha fora da branch reprova (`base:`). |
+| Testes (389096e) | ok | Os três módulos passam a montar o git pelo ponto único `sem_manutencao`. |
+
+## O risco da P5 que o autor pediu para avaliar
+
+Aceito, sem achado. Na sonda (1), dos 300 briefs só um passa a reprovar por `base:`: `promocao-homolog-0.28.0-tech-lead-1`, escrito à mão com `Base-sha` igual ao head da `homolog` (um merge commit que a `develop` não contém). O `gerar` atual grava o merge-base (`fdd43f6` nesse caso), que passa; e o `gerar --volta` mantém o Base-sha anterior enquanto ele é ancestral da entrega. O brief antigo em volta, portanto, só reprova quando o Base-sha dele já não está na branch, que é o defeito que a P5 quer pegar (BRIEF-BASE-ATUAL), e o remédio é gerar de novo. É o risco que o desenho declarou e o dono aceitou (P5 = A).
+
+## Mudança de veredito em briefs antigos (informativo)
+
+Na sonda (1), 23 dos 120 briefs aprovados antes passam a reprovar, quase todos por `etapa: junta delegações` (o padrão `0. (E1; E1.1, E1.2) Já cumpridas` no Entregar) e alguns por `corte: sem marca ... (etapa sem menção)`. É a decisão do dono "um brief, uma etapa" (2026-10-21 01:15) e não um defeito; o Jarvis precisa saber que briefs em curso, se reconferidos, mudam de veredito.
+
+## Achados
+- A1 (bloqueante) bin/forge-check:3353 · O laço de etapas pula a etapa do papel do destino quando o Entregar cita `(E<n>)`: brief do tech-lead com `(E1.2)`+`(E1..E5)` que omite E1.1 e E1.5 aprova sem linha. Contradiz a R-BRIEF da entrega e a M5; tirar o atalho e testar.
+
+## Recomendações (não bloqueiam)
+- R2 `bin/forge-check` (`montar_brief`, Entregar): o `gerar` poderia escrever no Entregar a citação dos itens de `## Escopo` que a entrega cobre, para a ida e volta passar também no pedido cuja etapa de código cita vários itens (o caso deste pedido); hoje o PREENCHER pede isso ao Jarvis. Um teste de ida e volta com dois itens de escopo fecharia a lacuna do fixture de um item só.
+- R3 `bin/forge-check` (`aviso_de_base_sha`): a branch local tem precedência sobre `origin/<branch>`; com a local atrasada, um Base-sha que só a remota contém reprova. Aceitar o Base-sha contido em qualquer das duas.
+- R4 cartão da P6b (trava do brief aprovado contra o Write no hook `conformidade`, com o security-engineer): registrar no quadro, porque o fragmento a cita como pendente. A linha do `agents/jarvis.md` prevista no desenho (brief só pelo `--gravar`) também ficou fora, dependente da P10.
+- R5 commits: a P6 ficou em dois commits não vizinhos (bfed7d5 e 9ffd14c, com a P4 no meio) e o 389096e corrige testes de três itens; bfed7d5 e os commits antes de 389096e não passam a suíte sozinhos (SaidaSanitizada, ambiente do git). Reverter um item exige mais de um revert: listar no PR os commits de cada item. O `join` do 9ffd14c existe para passar no teste de saída sanitizada; os valores já são validados, mas vale um comentário no teste ou uma exceção declarada em vez de contornar o padrão.
+- R6 `bin/forge-check` (`cmd_anotar`): a regravação do pedido inteiro por `write_text` não é atômica; gravar num temporário e `os.replace` evita pedido truncado numa queda.
+- Para o security-engineer (cartão, não refaço): `forge-check anotar` grava em `docs/pedidos/`, caminho que o hook `conformidade` reserva ao jarvis nas ferramentas de escrita, e qualquer papel com Bash fora do conferente o roda; o mesmo vale para `--gravar` em `docs/briefs/`.
+- Changelog: um fragmento só, com uma linha por item, segue a convenção de um fragmento por branch; atende a E5 na leitura de uma entrada por item.
+
+## Delta
+Primeira rodada: li a entrega inteira; não há parecer anterior.
