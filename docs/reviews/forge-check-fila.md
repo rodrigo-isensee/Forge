@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: forge-check-fila
 branch: melhoria/forge-check-fila
-commit: fcaee1006ae30294353bc58e41d8dce9d381eea4
+commit: 160f37063baf2a3ac7f3d169f8d331a4795a52f1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
@@ -33,7 +33,7 @@ Veredito sobre `31ae2cb`: **REPROVADO**, com 1 achado bloqueante. As recomendaç
 - **Commit.** Um único commit coerente, em Conventional Commits em português. Não há rede, custo nem termo de projeto (R-CUSTO, R-NEUTRO).
 
 ## Achados
-(vazio na volta 1: o A1 da rodada anterior foi resolvido, ver "Volta 1")
+(vazio: o A1 da rodada inicial foi resolvido na volta 1; a volta 2 não traz bloqueante)
 
 ## Recomendações (não bloqueiam)
 - `bin/forge-check:1436` (`cmd_fila`): quando o quadro não tem a coluna "Pronto para fazer" ou a coluna "Pronto", a saída diz só "0 podem começar". O `KANBAN.md` do próprio Forge está nesse caso: tem "A fazer" e "Concluído", e o resultado é `fila: 0 podem começar, 16 vagas de 16`. Um `aviso:` de coluna ausente evitaria a leitura de que a fila está vazia.
@@ -55,3 +55,13 @@ Veredito sobre `fcaee10`: **APROVADO**, sem achado bloqueante.
 - **Documentação.** `docs/hooks.md` e o cabeçalho de `bin/forge-check` descrevem a leitura pela principal e o novo aviso.
 - **Ferramenta.** `python3 -m unittest tests.test_sobreposicao_quadro`: `Ran 35 tests` / `OK`.
 - Recomendação nova, não bloqueia: a linha de uso no cabeçalho de `bin/forge-check` ficou longa; quebrar em duas melhora a leitura.
+
+## Volta 2
+Delta lido: `63fc236..160f370` (`git diff`, 2 arquivos: `bin/forge-check`, `tests/test_sobreposicao_quadro.py`; o restante da entrega é o que já foi lido nas voltas anteriores e não foi relido).
+
+Veredito sobre `160f370`: **APROVADO**, sem achado bloqueante.
+
+- **A-R1 do QA resolvido.** `agentes_vigentes` lê `.forge/config.json` num `try` próprio: se falta ou está inválido, a expiração vale o padrão de 2 h e os agentes de `agentes.json` (lido pela raiz principal, em outro `try`) continuam contados. A validação de `horas` fica depois dos dois, igual a antes. Mudança mínima e sem efeito no caminho com config presente.
+- **Teste novo** `test_agentes_vigentes_contados_sem_config_na_raiz`: monta repositório com worktree, grava 2 agentes só na principal, sem config na worktree, e confirma `6 vagas de 8 (2 ativos)`. Falharia com o código anterior (daria 0 ativos). O ajuste temporário de `self.tmp` é restaurado em `finally`.
+- **Ferramenta.** `python3 -m unittest tests.test_sobreposicao_quadro`: `Ran 36 tests` / `OK`. Suíte completa e validação do plugin ficam com o QA e o pre-push.
+- R-CUSTO e R-NEUTRO preservados; sem rede nem termo de projeto.
