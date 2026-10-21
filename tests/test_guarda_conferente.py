@@ -85,6 +85,13 @@ class GuardaDoConferente(Cenario):
         r = self.lancar(relativa)
         self.assertEqual(r.returncode, 0, r.stderr)
 
+    def test_passa_arquivo_absoluto_com_espaco(self):
+        r = self.lancar(self.cabecalho(arquivo="Arquivo: /mnt/c/Users/R/Meus Projetos/docs/briefs/p-x-1.md"))
+        self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_recusa_arquivo_com_espaco_sem_nome_em_docs_briefs(self):
+        self.recusado(self.cabecalho(arquivo="Arquivo: /mnt/c/Meus Projetos/docs/briefs/"))
+
     def test_passa_mensagem_de_entrega(self):
         r = self.lancar(self.cabecalho(modo="modo: entrega"))
         self.assertEqual(r.returncode, 0, r.stderr)

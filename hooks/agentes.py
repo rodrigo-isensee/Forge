@@ -100,7 +100,7 @@ def vigentes(agentes, agora, expira_s):
 
 CONFERENTE = "forge:conferente"
 MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
-ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*\S*docs/briefs/\S+", re.M)
+ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
 
 
