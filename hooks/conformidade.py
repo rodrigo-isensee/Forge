@@ -173,10 +173,10 @@ def opcoes_sem_exec(args):
 
 
 def so_leitura(linha):
-    """F6: a linha só lê (todo segmento, depois de `comandos()`, é leitor sem execução ou `git log|show|diff`), sem `$`, crase,
+    """F6: a linha só lê (todo segmento, depois de `comandos()`, é leitor sem execução ou `git log|show|diff`), sem `$`, crase, `#` (o shlex o lê como comentário, o bash não),
     várias linhas, substituição, redirecionamento de saída nem opção que execute programa: `forge` e `sugerir` ali são dado.
     `eval`, `xargs`, shell aninhado, variável antes do programa e programa com caminho não são leitor: recusam. Na dúvida, False."""
-    if re.search(r"[$`\n]", linha):
+    if re.search(r"[$`\n#]", linha):
         return False
     try:
         partes = list(comandos(linha))
