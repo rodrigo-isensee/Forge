@@ -42,7 +42,8 @@ SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "
 FORGE_CHECK = ("test_catraca", "test_conferencia_registrar", "test_erros_no_brief", "test_forge", "test_guarda_conferente",
                "test_guarda_git", "test_hooks", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas")
-CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor")
+CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
+            "test_modelos_citados")
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)

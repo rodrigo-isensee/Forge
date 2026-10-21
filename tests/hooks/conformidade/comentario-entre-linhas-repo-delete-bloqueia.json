@@ -1,0 +1,30 @@
+{
+  "descricao": "HOOK-COMENTARIO-SHLEX (ADR 0013): piso da leitura antiga: a develop juntava as duas linhas e recusava; continua recusada.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh repo # x\ndelete dono/proj --yes"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: apagar o repositório"
+  }
+}

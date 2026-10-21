@@ -20,7 +20,7 @@ Quais gatilhos da `R-SEGURANCA` a entrega toca.
 ## Achados
 
 ## Detalhe dos achados
-Por achado, em prosa (fora do bloco `## Achados`): evidência (`arquivo:linha`; nunca o segredo) · caminho de ataque · severidade (crítica, alta, média, baixa, informativa) · correção mínima · esforço (P/M/G) · dono.
+Por achado, em prosa (fora do bloco `## Achados`): evidência (`arquivo:linha`; nunca o segredo) · caminho de ataque · severidade (crítica, alta, média, baixa, informativa) · correção mínima · esforço (P/M/G) · dono. Em parecer aprovado, as recomendações não bloqueantes ficam aqui, em prosa, e o bloco `## Achados` fica vazio.
 
 ## Riscos aceitos e ferramentas
 Riscos aceitos e quem os aceitou; ferramentas usadas e as que faltaram no ambiente.
