@@ -157,7 +157,8 @@ class PluginDeDesenvolvimento(unittest.TestCase):
         politica = json.loads((RAIZ / "hooks/conformidade.json").read_text(encoding="utf-8"))
         self.assertEqual(politica["papeis"]["aq"], ["forge-dev:aq"])
         self.assertEqual(politica["escrita_permitida"], {"aq": ["docs/propostas/", "docs/arquitetura/",
-                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"]})
+                                                              "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+                                                              "conferente": ["/dev/null"]})
         texto = (RAIZ / "dev/agents/aq.md").read_text(encoding="utf-8")
         self.assertRegex(texto, r"(?m)^tools: Read, Grep, Glob, Write, Edit$")
         self.assertNotRegex(texto, r"(?m)^tools:.*(Bash|WebFetch)")
