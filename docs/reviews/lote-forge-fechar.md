@@ -3,36 +3,28 @@ tipo: review
 contrato: 1
 pedido: lote-forge-fechar
 branch: melhoria/lote-forge-fechar
-commit: e5ef160da1bfd40a598d8f49e6f7ca5d13c5301a
-parecer: reprovado
+commit: 468f6c3f54645024be19a39a6262bf3156734bf6
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
 # Review: lote do bin/forge-fechar (log endurecido, número das execuções, limpeza com --limpar)
 
-Escopo: `10083383..e5ef160` (3 commits: c2ed46b C1, c1eaef9 C2, e5ef160 C3), contra o desenho `docs/propostas/aq/lote-forge-fechar.md` e o pedido. Revisor: instância separada da do autor (D-ETAPAS-INST). Segurança (L1 a L4 e a recusa do `--limpar` sem prova de merge) é do parecer do `security-engineer` em `docs/security/`; não refeita aqui.
+Escopo: entrega inteira (`ad6d96c..468f6c3`), contra o desenho `docs/propostas/aq/lote-forge-fechar.md` e o pedido. Revisor: instância separada da do autor (D-ETAPAS-INST). Segurança é do parecer do `security-engineer` em `docs/security/`; não refeita aqui.
 
 ## Achados
-- A1 (bloqueante) agents/tech-lead.md:31 · A menção ao forge-fechar não diz que o código 3 é fechado com limpeza pendente nem cita o --limpar; o desenho (Riscos, item do código 3) pede o ajuste no mesmo PR. Quem trata saída diferente de 0 como falha vai ler o merge feito como erro.
+
+## Revalidação (volta por delta)
+- Parecer anterior (e5ef160, reprovado por A1) relido. Delta lido: `agents/tech-lead.md` e `tests/test_fechar.py` (commit 468f6c3). Já lido e mantido: C1, C2 e C3 de `bin/forge-fechar`, `docs/fechamento-integrador.md` e o fragmento de changelog.
+- A1 resolvido: `agents/tech-lead.md:31` diz que o código 3 é merge feito com limpeza pendente, não falha, e cita `--limpar`.
+- Recomendação R3 do parecer de segurança: `test_c3_branch_remota_com_commit_alem_do_mesclado_nao_e_apagada` cria na remota um commit além do sha mesclado e prova o controle: saída 3, `remota=pendente`, nenhum `push --delete` e a remota intacta no novo sha.
+- Merge da develop (4e3c2cb) sem perda: o diff contra a base ad6d96c lista só 7 arquivos, todos da entrega.
 
 ## Ferramentas (citadas, não refeitas)
-- `python3 -m unittest tests.test_fechar`: 79 testes, OK (rodado nesta revisão, 15 s).
-- Suíte do pre-push e `scripts/validar-plugin.sh`: verdes na entrega E1.1 (histórico do pedido, conferência R-PROVA em e5ef160).
+- `python3 -m unittest tests.test_fechar`: 80 testes, OK (rodado nesta revisão, 15 s).
+- Suíte do pre-push e `scripts/validar-plugin.sh`: rodam no push desta branch e no CI do PR.
 - `shellcheck`: não instalado nesta máquina; fica com o CI do PR (pendência, não review manual).
-
-## Checklist (leitura)
-1. Pedido e desenho: C1 (pasta por usuário 700, sem link, do dono; `mktemp`; máscara ampliada sem tocar prosa; retenção 14 dias só na pasta; `fim: código <n>` também em `die`; `[err]` e `flock`), C2 (contagem só na mudança, `run`/`job` lidos do link sem chamada nova, `head:` e `merge:`; nenhuma decisão do passo 4 muda) e C3 (função única `limpar_entrega` chamada do passo 7 e do `--limpar`; ordem worktree, branch, remota; prune só com o diretório ausente; branch e remota só com sha mesclado ou na base; código 3 só para limpeza pendente) atendidos. Falta só A1.
-2. Fluxo e regras: nada usa opção que força; `--limpar` recusa sem PR MERGED na develop (falha fechada) e herda a recusa de `main|develop|homolog` da validação inicial; `--dry-run` não apaga. R-CUSTO e R-NEUTRO preservados. Fragmento em `changelog.d/`, sem tocar o `CHANGELOG.md`.
-3. Legibilidade: funções pequenas e com comentário de contrato (`mascarar`, `registrar`, `fim`, `sha_confere`, `limpar_entrega`).
-4. Erros: `ler`/`repetir` só em leitura e no `push --delete`; `ls-remote` com falha vira pendente, não `ok`.
-7. Testes: 22 testes novos com nome por item (L1 a L6, C2, C3), incluindo EBUSY com e sem diretório, worktree suja, commit além do mesclado, `--limpar` repetido e parcial, e o 3 restrito à limpeza.
-9. Commits: um por item, Conventional Commits em português.
-10. Mecanismo novo (`--limpar`): o desenho traz "Por que o existente não basta" com evidência (pedido `limpeza-pos-merge-2026-10-21`) e critério de reversão, repetido em `docs/fechamento-integrador.md`.
-11. Testes de ausência: os textos procurados existem no script novo.
 
 ## Recomendações (não bloqueiam)
 - `bin/forge-fechar`, `limpar_entrega`: o awk do `git worktree list --porcelain` lê `$2` e corta caminho com espaço (já existia antes); se tocar o arquivo de novo, usar `substr($0, 10)`.
 - `sha_confere` usa a ancestralidade em `$base` local sem `git fetch`; é conservador (base velha só deixa pendente), vale uma linha no doc.
-
-## Volta (Entregar)
-- Atualizar `agents/tech-lead.md:31` com o código de saída (0 fechado e limpo, 1 parou, 3 fechado com limpeza pendente) e o `forge-fechar <pedido> --ref <branch> --limpar` para terminar a limpeza. Revalidação por delta (`forge-check delta`) só sobre esse arquivo.
