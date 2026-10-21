@@ -10,6 +10,10 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede)
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 fc = SourceFileLoader("forge_check_etapa_do_brief", str(FORGE_CHECK)).load_module()
@@ -49,6 +53,13 @@ ETAPAS = {
 }
 
 
+def ambiente_do_git():
+    """Sem GIT_* herdado (um hook do git exporta GIT_DIR) e sem config global ou de sistema: o git só vê o repositório temporário."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return env
+
+
 def brief(destino, entregar, fora):
     return (f"Agente destino: forge:{destino}\n\n## Objetivo\nExemplo.\n\n## Ler\n- o pedido.\n\n## Entregar\n"
             + "".join(f"- {linha}\n" for linha in entregar)
@@ -74,7 +85,7 @@ class Base(unittest.TestCase):
         return arq
 
     def rodar(self, *args):
-        env = dict(os.environ, HOME=str(self.tmp / "home"))
+        env = com_gh_falso(dict(os.environ, HOME=str(self.tmp / "home")))
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), *map(str, args)],
                            capture_output=True, text=True, env=env, timeout=60)
         return r.returncode, r.stdout
@@ -141,7 +152,7 @@ class RegraUnicaDeMarca(Base):
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
-def preencher(gerado, pq_proprio=True):
+def preencher(gerado, pq_proprio=True, base_sha=SHA):
     """O que o Jarvis faz com a saída do `gerar`: apaga o que tem PREENCHER e o bloco da marca não usado, põe Objetivo, Ler e um PQ
     (ou, com `pq_proprio=False`, fica só com o PQ de merge do gerar, com o sha no lugar de <mergeCommit>)."""
     linhas, pula = [], False
@@ -152,7 +163,7 @@ def preencher(gerado, pq_proprio=True):
             linhas.append(linha.split(" · PREENCHER", 1)[0].replace("<mergeCommit>", SHA).replace("PQ-N", "PQ-1"))
             continue
         if linha.startswith("Branch:"):
-            linha = linha.replace("Base-sha: PREENCHER", f"Base-sha: {SHA}")
+            linha = linha.replace("Base-sha: PREENCHER", f"Base-sha: {base_sha}")
         if pula or "PREENCHER" in linha:
             continue
         if linha.startswith("## Entregar"):
@@ -247,7 +258,7 @@ class Repo(Base):
         self.git("switch", "-q", "-c", "melhoria/x")
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.tmp, capture_output=True, text=True, check=True).stdout.strip()
+        return subprocess.run(["git", *args], cwd=self.tmp, capture_output=True, text=True, check=True, env=ambiente_do_git()).stdout.strip()
 
     def commitar(self, arquivos, mensagem):
         for rel, texto in arquivos.items():
@@ -307,7 +318,7 @@ class TabelaDePareceres(Repo):
         self.entrega({"src/app.py": "v2\n"}, "review", "qa")
         rc, saida = self.gerar("merge-integracao")
         self.assertEqual(rc, 0, saida)
-        preenchido = preencher(saida, pq_proprio=False)
+        preenchido = preencher(saida, pq_proprio=False, base_sha=self.git("rev-parse", "develop"))
         self.assertIn(f"git merge-base --is-ancestor {SHA} origin/develop", preenchido)
         rc, conferido = self.conferir(preenchido)
         self.assertNotIn("forma: sem PQ que o conferente confira", conferido)
@@ -317,7 +328,7 @@ class TabelaDePareceres(Repo):
     def test_brief_avisa_a_etapa_sem_parecer_e_nao_reprova(self):
         self.entrega({"src/app.py": "v2\n"}, "review", "qa")
         rc, saida = self.gerar("merge-integracao")
-        preenchido = preencher(saida, pq_proprio=False)
+        preenchido = preencher(saida, pq_proprio=False, base_sha=self.git("rev-parse", "develop"))
         self.git("reset", "-q", "--hard", "HEAD~1")  # os pareceres somem da branch depois do gerar
         rc, conferido = self.conferir(preenchido)
         self.assertIn("aviso: etapa: docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)", conferido)
@@ -327,7 +338,7 @@ class TabelaDePareceres(Repo):
         self.entrega({"src/app.py": "v2\n"})
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", "gerar", "--pedido", "exemplo",
                             "--destino", "forge:qa-exemplo", "--etapa", "qa", "--branch", "melhoria/x"],
-                           capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")), timeout=60)
+                           capture_output=True, text=True, env=com_gh_falso(dict(os.environ, HOME=str(self.tmp / "home"))), timeout=60)
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("brief gerar: aviso: docs/reviews: review: sem parecer", r.stderr)
         self.assertNotIn("docs/qa", r.stderr)

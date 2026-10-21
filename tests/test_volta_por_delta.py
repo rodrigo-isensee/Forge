@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from gh_falso import com_gh_falso  # noqa: E402
 
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 SHA_FALSO = "0123456789012345678901234567890123456789"
@@ -472,7 +473,7 @@ class PqDeMerge(unittest.TestCase):
 
     def gerar(self, *extra, rc=0):
         r = subprocess.run([sys.executable, FORGE_CHECK, "brief", "gerar", "--pedido", str(self.PEDIDO), "--destino", "forge:tech-lead",
-                            "--branch", "melhoria/a", *extra], capture_output=True, text=True)
+                            "--branch", "melhoria/a", *extra], capture_output=True, text=True, env=com_gh_falso())
         self.assertEqual(r.returncode, rc, r.stderr)
         return r.stdout
 
@@ -622,8 +623,10 @@ class BriefDeVolta(Repositorio):
         rc, saida = self.gerar("--parecer", "docs/reviews/p1.md")
         self.assertEqual(rc, 0, saida)
         self.assertIn("PREENCHER: nenhum achado bloqueante lido dos pareceres", saida)
-        rc, saida = self.gerar()  # sem --parecer: o mais recente que não aprovou; este aprovou
-        self.assertIn("PREENCHER: nenhum achado bloqueante", saida)
+        rc, saida = self.gerar()  # sem --parecer: o mais recente que não aprovou; este aprovou, e sem parecer lido não há volta (P5)
+        self.assertEqual(rc, 1)
+        self.assertIn("nenhum parecer lido", saida)
+        self.assertNotIn("PREENCHER: nenhum achado bloqueante", saida)
 
     def test_volta_dois_conta_a_partir_do_anterior(self):
         rc, saida = self.gerar()

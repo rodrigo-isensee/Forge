@@ -1146,6 +1146,13 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     pareceres, erro = pareceres_da_volta(raiz, pedido_id, ref, a.parecer)
     if erro:
         return None, 2, [f"brief gerar --volta: {erro}"]
+    for p in pareceres:  # P5 (FC-VOLTA-ACHADO-NAO-LIDO): o que foi lido, para o Jarvis ver antes de gerar
+        bloqueantes = sum(1 for achado in p["achados"] if achado["gravidade"] == "bloqueante")
+        print(f"volta: lido {caminho_impresso(p['rel'])} parecer={sem_controle(p['campos'].get('parecer', '?'))[:20]} bloqueantes={bloqueantes}",
+              file=sys.stderr)
+    if not pareceres:
+        return None, 1, [f"brief gerar --volta: nenhum parecer lido de {nome_seguro(a.ref)} ({ref[:7]}) para o pedido {caminho_impresso(pedido_id)}: "
+                         "sem parecer não aprovado na ref (passe --parecer <arquivo> ou confira a --ref); nada gerado (P5)"]
     recusas = [f"{caminho_impresso(p['rel'])}: {problema} (C3, C4)" for p in pareceres for problema in p["problemas"]]
     if recusas:
         return None, 1, ["brief gerar --volta: parecer recusado, corrija o bloco ## Achados antes de gerar a volta:"] + recusas
@@ -1160,10 +1167,14 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     blocos = blocos_literais(anterior)
     dados = ler_pedido_brief(pedido_txt)
     destino = a.destino or grupo(r"^\s*Agente destino:\s*(\S+)", anterior)
-    branch = a.branch or a.ref
+    branch = a.branch or grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(anterior)) or a.ref  # P5: o --ref não vira Branch
     saida = [f"<!-- forge-check brief gerar --volta: blocos de {caminho_impresso(rel_volta)}, achados lidos de {a.ref} ({ref[:7]}); complete e apague toda linha com {PREENCHER} -->\n",
              f"Agente destino: {destino}\n" if destino else f"Agente destino: {PREENCHER}\n", f"Pedido: {caminho_impresso(pedido_id)}\n", f"Tipo: {tipo_da_etapa(None, volta=True)}\n"]
-    sha_base = base_sha_real(raiz, a.base, branch) or grupo(r"Base-sha:\s*([0-9a-f]{40})\b", anterior) or PREENCHER
+    sha_anterior = grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho_do_brief(anterior))
+    if sha_anterior and sha_do_commit(raiz, sha_anterior) and e_ancestral(raiz, sha_anterior, ref):
+        sha_base = sha_anterior  # P5: o Base-sha do brief anterior vale enquanto for ancestral da entrega
+    else:
+        sha_base = base_sha_real(raiz, a.base, branch) or sha_anterior or PREENCHER
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
     saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 
@@ -3818,18 +3829,83 @@ def base_sha_real(raiz, base, branch):
 
 
 def aviso_de_base_sha(raiz, texto):
-    """`aviso:` (não reprova) quando o `Base-sha:` do cabeçalho do brief não está na branch dele (E11): brief gerado antes de a base andar."""
+    """`base:` (reprova, P5) quando o `Base-sha:` do cabeçalho do brief não está na branch dele (E11): brief gerado antes de a base andar.
+    Offline, só com git de leitura."""
     cabecalho = cabecalho_do_brief(texto)
     branch, base, sha = (grupo(CABECALHO_DE_BRIEF_CAMPOS[campo], cabecalho) for campo in ("Branch", "Base", "Base-sha"))
     if not (branch and base and sha):
         return []
     existente = next((s for s in (sha_do_commit(raiz, f"refs/heads/{branch}"), sha_do_commit(raiz, f"refs/remotes/origin/{branch}")) if s), None)
     if existente:
-        return [] if e_ancestral(raiz, sha, existente) else [(f"aviso: Base-sha {sha[:7]} do brief não está na branch {caminho_impresso(branch)}; gere o brief de novo (BRIEF-BASE-ATUAL)", False)]
+        return [] if e_ancestral(raiz, sha, existente) else [(f"base: Base-sha {sha[:7]} não está na branch {caminho_impresso(branch)}; gere o brief de novo (BRIEF-BASE-ATUAL, P5)", True)]
     remota = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
     if remota and not e_ancestral(raiz, sha, remota):
-        return [(f"aviso: Base-sha {sha[:7]} do brief não está em origin/{caminho_impresso(base)}; gere o brief de novo (BRIEF-BASE-ATUAL)", False)]
+        return [(f"base: Base-sha {sha[:7]} não está em origin/{caminho_impresso(base)}; gere o brief de novo (BRIEF-BASE-ATUAL, P5)", True)]
     return []
+
+
+TETO_DO_GH_S = 10  # o `gerar` nunca espera mais que isto pela rede (P5)
+
+
+def pr_da_branch(raiz, branch):
+    """(dados do PR, None) por `gh pr view <branch> --json number,state,headRefOid` (grátis, R-CUSTO; teto de 10 s), ({}, None) sem PR,
+    ou (None, motivo) sem `gh`, sem rede ou com erro: a linha sai `não verificável` e o brief não é barrado por isso."""
+    try:
+        r = subprocess.run(["gh", "pr", "view", branch, "--json", "number,state,headRefOid"], cwd=raiz, capture_output=True,
+                           text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return None, "sem gh"
+    except subprocess.TimeoutExpired:
+        return None, f"gh passou de {TETO_DO_GH_S} s"
+    if r.returncode:
+        return ({}, None) if "no pull requests found" in r.stderr.lower() else (None, "gh sem rede ou sem acesso")
+    try:
+        dados = json.loads(r.stdout)
+        return {"number": int(dados["number"]), "state": str(dados["state"]), "head": str(dados.get("headRefOid", ""))}, None
+    except (ValueError, KeyError, TypeError):
+        return None, "resposta do gh ilegível"
+
+
+def worktree_da_branch(raiz, branch):
+    """Caminho da worktree que já tem a branch (`git worktree list --porcelain`), ou None."""
+    cod, saida = git(raiz, "worktree", "list", "--porcelain")
+    atual = None
+    for linha in ([] if cod else saida.splitlines()):
+        if linha.startswith("worktree "):
+            atual = linha[len("worktree "):]
+        elif linha == f"branch refs/heads/{branch}" and atual:
+            return atual
+    return None
+
+
+def estado_da_branch(raiz, pedido_id, branch, base, etapa):
+    """(linhas `estado:`, recusas) do `gerar --branch` (P5): o PR da branch, quanto a base andou depois do Base-sha, a worktree que já
+    existe e o parecer desatualizado; recusa o brief de outra etapa que não a de merge quando o PR já foi mesclado."""
+    linhas, recusas = [], []
+    pr, motivo = pr_da_branch(raiz, branch)
+    if pr is None:
+        linhas.append(f"estado: PR de {caminho_impresso(branch)} não verificável ({motivo})")
+    elif not pr:
+        linhas.append(f"estado: nenhum PR para {caminho_impresso(branch)}")
+    else:
+        linhas.append(f"estado: PR #{pr['number']} {sem_controle(pr['state'])[:10]} head {sem_controle(pr['head'])[:7]}")
+        if pr["state"] == "MERGED" and etapa not in ETAPAS_DE_MERGE:
+            recusas.append(f"brief gerar: recusado: o PR #{pr['number']} já foi mesclado; a etapa {etapa or 'codigo'} não cabe mais (P5)")
+    sha_base = base_sha_real(raiz, base, branch)
+    remota = sha_do_commit(raiz, f"refs/remotes/origin/{base}")
+    if sha_base and remota:
+        cod, n = git(raiz, "rev-list", "--count", f"{sha_base}..{remota}")
+        if not cod and n.isdigit():
+            linhas.append(f"estado: origin/{caminho_impresso(base)} {n} commits à frente do Base-sha")
+    caminho = worktree_da_branch(raiz, branch)
+    if caminho:
+        linhas.append(f"estado: worktree {caminho_impresso(caminho)} já existe para {caminho_impresso(branch)}")
+    pastas = {pasta: tipo for tipo, (pasta, _) in PASTA_E_REGRA.items()}
+    for linha in pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{base}") if sha_do_commit(raiz, branch) or sha_do_commit(raiz, f"origin/{branch}") else []:
+        m = re.match(r"^(docs/[a-z]+)/[^:]*: commit: (.*) \(R-[A-Z]+\)$", linha)
+        if m and m.group(1) in pastas:
+            linhas.append(f"estado: parecer {pastas[m.group(1)]} desatualizado ({sem_controle(m.group(2))[:120]})")
+    return linhas, recusas
 
 
 def etapa_coberta(dados, papel_destino, cobre):
@@ -3896,6 +3972,12 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
         return None, 1, [f"brief gerar: recusado: {sem_controle(l)}" for l in faltas]
     for linha in faltas:
         print(f"brief gerar: aviso: {sem_controle(linha)}", file=sys.stderr)
+    if branch:
+        estado, recusas = estado_da_branch(raiz, pedido_id, branch, base, etapa)
+        for linha in estado:
+            print(linha, file=sys.stderr)
+        if recusas:
+            return None, 1, recusas
     saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
     if destino:
         saida.append(f"Agente destino: {destino}")

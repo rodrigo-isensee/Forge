@@ -9,6 +9,9 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 fc = SourceFileLoader("forge_check_isencoes", str(FORGE_CHECK)).load_module()
@@ -17,8 +20,15 @@ REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommi
           "revisor: forge:tech-lead\ndata: 2026-10-12\n---\n# Review\n")
 
 
+def ambiente_do_git():
+    """Sem GIT_* herdado (um hook do git exporta GIT_DIR) e sem config global ou de sistema: o git só vê o repositório temporário."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return env
+
+
 def git(*args, cwd):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True).stdout.strip()
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, check=True, env=ambiente_do_git()).stdout.strip()
 
 
 class Repo(unittest.TestCase):

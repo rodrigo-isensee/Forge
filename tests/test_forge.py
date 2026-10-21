@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede, P5)
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
@@ -2871,7 +2872,7 @@ class ConferirBrief(unittest.TestCase):
 
     def rodar(self, *args, cwd=None):
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *map(str, args)],
-                           capture_output=True, text=True, cwd=cwd or RAIZ)
+                           capture_output=True, text=True, cwd=cwd or RAIZ, env=com_gh_falso())  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
     def conferir(self, nome, *extra, pedido=None):
@@ -4459,7 +4460,7 @@ class BaseShaDoBrief(RepoComOrigem):
 
     def gerar(self, branch, base="develop"):
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--cobre", "E1.1", "--branch", branch, "--base", base,
-                     raiz=self.repo, home=self.home)
+                     raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso()["PATH"]})
         linha = next((l for l in r.stdout.splitlines() if l.startswith("Branch:")), "")
         return r.returncode, linha
 
@@ -4493,24 +4494,25 @@ class BaseShaDoBrief(RepoComOrigem):
         r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
         return r.returncode, r.stdout
 
-    def test_aviso_quando_o_base_sha_nao_esta_na_branch(self):
+    def test_base_sha_fora_da_branch_reprova(self):  # P5: o aviso da E11 vira reprovação
         velho = self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # commit da develop que a branch não tem
         rc, saida = self.brief_com_base(velho)
-        self.assertEqual(rc, 0, saida)
-        self.assertIn(f"aviso: Base-sha {velho[:7]} do brief não está na branch melhoria/x", saida)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"base: Base-sha {velho[:7]} não está na branch melhoria/x", saida)
         base_ok = git("merge-base", "origin/develop", "melhoria/x", cwd=self.repo).stdout.strip()
         rc, saida = self.brief_com_base(base_ok)
         self.assertEqual(rc, 0, saida)
-        self.assertNotIn("aviso: Base-sha", saida)
+        self.assertNotIn("base: Base-sha", saida)
 
     def test_sem_a_linha_branch_nao_ha_o_que_avisar_e_branch_ausente_confere_a_base(self):
         arq = self.repo / "docs" / "briefs" / f"{ID}-dev-exemplo-1.md"
         arq.parent.mkdir(parents=True, exist_ok=True)
         arq.write_text(BRIEF, encoding="utf-8")
         r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
-        self.assertNotIn("aviso: Base-sha", r.stdout)
+        self.assertNotIn("base: Base-sha", r.stdout)
         rc, saida = self.brief_com_base("0" * 40, branch="melhoria/ainda-nao-existe")
-        self.assertIn("aviso: Base-sha 0000000 do brief não está em origin/develop", saida)
+        self.assertIn("base: Base-sha 0000000 não está em origin/develop", saida)
+        self.assertEqual(rc, 1)
 
     def test_volta_grava_o_base_sha_real(self):
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
@@ -4521,7 +4523,7 @@ class BaseShaDoBrief(RepoComOrigem):
         anterior.write_text(BRIEF.replace("Agente destino: forge:dev-exemplo\n", f"Agente destino: forge:dev-exemplo\nBranch: melhoria/x   Base: develop   Base-sha: {'1' * 40}\n", 1), encoding="utf-8")
         (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--volta", f"docs/briefs/{ID}-dev-exemplo-1.md",
-                     "--ref", "melhoria/x", raiz=self.repo, home=self.home)
+                     "--ref", "melhoria/x", "--parecer", "docs/reviews/p1.md", raiz=self.repo, home=self.home)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"Base-sha: {ponta}", r.stdout)
         self.assertNotIn("1" * 40, r.stdout)
