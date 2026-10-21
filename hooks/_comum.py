@@ -6,6 +6,7 @@ interno (registrado em `.forge/run/erros.log`).
 Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
 bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
+import collections
 import functools
 import hashlib
 import importlib.machinery
@@ -217,27 +218,168 @@ def git(raiz, *args):
     return forge_check().git(raiz, *args)
 
 
-def fichas(comando):
+# ADR 0013: o `#` só abre comentário onde se prova que o bash também o abre. A varredura de `comentarios` anda da
+# esquerda para a direita só enquanto a linha está na gramática G, o estado normal em que o bash lê palavras de um
+# comando simples ou de uma lista; o primeiro sinal fora de G encerra a varredura, e dali em diante nenhum `#` abre
+# comentário (a linha é lida por inteiro). Ficam fora de G, entre outros: crase, `(` e `)`, `$` que não seja de nome ou
+# de parâmetro especial (`${`, `$[`, `$'`, `$"`), `=~`, `<<`, `\` no fim ou antes da quebra de linha, aspas sem fechar
+# e caracteres de controle. Um contexto do bash que ninguém listou também começa fora de G: a omissão desliga o
+# comentário, não o liga.
+LITERAIS_DE_G = frozenset("_./:=@,+%-~^*?[]{}!#")
+SEPARADORES_DE_G = frozenset(" \t\n;&|")  # depois deles (lidos pela varredura, sem `\`), começa palavra
+PARAMETRO = re.compile(r"[A-Za-z_][A-Za-z0-9_]*|[0-9?#@*!$-]")  # depois de `$`: nome ou parâmetro especial
+
+
+def fim_das_duplas(linha, i):
+    """O índice do `"` que fecha as aspas duplas abertas antes de `i`, se o conteúdo estiver em G (caracteres comuns,
+    `\\` seguido de um caractere que não é quebra de linha, `$` de nome ou parâmetro especial); senão, None."""
+    while i < len(linha):
+        c = linha[i]
+        if c == '"':
+            return i
+        if c == "\\":
+            if linha[i + 1:i + 2] in ("", "\n"):
+                return None
+            i += 2
+        elif c == "$":
+            m = PARAMETRO.match(linha, i + 1)
+            if m is None:
+                return None
+            i = m.end()
+        elif c == "`" or (controle(c) and c not in "\n\t"):
+            return None
+        else:
+            i += 1
+    return None
+
+
+def varrer_comentarios(linha):
+    """A varredura da gramática G (ADR 0013): (posições dos `#` que abrem comentário, onde a varredura parou). Pára em
+    `len(linha)` se a linha inteira está em G. O comentário provado é pulado até a quebra de linha."""
+    provados, i, n = set(), 0, len(linha)
+    inicio, depois_de_redirecionar = True, False
+    while i < n:
+        c = linha[i]
+        if c == "#" and inicio:
+            provados.add(i)
+            fim = linha.find("\n", i)
+            i = n if fim < 0 else fim
+            continue
+        if c == "#" and depois_de_redirecionar:  # `>#x`: o bash começa palavra nova depois do operador
+            break
+        if c in SEPARADORES_DE_G:
+            inicio, depois_de_redirecionar = True, False
+            i += 1
+            continue
+        if c == "'":
+            fim = linha.find("'", i + 1)
+            if fim < 0:
+                break
+            i = fim + 1
+        elif c == '"':
+            fim = fim_das_duplas(linha, i + 1)
+            if fim is None:
+                break
+            i = fim + 1
+        elif c == "\\":
+            if linha[i + 1:i + 2] in ("", "\n"):
+                break
+            i += 2
+        elif c == "$":
+            m = PARAMETRO.match(linha, i + 1)
+            if m is None:
+                break
+            i = m.end()
+        elif linha.startswith(("=~", "<<"), i):
+            break
+        elif c in "<>":
+            i += 1
+            inicio, depois_de_redirecionar = False, True
+            continue
+        elif c.isalnum() or c in LITERAIS_DE_G:
+            i += 1
+        else:
+            break
+        inicio, depois_de_redirecionar = False, False
+    return frozenset(provados), i
+
+
+def comentarios(linha):
+    """Posições dos `#` que abrem comentário pela gramática G (o prefixo provado). Fora delas, o `#` é palavra."""
+    return varrer_comentarios(linha)[0]
+
+
+# Antes de um `#`, o que pode fazer dele início de palavra para o bash (fora de G, o hook não sabe se é comentário). A
+# crase entra porque o corpo dela é lido à parte: o `#` logo depois da crase que abre começa palavra.
+ANTES_DE_CANDIDATO = frozenset(" \t\n;&|<>()`")
+
+
+def comentario_ambiguo(linha):
+    """Depois do ponto em que a varredura de G parou, um `#` que o bash pode ler como comentário e que, lido como
+    palavra (como o hook o lê), levaria uma aspa ou uma barra para fora do comentário e esconderia o que o bash roda. A
+    linha não se lê com segurança quando o resto da linha física depois do `#`:
+    - tem aspa, crase ou `\\` no fim, e há outra linha depois (o comentário acaba na quebra de linha); ou
+    - tem crase e aspa, na última linha física: dentro de crase o comentário acaba na crase que fecha, não na quebra de
+      linha, e a aspa dele casaria com outra mais adiante (`` x=`#'`; gh repo delete d/p --yes # ' ``)."""
+    _, parada = varrer_comentarios(linha)
+    for m in re.finditer("#", linha[parada:]):
+        i = parada + m.start()
+        if i and linha[i - 1] not in ANTES_DE_CANDIDATO:
+            continue
+        fim = linha.find("\n", i)
+        ultima = fim < 0 or not linha[fim:].strip()
+        resto = linha[i:len(linha) if fim < 0 else fim].rstrip(" \t\r")
+        aspa = any(c in resto for c in "'\"")
+        if ultima:
+            if "`" in resto and aspa:
+                return True
+            continue
+        if aspa or "`" in resto or resto.endswith("\\"):
+            return True
+    return False
+
+
+def fichas(comando, legado=False):
     """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
-    Aspas desbalanceadas levantam ValueError (o próprio shell vai recusar o comando)."""
+    Aspas desbalanceadas levantam ValueError.
+
+    O `shlex` toma por comentário um `#` em qualquer ponto da palavra (`a#; git push` esconderia o push) e engole a
+    quebra de linha que o encerra: aqui ele não conhece comentário, e o `#` só abre um onde a gramática G prova que o
+    bash o abre (`comentarios`, ADR 0013); o comentário vai até a quebra de linha, que continua separando comandos.
+    `legado`: a leitura da develop (o `#` do `shlex`), o piso de `leituras`."""
     lex = shlex.shlex(comando, posix=True, punctuation_chars=PONTUACAO)
     lex.whitespace, lex.whitespace_split = " \t\r", True
+    if not legado:
+        lex.commenters = ""
+    provados = frozenset() if legado else comentarios(comando)
     # O `shlex` devolve o caractere que encerrou a palavra (sem espaço no meio) em `_pushback_chars`: é por ele que se
     # sabe o que está colado (`$(`, `)/x`), e pela posição na linha, se o sinal estava entre aspas (`")"`).
     def posicao():
         return lex.instream.tell() - len(lex._pushback_chars)
 
-    inicio = posicao()
+    def pular_comentario():
+        """Entre duas fichas: se a próxima começa num `#` provado, pula até a quebra de linha (ou o fim)."""
+        atual = posicao()
+        proximo = len(comando) - len(comando[atual:].lstrip(" \t\r"))
+        if proximo not in provados:
+            return atual
+        fim = comando.find("\n", proximo)
+        fim = len(comando) if fim < 0 else fim
+        lex._pushback_chars.clear()
+        lex.instream.seek(fim)
+        return fim
+
+    inicio = pular_comentario()
     while (tok := lex.get_token()) is not None:
         fim = posicao()
         bruto = comando[inicio:fim].rstrip(" \t\r")
         sinal = bool(tok) and set(tok) <= set(PONTUACAO) and bruto.endswith(tok) and (
             len(bruto) == len(tok) or bruto[-len(tok) - 1] in " \t\r\n")
         yield tok, sinal, bool(lex._pushback_chars)
-        inicio = fim
+        inicio = pular_comentario()
 
 
-def comandos(comando):
+def comandos(comando, legado=False):
     """Divide a linha do shell em comandos simples: (palavras, destinos, substituição) por comando. `destinos` são os
     alvos dos redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos.
 
@@ -278,7 +420,7 @@ def comandos(comando):
         estado.update(fora, palavra=(fora["palavra"] or "") + OPACO[tipo])
         return feito
 
-    for tok, sinal, colada in fichas(comando):
+    for tok, sinal, colada in fichas(comando, legado):
         if not sinal:
             if estado["palavra"] is not None and estado["colar"]:
                 estado["palavra"] += tok
@@ -364,7 +506,6 @@ def fora_da_gramatica_de_leitura(linha):
 
 # ADR 0011, item 2: `case` como palavra de comando, no que sobra fora de aspas.
 CASE = re.compile(r"(?:^|[\s;&|()])case(?=\s|$)")
-INICIO_DE_PALAVRA = " \t\n;&|()"
 # O único heredoc que o analisador modela: delimitador entre aspas (corpo literal, sem expansão), sem `-`, terminado na
 # palavra. É a forma que `tirar_heredocs` (conformidade) separa igual ao bash; qualquer outro `<<` é não modelado.
 HEREDOC_MODELADO = re.compile(r"<<[ \t]*(['\"])([A-Za-z_][A-Za-z0-9_]*)\1(?=[\s;&|)]|$)")
@@ -398,6 +539,7 @@ def construcao_nao_modelada(linha):
     de aspas e, entre duplas, `$`, crase, `"` e `\\`."""
     pilha = [["fora", 0]]  # contexto: fora | subst (com a profundidade de parênteses) | simples | duplas
     esqueleto, pendentes, modelados, i, n = [], [], set(), 0, len(linha)
+    provados = comentarios(linha)  # o mesmo conjunto que o leitor usa, sobre a mesma linha
     while i < n:
         c, seguinte = linha[i], linha[i + 1:i + 2]
         contexto = pilha[-1]
@@ -435,7 +577,7 @@ def construcao_nao_modelada(linha):
         elif c == "#":
             if re.search(r"\n[ \t]*\S", linha[i:]):
                 return "# + outra linha"
-            if i == 0 or linha[i - 1] in INICIO_DE_PALAVRA:
+            if i in provados:
                 break  # comentário até o fim da linha
             esqueleto.append(c)
         elif c in "{}":
@@ -476,11 +618,27 @@ def construcao_nao_modelada(linha):
     return "case" if CASE.search("".join(esqueleto)) else None
 
 
-def segmentos(comando):
-    """Os comandos simples da linha (listas de palavras), sem os alvos de redirecionamento: os de `comandos`, inclusive
-    o conteúdo de cada substituição. Aspas desbalanceadas levantam ValueError."""
-    for palavras, _, _ in comandos(comando):
-        yield palavras
+Leituras = collections.namedtuple("Leituras", "partes ilegivel")
+
+
+def leituras(comando):
+    """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
+    e a leitura antiga (a da develop, `legado`) fecha e dá outro resultado, também ela (I2: o que a develop recusava
+    continua recusado). `ilegivel`: a leitura fiel não fecha (aspas sem par) ou um comentário que o hook não prova
+    levaria aspa ou `\\` para outra linha (`comentario_ambiguo`); quem chama decide, fechado onde é controle."""
+    try:
+        fiel = None if comentario_ambiguo(comando) else list(comandos(comando))
+    except ValueError:
+        fiel = None
+    partes = [] if fiel is None else [fiel]
+    if "#" in comando:
+        try:
+            antiga = list(comandos(comando, legado=True))
+        except ValueError:
+            antiga = None
+        if antiga is not None and antiga != fiel:
+            partes.append(antiga)
+    return Leituras(tuple(partes), fiel is None)
 
 
 def sem_atribuicoes(palavras):

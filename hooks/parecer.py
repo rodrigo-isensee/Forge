@@ -20,7 +20,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
-                    raiz_de_estado, segmentos, sem_atribuicoes, separar_regra)
+                    leituras, raiz_de_estado, sem_atribuicoes, separar_regra)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -336,11 +336,17 @@ def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
         return
+    lidas = leituras(comando)
+    if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
+                             "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
+    for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
+        conferir(hook, [analisar(palavras) for palavras, _, _ in leitura])
+
+
+def conferir(hook, partes):
+    """Os comandos de uma leitura da linha, em ordem (`cd` e checkout/switch valem para os seguintes)."""
     pasta, branches = hook.cwd(), {}  # branches: raiz do projeto -> branch depois de checkout/switch na linha
-    try:
-        partes = [analisar(s) for s in segmentos(comando)]
-    except ValueError:
-        return  # aspas desbalanceadas: o próprio shell vai recusar
     for parte in partes:
         if parte is None:
             continue

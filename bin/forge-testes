@@ -37,8 +37,14 @@ SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "
 # `test_forge` varre bin/, scripts/, hooks/, agents/, skills/, stacks/, docs/ e templates/ (neutralidade,
 # anti-duplicação), então entra em quase toda regra de conteúdo e de script.
 # `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
-FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro", "test_testes_tocados", "test_voltas", "test_volta_por_delta", "test_etapa_do_brief", "test_isencoes", "test_brief_gravar", "test_anotar", "test_citacao", "test_estado_da_branch")
-CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor")
+# FORGE_CHECK lista todo módulo que importa ou executa o script (inclui quem importa de um deles); o teste
+# `MapaDoForgeCheck` compara esta lista com os arquivos.
+FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_registrar", "test_erros_no_brief",
+               "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks",
+               "test_isencoes", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro", "test_testes_tocados",
+               "test_volta_por_delta", "test_voltas")
+CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
+            "test_modelos_citados")
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)

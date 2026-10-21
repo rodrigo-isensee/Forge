@@ -18,6 +18,9 @@ Rode na raiz do repositório do Forge (o script recusa rodar em outro lugar: sem
 6. Relê a base do PR (recusa `main` e qualquer outra que não a `develop`), marca como pronto o PR em rascunho (já com os pareceres do passo 1) e roda `gh pr merge --squash --match-head-commit <head conferido no passo 2>` (`R-FLUXO`): um commit novo na branch durante a espera faz o merge falhar. Confere o estado `MERGED`. PR que já consta `MERGED` (lido antes, ou depois de um merge que devolveu erro) é sucesso e o merge não se repete; o merge nunca é repetido sozinho.
 7. Limpeza: apaga a branch remota (`refs/heads/<branch>`, com até 3 tentativas), remove a worktree e apaga a branch local. Se o script roda dentro da worktree da branch, só avisa os comandos. Falha de limpeza é aviso (o merge já ocorreu).
 
+## Log em arquivo
+Depois das checagens iniciais, a primeira linha da saída é `log: <caminho>`; a saída de cada passo (stdout e stderr, igual à tela) também vai para esse arquivo, com a hora UTC em cada linha, modo 600 e token ou `Bearer` mascarados. Pasta: `FORGE_FECHAR_LOG_DIR` (padrão `${TMPDIR:-/tmp}/forge-fechar-logs`). Vale para `--dry-run`. Serve quando o comando é cortado pelo teto de tempo (`--espera` alto): o caminho continua à mão e o arquivo guarda o que o script imprimiu.
+
 ## Erro passageiro do GitHub (502)
 Só as operações que não mudam o PR repetem, até 3 vezes e com espera curta (`FORGE_FECHAR_PAUSA`, padrão 3 s): a leitura do estado e dos dados do PR (passos 3, 5 e 6), a leitura dos checks (passo 4) e o `git push origin --delete` da limpeza. Push de código, criação de PR, `gh pr ready` e merge nunca se repetem sozinhos; se falham, o script para (no merge, só lê o estado para reconhecer um `MERGED` já feito).
 
