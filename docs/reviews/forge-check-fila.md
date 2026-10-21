@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: forge-check-fila
 branch: melhoria/forge-check-fila
-commit: 31ae2cbdd098f84a5925b3881cb1cd611f47ab58
-parecer: reprovado
+commit: fcaee1006ae30294353bc58e41d8dce9d381eea4
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -33,7 +33,7 @@ Veredito sobre `31ae2cb`: **REPROVADO**, com 1 achado bloqueante. As recomendaç
 - **Commit.** Um único commit coerente, em Conventional Commits em português. Não há rede, custo nem termo de projeto (R-CUSTO, R-NEUTRO).
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:1417 · agentes.json é lido de raiz/.forge/run; o hook grava na cópia principal (Hook.run). Rodado de uma worktree, dá 0 ativos e vagas a mais (sonda: 2 ativos e teto 2; principal 0 vagas, worktree 2). Usar raiz_principal (linha 671) e testar a worktree.
+(vazio na volta 1: o A1 da rodada anterior foi resolvido, ver "Volta 1")
 
 ## Recomendações (não bloqueiam)
 - `bin/forge-check:1436` (`cmd_fila`): quando o quadro não tem a coluna "Pronto para fazer" ou a coluna "Pronto", a saída diz só "0 podem começar". O `KANBAN.md` do próprio Forge está nesse caso: tem "A fazer" e "Concluído", e o resultado é `fila: 0 podem começar, 16 vagas de 16`. Um `aviso:` de coluna ausente evitaria a leitura de que a fila está vazia.
@@ -43,3 +43,15 @@ Veredito sobre `31ae2cb`: **REPROVADO**, com 1 achado bloqueante. As recomendaç
 
 ## Revalidação
 Depois da volta, este parecer confere o delta (`forge-check delta --parecer docs/reviews/forge-check-fila.md`): `agentes_vigentes` e o teste novo de worktree.
+
+## Volta 1
+Delta lido: `dca6e71..fcaee10` (`git diff`, 3 arquivos: `bin/forge-check`, `docs/hooks.md`, `tests/test_sobreposicao_quadro.py`). Já lido na rodada anterior e não relido: o restante de `cmd_fila`, `arquivos_por_branch`, o modelo do pedido e o changelog.
+
+Veredito sobre `fcaee10`: **APROVADO**, sem achado bloqueante.
+
+- **A1 resolvido.** `agentes_vigentes` lê `agentes.json` por `raiz_principal(raiz)`, o mesmo auxiliar que `caminho_do_pedido` já usa. O teste novo monta um repositório com worktree, grava 2 agentes só na principal e confirma, rodando da worktree, `1 vagas de 3 (2 ativos)`. Falharia com a leitura antiga.
+- **Aviso de coluna ausente** (recomendação da rodada anterior, acatada). Sai `aviso:` por coluna que falta, dentro do teto de 15 linhas; teste novo cobre as duas colunas e o resumo.
+- **Suposição do autor aceita.** O `.forge/config.json` do teto segue lido da raiz onde o comando roda, como já faz `teto_calculado` (`bin/forge-check:256`, usado pelo `kanban`). Fica coerente com o resto do conferente. Na worktree sem esse arquivo o teto cai no adaptativo; vale, como recomendação, o dono saber disso se fixar `teto_agentes` só na principal.
+- **Documentação.** `docs/hooks.md` e o cabeçalho de `bin/forge-check` descrevem a leitura pela principal e o novo aviso.
+- **Ferramenta.** `python3 -m unittest tests.test_sobreposicao_quadro`: `Ran 35 tests` / `OK`.
+- Recomendação nova, não bloqueia: a linha de uso no cabeçalho de `bin/forge-check` ficou longa; quebrar em duas melhora a leitura.
