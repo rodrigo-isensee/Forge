@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: prepush-so-parecer
 branch: melhoria/prepush-so-parecer
-commit: 441ae2727f04a76299723ca79a2c2989117148de
+commit: 862bf19cb7367460eef1c6d1ec0e431e49ea53d5
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
@@ -17,7 +17,7 @@ Ferramentas rodadas, em cópia própria de 6753dc7 (`git archive` em `$TMPDIR`, 
 ## Achados
 
 ## Parecer
-Rodada 1: reprovado por A1 (texto abaixo, mantido como histórico). Volta 1: aprovado, ver "## Volta 1". O resto do desenho está bom e é o que a decisão do dono pede.
+Rodada 1: reprovado por A1 (texto abaixo, mantido como histórico). Volta 1: aprovado, ver "## Volta 1". Volta 2: aprovado, ver "## Volta 2". O resto do desenho está bom e é o que a decisão do dono pede.
 
 A1, evidência (sonda em `$TMPDIR`, cópia de 6753dc7): com `docs/security/sonda.md` citando `npm audit` e `pip-audit` e `docs/devops/sonda.md` citando `Node`, as três classes do hook dão `OK`, e `python3 -m unittest tests.test_forge.NeutralidadeDoNucleo` dá `FAIL` nos dois arquivos (`stack no núcleo (npm)`, `(Node)`, `pip-audit`). Motivo: em `tests/config.json`, `neutralidade_nucleo.ignorar` lista só `docs/adr/`, `docs/reviews/` e `docs/qa/`. O comentário da linha 114 diz que as classes são "as mesmas que o gate do CI usa", mas o gate do CI (`.github/workflows/ci.yml`, passo Gate) só pula para `docs/(reviews|qa)/`; o hook estendeu o atalho a duas pastas sem estender as classes. Parecer de segurança e de devops citar ferramenta de stack é o caso comum, não de borda. A anotação da linha 149 roda também depois do caminho curto, então a árvore que falharia a suíte entra no arquivo `.verde` e os próximos pushes de parecer em cima dela seguem curtos. O CI pega no PR (para essas pastas ele roda a bateria pesada), mas o hook prometeu falha fechada e aqui ela é aberta. Mesma família, menor: `tests/test_volta_por_delta.py` (`test_parecer_escrito_pelo_modelo_passa_no_gerar_volta`) lê `docs/security/_modelo.md`, e um push que só mexe nesse modelo também cairia no atalho.
 
@@ -48,3 +48,15 @@ Recomendações (não bloqueiam):
 - `.githooks/pre-push:156`: anotar só se, além de limpa, `HEAD^{tree}` no fim for igual a `arvore_inicio` (o que a R1 da segurança propôs); uma comparação, e o teste do commit no meio passaria a afirmar que nenhuma das duas árvores entra.
 - `.githooks/pre-push:115`: o comentário ainda diz que as classes são "as mesmas que o gate do CI usa"; o gate do CI pula só para `docs/(reviews|qa)/` (`.github/workflows/ci.yml:70`) e o hook agora roda quatro classes. Dizer em que difere (repete a recomendação da rodada 1).
 - Changelog atualizado e coerente com o comportamento; commit único da volta, Conventional Commits em português; nada de custo (R-CUSTO) nem de projeto (R-NEUTRO).
+
+## Volta 2
+Revalidação por delta, `4824b52..862bf19`: `.githooks/pre-push` (comentário 113-119, linha 142 da checagem de exclusão, 154-157), `changelog.d/prepush-so-parecer.md` 2 e `tests/test_pre_push_parecer.py` (`verde_em`, teste do commit no meio, apagar e renomear). Lido só isso; o resto do hook e dos testes ficou como "já lido" nas voltas anteriores.
+
+Ferramentas, em cópia própria de 862bf19 (`git archive` em `$TMPDIR`, caminho fundo): `python3 -m unittest tests.test_pre_push_parecer -q` → `Ran 19 tests ... OK`; `bash -n .githooks/pre-push` → ok. Suíte inteira e `scripts/validar-plugin.sh` não refeitos (R-TETO; o pre-push deste envio e o QA os rodam).
+
+- A1 do QA resolvido: `git diff --diff-filter=D --name-only --no-renames` não vazio manda à suíte inteira; como `--no-renames` mostra a renomeação como D mais A, apagar e renomear caem na mesma checagem, antes de o delta ser percorrido. Os testes novos apagam e renomeiam um parecer sobre árvore com prova real (`verde_em`, ref nova → suíte inteira grava a prova) e afirmam que a suíte inteira rodou.
+- Recomendação da volta 1 sobre a árvore do fim aceita: a prova só grava se `HEAD^{tree}` no fim for igual a `arvore_inicio`, além da árvore limpa nos dois momentos (linha 155). O teste do commit no meio passa a afirmar que nenhuma das duas árvores entra. Fecha também o caso do `merge --ff-only` de outro revisor durante a suíte.
+- Recomendação do comentário aceita: o texto agora diz que o gate do CI usa um subconjunto próprio e que a classe de neutralidade entra porque varre `docs/security` e `docs/devops`. A observação de que a anotação roda também depois do caminho curto continua só implícita; não bloqueia.
+- Changelog coerente com o comportamento (exclusão, renomeação e prova só com árvore estável); commit único da volta, Conventional Commits em português; nada de custo (R-CUSTO) nem de projeto (R-NEUTRO).
+
+Parecer da volta 2: aprovado, sem bloqueantes. A condição nova do caminho curto só vale quando todo arquivo enviado é parecer nas quatro pastas, nada foi apagado ou renomeado, não é modelo nem pasta de controle, e a prova da árvore do remoto existe.
