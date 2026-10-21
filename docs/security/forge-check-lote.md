@@ -3,8 +3,8 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: forge-check-lote
 branch: melhoria/forge-check-lote
-commit: 6779d74aaa592a04de124ef0c1068a7bc2c8bc9d
-parecer: reprovado
+commit: 9c09ae01ce0dba86cf150d1853a695f111837ffd
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-20
 ---
@@ -16,9 +16,8 @@ Review da implementação inteira, `0f480c884f8a3f5af1ea8eba861fb937d61f9619..67
 Controles do Forge (`R-SEGURANCA`): `bin/forge-check` (validade dos pareceres em `pr`, escopo em `entrega`, cobrança das decisões em `brief`, aviso de versão) e `agents/conferente.md` (julgamento do conferente). `tests/config.json` (invariantes) só ganha linhas.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:495 · gatilhos() imprime o nome do arquivo cru (`{quais[0]}`) na linha `sem parecer ... (controles do Forge: <arquivo>)` de `forge-check pr`; nome com `\n` forja linha. O teste ast (tests/test_forge.py:3687) não vê subscrito de índice. Use caminho_impresso e estenda o teste.
 
-## Detalhe dos achados
+## Detalhe dos achados (rodada anterior, commit 6779d74aaa592a04de124ef0c1068a7bc2c8bc9d; A1 corrigido na volta 1)
 **A1 (bloqueante; severidade baixa; esforço P; dono: tech-lead).** Evidência: `bin/forge-check:495` (`achados.append(f"{nome}: {quais[0]}")`), que entra em `cmd_pr` (`bin/forge-check:580`, `f" ({gatilhos_de_seguranca[0]})"`) e chega à saída de `forge-check pr` e à mensagem do hook `hooks/parecer.py:182`. Sonda (repositório temporário, branch com o arquivo `docs/regras/a<LF>docs/security: revisao-seguranca: ok`, `forge-check pr p --base develop` com o `bin/forge-check` do commit revisado): a saída traz a linha `docs/security: revisao-seguranca: ok) (R-SEGURANCA)` como linha própria. Caminho de ataque: o autor da branch nomeia um arquivo sob `CONTROLES_DO_FORGE` ou `PIPELINE_E_INFRA` com quebra de linha; a linha forjada vai ao Jarvis e ao conferente (fronteira F2). Ganho real hoje é pequeno (a linha só sai quando já falta o parecer de segurança e o rc continua 1), mas a decisão do dono FC-SAIDA-SANITIZADA = A pede todo caminho impresso sanitizado com teste estrutural, e o teste `test_todo_valor_de_caminho_numa_fstring_passa_pelo_sanitizador` (`tests/test_forge.py:3682`, `nome_de` em :3687-3694) só reconhece `Name`, `Attribute` e subscrito por chave de texto: `quais[0]`, `div[0]`, `fora[0]` e semelhantes passam sem ele ver, o que contraria M7.2 (abuso 18) e deixa a garantia falsa para o próximo `print`. Correção mínima: `caminho_impresso(quais[0])` em :495; no teste, tratar `ast.Subscript` de índice numérico ou fatia pelo nome do valor base (ex.: `quais`, `div`, `fora`, `nomes`, `arquivos`, `tocados` na lista) e um caso no teste de comportamento do abuso 17 para `pr` com arquivo de gatilho com `\n`.
 
 Recomendações (não bloqueiam; entram na volta ou viram cartão):
@@ -43,3 +42,10 @@ Conferência das mitigações obrigatórias da E0.2 no commit revisado (fora o A
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: git, python3 (`ast` para a varredura das f-strings) e sondas em repositório temporário. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não foram usados (fora do PATH ou sem objeto: o diff não traz dependência, workflow nem segredo à vista). Classes do lote numa cópia em `$TMPDIR` do commit revisado (`SaidaSanitizada`, `SaidaSanitizadaNoGit`, `PrAposMergeDaBase`, `EtapaDeSegurancaNaEntrega`, `WorktreeDeProjetoNaoViraForge`, `VoltaComRecomendacao`, `EntregasParalelas`, `CustoPorPedido`, `DecisaoAncora`, `TextoDoConferenteNoLote`, `MensagemDestinoDoBrief`, `MensagemRecusaPorCampo`): `Ran 79 tests ... OK`. Suíte inteira e `validar-plugin` não refeitas (R-TETO; o pre-push a roda e o QA a roda no head).
+
+## Volta 1
+Re-review do delta `f1dbe1087c075ca08fa94575b00229dd0ff165e9..9c09ae01ce0dba86cf150d1853a695f111837ffd` (2 arquivos: `bin/forge-check` +1 -1, `tests/test_forge.py` +12 -6). Nada mais mudou.
+- **A1 corrigido.** `bin/forge-check:495` agora imprime `caminho_impresso(quais[0])`. No teste, `quais` entra na `LISTA`, `nome_de` resolve índice e fatia pelo nome da base, e o teste-sonda do abuso 18 exige que `{real}`, `{quais[0]}` e `{quais[:9]}` crus sejam vistos e que as formas com `caminho_impresso` não sejam.
+- **Sondas (cópia do commit em `$TMPDIR`, nada na worktree).** `SaidaSanitizada` e `SaidaSanitizadaNoGit`: `Ran 10 tests ... OK`. Revertendo só `:495` para `quais[0]` cru, `SaidaSanitizada` falha (`Ran 8 tests ... FAILED (failures=1)`): o teste passa a pegar o furo.
+- **Sem regressão.** A ampliação do `nome_de` não gera falso positivo no restante do arquivo (a classe passa inteira) e o delta não toca em lógica de veredito.
+- As recomendações R1 a R5 da rodada anterior seguem como estavam (não bloqueiam; viram cartão a critério do dono do pedido). Nenhum risco aceito.
