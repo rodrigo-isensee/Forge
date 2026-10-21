@@ -72,13 +72,23 @@ case "$1 $2" in
 esac
 exit 64
 '''
-# git falso: o `push --delete` falha as primeiras N vezes (N em $ESTADO/falha_delete) e depois chama o git real
+# git falso: o `push --delete` falha as primeiras N vezes (N em $ESTADO/falha_delete) e depois chama o git real; registra as
+# chamadas de limpeza (worktree remove/prune, branch -D, push --delete) para provar a ordem; `worktree remove` pode simular o
+# "Device or resource busy" ($ESTADO/wt_busy: "apaga" = o diretório some e o registro administrativo fica; "persiste" = nada some)
 GIT_FALSO = r'''#!/usr/bin/env bash
 if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   echo "git $*" >> "$REGISTRO"
   n="$(cat "$ESTADO/falha_delete" 2>/dev/null || echo 0)"
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
 fi
+case "$1 $2" in
+  "worktree remove")
+    echo "git $*" >> "$REGISTRO"
+    modo="$(cat "$ESTADO/wt_busy" 2>/dev/null || true)"
+    [ "$modo" = apaga ] && rm -rf "${@: -1}"
+    if [ -n "$modo" ]; then echo "error: failed to delete '${@: -1}': Device or resource busy" >&2; exit 1; fi ;;
+  "worktree prune"|"branch -D") echo "git $*" >> "$REGISTRO" ;;
+esac
 exec "$REAL_GIT_FALSO" "$@"
 '''
 CHECK_FALSO = '#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\nexit "${CHECK_RC:-0}"\n'
@@ -512,7 +522,7 @@ class Fechar(unittest.TestCase):
     def test_push_delete_que_falha_tres_vezes_so_avisa(self):
         (self.estado / "falha_delete").write_text("9")
         r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 3, r.stderr)
         self.assertIn("não apaguei a branch remota", r.stderr)
         self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
 
@@ -585,7 +595,7 @@ class Fechar(unittest.TestCase):
         for n in "1234567":
             self.assertEqual(sum(1 for x in linhas if f" [{n}] " in x), 1, (n, linhas))
         self.assertTrue(all(x[:4].isdigit() and x[10] == "T" for x in linhas), linhas)
-        self.assertIn("Entrega p1 fechada em develop.", linhas[-2])
+        self.assertTrue(any("Entrega p1 fechada em develop." in x for x in linhas[-4:]), linhas)  # stderr do git pode chegar depois
         self.assertTrue(linhas[-1].endswith(" fim: código 0"), linhas[-1])
         self.assertEqual(oct(log.stat().st_mode & 0o777), "0o600")
 
@@ -709,7 +719,7 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         linhas = self.log_de(r).read_text().splitlines()
-        self.assertIn("parou no passo 1", linhas[-2])
+        self.assertTrue(any("parou no passo 1" in x for x in linhas[-3:]), linhas)
         self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
@@ -755,6 +765,145 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "2", FORGE_FECHAR_INTERVALO="1")
         self.assertNotEqual(r.returncode, 0)
         self.assertEqual(r.stdout.count("checks: pass=1 pendentes=1"), 1, r.stdout)
+
+    # ---- C3: limpeza como função única e modo --limpar ----
+    def com_worktree(self):
+        wt = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        return wt
+
+    def resumo(self, r):
+        return [l for l in r.stdout.splitlines() if l.startswith("limpeza: ")]
+
+    def marcas(self, prefixo):
+        return [i for i, c in enumerate(self.chamadas()) if c.startswith(prefixo)]
+
+    def arvores(self):
+        return [l for l in self.git("worktree", "list", "--porcelain").splitlines() if l.startswith("worktree ")]
+
+    def test_c3_ebusy_com_o_diretorio_ja_apagado_roda_prune_e_termina_ok(self):
+        wt = self.com_worktree()
+        (self.estado / "wt_busy").write_text("apaga")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(len(self.marcas("git worktree prune")), 1)
+        self.assertEqual(len(self.arvores()), 1)
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_c3_ebusy_com_o_diretorio_de_pe_deixa_pendente_com_o_comando_e_codigo_3(self):
+        wt = self.com_worktree()
+        (self.estado / "wt_busy").write_text("persiste")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn(f"git worktree remove {wt}", r.stdout)
+        self.assertIn("git branch -D melhoria/x", r.stdout)
+        self.assertEqual(self.marcas("git worktree prune"), [])
+        self.assertTrue(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "+ melhoria/x")
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertIn("Entrega p1 fechada em develop", r.stdout)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
+
+    def test_c3_worktree_suja_so_avisa_sem_forcar(self):
+        wt = self.com_worktree()
+        (wt / "rascunho").write_text("não commitado\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertTrue((wt / "rascunho").exists())
+        self.assertNotIn("--force", self.registro.read_text())  # o texto do git ("use --force") é dele, não uma chamada do script
+        self.assertNotIn("--force", SCRIPT.read_text().replace("# ", "#"). split("limpar_entrega() {")[1].split("\n}\n")[0])
+
+    def test_c3_ordem_worktree_depois_branch_e_por_ultimo_o_push_delete(self):
+        self.com_worktree()
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        (w,), (b,), (d,) = (self.marcas("git worktree remove"), self.marcas("git branch -D"),
+                            self.marcas("git push origin --delete"))
+        self.assertLess(w, b)
+        self.assertLess(b, d)
+
+    def test_c3_branch_com_commit_alem_do_mesclado_nao_e_apagada(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "novo").write_text("depois do merge\n")
+        self.git("add", "novo")
+        self.git("commit", "-q", "-m", "feat: depois do merge")
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=pendente"])
+        self.assertEqual(self.marcas("git branch -D"), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_c3_limpar_sem_prova_de_pr_merged_recusa_e_nao_apaga_nada(self):
+        self.com_worktree()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotEqual(r.returncode, 3)
+        self.assertIn("sem prova", r.stderr)
+        self.assertEqual(self.marcas("git "), [])
+        self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "+ melhoria/x")
+        # PR aberto, ou mesclado em outra base ou com outro head, também não é prova
+        for extra in (f"7 OPEN develop {'a' * 40}\n", f"8 MERGED main {self.git('rev-parse', 'melhoria/x')}\n"):
+            (self.estado / "lista_extra").write_text(extra)
+            r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+            self.assertNotEqual(r.returncode, 0, extra)
+            self.assertEqual(self.marcas("git "), [])
+
+    def test_c3_limpar_com_prova_apaga_e_repete_sem_efeito_colateral(self):
+        wt = self.com_worktree()
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertFalse(any(c.startswith(("forge-check", "gh pr merge", "gh pr create")) for c in self.chamadas()))
+        antes = self.chamadas()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual([c for c in self.chamadas() if c.startswith("git ")], [c for c in antes if c.startswith("git ")])
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_c3_limpar_com_parte_ja_apagada_faz_so_o_que_falta(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("branch", "-D", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(len(self.marcas("git push origin --delete")), 1)
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_c3_limpar_continua_recusando_main_develop_homolog_e_dry_run_nao_apaga(self):
+        for ref in ("main", "develop", "homolog"):
+            r = self.fechar("p1", "--ref", ref, "--limpar")
+            self.assertNotEqual(r.returncode, 0, ref)
+            self.assertIn("R-FLUXO", r.stderr)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.chamadas(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_c3_so_o_codigo_da_limpeza_vira_3_e_o_resto_segue_em_1(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertEqual(r.returncode, 1)
+
+    def test_c3_a_limpeza_e_uma_funcao_chamada_do_passo_7_e_do_limpar(self):
+        codigo = "\n".join(l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#"))
+        self.assertEqual(codigo.count("git branch -D \"$ref\""), 1)
+        self.assertEqual(codigo.count('git push origin --delete "refs/heads/$ref"'), 1)
+        self.assertGreaterEqual(codigo.count("limpar_entrega"), 3)
 
 
 if __name__ == "__main__":

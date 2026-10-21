@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
-#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--dry-run]
+#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
+# Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
+# --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
+# efeito colateral). Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
 # (a cada FORGE_FECHAR_INTERVALO, até --espera) e segue para o merge preso ao head quando o rótulo está no PR e a Catraca verde. Nessa
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
@@ -27,7 +30,7 @@ set -euo pipefail
 die() { echo "forge-fechar: $*" >&2; exit 1; }
 passo() { echo "[$1] $2"; }
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
@@ -38,6 +41,7 @@ while [ $# -gt 0 ]; do
     --medir) medir="${2-}"; shift 2 || die "--medir pede o texto" ;;
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
+    --limpar) limpar=1; shift ;;
     --dry-run) seco=1; shift ;;
     -*) die "opção desconhecida: $1" ;;
     *) [ -z "$pedido" ] || die "pedido repetido: $1"; pedido="$1"; shift ;;
@@ -174,6 +178,75 @@ fim() {
 }
 trap fim EXIT
 
+# sha_confere <sha>: o sha é um dos heads mesclados (merged_heads) ou já está na base; só então a branch ou a remota podem ser apagadas.
+sha_confere() {
+  local h
+  for h in $merged_heads; do
+    if [ "$h" = "$1" ]; then return 0; fi
+  done
+  git merge-base --is-ancestor "$1" "$base" 2>/dev/null
+}
+# limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
+# colateral. Ordem: worktree, branch local, e por último a remota (o pre-push roda a suíte nesse push). Nunca força: worktree suja e branch com commit
+# novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
+limpar_entrega() {
+  local arv_st=ok br_st=ok rem_st=ok arvore atual sha_local sha_remoto pend_cmds=""
+  pendencia=0
+  atual="$(pwd -P)"
+  arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=$2} $1=="branch" && $2==b {print w}')"
+  if [ -n "$arvore" ]; then
+    if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
+      echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $arvore && git branch -D $ref" >&2
+      arv_st=pendente
+    elif ! git worktree remove "$arvore"; then
+      # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório ausente.
+      [ -d "$arvore" ] || git worktree prune || true
+      if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && $2==w {f=1} END {exit !f}'; then
+        echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2
+        arv_st=pendente
+      fi
+    fi
+    [ "$arv_st" = ok ] || pend_cmds="$pend_cmds
+git worktree remove $arvore"
+  fi
+  sha_local="$(git rev-parse --verify -q "refs/heads/$ref" || true)"
+  if [ -n "$sha_local" ]; then
+    if [ "$arv_st" != ok ]; then
+      br_st=pendente
+    elif ! sha_confere "$sha_local"; then
+      echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não a apaguei." >&2
+      br_st=pendente
+    elif ! git branch -D "$ref"; then
+      echo "aviso: não apaguei a branch local $ref." >&2
+      br_st=pendente
+    fi
+    [ "$br_st" = ok ] || pend_cmds="$pend_cmds
+git branch -D $ref"
+  fi
+  if ! sha_remoto="$(git ls-remote origin "refs/heads/$ref")"; then
+    echo "aviso: não consegui ler a branch remota $ref." >&2
+    rem_st=pendente
+  else
+    sha_remoto="$(printf '%s' "$sha_remoto" | awk '{print $1}')"
+    if [ -z "$sha_remoto" ]; then
+      :
+    elif ! sha_confere "$sha_remoto"; then
+      echo "aviso: a branch remota $ref ($sha_remoto) tem commit que não foi mesclado; não a apaguei." >&2
+      rem_st=pendente
+    elif ! repetir git push origin --delete "refs/heads/$ref"; then
+      echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $ref)." >&2
+      rem_st=pendente
+    fi
+  fi
+  [ "$rem_st" = ok ] || pend_cmds="$pend_cmds
+git push origin --delete refs/heads/$ref"
+  echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st"
+  if [ -n "$pend_cmds" ]; then
+    pendencia=1
+    printf 'pendente, rode:%s\n' "$pend_cmds"
+  fi
+}
+
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
   passo 1 "$check pr $pedido --ref $ref --base $base"
@@ -182,7 +255,8 @@ if [ "$seco" = 1 ]; then
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
   passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
-  passo 7 "git push origin --delete $ref (até 3 tentativas); git worktree remove <worktree de $ref>; git branch -D $ref"
+  passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
+  [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
   # Aviso: os caminhos de controle vêm da lista PROTEGIDOS da própria catraca (tests/catraca.py), sem cópia aqui.
   if ! controles="$(python3 -I - "$(dirname "$catraca")" "$PWD" "$base" "refs/heads/$ref" 2>/dev/null <<'PY'
 import importlib.util, sys
@@ -203,6 +277,17 @@ PY
   elif [ -n "$controles" ]; then
     echo "aviso: o diff de $ref toca caminho de controle que a catraca protege; o rótulo afrouxa-regra do dono vai ser pedido (R-CONFORMIDADE): $(printf '%s' "$controles" | tr '\n' ' ')"
   fi
+  exit 0
+fi
+
+if [ "$limpar" = 1 ]; then
+  passo 7 "limpeza por --limpar (R-FLUXO, Depois do merge): só com prova de PR MERGED em $alvo"
+  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no --limpar: não consegui ler os PRs de $ref (nada foi apagado)"
+  merged_heads="$(printf '%s\n' "$lista" | awk -v b="$alvo" '$2=="MERGED" && $3==b {print $4}')"
+  [ -n "$merged_heads" ] || die "parou no --limpar: sem prova de merge: nenhum PR MERGED em $alvo para $ref; nada foi apagado"
+  limpar_entrega
+  if [ "$pendencia" = 0 ]; then echo "Limpeza de $ref concluída."; else exit 3; fi
   exit 0
 fi
 
@@ -345,15 +430,11 @@ if [ "$ja_mesclado" = 0 ]; then
 fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
-repetir git push origin --delete "refs/heads/$ref" || echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $ref)." >&2
-atual="$(pwd -P)"
-arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=$2} $1=="branch" && $2==b {print w}')"
-if [ -n "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
-  echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $arvore && git branch -D $ref" >&2
+merged_heads="$remoto_sha"
+limpar_entrega
+if [ "$pendencia" = 0 ]; then
+  echo "Entrega $pedido fechada em $alvo."
 else
-  if [ -n "$arvore" ]; then
-    git worktree remove "$arvore" || echo "aviso: não removi a worktree $arvore; rode git worktree prune no terminal." >&2
-  fi
-  git branch -D "$ref" || echo "aviso: não apaguei a branch local $ref." >&2
+  echo "Entrega $pedido fechada em $alvo; limpeza pendente (código 3): rode os comandos acima ou forge-fechar $pedido --ref $ref --limpar."
+  exit 3
 fi
-echo "Entrega $pedido fechada em $alvo."
