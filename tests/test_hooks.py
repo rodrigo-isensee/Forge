@@ -1525,8 +1525,13 @@ class Hooks(unittest.TestCase):
                         f"eval \"$(\ncat <<'EOF'\n{L}\nEOF\n)\"": "eval", f"eval $(echo; cat <<'EOF'\n{L}\nEOF\n)": "eval",
                         f"( source /dev/stdin ) <<'EOF'\n{L}\nEOF": "source", f"cat <<'EOF' | {{ read; bash; }}\n{L}\nEOF": "bash",
                         f"cat > x.sh <<'EOF' && bash x.sh\n{L}\nEOF": "bash",  # como na develop: `bash` no comando lógico
-                        f"read -r x <<'EOF' && eval \"$x\"\n{L}\nEOF": "eval"}
-        for linha in minimo(list(noutra_linha), 11, "formas em que o corpo vai a quem o roda"):
+                        f"read -r x <<'EOF' && eval \"$x\"\n{L}\nEOF": "eval",
+                        # A1 de segurança, volta 4: outro comando da lista fora da lista positiva roda o arquivo gravado
+                        f"cat > x.sh <<'EOF' && chmod +x x.sh && ./x.sh\n{L}\nEOF": "./x.sh",
+                        f"cat > x.sh <<'EOF'; ./x.sh\n{L}\nEOF": "./x.sh", f"cat > x.sh <<'EOF' || ./x.sh\n{L}\nEOF": "./x.sh",
+                        f"cat > Makefile <<'EOF' && make\n{L}\nEOF": "make", f"cat > x.sh <<'EOF' &&\n{L}\nEOF\n./x.sh": "./x.sh",
+                        f"cat > x.sh <<'EOF' && git -c alias.x='!sh x.sh' x\n{L}\nEOF": "git"}
+        for linha in minimo(list(noutra_linha), 17, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]

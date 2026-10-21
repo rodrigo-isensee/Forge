@@ -836,11 +836,11 @@ MARCA = "__forge_heredoc_"
 # corpo), e uma delas em qualquer palavra da linha, entre aspas ou não, faz o dono ser o comando lógico inteiro.
 COMPOSTOS = frozenset({"{", "}", "if", "then", "elif", "else", "fi", "case", "esac", "for", "select", "while", "until",
                        "do", "done", "function", "coproc", "[[", "]]"})
-# Programas que rodam texto ou arquivo (shell, `eval`, `source`, lançador, interpretador, `$X`): num deles em qualquer
-# ponto do comando lógico, o corpo vale como dado a ele, como na develop (`bash` na linha do dono), mesmo noutro
-# comando da lista (`cat > x.sh <<'EOF' && bash x.sh`).
-RODA_TEXTO = re.compile(r"^(ba|z|da|k)?sh$|^(eval|source|\.|exec|xargs|env|sudo|command|builtin|nohup|time|nice|"
-                        r"timeout|setsid|stdbuf)$|^(python|perl|ruby|node|php|deno|bun|g?awk|mawk|nawk)")
+# Os outros comandos do comando lógico (`&&`, `||`, `;`, outra linha) que não rodam o corpo do heredoc, nem o arquivo
+# que ele grava (A1 de segurança, volta 4). A lista é positiva, como a dos leitores: qualquer outro programa (`./x.sh`,
+# `make`, `bash x.sh`, `$x`, `git -c alias.x='!sh x.sh' x`) pode rodar o que o heredoc gravou, e faz do corpo comando.
+OUTROS_SEM_O_CORPO = frozenset({"cd", "mkdir"})
+GIT_OUTRO_SEM_O_CORPO = frozenset({"add", "push", "status"})
 
 
 def dono_do_heredoc(resto, posicao, lidas, marca):
@@ -848,8 +848,8 @@ def dono_do_heredoc(resto, posicao, lidas, marca):
     o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de fora
     dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|` antes)
     separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os programas do
-    comando lógico (`comando_logico`) que rodam texto (`RODA_TEXTO`). O comando lógico inteiro, se a linha não se lê,
-    tem subshell ou comando composto, ou a marca não aparece."""
+    comando lógico (`comando_logico`) fora da lista positiva dos outros comandos (`outro_sem_o_corpo`). O comando
+    lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
     logico = comando_logico(resto, posicao)
     if lidas.ilegivel:
         return logico
@@ -859,7 +859,7 @@ def dono_do_heredoc(resto, posicao, lidas, marca):
         if pipeline is None:
             return logico
         donos += pipeline
-    rodam = [p for p, _ in programas_da_linha(logico) if p.startswith("$") or RODA_TEXTO.match(Path(p).name)]
+    rodam = [p for p, argumentos in programas_da_linha(logico) if not outro_sem_o_corpo(p, argumentos)]
     texto = "\n".join([*(" ".join(palavras) for palavras in donos), *rodam])
     for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
         texto = texto.replace(opaco, "_")
@@ -944,6 +944,23 @@ def programas_da_linha(linha):
     return achados
 
 
+def subcomando_do_git(argumentos):
+    """O subcomando embutido do `git` com estes argumentos, ou None (sem subcomando, ou com `-c`, que pode definir um
+    alias `!sh`)."""
+    resto = list(argumentos)
+    while resto and resto[0].startswith("-") and resto[0] != "-c":
+        resto = resto[2:] if resto[0] == "-C" else resto[1:]
+    return resto[0] if resto and resto[0] != "-c" else None
+
+
+def outro_sem_o_corpo(programa, argumentos):
+    """O comando simples `programa argumentos`, noutro ponto do comando lógico do heredoc, não roda o corpo nem o
+    arquivo que ele grava: um leitor (`corpo_so_lido`), `cd`, `mkdir` ou um `git` de `GIT_OUTRO_SEM_O_CORPO`."""
+    if programa in OUTROS_SEM_O_CORPO or (programa == "git" and subcomando_do_git(argumentos) in GIT_OUTRO_SEM_O_CORPO):
+        return True
+    return corpo_so_lido(" ".join([programa, *argumentos]))
+
+
 def corpo_so_lido(dono, tambem=lambda programa: False):
     """O corpo de heredoc do comando `dono` (`dono_do_heredoc`) só é lido como texto: todo comando dele é um leitor
     (`LEITORES_DO_CORPO`, `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como
@@ -952,10 +969,7 @@ def corpo_so_lido(dono, tambem=lambda programa: False):
         if programa in LEITORES_DO_CORPO or tambem(programa):
             continue
         if programa == "git":
-            resto = list(argumentos)
-            while resto and resto[0].startswith("-") and resto[0] != "-c":
-                resto = resto[2:] if resto[0] == "-C" else resto[1:]
-            if resto and resto[0] in GIT_LE_O_CORPO:
+            if subcomando_do_git(argumentos) in GIT_LE_O_CORPO:
                 continue
         elif programa == "gh" and argumentos and argumentos[0] in GH_LE_O_CORPO:
             continue
