@@ -89,10 +89,13 @@ def conferir_passo(entrada, r):
         assert r.stdout == "", f"SessionStart não escreve no stdout (ADR 0003, item 1): {r.stdout!r}"
 
 
+SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#'", " # it's ((")  # HOOK-COMENTARIO-SHLEX: a leitura do hook não fecha
+
+
 class Fixture:
-    def __init__(self, caminho):
+    def __init__(self, caminho, dados=None):
         self.caminho = caminho
-        self.dados = json.loads(caminho.read_text(encoding="utf-8"))
+        self.dados = json.loads(caminho.read_text(encoding="utf-8")) if dados is None else dados
         self.hook = caminho.parent.name
 
     def montar(self, tmp, outro):
@@ -230,29 +233,35 @@ class Hooks(unittest.TestCase):
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(self.fixtures), "todo fixture é verificado")
+
+    def executar_em_lote(self, casos):
+        """Roda os casos (nome, Fixture) como subTest, em paralelo, menos os que dependem de PID ou da trava do `pesado`
+        (um de cada vez, depois). Devolve quantos foram verificados."""
         outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
         self.addCleanup(outro.wait)
         self.addCleanup(outro.kill)
-        em_serie = [f for f in self.fixtures if self.depende_de_pid_ou_trava(f)]
-        em_paralelo = [f for f in self.fixtures if f not in em_serie]
-        verificados = []
+        em_serie = [c for c in casos if self.depende_de_pid_ou_trava(c[1])]
+        em_paralelo = [c for c in casos if c not in em_serie]
+        verificados = 0
         # Montar e rodar é espera de subprocesso (não segura o GIL); cada fixture tem a sua pasta temporária.
         # As falhas voltam como objeto e viram subTest na thread principal, com o mesmo nome de caso.
         trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
-            futuros = [(f, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
-                       for f in em_paralelo]
-            for f, futuro in futuros:
-                with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
-                    verificados.append(f)
+            futuros = [(nome, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
+                       for nome, f in em_paralelo]
+            for nome, futuro in futuros:
+                with self.subTest(fixture=nome):
+                    verificados += 1
                     erro = futuro.exception()
                     if erro is not None:
                         raise erro
-        for f in em_serie:  # PID e trava global do `pesado`: um de cada vez, depois do paralelo
-            with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
-                verificados.append(f)
+        for nome, f in em_serie:  # PID e trava global do `pesado`: um de cada vez, depois do paralelo
+            with self.subTest(fixture=nome):
+                verificados += 1
                 self.executar_fixture(f, self._pasta_temporaria(), outro.pid)
-        self.assertEqual(len(verificados), len(self.fixtures), "todo fixture é verificado")
+        return verificados
 
     def _pasta_temporaria(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
@@ -1097,27 +1106,28 @@ class Hooks(unittest.TestCase):
         self.assertIsNone(_comum.construcao_nao_modelada("ls # nota $X"))
 
 
-    def test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas(self):  # HOOK-COMENTARIO-SHLEX, volta 3
-        """Não regressão: linhas críticas com `#`, aspas e agrupamentos que a base (10c838fa) recusava seguem recusadas
-        (R-MAIN, R-VERIFY ou R-CONFORMIDADE); só ganham recusa as que a base deixava passar (fixtures `aritmetica-*`,
-        `extglob-*`)."""
-        linhas = ("echo a #b\ngit push origin main", "echo a#; git push --force origin main", "ls # nota\ngit push --force origin main",
-                  "((1 #x)); git push --force origin main", "[[ a =~ (#b) ]]; git push --force origin main",
-                  "echo $(echo a)#b; git push --force origin main", "(true)#x; git push --force origin main",
-                  "git push --force origin main; (true)# x",
-                  "(( 1 )) && git push origin main", "[[ a == @(a|b) ]]; git push --force origin main",
-                  "git push origin main # nota")
-        for comando in linhas:
-            with self.subTest(comando=comando):
-                tmp = self._pasta_temporaria()
-                dados = {"arquivos": {"src/app.js": "v1\n"},
-                         "entrada": {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:dev",
-                                     "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"},
-                         "esperado": {"codigo": 2, "stderr": "R-"}}
-                arquivo = tmp / "conformidade" / "caso.json"
-                arquivo.parent.mkdir()
-                arquivo.write_text(json.dumps(dados), encoding="utf-8")
-                self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+    def test_recusas_com_sufixo_que_o_bash_ignora_continuam_recusadas(self):  # HOOK-COMENTARIO-SHLEX, volta 4
+        """Não regressão gerada: toda fixture de recusa do `conformidade` (código 2) com um sufixo que o bash ignora ou
+        roda à toa no fim da linha continua recusada. `; (true)#'` deixa o `#` colado a `)` com uma aspa sem par, e
+        ` # it's ((` põe um apóstrofo num comentário; os dois fazem a leitura do hook falhar (ValueError), e a linha
+        que o hook não lê não pode liberar o que a linha sem o sufixo recusava. Qualquer recusa serve (`R-`)."""
+        todas = [f for f in self.fixtures if f.hook == "conformidade" and f.dados["esperado"].get("codigo") == 2
+                 and f.dados["entrada"].get("tool_name") == "Bash"]
+        # Fora: a linha que o próprio bash não aceita (aspa aberta: o sufixo cai dentro da aspa e muda a linha, não é
+        # ignorado) e a recusa por erro interno do hook (`erros_log`: falha fechada que não depende de ler a linha).
+        fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
+                or subprocess.run(["bash", "-n", "-c", f.dados["entrada"]["tool_input"]["command"]],
+                                  capture_output=True).returncode != 0]
+        self.assertLessEqual(len(fora), 6, fora)
+        recusas = minimo([f for f in todas if f.caminho.stem not in fora], 400, "fixtures de recusa de Bash")
+        casos = []
+        for f in recusas:
+            for sufixo in SUFIXOS_QUE_O_BASH_IGNORA:
+                dados = json.loads(json.dumps(f.dados))
+                dados["entrada"]["tool_input"]["command"] += sufixo
+                dados["esperado"] = {"codigo": 2, "stderr": "R-"}
+                casos.append((f"{f.hook}/{f.caminho.stem} + {sufixo}", Fixture(f.caminho, dados)))
+        self.assertEqual(self.executar_em_lote(casos), 2 * len(recusas))
 
 
 if __name__ == "__main__":

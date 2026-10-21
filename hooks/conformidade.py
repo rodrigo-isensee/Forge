@@ -668,10 +668,15 @@ class Guarda:
         except ValueError:
             if nivel:
                 self.ilegivel(comando, pasta)
-            # Linha crítica que a leitura não fecha (aspas no comentário de `((…))`, por exemplo) o bash pode rodar: recusa.
-            critica = not self.leitura and CRITICO.search(original)
-            self.nao_modelada(achado or ("aspas que o hook não fecha" if critica else None))
-            return  # aspas desbalanceadas: o próprio shell vai recusar
+            self.nao_modelada(achado)
+            # A linha que a leitura do hook não fecha (`(true)#'`, apóstrofo no comentário de `((…))`, barra no fim) o
+            # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
+            # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
+            # recusa aspas sem par e `#`).
+            if not self.leitura:
+                self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook: o hook não modela a linha",
+                            "feche as aspas, tire aspas e # do comentário ou separe os comandos em chamadas")
+            return
         ramos = {}
         if nivel == 0:
             self.ambiente = {}
