@@ -1390,6 +1390,24 @@ def release_em_curso(raiz, ref):
 SEM_QUADRO = "{cmd}: {raiz} não tem KANBAN.md; não crio docs/kanban/ numa pasta sem quadro (rode na raiz do projeto ou passe --raiz)"
 
 
+def acrescentar_ao_arquivo(arq, linha, cabecalho=""):
+    """Acrescenta `linha` (com a quebra final) ao fim de `arq`: cria a pasta e, com o arquivo ausente ou vazio, escreve antes o
+    `cabecalho`; põe a quebra que faltar na última linha. Quem chama recusa antes o link simbólico (cada um com a sua mensagem)."""
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    existe = arq.is_file() and arq.stat().st_size > 0
+    falta_quebra = False
+    if existe:
+        with arq.open("rb") as f:
+            f.seek(-1, 2)
+            falta_quebra = f.read(1) != b"\n"
+    with arq.open("a", encoding="utf-8") as f:
+        if not existe:
+            f.write(cabecalho)
+        elif falta_quebra:
+            f.write("\n")
+        f.write(linha)
+
+
 def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
@@ -1403,23 +1421,82 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
-    arq.parent.mkdir(parents=True, exist_ok=True)
-    existe = arq.is_file() and arq.stat().st_size > 0
-    if existe:
-        with arq.open("rb") as f:
-            f.seek(-1, 2)
-            falta_quebra = f.read(1) != b"\n"
-    else:
-        falta_quebra = False
     hora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
     linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {limpo(motivo) or '—'} |\n"
-    with arq.open("a", encoding="utf-8") as f:
-        if not existe:
-            f.write("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
-        elif falta_quebra:
-            f.write("\n")
-        f.write(linha)
+    acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
     return [linha.rstrip("\n")]
+
+
+FRASES_DO_ANOTAR = {"decisao": "DECISÃO DO DONO", "pergunta": "PERGUNTA AO DONO", "ordem": "ORDEM DO DONO"}
+TIPOS_DO_ANOTAR = tuple(FRASES_DO_ANOTAR) + ("historico",)
+SECAO_DE_DECISOES = "## Decisões do usuário (registro literal)"
+
+
+def fim_da_secao(linhas, titulo):
+    """Índice em que se acrescenta ao fim da seção `## <titulo>...` (depois da última linha não vazia dela), ou None sem a seção."""
+    inicio = next((i for i, l in enumerate(linhas) if re.match(rf"^##\s+{re.escape(titulo)}\b", l)), None)
+    if inicio is None:
+        return None
+    fim = next((i for i in range(inicio + 1, len(linhas)) if linhas[i].startswith("## ")), len(linhas))
+    while fim - 1 > inicio and not linhas[fim - 1].strip():
+        fim -= 1
+    return fim
+
+
+def cmd_anotar(raiz, pedido, tipo, literal, contexto=None):
+    """P4: grava no pedido a decisão, a pergunta ou a ordem do dono (no fim de `## Decisões do usuário`, criada antes de `## Histórico`
+    se faltar) ou a linha do Histórico, com a hora do relógio (nunca do argumento). O `literal` é a fala do dono, entre aspas; o
+    `contexto`, a paráfrase, fica fora delas. Nenhuma linha existente muda. (linhas, rc)."""
+    for nome, valor in (("--literal", literal), ("--contexto", contexto)):
+        motivo = recusa_do_campo(valor, nome)
+        if motivo:
+            return [f"anotar: {motivo}; nada gravado"], 2
+    literal, contexto = literal.strip(), (contexto or "").strip()
+    if not literal:
+        return ["anotar: --literal não pode ser vazio"], 2
+    arq = caminho_do_pedido(raiz, pedido)
+    if arq.is_symlink() or not arq.is_file():
+        return [f"anotar: pedido {nome_seguro(sem_controle(pedido))} ausente ou link simbólico; nada gravado"], 2
+    texto = arq.read_text(encoding="utf-8")
+    linhas = texto.split("\n")
+    hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+    if tipo == "historico":
+        nova = f"- {hora}: {literal}"
+        fim = fim_da_secao(linhas, "Histórico")
+        if fim is None:
+            linhas = (linhas[:-1] if linhas and not linhas[-1] else linhas) + ["", "## Histórico", nova, ""]
+        else:
+            linhas.insert(fim, nova)
+    else:
+        nova = f"{FRASES_DO_ANOTAR[tipo]} ({hora}): " + (f"{contexto} → \"{literal}\"" if contexto else f"\"{literal}\"")
+        fim = fim_da_secao(linhas, "Decisões do usuário")
+        if fim is not None:
+            linhas.insert(fim, nova)
+        else:
+            historico = next((i for i, l in enumerate(linhas) if re.match(r"^##\s+Histórico\b", l)), None)
+            bloco = [SECAO_DE_DECISOES, nova, ""]
+            if historico is None:
+                linhas = (linhas[:-1] if linhas and not linhas[-1] else linhas) + [""] + bloco
+            else:
+                linhas[historico:historico] = bloco
+    arq.write_text("\n".join(linhas), encoding="utf-8")
+    return [f"anotado: {caminho_impresso(arq.name)}: {nova}"], 0
+
+
+def avisos_da_retomada(raiz, retomada, pedido_id, pedido_txt):
+    """P4: `decisao:` (aviso) para cada linha `DECISÃO DO DONO` do arquivo de retomada que cita o id do pedido e não está nele. Só
+    arquivo dentro da raiz ou de ~/.forge-contrib, até 1 MiB; citar o id é heurística, por isso nunca reprova."""
+    real = Path(os.path.realpath(Path(retomada) if Path(retomada).is_absolute() else Path(raiz) / retomada))
+    raizes = [Path(os.path.realpath(r)) for r in (raiz, *RAIZES_DE_BRIEF)]
+    if not any(real == r or r in real.parents for r in raizes) or not real.is_file() or real.stat().st_size > TETO_DE_REGISTRO:
+        return [f"decisao: --retomada {nome_seguro(sem_controle(retomada))} fora da raiz e de ~/.forge-contrib, ausente ou grande demais (não verificável)"]
+    no_pedido = {chave_da_decisao(l) for l in pedido_txt.splitlines() if e_linha_de_decisao(l)}
+    cita = re.compile(rf"(?<![\w-]){re.escape(pedido_id)}(?![\w-])", re.I)
+    saida = []
+    for n, linha in linhas_de_decisao(real.read_text(encoding="utf-8", errors="replace")):
+        if cita.search(linha) and chave_da_decisao(linha) not in no_pedido:
+            saida.append(f"decisao: {caminho_impresso(real.name)}:{n} cita o pedido e não está nele")
+    return saida
 
 
 MODOS_DE_CONFERENCIA = ("brief", "entrega")
@@ -1492,21 +1569,9 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
     arq = raiz / "docs" / "kanban" / "conferencias.md"
     if arq.is_symlink():
         return ["conferencia: docs/kanban/conferencias.md é link simbólico; não escrevo através dele"]
-    arq.parent.mkdir(parents=True, exist_ok=True)
-    existe = arq.is_file() and arq.stat().st_size > 0
-    falta_quebra = False
-    if existe:
-        with arq.open("rb") as f:
-            f.seek(-1, 2)
-            falta_quebra = f.read(1) != b"\n"
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
     linha = f"| {hora} | {pedido} | {brief} | {modo} | {int(rodada)} | {resultado} | {merito} | {nota} | {classe} | {autor} |\n"
-    with arq.open("a", encoding="utf-8") as f:
-        if not existe:
-            f.write(CABECALHO_CONFERENCIAS)
-        elif falta_quebra:
-            f.write("\n")
-        f.write(linha)
+    acrescentar_ao_arquivo(arq, linha, CABECALHO_CONFERENCIAS)
     saida = [linha.rstrip("\n")]
     if modo == "brief" and _aprovou(resultado):
         protecao = proteger_brief_aprovado(raiz, brief)
@@ -3830,10 +3895,17 @@ def gravar_brief(raiz_pedido, pedido_id, destino, texto, numero=None):
     return f"brief gravado: docs/briefs/{caminho_impresso(prefixo)}-{n}.md {len(conteudo)} sha256 {hashlib.sha256(conteudo).hexdigest()}", 0
 
 
-def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None, cobre=None, gravar=False):
+def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None, cobre=None, gravar=False, retomada=None):
     """`brief gerar`: imprime o brief (um destino) ou, com `gravar` (P6), grava um arquivo por destino em docs/briefs/ e imprime
-    uma linha `brief gravado:` por arquivo. Recusa de qualquer destino: nada gravado."""
+    uma linha `brief gravado:` por arquivo. Recusa de qualquer destino: nada gravado. Com `retomada` (P4), os avisos `decisao:`."""
     destinos = list(destinos) if destinos else [None]
+    if retomada:
+        caminho_pedido = caminho_do_pedido(raiz, pedido)
+        if caminho_pedido.is_file():
+            pedido_txt = caminho_pedido.read_text(encoding="utf-8")
+            m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
+            for linha in avisos_da_retomada(raiz, retomada, m.group(1) if m else caminho_pedido.stem, pedido_txt):
+                print(linha, file=sys.stderr)
     gerados = []
     for destino in destinos:
         texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre)
@@ -4085,6 +4157,7 @@ def main():
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
     br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: texto de uma linha (ex.: E1.1)")
+    br.add_argument("--retomada", help="só em `gerar`: arquivo (na raiz ou em ~/.forge-contrib) cujas linhas DECISÃO DO DONO que citam o pedido e faltam nele saem como aviso `decisao:` no stderr (P4)")
     br.add_argument("--gravar", action="store_true", help="só em `gerar`: grava em docs/briefs/<pedido>-<papel>-<n>.md (n = maior + 1, nunca sobrescreve; P6) e imprime `brief gravado: <caminho> <bytes> sha256 <hash>`")
     br.add_argument("--cobre", metavar="E<n>.<m>", help="só em `gerar`: a etapa de ## Etapas do pedido que o brief delega (P2, R-BRIEF); abre o Entregar, e as outras vão ao Fora do escopo sem a marca; sem ela, a única etapa do destino no pedido (obrigatória se ele tem mais de uma)")
     de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
@@ -4100,6 +4173,11 @@ def main():
     mv.add_argument("--de", required=True, help="coluna de origem")
     mv.add_argument("--para", required=True, help="coluna de destino")
     mv.add_argument("--motivo", default="", help="motivo do movimento (padrão: —)")
+    na = sub.add_parser("anotar", parents=[comum], help="grava no pedido a decisão, pergunta ou ordem do dono, ou a linha do Histórico, com a hora do relógio (P4)")
+    na.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
+    na.add_argument("--tipo", required=True, choices=TIPOS_DO_ANOTAR)
+    na.add_argument("--literal", required=True, help="a fala do dono, literal (vai entre aspas); no historico, o texto da linha")
+    na.add_argument("--contexto", help="a paráfrase do Jarvis, fora das aspas (decisao, pergunta, ordem)")
     cf = sub.add_parser("conferencia", help="registro das conferências do conferente (S-18)")
     csub = cf.add_subparsers(dest="acao", required=True)
     rg = csub.add_parser("registrar", parents=[comum], help="acrescenta uma conferência em docs/kanban/conferencias.md, em formato fixo, com a hora real")
@@ -4182,9 +4260,13 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "anotar":
+        linhas, rc = cmd_anotar(raiz, a.pedido, a.tipo, a.literal, a.contexto)
+        print("\n".join(linhas))
+        return rc
     if a.cmd == "brief":
         if a.alvo == "gerar":
-            return cmd_brief_gerar(raiz, a.pedido, a.destinos, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre, a.gravar)
+            return cmd_brief_gerar(raiz, a.pedido, a.destinos, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre, a.gravar, a.retomada)
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
