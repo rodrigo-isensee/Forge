@@ -126,6 +126,29 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
 
+    def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
+        """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
+        nomes = [p["nome"] for p in bateria["passos"]]
+
+        def pos(trecho):
+            (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
+            return i
+        testes = pos("Testes do Forge")
+        for trecho in ("Claude Code CLI", "claude plugin validate", "Nada pula degrau", "changelog.d",
+                       "release exige versão", "Segredo, .env", "Parecer de review"):
+            self.assertLess(pos(trecho), testes, trecho)
+        self.assertLess(pos("Claude Code CLI"), pos("claude plugin validate"))
+        passo = [p for p in bateria["passos"] if "Claude Code CLI" in p["nome"]][0]["run"]
+        self.assertIn("claude --version", passo)
+        self.assertIn("npm install", passo)
+        self.assertNotIn("continue-on-error", texto)
+        self.assertNotIn("skip ci", texto)
+        teste = [p for p in bateria["passos"] if p["nome"] == "Testes do Forge"][0]
+        self.assertNotIn("for ", teste["run"])
+        self.assertNotIn("||", teste["run"])
+
     def test_passo_com_bloco_env_e_if(self):
         texto = (
             "jobs:\n  j:\n    name: Meu job\n    if: github.base_ref == 'develop'\n    steps:\n"
