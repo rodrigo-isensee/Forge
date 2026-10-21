@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: prepush-so-parecer
 branch: melhoria/prepush-so-parecer
-commit: 6753dc7c6532e4d10bfa051277d69125f729dc50
+commit: 441ae2727f04a76299723ca79a2c2989117148de
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-21
@@ -33,3 +33,14 @@ Recomendações (severidade baixa, esforço P, dono `tech-lead`, que mantém `.g
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura do diff e do hook, `git archive` e `python3 -m unittest tests.test_pre_push_parecer` (14 OK) numa cópia em `$TMPDIR`. Lacuna: `shellcheck`, `gitleaks` e `zizmor` não estão no PATH deste ambiente (não instalados, R-CUSTO). O `shellcheck` roda no CI do Forge.
+
+## Volta 1
+Escopo: `git diff 926b9e6f11c4e4f6ac605c50400d9a3b0db06503 441ae2727f04a76299723ca79a2c2989117148de` (`.githooks/pre-push`, `tests/test_pre_push_parecer.py`, `changelog.d/prepush-so-parecer.md`), contra o A1 do review e as recomendações 1 e 2 acima, e o `.githooks/pre-push` inteiro relido no trecho do atalho (`:113-162`). Nenhum achado bloqueante; o bloco `## Achados` continua vazio. **Veredito: aprovado.**
+
+- **A1 do review (NeutralidadeDoNucleo fora do atalho): resolvido.** O caminho curto passa a rodar as quatro classes de `tests/test_forge.py` que varrem `docs/` no repositório (`Referencias` e `Neutralidade` por `arquivos_texto()`, `NeutralidadeDoNucleo` e `AntiDuplicacao` pelo `rglob` das pastas) (`.githooks/pre-push:150`). Conferi que nenhuma outra classe do mapa de conteúdo de `bin/forge-testes` lê pareceres do próprio repositório. Teste novo: parecer em `docs/security/` com termo de stack falha no caminho curto e a árvore não vira prova.
+- **Recomendação 2 (modelos e pastas de controle): adotada pela decisão R2 do dono.** `*/_*`, `docs/security/ameacas/*` e `docs/security/aceites/*` vão à suíte inteira antes do casamento com as quatro pastas (`.githooks/pre-push:141`). Sonda do `case` em `$TMPDIR`: `_modelo.md` em qualquer das pastas, modelo de ameaças, aceite e `_*` em subpasta vão à suíte; `docs/securityx/`, linha vazia e caminho fora também; `a_b.md` segue curto, o que é correto. A recomendação 3 (a prova se propaga pelo atalho) fica agora restrita a pareceres de fato.
+- **Recomendação 1 (prova com a árvore do fim): resolvida no essencial, com resíduo baixo.** A árvore e o estado limpo são lidos depois de obtida a trava e antes da suíte (`:121-122`), e a anotação exige limpo no início e no fim (`:156`). A árvore do fim, que não foi testada, não entra mais na prova (`test_prova_grava_a_arvore_do_inicio_da_suite`). A suposição do autor vale para o caso comum. O resíduo é este: estar limpo nas duas pontas não prova que a árvore ficou parada no meio. Se outro agente na worktree compartilhada fizer commit ou `merge --ff-only` durante a suíte, as classes que rodam depois da troca leem a árvore nova, e a do início é anotada sem ter passado inteira. O impacto fica restrito ao hook local: o próximo envio só de pareceres sobre essa árvore pula a suíte, e o CI repete tudo. Recomendação (severidade baixa, esforço P, dono `tech-lead`): anotar só quando `HEAD^{tree}` no fim for igual a `arvore_inicio`. É uma linha. O teste novo, que hoje espera a anotação da árvore do início mesmo com o HEAD movido, passaria a esperar que nada fosse anotado.
+- Informativo, sem efeito de segurança: o comentário de `.githooks/pre-push:114` ainda diz que as classes curtas são as mesmas do gate do CI. Hoje elas diferem (o gate pula só para `docs/(reviews|qa)/`). O ajuste do texto fica com o review.
+
+Ferramentas da volta: leitura do delta e do hook; `git archive` de 441ae27 em `$TMPDIR` e `python3 -m unittest tests.test_pre_push_parecer` (17 testes, OK); sonda do `case` do atalho com caminhos de borda. As lacunas de ferramenta são as mesmas de antes.
+
