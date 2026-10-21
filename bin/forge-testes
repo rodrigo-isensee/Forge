@@ -37,7 +37,7 @@ SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "
 # `test_forge` varre bin/, scripts/, hooks/, agents/, skills/, stacks/, docs/ e templates/ (neutralidade,
 # anti-duplicação), então entra em quase toda regra de conteúdo e de script.
 # `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
-FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro", "test_testes_tocados", "test_voltas", "test_volta_por_delta", "test_etapa_do_brief", "test_isencoes", "test_brief_gravar", "test_anotar")
+FORGE_CHECK = ("test_forge", "test_portao_diff_proprio", "test_sobreposicao_quadro", "test_testes_tocados", "test_voltas", "test_volta_por_delta", "test_etapa_do_brief", "test_isencoes", "test_brief_gravar", "test_anotar", "test_citacao")
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor")
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
