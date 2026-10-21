@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: s-16-promocao-develop
 branch: melhoria/s-16-promocao-develop
-commit: 571bba08cc1c030c3b19d18551c7e25dae5b3775
+commit: f804072b4d48680bd65e8d38f2bf6cfb36517f9f
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-20
@@ -48,3 +48,12 @@ Recomendações (não bloqueantes):
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito novo. Residuais do modelo de ameaças (sem mudança): disponibilidade de `refs/pull/N/head` (falha fechada) e pior caso de tempo acima dos 10 min do job até o cartão CATRACA-PRAZO-API (job morto fica vermelho).
 Ferramentas: leitura estática do diff e mutação local dos testes. `gitleaks`, `zizmor`, `actionlint`, `semgrep` e `osv-scanner` não estão no PATH (lacuna; as varreduras são do CI). Nenhuma rede usada nesta revisão.
+
+## Volta 1
+Escopo: `git diff 571bba08cc1c030c3b19d18551c7e25dae5b3775 f804072b4d48680bd65e8d38f2bf6cfb36517f9f -- tests/` (só tests/test_catraca.py, +7 -4; tests/catraca.py não mudou, então M1 a M7 seguem como conferidos acima). Os arquivos de docs do intervalo são pareceres, não código.
+
+Conferência do A1 do review (test_b8 com o próprio M): tests/test_catraca.py:1679-1691 cria o próprio M do pull depois de `time.sleep(1.2)` (hash distinto do M do setUp), exige `assertNotEqual(m, self.m)`, aponta `lateral` para esse M e afirma que M está em `homolog..develop` e fora da cadeia de primeiro pai. O delta não altera mais nada.
+
+Prova por mutação (cópia própria em $TMPDIR a partir de `git archive f804072`): sem mutação, `test_b8` passa (OK); removida a guarda de cadeia de primeiro pai (M4) em tests/catraca.py:751, `test_b8` falha por asserção (FAILED, failures=1). O teste agora pega a falta da M4.
+
+Nenhum achado bloqueante novo. Parecer mantido: aprovado. Recomendações R1 a R3 seguem como estavam.
