@@ -28,7 +28,12 @@ from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentari
                     conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum, e_clone_do_forge, em_contrib, executar,
                     fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
-TETO_DE_CONFERENCIAS = 400  # conferências de `Guarda.bash` por linha: acima, a linha é recusada (fecha na dúvida, como PROFUNDIDADE)
+# Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
+# custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
+# caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
+TETO_DE_CONFERENCIAS = 400
+TETO_DE_CARACTERES = 300_000
+PRAZO_DA_LINHA_S = 3.0
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -662,18 +667,23 @@ class Guarda:
         """Confere a linha. `so_substituicoes`: a linha é uma palavra entre aspas (`"$(git log)"`), e só o conteúdo das
         substituições dela é comando. Orçamento por linha (a linha adversária de crases e `cd` aninhados refaria a
         mesma conferência milhares de vezes e estouraria o timeout do hook, que o Claude Code trata como liberado): o
-        mesmo (corpo, pasta, nível, ambiente) não é conferido duas vezes, e acima de `TETO_DE_CONFERENCIAS` a linha é
-        recusada."""
+        mesmo (corpo, pasta, nível, ambiente) não é conferido duas vezes, e a linha é recusada acima de
+        `TETO_DE_CONFERENCIAS` conferências, de `TETO_DE_CARACTERES` caracteres conferidos ao todo ou de
+        `PRAZO_DA_LINHA_S` segundos."""
         if nivel == 0:
-            self.conferidas, self.conferencias = {}, 0
+            self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
+            self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
         chave = (comando, pasta, nivel, so_substituicoes, tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
             self.ambiente = dict(self.conferidas[chave])  # o resultado é o mesmo que a primeira conferência deixou
             return
         self.conferencias += 1
-        if self.conferencias > TETO_DE_CONFERENCIAS:
-            self.barrar("R-CONFORMIDADE", "linha com crases e substituições demais para o hook conferir dentro do prazo",
-                        "separe em comandos menores, sem crase nem $( aninhados")
+        self.caracteres += len(comando)
+        if (self.conferencias > TETO_DE_CONFERENCIAS or self.caracteres > TETO_DE_CARACTERES
+                or time.monotonic() > self.prazo):
+            self.barrar("R-CONFORMIDADE", "linha longa demais ou com crases e substituições demais para o hook "
+                                              "conferir dentro do prazo",
+                        "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
         self.conferir_linha(comando, pasta, nivel, so_substituicoes)
         self.conferidas[chave] = dict(self.ambiente or {})
 

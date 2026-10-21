@@ -784,6 +784,18 @@ class Hooks(unittest.TestCase):
         inicio = time.monotonic()
         self.rodar_dados(dados)
         self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+        # A1 do review: o custo de cada conferência cresce com o corpo; 20 `cd` e 19 crases distintas de 5 a 20 KB
+        # (a de 8 KB tem 152 KB e passava de 14 s com o teto só por contagem). A base recusava pela rede da ADR 0011.
+        for pastas, crases, kb in ((20, 19, 5), (20, 19, 8), (15, 25, 20)):
+            corpo = " ".join(f"`echo \\`echo \\\\\\`ls\\\\\\`\\` c{i} {'a' * kb * 1024}`" for i in range(crases))
+            linha = " && ".join(f"cd d{i}" for i in range(pastas)) + f" && {corpo} `git push --no-verify origin feature/x`"
+            with self.subTest(pastas=pastas, crases=crases, kb=kb):
+                self.assertGreater(len(linha), crases * kb * 1024)
+                grande = json.loads(json.dumps(dados))
+                grande["entrada"]["tool_input"]["command"] = linha
+                inicio = time.monotonic()
+                self.rodar_dados(grande)
+                self.assertLess(time.monotonic() - inicio, limite / 2, "a linha grande também sai antes do prazo")
 
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
