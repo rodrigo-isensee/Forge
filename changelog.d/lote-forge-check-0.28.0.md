@@ -1,6 +1,7 @@
 ### Alterado
 - M16: regra única de marca na R-BRIEF e no `forge-check brief`: toda outra etapa do pedido vai ao Fora do escopo sem a marca, a marca só no corte real; etapa sem menção reprova para qualquer papel, duas etapas no mesmo Entregar reprovam (`etapa: junta delegações`), e o parser lê etapas com sufixo de letra (`E1.3b`) e de qualquer `E<n>` (afrouxa-regra: a marca deixa de ser exigida na etapa do mesmo papel).
 - M13: uma regra só de isenção (`isencoes_da_entrega` no `forge-check`), usada pelo `forge-check pr`, pela catraca e pelo hook `parecer`: diff só de `.md` comum fica isento de QA e continua exigindo o review (o hook deixa de liberar `.md` sem parecer); `.md` de `agents/`, `skills/`, `stacks/*/agents|skills/` e `docs/regras/` não tem isenção; o `pr` imprime `pr: isento de QA` para o conferente copiar (destaque no título: estreita o hook e afrouxa a ferramenta no QA de `.md` comum).
+- M13 (decisão do dono, 2026-10-21): `stacks/*/seguranca.md`, `stacks/*/pronto.md`, `templates/projeto/` e `CLAUDE.md` entram na lista de controle da função única de isenção e passam a exigir QA, como `agents/` (endurece: menos `.md` isento).
 
 ### Adicionado
 - P2: `forge-check brief gerar --cobre E<n>.<m>` escreve a linha `Etapa: ... Cobre: ...`, abre o Entregar com a etapa coberta e lista no Fora do escopo todas as outras etapas do pedido, sem a marca; sem `--cobre`, deduz a única etapa do destino e recusa (rc 2) quando ele tem mais de uma ou quando a etapa é de outro papel.

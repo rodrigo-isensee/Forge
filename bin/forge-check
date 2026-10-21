@@ -509,12 +509,13 @@ def gatilhos(raiz, pedido, ref=None, base=None):
     return infra, achados
 
 
-MD_DE_CONTROLE = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents|skills)/|docs/regras/)")  # instrução executável e regras (D-M13)
+# instrução executável, regras e o que configura o projeto (D-M13; dono, 2026-10-21: seguranca.md, pronto.md, templates/projeto/ e CLAUDE.md)
+MD_DE_CONTROLE = re.compile(r"^(agents/|skills/|stacks/[^/]+/(agents/|skills/|seguranca\.md$|pronto\.md$)|docs/regras/|templates/projeto/|(.*/)?CLAUDE\.md$)")
 
 
 def isencoes_do_diff(arquivos):
-    """Tipos de parecer que um diff dispensa (M13, D-M13 = A): só o QA, num diff não vazio todo de `.md` fora de `agents/`,
-    `skills/`, `stacks/*/agents/`, `stacks/*/skills/` e `docs/regras/` (R-QA: documentação não passa por QA). O review é sempre
+    """Tipos de parecer que um diff dispensa (M13, D-M13 = A): só o QA, num diff não vazio todo de `.md` fora do controle (`MD_DE_CONTROLE`: `agents/`,
+    `skills/`, `stacks/*/agents/`, `skills/`, `seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/` e `CLAUDE.md`; R-QA: documentação não passa por QA). O review é sempre
     exigido (R-REVIEW), e o `.md` de controle não tem isenção nenhuma."""
     if arquivos and all(a.endswith(".md") and not MD_DE_CONTROLE.match(a) for a in arquivos):
         return {"qa"}
@@ -577,7 +578,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR."""
     if base is None:
         if isencoes_da_entrega(raiz, ref, None):
-            print("pr: isento de QA: diff só de .md fora de agents/, skills/, stacks/*/agents|skills e docs/regras/ (R-QA); o review continua exigido (R-REVIEW)",
+            print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
         return cmd_pr(raiz, pedido, ref, None)
     nome = base.removeprefix("origin/")
@@ -591,7 +592,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
               "o parecer vale só pelo diff literal, sem o merge simulado da base", file=sys.stderr)
         resolvida = None
     if isencoes_da_entrega(raiz, ref, resolvida):
-        print("pr: isento de QA: diff só de .md fora de agents/, skills/, stacks/*/agents|skills e docs/regras/ (R-QA); o review continua exigido (R-REVIEW)",
+        print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
     return cmd_pr(raiz, pedido, ref, resolvida)
 

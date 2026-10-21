@@ -6,7 +6,7 @@ PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge
 forge-check, ADR 0004); com pipeline, contêiner ou IaC no diff, também o de devops (R-REVIEW); com gatilho de segurança, o
 de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha.
 A isenção é a regra única do forge-check (`isencoes_da_entrega`, M13): diff só de `.md` comum dispensa o QA e exige o
-review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `docs/regras/`) não tem isenção. Libera
+review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
 atualização a partir de uma branch de integração e promoção entre branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem

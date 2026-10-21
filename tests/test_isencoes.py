@@ -65,10 +65,13 @@ class Repo(unittest.TestCase):
 class IsencaoDoDiff(unittest.TestCase):
     def test_regra_unica(self):
         self.assertEqual(fc.isencoes_do_diff(["docs/x.md", "README.md"]), {"qa"})
-        for controle in ("agents/x.md", "skills/a/SKILL.md", "stacks/s/agents/x.md", "stacks/s/skills/y/SKILL.md", "docs/regras/R-X.md"):
+        for controle in ("agents/x.md", "skills/a/SKILL.md", "stacks/s/agents/x.md", "stacks/s/skills/y/SKILL.md", "docs/regras/R-X.md",
+                         "stacks/s/seguranca.md", "stacks/s/pronto.md", "templates/projeto/README.md", "templates/projeto/docs/x.md",
+                         "CLAUDE.md", ".claude/CLAUDE.md"):
             with self.subTest(controle=controle):
                 self.assertEqual(fc.isencoes_do_diff(["docs/x.md", controle]), set())
         self.assertEqual(fc.isencoes_do_diff(["docs/x.md", "src/a.py"]), set())
+        self.assertEqual(fc.isencoes_do_diff(["stacks/s/README.md", "docs/guia/CLAUDE-notas.md"]), {"qa"})
         self.assertEqual(fc.isencoes_do_diff([]), set())
 
 
@@ -87,7 +90,7 @@ class PrComIsencao(Repo):
         self.assertNotIn("qa: sem parecer", saida)
 
     def test_md_de_controle_sem_qa_reprova(self):
-        for rel in ("agents/x.md", "docs/regras/R-X.md"):
+        for rel in ("agents/x.md", "docs/regras/R-X.md", "stacks/s/seguranca.md", "stacks/s/pronto.md", "templates/projeto/README.md", "CLAUDE.md"):
             with self.subTest(rel=rel):
                 self.setUp()
                 self.entrega({rel: "# x\n"})
