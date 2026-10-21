@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: prepush-so-parecer
 branch: melhoria/prepush-so-parecer
-commit: 441ae2727f04a76299723ca79a2c2989117148de
+commit: 862bf19cb7367460eef1c6d1ec0e431e49ea53d5
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-21
@@ -44,3 +44,13 @@ Escopo: `git diff 926b9e6f11c4e4f6ac605c50400d9a3b0db06503 441ae2727f04a76299723
 
 Ferramentas da volta: leitura do delta e do hook; `git archive` de 441ae27 em `$TMPDIR` e `python3 -m unittest tests.test_pre_push_parecer` (17 testes, OK); sonda do `case` do atalho com caminhos de borda. As lacunas de ferramenta são as mesmas de antes.
 
+
+## Volta 2
+Escopo: `git diff 4824b52c1aeb832a109433ed7151bbf2960232e3 862bf19cb7367460eef1c6d1ec0e431e49ea53d5` (`.githooks/pre-push`, `tests/test_pre_push_parecer.py`, `changelog.d/prepush-so-parecer.md`), contra o A1 do QA e a recomendação de severidade baixa da volta 1, e o trecho do atalho de `.githooks/pre-push` relido inteiro (`:113-165`). Nenhum achado bloqueante; o bloco `## Achados` continua vazio. **Veredito: aprovado.**
+
+- **A1 do QA (apagar ou renomear pelo caminho curto): resolvido.** O atalho recusa o envio quando `git diff --diff-filter=D --name-only --no-renames` entre o remoto e o local não é vazio (`.githooks/pre-push:139`). Com `--no-renames`, a renomeação aparece como exclusão mais adição e também cai na suíte inteira. Se esse `git diff` falhar, a saída vazia deixa passar a linha, mas o `git diff` seguinte, com os mesmos argumentos, tem `|| return 1` (`:140`), então a falha continua fechada. Os testes novos `test_apagar_parecer_roda_a_suite_inteira` e `test_renomear_parecer_roda_a_suite_inteira` cobrem os dois casos.
+- **Recomendação da volta 1 (commit no meio da suíte): resolvida.** A prova só é gravada se `HEAD^{tree}` no fim for igual à árvore lida no início, além de a árvore de trabalho estar limpa nas duas pontas (`:158-159`). Se as duas estiverem vazias, a gravação fica barrada pelo `[ -n "$arvore_testada" ]` (`:161`). O teste reescrito (`test_commit_no_meio_da_suite_nao_grava_prova`) espera que nenhuma das duas árvores seja anotada. O resíduo da volta 1 deixa de existir. Sobra só o caso de o HEAD sair e voltar à mesma árvore durante a suíte, que não tem caminho de ataque realista.
+- **Comentário de `:114`: corrigido.** O texto agora diz que o gate do CI usa um subconjunto próprio. Não tem efeito de segurança.
+- Informativo, sem efeito de segurança: a troca de tipo (arquivo virando link simbólico, status `T`) e a mudança de modo dentro das quatro pastas continuam pelo atalho, porque não são exclusão. Não há ganho para quem ataca: o envio continua sem código fora de `docs/`, as classes curtas rodam e o CI repete tudo. Fica só registrado, para uma volta futura, se o "só acrescenta" for lido de forma estrita (`--diff-filter=A`, mais a modificação de parecer já existente).
+
+Ferramentas da volta: leitura do delta e do hook; `git archive` de 862bf19 em `$TMPDIR`, `python3 -m unittest tests.test_pre_push_parecer` (19 testes, OK) e `bash -n` do hook. As lacunas de ferramenta são as mesmas de antes (`shellcheck` e `gitleaks` fora do PATH).
