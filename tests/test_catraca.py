@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -1677,14 +1678,16 @@ class RotuloDePrSquash(Base):
     # --- a prova do squash só vale para squash --------------------------------------------------------------
     def test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede(self):
         self.repo.git("checkout", "-q", "-b", "lateral", "base")
-        self.pull["merge_commit_sha"] = self.squash(ROTULADO)  # M na `develop`
-        self.repo.git("branch", "-f", "lateral", self.m)
+        time.sleep(1.2)  # o M do pull não pode coincidir com o do setUp (mesmo conteúdo e segundo dariam o mesmo hash)
+        m = self.pull["merge_commit_sha"] = self.squash(ROTULADO)  # M do pull, na `develop`
+        self.assertNotEqual(m, self.m)
+        self.repo.git("branch", "-f", "lateral", m)
         self.repo.git("checkout", "-q", "develop")
         self.repo.git("reset", "-q", "--hard", "base")
         self.depois("docs/outra.md", "outra\n")
         self.repo.git("merge", "-q", "--no-ff", "-m", "Merge lateral", "lateral")
-        self.assertIn(self.m, self.repo.git("rev-list", "homolog..develop").split())
-        self.assertNotIn(self.m, self.repo.git("rev-list", "--first-parent", "homolog..develop").split())
+        self.assertIn(m, self.repo.git("rev-list", "homolog..develop").split())
+        self.assertNotIn(m, self.repo.git("rev-list", "--first-parent", "homolog..develop").split())
         self.pede()
 
     def test_b9_merge_com_dois_pais_e_s_fora_da_ancestralidade_pede(self):
