@@ -220,14 +220,32 @@ so_parecer() {
 }
 if so_parecer; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
-  python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+  suite=(python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q)
 elif [ -f scripts/suite-paralela.py ]; then
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
-  FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+  suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
 else
   # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
-  python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+  suite=(python3 -m unittest discover -s tests -q)
 fi
+# PREPUSH-PKILL-ALHEIO: parar a suíte é parar só esta execução. A suíte roda como filho deste hook; TERM, INT ou HUP
+# no hook encerram só esse filho (que encerra os grupos dos próprios processos) e esperam por ele antes de a trava
+# soltar. Parar reprova o envio e não anota prova. Nunca `pkill -f`: o padrão casa com a suíte de outro agente.
+suite_pid=""
+parar() {
+  trap '' TERM INT HUP
+  if [ -n "$suite_pid" ]; then kill -TERM "$suite_pid" 2>/dev/null; wait "$suite_pid" 2>/dev/null; fi
+  echo "pre-push: suíte interrompida (pid ${$}); só esta execução parou, o envio foi barrado e nenhuma prova foi anotada." >&2
+  exit 1
+}
+trap parar TERM INT HUP
+echo "pre-push: suíte do Forge no pid ${$}; para parar só esta execução: kill ${$} (nunca pkill -f, que derruba a suíte de outro agente)." >&2
+"${suite[@]}" 9>&- >&2 &
+suite_pid=$!
+rc=0
+wait "$suite_pid" || rc=$?
+trap - TERM INT HUP
+[ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}
 # não mudou durante a suíte, para valer a do commit) como prova do próximo push.
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"

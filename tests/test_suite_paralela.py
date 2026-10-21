@@ -276,6 +276,37 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("não é do processo que chamou", erro)
         self.assertEqual(self.rodaram(), [])
 
+    def test_parar_o_pre_push_encerra_os_processos_da_suite(self):  # PREPUSH-PKILL-ALHEIO, AB-6
+        self.modulo("b", MARCA + '''
+import time
+class T(unittest.TestCase):
+    def test_b(self):
+        marca("b")
+        for _ in range(600):
+            time.sleep(0.1)
+''')
+        zero = "0" * 40
+        hook = self.repo / ".githooks" / "pre-push"
+        with tempfile.TemporaryFile("w+") as entrada:
+            entrada.write(f"refs/heads/x {'1' * 40} refs/heads/melhoria/x {zero}\n")
+            entrada.seek(0)
+            p = subprocess.Popen([str(hook), "origin", "u"], cwd=self.repo, env=self.env, stdin=entrada,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(lambda: p.poll() is None and p.kill())
+        fim = time.monotonic() + 30
+        while time.monotonic() < fim and not any(n.name.startswith("b-") for n in self.marcas.iterdir()):
+            time.sleep(0.05)
+        (marca,) = [n for n in self.marcas.iterdir() if n.name.startswith("b-")]
+        pid = int(marca.name.rsplit("-", 1)[1])
+        p.send_signal(signal.SIGTERM)
+        _, erro = p.communicate(timeout=30)
+        self.assertEqual(p.returncode, 1, erro)
+        self.assertIn("suíte interrompida", erro)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+        self.assertEqual(list(self.tmpdir.iterdir()), [])
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
+
     def test_procs_acima_do_teto_e_recusado(self):
         codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")
         self.assertEqual(codigo, 1)

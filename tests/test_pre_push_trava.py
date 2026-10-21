@@ -51,6 +51,16 @@ class T(unittest.TestCase):
         with open("ordem", "a") as f:
             f.write(os.environ["QUEM"] + "\\n")
 '''
+SUITE_COM_PID = '''import unittest, pathlib, os, time
+class T(unittest.TestCase):
+    def test_espera_liberar(self):
+        pathlib.Path("suite-pid").write_text(str(os.getpid()))
+        for _ in range(600):
+            if pathlib.Path("liberar").exists():
+                return
+            time.sleep(0.1)
+        self.fail("ninguem liberou")
+'''
 SEGURA_TRAVA = '''import fcntl, sys, time
 f = open(sys.argv[1], "a")
 fcntl.flock(f, fcntl.LOCK_EX)
@@ -371,6 +381,32 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(codigo, 1)
         self.assertIn("envio direto para develop bloqueado", erro)
         self.assertFalse((self.repo / "rodou").exists())
+
+    def test_parar_o_hook_para_so_a_propria_suite(self):  # PREPUSH-PKILL-ALHEIO, AB-6, AB-12
+        self.suite(SUITE_COM_PID)
+        pid_arquivo = self.repo / "suite-pid"
+        primeira = self.hook()
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(pid_arquivo.exists), "a primeira suíte não começou")
+        suite_da_primeira = int(pid_arquivo.read_text())
+        segunda = self.hook()
+        self.filhos.append(segunda)
+        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 1), "a segunda não entrou na fila")
+        primeira.send_signal(signal.SIGTERM)  # o "kill <pid>" que o hook imprime
+        self.assertEqual(primeira.wait(timeout=30), 1)
+        erro = primeira.stderr.read()
+        self.assertIn(f"para parar só esta execução: kill {primeira.pid}", erro)
+        self.assertIn("nunca pkill", erro)
+        self.assertIn("suíte interrompida", erro)
+        with self.assertRaises(ProcessLookupError):  # a suíte da primeira morreu antes de a trava soltar
+            os.kill(suite_da_primeira, 0)
+        # a segunda segue: pega a vez e roda a própria suíte até o fim
+        self.assertTrue(self.espera_ate(lambda: pid_arquivo.read_text() != str(suite_da_primeira), 30),
+                        "a segunda não rodou depois da parada da primeira")
+        self.assertIsNone(segunda.poll(), "parar a primeira derrubou a segunda")
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(segunda.wait(timeout=60), 0)
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
 
     def test_descritor_da_trava_nao_vaza_para_a_suite(self):
         self.suite(SUITE_VE_DESCRITOR)
