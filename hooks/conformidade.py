@@ -708,14 +708,20 @@ class Guarda:
         # ADR 0013, I2: a leitura fiel e, se a linha tem `#` e a da develop deu outra, também ela, cada uma com estado
         # novo (ambiente, `cd`, branch); a pasta dos corpos de heredoc e o ambiente que segue são os da fiel.
         ambiente = dict(self.ambiente)
-        pasta_fiel, ambiente_fiel = None, None
+        pasta_fiel, ambiente_fiel, vistas = None, None, set()
         for partes in lidas.partes:
             self.ambiente = dict(ambiente)
-            depois = self.conferir_partes(partes, pasta, nivel, so_substituicoes)
+            depois, pastas = self.conferir_partes(partes, pasta, nivel, so_substituicoes)
+            vistas |= pastas
             if pasta_fiel is None:
                 pasta_fiel, ambiente_fiel = depois, self.ambiente
         self.ambiente = ambiente_fiel
         pasta = pasta_fiel
+        # CRASE-SESSAO-PROJETO: a crase é um `$(…)`, e o corpo dela passa pelas mesmas regras, também entre aspas duplas e
+        # numa atribuição. Roda num subshell, numa das pastas por onde a linha passa: o corpo é conferido em cada uma.
+        for corpo in conteudos_de_crase(comando, so_os_fechados=True):
+            for p in sorted(vistas, key=str):
+                self.bash(corpo, p, nivel + 1)
         for dono, corpo in corpos:
             if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
                 self.bash(corpo, pasta, nivel + 1)
@@ -727,9 +733,11 @@ class Guarda:
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
-        """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela."""
+        """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
+        pastas por onde a leitura passou (a de cada comando, também dentro das substituições)."""
         ramos = {}
         contextos = {(): (pasta, ramos)}  # cada substituição roda num subshell: `cd` e branch lá dentro ficam lá
+        vistas = {pasta}
 
         def contexto(sub):
             if sub not in contextos:
@@ -747,7 +755,8 @@ class Guarda:
                                 DICA_LEITURA)
                 self.checar_escrita(d, pasta_sub)
             contextos[sub] = (self.segmento(palavras, pasta_sub, ramos_sub, nivel), ramos_sub)
-        return contextos[()][0]
+            vistas.add(contextos[sub][0])
+        return contextos[()][0], vistas
 
     def nao_modelada(self, achado):
         """ADR 0011, item 2: recusa a linha crítica com construção que o analisador não modela (`construcao_nao_modelada`)."""
@@ -833,7 +842,7 @@ class Guarda:
             nome, _, valor = a.partition("=")
             if nome in VARIAVEIS_DA_LINHA and valor:
                 self.ambiente[nome] = valor  # vale para os comandos seguintes da linha
-        for p in palavras:  # substituição entre aspas: a palavra chega inteira e o conteúdo dela é conferido aqui
+        for p in atribuicoes + palavras:  # substituição entre aspas: a palavra chega inteira (N1: também a atribuição)
             if "`" in p:
                 self.bash(p, pasta, nivel + 1)
             elif "$(" in p.replace(OPACO["$"], ""):

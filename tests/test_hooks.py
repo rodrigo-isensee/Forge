@@ -106,7 +106,14 @@ PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `#
                            # CRASE-ASPA-HOOK: a aspa sem par no corpo da crase (que o bash fecha na crase) casaria com a
                            # do outro corpo, e o comando do meio viraria texto entre aspas
                            ("x=`'`; ", "; y=`'`"), ('x=`"`; ', '; y=`"`'), ("x=`$'`; ", "; y=`$'`"),
-                           ('echo "`\'`"; ', '; echo "`\'`"'), ("x=`'`; ", "; y=`'`\n`"))  # e uma crase sem par adiante
+                           ('echo "`\'`"; ', '; echo "`\'`"'), ("x=`'`; ", "; y=`'`\n`"),  # e uma crase sem par adiante
+                           # CRASE-SESSAO-PROJETO: a ação dentro da crase, também entre aspas duplas e com texto em volta
+                           *(CRASE_EM_VOLTA := (("echo `", "`"), ('echo "`', '`"'), ("x=`", "`"), ('echo "x `', '` y"'),
+                                                ('x="`', '`"'))),
+                           # N1: a substituição entre aspas numa atribuição; N2: `$(…)` entre aspas duplas (parecer)
+                           *(SUBSTITUICAO_ENTRE_ASPAS := (
+                               ('x="$(', ')"'), ("x='a'\"$(", ')"'), ('x="$(', ')" true'),
+                               ('echo "$(', ')"'), ('echo "a $(', ') b"'), ('echo "$(true; ', ')"'))))
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
@@ -114,7 +121,9 @@ MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `ech
                             "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
                             "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
                             "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1],
-                            "aspa na crase": PARES_QUE_O_BASH_IGNORA[4]}
+                            "aspa na crase": PARES_QUE_O_BASH_IGNORA[4], "dentro de crase": CRASE_EM_VOLTA[0],
+                            "crase entre aspas com texto": CRASE_EM_VOLTA[3], "atribuição com $( entre aspas":
+                            SUBSTITUICAO_ENTRE_ASPAS[0], "$( entre aspas": SUBSTITUICAO_ENTRE_ASPAS[3]}
 FAMILIAS_DE_RECUSA = {
     "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
     "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
@@ -133,7 +142,10 @@ FAMILIAS_DE_RECUSA = {
 FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
               ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas"),
               # CRASE-ASPA-HOOK: a linha com corpo de crase que não se lê é ilegível, e o `pesado` libera a ilegível
-              ("pesado/outra-ativa-bloqueia", "aspa na crase")}
+              ("pesado/outra-ativa-bloqueia", "aspa na crase"),
+              # O `pesado` não lê o corpo da crase nem a substituição entre aspas (ADR 0013)
+              ("pesado/outra-ativa-bloqueia", "dentro de crase"), ("pesado/outra-ativa-bloqueia", "crase entre aspas com texto"),
+              ("pesado/outra-ativa-bloqueia", "atribuição com $( entre aspas"), ("pesado/outra-ativa-bloqueia", "$( entre aspas")}
 # FICHAS-CORPUS-BASH (T5): a ação de cada família de recusa, numa linha só, e o hook cuja leitura a confere (o
 # `conformidade` lê todas). Guarda do corpus (`PROIBIDO_NO_ORACULO`): nenhuma palavra começa por `/` (`core.hooksPath h`
 # no lugar de `/tmp/h`).
@@ -197,6 +209,8 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
                 continue
             lidos.append((palavras, destinos))
             lidos += ler_dentro_do_comando(palavras, nivel)
+    for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
+        lidos += ler_como_o_conformidade(corpo, nivel + 1)
     for dono, corpo in corpos:
         if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
             lidos += ler_como_o_conformidade(corpo, nivel + 1)
@@ -208,12 +222,13 @@ def ler_dentro_do_comando(palavras, nivel):
     _, conformidade, _ = modulos_dos_hooks()
     while palavras and palavras[0] in conformidade.CORPO_DE_LACO:
         palavras = palavras[1:]
+    atribuicoes = palavras[:len(palavras) - len(conformidade.sem_atribuicoes(palavras))]
     try:
-        palavras, _ = conformidade.separar_lancadores(palavras)
+        palavras, lancadas = conformidade.separar_lancadores(palavras)
     except ValueError:
         return []  # `env -S` com aspas abertas: o hook só dá o R-CONTRIB para o Forge
     lidos = []
-    for p in palavras:
+    for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
         if "`" in p:
             lidos += ler_como_o_conformidade(p, nivel + 1)
         elif "$(" in p.replace(conformidade.OPACO["$"], ""):
@@ -231,13 +246,21 @@ def ler_dentro_do_comando(palavras, nivel):
     return lidos
 
 
-def ler_como_o_parecer(linha):
-    """Composição de teste do `parecer.principal`: os comandos de cada leitura da linha, ou `Ilegivel`."""
+def ler_como_o_parecer(linha, nivel=0, so_substituicoes=False):
+    """Composição de teste do `parecer.conferir_linha`: os comandos de cada leitura da linha e, recursivamente, os do
+    corpo de cada crase (P4) e das palavras com `$(…)` entre aspas (N2), ou `Ilegivel`."""
     _comum, _, _ = modulos_dos_hooks()
     lidas = _comum.leituras(linha)
-    if lidas.ilegivel:
+    if lidas.ilegivel or nivel > _comum.PROFUNDIDADE:
         raise Ilegivel(linha)
-    return [(palavras, destinos) for leitura in lidas.partes for palavras, destinos, _ in leitura]
+    lidos = [(palavras, destinos) for leitura in lidas.partes for palavras, destinos, sub in leitura
+             if sub or not so_substituicoes]
+    for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):
+        lidos += ler_como_o_parecer(corpo, nivel + 1)
+    for p in [p for leitura in lidas.partes for palavras, _, _ in leitura for p in palavras]:
+        if "$(" in p.replace(_comum.OPACO["$"], ""):
+            lidos += ler_como_o_parecer(p, nivel + 1, so_substituicoes=True)
+    return lidos
 
 
 COMPOSICOES = {"conformidade": ler_como_o_conformidade, "parecer": ler_como_o_parecer}
@@ -1385,6 +1408,8 @@ class Hooks(unittest.TestCase):
         lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
         (e quem confere recusa). Pela composição de teste do `conformidade` (heredoc, palavras relidas, `bash -c`), sem
         subprocesso."""
+        _comum, _, _ = modulos_dos_hooks()
+
         def lidos(linha, todas=True):
             try:
                 return ler_como_o_conformidade(linha, todas=todas)
@@ -1395,6 +1420,14 @@ class Hooks(unittest.TestCase):
         for linha in self.corpus_de_recusas():
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
+                if (prefixo, sufixo) in SUBSTITUICAO_ENTRE_ASPAS and ('"' in linha or _comum.CASE.search(linha)):
+                    # O hook relê a palavra que o `shlex` já tirou das aspas: a aspa dupla da linha fecha a de fora, e o
+                    # `)` de um padrão de `case` fecha o `$(` (achado do lote, cartão próprio; o T5 cobre as ações)
+                    continue
+                if "`" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
+                    continue  # crase não se aninha sem `\``: em volta de outra, a variante muda o que o bash roda
+                if "<<" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
+                    continue  # heredoc dentro de crase: HEREDOC-FURO-HOOK, o próximo commit do lote
                 variante = prefixo + linha + sufixo
                 outra = lidos(variante)
                 lidas += 1

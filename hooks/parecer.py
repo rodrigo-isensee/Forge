@@ -18,8 +18,8 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
-                    leituras, raiz_de_estado, sem_atribuicoes, separar_regra)
+from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase, e_clone_do_forge, executar,
+                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -334,17 +334,38 @@ def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
         return
+    conferir_linha(hook, comando, [(hook.cwd(), {})])
+
+
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False):
+    """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
+    corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
+    …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
+    linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras."""
+    if nivel > PROFUNDIDADE:
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
+                             "rode o comando direto, sem crase nem $( dentro de outro")
     lidas = leituras(comando)
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
+    internos = [(corpo, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
+    vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
-        conferir(hook, [analisar(palavras) for palavras, _, _ in leitura])
+        partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]
+        for pasta, branches in estados:
+            for estado in conferir(hook, partes, pasta, branches):
+                vistos.setdefault((estado[0], tuple(sorted(estado[1].items()))), estado)
+        internos += [(p, True) for palavras, _, _ in leitura for p in palavras if "$(" in p.replace(OPACO["$"], "")]
+    for texto, so in dict.fromkeys(internos):
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so)
 
 
-def conferir(hook, partes):
-    """Os comandos de uma leitura da linha, em ordem (`cd` e checkout/switch valem para os seguintes)."""
-    pasta, branches = hook.cwd(), {}  # branches: raiz do projeto -> branch depois de checkout/switch na linha
+def conferir(hook, partes, pasta, branches):
+    """Os comandos de uma leitura da linha, em ordem (`cd` e checkout/switch valem para os seguintes), a partir da pasta e
+    das branches dadas; devolve os estados (pasta, branches) por onde a leitura passou."""
+    branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
+    estados = [(pasta, dict(branches))]
     for parte in partes:
         if parte is None:
             continue
@@ -364,6 +385,8 @@ def conferir(hook, partes):
                 branches[raiz.resolve()] = parte[2]
         else:
             merge(hook, pasta / parte[1] if parte[1] else pasta, parte[2], branches)
+        estados.append((pasta, dict(branches)))
+    return estados
 
 
 if __name__ == "__main__":
