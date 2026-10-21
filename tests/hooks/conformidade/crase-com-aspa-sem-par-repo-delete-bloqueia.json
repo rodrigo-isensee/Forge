@@ -1,0 +1,30 @@
+{
+  "descricao": "CRASE-ASPA-HOOK (A1): o bash fecha a crase antes da aspa; a aspa do primeiro corpo casaria com a do segundo e o gh repo delete do meio viraria texto. Corpo de crase que não se lê deixa a linha ilegível.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "x=`'`; gh repo delete dono/proj --yes; y=`'`"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

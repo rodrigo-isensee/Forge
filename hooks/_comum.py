@@ -28,6 +28,7 @@ LIMITE_LOG = 256 * 1024
 RESERVA = {"teto_agentes": 3, "pesados": []}  # a lista padrão vem da stack (forge-init)
 INTEGRACAO = {"main", "master", "develop", "homolog"}
 PONTUACAO = "();<>|&\n"
+PROFUNDIDADE = 3  # teto de aninhamento das leituras (`bash -c`, `$(`, crase, corpo de heredoc de shell)
 # Um sinal do shell (fora de aspas) se divide em operadores: abertura de substituição de processo (`<(`, `>(`), parênteses,
 # redirecionamento (`>`, `>>`, `2>&`, `&>`, `<<`...) e separadores (`;`, `|`, `&&`, quebra de linha).
 OPERADOR = re.compile(r"[<>]\(|[()]|&?(?:[<>](?!\())+[&|]?|[;|&\n]+")
@@ -339,6 +340,40 @@ def comentario_ambiguo(linha):
     return False
 
 
+def conteudos_de_crase(comando, so_os_fechados=False):
+    """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
+    aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
+    conta. Crase sem par levanta ValueError (a linha não se analisa); com `so_os_fechados`, ficam só os corpos que
+    fecham (o que vem depois da crase sem par o bash não roda: é erro de sintaxe)."""
+    saida, inicio, simples, duplas, i = [], None, False, False, 0
+    provados = comentarios(comando)
+    while i < len(comando):
+        c = comando[i]
+        if c == "\\" and not simples and i + 1 < len(comando):
+            i += 2
+            continue
+        if i in provados:
+            fim = comando.find("\n", i)  # comentário (`# don't`): vai até o fim da linha e não abre aspa
+            i = len(comando) if fim < 0 else fim
+            continue
+        if inicio is not None:
+            if c == "`":
+                saida.append(comando[inicio:i].replace("\\`", "`"))
+                inicio = None
+        elif simples:
+            simples = c != "'"
+        elif c == "'" and not duplas:
+            simples = True
+        elif c == '"':
+            duplas = not duplas
+        elif c == "`":
+            inicio = i + 1
+        i += 1
+    if inicio is not None and not so_os_fechados:
+        raise ValueError("crase sem par")
+    return saida
+
+
 def fichas(comando, legado=False):
     """As palavras e os sinais da linha, sem executar nada: (texto, é sinal fora de aspas, colada na seguinte).
     Aspas desbalanceadas levantam ValueError.
@@ -624,10 +659,24 @@ Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 def leituras(comando):
     """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
     e a leitura antiga (a da develop, `legado`) fecha e dá outro resultado, também ela (I2: o que a develop recusava
-    continua recusado). `ilegivel`: a leitura fiel não fecha (aspas sem par) ou um comentário que o hook não prova
-    levaria aspa ou `\\` para outra linha (`comentario_ambiguo`); quem chama decide, fechado onde é controle."""
+    continua recusado). `ilegivel`: a leitura fiel não fecha (aspas sem par, também no corpo de uma crase que fecha) ou
+    um comentário que o hook não prova levaria aspa ou `\\` para outra linha (`comentario_ambiguo`); quem chama
+    decide, fechado onde é controle."""
+    def corpos_se_leem(texto, nivel):
+        """CRASE-ASPA-HOOK: o bash fecha a crase antes da aspa (`` x=`'`; L; y=`'` ``), o `shlex` não; a aspa sem par
+        de um corpo casaria com a de outro e o comando do meio viraria texto. Cada corpo (e os de dentro, até
+        `PROFUNDIDADE`) se lê sozinho, ou a linha é ilegível. A crase sem par não basta para isso: o `segmento` do
+        `conformidade` relê pedaços de palavra (`` `date ``), e o resto depois dela o bash não roda."""
+        if nivel > PROFUNDIDADE:
+            return False
+        for corpo in conteudos_de_crase(texto, so_os_fechados=True):
+            list(comandos(corpo))  # aspa sem par no corpo: ValueError
+            if not corpos_se_leem(corpo, nivel + 1):
+                return False
+        return True
+
     try:
-        fiel = None if comentario_ambiguo(comando) else list(comandos(comando))
+        fiel = None if comentario_ambiguo(comando) or not corpos_se_leem(comando, 1) else list(comandos(comando))
     except ValueError:
         fiel = None
     partes = [] if fiel is None else [fiel]

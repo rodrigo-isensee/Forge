@@ -24,9 +24,10 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, bloquear, comentarios, construcao_nao_modelada, contrib, diretorio_comum,
-                    e_clone_do_forge, em_contrib, executar, fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem,
-                    nome_da_branch, raiz_declarada, raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
+from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios, construcao_nao_modelada,
+                    conteudos_de_crase, contrib, diretorio_comum, e_clone_do_forge, em_contrib, executar,
+                    fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
+                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge)
 
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
 CRITICO = re.compile(
@@ -113,7 +114,6 @@ ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o 
 GRAPHQL_DE_ROTULO = re.compile(r"addLabelsToLabelable|labelIds|createLabel|updateLabel", re.I)
 CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.I)  # falha fechado pelo texto
 TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
-PROFUNDIDADE = 3
 CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
                   "--show-names", "--name-only", "--help", "-h"}
@@ -282,39 +282,6 @@ def endpoint_normalizado(endpoint):
 def e_graphql(endpoint):
     """O endpoint normalizado é o do GraphQL (`graphql`, `/graphql`, `https://<host>/graphql`, `.../api/graphql`)."""
     return endpoint_normalizado(endpoint).lower() == "graphql"
-
-
-def conteudos_de_crase(comando):
-    """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
-    aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
-    conta. Crase sem par levanta ValueError (a linha não se analisa)."""
-    saida, inicio, simples, duplas, i = [], None, False, False, 0
-    provados = comentarios(comando)
-    while i < len(comando):
-        c = comando[i]
-        if c == "\\" and not simples and i + 1 < len(comando):
-            i += 2
-            continue
-        if i in provados:
-            fim = comando.find("\n", i)  # comentário (`# don't`): vai até o fim da linha e não abre aspa
-            i = len(comando) if fim < 0 else fim
-            continue
-        if inicio is not None:
-            if c == "`":
-                saida.append(comando[inicio:i].replace("\\`", "`"))
-                inicio = None
-        elif simples:
-            simples = c != "'"
-        elif c == "'" and not duplas:
-            simples = True
-        elif c == '"':
-            duplas = not duplas
-        elif c == "`":
-            inicio = i + 1
-        i += 1
-    if inicio is not None:
-        raise ValueError("crase sem par")
-    return saida
 
 
 def tirar_heredocs(comando):

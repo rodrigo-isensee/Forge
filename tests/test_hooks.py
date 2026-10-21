@@ -102,14 +102,19 @@ PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; 
 SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#x", "\n# it's", "; echo $'it\\'s'", "; (true)#'", " # it's ((")
 # Em par: a aspa de um comentário dentro de crase (que o bash fecha na crase) casaria com a do outro lado da linha.
 PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `# it's`; ", "; echo `# it's`"),
-                           ("echo `true # it's`;\n", "\necho `true # it's`"))
+                           ("echo `true # it's`;\n", "\necho `true # it's`"),
+                           # CRASE-ASPA-HOOK: a aspa sem par no corpo da crase (que o bash fecha na crase) casaria com a
+                           # do outro corpo, e o comando do meio viraria texto entre aspas
+                           ("x=`'`; ", "; y=`'`"), ('x=`"`; ', '; y=`"`'), ("x=`$'`; ", "; y=`$'`"),
+                           ('echo "`\'`"; ', '; echo "`\'`"'), ("x=`'`; ", "; y=`'`\n`"))  # e uma crase sem par adiante
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
 MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("true || echo $[1 #x]; ", ""),
                             "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
                             "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
-                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1]}
+                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1],
+                            "aspa na crase": PARES_QUE_O_BASH_IGNORA[4]}
 FAMILIAS_DE_RECUSA = {
     "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
     "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
@@ -126,7 +131,9 @@ FAMILIAS_DE_RECUSA = {
 # develop); o `$'…'` sem `#` não tem leitura antiga, e na crase em par a antiga (a da develop) tira o comando com o
 # comentário que começa na crase.
 FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
-              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas")}
+              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas"),
+              # CRASE-ASPA-HOOK: a linha com corpo de crase que não se lê é ilegível, e o `pesado` libera a ilegível
+              ("pesado/outra-ativa-bloqueia", "aspa na crase")}
 # FICHAS-CORPUS-BASH (T5): a ação de cada família de recusa, numa linha só, e o hook cuja leitura a confere (o
 # `conformidade` lê todas). Guarda do corpus (`PROIBIDO_NO_ORACULO`): nenhuma palavra começa por `/` (`core.hooksPath h`
 # no lugar de `/tmp/h`).
@@ -1346,10 +1353,15 @@ class Hooks(unittest.TestCase):
                       "x=$(date) # it's\nls", "gh pr merge x; (true)#'",
                       # volta 6: dentro de crase o comentário acaba na crase, e a aspa dele casaria com outra adiante
                       "x=`#'`; gh repo delete dono/proj --yes # '", "echo `# it's`; gh pr merge x --merge; echo `# it's`",
-                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`"):
+                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`",
+                      # CRASE-ASPA-HOOK: o corpo da crase com aspa sem par, também com uma crase sem par adiante
+                      "x=`'`; gh repo delete d/p --yes; y=`'`", 'x=`"`; gh repo delete d/p --yes; y=`"`',
+                      "x=`$'`; gh repo delete d/p --yes; y=`$'`", "x=`'`; gh pr merge x; y=`'`\n`",
+                      "echo `echo \\`'\\``; gh pr merge x", "x=`date # it's`"):
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.leituras(linha).ilegivel)
-        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim"):
+        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim", "x=`date`", 'echo "`it`"',
+                      'git commit -m "fix: `a.py` e `b.py`"', "echo `date +%s`", "`echo", "+%s`"):
             with self.subTest(linha=linha):
                 self.assertFalse(_comum.leituras(linha).ilegivel, "crase com comentário sem aspa: lida inteira")
         lidas = _comum.leituras("docker compose up; (true)#'")
