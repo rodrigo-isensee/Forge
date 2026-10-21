@@ -17,6 +17,12 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
+     forge-check fila
+`fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
+KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
+(`pode-comecar:`); o resto sai `espera:` (dependência, ciclo ou teto) e a sobreposição de arquivos com outra branch `melhoria/*`
+só avisa (`aviso:`). A última linha é o resumo `fila: N podem começar, V vagas de T (A ativos), M esperam`; sem KANBAN.md, uma
+linha `fila: ... não tem KANBAN.md` (SEM_QUADRO).
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
 reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
 uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
@@ -87,6 +93,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import time
 import unicodedata
 from pathlib import Path
 
@@ -1278,16 +1285,24 @@ def branches_de_melhoria(raiz):
     return sorted(nomes)
 
 
-def cmd_sobreposicao(raiz, base=None):
-    """Informativo (TA-6): arquivos que cada par de branches `melhoria/*` muda em comum sobre a base.
-    Uma linha por par com sobreposição, ordenada, e uma linha de resumo; nunca falha."""
+def arquivos_por_branch(raiz, base=None):
+    """(base, {branch `melhoria/*`: arquivos que ela muda sobre a base}); (None, {}) se a base não existe."""
     b = base_da_entrega(raiz, base)
     if not b:
-        return [f"sobreposicao: base não encontrada ({base or ', '.join(BASES)}); nada comparado"]
+        return None, {}
     tocados = {}
     for nome in branches_de_melhoria(raiz):
         ref = nome if not git(raiz, "rev-parse", "--verify", "--quiet", f"refs/heads/{nome}")[0] else f"origin/{nome}"
         tocados[nome] = set(arquivos_da_entrega(raiz, ref, b))
+    return b, tocados
+
+
+def cmd_sobreposicao(raiz, base=None):
+    """Informativo (TA-6): arquivos que cada par de branches `melhoria/*` muda em comum sobre a base.
+    Uma linha por par com sobreposição, ordenada, e uma linha de resumo; nunca falha."""
+    b, tocados = arquivos_por_branch(raiz, base)
+    if not b:
+        return [f"sobreposicao: base não encontrada ({base or ', '.join(BASES)}); nada comparado"]
     saida, nomes = [], sorted(tocados)
     for i, a in enumerate(nomes):
         for c in nomes[i + 1:]:
@@ -1331,6 +1346,142 @@ def release_em_curso(raiz, ref):
 
 
 SEM_QUADRO = "{cmd}: {raiz} não tem KANBAN.md; não crio docs/kanban/ numa pasta sem quadro (rode na raiz do projeto ou passe --raiz)"
+
+
+FILA_LINHAS = 15  # teto de linhas da saída de `fila`, o resumo incluído
+DEPENDE_DE = re.compile(r"^\W*(?:\*\*)?Depende de:?(?:\*\*)?:?\s*(.*)$", re.IGNORECASE)
+
+
+def quadro_por_coluna(raiz):
+    """{coluna sem o `(WIP ...)`: [células de cada cartão]}, na ordem do quadro (KANBAN.md); só leitura."""
+    colunas, secao = {}, None
+    for linha in (raiz / "KANBAN.md").read_text(encoding="utf-8").split("\n"):
+        if linha.startswith("## "):
+            secao = re.sub(r"\s*\(WIP[^)]*\)", "", linha[3:]).strip()
+            colunas.setdefault(secao, [])
+            continue
+        if secao is None or not linha.startswith("|"):
+            continue
+        celulas = [c.strip() for c in linha.strip().strip("|").split("|")]
+        if len(celulas) == len(COLUNAS) and celulas != COLUNAS and not all(re.fullmatch(r":?-+:?", c) for c in celulas):
+            colunas[secao].append(celulas)
+    return colunas
+
+
+def id_do_pedido(celula):
+    """O ID do pedido de uma célula do quadro: o nome de `docs/pedidos/<ID>.md`, com ou sem caminho, `.md` e crases."""
+    return Path(celula.strip().strip("`").strip()).name.removesuffix(".md")
+
+
+def dependencias_do_pedido(raiz, pedido):
+    """(lista de IDs de `Depende de:`, tem_a_linha) lidos do cabeçalho do pedido (antes da primeira seção `## `).
+    `nenhum`, vazio e o texto-modelo (`<ID>...`) valem como lista vazia."""
+    arq = raiz / "docs" / "pedidos" / f"{pedido}.md"
+    try:
+        linhas = arq.read_text(encoding="utf-8").split("\n")
+    except OSError:
+        return [], False
+    for linha in linhas:
+        if linha.startswith("## "):
+            break
+        m = DEPENDE_DE.match(linha)
+        if m:
+            ids = [id_do_pedido(t) for t in m.group(1).split(",") if t.strip()]
+            return [i for i in ids if i and i.lower() != "nenhum" and not i.startswith("<")], True
+    return [], False
+
+
+def em_ciclo(raiz, pedido):
+    """True se, seguindo `Depende de:` de pedido em pedido, se volta a `pedido`."""
+    vistos, pilha = set(), list(dependencias_do_pedido(raiz, pedido)[0])
+    while pilha:
+        atual = pilha.pop()
+        if atual.lower() == pedido.lower():
+            return True
+        if atual.lower() not in vistos:
+            vistos.add(atual.lower())
+            pilha.extend(dependencias_do_pedido(raiz, atual)[0])
+    return False
+
+
+def agentes_vigentes(raiz):
+    """Quantos agentes vigentes há em .forge/run/agentes.json (a mesma função `vigentes` do hook `agentes`); 0 sem o arquivo."""
+    sys.path.insert(0, str(PLUGIN / "hooks"))
+    try:
+        import agentes
+    finally:
+        sys.path.remove(str(PLUGIN / "hooks"))
+    try:
+        config = json.loads((raiz / ".forge" / "config.json").read_text(encoding="utf-8"))
+        horas = config.get("expiracao_horas") if isinstance(config, dict) else None
+        estado = json.loads((raiz / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))
+        lista = estado.get("agentes", [])
+    except (OSError, ValueError, AttributeError):
+        horas, lista = None, []
+    if isinstance(horas, bool) or not isinstance(horas, (int, float)) or horas <= 0:
+        horas = 2
+    return len(agentes.vigentes(lista if isinstance(lista, list) else [], time.time(), horas * 3600))
+
+
+def carga_alta_agora():
+    sys.path.insert(0, str(PLUGIN / "hooks"))
+    try:
+        import agentes
+    finally:
+        sys.path.remove(str(PLUGIN / "hooks"))
+    carga, memoria, total = agentes.medir()
+    return agentes.carga_alta(carga, memoria, total, agentes.nucleos())
+
+
+def cmd_fila(raiz):
+    """O que pode começar agora (P9; só leitura, sem rede, rc 0): cartões de "Pronto para fazer" sem dependência
+    pendente nem ciclo, até as vagas de R-TETO (teto menos agentes vigentes; carga alta zera). Sobreposição de
+    arquivos com outra branch `melhoria/*` só avisa. Até FILA_LINHAS linhas; a última é o resumo."""
+    if not (raiz / "KANBAN.md").is_file():
+        return [f"fila: {caminho_impresso(raiz)} não tem KANBAN.md; nada a listar (SEM_QUADRO; rode na raiz do projeto ou passe --raiz)"]
+    quadro = quadro_por_coluna(raiz)
+    onde = {}
+    for coluna, cartoes in quadro.items():
+        for c in cartoes:
+            for chave in (id_do_pedido(c[2]).lower(), c[0].lower()):
+                onde.setdefault(chave, set()).add(coluna)
+    teto, ativos = teto_calculado(raiz), agentes_vigentes(raiz)
+    alta = carga_alta_agora()
+    vagas = 0 if alta else max(0, teto - ativos)
+    _, tocados = arquivos_por_branch(raiz)
+    saida, pode, esperam, avisados = [], 0, 0, set()
+    for c in quadro.get("Pronto para fazer", []):
+        cartao, pedido = c[0], id_do_pedido(c[2])
+        deps, tem_linha = dependencias_do_pedido(raiz, pedido)
+        extra = []
+        if not tem_linha and pedido not in avisados:
+            avisados.add(pedido)
+            extra.append(f"aviso: {pedido} sem Depende de")
+        pendente = next((f"depende de {d} (coluna {' / '.join(sorted(onde.get(d.lower(), set()))) or 'ausente do quadro'})"
+                         for d in deps if onde.get(d.lower()) != {"Pronto"}), None)
+        if em_ciclo(raiz, pedido):
+            motivo = "ciclo de dependências"
+        else:
+            motivo = pendente
+        if motivo is None and pode < vagas:
+            pode += 1
+            saida.append(f"pode-comecar: {cartao} ({pedido})")
+        else:
+            esperam += 1
+            saida.append(f"espera: {cartao} ({pedido}) | {motivo or 'teto'}")
+        proprios = {n for n in tocados if n.rsplit("/", 1)[-1].lower() == pedido.lower()}
+        for nome in sorted(proprios):
+            for outro in sorted(set(tocados) - proprios):
+                comum = sorted(tocados[nome] & tocados[outro])
+                if comum:
+                    extra.append(f"aviso: {cartao} sobrepõe {outro}: {', '.join(comum)}")
+        saida += extra
+    if alta:
+        saida.append("aviso: carga alta (R-TETO): 0 vagas")
+    resumo = f"fila: {pode} podem começar, {vagas} vagas de {teto} ({ativos} ativos), {esperam} esperam"
+    if len(saida) > FILA_LINHAS - 1:
+        saida = saida[:FILA_LINHAS - 2] + [f"... (+{len(saida) - (FILA_LINHAS - 2)} linhas omitidas)"]
+    return saida + [resumo]
 
 
 def cmd_movimento(raiz, cartao, de, para, motivo):
@@ -3625,6 +3776,7 @@ def main():
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
+    sub.add_parser("fila", parents=[comum], help="o que pode começar agora: dependências, teto e sobreposição (só leitura, rc 0)")
     mv = sub.add_parser("movimento", parents=[comum], help="anota um movimento do quadro em docs/kanban/historico.md, com a hora real")
     mv.add_argument("cartao")
     mv.add_argument("--de", required=True, help="coluna de origem")
@@ -3701,6 +3853,10 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "fila":
+        for linha in cmd_fila(raiz):
+            print(linha)
+        return 0
     if a.cmd == "brief":
         if a.alvo == "gerar":
             return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base, a.etapa, a if a.volta else None)

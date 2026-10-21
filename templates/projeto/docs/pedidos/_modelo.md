@@ -5,6 +5,7 @@ Copie para `docs/pedidos/NNN-<assunto>.md`. O Jarvis registra o pedido antes do 
 - **Modo:** analisar | planejar | implementar
 - **Objetivo:** <em uma frase, nas palavras do usuário>
 - **Clareza:** <itens por marca: N confirmado, N delegado, N suposição, N técnico, N no-protótipo; quantas perguntas já foram feitas>
+- **Depende de:** <ID>, <ID> | nenhum   (ID = nome do pedido, `docs/pedidos/<ID>.md`; satisfeita quando o cartão do pedido citado está em "Pronto" no KANBAN.md; `forge-check fila` lê esta linha)
 
 ## Escopo
 Um item por linha, com ID estável (`E1`, `E2`…): é contra esta lista que o conferente pareia o "Entregar" de cada brief (que cita o ID, `(E1)`) e a tabela pedido × entregue do fim.
