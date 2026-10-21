@@ -3884,7 +3884,7 @@ def gravar_brief(raiz_pedido, pedido_id, destino, texto, numero=None):
     if pasta.is_symlink() or (pasta.exists() and dentro_da_raiz(raiz_pedido, Path("docs") / "briefs" / "x", ("docs/briefs",)) is None):
         return "brief gerar --gravar: docs/briefs/ é link simbólico ou sai da raiz; nada gravado", 2
     pasta.mkdir(parents=True, exist_ok=True)
-    prefixo = f"{pedido_id}-{papel}"
+    prefixo = "-".join((pedido_id, papel))  # já validados por NOME_SEGURO_DE_BRIEF; a saída passa por caminho_impresso
     n = numero if numero is not None else proximo_numero(pasta, prefixo)
     conteudo = texto.encode("utf-8")
     try:
