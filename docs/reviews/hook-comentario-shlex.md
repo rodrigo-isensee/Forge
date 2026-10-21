@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 7013204f54c8e763f15217934f8b68bcaf897e4b
-parecer: reprovado
+commit: 371ac6dea55f44a2b0c5bb6e4d48005cc48ce1da
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -13,6 +13,28 @@ data: 2026-10-21
 Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251+/8-. Revisor diferente do autor da E1.1 (D-ETAPAS-INST). Segurança (E1.3): parecer próprio do `security-engineer`, não refeito aqui.
 
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
+
+## Volta 3
+Delta lido: `7e03786..371ac6d` (1 commit, `371ac6d`): `hooks/conformidade.py` no `except ValueError` de `Guarda.bash` (a checagem `ilegivel` vem primeiro, e a linha com `CRITICO` fora do papel só de leitura passa a ser recusada por `nao_modelada` mesmo sem `achado`); `hooks/_comum.py` põe `[@!+*?]\(` (extglob) em `SEM_COMENTARIO`; 3 fixtures de recusa (`aritmetica-aspa-no-comentario-*`, `aritmetica-subshell-cerquilha-aspa-*`, `extglob-cerquilha-*`); teste `test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas` (11 linhas); fragmento do changelog. Já lido (rodada 1, voltas 1 e 2, abaixo): o resto da entrega, sem mudança.
+
+1. **A3 (meu e da segurança) e A4 da segurança corrigidos pela causa.** O `ValueError` era a mesma porta para os dois; agora a linha crítica que a leitura não fecha é recusada (falha fechada), que é a correção mínima apontada nos dois pareceres. Com isso a suposição do autor da volta 2 (`((`/`=~`/extglob desligam o comentário, lê-se a mais) passa a ser segura de fato: ler a mais nunca vira ler a menos.
+2. **A5 da segurança corrigido.** `[@!+*?]\(` em `SEM_COMENTARIO` cobre `@(`, `!(`, `+(`, `*(`, `?(`. Falso positivo possível (`ls *(x)`, `!(` em texto) só desliga o comentário da linha: lê-se a mais.
+3. **Abertura de `hooks/conformidade.py`.** A decisão técnica do pedido (06:35) limita o toque ao `except ValueError`; o diff mexe só nessas linhas. Série com a M1 (que também mexe no arquivo) fica para a integração, como o pedido registra.
+4. **Sondas no hook real** (cópia por `git archive` de 371ac6d em $TMPDIR, fixtures temporárias rodadas por `test_fixtures`; conferi que são lidas: uma sonda com esperado trocado falhou com `0 != 2`). Recusam (código 2): `git push --force origin main # x (( \`, `git push origin main # "=~`, `echo @(a|#b); git push --force origin main`, `[[ a = @(a&#b) ]]; git push --no-verify origin feature/x`, `[[ a != +(a;#b) ]]; git push --force origin main`, `git push --force origin main; (true)#\` e o aninhado `bash -c "(( 1 )) && git push origin main # it's"`. Liberam (código 0, sem stderr): `(( 1 )) && echo ok # it's`, `ls # it's fine`, `echo @(a|#b) # it's` e a mensagem de commit por heredoc com apóstrofo e `merge` (`git commit -m "$(cat <<'EOF' … it's … EOF)"`), que é o caso legítimo mais comum com `CRITICO` na linha. A recusa a mais fica restrita a linha crítica com aspa sem par na leitura do hook (ex.: `(( 1 )) && git push origin feature/x # it's ok`), rara e contornável tirando o comentário.
+5. **Ordem `ilegivel` antes de `nao_modelada`.** Muda só qual mensagem fala primeiro no nível aninhado (R-CONTRIB quando aponta para o Forge); o código continua 2 nos dois caminhos.
+6. **Aviso do conferente (não regressão com 11 linhas escolhidas, não todas as das fixtures):** aceito. As fixtures de recusa já rodam todas em `test_fixtures` com o código esperado, e nenhuma mudou de resultado na entrega (as duas `nao-modelado-*` só trocaram o motivo, avaliado na rodada 1, item 6); o teste novo acrescenta as linhas da classe que não têm fixture. A asserção `stderr` "R-" é frouxa de propósito (qualquer regra que recuse serve).
+7. **Regras.** Endurece o controle, sem afrouxar nada; sem custo (R-CUSTO); nada de projeto (R-NEUTRO); `invariantes` não tocados. Commit único em Conventional Commits.
+
+Ferramentas na volta 3, na cópia de 371ac6d com as sondas: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas` → `Ran 2 tests in 41.595s OK`. Suíte inteira: no pre-push deste envio e no QA (R-TETO). Segurança da volta 3: parecer próprio do `security-engineer`, não refeito aqui.
+
+Recomendações da volta 3 (não bloqueiam):
+- `changelog.d/hook-comentario-shlex.md:2`: falta vírgula em "dentro de `((…))` na regex do `=~`" e o exemplo `@(a|#b)` entre parênteses ficou colado ao exemplo de `((`; a frase fica mais clara reordenada.
+- `hooks/conformidade.py:674`: o comentário `# aspas desbalanceadas: o próprio shell vai recusar` ficou parcialmente desatualizado (o shell nem sempre recusa: era o furo); vale ajustar quando a M1 mexer no arquivo.
+
+Achados da volta 2 (resolvidos na volta 3):
+- A3 da volta 2 (resolvido) hooks/_comum.py:227 · com `((` ou `=~` na linha, um `'` no comentário dava ValueError e conformidade.py:668 liberava; agora a linha crítica ilegível é recusada.
+
+## Achados
 
 ## Volta 2
 Delta lido: `ee29c11..7013204` (2 commits de código: `11b63de` e `7013204`; os outros dois são os pareceres): `hooks/_comum.py` junta as duas constantes em `INICIO_DE_PALAVRA` (sem `(` nem `)`), cria `SEM_COMENTARIO` (`((` ou `=~` em qualquer ponto da linha) e `abre_comentario`, usada por `fichas` e por `construcao_nao_modelada`; 7 fixtures de recusa em `tests/hooks/conformidade/`; teste `test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex`; fragmento do changelog. Já lido (rodada 1 e volta 1, abaixo): o resto da entrega, sem mudança.
@@ -25,9 +47,6 @@ Delta lido: `ee29c11..7013204` (2 commits de código: `11b63de` e `7013204`; os 
 6. **Regras e commits.** Endurece um controle existente, sem afrouxar nada; sem custo (R-CUSTO); nada de projeto (R-NEUTRO); `invariantes` não tocados. O changelog é fragmento, sem editar o `CHANGELOG.md`. Commits em Conventional Commits, código e changelog separados.
 
 Ferramentas na volta 2, na cópia de 7013204: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra tests.test_hooks.Hooks.test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex` → `Ran 3 tests in 90.477s OK`. Suíte inteira: no pre-push deste envio e no QA (R-TETO). Segurança da volta 2: parecer próprio do `security-engineer` (7ba8ab3, reprovado: A3, A4, A5), não refeito aqui. Concordo com o A3 dela, que contradiz o meu item 3 (veja acima). O A4 e o A5 são dela, não os reavaliei.
-
-## Achados
-- A3 (bloqueante) hooks/_comum.py:227 · com `((` ou `=~` na linha, um `'` no comentário dá ValueError e conformidade.py:668 libera: `(( 1 )) && git push origin main # it's ok` sai sem recusa (a base lia o push). O A3 da segurança; corrigir junto com o A4 dela (ValueError recusa).
 
 ## Volta 1
 Delta lido: `74dc3f6..ee29c11` (1 commit: `hooks/_comum.py` tira `(` de `ANTES_DE_COMENTARIO` e de `INICIO_DE_PALAVRA`; 4 fixtures `comentario-depois-de-*`; 3 casos em `test_cerquilha_so_abre_comentario_no_inicio_de_palavra`), contra o A1 da segurança. Já lido (rodada 1, abaixo): o resto da entrega, sem mudança.
