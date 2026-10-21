@@ -809,6 +809,57 @@ def tirar_heredocs(comando):
     return "".join(saida), corpos
 
 
+# LOTE-LEITURA-HOOK (A1 de segurança): os programas que leem o corpo de um heredoc como texto e não o executam. A lista
+# é positiva: qualquer outro dono (shell, `source`, `.`, `eval`, `xargs`, um laço, um lançador, um caminho) roda ou pode
+# rodar o corpo, que então é conferido como comando. `git` e `gh` só com um subcomando embutido (alias não os sobrepõe)
+# e, no `git`, sem `-c` (que pode definir um alias `!sh`).
+LEITORES_DO_CORPO = frozenset({"cat", "tee", "grep", "egrep", "fgrep", "head", "tail", "wc", "sort", "uniq", "cut", "tr",
+                               "base64", "diff", "cmp", "nl", "tac", "jq", "md5sum", "sha1sum", "sha256sum", "read"})
+GIT_LE_O_CORPO = frozenset({"commit", "tag", "notes", "apply", "am", "hash-object", "interpret-trailers", "stripspace",
+                            "check-ignore", "check-attr", "cat-file"})
+GH_LE_O_CORPO = frozenset({"pr", "issue", "release", "api", "gist", "label", "secret", "variable"})
+ANTES_DO_PROGRAMA = frozenset({"!", "{", "time", "then", "do", "else", "elif", "if", "while", "until"})
+REDIRECAO = re.compile(r"^(\d*|&)(<<-?|<<<|>>|<>|>\||[<>])(&\d*-?)?")
+
+
+def programas_da_linha(linha):
+    """A palavra de comando de cada comando simples da linha física (sem aspas nem barras, o que só a torna mais
+    desconfiada), cada uma com as palavras seguintes: [(programa, [argumentos])]."""
+    texto = re.sub(r"[\"'\\]", "", linha)
+    texto = re.sub(r"\d*[<>]&\d*-?|&>>?", " > ", texto)  # `2>&1`, `&>x`: o `&` não separa comandos
+    achados = []
+    for trecho in re.split(r"[;&|()`\n]", texto):
+        palavras, i = trecho.split(), 0
+        while i < len(palavras):
+            p, operador = palavras[i], REDIRECAO.match(palavras[i])
+            if operador:
+                i += 1 if p[operador.end():] else 2  # `>x` ou `> x`
+            elif p in ANTES_DO_PROGRAMA or re.match(r"^[A-Za-z_][A-Za-z0-9_]*\+?=", p):
+                i += 1
+            else:
+                achados.append((p, palavras[i + 1:]))
+                break
+    return achados
+
+
+def corpo_so_lido(dono, tambem=lambda programa: False):
+    """O corpo de heredoc da linha `dono` só é lido como texto: todo comando da linha é um leitor (`LEITORES_DO_CORPO`,
+    `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como comando."""
+    for programa, argumentos in programas_da_linha(dono):
+        if programa in LEITORES_DO_CORPO or tambem(programa):
+            continue
+        if programa == "git":
+            resto = list(argumentos)
+            while resto and resto[0].startswith("-") and resto[0] != "-c":
+                resto = resto[2:] if resto[0] == "-C" else resto[1:]
+            if resto and resto[0] in GIT_LE_O_CORPO:
+                continue
+        elif programa == "gh" and argumentos and argumentos[0] in GH_LE_O_CORPO:
+            continue
+        return False
+    return True
+
+
 def construcao_nao_modelada(linha):
     """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
     simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,

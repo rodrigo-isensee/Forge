@@ -18,8 +18,8 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase, e_clone_do_forge, executar,
-                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra,
+from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase, corpo_so_lido, e_clone_do_forge,
+                    executar, forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra,
                     tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
@@ -357,7 +357,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False):
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
     internos = [(corpo, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
-    internos += [(corpo, False) for dono, corpo in corpos if re.search(r"\b(bash|sh|zsh|dash)\b", dono)]  # o shell o roda
+    internos += [(corpo, False) for dono, corpo in corpos if not corpo_so_lido(dono)]  # um dono que não só lê pode rodá-lo
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]

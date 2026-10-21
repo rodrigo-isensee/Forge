@@ -1474,6 +1474,25 @@ class Hooks(unittest.TestCase):
         resto, corpos = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
         self.assertEqual((resto.split(), corpos), (["bash", "ls"], [("bash <<'X'", "git push origin main")]))
 
+    def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
+        """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
+        (shell, `source`, `.`, `eval`, laço, lançador, alias de `git -c`) faz dele comando."""
+        _comum, _, _ = modulos_dos_hooks()
+        lidos = ("cat <<'EOF'", "x=$(cat <<'EOF'", "gh pr create --draft --body \"$(cat <<'EOF'",
+                 "gh pr create --draft --body-file - <<'EOF'", "git commit -F - <<'EOF'", "git -C d commit -F - <<EOF",
+                 "cat <<'EOF' > x 2>&1", "cat <<EOF | tee x", "GH_REPO=a/b gh issue create -F - <<EOF")
+        executados = ("bash <<'EOF'", "source /dev/stdin <<'EOF'", ". /dev/stdin <<'EOF'", "ksh <<'EOF'",
+                      "eval \"$(cat <<'EOF'", "cat <<'EOF' | sh", "done <<'EOF'", "sudo tee x <<'EOF'",
+                      "git -c alias.x=!sh x <<'EOF'", "gh x <<'EOF'", "/bin/cat <<'EOF'", "xargs -0 <<'EOF'",
+                      "python3 - <<'EOF'")
+        for dono in lidos:
+            with self.subTest(dono=dono):
+                self.assertTrue(_comum.corpo_so_lido(dono))
+        for dono in minimo(executados, 10, "donos que rodam o corpo"):
+            with self.subTest(dono=dono):
+                self.assertFalse(_comum.corpo_so_lido(dono))
+        self.assertTrue(_comum.corpo_so_lido("python3 - <<'EOF'", lambda p: p == "python3"), "o `tambem` de quem chama")
+
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""

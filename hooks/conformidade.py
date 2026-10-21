@@ -25,7 +25,7 @@ from pathlib import Path
 
 import parecer
 from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios, construcao_nao_modelada,
-                    conteudos_de_crase, contrib, diretorio_comum, e_clone_do_forge, em_contrib, executar,
+                    conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum, e_clone_do_forge, em_contrib, executar,
                     fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
                     raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
 TETO_DE_CONFERENCIAS = 400  # conferências de `Guarda.bash` por linha: acima, a linha é recusada (fecha na dúvida, como PROFUNDIDADE)
@@ -59,6 +59,14 @@ OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/rub
 CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
 LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
 AWKS = {"awk", "gawk", "mawk", "nawk"}
+
+
+def interprete(programa):
+    """Python, Perl, Node, awk...: o corpo de heredoc que eles leem é programa, conferido pelo `checar_texto`."""
+    programa = Path(programa).name
+    return bool(INTERPRETES.match(programa)) or programa in AWKS
+
+
 # Opções longas do sed e do gawk: o getopt_long do GNU aceita qualquer prefixo não ambíguo (`--expr`, `--i`, `--inc`).
 SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help", "in-place", "line-length", "null-data",
               "zero-terminated", "posix", "quiet", "regexp-extended", "sandbox", "separate", "silent", "unbuffered", "version")
@@ -728,10 +736,10 @@ class Guarda:
         for corpo in conteudos_de_crase(comando, so_os_fechados=True):
             for p in sorted(vistas, key=str):
                 self.bash(corpo, p, nivel + 1)
-        for dono, corpo in corpos:
-            if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+        for dono, corpo in corpos:  # o corpo é comando, a menos que todo dono da linha só o leia (ou o interprete)
+            if not corpo_so_lido(dono, interprete):
                 self.bash(corpo, pasta, nivel + 1)
-            elif any(INTERPRETES.match(Path(t).name) or Path(t).name in AWKS for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
+            if any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
@@ -1363,7 +1371,7 @@ class Guarda:
                 elif prog == "eval":
                     self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
             for dono, corpo in corpos:
-                if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+                if not corpo_so_lido(dono):
                     self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
         except ValueError:
             if CITA_ROTULO.search(comando):
