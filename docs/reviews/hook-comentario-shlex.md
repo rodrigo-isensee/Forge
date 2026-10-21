@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 371ac6dea55f44a2b0c5bb6e4d48005cc48ce1da
-parecer: reprovado
+commit: f02f482b7e9d5eb46f10beed1e4795d8d637a9f0
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -13,6 +13,26 @@ data: 2026-10-21
 Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251+/8-. Revisor diferente do autor da E1.1 (D-ETAPAS-INST). Segurança (E1.3): parecer próprio do `security-engineer`, não refeito aqui.
 
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
+
+## Volta 4
+Delta lido: `50bf8f8..f02f482` (1 commit de código, `f02f482`; `forge-check delta` não rodado, o delta é um commit só e foi lido inteiro): `hooks/conformidade.py:668-679` (no `except ValueError`, `ilegivel` no nível aninhado, depois `nao_modelada(achado)` e, fora do papel só de leitura, `barrar` R-CONFORMIDADE sempre, sem depender de `CRITICO`); `tests/test_hooks.py` (`executar_em_lote` extraído de `test_fixtures`; `SUFIXOS_QUE_O_BASH_IGNORA`; o teste de 11 linhas da volta 3 deu lugar a `test_recusas_com_sufixo_que_o_bash_ignora_continuam_recusadas`); a fixture `shell-aspas-desbalanceadas-libera` renomeada para `-bloqueia` (código 2); o fragmento do changelog. Já lido (rodada 1, voltas 1 a 3, abaixo): o resto da entrega, sem mudança.
+
+1. **A4 (meu) e A6 da segurança corrigidos pela causa.** O `return` do `except ValueError` deixou de pular as checagens em silêncio: fora do papel só de leitura a linha que o hook não lê é recusada, com ou sem marcador crítico, que é a correção mínima pedida nos dois pareceres e na decisão do dono de 07:48. A ordem preserva as mensagens mais específicas: `ilegivel` (R-CONTRIB, aninhado apontando para o Forge) e `nao_modelada` falam antes. O papel só de leitura fica como estava, e isso está certo: no nível 0 a gramática dele já recusa antes (fixture `conferente-gramatica-aspas-abertas-bloqueia`), e no nível aninhado ele já é barrado na entrada de `bash()`. O comentário desatualizado que eu apontei na volta 3 (`o próprio shell vai recusar`) saiu.
+2. **O teste gerado prende a regressão.** Ele percorre as 504 fixtures de recusa de Bash do `conformidade` (piso `minimo(…, 400)`), soma os dois sufixos e roda 998 casos pelo mesmo `executar_em_lote` de `test_fixtures`, com nome de subTest próprio. Prova de que pega o A4: na cópia de f02f482 com o `hooks/conformidade.py` de 50bf8f8 no lugar, o teste sai com `FAILED (failures=300)` (`api-graphql-merge-bloqueia`, `comentario-colado-sugerir-fila-bloqueia`, `contrib-api-*`…); com o hook de f02f482, passa.
+3. **As 5 fixtures fora do teste gerado não escondem furo.** Sondei as 5 com os dois sufixos pelo hook real (fixtures temporárias, esperado só o código). As 3 de `erros_log` (`contrib-falha-fechada-pela-raiz-cwd-home-bloqueia`, `…-cwd-wt-bloqueia`, `erro-interno-push-bloqueia`) seguem com código 2 nos dois sufixos; elas ficam fora só porque o esperado delas é o erro interno, não o `R-` genérico. Das 2 que o `bash -n` rejeita, `shell-aspas-desbalanceadas-bloqueia` + ` # it's ((` e `conferente-gramatica-aspas-abertas-bloqueia` + ` # it's ((` recusam; com `; (true)#'` o sufixo fecha a aspa aberta e a linha vira outra, inofensiva (`echo 'abre; (true)#'` e `grep -n 'v1 src/app.js; (true)#'`, sem ação crítica): liberar ali está certo e não é regressão. O teto `≤ 6` dá folga de 1, e a lista sai na mensagem da asserção.
+4. **Sondas sem marcador crítico** (a classe do A4): `gh repo delete dono/proj --yes; (true)#'`, `gh repo delete dono/proj --yes # it's ((` e `git filter-branch -f HEAD # x (( it's` saem com código 2.
+5. **Recusa a mais, medida.** Liberam (código 0): `ls # it's fine`, `echo "it's"`, `git log --oneline | head -3 # don't` e a mensagem de commit por heredoc com apóstrofo. Recusam a mais: `(( 1 )) && echo ok # it's` (já previsto na volta 3, agora também sem ação crítica) e `echo $'it\'s'` (aspa ANSI-C, que o bash aceita e o `shlex` não fecha). É a direção segura, decidida pelo dono, e rara; a mensagem diz como contornar.
+6. **Refatoração de `test_fixtures`.** `executar_em_lote` mantém a separação série/paralelo por PID e trava, devolve a contagem e `test_fixtures` segue afirmando `todo fixture é verificado`. O `Fixture(caminho, dados)` copia os dados por `json.loads(json.dumps(…))`, então a fixture original não é alterada entre os casos.
+7. **Regras.** Endurece o controle, sem afrouxar nada (a fixture que liberava passa a recusar); sem custo (R-CUSTO); nada de projeto (R-NEUTRO); `invariantes` não tocados; fragmento do changelog, sem editar o `CHANGELOG.md`. Commit único em Conventional Commits.
+
+Ferramentas na volta 4, na cópia de f02f482 sem sondas: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_recusas_com_sufixo_que_o_bash_ignora_continuam_recusadas` → `OK` (4m38s). Suíte inteira: no pre-push deste envio e no QA (R-TETO). Segurança da volta 4: parecer próprio do `security-engineer`, não refeito aqui.
+
+Recomendações da volta 4 (não bloqueiam):
+- `tests/test_hooks.py:1109`: o teste gerado leva ~3 min sozinho (998 casos) e entra em toda suíte; se o R-TETO apertar, vale rodar só um sufixo por fixture em rodízio determinístico, ou só as fixtures cuja linha o hook lê sem o sufixo.
+- `hooks/conformidade.py:677`: a mensagem fala em aspas sem par, mas o `ValueError` também vem de barra no fim e de aspa ANSI-C (`$'…\'…'`); um texto como "linha que o hook não consegue ler" cobriria os três casos.
+- As 3 fixtures de `erros_log` poderiam entrar no teste gerado com o esperado delas (código 2), no lugar de ficar fora; reduziria o teto para 2.
+
+## Achados
 
 ## Volta 3
 **Correção depois do envio (becc0b7 aprovava):** a segurança (3d8b449, A6) mostrou que a recusa nova só vale com `CRITICO`, e eu reproduzi: na cópia de 371ac6d, a fixture `trava-repo-delete-bloqueia` com o sufixo `; (true)#'` e com ` # it's ((` sai com **0** (`AssertionError: 0 != 2`); na cópia da base 10c838f, as mesmas duas saem com 2. Minhas sondas do item 4 só usaram linhas com `CRITICO`, e eu não considerei que boa parte das recusas do hook (`gh repo delete`, caminho protegido fora de `CRITICO`, `forge sugerir`, `git filter-branch`…) não passa por ele. O `return` do `except ValueError` pula todas essas checagens. Vira o meu A4, abaixo; o item 1 vale só para linha com marcador crítico, e o item 6 (aviso do conferente) deixa de ser aceito: a não regressão precisa ser gerada das fixtures de recusa com os dois sufixos, como a sonda da segurança fez, não de 11 linhas escolhidas à mão. A correção mínima da segurança (no mesmo `except ValueError`, recusar sempre fora do papel só de leitura) me parece a certa; a fixture `shell-aspas-desbalanceadas-libera` passa a esperar 2, o que endurece.
@@ -36,8 +56,8 @@ Recomendações da volta 3 (não bloqueiam):
 Achados da volta 2 (resolvidos na volta 3):
 - A3 da volta 2 (resolvido) hooks/_comum.py:227 · com `((` ou `=~` na linha, um `'` no comentário dava ValueError e conformidade.py:668 liberava; agora a linha crítica ilegível é recusada.
 
-## Achados
-- A4 (bloqueante) hooks/conformidade.py:672 · a recusa da linha ilegível só vale com CRITICO; `gh repo delete dono/proj --yes; (true)#'` e `… # it's ((` saem com 0 (a base barra). Regressão; é o A6 da segurança. Recusar a linha ilegível fora do papel só de leitura sempre.
+Achados da volta 3 (resolvidos na volta 4):
+- A4 da volta 3 (resolvido) hooks/conformidade.py:672 · a recusa da linha ilegível só valia com CRITICO; `gh repo delete dono/proj --yes; (true)#'` e `… # it's ((` saíam com 0 (a base barra). Agora a linha ilegível é recusada sempre fora do papel só de leitura.
 
 ## Volta 2
 Delta lido: `ee29c11..7013204` (2 commits de código: `11b63de` e `7013204`; os outros dois são os pareceres): `hooks/_comum.py` junta as duas constantes em `INICIO_DE_PALAVRA` (sem `(` nem `)`), cria `SEM_COMENTARIO` (`((` ou `=~` em qualquer ponto da linha) e `abre_comentario`, usada por `fichas` e por `construcao_nao_modelada`; 7 fixtures de recusa em `tests/hooks/conformidade/`; teste `test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex`; fragmento do changelog. Já lido (rodada 1 e volta 1, abaixo): o resto da entrega, sem mudança.
