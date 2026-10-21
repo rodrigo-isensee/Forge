@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: ee29c112923e72d687983d2109b5684c169d5193
-parecer: reprovado
+commit: 7013204f54c8e763f15217934f8b68bcaf897e4b
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -13,6 +13,20 @@ data: 2026-10-21
 Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251+/8-. Revisor diferente do autor da E1.1 (D-ETAPAS-INST). Segurança (E1.3): parecer próprio do `security-engineer`, não refeito aqui.
 
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
+
+## Volta 2
+Delta lido: `ee29c11..7013204` (2 commits de código: `11b63de` e `7013204`; os outros dois são os pareceres): `hooks/_comum.py` junta as duas constantes em `INICIO_DE_PALAVRA` (sem `(` nem `)`), cria `SEM_COMENTARIO` (`((` ou `=~` em qualquer ponto da linha) e `abre_comentario`, usada por `fichas` e por `construcao_nao_modelada`; 7 fixtures de recusa em `tests/hooks/conformidade/`; teste `test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex`; fragmento do changelog. Já lido (rodada 1 e volta 1, abaixo): o resto da entrega, sem mudança.
+
+1. **A1 e A2 da volta 1 corrigidos.** As cinco linhas dos meus achados (`((1 #x))` com force, `(( 1 #x ))` com no-verify, `for ((…#x…))`, `[[ a =~ ( #b) ]]` e `(a|#b)`) e o `$(echo a)#b` do A2 da segurança têm fixture de recusa (código 2) e caso no teste novo. Sonda própria em cópia por `git archive` de 7013204 em $TMPDIR: `comandos()` devolve o `git push` nas cinco linhas, e a linha do `$(…)#b` cai na guarda (`${`).
+2. **A classe está fechada, não enumerada.** Era a sugestão da volta 1. Uma regra só decide o comentário (`abre_comentario`) nos dois lugares; antes eram duas constantes que já tinham divergido (`)` só numa), que é a origem do A2 da segurança. Os comentários das constantes explicam cada ausência.
+3. **Suposição do autor (`((` e `=~` mesmo entre aspas desligam o comentário): aceita.** A falha é para o lado seguro. Com `((` ou `=~` na linha, um comentário de verdade passa a ser lido como palavras: `echo "=~" # nota` dá `['echo', '=~', '#', 'nota']` (um push citado no comentário seria recusado a mais), e um apóstrofo no comentário (`echo '((' # it's`) faz o `shlex` falhar (`No closing quotation`), o que também recusa. Ler a menos não acontece. O custo é recusa a mais em linhas raras (aritmética ou `=~` junto de comentário), e o agente contorna tirando o comentário. Separar `((` real de `((` entre aspas exigiria modelar aspas e aritmética, que o hook não modela. Sem `((` nem `=~`, o comentário segue valendo (`ls # nota $X; git push` dá só `['ls']`, e a guarda não acusa nada), e nenhuma fixture existente mudou de resultado.
+4. **Contextos vizinhos sondados, sem furo.** Pelo hook real (fixtures temporárias em `conformidade/`, rodadas por `test_fixtures`): `` echo `echo a #x`; git push --force origin main ``, `` …; git push origin main ``, `echo ${x:- #y}; git push --force origin main` e `echo $[1 #x]; git push --force origin main` saem com código 2. Nesses casos o bash roda o push (crase e `${…}`) e o `comandos()` não o enxerga, mas a guarda de construção não modelada recusa (`crase`, `${`, `$[`). Conferi que as sondas foram lidas: uma variante esperando 0 falhou. `x=( #c\n); git push` cai em `# + outra linha`.
+5. **Testes.** O teste novo é positivo (afirma o `git push` em cada linha) e traz o contraponto sem `((`/`=~`, então não é teste de ausência frágil.
+6. **Regras e commits.** Endurece um controle existente, sem afrouxar nada; sem custo (R-CUSTO); nada de projeto (R-NEUTRO); `invariantes` não tocados. O changelog é fragmento, sem editar o `CHANGELOG.md`. Commits em Conventional Commits, código e changelog separados.
+
+Ferramentas na volta 2, na cópia de 7013204: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra tests.test_hooks.Hooks.test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex` → `Ran 3 tests in 90.477s OK`. Suíte inteira: no pre-push deste envio e no QA (R-TETO). Segurança da volta 2: parecer próprio do `security-engineer`, não refeito aqui.
+
+## Achados
 
 ## Volta 1
 Delta lido: `74dc3f6..ee29c11` (1 commit: `hooks/_comum.py` tira `(` de `ANTES_DE_COMENTARIO` e de `INICIO_DE_PALAVRA`; 4 fixtures `comentario-depois-de-*`; 3 casos em `test_cerquilha_so_abre_comentario_no_inicio_de_palavra`), contra o A1 da segurança. Já lido (rodada 1, abaixo): o resto da entrega, sem mudança.
@@ -24,9 +38,9 @@ Delta lido: `74dc3f6..ee29c11` (1 commit: `hooks/_comum.py` tira `(` de `ANTES_D
 
 Ferramentas na volta 1: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures` na cópia de ee29c11 com as 3 sondas: `Ran 1 test in 59.637s FAILED (failures=2)`, as duas falhas sendo só `zz-sonda-1` e `zz-sonda-2` (`AssertionError: 0 != 2`); todas as fixtures da entrega passam. Suíte inteira: fica para o pre-push deste envio e para o QA (R-TETO).
 
-## Achados
-- A1 (bloqueante) hooks/_comum.py:223 · `#` depois de espaço dentro de `((…))` abre comentário onde o bash não: `((1 #x)); git push --force origin main` e `(( 1 #x )); git push --no-verify origin feature/x` saem com código 0 e o bash roda o push; idem `for ((…#x…))`. Mesma lacuna em :391.
-- A2 (bloqueante) hooks/_comum.py:223 · na regex do `=~` em `[[ ]]`, `#` depois de espaço ou `|` não é comentário no bash: `[[ a =~ ( #b) ]]; git push` e `[[ a =~ (a|#b) ]]; git push` escondem o push do hook (comandos() devolve só `[[ a =~`). Mesma lacuna em :391.
+Achados da volta 1 (resolvidos na volta 2):
+- A1 da volta 1 (resolvido) hooks/_comum.py:223 · `#` depois de espaço dentro de `((…))` abre comentário onde o bash não: `((1 #x)); git push --force origin main` e `(( 1 #x )); git push --no-verify origin feature/x` saem com código 0 e o bash roda o push; idem `for ((…#x…))`. Mesma lacuna em :391.
+- A2 da volta 1 (resolvido) hooks/_comum.py:223 · na regex do `=~` em `[[ ]]`, `#` depois de espaço ou `|` não é comentário no bash: `[[ a =~ ( #b) ]]; git push` e `[[ a =~ (a|#b) ]]; git push` escondem o push do hook (comandos() devolve só `[[ a =~`). Mesma lacuna em :391.
 
 ## Recomendações (não bloqueiam)
 - `hooks/_comum.py:249`: um comentário curto dizendo que o `seek` vale porque o `instream` é `StringIO` (linha passada como `str`) deixaria explícita a premissa de que o salto depende (pendente da rodada 1).
