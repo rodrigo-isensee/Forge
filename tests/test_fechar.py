@@ -36,6 +36,7 @@ case "$1 $2" in
     case "$*" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *baseRefName,isDraft*) echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN)"; exit 0 ;;
+      *mergeCommit*) cat "$ESTADO/merge_commit" 2>/dev/null; exit 0 ;;
       *headRefOid*) cat "$ESTADO/head" 2>/dev/null; exit 0 ;;
       *labels*|*title,body*) [ -f "$ESTADO/falha_leitura" ] && exit 1 ;;&
       *labels*)
@@ -722,6 +723,38 @@ class Fechar(unittest.TestCase):
         self.assertTrue(any("parou no passo 4" in x for x in erros), linhas)
         self.assertFalse(any("[4] checks" in x and "[err]" in x for x in linhas))
         self.assertTrue(all(x[:4].isdigit() and x[10] == "T" and x[19] == "Z" for x in linhas), linhas)
+
+    # ---- C2: número da execução e do job de cada check no log ----
+    def test_c2_log_traz_run_e_job_de_cada_check_o_head_e_o_commit_do_merge(self):
+        (self.estado / "checks").write_text(
+            "bateria\tpass\t5m\thttps://github.com/o/r/actions/runs/111/job/222\n"
+            "catraca\tpass\t5s\thttps://github.com/o/r/actions/runs/333/job/444\n"
+            "extra\tskipping\t0\thttps://exemplo.test/sem-padrao?token=ghp_SEGREDO123\n")
+        (self.estado / "merge_commit").write_text("abc123def456")
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        texto = self.log_de(r).read_text()
+        for esperado in ("check bateria pass run=111 job=222", "check catraca pass run=333 job=444",
+                         "check extra skipping run=? job=?", f"head: {sha}", "merge: abc123def456"):
+            self.assertIn(esperado, r.stdout)
+            self.assertIn(esperado, texto)
+        self.assertNotIn("ghp_SEGREDO123", texto)
+        self.assertLess(texto.index("check bateria"), texto.index("[6] "))
+        self.assertLess(texto.index("[6] "), texto.index("merge: abc123def456"))
+
+    def test_c2_check_vermelho_continua_parando_sem_linhas_de_resumo(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\thttps://github.com/o/r/actions/runs/1/job/2\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotIn("check bateria", r.stdout)
+        self.assertNotIn("checks verdes", r.stdout)
+
+    def test_c2_contagem_pendente_so_quando_muda(self):
+        (self.estado / "checks").write_text("bateria\tpending\t0\turl\ncatraca\tpass\t1s\turl\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "2", FORGE_FECHAR_INTERVALO="1")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.count("checks: pass=1 pendentes=1"), 1, r.stdout)
 
 
 if __name__ == "__main__":

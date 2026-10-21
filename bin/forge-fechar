@@ -240,6 +240,7 @@ fi
 if [ "$ja_mesclado" = 0 ]; then
   inicio=$SECONDS
   apos_rotulo=0
+  ultimo_resumo=""
   msg_rotulo="parou no passo 5: o PR pede o rótulo afrouxa-regra (no título ou em item marcado) e o dono ainda não o aplicou; o script nunca aplica rótulo"
   while :; do  # com --esperar-rotulo o laço repete os passos 4 e 5; sem a opção roda uma vez só
   passo 4 "checks (até ${espera}s)"
@@ -281,6 +282,9 @@ if [ "$ja_mesclado" = 0 ]; then
       printf '%s\n' "$saida" >&2
       die "parou no passo 4: há check vermelho ou desconhecido; corrija e rode de novo"
     fi
+    # Uma linha no log por mudança de contagem (não enche o log na espera longa).
+    resumo="checks: pass=$(printf '%s\n' "$estados" | grep -cE '^(pass|skipping)$' || true) pendentes=$(printf '%s\n' "$estados" | grep -cE '^(pending|queued|in_progress)$' || true)"
+    [ "$resumo" = "$ultimo_resumo" ] || { echo "$resumo"; ultimo_resumo="$resumo"; }
     printf '%s\n' "$estados" | grep -qE '^(pending|queued|in_progress)$' || break
     if [ $((SECONDS - inicio)) -ge "$espera" ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
@@ -291,6 +295,12 @@ if [ "$ja_mesclado" = 0 ]; then
     [ "$esperar" = 0 ] || continue 2
   done
   echo "checks verdes."
+  # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
+  printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {
+    run = "?"; job = "?"
+    if (match($4, /\/runs\/[0-9]+\/job\/[0-9]+/)) { split(substr($4, RSTART, RLENGTH), p, "/"); run = p[3]; job = p[5] }
+    print "check " $1 " " $2 " run=" run " job=" job }'
+  echo "head: $remoto_sha"
 
   passo 5 "rótulo"
   rotulos="$(ler "$gh" pr view "$ref" --json labels --jq '.labels[].name')" || die "parou no passo 5: não consegui ler os rótulos do PR"
@@ -331,6 +341,7 @@ if [ "$ja_mesclado" = 0 ]; then
   fi
   estado="$(ler "$gh" pr view "$ref" --json state --jq .state || true)"
   [ "$estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${estado:-desconhecido})"
+  echo "merge: $(ler "$gh" pr view "$ref" --json mergeCommit --jq .mergeCommit.oid || true)"
 fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
