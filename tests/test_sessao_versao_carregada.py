@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_atualizar import ATUALIZAR, Base as BaseAtualizar  # noqa: E402
 from test_doutor import Base, VERSAO  # noqa: E402
 
 AVISO = "está instalado, mas esta sessão roda a"
@@ -49,6 +50,15 @@ class SessaoDefasada(Base):
         r = self.doutor("--rapido")
         self.assertIn("claude plugin update", r.stdout)
         self.assertNotIn(AVISO, r.stdout)
+
+
+class SaidaDoAtualizar(BaseAtualizar):
+    def test_caminho_feliz_cita_o_comando_para_voltar_e_o_aviso_da_sessao(self):
+        self.publicar("9.9.0")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("Para voltar: forge voltar-versao", saida)
+        self.assertIn("esta sessão roda a", saida)
 
 
 if __name__ == "__main__":
