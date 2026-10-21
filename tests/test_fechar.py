@@ -841,6 +841,23 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.marcas("git branch -D"), [])
         self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
 
+    def test_c3_branch_remota_com_commit_alem_do_mesclado_nao_e_apagada(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "novo").write_text("depois do merge\n")
+        self.git("add", "novo")
+        self.git("commit", "-q", "-m", "feat: depois do merge")
+        self.git("push", "-q", "origin", "melhoria/x")
+        novo = self.git("rev-parse", "melhoria/x")
+        self.git("reset", "-q", "--hard", sha)
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.marcas("git push origin --delete"), [])
+        self.assertIn(novo, self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
     def test_c3_limpar_sem_prova_de_pr_merged_recusa_e_nao_apaga_nada(self):
         self.com_worktree()
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
