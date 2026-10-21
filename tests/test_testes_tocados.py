@@ -258,7 +258,9 @@ class NaoEPortao(unittest.TestCase):
                  RAIZ / "bin" / "forge-check"]
         arquivos = []
         for alvo in alvos:
-            arquivos += [alvo] if alvo.is_file() else [p for p in alvo.rglob("*") if p.is_file()]
+            # __pycache__ fica de fora: o .pyc guarda o caminho da worktree, que pode se chamar forge-testes-*
+            arquivos += [alvo] if alvo.is_file() else [p for p in alvo.rglob("*")
+                                                       if p.is_file() and "__pycache__" not in p.parts]
         self.assertGreaterEqual(len(arquivos), 5)
         for arquivo in arquivos:
             with self.subTest(str(arquivo.relative_to(RAIZ))):
