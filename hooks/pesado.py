@@ -24,7 +24,10 @@ LANCADORES = {"sudo", "env", "time", "nice", "nohup", "exec", "command", "npx", 
 GERENCIADORES = {"npm", "pnpm", "yarn", "bun", "uv", "poetry"}
 SUBCOMANDOS_DE_LANCE = {"exec", "run", "dlx", "x"}
 # A suíte completa do Forge é tarefa pesada (R-TETO): o `.forge/` do clone é protegido e não traz esta lista.
-PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover"]
+# scripts/suite-paralela.py é a mesma suíte dividida em processos (D4), que o pre-push e o CI chamam.
+PESADOS_DO_FORGE = ["python3 -m unittest discover", "python -m unittest discover",
+                    "python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
+                    "scripts/suite-paralela.py", "./scripts/suite-paralela.py"]
 
 
 def pesados_da_raiz(hook, raiz):

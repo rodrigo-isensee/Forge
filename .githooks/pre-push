@@ -150,7 +150,11 @@ so_parecer() {
 if so_parecer; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
   python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+elif [ -f scripts/suite-paralela.py ]; then
+  # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
+  python3 scripts/suite-paralela.py 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 else
+  # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
   python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 fi
 # Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}

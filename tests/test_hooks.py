@@ -851,10 +851,18 @@ class Hooks(unittest.TestCase):
         self.assertTrue(pesado.pesado("cd tests && PYTHONPATH=. python -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
         self.assertFalse(pesado.pesado("python3 -m unittest tests.test_forge", pesado.pesados_da_raiz(hook, raiz)))
         self.assertFalse(pesado.pesado("echo python3 -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
+        # D4: a suíte dividida em processos (o que o pre-push e o CI chamam) também é a suíte inteira
+        for comando in ("python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
+                        "scripts/suite-paralela.py", "./scripts/suite-paralela.py",
+                        "FORGE_SUITE_PROCS=2 python3 scripts/suite-paralela.py 2>&1 | tail -1"):
+            with self.subTest(comando=comando):
+                self.assertTrue(pesado.pesado(comando, pesado.pesados_da_raiz(hook, raiz)))
+        self.assertFalse(pesado.pesado("cat scripts/suite-paralela.py", pesado.pesados_da_raiz(hook, raiz)))
         hook = _comum.Hook("pesado")
         raiz = hook.projeto(projeto, clone_do_forge=True)
         self.assertEqual(raiz, projeto)
         self.assertFalse(pesado.pesado(suite, pesado.pesados_da_raiz(hook, raiz)))  # projeto: só o que a config lista
+        self.assertFalse(pesado.pesado("python3 scripts/suite-paralela.py", pesado.pesados_da_raiz(hook, raiz)))
 
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
