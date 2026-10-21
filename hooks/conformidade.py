@@ -74,6 +74,20 @@ TODOS_OS_ARGUMENTOS = {"rm", "mv", "tee", "truncate", "shred", "unlink", "rmdir"
 SO_DESTINO = {"cp", "ln", "install", "rsync"}
 LEITORES = {"cat", "head", "tail", "less", "more", "bat", "nl", "tac", "source", ".", "grep", "egrep", "rg", "xxd",
             "od", "strings", "base64"}
+# F6: leitor sem execução (sem `source`/`.`, pagers e `xxd`, que executam ou gravam por argumento) e as opções que não executam
+# programa nem gravam (curtas pela letra; longas pelo nome exato, sem abreviação: `--pre`, `--filter`, `--pager`, `--config`,
+# `--output`, `--ext-diff` ficam de fora, e na dúvida recusa)
+LEITORES_SEM_EXEC = {"cat", "head", "tail", "nl", "tac", "grep", "egrep", "rg", "od", "strings", "base64"}
+GIT_LEITURA = {"log", "show", "diff"}
+CURTAS_SEM_EXEC = set("AbBcCdeEfFGHhiIjklLmnNoqrRsStTuvwxX0123456789")
+LONGAS_SEM_EXEC = {"recursive", "dereference-recursive", "line-number", "ignore-case", "count", "files-with-matches",
+                   "files-without-match", "fixed-strings", "no-filename", "with-filename", "include", "exclude",
+                   "exclude-dir", "max-count", "context", "after-context", "before-context", "extended-regexp",
+                   "word-regexp", "line-regexp", "invert-match", "only-matching", "quiet", "silent", "no-messages",
+                   "regexp", "bytes", "lines", "decode", "stat", "oneline", "name-only", "name-status", "no-color",
+                   "no-merges", "graph", "all", "abbrev-commit", "shortstat", "numstat", "cached", "staged", "patch",
+                   "summary", "follow", "merges", "reverse", "first-parent", "decorate", "pretty", "format", "author",
+                   "since", "until", "no-ext-diff", "no-textconv"}
 ARQUIVO_ENV = re.compile(r"^\.env(\.[\w.-]+)?$")
 ENV_DE_EXEMPLO = {"example", "sample", "template", "dist"}
 HEREDOC = re.compile(r"(?<!<)<<-?\s*(['\"]?)([A-Za-z_][\w-]*)\1")
@@ -139,6 +153,47 @@ SIMPLES = {
 # F6: o mesmo vale para enviar sugestão ao Forge (`forge sugerir`, `forge-sugerir`): só `--guardar` é do agente. A variável de
 # ambiente que o script confere some com `env -i`; por isso a defesa principal é este hook.
 GUARDAR_EXATO = re.compile(r"(?:forge sugerir|forge-sugerir|bin/forge-sugerir) --guardar (\"[^\"$`\\!]*\"|'[^']*')", re.S)
+
+
+def opcoes_sem_exec(args):
+    """Todas as opções são de leitura pura: curta só com letras de `CURTAS_SEM_EXEC`, longa só pelo nome exato em
+    `LONGAS_SEM_EXEC`; `+comando` (less) e qualquer outra forma recusam. Depois de `--` tudo é argumento."""
+    for a in args:
+        if a == "--":
+            return True
+        if a.startswith("--"):
+            if a[2:].split("=", 1)[0] not in LONGAS_SEM_EXEC:
+                return False
+        elif a.startswith("-") and len(a) > 1:
+            if not set(a[1:]) <= CURTAS_SEM_EXEC:
+                return False
+        elif a.startswith("+"):
+            return False
+    return True
+
+
+def so_leitura(linha):
+    """F6: a linha só lê (todo segmento da leitura fiel de `leituras()`, ADR 0013, é leitor sem execução ou
+    `git log|show|diff`), sem `$`, crase, `#` (sem comentário, a leitura é uma só e não há o que provar), várias linhas, substituição, redirecionamento de saída nem opção que execute programa: `forge` e `sugerir` ali são dado.
+    `eval`, `xargs`, shell aninhado, variável antes do programa e programa com caminho não são leitor: recusam. Na dúvida, False."""
+    if re.search(r"[$`\n#]", linha):
+        return False
+    lidas = leituras(linha)
+    if lidas.ilegivel or len(lidas.partes) != 1 or not lidas.partes[0]:
+        return False
+    for palavras, destinos, sub in lidas.partes[0]:
+        if destinos or sub or not palavras:
+            return False
+        prog, args = palavras[0], palavras[1:]
+        if prog == "git":
+            if not args or args[0] not in GIT_LEITURA:
+                return False
+            args = args[1:]
+        elif prog not in LEITORES_SEM_EXEC:
+            return False
+        if not opcoes_sem_exec(args):
+            return False
+    return True
 
 
 def guardar_exato(linha):
@@ -745,9 +800,9 @@ class Guarda:
                         "no lugar de echo $?: && echo contém || echo não contém")
 
     def sugerir_na_linha(self, linha):
-        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira. Qualquer
-        outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
-        if guardar_exato(linha):
+        """F6, lista branca estrita: a única linha com `sugerir` que passa é `forge sugerir --guardar "<texto>"` inteira, ou a
+        linha só de leitura (`so_leitura`: `grep -n 'forge sugerir' README.md`). Qualquer outra que contenha a palavra, mesmo ofuscada (`sug""erir`, `$S`, `forge $S`), é recusada: na dúvida, recusa."""
+        if guardar_exato(linha) or so_leitura(linha):
             return
         limpa = re.sub(r"[\"'\\`]", "", linha)
         if "sugerir" in limpa or re.search(r"(?:^|[\s;&|(])(?:\S*/)?forge[\"']?\s+[\"']?\S*[$`*?\[{~]", linha):

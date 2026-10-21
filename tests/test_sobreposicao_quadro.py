@@ -1,9 +1,13 @@
-"""`forge-check sobreposicao` (TA-6) e `forge-check movimento` (PA-9), mais a fila de integração (PA-3) como texto."""
+"""`forge-check sobreposicao` (TA-6) e `forge-check movimento` (PA-9), mais a fila de integração (PA-3) como texto;
+`forge-check fila` (P9: o que pode começar agora, T1 a T8)."""
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -251,6 +255,202 @@ class RegrasEmTexto(unittest.TestCase):
         t = self.texto("skills/kanban-scrum/SKILL.md")
         for trecho in ("forge-check movimento", "Aguardando o dono", "Sem credencial", "ISO 8601"):
             self.assertIn(trecho, t)
+
+
+
+CABECALHO_FILA = "| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |\n|---|---|---|---|---|---|---|\n"
+COLUNAS_FILA = ["Pronto para fazer (WIP 5)", "Em andamento (WIP 1 por agente)", "Pronto"]
+
+
+class Fila(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-fila-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.proc = self.tmp / "proc-falso"  # a carga da máquina real não pode mudar o resultado
+        self.carga(0.1)
+
+    def carga(self, load, nucleos=8):
+        self.proc.mkdir(exist_ok=True)
+        (self.proc / "loadavg").write_text(f"{load} 0.1 0.1 1/100 1\n", encoding="utf-8")
+        (self.proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 12582912 kB\n", encoding="utf-8")
+        self.nucleos = nucleos
+
+    def gravar(self, rel, texto):
+        arq = self.tmp / rel
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(texto, encoding="utf-8")
+
+    def quadro(self, **colunas):
+        """colunas: pronto_para_fazer, em_andamento, pronto = lista de (cartão, pedido)."""
+        texto = "# Quadro\n"
+        for nome, chave in zip(COLUNAS_FILA, ("pronto_para_fazer", "em_andamento", "pronto")):
+            texto += f"\n## {nome}\n{CABECALHO_FILA}"
+            for cartao, pedido in colunas.get(chave, []):
+                texto += f"| {cartao} | {cartao} | {pedido} | forge:tech-lead | 2026-10-21 | 2026-10-21 | |\n"
+        self.gravar("KANBAN.md", texto)
+
+    def pedido(self, id_, depende=None):
+        linha = "" if depende is None else f"- **Depende de:** {depende}\n"
+        self.gravar(f"docs/pedidos/{id_}.md", f"# Pedido {id_}\n\n- **Modo:** implementar\n{linha}\n## Escopo\n- E1. x\n")
+
+    def teto(self, teto, agentes=0):
+        self.gravar(".forge/config.json", json.dumps({"teto_agentes": teto}))
+        self.gravar(".forge/run/agentes.json", json.dumps({"agentes": [
+            {"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(agentes)]}))
+
+    def rodar(self, *args, raiz=None):
+        env = {**AMBIENTE, "FORGE_PROC": str(self.proc), "FORGE_NPROC": str(self.nucleos), "HOME": str(self.tmp / "home")}
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--raiz", str(raiz or self.tmp), "fila", *args], capture_output=True, text=True, env=env)
+        return r.returncode, r.stdout.splitlines()
+
+    def test_t1_dependencia_fora_de_pronto_espera(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1")], em_andamento=[("C0", "p0")])
+        self.pedido("p1", "p0")
+        self.pedido("p0")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "espera: C1 (p1) | depende de p0 (coluna Em andamento)")
+        self.assertTrue(linhas[-1].startswith("fila: 0 podem começar"), linhas)
+
+    def test_t2_dependencia_em_pronto_pode_comecar(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1")], pronto=[("C0", "p0")])
+        self.pedido("p1", "p0")
+        self.pedido("p0")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "pode-comecar: C1 (p1)")
+        self.assertTrue(linhas[-1].startswith("fila: 1 podem começar"), linhas)
+
+    def test_t3_ciclo_espera(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1"), ("C2", "p2")])
+        self.pedido("p1", "p2")
+        self.pedido("p2", "p1")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual([l for l in linhas if l.startswith("espera:")],
+                         ["espera: C1 (p1) | ciclo de dependências", "espera: C2 (p2) | ciclo de dependências"])
+        self.assertTrue(linhas[-1].startswith("fila: 0 podem começar"), linhas)
+
+    def test_t4_excedentes_do_teto_esperam(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1"), ("C2", "p2"), ("C3", "p3")])
+        for p in ("p1", "p2", "p3"):
+            self.pedido(p, "nenhum")
+        self.teto(3, agentes=1)  # 2 vagas
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[:3], ["pode-comecar: C1 (p1)", "pode-comecar: C2 (p2)", "espera: C3 (p3) | teto"])
+        self.assertEqual(linhas[-1], "fila: 2 podem começar, 2 vagas de 3 (1 ativos), 1 esperam")
+
+    def test_t5_carga_alta_zera_as_vagas(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1", "nenhum")
+        self.teto(3)
+        self.carga(50.0, nucleos=4)
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "espera: C1 (p1) | teto")
+        self.assertEqual(linhas[-1], "fila: 0 podem começar, 0 vagas de 3 (0 ativos), 1 esperam")
+
+    def test_t6_sobreposicao_avisa_sem_bloquear(self):
+        git(self.tmp, "init", "-q", "-b", "develop")
+        self.gravar("base.txt", "base\n")
+        git(self.tmp, "add", "base.txt")
+        git(self.tmp, "commit", "-q", "-m", "base")
+        for ramo in ("melhoria/p1", "melhoria/outra"):
+            git(self.tmp, "switch", "-q", "-c", ramo, "develop")
+            self.gravar("comum.txt", ramo)
+            git(self.tmp, "add", "comum.txt")
+            git(self.tmp, "commit", "-q", "-m", ramo)
+        git(self.tmp, "switch", "-q", "develop")
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1", "nenhum")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[0], "pode-comecar: C1 (p1)")
+        self.assertIn("aviso: C1 sobrepõe melhoria/outra: comum.txt", linhas)
+        self.assertTrue(linhas[-1].startswith("fila: 1 podem começar"), linhas)
+
+    def test_t7_pedido_sem_a_linha_avisa_e_trata_como_nenhum(self):
+        self.quadro(pronto_para_fazer=[("C1", "p1")])
+        self.pedido("p1")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertIn("pode-comecar: C1 (p1)", linhas)
+        self.assertIn("aviso: p1 sem Depende de", linhas)
+
+    def test_agentes_ativos_vem_da_copia_principal_numa_worktree(self):
+        principal, wt = self.tmp / "principal", self.tmp / "wt"
+        principal.mkdir()
+        git(principal, "init", "-q", "-b", "develop")
+        (principal / "a.txt").write_text("a\n", encoding="utf-8")
+        git(principal, "add", "a.txt")
+        git(principal, "commit", "-q", "-m", "base")
+        git(principal, "worktree", "add", "-q", "--no-track", "-b", "melhoria/x", str(wt))
+        agentes = [{"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(2)]
+        (principal / ".forge" / "run").mkdir(parents=True)
+        (principal / ".forge" / "run" / "agentes.json").write_text(json.dumps({"agentes": agentes}), encoding="utf-8")
+        (wt / ".forge").mkdir()
+        (wt / ".forge" / "config.json").write_text(json.dumps({"teto_agentes": 3}), encoding="utf-8")
+        self.tmp, original = wt, self.tmp
+        try:
+            self.quadro(pronto_para_fazer=[("C1", "p1")])
+            self.pedido("p1", "nenhum")
+            rc, linhas = self.rodar(raiz=wt)
+        finally:
+            self.tmp = original
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[-1], "fila: 1 podem começar, 1 vagas de 3 (2 ativos), 0 esperam", linhas)
+
+    def test_agentes_vigentes_contados_sem_config_na_raiz(self):
+        principal, wt = self.tmp / "principal", self.tmp / "wt"
+        principal.mkdir()
+        git(principal, "init", "-q", "-b", "develop")
+        (principal / "a.txt").write_text("a\n", encoding="utf-8")
+        git(principal, "add", "a.txt")
+        git(principal, "commit", "-q", "-m", "base")
+        git(principal, "worktree", "add", "-q", "--no-track", "-b", "melhoria/x", str(wt))
+        agentes = [{"id": f"a{i}", "tipo": "forge:dev", "descricao": "", "desde": time.time()} for i in range(2)]
+        (principal / ".forge" / "run").mkdir(parents=True)
+        (principal / ".forge" / "run" / "agentes.json").write_text(json.dumps({"agentes": agentes}), encoding="utf-8")
+        self.tmp, original = wt, self.tmp
+        try:
+            self.quadro(pronto_para_fazer=[("C1", "p1")])
+            self.pedido("p1", "nenhum")
+            rc, linhas = self.rodar(raiz=wt)
+        finally:
+            self.tmp = original
+        self.assertEqual(rc, 0)
+        self.assertEqual(linhas[-1], "fila: 1 podem começar, 6 vagas de 8 (2 ativos), 0 esperam", linhas)
+
+    def test_quadro_sem_as_colunas_avisa_qual_falta(self):
+        self.gravar("KANBAN.md", f"# Quadro\n\n## Em andamento\n{CABECALHO_FILA}")
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertIn("aviso: o quadro não tem a coluna \"Pronto para fazer\"", linhas)
+        self.assertIn("aviso: o quadro não tem a coluna \"Pronto\"", linhas)
+        self.assertTrue(linhas[-1].startswith("fila: 0 podem começar"), linhas)
+
+    def test_t8_sem_quadro(self):
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertEqual(len(linhas), 1)
+        self.assertTrue(linhas[0].startswith("fila: ") and "não tem KANBAN.md" in linhas[0], linhas)
+        self.assertFalse((self.tmp / "docs" / "kanban").exists())
+
+    def test_saida_limitada_a_15_linhas_e_so_leitura(self):
+        self.quadro(pronto_para_fazer=[(f"C{i}", f"p{i}") for i in range(30)])
+        for i in range(30):
+            self.pedido(f"p{i}", "nenhum")
+        antes = sorted(p.relative_to(self.tmp).as_posix() for p in self.tmp.rglob("*") if p.is_file())
+        rc, linhas = self.rodar()
+        self.assertEqual(rc, 0)
+        self.assertLessEqual(len(linhas), 15)
+        self.assertTrue(linhas[-1].startswith("fila: "))
+        self.assertEqual(antes, sorted(p.relative_to(self.tmp).as_posix() for p in self.tmp.rglob("*") if p.is_file()))
+
+    def test_ajuda_sai_com_zero(self):
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "fila", "--help"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0)
 
 
 if __name__ == "__main__":
