@@ -310,7 +310,7 @@ class Atualizar(Base):
         self.assertNotIn("forge-upgrade", saida, "não pede à pessoa um comando que a própria atualização está rodando")
         self.assertEqual(saida.count("Pronto"), 1, saida)
         self.assertNotIn("Algo não saiu", saida)
-        self.assertTrue(saida.rstrip().endswith("forge voltar-versao"), saida)
+        self.assertTrue(saida.rstrip().endswith("feche e abra a sessão."), saida)
 
     def test_problema_novo_do_doutor_nao_mostra_pronto_antes_de_algo_nao_saiu(self):
         self.publicar("9.9.2", falha="doutor")

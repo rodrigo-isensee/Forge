@@ -89,10 +89,71 @@ def conferir_passo(entrada, r):
         assert r.stdout == "", f"SessionStart não escreve no stdout (ADR 0003, item 1): {r.stdout!r}"
 
 
+# HOOK-COMENTARIO-SHLEX (ADR 0013): o que o bash ignora (ou roda à toa) antes ou depois de uma linha. Cada variante põe
+# um `#` num contexto em que uma leitura errada do comentário esconderia o resto, ou deixa a linha ilegível para o hook.
+PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; echo ${x/ #y/z}; ", "echo $[1 #x]; ",
+                              "(true)#'\n", "(( 1 )) # it's\n", "true #'\n", "echo $'it\\'s'; ", "[[ a =~ ( #b) ]]; ",
+                              "[[ a == @(a| #b) ]]; ", "echo a\\ #b; ")
+SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#x", "\n# it's", "; echo $'it\\'s'", "; (true)#'", " # it's ((")
+# Em par: a aspa de um comentário dentro de crase (que o bash fecha na crase) casaria com a do outro lado da linha.
+PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `# it's`; ", "; echo `# it's`"),
+                           ("echo `true # it's`;\n", "\necho `true # it's`"))
+VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
+                               + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
+# T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
+MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("echo $[1 #x]; ", ""),
+                            "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
+                            "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
+                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1]}
+FAMILIAS_DE_RECUSA = {
+    "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
+    "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
+    "conformidade/flag-push-no-verify-bloqueia": "--no-verify (R-VERIFY)",
+    "conformidade/trava-rm-pasta-githooks-bloqueia": "caminho protegido fora de .claude/",
+    "conformidade/trava-forge-sugerir-fila-bloqueia": "forge sugerir",
+    "conformidade/trava-claude-plugin-install-bloqueia": "claude plugin install",
+    "conformidade/flag-config-hookspath-bloqueia": "git config",
+    "parecer/forge-clone-pr-merge-reprovado-bloqueia": "merge com parecer reprovado (R-REVIEW)",
+    "parecer/forge-clone-pr-create-sem-parecer-bloqueia": "PR sem parecer (R-REVIEW)",
+    "pesado/outra-ativa-bloqueia": "tarefa pesada de outra sessão (R-TETO)",
+}
+# Tabela 2.4 da ADR 0013: no `pesado`, a trava de recurso fica aberta quando nenhuma das duas leituras fecha (como na
+# develop); o `$'…'` sem `#` não tem leitura antiga, e na crase em par a antiga (a da develop) tira o comando com o
+# comentário que começa na crase.
+FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
+              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas")}
+# T3: modelos `<construção> #x⏎echo R`. Fora de G, nenhum `#` pode abrir comentário; em G, todo `#` marcado tem de ser
+# comentário também para o bash.
+MODELOS_FORA_DE_G = (
+    "((#x)); echo R", "(( 1 #x )); echo R", "for ((i=0; i<1 #x; i++)); do :; done; echo R", "echo $(( 1 #x )); echo R",
+    "echo $[1 #x]; echo R", "echo ${x:- #x}; echo R", "x=abc; echo ${x/ #y/z}; echo R", "echo `echo a #x`; echo R",
+    "[[ a =~ ( #x) ]]; echo R", "[[ a =~ (a|#x) ]]; echo R", "[[ a == @(a| #x) ]]; echo R", "echo $(echo a)#x; echo R",
+    "echo $(echo a) #x\necho R", "(true)#x\necho R", "(true) #x\necho R", "echo <(true) #x\necho R",
+    "case a in a) #x\necho R;; esac", "a=( #x\n1 ); echo R", "f() #x\n{ echo R; }", "echo $'a' #x\necho R",
+    "echo $\"a\" #x\necho R", "echo \"$(echo a)\" #x\necho R", "cat <<< a #x\necho R", "echo >#x\necho R",
+    "echo a\\\n#x; echo R", "echo \"a\nb\" `true` #x\necho R", "echo a\r #x\necho R", "x=1 =~ #x\necho R",
+)
+MODELOS_EM_G = (
+    "ls #x\necho R", "ls;#x\necho R", "ls&&#x\necho R", "ls|#x\necho R", "ls &#x\necho R", "{ ls; } #x\necho R",
+    "[[ a == a ]] #x\necho R", "[[ a == a #x\n]] && echo R", "echo \"a $b\" #x\necho R", "echo 'a(b' #x\necho R",
+    "echo a\\(b #x\necho R", "echo $# #x\necho R", "echo $@ $1 $? #x\necho R", "coproc true #x\necho R",
+    "echo >&2 #x\necho R", "! true #x\necho R", "x=1 #x\necho R", "echo {a,b} #x\necho R", "echo a#b #x\necho R",
+    "for i in 1; do echo R; done #x\necho R", "if true; then echo R; fi #x\necho R", "case a in #x\na) echo R;; esac",
+    "echo ~ #x\necho R", "time ls #x\necho R", "echo a\\ b #x\necho R", "ls # um\nls # dois\necho R",
+    "echo \"it's\" #x\necho R", "git log -1 # don't\necho R",
+)
+_CORPUS = []
+
+
+def bash_aceita(linha):
+    """`bash -n`: o bash lê a linha sem erro de sintaxe (nada é executado)."""
+    return subprocess.run(["bash", "-n", "-c", linha], capture_output=True).returncode == 0
+
+
 class Fixture:
-    def __init__(self, caminho):
+    def __init__(self, caminho, dados=None):
         self.caminho = caminho
-        self.dados = json.loads(caminho.read_text(encoding="utf-8"))
+        self.dados = json.loads(caminho.read_text(encoding="utf-8")) if dados is None else dados
         self.hook = caminho.parent.name
 
     def montar(self, tmp, outro):
@@ -230,29 +291,35 @@ class Hooks(unittest.TestCase):
 
     def test_fixtures(self):
         self.assertTrue(self.fixtures, "nenhum fixture em tests/hooks/")
+        casos = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(self.fixtures), "todo fixture é verificado")
+
+    def executar_em_lote(self, casos):
+        """Roda os casos (nome, Fixture) como subTest, em paralelo, menos os que dependem de PID ou da trava do `pesado`
+        (um de cada vez, depois). Devolve quantos foram verificados."""
         outro = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(600)"])  # outra sessão viva
         self.addCleanup(outro.wait)
         self.addCleanup(outro.kill)
-        em_serie = [f for f in self.fixtures if self.depende_de_pid_ou_trava(f)]
-        em_paralelo = [f for f in self.fixtures if f not in em_serie]
-        verificados = []
+        em_serie = [c for c in casos if self.depende_de_pid_ou_trava(c[1])]
+        em_paralelo = [c for c in casos if c not in em_serie]
+        verificados = 0
         # Montar e rodar é espera de subprocesso (não segura o GIL); cada fixture tem a sua pasta temporária.
         # As falhas voltam como objeto e viram subTest na thread principal, com o mesmo nome de caso.
         trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
-            futuros = [(f, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
-                       for f in em_paralelo]
-            for f, futuro in futuros:
-                with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
-                    verificados.append(f)
+            futuros = [(nome, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
+                       for nome, f in em_paralelo]
+            for nome, futuro in futuros:
+                with self.subTest(fixture=nome):
+                    verificados += 1
                     erro = futuro.exception()
                     if erro is not None:
                         raise erro
-        for f in em_serie:  # PID e trava global do `pesado`: um de cada vez, depois do paralelo
-            with self.subTest(fixture=f"{f.hook}/{f.caminho.stem}"):
-                verificados.append(f)
+        for nome, f in em_serie:  # PID e trava global do `pesado`: um de cada vez, depois do paralelo
+            with self.subTest(fixture=nome):
+                verificados += 1
                 self.executar_fixture(f, self._pasta_temporaria(), outro.pid)
-        self.assertEqual(len(verificados), len(self.fixtures), "todo fixture é verificado")
+        return verificados
 
     def _pasta_temporaria(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
@@ -1042,6 +1109,198 @@ class Hooks(unittest.TestCase):
         protegidos = {e["caminho"]: e["quem"] for e in politica["caminhos"]}
         for caminho in ("docs/pedidos/", "~/.forge-contrib/docs/pedidos/", "docs/briefs/", "~/.forge-contrib/docs/briefs/"):
             self.assertEqual(protegidos[caminho], ["jarvis"], caminho)
+
+    def test_cerquilha_so_abre_comentario_no_inicio_de_palavra(self):  # HOOK-COMENTARIO-SHLEX
+        """Como no bash: `#` colado a uma palavra é parte dela e não esconde o resto da linha; no início de palavra
+        (depois de espaço, `;`, `&`, `|` ou quebra de linha), o comentário vai até a quebra de linha, que segue
+        separando comandos. Na dúvida (`(`, `)`, redirecionamento, `\r`), a linha é lida por inteiro."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        def palavras(linha):
+            return [p for p, _, _ in _comum.comandos(linha) if p]
+
+        casos = {
+            "echo a#; git push --force origin main": [["echo", "a#"], ["git", "push", "--force", "origin", "main"]],
+            "cat a#&&git push origin main": [["cat", "a#"], ["git", "push", "origin", "main"]],
+            "grep x f#; forge sugerir --fila": [["grep", "x", "f#"], ["forge", "sugerir", "--fila"]],
+            "ls # nota; git push --force": [["ls"]],
+            "ls;#nota; git push": [["ls"]],
+            "ls&&#x|y": [["ls"]],
+            "# só comentário": [],
+            "ls # nota\ngit push --force origin main": [["ls"], ["git", "push", "--force", "origin", "main"]],
+            "git commit -m x # don't": [["git", "commit", "-m", "x"]],
+            "echo a\\ #b; git push": [["echo", "a #b"], ["git", "push"]],
+            "echo \"#\"x; git push": [["echo", "#x"], ["git", "push"]],
+            "echo $#; git push": [["echo", "$#"], ["git", "push"]],
+            "echo $(echo a)#b; git push": [["echo", "a"], ["echo", "$(…)#b"], ["git", "push"]],
+            "echo >#x; git push": [["echo"], ["git", "push"]],
+            "echo a\r#b; git push": [["echo", "a", "#b"], ["git", "push"]],
+            "((#x)); git push --force origin main": [["#x"], ["git", "push", "--force", "origin", "main"]],
+            "[[ a =~ (#b) ]]; git push": [["[[", "a", "=~"], ["#b"], ["]]"], ["git", "push"]],
+            "echo $((#x)); git push": [["#x"], ["echo", "$(…)"], ["git", "push"]],
+            # Volta 5 (ADR 0013): `${`, crase e `$[` encerram a prova do comentário; o espaço escapado não abre palavra.
+            "echo ${x:- #b}; gh repo delete d/p": [["echo", "${x:-", "#b}"], ["gh", "repo", "delete", "d/p"]],
+            "echo `echo a #b`; gh repo delete d/p": [["echo", "`echo", "a", "#b`"], ["gh", "repo", "delete", "d/p"]],
+            "echo $[1 #x]; gh repo delete d/p": [["echo", "$[1", "#x]"], ["gh", "repo", "delete", "d/p"]],
+            "a\\ #b; git push origin main": [["a #b"], ["git", "push", "origin", "main"]],
+            "ls # it's ((": [["ls"]],
+        }
+        for linha, esperado in casos.items():
+            with self.subTest(linha=linha):
+                self.assertEqual(palavras(linha), esperado)
+
+    def test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex(self):  # HOOK-COMENTARIO-SHLEX, volta 2
+        """Dentro de `((…))` e na regex do `=~` o bash não abre comentário nem no início de palavra: com `((` ou `=~` na
+        linha, `fichas` lê o `#` como palavra e a guarda de construção não modelada não para nele; o `#` colado a `)`
+        também não para a guarda. Na dúvida, a linha é lida por inteiro."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        for linha in ("((1 #x)); git push --force origin main", "(( 1 #x )); git push --no-verify origin feature/x",
+                      "for ((i=0; i<1 #x; i++)); do :; done; git push", "[[ a =~ ( #b) ]]; git push",
+                      "[[ a =~ (a|#b) ]]; git push", "echo $(( 1 #x )); git push"):
+            with self.subTest(linha=linha):
+                self.assertIn(["git", "push"], [p[:2] for p, _, _ in _comum.comandos(linha)])
+        for linha in ("echo $(echo a)#b; echo ${X}", "((1 #x)); echo ${X}", "[[ a =~ ( #b) ]]; echo $X",
+                      "a\\ #b; git push origin ${B:-main}", "echo $[1 #x]; echo ${X}", "echo `a #b`; echo $X"):
+            with self.subTest(linha=linha):
+                self.assertIsNotNone(_comum.construcao_nao_modelada(linha))
+        # Sem `((` nem `=~`, o comentário de verdade segue valendo.
+        self.assertEqual([p for p, _, _ in _comum.comandos("ls # nota $X; git push") if p], [["ls"]])
+        self.assertIsNone(_comum.construcao_nao_modelada("ls # nota $X"))
+
+    def test_leituras_piso_da_develop_e_linha_ambigua(self):  # HOOK-COMENTARIO-SHLEX, volta 5 (ADR 0013)
+        """I2: com `#` na linha e a leitura antiga (a da develop) diferente, as duas voltam, e a antiga junta o que a
+        develop juntava. Comentário que o hook não prova, com aspa ou `\\` que passaria para outra linha: ilegível."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        lidas = _comum.leituras("gh repo # x\ndelete dono/proj --yes")
+        self.assertFalse(lidas.ilegivel)
+        self.assertEqual([[p for p, _, _ in parte if p] for parte in lidas.partes],
+                         [[["gh", "repo"], ["delete", "dono/proj", "--yes"]], [["gh", "repo", "delete", "dono/proj", "--yes"]]])
+        self.assertEqual(len(_comum.leituras("ls # nota").partes), 1, "leituras iguais não se repetem")
+        self.assertEqual(len(_comum.leituras("git push origin main").partes), 1, "sem #, só a fiel")
+        for linha in ("echo ${x} # a\\\ngh repo delete d/p --yes", "echo ${x:- #b} # \"\ngh repo delete d/p\n# \"",
+                      "x=$(date) # it's\nls", "gh pr merge x; (true)#'",
+                      # volta 6: dentro de crase o comentário acaba na crase, e a aspa dele casaria com outra adiante
+                      "x=`#'`; gh repo delete dono/proj --yes # '", "echo `# it's`; gh pr merge x --merge; echo `# it's`",
+                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`"):
+            with self.subTest(linha=linha):
+                self.assertTrue(_comum.leituras(linha).ilegivel)
+        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim"):
+            with self.subTest(linha=linha):
+                self.assertFalse(_comum.leituras(linha).ilegivel, "crase com comentário sem aspa: lida inteira")
+        lidas = _comum.leituras("docker compose up; (true)#'")
+        self.assertTrue(lidas.ilegivel)
+        self.assertIn(["docker", "compose", "up"], [p for p, _, _ in lidas.partes[0]], "a antiga fecha e fica")
+
+    def corpus_de_recusas(self):
+        """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
+        (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""
+        if not _CORPUS:
+            todas = [f for f in self.fixtures if f.hook in ("conformidade", "parecer", "pesado")
+                     and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"]
+            fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
+                    or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
+            self.assertLessEqual(len(fora), 8, fora)
+            _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
+        return minimo(_CORPUS, 500, "linhas de recusa de Bash")
+
+    def test_t1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+        """T1, inclusão no leitor: com qualquer variante que o bash ignora, todo comando da leitura fiel da linha continua
+        lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
+        (e quem confere recusa). Chamadas diretas, sem subprocesso."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        def fiel(linha):
+            lidas = _comum.leituras(linha)
+            return None if lidas.ilegivel else lidas.partes[0]
+
+        lidas = 0
+        for linha in self.corpus_de_recusas():
+            base = fiel(linha) or []
+            for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
+                variante = prefixo + linha + sufixo
+                outra = fiel(variante)
+                lidas += 1
+                if outra is None:
+                    continue
+                for palavras, destinos, _ in base:
+                    achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d, _ in outra)
+                    if not achou:
+                        self.fail(f"{variante!r}: some {palavras} {destinos}")
+        self.assertGreaterEqual(lidas, 500 * len(VARIANTES_QUE_O_BASH_IGNORA))
+
+    def test_t2_cada_familia_de_recusa_recusa_com_cada_mecanismo(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+        """T2, ligação leitor → recusa, pelo hook real: uma fixture por família de recusa, com uma variante por mecanismo
+        do comentário, sai 2 (qualquer recusa `R-`)."""
+        casos = []
+        for nome, motivo in FAMILIAS_DE_RECUSA.items():
+            caminho = FIXTURES / f"{nome}.json"
+            self.assertTrue(caminho.is_file(), f"{nome} ({motivo})")
+            for mecanismo, (prefixo, sufixo) in MECANISMOS_DO_COMENTARIO.items():
+                if (nome, mecanismo) in FORA_DO_T2:
+                    continue
+                f = Fixture(caminho)
+                self.assertEqual(f.dados["esperado"]["codigo"], 2, nome)
+                f.dados["entrada"]["tool_input"]["command"] = prefixo + f.dados["entrada"]["tool_input"]["command"] + sufixo
+                f.dados["esperado"] = {"codigo": 2, "stderr": "R-"}
+                casos.append((f"{nome} + {mecanismo}", f))
+        self.assertEqual(len(casos), len(FAMILIAS_DE_RECUSA) * len(MECANISMOS_DO_COMENTARIO) - len(FORA_DO_T2))
+        self.assertEqual(self.executar_em_lote(casos), len(casos))
+
+    def test_t3_todo_comentario_marcado_e_comentario_para_o_bash(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+        """T3, oráculo do bash para a gramática G: em cada posição que `comentarios` marca, troca o texto do comentário
+        por aspas e crase sem par; se o bash não lesse ali um comentário, a linha deixaria de ser aceita (`bash -n`).
+        Fora de G (modelos com a construção antes do `#`), nada é marcado; os modelos de G marcam ao menos um `#`."""
+        sys.path.insert(0, str(HOOKS))
+        import _comum
+
+        carga = "'\"`"
+        conferidas = 0
+        recusados = [m for m in MODELOS_FORA_DE_G + MODELOS_EM_G if not bash_aceita(m)]
+        self.assertLessEqual(len(recusados), 4, recusados)
+        for modelo in MODELOS_FORA_DE_G:
+            with self.subTest(fora_de_g=modelo):
+                self.assertEqual(_comum.comentarios(modelo), frozenset())
+        for modelo in MODELOS_EM_G:
+            with self.subTest(em_g=modelo):
+                self.assertTrue(_comum.comentarios(modelo), "o comentário de verdade continua comentário")
+        for linha in tuple(self.corpus_de_recusas()) + MODELOS_EM_G:
+            if linha in recusados:
+                continue
+            for p in sorted(_comum.comentarios(linha)):
+                fim = linha.find("\n", p)
+                trocada = linha[:p + 1] + carga + (linha[fim:] if fim >= 0 else "")
+                conferidas += 1
+                with self.subTest(linha=linha, posicao=p):
+                    self.assertTrue(bash_aceita(trocada), f"o bash não lê comentário em {p}: {trocada!r}")
+        self.assertGreaterEqual(conferidas, len(MODELOS_EM_G))
+
+    def test_t4_nenhum_hook_le_a_linha_fora_de_leituras(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
+        """T4, estrutural: os hooks leem a linha só por `leituras` (`_comum.py`); `comandos` só é chamada por ela e
+        `fichas`, só por `comandos`. `segmentos`, que lia por fora, não existe mais."""
+        import ast
+        permitidas = {"comandos": {"leituras"}, "fichas": {"comandos"}, "segmentos": set()}
+        arquivos = minimo(sorted(HOOKS.glob("*.py")), 8, "scripts de hook")
+        achadas = []
+        for arquivo in arquivos:
+            for topo in ast.parse(arquivo.read_text(encoding="utf-8")).body:
+                dono = topo.name if isinstance(topo, (ast.FunctionDef, ast.ClassDef)) else "<módulo>"
+                for no in ast.walk(topo):
+                    nome = (no.id if isinstance(no, ast.Name) else no.attr if isinstance(no, ast.Attribute)
+                            else no.name if isinstance(no, ast.alias) else None)
+                    if nome in permitidas:
+                        achadas.append((arquivo.name, dono, nome))
+                        with self.subTest(arquivo=arquivo.name, dono=dono, nome=nome):
+                            self.assertTrue(arquivo.name == "_comum.py" and dono in permitidas[nome],
+                                            f"{arquivo.name}: {dono} usa {nome}")
+        # O alvo do teste de ausência ainda existe: as duas chamadas permitidas estão lá.
+        self.assertIn(("_comum.py", "leituras", "comandos"), achadas)
+        self.assertIn(("_comum.py", "comandos", "fichas"), achadas)
 
 
 if __name__ == "__main__":

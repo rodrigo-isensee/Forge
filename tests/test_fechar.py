@@ -36,8 +36,19 @@ case "$1 $2" in
     case "$*" in
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *baseRefName,isDraft*) echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN)"; exit 0 ;;
+      *mergeCommit*) cat "$ESTADO/merge_commit" 2>/dev/null; exit 0 ;;
+      *headRefOid*) cat "$ESTADO/head" 2>/dev/null; exit 0 ;;
       *labels*|*title,body*) [ -f "$ESTADO/falha_leitura" ] && exit 1 ;;&
-      *labels*) cat "$ESTADO/rotulos" 2>/dev/null; exit 0 ;;
+      *labels*)
+        # rotulo_na_leitura N: o rótulo do dono só aparece a partir da N-ésima leitura (e a catraca passa a verde junto)
+        if [ -f "$ESTADO/rotulo_na_leitura" ]; then
+          n="$(( $(cat "$ESTADO/leituras_rotulo" 2>/dev/null || echo 0) + 1 ))"; echo "$n" > "$ESTADO/leituras_rotulo"
+          if [ "$n" -ge "$(cat "$ESTADO/rotulo_na_leitura")" ]; then
+            echo afrouxa-regra; [ -f "$ESTADO/checks_apos_rotulo" ] && cp "$ESTADO/checks_apos_rotulo" "$ESTADO/checks"; exit 0
+          fi
+          exit 0
+        fi
+        cat "$ESTADO/rotulos" 2>/dev/null; exit 0 ;;
       *title,body*) cat "$ESTADO/texto" 2>/dev/null; exit 0 ;;
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
@@ -61,13 +72,23 @@ case "$1 $2" in
 esac
 exit 64
 '''
-# git falso: o `push --delete` falha as primeiras N vezes (N em $ESTADO/falha_delete) e depois chama o git real
+# git falso: o `push --delete` falha as primeiras N vezes (N em $ESTADO/falha_delete) e depois chama o git real; registra as
+# chamadas de limpeza (worktree remove/prune, branch -D, push --delete) para provar a ordem; `worktree remove` pode simular o
+# "Device or resource busy" ($ESTADO/wt_busy: "apaga" = o diretório some e o registro administrativo fica; "persiste" = nada some)
 GIT_FALSO = r'''#!/usr/bin/env bash
 if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   echo "git $*" >> "$REGISTRO"
   n="$(cat "$ESTADO/falha_delete" 2>/dev/null || echo 0)"
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
 fi
+case "$1 $2" in
+  "worktree remove")
+    echo "git $*" >> "$REGISTRO"
+    modo="$(cat "$ESTADO/wt_busy" 2>/dev/null || true)"
+    [ "$modo" = apaga ] && rm -rf "${@: -1}"
+    if [ -n "$modo" ]; then echo "error: failed to delete '${@: -1}': Device or resource busy" >&2; exit 1; fi ;;
+  "worktree prune"|"branch -D") echo "git $*" >> "$REGISTRO" ;;
+esac
 exec "$REAL_GIT_FALSO" "$@"
 '''
 CHECK_FALSO = '#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\nexit "${CHECK_RC:-0}"\n'
@@ -88,7 +109,7 @@ class Fechar(unittest.TestCase):
         self.env.update(HOME=str(self.tmp), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.tmp / "gitconfig"),
                         FORGE_GH=str(self.tmp / "gh"), FORGE_CHECK=str(self.tmp / "check"),
                         REGISTRO=str(self.registro), ESTADO=str(self.estado), FORGE_FECHAR_INTERVALO="0",
-                        FORGE_FECHAR_TESTE="1")
+                        FORGE_FECHAR_TESTE="1", FORGE_FECHAR_LOG_DIR=str(self.tmp / "logs"))
         (self.tmp / "bin").mkdir()
         (self.tmp / "bin" / "git").write_text(GIT_FALSO, encoding="utf-8")
         (self.tmp / "bin" / "git").chmod(0o755)
@@ -248,6 +269,71 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 5", r.stderr)
+
+    def _espera_rotulo(self, leitura, catraca_vermelha=False):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        (self.estado / "rotulo_na_leitura").write_text(f"{leitura}\n")
+        if catraca_vermelha:
+            (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t5s\turl\n")
+            (self.estado / "checks_apos_rotulo").write_text("bateria\tpass\t1m\turl\ncatraca\tpass\t5s\turl\n")
+
+    def test_esperar_rotulo_mescla_quando_o_rotulo_aparece_na_leitura_n(self):
+        self._espera_rotulo(4, catraca_vermelha=True)
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "head").write_text(sha)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        chamadas = self.chamadas()
+        self.assertGreaterEqual(int((self.estado / "leituras_rotulo").read_text()), 4)
+        self.assertTrue(any(f"--match-head-commit {sha}" in c for c in chamadas if "pr merge" in c))
+        self.assertFalse(any("--add-label" in c or "pr edit" in c for c in chamadas))
+
+    def test_esperar_rotulo_prazo_esgotado_para_como_sem_a_opcao(self):
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "0")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+        self.assertIn("o dono ainda não o aplicou", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_prazo_esgotado_com_catraca_vermelha_nao_mescla(self):
+        (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t5s\turl\n")
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "0")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("o dono ainda não o aplicou", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_head_que_muda_durante_a_espera_para(self):
+        self._espera_rotulo(50)
+        (self.estado / "head").write_text("0" * 40)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("head", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_outro_check_vermelho_para_sem_esperar(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
+        (self.estado / "texto").write_text(self.ITEM_MARCADO)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 4", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_esperar_rotulo_catraca_vermelha_com_rotulo_aplicado_para_apos_a_tolerancia(self):
+        (self.estado / "checks").write_text("catraca\tfail\t5s\turl\n")
+        (self.estado / "rotulos").write_text("afrouxa-regra\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", "600")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 4", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
+
+    def test_sem_a_opcao_o_rotulo_pedido_e_ausente_continua_parando(self):
+        self._espera_rotulo(2)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "60")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("passo 5", r.stderr)
+        self.assertFalse(any("pr merge" in c for c in self.chamadas()))
 
     def _com_diff_em(self, caminho):
         self.git("switch", "-q", "melhoria/x")
@@ -436,7 +522,7 @@ class Fechar(unittest.TestCase):
     def test_push_delete_que_falha_tres_vezes_so_avisa(self):
         (self.estado / "falha_delete").write_text("9")
         r = self.fechar("p1", "--ref", "melhoria/x")
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, 3, r.stderr)
         self.assertIn("não apaguei a branch remota", r.stderr)
         self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
 
@@ -495,6 +581,346 @@ class Fechar(unittest.TestCase):
         codigo = "\n".join(l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#"))
         for proibido in ("--force", "--no-verify", "--add-label", "gh label", "-u origin", "origin main"):
             self.assertNotIn(proibido, codigo)
+
+
+    def test_log_em_arquivo_com_um_registro_por_passo_e_caminho_na_primeira_linha(self):
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        primeira = r.stdout.splitlines()[0]
+        self.assertTrue(primeira.startswith("log: "), primeira)
+        log = Path(primeira[len("log: "):])
+        self.assertTrue(log.is_file())
+        self.assertEqual(log.parent, self.tmp / "logs")
+        linhas = log.read_text().splitlines()
+        for n in "1234567":
+            self.assertEqual(sum(1 for x in linhas if f" [{n}] " in x), 1, (n, linhas))
+        self.assertTrue(all(x[:4].isdigit() and x[10] == "T" for x in linhas), linhas)
+        self.assertTrue(any("Entrega p1 fechada em develop." in x for x in linhas[-4:]), linhas)  # stderr do git pode chegar depois
+        self.assertTrue(linhas[-1].endswith(" fim: código 0"), linhas[-1])
+        self.assertEqual(oct(log.stat().st_mode & 0o777), "0o600")
+
+    def test_log_tambem_guarda_a_saida_de_erro_e_mascara_segredo(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\thttps://x/?token=ghp_ABCDEF123456\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        log = Path(r.stdout.splitlines()[0][len("log: "):])
+        texto = log.read_text()
+        self.assertIn("parou no passo 4", texto)
+        self.assertNotIn("ghp_ABCDEF123456", texto)
+        self.assertIn("ghp_ABCDEF123456", r.stderr)  # a tela continua igual
+
+    def test_dry_run_tambem_grava_o_log(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        log = Path(r.stdout.splitlines()[0][len("log: "):])
+        self.assertIn("[7]", log.read_text())
+
+    # ---- C1: log endurecido (L1 a L6) ----
+    def fechar_sem(self, *args, remover=(), **extra):
+        env = {k: v for k, v in self.env.items() if k not in remover}
+        env.update(extra)
+        return subprocess.run(["bash", str(SCRIPT), *args], cwd=self.proj, env=env, capture_output=True, text=True,
+                              timeout=60)
+
+    def log_de(self, r):
+        return Path(r.stdout.splitlines()[0][len("log: "):])
+
+    def test_l1_pasta_padrao_e_por_usuario_com_xdg_ou_tmp(self):
+        xdg, tmpd = self.tmp / "xdg", self.tmp / "tmpd"
+        xdg.mkdir()
+        tmpd.mkdir()
+        r = self.fechar_sem("p1", "--ref", "melhoria/x", "--dry-run", remover=("FORGE_FECHAR_LOG_DIR",),
+                            XDG_RUNTIME_DIR=str(xdg), TMPDIR=str(tmpd))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.log_de(r).parent, xdg / "forge-fechar-logs")
+        self.assertEqual(oct((xdg / "forge-fechar-logs").stat().st_mode & 0o777), "0o700")
+        r = self.fechar_sem("p1", "--ref", "melhoria/x", "--dry-run", remover=("FORGE_FECHAR_LOG_DIR", "XDG_RUNTIME_DIR"),
+                            TMPDIR=str(tmpd))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.log_de(r).parent, tmpd / f"forge-fechar-logs-{os.getuid()}")
+
+    def test_l1_recusa_pasta_que_e_link_ou_tem_modo_diferente_de_700(self):
+        alvo = self.tmp / "alvo"
+        alvo.mkdir(mode=0o700)
+        link = self.tmp / "link"
+        link.symlink_to(alvo)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(link))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertEqual(list(alvo.iterdir()), [])
+        aberta = self.tmp / "aberta"
+        aberta.mkdir()
+        aberta.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(aberta))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("modo 700", r.stderr)
+        self.assertEqual(list(aberta.iterdir()), [])
+
+    def test_l1_arquivo_do_log_vem_de_mktemp_e_e_600(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        a, b = self.log_de(r), self.log_de(self.fechar("p1", "--ref", "melhoria/x", "--dry-run"))
+        self.assertNotEqual(a, b)
+        self.assertEqual(oct(a.stat().st_mode & 0o777), "0o600")
+
+    SEGREDOS = (
+        ("GH_TOKEN=abc123segredo", "abc123segredo"),
+        ("export MEU_SECRET=segredo9", "segredo9"),
+        ("DB_PASSWORD=senha777", "senha777"),
+        ('{"token": "valorjson1"}', "valorjson1"),
+        ("https://usuario:senhaurl@github.com/x", "senhaurl"),
+        ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA"),
+        ("authorization: token zzz999", "zzz999"),
+        ("Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA"),
+        ("BEARER segredo5", "segredo5"),
+        ("https://x/?access_token=qwerty42&a=1", "qwerty42"),
+        ("TOKEN=maiusculo1", "maiusculo1"),
+        ("Bearer abc123", "abc123"),
+        ("token=abc", "=abc"),
+    )
+
+    def test_l2_mascara_cada_forma_de_segredo_no_log_e_mantem_a_tela(self):
+        for linha, segredo in self.SEGREDOS:
+            with self.subTest(linha=linha):
+                (self.estado / "checks").write_text(f"bateria\tfail\t1m\t{linha}\n")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn(segredo, r.stderr)
+                self.assertNotIn(segredo, self.log_de(r).read_text())
+
+    def test_l3_a_mascara_nao_troca_prosa_com_a_palavra_token(self):
+        for linha in ("token inválido", "o token expirou", "o token foi lido"):
+            with self.subTest(linha=linha):
+                (self.estado / "checks").write_text(f"bateria\tfail\t1m\t{linha}\n")
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertIn(linha, self.log_de(r).read_text())
+
+    def test_l4_retencao_apaga_so_log_velho_do_proprio_nome_dentro_da_pasta(self):
+        logs = self.tmp / "logs"
+        logs.mkdir(mode=0o700)
+        velho = logs / "forge-fechar-velho-1.log"
+        novo = logs / "forge-fechar-novo-1.log"
+        outro = logs / "outro-nome.log"
+        alvo = self.tmp / "fora.log"
+        link = logs / "forge-fechar-link-1.log"
+        for f in (velho, novo, outro, alvo):
+            f.write_text("x\n")
+        link.symlink_to(alvo)
+        antigo = 1_000_000_000
+        for f in (velho, outro, alvo):
+            os.utime(f, (antigo, antigo))
+        os.utime(link, (antigo, antigo), follow_symlinks=False)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse(velho.exists())
+        self.assertTrue(novo.exists())
+        self.assertTrue(outro.exists())
+        self.assertTrue(alvo.exists())
+
+    def test_l5_todo_log_termina_em_fim_codigo_inclusive_em_erro(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertNotEqual(r.returncode, 0)
+        linhas = self.log_de(r).read_text().splitlines()
+        self.assertTrue(any("parou no passo 1" in x for x in linhas[-3:]), linhas)
+        self.assertTrue(linhas[-1].endswith(" fim: código 1"), linhas)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+        self.assertIn("fim: código 0", r.stdout)
+
+    def test_l6_stderr_vai_ao_log_com_prefixo_err_e_sem_linha_partida(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        linhas = self.log_de(r).read_text().splitlines()
+        erros = [x for x in linhas if " [err] " in x]
+        self.assertTrue(any("parou no passo 4" in x for x in erros), linhas)
+        self.assertFalse(any("[4] checks" in x and "[err]" in x for x in linhas))
+        self.assertTrue(all(x[:4].isdigit() and x[10] == "T" and x[19] == "Z" for x in linhas), linhas)
+
+    # ---- C2: número da execução e do job de cada check no log ----
+    def test_c2_log_traz_run_e_job_de_cada_check_o_head_e_o_commit_do_merge(self):
+        (self.estado / "checks").write_text(
+            "bateria\tpass\t5m\thttps://github.com/o/r/actions/runs/111/job/222\n"
+            "catraca\tpass\t5s\thttps://github.com/o/r/actions/runs/333/job/444\n"
+            "extra\tskipping\t0\thttps://exemplo.test/sem-padrao?token=ghp_SEGREDO123\n")
+        (self.estado / "merge_commit").write_text("abc123def456")
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        texto = self.log_de(r).read_text()
+        for esperado in ("check bateria pass run=111 job=222", "check catraca pass run=333 job=444",
+                         "check extra skipping run=? job=?", f"head: {sha}", "merge: abc123def456"):
+            self.assertIn(esperado, r.stdout)
+            self.assertIn(esperado, texto)
+        self.assertNotIn("ghp_SEGREDO123", texto)
+        self.assertLess(texto.index("check bateria"), texto.index("[6] "))
+        self.assertLess(texto.index("[6] "), texto.index("merge: abc123def456"))
+
+    def test_c2_check_vermelho_continua_parando_sem_linhas_de_resumo(self):
+        (self.estado / "checks").write_text("bateria\tfail\t1m\thttps://github.com/o/r/actions/runs/1/job/2\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotIn("check bateria", r.stdout)
+        self.assertNotIn("checks verdes", r.stdout)
+
+    def test_c2_contagem_pendente_so_quando_muda(self):
+        (self.estado / "checks").write_text("bateria\tpending\t0\turl\ncatraca\tpass\t1s\turl\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--espera", "2", FORGE_FECHAR_INTERVALO="1")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(r.stdout.count("checks: pass=1 pendentes=1"), 1, r.stdout)
+
+    # ---- C3: limpeza como função única e modo --limpar ----
+    def com_worktree(self):
+        wt = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(wt), "melhoria/x")
+        return wt
+
+    def resumo(self, r):
+        return [l for l in r.stdout.splitlines() if l.startswith("limpeza: ")]
+
+    def marcas(self, prefixo):
+        return [i for i, c in enumerate(self.chamadas()) if c.startswith(prefixo)]
+
+    def arvores(self):
+        return [l for l in self.git("worktree", "list", "--porcelain").splitlines() if l.startswith("worktree ")]
+
+    def test_c3_ebusy_com_o_diretorio_ja_apagado_roda_prune_e_termina_ok(self):
+        wt = self.com_worktree()
+        (self.estado / "wt_busy").write_text("apaga")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(len(self.marcas("git worktree prune")), 1)
+        self.assertEqual(len(self.arvores()), 1)
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_c3_ebusy_com_o_diretorio_de_pe_deixa_pendente_com_o_comando_e_codigo_3(self):
+        wt = self.com_worktree()
+        (self.estado / "wt_busy").write_text("persiste")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn(f"git worktree remove {wt}", r.stdout)
+        self.assertIn("git branch -D melhoria/x", r.stdout)
+        self.assertEqual(self.marcas("git worktree prune"), [])
+        self.assertTrue(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "+ melhoria/x")
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertIn("Entrega p1 fechada em develop", r.stdout)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
+
+    def test_c3_worktree_suja_so_avisa_sem_forcar(self):
+        wt = self.com_worktree()
+        (wt / "rascunho").write_text("não commitado\n")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertTrue((wt / "rascunho").exists())
+        self.assertNotIn("--force", self.registro.read_text())  # o texto do git ("use --force") é dele, não uma chamada do script
+        self.assertNotIn("--force", SCRIPT.read_text().replace("# ", "#"). split("limpar_entrega() {")[1].split("\n}\n")[0])
+
+    def test_c3_ordem_worktree_depois_branch_e_por_ultimo_o_push_delete(self):
+        self.com_worktree()
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        (w,), (b,), (d,) = (self.marcas("git worktree remove"), self.marcas("git branch -D"),
+                            self.marcas("git push origin --delete"))
+        self.assertLess(w, b)
+        self.assertLess(b, d)
+
+    def test_c3_branch_com_commit_alem_do_mesclado_nao_e_apagada(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "novo").write_text("depois do merge\n")
+        self.git("add", "novo")
+        self.git("commit", "-q", "-m", "feat: depois do merge")
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=pendente"])
+        self.assertEqual(self.marcas("git branch -D"), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_c3_branch_remota_com_commit_alem_do_mesclado_nao_e_apagada(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("switch", "-q", "melhoria/x")
+        (self.proj / "novo").write_text("depois do merge\n")
+        self.git("add", "novo")
+        self.git("commit", "-q", "-m", "feat: depois do merge")
+        self.git("push", "-q", "origin", "melhoria/x")
+        novo = self.git("rev-parse", "melhoria/x")
+        self.git("reset", "-q", "--hard", sha)
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertEqual(self.marcas("git push origin --delete"), [])
+        self.assertIn(novo, self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_c3_limpar_sem_prova_de_pr_merged_recusa_e_nao_apaga_nada(self):
+        self.com_worktree()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertNotEqual(r.returncode, 3)
+        self.assertIn("sem prova", r.stderr)
+        self.assertEqual(self.marcas("git "), [])
+        self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "+ melhoria/x")
+        # PR aberto, ou mesclado em outra base ou com outro head, também não é prova
+        for extra in (f"7 OPEN develop {'a' * 40}\n", f"8 MERGED main {self.git('rev-parse', 'melhoria/x')}\n"):
+            (self.estado / "lista_extra").write_text(extra)
+            r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+            self.assertNotEqual(r.returncode, 0, extra)
+            self.assertEqual(self.marcas("git "), [])
+
+    def test_c3_limpar_com_prova_apaga_e_repete_sem_efeito_colateral(self):
+        wt = self.com_worktree()
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertFalse(any(c.startswith(("forge-check", "gh pr merge", "gh pr create")) for c in self.chamadas()))
+        antes = self.chamadas()
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual([c for c in self.chamadas() if c.startswith("git ")], [c for c in antes if c.startswith("git ")])
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_c3_limpar_com_parte_ja_apagada_faz_so_o_que_falta(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha}\n")
+        self.git("branch", "-D", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(len(self.marcas("git push origin --delete")), 1)
+        self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_c3_limpar_continua_recusando_main_develop_homolog_e_dry_run_nao_apaga(self):
+        for ref in ("main", "develop", "homolog"):
+            r = self.fechar("p1", "--ref", ref, "--limpar")
+            self.assertNotEqual(r.returncode, 0, ref)
+            self.assertIn("R-FLUXO", r.stderr)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(self.chamadas(), [])
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")
+
+    def test_c3_so_o_codigo_da_limpeza_vira_3_e_o_resto_segue_em_1(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
+        self.assertEqual(r.returncode, 1)
+
+    def test_c3_a_limpeza_e_uma_funcao_chamada_do_passo_7_e_do_limpar(self):
+        codigo = "\n".join(l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith("#"))
+        self.assertEqual(codigo.count("git branch -D \"$ref\""), 1)
+        self.assertEqual(codigo.count('git push origin --delete "refs/heads/$ref"'), 1)
+        self.assertGreaterEqual(codigo.count("limpar_entrega"), 3)
 
 
 if __name__ == "__main__":

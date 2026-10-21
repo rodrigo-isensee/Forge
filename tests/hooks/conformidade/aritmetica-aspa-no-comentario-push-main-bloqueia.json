@@ -1,0 +1,19 @@
+{
+  "descricao": "HOOK-COMENTARIO-SHLEX volta 3, A3: aspa no comentário de `((…))` deixava a leitura falhar e a linha crítica passava; agora é recusada.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "(( 1 )) && git push origin main # it's ok"
+    },
+    "agent_type": "forge:dev",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

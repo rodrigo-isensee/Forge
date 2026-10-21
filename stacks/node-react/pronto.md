@@ -33,6 +33,13 @@ Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Pretti
 - Rodar em Chromium por padrão; Firefox e WebKit no CI.
 - Acessibilidade: `AxeBuilder` em todas as telas dos fluxos principais, com as tags `wcag2a`, `wcag2aa`, `wcag22aa`.
 
+## Pré-requisitos do sistema
+O Chromium do Playwright precisa de bibliotecas do sistema (por exemplo `libnspr4`); sem elas a primeira suíte E2E falha e custa uma rodada de QA.
+- Instalação, **uma vez por máquina e feita pelo usuário** no terminal (pede `sudo`; o agente não usa `sudo`, R-CONFORMIDADE): `npx playwright install --with-deps chromium`.
+- Pré-voo, só leitura, que o `qa-engineer` roda antes da primeira suíte de ponta a ponta: `ldd "$(find "${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}" -type f -name chrome -path '*chrome-linux*' | head -n 1)" | grep 'not found'`. Espera: nenhuma linha. Se o `find` não achar o binário, o navegador ainda não foi baixado: o pré-voo vale depois do download.
+- Saiu alguma linha `not found`: a etapa para e o `qa-engineer` pede ao usuário, com esta frase:
+> Faltam bibliotecas do sistema para o navegador dos testes. Rode no terminal: `npx playwright install --with-deps chromium` (pede a sua senha de administrador). Avise quando terminar.
+
 ## Arquitetura de referência (até haver motivo para mudar)
 - Monólito modular: `server/` (Node + TypeScript, módulos por domínio) e `web/` (React SPA); monorepo com pnpm workspaces: `server/`, `web/`, `e2e/`, `packages/shared`.
 - Banco relacional (PostgreSQL por padrão; o projeto decide em ADR); front ↔ back via REST/JSON versionado (`/api/v1`).
