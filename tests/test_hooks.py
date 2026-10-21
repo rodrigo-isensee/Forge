@@ -796,6 +796,17 @@ class Hooks(unittest.TestCase):
                 inicio = time.monotonic()
                 self.rodar_dados(grande)
                 self.assertLess(time.monotonic() - inicio, limite / 2, "a linha grande também sai antes do prazo")
+        # Recomendação do review (volta 3): uma conferência só de 290 mil caracteres levava 4,2 s, perto do timeout com a
+        # máquina carregada; o teto de caracteres fica em cerca de 150 mil, e a linha logo acima dele recusa por ele.
+        _, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual(conformidade.TETO_DE_CARACTERES, 150_000)
+        grande = json.loads(json.dumps(dados))
+        grande["entrada"]["tool_input"]["command"] = ("echo " + "a" * conformidade.TETO_DE_CARACTERES
+                                                      + " && git push --no-verify origin feature/x")
+        grande["esperado"] = {"codigo": 2, "stderr": "linha longa demais"}
+        inicio = time.monotonic()
+        self.rodar_dados(grande)
+        self.assertLess(time.monotonic() - inicio, limite / 2, "a recusa pelo teto sai antes do prazo")
 
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
