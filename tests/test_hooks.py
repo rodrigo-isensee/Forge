@@ -1494,8 +1494,9 @@ class Hooks(unittest.TestCase):
                 resto, corpos = _comum.tirar_heredocs(linha)
                 self.assertEqual([corpo for _, corpo in corpos], esperado)
                 self.assertNotIn("<<'", resto, "o operador sai com o corpo")
-        resto, corpos = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
-        self.assertEqual((resto.split(), corpos), (["bash", "ls"], [("bash <<'X'", "git push origin main")]))
+        resto, [(dono, corpo)] = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
+        self.assertEqual((resto.split(), corpo), (["bash", "ls"], "git push origin main"))
+        self.assertEqual(set(dono.split()), {"bash"}, "o dono é o comando do operador, sem o `ls` da linha seguinte")
 
     def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
         """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
@@ -1515,6 +1516,29 @@ class Hooks(unittest.TestCase):
             with self.subTest(dono=dono):
                 self.assertFalse(_comum.corpo_so_lido(dono))
         self.assertTrue(_comum.corpo_so_lido("python3 - <<'EOF'", lambda p: p == "python3"), "o `tambem` de quem chama")
+        # A1 de segurança, volta 3: o dono é o comando lógico do operador (`comando_logico`), não só a linha física
+        # dele; quem roda o corpo pode vir antes, por barra, ou depois do fim, por pipe ou barra.
+        L = "gh pr merge feature/x --merge"
+        noutra_linha = {f"cat <<'EOF' |\n{L}\nEOF\nbash": "bash", f"bash \\\n<<'EOF'\n{L}\nEOF": "bash",
+                        f"while read -r l; do eval \"$l\"; done \\\n<<'EOF'\n{L}\nEOF": "eval",
+                        f"cat <<'EOF' | \\\nbash\n{L}\nEOF": "bash", f"cat <<'EOF' &&\n{L}\nEOF\nbash": "bash",
+                        f"eval \"$(\ncat <<'EOF'\n{L}\nEOF\n)\"": "eval", f"eval $(echo; cat <<'EOF'\n{L}\nEOF\n)": "eval",
+                        f"( source /dev/stdin ) <<'EOF'\n{L}\nEOF": "source", f"cat <<'EOF' | {{ read; bash; }}\n{L}\nEOF": "bash",
+                        f"cat > x.sh <<'EOF' && bash x.sh\n{L}\nEOF": "bash",  # como na develop: `bash` no comando lógico
+                        f"read -r x <<'EOF' && eval \"$x\"\n{L}\nEOF": "eval"}
+        for linha in minimo(list(noutra_linha), 11, "formas em que o corpo vai a quem o roda"):
+            programa = noutra_linha[linha]
+            with self.subTest(linha=linha):
+                [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
+                self.assertEqual(corpo, L)
+                self.assertIn(programa, dono)
+                self.assertFalse(_comum.corpo_so_lido(dono))
+        separados = (f"cat > f <<'EOF'\n{L}\nEOF\nbash f", f"cat <<'EOF'\n{L}\nEOF\nbash", f"cat <<'EOF' \\\\\n{L}\nEOF\nsh",
+                     f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
+                     f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)")
+        for linha in separados:  # outro comando da lista não lê o corpo (A1 do review: o comum dos projetos)
+            with self.subTest(linha=linha):
+                self.assertTrue(_comum.corpo_so_lido(_comum.tirar_heredocs(linha)[1][0][0]))
 
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita

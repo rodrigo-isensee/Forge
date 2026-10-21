@@ -414,7 +414,7 @@ def fichas(comando, legado=False):
         inicio = pular_comentario()
 
 
-def comandos(comando, legado=False):
+def comandos(comando, legado=False, com_sinal=False):
     """Divide a linha do shell em comandos simples: (palavras, destinos, substituição) por comando. `destinos` são os
     alvos dos redirecionamentos de saída (`>`, `>>`, `&>`, `>|`, `2>`); `>&1` e `>&-` não são arquivos.
 
@@ -422,7 +422,9 @@ def comandos(comando, legado=False):
     palavra opaca (`OPACO`, colada ao que estiver colado: `$(…)/x`) e segue juntando palavras depois do `)`. O conteúdo
     sai antes, como comando próprio, com `substituição` = a tupla que a identifica (`()` é a linha; `(1,)`, a primeira
     substituição; `(1, 2)`, uma dentro dela): roda num subshell, então `cd` lá dentro não vale para a linha. O `(` de
-    subshell e o `)` que o fecha continuam separando. Aspas desbalanceadas levantam ValueError."""
+    subshell e o `)` que o fecha continuam separando. Aspas desbalanceadas levantam ValueError. `com_sinal`: cada
+    comando traz, em quarto, o sinal que o encerrou (`|`, `&&`, `;`, `|\n`..., `(` e `)` do subshell, `$)` do fim de uma
+    substituição, `""` no fim da linha)."""
     pilha, contador = [], [0]  # pilha: ("(", None) para subshell; (tipo, estado de fora) para substituição
     estado = {"palavras": [], "destinos": [], "modo": None, "palavra": None, "colar": False, "sub": ()}
 
@@ -437,9 +439,9 @@ def comandos(comando, legado=False):
         else:
             estado["palavras"].append(palavra)
 
-    def separar():
+    def separar(sinal=""):
         entregar()
-        feito = (estado["palavras"], estado["destinos"], estado["sub"])
+        feito = (estado["palavras"], estado["destinos"], estado["sub"]) + ((sinal,) if com_sinal else ())
         estado.update(palavras=[], destinos=[], modo=None)
         return feito
 
@@ -449,7 +451,7 @@ def comandos(comando, legado=False):
         estado.update(palavras=[], destinos=[], modo=None, palavra=None, colar=False, sub=estado["sub"] + (contador[0],))
 
     def fechar():
-        feito = separar()
+        feito = separar("$)")
         tipo, fora = pilha.pop()
         estado.clear()
         estado.update(fora, palavra=(fora["palavra"] or "") + OPACO[tipo])
@@ -475,21 +477,21 @@ def comandos(comando, legado=False):
                     entregar()
                 abrir(op[0], prefixo)
             elif op == "(":
-                yield separar()
+                yield separar(op)
                 pilha.append(("(", None))
             elif op == ")" and pilha and pilha[-1][0] != "(":
                 yield fechar()
                 estado["colar"] = colada and i == len(ops) - 1
                 continue
             elif op == ")":
-                yield separar()
+                yield separar(op)
                 if pilha:
                     pilha.pop()
             elif set(op) & set("<>"):
                 entregar()
                 estado["modo"] = "saida" if ">" in op else "entrada"
             else:
-                yield separar()
+                yield separar(op)
             estado["colar"] = False
     while pilha:  # substituição sem o `)`: o shell recusa, mas o de dentro é conferido do mesmo jeito
         if pilha[-1][0] == "(":
@@ -783,10 +785,12 @@ def expandido(corpo):
 
 def tirar_heredocs(comando):
     """Separa o corpo dos heredocs provados (`heredocs`), que não são comandos, da linha: devolve (comando sem os corpos,
-    [(linha do dono, corpo)]). O operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois
-    (`"$(cat <<'X'⏎X⏎L⏎Y)"`) não tira de novo, como corpo, a linha que o bash roda. ValueError (quem chama trata como linha ilegível): um `<<` em dúvida com uma linha não
-    vazia depois dele (lido como comando, o corpo que não se tira esconderia o resto com uma aspa; tirado, esconderia
-    a linha que o bash roda), ou um corpo que o bash expande (delimitador sem aspa nem `\\`) com `$(` ou crase (H9)."""
+    [(dono, corpo)]), com o dono do operador lido na linha sem os corpos (`dono_do_heredoc`). O
+    operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois (`"$(cat <<'X'⏎X⏎L⏎Y)"`) não
+    tira de novo, como corpo, a linha que o bash roda. ValueError (quem chama trata como linha ilegível): um `<<` em
+    dúvida com uma linha não vazia depois dele (lido como comando, o corpo que não se tira esconderia o resto com uma
+    aspa; tirado, esconderia a linha que o bash roda), ou um corpo que o bash expande (delimitador sem aspa nem `\\`)
+    com `$(` ou crase (H9)."""
     achados, duvida = heredocs(comando)
     if duvida is not None:
         fim = comando.find("\n", duvida)
@@ -797,16 +801,114 @@ def tirar_heredocs(comando):
         corpo = comando[h.corpo[0]:h.corpo[1]].rstrip("\n")
         if not h.literal and re.search(r"\$\(|`", expandido(corpo)):
             raise ValueError("corpo de heredoc com substituição")
-        dono_ini = comando.rfind("\n", 0, h.operador) + 1
-        dono_fim = comando.find("\n", h.operador)
-        corpos.append((comando[dono_ini:len(comando) if dono_fim < 0 else dono_fim], corpo))
+        corpos.append((h.operador, corpo))
         cortes += [(h.operador, h.fim_do_operador, " "), (h.corpo[0], h.fim, "")]
-    saida, inicio = [], 0
+    saida, marcada, inicio, no_resto = [], [], 0, {}
     for ini, fim, troca in sorted(cortes):
-        saida += [comando[inicio:ini], troca]
+        saida.append(comando[inicio:ini])
+        marcada.append(comando[inicio:ini])
+        no_resto[ini] = sum(map(len, saida))  # onde o operador fica na linha sem os corpos
+        saida.append(troca)
+        marcada.append(f" {MARCA}{ini}__ " if troca else "")
         inicio = fim
     saida.append(comando[inicio:])
-    return "".join(saida), corpos
+    marcada.append(comando[inicio:])
+    resto, marcada = "".join(saida), "".join(marcada)
+    lidas = leituras(marcada, com_sinal=True) if corpos else None
+    return resto, [(dono_do_heredoc(resto, no_resto[operador], lidas, f"{MARCA}{operador}__"), corpo)
+                   for operador, corpo in corpos]
+
+
+# Fim de linha física que o bash junta com a linha seguinte num comando só: barra ímpar (continuação), ou um operador
+# que pede o comando seguinte (`|`, `|&`, `||`, `&&`) ou um `(` aberto (`eval "$(`⏎`cat <<'EOF'`).
+CONTINUA_NA_PROXIMA = re.compile(r"(\|&?|&&|\()[ \t]*$")
+
+
+def continua_na_proxima(linha):
+    return barra_impar_no_fim(linha) or bool(CONTINUA_NA_PROXIMA.search(linha))
+
+
+# No lugar de cada operador, com o número dele e `__`, na linha sem os corpos (`dono_do_heredoc`): uma palavra comum,
+# que a gramática G lê como as outras (um caractere de controle mudaria a prova do `#` seguinte). A mesma palavra
+# escrita na linha só junta mais texto ao dono.
+MARCA = "__forge_heredoc_"
+# Palavras de comando composto: a leitura por pipeline não as modela (o `;` de `{ read; bash; }` não separa quem lê o
+# corpo), e uma delas em qualquer palavra da linha, entre aspas ou não, faz o dono ser o comando lógico inteiro.
+COMPOSTOS = frozenset({"{", "}", "if", "then", "elif", "else", "fi", "case", "esac", "for", "select", "while", "until",
+                       "do", "done", "function", "coproc", "[[", "]]"})
+# Programas que rodam texto ou arquivo (shell, `eval`, `source`, lançador, interpretador, `$X`): num deles em qualquer
+# ponto do comando lógico, o corpo vale como dado a ele, como na develop (`bash` na linha do dono), mesmo noutro
+# comando da lista (`cat > x.sh <<'EOF' && bash x.sh`).
+RODA_TEXTO = re.compile(r"^(ba|z|da|k)?sh$|^(eval|source|\.|exec|xargs|env|sudo|command|builtin|nohup|time|nice|"
+                        r"timeout|setsid|stdbuf)$|^(python|perl|ruby|node|php|deno|bun|g?awk|mawk|nawk)")
+
+
+def dono_do_heredoc(resto, posicao, lidas, marca):
+    """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta 3):
+    o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de fora
+    dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|` antes)
+    separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os programas do
+    comando lógico (`comando_logico`) que rodam texto (`RODA_TEXTO`). O comando lógico inteiro, se a linha não se lê,
+    tem subshell ou comando composto, ou a marca não aparece."""
+    logico = comando_logico(resto, posicao)
+    if lidas.ilegivel:
+        return logico
+    donos = []
+    for partes in lidas.partes:
+        pipeline = pipeline_do_operador(partes, marca)
+        if pipeline is None:
+            return logico
+        donos += pipeline
+    rodam = [p for p, _ in programas_da_linha(logico) if p.startswith("$") or RODA_TEXTO.match(Path(p).name)]
+    texto = "\n".join([*(" ".join(palavras) for palavras in donos), *rodam])
+    for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
+        texto = texto.replace(opaco, "_")
+    return re.sub(MARCA + r"\d+__", " ", texto)
+
+
+def pipeline_do_operador(partes, marca):
+    """As palavras dos comandos do pipeline que contém `marca` (numa leitura `com_sinal` de `leituras`) e, a cada
+    substituição em volta dele, as do pipeline do comando de fora que a contém; ou None: subshell, comando composto
+    (`COMPOSTOS`), a marca não aparece ou o comando de fora não aparece."""
+    if any(sinal in ("(", ")") or COMPOSTOS.intersection(palavras) for palavras, _, _, sinal in partes):
+        return None
+    achados = []
+    for i, (palavras, _, sub, _) in enumerate(partes):
+        if not any(marca in p for p in palavras):
+            continue
+        while True:
+            mesmo = [j for j, parte in enumerate(partes) if parte[2] == sub and (parte[0] or parte[1])]
+            ini = fim = mesmo.index(i)
+            while ini > 0 and partes[mesmo[ini - 1]][3].strip("\n") in ("|", "|&"):
+                ini -= 1
+            while fim + 1 < len(mesmo) and partes[mesmo[fim]][3].strip("\n") in ("|", "|&"):
+                fim += 1
+            achados += [partes[j][0] for j in mesmo[ini:fim + 1]]
+            if not sub:
+                break
+            sub = sub[:-1]  # o comando de fora vem depois dos de dentro da substituição (`comandos`)
+            i = next((j for j in range(i + 1, len(partes)) if partes[j][2] == sub and (partes[j][0] or partes[j][1])),
+                     None)
+            if i is None:
+                return None
+    return achados or None
+
+
+def comando_logico(texto, posicao):
+    """A linha física de `posicao` em `texto` (a linha sem os corpos de heredoc) com as que o bash junta a ela: as de
+    antes que acabam em continuação (`bash \\`⏎`<<'EOF'`) e as de depois enquanto a corrente acaba em continuação
+    (`cat <<'EOF' |`⏎corpo⏎`EOF`⏎`bash`). É o dono do heredoc quando a leitura por pipeline não serve: quem lê o corpo
+    pode estar noutra linha física (A1 de segurança, volta 3)."""
+    ini = texto.rfind("\n", 0, posicao) + 1
+    while ini > 0:
+        anterior = texto.rfind("\n", 0, ini - 1) + 1
+        if not continua_na_proxima(texto[anterior:ini - 1]):
+            break
+        ini = anterior
+    fim = texto.find("\n", posicao)
+    while fim >= 0 and continua_na_proxima(texto[texto.rfind("\n", 0, fim) + 1:fim]):
+        fim = texto.find("\n", fim + 1)
+    return texto[ini:len(texto) if fim < 0 else fim]
 
 
 # LOTE-LEITURA-HOOK (A1 de segurança): os programas que leem o corpo de um heredoc como texto e não o executam. A lista
@@ -843,8 +945,9 @@ def programas_da_linha(linha):
 
 
 def corpo_so_lido(dono, tambem=lambda programa: False):
-    """O corpo de heredoc da linha `dono` só é lido como texto: todo comando da linha é um leitor (`LEITORES_DO_CORPO`,
-    `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como comando."""
+    """O corpo de heredoc do comando `dono` (`dono_do_heredoc`) só é lido como texto: todo comando dele é um leitor
+    (`LEITORES_DO_CORPO`, `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como
+    comando."""
     for programa, argumentos in programas_da_linha(dono):
         if programa in LEITORES_DO_CORPO or tambem(programa):
             continue
@@ -952,12 +1055,12 @@ def construcao_nao_modelada(linha):
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
 
-def leituras(comando):
+def leituras(comando, com_sinal=False):
     """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
     e a leitura antiga (a da develop, `legado`) fecha e dá outro resultado, também ela (I2: o que a develop recusava
     continua recusado). `ilegivel`: a leitura fiel não fecha (aspas sem par, também no corpo de uma crase que fecha) ou
     um comentário que o hook não prova levaria aspa ou `\\` para outra linha (`comentario_ambiguo`); quem chama
-    decide, fechado onde é controle."""
+    decide, fechado onde é controle. `com_sinal`: o de `comandos` (o sinal que encerra cada comando)."""
     def corpos_se_leem(texto, nivel):
         """CRASE-ASPA-HOOK: o bash fecha a crase antes da aspa (`` x=`'`; L; y=`'` ``), o `shlex` não; a aspa sem par
         de um corpo casaria com a de outro e o comando do meio viraria texto. Cada corpo (e os de dentro, até
@@ -972,13 +1075,14 @@ def leituras(comando):
         return True
 
     try:
-        fiel = None if comentario_ambiguo(comando) or not corpos_se_leem(comando, 1) else list(comandos(comando))
+        fiel = (None if comentario_ambiguo(comando) or not corpos_se_leem(comando, 1)
+                else list(comandos(comando, com_sinal=com_sinal)))
     except ValueError:
         fiel = None
     partes = [] if fiel is None else [fiel]
     if "#" in comando:
         try:
-            antiga = list(comandos(comando, legado=True))
+            antiga = list(comandos(comando, legado=True, com_sinal=com_sinal))
         except ValueError:
             antiga = None
         if antiga is not None and antiga != fiel:
