@@ -17,6 +17,9 @@
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre
 # leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as duas primeiras são ignoradas, com aviso.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
+# Log: depois das checagens iniciais, a primeira linha da saída é "log: <caminho>"; todo o resto (stdout e stderr, igual à tela) vai também
+# para esse arquivo (modo 600), uma linha por registro, com hora UTC e segredo mascarado. Pasta: FORGE_FECHAR_LOG_DIR
+# (padrão ${TMPDIR:-/tmp}/forge-fechar-logs). Vale também para --dry-run. Serve para quando o comando é cortado pelo teto de tempo.
 set -euo pipefail
 
 die() { echo "forge-fechar: $*" >&2; exit 1; }
@@ -105,6 +108,23 @@ cd "$(git rev-parse --show-toplevel)"
 if ! grep -qE '"name"[[:space:]]*:[[:space:]]*"forge"' .claude-plugin/plugin.json 2>/dev/null; then
   die "este não é o repositório do Forge (sem .claude-plugin/plugin.json com name forge); o fechamento é do tech-lead no Forge (R-CONTRIB)"
 fi
+
+# Log em arquivo: stdout e stderr continuam na tela; cada linha também vai ao arquivo, com hora e sem segredo (token, Bearer).
+logdir="${FORGE_FECHAR_LOG_DIR:-${TMPDIR:-/tmp}/forge-fechar-logs}"
+(umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
+log="$logdir/forge-fechar-$(printf '%s' "$pedido" | tr -c 'A-Za-z0-9._-' '_')-$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+(umask 077; : > "$log") || die "não consegui criar o log: $log"
+echo "log: $log"
+# registrar <fd>: repassa cada linha à tela (fd 1 ou 2) e grava a versão mascarada no log; só fecha a tela depois de gravar tudo.
+registrar() {
+  local linha
+  while IFS= read -r linha || [ -n "$linha" ]; do
+    printf '%s\n' "$linha" >&"$1"
+    printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(printf '%s' "$linha" \
+      | sed -E 's/(gh[pousr]_|github_pat_)[A-Za-z0-9_]+/\1***/g; s/([Bb]earer|[Tt]oken)([=:]|[[:space:]]+)[^[:space:]&]+/\1\2***/g')" >> "$log"
+  done
+}
+exec > >(registrar 1) 2> >(registrar 2)
 
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
