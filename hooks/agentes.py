@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Forge: teto de agentes e relançamento duplicado (ADR 0003, R-TETO).
+"""Forge: teto de agentes, relançamento duplicado (ADR 0003, R-TETO) e forma da mensagem ao conferente (R-BRIEF).
 
 O teto é adaptativo (nproc, load de 1 min e memória lidos de /proc; fallback 3) e `teto_agentes` em
 .forge/config.json o fixa; `teto_maximo` limita o adaptativo.
@@ -10,6 +10,7 @@ senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono
 Estado em .forge/run/agentes.json; registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 """
 import os
+import re
 import time
 from pathlib import Path
 
@@ -97,10 +98,33 @@ def vigentes(agentes, agora, expira_s):
             and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))]
 
 
+CONFERENTE = "forge:conferente"
+MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
+ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*\S*docs/briefs/\S+", re.M)
+HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
+
+
+def mensagem_sem_forma(prompt):
+    """R-BRIEF, só a forma: o que falta no cabeçalho da mensagem ao conferente (primeira linha `modo: brief|entrega`, uma linha
+    `Arquivo:` em docs/briefs/ e uma `Brief-sha256:` de 64 hex), ou None. Não lê o arquivo nem recalcula o hash; vários blocos passam."""
+    linhas = str(prompt or "").splitlines()
+    faltas = []
+    if not (linhas and MODO_DA_MENSAGEM.fullmatch(linhas[0])):
+        faltas.append("`modo: brief` ou `modo: entrega` na primeira linha")
+    if not ARQUIVO_DA_MENSAGEM.search("\n".join(linhas)):
+        faltas.append("uma linha `Arquivo:` com o caminho em docs/briefs/")
+    if not HASH_DA_MENSAGEM.search("\n".join(linhas)):
+        faltas.append("uma linha `Brief-sha256:` com 64 hex")
+    return "; ".join(faltas) or None
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
-    descricao = " ".join(str(entrada.get("description") or "").split())
+    faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
+    if faltas:
+        bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a inteira; "
+                            f"faltou: {faltas}.")
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
             bloquear("R-TETO", f"já há um agente {tipo} ativo com a descrição \"{descricao[:60]}\"; "
