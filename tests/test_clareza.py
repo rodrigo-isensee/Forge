@@ -40,6 +40,21 @@ class TestClareza(unittest.TestCase):
         self.assertGreaterEqual(len(re.findall(r"`(?:PERGUNTA|NAO-ENTENDI|ESCOPO\+|ESCOPO-|DEVOLVIDA):`", t)), 5)
         self.assertIn("Medição de clareza, por pedido", t)
 
+    def test_pergunta_traz_afrouxa_tempo_e_tokens_por_opcao(self):
+        secao = ler("skills/modo-iniciante/SKILL.md").split("## Como perguntar", 1)[1].split("\n## ", 1)[0]
+        opcoes = [l for l in secao.splitlines() if re.match(r"> [A-Z]\) ", l)]
+        self.assertGreaterEqual(len(opcoes), 2)
+        for linha in opcoes:
+            for campo in ["Afrouxa o processo?", "Tempo:", "Tokens:"]:
+                self.assertIn(campo, linha, linha[:40])
+        self.assertIn("Números da pergunta", secao)
+        for marca in ["`medido`", "`estimado`", "`não medido`"]:
+            self.assertIn(marca, secao)
+        regra = ler("docs/regras/R-DECISAO.md")
+        for trecho in ["se afrouxa o processo", "tempo e os tokens a mais ou a menos", "`medido`", "`estimado`", "`não medido`"]:
+            self.assertIn(trecho, regra)
+        self.assertIn("custo de eficiência em tempo e tokens por opção", ler("agents/jarvis.md"))
+
 
 if __name__ == "__main__":
     unittest.main()
