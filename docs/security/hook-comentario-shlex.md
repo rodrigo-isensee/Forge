@@ -3,24 +3,24 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
-commit: 7013204f54c8e763f15217934f8b68bcaf897e4b
+commit: 371ac6dea55f44a2b0c5bb6e4d48005cc48ce1da
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-21
 ---
 # Review de segurança: hook-comentario-shlex
 
-Diff revisado: `10c838f..7013204` (volta 0 sobre `74dc3f6`; voltas 1 e 2 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
+Diff revisado: `10c838f..371ac6d` (volta 0 sobre `74dc3f6`; voltas 1 a 3 abaixo) (hooks/_comum.py, 7 fixtures de `tests/hooks/conformidade/`, 15 casos em tests/test_hooks.py, fragmento do changelog).
 
 ## Gatilhos
 Controles do Forge (R-SEGURANCA): a entrega muda a leitura da linha do shell (`fichas`), base de todas as checagens do hook `conformidade` (R-MAIN, R-VERIFY, escrita protegida, `sugerir`).
 
 ## Achados
-- A3 (bloqueante) hooks/_comum.py:227 · com `((` ou `=~` na linha o comentário vira palavras; um `'` ou `\` nele dá ValueError e conformidade.py:668 libera: `(( 1 )) && git push origin main # it's ok` sai com 0 (a base barra). Regressão da volta 2.
-- A4 (bloqueante) hooks/_comum.py:223 · sem `)` o hook lê o comentário de `(true)#'`; a aspa sem par dá ValueError e conformidade.py:668 libera: `git push --force origin main; (true)#'` sai com 0 (a base barra). Regressão desde a volta 0.
-- A5 (bloqueante) hooks/_comum.py:227 · padrão extglob (`@(`, `!(`, `+(`, `*(`, `?(`) não entra em SEM_COMENTARIO: `[[ a == @(a|#b) ]]; git push --force origin main` sai com 0; no `[[` o bash lê `#b` como palavra e roda o push. Mesma classe do A1.
+- A6 (bloqueante) hooks/conformidade.py:672 · a recusa da linha ilegível só vale com CRITICO; sem ele, 146 das 448 linhas de recusa das fixtures passam com `; (true)#'` ou ` # it's ((` no fim (ex.: `gh repo delete dono/proj --yes; (true)#'` sai 0; a base barra). Regressão.
 
 ## Detalhe dos achados
+A1 a A5 (voltas 0 a 2) estão resolvidos; o histórico fica abaixo, e o A6 está na seção "Volta 3".
+
 **A1 (volta 0, resolvido na volta 1).** Evidência: hooks/_comum.py:222 (`ANTES_DE_COMENTARIO` inclui `(`), usado em :243; a guarda da linha crítica faz o mesmo em :388/:459 (`#` depois de `(` encerra a varredura com "comentário até o fim da linha"), então nem o analisador nem a recusa por construção não modelada veem o resto da linha.
 - Reprodução (estática, local, em cópia por `git archive` do 74dc3f6 no diretório temporário, pelo `rodar_dados` da suíte, com a fixture `comentario-colado-push-force-bloqueia` como base): `[[ a =~ (#b) ]]; git push --force origin main`, `((#x)); git push --force origin main` e `[[ a =~ (#b) ]]; git push --no-verify origin feature/x` saem com código 0; o controle `true; git push --force origin main` sai com 2. No bash (`bash -c`, com `echo` no lugar do push): `((#x)); echo R1` imprime R1 (erro aritmético não interrompe a lista) e `[[ a =~ (#b) ]]; echo R4` imprime R4; o `#` ali não é comentário.
 - Caminho de ataque: um agente (por engano ou por instrução injetada num arquivo lido) monta a linha com o prefixo acima; o hook não vê o `git push --force`/`--no-verify` nem um push direto para branch protegida, e R-VERIFY/R-MAIN deixam de valer naquela chamada. É a mesma classe e o mesmo impacto do furo que motivou o pedido (o escopo E1 diz que o `#` só abre comentário no início de palavra; depois de `((` e do `(` do `=~` não é início de palavra).
@@ -71,5 +71,24 @@ Delta revisado: `ee29c11..7013204` (constante única `INICIO_DE_PALAVRA` em hook
 
 **Recomendação (não bloqueante):** o cartão FICHAS-CORPUS-BASH (corpus fixo comparado com `bash -c` nos testes) teria pegado A3 a A5; vale incluir nele linhas com aspa ou `\` dentro do comentário.
 
+## Volta 3
+Delta revisado: `7e03786..371ac6d` (hooks/conformidade.py:668-674, `except ValueError`; hooks/_comum.py:227, extglob em `SEM_COMENTARIO`; 3 fixtures `aritmetica-*`/`extglob-*`; teste `test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas`; fragmento do changelog), e de novo a entrega inteira contra a base 10c838f. A decisão técnica do pedido (tocar hooks/conformidade.py só no `except ValueError`) foi respeitada; a correção abaixo cabe no mesmo ponto.
+
+**A3: resolvido.** As seis linhas da volta 2 (`(( 1 )) && git push origin main # it's ok` e as outras) e a mesma linha dentro de `bash -c "…"` saem com 2 no 371ac6d (sonda pelo `rodar_dados` da suíte, em cópias por `git archive` de 10c838f, 7e03786 e 371ac6d no diretório temporário).
+
+**A4: resolvido só para a linha com marcador crítico.** `git push --force origin main; (true)#'` e `…; (true)#\` saem com 2. A classe continua aberta para o resto (A6).
+
+**A5: resolvido.** `[[ a == @(a|#b) ]]`, `echo @(a|#b)`, `+(a;#b)`, `?(a| #b)`, `*(a&#b)` e `!(x|#b)` seguidos de push saem com 2 (R-VERIFY ou R-MAIN, a regra específica). Ler a mais com `*(`/`?(` em texto comum só pode recusar a mais, e só se houver aspa sem par no comentário.
+
+**A6 (novo, bloqueante, regressão).** Evidência: hooks/conformidade.py:672-673: `critica = not self.leitura and CRITICO.search(original)`; sem marcador crítico, `nao_modelada(None)` não recusa e o `return` pula todas as checagens da linha. Mas `CRITICO` é só o gatilho da ADR 0011 para construção não modelada; boa parte das recusas do hook não passa por ele: escrita em caminho protegido fora de `.claude/`/`.forge/`/`.git/` (`~/.claude.json`, `docs/pedidos/`, `docs/briefs/`, `.git` sem barra), `forge sugerir`, `gh repo delete`, `git filter-branch`, `claude plugin install`, `gh api graphql` com `mergePullRequest`, `git pull` na branch de integração, `git config`, instalação de pacote pelo papel sem permissão, `rm -rf` da instalação.
+- Reprodução (estática, local): para cada fixture de recusa do hook `conformidade` com linha única (448 na base), a linha com o sufixo `; (true)#'` e, à parte, com ` # it's ((` foi rodada pela fixture original (mesmos arquivos, papel e ambiente) nas cópias da base e do 371ac6d. A base recusa as 448 nos dois casos; o 371ac6d deixa passar 146 em cada caso, por exemplo `gh repo delete dono/proj --yes; (true)#'` (papel de desenvolvimento), `(( 1 )); forge sugerir --fila # it's`, `echo x > ~/.claude.json; (true)#'` e `cp a .git; (true)#'`. No bash (`bash -c` só com `echo`), `echo R1; (true)#'` imprime R1: o comando antes roda.
+- É regressão: a forma `(true)#'` passa desde a volta 0 (o `#` colado a `)` virou palavra, decisão correta, mas a aspa dele cai no ValueError) e a forma ` # it's ((` desde a volta 2 (`SEM_COMENTARIO`). O A4 da volta 2 já era esta causa; a correção mínima que propus ali ("com `CRITICO` na linha") era estreita demais, e o autor a seguiu: falha minha.
+- Caminho de ataque: o mesmo do A3 (agente por engano, ou instrução injetada num arquivo lido, termina a linha com um subshell e uma aspa, ou com um comentário com apóstrofo numa linha com `((`); as travas de R-CONFORMIDADE, R-CONTRIB e as de branch deixam de valer naquela chamada. Severidade: alta (apagar repositório, reescrever histórico e instalar plugin sem confirmação, sem pré-condição além de escrever a linha).
+- Correção mínima, no mesmo ponto: fora do papel só de leitura (que já passa pela gramática positiva), a linha que a leitura não fecha é recusada sempre, não só com `CRITICO`: `self.nao_modelada(achado or (None if self.leitura else "linha que o hook não consegue ler"))`. A premissa do comentário ("o próprio shell vai recusar") não vale nem sem `#`: `gh repo delete dono/proj --yes; echo $'it\'s'` e `gh repo delete dono/proj --yes \` (barra no fim) rodam no bash e saem com 0 na base e no 371ac6d; a mesma correção fecha os dois (não são regressão; sozinhos seriam recomendação). Sonda da correção numa cópia temporária: as 146 passam a sair com 2, e na suíte de hooks só muda a fixture `shell-aspas-desbalanceadas-libera` (`echo 'abre`, que o bash recusa de todo jeito), que passa a esperar 2: endurece, não afrouxa. Teste: a não regressão passa a ser gerada das fixtures de recusa com os dois sufixos (o método desta sonda), não de 11 linhas escolhidas à mão, como o conferente apontou. Esforço P. Dono: tech-lead.
+
+**Conferido sem achado na volta 3:** a ordem nova (`ilegivel` antes de `nao_modelada`) só muda qual recusa fala primeiro no aninhado; o papel só de leitura fica fora do novo ramo e já recusa `#` e aspa sem par pela gramática; as 3 fixtures novas esperam código 2; o fragmento do changelog descreve a mudança sem afrouxar nada; as outras capturas de ValueError (rótulo em hooks/conformidade.py:1306, que recusa com o rótulo citado, e a autoria dos pareceres em :1604, que não é portão) não mudaram.
+
+**Recomendação (não bloqueante):** o cartão FICHAS-CORPUS-BASH ganharia a varredura desta volta (fixtures de recusa com sufixos que o bash ignora) como teste permanente.
+
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas do hook pela própria suíte em cópia temporária (na volta 3, as fixtures de recusa com sufixo), e `bash -c` só com `echo`, em diretório de rascunho. Ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, zizmor, actionlint, osv-scanner; a entrega não toca workflow, dependência nem segredo.
