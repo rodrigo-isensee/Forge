@@ -19,7 +19,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase, e_clone_do_forge, executar,
-                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra)
+                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra,
+                    tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -345,11 +346,18 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False):
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
+    try:  # o corpo de um heredoc não é comando: com apóstrofo, sem par, ele deixaria a linha ilegível (A1 do review)
+        comando, corpos = tirar_heredocs(comando)
+    except ValueError:  # `<<` em dúvida com linha depois, ou corpo sem aspas no delimitador com `$(` ou crase (o bash roda)
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
+                             "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
+                             "<<'FIM' ou separe os comandos")
     lidas = leituras(comando)
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
     internos = [(corpo, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
+    internos += [(corpo, False) for dono, corpo in corpos if re.search(r"\b(bash|sh|zsh|dash)\b", dono)]  # o shell o roda
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]

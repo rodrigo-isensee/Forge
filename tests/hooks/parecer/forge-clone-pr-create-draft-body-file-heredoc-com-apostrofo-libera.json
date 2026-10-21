@@ -1,0 +1,35 @@
+{
+  "descricao": "A1 do review: --body-file - com heredoc literal e apóstrofo no corpo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --draft --base develop --title t --body-file - <<'EOF'\nit's ok\nEOF"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
