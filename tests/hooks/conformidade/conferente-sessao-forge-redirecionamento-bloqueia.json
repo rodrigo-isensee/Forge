@@ -1,0 +1,26 @@
+{
+  "descricao": "Sessão do Forge, pasta corrente fora de projeto: o conferente não redireciona saída para arquivo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat README.md > saida.txt"
+    },
+    "agent_type": "forge:conferente",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "cwd": "{tmp}/home"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "fora da gramática"
+  }
+}

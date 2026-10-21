@@ -12,7 +12,8 @@
     "aq": ["forge-dev:aq"]
   },
   "escrita_permitida": {
-    "aq": ["docs/propostas/", "docs/arquitetura/", "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"]
+    "aq": ["docs/propostas/", "docs/arquitetura/", "~/.forge-contrib/docs/propostas/", "~/.forge-contrib/docs/arquitetura/"],
+    "conferente": ["/dev/null"]
   },
   "sem_agent_type": "jarvis",
   "papel_padrao": "dev",
