@@ -111,7 +111,7 @@ fi
 : > /proc/self/fd/9
 printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
 # Push que só acrescenta pareceres sobre código que já passou na suíte roda só as classes de teste que leem
-# pareceres (as mesmas que o gate do CI usa); o CI repete tudo. A prova é a árvore verde: depois de cada suíte
+# pareceres (as que varrem ou conferem os pareceres; o gate do CI usa um subconjunto próprio); o CI repete tudo. A prova é a árvore verde: depois de cada suíte
 # verde com a árvore de trabalho limpa, a árvore testada é anotada ao lado da trava, fora do git. Falha fechada:
 # mais de uma ref, ref que não é branch, ref nova, árvore suja ou diferente do commit enviado, prova ausente,
 # delta ilegível ou qualquer arquivo fora de docs/{reviews,security,qa,devops}/ rodam a suíte inteira. Também
@@ -135,6 +135,8 @@ so_parecer() {
   arvore_remota="$(git rev-parse --verify -q "${unico_remoto}^{tree}" 2>/dev/null)" || return 1
   [ -n "$arvore_remota" ] || return 1
   grep -qxF -- "$arvore_remota" "$verde" || return 1
+  # Apagar ou renomear (o rename aparece como D mais A, por --no-renames) não é "só acrescentar".
+  [ -z "$(git -c core.quotepath=false diff --diff-filter=D --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" ] || return 1
   delta="$(git -c core.quotepath=false diff --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" || return 1
   while IFS= read -r arquivo; do
     case "$arquivo" in
@@ -151,9 +153,10 @@ if so_parecer; then
 else
   python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 fi
-# Anota a árvore testada (a do início da suíte; só se a árvore de trabalho estava limpa no início e no fim,
-# para valer a do commit) como prova do próximo push.
-if [ "$inicio_limpo" = 1 ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
+# Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}
+# não mudou durante a suíte, para valer a do commit) como prova do próximo push.
+arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
   arvore_testada="$arvore_inicio"
   if [ -n "$arvore_testada" ]; then
     { (umask 077; tail -n 199 "$verde" 2>/dev/null || true; printf '%s\n' "$arvore_testada") > "${verde}.novo" \

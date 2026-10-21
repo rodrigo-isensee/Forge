@@ -93,6 +93,11 @@ class PrePushSoParecer(unittest.TestCase):
         self.assertEqual(codigo, 0, erro)
         self.assertIn("rodou-outra", marcas)
 
+    def verde_em(self, sha):
+        """Anota a árvore de sha como verde (ref nova, suíte inteira)."""
+        codigo, _, erro = self.roda(sha, ZERO)
+        self.assertEqual(codigo, 0, erro)
+
     def commit_parecer(self, pasta="reviews"):
         return self.commit("parecer", **{f"docs__{pasta}__p.md": "parecer\n"})
 
@@ -199,8 +204,8 @@ class PrePushSoParecer(unittest.TestCase):
         prova = self.run_dir / f"forge-suite-{os.getuid()}.verde"
         self.assertNotIn(arvore, prova.read_text().split())
 
-    def test_prova_grava_a_arvore_do_inicio_da_suite(self):
-        # a suíte faz um commit no meio da execução: a árvore anotada tem de ser a do início
+    def test_commit_no_meio_da_suite_nao_grava_prova(self):
+        # a suíte faz um commit no meio da execução: a árvore mudou, então nenhuma das duas vale como prova
         (self.repo / "tests" / "test_forge.py").write_text(SUITE.replace(
             'marca("rodou-outra")',
             'import subprocess; '
@@ -213,8 +218,9 @@ class PrePushSoParecer(unittest.TestCase):
         self.assertEqual(codigo, 0, erro)
         fim = self.git("rev-parse", "HEAD^{tree}")
         self.assertNotEqual(inicio, fim)
-        prova = (self.run_dir / f"forge-suite-{os.getuid()}.verde").read_text().split()
-        self.assertIn(inicio, prova)
+        arquivo = self.run_dir / f"forge-suite-{os.getuid()}.verde"
+        prova = arquivo.read_text().split() if arquivo.exists() else []
+        self.assertNotIn(inicio, prova)
         self.assertNotIn(fim, prova)
 
     def test_modelo_e_pastas_de_controle_rodam_a_suite_inteira(self):
@@ -225,6 +231,27 @@ class PrePushSoParecer(unittest.TestCase):
                 novo = self.commit("controle", **{caminho: "x\n"})
                 _, marcas, _ = self.roda(novo, self.codigo)
                 self.assertIn("rodou-outra", marcas)
+
+    def test_apagar_parecer_roda_a_suite_inteira(self):
+        base = self.commit_parecer()
+        self.verde_em(base)
+        (self.repo / "docs" / "reviews" / "p.md").unlink()
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "apaga parecer")
+        novo = self.git("rev-parse", "HEAD")
+        codigo, marcas, erro = self.roda(novo, base)
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("rodou-outra", marcas)
+
+    def test_renomear_parecer_roda_a_suite_inteira(self):
+        base = self.commit_parecer()
+        self.verde_em(base)
+        self.git("mv", "docs/reviews/p.md", "docs/reviews/q.md")
+        self.git("commit", "-q", "-m", "renomeia parecer")
+        novo = self.git("rev-parse", "HEAD")
+        codigo, marcas, erro = self.roda(novo, base)
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("rodou-outra", marcas)
 
     def test_varias_refs_rodam_a_suite_inteira(self):
         self.verde()
