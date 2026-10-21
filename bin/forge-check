@@ -1508,11 +1508,28 @@ def cmd_conferencia_registrar(raiz, pedido, brief, modo, rodada, resultado, meri
             f.write("\n")
         f.write(linha)
     saida = [linha.rstrip("\n")]
+    if modo == "brief" and _aprovou(resultado):
+        protecao = proteger_brief_aprovado(raiz, brief)
+        saida += [protecao] if protecao else []
     if classe not in ("—", "outra"):
         quem = autor if autor != "destino" else f"destino:{agente_do_brief(pedido, brief)}"
         grupos, _ = recorrencias(raiz)
         saida += [proposta_de(g) for g in grupos if g["classe"] == classe and g["quem"] == quem and g["n"] >= LIMIAR_DA_PROPOSTA]
     return saida
+
+
+def proteger_brief_aprovado(raiz, brief):
+    """P6: o brief aprovado fica só leitura (`chmod 0444`), para não ser sobrescrito depois da conferência. Só em `docs/briefs/` da
+    raiz ou de uma raiz de brief, e nunca através de link simbólico. Devolve a linha de saída ou None (aviso não muda o rc do registro)."""
+    rel = Path("docs") / "briefs" / f"{brief.removesuffix('.md')}.md"
+    for base in (Path(raiz), *RAIZES_DE_BRIEF):
+        if (Path(base) / rel).is_symlink():
+            return f"conferencia: aviso: {caminho_impresso(rel)} é link simbólico; não protejo"
+        achado = dentro_da_raiz(base, rel, ("docs/briefs",))
+        if achado is not None and achado.is_file():
+            os.chmod(achado, 0o444)
+            return f"brief protegido: {caminho_impresso(rel)} (0444)"
+    return None  # brief fora de docs/briefs/ ou ausente: nada a proteger, e o registro segue como sempre
 
 
 def agentes_conhecidos():
@@ -3700,7 +3717,7 @@ def etapa_coberta(dados, papel_destino, cobre):
     return (do_destino[0] if do_destino else None), None
 
 
-def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None):
+def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, cobre=None):
     """Blocos fixos do brief a partir do pedido e da branch; o que o Jarvis ainda decide fica em `PREENCHER`. Com `volta`
     (o namespace dos argumentos, com `--volta`), o brief da volta: `gerar_volta`. `cobre` (P2) é a etapa do pedido que o brief
     delega: ela abre o Entregar e todas as outras vão ao Fora do escopo sem a marca (R-BRIEF)."""
@@ -3708,31 +3725,22 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None,
     try:
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
     except OSError as e:
-        print(f"brief gerar: não consegui ler {caminho_impresso(e.filename)}: {sem_controle(e.strerror)}")
-        return 2
+        return None, 2, [f"brief gerar: não consegui ler {caminho_impresso(e.filename)}: {sem_controle(e.strerror)}"]
     if volta is not None:
         lembrar_do_jarvis(raiz, tipo_da_etapa(None, volta=True))
-        texto, rc, mensagens = gerar_volta(raiz, caminho_pedido, pedido_txt, volta)
-        if mensagens:
-            print("\n".join(mensagens))
-        else:
-            sys.stdout.write(texto)
-        return rc
+        return gerar_volta(raiz, caminho_pedido, pedido_txt, volta)
     dados = ler_pedido_brief(pedido_txt)
     papel_destino = nome_do_papel(destino)
     coberta, erro = etapa_coberta(dados, papel_destino, cobre)
     if erro:
-        print(erro)
-        return 2
+        return None, 2, [erro]
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_do_pedido(raiz, pedido).stem
     if etapa in ETAPAS_QUE_RECUSAM and not branch:
-        print(f"brief gerar: recusado: --branch obrigatório na etapa {etapa} (os pareceres são lidos dela; P2)")
-        return 1
+        return None, 1, [f"brief gerar: recusado: --branch obrigatório na etapa {etapa} (os pareceres são lidos dela; P2)"]
     faltas = pareceres_da_etapa(raiz, pedido_id, etapa, branch, base)
     if faltas and etapa in ETAPAS_QUE_RECUSAM:
-        print("\n".join(f"brief gerar: recusado: {sem_controle(l)}" for l in faltas))
-        return 1
+        return None, 1, [f"brief gerar: recusado: {sem_controle(l)}" for l in faltas]
     for linha in faltas:
         print(f"brief gerar: aviso: {sem_controle(linha)}", file=sys.stderr)
     saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
@@ -3781,8 +3789,71 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None,
         saida.append(pq_de_merge(base))
     saida += ["", "## Relatório",
               "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo. Última linha: `Melhoria vista:` com o problema e a evidência, ou `nenhuma` (`R-DECISAO`)."]
-    print("\n".join(saida))
-    return 0
+    return "\n".join(saida) + "\n", 0, []
+
+
+NOME_SEGURO_DE_BRIEF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+
+
+def raiz_do_pedido(raiz, caminho_pedido):
+    """A raiz em que o pedido foi achado (a pasta acima de `docs/pedidos/`), onde o `--gravar` escreve `docs/briefs/` (P6)."""
+    real = Path(os.path.realpath(caminho_pedido))
+    return real.parent.parent.parent if real.parent.name == "pedidos" and real.parent.parent.name == "docs" else Path(raiz)
+
+
+def proximo_numero(pasta, prefixo):
+    """O maior `<n>` de `<prefixo>-<n>.md` em `pasta`, mais 1; lacuna não se reaproveita (o número pode estar citado no registro)."""
+    padrao = re.compile(re.escape(prefixo) + r"-(\d+)\.md")
+    usados = [int(m.group(1)) for f in (pasta.iterdir() if pasta.is_dir() else []) for m in [padrao.fullmatch(f.name)] if m]
+    return max(usados, default=0) + 1
+
+
+def gravar_brief(raiz_pedido, pedido_id, destino, texto, numero=None):
+    """(linha, rc) do `--gravar` (P6): `docs/briefs/<pedido>-<papel>-<n>.md` aberto com `x` (nunca sobrescreve, sem corrida)."""
+    papel = nome_do_papel(destino)
+    if not papel:
+        return "brief gerar --gravar: --destino forge:<nome> obrigatório (o nome do arquivo leva o papel)", 2
+    if not (NOME_SEGURO_DE_BRIEF.fullmatch(pedido_id) and NOME_SEGURO_DE_BRIEF.fullmatch(papel)) or ".." in pedido_id + papel:
+        return "brief gerar --gravar: id do pedido ou papel com caractere fora de [A-Za-z0-9._-]; nada gravado", 2
+    pasta = Path(raiz_pedido) / "docs" / "briefs"
+    if pasta.is_symlink() or (pasta.exists() and dentro_da_raiz(raiz_pedido, Path("docs") / "briefs" / "x", ("docs/briefs",)) is None):
+        return "brief gerar --gravar: docs/briefs/ é link simbólico ou sai da raiz; nada gravado", 2
+    pasta.mkdir(parents=True, exist_ok=True)
+    prefixo = f"{pedido_id}-{papel}"
+    n = numero if numero is not None else proximo_numero(pasta, prefixo)
+    conteudo = texto.encode("utf-8")
+    try:
+        with open(pasta / f"{prefixo}-{n}.md", "xb") as f:
+            f.write(conteudo)
+    except FileExistsError:
+        return f"brief gerar --gravar: docs/briefs/{caminho_impresso(prefixo)}-{n}.md já existe; nada gravado (não sobrescrevo brief)", 2
+    return f"brief gravado: docs/briefs/{caminho_impresso(prefixo)}-{n}.md {len(conteudo)} sha256 {hashlib.sha256(conteudo).hexdigest()}", 0
+
+
+def cmd_brief_gerar(raiz, pedido, destinos, branch, base, etapa=None, volta=None, cobre=None, gravar=False):
+    """`brief gerar`: imprime o brief (um destino) ou, com `gravar` (P6), grava um arquivo por destino em docs/briefs/ e imprime
+    uma linha `brief gravado:` por arquivo. Recusa de qualquer destino: nada gravado."""
+    destinos = list(destinos) if destinos else [None]
+    gerados = []
+    for destino in destinos:
+        texto, rc, mensagens = montar_brief(raiz, pedido, destino, branch, base, etapa, volta, cobre)
+        if rc or texto is None:
+            print("\n".join(mensagens))
+            return rc or 1
+        gerados.append((destino, texto))
+    if not gravar:
+        sys.stdout.write(gerados[0][1])
+        return 0
+    caminho_pedido = caminho_do_pedido(raiz, pedido)
+    pedido_txt = caminho_pedido.read_text(encoding="utf-8")
+    m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
+    pedido_id = m.group(1) if m else caminho_pedido.stem
+    rc_final = 0
+    for destino, texto in gerados:
+        linha, rc = gravar_brief(raiz_do_pedido(raiz, caminho_pedido), pedido_id, destino, texto)
+        print(linha)
+        rc_final = rc_final or rc
+    return rc_final
 
 
 def versao(texto):
@@ -4005,7 +4076,7 @@ def main():
     br.add_argument("alvo", help="arquivo do brief, `gerar` ou `mensagem` (a mensagem integral ao conferente, só se o brief passa)")
     br.add_argument("--arquivo", help="só em `mensagem`: o brief, resolvido só em docs/briefs/ (da raiz ou de ~/.forge-contrib)")
     br.add_argument("--pedido", required=True, help="arquivo do pedido ou id em docs/pedidos/<id>.md")
-    br.add_argument("--destino", help="agente destino, forge:<nome>. Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
+    br.add_argument("--destino", nargs="+", help="agente destino, forge:<nome> (vários só em `gerar --gravar`, o lote: um arquivo por destino). Em `mensagem` só é preciso se o brief não tem `Agente destino:` no cabeçalho (antes da primeira seção); se tem, o --destino precisa ser igual ao do brief. Na conferência (`brief <arquivo>`), o padrão é o `Agente destino:` do brief ou o nome do arquivo")
     br.add_argument("--anterior", help="brief da rodada anterior (em docs/briefs/): imprime `anterior:` e uma linha `delta:` por linha que mudou em cada seção (só informa)")
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")
@@ -4014,6 +4085,7 @@ def main():
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
     br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: texto de uma linha (ex.: E1.1)")
+    br.add_argument("--gravar", action="store_true", help="só em `gerar`: grava em docs/briefs/<pedido>-<papel>-<n>.md (n = maior + 1, nunca sobrescreve; P6) e imprime `brief gravado: <caminho> <bytes> sha256 <hash>`")
     br.add_argument("--cobre", metavar="E<n>.<m>", help="só em `gerar`: a etapa de ## Etapas do pedido que o brief delega (P2, R-BRIEF); abre o Entregar, e as outras vão ao Fora do escopo sem a marca; sem ela, a única etapa do destino no pedido (obrigatória se ele tem mais de uma)")
     de = sub.add_parser("delta", parents=[comum], help="o que mudou desde um commit ou desde o `commit:` de um parecer, fora de docs/reviews, qa, devops, security e quadro; só leitura, nunca reprova")
     de.add_argument("refs", nargs="*", help="<commit> [<fim>] (com --parecer, só o <fim>); fim padrão HEAD")
@@ -4077,6 +4149,13 @@ def main():
     a = ap.parse_args()
     if a.cmd == "brief" and a.alvo == "gerar" and a.etapa is not None and a.etapa not in ETAPAS_DO_GERAR:
         ap.error(f"argument --etapa: invalid choice: {a.etapa!r} (choose from {', '.join(map(repr, ETAPAS_DO_GERAR))})")
+    if a.cmd == "brief":
+        a.destinos = a.destino or []
+        if len(a.destinos) > 1 and not (a.alvo == "gerar" and a.gravar and not a.volta):
+            ap.error("argument --destino: vários destinos só em `brief gerar --gravar` sem --volta (o lote, P6)")
+        if a.gravar and a.alvo != "gerar":
+            ap.error("argument --gravar: só vale em `brief gerar`")
+        a.destino = a.destinos[0] if a.destinos else None
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
         ap.error("argument --incluir: só vale em `brief gerar --volta`")
     raiz = Path(a.raiz).resolve()
@@ -4105,7 +4184,7 @@ def executar(a, raiz):
         return cmd_voltas(raiz, a.pedido)
     if a.cmd == "brief":
         if a.alvo == "gerar":
-            return cmd_brief_gerar(raiz, a.pedido, a.destino, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre)
+            return cmd_brief_gerar(raiz, a.pedido, a.destinos, a.branch, a.base, a.etapa, a if a.volta else None, a.cobre, a.gravar)
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)

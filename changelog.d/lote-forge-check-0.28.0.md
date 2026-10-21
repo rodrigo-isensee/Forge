@@ -5,6 +5,7 @@
 ### Adicionado
 - P2: `forge-check brief gerar --cobre E<n>.<m>` escreve a linha `Etapa: ... Cobre: ...`, abre o Entregar com a etapa coberta e lista no Fora do escopo todas as outras etapas do pedido, sem a marca; sem `--cobre`, deduz a única etapa do destino e recusa (rc 2) quando ele tem mais de uma ou quando a etapa é de outro papel.
 - M5 e P2 (tabela de pareceres): `brief gerar` recusa (rc 1, `brief gerar: recusado: <linha do forge-check pr>`) o brief das etapas `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` sem os pareceres exigidos, e avisa no `qa` sem review; `forge-check brief` lê `Etapa:` e `Branch:` do cabeçalho e imprime `aviso: etapa:` por parecer que falta, pela mesma regra de isenção da M13.
+- P6: `forge-check brief gerar --gravar` grava o brief em `docs/briefs/<pedido>-<papel>-<n>.md` no próximo número livre (maior + 1, lacuna não se reaproveita), abre com `x` e nunca sobrescreve (rc 2), aceita vários `--destino` (o lote) e imprime `brief gravado: <caminho> <bytes> sha256 <hash>`; `conferencia registrar` de brief aprovado deixa o arquivo `0444` (não segue link simbólico). Hipótese do desenho refutada: a ferramenta Write do Claude Code sobrescreve arquivo 0444; a trava contra ela fica para a P6b (hook `conformidade`).
 
 ### Corrigido
 - M4: `forge-check brief` aceita como prova do conferente o PQ `merge` e o PQ `cmd` com `verificador: conferente` (antes só `sha`, `push` ou `arquivo`); o brief de merge que o próprio `brief gerar` monta deixa de reprovar com "forma: sem PQ que o conferente confira" (teste de ida e volta).
