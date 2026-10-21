@@ -2956,7 +2956,7 @@ class ConferirBrief(unittest.TestCase):
 
     def test_item_que_so_existe_em_etapas_e_etapa(self):
         rc, saida = self.conferir("item-so-em-etapas.md")
-        self.assertIn('corte: etapa (ok) "E3" por E3.2', saida)
+        self.assertIn('corte: etapa (ok) "E3" por E3.1, E3.2, E3.3', saida)
         self.assertEqual(rc, 0, saida)
 
     def test_item_que_so_existe_em_escopo_e_corte_real(self):
@@ -2983,9 +2983,10 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn('corte: sem marca "E3.4" (etapa do papel do destino fora do Entregar)', saida)
         self.assertIn('corte: etapa (ok) "E3"', saida)
         self.assertEqual(rc, 1)
-        # outro destino: a etapa passa a ser de outro papel
+        # outro destino: a etapa passa a ser de outro papel, e a etapa sem menção reprova para qualquer papel (M16)
         rc, saida = self.conferir("etapa-outro-papel.md", "--destino", "forge:revisor", pedido=pedido)
-        self.assertNotIn('"E3.4"', saida)
+        self.assertIn('corte: sem marca "E3.4" (etapa sem menção)', saida)
+        self.assertEqual(rc, 1)
 
     def test_forma_exige_as_secoes_e_nao_aceita_bloco_sem_preencher(self):
         arq = self.variante("etapa-outro-papel.md", ("## Relatório", "## Outra coisa"))

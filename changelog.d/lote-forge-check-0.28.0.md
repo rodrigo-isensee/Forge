@@ -1,0 +1,2 @@
+### Alterado
+- M16: regra única de marca na R-BRIEF e no `forge-check brief`: toda outra etapa do pedido vai ao Fora do escopo sem a marca, a marca só no corte real; etapa sem menção reprova para qualquer papel, duas etapas no mesmo Entregar reprovam (`etapa: junta delegações`), e o parser lê etapas com sufixo de letra (`E1.3b`) e de qualquer `E<n>` (afrouxa-regra: a marca deixa de ser exigida na etapa do mesmo papel).

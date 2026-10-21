@@ -12,6 +12,7 @@ Entregar o recurso A (exemplo sintético).
 
 ## Fora do escopo
 - "validação de qualidade da branch" é de outro papel.
+- "E3.1 (revisor): revisão de código da branch." e "E3.3 (dono): merge final na branch principal." · outras etapas do pedido; continuam nele.
 
 ## Decisões e restrições
 - DECISÃO DO DONO (2026-01-01): "A".
