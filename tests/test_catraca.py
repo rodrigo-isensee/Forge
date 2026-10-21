@@ -2,6 +2,7 @@
 import contextlib
 import copy
 import hashlib
+import http.client
 import importlib.util
 import io
 import json
@@ -10,12 +11,13 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")
@@ -1310,6 +1312,17 @@ class RotuloDePrMesclado(Base):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("mesmo conteúdo já rotulado no PR mesclado #10", r.stdout)
 
+    def test_merge_commit_com_ancestralidade_nao_busca_nada(self):
+        """O caminho do merge commit segue como era: o substituto do squash (e o fetch) só entra quando a ancestralidade falha."""
+        chamadas = []
+        real = catraca.git
+        with mock.patch.object(catraca, "git", lambda raiz, *a: chamadas.append(a) or real(raiz, *a)):
+            fonte = catraca.FonteJson({"repo": REPO_GH, "pr": self.pr, "pulls": {"10": self.pull}, "eventos": {"10": self.eventos},
+                                       "execucoes": {"10": self.execs}})
+            viol = catraca.violacoes_das_regras(self.repo.dir, "main", "homolog")
+            self.assertEqual(catraca.liberado_por_pr_mesclado(self.repo.dir, "main", "homolog", viol, fonte, "dona"), ["10"])
+        self.assertFalse([a for a in chamadas if "fetch" in a])
+
     def test_branch_apagada_depois_do_merge_nao_invalida(self):
         """O `head_ref_deleted` do fechamento vem depois do merge: o que foi mesclado não muda."""
         self.eventos = [rotulo(), {"event": "head_ref_deleted", "created_at": "2026-01-02T10:31:00Z"}]
@@ -1460,6 +1473,267 @@ class RotuloDePrMesclado(Base):
         self.assertIsNone(catraca.arquivo_da_violacao("R-CONFORMIDADE: testes `test_*` caíram de 2 para 1. Por quê: x. Corrigir: y (z)"))
 
 
+def _g(pasta, *args):
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    return subprocess.run(["git", "-C", str(pasta), *args], check=True, capture_output=True, text=True, env=env).stdout
+
+
+def _tem(pasta, sha):
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    return subprocess.run(["git", "-C", str(pasta), "cat-file", "-e", f"{sha}^{{commit}}"], capture_output=True, env=env).returncode == 0
+
+
+ROTULADO = "# mudou no PR 10\n"
+WORKFLOW = "name: CI\non: push\n"
+
+
+class RotuloDePrSquash(Base):
+    """S-16-PROMOCAO-DEVELOP: na promoção develop -> homolog os PRs entram por squash (o head rotulado S nunca é ancestral do merge M)
+    e S só existe em `refs/pull/<n>/head` do origin. Casos de abuso B1-B17 do modelo de ameaças (mitigações M1-M7)."""
+
+    def setUp(self):
+        super().setUp()
+        r = self.repo
+        r.git("branch", "homolog", "base")
+        r.git("checkout", "-q", "develop")
+        self.bare = tempfile.TemporaryDirectory()
+        self.clone = tempfile.TemporaryDirectory()
+        self.addCleanup(self.bare.cleanup)
+        self.addCleanup(self.clone.cleanup)
+        _g(self.bare.name, "init", "-q", "--bare", "-b", "develop")
+        remoto_sem_manutencao(self.bare.name)
+        r.git("remote", "add", "origin", self.bare.name)
+        _g(r.dir, "clone", "-q", str(r.dir), self.clone.name)
+        _g(self.clone.name, "config", "user.email", "t@example.com")
+        _g(self.clone.name, "config", "user.name", "Teste")
+        _g(self.clone.name, "checkout", "-q", "-b", "melhoria/x")
+        self.s = self.commita_na_fonte(ROTULADO, "feat: do PR 10")
+        self.final = self.s
+        self.publica(self.s)
+        self.m = self.squash(ROTULADO)
+        self.pull = {"number": 10, "created_at": "2026-01-02T08:00:00Z", "merged_at": "2026-01-02T10:30:00Z", "merge_commit_sha": self.m,
+                     "base": lado("develop"), "head": dict(lado("melhoria/x"), sha=self.final)}
+        self.eventos = [rotulo()]
+        self.execs = [corrida(self.s, "2026-01-02T09:00:00Z", ramo="melhoria/x"), corrida(self.s, "2026-01-02T10:00:03Z", ramo="melhoria/x")]
+        self.pr = {"head": lado("develop"), "base": lado("homolog")}
+        self.args = []
+
+    def commita_na_fonte(self, texto, msg):
+        (Path(self.clone.name) / "tests").mkdir(exist_ok=True)
+        (Path(self.clone.name) / "tests/catraca.py").write_text(texto, encoding="utf-8")
+        (Path(self.clone.name) / ".github/workflows").mkdir(parents=True, exist_ok=True)
+        (Path(self.clone.name) / ".github/workflows/ci.yml").write_text(WORKFLOW, encoding="utf-8")
+        _g(self.clone.name, "add", "-A")
+        _g(self.clone.name, "commit", "-q", "--allow-empty", "-m", msg)
+        return _g(self.clone.name, "rev-parse", "HEAD").strip()
+
+    def publica(self, sha, ref="refs/pull/10/head"):
+        _g(self.clone.name, "push", "-q", "-f", self.bare.name, f"{sha}:{ref}")
+
+    def squash(self, texto, msg="feat(x): mudança (#10)", workflow=WORKFLOW):
+        """M: um commit só sobre a base da develop, sem S como ancestral."""
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.escreve("tests/catraca.py", texto)
+        self.repo.escreve(".github/workflows/ci.yml", workflow)
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", msg)
+        return self.repo.git("rev-parse", "HEAD").strip()
+
+    def depois(self, rel, texto, msg="outra coisa"):
+        self.repo.escreve(rel, texto)
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", msg)
+
+    def dados(self, **troca):
+        self.pull["head"]["sha"] = self.final
+        d = {"repo": REPO_GH, "pr": self.pr, "pulls": {"10": self.pull}, "eventos": {"10": self.eventos}, "execucoes": {"10": self.execs}}
+        d.update(troca)
+        arq = self.repo.dir.parent / (self.repo.dir.name + "-squash.json")
+        arq.write_text(json.dumps(d), encoding="utf-8")
+        self.addCleanup(arq.unlink, missing_ok=True)
+        return ["--raiz", str(self.repo.dir), "--base", "homolog", "--head", "develop", "--mesclados", str(arq)]
+
+    def roda(self, **troca):
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
+        return subprocess.run(["python3", str(AQUI / "catraca.py"), *self.dados(**troca)], capture_output=True, text=True, env=env)
+
+    def pede(self, **troca):
+        r = self.roda(**troca)
+        self.assertEqual(r.returncode, 1, r.stdout)
+        self.assertIn("mudança em", r.stdout)
+        return r
+
+    # --- caminho feliz -------------------------------------------------------------------------------------
+    def test_b1_squash_rotulado_busca_o_head_e_passa(self):
+        self.assertFalse(_tem(self.repo.dir, self.s))  # S só existe no origin, em refs/pull/10/head
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("mesmo conteúdo já rotulado no PR mesclado #10", r.stdout)
+        self.assertTrue(_tem(self.repo.dir, self.s))
+        self.assertEqual(self.repo.git("rev-parse", "refs/catraca/pull/10").strip(), self.s)
+
+    def test_b1_head_com_varios_commits_no_pr_passa(self):
+        """S é um commit do meio: o head final é posterior, mas o conteúdo rotulado é o que o squash gravou."""
+        self.final = self.commita_na_fonte(ROTULADO, "so o parecer mudou")
+        self.publica(self.final)
+        self.assertEqual(self.roda().returncode, 0)
+
+    # --- conteúdo alterado pede o rótulo --------------------------------------------------------------------
+    def test_b2_push_depois_do_rotulo_pede(self):
+        self.final = self.commita_na_fonte("# empurrado depois do rótulo\n", "push depois")
+        self.publica(self.final)
+        self.m = self.squash("# empurrado depois do rótulo\n")
+        self.pull["merge_commit_sha"] = self.m
+        self.execs.append(corrida(self.final, "2026-01-02T10:10:00Z", ramo="melhoria/x"))
+        self.pede()
+
+    def test_b3_merge_com_conteudo_diferente_do_rotulado_pede_mesmo_se_o_head_volta_ao_rotulado(self):
+        """Só `mesmo_arquivo(M, S)` pega: M gravou outra coisa e um commit posterior (sem PR) devolveu o conteúdo rotulado."""
+        self.pull["merge_commit_sha"] = self.squash("# misturado com a develop\n")
+        self.depois("tests/catraca.py", ROTULADO, "volta ao rotulado")
+        self.pede()
+
+    def test_b17_head_da_promocao_com_uma_linha_a_mais_pede(self):
+        self.depois("tests/catraca.py", ROTULADO + "# uma linha a mais\n")
+        self.pede()
+
+    def test_b12_numero_forjado_no_assunto_pede(self):
+        self.pull["merge_commit_sha"] = self.squash("# conteúdo sem rótulo\n", msg="outra coisa (#10)")
+        self.pede()
+
+    # --- o ref buscado -------------------------------------------------------------------------------------
+    def test_b4_ref_do_remoto_diferente_do_head_da_api_pede(self):
+        outro = self.commita_na_fonte(ROTULADO, "outro commit com o mesmo conteúdo")
+        self.publica(outro)  # refs/pull/10/head aponta para `outro`; a API diz que o head é `self.final`
+        self.pede()
+
+    def test_b5_head_rotulado_ausente_depois_do_fetch_pede(self):
+        fantasma = "0" * 40
+        self.execs = [corrida(fantasma, "2026-01-02T09:00:00Z", ramo="melhoria/x"), corrida(fantasma, "2026-01-02T10:00:03Z", ramo="melhoria/x")]
+        self.pede()
+
+    def test_b6_fetch_que_falha_pede_com_mensagem(self):
+        self.repo.git("remote", "remove", "origin")
+        r = self.pede()
+        self.assertIn("não consegui buscar refs/pull/10/head", r.stdout)
+        self.assertNotIn("Traceback", r.stderr)
+
+    def test_b6_fetch_que_estoura_o_prazo_pede_sem_traceback(self):
+        real = catraca.git
+
+        def estoura(raiz, *a):
+            if "fetch" in a:
+                raise subprocess.TimeoutExpired("git", 60)
+            return real(raiz, *a)
+        saida = io.StringIO()
+        antigo = dict(os.environ)
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antigo)))
+        for k in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF"):
+            os.environ.pop(k, None)
+        with mock.patch.object(catraca, "git", estoura), contextlib.redirect_stdout(saida):
+            rc = catraca.main(self.dados())
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("TimeoutExpired", saida.getvalue())
+        self.assertIn("mudança em", saida.getvalue())
+
+    def test_b7_head_rotulado_que_nao_e_ancestral_do_head_final_pede(self):
+        """Execução de outra branch de mesmo nome: S tem o mesmo blob, mas não é do histórico do head da API."""
+        _g(self.clone.name, "checkout", "-q", "--orphan", "outra")
+        outro_s = self.commita_na_fonte(ROTULADO, "outro histórico")
+        _g(self.clone.name, "push", "-q", "-f", self.bare.name, f"{outro_s}:refs/heads/outra")
+        self.repo.git("fetch", "-q", "origin", "refs/heads/outra:refs/heads/outra")  # S local: o fetch do PR só traz o head final
+        self.execs = [corrida(outro_s, "2026-01-02T09:00:00Z", ramo="melhoria/x"), corrida(outro_s, "2026-01-02T10:00:03Z", ramo="melhoria/x")]
+        self.assertTrue(_tem(self.repo.dir, outro_s))
+        self.pede()
+
+    def test_b14_o_fetch_nao_escreve_em_refs_existentes(self):
+        self.repo.git("update-ref", "refs/remotes/origin/develop", "base")
+        self.repo.git("tag", "v1", "base")
+        antes = self.repo.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/remotes", "refs/tags")
+        self.assertEqual(self.roda().returncode, 0)
+        depois = self.repo.git("for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/remotes", "refs/tags")
+        self.assertEqual(depois, antes)
+        self.assertFalse((self.repo.dir / ".git" / "FETCH_HEAD").exists())
+
+    def test_m1_fetch_so_com_a_refspec_explicita_do_pr(self):
+        fetches = []
+        real = catraca.git
+        antigo = dict(os.environ)
+        self.addCleanup(lambda: (os.environ.clear(), os.environ.update(antigo)))
+        with mock.patch.object(catraca, "git", lambda raiz, *a: (fetches.append(a) if "fetch" in a else None) or real(raiz, *a)), \
+                contextlib.redirect_stdout(io.StringIO()):
+            catraca.main(self.dados())
+        self.assertEqual(len(fetches), 1, fetches)
+        a = fetches[0]
+        self.assertEqual(a[a.index("fetch"):], ("fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head", "origin",
+                                                "refs/pull/10/head:refs/catraca/pull/10"))
+
+    def test_sem_head_sha_da_api_pede(self):
+        for sha in (None, "", "abc", 7):
+            with self.subTest(sha=sha):
+                self.final = sha
+                self.pede()
+
+    # --- a prova do squash só vale para squash --------------------------------------------------------------
+    def test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede(self):
+        self.repo.git("checkout", "-q", "-b", "lateral", "base")
+        time.sleep(1.2)  # o M do pull não pode coincidir com o do setUp (mesmo conteúdo e segundo dariam o mesmo hash)
+        m = self.pull["merge_commit_sha"] = self.squash(ROTULADO)  # M do pull, na `develop`
+        self.assertNotEqual(m, self.m)
+        self.repo.git("branch", "-f", "lateral", m)
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.depois("docs/outra.md", "outra\n")
+        self.repo.git("merge", "-q", "--no-ff", "-m", "Merge lateral", "lateral")
+        self.assertIn(m, self.repo.git("rev-list", "homolog..develop").split())
+        self.assertNotIn(m, self.repo.git("rev-list", "--first-parent", "homolog..develop").split())
+        self.pede()
+
+    def test_b9_merge_com_dois_pais_e_s_fora_da_ancestralidade_pede(self):
+        self.repo.git("checkout", "-q", "-b", "lado", "base")
+        self.depois("tests/catraca.py", ROTULADO)
+        self.depois(".github/workflows/ci.yml", WORKFLOW)
+        self.repo.git("checkout", "-q", "develop")
+        self.repo.git("reset", "-q", "--hard", "base")
+        self.repo.git("merge", "-q", "--no-ff", "-m", "Merge pull request #10 from o/melhoria/x", "lado")
+        self.pull["merge_commit_sha"] = self.repo.git("rev-parse", "HEAD").strip()
+        self.assertEqual(len(self.repo.git("rev-list", "--parents", "-n", "1", "HEAD").split()), 3)
+        self.pede()
+
+    # --- os filtros da S-16 seguem como eram ---------------------------------------------------------------
+    def test_b10_fork_ou_outra_base_com_squash_pede(self):
+        for chave, valor in (("base", lado("outra")), ("base", lado("develop", "fork/r")), ("head", dict(lado("melhoria/x", "fork/r"), sha=self.s))):
+            with self.subTest(chave=chave):
+                self.pede(pulls={"10": dict(self.pull, **{chave: valor})})
+
+    def test_b11_pr_fechado_sem_merge_pede(self):
+        self.pull["merged_at"] = None
+        self.pede()
+
+    def test_b13_force_push_entre_o_rotulo_e_o_merge_pede(self):
+        self.eventos = [rotulo(), {"event": "head_ref_force_pushed", "created_at": "2026-01-02T10:05:00Z"}]
+        self.pede()
+
+    def test_b15_violacao_sem_arquivo_e_custo_pedem_sempre(self):
+        self.depois("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
+        self.assertIn("testes `test_*` caíram", self.pede().stdout)
+        self.repo.git("reset", "-q", "--hard", self.m)
+        self.depois("scripts/x.sh", "export ANTHROPIC_API_KEY=1\n")
+        self.assertIn("R-CUSTO:", self.pede().stdout)
+
+    def test_b16_rotulo_de_outra_conta_ou_por_app_ou_sem_dono_pede(self):
+        app = dict(rotulo(), performed_via_github_app={"slug": "x"})
+        for eventos in ([rotulo("intrusa")], [app], [rotulo(), rotulo(quando="2026-01-02T11:00:00Z", tipo="unlabeled")]):
+            with self.subTest(eventos=eventos):
+                self.eventos = eventos
+                self.pede()
+        fonte = catraca.FonteJson({"repo": REPO_GH, "pr": self.pr, "pulls": {"10": self.pull}, "eventos": {"10": self.eventos},
+                                   "execucoes": {"10": self.execs}})
+        viol = catraca.violacoes_das_regras(self.repo.dir, "homolog", "develop")
+        self.assertIsNone(catraca.liberado_por_pr_mesclado(self.repo.dir, "homolog", "develop", viol, fonte, None))
+
+
 class DonoSoDaBase(Base):
     """S-16 E4: o dono vem só do tests/config.json da base; sem ele, nenhum rótulo vale (o head é do autor)."""
 
@@ -1521,6 +1795,13 @@ class FonteDoGithub(unittest.TestCase):
         self.assertIsNone(f.pr_atual())
         self.assertIsNone(f.eventos(10))
         self.assertIsNone(f.execucoes(10, {"created_at": "a", "merged_at": "b", "head": {"ref": "x"}}))
+
+    def test_resposta_cortada_da_api_e_none(self):
+        """M5: `http.client.IncompleteRead` não é `OSError`; sem captura sairia por traceback."""
+        def corta(*a, **k):
+            raise http.client.IncompleteRead(b"")
+        catraca.requisicao = corta
+        self.assertIsNone(catraca.FonteGithub("t", "o/r", "7").pull(10))
 
 
 class Workflows(unittest.TestCase):
