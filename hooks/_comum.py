@@ -895,20 +895,57 @@ def pipeline_do_operador(partes, marca):
 
 
 def comando_logico(texto, posicao):
-    """A linha física de `posicao` em `texto` (a linha sem os corpos de heredoc) com as que o bash junta a ela: as de
-    antes que acabam em continuação (`bash \\`⏎`<<'EOF'`) e as de depois enquanto a corrente acaba em continuação
-    (`cat <<'EOF' |`⏎corpo⏎`EOF`⏎`bash`). É o dono do heredoc quando a leitura por pipeline não serve: quem lê o corpo
-    pode estar noutra linha física (A1 de segurança, volta 3)."""
-    ini = texto.rfind("\n", 0, posicao) + 1
-    while ini > 0:
-        anterior = texto.rfind("\n", 0, ini - 1) + 1
-        if not continua_na_proxima(texto[anterior:ini - 1]):
+    """O comando lógico de `posicao` em `texto` (a linha sem os corpos de heredoc): as linhas físicas que o bash junta
+    num comando só, lidas do começo do texto. Uma linha se junta à seguinte se acaba em continuação
+    (`continua_na_proxima`: `bash \\`⏎`<<'EOF'`, `cat <<'EOF' |`⏎corpo⏎`EOF`⏎`bash`) ou se deixa um `(`, uma aspa ou
+    uma crase sem par (`x=$(cat <<'EOF'`⏎corpo⏎`EOF`⏎`); eval "$x"`, A2 de segurança, volta 4). É o dono do heredoc
+    quando a leitura por pipeline não serve: quem lê o corpo pode estar noutra linha física (A1 de segurança, volta 3)."""
+    ini, pilha = 0, []
+    for fim in [m.start() for m in re.finditer("\n", texto)] + [len(texto)]:
+        linha = texto[texto.rfind("\n", 0, fim) + 1:fim]
+        pilha = abertos_na_linha(linha, pilha)
+        if fim < len(texto) and (pilha or continua_na_proxima(linha)):
+            continue
+        if posicao <= fim:
+            return texto[ini:fim]
+        ini, pilha = fim + 1, []
+    return texto[ini:]
+
+
+def abertos_na_linha(linha, pilha):
+    """A pilha de contextos sem par (`(`, `"`, `'`, crase) depois de `linha`, partindo de `pilha` (a das linhas
+    anteriores do mesmo comando lógico). Lê como o bash: aspas simples não têm escape; `\\` escapa o caractere
+    seguinte; `$(` abre contexto também entre aspas duplas; `#` no começo de palavra, fora de aspas, comenta o resto da
+    linha. Na dúvida a pilha fica maior, e o comando lógico, que só torna o hook mais desconfiado, também."""
+    pilha, i = list(pilha), 0
+    while i < len(linha):
+        c, topo = linha[i], pilha[-1] if pilha else None
+        if topo == "'":
+            if c == "'":
+                pilha.pop()
+        elif c == "\\":
+            i += 1
+        elif topo == '"':
+            if c == '"':
+                pilha.pop()
+            elif c == "`":
+                pilha.append(c)
+            elif linha.startswith("$(", i):
+                pilha.append("(")
+                i += 1
+        elif c == "#" and (i == 0 or linha[i - 1] in " \t;&|()<>"):
             break
-        ini = anterior
-    fim = texto.find("\n", posicao)
-    while fim >= 0 and continua_na_proxima(texto[texto.rfind("\n", 0, fim) + 1:fim]):
-        fim = texto.find("\n", fim + 1)
-    return texto[ini:len(texto) if fim < 0 else fim]
+        elif c in "'\"(":
+            pilha.append(c)
+        elif c == "`":
+            if topo == "`":
+                pilha.pop()
+            else:
+                pilha.append(c)
+        elif c == ")" and topo == "(":
+            pilha.pop()
+        i += 1
+    return pilha
 
 
 # LOTE-LEITURA-HOOK (A1 de segurança): os programas que leem o corpo de um heredoc como texto e não o executam. A lista

@@ -1530,8 +1530,12 @@ class Hooks(unittest.TestCase):
                         f"cat > x.sh <<'EOF' && chmod +x x.sh && ./x.sh\n{L}\nEOF": "./x.sh",
                         f"cat > x.sh <<'EOF'; ./x.sh\n{L}\nEOF": "./x.sh", f"cat > x.sh <<'EOF' || ./x.sh\n{L}\nEOF": "./x.sh",
                         f"cat > Makefile <<'EOF' && make\n{L}\nEOF": "make", f"cat > x.sh <<'EOF' &&\n{L}\nEOF\n./x.sh": "./x.sh",
-                        f"cat > x.sh <<'EOF' && git -c alias.x='!sh x.sh' x\n{L}\nEOF": "git"}
-        for linha in minimo(list(noutra_linha), 17, "formas em que o corpo vai a quem o roda"):
+                        f"cat > x.sh <<'EOF' && git -c alias.x='!sh x.sh' x\n{L}\nEOF": "git",
+                        # A2 de segurança, volta 4: a linha que fecha a substituição aberta no operador é o mesmo comando
+                        f"x=$(cat <<'EOF'\n{L}\nEOF\n); eval \"$x\"": "eval", f"x=$(cat <<'EOF'\n{L}\nEOF\n) && $x": "$x",
+                        f"x=$(cat <<'EOF' # )\n{L}\nEOF\n); eval \"$x\"": "eval",
+                        f"x=$(cat <<'EOF'; : \")\"\n{L}\nEOF\n); eval \"$x\"": "eval"}
+        for linha in minimo(list(noutra_linha), 21, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
