@@ -470,17 +470,19 @@ class BriefAnterior(unittest.TestCase):
 class PqDeMerge(unittest.TestCase):
     PEDIDO = RAIZ / "tests" / "fixtures" / "brief" / "pedido.md"
 
-    def gerar(self, *extra):
+    def gerar(self, *extra, rc=0):
         r = subprocess.run([sys.executable, FORGE_CHECK, "brief", "gerar", "--pedido", str(self.PEDIDO), "--destino", "forge:tech-lead",
                             "--branch", "melhoria/a", *extra], capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.returncode, rc, r.stderr)
         return r.stdout
 
     def test_etapas_de_merge_trazem_o_pq_por_ancestralidade_da_base(self):  # E5
+        modulo = carregar_forge_check()
         for etapa, base in (("merge-integracao", "develop"), ("pedido-de-merge-ao-dono", "main")):
             with self.subTest(etapa):
-                saida = self.gerar("--etapa", etapa, "--base", base)
-                self.assertIn(f"`git merge-base --is-ancestor <mergeCommit> origin/{base}` · espera: rc=0", saida)
+                self.assertIn(f"`git merge-base --is-ancestor <mergeCommit> origin/{base}` · espera: rc=0", modulo.pq_de_merge(base))
+                # sem os pareceres exigidos, o gerar recusa o brief de merge (P2); com eles, o PQ sai (tests/test_etapa_do_brief.py)
+                self.assertIn("brief gerar: recusado:", self.gerar("--etapa", etapa, "--base", base, rc=1))
         for etapa in ("codigo", "review"):
             with self.subTest(etapa):
                 self.assertNotIn("--is-ancestor", self.gerar("--etapa", etapa))
@@ -490,7 +492,7 @@ class PqDeMerge(unittest.TestCase):
         modulo = carregar_forge_check()
         linhas, _ = modulo.conferir_pq(["- PQ-1 (cmd): `git merge-base --is-ancestor 0123456 origin/develop` · espera: rc=0"])
         self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente", False)])
-        self.assertIn("PREENCHER", self.gerar("--etapa", "merge-integracao"))  # o brief reprova até trocar o <mergeCommit>
+        self.assertIn("PREENCHER", modulo.pq_de_merge("develop"))  # o brief reprova até trocar o <mergeCommit>
 
 
 class BriefDeVolta(Repositorio):

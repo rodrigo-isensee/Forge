@@ -756,6 +756,7 @@ def autoria_do_parecer(raiz, registros, head, nome, tipo):
 
 
 CABECALHO_DE_BRIEF_CAMPOS = {"Pedido": r"^\s*Pedido:\s*(\S+)", "Branch": r"\bBranch:\s*(\S+)", "Base": r"\bBase:\s*(\S+)", "Base-sha": r"\bBase-sha:\s*([0-9a-f]{40})\b"}
+ETAPA_DO_CABECALHO = r"^\s*Etapa:\s*(\S+)"  # escrita pelo `brief gerar` (P2); fora da comparação da união de briefs
 
 
 def cabecalho_do_brief(texto):
@@ -3438,6 +3439,19 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     return saida
 
 
+def avisos_da_etapa(raiz, texto, pedido_id):
+    """M5: com `Etapa:` de qa, pr ou merge e `Branch:` no cabeçalho, uma linha `aviso: etapa:` por parecer que o `forge-check pr` ainda
+    cobra (a mesma tabela do `gerar`); só informa, e o conferente confere a etapa com o `forge-check pr`."""
+    cabecalho = cabecalho_do_brief(texto)
+    etapa = grupo(ETAPA_DO_CABECALHO, cabecalho)
+    branch, base = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho) for c in ("Branch", "Base"))
+    if etapa not in ETAPAS_DO_GERAR:
+        return []
+    if base and base.removeprefix("origin/") not in BASES_DO_FLUXO:
+        return [(f"aviso: etapa: Base {nome_seguro(base)} fora do fluxo; pareceres não conferidos", False)]
+    return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
+
+
 def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, caminho, bytes_anterior, ref, pareceres):
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
@@ -3446,6 +3460,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
+    linhas += avisos_da_etapa(raiz, texto, pedido_id)
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
     return pedido_id, linhas
@@ -3624,6 +3639,16 @@ def cmd_brief_mensagem(raiz, a):
 
 ETAPAS_DE_MERGE = ("merge-integracao", "pedido-de-merge-ao-dono")
 ETAPAS_DO_GERAR = ("codigo", "review", "seguranca", "qa", "pr") + ETAPAS_DE_MERGE
+ETAPAS_QUE_RECUSAM = ("pr",) + ETAPAS_DE_MERGE  # sem os pareceres exigidos, o `gerar` não imprime o brief (P2, tabela 3)
+
+
+def pareceres_da_etapa(raiz, pedido_id, etapa, branch, base):
+    """Linhas do `forge-check pr` que a etapa do fluxo exige (P2 e M5, uma só fonte: `pr_da_cli`, com a isenção da M13): em `qa`, só as
+    do review; em `pr` e nas de merge, todas. [] nas outras etapas ou sem branch."""
+    if etapa not in ("qa",) + ETAPAS_QUE_RECUSAM or not branch:
+        return []
+    linhas = pr_da_cli(raiz, pedido_id, ref=branch, base=f"origin/{base.removeprefix('origin/')}" if base else None)
+    return [l for l in linhas if l.startswith("docs/reviews")] if etapa == "qa" else linhas
 
 
 def pq_de_merge(base):
@@ -3699,6 +3724,17 @@ def cmd_brief_gerar(raiz, pedido, destino, branch, base, etapa=None, volta=None,
     if erro:
         print(erro)
         return 2
+    m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
+    pedido_id = m.group(1) if m else caminho_do_pedido(raiz, pedido).stem
+    if etapa in ETAPAS_QUE_RECUSAM and not branch:
+        print(f"brief gerar: recusado: --branch obrigatório na etapa {etapa} (os pareceres são lidos dela; P2)")
+        return 1
+    faltas = pareceres_da_etapa(raiz, pedido_id, etapa, branch, base)
+    if faltas and etapa in ETAPAS_QUE_RECUSAM:
+        print("\n".join(f"brief gerar: recusado: {sem_controle(l)}" for l in faltas))
+        return 1
+    for linha in faltas:
+        print(f"brief gerar: aviso: {sem_controle(linha)}", file=sys.stderr)
     saida = [f"<!-- forge-check brief gerar: blocos fixos de {caminho_impresso(caminho_pedido.name)}; complete e apague toda linha com {PREENCHER} -->"]
     if destino:
         saida.append(f"Agente destino: {destino}")

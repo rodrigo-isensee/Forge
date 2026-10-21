@@ -151,6 +151,8 @@ def preencher(gerado, pq_proprio=True):
         if not pq_proprio and "<mergeCommit>" in linha:
             linhas.append(linha.split(" · PREENCHER", 1)[0].replace("<mergeCommit>", SHA).replace("PQ-N", "PQ-1"))
             continue
+        if linha.startswith("Branch:"):
+            linha = linha.replace("Base-sha: PREENCHER", f"Base-sha: {SHA}")
         if pula or "PREENCHER" in linha:
             continue
         if linha.startswith("## Entregar"):
@@ -227,15 +229,108 @@ class ProvaDoConferente(Base):
         self.assertIn("forma: sem PQ que o conferente confira", saida)
         self.assertEqual(rc, 1)
 
-    def test_ida_e_volta_do_brief_de_merge_gerado(self):
-        rc, saida = self.rodar("brief", "gerar", "--pedido", self.pedido, "--destino", "forge:revisor-exemplo",
+
+class Repo(Base):
+    """A raiz vira repositório git: `develop` com o pedido e a branch `melhoria/x` com a entrega."""
+    REVIEW = ("---\ntipo: {tipo}\ncontrato: 1\npedido: exemplo\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n{extra}data: 2026-10-12\n---\n# x\n")
+    EXTRA = {"review": "revisor: forge:tech-lead\n",
+             "qa": "escopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\n",
+             "revisao-devops": "revisor: forge:devops-engineer\n"}
+    PASTA = {"review": "docs/reviews", "qa": "docs/qa", "revisao-devops": "docs/devops"}
+
+    def setUp(self):
+        super().setUp()
+        self.git("init", "-q", "-b", "develop")
+        self.git("config", "user.email", "t@example.com")
+        self.git("config", "user.name", "Teste")
+        self.commitar({"README.md": "x\n", "src/app.py": "v1\n"}, "base")
+        self.git("switch", "-q", "-c", "melhoria/x")
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.tmp, capture_output=True, text=True, check=True).stdout.strip()
+
+    def commitar(self, arquivos, mensagem):
+        for rel, texto in arquivos.items():
+            self.gravar(rel, texto)
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", mensagem)
+        return self.git("rev-parse", "HEAD")
+
+    def entrega(self, arquivos, *pareceres):
+        head = self.commitar(arquivos, "entrega")
+        if pareceres:
+            self.commitar({f"{self.PASTA[t]}/exemplo.md": self.REVIEW.format(tipo=t, c=head, extra=self.EXTRA[t]) for t in pareceres},
+                          "pareceres")
+
+    def gerar(self, etapa, destino="revisor-exemplo", cobre="E1.5"):
+        return self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", f"forge:{destino}", "--etapa", etapa,
+                          "--cobre", cobre, "--branch", "melhoria/x", "--base", "develop")
+
+
+class TabelaDePareceres(Repo):
+    """P2 (tabela 3) e M5: o `gerar` recusa PR e merge sem os pareceres que o `forge-check pr` exige; o `brief` avisa."""
+
+    def test_pr_so_de_md_comum_sem_review_recusa(self):
+        self.entrega({"docs/x.md": "# x\n"})
+        rc, saida = self.gerar("pr")
+        self.assertEqual(rc, 1)
+        self.assertIn("brief gerar: recusado: docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)", saida)
+        self.assertNotIn("## Entregar", saida)
+
+    def test_pr_so_de_md_comum_com_review_e_sem_qa_gera(self):
+        self.entrega({"docs/x.md": "# x\n"}, "review")
+        rc, saida = self.gerar("pr")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("Etapa: pr   Cobre: E1.5", saida)
+
+    def test_md_de_controle_sem_qa_recusa(self):
+        self.entrega({"agents/x.md": "# x\n"}, "review")
+        rc, saida = self.gerar("merge-integracao")
+        self.assertEqual(rc, 1)
+        self.assertIn("brief gerar: recusado: docs/qa: qa: sem parecer", saida)
+
+    def test_merge_com_devops_faltando_num_diff_de_pipeline_recusa(self):
+        self.entrega({".github/workflows/ci.yml": "on: push\n"}, "review", "qa")
+        rc, saida = self.gerar("merge-integracao")
+        self.assertEqual(rc, 1)
+        self.assertIn("revisao-devops: sem parecer", saida)
+        self.assertNotIn("docs/qa: qa: sem parecer", saida)
+
+    def test_etapa_de_merge_sem_branch_recusa(self):
+        rc, saida = self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:revisor-exemplo",
                                "--etapa", "merge-integracao", "--cobre", "E1.5")
+        self.assertEqual(rc, 1)
+        self.assertIn("--branch obrigatório na etapa merge-integracao", saida)
+
+    def test_ida_e_volta_do_brief_de_merge_gerado(self):
+        """M4: o brief de merge que o gerar monta, preenchido, passa no `brief` (o PQ de merge é prova do conferente)."""
+        self.entrega({"src/app.py": "v2\n"}, "review", "qa")
+        rc, saida = self.gerar("merge-integracao")
         self.assertEqual(rc, 0, saida)
         preenchido = preencher(saida, pq_proprio=False)
         self.assertIn(f"git merge-base --is-ancestor {SHA} origin/develop", preenchido)
         rc, conferido = self.conferir(preenchido)
         self.assertNotIn("forma: sem PQ que o conferente confira", conferido)
+        self.assertNotIn("aviso: etapa:", conferido)
         self.assertEqual(rc, 0, conferido)
+
+    def test_brief_avisa_a_etapa_sem_parecer_e_nao_reprova(self):
+        self.entrega({"src/app.py": "v2\n"}, "review", "qa")
+        rc, saida = self.gerar("merge-integracao")
+        preenchido = preencher(saida, pq_proprio=False)
+        self.git("reset", "-q", "--hard", "HEAD~1")  # os pareceres somem da branch depois do gerar
+        rc, conferido = self.conferir(preenchido)
+        self.assertIn("aviso: etapa: docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)", conferido)
+        self.assertEqual(rc, 0, conferido)
+
+    def test_qa_gera_com_aviso_do_review(self):
+        self.entrega({"src/app.py": "v2\n"})
+        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", "gerar", "--pedido", "exemplo",
+                            "--destino", "forge:qa-exemplo", "--etapa", "qa", "--branch", "melhoria/x"],
+                           capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")), timeout=60)
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("brief gerar: aviso: docs/reviews: review: sem parecer", r.stderr)
+        self.assertNotIn("docs/qa", r.stderr)
 
 
 if __name__ == "__main__":
