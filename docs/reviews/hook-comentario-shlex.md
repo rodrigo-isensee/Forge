@@ -4,7 +4,7 @@ contrato: 1
 pedido: hook-comentario-shlex
 branch: melhoria/hook-comentario-shlex
 commit: 371ac6dea55f44a2b0c5bb6e4d48005cc48ce1da
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
@@ -15,6 +15,8 @@ Rodada 1 (E1.2), entrega inteira `10c838f..74dc3f6`: 2 commits, 12 arquivos, 251
 Ferramentas rodadas em 74dc3f6: `python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_cerquilha_so_abre_comentario_no_inicio_de_palavra` → `Ran 2 tests in 31.040s OK`. Suíte inteira e `scripts/validar-plugin.sh` não refeitos aqui (R-TETO): o pre-push do envio deste parecer roda a suíte, e o QA os refaz no head. O Forge não tem `docs/engineering/praticas.md`; o checklist da skill foi lido sobre o diff.
 
 ## Volta 3
+**Correção depois do envio (becc0b7 aprovava):** a segurança (3d8b449, A6) mostrou que a recusa nova só vale com `CRITICO`, e eu reproduzi: na cópia de 371ac6d, a fixture `trava-repo-delete-bloqueia` com o sufixo `; (true)#'` e com ` # it's ((` sai com **0** (`AssertionError: 0 != 2`); na cópia da base 10c838f, as mesmas duas saem com 2. Minhas sondas do item 4 só usaram linhas com `CRITICO`, e eu não considerei que boa parte das recusas do hook (`gh repo delete`, caminho protegido fora de `CRITICO`, `forge sugerir`, `git filter-branch`…) não passa por ele. O `return` do `except ValueError` pula todas essas checagens. Vira o meu A4, abaixo; o item 1 vale só para linha com marcador crítico, e o item 6 (aviso do conferente) deixa de ser aceito: a não regressão precisa ser gerada das fixtures de recusa com os dois sufixos, como a sonda da segurança fez, não de 11 linhas escolhidas à mão. A correção mínima da segurança (no mesmo `except ValueError`, recusar sempre fora do papel só de leitura) me parece a certa; a fixture `shell-aspas-desbalanceadas-libera` passa a esperar 2, o que endurece.
+
 Delta lido: `7e03786..371ac6d` (1 commit, `371ac6d`): `hooks/conformidade.py` no `except ValueError` de `Guarda.bash` (a checagem `ilegivel` vem primeiro, e a linha com `CRITICO` fora do papel só de leitura passa a ser recusada por `nao_modelada` mesmo sem `achado`); `hooks/_comum.py` põe `[@!+*?]\(` (extglob) em `SEM_COMENTARIO`; 3 fixtures de recusa (`aritmetica-aspa-no-comentario-*`, `aritmetica-subshell-cerquilha-aspa-*`, `extglob-cerquilha-*`); teste `test_cerquilha_linhas_que_a_base_recusava_continuam_recusadas` (11 linhas); fragmento do changelog. Já lido (rodada 1, voltas 1 e 2, abaixo): o resto da entrega, sem mudança.
 
 1. **A3 (meu e da segurança) e A4 da segurança corrigidos pela causa.** O `ValueError` era a mesma porta para os dois; agora a linha crítica que a leitura não fecha é recusada (falha fechada), que é a correção mínima apontada nos dois pareceres. Com isso a suposição do autor da volta 2 (`((`/`=~`/extglob desligam o comentário, lê-se a mais) passa a ser segura de fato: ler a mais nunca vira ler a menos.
@@ -35,6 +37,7 @@ Achados da volta 2 (resolvidos na volta 3):
 - A3 da volta 2 (resolvido) hooks/_comum.py:227 · com `((` ou `=~` na linha, um `'` no comentário dava ValueError e conformidade.py:668 liberava; agora a linha crítica ilegível é recusada.
 
 ## Achados
+- A4 (bloqueante) hooks/conformidade.py:672 · a recusa da linha ilegível só vale com CRITICO; `gh repo delete dono/proj --yes; (true)#'` e `… # it's ((` saem com 0 (a base barra). Regressão; é o A6 da segurança. Recusar a linha ilegível fora do papel só de leitura sempre.
 
 ## Volta 2
 Delta lido: `ee29c11..7013204` (2 commits de código: `11b63de` e `7013204`; os outros dois são os pareceres): `hooks/_comum.py` junta as duas constantes em `INICIO_DE_PALAVRA` (sem `(` nem `)`), cria `SEM_COMENTARIO` (`((` ou `=~` em qualquer ponto da linha) e `abre_comentario`, usada por `fichas` e por `construcao_nao_modelada`; 7 fixtures de recusa em `tests/hooks/conformidade/`; teste `test_cerquilha_nao_abre_comentario_com_aritmetica_ou_regex`; fragmento do changelog. Já lido (rodada 1 e volta 1, abaixo): o resto da entrega, sem mudança.
