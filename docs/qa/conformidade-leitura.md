@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: conformidade-leitura
 branch: melhoria/conformidade-leitura
-commit: a0f766fa6e4a9504ec28a150996fd9de51a3f66a
+commit: 2e1e7129d7494912f5de2dba382dae15a5d64c4b
 parecer: aprovado
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -39,5 +39,20 @@ Esta mudança afrouxa um bloqueio da F6. O PR para a `develop` leva destaque no 
 
 ## Recomendações (não bloqueiam)
 - R1: se o dono quiser `sed -n` como leitura, incluir `sed` com lista própria de opções (`e`, `w`, `-i` executam ou gravam); hoje recusa, sem risco.
+
+## Volta 2 (código 2e1e712: `so_leitura` lê a linha por `leituras()` da #269)
+Revalidação sobre `2e1e7129d7494912f5de2dba382dae15a5d64c4b` (HEAD da branch `445e769` só soma pareceres). Offline (`R-CUSTO`); sondas em `$TMPDIR`.
+
+| ID | Obrigação / cenário | Fronteira protegida | Resultado |
+|---|---|---|---|
+| CT-08 | Suíte completa `python3 -m unittest discover -s tests -q` | n/a | Passou: 1298 testes, OK (395 s) |
+| CT-09 | `scripts/validar-plugin.sh` | n/a | Passou: `Validation passed` (rede negada pelo sandbox, sem efeito no resultado) |
+| CT-10 | Liberações da M1 no hook real (cópia de 2e1e712 em `$TMPDIR`): `grep -n 'forge sugerir' README.md`, `git log --oneline \| grep 'forge sugerir'`, `cat x \| grep forge sugerir` | leitura pura | Saída 0 |
+| CT-11 | Contornos: `; forge sugerir`, variável (`forge $S`), crase, `eval`, `xargs`, `\| forge sugerir`, `&&`, `>`, aspa sem par, `--pre=sh`, `f#;forge`, `bash -c`, `sug""erir`, `forge sugerir --fila` | ofuscação e execução | Todos saída 2 (`R-CONFORMIDADE`) |
+| CT-12 | Merge 95a7321 não liberou nada da #269: `git diff fa75b67 2e1e712` só toca `hooks/conformidade.py` (+58/-3, só `so_leitura` e seu uso); `hooks/_comum.py` sem diferença; as fixtures da #269 passam na suíte | regressão da #269 | Confere |
+
+Vermelho antes do verde: sem teste novo neste delta (a volta 2 só troca `comandos()` por `leituras()`); as 3 fixtures `*-libera` seguem vermelhas contra o hook da `develop` (verificado na volta 0). Mutação: sem ferramenta gratuita na stack; não executada.
+
+Observação sem bloqueio: `git log --grep='forge sugerir' --oneline` sai 2 (`--grep` fora da lista branca de opções); fora do recorte da M1, conservador, sem risco.
 
 ## Achados
