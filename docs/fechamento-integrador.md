@@ -37,6 +37,9 @@ Antes de qualquer passo (e antes do log), o script confere os três números e p
 ## Erro passageiro do GitHub (502)
 Só as operações que não mudam o PR repetem, até 3 vezes e com espera curta (`FORGE_FECHAR_PAUSA`, padrão 3 s): a leitura do estado e dos dados do PR (passos 3, 5 e 6, e o `--limpar`), a leitura dos checks (passo 4) e o `git push origin --delete` da limpeza. Push de código, criação de PR, `gh pr ready` e merge nunca se repetem sozinhos; se falham, o script para (no merge, só lê o estado para reconhecer um `MERGED` já feito).
 
+## Limpeza: seção do config depois do `git branch -D`
+Complementa o passo 7. Depois do `git branch -D` o script guarda o stderr do git (continua impresso, no log) e lê o `.git/config` (`git config --local --name-only --get-regexp '^branch\.'`), comparando o **nome exato da seção** por texto fixo (`branch.<ref>.<variável>`, sem ponto na variável: a seção da branch `a.b` não é a da `a`). No sandbox o `.git/config` é protegido e o git avisa "could not lock config file" com código 0, deixando a seção `branch.<ref>` para trás. Sem seção e com aviso, o fim da linha `limpeza:` ganha ` config=ok (aviso do git sem efeito)` (branches criadas com `--no-track` não têm seção); com a seção ainda lá, ` config=pendente`, o comando `git config --local --remove-section branch.<ref>` e código 3; config que não se consegue ler (código do git diferente de 0 e de 1) também é `config=pendente`, com `git config --local --list`, nunca `ok`. Sem aviso e sem seção a linha fica como era (sem o campo `config=`, sempre por último).
+
 ## O que nunca faz
 Mescla na `main` (base `main` ou fora do fluxo é recusada), aplica rótulo, usa `--force` ou `--no-verify`, apaga `develop`, `homolog` ou `main`, apaga branch sem a prova do sha mesclado, dispensa parecer ou check. O rótulo continua sendo do dono (`R-CONTRIB`).
 

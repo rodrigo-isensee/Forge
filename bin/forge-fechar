@@ -203,6 +203,18 @@ sha_confere() {
   done
   git merge-base --is-ancestor "$1" "$base" 2>/dev/null
 }
+# secao_da_branch: define secao_st (ausente, presente ou ilegivel) para a seção branch.<ref> do .git/config. Compara o NOME exato da seção por texto
+# fixo (o ref pode ter `.`; prefixo sozinho casaria a seção da branch `a.b` com a branch `a`) e só dá "ausente" com o código 1 do git (nenhuma seção);
+# qualquer outro código (config ilegível) é "ilegivel", nunca "ausente".
+secao_da_branch() {
+  local nomes rc=0 n
+  secao_st=ausente
+  nomes="$(git config --local --name-only --get-regexp '^branch\.' 2>/dev/null)" || rc=$?
+  case "$rc" in 0) ;; 1) return 0 ;; *) secao_st=ilegivel; return 0 ;; esac
+  while IFS= read -r n; do
+    if [[ "$n" == "branch.$ref."* ]] && [[ "${n#"branch.$ref."}" != *.* ]]; then secao_st=presente; return 0; fi
+  done <<<"$nomes"
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push roda a suíte nesse push). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -246,13 +258,37 @@ git worktree remove $(printf '%q' "$arvore")"
     elif ! sha_confere "$sha_local"; then
       echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não a apaguei." >&2
       br_st=pendente
-    elif ! git branch -D "$ref"; then
-      echo "aviso: não apaguei a branch local $ref." >&2
-      br_st=pendente
+    else
+      # O stderr do `branch -D` é guardado e continua impresso: no sandbox o .git/config é protegido e o git avisa "could not lock config file"
+      # com código 0, deixando a seção branch.<ref> para trás. A decisão vem do estado do config, não do texto do aviso.
+      local br_rc=0 br_err cfg_campo=""
+      { br_err="$(git branch -D "$ref" 2>&1 1>&3)"; } 3>&1 || br_rc=$?
+      [ -z "$br_err" ] || printf '%s\n' "$br_err" >&2
+      if [ "$br_rc" != 0 ]; then
+        echo "aviso: não apaguei a branch local $ref." >&2
+        br_st=pendente
+      else
+        secao_da_branch
+        case "$secao_st" in
+          ausente) [ -z "$br_err" ] || cfg_campo=" config=ok (aviso do git sem efeito)" ;;
+          presente)
+            cfg_campo=" config=pendente"
+            echo "aviso: a branch local $ref foi apagada, mas a seção branch.$ref continua no .git/config (o git não conseguiu gravar o config)." >&2
+            pend_cmds="$pend_cmds
+git config --local --remove-section $(printf '%q' "branch.$ref")" ;;
+          *)
+            cfg_campo=" config=pendente"
+            echo "aviso: não consegui ler o .git/config para conferir a seção branch.$ref depois de apagar a branch." >&2
+            pend_cmds="$pend_cmds
+git config --local --list" ;;
+        esac
+      fi
     fi
     [ "$br_st" = ok ] || pend_cmds="$pend_cmds
 git branch -D $(printf '%q' "$ref")"
   fi
+  # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
+  [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
   if ! sha_remoto="$(git ls-remote origin "refs/heads/$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
