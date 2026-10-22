@@ -158,7 +158,7 @@ Critério: ADR 0011, item 3. A sonda não é regressão contra a `develop` e dep
 
 | ID | Sonda | Por quê | Destino |
 |---|---|---|---|
-| X1 | gravação por argumento e execução na mesma chamada: `printf '%s\n' '{CORPO}' > x.sh && sh x.sh`, `echo '{CORPO}' > .husky/pre-push; git push origin feature/x`, `cat > x.sh <<< '{CORPO}'` numa linha só | não há heredoc; a `develop` libera igual; limite [B] (`docs/hooks.md:92`), com o `pre-push` e a proteção de branch como camada | N-HOOK1 (a regra M3 sem a condição "heredoc" tem falso positivo alto: `npm test > out.txt && git push`) |
+| X1 | gravação por argumento e execução na mesma chamada: `printf '%s\n' '{CORPO}' > x.sh && sh x.sh`, `echo '{CORPO}' > .husky/pre-push; git push origin feature/x`, `cat > x.sh <<< '{CORPO}'` numa linha só | não há heredoc; a `develop` libera igual; limite [B] (`docs/hooks.md:92`), com o `pre-push` e a proteção de branch como camada | N-HOOK1 (a regra M3 sem a condição "heredoc" tem falso positivo alto: `make test > out.txt && git push`) |
 | X2 | `PATH=/tmp/x:/usr/bin` sozinho numa linha antes de `cat <<'EOF'`, `read PATH <<'EOF'`, função exportada no ambiente, `remote.<r>.receivepack` na configuração | depende de executável ou configuração gravados antes (R2 da segurança) | N-HOOK1, regra 2.3 (`CONFIG_PROTEGIDA`) |
 | X3 | marcador ofuscado: `git p''ush` no corpo, `os.system('gh pr m' + 'erge …')` | o `CRITICO` lê o texto cru | cartão C8 da ADR 0011 |
 
