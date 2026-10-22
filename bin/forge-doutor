@@ -3,6 +3,7 @@
 Uso: forge doutor [--rapido] [-v] [DIRETORIO]
   --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
   -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
+No modo completo também confere o relógio deste computador contra o `Date` do GitHub (só avisa; nunca acerta o relógio).
 Confere: plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
 `.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
@@ -209,6 +210,14 @@ def conferir_gh(raiz):
                      "(o login acontece no navegador).")]
 
 
+def conferir_relogio():
+    """Só no modo completo (usa a rede): o relógio deste computador contra o `Date` do GitHub. Só avisa, nunca acerta o relógio."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import forge_versoes
+    texto = forge_versoes.texto_de_relogio(forge_versoes.desvio_do_relogio(forge_versoes.url_do_forge(), 3))
+    return [Problema(texto)] if texto else []
+
+
 def conferir_identidade(config_git):
     faltam = [(chave, rotulo, comando) for chave, rotulo, comando in (
         ("user.name", "nome", 'git config --global user.name "Seu Nome"'),
@@ -319,6 +328,7 @@ def diagnosticar(raiz, rapido=True):
         problemas += conferir_protecao_do_git(raiz, config_git)
     if not rapido:
         problemas += conferir_gh(raiz)
+        problemas += conferir_relogio()
     if codigo is not None:
         problemas += conferir_identidade(config_git)
     problemas += conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
