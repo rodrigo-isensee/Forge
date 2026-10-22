@@ -155,6 +155,9 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                     self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
         self.assertGreaterEqual(total, 40)
 
+    def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
+        self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
+
 
 class Execucao(unittest.TestCase):
     """Roda o script de verdade num repositório de brinquedo."""

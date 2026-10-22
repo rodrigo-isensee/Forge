@@ -449,7 +449,8 @@
       "Commite o parecer na branch revisada",
       "`R-QA`",
       "sem ler o código",
-      "testes dos casos de abuso do modelo de ameaças"
+      "testes dos casos de abuso do modelo de ameaças",
+      "forge-mutante"
     ],
     "skills/qa-testing/SKILL.md": [
       "forge-testes --vermelho",
@@ -460,7 +461,8 @@
       "afirma um mínimo de itens",
       "## Plano antecipado",
       "conferir o diff contra a lista de `CA-n`",
-      "só sobre o commit final e depois do review"
+      "só sobre o commit final e depois do review",
+      "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
       "lista os \\*\\*casos de abuso\\*\\*"
