@@ -45,6 +45,43 @@ trava_confere() {
     return 1
   fi
 }
+# SUITE-FILA-JUSTA: a trava do kernel garante uma suíte por vez, mas não a ordem de quem espera. A fila dá a vez
+# por ordem de chegada: cada espera cria uma senha <ns>-<pid> na pasta <trava>.fila (modo 700, do próprio usuário,
+# não é link), presa por flock no descritor 8, e só disputa a trava quando a sua é a menor senha viva. Senha cujo
+# flock se obtém é de processo morto e é descartada. A senha só ordena a espera: a exclusão continua sendo a trava.
+# Sem a pasta da fila (ou sem poder criar a senha), espera só pela trava, como antes, com aviso.
+senha=""
+# Senhas vivas da fila, em ordem de chegada (descarta as de processo morto se $1 = limpar).
+fila_vivas() {
+  local f LC_COLLATE=C
+  for f in "$fila"/[0-9]*; do
+    [ -e "$f" ] && [ ! -L "$f" ] || continue
+    if [ "$f" != "$senha" ] && (exec 7<"$f" && flock -n 7) 2>/dev/null; then
+      [ "${1:-}" = limpar ] && rm -f -- "$f"
+      continue
+    fi
+    printf '%s\n' "$f"
+  done
+}
+fila_entrar() {
+  local nova alvo
+  if [ ! -e "$fila" ] && [ ! -L "$fila" ]; then mkdir -m 700 "$fila" 2>/dev/null || true; fi
+  if [ -L "$fila" ] || [ ! -d "$fila" ] || [ ! -O "$fila" ]; then
+    echo "pre-push: aviso: ${fila} não é uma pasta do próprio usuário; espera sem a ordem de chegada (só a trava)." >&2
+    return 1
+  fi
+  # A senha nasce com outro nome e já presa; só então ganha o nome que entra na fila (ninguém a vê solta).
+  nova="$fila/.nova-$$"; alvo="$fila/$(date +%s%N)-$$"
+  if ! { exec 8>"$nova" && flock -n 8 && mv -f -- "$nova" "$alvo"; } 2>/dev/null; then
+    rm -f -- "$nova"; exec 8>&-
+    echo "pre-push: aviso: não consegui entrar na fila ${fila}; espera sem a ordem de chegada (só a trava)." >&2
+    return 1
+  fi
+  senha="$alvo"
+}
+fila_sair() {
+  if [ -n "$senha" ]; then rm -f -- "$senha"; exec 8>&-; senha=""; fi
+}
 # Modo --status só quando chamado à mão com exatamente um argumento; o git passa nome e URL do remoto
 # (dois argumentos), então um remoto chamado "--status" cai no caminho normal.
 if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
@@ -55,9 +92,16 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   exec 9<"$trava" || exit 1
   trava_confere || exit 1
   if flock -n 9; then flock -u 9; echo "nenhuma suíte do Forge rodando"; exit 1; fi
-  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true))"
+  fila="${trava%.lock}.fila"
+  na_fila=0
+  if [ -d "$fila" ] && [ ! -L "$fila" ] && [ -O "$fila" ]; then na_fila="$(fila_vivas | wc -l)"; fi
+  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true)); ${na_fila} na fila"
   exit 0
 fi
+# Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
+# mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
+modo_suite=0
+if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
 n_refs=0; unico_local=""; unico_remoto=""; unico_ref=""
 while read -r _ local_sha remote_ref remote_sha; do
   n_refs=$((n_refs + 1)); unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
@@ -86,6 +130,13 @@ while read -r _ local_sha remote_ref remote_sha; do
       exit 1 ;;
   esac
 done
+# PREPUSH-JA-NO-REMOTO: sem nenhuma ref a enviar (a branch já é igual à remota, o git chama o hook com o stdin vazio)
+# não há o que testar. Só este caso: o push que apaga ref traz uma linha e segue rodando a suíte; o modo --suite
+# também não lê refs e roda sempre.
+if [ "$modo_suite" -eq 0 ] && [ "$n_refs" -eq 0 ]; then
+  echo "pre-push: nada a enviar (a branch já é igual à remota); suíte não roda." >&2
+  exit 0
+fi
 # Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);
 # limpa para que nada rodado aqui escreva em outro repositório.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
@@ -101,15 +152,42 @@ fi
 # Abre uma vez (sem truncar) e confere o arquivo aberto; o pid vai pelo mesmo descritor.
 exec 9>>"$trava" || { echo "pre-push: não consegui abrir a trava ${trava}." >&2; exit 1; }
 trava_confere || exit 1
-if ! flock -n 9; then
-  echo "pre-push: outra suíte do Forge está rodando ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
-  if ! flock -w "$espera" 9; then
-    echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
-    exit 1
-  fi
+limite_ns=$(( $(date +%s%N) + espera * 1000000000 ))
+avisou=0
+avisar() {
+  [ "$avisou" = 1 ] && return 0
+  avisou=1
+  echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+}
+barrar() {
+  fila_sair
+  echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
+  exit 1
+}
+fila="${trava%.lock}.fila"
+if fila_entrar; then
+  while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
+    avisar
+    [ "$(date +%s%N)" -lt "$limite_ns" ] || barrar
+    sleep 0.2
+  done
 fi
+if ! flock -n 9; then
+  avisar
+  resta_ns=$(( limite_ns - $(date +%s%N) ))
+  [ "$resta_ns" -gt 0 ] || resta_ns=0
+  flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
+fi
+fila_sair
 : > /proc/self/fd/9
 printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
+# No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
+if [ "$modo_suite" = 1 ]; then
+  if [ -f scripts/suite-paralela.py ]; then
+    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
+  fi
+  exec python3 -m unittest discover -s tests -q
+fi
 # Push que só acrescenta pareceres sobre código que já passou na suíte roda só as classes de teste que leem
 # pareceres (as que varrem ou conferem os pareceres; o gate do CI usa um subconjunto próprio); o CI repete tudo. A prova é a árvore verde: depois de cada suíte
 # verde com a árvore de trabalho limpa, a árvore testada é anotada ao lado da trava, fora do git. Falha fechada:
@@ -149,10 +227,32 @@ so_parecer() {
 }
 if so_parecer; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
-  python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+  suite=(python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q)
+elif [ -f scripts/suite-paralela.py ]; then
+  # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
+  suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
 else
-  python3 -m unittest discover -s tests -q 9>&- >&2 || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
+  # Árvore sem o script (repositório mínimo): a mesma suíte em série, mais lenta e nunca mais frouxa.
+  suite=(python3 -m unittest discover -s tests -q)
 fi
+# PREPUSH-PKILL-ALHEIO: parar a suíte é parar só esta execução. A suíte roda como filho deste hook; TERM, INT ou HUP
+# no hook encerram só esse filho (que encerra os grupos dos próprios processos) e esperam por ele antes de a trava
+# soltar. Parar reprova o envio e não anota prova. Nunca `pkill -f`: o padrão casa com a suíte de outro agente.
+suite_pid=""
+parar() {
+  trap '' TERM INT HUP
+  if [ -n "$suite_pid" ]; then kill -TERM "$suite_pid" 2>/dev/null; wait "$suite_pid" 2>/dev/null; fi
+  echo "pre-push: suíte interrompida (pid ${$}); só esta execução parou, o envio foi barrado e nenhuma prova foi anotada." >&2
+  exit 1
+}
+trap parar TERM INT HUP
+echo "pre-push: suíte do Forge no pid ${$}; para parar só esta execução: kill ${$} (nunca pkill -f, que derruba a suíte de outro agente)." >&2
+"${suite[@]}" 9>&- >&2 &
+suite_pid=$!
+rc=0
+wait "$suite_pid" || rc=$?
+trap - TERM INT HUP
+[ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
 # Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}
 # não mudou durante a suíte, para valer a do commit) como prova do próximo push.
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
