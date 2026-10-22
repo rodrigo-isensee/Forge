@@ -877,7 +877,8 @@ class DonosDosHeredocs:
         fora dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|`
         antes) separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os
         programas do comando lógico (`comando_logico`) fora da lista positiva dos outros comandos
-        (`outro_sem_o_corpo`), ou todos eles se o texto tem um comando que muda o ambiente (`MUDAM_O_AMBIENTE`). O
+        (`outro_sem_o_corpo`), ou todos eles se o texto tem um comando que muda o ambiente (`MUDAM_O_AMBIENTE`), e todo
+        `git` se o comando lógico grava arquivo (`grava_arquivo`: o git roda ganchos, filtros e configuração). O
         comando lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
         lugar = lugar_logico(self.resto, posicao)
         segmentos = [] if self.lidas.ilegivel else [segmentos_do_operador(partes, marca, indice)
@@ -890,17 +891,41 @@ class DonosDosHeredocs:
     def montar(self, lugar, segmentos):
         inicios, fins = limites_logicos(self.resto)
         logico = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
-        if segmentos is None:
-            return logico
+        grava = grava_arquivo(logico)
+        if segmentos is None:  # o `git` puro não é leitor: com a linha gravando, nenhum git do comando passa (A2)
+            return logico + "\ngit" if grava and any(p == "git" for p, _ in programas_da_linha(logico)) else logico
         if lugar not in self.fora_da_lista:
             self.fora_da_lista[lugar] = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
-                                         if self.muda_o_ambiente or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
+                                         if self.muda_o_ambiente or (grava and p == "git")
+                                         or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
         donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, segmentos)
                  for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
         texto = "\n".join([*(" ".join(palavras) for palavras in donos), *self.fora_da_lista[lugar]])
         for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
             texto = texto.replace(opaco, "_")
         return re.sub(MARCA + r"\d+__", " ", texto)
+
+
+# A2 do review, volta 5: o `git` roda ganchos (`core.hooksPath`), filtros e `fsmonitor` lidos de arquivos; se o comando
+# lógico grava arquivo, o heredoc pode ter escrito um deles, e nenhum `git` do comando fica na lista positiva.
+GRAVA_REDIRECAO = re.compile(r"(?:\d*|&)(?:>>|>\||>)(?!&)\s*(\S*)")
+GRAVAM_ARQUIVO = frozenset({"tee", "uniq"})
+GIT_GRAVA_ARQUIVO = frozenset({"apply", "am"})
+
+
+def grava_arquivo(logico):
+    """O comando lógico `logico` pode gravar arquivo (A2 do review, volta 5): redireção de saída que não seja cópia de
+    descritor (`2>&1`) nem `/dev/null`, `tee`, `uniq`, opção `-o`/`--output`, ou `git apply`/`git am`. Só o conteúdo
+    entre aspas simples fica de fora; na dúvida, grava."""
+    texto = re.sub(r"'[^']*'", "''", logico)
+    if any(m.group(1).strip("\"") != "/dev/null" for m in GRAVA_REDIRECAO.finditer(texto)):
+        return True
+    for programa, argumentos in programas_da_linha(texto):
+        if programa in GRAVAM_ARQUIVO or any(a.startswith(("-o", "--output", "--out")) for a in argumentos):
+            return True
+        if programa == "git" and subcomando_do_git(argumentos) in GIT_GRAVA_ARQUIVO:
+            return True
+    return False
 
 
 def pipeline_do_operador(partes, marca, indice=None):

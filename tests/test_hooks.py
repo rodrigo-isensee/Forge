@@ -1542,8 +1542,15 @@ class Hooks(unittest.TestCase):
                         f"cat > x.sh <<'EOF' && git --config-env=core.sshCommand=X push ssh://h/r\n{L}\nEOF": "git",
                         f"cat > .gitconfig <<'EOF' && HOME=. git status\n{L}\nEOF": "git",
                         f"cat > x.sh <<'EOF' && GIT_SSH=sh git push ssh://x.sh/r HEAD\n{L}\nEOF": "git",
-                        f"export GIT_SSH=sh\ncat > x.sh <<'EOF' && git push ssh://x.sh/r HEAD\n{L}\nEOF": "git"}
-        for linha in minimo(list(noutra_linha), 27, "formas em que o corpo vai a quem o roda"):
+                        f"export GIT_SSH=sh\ncat > x.sh <<'EOF' && git push ssh://x.sh/r HEAD\n{L}\nEOF": "git",
+                        # A2 do review, volta 5: a linha grava arquivo e o git roda ganchos, filtros e configuração
+                        f"cat > .husky/pre-push <<'EOF' && git push origin feature/x\n{L}\nEOF": "git",
+                        f"cat > .husky/pre-commit <<'EOF' && git commit -m x\n{L}\nEOF": "git",
+                        f"cat >> .husky/pre-commit <<'EOF' && git add -A\n{L}\nEOF": "git",
+                        f"tee .husky/pre-push <<'EOF' && git push origin feature/x\n{L}\nEOF": "git",
+                        f"git apply <<'EOF' && git commit -m x\n{L}\nEOF": "git",
+                        f"( cat > .husky/pre-commit <<'EOF' ) && git commit -m x\n{L}\nEOF": "git"}
+        for linha in minimo(list(noutra_linha), 33, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
@@ -1553,7 +1560,9 @@ class Hooks(unittest.TestCase):
         separados = (f"cat > f <<'EOF'\n{L}\nEOF\nbash f", f"cat <<'EOF'\n{L}\nEOF\nbash", f"cat <<'EOF' \\\\\n{L}\nEOF\nsh",
                      f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
                      f"git add -A && git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && git push -u origin feature/x",
-                     f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)")
+                     f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)",
+                     f"cat <<'EOF' 2>/dev/null && git push -u origin feature/x\n{L}\nEOF",
+                     f"cat <<'EOF' 2>&1 && git status --short\n{L}\nEOF")
         for linha in separados:  # outro comando da lista não lê o corpo (A1 do review: o comum dos projetos)
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.corpo_so_lido(_comum.tirar_heredocs(linha)[1][0][0]))
