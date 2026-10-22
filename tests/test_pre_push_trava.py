@@ -295,51 +295,51 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("não é uma pasta do próprio usuário", erro)
         self.assertFalse((self.repo / "rodou").exists())
 
-    # SUITE-FILA-JUSTA: ordem de chegada pela fila de senhas ao lado da trava.
+    # SUITE-FILA-JUSTA: ordem de chegada pela fila de vezes ao lado da trava.
     def fila(self):
         return self.run_dir / f"forge-suite-{os.getuid()}.fila"
 
-    def senhas(self):
+    def vezes(self):
         return sorted(p.name for p in self.fila().iterdir() if not p.name.startswith(".")) if self.fila().is_dir() else []
 
-    def segura_senha(self, nome="0000000000000000001-1"):
-        """Uma espera anterior viva: a senha presa por um processo externo."""
+    def segura_vez(self, nome="0000000000000000001-1"):
+        """Uma espera anterior viva: a vez presa por um processo externo."""
         self.fila().mkdir(mode=0o700, exist_ok=True)
-        senha = self.fila() / nome
-        senha.write_text("")
-        p = subprocess.Popen([sys.executable, "-I", "-c", SEGURA_TRAVA, str(senha)], stdout=subprocess.PIPE, text=True)
+        vez = self.fila() / nome
+        vez.write_text("")
+        p = subprocess.Popen([sys.executable, "-I", "-c", SEGURA_TRAVA, str(vez)], stdout=subprocess.PIPE, text=True)
         self.filhos.append(p)
         self.assertEqual(p.stdout.readline().strip(), "pronto")
         return p
 
     def test_espera_anterior_viva_tem_a_vez_mesmo_com_a_trava_livre(self):
         self.suite(SUITE_RAPIDA)
-        self.segura_senha()
+        self.segura_vez()
         codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
         self.assertEqual(codigo, 1, erro)
         self.assertIn("esperando a vez", erro)
         self.assertIn("a vez não chegou", erro)
         self.assertFalse((self.repo / "rodou").exists(), "passou na frente de quem chegou antes")
-        self.assertEqual(self.senhas(), ["0000000000000000001-1"], "a senha de quem desistiu ficou na fila")
+        self.assertEqual(self.vezes(), ["0000000000000000001-1"], "a vez de quem desistiu ficou na fila")
 
-    def test_senha_de_processo_morto_e_descartada(self):
+    def test_vez_de_processo_morto_e_descartada(self):
         self.suite(SUITE_RAPIDA)
         self.fila().mkdir(mode=0o700)
         (self.fila() / "0000000000000000001-1").write_text("")
         codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="5")
         self.assertEqual(codigo, 0, erro)
         self.assertTrue((self.repo / "rodou").exists())
-        self.assertEqual(self.senhas(), [])
+        self.assertEqual(self.vezes(), [])
 
     def test_quem_chega_antes_roda_antes(self):
         self.suite(SUITE_ORDEM)
         dono = self.segura_trava()
         b = self.hook(QUEM="B")
         self.filhos.append(b)
-        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 1), "B não entrou na fila")
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "B não entrou na fila")
         c = self.hook(QUEM="C")
         self.filhos.append(c)
-        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 2), "C não entrou na fila")
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 2), "C não entrou na fila")
         _, saida, _ = self.roda("--status")
         self.assertIn("2 na fila", saida)
         dono.kill()
@@ -347,7 +347,7 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(b.wait(timeout=60), 0)
         self.assertEqual(c.wait(timeout=60), 0)
         self.assertEqual((self.repo / "ordem").read_text().split(), ["B", "C"])
-        self.assertEqual(self.senhas(), [])
+        self.assertEqual(self.vezes(), [])
 
     def test_fila_que_e_link_espera_so_pela_trava(self):
         self.suite(SUITE_RAPIDA)
@@ -414,7 +414,7 @@ class PrePushTrava(unittest.TestCase):
         suite_da_primeira = int(pid_arquivo.read_text())
         segunda = self.hook()
         self.filhos.append(segunda)
-        self.assertTrue(self.espera_ate(lambda: len(self.senhas()) == 1), "a segunda não entrou na fila")
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "a segunda não entrou na fila")
         primeira.send_signal(signal.SIGTERM)  # o "kill <pid>" que o hook imprime
         self.assertEqual(primeira.wait(timeout=30), 1)
         erro = primeira.stderr.read()
