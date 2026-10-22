@@ -28,6 +28,13 @@ Como rodar sem o corte:
 - Nunca `pkill -f` para parar o script: casa com qualquer processo cuja linha de comando traga o texto e pode matar o que não é do fechamento. Pare só o processo que você iniciou, pelo pid, com `kill <pid>` (`TERM`, que grava o `fim:`).
 - Log sem `fim:`, ou com `fim: código` 143, 130, 129 ou 1, não é sucesso: confira o PR no GitHub (aberto, `MERGED` ou fechado) e rode `bin/forge-fechar <pedido> --ref <branch> --limpar` para terminar a limpeza do que já foi mesclado; não repita o merge à mão.
 
+## Ler a falha de um check
+Ao parar no passo 4 com check vermelho ou desconhecido, o script imprime, em stderr e no log, uma linha `para ler: ...` por execução (só imprime, nunca roda). O número vem do link do check (`/runs/<n>/job/<j>`, só dígitos); o nome do check e o resto do link nunca entram no comando, e link fora do padrão não gera linha. O resumo verde (`check <nome> <estado> run=<id> job=<id>`) usa a mesma extração do número. No sandbox o comando de leitura do log só funciona com o cache do `gh` numa pasta gravável, por isso a linha leva `XDG_CACHE_HOME=` apontando para o `TMPDIR` (entre aspas simples); sem `TMPDIR` sai `gh run view <run> --log-failed` puro, nunca com um `/tmp` previsível. Para ler à mão:
+```bash
+XDG_CACHE_HOME="$TMPDIR" gh run view <run> --log-failed
+```
+Medido contra o hook `conformidade` (sonda em pasta descartável): esse comando passa para os papéis que escrevem (por exemplo o `tech-lead`) e o papel só de leitura (`conferente`) o recusa por "variável na linha"; o hook não se afrouxa para isso, então o conferente lê o motivo pelo log do script ou pede ao integrador.
+
 ## Modo `--limpar`
 `bin/forge-fechar <pedido> --ref <branch> --limpar` roda só o passo 7, para terminar uma limpeza que ficou pela metade (a reexecução normal não serve: o passo 2 exige a branch local e a remota). Não roda `forge-check`, não abre PR e não mescla. Só age com a prova de que há PR `MERGED` na `develop` para a branch (`gh pr list --head`, a mesma leitura do passo 3); sem ela recusa (falha fechada, nada é apagado) e continua recusando `main`, `develop` e `homolog`. Branch local ou remota só some se o sha é o de um PR `MERGED` ou já está na base. Repetir não tem efeito colateral: o que já foi apagado conta como `ok` e a segunda rodada sai com 0. Com `--dry-run` só descreve.
 

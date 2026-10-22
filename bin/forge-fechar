@@ -213,6 +213,27 @@ dormir() {
   dorme_pid=""
 }
 
+# run_do_link <link>: define run_n e job_n com os números da execução e do job lidos do link de um check (`/runs/<n>/job/<j>`, só dígitos, até 20);
+# "?" quando o link está fora do padrão. É a extração do resumo verde e da parada do passo 4.
+run_do_link() {
+  run_n="?" job_n="?"
+  if [[ "$1" =~ /runs/([0-9]{1,20})/job/([0-9]{1,20}) ]]; then run_n="${BASH_REMATCH[1]}"; job_n="${BASH_REMATCH[2]}"; fi
+}
+# dicas_de_log: na parada do passo 4, uma linha `para ler: ...` por execução com check vermelho ou desconhecido (só impressa, nunca executada).
+# Só o número da execução, lido do link, entra no comando; o nome do check e o resto do link não. Com TMPDIR, o cache do `gh` vai para lá (no sandbox
+# o cache padrão não é gravável), entre aspas simples; sem TMPDIR o comando sai puro (nunca um /tmp previsível). Lê `saida` (a última leitura).
+dicas_de_log() {
+  local nome_ck estado_ck link_ck vistos=" " cache="" aspa="'"
+  [ -z "${TMPDIR:-}" ] || cache="XDG_CACHE_HOME='${TMPDIR//"$aspa"/"$aspa\\$aspa$aspa"}' "
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_do_link "$link_ck"
+    [ "$run_n" != "?" ] || continue
+    case "$vistos" in *" $run_n "*) continue ;; esac
+    vistos="$vistos$run_n "
+    echo "para ler: ${cache}gh run view $run_n --log-failed" >&2
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 && $2 !~ /^(pass|skipping|pending|queued|in_progress)$/ {print $1 "\037" $2 "\037" $4}')
+}
+
 # sha_confere <sha>: o sha é um dos heads mesclados (merged_heads) ou já está na base; só então a branch ou a remota podem ser apagadas.
 sha_confere() {
   local h
@@ -490,6 +511,7 @@ if [ "$ja_mesclado" = 0 ]; then
     falhas=0
     if printf '%s\n' "$estados" | grep -qvE '^(pass|skipping|pending|queued|in_progress)$'; then
       printf '%s\n' "$saida" >&2
+      dicas_de_log
       die "parou no passo 4: há check vermelho ou desconhecido; corrija e rode de novo"
     fi
     # Uma linha no log por mudança de contagem (não enche o log na espera longa).
@@ -506,10 +528,10 @@ if [ "$ja_mesclado" = 0 ]; then
   done
   echo "checks verdes."
   # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
-  printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {
-    run = "?"; job = "?"
-    if (match($4, /\/runs\/[0-9]+\/job\/[0-9]+/)) { split(substr($4, RSTART, RLENGTH), p, "/"); run = p[3]; job = p[5] }
-    print "check " $1 " " $2 " run=" run " job=" job }'
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_do_link "$link_ck"
+    echo "check $nome_ck $estado_ck run=$run_n job=$job_n"
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $4}')
   echo "head: $remoto_sha"
 
   passo 5 "rótulo"
