@@ -511,14 +511,21 @@ if [ "$limpar" = 1 ]; then
   exit 0
 fi
 
-passo 1 "pareceres: $check pr $pedido --ref $ref --base $base"
-"$check" pr "$pedido" --ref "$ref" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+# Cadeia única (B5): o parecer vale para sha_conferido, o remoto tem de ser esse mesmo sha e o merge sai preso a ele (--match-head-commit). O sha é
+# lido antes do passo 1 e o forge-check recebe o sha, não o nome da branch; o sha local é relido depois do passo 1 e de novo no passo 2.
+sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 1: a branch local $ref não existe"
+
+passo 1 "pareceres: $check pr $pedido --ref $sha_conferido --base $base"
+"$check" pr "$pedido" --ref "$sha_conferido" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null || true)"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head local de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
 
 passo 2 "head no servidor"
-local_sha="$(git rev-parse "refs/heads/$ref" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
+local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
 remoto_sha="$(git ls-remote origin "refs/heads/$ref" | awk '{print $1}')"
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
-[ "$remoto_sha" = "$local_sha" ] || die "parou no passo 2: o head local ($local_sha) difere do remoto ($remoto_sha); envie a branch"
+[ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
 passo 3 "PR para $alvo"
 ja_mesclado=0
