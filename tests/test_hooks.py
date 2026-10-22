@@ -1558,6 +1558,59 @@ class Hooks(unittest.TestCase):
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.corpo_so_lido(_comum.tirar_heredocs(linha)[1][0][0]))
 
+    def test_comando_logico_le_os_limites_uma_vez_por_texto(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """O `comando_logico` de cada um dos 2000 heredocs de um texto sai em tempo linear: os limites dos comandos
+        lógicos são lidos uma vez por texto, e não do começo a cada operador (26,9 s com 3000 heredocs no conformidade,
+        acima do timeout de 10 s em que o Claude Code libera a linha)."""
+        _comum, _, _ = modulos_dos_hooks()
+        linhas = [f"cat > f{i} <<'EOF'" for i in range(2000)]
+        texto = "\n".join(linhas)
+        posicoes = [texto.index(linha) for linha in linhas]
+        inicio = time.perf_counter()
+        logicos = [_comum.comando_logico(texto, p) for p in posicoes]
+        self.assertLess(time.perf_counter() - inicio, 1.0, "2000 comandos lógicos do mesmo texto")
+        self.assertEqual(logicos, linhas)
+        self.assertEqual(_comum.comando_logico("a &&\nb\nc", 5), "a &&\nb")
+
+    def test_tirar_heredocs_em_tempo_linear(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """Com 2000 heredocs, um por linha, num pipeline, ligados por `&&` ou na mesma linha, `tirar_heredocs` e a
+        conferência de cada dono (`corpo_so_lido`) saem dentro do orçamento de 3 s do `conformidade`: o dono de cada
+        heredoc sai de índices das leituras (`pipeline_do_operador`) e de limites dos comandos lógicos lidos uma vez por
+        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`)."""
+        _comum, _, _ = modulos_dos_hooks()
+        n = 2000
+        formas = {"um por linha": "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
+                  "pipeline": "".join(f"cat <<'E{i}' |\nx\nE{i}\n" for i in range(n)) + "cat\n",
+                  "&&": " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n)),
+                  "mesma linha": "cat " + " ".join(f"<<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n))}
+        for forma, texto in formas.items():
+            with self.subTest(forma=forma):
+                inicio = time.perf_counter()
+                resto, corpos = _comum.tirar_heredocs(texto + "git push origin main")
+                lidos = [_comum.corpo_so_lido(dono) for dono, _ in corpos]
+                self.assertLess(time.perf_counter() - inicio, 3.0, f"{n} heredocs")
+                self.assertEqual(len(corpos), n)
+                self.assertTrue(resto.endswith("git push origin main"))
+                self.assertTrue(all(lidos))
+
+    def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
+        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo)."""
+        limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+                     for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
+                           .read_text(encoding="utf-8"))
+        n = 3000
+        for forma, texto in (("um por linha", "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n))),
+                             ("&&", " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n"
+                              + "".join(f"x\nE{i}\n" for i in range(n)))):
+            with self.subTest(forma=forma):
+                caso = json.loads(json.dumps(dados))
+                caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                inicio = time.monotonic()
+                self.rodar_dados(caso)
+                self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""

@@ -6,6 +6,7 @@ interno (registrado em `.forge/run/erros.log`).
 Exceção (ADR 0009, seção 7): `parecer` e `conformidade` falham fechado, de forma seletiva: em erro interno
 bloqueiam só se a entrada crua tiver um marcador crítico. Só biblioteca padrão; nada vindo da entrada é executado.
 """
+import bisect
 import collections
 import functools
 import hashlib
@@ -785,7 +786,7 @@ def expandido(corpo):
 
 def tirar_heredocs(comando):
     """Separa o corpo dos heredocs provados (`heredocs`), que não são comandos, da linha: devolve (comando sem os corpos,
-    [(dono, corpo)]), com o dono do operador lido na linha sem os corpos (`dono_do_heredoc`). O
+    [(dono, corpo)]), com o dono do operador lido na linha sem os corpos (`DonosDosHeredocs`). O
     operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois (`"$(cat <<'X'⏎X⏎L⏎Y)"`) não
     tira de novo, como corpo, a linha que o bash roda. ValueError (quem chama trata como linha ilegível): um `<<` em
     dúvida com uma linha não vazia depois dele (lido como comando, o corpo que não se tira esconderia o resto com uma
@@ -803,21 +804,22 @@ def tirar_heredocs(comando):
             raise ValueError("corpo de heredoc com substituição")
         corpos.append((h.operador, corpo))
         cortes += [(h.operador, h.fim_do_operador, " "), (h.corpo[0], h.fim, "")]
-    saida, marcada, inicio, no_resto = [], [], 0, {}
+    saida, marcada, inicio, no_resto, tamanho = [], [], 0, {}, 0
     for ini, fim, troca in sorted(cortes):
         saida.append(comando[inicio:ini])
         marcada.append(comando[inicio:ini])
-        no_resto[ini] = sum(map(len, saida))  # onde o operador fica na linha sem os corpos
+        tamanho += ini - inicio
+        no_resto[ini] = tamanho  # onde o operador fica na linha sem os corpos (a soma, sem reler a saída)
         saida.append(troca)
+        tamanho += len(troca)
         marcada.append(f" {MARCA}{ini}__ " if troca else "")
         inicio = fim
     saida.append(comando[inicio:])
     marcada.append(comando[inicio:])
     resto, marcada = "".join(saida), "".join(marcada)
     lidas = leituras(marcada, com_sinal=True) if corpos else None
-    muda = bool(corpos) and any(p in MUDAM_O_AMBIENTE for p, _ in programas_da_linha(resto))
-    return resto, [(dono_do_heredoc(resto, no_resto[operador], lidas, f"{MARCA}{operador}__", muda), corpo)
-                   for operador, corpo in corpos]
+    donos = DonosDosHeredocs(resto, lidas) if corpos else None  # o que serve a todos, lido uma vez por texto
+    return resto, [(donos.dono(no_resto[operador], f"{MARCA}{operador}__"), corpo) for operador, corpo in corpos]
 
 
 # Fim de linha física que o bash junta com a linha seguinte num comando só: barra ímpar (continuação), ou um operador
@@ -829,7 +831,7 @@ def continua_na_proxima(linha):
     return barra_impar_no_fim(linha) or bool(CONTINUA_NA_PROXIMA.search(linha))
 
 
-# No lugar de cada operador, com o número dele e `__`, na linha sem os corpos (`dono_do_heredoc`): uma palavra comum,
+# No lugar de cada operador, com o número dele e `__`, na linha sem os corpos (`DonosDosHeredocs`): uma palavra comum,
 # que a gramática G lê como as outras (um caractere de controle mudaria a prova do `#` seguinte). A mesma palavra
 # escrita na linha só junta mais texto ao dono.
 MARCA = "__forge_heredoc_"
@@ -856,57 +858,111 @@ GIT_OUTRO_SEM_O_CORPO = {
 MUDAM_O_AMBIENTE = frozenset({"export", "declare", "typeset", "readonly", "local", "set", "env", "source", ".", "eval"})
 
 
-def dono_do_heredoc(resto, posicao, lidas, marca, muda_o_ambiente=False):
-    """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta 3):
-    o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de fora
-    dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|` antes)
-    separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os programas do
-    comando lógico (`comando_logico`) fora da lista positiva dos outros comandos (`outro_sem_o_corpo`), ou todos eles
-    se o texto tem um comando que muda o ambiente (`muda_o_ambiente`, `MUDAM_O_AMBIENTE`). O comando lógico inteiro, se
-    a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
-    logico = comando_logico(resto, posicao)
-    if lidas.ilegivel:
-        return logico
-    donos = []
-    for partes in lidas.partes:
-        pipeline = pipeline_do_operador(partes, marca)
-        if pipeline is None:
+class DonosDosHeredocs:
+    """Os donos dos heredocs de um texto (a linha sem os corpos, `resto`, e as leituras `com_sinal` dela, `lidas`), com
+    o que serve a todos lido uma vez por texto (A1 do review, volta 5): os limites dos comandos lógicos
+    (`limites_logicos`), o índice de cada leitura (`indice_das_partes`), se o texto muda o ambiente
+    (`MUDAM_O_AMBIENTE`) e, por comando lógico, os programas fora da lista positiva. Heredocs com o mesmo dono recebem o
+    mesmo texto, o mesmo objeto, e quem chama confere cada dono uma vez (`corpo_so_lido` guarda o resultado)."""
+
+    def __init__(self, resto, lidas):
+        self.resto, self.lidas = resto, lidas
+        self.muda_o_ambiente = any(p in MUDAM_O_AMBIENTE for p, _ in programas_da_linha(resto))
+        self.indices = [] if lidas.ilegivel else [indice_das_partes(partes) for partes in lidas.partes]
+        self.vistos, self.fora_da_lista = {}, {}
+
+    def dono(self, posicao, marca):
+        """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta
+        3): o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de
+        fora dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|`
+        antes) separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os
+        programas do comando lógico (`comando_logico`) fora da lista positiva dos outros comandos
+        (`outro_sem_o_corpo`), ou todos eles se o texto tem um comando que muda o ambiente (`MUDAM_O_AMBIENTE`). O
+        comando lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
+        lugar = lugar_logico(self.resto, posicao)
+        segmentos = [] if self.lidas.ilegivel else [segmentos_do_operador(partes, marca, indice)
+                                                    for partes, indice in zip(self.lidas.partes, self.indices)]
+        chave = (lugar,) if self.lidas.ilegivel or None in segmentos else (lugar, *map(tuple, segmentos))
+        if chave not in self.vistos:
+            self.vistos[chave] = self.montar(lugar, segmentos if len(chave) > 1 else None)
+        return self.vistos[chave]
+
+    def montar(self, lugar, segmentos):
+        inicios, fins = limites_logicos(self.resto)
+        logico = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
+        if segmentos is None:
             return logico
-        donos += pipeline
-    rodam = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
-             if muda_o_ambiente or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
-    texto = "\n".join([*(" ".join(palavras) for palavras in donos), *rodam])
-    for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
-        texto = texto.replace(opaco, "_")
-    return re.sub(MARCA + r"\d+__", " ", texto)
+        if lugar not in self.fora_da_lista:
+            self.fora_da_lista[lugar] = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
+                                         if self.muda_o_ambiente or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
+        donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, segmentos)
+                 for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
+        texto = "\n".join([*(" ".join(palavras) for palavras in donos), *self.fora_da_lista[lugar]])
+        for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
+            texto = texto.replace(opaco, "_")
+        return re.sub(MARCA + r"\d+__", " ", texto)
 
 
-def pipeline_do_operador(partes, marca):
+def pipeline_do_operador(partes, marca, indice=None):
     """As palavras dos comandos do pipeline que contém `marca` (numa leitura `com_sinal` de `leituras`) e, a cada
     substituição em volta dele, as do pipeline do comando de fora que a contém; ou None: subshell, comando composto
     (`COMPOSTOS`), a marca não aparece ou o comando de fora não aparece."""
-    if any(sinal in ("(", ")") or COMPOSTOS.intersection(palavras) for palavras, _, _, sinal in partes):
+    indice = indice or indice_das_partes(partes)
+    segmentos = segmentos_do_operador(partes, marca, indice)
+    if segmentos is None:
+        return None
+    return [partes[j][0] for sub, ini, fim in segmentos for j in indice.mesmo[sub][ini:fim + 1]]
+
+
+def segmentos_do_operador(partes, marca, indice):
+    """Os pipelines de `pipeline_do_operador`, como (nível de substituição, primeiro e último lugar na lista do nível,
+    `indice.mesmo`), ou None. Só buscas no `indice` (`indice_das_partes`), lido uma vez por leitura para todos os
+    heredocs dela (A1 do review, volta 5)."""
+    if indice.opaco:
         return None
     achados = []
-    for i, (palavras, _, sub, _) in enumerate(partes):
-        if not any(marca in p for p in palavras):
-            continue
+    for i in indice.onde.get(marca, ()):
+        sub = partes[i][2]
         while True:
-            mesmo = [j for j, parte in enumerate(partes) if parte[2] == sub and (parte[0] or parte[1])]
-            ini = fim = mesmo.index(i)
-            while ini > 0 and partes[mesmo[ini - 1]][3].strip("\n") in ("|", "|&"):
-                ini -= 1
-            while fim + 1 < len(mesmo) and partes[mesmo[fim]][3].strip("\n") in ("|", "|&"):
-                fim += 1
-            achados += [partes[j][0] for j in mesmo[ini:fim + 1]]
+            achados.append((sub, *indice.pipeline[i]))
             if not sub:
                 break
             sub = sub[:-1]  # o comando de fora vem depois dos de dentro da substituição (`comandos`)
-            i = next((j for j in range(i + 1, len(partes)) if partes[j][2] == sub and (partes[j][0] or partes[j][1])),
-                     None)
-            if i is None:
+            fora = indice.mesmo.get(sub, ())
+            k = bisect.bisect_right(fora, i)
+            if k == len(fora):
                 return None
+            i = fora[k]
     return achados or None
+
+
+IndiceDasPartes = collections.namedtuple("IndiceDasPartes", "opaco onde mesmo pipeline")
+
+
+def indice_das_partes(partes):
+    """O que `pipeline_do_operador` busca numa leitura, numa passada só: `opaco` (subshell ou comando composto),
+    `onde` (as partes que citam cada marca de operador), `mesmo` (por nível de substituição, as partes com palavras ou
+    destinos, em ordem) e `pipeline` (de cada uma dessas partes, o primeiro e o último lugar, na lista do nível, do
+    pipeline dela: as partes ligadas por `|` ou `|&`)."""
+    opaco = any(sinal in ("(", ")") or COMPOSTOS.intersection(palavras) for palavras, _, _, sinal in partes)
+    onde, mesmo, pipeline, abertos = {}, {}, {}, {}
+    for i, (palavras, destinos, sub, _) in enumerate(partes):
+        for marca in dict.fromkeys(m for p in palavras for m in re.findall(MARCA + r"\d+__", p)):
+            onde.setdefault(marca, []).append(i)
+        if not (palavras or destinos):
+            continue
+        nivel = mesmo.setdefault(sub, [])
+        if not nivel or partes[nivel[-1]][3].strip("\n") not in ("|", "|&"):
+            abertos[sub] = len(nivel)  # começa um pipeline novo neste nível
+        nivel.append(i)
+        pipeline[i] = abertos[sub]
+    for nivel in mesmo.values():  # o fim de cada pipeline: o último lugar com o mesmo começo
+        fim = {}
+        for lugar, j in enumerate(nivel):
+            fim[pipeline[j]] = lugar
+        for j in nivel:
+            pipeline[j] = (pipeline[j], fim[pipeline[j]])
+    return IndiceDasPartes(opaco, onde, mesmo, pipeline)
 
 
 def comando_logico(texto, posicao):
@@ -914,17 +970,32 @@ def comando_logico(texto, posicao):
     num comando só, lidas do começo do texto. Uma linha se junta à seguinte se acaba em continuação
     (`continua_na_proxima`: `bash \\`⏎`<<'EOF'`, `cat <<'EOF' |`⏎corpo⏎`EOF`⏎`bash`) ou se deixa um `(`, uma aspa ou
     uma crase sem par (`x=$(cat <<'EOF'`⏎corpo⏎`EOF`⏎`); eval "$x"`, A2 de segurança, volta 4). É o dono do heredoc
-    quando a leitura por pipeline não serve: quem lê o corpo pode estar noutra linha física (A1 de segurança, volta 3)."""
-    ini, pilha = 0, []
+    quando a leitura por pipeline não serve: quem lê o corpo pode estar noutra linha física (A1 de segurança, volta 3).
+    Os limites saem de `limites_logicos`, lidos uma vez por texto; aqui, só a busca (A1 do review, volta 5)."""
+    inicios, fins = limites_logicos(texto)
+    k = lugar_logico(texto, posicao)
+    return texto[inicios[k]:fins[k]] if k < len(fins) else ""
+
+
+def lugar_logico(texto, posicao):
+    """O lugar, na lista de `limites_logicos`, do comando lógico de `posicao` em `texto` (busca binária)."""
+    return bisect.bisect_left(limites_logicos(texto)[1], posicao)
+
+
+@functools.lru_cache(maxsize=4)
+def limites_logicos(texto):
+    """(inícios, fins) dos comandos lógicos de `texto`, em ordem, numa passada só (`comando_logico`): o mesmo texto
+    com milhares de heredocs não é relido do começo a cada operador."""
+    inicios, fins, ini, pilha = [], [], 0, []
     for fim in [m.start() for m in re.finditer("\n", texto)] + [len(texto)]:
         linha = texto[texto.rfind("\n", 0, fim) + 1:fim]
         pilha = abertos_na_linha(linha, pilha)
         if fim < len(texto) and (pilha or continua_na_proxima(linha)):
             continue
-        if posicao <= fim:
-            return texto[ini:fim]
+        inicios.append(ini)
+        fins.append(fim)
         ini, pilha = fim + 1, []
-    return texto[ini:]
+    return tuple(inicios), tuple(fins)
 
 
 def abertos_na_linha(linha, pilha):
@@ -1036,10 +1107,15 @@ def git_outro_sem_o_corpo(argumentos):
     return all(not a.startswith("-") or a in GIT_OUTRO_SEM_O_CORPO[resto[0]] for a in resto[1:])
 
 
-def corpo_so_lido(dono, tambem=lambda programa: False):
-    """O corpo de heredoc do comando `dono` (`dono_do_heredoc`) só é lido como texto: todo comando dele é um leitor
+def nenhum(programa):
+    return False
+
+
+@functools.lru_cache(maxsize=1024)
+def corpo_so_lido(dono, tambem=nenhum):
+    """O corpo de heredoc do comando `dono` (`DonosDosHeredocs`) só é lido como texto: todo comando dele é um leitor
     (`LEITORES_DO_CORPO`, `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como
-    comando."""
+    comando. O resultado fica guardado: os heredocs de um mesmo dono (o mesmo texto) são conferidos uma vez só."""
     for programa, argumentos in programas_da_linha(dono):
         if programa in LEITORES_DO_CORPO or tambem(programa):
             continue

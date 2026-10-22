@@ -752,10 +752,13 @@ class Guarda:
         for corpo in conteudos_de_crase(comando, so_os_fechados=True):
             for p in sorted(vistas, key=str):
                 self.bash(corpo, p, nivel + 1)
+        interpretados = {}  # os heredocs de um mesmo dono (o mesmo texto, `DonosDosHeredocs`) o leem uma vez só
         for dono, corpo in corpos:  # o corpo é comando, a menos que todo dono da linha só o leia (ou o interprete)
             if not corpo_so_lido(dono, interprete):
                 self.bash(corpo, pasta, nivel + 1, corpo_de_heredoc=True)
-            if any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono))):
+            if dono not in interpretados:
+                interpretados[dono] = any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono)))
+            if interpretados[dono]:
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
