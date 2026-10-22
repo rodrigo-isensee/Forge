@@ -488,6 +488,120 @@ class Protegidos(Base):
         self.passa()
 
 
+class FalhaFechadaDoGit(Base):
+    """Item 1 do N-CAT1: erro do git nunca vale como "ausente" nem como lista vazia, em qualquer ordem das regras."""
+
+    def git_que_falha(self, quando, erro=None):
+        """Substituto de `catraca.git`: com `quando(args)` verdadeiro, falha (rc 128 ou a exceção `erro`); senão, o git de verdade."""
+        real = catraca.git
+
+        def falso(raiz, *args):
+            if quando(args):
+                if erro:
+                    raise erro
+                return 128, ""
+            return real(raiz, *args)
+        return falso
+
+    def argv(self, *extra, eventos=True):
+        a = ["--raiz", str(self.repo.dir), "--base", "base", *extra]
+        if eventos:
+            arq = self.repo.dir.parent / (self.repo.dir.name + "-falha-git-eventos.json")
+            if not arq.exists():
+                arq.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"},
+                                            "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+                self.addCleanup(arq.unlink)
+            a += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z"]
+        return a
+
+    def roda(self, argv, git_falho):
+        with mock.patch.object(catraca, "git", git_falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        return rc, saida.getvalue()
+
+    def ls_tree_do_head(self, args):
+        return "ls-tree" in args and "HEAD" in args
+
+    def ls_tree_da_catraca_na_base(self, args):
+        return "ls-tree" in args and "tests/catraca.py" in args
+
+    def test_listar_levanta_quando_o_ls_tree_falha(self):
+        with mock.patch.object(catraca, "git", self.git_que_falha(lambda a: "ls-tree" in a)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.listar(self.repo.dir, "HEAD", "tests")
+
+    def test_ls_tree_do_head_que_falha_nao_esconde_o_custo(self):
+        self.repo.escreve("scripts/x.sh", "claude -p oi\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "git", self.git_que_falha(self.ls_tree_do_head)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.regra_custo(self.repo.dir, "HEAD", {})
+            achadas = self.repo.violacoes()
+        self.assertTrue(any(catraca.NAO_LIBERAVEL in v and v.startswith("R-CONFORMIDADE:") for v in achadas), achadas)
+
+    def test_ls_tree_da_base_que_falha_nao_zera_a_contagem_de_testes(self):
+        self.repo.git("rm", "-q", "tests/test_x.py")
+        self.repo.commit()
+        base = self.repo.git("rev-parse", "base").strip()
+        falho = self.git_que_falha(lambda a: "ls-tree" in a and base in a)
+        with mock.patch.object(catraca, "git", falho):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.contar_testes(self.repo.dir, base)
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.forca_dos_testes(self.repo.dir, base)
+
+    def test_regra_protegidos_sozinha_falha_fechada(self):
+        """Sem depender de `regra_arquivos_de_regras` rodar antes: base inexistente e erro do `ls-tree` da base levantam."""
+        self.repo.escreve("hooks/_comum.py", "mudou\n")
+        self.repo.commit()
+        with self.assertRaises(catraca.ErroDeGit):
+            catraca.regra_protegidos(self.repo.dir, "ref-que-nao-existe", "HEAD")
+        with mock.patch.object(catraca, "git", self.git_que_falha(self.ls_tree_da_catraca_na_base)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.regra_protegidos(self.repo.dir, "base", "HEAD")
+
+    def test_introducao_real_da_catraca_continua_sem_violacao(self):
+        self.repo.git("rm", "-q", "tests/catraca.py")
+        self.repo.git("commit", "-q", "-m", "sem catraca")
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("tests/catraca.py", "# nova\n")
+        self.repo.commit()
+        self.assertEqual(catraca.regra_protegidos(self.repo.dir, "base", "HEAD"), [])
+
+    def test_rotulo_do_dono_nao_libera_o_ls_tree_que_falha(self):
+        """Cada leitura do git que falha deixa a catraca vermelha mesmo com o rótulo do dono depois do push."""
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        for nome, quando in (("ls-tree do head", self.ls_tree_do_head), ("ls-tree da catraca na base", self.ls_tree_da_catraca_na_base)):
+            with self.subTest(nome):
+                rc, saida = self.roda(self.argv(), self.git_que_falha(quando))
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(catraca.NAO_LIBERAVEL, saida)
+                self.assertNotIn("liberada", saida)
+
+    def test_estouro_de_prazo_do_git_vira_uma_linha_e_rc_1(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.commit()
+        estouro = subprocess.TimeoutExpired(["git"], 60)
+        casos = (("regras", self.argv(eventos=False)),
+                 ("pareceres", ["--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base", "--ramo", "pr", "--base-ref", "develop"]))
+        for modo, argv in casos:
+            with self.subTest(modo):
+                rc, saida = self.roda(argv, self.git_que_falha(lambda a: a[0] == "diff", estouro))
+                self.assertEqual(rc, 1, saida)
+                linhas = [l for l in saida.splitlines() if l.strip()]
+                self.assertEqual(len(linhas), 1, saida)
+                self.assertRegex(linhas[0], r"^R-CONFORMIDADE: .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+                self.assertIn("TimeoutExpired", linhas[0])
+
+    def test_rotulo_do_dono_nao_libera_o_estouro_de_prazo(self):
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        rc, saida = self.roda(self.argv(), self.git_que_falha(lambda a: a[0] == "diff", subprocess.TimeoutExpired(["git"], 60)))
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("liberada", saida)
+
+
 class Rotulo(unittest.TestCase):
     def evento(self, quem, quando, tipo="labeled", rotulo=catraca.ROTULO):
         return {"event": tipo, "label": {"name": rotulo}, "actor": {"login": quem}, "created_at": quando}

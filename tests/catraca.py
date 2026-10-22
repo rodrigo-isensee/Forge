@@ -69,8 +69,20 @@ def ler(raiz, ref, caminho):
 
 
 def listar(raiz, ref, prefixo):
+    """Arquivos de `prefixo` em `ref`. Falha fechada: o git que falha levanta `ErroDeGit`, nunca devolve lista vazia."""
     cod, saida = git(raiz, "ls-tree", "-r", "--name-only", ref, prefixo)
-    return [] if cod else saida.splitlines()
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"o `git ls-tree` de {prefixo} em {ref} falhou"))
+    return saida.splitlines()
+
+
+def existe(raiz, ref, caminho):
+    """True se `caminho` existe em `ref`. O `ls-tree` sai 0 sem linha para caminho ausente num commit válido; código diferente
+    de 0 é erro do git (levanta `ErroDeGit`), e não "ausente" como no `ler`."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "--name-only", ref, "--", caminho)
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"o `git ls-tree` de {caminho} em {ref} falhou"))
+    return bool(saida.strip())
 
 
 def json_de(raiz, ref, caminho):
@@ -81,17 +93,38 @@ def json_de(raiz, ref, caminho):
         return {}
 
 
-class ErroDeDiff(Exception):
+class ErroDeGit(Exception):
+    """Uma leitura do git de que a decisão depende falhou: erro do git não é "ausente" nem "nada mudou". O texto já é a violação."""
+
+
+class ErroDeDiff(ErroDeGit):
     """O `git diff` que lista os arquivos alterados falhou: sem a lista, a catraca não pode dizer que nada mudou."""
 
 
 SEM_LISTA = "não consegui listar os arquivos alterados"
+NAO_LIBERAVEL = "o rótulo não libera esta violação"  # marca comum das violações de falha do git (a guarda do rótulo a procura)
+
+
+def msg_falha_git(detalhe):
+    return msg("R-CONFORMIDADE", f"falha do git ao ler o repositório ({detalhe})",
+               "sem a leitura a catraca não sabe o que mudou, e tratar o erro como arquivo ausente ou lista vazia deixaria passar a mudança",
+               f"confira se a base e o head existem no clone (`git fetch`) e rode de novo; {NAO_LIBERAVEL}", ADR)
 
 
 def msg_diff(base, head):
     return msg("R-CONFORMIDADE", f"{SEM_LISTA} entre {base} e {head} (o `git diff` falhou)",
                "sem a lista a catraca não sabe o que mudou, e lista vazia deixaria passar mudança em arquivo protegido",
-               "confira se a base e o head existem no clone (`git fetch`) e rode de novo; o rótulo não libera esta violação", ADR)
+               f"confira se a base e o head existem no clone (`git fetch`) e rode de novo; {NAO_LIBERAVEL}", ADR)
+
+
+def violacao_de_git(e):
+    """A violação de uma falha do git: o texto de `ErroDeGit`, ou o estouro de prazo ou a falta do próprio `git`."""
+    if isinstance(e, ErroDeGit):
+        return str(e)
+    return msg_falha_git(f"o git não terminou: {type(e).__name__}")
+
+
+FALHAS_DO_GIT = (ErroDeGit, subprocess.TimeoutExpired, OSError)
 
 
 def alterados(raiz, base, head):
@@ -418,7 +451,7 @@ def arquivo_da_violacao(v):
 
 
 def regra_protegidos(raiz, b, h):
-    if ler(raiz, b, "tests/catraca.py") is None:  # introdução da própria catraca
+    if not existe(raiz, b, "tests/catraca.py"):  # introdução da própria catraca; erro do git levanta (não é "ausente")
         return []
     return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
 
@@ -436,8 +469,8 @@ def regra_arquivos_de_regras(raiz, b, h, cfg_base):
 def violacoes_das_regras(raiz, base, head="HEAD"):
     try:
         return _violacoes_das_regras(raiz, base, head)
-    except ErroDeDiff as e:
-        return [str(e)]
+    except FALHAS_DO_GIT as e:
+        return [violacao_de_git(e)]
 
 
 def _violacoes_das_regras(raiz, base, head):
@@ -835,7 +868,7 @@ def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
     """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem."""
     try:
         return liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono)
-    except (subprocess.TimeoutExpired, OSError) as e:
+    except FALHAS_DO_GIT as e:
         aviso(f"o git não terminou ({type(e).__name__})")
         return None
 
@@ -891,8 +924,8 @@ def so_troca_sha_de_acoes(raiz, b, h):
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     try:
         return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
-    except ErroDeDiff as e:
-        return [str(e)]
+    except FALHAS_DO_GIT as e:
+        return [violacao_de_git(e)]
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
@@ -930,7 +963,7 @@ def resumo(titulo, linhas):
 def main(argv=None):
     try:
         return _main(argv)
-    except ErroDeDiff as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
+    except ErroDeGit as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
         print(e)
         resumo("catraca", [str(e)])
         return 1
@@ -968,7 +1001,7 @@ def _main(argv=None):
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
             cfg = cfg if isinstance(cfg, dict) else {}
-            custo = [x for x in viol if x.startswith("R-CUSTO:") or SEM_LISTA in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem sem a lista de arquivos
+            custo = [x for x in viol if x.startswith("R-CUSTO:") or NAO_LIBERAVEL in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem com o git falho
             dono, liberado = cfg.get("dono"), None
             if not custo and eventos is not None:
                 if push and rotulo_liberado(eventos, dono, push):
