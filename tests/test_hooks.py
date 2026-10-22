@@ -18,7 +18,8 @@ Formato do fixture:
               "nproc": núcleos (8)} ou {"ausente": true} (padrão: sem leitura, ou seja, o padrão 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
-              sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
+              sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada; "{pid_ns}" é o namespace de PID
+              do teste, como o `agentes` o grava, ou texto vazio sem /proc)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
               {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
               Também em passos: {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu) e
@@ -59,6 +60,13 @@ def pid_morto():
     p = subprocess.Popen([sys.executable, "-c", ""])
     p.wait()
     return p.pid
+
+
+def namespace_de_pid():
+    try:
+        return os.readlink("/proc/self/ns/pid")
+    except OSError:
+        return ""
 
 
 def substituir(valor, mapa, agora):
@@ -161,7 +169,7 @@ class Fixture:
         raiz.mkdir()
         d = self.dados
         mapa = {"{tmp}": str(tmp), "{raiz}": str(raiz), "{pid_vivo}": os.getpid(), "{pid_outro}": outro,
-                "{pid_morto}": pid_morto()}
+                "{pid_morto}": pid_morto(), "{pid_ns}": namespace_de_pid()}
         for chave, pasta in (("{marca}", raiz), ("{marca_wt}", tmp / "wt")):  # a marca da sessão: uma por raiz
             mapa[chave] = f".git/forge/projeto-{hashlib.sha256(os.path.realpath(pasta).encode()).hexdigest()[:16]}"
         git("init", "-q", "-b", "develop", cwd=raiz)
@@ -767,6 +775,39 @@ class Hooks(unittest.TestCase):
                 finally:
                     if saved is not None:
                         os.sched_getaffinity = saved
+
+    def test_registro_de_agente_solta_so_com_prova_de_sessao_morta(self):
+        """F1 (C1-1, C1-2, C1-4): `sessao_morta` só diz True com pid válido, mesmo namespace e processo inexistente;
+        `vigentes` nunca levanta por causa de um registro; a casca ou o pid morto não entram no registro."""
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        agora, ns, morto = time.time(), agentes.namespace_de_pid(), pid_morto()
+        self.assertIsNotNone(ns, "o teste precisa de /proc/self/ns/pid")
+        base = {"id": "a1", "desde": agora - 60}
+        self.assertTrue(agentes.sessao_morta({**base, "pid": morto, "pidns": ns}))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": os.getpid(), "pidns": ns}))
+        for pid in ("123", True, 0, -1, 1.5, None, 2 ** 63, agentes.pid_max() + 1):
+            self.assertFalse(agentes.sessao_morta({**base, "pid": pid, "pidns": ns}), repr(pid))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": morto}))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": morto, "pidns": "pid:[0]"}))
+        registros = [None, "x", 7, {"desde": "ontem"}, {**base, "pid": 2 ** 70, "pidns": ns}, {**base, "pid": morto, "pidns": ns}]
+        with mock.patch.object(agentes.os, "kill", side_effect=PermissionError):  # sem permissão: não é prova de morte
+            self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:])
+        with mock.patch.object(agentes, "sessao_morta", side_effect=RuntimeError):  # erro por registro mantém o registro
+            self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:])
+        self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:5])
+        hook = mock.Mock()
+        hook.campo.return_value = "s1"
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
+            self.assertEqual(agentes.da_sessao(hook), {"pid": os.getpid(), "pidns": ns, "sessao": "s1"})
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=morto):  # pid que já morreu
+            self.assertEqual(agentes.da_sessao(hook), {})
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()), \
+                mock.patch.object(agentes, "CASCAS", {Path(f"/proc/{os.getpid()}/comm").read_text(encoding="utf-8").strip()}):
+            self.assertEqual(agentes.da_sessao(hook), {})  # casca: o intermediário some depois do hook
+        hook.campo.return_value = None  # sem session_id
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
+            self.assertEqual(agentes.da_sessao(hook), {})
 
     def test_variaveis_de_substituicao_ficam_no_erros_log(self):  # R1
         raiz = Path(tempfile.mkdtemp())
