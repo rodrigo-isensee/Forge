@@ -87,8 +87,12 @@ class Base(unittest.TestCase):
             try:
                 bloco = os.read(mestre, 4096)
             except OSError:
-                break
-            if not bloco:
+                bloco = b""
+            if not bloco:  # terminal fechado: o fim do processo pode vir logo depois (sob carga)
+                try:
+                    p.wait(timeout=max(1, limite - time.time()))
+                except subprocess.TimeoutExpired:
+                    pass
                 break
             saida += bloco
         if p.poll() is None:
