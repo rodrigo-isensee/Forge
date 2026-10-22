@@ -242,6 +242,29 @@ sha_confere() {
   done
   git merge-base --is-ancestor "$1" "$base" 2>/dev/null
 }
+# tira_c1 <texto>: imprime o texto sem os controles C1 em UTF-8 (U+0080 a U+009F, os bytes C2 80 a C2 9F), que o `tr` por byte não pega.
+tira_c1() {
+  local LC_ALL=C s="$1"
+  printf '%s' "${s//$'\xc2'[$'\x80'-$'\x9f']/}"
+}
+# aviso_do_rotulo: na parada do passo 4, diz se pedir o rótulo afrouxa-regra ao dono ajuda (só texto em stderr; a decisão da parada não muda).
+# O rótulo vale depois do último push: com outro check vermelho, pedi-lo agora não ajuda. Só a catraca vermelha pode ser o pedido do rótulo, e a falha
+# fechada dela não se resolve com ele, então manda ler o motivo antes. Os nomes que o script monta na frase passam sem caractere de controle
+# (C0, DEL e C1 em UTF-8).
+aviso_do_rotulo() {
+  local ruins outros
+  ruins="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 && $2 !~ /^(pass|skipping|pending|queued|in_progress)$/ {print $1}' | tr -d '\000-\010\013-\037\177')"
+  ruins="$(tira_c1 "$ruins")"
+  [ -n "$ruins" ] || return 0
+  outros="$(printf '%s\n' "$ruins" | grep -vxF catraca || true)"
+  if [ -n "$outros" ]; then
+    echo "aviso: não peça o rótulo agora: $(printf '%s\n' "$ruins" | paste -sd, - | sed 's/,/, /g') vermelho(s); corrija, faça o push e só depois peça o rótulo (ele vale depois do último push)." >&2
+  elif [ "$esperar" = 1 ]; then
+    echo "aviso: só a catraca está vermelha mesmo com a espera do rótulo; leia o motivo antes (o log da execução dela); o rótulo vale depois do último push." >&2
+  else
+    echo "aviso: só a catraca está vermelha: ela pode estar pedindo o rótulo afrouxa-regra, mas a falha fechada dela não se resolve com o rótulo; leia o motivo antes (o log da execução dela). Se for o rótulo, peça ao dono e rode com --esperar-rotulo." >&2
+  fi
+}
 # secao_da_branch: define secao_st (ausente, presente ou ilegivel) para a seção branch.<ref> do .git/config. Compara o NOME exato da seção por texto
 # fixo (o ref pode ter `.`; prefixo sozinho casaria a seção da branch `a.b` com a branch `a`) e só dá "ausente" com o código 1 do git (nenhuma seção);
 # qualquer outro código (config ilegível) é "ilegivel", nunca "ausente".
@@ -510,6 +533,7 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     falhas=0
     if printf '%s\n' "$estados" | grep -qvE '^(pass|skipping|pending|queued|in_progress)$'; then
+      aviso_do_rotulo
       printf '%s\n' "$saida" >&2
       dicas_de_log
       die "parou no passo 4: há check vermelho ou desconhecido; corrija e rode de novo"
