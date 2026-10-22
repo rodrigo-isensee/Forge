@@ -344,7 +344,8 @@
       "`R-MAIN`",
       "`R-CONFORMIDADE`",
       "`R-NEUTRO`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "varrer a família inteira"
     ],
     "skills/ci-cd/SKILL.md": [
       "## GitHub Actions \\(padrão\\)",
@@ -445,12 +446,15 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "forge-testes --vermelho",
       "Commite o parecer na branch revisada",
       "`R-QA`",
       "sem ler o código",
-      "testes dos casos de abuso do modelo de ameaças"
+      "testes dos casos de abuso do modelo de ameaças",
+      "forge-mutante"
     ],
     "skills/qa-testing/SKILL.md": [
+      "forge-testes --vermelho",
       "## Teste nasce de obrigação, e para quando ela está coberta",
       "Teste redundante não entra",
       "uma amostra por classe de equivalência mais cada fronteira",
@@ -458,10 +462,14 @@
       "afirma um mínimo de itens",
       "## Plano antecipado",
       "conferir o diff contra a lista de `CA-n`",
-      "só sobre o commit final e depois do review"
+      "só sobre o commit final e depois do review",
+      "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
-      "lista os \\*\\*casos de abuso\\*\\*"
+      "lista os \\*\\*casos de abuso\\*\\*",
+      "dimensões da família",
+      "entregue \\*\\*antes do código\\*\\*",
+      "orçamento de tempo e de tamanho da entrada"
     ],
     "skills/engineering-practices/SKILL.md": [
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
