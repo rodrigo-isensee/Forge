@@ -1,0 +1,2 @@
+### Adicionado
+- **N-DOUTOR:** o doutor avisa, só pelo nome e nunca pelo valor, quando a sessão pode cobrar por token (login por token, Bedrock, Vertex ou `apiKeyHelper`; `R-CUSTO`); o hook confere o relógio contra o cabeçalho `Date` do GitHub uma vez por dia (aviso acima de 300 s; só informa); e o `forge doutor` completo avisa quando `develop`, `homolog` ou `main` estão sem proteção no GitHub (só leitura; aponta a skill `ci-cd`). A leitura de JSON do doutor passa a aceitar só arquivo regular de até 1 MiB.
