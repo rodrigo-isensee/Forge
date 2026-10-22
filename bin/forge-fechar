@@ -3,6 +3,7 @@
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
+# (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou, para (só leitura; falha de leitura também para);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
@@ -20,6 +21,8 @@
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre
 # leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as duas primeiras são ignoradas, com aviso.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
+# Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
+# para 0 só com FORGE_FECHAR_TESTE=1); --espera 0 a 7200. Só inteiro decimal, no máximo 3 dígitos (5 em --espera).
 # Log: depois das checagens iniciais, a primeira linha da saída é "log: <caminho>"; todo o resto (stdout e stderr, igual à tela) vai também
 # para esse arquivo (modo 600, criado com mktemp), uma linha por registro, com hora UTC, stderr marcado [err] e segredo mascarado; a última
 # linha é "fim: código <n>". Pasta por usuário (modo 700, sem link, do próprio dono): FORGE_FECHAR_LOG_DIR, senão
@@ -57,7 +60,17 @@ case "$base" in
   origin/main|main) die "base main recusada: a main é só do dono (R-MAIN)" ;;
   *) die "base fora do fluxo: $base (use origin/develop; a promoção à homolog é manual)" ;;
 esac
-[[ "$espera" =~ ^[0-9]+$ ]] || die "--espera pede um número de segundos"
+# faixa <nome> <valor> <mínimo> <máximo> <dígitos>: só inteiro decimal, no máximo <dígitos> dígitos (o tamanho vem antes do valor, para
+# número enorme não passar na comparação) e dentro da faixa; compara em base 10 (`08` vale 8). Devolve o valor normalizado em `faixa_valor`.
+faixa() {
+  local nome="$1" v="$2" min="$3" max="$4" dig="$5"
+  [[ "$v" =~ ^[0-9]+$ ]] && [ "${#v}" -le "$dig" ] || die "$nome pede um número inteiro de $min a $max segundos (recebi: $v)"
+  v=$((10#$v))
+  { [ "$v" -ge "$min" ] && [ "$v" -le "$max" ]; } || die "$nome fora da faixa: pede de $min a $max segundos (recebi: $v)"
+  faixa_valor="$v"
+}
+faixa --espera "$espera" 0 7200 5
+espera="$faixa_valor"
 
 if [ "${FORGE_FECHAR_TESTE:-}" = 1 ]; then
   check="${FORGE_CHECK:-forge-check}"
@@ -69,9 +82,14 @@ else
   check=forge-check
   gh=gh
 fi
-intervalo="${FORGE_FECHAR_INTERVALO:-30}"
-pausa="${FORGE_FECHAR_PAUSA:-3}"
-[[ "$pausa" =~ ^[0-9]+$ ]] || die "FORGE_FECHAR_PAUSA pede um número de segundos"
+# As esperas por variável têm teto e piso, antes de qualquer passo: valor alto prende o script, valor que não é número o mata depois do PR
+# aberto e intervalo 0 vira leitura do `gh` sem pausa. O piso (pausa 1, intervalo 5) cai para 0 só com FORGE_FECHAR_TESTE=1; o teto vale sempre.
+piso_pausa=1 piso_intervalo=5
+[ "${FORGE_FECHAR_TESTE:-}" != 1 ] || { piso_pausa=0; piso_intervalo=0; }
+faixa FORGE_FECHAR_INTERVALO "${FORGE_FECHAR_INTERVALO:-30}" "$piso_intervalo" 120 3
+intervalo="$faixa_valor"
+faixa FORGE_FECHAR_PAUSA "${FORGE_FECHAR_PAUSA:-3}" "$piso_pausa" 30 3
+pausa="$faixa_valor"
 # ler <comando...>: leitura idempotente; imprime a saída da primeira tentativa que passa (até 3, com pausa); falha se as 3 falham.
 ler() {
   local n=0 saida_ler
@@ -79,7 +97,7 @@ ler() {
     if saida_ler="$("$@" 2>/dev/null)"; then printf '%s' "$saida_ler"; return 0; fi
     n=$((n + 1))
     [ "$n" -lt 3 ] || return 1
-    sleep "$pausa"
+    dormir "$pausa"
   done
 }
 # repetir <comando...>: operação idempotente que só devolve status (push --delete); até 3 tentativas, com pausa.
@@ -89,7 +107,7 @@ repetir() {
     "$@" && return 0
     n=$((n + 1))
     [ "$n" -lt 3 ] || return 1
-    sleep "$pausa"
+    dormir "$pausa"
   done
 }
 [ -n "$titulo" ] || titulo="$ref"
@@ -150,6 +168,7 @@ mascarar() {
 # sob flock quando existe, para duas fileiras não partirem a linha uma da outra. A ordem entre stdout e stderr no mesmo segundo não é garantida.
 registrar() {
   local linha marca="" saida
+  trap '' TERM INT HUP
   [ "$1" = 2 ] && marca="[err] "
   while IFS= read -r linha || [ -n "$linha" ]; do
     printf '%s\n' "$linha" >&"$1"
@@ -169,14 +188,30 @@ pid_err=$!
 fim() {
   local rc=$?
   trap - EXIT
+  trap '' TERM INT HUP
+  [ -z "${dorme_pid:-}" ] || kill "$dorme_pid" 2>/dev/null || true
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
+  [ -z "${tmp2b:-}" ] || rm -rf -- "$tmp2b"
   echo "fim: código $rc"
   exec >&-
   wait "$pid_out" 2>/dev/null || true
   exit "$rc"
 }
 trap fim EXIT
+# Sinal de corte (o teto do Bash do agente manda TERM): sai com 128+n, e o `fim:` grava esse código em vez de um sucesso que não houve.
+# Só "fim: código 0" depois da linha "Entrega ... fechada" é sucesso; log sem "fim:" é processo morto sem trap (KILL).
+trap 'exit 143' TERM
+trap 'exit 130' INT
+trap 'exit 129' HUP
+# dormir <segundos>: o sleep roda em segundo plano e o script espera nele (`wait` volta na hora com um sinal tratado); com o sleep em primeiro
+# plano o trap de TERM/INT/HUP só correria quando ele acabasse (até o intervalo, 120 s no teto). O `fim` mata o sleep que sobrar.
+dormir() {
+  sleep "$1" &
+  dorme_pid=$!
+  wait "$dorme_pid"
+  dorme_pid=""
+}
 
 # sha_confere <sha>: o sha é um dos heads mesclados (merged_heads) ou já está na base; só então a branch ou a remota podem ser apagadas.
 sha_confere() {
@@ -186,43 +221,97 @@ sha_confere() {
   done
   git merge-base --is-ancestor "$1" "$base" 2>/dev/null
 }
+# secao_da_branch: define secao_st (ausente, presente ou ilegivel) para a seção branch.<ref> do .git/config. Compara o NOME exato da seção por texto
+# fixo (o ref pode ter `.`; prefixo sozinho casaria a seção da branch `a.b` com a branch `a`) e só dá "ausente" com o código 1 do git (nenhuma seção);
+# qualquer outro código (config ilegível) é "ilegivel", nunca "ausente".
+secao_da_branch() {
+  local nomes rc=0 n
+  secao_st=ausente
+  nomes="$(git config --local --name-only --get-regexp '^branch\.' 2>/dev/null)" || rc=$?
+  case "$rc" in 0) ;; 1) return 0 ;; *) secao_st=ilegivel; return 0 ;; esac
+  while IFS= read -r n; do
+    if [[ "$n" == "branch.$ref."* ]] && [[ "${n#"branch.$ref."}" != *.* ]]; then secao_st=presente; return 0; fi
+  done <<<"$nomes"
+}
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push roda a suíte nesse push). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
 limpar_entrega() {
   local arv_st=ok br_st=ok rem_st=ok arvore atual sha_local sha_remoto pend_cmds=""
   pendencia=0
+  # O sha da branch local é conferido ANTES de mexer na worktree: `git worktree remove` apaga os arquivos ignorados (ambiente local) de uma worktree
+  # limpa, e uma branch com commit novo (nome reaproveitado depois de um PR antigo mesclado) não pode perdê-los.
+  sha_local="$(git rev-parse --verify -q "refs/heads/$ref" || true)"
   atual="$(pwd -P)"
-  arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=$2} $1=="branch" && $2==b {print w}')"
+  # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
+  arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
+  local orfao=0
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
-      echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $arvore && git branch -D $ref" >&2
+      echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
+      arv_st=pendente
+    elif [ -n "$sha_local" ] && ! sha_confere "$sha_local"; then
+      echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não removi a worktree $(printf '%q' "$arvore") (arquivos ignorados dela se perderiam)." >&2
       arv_st=pendente
     elif ! git worktree remove "$arvore"; then
-      # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório ausente.
-      [ -d "$arvore" ] || git worktree prune || true
-      if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && $2==w {f=1} END {exit !f}'; then
-        echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2
+      # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório
+      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai ao log). No sandbox o prune pode ser negado.
+      [ -d "$arvore" ] || git worktree prune -v || true
+      if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && substr($0,10)==w {f=1} END {exit !f}'; then
+        if [ -d "$arvore" ]; then
+          echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2
+        else
+          echo "aviso: registro órfão da worktree $arvore: o diretório já não existe e o prune foi negado (sandbox?). O prune é do repositório todo (tira todo registro de worktree com diretório ausente). A branch local fica pendente enquanto o registro existir." >&2
+          orfao=1
+        fi
         arv_st=pendente
       fi
     fi
-    [ "$arv_st" = ok ] || pend_cmds="$pend_cmds
-git worktree remove $arvore"
+    if [ "$arv_st" != ok ]; then
+      if [ "$orfao" = 1 ]; then pend_cmds="$pend_cmds
+git worktree prune"
+      else pend_cmds="$pend_cmds
+git worktree remove $(printf '%q' "$arvore")"
+      fi
+    fi
   fi
-  sha_local="$(git rev-parse --verify -q "refs/heads/$ref" || true)"
   if [ -n "$sha_local" ]; then
     if [ "$arv_st" != ok ]; then
       br_st=pendente
     elif ! sha_confere "$sha_local"; then
       echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não a apaguei." >&2
       br_st=pendente
-    elif ! git branch -D "$ref"; then
-      echo "aviso: não apaguei a branch local $ref." >&2
-      br_st=pendente
+    else
+      # O stderr do `branch -D` é guardado e continua impresso: no sandbox o .git/config é protegido e o git avisa "could not lock config file"
+      # com código 0, deixando a seção branch.<ref> para trás. A decisão vem do estado do config, não do texto do aviso.
+      local br_rc=0 br_err cfg_campo=""
+      { br_err="$(git branch -D "$ref" 2>&1 1>&3)"; } 3>&1 || br_rc=$?
+      [ -z "$br_err" ] || printf '%s\n' "$br_err" >&2
+      if [ "$br_rc" != 0 ]; then
+        echo "aviso: não apaguei a branch local $ref." >&2
+        br_st=pendente
+      else
+        secao_da_branch
+        case "$secao_st" in
+          ausente) [ -z "$br_err" ] || cfg_campo=" config=ok (aviso do git sem efeito)" ;;
+          presente)
+            cfg_campo=" config=pendente"
+            echo "aviso: a branch local $ref foi apagada, mas a seção branch.$ref continua no .git/config (o git não conseguiu gravar o config)." >&2
+            pend_cmds="$pend_cmds
+git config --local --remove-section $(printf '%q' "branch.$ref")" ;;
+          *)
+            cfg_campo=" config=pendente"
+            echo "aviso: não consegui ler o .git/config para conferir a seção branch.$ref depois de apagar a branch." >&2
+            pend_cmds="$pend_cmds
+git config --local --list" ;;
+        esac
+      fi
     fi
     [ "$br_st" = ok ] || pend_cmds="$pend_cmds
-git branch -D $ref"
+git branch -D $(printf '%q' "$ref")"
   fi
+  # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
+  [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
   if ! sha_remoto="$(git ls-remote origin "refs/heads/$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
@@ -234,12 +323,12 @@ git branch -D $ref"
       echo "aviso: a branch remota $ref ($sha_remoto) tem commit que não foi mesclado; não a apaguei." >&2
       rem_st=pendente
     elif ! repetir git push origin --delete "refs/heads/$ref"; then
-      echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $ref)." >&2
+      echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $(printf '%q' "$ref"))." >&2
       rem_st=pendente
     fi
   fi
   [ "$rem_st" = ok ] || pend_cmds="$pend_cmds
-git push origin --delete refs/heads/$ref"
+git push origin --delete $(printf '%q' "refs/heads/$ref")"
   echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st"
   if [ -n "$pend_cmds" ]; then
     pendencia=1
@@ -247,10 +336,44 @@ git push origin --delete refs/heads/$ref"
   fi
 }
 
+# conferir_base (passo 2b, só leitura): a base andou depois do ponto de partida da branch? Falha de leitura PARA (nada de `|| true` aqui):
+# só o caso "tudo certo" segue. Sem arquivo em comum, avisa e segue (o CI do PR confere o merge); com arquivo em comum, para.
+# `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
+# `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
+conferir_base() {
+  local srv base_sha mbs mb n comuns f
+  srv="$(git ls-remote origin "refs/heads/$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
+  srv="${srv%%[[:space:]]*}"
+  [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
+  base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
+  [ "$srv" = "$base_sha" ] || die "parou no passo 2b: $base ($base_sha) está atrás da $alvo no servidor ($srv); rode: git fetch origin $alvo, e rode de novo"
+  if git merge-base --is-ancestor "$base_sha" "$remoto_sha"; then return 0; else
+    [ $? = 1 ] || die "parou no passo 2b: não consegui comparar $base com o head; rode: git fetch origin $alvo"
+  fi
+  mbs="$(git merge-base --all "$base_sha" "$remoto_sha")" || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  [ -n "$mbs" ] || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  tmp2b="$(mktemp -d)" || die "parou no passo 2b: não consegui criar a pasta temporária"
+  : > "$tmp2b/a"; : > "$tmp2b/b"
+  for mb in $mbs; do
+    git diff --no-renames --name-only -z "$mb" "$base_sha" >> "$tmp2b/a" || die "parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo"
+    git diff --no-renames --name-only -z "$mb" "$remoto_sha" >> "$tmp2b/b" || die "parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo"
+  done
+  sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns" \
+    || die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  if [ -s "$tmp2b/comuns" ]; then
+    echo "arquivos que a $alvo e $ref mudaram depois do ponto de partida:" >&2
+    while IFS= read -r -d '' f; do printf '  %q\n' "$f" >&2; done < "$tmp2b/comuns"
+    die "parou no passo 2b: a base andou e tocou arquivo que a branch também tocou (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
+  fi
+  n="$(git rev-list --count "$base_sha" --not $mbs)" || die "parou no passo 2b: não consegui contar os commits da base"
+  echo "a base andou $n commit$([ "$n" = 1 ] || echo s) sem arquivo em comum com $ref; o CI do PR confere o merge."
+}
+
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
   passo 1 "$check pr $pedido --ref $ref --base $base"
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
+  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git diff --no-renames -z dos dois lados: arquivo em comum para, sem arquivo em comum avisa (só leitura; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
   passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
@@ -312,6 +435,8 @@ else
     ja_mesclado=1
     echo "já existe PR MERGED em $alvo com o head de $ref; nada a abrir nem a mesclar."
   else
+    passo "2b" "base de $alvo"
+    conferir_base
     aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3; exit}')"
     if [ -n "$aberto" ]; then
       [ "${aberto#* }" = "$alvo" ] || die "parou no passo 3: o PR aberto #${aberto%% *} tem base ${aberto#* }, não $alvo; feche-o ou corrija a base (R-MAIN)"
@@ -353,13 +478,13 @@ if [ "$ja_mesclado" = 0 ]; then
       # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
       if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
         [ $((SECONDS - inicio)) -lt "$espera" ] || die "parou no passo 4: nenhum check apareceu após ${espera}s"
-        sleep "$intervalo"
+        dormir "$intervalo"
         continue
       fi
       # erro passageiro do GitHub (502): leitura, repete até 3 vezes seguidas.
       falhas=$((falhas + 1))
       [ "$falhas" -lt 3 ] || die "parou no passo 4: não consegui ler os checks: $saida"
-      sleep "$pausa"
+      dormir "$pausa"
       continue
     fi
     falhas=0
@@ -375,7 +500,7 @@ if [ "$ja_mesclado" = 0 ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
       die "parou no passo 4: checks ainda pendentes após ${espera}s"
     fi
-    sleep "$intervalo"
+    dormir "$intervalo"
     # com a espera do rótulo, o laço de fora relê o rótulo e o head a cada volta
     [ "$esperar" = 0 ] || continue 2
   done
@@ -397,7 +522,7 @@ if [ "$ja_mesclado" = 0 ]; then
       || printf '%s\n' "$texto" | tail -n +2 | grep -qiE '^[[:space:]]*([-*+]|[0-9]+[.)])[[:space:]]+\[x\].*afrouxa-regra'; then
       if [ "$esperar" = 1 ] && [ $((SECONDS - inicio)) -lt "$espera" ]; then
         echo "aguardando o rótulo afrouxa-regra do dono (o script nunca o aplica)..."
-        sleep "$intervalo"
+        dormir "$intervalo"
         continue
       fi
       die "$msg_rotulo"
@@ -435,6 +560,6 @@ limpar_entrega
 if [ "$pendencia" = 0 ]; then
   echo "Entrega $pedido fechada em $alvo."
 else
-  echo "Entrega $pedido fechada em $alvo; limpeza pendente (código 3): rode os comandos acima ou forge-fechar $pedido --ref $ref --limpar."
+  echo "Entrega $pedido fechada em $alvo; limpeza pendente (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
   exit 3
 fi
