@@ -445,12 +445,14 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "forge-testes --vermelho",
       "Commite o parecer na branch revisada",
       "`R-QA`",
       "sem ler o código",
       "testes dos casos de abuso do modelo de ameaças"
     ],
     "skills/qa-testing/SKILL.md": [
+      "forge-testes --vermelho",
       "## Teste nasce de obrigação, e para quando ela está coberta",
       "Teste redundante não entra",
       "uma amostra por classe de equivalência mais cada fronteira",

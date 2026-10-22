@@ -63,7 +63,12 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 - **Guarda contra suíte vazia:** teste que percorre pasta, glob ou lista afirma um mínimo de itens (N de hoje menos margem pequena); pasta renomeada derruba o teste em vez de passar sem ler nada.
 
 ## Vermelho antes do verde
-Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação: guarde o código de produção (`git stash`) ou rode contra o commit anterior. O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
+Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação.
+- **No Forge:** `forge-testes --vermelho <base>`, rodado pelo autor e de novo pelo QA, com a saída colada no parecer (ela abre com `vermelho: base=… head=…` e lista o que voltou à base). Ele roda em cópias em `$TMPDIR` e exige a árvore limpa; nunca mexe na árvore do autor. O veredito é por teste: saída 0 = ao menos um teste prova e nenhum cai no HEAD; 1 = nenhum prova ou algum cai; 2 = sem veredito (prazo, sinal, erro do próprio módulo de teste), que volta ao autor e nunca vale como vermelho. A falha de carga ou de preparação (módulo ou classe) da base só prova teste que a base não tinha; o que já existia sai "não prova (herdada da base)", então um `import` novo num módulo existente, sem teste novo, sai 1.
+- **"Dívida pré-existente"** é só etiqueta: o teste que cai no HEAD continua bloqueando e vira cartão.
+- **Projeto:** a forma da stack (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`): rodar o teste novo contra o código anterior, numa cópia; `git stash` na árvore do autor só como recuo.
+
+O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
 
 ## Mutação no código alterado
 Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
