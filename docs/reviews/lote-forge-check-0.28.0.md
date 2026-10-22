@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 1d001b1348dc915917f314eb99881e21dd1a4989
+commit: e83da9fbd43e371e1ccd3f4cb3e1ff7d1ae66b45
 parecer: aprovado
-revisor: forge:tech-lead (outra instância, E1.2)
-data: 2026-10-21
+revisor: forge:tech-lead (outra instância; rodada 4 no RET-LOTE-FORGE-CHECK E1.1)
+data: 2026-10-22
 ---
 # Review do LOTE-FORGE-CHECK-0.28.0 (E1.2)
 
-Rodada 3 (revalidação por delta até `1d001b1`, ver Delta), aprovado. Rodada 1: code review (R-REVIEW) da entrega inteira, `26f71895c37f16628d8ff914aec564fa336546f6..389096eaea742a6a26ecb3b29f6de842400ad49a` (11 commits, 31 arquivos, +2037 −170). Li o diff de `bin/forge-check` commit a commit, `hooks/parecer.py`, `agents/conferente.md`, `docs/regras/R-BRIEF.md`, `docs/hooks.md`, `tests/config.json`, `bin/forge-testes`, o fragmento, as fixtures e os seis módulos de teste novos. Conferi contra `docs/propostas/aq/p2-m16-m5.md`, a seção M13 de `m12-m16.md`, a seção M4 de `m1-m11.md`, `p3-p6.md` (com a D1) e todas as decisões do dono do pedido. A segurança é da E1.3 (`docs/security/lote-forge-check-0.28.0.md`) e não a refaço aqui.
+Rodada 4 (atualização sobre a `develop` em `e83da9f`, ver "Delta da rodada 4"), aprovado. Rodada 3 (revalidação por delta até `1d001b1`, ver Delta), aprovado. Rodada 1: code review (R-REVIEW) da entrega inteira, `26f71895c37f16628d8ff914aec564fa336546f6..389096eaea742a6a26ecb3b29f6de842400ad49a` (11 commits, 31 arquivos, +2037 −170). Li o diff de `bin/forge-check` commit a commit, `hooks/parecer.py`, `agents/conferente.md`, `docs/regras/R-BRIEF.md`, `docs/hooks.md`, `tests/config.json`, `bin/forge-testes`, o fragmento, as fixtures e os seis módulos de teste novos. Conferi contra `docs/propostas/aq/p2-m16-m5.md`, a seção M13 de `m12-m16.md`, a seção M4 de `m1-m11.md`, `p3-p6.md` (com a D1) e todas as decisões do dono do pedido. A segurança é da E1.3 (`docs/security/lote-forge-check-0.28.0.md`) e não a refaço aqui.
 
 Ferramenta: o Forge não tem `docs/engineering/praticas.md`; a regra de ferramenta é a suíte. Rodei numa cópia em $TMPDIR (`git archive` do HEAD) os seis módulos novos (`test_etapa_do_brief`, `test_isencoes`, `test_brief_gravar`, `test_anotar`, `test_citacao`, `test_estado_da_branch`): todos OK. A suíte completa (1330 OK, relato do autor) e o `validar-plugin` ficam com o QA (E1.4) e o pre-push.
 
@@ -62,3 +62,15 @@ Rodada 3 (revalidação). `forge-check delta --parecer docs/reviews/lote-forge-c
 Rodei na cópia em $TMPDIR (`git archive 1d001b1`) `test_isencoes`, `test_testes_tocados`, `test_etapa_do_brief`, `test_sobreposicao_quadro`, `test_erros_no_brief`, `test_volta_por_delta` e `test_citacao`: 194 testes, OK. A suíte inteira fica com o pre-push e o QA.
 
 Já lido (rodada 1, sem mudança desde 389096e): M4, P2, P3, P4 fora da correção de segurança, P5, P6 e os testes de 389096e; o conteúdo da develop, revisado nos PRs próprios (#269 a #272). Fora daqui: a metade do A1 de segurança no hook `conformidade`, na volta 3.
+
+## Delta da rodada 4 (RET-LOTE-FORGE-CHECK, E1.1)
+Revisado: `e83da9fbd43e371e1ccd3f4cb3e1ff7d1ae66b45`, a `origin/develop` (`af79bef3e1525e54de0f7b7fc6024e841a6dff85`, 35 commits: release 0.28.0 e #277 a #287) trazida sobre `cd55376` por mesclagem `--no-edit`, sem rebase. Veredito: **aprovado**, sem bloqueante.
+- A mesclagem saiu **sem conflito**: `git show --cc e83da9f` não tem trecho de resolução. Os conflitos previstos no brief (`bin/forge-check`, `docs/hooks.md`, `hooks/parecer.py`, `tests/config.json`) não aconteceram: a `develop` não tocou `bin/forge-check` nem `hooks/parecer.py` desde a base `ad6d96c`, e nos cinco arquivos que os dois lados mudam (`bin/forge-testes`, `docs/hooks.md`, `tests/config.json`, `tests/test_forge.py`, `tests/test_testes_tocados.py`) os trechos ficam em linhas diferentes.
+- **O patch do lote não mudou:** as linhas `+`/`-` de `git diff ad6d96c cd55376` e de `git diff af79bef e83da9f` são idênticas (34 arquivos, +2269 −184 nos dois). `git diff 1d001b1 e83da9f -- bin/forge-check hooks/parecer.py` é vazio.
+- `forge-check delta --parecer docs/reviews/lote-forge-check-0.28.0.md` listou `1d001b1..e83da9f` com 115 arquivos, todos vindos da `develop`, fora os dois pareceres do lote já lidos. Li dele só os trechos da `develop` nos cinco arquivos comuns, à procura de interação com o lote: nenhum cita `FORGE_CHECK`, `brief gerar`, isenção ou o hook `parecer`. O `FORGE_CHECK` de `bin/forge-testes` segue com os 19 módulos do lote; os módulos novos da `develop` não importam nem executam `bin/forge-check`, e o `MapaDoForgeCheck` da suíte confere isso.
+- `tests/config.json`: as três linhas de `docs/regras/R-BRIEF.md` do lote ficam junto às da `develop`; nada sai nem afrouxa.
+- **Segurança:** a resolução não toca `hooks/parecer.py` (diff vazio contra `1d001b1`) nem outro arquivo do lote que o parecer de segurança cobre; não pede nova olhada do security-engineer. O que a `develop` mudou em hooks (`agentes.py`, `doutor.py`, `pesado.py`) teve parecer nos PRs próprios.
+- Ferramenta, na raiz da worktree em `e83da9f`: `scripts/validar-plugin.sh` → `✔ Validation passed` (rc 0). `python3 -m unittest discover -s tests` → `Ran 1661 tests`, `FAILED (failures=4, skipped=1)`: `test_pre_push_shellcheck.test_shellcheck_no_hook` (SC2329 em `.githooks/pre-push:243`, shellcheck local 0.11.0), `test_hooks...test_erro_interno_com_lista_de_permissao_falha_fechado` e as fixtures `conformidade/contrib-falha-fechada-pela-raiz-cwd-home-bloqueia` e `-cwd-wt-bloqueia`. As **mesmas quatro** falham na `develop` pura (`af79bef`, worktree destacada, mesmos módulos: `FAILED (failures=4)`), e nenhuma toca arquivo do lote: são da `develop` neste ambiente, não do delta, e ficam como pendência fora do lote (pedido `FIX-SUITE-LOCAL`), e o pre-push barra o envio enquanto ela não chega à `develop`. O QA da E1.2 roda de novo.
+- Recomendado, fora do delta e sem bloquear (já estava em `1d001b1`): `agents/jarvis.md` cita `forge-check brief gerar --pedido <pedido> --destino forge:<nome> --branch <b>` sem `--cobre`, que o lote torna obrigatório quando o destino tem mais de uma etapa no pedido; o erro do `gerar` avisa, mas o texto do agente poderia citar a opção.
+
+Já lido: tudo o que o lote trouxe até `1d001b1` (rodadas 1 a 3) e os pareceres `f503bfe` e `cd55376`; o conteúdo da `develop`, revisado nos PRs próprios.
