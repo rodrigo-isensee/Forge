@@ -3,39 +3,36 @@ tipo: qa
 contrato: 1
 pedido: suite-paralela-d4
 branch: melhoria/suite-paralela-d4
-commit: 1bdd3e8522da941d89a8620a980196401e751126
+commit: 36e913dc903714d77335271a70804bb7dd7a191d
 parecer: aprovado
-escopo: completo
+revisor: forge:qa-engineer
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-21
 ---
-# QA: SUITE-PARALELA-D4 (suíte em processos no pre-push e no CI)
+# QA: SUITE-PARALELA-D4, delta 8201795..36e913d (corrida do terminal fechado)
 
-Código testado: `1bdd3e8` (o HEAD `6db3bd7` só soma pareceres em `docs/`). Worktree `~/.forge-contrib/wt/suite-paralela-d4`; sondas em cópia `git archive` do `1bdd3e8` em `$TMPDIR/sonda`, com remoto bare local e `XDG_RUNTIME_DIR` próprio (a trava real de outros agentes não foi tocada). Sem rede. Sem correção de código.
+Código testado: `36e913d` (o HEAD `5099850` só soma pareceres em `docs/`). Substitui o parecer anterior (`1bdd3e8`); o delta é a correção em `tests/test_atualizar.py` e `tests/test_sugerir.py` depois do merge da develop `c092f1b`. Sondas e cópias só em `$TMPDIR`; sem correção de código de produção. Os pareceres de review, segurança e devops do pedido estão sem achados bloqueantes.
 
 ## Achados
 
 ## Obrigação → teste → resultado
-| Obrigação (decisões do dono e escopo do pedido) | Teste | Fronteira protegida | Resultado |
+| Obrigação | Teste / comando | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E1: mesmos testes divididos em processos, N medido | `scripts/suite-paralela.py` real na worktree | N = min(4, nproc) | passou: 1347 testes, 4 processos, 192,2 s |
-| Guarda de completude: módulo que some reprova | cópia mínima, `modulos()` sem `test_c` | soma e multiconjunto de IDs | passou: `FAILED (guarda=2)`, rc 1, "1 teste(s) ausente(s)" |
-| Uma suíte por vez, fila por ordem (SUITE-FILA-JUSTA) | 3 pushes (b1, b2, b3) com 1,5 s de intervalo | ordem de chegada; exclusão | passou: fins a 5,5 s um do outro, b1, b2, b3 em ordem; b2 e b3 avisam a espera |
-| Push sem refs não roda a suíte (PREPUSH-JA-NO-REMOTO) | `git push origin b1` já igual | zero refs | passou: "nada a enviar", rc 0, sem suíte |
-| Push que só apaga roda a suíte | `git push origin --delete b3` | uma ref com sha zerado | passou: suíte rodou (3 testes, OK) e a ref foi apagada |
-| Parar só o próprio grupo (PREPUSH-PKILL-ALHEIO) | TERM no hook que espera; TERM no hook que roda, com processo isca de nome igual vivo | hook em espera; filho; grupos | passou: o que espera morre sem tocar a suíte em curso; o que roda diz "suíte interrompida", reprova o push, os 3 processos somem e a isca segue viva; senha da fila apagada |
-| Falha fechada no push de código | push da cópia completa com `x.md` fora do clone (pré-existente) | rc diferente de 0 reprova o envio | passou: reprovou o push, ref não criada |
-| Sem afrouxar: suíte inteira e plugin | `unittest discover -s tests -q`; `scripts/validar-plugin.sh` | n/a | passou: 1347 testes OK em 373,2 s (série); `Validation passed` |
+| Suíte inteira passa, serial | `python3 -m unittest discover -s tests -q` | n/a | passou: 1372 testes, OK, 469 s |
+| Plugin válido | `scripts/validar-plugin.sh` | n/a | passou: "Validation passed" (só aviso ICON_MISSING, pré-existente) |
+| Suíte em paralelo, máquina limpa (load 5,9) | `python3 scripts/suite-paralela.py` | N = min(4, nproc) | passou: 1372 testes, 4 processos, 168 s, 0 falha, 0 TRAVOU, árvore intacta |
+| Suíte em paralelo com carga (12 laços de CPU) | mesmo comando, laços em `$TMPDIR` | redução de N sob carga | passou: 1372 testes, OK, 0 TRAVOU, 277 s; o script reduziu sozinho para 2 processos ("carga alta, load 14,1 de 16"), então a corrida não foi exercida com 4 processos sob carga |
+| Terminal fechado antes do fim do processo não marca travou | `EsperaDoTerminal.test_saida_fechada_antes_do_fim_do_processo_nao_marca_travou` | processo que fecha 0, 1, 2 e termina 2 s depois | vermelho no antigo, verde no novo (abaixo) |
+| Pergunta sem resposta continua marcada como travou | `EsperaDoTerminal.test_pergunta_sem_resposta_continua_marcada_como_travou` | `ocioso=2`, processo aguardando stdin | passou (classe `EsperaDoTerminal`, 3 testes OK, 12,7 s) |
 
-## Execuções reais
-- Série, na raiz da worktree: `Ran 1347 tests in 373.191s`, `OK`.
-- Paralela (`scripts/suite-paralela.py`, uma vez, pela mesma trava e fila): 4 processos (418, 143, 363 e 423 testes; 185,6, 192,0, 191,6 e 182,6 s), tempo de parede 192,3 s, `OK`, árvore limpa depois. Máquina com outros agentes (load 2 a 3), por isso acima dos 112 s do parecer de devops; ainda -49% sobre a série medida agora.
-- Push da cópia completa: pela suíte em processos, 1347 testes, 4 processos, 116 s a 146 s conforme a carga, `OK (skipped=1)`; a primeira tentativa foi reprovada por `tests/test_pedido_fora.py:68`, que lê um `x.md` fora do clone (cartão já aberto no pedido, depende do ambiente, não do diff); a cópia foi movida de pasta e passou. O hook também esperou a trava de outro agente por 11 min sem furar a fila.
-- Vermelho antes do verde: os testes novos (`tests/test_suite_paralela.py`, `tests/test_pre_push_trava.py`) são da E1.1; as sondas acima reproduzem cada comportamento no hook e no script reais e a guarda foi vista falhando.
+## Vermelho antes do verde
+Cópia `git archive 36e913d` em `$TMPDIR/antigo`, com `tests/test_atualizar.py` de `36e913d~1` mais o teste novo. Comando: `python3 -m unittest tests.test_atualizar.EsperaDoTerminal.test_saida_fechada_antes_do_fim_do_processo_nao_marca_travou`, duas vezes. Falha observada nas duas: `AssertionError: -9 != 0 : pronto [TRAVOU esperando resposta]`. No código novo (worktree) a classe passa. Mutação: sem ferramenta gratuita na stack do Forge para estes arquivos; o vermelho acima faz o papel (reverter o helper derruba o teste).
 
-## Riscos (não bloqueiam)
-- Tempo da suíte depende da carga da máquina; com agentes rodando, a ordem de 190 s, não de 110 s.
-- Módulo que sumisse da árvore depois do `discover` só foi simulado por troca da lista (`modulos()`), não por corrida real.
+## Observações (não bloqueiam)
+- Rede: o sandbox negou `api.anthropic.com:443` durante a suíte e a validação do plugin, e `datadoghq.com` na validação. A origem é a base (`scripts/preparar-estacao.sh` chama `claude plugin list`; já registrada na segurança, cartão SUITE-REDE-API); nada foi enviado e nenhum teste falhou por isso (R-CUSTO preservado).
+- A corrida corrigida só aparece com 4 processos sob carga no runner; localmente a carga reduz N para 2, então a evidência forte é o teste de janela larga (2 s), não a repetição sob carga.
+- `test_sugerir.py` recebeu a mesma correção; coberto pela suíte inteira (verde), sem teste dedicado de janela larga.
