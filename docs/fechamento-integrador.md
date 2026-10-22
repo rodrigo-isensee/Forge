@@ -28,6 +28,9 @@ Depois das checagens iniciais, a primeira linha da saída é `log: <caminho>`; a
 - Máscara (sem diferença de maiúsculas): `ghp_...`/`github_pat_...`, `Bearer <x>`, `Basic <base64>`, `Authorization: ...`, `NOME_COM_TOKEN|SECRET|PASSWORD|KEY=valor` (também `token=` e `token:`), `"token": "valor"` em JSON, `://usuario:senha@` e token na query (`?access_token=`). A palavra `token` em prosa (`token inválido`) fica intacta. A máscara é a segunda barreira: o log fica em pasta 700, e nenhum padrão pega todo segredo.
 - Duas fileiras gravam o log (stdout e stderr), uma escrita por linha sob `flock` quando existe; a ordem exata entre as duas dentro do mesmo segundo não é garantida.
 
+## Faixas das esperas
+Antes de qualquer passo (e antes do log), o script confere os três números e para com código 1 e a faixa na mensagem: `FORGE_FECHAR_PAUSA` de 1 a 30 s; `FORGE_FECHAR_INTERVALO` de 5 a 120 s; `--espera` de 0 a 7200 s. Só vale inteiro decimal, com no máximo 3 dígitos nas duas variáveis e 5 em `--espera` (o tamanho é conferido antes do valor, para número enorme não passar na comparação; `08` vale 8). Os padrões (3 s, 30 s e 1800 s) estão dentro das faixas. O piso das duas variáveis cai para 0 só com `FORGE_FECHAR_TESTE=1`, como a suíte usa; o teto vale sempre. Motivo: valor alto prendia o script por horas, valor que não era número o matava depois do PR aberto e intervalo 0 virava leitura do `gh` sem pausa.
+
 ## Erro passageiro do GitHub (502)
 Só as operações que não mudam o PR repetem, até 3 vezes e com espera curta (`FORGE_FECHAR_PAUSA`, padrão 3 s): a leitura do estado e dos dados do PR (passos 3, 5 e 6, e o `--limpar`), a leitura dos checks (passo 4) e o `git push origin --delete` da limpeza. Push de código, criação de PR, `gh pr ready` e merge nunca se repetem sozinhos; se falham, o script para (no merge, só lê o estado para reconhecer um `MERGED` já feito).
 
