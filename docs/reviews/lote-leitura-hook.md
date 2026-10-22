@@ -3,57 +3,64 @@ tipo: review
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: f8e00ae6d17c6ade5fc417308ca98ede79f97971
-parecer: aprovado
+commit: a1a9f846f4c8521b9be147ea1890f407348b7fea
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-21
 ---
-# Review: lote-leitura-hook (revalidação 3)
+# Review: lote-leitura-hook (revalidação 4)
 
-Escopo: a entrega inteira, `git diff ad6d96ce6b19663f7695d361d61f59c7545bdca6 f8e00ae6d17c6ade5fc417308ca98ede79f97971`. Revalidei por delta desde o parecer anterior (849174b, sobre a437574). `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` listou o intervalo `a437574..f8e00ae`: bec010b, 66c23b0, 56881bd e f8e00ae, em `hooks/_comum.py` (417-494, 788-911, 948-950, 1058-1085), `hooks/conformidade.py` (35, 666-689, 724-727, 757), `hooks/parecer.py` (341-376), `tests/test_hooks.py`, as 17 fixtures novas, `docs/hooks.md:94-95` e o fragmento do changelog. Li só esse delta. Os commits até a437574 ficam como "já lido", e os pareceres das rodadas anteriores continuam valendo para eles. Sou revisor independente, não o autor. A segurança (E1.3) tem parecer próprio em `docs/security/lote-leitura-hook.md`, que não refiz aqui.
+Escopo: a entrega inteira, `git diff ad6d96ce6b19663f7695d361d61f59c7545bdca6 a1a9f846f4c8521b9be147ea1890f407348b7fea`. Revalidei por delta desde o parecer anterior (af6d910, sobre f8e00ae). `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` listou o intervalo `f8e00ae..e62b1b6`: 419bcdf, 09d8ce5 e a1a9f84, em `hooks/_comum.py` (839-843, 851-852, 862, 898-936, 938-948, 954-956, 985-1001, 1010), `docs/hooks.md:94`, `tests/test_hooks.py` e as 13 fixtures novas. O e62b1b6 é o parecer da segurança, que não reli como código. Li só esse delta, e os commits até f8e00ae ficam como "já lido". A exceção é a medição de tempo do A1, que também atinge o `pipeline_do_operador` do 66c23b0, já lido. Sou revisor independente, não o autor. A segurança (E1.3) tem parecer próprio em `docs/security/lote-leitura-hook.md`, que não refiz aqui.
 
 ## Achados
+- A1 (bloqueante) hooks/_comum.py:897 · comando_logico relê o texto do início com abertos_na_linha a cada heredoc (quadrático): 3000 heredocs (77 KB) com git push origin main levam 26,9 s no conformidade (base 1,2 s), acima do timeout de 10 s, em que o hook libera
+- A2 (bloqueante) hooks/_comum.py:994 · outro_sem_o_corpo aceita git commit e git push, que rodam os hooks de core.hooksPath: cat > .husky/pre-push <<'EOF' && git push origin feature/x com gh pr merge no corpo passa no parecer (base 2, HEAD 0); confirmado no bash com git commit
 
 ## Parecer
-**Aprovado.** O A1 da rodada anterior está resolvido. O caso `git add x && git commit -m "$(cat <<'EOF'` com apóstrofo, que o HEAD anterior recusava, voltou a passar. O A1 de segurança (o dono do heredoc noutra linha física) também fecha nas sondas abaixo. Ficam recomendações, sem bloqueante.
+**Reprovado.** O A1, o A2 e o A3 da segurança de 3e5d570 estão resolvidos nas sondas abaixo, nos dois hooks. O delta trouxe dois bloqueantes novos, e um deles vem do risco que o autor apontou. O A1 é uma regressão de tempo: passar do timeout de 10 s do `hooks/hooks.json` faz o Claude Code liberar a linha, o que afrouxa R-MAIN e R-VERIFY. O A2 é a mesma classe do A1 da segurança: um comando da lista positiva roda o arquivo que o heredoc grava. A segurança achou na mesma rodada (e62b1b6, A1) outro furo do `git push` na lista, pelas opções. Esta já é a 4.ª volta, aberta como exceção pelo dono e só para A1 a A3. Pelo R-QA, uma 5.ª volta é decisão do dono, e o Jarvis leva a pergunta (R-DECISAO).
 
 ### Sondas
-As sondas rodaram em cópias por `git archive` da base (ad6d96c), do HEAD anterior (a437574) e do HEAD (f8e00ae) em `$TMPDIR`. O hook real rodou pelo `Fixture`, pelo `montar_proc` e pelo `rodar` de cada cópia, com os modelos `conformidade/shell-heredoc-no-commit-libera` e `parecer/forge-clone-pr-ready-sem-parecer-bloqueia`. Nas linhas "push", o corpo é `git push --no-verify origin x`, e nas linhas do `parecer`, `gh pr ready feature/x` sem parecer.
+As sondas rodaram em cópias por `git archive` da base (ad6d96c), do HEAD anterior (f8e00ae) e do HEAD (a1a9f84) em `$TMPDIR`. O hook real rodou pelo `Fixture`, pelo `montar_proc` e pelo `rodar` de cada cópia. Os modelos foram `conformidade/heredoc-outro-comando-make-push-main-bloqueia` (corpo `git push origin main`) e `parecer/forge-clone-pr-merge-no-corpo-de-heredoc-gravado-e-make-bloqueia` (corpo `gh pr merge` com review reprovado).
 
-| Caso (hook) | base | a437574 | f8e00ae |
+| Caso (hook) | base | f8e00ae | a1a9f84 |
 |---|---|---|---|
-| `git add … && git commit -m "$(cat <<'EOF'` com `it's` (conformidade) | 0 | 2 | **0** |
-| `cd src && cat > n.md <<'EOF'` com `it's` (conformidade) | 0 | 2 | **0** |
-| `git commit -m "$(cat <<'EOF'`, `git commit -F -`, `python3 -`, `cat \| python3`, `mkdir && cat >`, `cat > a.md && git add && git commit`, todos com apóstrofo (conformidade) | 0 | 0 | 0 |
-| `patch -p1`, `kubectl apply -f -`, `while read … done` com `<<'EOF'` e apóstrofo (conformidade) | 0 | 2, mensagem errada | 2, mensagem com saída por arquivo |
-| `cat > notas.md <<'EOF'` com apóstrofo e `patch -p1 < notas.md` na linha seguinte (conformidade) | 0 | 0 | 0 |
-| `for f in a b; do cat > $f.md <<'EOF'` e `sudo tee /etc/x <<'EOF'`, com apóstrofo (conformidade) | 0 | não medido | 2, mensagem com saída por arquivo |
-| push: `cat <<'EOF' \|`⏎…⏎`EOF`⏎`bash`, `bash \`⏎`<<'EOF'`, `cat <<'EOF' \| \`⏎`bash`, `eval "$(cat <<'EOF'`, `cat >x; source x` (conformidade) | 0 a 2 | 0 a 2 | 2 |
-| push: `eval "$(`⏎`cat <<'EOF'` e `bash -c "$(`⏎`cat <<'EOF'` (R7 da segurança, conformidade) | 0 | 0 | **2** |
-| push: `cat \| bash`, `cat \| tee \| sh`, `{ read; bash; }`, `(cat) \| bash`, `\|&`, dois heredocs, `xargs sh`, `git -c alias` (conformidade) | 2 | 2 | 2 |
-| push: `git add … ; cat <<'EOF'` (o corpo só é impresso, conformidade) | 0 | 2 | 0, correto |
-| push: `cat > x.sh <<'EOF'`⏎…⏎`EOF`⏎`bash x.sh` (R6 da segurança, conformidade) | 2 | não medido | **0** |
-| push: `sort --compress-program=sh <<'EOF'` (R8 da segurança, conformidade) | 2 | não medido | **0** |
-| ready: `cat <<'EOF' \|`⏎…⏎`EOF`⏎`bash` (parecer) | 2 | 0 | 2 |
-| ready: `eval "$(`⏎`cat <<'EOF'` (parecer) | 0 | não medido | 2 |
-| ready: `cat > x.sh <<'EOF'`⏎…⏎`EOF`⏎`bash x.sh` (R6, parecer) | 2 | não medido | **0** |
-| `git add a && git commit -m "$(cat <<'EOF'` com `it's` e `&& gh pr list`, e `kubectl apply -f -` com apóstrofo e `gh pr list` (parecer) | 0 | 0 | 0 |
-| `gh pr create --draft --body "$(cat <<'EOF'` com `it's done` (parecer) | 0 | não medido | 0 |
+| `&& chmod +x x.sh && ./x.sh`, `; ./x.sh`, `&& make`, `&& git -c alias.x='!sh x.sh' x` (conformidade) | 2 | 0 | **2** |
+| `x=$(cat <<'EOF'`⏎…⏎`EOF`⏎`); eval "$x"`, e com `${z%)}` na linha do operador (conformidade) | 2 | 0 | **2** |
+| `sort -S 1k --compress-program=sh <<'EOF'` (conformidade) | 2 | 0 | **2** |
+| `./x.sh`, `eval "$x"` e `sort --compress-program` com `gh pr merge` no corpo (parecer) | 2 | 0 | **2** |
+| `git add … && git commit -m "$(cat <<'EOF'` com `it's` e `&& git push origin feature/x` (conformidade) | 0 | 0 | 0 |
+| `cd src && git add && git commit` com `it's`, `cat > n.md <<'EOF' && git add n.md` com `it's` (conformidade) | 0 | 0 | 0 |
+| `cat > .githooks/pre-push <<'EOF' && git push …` e `cat > .git/hooks/pre-push …` (conformidade) | 2 | 2 | 2, pela proteção de pasta |
+| `cat > .githooks/pre-push <<'EOF' && git push origin feature/x` com `gh pr merge` (parecer) | 2 | 0 | 0, o conformidade barra a mesma linha |
+| **A2:** `cat > .husky/pre-push <<'EOF' && git push origin feature/x` e `cat > .husky/pre-commit <<'EOF' && git commit -m x`, com `gh pr merge` (parecer) | 2 | 0 | **0** |
+| os mesmos com `git push origin main` no corpo (conformidade) | 0 | 0 | 0 |
+| `git commit -m "$(cat <<'EOF'` com `it's` e `&& git log --oneline -1`, `&& echo feito` ou `; git diff --stat` (conformidade) | 0 | 0 | **2** |
+| `gh pr create --draft --body "$(cat <<'EOF'` com `it's` e `&& echo ok` (parecer) | 0 | 0 | **2** |
 
-O bash local confirma o R6: `cat > x.sh <<'EOF'`⏎`echo RODOU`⏎`EOF`⏎`bash x.sh` imprime `RODOU`.
+No bash, o A2 se confirma assim: num repositório com `core.hooksPath .husky`, `cat > .husky/pre-commit <<'EOF' && git commit -q -m x` com `echo RODOU-NO-HOOK` no corpo imprime `RODOU-NO-HOOK` e faz o commit. O husky é comum nos projetos de stack node. A proteção de `.git/` e de `.githooks/` não cobre um `core.hooksPath` noutra pasta. O `git commit` entra na lista pelo `corpo_so_lido`, porque está em `GIT_LE_O_CORPO`.
+
+Tempo do `conformidade`, com N vezes `cat > fN <<'EOF'`⏎`x`⏎`EOF`:
+
+| N (tamanho) | base | f8e00ae | a1a9f84 |
+|---|---|---|---|
+| 1000 (25 KB) | 0,42 s | 1,35 s | 3,34 s |
+| 2000 (51 KB) | 0,79 s | 4,30 s | **12,33 s** |
+| 3000 (77 KB) + `git push origin main` | 1,21 s (2) | 8,72 s (2) | **26,85 s** (2 só fora do timeout) |
+| 5000 (129 KB) + `git push origin main` | 1,97 s | 22,08 s | 75,39 s |
+
+O `cProfile` de `tirar_heredocs` com 2000 heredocs mostra a origem. O `abertos_na_linha` é chamado 2.001.000 vezes, por `comando_logico`, e soma 9,6 s de 14,6 s. O `pipeline_do_operador` (66c23b0) soma mais 5,6 s e já era quadrático em f8e00ae: o parecer anterior não mediu isso. O orçamento de 3 s do `conformidade` não alcança esse custo, porque `tirar_heredocs` roda antes dele.
 
 ### Delta lido, por commit
-- **bec010b (recomendação do review anterior):** atendida. O `TETO_DE_CARACTERES` cai para 150 mil. O teste de orçamento afirma o teto e que a linha logo acima dele recusa pelo teto antes de metade do timeout. A mensagem da recusa não mudou e continua dizendo como corrigir.
-- **66c23b0 (A1 de segurança e o falso positivo do `git add && git commit`):** resolvido. `tirar_heredocs` troca cada operador por uma marca (`__forge_heredoc_<n>__`), lê a linha sem os corpos pela mesma porta da ADR 0013 (`leituras(..., com_sinal=True)`) e passa a `dono_do_heredoc` o pipeline que contém a marca, mais os comandos de fora quando o heredoc está numa substituição. A marca é uma palavra comum, e por isso não muda a prova do `#` da gramática G. Com subshell, comando composto, leitura ilegível ou marca perdida, o dono é o `comando_logico` inteiro, o que fecha na dúvida. `RODA_TEXTO` no comando lógico mantém o comportamento da develop para `cat > x.sh <<'EOF' && bash x.sh`. O `com_sinal` é opcional e só acrescenta um quarto elemento, então quem já chamava `comandos` e `leituras` não muda. O teste `test_corpo_de_heredoc_so_lido_pela_lista_positiva` afirma um mínimo de 11 formas e testa as seis separadas que só leem, e as 9 fixtures `-bloqueia` cobrem as quatro formas da segurança nos dois hooks. As funções novas são pequenas e têm docstring com o porquê. A `pipeline_do_operador` é a mais densa (dois laços e o retorno pela substituição de fora), mas está legível.
-- **56881bd (A1 do review anterior):** resolvido pela sugestão mínima. O corpo ilegível dado a um dono fora da lista recusa com mensagem própria nos dois hooks (`hooks/conformidade.py:724`, `hooks/parecer.py:357`), e essa mensagem manda gravar o texto num arquivo com `cat > arq <<'FIM'` sozinho e passar o arquivo ao programa. A recusa continua fechando na dúvida, sem afrouxar pela rede da ADR 0011. A fixture `…gravado-em-arquivo-e-patch-depois-libera` prova que a saída indicada funciona. Como a flag `corpo_de_heredoc` entra na chave do cache de conferências, a mesma linha lida como corpo e como linha não divide resultado.
-- **f8e00ae (docs):** `docs/hooks.md:94-95` descreve o dono por pipeline, os casos do comando lógico, a saída por arquivo e o teto de 150 mil. O fragmento foi dividido em dois itens, como o review anterior recomendou.
+- **419bcdf (A1 de segurança):** a lista negativa `RODA_TEXTO` deu lugar a uma lista positiva (`OUTROS_SEM_O_CORPO`, `GIT_OUTRO_SEM_O_CORPO` e os leitores). A direção está certa e fecha as quatro formas da segurança. Extrair `subcomando_do_git` tirou a duplicação com `corpo_so_lido`. O `" ".join([programa, *argumentos])` relido por `corpo_so_lido` pode desfazer as aspas de um argumento, mas aí a leitura só fica mais desconfiada. O furo está na escolha do conteúdo da lista: `git push` e `git commit` rodam hooks (A2 deste parecer) e aceitam opções que rodam programa (A1 da segurança em e62b1b6).
+- **09d8ce5 (A2 de segurança):** `abertos_na_linha` lê aspas, escape, `$(` dentro de aspas duplas, crase e comentário, e na dúvida a pilha cresce, o que fecha na dúvida. As quatro formas do teste, inclusive `# )` e `")"`, saem 2. Na sonda, o `${z%)}`, que a pilha lê errado, também sai 2. Só que `comando_logico` agora percorre o texto do começo, caractere a caractere, para cada heredoc (A1 deste parecer). Correção sugerida: calcular os limites dos comandos lógicos uma vez por texto, em `tirar_heredocs`, e achar o de cada operador por busca. Valem o mesmo para o `pipeline_do_operador` e um teste de tempo com milhares de heredocs, como o de orçamento que já existe.
+- **a1a9f84 (A3 de segurança):** o `sort` sai de `LEITORES_DO_CORPO`, com comentário do porquê e caso novo em `executados`. Resolvido.
+- **Docs:** `docs/hooks.md:94` descreve a lista positiva dos outros comandos e a junção por `(`, aspa ou crase sem par. Precisa mudar junto com a correção do A2.
+- **Testes:** o mínimo de `noutra_linha` subiu de 11 para 21, e há 12 fixtures `-bloqueia` e uma `-libera` para a forma comum do commit. O teste de ausência continua com mínimo afirmado.
 
 ### Recomendações (fora do bloco)
-- **R6 e R8 da segurança, recuos em relação à base:** `cat > x.sh <<'EOF'`⏎…⏎`EOF`⏎`bash x.sh` (nos dois hooks) e `sort --compress-program=sh <<'EOF'` saem 0, e a base dava 2. O R6 cabe no limite que `docs/hooks.md` já registra no item [B], o script gravado e executado depois, e o teste o fixa de propósito em `separados`. O R8 não está documentado. A correção é trivial: tirar o `sort` de `LEITORES_DO_CORPO` ou tratar `--compress-program` como quem roda texto. A classificação é da segurança (E1.3), que deu os dois como recomendação. Fica ao integrador (E1.5) confirmar que eles entram na descrição do PR com o rótulo `afrouxa-regra`.
-- **Falso positivo restante, agora com saída:** `for … do cat > $f <<'EOF' … done` e `sudo tee /etc/x <<'EOF'` com apóstrofo no corpo recusam. No primeiro, o laço leva ao comando lógico inteiro. No segundo, `sudo` está em `RODA_TEXTO`. A mensagem resolve os dois casos (arquivo e depois `sudo cp`). Se aparecer nos projetos, vale pôr `sudo tee` na lista com o `tambem`.
-- Quando o dono fora da lista é um shell (`bash <<'EOF'` com aspa sem par), a mesma mensagem leva ao limite do R6 (`bash arq`). O bash também recusaria esse corpo por sintaxe, então o efeito prático é nulo.
-- Continua aberta: o cartão HOOK-N4 entra no quadro antes do merge, para o `skipTest` do T1 ter dono.
-- Os commits continuam limpos, um por achado, em Conventional Commits em português, com o porquê na mensagem.
+- **Falso positivo novo:** `git commit -m "$(cat <<'EOF'` com apóstrofo e `&& git log --oneline -1`, `&& echo feito` ou `; git diff --stat` recusam, e a base liberava. O mesmo vale para `gh pr create --body "$(cat <<'EOF'` com `&& echo ok` no `parecer`. A mensagem dá a saída por arquivo, e apóstrofo é raro em texto em português, por isso não bloqueia. Para a correção do A2: o heredoc cujo dono não grava arquivo (sem `>` nem `tee`), como `git commit -F -` ou `"$(cat <<'EOF'`, não deixa nada para outro comando rodar. Aí `echo`, `printf`, `git log`, `git diff`, `git show`, `git push` e `git commit` poderiam ficar na lista sem risco. Quando o dono grava arquivo, ficam só `cd`, `mkdir`, `git add`, `git status` e os leitores.
+- Continua valendo o que o parecer anterior pediu ao integrador (E1.5): R6 na descrição do PR, rótulo `afrouxa-regra` e o cartão HOOK-N4 no quadro antes do merge.
+- Os commits estão limpos, um por achado, em Conventional Commits em português, com o porquê na mensagem.
 
 ### Invariantes e ferramentas
-O delta não toca em `tests/config.json`. O rótulo `afrouxa-regra` do dono continua necessário no merge (E1.5), porque o diff toca em `hooks/conformidade.py`. Não refiz as ferramentas. O pre-push deste parecer roda a suíte sobre o mesmo patch.
+O delta não toca em `tests/config.json`. Rodei só os testes da área que mudou, na cópia do HEAD: `python3 -m unittest tests.test_hooks -k heredoc -k fixture -k corpo` deu 4 testes OK em 35 s. Não refiz a suíte. O pre-push deste parecer roda as classes dos pareceres.
