@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: forge-check-lote
 branch: melhoria/forge-check-lote
-commit: 9c09ae01ce0dba86cf150d1853a695f111837ffd
+commit: b69dbe961f8359d4c0bede01f0302ad26b36d15c
 parecer: aprovado
 revisor: forge:tech-lead (outra instância, E1.2)
 data: 2026-10-20
@@ -94,5 +94,16 @@ Re-review do delta `f1dbe1087c075ca08fa94575b00229dd0ff165e9..9c09ae01ce0dba86cf
 - Sonda de mutante (cópia em `$TMPDIR`, `git archive 9c09ae0`): a classe `SaidaSanitizada` dá 8 testes OK; revertendo a linha para `{quais[0]}` cru, falha 1. Mutante morto.
 - O delta não muda mais nada. As recomendações R1 a R6 do parecer anterior seguem como estavam, nenhuma bloqueia.
 - Suíte inteira: não rodei, o pre-push deste envio roda.
+
+Parecer: aprovado.
+
+## Volta 2
+Re-review do delta `f85b3446ac4670cf79e66e4287e6b7806cbe53dd..b69dbe961f8359d4c0bede01f0302ad26b36d15c` (1 arquivo, `tests/test_forge.py`, +3 -2), a correção do achado da bateria do PR #252 (caminho pessoal literal em `tests/test_forge.py:4693`). Lido: o delta inteiro. Já lido: o restante da branch, nos pareceres acima, sem mudança no que o delta não toca.
+
+- `test_nada_do_prompt_nem_caminho_vai_a_saida` afirma o mesmo de antes: a sentinela `TOKEN-SENTINELA` continua indo ao prompt (`extra=`, agora com o caminho pessoal montado por concatenação em `pessoal`), e o laço de asserção continua proibindo na saída `TOKEN-SENTINELA`, o mesmo caminho (agora `pessoal`, que vale `/home/pessoa`, conferido por execução), `str(self.raiz)` e `str(self.home)`.
+- O delta não muda mais nada: `git diff --stat` mostra só esse arquivo e só essas linhas; `bin/forge-check`, hooks e `agents/conferente.md` ficam intactos.
+- Sonda (cópia em `$TMPDIR`, `git archive b69dbe9`): o teste isolado dá OK.
+- Suíte inteira: não rodei; o pre-push deste envio roda (antes: `--status` rc=1, nenhuma rodando).
+- Segurança e QA não se repetem, conforme a decisão técnica do Jarvis de 2026-10-21 (R-REVIEW, R-SEGURANCA).
 
 Parecer: aprovado.
