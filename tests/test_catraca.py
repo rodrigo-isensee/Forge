@@ -1937,6 +1937,86 @@ class DonoSoDaBase(Base):
         self.assertIn("mudança em tests/catraca.py", r.stdout)
 
 
+class PrazoTotalDaApi(Base):
+    """Item 4 do N-CAT1: um prazo total para as chamadas à API, num relógio monotônico; estourou, vale como sem rótulo."""
+
+    ENV = {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "11", "HEAD_SHA": "abc"}
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.dict(os.environ, self.ENV)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.agora = 0.0
+        for alvo, valor in (("relogio", lambda: self.agora), ("urlopen", self.urlopen)):
+            patch = mock.patch.object(catraca if alvo == "relogio" else catraca.urllib.request, alvo, valor)
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.chamadas, self.salto, self.resposta = [], 0.0, []
+        catraca.PRAZO.reiniciar()
+        self.addCleanup(catraca.PRAZO.reiniciar)
+
+    def urlopen(self, req, timeout=None):
+        self.chamadas.append((req.full_url, timeout))
+        self.agora += self.salto
+        corpo = json.dumps(self.resposta(req.full_url) if callable(self.resposta) else self.resposta).encode()
+        return contextlib.nullcontext(io.BytesIO(corpo))
+
+    def test_o_prazo_total_cabe_na_metade_do_timeout_do_job(self):
+        """Se o N-CI baixar o `timeout-minutes` do job `catraca`, a suíte acusa."""
+        yml = (AQUI.parent / ".github" / "workflows" / "catraca.yml").read_text(encoding="utf-8")
+        job = re.search(r"^  catraca:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)
+        minutos = int(re.search(r"^    timeout-minutes: (\d+)\s*$", job, re.M).group(1))
+        self.assertLessEqual(catraca.PRAZO_TOTAL_DA_API, minutos * 60 / 2)
+        self.assertGreater(catraca.PRAZO_TOTAL_DA_API, 0)
+
+    def test_a_excecao_do_prazo_e_oserror(self):
+        """Assim as capturas que já existem a tratam como sem rótulo."""
+        self.assertTrue(issubclass(catraca.PrazoDaApiEsgotado, OSError))
+
+    def test_prazo_esgotado_nao_chama_a_rede_e_a_fonte_devolve_none(self):
+        self.salto = 150.0
+        fonte = catraca.FonteGithub("t", "o/r", "11")
+        self.assertEqual(fonte.pull(1), [])
+        self.assertEqual(fonte.pull(2), [])
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertIsNone(fonte.pull(3))
+            self.assertIsNone(fonte.pull(4))
+        self.assertEqual(len(self.chamadas), 2, self.chamadas)
+        self.assertEqual(saida.getvalue().count("prazo da API esgotado; vale como sem rótulo."), 1, saida.getvalue())
+
+    def test_o_prazo_de_cada_chamada_e_o_menor_entre_30_e_o_que_resta(self):
+        catraca.requisicao("/a", "t")
+        self.agora = catraca.PRAZO_TOTAL_DA_API - 12.5
+        catraca.requisicao("/b", "t")
+        self.assertEqual([t for _, t in self.chamadas], [30, 12.5])
+
+    def test_o_relogio_comeca_na_primeira_chamada(self):
+        self.agora = 1000.0
+        catraca.requisicao("/a", "t")
+        self.agora = 1000.0 + catraca.PRAZO_TOTAL_DA_API - 1
+        catraca.requisicao("/b", "t")
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_promocao_com_o_prazo_esgotado_para_de_consultar_e_deixa_rc_1(self):
+        """O caminho da S-16 (um PR candidato por commit citado) não pode consumir os 10 minutos do job."""
+        self.repo.git("branch", "main", "base")
+        self.repo.git("checkout", "-q", "-b", "homolog", "base")
+        for n in range(21, 31):
+            self.repo.escreve("tests/catraca.py", f"# mudou {n}\n")
+            self.repo.git("add", "-A")
+            self.repo.git("commit", "-q", "-m", f"fix: mudança (#{n})")
+        pr = {"head": {"ref": "develop", "repo": {"full_name": "o/r"}}, "base": {"ref": "homolog", "repo": {"full_name": "o/r"}}}
+        self.resposta = lambda url: pr if url.endswith("/pulls/11") else ({"workflow_runs": []} if "runs" in url else [])
+        self.salto = 100.0
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--raiz", str(self.repo.dir), "--base", "main", "--head", "homolog"])
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("mudança em tests/catraca.py", saida.getvalue())
+        self.assertEqual(len(self.chamadas), 3, self.chamadas)
+        self.assertEqual(saida.getvalue().count("prazo da API esgotado; vale como sem rótulo."), 1, saida.getvalue())
+
+
 class FonteDoGithub(unittest.TestCase):
     """S-16: as consultas dos PRs mesclados (só leitura, gratuitas) e a falha fechada sem token, com erro ou além do teto."""
 

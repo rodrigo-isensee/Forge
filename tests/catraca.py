@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -561,10 +562,48 @@ def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono
     return not violacoes_novas(atuais, violacoes_das_regras(raiz, base, sha))
 
 
+PRAZO_TOTAL_DA_API = 240  # segundos para todas as chamadas à API: no máximo metade do `timeout-minutes: 10` do job (medido: p95 do job 20 s)
+PRAZO_POR_CHAMADA = 30  # segundos por operação de rede, limitado pelo que resta do prazo total
+
+
+class PrazoDaApiEsgotado(OSError):
+    """O prazo total da API acabou. É `OSError` para que as capturas que já existem a tratem como "sem rótulo"."""
+
+
+def relogio():
+    return time.monotonic()
+
+
+class PrazoDaApi:
+    """Prazo total das chamadas à API, contado num relógio monotônico desde a primeira chamada."""
+
+    def __init__(self):
+        self.reiniciar()
+
+    def reiniciar(self):
+        self.inicio, self.avisou = None, False
+
+    def por_chamada(self):
+        """Prazo da próxima chamada: o menor entre PRAZO_POR_CHAMADA e o que resta; levanta `PrazoDaApiEsgotado` se acabou."""
+        if self.inicio is None:
+            self.inicio = relogio()
+        restante = PRAZO_TOTAL_DA_API - (relogio() - self.inicio)
+        if restante <= 0:
+            if not self.avisou:
+                self.avisou = True
+                aviso("prazo da API esgotado")
+            raise PrazoDaApiEsgotado("prazo total da API esgotado")
+        return min(PRAZO_POR_CHAMADA, restante)
+
+
+PRAZO = PrazoDaApi()
+
+
 def requisicao(caminho, token):
+    prazo = PRAZO.por_chamada()
     req = urllib.request.Request(f"https://api.github.com{caminho}",
                                  headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=prazo) as r:
         return json.load(r)
 
 
@@ -990,6 +1029,7 @@ def _main(argv=None):
     ap.add_argument("--pr", default=os.environ.get("PR_NUMBER", ""), help="número do PR")
     ap.add_argument("--mesclados", help="JSON com o PR atual e os PRs mesclados (testes; formato em FonteJson); ignora a API")
     a = ap.parse_args(argv)
+    PRAZO.reiniciar()  # o prazo da API vale por execução
     raiz = Path(a.raiz).resolve()
     if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):
         resumo(a.modo, ["PR do dependabot que só troca SHA de ações em workflows: passa sem rótulo e sem parecer (ADR 0008)"])
