@@ -33,7 +33,7 @@ set -euo pipefail
 die() { echo "forge-fechar: $*" >&2; exit 1; }
 passo() { echo "[$1] $2"; }
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 tmp2b="" dorme_pid=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;

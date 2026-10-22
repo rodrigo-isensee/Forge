@@ -79,6 +79,9 @@ O passo 3 guarda o número do PR (`pr_n`): o do PR aberto ou o da URL que o `gh 
 ## O que nunca faz
 Mescla na `main` (base `main` ou fora do fluxo é recusada), aplica rótulo, usa `--force` ou `--no-verify`, apaga `develop`, `homolog` ou `main`, apaga branch sem a prova do sha mesclado, dispensa parecer ou check. O rótulo continua sendo do dono (`R-CONTRIB`).
 
+## Variáveis do `fim` nascem vazias
+`tmp2b` (pasta temporária do passo 2b, apagada com `rm -rf` no `fim`) e `dorme_pid` (o `sleep` em segundo plano, morto com `kill` no `fim`) são iniciadas vazias no topo do script. Valor herdado do ambiente nunca vira alvo do `rm -rf` nem do `kill` (R2 do parecer de segurança do lote a, `docs/security/impl-n-fechar-a.md`).
+
 ## Limpeza: o sha da branch vem antes da worktree
 Complementa o passo 7. Antes de qualquer remoção o script confere o sha da branch local: se ele não é o de um PR mesclado nem está na base (nome reaproveitado depois de um PR antigo), a worktree fica `pendente` e não é removida, porque o `git worktree remove` apagaria os arquivos ignorados dela (como um ambiente local) junto com o trabalho novo. A branch local e a remota já seguiam a mesma regra. Confira o commit novo antes de rodar à mão o comando que o script imprime.
 
