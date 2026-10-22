@@ -12,6 +12,9 @@ chaves no config dele; `test_ambiente_git.py` também confere isso."""
 import os
 import subprocess
 
+# Nomes que o doutor trata como sinal de custo (R-CUSTO): os testes de "tudo em ordem" não os herdam de quem roda a suíte.
+SINAIS_DE_CUSTO = ("ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX")
+
 CONFIGURACAO = (
     ("maintenance.auto", "false"),
     ("gc.auto", "0"),

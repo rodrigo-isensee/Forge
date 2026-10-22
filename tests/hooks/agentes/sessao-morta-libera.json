@@ -1,0 +1,45 @@
+{
+  "descricao": "C1: registro cujo pid de sessão não existe mais (mesmo namespace) sai na hora; o lançamento passa no teto.",
+  "config": {
+    "teto_agentes": 1
+  },
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}",
+          "pid": "{pid_morto}",
+          "pidns": "{pid_ns}",
+          "sessao": "s0"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    },
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "ausente": [
+          "\"a1\""
+        ],
+        "contem": [
+          "Validar a entrega"
+        ]
+      }
+    }
+  }
+}

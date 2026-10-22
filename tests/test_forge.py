@@ -4784,3 +4784,13 @@ class TextoDoConferenteNoLote(unittest.TestCase):
         for comando in ("forge-check pr", "forge-check entrega", "forge-check brief"):
             self.assertIn(comando, politica)
 
+
+
+class GuiaDaPromocao(unittest.TestCase):
+    """O guia da promoção develop → homolog e o do fechamento citam o script (IMPL-D5B-PROMOCAO)."""
+
+    def test_guia_existe_e_fala_do_que_o_script_nao_faz(self):
+        guia = (RAIZ / "docs" / "promocao-integrador.md").read_text(encoding="utf-8")
+        for trecho in ("scripts/promover-homolog.py", "--dry-run", "não mescla", "R-FLUXO", "Reversão"):
+            self.assertIn(trecho, guia)
+        self.assertIn("promover-homolog", (RAIZ / "docs" / "fechamento-integrador.md").read_text(encoding="utf-8"))

@@ -286,7 +286,18 @@
       "PQ-1",
       "DECISÃO DO DONO",
       "## Etapas",
-      "E1\\.1 \\(<agente>\\)"
+      "E1\\.1 \\(<agente>\\)",
+      "não leva nome de linguagem, framework, ferramenta nem de projeto \\(`R-NEUTRO`\\)"
+    ],
+    "docs/protecao-de-branch.md": [
+      "sem ator de bypass",
+      "`R-CONFORMIDADE`",
+      "Enforcement status: \\*\\*Active\\*\\*"
+    ],
+    "templates/projeto/docs/engineering/protecao-de-branch.md": [
+      "sem ator de bypass",
+      "`R-CONFORMIDADE`",
+      "Enforcement status: \\*\\*Active\\*\\*"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
@@ -344,7 +355,8 @@
       "`R-MAIN`",
       "`R-CONFORMIDADE`",
       "`R-NEUTRO`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "varrer a família inteira"
     ],
     "skills/ci-cd/SKILL.md": [
       "## GitHub Actions \\(padrão\\)",
@@ -445,12 +457,15 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "forge-testes --vermelho",
       "Commite o parecer na branch revisada",
       "`R-QA`",
       "sem ler o código",
-      "testes dos casos de abuso do modelo de ameaças"
+      "testes dos casos de abuso do modelo de ameaças",
+      "forge-mutante"
     ],
     "skills/qa-testing/SKILL.md": [
+      "forge-testes --vermelho",
       "## Teste nasce de obrigação, e para quando ela está coberta",
       "Teste redundante não entra",
       "uma amostra por classe de equivalência mais cada fronteira",
@@ -458,10 +473,14 @@
       "afirma um mínimo de itens",
       "## Plano antecipado",
       "conferir o diff contra a lista de `CA-n`",
-      "só sobre o commit final e depois do review"
+      "só sobre o commit final e depois do review",
+      "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
-      "lista os \\*\\*casos de abuso\\*\\*"
+      "lista os \\*\\*casos de abuso\\*\\*",
+      "dimensões da família",
+      "entregue \\*\\*antes do código\\*\\*",
+      "orçamento de tempo e de tamanho da entrada"
     ],
     "skills/engineering-practices/SKILL.md": [
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",

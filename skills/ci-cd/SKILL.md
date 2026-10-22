@@ -54,3 +54,7 @@ Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --singl
 ## Tempo e dependências
 - Meça a duração por workflow e os minutos usados (`gh run list`); um checkpoint por release. Subiu mais de 20% ou passou de 80% da franquia gratuita: abra cartão de melhoria.
 - Dependabot para ações, imagens e pacotes, com agrupamento e janela; a triagem separa o bump sem quebra (mecânico) do que exige correção de código (dev da stack).
+- Modelo do projeto: `templates/projeto/.github/dependabot.yml` (ações, neutro) e o bloco do ecossistema de pacotes em `stacks/<stack>/pronto.md`, seção "CI". Grupos de rotina só com minor e patch; major em grupo à parte, que vira cartão de migração.
+- A configuração do Dependabot só vale na branch padrão (`main`), e o alerta de segurança abre contra a branch padrão, não contra o `target-branch`; o conserto segue pela branch de integração.
+- Não edite o PR do robô (base, título, corpo) nem o feche por comentário: nada de `@dependabot ignore`, que esconde o major sem prazo. Ignorar é `ignore` versionado no arquivo, por pacote, com o cartão no comentário.
+- Sem auto-merge, sem `registries` com credencial em claro e sem `insecure-external-code-execution` (`R-SEGURANCA`: Dependabot não tem isenção).

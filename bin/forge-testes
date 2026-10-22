@@ -2,11 +2,16 @@
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
 Uso: forge-testes [--base REF] [--listar] [--completa]
+     forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
   --base REF    base da comparação (padrão origin/develop)
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
+  --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
+                $TMPDIR (o HEAD, e o HEAD com a produção do diff devolvida à base) e classifica cada teste.
+                Nunca escreve na árvore de trabalho, que precisa estar limpa. Saída 0 = há prova e nada cai no HEAD;
+                1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
 Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
 um módulo mapeado que não existe ou um erro ao ler o git fazem rodar a suíte completa.
@@ -14,20 +19,34 @@ Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log
 data UTC, modo, módulos, duração e código de saída.
 
 Isto é ferramenta de iteração do autor. NÃO é portão: pre-push, review, QA, CI e o caminho para a main
-rodam a suíte inteira (`python3 -m unittest discover -s tests`). Nenhum deles chama este script.
+rodam a suíte inteira (`python3 -m unittest discover -s tests`). Nenhum deles chama este script, `--vermelho`
+incluído: é evidência que o autor e o QA colam no parecer.
 """
 import argparse
+import ast
+import json
 import os
 import re
+import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import time
+import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 
 BASE_PADRAO = "origin/develop"
 LOG = Path(".forge/run/testes.log")
 SUITE_COMPLETA = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-q"]
+PRAZO_PADRAO = 600
+PRAZO_MAXIMO = 3600
+# O que o `--vermelho` mantém no HEAD nas duas cópias: módulos de teste e dados de teste. Falha fechada: todo o
+# resto (inclusive `tests/catraca.py`, `tests/neutralidade.py` e os apoios de `tests/`) é produção e volta à base.
+# `tests/config.json` fica no HEAD porque guarda os invariantes que provam o texto (a saída lista os mantidos).
+TESTE_DO_DIFF = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
+NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 
 # Mapa caminho -> módulos de teste. Primeira regra que casa vence; o caminho vira a união dos módulos.
 # Cada regra é (expressão regular sobre o caminho relativo à raiz, módulos em tests/). Prefira ser largo
@@ -57,6 +76,7 @@ MAPA = [
     (r"bin/(forge-atualizar|forge_versoes\.py|forge-voltar-versao)", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/forge-upgrade", ("test_atualizar", "test_forge", "test_doutor")),
     (r"bin/(forge-salvar|forge-desfazer)", ("test_salvar_desfazer", "test_forge")),
+    (r"bin/forge-mutante", ("test_forge_mutante", "test_forge")),
     (r"bin/forge-sugerir", ("test_sugerir", "test_forge")),
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
@@ -131,17 +151,332 @@ def anotar(modo, modulos, segundos, codigo):
         f.write(f"{agora} modo={modo} modulos={','.join(modulos) or '-'} duracao={segundos:.1f}s saida={codigo}\n")
 
 
+# --- `--vermelho`: a prova de que o teste derruba o defeito -------------------------------------------------------
+# Cada cópia é um clone local em $TMPDIR com `.git` próprio (os testes do Forge rodam `git ls-files` na raiz), feito do
+# commit e nunca da árvore de trabalho. O executor por teste é `executar`, chamado pelo caminho absoluto deste script.
+PROVA = ("prova (asserção)", "prova (API ausente)")
+ENTREGA = "falha da entrega (regressão ou sem veredito)"
+HERDADA = "não prova (herdada da base)"  # teste que já existia: a falha de carga ou de setup da base não é dele
+ERROS_DE_API = {"ImportError", "AttributeError", "NameError"}
+
+
+def ambiente_da_copia():
+    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
+
+
+def git_da_copia(*args, cwd=None):
+    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente_da_copia(),
+                       capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def resolver(ref):
+    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
+    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def mudancas(ancora, cabeca):
+    """[(status, caminho)] do diff commitado, sem detectar renomeação (o arquivo movido lista os dois caminhos)."""
+    partes = git("diff", "--name-status", "--no-renames", "-z", ancora, cabeca).split("\0")
+    return [(partes[i][0], partes[i + 1]) for i in range(0, len(partes) - 1, 2)]
+
+
+def montar_copia(raiz, destino, sha):
+    git_da_copia("clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
+    git_da_copia("checkout", "--quiet", "--detach", sha, cwd=destino)
+
+
+def devolver_producao(copia, ancora, producao):
+    """Põe de volta o conteúdo da base nos arquivos de produção do diff; o que a base não tinha sai da cópia."""
+    for status, caminho in producao:
+        if status == "A":
+            (copia / caminho).unlink(missing_ok=True)
+        else:
+            git_da_copia("checkout", "--quiet", ancora, "--", caminho, cwd=copia)
+
+
+class Registro(unittest.TestResult):
+    """Um resultado por teste (`ok`, `falha` por asserção, `erro`, `pulado`), em vez do código de saída do processo."""
+
+    def __init__(self):
+        super().__init__()
+        self.por_id = {}
+
+    def anotar(self, teste, res, err=None):
+        ident = teste.id().removeprefix("unittest.loader._FailedTest.")  # falha de carga: o módulo inteiro
+        if res == "ok" and ident in self.por_id:
+            return
+        self.por_id[ident] = {"id": ident, "res": res, "tipo": err[0].__name__ if err else None,
+                              "nome": (getattr(err[1], "name", None) or getattr(err[1], "filename", None)) if err else None}
+
+    def addSuccess(self, teste):
+        self.anotar(teste, "ok")
+
+    def addFailure(self, teste, err):
+        self.anotar(teste, "falha", err)
+
+    def addError(self, teste, err):
+        self.anotar(teste, "erro", err)
+
+    def addSkip(self, teste, motivo):
+        self.anotar(teste, "pulado")
+
+    def addUnexpectedSuccess(self, teste):
+        self.anotar(teste, "falha", (AssertionError, AssertionError("sucesso inesperado"), None))
+
+    def addSubTest(self, teste, subteste, err):
+        if err is not None:
+            self.anotar(teste, "falha" if issubclass(err[0], teste.failureException) else "erro", err)
+
+
+def executar(modulo, registro):
+    """Roda `tests.<modulo>` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste)."""
+    sys.path.insert(0, os.getcwd())
+    resultado = Registro()
+    unittest.defaultTestLoader.loadTestsFromName(f"tests.{modulo}").run(resultado)
+    Path(registro).write_text("".join(json.dumps(e) + "\n" for e in resultado.por_id.values()), encoding="utf-8")
+    return 0
+
+
+def rodar_modulo(copia, modulo, registro, prazo):
+    """Roda um módulo na cópia. False se estourou o prazo, morreu por sinal ou não deixou registro."""
+    processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", modulo,
+                                 "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+    try:
+        processo.wait(timeout=prazo)
+    except BaseException as erro:  # prazo, sinal ou Ctrl-C: nada fica rodando
+        try:
+            os.killpg(processo.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        processo.wait()
+        if isinstance(erro, subprocess.TimeoutExpired):
+            return False
+        raise
+    return processo.returncode == 0 and Path(registro).is_file()
+
+
+def ler_registro(caminho):
+    return {e["id"]: e for e in map(json.loads, Path(caminho).read_text(encoding="utf-8").splitlines())}
+
+
+def classificar(h, b, mudou, removidos):
+    """Classe de um teste. `h` e `b`: entrada do registro no HEAD e na base (None se não rodou). `mudou`: o módulo
+    de teste está no diff. `removidos`: nomes dos arquivos de produção que a base não tem (para a API ausente)."""
+    if h is None:
+        return "sem veredito"
+    if "pulado" in (h["res"], (b or {}).get("res")):
+        return "pulado"
+    if h["res"] == "ok":
+        if b is None:
+            return "sem veredito"
+        if b.get("herdada"):
+            return HERDADA
+        if b["res"] == "ok":
+            return "não prova (passa na base)"
+        if b["res"] == "falha":
+            return PROVA[0]
+        api = b["tipo"] in ERROS_DE_API or (b["tipo"] == "ModuleNotFoundError"
+                                            and (b["nome"] or "").split(".")[-1] in removidos)
+        # arquivo que o próprio diff cria e o `setUpClass` ou o `setUpModule` abriu na base: o mesmo caso, só o alvo muda
+        api = api or (b["tipo"] == "FileNotFoundError" and Path(str(b["nome"])).stem in removidos)
+        return PROVA[1] if api else "sem veredito"  # erro do próprio módulo de teste não é vermelho
+    if b is not None and b["res"] == "ok":
+        return "regressão"
+    if b is not None and b["res"] == "falha" and not mudou:
+        return "dívida pré-existente"  # só informação: continua bloqueando
+    return ENTREGA
+
+
+class TodosExistiam:
+    """Base do módulo ilegível: nenhum teste conta como novo (falha fechada, ninguém ganha prova herdada)."""
+
+    def __contains__(self, _):
+        return True
+
+
+def testes_da_base(ancora, modulo):
+    """`Classe.teste` do módulo de teste na versão da base, lido sem executar (`git show` e `ast`). Módulo que a base
+    não tem: conjunto vazio (todos os testes são novos). Ilegível: `TodosExistiam`."""
+    caminho = f"tests/{modulo}.py"
+    try:
+        if not git("ls-tree", ancora, "--", caminho).strip():
+            return set()
+        arvore = ast.parse(git("show", f"{ancora}:{caminho}"))
+    except (RuntimeError, SyntaxError, ValueError):
+        return TodosExistiam()
+    classes = {n.name: n for n in arvore.body if isinstance(n, ast.ClassDef)}
+
+    def metodos(classe, vistas=()):
+        nomes = {n.name for n in classe.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        for pai in classe.bases:  # herança dentro do próprio módulo
+            if isinstance(pai, ast.Name) and pai.id in classes and pai.id not in vistas:
+                nomes |= metodos(classes[pai.id], (*vistas, classe.name))
+        return nomes
+
+    return {f"{nome}.{metodo}" for nome, classe in classes.items() for metodo in metodos(classe)}
+
+
+def da_base(registro_b, ident, existiam=()):
+    """Entrada da base para o teste `ident` (`tests.<módulo>.<Classe>.<teste>`): a dele ou, na falta, a falha de carga
+    do módulo (o executor a grava só com o nome do módulo, `test_<nome>`), o erro do `setUpClass` da classe ou o do
+    `setUpModule` do módulo. Essa entrada herdada só serve de prova a teste que a base não tinha: para quem está em
+    `existiam` (`Classe.teste` da versão da base do módulo) ela volta marcada `herdada`, e não prova nada."""
+    if ident in registro_b:
+        return registro_b[ident]
+    partes = ident.split(".")
+    for chave in (".".join(partes[:2]), partes[1] if len(partes) > 1 else "", f"setUpClass ({'.'.join(partes[:-1])})", f"setUpModule ({'.'.join(partes[:2])})"):
+        if chave in registro_b:
+            entrada = registro_b[chave]
+            return {**entrada, "herdada": True} if ".".join(partes[2:]) in existiam else entrada
+    return None
+
+
+def estado_da_arvore():
+    return git("status", "--porcelain")
+
+
+def vermelho(base_pedida, modulos_pedidos, prazo):
+    raiz = Path.cwd()
+    base = resolver(base_pedida)
+    cabeca = resolver("HEAD")
+    if base is None or cabeca is None:
+        print(f"forge-testes --vermelho: base ilegível ({base_pedida!r}); não recuo para outro modo.", file=sys.stderr)
+        return 2
+    try:
+        antes = estado_da_arvore()
+        if antes:
+            print("forge-testes --vermelho: árvore com mudança não commitada; commite antes (a prova fica presa a um sha).",
+                  file=sys.stderr)
+            return 2
+        ancora = git("merge-base", base, cabeca).strip()
+        itens = mudancas(ancora, cabeca)
+    except RuntimeError as erro:
+        print(f"forge-testes --vermelho: {erro}", file=sys.stderr)
+        return 2
+    if not itens:
+        print(f"vermelho: base={ancora[:12]} head={cabeca[:12]} nada alterado; sem prova.")
+        return 1
+    caminhos = [c for _, c in itens]
+    producao = [(s, c) for s, c in itens if not TESTE_DO_DIFF.fullmatch(c)]
+    mantidos = [c for c in caminhos if TESTE_DO_DIFF.fullmatch(c)]
+    modificados = {MODULO_DE_TESTE.fullmatch(c).group(1) for c in caminhos if MODULO_DE_TESTE.fullmatch(c)}
+    removidos = {Path(c).stem for s, c in producao if s == "A"}
+    todos = sorted(p.stem for p in (raiz / "tests").glob("test_*.py") if NOME_DE_MODULO.fullmatch(p.stem))
+    if modulos_pedidos is not None:
+        modulos, restrito = modulos_pedidos, " (restrito por --modulos)"
+        ausentes = [m for m in modulos if m not in todos]
+        if ausentes:
+            print(f"forge-testes --vermelho: módulo sem arquivo em tests/: {', '.join(ausentes)}", file=sys.stderr)
+            return 2
+    else:
+        modo, plano = planejar(caminhos, raiz)
+        modulos, restrito = (todos if modo == "completo" else plano), ""
+    print(f"vermelho: base={ancora[:12]} head={cabeca[:12]} módulos={','.join(modulos)}{restrito}")
+    print(f"revertidos à base: {', '.join(c for _, c in producao) or '-'}")
+    print(f"mantidos no HEAD: {', '.join(mantidos) or '-'}")
+
+    anterior = signal.signal(signal.SIGTERM, lambda numero, quadro: sys.exit(143))  # o `finally` apaga as cópias
+    trabalho = Path(tempfile.mkdtemp(prefix="forge-vermelho-"))
+    inicio = time.monotonic()
+    try:
+        cabeca_dir, base_dir = trabalho / "H", trabalho / "B"
+        montar_copia(raiz, cabeca_dir, cabeca)
+        montar_copia(raiz, base_dir, cabeca)
+        devolver_producao(base_dir, ancora, producao)
+        linhas, contagem, sem_veredito, falhou = [], {}, False, False
+        for modulo in modulos:
+            lados = {}
+            for lado, copia in (("H", cabeca_dir), ("B", base_dir)):
+                registro = trabalho / f"{lado}-{modulo}.jsonl"
+                lados[lado] = ler_registro(registro) if rodar_modulo(copia, modulo, registro, prazo) else None
+            if lados["H"] is None or lados["B"] is None:
+                quem = ",".join(l for l in lados if lados[l] is None)
+                linhas.append(f"{modulo} · sem veredito (prazo, sinal ou executor sem registro em {quem})")
+                contagem["sem veredito"] = contagem.get("sem veredito", 0) + 1
+                sem_veredito = True
+                continue
+            existiam = testes_da_base(ancora, modulo)
+            for ident in sorted(lados["H"]):
+                h, b = lados["H"][ident], da_base(lados["B"], ident, existiam)
+                classe = classificar(h, b, modulo in modificados, removidos)
+                contagem[classe] = contagem.get(classe, 0) + 1
+                sem_veredito |= classe == "sem veredito"
+                falhou |= h["res"] in ("falha", "erro")
+                if classe != "não prova (passa na base)" or modulo in modificados:
+                    linhas.append(f"{ident} · H={h['res']} · B={(b or {}).get('res', '-')} · {classe}")
+        depois = estado_da_arvore()
+    except (RuntimeError, OSError) as erro:
+        print(f"forge-testes --vermelho: {erro}", file=sys.stderr)
+        return 2
+    finally:
+        signal.signal(signal.SIGTERM, anterior)
+        shutil.rmtree(trabalho, ignore_errors=True)
+    print("\n".join(linhas))
+    print("contagem: " + ("; ".join(f"{c}={n}" for c, n in sorted(contagem.items())) or "nenhum teste"))
+    if depois != antes:
+        print("forge-testes --vermelho: a árvore de trabalho mudou durante a prova; resultado descartado.", file=sys.stderr)
+        return 2
+    prova = sum(contagem.get(c, 0) for c in PROVA)
+    if sem_veredito:
+        codigo = 2
+        print("sem veredito: volta ao autor; não vale como vermelho nem como já falhava.")
+    elif falhou or not prova:
+        codigo = 1
+        if falhou:
+            print("há teste que falha no HEAD (a etiqueta não libera nada).")
+        if not prova:
+            print("nenhum teste prova a mudança.")
+    else:
+        codigo = 0
+    anotar("vermelho", modulos, time.monotonic() - inicio, codigo)
+    return codigo
+
+
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido durante a iteração (não é portão).")
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
+    p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
+    p.add_argument("--modulos", metavar="M[,M...]")
+    p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
+    p.add_argument("--executar", help=argparse.SUPPRESS)  # interno: o executor por teste do `--vermelho`
+    p.add_argument("--registro", help=argparse.SUPPRESS)
     args = p.parse_args(argv)
+    if args.executar:
+        return executar(args.executar, args.registro)
+    if args.vermelho is None and args.modulos is not None:
+        p.error("--modulos só vale com --vermelho")
+    if args.vermelho is not None and (args.completa or args.listar):
+        p.error("--vermelho não combina com --completa nem com --listar")
+    if args.vermelho is None and args.prazo is not None:
+        p.error("--prazo só vale com --vermelho")
+    prazo = PRAZO_PADRAO if args.prazo is None else args.prazo
+    if not 0 < prazo <= PRAZO_MAXIMO:
+        p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
+    modulos_pedidos = None
+    if args.modulos is not None:
+        modulos_pedidos = args.modulos.split(",")
+        if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
+            p.error("--modulos: nomes de módulo de teste (test_<nome>) separados por vírgula")
 
     try:
         os.chdir(git("rev-parse", "--show-toplevel").strip())
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
+
+    if args.vermelho is not None:
+        return vermelho(args.base if args.vermelho is True else args.vermelho, modulos_pedidos, prazo)
 
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]

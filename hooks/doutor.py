@@ -6,7 +6,7 @@ SessionStart: faz o diagnóstico rápido (local, sem rede, sem `gh`) e grava em 
 Stop: se a data do cache não é a de hoje, refaz o diagnóstico (uma vez por dia); se há problema ainda não avisado,
 imprime só `{"systemMessage": "Forge doutor: ..."}` (uma linha, para o USUÁRIO, nunca `additionalContext`) e marca
 como avisado. Também no Stop, uma vez por dia (consulta que falha não marca o dia), consulta as releases do Forge (`git ls-remote --tags`, 3 s, só https; cache em
-`.forge/run/versao-nova`) e acrescenta à mesma linha o aviso de versão nova. Tudo em ordem: silêncio. Só avisa: o conserto é do comando `forge doutor`, num terminal, com "s".
+`.forge/run/versao-nova`) e acrescenta à mesma linha o aviso de versão nova e, também uma vez por dia, o do relógio (desvio de mais de 300 s contra o `Date` do GitHub, só se a consulta de versão deu certo). Tudo em ordem: silêncio. Só avisa: o conserto é do comando `forge doutor`, num terminal, com "s".
 Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão."""
 import json
 import os
@@ -114,6 +114,40 @@ def aviso_de_versao_nova(hook, superficie="projeto"):
     return texto if avisa else None
 
 
+def aviso_de_relogio(hook):
+    """Uma vez por dia, no mesmo cache `versao-nova` (chave `relogio`): confere o relógio contra o `Date` do GitHub, FORA da trava, e devolve
+    a frase se o desvio passa de 300 s e ainda não foi dita hoje. Só roda se a consulta de versão do dia deu certo (e não está desligada).
+    Consulta que falha não marca o dia: tenta de novo daqui a `ESPERA_APOS_FALHA` s. O desvio nunca é gravado, só a frase."""
+    agora = time.time()
+    with hook.trava():
+        antigo = ler_cache_versao(hook)
+        if antigo.get("data") != hoje() or antigo.get("consulta") == "desligada":
+            return None
+        registro = antigo.get("relogio")
+        if isinstance(registro, dict) and registro.get("data") == hoje():
+            texto, avisa = str(registro.get("texto") or ""), bool(registro.get("texto")) and not registro.get("avisado")
+            if avisa:
+                gravar_json(hook.run() / "versao-nova", {**antigo, "relogio": {**registro, "avisado": True}})
+            return texto if avisa else None
+        falhou_em = antigo.get("relogio_falhou_em")
+        if isinstance(falhou_em, (int, float)) and 0 <= agora - falhou_em < ESPERA_APOS_FALHA:
+            return None
+    sys.path.insert(0, str(PLUGIN / "bin"))
+    import forge_versoes
+    desvio = forge_versoes.desvio_do_relogio(forge_versoes.url_do_forge(), LIMITE_REDE)
+    with hook.trava():
+        antigo = ler_cache_versao(hook)
+        if desvio is None:
+            if not (isinstance(antigo.get("relogio"), dict) and antigo["relogio"].get("data") == hoje()):
+                gravar_json(hook.run() / "versao-nova", {**antigo, "relogio_falhou_em": agora})  # sem `relogio` de hoje: o dia não fica marcado
+            return None
+        texto = forge_versoes.texto_de_relogio(desvio)
+        novo = {k: v for k, v in antigo.items() if k != "relogio_falhou_em"}
+        novo["relogio"] = {"data": hoje(), "texto": texto, "avisado": bool(texto)}
+        gravar_json(hook.run() / "versao-nova", novo)
+    return texto or None
+
+
 def linha(problemas):
     n = len(problemas)
     primeiro = " ".join(problemas[0].split())
@@ -147,6 +181,9 @@ def principal(hook):
     nova = aviso_de_versao_nova(hook, superficie_de(raiz))
     if nova:
         partes.append(nova)
+    relogio = aviso_de_relogio(hook)
+    if relogio:
+        partes.append(relogio)
     if partes:
         print(json.dumps({"systemMessage": " · ".join(partes)}, ensure_ascii=False))
 

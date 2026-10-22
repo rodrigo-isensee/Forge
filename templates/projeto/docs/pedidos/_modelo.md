@@ -2,6 +2,8 @@
 
 Copie para `docs/pedidos/NNN-<assunto>.md`. O Jarvis registra o pedido antes do discovery; o `forge:conferente` o lê do disco para conferir cada brief (`R-BRIEF`) e cada entrega (`R-PROVA`). Arquivos que começam com `_` são modelos.
 
+O `<assunto>` (e o ID, que é o nome do arquivo) usa minúsculas, dígitos e hífen e nunca leva segredo nem dado de pessoa: o ID vai ao frontmatter dos pareceres e ao nome da branch, e o histórico do git não se apaga. No Forge, o `<assunto>` também não leva nome de linguagem, framework, ferramenta nem de projeto (`R-NEUTRO`): o teste de neutralidade lê o ID. Num projeto, o nome da stack no ID é livre. Se o teste de neutralidade reprovar por causa do ID, a correção é renomear o `<assunto>` e os pareceres que o citam, nunca uma exceção nova nem somar a pasta do parecer à lista de pastas ignoradas.
+
 - **Modo:** analisar | planejar | implementar
 - **Objetivo:** <em uma frase, nas palavras do usuário>
 - **Clareza:** <itens por marca: N confirmado, N delegado, N suposição, N técnico, N no-protótipo; quantas perguntas já foram feitas>

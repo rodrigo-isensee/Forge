@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -61,7 +61,7 @@ class Base(unittest.TestCase):
         # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas), e os scripts se recusam a rodar
         # aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do ambiente do subprocesso.
         self.env = {k: v for k, v in os.environ.items()
-                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
                         FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
@@ -158,18 +158,25 @@ class Base(unittest.TestCase):
         os.close(escravo)
         saida, fim = b"", time.time() + limite
         ultima_saida = time.time()
+        fechou = False
         while time.time() < fim and time.time() - ultima_saida < ocioso:
             if not select.select([mestre], [], [], 1)[0]:
                 continue
             try:
                 bloco = os.read(mestre, 4096)
             except OSError:
-                break
+                bloco = b""
             if not bloco:
+                fechou = True
                 break
             saida += bloco
             ultima_saida = time.time()
-        if p.poll() is None:  # pergunta sem resposta: o teste falha em vez de travar
+        if fechou:  # terminal fechado: sem como ler resposta; o fim do processo pode vir logo depois (sob carga)
+            try:
+                p.wait(timeout=max(1, fim - time.time()))
+            except subprocess.TimeoutExpired:
+                pass
+        if p.poll() is None:  # pergunta sem resposta (ou o limite): o teste falha em vez de travar
             p.kill()
             saida += b"\n[TRAVOU esperando resposta]"
         p.wait(timeout=30)
@@ -333,6 +340,16 @@ class EsperaDoTerminal(Base):
         falso = self.script_falso("import time\nfor i in range(4):\n    print('passo', i, flush=True)\n    time.sleep(1.5)\nprint('pronto', flush=True)\ntime.sleep(1.5)\n")
         # o total (~7,5 s) passa do intervalo ocioso (3 s), mas nunca ficam 3 s seguidos sem saída
         codigo, saida = self.rodar(falso, respostas=[], ocioso=3, limite=30)
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("pronto", saida)
+        self.assertNotIn("TRAVOU", saida)
+
+    def test_saida_fechada_antes_do_fim_do_processo_nao_marca_travou(self):
+        # Corrida vista no CI sob carga (PR #277): o terminal fecha (EIO no mestre) antes de o processo virar zumbi;
+        # aqui a janela é larga de propósito: o processo fecha o terminal e só termina 2 s depois.
+        falso = self.script_falso("import os, time\nprint('pronto', flush=True)\nfor fd in (0, 1, 2):\n"
+                                  "    os.close(fd)\ntime.sleep(2)\n")
+        codigo, saida = self.rodar(falso, respostas=[], ocioso=1, limite=30)
         self.assertEqual(codigo, 0, saida)
         self.assertIn("pronto", saida)
         self.assertNotIn("TRAVOU", saida)

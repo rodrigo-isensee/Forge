@@ -40,6 +40,33 @@ class TestClareza(unittest.TestCase):
         self.assertGreaterEqual(len(re.findall(r"`(?:PERGUNTA|NAO-ENTENDI|ESCOPO\+|ESCOPO-|DEVOLVIDA):`", t)), 5)
         self.assertIn("Medição de clareza, por pedido", t)
 
+    def test_pergunta_traz_afrouxa_tempo_e_tokens_por_opcao(self):
+        secao = ler("skills/modo-iniciante/SKILL.md").split("## Como perguntar", 1)[1].split("\n## ", 1)[0]
+        opcoes = [l for l in secao.splitlines() if re.match(r"> [A-Z]\) ", l)]
+        self.assertGreaterEqual(len(opcoes), 2)
+        for linha in opcoes:
+            for campo in ["Afrouxa o processo?", "Tempo:", "Tokens:"]:
+                self.assertIn(campo, linha, linha[:40])
+        self.assertIn("Números da pergunta", secao)
+        for marca in ["`medido`", "`estimado`", "`não medido`"]:
+            self.assertIn(marca, secao)
+        regra = ler("docs/regras/R-DECISAO.md")
+        for trecho in ["se afrouxa o processo", "tempo e os tokens a mais ou a menos", "`medido`", "`estimado`", "`não medido`"]:
+            self.assertIn(trecho, regra)
+        self.assertIn("custo de eficiência em tempo e tokens por opção", ler("agents/jarvis.md"))
+
+
+
+class TestNomeDoPedidoNeutro(unittest.TestCase):
+    def test_modelo_de_pedido_pede_nome_neutro_no_forge(self):
+        t = ler("templates/projeto/docs/pedidos/_modelo.md")
+        self.assertIn("não leva nome de linguagem", t)
+        self.assertIn("`R-NEUTRO`", t)
+        self.assertIn("nunca leva segredo nem dado de pessoa", t)
+        self.assertIn("minúsculas, dígitos e hífen", t)
+        self.assertIn("renomear o `<assunto>`", t)
+        self.assertIn("nunca uma exceção", t)
+
 
 if __name__ == "__main__":
     unittest.main()

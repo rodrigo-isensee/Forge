@@ -1,0 +1,364 @@
+#!/usr/bin/env python3
+"""Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
+
+Uso: forge-mutante SPEC [--rev REV] [--prazo SEGUNDOS]
+  SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`):
+           {"pedido": "<id>", "executor": "unittest",
+            "mutantes": [{"id": "M1", "guarda": "<o que a linha protege>", "arquivo": "<caminho relativo>",
+                          "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
+           `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
+  --rev    commit a mutar (padrão HEAD)
+  --prazo  por execução de testes, em segundos (padrão 600)
+
+Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
+declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
+testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
+quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2).
+
+Saída: 0 = todos morreram; 1 = algum sobreviveu e nenhum é inválido; 2 = spec inválida, controle vermelho,
+mutante inválido ou sem veredito. Atenção: o 0 aqui é "provado", o inverso do costume das ferramentas de mutação.
+Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 8 mutantes por spec. Sem shell.
+
+Isto é evidência que o QA cola no parecer. NÃO é portão: nenhum hook, pre-push, CI ou `forge-check` o chama.
+"""
+import argparse
+import ast
+import hashlib
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+from datetime import datetime, timezone
+from pathlib import Path
+
+LOG = Path(".forge/run/testes.log")
+PRAZO_PADRAO = 600
+PRAZO_MAXIMO = 3600
+MAXIMO_DE_MUTANTES = 8
+MAXIMO_DA_SPEC = 65536
+MAXIMO_DO_TRECHO = 4000
+# Arquivo de teste ou dado de teste não se muta (mutar o teste "mata" qualquer mutante). Mesma lista do
+# `forge-testes --vermelho`; cada script tem a sua cópia, porque o `bin/` não ganha um módulo comum publicado.
+TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
+ID_DE_MUTANTE = re.compile(r"[A-Za-z0-9_-]{1,32}")
+ID_DE_TESTE = re.compile(r"tests\.[A-Za-z0-9_.]+")
+CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
+CHAVES_DA_SPEC = {"pedido", "executor", "mutantes"}
+CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
+EXECUTORES = {"unittest"}
+
+
+def git(*args, cwd=None):
+    r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def ambiente_da_copia():
+    """Sem `GIT_*` (um hook exporta `GIT_DIR`, que venceria o repositório da cópia), `FORGE_*` nem a sessão real."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    return env
+
+
+def git_da_copia(*args, cwd=None):
+    r = subprocess.run(["git", "-c", "core.hooksPath=/dev/null", *args], cwd=cwd, env=ambiente_da_copia(),
+                       capture_output=True, text=True)
+    if r.returncode:
+        raise RuntimeError(f"git {' '.join(args)}: {r.stderr.strip()}")
+    return r.stdout
+
+
+def resolver(ref):
+    """Sha do commit de `ref`, ou None. `--end-of-options`: uma REF começada por `-` nunca vira opção do git."""
+    r = subprocess.run(["git", "rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref}^{{commit}}"],
+                       capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 and r.stdout.strip() else None
+
+
+def montar_copia(raiz, destino, sha):
+    git_da_copia("clone", "--quiet", "--shared", "--no-checkout", "--", str(raiz), str(destino))
+    git_da_copia("checkout", "--quiet", "--detach", sha, cwd=destino)
+
+
+# --- leitor de veredito do `unittest` (a stack do próprio Forge) ----------------------------------------------------
+class Registro(unittest.TestResult):
+    """Um resultado por teste (`ok`, `falha` por asserção, `erro`, `pulado`), em vez do código de saída do processo."""
+
+    def __init__(self):
+        super().__init__()
+        self.por_id = {}
+
+    def anotar(self, teste, res):
+        ident = teste.id().removeprefix("unittest.loader._FailedTest.")
+        if res == "ok" and ident in self.por_id:
+            return
+        self.por_id[ident] = {"id": ident, "res": res}
+
+    def addSuccess(self, teste):
+        self.anotar(teste, "ok")
+
+    def addFailure(self, teste, err):
+        self.anotar(teste, "falha")
+
+    def addError(self, teste, err):
+        self.anotar(teste, "erro")
+
+    def addSkip(self, teste, motivo):
+        self.anotar(teste, "pulado")
+
+    def addUnexpectedSuccess(self, teste):
+        self.anotar(teste, "falha")
+
+    def addSubTest(self, teste, subteste, err):
+        if err is not None:
+            self.anotar(teste, "falha" if issubclass(err[0], teste.failureException) else "erro")
+
+
+def executar(ids, registro):
+    """Roda os testes `ids` no diretório atual e grava um registro por teste em `registro` (JSON, uma linha por teste)."""
+    sys.path.insert(0, os.getcwd())
+    resultado = Registro()
+    unittest.defaultTestLoader.loadTestsFromNames(ids).run(resultado)
+    Path(registro).write_text("".join(json.dumps(e) + "\n" for e in resultado.por_id.values()), encoding="utf-8")
+    return 0
+
+
+def rodar(copia, ids, registro, prazo):
+    """Roda os testes na cópia e devolve o registro por teste, ou None (prazo, sinal ou executor sem registro)."""
+    processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", *ids,
+                                 "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
+                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+    try:
+        processo.wait(timeout=prazo)
+    except BaseException as erro:  # prazo, sinal ou Ctrl-C: nada fica rodando
+        try:
+            os.killpg(processo.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        processo.wait()
+        if isinstance(erro, subprocess.TimeoutExpired):
+            return None
+        raise
+    if processo.returncode != 0 or not Path(registro).is_file():
+        return None
+    return [json.loads(linha) for linha in Path(registro).read_text(encoding="utf-8").splitlines()]
+
+
+def cobre(declarado, ident):
+    return ident == declarado or ident.startswith(declarado + ".")
+
+
+def veredito(declarados, registro):
+    """('morreu'|'sobreviveu'|'inválido', motivo) a partir do registro por teste; nunca pelo código de saída."""
+    if any(e["res"] == "erro" for e in registro):
+        return "inválido", "erro de carga ou de execução do teste"
+    for declarado in declarados:
+        if not any(cobre(declarado, e["id"]) and e["res"] in ("ok", "falha") for e in registro):
+            return "inválido", f"teste declarado que não rodou: {declarado}"
+    return ("morreu", "") if any(e["res"] == "falha" for e in registro) else ("sobreviveu", "")
+
+
+# --- spec ----------------------------------------------------------------------------------------------------------
+def validar_spec(dados):
+    """Lista de problemas (vazia = válida). Fecha na dúvida: o que não é o objeto esperado é inválido."""
+    if not isinstance(dados, dict) or not CHAVES_DA_SPEC >= set(dados) >= {"pedido", "mutantes"}:
+        return ["a spec não é o objeto esperado (pedido, mutantes e, opcional, executor)"]
+    problemas = []
+    if not isinstance(dados["pedido"], str) or not dados["pedido"]:
+        problemas.append("pedido vazio ou que não é texto")
+    if dados.get("executor", "unittest") not in EXECUTORES:
+        problemas.append(f"sem leitor de veredito para o executor {dados['executor']!r}")
+    mutantes = dados["mutantes"]
+    if not isinstance(mutantes, list) or not 1 <= len(mutantes) <= MAXIMO_DE_MUTANTES:
+        return problemas + [f"de 1 a {MAXIMO_DE_MUTANTES} mutantes"]
+    vistos = set()
+    for i, m in enumerate(mutantes, 1):
+        nome = f"mutante {i}"
+        if not isinstance(m, dict) or set(m) != CHAVES_DO_MUTANTE:
+            problemas.append(f"{nome}: precisa das chaves {', '.join(sorted(CHAVES_DO_MUTANTE))}")
+            continue
+        if not isinstance(m["id"], str) or not ID_DE_MUTANTE.fullmatch(m["id"]) or m["id"] in vistos:
+            problemas.append(f"{nome}: id fora de [A-Za-z0-9_-]{{1,32}} ou repetido")
+            continue
+        vistos.add(m["id"])
+        nome = m["id"]
+        if not all(isinstance(m[k], str) for k in ("guarda", "arquivo", "de", "para")):
+            problemas.append(f"{nome}: guarda, arquivo, de e para são texto")
+            continue
+        if not m["de"] or len(m["de"]) > MAXIMO_DO_TRECHO or len(m["para"]) > MAXIMO_DO_TRECHO:
+            problemas.append(f"{nome}: de vazio ou trecho com mais de {MAXIMO_DO_TRECHO} caracteres")
+        if m["de"] == m["para"]:
+            problemas.append(f"{nome}: para igual ao de")
+        problemas += [f"{nome}: {p}" for p in validar_caminho(m["arquivo"])]
+        testes = m["testes"]
+        if (not isinstance(testes, list) or not testes
+                or not all(isinstance(t, str) and ID_DE_TESTE.fullmatch(t) and ".." not in t
+                           and not t.endswith(".") for t in testes)):
+            problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
+    return problemas
+
+
+def validar_caminho(arquivo):
+    partes = arquivo.split("/")
+    if (not CAMINHO.fullmatch(arquivo) or arquivo.startswith("/") or ".." in partes or "" in partes
+            or "." in partes):
+        return ["arquivo é caminho relativo, sem .., sem barra inicial nem caracteres fora do padrão"]
+    if TESTE.fullmatch(arquivo):
+        return ["arquivo de teste não se muta"]
+    return []
+
+
+def alvo_seguro(copia, arquivo):
+    """O arquivo, dentro da cópia, sem link simbólico no caminho. Levanta ValueError se não for."""
+    atual = copia.resolve()
+    for parte in arquivo.split("/"):
+        atual = atual / parte
+        if atual.is_symlink():
+            raise ValueError("o caminho passa por link simbólico")
+    final = atual.resolve()
+    if copia.resolve() not in final.parents or not final.is_file():
+        raise ValueError("o arquivo não existe na cópia ou fica fora dela")
+    return final
+
+
+def sintaxe_confere(alvo, texto):
+    """Num arquivo Python (extensão ou shebang), confere a sintaxe sem executar."""
+    if alvo.suffix == ".py" or texto.startswith("#!") and "python" in texto.splitlines()[0]:
+        ast.parse(texto)
+
+
+def mutar(copia, m):
+    """Aplica a troca. Devolve (linha, None) ou (None, motivo de mutante inválido)."""
+    try:
+        alvo = alvo_seguro(copia, m["arquivo"])
+        original = alvo.read_bytes().decode("utf-8")
+    except (ValueError, UnicodeDecodeError, OSError) as erro:
+        return None, str(erro)
+    ocorrencias = original.count(m["de"])
+    if ocorrencias != 1:
+        return None, f"o trecho aparece {ocorrencias} vezes no arquivo (precisa de exatamente uma)"
+    novo = original.replace(m["de"], m["para"])
+    try:
+        sintaxe_confere(alvo, novo)
+    except SyntaxError as erro:
+        return None, f"a troca quebra a sintaxe ({erro.msg})"
+    linha = original.count("\n", 0, original.index(m["de"])) + 1
+    alvo.write_bytes(novo.encode("utf-8"))
+    return linha, None
+
+
+def anotar(segundos, codigo):
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with LOG.open("a", encoding="utf-8") as f:
+        f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}\n")
+
+
+def principal(spec_bytes, dados, sha, prazo):
+    raiz = Path.cwd()
+    antes = git("status", "--porcelain")
+    print(f"forge-mutante: pedido={dados['pedido']} rev={sha[:12]} spec={hashlib.sha256(spec_bytes).hexdigest()}")
+    anterior = signal.signal(signal.SIGTERM, lambda numero, quadro: sys.exit(143))  # o `finally` apaga as cópias
+    trabalho = Path(tempfile.mkdtemp(prefix="forge-mutante-"))
+    controles, linhas, codigo = {}, [], 0
+    inicio = time.monotonic()
+    try:
+        for m in dados["mutantes"]:
+            copia = trabalho / m["id"]
+            montar_copia(raiz, copia, sha)
+            chave = tuple(m["testes"])
+            if chave not in controles:  # mesmo commit e mesmos testes: o controle dá o mesmo resultado
+                registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo)
+                resultado = None if registro is None else veredito(m["testes"], registro)
+                controles[chave] = "sem veredito" if resultado is None else (
+                    "ok" if resultado[0] == "sobreviveu" else "vermelho")
+            if controles[chave] != "ok":
+                linhas.append(f"{m['id']} · {'controle vermelho' if controles[chave] == 'vermelho' else 'sem veredito'}"
+                              f" · {m['arquivo']}")
+                codigo = 2
+                continue
+            linha, motivo = mutar(copia, m)
+            if motivo:
+                linhas.append(f"{m['id']} · inválido · {m['arquivo']} · {motivo}")
+                codigo = 2
+                continue
+            registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo)
+            if registro is None:
+                linhas.append(f"{m['id']} · sem veredito · {m['arquivo']}:{linha}")
+                codigo = 2
+                continue
+            classe, motivo = veredito(m["testes"], registro)
+            linhas.append(f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else ""))
+            if classe == "inválido":
+                codigo = 2
+            elif classe == "sobreviveu" and codigo == 0:
+                codigo = 1
+        depois = git("status", "--porcelain")
+    except (RuntimeError, OSError) as erro:
+        print(f"forge-mutante: {erro}", file=sys.stderr)
+        return 2
+    finally:
+        signal.signal(signal.SIGTERM, anterior)
+        shutil.rmtree(trabalho, ignore_errors=True)
+    print("\n".join(linhas))
+    if depois != antes:
+        print("forge-mutante: a árvore de trabalho mudou durante a rodada; resultado descartado.", file=sys.stderr)
+        return 2
+    anotar(time.monotonic() - inicio, codigo)
+    return codigo
+
+
+def main(argv=None):
+    p = argparse.ArgumentParser(prog="forge-mutante", description="Mutantes declarados do pedido (não é portão).")
+    p.add_argument("spec", nargs="?")
+    p.add_argument("--rev", default="HEAD")
+    p.add_argument("--prazo", type=int, default=PRAZO_PADRAO)
+    p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
+    p.add_argument("--registro", help=argparse.SUPPRESS)
+    args = p.parse_args(argv)
+    if args.executar:
+        return executar(args.executar, args.registro)
+    if not args.spec:
+        p.error("falta a SPEC")
+    if not 0 < args.prazo <= PRAZO_MAXIMO:
+        p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
+    caminho_da_spec = Path(args.spec).resolve()
+    try:
+        os.chdir(git("rev-parse", "--show-toplevel").strip())
+    except RuntimeError as erro:
+        print(f"forge-mutante: fora de um repositório git ({erro})", file=sys.stderr)
+        return 2
+    try:
+        if caminho_da_spec.stat().st_size > MAXIMO_DA_SPEC:
+            raise ValueError(f"spec com mais de {MAXIMO_DA_SPEC} bytes")
+        spec_bytes = caminho_da_spec.read_bytes()
+        dados = json.loads(spec_bytes.decode("utf-8"))
+    except (OSError, ValueError) as erro:  # UnicodeDecodeError e JSONDecodeError são ValueError
+        print(f"forge-mutante: spec ilegível ({erro})", file=sys.stderr)
+        return 2
+    problemas = validar_spec(dados)
+    if problemas:
+        print("forge-mutante: spec inválida; nada foi executado.", file=sys.stderr)
+        print("\n".join(f"  - {x}" for x in problemas), file=sys.stderr)
+        return 2
+    if "executor" not in dados and not list(Path("tests").glob("test_*.py")):
+        print("forge-mutante: sem leitor de veredito para a stack (declare `executor` na spec).", file=sys.stderr)
+        return 2
+    sha = resolver(args.rev)
+    if sha is None:
+        print(f"forge-mutante: --rev ilegível ({args.rev!r}).", file=sys.stderr)
+        return 2
+    return principal(spec_bytes, dados, sha, args.prazo)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
