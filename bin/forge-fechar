@@ -96,7 +96,7 @@ ler() {
     if saida_ler="$("$@" 2>/dev/null)"; then printf '%s' "$saida_ler"; return 0; fi
     n=$((n + 1))
     [ "$n" -lt 3 ] || return 1
-    sleep "$pausa"
+    dormir "$pausa"
   done
 }
 # repetir <comando...>: operação idempotente que só devolve status (push --delete); até 3 tentativas, com pausa.
@@ -106,7 +106,7 @@ repetir() {
     "$@" && return 0
     n=$((n + 1))
     [ "$n" -lt 3 ] || return 1
-    sleep "$pausa"
+    dormir "$pausa"
   done
 }
 [ -n "$titulo" ] || titulo="$ref"
@@ -167,6 +167,7 @@ mascarar() {
 # sob flock quando existe, para duas fileiras não partirem a linha uma da outra. A ordem entre stdout e stderr no mesmo segundo não é garantida.
 registrar() {
   local linha marca="" saida
+  trap '' TERM INT HUP
   [ "$1" = 2 ] && marca="[err] "
   while IFS= read -r linha || [ -n "$linha" ]; do
     printf '%s\n' "$linha" >&"$1"
@@ -186,6 +187,8 @@ pid_err=$!
 fim() {
   local rc=$?
   trap - EXIT
+  trap '' TERM INT HUP
+  [ -z "${dorme_pid:-}" ] || kill "$dorme_pid" 2>/dev/null || true
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
   echo "fim: código $rc"
@@ -194,6 +197,19 @@ fim() {
   exit "$rc"
 }
 trap fim EXIT
+# Sinal de corte (o teto do Bash do agente manda TERM): sai com 128+n, e o `fim:` grava esse código em vez de um sucesso que não houve.
+# Só "fim: código 0" depois da linha "Entrega ... fechada" é sucesso; log sem "fim:" é processo morto sem trap (KILL).
+trap 'exit 143' TERM
+trap 'exit 130' INT
+trap 'exit 129' HUP
+# dormir <segundos>: o sleep roda em segundo plano e o script espera nele (`wait` volta na hora com um sinal tratado); com o sleep em primeiro
+# plano o trap de TERM/INT/HUP só correria quando ele acabasse (até o intervalo, 120 s no teto). O `fim` mata o sleep que sobrar.
+dormir() {
+  sleep "$1" &
+  dorme_pid=$!
+  wait "$dorme_pid"
+  dorme_pid=""
+}
 
 # sha_confere <sha>: o sha é um dos heads mesclados (merged_heads) ou já está na base; só então a branch ou a remota podem ser apagadas.
 sha_confere() {
@@ -419,13 +435,13 @@ if [ "$ja_mesclado" = 0 ]; then
       # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
       if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
         [ $((SECONDS - inicio)) -lt "$espera" ] || die "parou no passo 4: nenhum check apareceu após ${espera}s"
-        sleep "$intervalo"
+        dormir "$intervalo"
         continue
       fi
       # erro passageiro do GitHub (502): leitura, repete até 3 vezes seguidas.
       falhas=$((falhas + 1))
       [ "$falhas" -lt 3 ] || die "parou no passo 4: não consegui ler os checks: $saida"
-      sleep "$pausa"
+      dormir "$pausa"
       continue
     fi
     falhas=0
@@ -441,7 +457,7 @@ if [ "$ja_mesclado" = 0 ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
       die "parou no passo 4: checks ainda pendentes após ${espera}s"
     fi
-    sleep "$intervalo"
+    dormir "$intervalo"
     # com a espera do rótulo, o laço de fora relê o rótulo e o head a cada volta
     [ "$esperar" = 0 ] || continue 2
   done
@@ -463,7 +479,7 @@ if [ "$ja_mesclado" = 0 ]; then
       || printf '%s\n' "$texto" | tail -n +2 | grep -qiE '^[[:space:]]*([-*+]|[0-9]+[.)])[[:space:]]+\[x\].*afrouxa-regra'; then
       if [ "$esperar" = 1 ] && [ $((SECONDS - inicio)) -lt "$espera" ]; then
         echo "aguardando o rótulo afrouxa-regra do dono (o script nunca o aplica)..."
-        sleep "$intervalo"
+        dormir "$intervalo"
         continue
       fi
       die "$msg_rotulo"
