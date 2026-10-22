@@ -3,19 +3,20 @@ tipo: revisao-devops
 contrato: 1
 pedido: suite-paralela-d4
 branch: melhoria/suite-paralela-d4
-commit: 1bdd3e8522da941d89a8620a980196401e751126
+commit: 84de155340ab1991d6aa494d1de96e221ae8628c
 parecer: aprovado
 revisor: forge:devops-engineer
-data: 2026-10-21
+data: 2026-10-22
 ---
 # Review de devops: suite-paralela-d4
 
 ## Parecer
-Aprovado, sem bloqueantes. Revisão estática do diff `ad6d96c..1bdd3e8` contra o desenho da D4 e o modelo de ameaças (AB-1 a AB-14).
+Aprovado, sem bloqueantes. Revisão estática da entrega inteira (`c092f1b..84de155`) contra o desenho da D4 e o modelo de ameaças (AB-1 a AB-14), com o delta da volta 3 reconferido.
 
 ## Achados
 
 ## Evidência por ponto
+- **Delta da volta 3 (`830bf9f..84de155`):** só `tests/test_pre_push_trava.py`, 15 linhas trocadas por 15: renome de nomes, comentários, docstring e mensagens de asserção (a palavra que casava o padrão de segredo virou "vez"; o auxiliar passou a se chamar `vezes`). Nenhuma chamada `assert*` ganhou nem perdeu linha, nenhum literal esperado do hook mudou, nenhum teste foi removido ou pulado, e o arquivo compila. Pipeline, hook e `ci.yml` intactos neste delta; o resto segue como revisado na volta 2.
 - **Divisão e completude (AB-1, AB-2, AB-5, AB-13):** `scripts/suite-paralela.py` lista os módulos por glob, confere a partição (repetido, faltando, desconhecido) e compara o multiconjunto dos IDs rodados com o da descoberta completa; zero testes, relatório ausente, rc diferente de 0 ou morte por sinal reprovam, e a árvore de trabalho e o `.git/config` são conferidos ao fim. O peso só equilibra e nunca decide o que roda. Falha fechada em `FORGE_SUITE_PROCS` inválido.
 - **Isolamento e encerramento (AB-3, AB-4, AB-6, AB-12):** cada filho tem grupo próprio (`start_new_session`), TMPDIR próprio com modo 700 apagado no `finally`, e vigia o pai (SIGKILL no orquestrador não deixa órfão). `encerrar` mira só `killpg` dos pids dos próprios filhos; o hook mata só o filho da suíte e espera por ele antes de soltar a trava, sem `pkill -f`. O código de saída de cada filho é lido pelo pid.
 - **Fila e trava (AB-7):** a senha só ordena a espera; a exclusão continua sendo o flock. Senha de processo morto é descartada por flock obtido, a pasta é conferida (dono, não é link, modo 700), o prazo é único para fila e trava e esgotado barra sem rodar a suíte. Sem a fila, cai para a trava com aviso. O script recusa rodar sem a trava presa e anotada pelo hook (`FORGE_SUITE_TRAVA`) e, à mão, reentra por `--suite`, na mesma fila.
