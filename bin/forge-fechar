@@ -277,6 +277,59 @@ secao_da_branch() {
     if [[ "$n" == "branch.$ref."* ]] && [[ "${n#"branch.$ref."}" != *.* ]]; then secao_st=presente; return 0; fi
   done <<<"$nomes"
 }
+# estados_da_espera: só com --esperar-rotulo; troca `estados` (lido de `saida`) pelo que a espera do rótulo considera, linha a linha da `catraca`.
+# Antes do rótulo, a catraca `fail` é o pedido dele: pendente, e o número da execução entra em `run_antes` (as execuções vistas antes do rótulo).
+# Depois do rótulo: só a linha cuja execução está em `run_antes`, e só em `fail` ou `cancel`, conta como pendente (é a velha, cancelada pela
+# concorrência do workflow quando a execução do evento do rótulo começa). A velha só deixa de contar quando a execução nova está na leitura em
+# `pass` ou ainda pendente; a nova decide. Execução nova que não é `pass` nem pendente PARA na hora: `fail` (a Catraca reprovou), `cancel` e
+# qualquer outra conclusão, `skipping` inclusive (só `pass` libera o merge). `cancel` fora de `run_antes`, ou com link fora do padrão, também para.
+# Link fora do padrão (ou rótulo já aplicado na primeira leitura, sem `run_antes`) mantém a rede de 10 leituras, só para `fail`. O `break` do laço
+# continua exigindo tudo `pass` ou `skipping` na última leitura, e a velha mapeada nunca chega a ele. Nunca reexecuta nada.
+estados_da_espera() {
+  local -a nomes=() sts=() runs=()
+  local nome_ck estado_ck link_ck run_ck i n=0 nova=0 st
+  velha_pendente=""
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_ck="?"
+    if [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/[0-9]{1,20} ]]; then run_ck="${BASH_REMATCH[1]}"; fi
+    nomes[n]="$nome_ck"; sts[n]="$estado_ck"; runs[n]="$run_ck"; n=$((n + 1))
+    [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ] || continue
+    if [ "$rotulo_ok" = 0 ]; then
+      case "$run_antes" in *" $run_ck "*) ;; *) run_antes="$run_antes$run_ck " ;; esac
+    elif [ "$run_antes" != " " ]; then
+      case "$run_antes" in
+        *" $run_ck "*) ;;
+        *) case "$estado_ck" in pass | pending | queued | in_progress) nova=1 ;; esac ;;
+      esac
+    fi
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $4}')
+  estados=""
+  for ((i = 0; i < n; i++)); do
+    st="${sts[i]}"
+    if [ "${nomes[i]}" = catraca ]; then
+      if [ "$rotulo_ok" = 0 ]; then
+        [ "$st" != fail ] || st=pending
+      elif [ "${runs[i]}" != "?" ] && case "$run_antes" in *" ${runs[i]} "*) true ;; *) false ;; esac; then
+        if [ "$st" = fail ] || [ "$st" = cancel ]; then
+          if [ "$nova" = 1 ]; then st=skipping; else st=pending; velha_pendente="${runs[i]}"; fi
+        fi
+      elif [ "$st" = fail ]; then
+        if [ "${runs[i]}" = "?" ] || [ "$run_antes" = " " ]; then
+          [ "$apos_rotulo" -gt 10 ] || st=pending
+        else
+          echo "aviso: a Catraca do rótulo reprovou (run ${runs[i]}); leia o motivo no log da execução e corrija; o script nunca reexecuta a catraca." >&2
+        fi
+      elif [ "${runs[i]}" != "?" ] && [ "$run_antes" != " " ]; then
+        case "$st" in
+          pass | pending | queued | in_progress | cancel) ;;
+          *) echo "aviso: a execução nova da Catraca (run ${runs[i]}) não terminou em pass; só pass libera o merge." >&2; st=sem-pass ;;
+        esac
+      fi
+    fi
+    estados="${estados:+$estados$'\n'}$st"
+  done
+}
+
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push roda a suíte nesse push). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -494,6 +547,7 @@ fi
 if [ "$ja_mesclado" = 0 ]; then
   inicio=$SECONDS
   apos_rotulo=0
+  run_antes=" " velha_pendente=""
   ultimo_resumo=""
   msg_rotulo="parou no passo 5: o PR pede o rótulo afrouxa-regra (no título ou em item marcado) e o dono ainda não o aplicou; o script nunca aplica rótulo"
   while :; do  # com --esperar-rotulo o laço repete os passos 4 e 5; sem a opção roda uma vez só
@@ -512,12 +566,8 @@ if [ "$ja_mesclado" = 0 ]; then
   while :; do
     saida="$("$gh" pr checks "$ref" 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
-    if [ "$esperar" = 1 ]; then
-      # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo (ou o resto da leitura velha logo depois dele): espera como pendente.
-      if [ "$rotulo_ok" = 0 ] || [ "$apos_rotulo" -le 10 ]; then
-        estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {if ($1=="catraca" && $2=="fail") print "pending"; else print $2}')"
-      fi
-    fi
+    # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo, ou a execução velha logo depois dele (ver estados_da_espera).
+    [ "$esperar" = 0 ] || estados_da_espera
     if [ -z "$estados" ]; then
       # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
       if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
@@ -544,6 +594,7 @@ if [ "$ja_mesclado" = 0 ]; then
     printf '%s\n' "$estados" | grep -qE '^(pending|queued|in_progress)$' || break
     if [ $((SECONDS - inicio)) -ge "$espera" ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
+      [ -z "$velha_pendente" ] || die "parou no passo 4: o rótulo foi aplicado, mas só a execução velha da Catraca (run $velha_pendente) aparece após ${espera}s; confira se o evento do rótulo gerou a execução nova; o script nunca reexecuta a catraca"
       die "parou no passo 4: checks ainda pendentes após ${espera}s"
     fi
     dormir "$intervalo"
