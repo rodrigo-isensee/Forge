@@ -53,6 +53,9 @@ Complementa o passo 7. Depois do `git branch -D` o script guarda o stderr do git
 ## O que nunca faz
 Mescla na `main` (base `main` ou fora do fluxo é recusada), aplica rótulo, usa `--force` ou `--no-verify`, apaga `develop`, `homolog` ou `main`, apaga branch sem a prova do sha mesclado, dispensa parecer ou check. O rótulo continua sendo do dono (`R-CONTRIB`).
 
+## Limpeza: o sha da branch vem antes da worktree
+Complementa o passo 7. Antes de qualquer remoção o script confere o sha da branch local: se ele não é o de um PR mesclado nem está na base (nome reaproveitado depois de um PR antigo), a worktree fica `pendente` e não é removida, porque o `git worktree remove` apagaria os arquivos ignorados dela (como um ambiente local) junto com o trabalho novo. A branch local e a remota já seguiam a mesma regra. Confira o commit novo antes de rodar à mão o comando que o script imprime.
+
 ## Teste
 `tests/test_fechar.py` usa repositório temporário e `gh` e `forge-check` falsos (`FORGE_GH`, `FORGE_CHECK`, `FORGE_FECHAR_INTERVALO`, `FORGE_FECHAR_PAUSA`), que só valem com `FORGE_FECHAR_TESTE=1`; sem ela o script avisa em stderr e usa os comandos reais, para que uma variável esquecida no ambiente não troque o portão. O `--ref` passa por `git check-ref-format --branch`. O `git` do teste é um atalho que registra `worktree remove`, `worktree prune`, `branch -D` e `push --delete` (prova da ordem) e simula o "Device or resource busy".
 
