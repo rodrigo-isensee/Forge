@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: RET-LEITURA-HOOK
 branch: melhoria/lote-leitura-hook
-commit: 6d60a6db9410a912dc45ea12608985624b39ecac
+commit: d557a37ab9386d457bb9e896d1e0e4f4fbe78e3c
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-22
 ---
 # Review: desenho da volta única do lote-leitura-hook (RET-LEITURA-HOOK, E2.2)
 
-Escopo: só o desenho `docs/propostas/lote-leitura-hook-volta-unica.md` em `6d60a6d`, antes do código. Li o desenho, a revalidação 5 (`docs/reviews/lote-leitura-hook.md`), a ADR 0011 e as seções 3 a 5 da retrospectiva (`docs/retrospectivas/2026-10-22-voltas-lote-leitura-hook.md`, na cópia principal). Conferi as funções em que M1 e M2 se apoiam (`grava_arquivo` e `programas_e_atribuicoes`, `hooks/_comum.py` de `1b0fb6b`, que o desenho não muda) chamando-as sobre o texto sem os corpos (`tirar_heredocs`). Também rodei uma sonda no bash, em `$TMPDIR`. Não rodei o hook inteiro: o M2 ainda não existe. Esta é a passada única: todos os bloqueantes estão abaixo.
+Escopo: só o desenho `docs/propostas/lote-leitura-hook-volta-unica.md` em `d557a37`, antes do código. O `d557a37` difere do `6d60a6d` lido só pelo exemplo do X1 (`npm test` virou `make test`, que o teste `NeutralidadeDoNucleo` exige, R-NEUTRO). Fiz essa troca como ajuste trivial: ela não muda o conteúdo revisado nem as linhas citadas. Li o desenho, a revalidação 5 (`docs/reviews/lote-leitura-hook.md`), a ADR 0011 e as seções 3 a 5 da retrospectiva (`docs/retrospectivas/2026-10-22-voltas-lote-leitura-hook.md`, na cópia principal). Conferi as funções em que M1 e M2 se apoiam (`grava_arquivo` e `programas_e_atribuicoes`, `hooks/_comum.py` de `1b0fb6b`, que o desenho não muda) chamando-as sobre o texto sem os corpos (`tirar_heredocs`). Também rodei uma sonda no bash, em `$TMPDIR`. Não rodei o hook inteiro: o M2 ainda não existe. Esta é a passada única: todos os bloqueantes estão abaixo.
 
 ## Achados
 - A1 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:38 · M2 lista os programas com programas_e_atribuicoes, que troca `2>&1`/`>&-` por `>` solto e esse `>` engole a palavra seguinte: `…⏎EOF⏎2>&1 ./x.sh` dá só `cat` [EXE], e o bash rodou o ./x.sh. Peça enumeração positiva e o caso S17
