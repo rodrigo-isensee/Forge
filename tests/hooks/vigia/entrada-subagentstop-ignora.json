@@ -1,0 +1,49 @@
+{
+  "descricao": "SubagentStop nunca confere a lista do dono, nem na transcrição do subagente.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"user\", \"uuid\": \"m1\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n\"}}"
+        ]
+      }
+    },
+    {
+      "gravar": {
+        "{tmp}/a.jsonl": [
+          "{\"type\": \"user\", \"uuid\": \"m2\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n\"}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl",
+    "agent_type": "forge:dev",
+    "agent_transcript_path": "{tmp}/a.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "sem_arquivo": [
+      "violacoes.jsonl"
+    ]
+  }
+}

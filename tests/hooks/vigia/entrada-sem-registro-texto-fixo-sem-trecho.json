@@ -1,0 +1,45 @@
+{
+  "descricao": "A saída ao dono é o texto fixo: não leva trecho da mensagem, id nem contagem.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"user\", \"uuid\": \"m1\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n\"}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "entrada-sem-registro: a lista do turno não foi gravada em docs/pedidos/ (.forge/run/violacoes.jsonl)",
+    "estado": {
+      "violacoes.jsonl": {
+        "ausente": [
+          "banana"
+        ]
+      }
+    }
+  }
+}
