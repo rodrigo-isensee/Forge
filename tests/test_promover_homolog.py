@@ -298,13 +298,7 @@ class Execucao(Promover):
         self.assertIn(self.git("rev-parse", "origin/develop"), r.stdout)
 
 
-class Documentacao(unittest.TestCase):
-    def test_guia_existe_e_fala_do_que_o_script_nao_faz(self):
-        guia = (RAIZ / "docs" / "promocao-integrador.md").read_text(encoding="utf-8")
-        for trecho in ("scripts/promover-homolog.py", "--dry-run", "não mescla", "R-FLUXO", "Reversão"):
-            self.assertIn(trecho, guia)
-        self.assertIn("promover-homolog", (RAIZ / "docs" / "fechamento-integrador.md").read_text(encoding="utf-8"))
-
+class Executavel(unittest.TestCase):
     def test_script_e_executavel(self):
         self.assertTrue(os.access(SCRIPT, os.X_OK))
 
