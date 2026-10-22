@@ -1,0 +1,39 @@
+{
+  "descricao": "C1-5: sem session_id no evento, o registro confirmado não fica com pid de outra sessão.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": null,
+          "tipo": "forge:qa-engineer",
+          "descricao": "Reserva com pid",
+          "desde": "{agora-2}",
+          "pid": "{pid_vivo}",
+          "pidns": "{pid_ns}",
+          "sessao": "s0"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStart",
+    "agent_id": "ag-77",
+    "agent_type": "forge:qa-engineer"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "ag-77",
+          "Reserva com pid"
+        ],
+        "ausente": [
+          "\"pid\"",
+          "pidns",
+          "sessao"
+        ]
+      }
+    }
+  }
+}

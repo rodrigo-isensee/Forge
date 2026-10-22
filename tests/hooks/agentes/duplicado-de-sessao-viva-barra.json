@@ -1,0 +1,33 @@
+{
+  "descricao": "C1: a mesma descrição com sessão viva segue barrada como duplicado.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}",
+          "pid": "{pid_vivo}",
+          "pidns": "{pid_ns}",
+          "sessao": "s0"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:node-backend",
+      "description": "Implementar a API",
+      "prompt": "..."
+    },
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não relance"
+  }
+}

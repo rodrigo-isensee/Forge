@@ -8,6 +8,8 @@ bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tip
 senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de carga
 (teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
 Estado em .forge/run/agentes.json; registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
+O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
+namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 """
 import os
 import re
@@ -15,6 +17,7 @@ import time
 from pathlib import Path
 
 from _comum import RESERVA, bloquear, executar, gravar_json, ler_json
+from pesado import CASCAS, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
 EVENTOS = {"PreToolUse", "SubagentStart", "SubagentStop"}
@@ -93,9 +96,73 @@ def calcular_teto(config, proc=None):
     return teto, origem + (f", limitado por teto_maximo {maximo}" if limitado else "")
 
 
+PID_MAX_PADRAO = 4194304  # teto do Linux de 64 bits, quando /proc/sys/kernel/pid_max não pode ser lido
+
+
+def namespace_de_pid():
+    """Identificador do namespace de PID do processo (`pid:[...]`), ou None onde não der (sem /proc, Windows)."""
+    try:
+        return os.readlink("/proc/self/ns/pid")
+    except (OSError, ValueError):
+        return None
+
+
+def pid_max():
+    try:
+        return int(Path("/proc/sys/kernel/pid_max").read_text(encoding="utf-8").split()[0])
+    except (OSError, ValueError, IndexError):
+        return PID_MAX_PADRAO
+
+
+def pid_valido(pid):
+    return isinstance(pid, int) and not isinstance(pid, bool) and 1 <= pid <= pid_max()
+
+
+def sessao_morta(registro):
+    """True só com a prova de que a sessão que fez o registro não existe mais: `pid` inteiro na faixa do sistema, o mesmo
+    namespace de PID gravado e `os.kill(pid, 0)` com ProcessLookupError. Qualquer outro caso (registro antigo sem pid, tipo
+    errado, outro namespace, PermissionError, erro de leitura, Windows) é False: o registro fica e segue o prazo (R-TETO)."""
+    try:
+        pid, gravado = registro.get("pid"), registro.get("pidns")
+        if os.name == "nt" or not pid_valido(pid) or not isinstance(gravado, str) or gravado != namespace_de_pid():
+            return False
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except (OSError, OverflowError, ValueError, TypeError, AttributeError):
+        return False
+    return False
+
+
+def da_sessao(hook):
+    """`pid`, `pidns` e `sessao` do evento atual para o registro; vazio se faltar o session_id, se o PID não estiver vivo
+    ou se for uma casca (o hook foi chamado por um intermediário que some logo depois): a vaga fica no prazo."""
+    sessao = hook.campo("session_id")
+    try:
+        pid, ns = pid_da_sessao(), namespace_de_pid()
+        comm = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
+    except (OSError, ValueError):
+        return {}
+    if not (isinstance(sessao, str) and sessao and ns and pid_valido(pid) and pid_vivo(pid) and comm not in CASCAS):
+        return {}
+    return {"pid": pid, "pidns": ns, "sessao": sessao}
+
+
 def vigentes(agentes, agora, expira_s):
-    return [a for a in agentes if isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
-            and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))]
+    """Registros dentro do prazo e de sessão que não está provadamente morta. Cada registro é avaliado à parte: o erro
+    num deles mantém o registro e nunca derruba o hook (a exceção liberaria o lançamento sem reserva)."""
+    saida = []
+    for a in agentes:
+        try:
+            if not (isinstance(a, dict) and isinstance(a.get("desde"), (int, float))
+                    and agora - a["desde"] < (expira_s if a.get("id") else min(RESERVA_S, expira_s))):
+                continue
+            if sessao_morta(a):
+                continue
+        except Exception:  # noqa: BLE001 - dúvida mantém o registro (falha para o lado seguro)
+            pass
+        saida.append(a)
+    return saida
 
 
 CONFERENTE = "forge:conferente"
@@ -147,22 +214,29 @@ def lancar(hook, agentes, agora):
     if len(agentes) >= teto:
         bloquear("R-TETO", f"{len(agentes)} agentes ativos, teto {teto} ({motivo}); "
                            "espere um terminar antes de lançar outro.")
-    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora})
+    agentes.append({"id": None, "tipo": tipo, "descricao": descricao, "desde": agora, **da_sessao(hook)})
 
 
 def iniciar(hook, agentes, agora):
     aid, tipo = hook.campo("agent_id"), str(hook.campo("agent_type") or "")
     if not aid or any(a.get("id") == aid for a in agentes):
         return
-    reservas = sorted((a for a in agentes if not a.get("id")), key=lambda a: a["desde"])
+    dono = da_sessao(hook)
+    # Com sessão provada, só a reserva da mesma sessão (ou a antiga, sem sessão) casa: o agente de outra sessão não herda o
+    # pid dela. Sem sessão provada, casa como antes, mas o registro perde o pid (abaixo).
+    reservas = sorted((a for a in agentes if not a.get("id") and (not dono or not a.get("sessao") or a["sessao"] == dono["sessao"])),
+                      key=lambda a: a["desde"])
     # O tipo informado pode vir com ou sem o prefixo do plugin; na dúvida, a reserva mais antiga.
     par = next((a for a in reservas if str(a.get("tipo")) == tipo), None) \
         or next((a for a in reservas if str(a.get("tipo")).split(":")[-1] == tipo.split(":")[-1]), None) \
         or (reservas[0] if reservas else None)
     if par is None:
-        agentes.append({"id": aid, "tipo": tipo, "descricao": "", "desde": agora})
+        agentes.append({"id": aid, "tipo": tipo, "descricao": "", "desde": agora, **dono})
     else:
         par.update(id=aid, desde=agora)
+        if not dono:  # sem como provar de que sessão é o evento: o pid da reserva não vale para este agente
+            for chave in ("pid", "pidns", "sessao"):
+                par.pop(chave, None)
 
 
 def principal(hook):
