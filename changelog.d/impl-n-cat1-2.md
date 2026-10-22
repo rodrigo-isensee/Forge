@@ -1,0 +1,2 @@
+### Corrigido
+- catraca com falha fechada (N-CAT1, itens 1, 3, 4, 5 e 6): leitura do git que falha (lista de arquivos, introdução da catraca, estouro de prazo) vira violação de uma linha e não é liberada pelo rótulo; resposta cortada da API (`IncompleteRead`), paginação sem teto e prazo total de 240 s valem como sem rótulo; parecer reprovado barra em qualquer PR, e o QA reprovado também na `develop`; forma compilada dos controles (`__pycache__/`, `.pyc`, `.pyo`, `.pyd`, `.so`) pede o rótulo do dono.
