@@ -815,7 +815,8 @@ def tirar_heredocs(comando):
     marcada.append(comando[inicio:])
     resto, marcada = "".join(saida), "".join(marcada)
     lidas = leituras(marcada, com_sinal=True) if corpos else None
-    return resto, [(dono_do_heredoc(resto, no_resto[operador], lidas, f"{MARCA}{operador}__"), corpo)
+    muda = bool(corpos) and any(p in MUDAM_O_AMBIENTE for p, _ in programas_da_linha(resto))
+    return resto, [(dono_do_heredoc(resto, no_resto[operador], lidas, f"{MARCA}{operador}__", muda), corpo)
                    for operador, corpo in corpos]
 
 
@@ -840,16 +841,29 @@ COMPOSTOS = frozenset({"{", "}", "if", "then", "elif", "else", "fi", "case", "es
 # que ele grava (A1 de segurança, volta 4). A lista é positiva, como a dos leitores: qualquer outro programa (`./x.sh`,
 # `make`, `bash x.sh`, `$x`, `git -c alias.x='!sh x.sh' x`) pode rodar o que o heredoc gravou, e faz do corpo comando.
 OUTROS_SEM_O_CORPO = frozenset({"cd", "mkdir"})
-GIT_OUTRO_SEM_O_CORPO = frozenset({"add", "push", "status"})
+# A1 de segurança, volta 5: as opções que cada subcomando aceita como outro comando, numa lista fechada de opções que
+# não rodam programa. Opção fora dela, inclusive a abreviada (`--rec` é `--receive-pack` para o git), tira o comando da
+# lista: `git push --receive-pack='sh x.sh'` e `--exec=` rodam um programa da própria linha.
+GIT_OUTRO_SEM_O_CORPO = {
+    "add": frozenset({"-A", "--all", "-u", "--update", "-n", "--dry-run", "-v", "--verbose", "-f", "--force", "--"}),
+    "push": frozenset({"-u", "--set-upstream", "--tags", "--follow-tags", "-n", "--dry-run", "-q", "--quiet", "-v",
+                       "--verbose", "--porcelain"}),
+    "status": frozenset({"-s", "--short", "-b", "--branch", "-sb", "--porcelain", "--porcelain=v1", "--porcelain=v2",
+                         "--"}),
+}
+# A1 de segurança, volta 5: um comando do texto que muda o ambiente dos seguintes (`export GIT_SSH=sh`, `set -a`,
+# `source`, `.`, `eval`, `env`) tira da lista positiva os outros comandos de todo comando lógico do texto.
+MUDAM_O_AMBIENTE = frozenset({"export", "declare", "typeset", "readonly", "local", "set", "env", "source", ".", "eval"})
 
 
-def dono_do_heredoc(resto, posicao, lidas, marca):
+def dono_do_heredoc(resto, posicao, lidas, marca, muda_o_ambiente=False):
     """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta 3):
     o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de fora
     dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|` antes)
     separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os programas do
-    comando lógico (`comando_logico`) fora da lista positiva dos outros comandos (`outro_sem_o_corpo`). O comando
-    lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
+    comando lógico (`comando_logico`) fora da lista positiva dos outros comandos (`outro_sem_o_corpo`), ou todos eles
+    se o texto tem um comando que muda o ambiente (`muda_o_ambiente`, `MUDAM_O_AMBIENTE`). O comando lógico inteiro, se
+    a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
     logico = comando_logico(resto, posicao)
     if lidas.ilegivel:
         return logico
@@ -859,7 +873,8 @@ def dono_do_heredoc(resto, posicao, lidas, marca):
         if pipeline is None:
             return logico
         donos += pipeline
-    rodam = [p for p, argumentos in programas_da_linha(logico) if not outro_sem_o_corpo(p, argumentos)]
+    rodam = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
+             if muda_o_ambiente or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
     texto = "\n".join([*(" ".join(palavras) for palavras in donos), *rodam])
     for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
         texto = texto.replace(opaco, "_")
@@ -965,19 +980,27 @@ REDIRECAO = re.compile(r"^(\d*|&)(<<-?|<<<|>>|<>|>\||[<>])(&\d*-?)?")
 def programas_da_linha(linha):
     """A palavra de comando de cada comando simples da linha física (sem aspas nem barras, o que só a torna mais
     desconfiada), cada uma com as palavras seguintes: [(programa, [argumentos])]."""
+    return [(programa, argumentos) for programa, argumentos, _ in programas_e_atribuicoes(linha)]
+
+
+def programas_e_atribuicoes(linha):
+    """Como `programas_da_linha`, com as atribuições antes de cada programa (`GIT_SSH=sh git push`):
+    [(programa, [argumentos], [atribuicoes])]."""
     texto = re.sub(r"[\"'\\]", "", linha)
     texto = re.sub(r"\d*[<>]&\d*-?|&>>?", " > ", texto)  # `2>&1`, `&>x`: o `&` não separa comandos
     achados = []
     for trecho in re.split(r"[;&|()`\n]", texto):
-        palavras, i = trecho.split(), 0
+        palavras, i, atribuicoes = trecho.split(), 0, []
         while i < len(palavras):
             p, operador = palavras[i], REDIRECAO.match(palavras[i])
             if operador:
                 i += 1 if p[operador.end():] else 2  # `>x` ou `> x`
             elif p in ANTES_DO_PROGRAMA or re.match(r"^[A-Za-z_][A-Za-z0-9_]*\+?=", p):
+                if p not in ANTES_DO_PROGRAMA:
+                    atribuicoes.append(p)
                 i += 1
             else:
-                achados.append((p, palavras[i + 1:]))
+                achados.append((p, palavras[i + 1:], atribuicoes))
                 break
     return achados
 
@@ -991,12 +1014,26 @@ def subcomando_do_git(argumentos):
     return resto[0] if resto and resto[0] != "-c" else None
 
 
-def outro_sem_o_corpo(programa, argumentos):
+def outro_sem_o_corpo(programa, argumentos, atribuicoes=()):
     """O comando simples `programa argumentos`, noutro ponto do comando lógico do heredoc, não roda o corpo nem o
-    arquivo que ele grava: um leitor (`corpo_so_lido`), `cd`, `mkdir` ou um `git` de `GIT_OUTRO_SEM_O_CORPO`."""
-    if programa in OUTROS_SEM_O_CORPO or (programa == "git" and subcomando_do_git(argumentos) in GIT_OUTRO_SEM_O_CORPO):
+    arquivo que ele grava: um leitor (`corpo_so_lido`), `cd`, `mkdir` ou um `git` de `GIT_OUTRO_SEM_O_CORPO` só com as
+    opções da lista dele. Nunca com atribuição antes (`GIT_SSH=sh git push`, `HOME=. git status`)."""
+    if atribuicoes:
+        return False
+    if programa in OUTROS_SEM_O_CORPO or (programa == "git" and git_outro_sem_o_corpo(argumentos)):
         return True
     return corpo_so_lido(" ".join([programa, *argumentos]))
+
+
+def git_outro_sem_o_corpo(argumentos):
+    """`git argumentos` é um subcomando de `GIT_OUTRO_SEM_O_CORPO` só com as opções da lista dele e, antes do
+    subcomando, só `-C <pasta>` e `--no-pager` (`--config-env`, `--exec-path` e `-c` ficam fora)."""
+    resto = list(argumentos)
+    while resto and resto[0] in ("-C", "--no-pager"):
+        resto = resto[2:] if resto[0] == "-C" else resto[1:]
+    if not resto or resto[0] not in GIT_OUTRO_SEM_O_CORPO:
+        return False
+    return all(not a.startswith("-") or a in GIT_OUTRO_SEM_O_CORPO[resto[0]] for a in resto[1:])
 
 
 def corpo_so_lido(dono, tambem=lambda programa: False):

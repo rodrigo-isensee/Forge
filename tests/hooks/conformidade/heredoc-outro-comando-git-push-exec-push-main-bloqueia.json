@@ -1,0 +1,30 @@
+{
+  "descricao": "A1 de segurança (volta 5, ADR 0014 2.2): o --exec do git push roda o script que o heredoc grava; o corpo é conferido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > x.sh <<'EOF' && git push --exec='sh x.sh' . HEAD\ngit push origin main\nEOF"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: push direto para main"
+  }
+}

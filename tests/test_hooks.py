@@ -1534,8 +1534,16 @@ class Hooks(unittest.TestCase):
                         # A2 de segurança, volta 4: a linha que fecha a substituição aberta no operador é o mesmo comando
                         f"x=$(cat <<'EOF'\n{L}\nEOF\n); eval \"$x\"": "eval", f"x=$(cat <<'EOF'\n{L}\nEOF\n) && $x": "$x",
                         f"x=$(cat <<'EOF' # )\n{L}\nEOF\n); eval \"$x\"": "eval",
-                        f"x=$(cat <<'EOF'; : \")\"\n{L}\nEOF\n); eval \"$x\"": "eval"}
-        for linha in minimo(list(noutra_linha), 21, "formas em que o corpo vai a quem o roda"):
+                        f"x=$(cat <<'EOF'; : \")\"\n{L}\nEOF\n); eval \"$x\"": "eval",
+                        # A1 de segurança, volta 5: opção fora da lista fechada, abreviada, global, ou
+                        # atribuição antes, no comando ou num `export` de outro comando do texto
+                        f"x=$(cat <<'EOF'\n{L}\nEOF\n) && git push --receive-pack=\"$x\" . HEAD": "git",
+                        f"cat > x.sh <<'EOF' && git push --rec='sh x.sh' . HEAD\n{L}\nEOF": "git",
+                        f"cat > x.sh <<'EOF' && git --config-env=core.sshCommand=X push ssh://h/r\n{L}\nEOF": "git",
+                        f"cat > .gitconfig <<'EOF' && HOME=. git status\n{L}\nEOF": "git",
+                        f"cat > x.sh <<'EOF' && GIT_SSH=sh git push ssh://x.sh/r HEAD\n{L}\nEOF": "git",
+                        f"export GIT_SSH=sh\ncat > x.sh <<'EOF' && git push ssh://x.sh/r HEAD\n{L}\nEOF": "git"}
+        for linha in minimo(list(noutra_linha), 27, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
@@ -1544,6 +1552,7 @@ class Hooks(unittest.TestCase):
                 self.assertFalse(_comum.corpo_so_lido(dono))
         separados = (f"cat > f <<'EOF'\n{L}\nEOF\nbash f", f"cat <<'EOF'\n{L}\nEOF\nbash", f"cat <<'EOF' \\\\\n{L}\nEOF\nsh",
                      f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
+                     f"git add -A && git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && git push -u origin feature/x",
                      f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)")
         for linha in separados:  # outro comando da lista não lê o corpo (A1 do review: o comum dos projetos)
             with self.subTest(linha=linha):
