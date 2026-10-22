@@ -286,7 +286,18 @@
       "PQ-1",
       "DECISÃO DO DONO",
       "## Etapas",
-      "E1\\.1 \\(<agente>\\)"
+      "E1\\.1 \\(<agente>\\)",
+      "não leva nome de linguagem, framework, ferramenta nem de projeto \\(`R-NEUTRO`\\)"
+    ],
+    "docs/protecao-de-branch.md": [
+      "sem ator de bypass",
+      "`R-CONFORMIDADE`",
+      "Enforcement status: \\*\\*Active\\*\\*"
+    ],
+    "templates/projeto/docs/engineering/protecao-de-branch.md": [
+      "sem ator de bypass",
+      "`R-CONFORMIDADE`",
+      "Enforcement status: \\*\\*Active\\*\\*"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
