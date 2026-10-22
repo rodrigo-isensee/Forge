@@ -1,0 +1,146 @@
+"""N-FECHAR-a, A5: passo 2b de `bin/forge-fechar`, que para antes do PR quando a base andou com arquivo em comum.
+
+Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
+"""
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+import test_fechar as base  # noqa: E402  (o módulo, não a classe: a classe seria coletada de novo aqui)
+SCRIPT = base.SCRIPT
+GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
+case "$1 $2" in
+  "ls-remote origin")
+    # $ESTADO/ls_develop_falha: sem resposta do servidor para a develop (só ela)
+    if [ -f "$ESTADO/ls_develop_falha" ] && [ "$3" = refs/heads/develop ]; then echo "fatal: unable to access" >&2; exit 128; fi ;;
+  "diff --no-renames")
+    # $ESTADO/diff_falha: o diff da conta do passo 2b falha (objeto ausente)
+    if [ -f "$ESTADO/diff_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
+esac
+exec "$(dirname "$0")/git-base" "$@"
+'''
+
+
+class Teste(unittest.TestCase):
+    tearDown = base.Fechar.tearDown
+    git = base.Fechar.git
+    fechar = base.Fechar.fechar
+    chamadas = base.Fechar.chamadas
+    criacoes = base.Fechar.criacoes
+    merges = base.Fechar.merges
+
+    def setUp(self):
+        base.Fechar.setUp(self)
+        bin_ = self.tmp / "bin"
+        (bin_ / "git").rename(bin_ / "git-base")
+        (bin_ / "git").write_text(GIT_BASE_ANDOU, encoding="utf-8")
+        (bin_ / "git").chmod(0o755)
+
+    # ---- N-FECHAR-a, A5: base que andou com arquivo em comum (passo 2b) ----
+    def base_anda(self, arquivos, renomear=None, ramo="develop"):
+        """Um commit novo na develop (e no origin) que grava `arquivos` ({nome: texto}) ou renomeia `renomear` = (de, para)."""
+        self.git("switch", "-q", ramo)
+        if renomear:
+            self.git("mv", *renomear)
+        for nome, texto in arquivos.items():
+            (self.proj / nome).write_text(texto)
+            self.git("add", "--", nome)
+        self.git("commit", "-q", "-m", "feat: base anda")
+        self.git("push", "-q", "origin", ramo)
+
+    def ramo_que_edita(self, nome, arquivo, texto):
+        self.git("switch", "-q", "-c", nome, "develop")
+        (self.proj / arquivo).write_text(texto)
+        self.git("add", "--", arquivo)
+        self.git("commit", "-q", "-m", "feat: edita")
+        self.git("push", "-q", "origin", nome)
+        self.git("switch", "-q", "develop")
+
+    def test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr(self):
+        self.base_anda({"b": "da base\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("passo 2b", r.stderr)
+        self.assertIn("git merge origin/develop", r.stderr)
+        self.assertEqual([l for l in r.stderr.splitlines() if l.startswith("  ")], ["  b"])
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_c5_base_renomeou_o_arquivo_que_a_branch_editou_para(self):
+        self.ramo_que_edita("melhoria/r", "a", "editado\n")
+        self.base_anda({}, renomear=("a", "g"))
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("  a", r.stderr.splitlines())
+        self.assertEqual(self.criacoes(), [])
+
+    def test_c5_nome_com_quebra_de_linha_em_comum_lista_o_nome_inteiro(self):
+        self.ramo_que_edita("melhoria/n", "n\nx", "da branch\n")
+        self.base_anda({"n\nx": "da base\n"})
+        r = self.fechar("p1", "--ref", "melhoria/n")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("  $'n\\nx'", r.stderr.splitlines())
+        self.assertEqual(self.criacoes(), [])
+
+    def test_c5_base_que_andou_sem_arquivo_em_comum_avisa_e_segue(self):
+        self.base_anda({"outro": "x\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("a base andou 1 commit sem arquivo em comum", r.stdout)
+        self.assertEqual(len(self.criacoes()), 1)
+
+    def test_c5_base_local_atras_do_servidor_para_e_pede_fetch(self):
+        # o servidor tem um commit a mais na develop que o origin/develop local não conhece
+        self.git("clone", "-q", "-b", "develop", str(self.remoto), str(self.tmp / "outro"), cwd=self.tmp)
+        outro = self.tmp / "outro"
+        (outro / "z").write_text("z\n")
+        self.git("add", "z", cwd=outro)
+        self.git("commit", "-q", "-m", "feat: z", cwd=outro)
+        self.git("push", "-q", "origin", "develop", cwd=outro)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("git fetch origin develop", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+
+    def test_c5_sem_resposta_do_servidor_na_develop_para(self):
+        (self.estado / "ls_develop_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("não consegui ler a develop no servidor", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+
+    def test_c5_diff_que_falha_nunca_segue(self):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "diff_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("git fetch origin develop", r.stderr)
+        self.assertEqual(self.criacoes(), [])
+
+    def test_c5_base_que_ja_esta_no_head_nao_avisa_nem_para(self):
+        self.git("switch", "-q", "melhoria/x")
+        self.git("merge", "-q", "origin/develop", "-m", "merge base")
+        self.git("push", "-q", "origin", "melhoria/x")
+        self.git("switch", "-q", "develop")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("a base andou", r.stdout)
+
+    def test_c5_head_ja_mesclado_nao_roda_o_2b(self):
+        self.git("merge", "-q", "--no-ff", "melhoria/x", "-m", "merge x")
+        self.git("push", "-q", "origin", "develop")
+        self.git("fetch", "-q", "origin")
+        (self.estado / "ls_develop_falha").write_text("1")  # se o 2b rodasse, pararia aqui
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+
+    def test_c5_dry_run_imprime_o_2b_e_nao_le_o_servidor(self):
+        (self.estado / "ls_develop_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("[2b]", r.stdout)
+        self.assertEqual(self.chamadas(), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

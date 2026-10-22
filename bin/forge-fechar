@@ -3,6 +3,7 @@
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
+# (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou, para (só leitura; falha de leitura também para);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
@@ -191,6 +192,7 @@ fim() {
   [ -z "${dorme_pid:-}" ] || kill "$dorme_pid" 2>/dev/null || true
   exec 2>&-
   wait "$pid_err" 2>/dev/null || true
+  [ -z "${tmp2b:-}" ] || rm -rf -- "$tmp2b"
   echo "fim: código $rc"
   exec >&-
   wait "$pid_out" 2>/dev/null || true
@@ -329,10 +331,44 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# conferir_base (passo 2b, só leitura): a base andou depois do ponto de partida da branch? Falha de leitura PARA (nada de `|| true` aqui):
+# só o caso "tudo certo" segue. Sem arquivo em comum, avisa e segue (o CI do PR confere o merge); com arquivo em comum, para.
+# `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
+# `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
+conferir_base() {
+  local srv base_sha mbs mb n comuns f
+  srv="$(git ls-remote origin "refs/heads/$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
+  srv="${srv%%[[:space:]]*}"
+  [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
+  base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
+  [ "$srv" = "$base_sha" ] || die "parou no passo 2b: $base ($base_sha) está atrás da $alvo no servidor ($srv); rode: git fetch origin $alvo, e rode de novo"
+  if git merge-base --is-ancestor "$base_sha" "$remoto_sha"; then return 0; else
+    [ $? = 1 ] || die "parou no passo 2b: não consegui comparar $base com o head; rode: git fetch origin $alvo"
+  fi
+  mbs="$(git merge-base --all "$base_sha" "$remoto_sha")" || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  [ -n "$mbs" ] || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  tmp2b="$(mktemp -d)" || die "parou no passo 2b: não consegui criar a pasta temporária"
+  : > "$tmp2b/a"; : > "$tmp2b/b"
+  for mb in $mbs; do
+    git diff --no-renames --name-only -z "$mb" "$base_sha" >> "$tmp2b/a" || die "parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo"
+    git diff --no-renames --name-only -z "$mb" "$remoto_sha" >> "$tmp2b/b" || die "parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo"
+  done
+  sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns" \
+    || die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  if [ -s "$tmp2b/comuns" ]; then
+    echo "arquivos que a $alvo e $ref mudaram depois do ponto de partida:" >&2
+    while IFS= read -r -d '' f; do printf '  %q\n' "$f" >&2; done < "$tmp2b/comuns"
+    die "parou no passo 2b: a base andou e tocou arquivo que a branch também tocou (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
+  fi
+  n="$(git rev-list --count "$base_sha" --not $mbs)" || die "parou no passo 2b: não consegui contar os commits da base"
+  echo "a base andou $n commit$([ "$n" = 1 ] || echo s) sem arquivo em comum com $ref; o CI do PR confere o merge."
+}
+
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
   passo 1 "$check pr $pedido --ref $ref --base $base"
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
+  passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git diff --no-renames -z dos dois lados: arquivo em comum para, sem arquivo em comum avisa (só leitura; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
   passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
@@ -394,6 +430,8 @@ else
     ja_mesclado=1
     echo "já existe PR MERGED em $alvo com o head de $ref; nada a abrir nem a mesclar."
   else
+    passo "2b" "base de $alvo"
+    conferir_base
     aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3; exit}')"
     if [ -n "$aberto" ]; then
       [ "${aberto#* }" = "$alvo" ] || die "parou no passo 3: o PR aberto #${aberto%% *} tem base ${aberto#* }, não $alvo; feche-o ou corrija a base (R-MAIN)"
