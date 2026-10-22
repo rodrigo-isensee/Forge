@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 import apoio_versao_defasada as ap  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -39,7 +39,8 @@ class Base(unittest.TestCase):
         (self.bin / "gh").chmod(0o755)
         self.gitconfig = self.home / "gitconfig"
         self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
-        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"}
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and k != "CLAUDE_PROJECT_DIR"
+                    and k not in SINAIS_DE_CUSTO}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FORGE_HOJE=HOJE, FORGE_VERIFICAR_VERSAO="0")
         self.env.pop("XDG_STATE_HOME", None)

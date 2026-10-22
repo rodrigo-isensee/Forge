@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -61,7 +61,7 @@ class Base(unittest.TestCase):
         # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas), e os scripts se recusam a rodar
         # aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do ambiente do subprocesso.
         self.env = {k: v for k, v in os.environ.items()
-                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
                         FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")

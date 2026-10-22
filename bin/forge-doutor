@@ -4,7 +4,7 @@ Uso: forge doutor [--rapido] [-v] [DIRETORIO]
   --rapido  só o que é local e instantâneo (sem `gh`, sem rede); nunca conserta nem pergunta (é o que o hook e o atalho usam)
   -v        diz também que está tudo em ordem (sem ele, tudo bem = silêncio)
 Confere: plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
-`.claude/settings.json` com o Jarvis, sandbox e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
+`.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
 terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub, nem mescla, nem apaga.
 Saída: 0 tudo em ordem; 1 sobrou algo a ver. Só biblioteca padrão."""
@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -42,14 +43,30 @@ def rodar(args, cwd, limite=None):
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
+LIMITE_JSON = 1024 * 1024  # bytes: JSON maior que isso não é lido (um repositório clonado pode trazer qualquer coisa)
+
+
 def ler_json(caminho):
-    """(dados, erro): o conteúdo do JSON, ou None e o motivo."""
+    """(dados, erro): o conteúdo do JSON, ou None e o motivo. Só arquivo regular e até LIMITE_JSON: pipe, dispositivo e arquivo
+    gigante são "ilegível" (a abertura não bloqueia)."""
     try:
-        return json.loads(caminho.read_text(encoding="utf-8")), None
+        fd = os.open(caminho, os.O_RDONLY | os.O_NONBLOCK)
     except FileNotFoundError:
         return None, "ausente"
+    except OSError:
+        return None, "ilegível"
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return None, "ilegível"
+        with os.fdopen(fd, "rb", closefd=False) as arq:
+            bruto = arq.read(LIMITE_JSON + 1)
+        if len(bruto) > LIMITE_JSON:
+            return None, "ilegível"
+        return json.loads(bruto.decode("utf-8")), None
     except (OSError, ValueError):
         return None, "ilegível"
+    finally:
+        os.close(fd)
 
 
 def versao_de(texto):
@@ -238,6 +255,39 @@ def conferir_sandbox(raiz):
                      "dentro do Claude, digite `/sandbox` e ligue.")]
 
 
+SINAIS_DE_CUSTO = ("ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX")  # lista fixa: só estes nomes saem na frase
+
+
+def ler_settings_limitado(caminho):
+    """O dicionário do JSON, ou None (ausente, grande, não regular, ilegível ou fora do formato): cada fonte falha sozinha."""
+    dados, _ = ler_json(caminho)
+    return dados if isinstance(dados, dict) else None
+
+
+def presente(valor):
+    """Variável vazia ou só espaço conta como ausente."""
+    return bool(valor.strip()) if isinstance(valor, str) else bool(valor)
+
+
+def conferir_custo(raiz):
+    """R-CUSTO na máquina: só a PRESENÇA dos nomes da lista fixa (nunca o valor, nunca executa o `apiKeyHelper`)."""
+    achados = [nome for nome in SINAIS_DE_CUSTO if presente(os.environ.get(nome))]
+    for arq in (casa() / ".claude" / "settings.json", raiz / ".claude" / "settings.json", raiz / ".claude" / "settings.local.json"):
+        dados = ler_settings_limitado(arq)
+        if dados is None:
+            continue
+        if presente(dados.get("apiKeyHelper")):
+            achados.append("apiKeyHelper")
+        ambiente = dados.get("env")
+        if isinstance(ambiente, dict):
+            achados += [nome for nome in SINAIS_DE_CUSTO if presente(ambiente.get(nome))]
+    achados = sorted(set(achados))
+    if not achados:
+        return []
+    return [Problema("A sessão pode estar cobrando por token (R-CUSTO): " + ", ".join(achados) + ". É só um aviso: "
+                     "se o login é por assinatura, tire essa configuração; se a nuvem é sua de propósito, siga adiante.")]
+
+
 def conferir_ramos(raiz):
     codigo, saida = rodar(["git", "for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/origin"], raiz)
     if codigo is None:
@@ -272,6 +322,7 @@ def diagnosticar(raiz, rapido=True):
     if codigo is not None:
         problemas += conferir_identidade(config_git)
     problemas += conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
+    problemas += conferir_custo(raiz)
     if codigo is None:
         problemas = [nao_consegui_git()] + [p for p in problemas if p.texto != nao_consegui_git().texto]
     return problemas
