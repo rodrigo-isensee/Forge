@@ -13,8 +13,10 @@ de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva se
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 """
+import hashlib
 import os
 import re
+import stat
 import time
 from pathlib import Path
 
@@ -203,6 +205,9 @@ CONFERENTE = "forge:conferente"
 MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
 ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
+VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
+ABRE_BLOCO = "<<<BRIEF"
+LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
 
 
 def mensagem_sem_forma(prompt):
@@ -219,6 +224,52 @@ def mensagem_sem_forma(prompt):
     return "; ".join(faltas) or None
 
 
+def raizes_de_brief(hook):
+    """`docs/briefs/` (caminho real) da raiz da sessão e de `~/.forge-contrib`, onde o Jarvis do Forge guarda os briefs."""
+    return [Path(os.path.realpath(base)) / "docs" / "briefs" for base in (hook.raiz, Path.home() / ".forge-contrib")]
+
+
+def ler_brief(hook, caminho):
+    """Bytes do brief `caminho` (relativo ao cwd do evento), ou None: fora de `docs/briefs/` (`realpath`, com atalhos e `..`
+    resolvidos), não é arquivo regular (FIFO, dispositivo) ou passa de 256 KiB. Confere o tipo antes de abrir, abre sem bloquear
+    e confere de novo no descritor; lê no máximo o limite mais 1 byte."""
+    real = os.path.realpath(hook.cwd() / caminho)
+    if not any(base in Path(real).parents for base in raizes_de_brief(hook)):
+        return None
+    if not stat.S_ISREG(os.lstat(real).st_mode):
+        return None
+    descritor = os.open(real, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(descritor, "rb") as arquivo:
+        if not stat.S_ISREG(os.fstat(arquivo.fileno()).st_mode):
+            return None
+        dados = arquivo.read(LIMITE_DO_BRIEF + 1)
+    return dados if len(dados) <= LIMITE_DO_BRIEF else None
+
+
+def hash_do_brief_diverge(hook, prompt):
+    """R-BRIEF, o hash: por que a mensagem ao conferente não bate com o arquivo, ou None. Só o CABEÇALHO (antes da primeira
+    linha `<<<BRIEF`) vale: exatamente uma `Arquivo:` e uma `Brief-sha256:`; `Arquivo:` e `Brief-sha256:` no corpo e nos
+    blocos seguintes não contam (o Jarvis manda um brief só). Erro ao ler o arquivo bloqueia, só nesta mensagem."""
+    cabecalho = []
+    for linha in str(prompt or "").splitlines():
+        if linha.startswith(ABRE_BLOCO):
+            break
+        cabecalho.append(linha)
+    arquivos = [l[len("Arquivo:"):].strip() for l in cabecalho if l.startswith("Arquivo:")]
+    hashes = [l for l in cabecalho if l.startswith("Brief-sha256:")]
+    if len(arquivos) != 1 or len(hashes) != 1 or not VALOR_DO_HASH.match(hashes[0]):
+        return "o cabeçalho precisa de uma só linha `Arquivo:` e uma só `Brief-sha256:`"
+    try:
+        dados = ler_brief(hook, arquivos[0])
+    except (OSError, ValueError, RuntimeError):  # RuntimeError: sem HOME para achar ~/.forge-contrib
+        dados = None
+    if dados is None:
+        return "o brief não está em docs/briefs/, não é arquivo regular, passa de 256 KiB ou não abriu"
+    if hashlib.sha256(dados).hexdigest() != VALOR_DO_HASH.match(hashes[0]).group(1):
+        return "o hash do brief não bate com o arquivo"
+    return None
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -226,6 +277,9 @@ def lancar(hook, agentes, agora):
     if faltas:
         bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a inteira; "
                             f"faltou: {faltas}.")
+    divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
+    if divergencia:
+        bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a inteira.")
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
