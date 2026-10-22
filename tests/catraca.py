@@ -973,28 +973,57 @@ def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
         return [violacao_de_git(e)]
 
 
+def pareceres_que_nao_aprovam(raiz, fc, pedidos, head):
+    """Violações do último parecer de cada tipo (review, qa, revisao-devops, revisao-seguranca) dos `pedidos` da branch, quando
+    ele não aprova. O "último" usa a chave do `cmd_pr` (data, caminho); o critério é o dele: `aprovado`, ou `riscos-aceitos` com
+    o aceite do usuário. Não depende de arquivo sensível, do tipo ser exigido nem da base (QA na `develop` inclusive)."""
+    achadas = []
+    for ped in pedidos:
+        for tipo, (_, rid) in fc.PASTA_E_REGRA.items():
+            candidatos = []
+            for rel, texto in fc.documentos(Path(raiz), tipo, head):
+                campos, _ = fc.validar_documento(rel, texto)
+                if campos is not None and campos.get("pedido") == ped:
+                    candidatos.append((campos.get("data", ""), rel, campos))
+            if not candidatos:
+                continue
+            _, rel, campos = sorted(candidatos, key=lambda c: c[:2])[-1]
+            valor = campos.get("parecer")
+            if valor == "aprovado" or (valor == "riscos-aceitos" and fc.aceite_do_usuario(Path(raiz), ped, campos.get("commit"), head)):
+                continue
+            achadas.append(msg(rid, f"parecer que não aprova: {fc.caminho_impresso(rel)} (parecer: {valor})",
+                               "o último parecer do tipo não aprova (ou `riscos-aceitos` sem o aceite do usuário), e a mudança entraria mesmo assim",
+                               f"corrija e peça novo parecer, e confira com `bin/forge-check pr {ped}`", f"docs/regras/{rid}.md"))
+    return achadas
+
+
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     if (ramo, base_ref) in PROMOCOES:
         return []
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
-    if not tocados:
-        return []
-    fc, achados = forge_check(), []
+    fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
+    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head)
+    if not tocados:
+        return nao_aprovam
+    achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base) if l.strip()]
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas
     if pedidos and not achados:
-        return []
+        return nao_aprovam
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
-    return [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
-                "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
-                f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
-                "docs/regras/R-REVIEW.md")]
+    sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
+                       "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
+                       f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
+                       "docs/regras/R-REVIEW.md")]
+    # o parecer de tipo exigido que não aprova já está dito no `detalhe`: só entra o que o `cmd_pr` não lê (tipo não exigido, QA na develop)
+    ja_ditos = [l.split(": parecer:", 1)[0] for l in achados if ": parecer: o último" in l]
+    return sem_parecer + [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
 
 
 def resumo(titulo, linhas):

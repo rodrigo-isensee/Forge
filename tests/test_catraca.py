@@ -1104,6 +1104,120 @@ class Pareceres(Base):
         self.assertFalse(any("desatualizado" in l for l in fc.cmd_pr(self.repo.dir, "ped", None, "develop")))
 
 
+class ParecerReprovadoBarraSempre(Base):
+    """Item 5 do N-CAT1: o último parecer de cada tipo dos pedidos da branch barra se não aprova, com ou sem arquivo sensível,
+    com o tipo exigido ou não e na entrada da `develop` também (promoção fica de fora)."""
+
+    PASTAS = {"review": "reviews", "qa": "qa", "revisao-seguranca": "security", "revisao-devops": "devops"}
+
+    def parecer(self, tipo, parecer="aprovado", ramo="pr", pedido="ped", data="2026-01-01", arquivo=None, commita=True, commit=None):
+        if commita:
+            self.repo.commit()
+        commit = commit or self.repo.git("rev-parse", "--short", "HEAD").strip()
+        pasta = self.PASTAS[tipo]
+        extra = "qa: forge:qa-engineer\nescopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0" if tipo == "qa" else "revisor: forge:tech-lead"
+        self.repo.escreve(f"docs/{pasta}/{arquivo or pedido}.md",
+                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
+                          f"parecer: {parecer}\n{extra}\ndata: {data}\n---\n# parecer\n")
+
+    def roda(self, base_ref="develop", ramo="pr"):
+        self.repo.commit()
+        return catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref)
+
+    def test_review_reprovado_barra_pr_que_nao_toca_arquivo_sensivel(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-REVIEW: .+docs/reviews/ped\.md.+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_review_reprovado_barra_em_agents_e_skills(self):
+        for rel in ("agents/x.md", "skills/x/SKILL.md"):
+            with self.subTest(rel):
+                self.setUp()
+                self.repo.escreve(rel, "x\n")
+                self.parecer("review", "reprovado")
+                self.assertEqual(len(self.roda()), 1)
+
+    def test_seguranca_reprovada_barra_mesmo_sem_gatilho_no_diff(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.parecer("review")
+        self.parecer("qa", commita=False)
+        self.parecer("revisao-seguranca", "reprovado", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-SEGURANCA: .+docs/security/ped\.md")
+
+    def test_devops_reprovado_barra_mesmo_sem_infra_no_diff(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.parecer("review")
+        self.parecer("revisao-devops", "reprovado", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/devops/ped.md", achadas[0])
+
+    def test_qa_reprovado_barra_na_entrada_da_develop(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("qa", "reprovado", commita=False)
+        achadas = self.roda("develop")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-QA: .+docs/qa/ped\.md")
+
+    def test_valor_fora_do_contrato_barra(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "ajustes")
+        self.assertEqual(len(self.roda()), 1)
+
+    def test_riscos_aceitos_so_passa_com_o_aceite_do_usuario(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review")
+        self.parecer("revisao-seguranca", "riscos-aceitos", commit="abc1234", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/security/ped.md", achadas[0])
+        self.repo.escreve("docs/security/aceites/ped.md", "---\npedido: ped\naceite: sim\ncommit: abc1234\n---\n")
+        self.assertEqual(self.roda(), [])
+
+    def test_sensivel_com_review_reprovado_continua_com_uma_violacao_so(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/reviews/ped.md", achadas[0])
+
+    def test_nao_regressao_parecer_mais_novo_aprovado_substitui_o_reprovado(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado", arquivo="ped-v1", data="2026-01-01")
+        self.parecer("review", "aprovado", arquivo="ped-v2", data="2026-01-02", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_parecer_regravado_no_mesmo_arquivo(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        self.repo.commit()
+        self.parecer("review", "aprovado", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_parecer_de_outra_branch_nao_barra(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado", ramo="outra")
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_promocao_nao_le_parecer(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        self.repo.commit()
+        for ramo, base_ref in (("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref), [])
+
+    def test_nao_regressao_sem_parecer_e_sem_arquivo_sensivel_passa(self):
+        """A exigência de parecer não cresce: só o reprovado que já existe barra."""
+        self.repo.escreve("docs/x.md", "x\n")
+        self.assertEqual(self.roda(), [])
+
+
 def execucao(sha, quando, numero=7, evento="pull_request"):
     return {"event": evento, "head_sha": sha, "created_at": quando, "pull_requests": [{"number": numero}]}
 
