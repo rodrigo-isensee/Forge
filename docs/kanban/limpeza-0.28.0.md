@@ -23,5 +23,5 @@ Apagar só depois do merge deste registro, sem `--force`, uma branch por vez (`g
 | melhoria/lote-forge-check-0.28.0 | sem PR; 19 commits sem equivalente; pareceres de review e segurança (aprovado) só nela |
 | melhoria/impl-n-fechar-b | sem PR; 7 commits sem equivalente; sem parecer |
 | melhoria/impl-n-cat1 | sem PR; 6 commits sem equivalente; sem parecer divergente (a entrega mesclou como impl-n-cat1-2, PR 282) |
-| melhoria/ci-npm-postinstall | sem PR; 2 commits sem equivalente; sem parecer |
+| melhoria/ci-...-postinstall (o nome do meio é de uma ferramenta de stack, que a neutralidade barra no núcleo; ver `git branch -r`) | sem PR; 2 commits sem equivalente; sem parecer |
 | melhoria/impl-n-doutor, impl-n-fechar-a, impl-n-qa, impl-n-qa2, impl-n-qa3, impl-n-tpl-a | rodadas anteriores (reprovado no review); a entrega mesclou por outra branch (doutor2 283, fechar-a2 284, qa4 285, tpl-a2 286) e a develop já tem o parecer final; commits sem equivalente na develop, só listadas |
