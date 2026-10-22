@@ -433,6 +433,15 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
+estado_do_pr() {
+  local linha
+  pr_estado="" pr_head="" pr_base="" pr_merge=""
+  linha="$(ler "$gh" pr view "$pr_n" --json state,headRefOid,baseRefName,mergeCommit \
+    --jq '"\(.state) \(.headRefOid) \(.baseRefName) \(.mergeCommit.oid // "-")"')" || return 1
+  read -r pr_estado pr_head pr_base pr_merge <<<"$linha"
+}
+
 # conferir_base (passo 2b, só leitura): a base andou depois do ponto de partida da branch? Falha de leitura PARA (nada de `|| true` aqui):
 # só o caso "tudo certo" segue. Sem arquivo em comum, avisa e segue (o CI do PR confere o merge); com arquivo em comum, para.
 # `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
@@ -533,20 +542,28 @@ if git merge-base --is-ancestor "$remoto_sha" "$base" 2>/dev/null; then
   ja_mesclado=1
   echo "o head de $ref já está em $base; nada a abrir nem a mesclar."
 else
-  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid \
-    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no passo 3: não consegui ler os PRs de $ref"
+  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 3: não consegui ler os PRs de $ref"
   if printf '%s\n' "$lista" | awk -v s="$remoto_sha" -v b="$alvo" '$2=="MERGED" && $3==b && $4==s {f=1} END {exit !f}'; then
     ja_mesclado=1
     echo "já existe PR MERGED em $alvo com o head de $ref; nada a abrir nem a mesclar."
   else
     passo "2b" "base de $alvo"
     conferir_base
-    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3; exit}')"
+    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3 " " $5; exit}')"
     if [ -n "$aberto" ]; then
-      [ "${aberto#* }" = "$alvo" ] || die "parou no passo 3: o PR aberto #${aberto%% *} tem base ${aberto#* }, não $alvo; feche-o ou corrija a base (R-MAIN)"
-      echo "PR #${aberto%% *} já aberto; reusado."
+      read -r pr_n aberto_base aberto_fork <<<"$aberto"
+      [[ "$pr_n" =~ ^[0-9]{1,9}$ ]] || die "parou no passo 3: o número do PR aberto não é numérico"
+      [ "$aberto_fork" != true ] || die "parou no passo 3: o PR aberto #$pr_n vem de um fork (isCrossRepository) com o mesmo nome de branch; o fechamento só vale para PR do próprio repositório"
+      [ "$aberto_base" = "$alvo" ] || die "parou no passo 3: o PR aberto #$pr_n tem base $aberto_base, não $alvo; feche-o ou corrija a base (R-MAIN)"
+      echo "PR #$pr_n já aberto; reusado."
     else
-      "$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo" || die "parou no passo 3: não consegui abrir o PR"
+      url_pr="$("$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo")" || die "parou no passo 3: não consegui abrir o PR"
+      # O número vem da URL que o create imprime (uma só, terminando em /pull/<n>, só dígitos); sem ele o script para (o PR criado é reusado na rodada seguinte).
+      pr_n=""
+      if [ "$(printf '%s\n' "$url_pr" | grep -c .)" = 1 ] && [[ "$url_pr" =~ ^https://[^[:space:]]+/pull/([0-9]{1,9})$ ]]; then pr_n="${BASH_REMATCH[1]}"; fi
+      [ -n "$pr_n" ] || die "parou no passo 3: o PR foi criado, mas o número não foi lido; rode de novo (reusa o PR aberto)"
+      echo "PR #$pr_n aberto: $url_pr"
     fi
   fi
 fi
@@ -563,15 +580,15 @@ if [ "$ja_mesclado" = 0 ]; then
   rotulo_ok=0
   if [ "$esperar" = 1 ]; then
     # A espera continua presa ao head conferido no passo 2; push novo durante ela para (o merge também recusaria).
-    head_pr="$(ler "$gh" pr view "$ref" --json headRefOid --jq .headRefOid || true)"
+    head_pr="$(ler "$gh" pr view "$pr_n" --json headRefOid --jq .headRefOid || true)"
     [ -z "$head_pr" ] || [ "$head_pr" = "$remoto_sha" ] || die "parou na espera do rótulo: o head do PR ($head_pr) mudou desde o passo 2 ($remoto_sha); confira e rode de novo"
-    if ler "$gh" pr view "$ref" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then
+    if ler "$gh" pr view "$pr_n" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then
       rotulo_ok=1
       apos_rotulo=$((apos_rotulo + 1))
     fi
   fi
   while :; do
-    saida="$("$gh" pr checks "$ref" 2>&1 || true)"
+    saida="$("$gh" pr checks "$pr_n" 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
     # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo, ou a execução velha logo depois dele (ver estados_da_espera).
     [ "$esperar" = 0 ] || estados_da_espera
@@ -617,8 +634,8 @@ if [ "$ja_mesclado" = 0 ]; then
   echo "head: $remoto_sha"
 
   passo 5 "rótulo"
-  rotulos="$(ler "$gh" pr view "$ref" --json labels --jq '.labels[].name')" || die "parou no passo 5: não consegui ler os rótulos do PR"
-  texto="$(ler "$gh" pr view "$ref" --json title,body --jq '.title, .body')" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
+  rotulos="$(ler "$gh" pr view "$pr_n" --json labels --jq '.labels[].name')" || die "parou no passo 5: não consegui ler os rótulos do PR"
+  texto="$(ler "$gh" pr view "$pr_n" --json title,body --jq '.title, .body')" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
   # O título é o lugar oficial do sinal de afrouxamento (primeira linha do texto): citar o rótulo nele já para.
   # No corpo, só a linha de item marcado (`- [x]`, `* [X]`, `+ [x]`, `1. [x]`, `1) [x]`) que cita o rótulo; texto que apenas o menciona não para.
   if ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
@@ -636,10 +653,13 @@ if [ "$ja_mesclado" = 0 ]; then
   done
 
   passo 6 "merge ($metodo) em $alvo"
-  pre="$(ler "$gh" pr view "$ref" --json baseRefName,isDraft,state --jq '"\(.baseRefName) \(.isDraft) \(.state)"')" || die "parou no passo 6: não consegui ler a base do PR"
-  read -r pre_base pre_rascunho pre_estado <<<"$pre"
+  # As leituras do passo 6 vão pelo número do PR (lido no passo 3); o merge continua por nome de branch (o hook `parecer` o exige) e preso ao head.
+  pre="$(ler "$gh" pr view "$pr_n" --json baseRefName,isDraft,state,headRefOid,isCrossRepository --jq '"\(.baseRefName) \(.isDraft) \(.state) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 6: não consegui ler a base do PR"
+  read -r pre_base pre_rascunho pre_estado pre_head pre_fork <<<"$pre"
   [ "$pre_base" != main ] || die "parou no passo 6: o PR tem base main; a main é só do dono (R-MAIN)"
   [ "$pre_base" = "$alvo" ] || die "parou no passo 6: o PR tem base $pre_base, não $alvo"
+  [ "$pre_fork" != true ] || die "parou no passo 6: o PR #$pr_n vem de um fork (isCrossRepository); o fechamento só vale para PR do próprio repositório"
+  [ "$pre_head" = "$remoto_sha" ] || die "parou no passo 6: o head do PR #$pr_n (${pre_head:-desconhecido}) difere do conferido no passo 2 ($remoto_sha); confira e rode de novo"
   if [ "${pre_estado:-OPEN}" = MERGED ]; then
     echo "o PR já consta como MERGED; o merge não se repete."
   else
@@ -648,14 +668,18 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
     if ! "$gh" pr merge "$ref" "$metodo" --match-head-commit "$remoto_sha"; then
-      estado="$(ler "$gh" pr view "$ref" --json state --jq .state || true)"
-      [ "$estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
-      echo "o merge devolveu erro, mas o PR consta como MERGED."
+      estado_do_pr || true
+      [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
+      echo "o merge devolveu erro, mas o PR consta como MERGED; confiro o head, a base e o commit de merge abaixo."
     fi
   fi
-  estado="$(ler "$gh" pr view "$ref" --json state --jq .state || true)"
-  [ "$estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${estado:-desconhecido})"
-  echo "merge: $(ler "$gh" pr view "$ref" --json mergeCommit --jq .mergeCommit.oid || true)"
+  # MERGED só vale para este PR, com o head conferido no passo 2, na base alvo e com commit de merge (um MERGED de outro head não é sucesso).
+  estado_do_pr || true
+  [ "$pr_estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${pr_estado:-desconhecido})"
+  [ "$pr_head" = "$remoto_sha" ] || die "parou no passo 6: o PR #$pr_n consta MERGED com o head ${pr_head:-desconhecido}, não o conferido ($remoto_sha); não conto como sucesso"
+  [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"
+  [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ] || die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"
+  echo "merge: $pr_merge"
 fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
