@@ -881,24 +881,24 @@ class DonosDosHeredocs:
         `git` se o comando lógico grava arquivo (`grava_arquivo`: o git roda ganchos, filtros e configuração). O
         comando lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
         lugar = lugar_logico(self.resto, posicao)
-        segmentos = [] if self.lidas.ilegivel else [segmentos_do_operador(partes, marca, indice)
+        trechos = [] if self.lidas.ilegivel else [segmentos_do_operador(partes, marca, indice)
                                                     for partes, indice in zip(self.lidas.partes, self.indices)]
-        chave = (lugar,) if self.lidas.ilegivel or None in segmentos else (lugar, *map(tuple, segmentos))
+        chave = (lugar,) if self.lidas.ilegivel or None in trechos else (lugar, *map(tuple, trechos))
         if chave not in self.vistos:
-            self.vistos[chave] = self.montar(lugar, segmentos if len(chave) > 1 else None)
+            self.vistos[chave] = self.montar(lugar, trechos if len(chave) > 1 else None)
         return self.vistos[chave]
 
-    def montar(self, lugar, segmentos):
+    def montar(self, lugar, trechos):
         inicios, fins = limites_logicos(self.resto)
         logico = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
         grava = grava_arquivo(logico)
-        if segmentos is None:  # o `git` puro não é leitor: com a linha gravando, nenhum git do comando passa (A2)
+        if trechos is None:  # o `git` puro não é leitor: com a linha gravando, nenhum git do comando passa (A2)
             return logico + "\ngit" if grava and any(p == "git" for p, _ in programas_da_linha(logico)) else logico
         if lugar not in self.fora_da_lista:
             self.fora_da_lista[lugar] = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
                                          if self.muda_o_ambiente or (grava and p == "git")
                                          or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
-        donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, segmentos)
+        donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos)
                  for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
         texto = "\n".join([*(" ".join(palavras) for palavras in donos), *self.fora_da_lista[lugar]])
         for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
@@ -933,10 +933,10 @@ def pipeline_do_operador(partes, marca, indice=None):
     substituição em volta dele, as do pipeline do comando de fora que a contém; ou None: subshell, comando composto
     (`COMPOSTOS`), a marca não aparece ou o comando de fora não aparece."""
     indice = indice or indice_das_partes(partes)
-    segmentos = segmentos_do_operador(partes, marca, indice)
-    if segmentos is None:
+    trechos = segmentos_do_operador(partes, marca, indice)
+    if trechos is None:
         return None
-    return [partes[j][0] for sub, ini, fim in segmentos for j in indice.mesmo[sub][ini:fim + 1]]
+    return [partes[j][0] for sub, ini, fim in trechos for j in indice.mesmo[sub][ini:fim + 1]]
 
 
 def segmentos_do_operador(partes, marca, indice):
