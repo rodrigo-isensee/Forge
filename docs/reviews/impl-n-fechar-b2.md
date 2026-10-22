@@ -1,0 +1,43 @@
+---
+tipo: review
+contrato: 1
+pedido: RET-FECHAR-B2
+branch: melhoria/impl-n-fechar-b2
+commit: 801ffd0d605d809cadaff623d7e0c650a12ccaac
+parecer: reprovado
+revisor: forge:tech-lead
+data: 2026-10-22
+---
+# Review: RET-FECHAR-B2 (lote N-FECHAR-b refeito, B1 a B5 e R2 do lote a)
+
+Escopo: `git diff 38c5824..801ffd0`, ou seja, os 7 commits da branch (`cf4ff32` a `2587662`) mais o merge da `develop` (`801ffd0`, com `af79bef`, sem conflito). Os arquivos são `bin/forge-fechar`, `docs/fechamento-integrador.md`, `changelog.d/impl-n-fechar-b2.md`, `tests/test_fechar.py` e seis arquivos novos `tests/test_fechar_*.py`. O pedido de origem se perdeu. A referência é o review anterior do lote (`c97e2cc`, `docs/reviews/impl-n-fechar-b.md` da branch `melhoria/impl-n-fechar-b`, reprovado com A1 e A2), e esta branch é a volta dele. Li a entrega inteira, sem `forge-check delta`, porque é uma branch nova.
+
+## Achados
+- A1 (bloqueante) bin/forge-fechar:667 · gh pr ready e gh pr merge (667 e 670) agem no PR que o gh resolve pelo nome da branch, mas as guardas de base, fork e head (657 a 662) leem #pr_n; um 2º PR aberto do mesmo head para main/homolog é mesclado sem guarda. Releia pelo nome antes e pare se o número não for pr_n
+- A2 (bloqueante) docs/fechamento-integrador.md:16 · "dois PRs do mesmo head não se confundem" é falso para o ready e o merge (seguem pelo nome); corrigir junto do A1 e registrar a janela que sobra entre a releitura por nome e o merge
+
+## Parecer
+**Reprovado.** Os dois achados do review anterior estão resolvidos (ver "Conferido"). O B3, porém, abriu uma regressão no passo 6: guarda e ação já não olham necessariamente para o mesmo PR. O A1 é o mesmo achado do parecer de segurança desta rodada (`docs/security/impl-n-fechar-b2.md`, A1, commit `0fe6c1d`, sobre `2587662`). Cheguei a ele de forma independente e o registro aqui porque também é um erro de correção e de contrato, contra o `R-FLUXO` e o `R-MAIN`, e não só de segurança. A correção não é minha: volta ao autor.
+
+### Detalhe dos achados
+- **A1.** Antes do B3, a releitura do passo 6 e o merge usavam o nome da branch, então os dois resolviam para o mesmo PR. Agora a releitura usa `gh pr view "$pr_n"` (linha 657), e o `gh pr ready "$ref"` (667) e o `gh pr merge "$ref" ... --match-head-commit` (670) usam o nome. O `gh` resolve o nome para o PR aberto mais recente com aquele head. Se outra sessão abrir, durante a espera dos passos 4 e 5 (até 7200 s com `--esperar-rotulo`), um segundo PR da mesma branch para `main` ou `homolog`, o `--match-head-commit` passa (o head é o mesmo) e o merge sai no PR errado. A conferência pós-merge (`estado_do_pr`, 677 a 682) só para quando o merge já aconteceu. Sugestão: logo antes do `pr ready` e do `pr merge`, ler `gh pr view "$ref" --json number,baseRefName,headRefOid` (a mesma resolução da ação) e parar se `number` for diferente de `$pr_n`, ou se a base não for `$alvo`. Outra opção é parar quando `gh pr list --head "$ref" --state open` trouxer mais de um PR. O merge continua por nome, então o hook `parecer` segue satisfeito. Teste: um `gh` falso com dois PRs abertos do mesmo head, o mais novo com base `main`, provando que o script para antes de `pr ready` e de `pr merge`.
+- **A2.** O passo 3 do documento afirma que o número evita a confusão entre dois PRs. Isso vale para as leituras, não para a ação. O texto deve dizer o que a correção do A1 garante e o risco residual (a janela de milissegundos entre a releitura por nome e o merge).
+
+### Conferido
+- **A1 do review anterior (P3 = B, reversão por commit): resolvido.** Sonda à mão numa cópia própria (`$TMPDIR/rev-b2`, sobre `2587662`, com `git reset --hard` entre os passos): `git revert --no-commit` reverte sozinho, sem conflito, cada um dos 7 commits (`cf4ff32`, `58ce7a8`, `541f2a8`, `b71aeb7`, `7785add`, `8522306`, `2587662`). Os testes agora ficam num arquivo por item (`test_fechar_log_check`, `_aviso_rotulo`, `_espera_catraca`, `_sha_conferido`, `_pr_numero`, `_vars_vazias`), e cada um importa o módulo `test_fechar`, não a classe.
+- **A2 do review anterior (`skipping` da execução nova): resolvido.** Em `estados_da_espera`, `nova=1` só vale para uma execução fora de `run_antes` em `pass`, `pending`, `queued` ou `in_progress`. Uma execução nova em `skipping` ou em outra conclusão vira `sem-pass` e para com "só pass libera o merge". Há quatro testes `test_a2_*` em `tests/test_fechar_espera_catraca.py`. O comentário da função e a seção "Esperar a Catraca do rótulo" descrevem o que o código faz.
+- **B5.** `sha_conferido` é lido antes do passo 1 e passado ao `forge-check pr --ref <sha>`. Conferi no `bin/forge-check` (`cmd_pr`, `gatilhos`, `documentos` e `commit_vale`): tudo é lido pela ref, sem usar o nome da branch, então o sha serve. O sha é relido depois do passo 1 e no passo 2, o remoto tem de ser igual a ele, e o merge sai com `--match-head-commit` desse mesmo sha.
+- **B3 (fora do A1).** O número do PR vem só de dígitos (`^[0-9]{1,9}$`) ou de uma única URL `/pull/<n>`. Um PR de fork para nos passos 3 e 6. `MERGED` só vale com o head conferido, a base alvo e um commit de merge não vazio.
+- **B4 e B1.** `run_do_link` é a única extração do número da execução. `dicas_de_log` só imprime, põe só o número no comando e deixa o `TMPDIR` entre aspas simples, com a aspa escapada. A decisão de parar em `aviso_do_rotulo` não muda, e os nomes saem sem C0, DEL nem C1.
+- **R2 do lote a.** `tmp2b` e `dorme_pid` nascem vazios na linha 36, e há teste com valor herdado do ambiente.
+- **Merge da `develop`.** `af79bef` só toca `docs/` e `changelog.d/impl-n-reg.md`. Nenhum arquivo é comum com a branch e não houve conflito.
+- **Regras.** `R-CUSTO` e `R-NEUTRO`: nada pago e nada específico de projeto. `R-VERIFY`: nenhuma asserção saiu de `tests/test_fechar.py`; as duas `assertEqual` do `--ref melhoria/x` foram trocadas pelo sha, o que deixa a asserção mais forte. O fragmento `changelog.d/impl-n-fechar-b2.md` existe, e o `CHANGELOG.md` não foi editado. Os commits seguem Conventional Commits, um por item.
+- **Ferramentas.** `shellcheck bin/forge-fechar` dá 3 avisos (SC2034, SC2015 e SC2086, nas linhas 450, 467 e 474 do passo 2b), os mesmos 3 da `develop`, nenhum novo; o `forge-fechar` não está na lista de shellcheck do CI. `scripts/validar-plugin.sh`: "Validation passed", rc 0. A suíte: ver a seção "Testes". O Forge não tem `docs/engineering/praticas.md`, então li o checklist da skill sobre os arquivos do diff.
+
+### Testes
+`python3 -m unittest discover -s tests` no HEAD `801ffd0`: `Ran 1638 tests in 602.197s`, `FAILED (failures=4, skipped=1)`. Nenhuma das falhas é de `test_fechar*`. As quatro são `test_pre_push_shellcheck.test_shellcheck_no_hook` (SC2329 em `.githooks/pre-push:243`, aviso do shellcheck local), `test_hooks.test_erro_interno_com_lista_de_permissao_falha_fechado` e duas fixtures de `test_hooks` (`contrib-falha-fechada-pela-raiz-cwd-home-bloqueia` e `-cwd-wt-bloqueia`). Elas falham igual na `develop` `af79bef`, que rodei à parte numa cópia própria (`Ran 5 tests`, `FAILED (failures=4)`). São do ambiente local, anteriores a esta branch e fora do diff; ficam como pendência fora deste pedido. Na sonda de reversão conferi só a ausência de conflito. A suíte dos testes que sobram depois de cada reversão não foi rodada de novo, por causa da trava de tarefa pesada (`R-TETO`).
+
+### Recomendações (não bloqueiam)
+- `bin/forge-fechar:480` e `:484` (`--dry-run`): o passo 1 ainda imprime `--ref $ref` e o passo 4 imprime `gh pr checks $ref`, mas o passo real usa o sha e o número do PR. Esta recomendação já constava do review anterior para o passo 4.
+- `docs/fechamento-integrador.md:65`: "a execução do evento `labeled` numa leitura em que o rótulo ainda não foi lido é tratada como velha e para pelo prazo". Se a velha aparecer em `cancel` nessa leitura (o rótulo ainda não foi lido), `estados_da_espera` só mapeia `fail` como pendente, então o `cancel` para o passo 4 na hora, como check vermelho. A parada continua fechada (não há merge), mas o texto e a mensagem não batem com o caso. Ajuste o texto ou mapeie também o `cancel` antes do rótulo.
+- O A2 do parecer de segurança (a Catraca reconhecida só pelo nome do check) é assunto dele, e este review não o refaz.
