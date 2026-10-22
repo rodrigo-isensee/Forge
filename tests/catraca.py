@@ -457,6 +457,15 @@ def regra_protegidos(raiz, b, h):
     return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
 
 
+FORMA_COMPILADA = re.compile(r"(^|/)__pycache__/|\.(pyc|pyo|pyd|so)$")  # lista fixa: o que o interpretador carrega no lugar do fonte (K10-CAT)
+
+
+def regra_compilados(raiz, b, h):
+    """A forma compilada (bytecode, extensão nativa) é carregada no lugar do fonte: mudá-la troca o controle sem mudar o fonte.
+    Em qualquer pasta, pede o rótulo como um protegido; o que `regra_protegidos` já pede (prefixo de `hooks/_comum.py`) não conta duas vezes."""
+    return [msg_protegido(a) for a in alterados(raiz, b, h) if FORMA_COMPILADA.search(a) and not a.startswith(PROTEGIDOS)]
+
+
 def regra_arquivos_de_regras(raiz, b, h, cfg_base):
     """Apagar ou mover arquivo com `invariantes` ou de `docs/regras/` tira a regra do alcance dos testes."""
     v = []
@@ -480,7 +489,7 @@ def _violacoes_das_regras(raiz, base, head):
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_testes_enfraquecidos(raiz, b, head) + regra_politica(raiz, b, head)
-            + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head))
+            + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))
 
 
 # --- Rótulo do dono ----------------------------------------------------------------------------------------

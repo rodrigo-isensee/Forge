@@ -2246,5 +2246,68 @@ class Workflows(unittest.TestCase):
         self.assertIn("target-branch: develop", (self.RAIZ / "dependabot.yml").read_text(encoding="utf-8"))
 
 
+class FormaCompiladaDosControles(Base):
+    """Item 6 do N-CAT1 (K10-CAT): a forma compilada (`__pycache__/`, `.pyc`, `.pyo`, `.pyd`, `.so`) troca o fonte sem o fonte
+    mudar; por isso, em qualquer pasta, pede o rótulo do dono como qualquer arquivo protegido."""
+
+    COMPILADOS = ("hooks/__pycache__/_comum.cpython-312.pyc", "hooks/_comum.cpython-312-x86_64-linux-gnu.so", "hooks/_comum.abi3.so",
+                  "hooks/conformidade.abi3.so", "tests/__pycache__/neutralidade.cpython-312.pyc", "bin/__pycache__/x.pyc",
+                  "hooks/agentes.pyd", "hooks/sub/x.pyo", "__pycache__/x.txt", "x.pyc")
+
+    def test_forma_compilada_pede_o_rotulo(self):
+        for rel in self.COMPILADOS:
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "binario\n")
+                repo.commit()
+                achadas = repo.violacoes()
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertTrue(achadas[0].startswith("R-CONFORMIDADE: ") and f"mudança em {rel}" in achadas[0], achadas)
+
+    def test_prefixo_ja_protegido_nao_conta_duas_vezes(self):
+        self.repo.escreve("hooks/_comum.pyc", "binario\n")
+        self.repo.commit()
+        self.assertEqual(len(self.repo.violacoes()), 1, self.repo.violacoes())
+
+    def test_apagar_ou_mover_a_forma_compilada_tambem_pede(self):
+        self.repo.escreve("hooks/__pycache__/x.pyc", "binario\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "tinha")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("rm", "-q", "hooks/__pycache__/x.pyc")
+        self.barra("mudança em hooks/__pycache__/x.pyc", "R-CONFORMIDADE")
+
+    def test_o_rotulo_do_dono_libera_como_a_qualquer_protegido(self):
+        self.repo.escreve("hooks/__pycache__/_comum.cpython-312.pyc", "binario\n")
+        self.repo.commit()
+        eventos = self.repo.dir.parent / (self.repo.dir.name + "-compilado-eventos.json")
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"},
+                                        "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        self.addCleanup(eventos.unlink)
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(eventos), "--ultimo-push", "2026-01-02T09:00:00Z"]
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertEqual(catraca.main(argv), 0, saida.getvalue())
+            self.assertEqual(catraca.main(argv[:4]), 1)
+
+    def test_ancora_e_extensao_nao_pegam_nome_parecido(self):
+        for rel in ("docs/notas.so.md", "src/pycache/x.txt", "src/__pycache__x/y.txt", "docs/x.pyc.md"):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "texto\n")
+                repo.commit()
+                self.assertEqual(repo.violacoes(), [])
+
+    def test_nenhum_arquivo_versionado_da_arvore_real_tem_forma_compilada(self):
+        """Medido: 0 (M3). A catraca só vê o que o PR muda; isto pega o que já está na árvore."""
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+        r = subprocess.run(["git", "-C", str(AQUI.parent), "ls-files"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        arquivos = r.stdout.splitlines()
+        self.assertGreater(len(arquivos), 100)
+        self.assertEqual([a for a in arquivos if catraca.FORMA_COMPILADA.search(a)], [])
+
+
 if __name__ == "__main__":
     unittest.main()
