@@ -344,7 +344,8 @@
       "`R-MAIN`",
       "`R-CONFORMIDADE`",
       "`R-NEUTRO`",
-      "`R-CONTRIB`"
+      "`R-CONTRIB`",
+      "varrer a família inteira"
     ],
     "skills/ci-cd/SKILL.md": [
       "## GitHub Actions \\(padrão\\)",
@@ -465,7 +466,10 @@
       "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
-      "lista os \\*\\*casos de abuso\\*\\*"
+      "lista os \\*\\*casos de abuso\\*\\*",
+      "dimensões da família",
+      "entregue \\*\\*antes do código\\*\\*",
+      "orçamento de tempo e de tamanho da entrada"
     ],
     "skills/engineering-practices/SKILL.md": [
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
