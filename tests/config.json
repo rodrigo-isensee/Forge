@@ -286,7 +286,8 @@
       "PQ-1",
       "DECISÃO DO DONO",
       "## Etapas",
-      "E1\\.1 \\(<agente>\\)"
+      "E1\\.1 \\(<agente>\\)",
+      "não leva nome de linguagem, framework, ferramenta nem de projeto \\(`R-NEUTRO`\\)"
     ],
     "templates/projeto/docs/engineering/praticas.md": [
       "## Regras e quem as decide",
