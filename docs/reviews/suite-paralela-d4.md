@@ -3,12 +3,22 @@ tipo: review
 contrato: 1
 pedido: suite-paralela-d4
 branch: melhoria/suite-paralela-d4
-commit: 36e913dc903714d77335271a70804bb7dd7a191d
+commit: 84de155340ab1991d6aa494d1de96e221ae8628c
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-21
+data: 2026-10-22
 ---
 # Code review: SUITE-PARALELA-D4 (E1.2)
+
+## Rodada 3: revalidação por delta (`830bf9f..84de155`)
+
+Motivo da volta: renome autorizado pelo dono (2026-10-22 03:54) da palavra que casava o padrão de segredo em `tests/test_pre_push_trava.py`. Revisor diferente do autor (D-ETAPAS-INST).
+
+**Delta lido** (`git diff 830bf9f 84de155`): um arquivo, 15 linhas trocadas por 15. Só nomes e comentários: `senhas()` virou `vezes()`, `segura_senha()` virou `segura_vez()`, `test_senha_de_processo_morto_e_descartada` virou `test_vez_de_processo_morto_e_descartada`, a variável local `senha` virou `vez`, e três mensagens de asserção e dois comentários trocam a palavra. Nenhuma asserção removida, afrouxada ou acrescentada: cada `assert` do delta tem par com a mesma comparação e os mesmos valores; os textos que o hook emite e que os testes procuram (`esperando a vez`, `a vez não chegou`, `2 na fila`) não mudaram. Não sobrou `senha`, `senhas(` nem `segura_senha` em `tests/`. Em cópia da worktree, `python3 -m unittest tests.test_pre_push_trava` deu `Ran 25 tests in 9.302s OK`. R-VERIFY: nada pulado nem repetido.
+
+**Já lido** (inalterado desde a rodada 2, revisado nela): todo o resto da entrega, incluindo `scripts/suite-paralela.py`, `.githooks/pre-push`, `ci.yml`, `hooks/pesado.py` e os demais testes. A suíte inteira roda no pre-push deste envio (R-TETO). Os pareceres de segurança, QA e devops anteriores são sobre `36e913d`; o delta não toca código de produção, e a revalidação deles em proporção ao delta cabe a quem os deu.
+
+Recomendações R1 a R7 da rodada 1 seguem válidas e não bloqueiam. Parecer: aprovado.
 
 ## Rodada 2: revalidação por delta (`1bdd3e8..36e913d`)
 
