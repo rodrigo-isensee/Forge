@@ -20,7 +20,7 @@ class PrPorNumero(unittest.TestCase):
     setUp = base.Fechar.setUp
 
     def leituras_de_pr(self):
-        return [c for c in self.chamadas() if c.startswith("gh pr view")]
+        return [c for c in self.chamadas() if c.startswith("gh pr view") and "--json number --jq" not in c]
 
     def test_numero_do_pr_criado_vem_da_url_e_as_leituras_usam_o_numero(self):
         (self.estado / "numero_criado").write_text("12")
@@ -113,6 +113,25 @@ class PrPorNumero(unittest.TestCase):
         self.assertIn("passo 6", r.stderr)
         self.assertIn("difere do conferido", r.stderr)
         self.assertEqual(self.merges(), [])
+
+    def test_segundo_pr_do_mesmo_head_para_antes_do_ready_e_do_merge(self):
+        # RET-FECHAR-B2-V1, A1: o gh resolve o nome da branch para outro PR (o #99); as guardas leram o #9
+        (self.estado / "aberto").write_text("9 develop\n")
+        (self.estado / "numero_por_nome").write_text("99")
+        (self.estado / "pre").write_text("develop true")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("passo 6", r.stderr)
+        self.assertIn("#99", r.stderr)
+        self.assertEqual(self.merges(), [])
+        self.assertFalse([c for c in self.chamadas() if c.startswith("gh pr ready")])
+
+    def test_mesmo_numero_pelo_nome_segue_para_o_merge(self):
+        (self.estado / "aberto").write_text("9 develop\n")
+        (self.estado / "numero_por_nome").write_text("9")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.merges()), 1)
 
 
 if __name__ == "__main__":

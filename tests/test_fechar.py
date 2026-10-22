@@ -37,6 +37,7 @@ case "$1 $2" in
     # head_do_pr [arquivo]: o head que o GitHub devolve (arquivo "head" ou o da branch no remoto, que é o conferido pelo script)
     head_do_pr() { cat "$ESTADO/${1:-head}" 2>/dev/null || cat "$ESTADO/head" 2>/dev/null || git ls-remote origin "refs/heads/$(cat "$ESTADO/branch_vista" 2>/dev/null || echo melhoria/x)" | awk '{print $1}'; }
     case "$*" in
+      *"--json number --jq"*) cat "$ESTADO/numero_por_nome" 2>/dev/null || { [ -f "$ESTADO/aberto" ] && cut -d' ' -f1 "$ESTADO/aberto" || echo 7; }; exit 0 ;;
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
       *state,headRefOid,baseRefName,mergeCommit*)
         falha_n falha_estado && exit 1

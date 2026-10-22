@@ -3,3 +3,4 @@
 
 ### Corrigido
 - forge-fechar: tmp2b e dorme_pid nascem vazios no topo do script; valor herdado do ambiente não vira alvo do rm -rf nem do kill do fim (R2 do parecer de segurança do lote a)
+- forge-fechar (RET-FECHAR-B2-V1): antes do ready e do merge o passo 6 relê o número do PR pelo nome da branch e para se não for o guardado; segundo PR aberto do mesmo head não é mais mesclado sem passar pelas guardas

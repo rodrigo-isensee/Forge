@@ -663,6 +663,10 @@ if [ "$ja_mesclado" = 0 ]; then
   if [ "${pre_estado:-OPEN}" = MERGED ]; then
     echo "o PR já consta como MERGED; o merge não se repete."
   else
+    # O ready e o merge agem no PR que o gh resolve pelo nome da branch (o hook `parecer` o exige): releio por esse nome e paro se não for o pr_n guardado.
+    # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
+    por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
+    [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi
