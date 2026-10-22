@@ -1329,6 +1329,72 @@ class RotuloSobreviveAoConteudo(Base):
         self.assertIn("R-CUSTO:", r.stdout)
 
 
+class RespostaCortadaEPaginacaoSemTeto(Base):
+    """Item 3 do N-CAT1: `IncompleteRead` e páginas demais na API valem como sem rótulo, com uma linha, e nunca por rastro de pilha."""
+
+    ENV = {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7", "HEAD_SHA": "abc"}
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.dict(os.environ, self.ENV)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def corta(self, *a, **k):
+        raise http.client.IncompleteRead(b"x")
+
+    def test_resposta_cortada_vale_como_sem_dado_nas_tres_funcoes(self):
+        with mock.patch.object(catraca, "requisicao", self.corta), contextlib.redirect_stdout(io.StringIO()) as saida:
+            with self.subTest("eventos_do_github"):
+                self.assertEqual(catraca.eventos_do_github(), (None, None))
+            with self.subTest("ramo_do_pr"):
+                self.assertEqual(catraca.ramo_do_pr(), "")
+            with self.subTest("execucoes_do_pr"):
+                with mock.patch.object(catraca, "ramo_do_pr", lambda: "melhoria/x"):
+                    self.assertIsNone(catraca.execucoes_do_pr())
+        self.assertEqual(saida.getvalue().count("vale como sem rótulo."), 3, saida.getvalue())
+
+    def test_main_com_a_api_cortada_deixa_uma_linha_e_rc_1(self):
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "requisicao", self.corta), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--raiz", str(self.repo.dir), "--base", "base"])
+        self.assertEqual(rc, 1, saida.getvalue())
+        avisos = [l for l in saida.getvalue().splitlines() if l.startswith("catraca: ") and l.endswith("vale como sem rótulo.")]
+        self.assertEqual(len(avisos), 1, saida.getvalue())
+        self.assertIn("mudança em tests/catraca.py", saida.getvalue())
+
+    def paginas(self, cheias):
+        """`requisicao` falsa: `cheias` páginas de 100 itens e depois uma curta; anota as páginas pedidas."""
+        pedidas = []
+
+        def falsa(caminho, token):
+            pagina = int(caminho.rsplit("page=", 1)[1])
+            pedidas.append(pagina)
+            lote = [{"created_at": "2026-01-02T09:00:00Z", "head_sha": "abc"}] * (100 if pagina <= cheias else 1)
+            return {"workflow_runs": lote} if "runs" in caminho else lote
+        return falsa, pedidas
+
+    def test_api_acima_do_teto_de_paginas_e_none(self):
+        falsa, pedidas = self.paginas(catraca.TETO_PAGINAS + 1)
+        with mock.patch.object(catraca, "requisicao", falsa):
+            self.assertIsNone(catraca.api("/x", "t"))
+            self.assertEqual(pedidas, list(range(1, catraca.TETO_PAGINAS + 1)))
+            self.assertIsNone(catraca.api("/runs", "t", "workflow_runs"))
+
+    def test_api_no_teto_ou_abaixo_devolve_tudo(self):
+        falsa, pedidas = self.paginas(catraca.TETO_PAGINAS - 1)
+        with mock.patch.object(catraca, "requisicao", falsa):
+            self.assertEqual(len(catraca.api("/x", "t")), 100 * (catraca.TETO_PAGINAS - 1) + 1)
+
+    def test_paginas_demais_valem_como_sem_rotulo_nas_funcoes_que_usam_a_api(self):
+        falsa, _ = self.paginas(catraca.TETO_PAGINAS + 1)
+        with mock.patch.object(catraca, "requisicao", falsa), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(catraca.eventos_do_github(), (None, None))
+            with mock.patch.object(catraca, "ramo_do_pr", lambda: "melhoria/x"):
+                self.assertIsNone(catraca.execucoes_do_pr())
+
+
 class ExecucoesDoPr(unittest.TestCase):
     """Execuções do PR pela API (gratuita, só leitura): `pull_request` da branch do PR; sem dados ou com falha, None."""
 

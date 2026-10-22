@@ -573,16 +573,13 @@ def api_objeto(caminho, token):
     return requisicao(caminho, token)
 
 
+ERROS_DA_API = (OSError, ValueError, KeyError, TypeError, http.client.HTTPException)  # HTTPException inclui `IncompleteRead` (resposta cortada)
+
+
 def api(caminho, token, chave=None):
-    """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`)."""
-    itens, pagina = [], 1
-    while True:
-        lote = requisicao(f"{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}", token)
-        lote = lote[chave] if chave else lote
-        itens += lote
-        if len(lote) < 100:
-            return itens
-        pagina += 1
+    """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`). None se a lista passa de
+    TETO_PAGINAS páginas ou não é lista (`api_com_teto`): lista incompleta não decide nada."""
+    return api_com_teto(caminho, token, chave)
 
 
 def eventos_do_github():
@@ -598,7 +595,11 @@ def eventos_do_github():
     try:
         eventos = api(f"/repos/{repo}/issues/{numero}/events", token)
         execucoes = api(f"/repos/{repo}/actions/runs?head_sha={head}", token, "workflow_runs")
-    except (OSError, ValueError, KeyError, TypeError):
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
+        return None, None
+    if eventos is None or execucoes is None:
+        aviso(f"a resposta da API é incompleta ou passa de {TETO_PAGINAS} páginas")
         return None, None
     datas = [e["created_at"] for e in execucoes if e.get("head_sha", head) == head and e.get("created_at")]
     return eventos, (min(datas, key=instante) if datas else None)
@@ -612,7 +613,8 @@ def ramo_do_pr():
         return ""
     try:
         ramo = api_objeto(f"/repos/{repo}/pulls/{numero}", token)["head"]["ref"]
-    except (OSError, ValueError, KeyError, TypeError):
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
         return ""
     return ramo if isinstance(ramo, str) else ""
 
@@ -624,9 +626,13 @@ def execucoes_do_pr():
     if not ramo:
         return None
     try:
-        return api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
-    except (OSError, ValueError, KeyError, TypeError):
+        execucoes = api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
         return None
+    if execucoes is None:
+        aviso(f"a resposta da API é incompleta ou passa de {TETO_PAGINAS} páginas")
+    return execucoes
 
 
 # --- Rótulo já posto num PR mesclado (S-16) ----------------------------------------------------------------
@@ -659,7 +665,7 @@ class FonteGithub:
     def _ou_none(self, f):
         try:
             return f()
-        except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+        except ERROS_DA_API:
             return None
 
     def pr_atual(self):
