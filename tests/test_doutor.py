@@ -23,6 +23,32 @@ HOOK = RAIZ / "hooks" / "doutor.py"
 VERSAO = json.loads((RAIZ / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))["version"]
 HOJE = "2026-10-13"
 
+# `gh` falso: registra o argv e responde por endpoint. Por padrão as três branches estão protegidas; um teste troca a resposta gravando
+# `gh-<nome>` (o texto; vai ao stdout se a saída é 0, senão ao stderr) e `gh-<nome>.rc` (o código), com nome `repo`, `regras-<branch>` ou `protecao-<branch>`.
+GH_FALSO = r"""#!/usr/bin/env bash
+echo "$*" >> "@LOG@"
+H="@HOME@"
+[ -e "$H/gh-sem-login" ] && { echo "not logged in" >&2; exit 1; }
+responder() {  # nome, stdout padrão, código padrão, stderr padrão
+  if [ -e "$H/gh-$1" ]; then
+    rc=0; [ -e "$H/gh-$1.rc" ] && rc=$(cat "$H/gh-$1.rc")
+    if [ "$rc" = 0 ]; then cat "$H/gh-$1"; else cat "$H/gh-$1" >&2; fi
+    exit "$rc"
+  fi
+  [ -n "$4" ] && echo "$4" >&2
+  printf '%s' "$2"; exit "$3"
+}
+if [ "$1 $2" = "repo view" ]; then
+  responder repo '{"nameWithOwner":"dono/proj","url":"https://github.com/dono/proj"}' 0
+fi
+ep=""; for a in "$@"; do case "$a" in repos/*) ep="$a";; esac; done
+case "$ep" in
+  */rules/branches/*) responder "regras-${ep##*/}" '[{"type":"pull_request"},{"type":"required_status_checks"}]' 0 ;;
+  */branches/*/protection) b="${ep%/protection}"; responder "protecao-${b##*/}" '' 1 "gh: Branch not protected (HTTP 404)" ;;
+esac
+exit 0
+"""
+
 
 class Base(unittest.TestCase):
     def setUp(self):
@@ -33,9 +59,7 @@ class Base(unittest.TestCase):
         self.home.mkdir()
         self.bin.mkdir()
         self.gh_log = self.tmp / "gh.log"
-        (self.bin / "gh").write_text(
-            f'#!/usr/bin/env bash\necho "$*" >> {self.gh_log}\n'
-            f'[ -e "{self.home}/gh-sem-login" ] && {{ echo "not logged in" >&2; exit 1; }}\nexit 0\n', encoding="utf-8")
+        (self.bin / "gh").write_text(GH_FALSO.replace("@LOG@", str(self.gh_log)).replace("@HOME@", str(self.home)), encoding="utf-8")
         (self.bin / "gh").chmod(0o755)
         self.gitconfig = self.home / "gitconfig"
         self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")

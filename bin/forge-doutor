@@ -7,7 +7,7 @@ No modo completo também confere o relógio deste computador contra o `Date` do 
 Confere: plugin instalado e versão, `.forge/versao`, proteção do git, `gh` logado (modo completo), identidade do git,
 `.claude/settings.json` com o Jarvis, sandbox, sinais de login por token (R-CUSTO; só o nome, nunca o valor) e as branches develop e homolog. Fora de um projeto do Forge, não diz nada.
 Conserta sozinho só o que é seguro (idempotente, restaurável a partir do modelo do Forge, com cópia de segurança), num
-terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub, nem mescla, nem apaga.
+terminal e depois de um "s". O resto vira uma frase dizendo o que fazer. Nunca envia nada ao GitHub (só lê: o modo completo confere a proteção das branches), nem mescla, nem apaga.
 Saída: 0 tudo em ordem; 1 sobrou algo a ver. Só biblioteca padrão."""
 import json
 import os
@@ -316,6 +316,79 @@ def conferir_ramos(raiz):
     return problemas
 
 
+RAMOS_PROTEGIDOS = ("develop", "homolog", "main")
+REDE_FORA = r"error connecting|internet|network|timeout|timed out|dial tcp|no such host|could not resolve host|connection (refused|reset|timed)"  # sem "resolve" solto: "Could not resolve to a Repository" é o 404 do repositório
+REGRAS_QUE_PROTEGEM = ("pull_request", "required_status_checks")
+
+
+def gh_json(args, raiz):
+    """(estado, dados) de uma leitura do `gh`: `ok` com o JSON, `rede` sem conexão, `sem_protecao` no 404 de branch sem proteção,
+    `nao` em qualquer outra coisa (permissão, repositório ausente, formato inesperado). Nunca devolve texto da saída do `gh`."""
+    codigo, saida = rodar(["gh", *args], raiz)
+    if codigo is None or (codigo != 0 and re.search(REDE_FORA, saida, re.I)):
+        return "rede", None
+    if codigo != 0:
+        return ("sem_protecao" if "Branch not protected" in saida and "404" in saida else "nao"), None
+    try:
+        return "ok", json.loads(saida)
+    except ValueError:
+        return "nao", None
+
+
+def estado_da_protecao(repo, ramo, raiz):
+    """`protegida`, `sem` (sem proteção), `nao` (não consegui conferir) ou `rede`. Só leitura, `--method GET`, endpoints fixos."""
+    estado, regras = gh_json(["api", "--method", "GET", f"repos/{repo}/rules/branches/{ramo}"], raiz)
+    if estado != "ok":
+        return estado if estado == "rede" else "nao"
+    if not isinstance(regras, list) or not all(isinstance(r, dict) for r in regras):
+        return "nao"
+    if any(r.get("type") in REGRAS_QUE_PROTEGEM and r.get("enforcement", "active") == "active" for r in regras):
+        return "protegida"
+    estado, classica = gh_json(["api", "--method", "GET", f"repos/{repo}/branches/{ramo}/protection"], raiz)
+    if estado == "rede":
+        return "rede"
+    if estado == "sem_protecao":
+        return "sem"
+    if estado != "ok" or not isinstance(classica, dict) or "url" not in classica:
+        return "nao"
+    return "protegida" if isinstance(classica.get("required_pull_request_reviews"), dict) \
+        or isinstance(classica.get("required_status_checks"), dict) else "sem"
+
+
+def conferir_protecao_github(raiz):
+    """Só no modo completo (usa a rede): `develop`, `homolog` e `main` têm regra de PR ou de checks obrigatórios no GitHub? Só leitura;
+    três estados (protegida = silêncio, sem proteção = aviso, não consegui conferir = frase explícita); sem rede = silêncio."""
+    if conferir_gh(raiz):  # sem `gh` ou sem login, quem avisa é a conferência de cima
+        return []
+    nao_consegui = Problema("Não consegui conferir se as branches estão protegidas no GitHub (sem permissão, outro endereço ou resposta "
+                            "inesperada): confira à mão em Settings > Branches do repositório.")
+    if os.environ.get("GH_HOST", "github.com") != "github.com":
+        return [nao_consegui]
+    estado, dados = gh_json(["repo", "view", "--json", "nameWithOwner,url"], raiz)
+    if estado == "rede":
+        return []
+    nome = dados.get("nameWithOwner") if estado == "ok" and isinstance(dados, dict) else None
+    url = dados.get("url") if estado == "ok" and isinstance(dados, dict) else None
+    segmentos = nome.split("/") if isinstance(nome, str) and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", nome) else []
+    if len(segmentos) != 2 or any(sg.startswith("-") or set(sg) == {"."} for sg in segmentos) \
+            or not (isinstance(url, str) and url.startswith("https://github.com/")):
+        return [nao_consegui]
+    codigo, saida = rodar(["git", "for-each-ref", "--format=%(refname)", "refs/remotes/origin"], raiz)
+    no_remoto = set(saida.splitlines()) if codigo == 0 else set()
+    problemas, duvida = [], False
+    for ramo in RAMOS_PROTEGIDOS:
+        if f"refs/remotes/origin/{ramo}" not in no_remoto:
+            continue  # branch que não existe no remoto: `conferir_ramos` já cuida dela
+        resultado = estado_da_protecao(nome, ramo, raiz)
+        if resultado == "rede":
+            return []
+        duvida = duvida or resultado == "nao"
+        if resultado == "sem":
+            problemas.append(Problema(f"A branch {ramo} no GitHub está sem proteção: um merge sem os checks fica possível. "
+                                      "Peça ao dono do repositório para configurá-la, seguindo a skill `ci-cd`."))
+    return problemas + ([nao_consegui] if duvida else [])
+
+
 def diagnosticar(raiz, rapido=True):
     """Lista de Problema do projeto em `raiz`. `rapido` dispensa o `gh` (rede)."""
     codigo, saida = rodar(["git", "config", "--list"], raiz)
@@ -331,6 +404,8 @@ def diagnosticar(raiz, rapido=True):
         problemas += conferir_relogio()
     if codigo is not None:
         problemas += conferir_identidade(config_git)
+    if not rapido:
+        problemas += conferir_protecao_github(raiz)
     problemas += conferir_settings(raiz) + conferir_sandbox(raiz) + conferir_ramos(raiz)
     problemas += conferir_custo(raiz)
     if codigo is None:
