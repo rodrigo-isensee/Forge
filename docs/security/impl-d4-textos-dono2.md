@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-d4-textos-dono2
 branch: melhoria/impl-d4-textos-dono2
-commit: be4a398e9898e6bada9a7a9f1967a6d830d0626c
+commit: 832649c3b42360e4d1fb9285d7711d4c4166022f
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-10-22
+data: 2026-10-23
 ---
 # Review de segurança: RET-TEXTOS-DONO2
 
@@ -33,3 +33,10 @@ Recomendação (informativa, sem caminho de ataque com ganho; não bloqueia): `g
 - Riscos aceitos: nenhum.
 - Ferramentas: leitura estática do diff; `python3 -m unittest tests.test_textos_dono_f10 tests.test_textos_dono_f7` (5 testes, OK); `python3 scripts/suite-paralela.py` (1599 testes: todas as fixtures de `vigia/` passam; 4 falhas, `test_hooks` em `conformidade/contrib-falha-fechada-pela-raiz-cwd-{home,wt}-bloqueia` e `test_erro_interno_com_lista_de_permissao_falha_fechado`, e `test_pre_push_shellcheck.test_shellcheck_no_hook`, que falham igual na base `38c58247` e vêm do ambiente, não desta branch); medição de tempo da regex `_ITEM`.
 - Lacunas: `gitleaks` e `semgrep` não estão no PATH; a varredura de segredos das fixtures fica para o CI. Pela leitura, as fixtures só trazem textos de exemplo, sem credencial.
+
+## Revalidação por delta (REVAL-288)
+Delta `be4a398..832649c` (o parecer anterior vale para `be4a398`): merge da `develop` `7423c44` (PR #288, FIX-SUITE-LOCAL e os registros da 0.28.0), alinhamento do `pedido:` e pareceres de review e QA. Decisão do dono "C" (2026-10-23): revalidar por delta, sem afrouxar. Os arquivos que o parecer cobre (`hooks/vigia.py`, `agents/jarvis.md`, `docs/regras/R-DECISAO.md`, as fixtures de `tests/hooks/vigia/`) não aparecem no delta.
+- `.githooks/pre-push:242`: só a diretiva de shellcheck (`SC2317,SC2329`); sem mudança de comportamento.
+- `tests/apoio_pathlib_312/sitecustomize.py` (novo), `tests/test_hooks.py:56-57,362-363,1046` e as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`: o `PYTHONPATH` com o `sitecustomize` só é posto pelos testes, no processo do hook de teste; o módulo restaura a semântica de `Path.exists/is_dir/is_file` da 3.12 (re-levanta `OSError` fora de ENOENT/ENOTDIR/EBADF/ELOOP); não é lido em produção. Sem caminho de ataque, sem rede, sem segredo.
+- `changelog.d/*`, `docs/reviews|qa|security/*`: só documentação.
+Superfície de segurança da branch inalterada. Veredito: aprovado, sem achado novo; a recomendação informativa acima segue valendo. Ferramentas: `forge-check delta` e leitura estática; `gitleaks` e `semgrep` fora do PATH (lacuna igual à anterior).
