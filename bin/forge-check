@@ -18,6 +18,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
      forge-check esperas [--pedido ID]
+     forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
      forge-check escape resumo [--dias N]
      forge-check corrigidos [--ref REF] [--dias N]
@@ -39,6 +40,9 @@ mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os 
 `escape registrar` (M14b) grava em docs/kanban/escapes.md, em formato fixo e com a hora real, o defeito escapado (bug achado depois do parecer
 final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava); `escape resumo`
 (só leitura) conta por gravidade e por controle e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
+`afrouxamentos` (M14b; só leitura, sem rede) roda a catraca (`tests/catraca.py`) sobre o diff de cada PR rotulado `afrouxa-regra` (o commit dele na linha da `--ref`
+contra o primeiro pai) e diz `real` (violação de conteúdo: regra piorada), `so-protegido` (só edição de controle protegido, que o rótulo libera sem afrouxar),
+`sem-violacao` (o rótulo não era exigido), `sem-commit` ou `erro-git`; os números vêm de `--prs` ou de `--rotulados` (JSON do `gh pr list`, gerado fora).
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -2250,6 +2254,87 @@ def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
     return 0
 
 
+# ---- M14b: dos PRs com o rótulo `afrouxa-regra`, quantos afrouxavam regra de verdade (a catraca sobre o diff de cada PR) ----
+TETO_DOS_ROTULADOS = 1024 * 1024
+
+
+def carregar_catraca():
+    """O módulo `tests/catraca.py` da cópia em uso do Forge (a mesma decisão do CI sobre o que o rótulo libera); None se não carrega."""
+    import importlib.util
+    arquivo = PLUGIN / "tests" / "catraca.py"
+    try:
+        spec = importlib.util.spec_from_file_location("forge_catraca", arquivo)
+        modulo = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(modulo)
+        return modulo
+    except (OSError, ImportError, SyntaxError, AttributeError):
+        return None
+
+
+def numeros_dos_rotulados(prs, arquivo):
+    """Números de PR de `--prs 1,2,3` e/ou de um JSON de `gh pr list --label afrouxa-regra --state all --json number` (lista de objetos com
+    `number`); levanta ValueError com o campo (nunca o valor) se algo não é número ou o arquivo não lê."""
+    numeros = []
+    if prs:
+        pedacos = [x.strip().lstrip("#") for x in prs.split(",")]
+        if not all(re.fullmatch(r"\d{1,6}", x) for x in pedacos):
+            raise ValueError("--prs deve ser uma lista de números de PR separados por vírgula")
+        numeros += [int(x) for x in pedacos]
+    if arquivo:
+        try:
+            with open(arquivo, "rb") as f:
+                dados = f.read(TETO_DOS_ROTULADOS + 1)
+            if len(dados) > TETO_DOS_ROTULADOS:
+                raise ValueError(f"--rotulados passa de {TETO_DOS_ROTULADOS} bytes")
+            itens = json.loads(dados.decode("utf-8"))
+            numeros += [i["number"] for i in itens]
+        except (OSError, UnicodeDecodeError, KeyError, TypeError):
+            raise ValueError("--rotulados deve ser um arquivo JSON legível com uma lista de objetos com `number`") from None
+        except json.JSONDecodeError:
+            raise ValueError("--rotulados não é JSON") from None
+        if not all(isinstance(n, int) and not isinstance(n, bool) and n > 0 for n in numeros):
+            raise ValueError("--rotulados: `number` deve ser inteiro positivo")
+    if not numeros:
+        raise ValueError("informe --prs ou --rotulados")
+    return list(dict.fromkeys(numeros))
+
+
+def cmd_afrouxamentos(raiz, ref, prs, arquivo):
+    """Classifica cada PR rotulado, pela catraca sobre o diff do commit dele contra o primeiro pai: `real` (alguma violação de conteúdo: regra
+    piorada, invariante removido, limite subido...), `so-protegido` (só "mudança em <arquivo protegido>": o rótulo era exigido para editar um
+    controle, sem afrouxá-lo), `sem-violacao` (o rótulo não era exigido), `sem-commit` (o PR não está na linha da ref) ou `erro-git`. Só leitura."""
+    try:
+        numeros = numeros_dos_rotulados(prs, arquivo)
+    except ValueError as erro:
+        print(f"afrouxamentos: {erro}")
+        return 2
+    sha, nome = resolver_ref(raiz, ref)
+    commits = commits_da_ref(raiz, sha) if sha else None
+    catraca = carregar_catraca()
+    if commits is None or catraca is None:
+        print(f"afrouxamentos: {'ref ' + nome_seguro(sem_controle(nome)) + ' não existe ou o git falhou' if commits is None else 'não carreguei tests/catraca.py'}")
+        return 1
+    por_pr = {c["pr"]: c for c in commits if c["pr"] is not None}
+    contagem = {"real": 0, "so-protegido": 0, "sem-violacao": 0, "sem-commit": 0, "erro-git": 0}
+    for n in numeros:
+        c = por_pr.get(n)
+        if c is None or git(raiz, "rev-parse", "--verify", "--quiet", f"{c['sha']}^")[0]:
+            veredito, regras = "sem-commit", []
+        else:
+            violacoes = catraca.violacoes_das_regras(Path(raiz), f"{c['sha']}^", c["sha"])
+            de_conteudo = [v for v in violacoes if catraca.arquivo_da_violacao(v) is None]
+            if any(catraca.NAO_LIBERAVEL in v for v in violacoes):
+                veredito = "erro-git"
+            else:
+                veredito = "real" if de_conteudo else "so-protegido" if violacoes else "sem-violacao"
+            regras = sorted({v.split(":", 1)[0] for v in de_conteudo if re.fullmatch(r"R-[A-Z]+", v.split(":", 1)[0])})
+        contagem[veredito] += 1
+        print(f"afrouxamentos: #{n} {veredito}" + (f" regras={','.join(regras)}" if regras else ""))
+    print(f"afrouxamentos: total: rotulados={len(numeros)} real={contagem['real']} so-protegido={contagem['so-protegido']} "
+          f"sem-violacao={contagem['sem-violacao']} sem-commit={contagem['sem-commit']} erro-git={contagem['erro-git']} ref={sha[:7]}")
+    return 0
+
+
 def carregar_politica():
     """Lê `hooks/conformidade.json` como dado (papéis, ações, caminhos); vazio se não existir ou for inválido."""
     try:
@@ -4338,6 +4423,10 @@ def main():
     er.add_argument("--nota", required=True, help="uma linha: o que escapou")
     eu = esub.add_parser("resumo", parents=[comum], help="escapes por gravidade e controle e a taxa sobre os pedidos prontos; só leitura")
     eu.add_argument("--dias", type=int, default=JANELA_DE_ESCAPES, help=f"janela em dias (padrão {JANELA_DE_ESCAPES})")
+    af = sub.add_parser("afrouxamentos", parents=[comum], help="dos PRs com o rótulo afrouxa-regra, quantos afrouxavam regra de verdade (a catraca sobre o diff de cada um); só leitura (M14b)")
+    af.add_argument("--prs", help="números dos PRs rotulados, separados por vírgula")
+    af.add_argument("--rotulados", help="JSON de `gh pr list --label afrouxa-regra --state all --limit 500 --json number` (a lista é lida do disco; o forge-check não chama o GitHub)")
+    af.add_argument("--ref", help="branch ou commit onde estão os PRs mesclados (padrão: origin/develop, develop ou HEAD)")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
@@ -4429,6 +4518,8 @@ def executar(a, raiz):
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("escape:") else 0
+    if a.cmd == "afrouxamentos":
+        return cmd_afrouxamentos(raiz, a.ref, a.prs, a.rotulados)
     if a.cmd == "esperas":
         return cmd_esperas(raiz, a.pedido)
     if a.cmd == "corrigidos":

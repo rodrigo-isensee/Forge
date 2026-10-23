@@ -293,5 +293,55 @@ class DefeitoEscapado(Raiz):
         self.assertEqual(saida[-1], "escapes: total: escapes=0 pedidos_prontos=0 taxa=- dias=7")
 
 
+class RotulosAfrouxaRegraQueEramReais(RepositorioDeTeste):
+    """`forge-check afrouxamentos`: a catraca, a mesma do CI, sobre o diff de cada PR rotulado."""
+
+    def setUp(self):
+        super().setUp()
+        self.iniciar()
+        config = {"dono": "dono-do-forge", "invariantes": {"agents/a.md": ["regra importante", "outra regra"]}}
+        self.commitar("chore: base", {"tests/config.json": json.dumps(config), "agents/a.md": "regra importante\noutra regra\n",
+                                      "tests/catraca.py": "# controle\n"}, "2026-10-10")
+        self.commitar("docs(x): texto novo (#20)", {"docs/x.md": "oi\n"}, "2026-10-11")
+        config["invariantes"]["agents/a.md"] = ["regra importante"]
+        self.commitar("refactor(a): tira uma regra (#21)", {"tests/config.json": json.dumps(config)}, "2026-10-12")
+        self.commitar("fix(catraca): ajuste (#22)", {"tests/catraca.py": "# controle\n# ajustado\n"}, "2026-10-13")
+
+    def afrouxamentos(self, *args):
+        cod, linhas, _ = self.rodar("afrouxamentos", *args)
+        return cod, linhas
+
+    def test_classifica_real_so_protegido_sem_violacao_e_sem_commit(self):
+        cod, linhas = self.afrouxamentos("--prs", "20,21,22,#23")
+        self.assertEqual(cod, 0, linhas)
+        self.assertEqual(linhas[:4], ["afrouxamentos: #20 sem-violacao", "afrouxamentos: #21 real regras=R-CONFORMIDADE",
+                                      "afrouxamentos: #22 so-protegido", "afrouxamentos: #23 sem-commit"])
+        self.assertRegex(linhas[4], r"^afrouxamentos: total: rotulados=4 real=1 so-protegido=1 sem-violacao=1 sem-commit=1 erro-git=0 ref=[0-9a-f]{7}$")
+
+    def test_le_o_json_do_gh_e_repetido_conta_uma_vez(self):
+        self.gravar("rotulados.json", json.dumps([{"number": 21, "title": "x"}, {"number": 20}, {"number": 21}]))
+        cod, linhas = self.afrouxamentos("--rotulados", str(self.tmp / "rotulados.json"), "--prs", "22")
+        self.assertEqual(cod, 0, linhas)
+        self.assertIn("rotulados=3 real=1 so-protegido=1 sem-violacao=1", linhas[-1])
+
+    def test_entrada_ruim_rc_2_sem_gravar_nada_e_sem_ecoar_o_valor(self):
+        self.gravar("ruim.json", "{nao e json")
+        self.gravar("sem-numero.json", json.dumps([{"id": 1}]))
+        self.gravar("negativo.json", json.dumps([{"number": -4}]))
+        for args in (("--prs", "20,abc"), ("--prs", "20\nresultado: ok"), (), ("--rotulados", str(self.tmp / "ruim.json")),
+                     ("--rotulados", str(self.tmp / "sem-numero.json")), ("--rotulados", str(self.tmp / "negativo.json")),
+                     ("--rotulados", str(self.tmp / "nao-existe.json"))):
+            with self.subTest(args):
+                cod, linhas = self.afrouxamentos(*args)
+                self.assertEqual(cod, 2, linhas)
+                self.assertEqual(len(linhas), 1, linhas)
+                self.assertNotIn("resultado: ok", linhas[0])
+
+    def test_ref_inexistente_rc_1(self):
+        cod, linhas = self.afrouxamentos("--prs", "20", "--ref", "nao-existe")
+        self.assertEqual(cod, 1)
+        self.assertTrue(linhas[0].startswith("afrouxamentos: ref"), linhas)
+
+
 if __name__ == "__main__":
     unittest.main()
