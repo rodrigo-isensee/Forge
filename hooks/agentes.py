@@ -7,16 +7,20 @@ PreToolUse (Agent/Task): bloqueia qualquer disparo com load >= 0,8 x nproc ou Me
 bloqueia também se já há o teto de agentes ativos ou um ativo com o mesmo tipo e descrição;
 senão reserva a vaga. `FORGE_CARGA_LIVRE=1` no ambiente do processo (só o dono) pula só a trava de carga
 (teto e duplicado seguem; o uso fica no erros.log). SubagentStart confirma a reserva com o agent_id; SubagentStop libera a vaga.
-Estado em .forge/run/agentes.json; registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
+Estado em .forge/run/agentes.json; no clone do Forge e nas worktrees dele (onde `.forge` é um arquivo, não uma pasta),
+em <diretório comum do git>/forge/run/agentes.json: protegido pela conformidade só nas sessões de projeto, no Forge sem guarda
+de escrita; `hooks_desligados` não vale no clone. Registros expiram (reserva sem início: 5 min; agente: expiracao_horas).
 O registro leva o PID da sessão do Claude Code, o namespace de PID e o session_id: com a sessão morta (PID inexistente, no mesmo
 namespace) a vaga sai na hora, sem esperar o prazo. Qualquer dúvida (tipo, faixa, namespace, erro) mantém o registro.
 """
+import hashlib
 import os
 import re
+import stat
 import time
 from pathlib import Path
 
-from _comum import RESERVA, bloquear, executar, gravar_json, ler_json
+from _comum import (RESERVA, Hook, bloquear, diretorio_comum, e_clone_do_forge, executar, gravar_json, ler_json)
 from pesado import CASCAS, pid_da_sessao, pid_vivo
 
 FERRAMENTAS = {"Agent", "Task"}
@@ -165,10 +169,45 @@ def vigentes(agentes, agora, expira_s):
     return saida
 
 
+def pasta_de_estado_do_clone(raiz):
+    """`<diretório comum>/forge/run/` do clone do Forge (cópia principal ou worktree), ou None sem diretório comum."""
+    comum = diretorio_comum(raiz)
+    return None if comum is None else comum / "forge" / "run"
+
+
+def arquivo_de_estado(raiz):
+    """Caminho do `agentes.json` da `raiz` (topo de uma cópia de trabalho): num clone do Forge, o do diretório comum do git
+    (`pasta_de_estado_do_clone`; None se não houver); num projeto, o `.forge/run/` da cópia principal. Só consulta o disco e o git."""
+    raiz = Path(raiz)
+    if e_clone_do_forge(raiz):
+        pasta = pasta_de_estado_do_clone(raiz)
+        return None if pasta is None else pasta / "agentes.json"
+    hook = Hook("agentes")
+    hook.raiz = raiz
+    return hook.copia_principal() / ".forge" / "run" / "agentes.json"
+
+
+def fixar_estado_do_clone(hook, raiz):
+    """No clone do Forge, o `Hook.run()` (`<cópia principal>/.forge/run`) não existe: `.forge` é um arquivo. O estado vai
+    para o diretório comum (pasta 0700, com `.gitignore` de `*`), que as worktrees dividem. False sem diretório comum."""
+    pasta = pasta_de_estado_do_clone(raiz)
+    if pasta is None:
+        return False
+    hook._run = pasta  # antes do mkdir: se falhar, o erro ainda tenta o erros.log na mesma pasta
+    pasta.mkdir(mode=0o700, parents=True, exist_ok=True)
+    ignorar = pasta / ".gitignore"
+    if not ignorar.exists():
+        ignorar.write_text("*\n", encoding="utf-8")
+    return True
+
+
 CONFERENTE = "forge:conferente"
 MODO_DA_MENSAGEM = re.compile(r"modo: (brief|entrega)[ \t]*")
 ARQUIVO_DA_MENSAGEM = re.compile(r"^Arquivo:[ \t]*.*docs/briefs/\S.*$", re.M)
 HASH_DA_MENSAGEM = re.compile(r"^Brief-sha256:[ \t]*[0-9a-f]{64}(?![0-9A-Za-z])", re.M)
+VALOR_DO_HASH = re.compile(r"Brief-sha256:[ \t]*([0-9a-f]{64})(?![0-9A-Za-z])")
+ABRE_BLOCO = "<<<BRIEF"
+LIMITE_DO_BRIEF = 256 * 1024  # limite técnico: o mesmo do `forge-check brief mensagem`
 
 
 def mensagem_sem_forma(prompt):
@@ -185,6 +224,52 @@ def mensagem_sem_forma(prompt):
     return "; ".join(faltas) or None
 
 
+def raizes_de_brief(hook):
+    """`docs/briefs/` (caminho real) da raiz da sessão e de `~/.forge-contrib`, onde o Jarvis do Forge guarda os briefs."""
+    return [Path(os.path.realpath(base)) / "docs" / "briefs" for base in (hook.raiz, Path.home() / ".forge-contrib")]
+
+
+def ler_brief(hook, caminho):
+    """Bytes do brief `caminho` (relativo ao cwd do evento), ou None: fora de `docs/briefs/` (`realpath`, com atalhos e `..`
+    resolvidos), não é arquivo regular (FIFO, dispositivo) ou passa de 256 KiB. Confere o tipo antes de abrir, abre sem bloquear
+    e confere de novo no descritor; lê no máximo o limite mais 1 byte."""
+    real = os.path.realpath(hook.cwd() / caminho)
+    if not any(base in Path(real).parents for base in raizes_de_brief(hook)):
+        return None
+    if not stat.S_ISREG(os.lstat(real).st_mode):
+        return None
+    descritor = os.open(real, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(descritor, "rb") as arquivo:
+        if not stat.S_ISREG(os.fstat(arquivo.fileno()).st_mode):
+            return None
+        dados = arquivo.read(LIMITE_DO_BRIEF + 1)
+    return dados if len(dados) <= LIMITE_DO_BRIEF else None
+
+
+def hash_do_brief_diverge(hook, prompt):
+    """R-BRIEF, o hash: por que a mensagem ao conferente não bate com o arquivo, ou None. Só o CABEÇALHO (antes da primeira
+    linha `<<<BRIEF`) vale: exatamente uma `Arquivo:` e uma `Brief-sha256:`; `Arquivo:` e `Brief-sha256:` no corpo e nos
+    blocos seguintes não contam (o Jarvis manda um brief só). Erro ao ler o arquivo bloqueia, só nesta mensagem."""
+    cabecalho = []
+    for linha in str(prompt or "").splitlines():
+        if linha.startswith(ABRE_BLOCO):
+            break
+        cabecalho.append(linha)
+    arquivos = [l[len("Arquivo:"):].strip() for l in cabecalho if l.startswith("Arquivo:")]
+    hashes = [l for l in cabecalho if l.startswith("Brief-sha256:")]
+    if len(arquivos) != 1 or len(hashes) != 1 or not VALOR_DO_HASH.match(hashes[0]):
+        return "o cabeçalho precisa de uma só linha `Arquivo:` e uma só `Brief-sha256:`"
+    try:
+        dados = ler_brief(hook, arquivos[0])
+    except (OSError, ValueError, RuntimeError):  # RuntimeError: sem HOME para achar ~/.forge-contrib
+        dados = None
+    if dados is None:
+        return "o brief não está em docs/briefs/, não é arquivo regular, passa de 256 KiB ou não abriu"
+    if hashlib.sha256(dados).hexdigest() != VALOR_DO_HASH.match(hashes[0]).group(1):
+        return "o hash do brief não bate com o arquivo"
+    return None
+
+
 def lancar(hook, agentes, agora):
     entrada = hook.campo("tool_input") or {}
     tipo = str(entrada.get("subagent_type") or "general-purpose")
@@ -192,6 +277,9 @@ def lancar(hook, agentes, agora):
     if faltas:
         bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a inteira; "
                             f"faltou: {faltas}.")
+    divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
+    if divergencia:
+        bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a inteira.")
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:
@@ -243,7 +331,8 @@ def principal(hook):
     evento = hook.campo("hook_event_name")
     if evento not in EVENTOS or (evento == "PreToolUse" and hook.campo("tool_name") not in FERRAMENTAS):
         return
-    if not hook.projeto(hook.cwd()):
+    raiz = hook.projeto(hook.cwd(), clone_do_forge=True)
+    if raiz is None or (e_clone_do_forge(raiz) and not fixar_estado_do_clone(hook, raiz)):
         return
     with hook.trava():
         arquivo = hook.run() / "agentes.json"
