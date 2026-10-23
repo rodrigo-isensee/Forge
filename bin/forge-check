@@ -635,6 +635,7 @@ ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
+BASE_DO_DONO = re.compile(r"^\s*-\s.*\bbase do delta fixada pelo dono ([0-9a-f]{40})\b")  # decisão do dono, só dentro de `## Histórico` (CONF-BASE-DONO)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
 
 
@@ -727,12 +728,25 @@ def conferidas_do_pedido(texto):
     return [m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := CONFERIDA.match(linha))]
 
 
+def bases_do_pedido(texto):
+    """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
+    delta fixada pelo dono (`base do delta fixada pelo dono <sha40>`, origem `dono`)."""
+    achadas = []
+    for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
+        for expressao, origem in ((CONFERIDA, "conferida"), (BASE_DO_DONO, "dono")):
+            if m := expressao.match(linha):
+                achadas.append((m.group(1), origem))
+                break
+    return achadas
+
+
 def desde_valido(raiz, texto, head, base_sha):
-    """O único `--desde` aceito: a `conferida` mais recente do pedido que é ancestral do head e trabalho da branch (não é
-    ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica adiante de uma entrega conferida antes dele)."""
-    candidatas = [c for c in conferidas_do_pedido(texto)
+    """O único `--desde` aceito: (sha40, origem) da linha mais recente do pedido (`conferida` ou base fixada pelo dono) que é
+    ancestral do head e trabalho da branch (não é ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica
+    adiante de uma entrega conferida antes dele); (None, None) se nenhuma serve."""
+    candidatas = [(c, o) for c, o in bases_do_pedido(texto)
                   if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]
-    return candidatas[-1] if candidatas else None
+    return candidatas[-1] if candidatas else (None, None)
 
 
 def pedido_na_entrega(raiz, desde, head, base_ref):
@@ -818,6 +832,25 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
     return linhas
 
 
+def diferem_dos_dois_pais(raiz, de, head, base_ref):
+    """`(arquivos,)` que o `head` muda contra cada um dos pais quando o head é um commit de integração (dois pais) e todo
+    commit próprio do intervalo `de..head` (fora da base) é também de integração; senão None. É o que `git show --cc` mostra: a
+    integração limpa não tem escopo próprio; com conflito resolvido, só os arquivos resolvidos (CONF-BASE-DONO)."""
+    cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    partes = pais.split() if not cod else []
+    if len(partes) != 3:
+        return None
+    extra = ["--not", base_ref] if base_ref else []
+    cod, proprios = git(raiz, "log", "--no-merges", "--format=%H", f"{de}..{head}", *extra)
+    if cod or proprios:
+        return None
+    comuns = None
+    for pai in partes[1:]:
+        nomes = set(nomes_do_intervalo(raiz, pai, head))
+        comuns = nomes if comuns is None else comuns & nomes
+    return (comuns,)
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     caminho = caminho_do_pedido(raiz, pedido)
@@ -838,11 +871,11 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     base_ref = sha_do_commit(raiz, f"refs/remotes/origin/{base}") or sha_do_commit(raiz, f"refs/heads/{base}")
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
-    valido = None
+    valido, origem_da_base = None, None
     if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:
         linhas.append(("escopo: --desde fora da etapa", True))
     elif desde is not None:
-        valido = desde_valido(raiz, texto, head, base_sha)
+        valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
         if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
             valido = None
             linhas.append(("escopo: --desde sem conferência anterior", True))
@@ -851,6 +884,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             linhas.append(("escopo: --desde gravado na própria entrega", True))
     de = valido or base_sha
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
+    informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
+    if dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref):  # E2: só integração na branch
+        arquivos = [n for n in arquivos if n in dos_dois_pais[0]]
+        informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
@@ -858,6 +895,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         arquivos = [n for n in arquivos if n in diferem]
     contagens = contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None)
     registros = autorias(raiz)
+    linhas += informativas
     if not arquivos:
         linhas.append(("pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit", True)
                       if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))

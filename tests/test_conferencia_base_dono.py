@@ -94,7 +94,7 @@ class IntegracaoNaBranch(Repositorio):
     def test_integracao_limpa_nao_tem_escopo_proprio(self):
         self.integrar()
         self.gravar_pedido([self.c1])
-        rc, saida = self.entrega(desde=self.c1)
+        rc, saida = self.entrega(desde=self.c1, etapa="review")  # na etapa codigo o intervalo sem arquivo segue pendente
         self.assertEqual(rc, 0, saida)
         self.assertEqual(saida.splitlines(), [f"intervalo: {self.c1}..{self.m}",
                                               "escopo: integração da base (o que difere dos dois pais)",
