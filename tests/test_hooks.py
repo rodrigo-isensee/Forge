@@ -1591,11 +1591,13 @@ class Hooks(unittest.TestCase):
         _comum, _, _ = modulos_dos_hooks()
         lidos = ("cat <<'EOF'", "x=$(cat <<'EOF'", "gh pr create --draft --body \"$(cat <<'EOF'",
                  "gh pr create --draft --body-file - <<'EOF'", "git commit -F - <<'EOF'", "git -C d commit -F - <<EOF",
-                 "cat <<'EOF' > x 2>&1", "cat <<EOF | tee x", "GH_REPO=a/b gh issue create -F - <<EOF")
+                 "cat <<'EOF' > x 2>&1", "cat <<EOF | tee x", "gh issue create -F - <<EOF")
         executados = ("bash <<'EOF'", "source /dev/stdin <<'EOF'", ". /dev/stdin <<'EOF'", "ksh <<'EOF'",
                       "eval \"$(cat <<'EOF'", "cat <<'EOF' | sh", "done <<'EOF'", "sudo tee x <<'EOF'",
                       "git -c alias.x=!sh x <<'EOF'", "gh x <<'EOF'", "/bin/cat <<'EOF'", "xargs -0 <<'EOF'",
-                      "python3 - <<'EOF'", "sort -S 1k --compress-program=sh <<'EOF'")
+                      "python3 - <<'EOF'", "sort -S 1k --compress-program=sh <<'EOF'",
+                      # M4 da volta única: a atribuição antes do dono muda o programa ou o que ele roda
+                      "GH_REPO=a/b gh issue create -F - <<EOF", "PATH=/tmp/x cat <<'EOF'")
         for dono in lidos:
             with self.subTest(dono=dono):
                 self.assertTrue(_comum.corpo_so_lido(dono))

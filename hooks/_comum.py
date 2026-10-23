@@ -892,9 +892,9 @@ class DonosDosHeredocs:
         programas = programas_e_atribuicoes(resto)
         self.muda_o_ambiente = any(p in MUDAM_O_AMBIENTE for p, _, _ in programas)
         self.grava = grava_arquivo(resto)
-        # cada programa com os argumentos (só o nome, se tem atribuição antes), ou todos se o texto muda o ambiente;
-        # com o texto gravando, todo `git` (o `git` sem subcomando, que nenhum leitor aceita, fecha `git commit`)
-        self.fora_do_texto = [(p, citar(p) if atribuicoes else " ".join(map(citar, [p, *argumentos])))
+        # cada programa com o comando simples dele (a atribuição antes conta, M4), ou todos se o texto muda o
+        # ambiente; com o texto gravando, todo `git` (o `git` sem subcomando, que nenhum leitor aceita, fecha `git commit`)
+        self.fora_do_texto = [(p, " ".join(map(citar, [*atribuicoes, p, *argumentos])))
                               for p, argumentos, atribuicoes in programas
                               if self.muda_o_ambiente or (self.grava and p == "git")
                               or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
@@ -1386,10 +1386,12 @@ def le_o_corpo(programa, argumentos, tambem=nenhum):
 def corpo_so_lido(dono, tambem=nenhum):
     """O corpo de heredoc do comando `dono` (`DonosDosHeredocs`) só é lido como texto: o dono tem programa provado
     (M2: sem programa, como em `(2>&1 bash)` lido sem o `bash`, não só lê) e todo comando dele é um leitor
-    (`le_o_corpo`). Senão, o corpo é conferido como comando. O resultado fica guardado: os heredocs de um mesmo dono (o
-    mesmo texto) são conferidos uma vez só."""
+    (`le_o_corpo`), sem atribuição antes no mesmo comando simples (M4: `PATH=/tmp/x cat`, `GIT_CONFIG_COUNT=1 … git
+    commit` mudam o programa ou o que ele roda). Senão, o corpo é conferido como comando. O resultado fica guardado: os
+    heredocs de um mesmo dono (o mesmo texto) são conferidos uma vez só."""
     programas = programas_e_atribuicoes(dono)
-    return bool(programas) and all(le_o_corpo(programa, argumentos, tambem) for programa, argumentos, _ in programas)
+    return bool(programas) and all(not atribuicoes and le_o_corpo(programa, argumentos, tambem)
+                                   for programa, argumentos, atribuicoes in programas)
 
 
 def construcao_nao_modelada(linha):

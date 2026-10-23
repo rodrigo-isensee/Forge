@@ -100,7 +100,7 @@
     {"id": "V4a", "classe": "V", "comando": "cat > x.sh <<'EOF' && git push --receive-pack='sh x.sh' origin feature/x\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
     {"id": "V4b", "classe": "V", "comando": "cat > x.sh <<'EOF' && git push --rec='sh x.sh' origin feature/x\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
     {"id": "V4c", "classe": "V", "comando": "cat > x.sh <<'EOF' && git -C . push --exec='sh x.sh' origin feature/x\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
-    {"id": "V5", "classe": "V", "comando": "PATH=/tmp/x:/usr/bin cat <<'EOF'\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2, "fecha": "M4"},
+    {"id": "V5", "classe": "V", "comando": "PATH=/tmp/x:/usr/bin cat <<'EOF'\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
     {"id": "V6", "classe": "V", "comando": "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.hooksPath GIT_CONFIG_VALUE_0=.husky git commit -F - <<'EOF'\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
     {"id": "V7", "classe": "V", "comando": "git -c core.hooksPath=.husky commit -F - <<'EOF'\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
     {"id": "V8a", "classe": "V", "comando": "alias cat=bash\ncat <<'EOF'\n{CORPO}\nEOF", "conformidade": 2, "parecer": 2},
@@ -128,7 +128,7 @@
     {"id": "F6b", "classe": "F", "comando": "git diff --stat\ngit commit -F - <<'EOF'\nit's\nEOF", "conformidade": 2, "parecer": null},
     {"id": "F7a", "classe": "F", "comando": "cat > docs/reviews/x.md <<'EOF'\ntexto\nEOF\ngit add docs/reviews/x.md", "conformidade": 2, "parecer": null},
     {"id": "F7b", "classe": "F", "comando": "cat > notas.md <<'EOF'\nrodar git pull antes\nEOF\ngit add notas.md", "conformidade": null, "parecer": 2},
-    {"id": "F8a", "classe": "F", "comando": "LC_ALL=C cat <<'EOF'\nit's\nEOF", "conformidade": 2, "parecer": null, "fecha": "M4"},
+    {"id": "F8a", "classe": "F", "comando": "LC_ALL=C cat <<'EOF'\nit's\nEOF", "conformidade": 2, "parecer": null},
     {"id": "F8b", "classe": "F", "comando": "GIT_AUTHOR_DATE=2026-10-22T10:00:00 git commit -F - <<'EOF'\nfix: it's done\nEOF", "conformidade": 2, "parecer": null},
     {"id": "F10", "classe": "F", "comando": "(2>&1) <<'EOF'\nit's\nEOF", "conformidade": 2, "parecer": null}
   ],
