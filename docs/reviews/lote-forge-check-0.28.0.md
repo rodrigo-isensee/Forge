@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 0b8a307bea766815b567409ff33fec4688fff9a1
+commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
 parecer: aprovado
-revisor: forge:tech-lead (outra instância; rodada 4 no RET-LOTE-FORGE-CHECK E1.1)
-data: 2026-10-22
+revisor: forge:tech-lead (INTEG-LOTE-FC-REV E1.1, revalidação por delta do merge 8649439)
+data: 2026-10-23
 ---
 # Review do LOTE-FORGE-CHECK-0.28.0 (E1.2)
 
@@ -77,3 +77,15 @@ Já lido: tudo o que o lote trouxe até `1d001b1` (rodadas 1 a 3) e os pareceres
 
 ## Revalidação por delta (REVAL-288, E1.1)
 Revalidação feita por instância que não fez o merge (`R-REVIEW`), pela decisão "C" do dono (2026-10-23). Delta lido (`forge-check delta`, do commit do parecer anterior até `0b8a307`): o merge da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL). Conferido: (1) os arquivos do #288 (`.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*` e os documentos `suite-local-verde`) estão idênticos aos da `develop`, com `git diff 7423c44 HEAD` vazio sobre eles; (2) sem marcador de conflito, o merge não teve resolução; (3) fora do #288, o delta só traz pareceres (`docs/`), nenhum código da branch mudou. Já lido e não relido: todo o código aprovado no parecer acima. Achados: nenhum novo; os anteriores seguem como estavam. Veredito: aprovado.
+
+## Revalidação por delta (INTEG-LOTE-FC-REV, E1.1)
+Revisado: `8649439b7357a3adfe9f36d3531ae3bee0eca506`, merge de `daf2ffa` (`develop`, com a M14b do #291, o #293 e o #296) sobre `ad6a9bd`. Veredito: **aprovado**, sem bloqueante.
+
+Delta lido: `forge-check delta --parecer` listou `0b8a307..8649439` (68 arquivos). Entre `0b8a307` e `ad6a9bd` só há os três pareceres da REVAL-288 (`docs/`); o resto vem da `develop`. Li só a resolução: `git show --cc 8649439` e os arquivos que diferem dos **dois** pais (`comm` dos `git diff --name-only` contra cada pai): `bin/forge-check`, `bin/forge-testes`, `tests/test_testes_tocados.py` e `docs/hooks.md`, exatamente os quatro do pedido.
+- `bin/forge-check` (`executar`): ficam `anotar` (lote) e `escape` (com `resumo` e o registro), `afrouxamentos`, `esperas` e `corrigidos` (M14b), cada um chamando a função própria, que existe uma vez só; os seis subparsers existem. Conferi pela AST: nenhuma função, classe ou constante de nível de módulo duplicada pela união.
+- `bin/forge-testes`: `FORGE_CHECK` com 20 nomes, 20 distintos, todos com `tests/<nome>.py` presente; é a união dos 19 do lote com `test_medidas_m14b`, em ordem alfabética.
+- `tests/test_testes_tocados.py`: o teste do mapa conta 20 e exige `test_medidas_m14b` junto aos quatro do lote; o nome genérico (`roda_os_modulos_dele`) do lote fica.
+- `docs/hooks.md`: mesclagem automática, sem trecho de resolução no `--cc`, mas o blob difere dos dois pais (o `## Histórico` do INTEG-LOTE-FC diz "blob igual nos dois pais", o que não confere; sem efeito no veredito). Contra `ad6a9bd` entram só os trechos da `develop` (`entrada-sem-registro`, F10, e o push só de remoção do `pre-push`, PREPUSH-DELETE); contra `daf2ffa`, só a linha do hook `parecer` do lote (isenção M13 com `MD_DE_CONTROLE`). Os dois lados ficam, em linhas diferentes, e o texto segue coerente com o código de cada um.
+- Ferramenta, na worktree em `8649439` com `HOME` em `$TMPDIR/tech-lead-integ`: `python3 -m unittest tests.test_testes_tocados tests.test_medidas_m14b tests.test_anotar` → `Ran 106 tests`, `OK`. A suíte inteira fica com o pre-push e o QA (E3.1); a segurança do delta é da E2.1.
+
+Já lido e não relido: todo o código do lote aprovado nas rodadas anteriores e o conteúdo da `develop`, revisado nos PRs próprios. Achados: nenhum novo; as recomendações anteriores seguem como estavam.
