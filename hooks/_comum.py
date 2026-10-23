@@ -605,7 +605,9 @@ def heredocs(comando):
     depois de um `#` que pode ser comentário e que G não prova (até o fim da linha física), numa linha com `case` e
     `$(` (o `)` do padrão fecharia o `$(`) e com um heredoc pendente numa quebra de linha que não está no nível da
     linha. O estado das aspas atravessa as linhas físicas, e os corpos provados são pulados. O corpo acaba na primeira
-    linha igual ao delimitador, como no bash (com `<<-`, sem as tabs do começo; espaço em volta não vale), ou no fim do texto."""
+    linha igual ao delimitador, como no bash (com `<<-`, sem as tabs do começo; espaço em volta não vale), ou no fim do
+    texto. Dentro de `$(`, a linha do corpo que começa pelo delimitador sem ser igual a ele é dúvida: o bash 5.3 fecha
+    ali o heredoc em `EOF)`, `EOF )` ou `EOF x)` e roda o resto da linha."""
     provados = comentarios(comando)
     com_case = bool(CASE.search(comando)) and "$(" in comando
     pilha = [["fora", 0]]  # fora | subst | simples | ansi | duplas | crase | chave | aritm | colchete (com a profundidade)
@@ -728,6 +730,8 @@ def heredocs(comando):
                         achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, j), min(k + 1, n)))
                         j = k + 1
                         break
+                    if tipo == "subst" and linha.startswith(delimitador):
+                        duvidar(j)  # dentro de `$(`, o bash 5.3 fecha em `EOF)`, `EOF )`, `EOF x)` (opção A, item 3)
                     j = k + 1
                 else:
                     achados.append(Heredoc(operador, fim_do_operador, delimitador, literal, (corpo, n), n))  # até o fim
@@ -1562,9 +1566,27 @@ def simples_da_gramatica(resto):
     return simples
 
 
+def sem_aspas(palavra):
+    """A palavra como o bash a entrega ao programa (opção A, item 1): na gramática, o que está entre aspas já é literal
+    (`simples_da_gramatica`), então tirar as aspas é exato. `'-c'`, `"-c"` e `-'c'` são `-c`."""
+    partes, i, n = [], 0, len(palavra)
+    while i < n:
+        c = palavra[i]
+        if c in "'\"":
+            fim = palavra.index(c, i + 1)
+            partes.append(palavra[i + 1:fim])
+            i = fim + 1
+        else:
+            partes.append(c)
+            i += 1
+    return "".join(partes)
+
+
 def comando_fora_da_gramatica(palavras):
     """O primeiro sinal do comando simples fora da gramática, ou None: o programa da lista, o heredoc só na forma K2
-    (`git commit … -F - <<'X'`) e a palavra K3 só como valor de `-m`, `--body`, `--title`…"""
+    (`git commit … -F - <<'X'`) e a palavra K3 só como valor de `-m`, `--body`, `--title`… Cada palavra é comparada sem
+    as aspas (`sem_aspas`), como o programa a recebe."""
+    palavras = [sem_aspas(p) for p in palavras]
     programa = palavras[0]
     if ATRIBUICAO.match(programa):
         return f"{legivel(programa)} (atribuição antes do programa)"
@@ -1581,31 +1603,56 @@ def comando_fora_da_gramatica(palavras):
     return None
 
 
-def fora_da_gramatica_com_heredoc(texto):
-    """ADR 0011, item 2 (opção D): o primeiro sinal da chamada com heredoc fora da gramática positiva, ou None (também
-    quando o texto não tem `<<` de heredoc). Quem chama a aplica só no texto inteiro da chamada e com o marcador
-    crítico. O `<<` em dúvida e o heredoc fora de `HEREDOC_MODELADO` recusam; tirados os corpos, K1 (`cat > arq <<'X'`,
-    ou `>>`) passa sozinha na chamada, K3 vira uma palavra literal e o resto passa por `simples_da_gramatica` e
-    `comando_fora_da_gramatica`. Nenhuma expansão sobra fora das formas K, então a decisão não depende de como o
-    leitor lê aspas e substituições."""
+# O que a gramática aceitou (o T9 roda o texto no bash e compara): os comandos simples, com as palavras sem aspas e as
+# formas K (`OPERADOR_K`, `PALAVRA_K3`) no lugar, os corpos na ordem delas no texto e se a chamada é a K1 sozinha.
+Gramatica = collections.namedtuple("Gramatica", "comandos corpos k1")
+
+
+def tem_heredoc_no_texto(texto):
+    """Opção A, item 2: o gatilho é textual, `<<` em qualquer lugar do texto, depois de tirar cada `\\` + quebra de
+    linha (o bash os junta antes de ler os operadores: `<\\`⏎`<'EOF'` é heredoc), haja heredoc provado ou não."""
+    return "<<" in texto.replace("\\\n", "")
+
+
+def gramatica_com_heredoc(texto):
+    """ADR 0011, item 2 (opções D e A): None se o texto não tem `<<` (`tem_heredoc_no_texto`); senão o primeiro sinal
+    fora da gramática positiva (str) ou o que ela aceitou (`Gramatica`). O `<<` em dúvida, o heredoc fora de
+    `HEREDOC_MODELADO` e a linha de corpo que começa pelo delimitador sem ser igual a ele (o bash 5.3 fecha em `EOF)`
+    dentro de `$(`; opção A, item 3) recusam. Sem heredoc provado, o resto é o próprio texto (`bash -c '…<<…'`, `eval`,
+    `grep '<<'`). Tirados os corpos, K1 (`cat > arq <<'X'`, ou `>>`) passa sozinha na chamada, K3 vira uma palavra
+    literal e o resto passa por `simples_da_gramatica` e `comando_fora_da_gramatica`."""
+    if not tem_heredoc_no_texto(texto):
+        return None
     achados, duvida = heredocs(texto)
     if duvida is not None:
         return "<< que o hook não prova ser heredoc"
-    if not achados:
-        return None
     if OPERADOR_K in texto or PALAVRA_K3 in texto:
         return nome_do_sinal(OPERADOR_K if OPERADOR_K in texto else PALAVRA_K3)
     for h in achados:
         m = HEREDOC_MODELADO.match(texto, h.operador)
         if m is None or m.end() != h.fim_do_operador:
             return "heredoc fora da forma <<'FIM'"
+    corpos = [texto[h.corpo[0]:h.corpo[1]] for h in achados]
+    for h, corpo in zip(achados, corpos):
+        if any(linha != h.delimitador and linha.startswith(h.delimitador) for linha in corpo.split("\n")):
+            return f"linha que começa por {h.delimitador} no corpo"
     resto = sem_os_corpos(texto, achados)
     if len(achados) == 1 and K1.fullmatch(resto):
-        return None
+        return Gramatica([], corpos, True)
     lidos = simples_da_gramatica(K3.sub(PALAVRA_K3, resto))
     if isinstance(lidos, str):
         return lidos
-    return next((sinal for sinal in map(comando_fora_da_gramatica, lidos) if sinal), None)
+    sinal = next((sinal for sinal in map(comando_fora_da_gramatica, lidos) if sinal), None)
+    return sinal or Gramatica([[sem_aspas(p) for p in palavras] for palavras in lidos], corpos, False)
+
+
+def fora_da_gramatica_com_heredoc(texto):
+    """ADR 0011, item 2: o primeiro sinal da chamada com `<<` fora da gramática positiva, ou None (também quando o texto
+    não tem `<<`). Quem chama a aplica só no texto inteiro da chamada (o nível 0, que contém os outros) e com o marcador
+    crítico. Nenhuma expansão sobra fora das formas K, as palavras são comparadas sem aspas e os corpos são cortados
+    como o bash os corta, então a decisão não depende de como o leitor lê aspas, substituições e níveis."""
+    lida = gramatica_com_heredoc(texto)
+    return lida if isinstance(lida, str) else None
 
 
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")

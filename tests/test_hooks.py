@@ -1897,7 +1897,7 @@ class Hooks(unittest.TestCase):
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
 REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A"})  # D e A: as opções D e A (RET-LEITURA-HOOK-D, -A)
-EXIGE_NENHUMA_MARCA = False  # opção A (RET-LEITURA-HOOK-A): as marcas `fecha: "A"` saem com os itens 1 a 3 da seção 2A
+EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opções D e A: todas as regras entraram, nenhuma marca `fecha` sobra
 MINIMO_POR_CLASSE = {"R": 32, "N": 12, "S": 34, "H": 8, "V": 13, "L": 12, "F": 12}
 IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e", "R20a", "R20b", "R20c", "S5", "S15",
                       "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b",
@@ -2072,8 +2072,8 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
                         mutada = texto[:i] + inserido + texto[i:]
                         if mutada.replace("cat >>", "cat >") == texto.replace("cat >>", "cat >") and mutada != texto:
                             continue  # `cat >` mais `>` é a forma K1 com `>>`, também aceita
-                        if not _comum.heredocs(mutada)[0] and _comum.heredocs(mutada)[1] is None:
-                            continue  # o `#` virou comentário: sem heredoc provado, nada se esconde e a gramática não vale
+                        if "<<" not in mutada.replace("\\\n", ""):
+                            continue  # o sinal partiu o `<<` (`<#<`): sem `<<` no texto a gramática não vale (opção A)
                         mutacoes += 1
                         self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(mutada),
                                              f"{caso['id']}/{hook}: passou com {inserido!r} em {i}: {mutada!r}")
