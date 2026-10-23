@@ -343,5 +343,32 @@ class RotulosAfrouxaRegraQueEramReais(RepositorioDeTeste):
         self.assertTrue(linhas[0].startswith("afrouxamentos: ref"), linhas)
 
 
+class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
+    """O Jarvis e o agile-coach dizem quando cada medida da M14b roda; sem o texto, a ferramenta existe e ninguém a roda."""
+    RAIZ = Path(__file__).resolve().parent.parent
+
+    def texto(self, rel):
+        return (self.RAIZ / rel).read_text(encoding="utf-8")
+
+    def test_jarvis_roda_custo_com_pedido_esperas_e_registra_escape(self):
+        jarvis = self.texto("agents/jarvis.md")
+        for trecho in ("forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>", "forge-check esperas --pedido <pedido>",
+                       "forge-check escape registrar", "forge-check movimento"):
+            self.assertIn(trecho, jarvis)
+
+    def test_agile_coach_roda_a_linha_de_base_na_retrospectiva(self):
+        coach = self.texto("agents/agile-coach.md")
+        for trecho in ("forge-check esperas", "forge-check escape resumo", "forge-check escape registrar", "forge-check corrigidos",
+                       "forge-check afrouxamentos --rotulados", "Linha de base (M14b)"):
+            self.assertIn(trecho, coach)
+
+    def test_cada_medida_esta_na_tabela_de_metricas_e_no_uso_do_forge_check(self):
+        tabela, uso = self.texto("docs/melhoria-continua.md"), self.texto("bin/forge-check")
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape resumo"):
+            self.assertIn(comando, tabela)
+        for comando in ("forge-check esperas", "forge-check corrigidos", "forge-check afrouxamentos", "forge-check escape registrar", "forge-check escape resumo"):
+            self.assertIn(comando, uso.split('"""')[1])
+
+
 if __name__ == "__main__":
     unittest.main()
