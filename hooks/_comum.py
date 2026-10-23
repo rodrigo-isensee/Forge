@@ -1709,6 +1709,64 @@ def sem_atribuicoes(palavras):
     return palavras[i:]
 
 
+# Prefixo -> opções dele que levam valor (as demais são booleanas); `separar_lancadores` os tira para achar o comando.
+LANCADORES = {"sudo": {"-u", "-g", "-C", "-D", "-p", "-r", "-t", "-U", "-h", "-R", "-T", "--user", "--group"},
+              "env": {"-u", "-C", "-S", "--unset", "--chdir", "--split-string"}, "command": set(),
+              "nohup": set(), "time": {"-o", "-f", "--output", "--format"}, "exec": {"-a"}, "builtin": set(),
+              "nice": {"-n", "--adjustment"}, "setsid": set(), "stdbuf": {"-i", "-o", "-e"},
+              "timeout": {"-k", "-s", "--kill-after", "--signal"},
+              "xargs": {"-n", "-I", "-L", "-P", "-d", "-E", "-s", "-a", "--max-args", "--max-procs",
+                        "--delimiter", "--arg-file", "--max-lines", "--max-chars"}}
+SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
+ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
+
+
+def separar_lancadores(palavras):
+    """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
+    deles, para classificar o comando de verdade; opções do comando seguinte não se perdem. Devolve (comando,
+    atribuições feitas pelos lançadores): `env GH_REPO=x gh ...` passa a variável ao `gh` como `GH_REPO=x gh ...`."""
+    palavras, lancadas = sem_atribuicoes(palavras), []
+    while palavras and Path(palavras[0]).name in LANCADORES:
+        nome, com_valor = Path(palavras[0]).name, LANCADORES[Path(palavras[0]).name]
+        i, dividido = 1, []
+        while i < len(palavras) and palavras[i].startswith("-") and palavras[i] != "-":
+            opcao = palavras[i]
+            i += 1
+            if opcao == "--":
+                break
+            split = valor_do_split_string(opcao, palavras[i] if i < len(palavras) else "") if nome == "env" else None
+            if split is not None:  # `env -S '<comando>'`: o valor é o comando, dividido em palavras
+                texto, consome = split
+                i += consome
+                dividido += shlex.split(texto)  # aspas abertas: ValueError, e o comando não é analisável
+            elif opcao in com_valor or (nome == "env" and re.fullmatch(r"-[a-zA-Z]*[uC]", opcao)):
+                i += 1
+        if nome == "timeout" and i < len(palavras):
+            i += 1  # a duração
+        cauda = dividido + palavras[i:]
+        resto = sem_atribuicoes(cauda)
+        lancadas += cauda[:len(cauda) - len(resto)]
+        palavras = resto
+    return palavras, lancadas
+
+
+def valor_do_split_string(opcao, seguinte):
+    """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string`, o comando que o `env` divide e roda;
+    None se a opção não é essa. No grupo curto (`-iS`), a primeira letra que leva valor decide (`-uS` é `-u S`)."""
+    if opcao == "--split-string":
+        return seguinte, 1
+    if opcao.startswith("--split-string="):
+        return opcao.split("=", 1)[1], 0
+    if opcao.startswith("--"):
+        return None
+    for k, letra in enumerate(opcao[1:], 1):
+        if letra in ENV_COM_VALOR_CURTA:
+            if letra != "S":
+                return None
+            return (opcao[k + 1:], 0) if opcao[k + 1:] else (seguinte, 1)
+    return None
+
+
 @functools.lru_cache(maxsize=1)
 def forge_check():
     """Carrega bin/forge-check como módulo, para reaproveitar a validação (ADR 0004) sem duplicá-la."""
