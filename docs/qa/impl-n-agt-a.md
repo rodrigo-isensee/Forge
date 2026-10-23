@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: impl-n-agt-a
 branch: melhoria/impl-n-agt-a
-commit: 5b1ff24c62d8b88490c8e59cf48cb0c0c00aa335
+commit: 8bb5c609594765d0d10d6d94ba4898f7d317890c
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -38,3 +38,6 @@ Sem especificação de UX nem contrato de API (melhoria da fábrica, pedido de o
 
 ## Bugs abertos
 Nenhum (crítico 0, alto 0, médio 0, baixo 0).
+
+## Revalidação por delta (REVAL-288, E1.3)
+Depois do review por delta aprovado, pela decisão "C" do dono (2026-10-23). Delta desde `5b1ff24` (commit do parecer anterior) até `8bb5c60`: a entrada da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL: `.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`, documentos `suite-local-verde`) e pareceres em `docs/`. Nenhum código da entrega mudou. Comando: `bin/forge-testes` (dirigido, 20 módulos, entre eles `test_agentes_clone`, `test_agentes_hash_brief`, `test_guarda_conferente`, `test_hooks`): 1154 testes, `OK`, rc 0. As 4 falhas conhecidas do ambiente listadas acima agora passam (o #288 as corrigiu). Comportamento já aprovado (AGT-1, AGT-2, forma da mensagem): igual, sem regressão. Não refiz o vermelho antes do verde nem a execução real do hook (fora do delta). Veredito: aprovado, sem achado novo.
