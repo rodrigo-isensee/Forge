@@ -354,6 +354,10 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
     lidas = leituras(comando)
+    if lidas.ilegivel and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
+        bloquear("R-REVIEW", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o arquivo gravado, e "
+                             "o corpo do heredoc tem aspa sem par. Corrigir: grave numa chamada do Bash e rode o "
+                             "programa noutra")
     if lidas.ilegivel and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
         bloquear("R-REVIEW", "gh pr, gh api, merge ou pull e corpo de heredoc com aspa sem par, a programa que pode "
                              "rodá-lo. Corrigir: grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o "
@@ -362,7 +366,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
     internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
-    internos += [(corpo, False, True) for dono, corpo in corpos if not corpo_so_lido(dono)]  # o dono pode rodá-lo
+    internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
+                 for dono, corpo in corpos if not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]

@@ -1582,7 +1582,8 @@ class Hooks(unittest.TestCase):
                 self.assertNotIn("<<'", resto, "o operador sai com o corpo")
         resto, [(dono, corpo)] = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
         self.assertEqual((resto.split(), corpo), (["bash", "ls"], "git push origin main"))
-        self.assertEqual(set(dono.split()), {"bash"}, "o dono é o comando do operador, sem o `ls` da linha seguinte")
+        # M2 da volta única: o dono soma os programas do texto fora da lista dos outros (o `ls` da linha seguinte)
+        self.assertEqual(set(dono.split()), {"bash", "ls"})
 
     def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
         """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
@@ -1635,16 +1636,18 @@ class Hooks(unittest.TestCase):
                         f"cat >> .husky/pre-commit <<'EOF' && git add -A\n{L}\nEOF": "git",
                         f"tee .husky/pre-push <<'EOF' && git push origin feature/x\n{L}\nEOF": "git",
                         f"git apply <<'EOF' && git commit -m x\n{L}\nEOF": "git",
-                        f"( cat > .husky/pre-commit <<'EOF' ) && git commit -m x\n{L}\nEOF": "git"}
-        for linha in minimo(list(noutra_linha), 33, "formas em que o corpo vai a quem o roda"):
+                        f"( cat > .husky/pre-commit <<'EOF' ) && git commit -m x\n{L}\nEOF": "git",
+                        # M2 da volta única: o programa de outra linha do texto pode rodar o arquivo gravado
+                        f"cat > f <<'EOF'\n{L}\nEOF\nbash f": "bash", f"cat <<'EOF'\n{L}\nEOF\nbash": "bash",
+                        f"cat <<'EOF' \\\\\n{L}\nEOF\nsh": "sh"}
+        for linha in minimo(list(noutra_linha), 36, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
                 self.assertEqual(corpo, L)
                 self.assertIn(programa, dono)
                 self.assertFalse(_comum.corpo_so_lido(dono))
-        separados = (f"cat > f <<'EOF'\n{L}\nEOF\nbash f", f"cat <<'EOF'\n{L}\nEOF\nbash", f"cat <<'EOF' \\\\\n{L}\nEOF\nsh",
-                     f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
+        separados = (f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
                      f"git add -A && git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && git push -u origin feature/x",
                      f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)",
                      f"cat <<'EOF' 2>/dev/null && git push -u origin feature/x\n{L}\nEOF",
@@ -1686,7 +1689,8 @@ class Hooks(unittest.TestCase):
                 self.assertLess(time.perf_counter() - inicio, 3.0, f"{n} heredocs")
                 self.assertEqual(len(corpos), n)
                 self.assertTrue(resto.endswith("git push origin main"))
-                self.assertTrue(all(lidos))
+                # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
+                self.assertEqual(set(lidos), {forma in ("pipeline", "mesma linha")})
 
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do

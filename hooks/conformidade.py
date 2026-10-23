@@ -721,6 +721,10 @@ class Guarda:
             # bash pode rodar, e o `return` pularia todas as checagens dela: fora do papel só de leitura, recusa sempre,
             # com ou sem marcador crítico. O papel só de leitura fica como estava (a gramática dele, no nível 0, já
             # recusa aspas sem par e `#`).
+            if not self.leitura and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
+                self.barrar("R-CONFORMIDADE", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o "
+                                              "arquivo gravado, e o corpo do heredoc tem aspa sem par",
+                            "grave numa chamada do Bash e rode o programa noutra")
             if not self.leitura and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
                 self.barrar("R-CONFORMIDADE", "corpo de heredoc com aspa sem par, dado a programa que pode rodá-lo",
                             "grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o ao programa depois "
@@ -755,7 +759,7 @@ class Guarda:
         interpretados = {}  # os heredocs de um mesmo dono (o mesmo texto, `DonosDosHeredocs`) o leem uma vez só
         for dono, corpo in corpos:  # o corpo é comando, a menos que todo dono da linha só o leia (ou o interprete)
             if not corpo_so_lido(dono, interprete):
-                self.bash(corpo, pasta, nivel + 1, corpo_de_heredoc=True)
+                self.bash(corpo, pasta, nivel + 1, corpo_de_heredoc=getattr(dono, "rodado", None) or True)
             if dono not in interpretados:
                 interpretados[dono] = any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono)))
             if interpretados[dono]:

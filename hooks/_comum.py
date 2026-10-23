@@ -858,28 +858,60 @@ GIT_OUTRO_SEM_O_CORPO = {
 MUDAM_O_AMBIENTE = frozenset({"export", "declare", "typeset", "readonly", "local", "set", "env", "source", ".", "eval"})
 
 
+class Dono(str):
+    """O texto que `corpo_so_lido` confere para um heredoc (`DonosDosHeredocs.montar`). `rodado`: o primeiro programa de
+    `fora_do_texto` quando só ele faz do corpo comando (o dono sozinho só leria), para a mensagem nomeá-lo (M2)."""
+    rodado = None
+
+
+SUBSTITUICOES = ("$(", "`", "<(", ">(")
+
+
+def citar(palavra):
+    """A palavra de uma leitura (`leituras`, já sem as aspas), escrita de novo para o leitor (`palavras_do_texto`):
+    entre aspas se preciso; sem elas a de `ANTES_DO_PROGRAMA`, que só vale sem aspas, e a que tem substituição, cujo
+    conteúdo é texto do shell e tem programas (`BODY=$(cat …)`)."""
+    if palavra in ANTES_DO_PROGRAMA or any(s in palavra for s in SUBSTITUICOES):
+        return palavra
+    return shlex.quote(palavra)
+
+
 class DonosDosHeredocs:
     """Os donos dos heredocs de um texto (a linha sem os corpos, `resto`, e as leituras `com_sinal` dela, `lidas`), com
     o que serve a todos lido uma vez por texto (A1 do review, volta 5): os limites dos comandos lógicos
-    (`limites_logicos`), o índice de cada leitura (`indice_das_partes`), se o texto muda o ambiente
-    (`MUDAM_O_AMBIENTE`) e, por comando lógico, os programas fora da lista positiva. Heredocs com o mesmo dono recebem o
-    mesmo texto, o mesmo objeto, e quem chama confere cada dono uma vez (`corpo_so_lido` guarda o resultado)."""
+    (`limites_logicos`), o índice de cada leitura (`indice_das_partes`), se o texto grava arquivo (`grava_arquivo`) e
+    os programas do texto inteiro fora da lista positiva dos outros comandos (`fora_do_texto`, M2 da volta única): o
+    arquivo que o heredoc grava continua no disco depois do comando lógico dele, e o programa de qualquer ponto do
+    texto, antes ou depois, em qualquer nível de substituição, pode rodá-lo. Heredocs com o mesmo dono recebem o mesmo
+    texto, o mesmo objeto, e quem chama confere cada dono uma vez (`corpo_so_lido` guarda o resultado)."""
 
     def __init__(self, resto, lidas):
         self.resto, self.lidas = resto, lidas
-        self.muda_o_ambiente = any(p in MUDAM_O_AMBIENTE for p, _ in programas_da_linha(resto))
+        programas = programas_e_atribuicoes(resto)
+        self.muda_o_ambiente = any(p in MUDAM_O_AMBIENTE for p, _, _ in programas)
+        self.grava = grava_arquivo(resto)
+        # cada programa com os argumentos (só o nome, se tem atribuição antes), ou todos se o texto muda o ambiente;
+        # com o texto gravando, todo `git` (o `git` sem subcomando, que nenhum leitor aceita, fecha `git commit`)
+        self.fora_do_texto = [(p, citar(p) if atribuicoes else " ".join(map(citar, [p, *argumentos])))
+                              for p, argumentos, atribuicoes in programas
+                              if self.muda_o_ambiente or (self.grava and p == "git")
+                              or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
+        if self.grava and any(p == "git" for p, _ in self.fora_do_texto):
+            self.fora_do_texto.append(("git", "git"))
+        if palavras_do_texto(resto).duvida:  # aspas ou substituição sem fechar no fim: o leitor não prova o resto
+            self.fora_do_texto.append(("?", citar("?")))
         self.indices = [] if lidas.ilegivel else [indice_das_partes(partes) for partes in lidas.partes]
-        self.vistos, self.fora_da_lista = {}, {}
+        self.vistos = {}
 
     def dono(self, posicao, marca):
         """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta
         3): o pipeline que recebe o corpo e, quando ele está numa substituição (`eval $(cat <<'EOF'`), os comandos de
         fora dela, lidos por `leituras` na linha sem os corpos; o `&&`, o `||`, o `;` e a quebra de linha (sem `|`
         antes) separam outro comando, que não lê o corpo (`git add x && git commit -m "$(cat <<'EOF'`). Mais os
-        programas do comando lógico (`comando_logico`) fora da lista positiva dos outros comandos
-        (`outro_sem_o_corpo`), ou todos eles se o texto tem um comando que muda o ambiente (`MUDAM_O_AMBIENTE`), e todo
-        `git` se o comando lógico grava arquivo (`grava_arquivo`: o git roda ganchos, filtros e configuração). O
-        comando lógico inteiro, se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
+        programas do texto inteiro fora da lista positiva dos outros comandos (`fora_do_texto`: `outro_sem_o_corpo`,
+        ou todos se o texto tem um comando que muda o ambiente, `MUDAM_O_AMBIENTE`, e todo `git` se o texto grava
+        arquivo, `grava_arquivo`: o git roda ganchos, filtros e configuração). O comando lógico inteiro
+        (`comando_logico`), se a linha não se lê, tem subshell ou comando composto, ou a marca não aparece."""
         lugar = lugar_logico(self.resto, posicao)
         trechos = [] if self.lidas.ilegivel else [segmentos_do_operador(partes, marca, indice)
                                                     for partes, indice in zip(self.lidas.partes, self.indices)]
@@ -889,21 +921,23 @@ class DonosDosHeredocs:
         return self.vistos[chave]
 
     def montar(self, lugar, trechos):
-        inicios, fins = limites_logicos(self.resto)
-        logico = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
-        grava = grava_arquivo(logico)
-        if trechos is None:  # o `git` puro não é leitor: com a linha gravando, nenhum git do comando passa (A2)
-            return logico + "\ngit" if grava and any(p == "git" for p, _ in programas_da_linha(logico)) else logico
-        if lugar not in self.fora_da_lista:
-            self.fora_da_lista[lugar] = [p for p, argumentos, atribuicoes in programas_e_atribuicoes(logico)
-                                         if self.muda_o_ambiente or (grava and p == "git")
-                                         or not outro_sem_o_corpo(p, argumentos, atribuicoes)]
-        donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos)
-                 for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
-        texto = "\n".join([*(" ".join(palavras) for palavras in donos), *self.fora_da_lista[lugar]])
-        for opaco in OPACO.values():  # a palavra `$(…)` não é programa: o `(` dela separaria um `…` em `programas_da_linha`
-            texto = texto.replace(opaco, "_")
-        return re.sub(MARCA + r"\d+__", " ", texto)
+        if trechos is None:
+            inicios, fins = limites_logicos(self.resto)
+            sozinho = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
+        else:
+            donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos)
+                     for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
+            linhas = []
+            for palavras in donos:  # a palavra `$(…)` não é programa: vale `_`, como no leitor
+                for opaco in OPACO.values():
+                    palavras = [p.replace(opaco, "_") for p in palavras]
+                linhas.append(" ".join(map(citar, palavras)))
+            sozinho = re.sub(MARCA + r"\d+__", " ", "\n".join(linhas))
+        # os programas do texto vêm antes: uma aspa sem par no dono não os esconde
+        texto = Dono("\n".join([*(comando for _, comando in self.fora_do_texto), sozinho]))
+        if self.fora_do_texto and corpo_so_lido(sozinho):
+            texto.rodado = self.fora_do_texto[0][0]
+        return texto
 
 
 # LOTE-LEITURA-HOOK, volta única (M1 e M2): o leitor sequencial do texto sem os corpos de heredoc. Uma passada, um
@@ -933,7 +967,8 @@ class _Nivel:
 @functools.lru_cache(maxsize=256)
 def palavras_do_texto(texto):
     """Os comandos simples de `texto` (a linha sem os corpos de heredoc), de todos os níveis de substituição, com as
-    palavras e as redireções de cada um, e se a leitura ficou em dúvida (aspas ou substituição sem fechar no fim).
+    palavras e as redireções de cada um, e se a leitura ficou em dúvida (aspas ou substituição sem fechar no fim, ou
+    crase fechada dentro de aspas).
     Fora de aspas e numa substituição, `\\` torna o seguinte literal; entre aspas simples, tudo é literal; em `$'…'`,
     `\\` escapa o seguinte; entre aspas duplas (e `$"…"`), `\\` só escapa `$`, crase, `"` e `\\`, e `$(` e crase abrem
     substituição. `#` só abre comentário onde `comentarios` o prova. `${…}` e `$((…))` são texto do nível. Separadores
@@ -1268,34 +1303,33 @@ GIT_LE_O_CORPO = frozenset({"commit", "tag", "notes", "apply", "am", "hash-objec
                             "check-ignore", "check-attr", "cat-file"})
 GH_LE_O_CORPO = frozenset({"pr", "issue", "release", "api", "gist", "label", "secret", "variable"})
 ANTES_DO_PROGRAMA = frozenset({"!", "{", "time", "then", "do", "else", "elif", "if", "while", "until"})
-REDIRECAO = re.compile(r"^(\d*|&)(<<-?|<<<|>>|<>|>\||[<>])(&\d*-?)?")
+ATRIBUICAO = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\+?=")
 
 
 def programas_da_linha(linha):
-    """A palavra de comando de cada comando simples da linha física (sem aspas nem barras, o que só a torna mais
-    desconfiada), cada uma com as palavras seguintes: [(programa, [argumentos])]."""
+    """O programa de cada comando simples do texto (`programas_e_atribuicoes`), com os argumentos:
+    [(programa, [argumentos])]."""
     return [(programa, argumentos) for programa, argumentos, _ in programas_e_atribuicoes(linha)]
 
 
 def programas_e_atribuicoes(linha):
-    """Como `programas_da_linha`, com as atribuições antes de cada programa (`GIT_SSH=sh git push`):
+    """M2 da volta única, enumerador positivo: em cada comando simples do leitor (`palavras_do_texto`), de qualquer
+    nível de substituição, o programa é a primeira palavra que não se prova atribuição (`NOME=` ou `NOME+=` sem aspas
+    no nome) nem palavra de `ANTES_DO_PROGRAMA` sem aspas; a redireção completa (operador e alvo) já sai do leitor e
+    não consome a palavra seguinte (`2>&1 ./x.sh`). Com os argumentos e as atribuições daquele comando simples, não as
+    do comando de fora de uma substituição (`BODY="$(cat <<'EOF'…)"`: o `cat` não tem atribuição):
     [(programa, [argumentos], [atribuicoes])]."""
-    texto = re.sub(r"[\"'\\]", "", linha)
-    texto = re.sub(r"\d*[<>]&\d*-?|&>>?", " > ", texto)  # `2>&1`, `&>x`: o `&` não separa comandos
     achados = []
-    for trecho in re.split(r"[;&|()`\n]", texto):
-        palavras, i, atribuicoes = trecho.split(), 0, []
-        while i < len(palavras):
-            p, operador = palavras[i], REDIRECAO.match(palavras[i])
-            if operador:
-                i += 1 if p[operador.end():] else 2  # `>x` ou `> x`
-            elif p in ANTES_DO_PROGRAMA or re.match(r"^[A-Za-z_][A-Za-z0-9_]*\+?=", p):
-                if p not in ANTES_DO_PROGRAMA:
-                    atribuicoes.append(p)
-                i += 1
-            else:
-                achados.append((p, palavras[i + 1:], atribuicoes))
-                break
+    for comando in palavras_do_texto(linha).simples:
+        atribuicoes = []
+        for k, palavra in enumerate(comando.palavras):
+            if palavra.cru in ANTES_DO_PROGRAMA:
+                continue
+            if ATRIBUICAO.match(palavra.cru):
+                atribuicoes.append(palavra.valor)
+                continue
+            achados.append((palavra.valor, [p.valor for p in comando.palavras[k + 1:]], atribuicoes))
+            break
     return achados
 
 
@@ -1316,7 +1350,7 @@ def outro_sem_o_corpo(programa, argumentos, atribuicoes=()):
         return False
     if programa in OUTROS_SEM_O_CORPO or (programa == "git" and git_outro_sem_o_corpo(argumentos)):
         return True
-    return corpo_so_lido(" ".join([programa, *argumentos]))
+    return le_o_corpo(programa, argumentos)
 
 
 def git_outro_sem_o_corpo(argumentos):
@@ -1334,21 +1368,24 @@ def nenhum(programa):
     return False
 
 
+def le_o_corpo(programa, argumentos, tambem=nenhum):
+    """`programa argumentos` lê o corpo como texto: `LEITORES_DO_CORPO`, `git`/`gh` com subcomando que lê, ou o que
+    `tambem` aceitar."""
+    if programa in LEITORES_DO_CORPO or tambem(programa):
+        return True
+    if programa == "git":
+        return subcomando_do_git(argumentos) in GIT_LE_O_CORPO
+    return programa == "gh" and bool(argumentos) and argumentos[0] in GH_LE_O_CORPO
+
+
 @functools.lru_cache(maxsize=1024)
 def corpo_so_lido(dono, tambem=nenhum):
-    """O corpo de heredoc do comando `dono` (`DonosDosHeredocs`) só é lido como texto: todo comando dele é um leitor
-    (`LEITORES_DO_CORPO`, `git`/`gh` com subcomando que lê, ou o que `tambem` aceitar). Senão, o corpo é conferido como
-    comando. O resultado fica guardado: os heredocs de um mesmo dono (o mesmo texto) são conferidos uma vez só."""
-    for programa, argumentos in programas_da_linha(dono):
-        if programa in LEITORES_DO_CORPO or tambem(programa):
-            continue
-        if programa == "git":
-            if subcomando_do_git(argumentos) in GIT_LE_O_CORPO:
-                continue
-        elif programa == "gh" and argumentos and argumentos[0] in GH_LE_O_CORPO:
-            continue
-        return False
-    return True
+    """O corpo de heredoc do comando `dono` (`DonosDosHeredocs`) só é lido como texto: o dono tem programa provado
+    (M2: sem programa, como em `(2>&1 bash)` lido sem o `bash`, não só lê) e todo comando dele é um leitor
+    (`le_o_corpo`). Senão, o corpo é conferido como comando. O resultado fica guardado: os heredocs de um mesmo dono (o
+    mesmo texto) são conferidos uma vez só."""
+    programas = programas_e_atribuicoes(dono)
+    return bool(programas) and all(le_o_corpo(programa, argumentos, tambem) for programa, argumentos, _ in programas)
 
 
 def construcao_nao_modelada(linha):
