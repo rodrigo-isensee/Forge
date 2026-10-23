@@ -1908,7 +1908,7 @@ IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e",
                       "FD11b",
                       # opção B (RET-LEITURA-HOOK-B): as sondas da revalidação 8 e os falsos positivos FD12 e FD13
                       "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "QC1", "QC2", "BL2", "FD12", "FD12b", "FD13a", "FD13b", "FD13c",
-                      "FD13d", "FD13e")
+                      "FD13d", "FD13e", "QP1")
 
 
 def corpus_da_volta_unica():
@@ -2061,19 +2061,50 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         zona[len(texto)] = zona[len(texto)] or estado
         return zona
 
-    def casos_aceitos(self):
-        """(id, hook, texto) de cada caso L com heredoc que a gramática aceita, com o corpo de cada hook."""
+    def casos_aceitos(self, corpos=None):
+        """(id, hook, texto) de cada caso L com heredoc que a gramática aceita, com o corpo de cada hook (`corpos`, ou os
+        do corpus)."""
         _comum, _, _ = modulos_dos_hooks()
         dados = corpus_da_volta_unica()
         aceitos = []
         for caso in dados["casos"]:
             if caso["classe"] != "L" or "comando" not in caso:
                 continue
-            for hook, corpo in dados["corpos"].items():
+            for hook, corpo in (corpos or dados["corpos"]).items():
                 texto = caso["comando"].replace("{CORPO}", corpo)
                 if caso[hook] == 0 and isinstance(_comum.gramatica_com_heredoc(texto), _comum.Gramatica):
                     aceitos.append((caso["id"], hook, texto))
         return aceitos
+
+    # T8 por nível (seção 3 da proposta caminho-rev8): o texto do nível 1 dentro de cada reavaliação que o hook segue,
+    # escrito para o nível 0, e o `<<` dele em cada forma que o nível 0 apaga até `<<` (`HEREDOC_DO_TESTE`).
+    NIVEIS = (("eval '{}'", "simples"), ('eval "{}"', "duplas"), ("eval {}", "sem aspas"), ("bash -c '{}'", "simples"),
+              ('sh -c "{}"', "duplas"), ("env X=1 bash -c '{}'", "simples"), ("command eval '{}'", "simples"))
+    FORMAS_DO_HEREDOC = ("<<", "<''<", '<""<', "\\<\\<", "<\\\n<", "<'\\''<", "<$(:)<")
+    HEREDOC_DO_TESTE = re.compile(r"<(?:['\"\\]|\\\n|\$\([^()]*\))*<")  # o que o bash pode juntar em `<<` num nível de cima
+
+    @staticmethod
+    def para_o_nivel_0(texto, aspas):
+        """O texto que o nível 0 entrega ao `eval`/`bash -c` como `texto`: entre aspas simples, duplas ou sem aspas (cada
+        sinal com `\\`, a quebra de linha entre aspas duplas, como no Q4)."""
+        if aspas == "simples":
+            return texto.replace("'", "'\\''")
+        if aspas == "duplas":
+            return re.sub(r'([\\"$`])', r"\\\1", texto)
+        return "".join(c if re.fullmatch(r"[\w./:=@,+%^-]", c) else '"\n"' if c == "\n" else "\\" + c for c in texto)
+
+    @classmethod
+    def mutacoes_de_nivel(cls, texto):
+        """(rótulo, texto do nível 0) do caso dentro de cada reavaliação de `NIVEIS`, com o `<<` em cada forma de
+        `FORMAS_DO_HEREDOC` (sem aspas, só a forma `\\<\\<` da própria escrita)."""
+        saida = []
+        for nivel, aspas in cls.NIVEIS:
+            escrito = cls.para_o_nivel_0(texto, aspas)
+            formas = ("\\<\\<",) if aspas == "sem aspas" else cls.FORMAS_DO_HEREDOC
+            for forma in formas:
+                na_forma = escrito if aspas == "sem aspas" else escrito.replace("<<", forma)
+                saida.append((f"{nivel.format('…')} {forma!r}", nivel.format(na_forma)))
+        return saida
 
     def mutacoes_de_palavra(self):
         """T8 por palavra: (rótulo, texto com a palavra simples, texto com a mesma palavra entre aspas). Cada palavra
@@ -2101,7 +2132,9 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         `${`, `$'`, `$"`) inserido em cada posição recusa, salvo dentro de aspas simples, dentro de aspas duplas se a
         inserção não tem `$`, crase, `\\` nem `!`, e no corpo; dentro da palavra `"$(cat <<'X'…X⏎)"` e do operador,
         qualquer inserção recusa. (2) Por palavra: a palavra entre aspas só passa se ela passa sem as aspas (opção A,
-        item 1; o contrário é só recusa a mais, como `'cat' > arq` na K1, lida crua). (3) Por nível: o caso dentro de `bash -c '…'`, `sh -c "…"` e `eval '…'` recusa (item 2). (4) Por corpo:
+        item 1; o contrário é só recusa a mais, como `'cat' > arq` na K1, lida crua). (3) Por nível: o caso dentro de cada
+        reavaliação de `NIVEIS`, com o `<<` em cada forma de `FORMAS_DO_HEREDOC`, recusa (item 2 e opção A da
+        revalidação 8). (4) Por corpo:
         uma linha `X)`, `X )`, `X x)`, `X;)` ou `Xfoo` no corpo recusa (item 3). As zonas vêm de uma varredura própria."""
         _comum, _, _ = modulos_dos_hooks()
         inseridos = list("#{}<>()*?[]!|$`\\") + ["$(", "$((", "<(", ">(", "${", "$'", '$"']
@@ -2119,15 +2152,15 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
                     mutada = texto[:i] + inserido + texto[i:]
                     if mutada.replace("cat >>", "cat >") == texto.replace("cat >>", "cat >") and mutada != texto:
                         continue  # `cat >` mais `>` é a forma K1 com `>>`, também aceita
-                    if "<<" not in mutada.replace("\\\n", ""):
-                        continue  # o sinal partiu o `<<` (`<#<`): sem `<<` no texto a gramática não vale (opção A)
+                    if not self.HEREDOC_DO_TESTE.search(mutada):
+                        continue  # o sinal partiu o `<<` (`<#<`): sem `<<` que o bash forme a gramática não vale (opção A)
                     contagem["caractere"] += 1
                     self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(mutada),
                                          f"{id}/{hook}: passou com {inserido!r} em {i}: {mutada!r}")
-            simples, duplas = texto.replace("'", "'\\''"), re.sub(r'([\\"$`])', r"\\\1", texto)
-            for envolto in (f"bash -c '{simples}'", f'sh -c "{duplas}"', f"eval '{simples}'"):
+            for rotulo, envolto in self.mutacoes_de_nivel(texto):
                 contagem["nivel"] += 1
-                self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(envolto), f"{id}/{hook}: passou {envolto!r}")
+                self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(envolto),
+                                     f"{id}/{hook} em {rotulo}: passou {envolto!r}")
             for _, _, corpo, fim_do_corpo, _, delimitador in self.heredocs_do_teste(texto):
                 pontos = [corpo] + [k + 1 for k in range(corpo, fim_do_corpo) if texto[k] == "\n"]
                 for ponto in dict.fromkeys(pontos):
@@ -2144,7 +2177,7 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         self.assertLessEqual({"L1", "L2", "L3", "L11", "K1a", "K1b", "K2", "K3a", "K3b"}, usados)
         self.assertGreaterEqual(contagem["caractere"], 1000)
         self.assertGreaterEqual(contagem["palavra"], 500)
-        self.assertGreaterEqual(contagem["nivel"], 3 * len(usados))
+        self.assertGreaterEqual(contagem["nivel"], 43 * len(usados))
         self.assertGreaterEqual(contagem["corpo"], 5 * len(usados))
 
     REGISTRADOR = """#!{bash}
@@ -2243,6 +2276,119 @@ exit 0
                 ids.add(rotulo.split("/")[0].split(":")[0])
         self.assertLessEqual({"K1a", "K1b", "K2", "K3a", "K3b", "L1", "L3"}, ids)
         self.assertGreaterEqual(rodados, 200)
+
+    # T9b (seção 3 da proposta caminho-rev8): o oráculo do gatilho. O T9 só roda o que a gramática aceitou; aqui entra o
+    # que o hook libera, com a linha sentinela no `{CORPO}`.
+    SENTINELAS = {"conformidade": "git push origin SENTINELA:main", "parecer": "gh pr merge SENTINELA --merge"}
+    SHELLS_DO_T9B = ("bash", "sh", "dash", "zsh", "ksh")  # no `PATH` do T9b, o próprio bash: a reavaliação roda de verdade
+
+    def decisoes_dos_hooks(self, pedidos):
+        """{(hook, texto): código} de cada hook, no modelo do corpus (um repositório por hook, montado uma vez), em
+        paralelo. O hook cujo marcador (`CRITICO`) o texto não tem não roda: ele libera sem ler (0)."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        dados = corpus_da_volta_unica()
+        montados = {}
+        for hook, modelo in dados["modelos"].items():
+            caminho = FIXTURES / hook / f"{modelo}.json"
+            base = json.loads(caminho.read_text(encoding="utf-8"))
+            base["passos"] = []
+            tmp = self._pasta_temporaria()
+            raiz, entrada = Fixture(caminho, base).montar(tmp, os.getpid())
+            montados[hook] = (raiz, entrada, montar_proc(tmp, None))
+
+        def decidir(pedido):
+            hook, texto = pedido
+            if not criticos[hook].search(texto):
+                return 0
+            raiz, entrada, proc = montados[hook]
+            entrada = json.loads(json.dumps(entrada))
+            entrada["tool_input"]["command"] = texto
+            return rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"}).returncode
+
+        pedidos = list(dict.fromkeys(pedidos))
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+            return dict(zip(pedidos, pool.map(decidir, pedidos)))
+
+    def rodar_no_bash_do_t9b(self, bash, texto, base):
+        """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, `HOME` e a pasta em `base`, no `$TMPDIR`, sem
+        rede), com registradores no `PATH` e em `base/x0` (o `PATH` que o Z1 monta: `PATH=<base>/x$(( cat ))`), onde o
+        `cat` roda a entrada como o bash (o B1 da revalidação 7). Os shells são o próprio bash. Devolve os (programa,
+        argumentos) gravados. Nenhum programa real além do bash (R-CUSTO)."""
+        registradores, pasta, registro, casa = base / "bin", base / "pasta", base / "registro", base / "casa"
+        z1 = base / "x0"
+        for d in (registradores, pasta, casa, z1):
+            d.mkdir(parents=True)
+        for nome in set(re.findall(r"[A-Za-z_][\w.+-]*", texto)) | {"cat", "git", "gh", "mkdir", "env"}:
+            for d in (registradores, z1):
+                arquivo = d / nome
+                if nome in self.SHELLS_DO_T9B:
+                    arquivo.write_text(f'#!{bash}\nexec {bash} --noprofile --norc "$@"\n', encoding="utf-8")
+                elif nome == "env":  # o `env X=1 prog`, sem o programa real
+                    arquivo.write_text(f'#!{bash}\nwhile [[ $1 == *=* ]]; do export "$1"; shift; done\nexec "$@"\n',
+                                       encoding="utf-8")
+                elif nome == "cat" and d == z1:
+                    arquivo.write_text(f"#!{bash}\nexec {bash} --noprofile --norc -s\n", encoding="utf-8")
+                else:
+                    arquivo.write_text(self.REGISTRADOR.format(bash=bash), encoding="utf-8")
+                arquivo.chmod(0o755)
+        subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
+                       env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)}, capture_output=True,
+                       text=True, timeout=10)
+        gravado = registro.read_text(encoding="utf-8") if registro.exists() else ""
+        rodou = []
+        for item in gravado.split("\036")[:-1]:
+            argv = item.split("\035", 1)[0].split("\037")[:-1]
+            rodou.append((argv[0], argv[1:]))
+        return rodou
+
+    def textos_do_t9b(self, base):
+        """(rótulo, hook, texto, pasta, marca) dos textos do corpus com `{CORPO}` (a sentinela do hook no lugar, e
+        `/tmp/x` do Z1 numa pasta de `base`) e das mutações do T8 por nível dos casos L com a sentinela."""
+        dados = corpus_da_volta_unica()
+        textos = []
+        for caso in dados["casos"]:
+            if "{CORPO}" not in caso.get("comando", ""):
+                continue
+            for hook, sentinela in self.SENTINELAS.items():
+                if caso[hook] is None:
+                    continue
+                pasta = base / f"{caso['id']}-{hook}"
+                marca = caso.get("fecha")
+                marca = marca.get(hook) if isinstance(marca, dict) else marca
+                texto = caso["comando"].replace("{CORPO}", sentinela).replace("/tmp/x", f"{pasta}/x")
+                textos.append((f"{caso['id']}/{hook}", hook, texto, pasta, marca))
+        for k, (id, hook, texto) in enumerate(self.casos_aceitos(self.SENTINELAS)):
+            for n, (rotulo, envolto) in enumerate(self.mutacoes_de_nivel(texto)):
+                textos.append((f"{id}/{hook} em {rotulo}", hook, envolto, base / f"nivel-{k}-{n}", None))
+        return textos
+
+    def test_t9b_oraculo_do_gatilho(self):  # T9b (RET-LEITURA-HOOK-B, seção 3 da proposta caminho-rev8)
+        """O que o hook libera com o marcador crítico, o bash não roda escondido. Para cada texto de `textos_do_t9b` que
+        o hook dono da sentinela libera (código 0), o bash roda o texto (`rodar_no_bash_do_t9b`), e nenhum registrador
+        pode gravar a linha sentinela: o hook liberou, e o bash rodou a linha que ele não viu. Com a marca `fecha`, o
+        caso ainda tem de mostrar a sentinela rodada (o vermelho continua provado). Só roda o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria()
+        textos = self.textos_do_t9b(base)
+        decisoes = self.decisoes_dos_hooks([(hook, texto) for _, hook, texto, _, _ in textos])
+        ids = set()
+        for rotulo, hook, texto, pasta, marca in textos:
+            if decisoes[(hook, texto)] != 0:
+                if marca:
+                    with self.subTest(rotulo=rotulo):
+                        self.conferir_marca(marca, True, f"o {hook} já recusa {texto!r}")
+                continue
+            sentinela = shlex.split(self.SENTINELAS[hook])
+            rodou = self.rodar_no_bash_do_t9b(bash, texto, pasta)
+            with self.subTest(rotulo=rotulo):
+                self.conferir_marca(marca, (sentinela[0], sentinela[1:]) not in rodou,
+                                    f"o {hook} libera {texto!r} e o bash roda {' '.join(sentinela)}: {rodou}")
+            ids.add(rotulo.split("/")[0])
+        self.assertLessEqual({"K1a", "K1b"}, ids, "o T9b roda no bash o que o hook libera")
+        self.assertGreaterEqual(len(textos), 500)
 
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()

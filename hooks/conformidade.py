@@ -772,7 +772,8 @@ class Guarda:
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
             self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
-        # ADR 0011, item 2 (opções D e A), por último: com `<<` no texto, sobre o texto do nível 0, que contém os outros
+        # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
+        # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
             sinal = fora_da_gramatica_com_heredoc(original)
             if sinal is not None:

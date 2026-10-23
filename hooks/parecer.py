@@ -383,8 +383,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
                              "o programa noutra")
-    # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: com `<<` no texto, haja heredoc provado ou
-    # não, sobre o texto do nível 0, que contém o de `bash -c`, `eval` e `$(…)` (o nível 1 não decide de novo)
+    # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
+    # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
+    # provado ou não
     if nivel == 0 and CRITICO.search(original):
         sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:

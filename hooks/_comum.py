@@ -1608,10 +1608,18 @@ def comando_fora_da_gramatica(palavras):
 Gramatica = collections.namedtuple("Gramatica", "comandos corpos k1")
 
 
+# O `<<` que o bash pode formar num nível de cima (opção A da revalidação 8): ele lê o operador antes de tirar aspas e
+# expandir, então no nível N só há `<<` se o nível N-1 deixou dois `<` juntos. Entre eles, o N-1 pode apagar aspas,
+# `\`, `\` + quebra de linha e `$(…)` que dá vazio (`eval '<''<EOF'`, `bash -c "<""<EOF"`, `\<\<`, `"<$(:)<"`).
+HEREDOC_QUE_O_BASH_FORMA = re.compile(r"<(?:['\"\\]|\\\n|\$\([^()]*\))*<")
+
+
 def tem_heredoc_no_texto(texto):
-    """Opção A, item 2: o gatilho é textual, `<<` em qualquer lugar do texto, depois de tirar cada `\\` + quebra de
-    linha (o bash os junta antes de ler os operadores: `<\\`⏎`<'EOF'` é heredoc), haja heredoc provado ou não."""
-    return "<<" in texto.replace("\\\n", "")
+    """Opção A (revalidações 7 e 8): o gatilho é textual, haja heredoc provado ou não: dois `<` com, entre eles, só o
+    que um nível pode apagar (`HEREDOC_QUE_O_BASH_FORMA`), o que inclui o `<<` literal e o `<\\`⏎`<` (o bash junta a
+    quebra antes de ler os operadores). O `<<` calculado (`$(printf '\\x3c\\x3c')` dentro de `eval`) nenhum gatilho de
+    texto vê: a reavaliação com marcador crítico recusa (opção B)."""
+    return HEREDOC_QUE_O_BASH_FORMA.search(texto) is not None
 
 
 def gramatica_com_heredoc(texto):
@@ -1648,8 +1656,8 @@ def gramatica_com_heredoc(texto):
 
 def fora_da_gramatica_com_heredoc(texto):
     """ADR 0011, item 2: o primeiro sinal da chamada com `<<` fora da gramática positiva, ou None (também quando o texto
-    não tem `<<`). Quem chama a aplica só no texto inteiro da chamada (o nível 0, que contém os outros) e com o marcador
-    crítico. Nenhuma expansão sobra fora das formas K, as palavras são comparadas sem aspas e os corpos são cortados
+    não tem `<<`). Quem chama a aplica só no texto inteiro da chamada (o nível 0) e com o marcador crítico; o `<<` de um
+    nível de cima é o que o bash pode formar com o texto do nível 0 (`tem_heredoc_no_texto`). Nenhuma expansão sobra fora das formas K, as palavras são comparadas sem aspas e os corpos são cortados
     como o bash os corta, então a decisão não depende de como o leitor lê aspas, substituições e níveis."""
     lida = gramatica_com_heredoc(texto)
     return lida if isinstance(lida, str) else None
