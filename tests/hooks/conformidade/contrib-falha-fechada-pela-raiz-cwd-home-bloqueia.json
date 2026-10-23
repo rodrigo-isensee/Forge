@@ -3,6 +3,7 @@
   "arquivos": {
     "src/app.js": "v1\n"
   },
+  "pathlib_312": true,
   "env": {
     "HOME": "{tmp}/home",
     "CLAUDE_PROJECT_DIR": "{tmp}/proj"
