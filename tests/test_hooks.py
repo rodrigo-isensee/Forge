@@ -1896,11 +1896,15 @@ class Hooks(unittest.TestCase):
 # de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
-REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D"})  # D: a opção D (RET-LEITURA-HOOK-D)
-EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opção D: todas as regras entraram, nenhuma marca `fecha` sobra
+REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A"})  # D e A: as opções D e A (RET-LEITURA-HOOK-D, -A)
+EXIGE_NENHUMA_MARCA = False  # opção A (RET-LEITURA-HOOK-A): as marcas `fecha: "A"` saem com os itens 1 a 3 da seção 2A
 MINIMO_POR_CLASSE = {"R": 32, "N": 12, "S": 34, "H": 8, "V": 13, "L": 12, "F": 12}
 IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e", "R20a", "R20b", "R20c", "S5", "S15",
-                      "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b")
+                      "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b",
+                      # opção A (RET-LEITURA-HOOK-A): as sondas da revalidação 7 e os falsos positivos medidos
+                      "G1", "G2", "G3", "G3c", "G3d", "G4", "G5", "G6", "G7", "G8", "GL1", "GL2", "GL3", "GL4", "GL5",
+                      "GL6", "B1", "B2", "BL1", "HC1", "HC2", "HC3", "HC4", "HC5", "FD9", "FD9b", "FD10", "FD10b", "FD11",
+                      "FD11b")
 
 
 def corpus_da_volta_unica():
