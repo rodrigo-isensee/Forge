@@ -1875,5 +1875,149 @@ class Hooks(unittest.TestCase):
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
 
+
+# LOTE-LEITURA-HOOK, volta única (docs/propostas/lote-leitura-hook-volta-unica.md, seções 3 a 5): o corpus das classes
+# R, N, S, H, V, L e F nos dois hooks, o oráculo das redireções (T6) e o enumerador de programas (T7). A marca `fecha`
+# de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
+# errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
+CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
+REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5"})
+EXIGE_NENHUMA_MARCA = False  # o passo (7) do desenho liga: nenhuma marca `fecha` pode sobrar
+MINIMO_POR_CLASSE = {"R": 32, "N": 12, "S": 34, "H": 8, "V": 13, "L": 12, "F": 12}
+IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e", "R20a", "R20b", "R20c", "S5", "S15",
+                      "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b")
+
+
+def corpus_da_volta_unica():
+    return json.loads(CORPUS_VOLTA_UNICA.read_text(encoding="utf-8"))
+
+
+class CorpusHeredocVoltaUnica(unittest.TestCase):
+    """Os casos de `tests/fixtures/heredoc-volta-unica.json`, cada um no modelo de fixture do hook (`modelos`), com
+    `{CORPO}` trocado pela linha crítica dele (`corpos`). Em cada caso, o código esperado por hook (`null`: a célula não
+    roda) e a marca `fecha`: a regra, ou `{hook: regra}` quando o outro hook já dá o esperado (pelo item 2 da ADR 0011,
+    por exemplo). `passos` são chamadas anteriores do Bash, a última é a principal."""
+    executar_em_lote = Hooks.executar_em_lote
+    _pasta_temporaria = Hooks._pasta_temporaria
+    depende_de_pid_ou_trava = staticmethod(Hooks.depende_de_pid_ou_trava)
+
+    def conferir_marca(self, fecha, passou, saida):
+        """Sem marca, o caso tem de passar; com marca, tem de falhar (a regra da marca ainda não entrou)."""
+        if fecha:
+            self.assertIn(fecha, REGRAS_DA_VOLTA_UNICA)
+            self.assertFalse(passou, f"marca sobrando: o caso já passa; tire a marca {fecha} neste commit ({saida})")
+        else:
+            self.assertTrue(passou, saida)
+
+    def executar_fixture(self, f, tmp, outro_pid):
+        raiz, entrada = f.montar(tmp, outro_pid)
+        proc = montar_proc(tmp, None)
+        extra = {"FORGE_NPROC": "8"}
+        f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
+        r = rodar(f.hook, entrada, raiz, proc, extra)
+        codigo = f.dados["esperado"]["codigo"]
+        if codigo == 0:
+            passou = r.returncode == 0 and r.stderr == ""
+        else:
+            passou = r.returncode == codigo and re.match(r"^R-[A-Z]+: ", r.stderr) is not None
+        self.conferir_marca(f.dados.get("fecha"), passou, f"código {r.returncode}: {r.stderr.strip()}")
+
+    def fixtures_do_corpus(self):
+        dados = corpus_da_volta_unica()
+        fixtures = []
+        for caso in dados["casos"]:
+            for hook, modelo in dados["modelos"].items():
+                if caso[hook] is None:
+                    continue
+                caminho = FIXTURES / hook / f"{modelo}.json"
+                base = json.loads(caminho.read_text(encoding="utf-8"))
+                comandos = [c.replace("{CORPO}", dados["corpos"][hook]) for c in caso.get("passos", [caso.get("comando")])]
+
+                def entrada(comando):
+                    e = json.loads(json.dumps(base["entrada"]))
+                    e["tool_input"]["command"] = comando
+                    return e
+
+                base["passos"] = [{"entrada": entrada(c)} for c in comandos[:-1]]
+                base["entrada"] = entrada(comandos[-1])
+                base["esperado"] = {"codigo": caso[hook]}
+                fecha = caso.get("fecha")  # a regra, ou {hook: regra} quando só um dos hooks ainda falha
+                fecha = fecha.get(hook) if isinstance(fecha, dict) else fecha
+                if fecha:
+                    base["fecha"] = fecha
+                fixtures.append((f"{hook}/{caso['id']}", Fixture(caminho, base)))
+        return fixtures
+
+    def test_corpus_nos_dois_hooks(self):
+        inicio = time.monotonic()
+        casos = self.fixtures_do_corpus()
+        self.assertEqual(self.executar_em_lote(casos), len(casos))
+        self.assertLess(time.monotonic() - inicio, 60, "o corpus roda em paralelo, como os fixtures")
+
+    def test_oraculo_das_redirecoes(self):  # T6
+        """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`
+        numa pasta vazia; se ele criou ou mudou um arquivo ali, `grava_arquivo` dá verdadeiro, e para a classe N, com
+        todo prefixo, falso. Só roda `cat` e `echo`, sem rede (R-CUSTO)."""
+        bash = shutil.which("bash")
+        versao = None
+        if bash:
+            r = subprocess.run([bash, "--noprofile", "--norc", "-c", 'echo "${BASH_VERSINFO[0]}"'], capture_output=True,
+                               text=True, env={"PATH": "/usr/bin:/bin"}, stdin=subprocess.DEVNULL, timeout=5)
+            versao = r.stdout.strip()
+        if not bash or not (versao or "").isdigit() or int(versao) < 4:
+            self.skipTest(f"bash ausente ou anterior ao 4 (BASH_VERSINFO={versao}): {{fd}}> e &>> não existem")
+        _comum, _, _ = modulos_dos_hooks()
+        oraculo = corpus_da_volta_unica()["oraculo"]
+        for redirecao in oraculo["redirecoes"]:
+            for nome, prefixo in oraculo["prefixos"].items():
+                texto = f"{prefixo}cat {redirecao['op']} <<'EOF'\nx\nEOF"
+                with self.subTest(texto=texto), tempfile.TemporaryDirectory(prefix="forge-redirecao-") as tmp:
+                    subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=tmp, env={"PATH": "/usr/bin:/bin"},
+                                   stdin=subprocess.DEVNULL, capture_output=True, timeout=5)
+                    gravou = any(Path(tmp).iterdir())
+                    resto, _ = _comum.tirar_heredocs(texto)
+                    grava = _comum.grava_arquivo(resto)
+                    passou = (grava or not gravou) and (redirecao["classe"] != "N" or not grava)
+                    self.conferir_marca(redirecao.get("fecha", {}).get(nome), passou,
+                                        f"bash gravou: {gravou}; grava_arquivo: {grava}")
+        self.assertGreaterEqual(len(oraculo["redirecoes"]), 28)
+
+    def test_enumerador_nao_engole_programa(self):  # T7
+        """A redireção completa (operador e alvo colado) não consome a palavra seguinte, nem depois de atribuição ou de
+        `!`; o operador que pede alvo separado consome só o alvo."""
+        _comum, _, _ = modulos_dos_hooks()
+        enumerador = corpus_da_volta_unica()["enumerador"]
+        casos = [(item, forma, f"{forma}{item['op']} ./x.sh", "./x.sh", None)
+                 for item in enumerador["completos"] for forma in enumerador["formas"]]
+        casos += [(item, "", f"{item['op']} alvo ./x.sh", "./x.sh", "alvo") for item in enumerador["pedem_alvo"]]
+        for item, forma, texto, programa, alvo in casos:
+            with self.subTest(texto=texto):
+                programas = [p for p, _, _ in _comum.programas_e_atribuicoes(texto)]
+                passou = programa in programas and alvo not in programas
+                self.conferir_marca(item.get("fecha", {}).get(forma), passou, f"programas: {programas}")
+        self.assertGreaterEqual(len(casos), 70)
+
+    def test_corpus_cobre_as_classes(self):
+        dados = corpus_da_volta_unica()
+        casos = dados["casos"]
+        ids = [c["id"] for c in casos]
+        self.assertEqual(len(ids), len(set(ids)), "ID repetido no corpus")
+        for classe, minimo in MINIMO_POR_CLASSE.items():
+            self.assertGreaterEqual(sum(c["classe"] == classe for c in casos), minimo, f"classe {classe}")
+        self.assertLessEqual({c["classe"] for c in casos}, set(MINIMO_POR_CLASSE), "a classe X não entra no corpus")
+        for id in IDS_DA_VOLTA_UNICA:
+            self.assertIn(id, ids)
+        marcas = [m for c in casos for m in (c["fecha"].values() if isinstance(c.get("fecha"), dict)
+                                             else [c["fecha"]] if "fecha" in c else [])]
+        for secao in (dados["oraculo"]["redirecoes"], dados["enumerador"]["completos"], dados["enumerador"]["pedem_alvo"]):
+            marcas += [m for item in secao for m in item.get("fecha", {}).values()]
+        self.assertLessEqual(set(marcas), REGRAS_DA_VOLTA_UNICA)
+        if EXIGE_NENHUMA_MARCA:
+            self.assertEqual(marcas, [], "o passo (7) não aceita marca `fecha`")
+        for caso in casos:
+            self.assertTrue(caso["conformidade"] is not None or caso["parecer"] is not None, caso["id"])
+            self.assertEqual(sum(chave in caso for chave in ("comando", "passos")), 1, caso["id"])
+
+
 if __name__ == "__main__":
     unittest.main()
