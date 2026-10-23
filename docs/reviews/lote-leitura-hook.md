@@ -3,57 +3,89 @@ tipo: review
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 1b0fb6bf88b73bc81d7a5d4e85164942f119b1b2
+commit: b2c7d83919b3c2d7e68dad82c4a1f37fde680146
 parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-10-22
+data: 2026-10-23
 ---
-# Review: lote-leitura-hook (revalidação 5)
+# Review: lote-leitura-hook (revalidação 8, opção A)
 
-Escopo: a entrega inteira, `git diff ad6d96ce6b19663f7695d361d61f59c7545bdca6 1b0fb6bf88b73bc81d7a5d4e85164942f119b1b2`. Revalidei por delta desde o parecer anterior (7dba2e5, sobre a1a9f84). `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` listou `a1a9f84..a40ad01`: `changelog.d/lote-leitura-hook.md:4`, `docs/hooks.md:94`, `hooks/_comum.py` (9, 789-834, 846-1023, 1079-1141), `hooks/conformidade.py:755-761`, `tests/test_hooks.py` e as 10 fixtures novas. O 7bdd5e0 e o a40ad01 são o parecer da segurança, que não reli como código. Li só esse delta, e os commits até a1a9f84 ficam como "já lido". A exceção é o A2 abaixo. Ele vem de código já lido, mas a sonda o achou e o `docs/hooks.md:94` do delta afirma que esse caso está coberto. Sou revisor independente, não o autor. A segurança (E1.3) aprovou o mesmo sha em `docs/security/lote-leitura-hook.md` (7bdd5e0), e não refiz o parecer dela.
+Escopo: os commits da opção A, `02d1aaa..b2c7d83`. São eles: `8069653`, o merge da `develop` `7423c44` (#288); `e4189d9`, o corpus com as marcas `fecha: "A"`; `af335ca`, os itens 1 a 3; `171e3e1`, o T8 estendido e o T9; e `b2c7d83`, as emendas e o changelog. Pedido RET-LEITURA-HOOK-REV8, E1.1. Sou revisor independente e não implementei (`R-REVIEW`).
+
+O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` listou `02d1aaa..e03b3c6` (o `e03b3c6` é a cópia do parecer anterior nesta worktree). Li todo o delta da opção A: `hooks/_comum.py` 608-610, 733-734 e 1569-1655; `hooks/conformidade.py` 775-776; `hooks/parecer.py` 386-388; o corpus, linhas 163-193; `tests/test_hooks.py`, o T8 e o T9; `docs/hooks.md:94`; a ADR 0011, linha 40; o desenho, linhas 88 e 276-278; e o fragmento do changelog.
+
+O que o merge trouxe (`.githooks/pre-push:242`, `tests/apoio_pathlib_312/`, os 2 fixtures `contrib-falha-fechada-*` e os pareceres `suite-local-verde`) é o #288, já revisado na `develop`. Ele não toca `hooks/`, então fica como "já lido". Também fica como "já lido" o que vem de antes (`960e71b..02d1aaa`, revalidações 6 e 7). A segurança é do E2.1 e não foi refeita aqui.
+
+**Critério:** vale o da seção 2A de `docs/propostas/lote-leitura-hook-caminho-rev7.md`, que está no desenho, linha 278. Uma sonda só bloqueia se o hook a liberar com marcador e `<<` e o bash com registradores mostrar um programa ou um argv que a gramática não listou. A4/R1 e X1 a X3 são recomendação ou cartão N-HOOK1. FD9 a FD11 têm contorno e não bloqueiam.
+
+Leio `<<` como o `<<` que o bash lê, que foi a leitura da própria proposta no BL1 (`<\⏎<`). Não é critério novo. Se o Jarvis ou o arquiteto lerem `<<` só como o literal do texto da chamada, o A1 vira cartão N-HOOK1.
 
 ## Achados
-- A1 (bloqueante) hooks/_comum.py:911 · GRAVA_REDIRECAO trata `>&` como cópia de descritor, mas `>&arquivo` grava (bash): cat >&.husky/pre-commit <<'EOF' && git commit -m x com gh pr merge ou git push origin main no corpo sai 0 nos dois hooks (base: parecer 2); bash rodou o gancho
-- A2 (bloqueante) hooks/_comum.py:891 · o dono olha só o comando lógico do heredoc: cat > x.sh <<'EOF'⏎corpo⏎EOF⏎./x.sh (a quebra de linha vale o `;` do A1 de 3e5d570) sai 0 nos dois hooks desde f8e00ae (base 2); a ADR N-HOOK1, corpus linha 4, espera 2
+- A1 (bloqueante) hooks/_comum.py:1614 · classe "escopo da gramática (nível)", 2.ª volta seguida: o gatilho `"<<" in texto` não vê o `<<` partido por aspas ou `\` dentro de `eval`/`bash -c` (Q1 a Q4: 0 / 0, e o corpo roda no bash). Vai ao arquiteto e ao dono pela regra das duas voltas.
+- A2 (recomendado) tests/test_hooks.py:2214 · o T9 só olha o que a gramática aceitou, e o T8 "por nível" só envolve o `<<` literal: nenhum vê o A1. O T9 fica verde ao reverter o item 1 ou o 2. Rodar o T9 também sobre o que os hooks liberam com marcador.
+- A3 (recomendado) tests/fixtures/heredoc-volta-unica.json:182 · o BL1 recusa pelo leitor, não pelo gatilho: sem tirar o `\⏎` (M2t), corpus, T8 e T9 seguem verdes. Pôr caso que dependa só do gatilho ou anotar a cobertura.
+- A4 (recomendado) hooks/_comum.py:1497 · outra classe, opção do git que roda programa (O2 `--receive-pack`, O3 `rebase -x`, R1): segue aberta, cartão N-HOOK1 por decisão do dono, na coluna "Não promete" do desenho (linha 88).
 
 ## Parecer
-**Reprovado.** O A1 do review anterior (tempo) está resolvido: o custo ficou linear e abaixo da base em dobro. O A1 da segurança de e62b1b6 também está resolvido, nas formas e nas variantes. O A2 do review anterior está resolvido para `>`, `>>`, `>|`, `1<>`, `tee`, aspas no destino e `git apply`, mas não para `>&arquivo` (A1 deste parecer). O A2 deste parecer é a forma com quebra de linha do furo `; ./x.sh`, que a volta 4 fechou só dentro do comando lógico. Os dois deixam passar R-MAIN e R-REVIEW no hook. Pela decisão V1 = A do dono, não há 6.ª volta e o conteúdo vai ao N-HOOK1. O Jarvis leva isso ao dono (R-DECISAO).
+**Reprovado**, por um bloqueante, o A1. A opção A está implementada como a seção 2A pede. Os itens 1 a 3 estão em `af335ca`, com corpus vermelho antes (`e4189d9`, marcas `fecha: "A"`). O T8 cobre caractere, palavra, nível e corpo, e o T9 é um oráculo de bash com registradores, `env` mínimo e sem rede (`R-CUSTO`). A ADR 0011 só endurece, e o desenho tem o `critério mudou:` nas linhas 88 e 278. FD9 a FD11 estão no corpus e em `docs/hooks.md:94`, com contorno.
 
-### Sondas
-As sondas rodaram com o hook real, em cópias por `git archive` da base (ad6d96c), de f8e00ae, do HEAD anterior (a1a9f84) e do HEAD (1b0fb6b) em `$TMPDIR`. Usei o `Fixture`, o `montar_proc` e o `rodar` do HEAD. Os modelos foram `conformidade/heredoc-outro-comando-make-push-main-bloqueia` (corpo `git push origin main`) e `parecer/forge-clone-pr-merge-no-corpo-de-heredoc-gravado-e-make-bloqueia` (corpo `gh pr merge` com review reprovado). Cada célula mostra o resultado do conformidade e o do parecer.
+Os três bloqueantes da revalidação 7 estão fechados nas formas medidas. Mas a classe "nível" não acabou: o texto do nível 0 não contém os outros quando o `<<` do nível 1 nasce da remoção de aspas. A frase do item 2 da proposta ("o texto do nível 0 contém todos os outros") é falsa para `<''<`, `<""<` e `\<\<`. A correção de código é pequena, por exemplo um gatilho `<(?:['"\\]|\\\n)*<`, ou a gramática em todo nível que o hook segue. Mas é a 2.ª volta da mesma classe, então o caminho é do arquiteto e do dono, e não uma volta direta ao autor.
 
-| Caso | base | a1a9f84 | 1b0fb6b |
+**A1.** Sem `<<` literal no texto do nível 0, a gramática não vale, e o nível 1, que o hook segue, volta ao leitor de `199d1d1`, como no B1. A ADR 0011 (linha 40) promete: "`bash -c '…'`, `sh -c` e `eval '…'` recusam ali". Não é regressão: Q1 a Q4 também saem 0 / 0 com os hooks da `develop` `7423c44`. Pela regra das duas voltas (decisão "A" de 2026-10-22), a entrega para: o `software-architect` propõe o caminho e o dono decide.
+
+**A2.** Pela mutação, o T9 falha só quando se reverte o item 3 (tabela abaixo). Isso contradiz a divisão da seção 5 da proposta, que diz: "o T9 falha quando se reverte cada item 1 a 3". O item 1 fica de fora porque o T9 usa um git falso e o argv bate. O item 2 fica de fora porque o T9 pula o que não é `Gramatica`. Sugestão para o caminho do A1: o T9 falharia se um registrador recebe na entrada o corpo de um heredoc que a gramática não listou.
+
+**A3.** Hoje isso só endurece, porque o leitor é mais estrito ali: ele lê o corpo do BL1 como comando (`R-MAIN`, `R-REVIEW`).
+
+### Revalidação dos achados da revalidação 7, contra os hooks reais
+As sondas rodaram com um runner próprio, que monta o fixture do corpus (`modelos` e `corpos`) para cada hook e chama `rodar` de `tests/test_hooks.py`. Rodei sobre a worktree em `b2c7d83`.
+
+| Item | Sonda | conf / par | Estado |
 |---|---|---|---|
-| `&& git push --receive-pack='sh x.sh'`, `--rec=`, `GIT_SSH=./x.sh git push`, `git -C . push --exec=` | — | 0 / 0 | **2 / 2** |
-| `export GIT_SSH=./x.sh; cat > x.sh <<'EOF' && git push …` | — | 2 / 2 | 2 / 2 |
-| `cat > .husky/pre-push <<'EOF'; git push origin feature/x` | — | 0 / 0 | **2 / 2** |
-| o mesmo com `\| tee`, `1<>`, `>\|`, `> ".husky/pre-push"` e `git apply <<'EOF' && git commit` | — | 0 / 0 | **2 / 2** |
-| **A1:** `cat >&.husky/pre-push <<'EOF' && git push …`, `cat <<'EOF' >& .husky/pre-commit && git commit -m x`, `cat >&x.sh … && git add && git commit` | 0 / 2 (o 3.º: 2 / 2) | 0 / 0 | **0 / 0** |
-| **A2:** `cat > x.sh <<'EOF'`⏎corpo⏎`EOF`⏎`./x.sh` e `cat > .husky/pre-push …`⏎`git push origin feature/x` | 2 / 2 e 0 / 2 | 0 / 0 (f8e00ae também) | **0 / 0** |
-| `cat <<'EOF' \| git commit -F - && git push origin feature/x`, `cat <<'EOF' > /dev/null && git push …` | — | 0 / 0 | 0 / 0 |
-| `git add && git commit -m "$(cat <<'EOF'` com `it's` `&& git push origin feature/x` (conformidade) | — | 0 | 0 |
-| o mesmo com `git push origin main` | — | 2 | 2 |
-| `cat > n.md <<'EOF' && git add n.md` com `it's` (conformidade) | 0 | 0 | **2** (recomendação abaixo) |
-| `git commit -m "$(cat <<'EOF'` com `it's` e `&& git log -1` ou `&& echo feito`, `gh pr create --body … && echo ok` | 0 | 2 | 2 (recomendação de 7dba2e5, não feita) |
+| A1 (rev. 7) | G3 `git '-c' 'core.fsmonitor=…'` | 2 / 2 (`git -c` na chamada com heredoc) | **resolvido** |
+| A1 | G3c (corpo `git push origin HEAD:main`) | 2 / – (célula do `parecer` não se aplica) | resolvido |
+| A1 | G3d `git "-c"` em K3 | 2 / 2 | resolvido |
+| A1 | G3p `git -'c'` (partida) | 2 / 2 | resolvido |
+| A1 | G3e `'--config-env'=…`, G3x `'--exec-path'=…` | 2 / 2 | resolvido |
+| A1 | G3s `git -ccore.fsmonitor=…` (colado) | 0 / 0 | controle: o git 2.53 recusa (`unknown option: -ccore.fsmonitor=…`) e não roda o fsmonitor |
+| A2 (rev. 7) | B1 (`bash -c` com o Z1), B2 (`eval`) | 2 / 2 | **resolvido nas formas literais**; a classe reabre em A1 (Q1 a Q4) |
+| A3 (rev. 7) | casos da lista do git no corpus | mutação: sem `-c`/`--config-env` em `GIT_FORA_DA_GRAMATICA`, 15 falhas no corpus; com `sh` em `PROGRAMAS_DA_GRAMATICA`, 2 falhas | **resolvido** |
+| A4 (rev. 7) | O2, O3 | não medido de novo (fora do escopo) | **não resolvido**, cartão N-HOOK1 por decisão |
+| BL1 | `PATH=/tmp/x$(( cat )) cat <\⏎<'EOF'…` | 2 / 2 (`R-MAIN` e `R-REVIEW`, não pela gramática) | resolvido (ver A3) |
+| HC1, HC2, HC3 | `EOF)`, `EOF )` e `EOF x)` dentro de `$(` | 2 / 2 | **resolvido** (HC4 e HC5 no corpus verde) |
+| Z1 | controle, nível 0 | 2 / 2 | segue |
 
-No bash, o A1 se confirma assim: num repositório com `core.hooksPath .husky` e `.husky/pre-commit` executável, `cat >&.husky/pre-commit <<'EOF' && git commit -q -m x`, com `echo RODOU-NO-HOOK` no corpo, imprime `RODOU-NO-HOOK` e faz o commit. Correção mínima: `>&` seguido de algo que não seja só dígitos nem `-` conta como gravação.
+### Sondas novas (A1)
+O efeito foi medido no bash 5.3.9, com `env -i PATH=/usr/bin:/bin bash --noprofile --norc -c`, numa pasta de `$TMPDIR`. O `x0/cat` é falso (`exec bash -s`), e o `x0/gh` falso grava `prova`.
 
-Para o A2, o arquivo gravado continua no disco depois do comando lógico. Por isso, os outros comandos do resto do texto, e não só os do comando lógico, precisam passar pela mesma lista positiva e pela regra do `grava_arquivo`. A seção [B] de `docs/hooks.md` aceita o script gravado e executado depois, numa chamada à parte. Este caso é diferente: é a mesma linha do Bash, que a base barrava.
+| ID | Sonda (`{CORPO}` é a linha crítica do hook) | b2c7d83 conf / par | develop conf / par | Bash |
+|---|---|---|---|---|
+| Q1 | `eval 'PATH=/tmp/x$(( cat )) cat <''<"EOF"⏎{CORPO}⏎EOF'` | **0 / 0** | 0 / 0 | `RODOU gh pr merge feature/x --merge` |
+| Q2 | o mesmo com `bash -c` | **0 / 0** | 0 / 0 | `RODOU gh pr merge …` |
+| Q3 | `bash -c "PATH=/tmp/x\$(( cat )) cat <""<'EOF'⏎{CORPO}⏎EOF"` | **0 / 0** | 0 / 0 | mesma leitura (não rodado) |
+| Q4 | `eval PATH=/tmp/x\$\(\(\ cat\ \)\) cat \<\<\'EOF\'"⏎{CORPO}⏎EOF"` | **0 / 0** | 0 / 0 | `RODOU gh pr merge …` |
+| Q5 | `bash -c '… cat <\⏎<"EOF"…'` | 2 / 2 | | controle: o gatilho tira `\⏎` |
+| Q6 | `bash -c '… cat <""<"EOF"…'` (aspas duplas dentro das simples) | 2 / **0** | 2 / 0 | mesma leitura de Q1 |
 
-Tempo do `conformidade` com `git push origin main` no fim (base → HEAD): 3000 heredocs em linhas separadas, 1,53 s → 2,06 s. Os mesmos ligados por `&&`, 1,66 s → 1,86 s. Os mesmos num pipeline, 0,39 s → 0,65 s. Com 5000, 2,71 s → 2,78 s, e a forma com `&&` é recusada pelo teto. O caso que levava 26,85 s em a1a9f84 agora leva 2,06 s.
+Ao fim, o `x0/cat` é o mesmo cenário do Z1 e do B1 (`PATH` trocado pela aritmética): o bash roda o corpo do heredoc como comando.
 
-### Delta lido, por commit
-- **2af1983 (A1 de segurança):** a lista fechada de opções por subcomando, o `-C` e o `--no-pager` antes do subcomando, a recusa de atribuição antes do programa e o `MUDAM_O_AMBIENTE` seguem as letras a e b da regra 2.2 da ADR N-HOOK1. A abreviada fica fora porque toda opção fora da lista recusa. `programas_e_atribuicoes` só estende `programas_da_linha` e mantém a assinatura antiga.
-- **b45f410 (A1 do review):** `limites_logicos` com cache por texto, a busca binária em `lugar_logico`, o `indice_das_partes` e o `DonosDosHeredocs`, que devolve o mesmo objeto ao mesmo dono, cumprem a regra 3.1. O `corpo_so_lido` com `lru_cache` exige um `tambem` com hash estável. O `interprete` do conformidade é uma função de módulo, e o `nenhum` substituiu a lambda pelo mesmo motivo. Os testes de tempo têm teto e medem o hook real.
-- **8d59d8f (A2 do review):** a direção (nenhum `git` quando a linha grava) segue a letra c da regra 2.2. O furo está no `(?!&)` da expressão (A1 deste parecer). A busca de `-o` por prefixo pega também `-ours`, mas isso só deixa a leitura mais desconfiada.
-- **1b0fb6b (refactor do nome):** é só a troca de `segmentos` por `trechos`, que o T4 pedia. Quanto à P3 = B: o 1b0fb6b se reverte sozinho no HEAD sem conflito. O 2af1983, o b45f410 e o 8d59d8f não se revertem sozinhos no HEAD. Isso já acontecia em 8d59d8f, antes do rename, porque os três mudam o mesmo parágrafo de `docs/hooks.md:94` e trechos vizinhos de `_comum.py`. Revertidos os quatro em ordem inversa, sai limpo. O segundo commit para o mesmo achado não piora a reversão. A P3 = B, porém, já não valia por commit neste lote. Fica como recomendação, sem bloquear.
-- **Docs e changelog:** `docs/hooks.md:94` e o fragmento novo descrevem o delta. A frase sobre os outros comandos "noutra linha" afirma o que o A2 desmente.
+### O T8 e o T9 provam o critério de fim da seção 2A?
+Em parte. (1) O T8 e o T9 passam: `CorpusHeredocVoltaUnica`, numa cópia limpa (`git archive b2c7d83`), deu `Ran 6 tests in 39.949s OK`. (2) G, B, BL1, HC e as sondas das voltas 1 a 6 dão 2 nas células com marcador, pelo corpus verde e pelas sondas acima. (3) O critério não está provado: Q1 a Q4 escapam, e o T9, por construção, só olha o que a gramática aceitou.
 
-### Recomendações (fora do bloco)
-- **Falso positivo novo:** `cat > n.md <<'EOF' && git add n.md` com apóstrofo agora recusa, e a base e a1a9f84 liberavam. É a forma comum de gravar e adicionar um arquivo. A letra c da regra 2.2 da ADR inclui o subcomando que roda filtros ou fsmonitor, e a regra 4 manda resolver o falso positivo pela mensagem. A mensagem já dá a saída por arquivo, por isso não bloqueia. Registre o caso no corpus do N-HOOK1.
-- A recomendação de 7dba2e5 (deixar o `git` quando a linha não grava) não foi feita. A regra 4 da ADR permite isso, e o falso positivo de `&& git log` continua.
-- Continua valendo para o integrador (E1.5): R6 na descrição do PR, rótulo `afrouxa-regra` e o cartão HOOK-N4 no quadro.
-- Os commits estão limpos, em Conventional Commits em português, com o porquê e o vermelho de antes na mensagem.
+Para conferir, reverti cada item numa cópia limpa e rodei só o T8, o T9 e o corpus, um de cada vez (`R-TETO`):
 
-### Invariantes e ferramentas
-O delta não toca em `tests/config.json`. Na cópia do HEAD, `python3 -m unittest tests.test_hooks -k heredoc -k fixture -k corpo -k tempo -k custo` deu 6 testes OK em 96,8 s. Não refiz a suíte, que o pre-push deste parecer roda.
+| Mutação | T8 | T9 | corpus |
+|---|---|---|---|
+| M1: sem `sem_aspas` em `comando_fora_da_gramatica` (item 1) | falha | **verde** | 13 falhas |
+| M2: volta `if not achados: return None` (item 2) | falha | **verde** | 5 falhas |
+| M3: sem a recusa da linha que começa pelo delimitador, na gramática e em `heredocs` (item 3) | falha | 9 falhas | 11 falhas |
+| M3g: o item 3 só na gramática | falha | verde | verde (o `duvidar` de `heredocs` cobre o `$(`; fora dele o bash não fecha em `EOF)`, só recusa a mais, FD10) |
+| M2t: o gatilho sem tirar `\⏎` | verde | verde | verde (A3) |
+
+A suposição de "linha que começa pelo delimitador" está certa no bash 5.3.9: ` EOF)` e `⇥EOF)` não fecham; `EOF)` e `EOF⇥)` fecham.
+
+### Fora do bloco
+- A suíte completa não rodou, porque o dono limitou a memória e o pedido manda rodar só o corpus e as sondas. O implementador registrou `suíte 1608 OK` no histórico do RET-LEITURA-HOOK-A. `scripts/validar-plugin.sh` também não rodou, porque o delta não toca o manifesto nem a estrutura do plugin.
+- Código: `sem_aspas` é exata porque `simples_da_gramatica` só monta palavra com aspas fechadas e literais. `Gramatica` dá ao T9 a lista que ele compara, sem duplicar a leitura. Os nomes e as docstrings dizem o que fazem.
+- Os commits estão em Conventional Commits em português, na ordem da seção 5: corpus vermelho, depois a regra, depois os testes e as emendas. Não tocam `tests/config.json`. O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar.
+- Segurança: o A1 é um furo no controle (`R-SEGURANCA`, `R-MAIN` via `git push` no corpo, `R-REVIEW` via `gh pr merge`). O `security-engineer` o recebe por este parecer (sondas Q1 a Q6), sem cartão à parte.
