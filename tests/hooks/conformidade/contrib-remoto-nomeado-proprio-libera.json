@@ -22,7 +22,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "git push origin feature/x && env -S 'git push origin feature/x' && GH_REPO=acme/proj bash -c 'gh pr merge 3'"
+      "command": "git push origin feature/x && env -S 'git push origin feature/x' && GH_REPO=acme/proj gh pr merge 3"
     },
     "hook_event_name": "PreToolUse",
     "tool_use_id": "toolu_9"

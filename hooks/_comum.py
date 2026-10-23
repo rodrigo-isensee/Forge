@@ -1750,6 +1750,33 @@ def separar_lancadores(palavras):
     return palavras, lancadas
 
 
+# A palavra de laço ou de condição antes do comando (`do rm …`, `then …`): o comando vem depois dela.
+CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
+OPCAO_DE_REAVALIACAO = re.compile(r"-[A-Za-z]*c[A-Za-z]*")  # `-c`, `-ec`, `-lc`: o shell roda o texto do argumento
+CONTORNO_DA_REAVALIACAO = ("rode o comando direto, sem eval nem shell com -c, ou a reavaliação e a ação crítica em "
+                           "chamadas diferentes do Bash")
+
+
+def reavaliacao(palavras):
+    """ADR 0011, item 2 (opção B da revalidação 8): o comando simples reavalia um texto pelo shell, por baixo dos
+    lançadores que o hook separa (`separar_lancadores`)? `eval`, ou `bash`/`sh`/`zsh`/`dash`/`ksh` com opção curta que
+    contém `c`. Devolve o nome (`eval`, `bash -c`) ou None. O `env -S` que o hook não divide (aspas abertas) é ele mesmo
+    uma reavaliação que ele não lê: `env -S`. Com o marcador crítico no nível 0, os dois hooks recusam a chamada, haja
+    `<<` ou não: o texto reavaliado nunca chega ao leitor, então não importa como o `<<` nasce lá dentro."""
+    while palavras and palavras[0] in CORPO_DE_LACO:
+        palavras = palavras[1:]
+    try:
+        palavras, _ = separar_lancadores(palavras)
+    except ValueError:
+        return "env -S"
+    programa = Path(palavras[0].lstrip("`")).name if palavras else ""
+    if programa == "eval":
+        return "eval"
+    if programa in SHELLS and any(OPCAO_DE_REAVALIACAO.fullmatch(p) for p in palavras[1:]):
+        return f"{programa} -c"
+    return None
+
+
 def valor_do_split_string(opcao, seguinte):
     """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string`, o comando que o `env` divide e roda;
     None se a opção não é essa. No grupo curto (`-iS`), a primeira letra que leva valor decide (`-uS` é `-u S`)."""

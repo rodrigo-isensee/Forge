@@ -18,9 +18,10 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (CONTORNO_DA_GRAMATICA, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase,
-                    corpo_so_lido, e_clone_do_forge, executar, fora_da_gramatica_com_heredoc, forge_check, git,
-                    nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra, tirar_heredocs)
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear,
+                    conteudos_de_crase, corpo_so_lido, e_clone_do_forge, executar, fora_da_gramatica_com_heredoc,
+                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, reavaliacao, sem_atribuicoes,
+                    separar_regra, tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -338,12 +339,14 @@ def principal(hook):
     conferir_linha(hook, comando, [(hook.cwd(), {})])
 
 
-def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False):
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
     """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
     corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
     …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
     linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras. `corpo_de_heredoc`:
-    a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem."""
+    a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
+    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
+    reavaliacoes = [] if reavaliacoes is None else reavaliacoes
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
@@ -372,17 +375,24 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]
+        reavaliacoes += [r for r in (reavaliacao(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes)
+                         if r]
         for pasta, branches in estados:
             for estado in conferir(hook, partes, pasta, branches):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items()))), estado)
         internos += [(p, True, False) for palavras, _, _ in leitura for p in palavras
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
-        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc)
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
     if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
                              "o programa noutra")
+    # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
+    # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
+    if nivel == 0 and reavaliacoes and CRITICO.search(original):
+        bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: o hook não modela o "
+                             f"texto que o shell reavalia. Corrigir: {CONTORNO_DA_REAVALIACAO}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não

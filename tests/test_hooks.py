@@ -1898,7 +1898,7 @@ class Hooks(unittest.TestCase):
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
 REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B"})  # D, A e B: as opções (RET-LEITURA-HOOK-D, -A, -B)
-EXIGE_NENHUMA_MARCA = False  # opção B (RET-LEITURA-HOOK-B): as sondas da revalidação 8 entram vermelhas, com a marca B
+EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opções D, A e B: todas as regras entraram, nenhuma marca `fecha` sobra
 MINIMO_POR_CLASSE = {"R": 32, "N": 12, "S": 34, "H": 8, "V": 13, "L": 12, "F": 12}
 IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e", "R20a", "R20b", "R20c", "S5", "S15",
                       "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b",
@@ -2281,10 +2281,12 @@ exit 0
     # que o hook libera, com a linha sentinela no `{CORPO}`.
     SENTINELAS = {"conformidade": "git push origin SENTINELA:main", "parecer": "gh pr merge SENTINELA --merge"}
     SHELLS_DO_T9B = ("bash", "sh", "dash", "zsh", "ksh")  # no `PATH` do T9b, o próprio bash: a reavaliação roda de verdade
+    DECISOES = {}  # (hook, texto) -> código, de `decisoes_dos_hooks`
 
     def decisoes_dos_hooks(self, pedidos):
         """{(hook, texto): código} de cada hook, no modelo do corpus (um repositório por hook, montado uma vez), em
-        paralelo. O hook cujo marcador (`CRITICO`) o texto não tem não roda: ele libera sem ler (0)."""
+        paralelo. O hook cujo marcador (`CRITICO`) o texto não tem não roda: ele libera sem ler (0). Os códigos ficam
+        em `DECISOES`, da classe: o T9b e a propriedade da opção B leem os mesmos textos."""
         _comum, conformidade, parecer = modulos_dos_hooks()
         criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
         dados = corpus_da_volta_unica()
@@ -2306,9 +2308,10 @@ exit 0
             entrada["tool_input"]["command"] = texto
             return rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"}).returncode
 
-        pedidos = list(dict.fromkeys(pedidos))
+        faltam = [pedido for pedido in dict.fromkeys(pedidos) if pedido not in self.DECISOES]
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
-            return dict(zip(pedidos, pool.map(decidir, pedidos)))
+            self.DECISOES.update(zip(faltam, pool.map(decidir, faltam)))
+        return {pedido: self.DECISOES[pedido] for pedido in pedidos}
 
     def rodar_no_bash_do_t9b(self, bash, texto, base):
         """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, `HOME` e a pasta em `base`, no `$TMPDIR`, sem
@@ -2389,6 +2392,45 @@ exit 0
             ids.add(rotulo.split("/")[0])
         self.assertLessEqual({"K1a", "K1b"}, ids, "o T9b roda no bash o que o hook libera")
         self.assertGreaterEqual(len(textos), 500)
+
+    # Propriedade da opção B ((5) da seção 4B da proposta caminho-rev8), sem bash: com o marcador crítico e uma
+    # reavaliação pelo shell, o hook recusa. A reavaliação é reconhecida por uma leitura própria do teste.
+    REAVALIACAO_DO_TESTE = re.compile(r"(?<![\w.-])(?:eval|(?:bash|sh|zsh|dash|ksh)(?:\s+-\w+)*?\s+-[A-Za-z]*c[A-Za-z]*)(?=\s)")
+    LINHAS_DIRETAS = {"conformidade": ("git push origin feature/x",),
+                      "parecer": ("gh pr create --draft --base develop --title t --body x",)}
+
+    def test_propriedade_da_reavaliacao_com_marcador(self):  # (5) da opção B (RET-LEITURA-HOOK-B)
+        """Para todo texto com o marcador crítico de um hook (`CRITICO`) e uma reavaliação (`REAVALIACAO_DO_TESTE`), o
+        hook dá 2. No corpus, a célula do hook é 2 (o `test_corpus_nos_dois_hooks` prova o código). Nas mutações do T8
+        por nível (os casos L com a sentinela do T9b) e na linha crítica direta, e na sentinela, dentro de cada
+        reavaliação de `NIVEIS`, haja `<<` ou não, cada hook com o marcador roda e dá 2."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        dados = corpus_da_volta_unica()
+        no_corpus = 0
+        for caso in dados["casos"]:
+            for hook, critico in criticos.items():
+                texto = caso.get("comando", "").replace("{CORPO}", dados["corpos"][hook])
+                if caso[hook] is not None and critico.search(texto) and self.REAVALIACAO_DO_TESTE.search(texto):
+                    no_corpus += 1
+                    with self.subTest(caso=f"{caso['id']}/{hook}"):
+                        self.assertEqual(caso[hook], 2, f"reavaliação com marcador e célula {caso[hook]}: {texto!r}")
+        textos = [(rotulo, texto) for rotulo, _, texto, _, _ in self.textos_do_t9b(self._pasta_temporaria())
+                  if " em " in rotulo]
+        for hook, linhas in self.LINHAS_DIRETAS.items():
+            for linha in linhas + (self.SENTINELAS[hook],):
+                for nivel, aspas in self.NIVEIS:
+                    textos.append((f"{linha!r} em {nivel.format('…')}", nivel.format(self.para_o_nivel_0(linha, aspas))))
+        pedidos = [(hook, texto) for _, texto in textos for hook, critico in criticos.items() if critico.search(texto)]
+        decisoes = self.decisoes_dos_hooks(pedidos)
+        for rotulo, texto in textos:
+            self.assertRegex(texto, self.REAVALIACAO_DO_TESTE)
+            for hook, critico in criticos.items():
+                if critico.search(texto):
+                    with self.subTest(rotulo=rotulo, hook=hook):
+                        self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
+        self.assertGreaterEqual(no_corpus, 15)
+        self.assertGreaterEqual(len(pedidos), 500)
 
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()

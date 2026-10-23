@@ -24,10 +24,11 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (CONTORNO_DA_GRAMATICA, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, CORPO_DE_LACO, INTEGRACAO, OPACO, PLUGIN,
+                    PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, executar, fora_da_gramatica_com_heredoc, fora_da_gramatica_de_leitura,
-                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto,
+                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
@@ -229,7 +230,6 @@ DISPENSA_NA_COPIA = {"descartar", "limpar"}  # só atos sobre os arquivos da có
 UM_ATO_SIMPLES = re.compile(r"\s*git\s+(reset|clean|checkout|restore)(\s+[^\s;&|`$()<>\\\n]+)*\s*")
 ATO_FORA_DA_COPIA = re.compile(r"(^|\s)(-C|--work-tree|--git-dir|--work-tree=\S*|--git-dir=\S*)(\s|$)|GIT_DIR|GIT_WORK_TREE|\b(cd|pushd)\b")
 REBASE_COM_VALOR = {"--onto", "-s", "--strategy", "-X", "--strategy-option", "-x", "--exec", "-C"}
-CORPO_DE_LACO = {"do", "then", "else", "elif", "if", "while", "until", "!", "{"}
 REMOCAO = {"rm", "mv", "rmdir", "unlink", "shred"}
 
 # Papel só de leitura: o `git ls-remote` aceita só estas opções (`--upload-pack`, `-u` e `--exec` rodam um programa num
@@ -366,6 +366,7 @@ class Guarda:
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
+        self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
@@ -619,6 +620,7 @@ class Guarda:
         `PRAZO_DA_LINHA_S` segundos."""
         if nivel == 0:
             self.conferidas, self.conferencias, self.caracteres = {}, 0, 0
+            self.reavaliacao = None
             self.prazo = time.monotonic() + PRAZO_DA_LINHA_S
         chave = (comando, pasta, nivel, so_substituicoes, corpo_de_heredoc, tuple(sorted(self.ambiente.items())))
         if chave in self.conferidas:
@@ -716,6 +718,11 @@ class Guarda:
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
             self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
+        # ADR 0011, item 2 (opção B da revalidação 8), depois das regras específicas, também as do texto reavaliado (o
+        # `aninhado` já o conferiu): com o marcador crítico no nível 0, a reavaliação pelo shell em qualquer nível recusa
+        if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
+            self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: o hook não modela o texto "
+                                          "que o shell reavalia", CONTORNO_DA_REAVALIACAO)
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
@@ -843,6 +850,7 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
+        self.reavaliacao = self.reavaliacao or reavaliacao(palavras)  # recusa no fim da linha, com o marcador crítico
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
