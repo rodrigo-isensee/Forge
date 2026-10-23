@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: a18209c69da8a207adb4b576a6d4fa39ad63b109
+commit: d4bc9267cba743dd1397fe9c5f179a3bab2ce64a
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -40,3 +40,6 @@ Pedido RET-LOTE-FORGE-CHECK, E1.2. HEAD testado `a18209c` (base `af79bef`; revie
 
 ## Bugs abertos
 Nenhum.
+
+## Revalidação por delta (REVAL-288, E4.3)
+Depois do review e da segurança por delta aprovados, pela decisão "C" do dono (2026-10-23). Delta desde `a18209c` (commit do parecer anterior) até `d4bc926`: a entrada da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL: `.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`, documentos `suite-local-verde`) e pareceres em `docs/`. Nenhum código da entrega mudou. `bin/forge-testes` escolheu a suíte completa (o hook sem mapa), que o dono vetou nesta rodada; rodei, no lugar, os 6 módulos da entrega mais `test_hooks` (`python3 -m unittest tests.test_etapa_do_brief tests.test_isencoes tests.test_forge tests.test_brief_gravar tests.test_anotar tests.test_citacao tests.test_estado_da_branch tests.test_hooks`): 529 testes, 448 s, `OK`. As 4 falhas conhecidas do ambiente agora passam (o #288 as corrigiu). Comportamento já aprovado (M16, P2 a P6, M4, M13): igual, sem regressão. Não refiz o vermelho antes do verde (fora do delta). Veredito: aprovado, sem achado novo.
