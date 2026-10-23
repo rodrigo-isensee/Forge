@@ -56,6 +56,8 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
+# Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
+PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -557,6 +559,8 @@ class Hooks(unittest.TestCase):
         proc = montar_proc(tmp, f.dados.get("proc"))
         extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
         extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
+        if f.dados.get("pathlib_312"):  # a fixture provoca erro interno por Path.exists (tests/apoio_pathlib_312)
+            extra["PYTHONPATH"] = str(PATHLIB_312)
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
         r = rodar(f.hook, entrada, raiz, proc, extra)
         esperado = f.dados["esperado"]
@@ -1278,6 +1282,7 @@ class Hooks(unittest.TestCase):
             self.skipTest("o processo ignora permissões de pasta (root)")
         env = ambiente_limpo()
         env.pop("FORGE_GUARDA_ABERTA", None)
+        env["PYTHONPATH"] = str(PATHLIB_312)  # o PermissionError de exists() em toda versão do Python (a 3.14 o engole)
         for papel, esperado in {"forge-dev:aq": 2, "forge:dev": 0}.items():
             with self.subTest(papel):
                 entrada = {"tool_name": "Write", "tool_input": {"file_path": str(ilegivel / "sub" / "x.md")},
