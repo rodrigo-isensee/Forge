@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: RET-FECHAR-B2
+pedido: impl-n-fechar-b2
 branch: melhoria/impl-n-fechar-b2
 commit: 7f3b9ba84da9896dcce81cb3acae9ae7da17072a
 parecer: aprovado
