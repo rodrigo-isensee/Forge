@@ -784,9 +784,10 @@ def expandido(corpo):
     return "".join(saida)
 
 
-def tirar_heredocs(comando):
+def tirar_heredocs(comando, com_gravado=False):
     """Separa o corpo dos heredocs provados (`heredocs`), que não são comandos, da linha: devolve (comando sem os corpos,
-    [(dono, corpo)]), com o dono do operador lido na linha sem os corpos (`DonosDosHeredocs`). O
+    [(dono, corpo)]), com o dono do operador lido na linha sem os corpos (`DonosDosHeredocs`); com `com_gravado`, também
+    `gravado_e_rodado` (M3: o programa fora da lista num texto que grava arquivo, ou None). O
     operador e o delimitador saem junto, como um espaço: a palavra que o hook relê depois (`"$(cat <<'X'⏎X⏎L⏎Y)"`) não
     tira de novo, como corpo, a linha que o bash roda. ValueError (quem chama trata como linha ilegível): um `<<` em
     dúvida com uma linha não vazia depois dele (lido como comando, o corpo que não se tira esconderia o resto com uma
@@ -819,7 +820,8 @@ def tirar_heredocs(comando):
     resto, marcada = "".join(saida), "".join(marcada)
     lidas = leituras(marcada, com_sinal=True) if corpos else None
     donos = DonosDosHeredocs(resto, lidas) if corpos else None  # o que serve a todos, lido uma vez por texto
-    return resto, [(donos.dono(no_resto[operador], f"{MARCA}{operador}__"), corpo) for operador, corpo in corpos]
+    lidos = [(donos.dono(no_resto[operador], f"{MARCA}{operador}__"), corpo) for operador, corpo in corpos]
+    return (resto, lidos, donos and donos.gravado_e_rodado) if com_gravado else (resto, lidos)
 
 
 # Fim de linha física que o bash junta com a linha seguinte num comando só: barra ímpar (continuação), ou um operador
@@ -900,6 +902,8 @@ class DonosDosHeredocs:
             self.fora_do_texto.append(("git", "git"))
         if palavras_do_texto(resto).duvida:  # aspas ou substituição sem fechar no fim: o leitor não prova o resto
             self.fora_do_texto.append(("?", citar("?")))
+        # M3: o texto grava arquivo e roda programa fora da lista; com o marcador crítico, construção não modelada
+        self.gravado_e_rodado = self.fora_do_texto[0][0] if self.grava and self.fora_do_texto else None
         self.indices = [] if lidas.ilegivel else [indice_das_partes(partes) for partes in lidas.partes]
         self.vistos = {}
 

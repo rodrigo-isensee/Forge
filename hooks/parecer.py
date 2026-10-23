@@ -347,8 +347,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
+    original = comando
     try:  # o corpo de um heredoc não é comando: com apóstrofo, sem par, ele deixaria a linha ilegível (A1 do review)
-        comando, corpos = tirar_heredocs(comando)
+        comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
     except ValueError:  # `<<` em dúvida com linha depois, ou corpo sem aspas no delimitador com `$(` ou crase (o bash roda)
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
@@ -378,6 +379,10 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                      if "$(" in p.replace(OPACO["$"], "")]
     for texto, so, de_heredoc in dict.fromkeys(internos):
         conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc)
+    if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
+        bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
+                             "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
+                             "o programa noutra")
 
 
 def conferir(hook, partes, pasta, branches):

@@ -707,9 +707,9 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", "a linha cita a marca da sessão (.git/forge): só o usuário mexe nela",
                         f"não cite .git/forge; {SUGESTAO}")
         try:
-            comando, corpos = tirar_heredocs(comando)
+            comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
         except ValueError:  # HEREDOC-FURO-HOOK: `<<` em dúvida com linha depois, ou corpo que o bash expande com `$(`
-            lidas, corpos = None, []
+            lidas, corpos, gravado = None, [], None
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             lidas = leituras(comando)
@@ -765,6 +765,9 @@ class Guarda:
             if interpretados[dono]:
                 self.checar_texto(corpo)
         self.nao_modelada(achado)
+        if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
+            self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",
+                        "grave o arquivo pelo Write ou numa chamada do Bash e rode o programa noutra")
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
             self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
