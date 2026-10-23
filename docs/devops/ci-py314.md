@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: CI-PY314
 branch: melhoria/ci-py314
-commit: 0d971dae4013452272f307dce7449426a450aec4
+commit: 491a55acfd36eeab73bdc0ecc173a4396cd42b09
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-23
@@ -15,7 +15,7 @@ Aprovado. `.github/workflows/ci.yml`: job novo `bateria-python-tres-quatorze` (n
 - Nomes exigidos intactos: `bateria`, `checagem rápida (push na develop)` e `catraca` não mudaram.
 - Mesma condição de gatilho da `bateria` (PR, push na homolog e na main; não no push da develop).
 - Ações fixadas pelos mesmos SHAs dos jobs atuais; `persist-credentials: false`; `permissions` herda `contents: read` do topo; `timeout-minutes: 15`; `concurrency` do workflow vale para o job.
-- Escopo do job: só `python3 scripts/suite-paralela.py` no 3.14 (a parte que depende da versão). shellcheck, actionlint, zizmor, validação do plugin, e2e e gates de PR ficam na `bateria` (não dependem de Python; evita duplicar minutos). Sem o gate de commit só de parecer: o job roda a suíte inteira sempre (mais simples; recomendado reavaliar se o custo pesar).
+- Escopo do job (critério: o passo executa Python do Forge, logo depende da versão). Entraram: `tests/e2e-instalacao.sh` (`python3 -c` na linha 27 e `bin/forge-init`, que roda `python3` em três pontos), com o setup do runtime do CLI e a instalação do Claude Code CLI que ele exige (mesma versão fixada da `bateria`). Ficaram fora: `bin/forge-changelog conferir`, `scripts/conferir-release.py` e `tests/catraca.py --modo pareceres` (executam Python, mas `tests/test_conferir_release.py` trava um passo só de release no `ci.yml`, então duplicar quebra a suíte; a lógica deles tem testes na suíte, que roda no 3.14), `claude plugin validate` (CLI do Claude Code, não Python), shellcheck, actionlint, zizmor e o download delas (binários), "Nada pula degrau" e a varredura de segredos (`verificar-contribuicao.sh`, shell puro; sem Python), "Testes que leem pareceres" (subconjunto da suíte, que já roda inteira). Sem o gate de commit só de parecer: o job roda tudo sempre (mais simples; reavaliar se o custo pesar).
 - Recomendado (não bloqueia): tornar o check novo obrigatório é ação do dono (`R-CONFORMIDADE`).
 Ferramentas: `actionlint` e `zizmor` ausentes do PATH local (lacuna; ambos rodam na `bateria` do CI sobre este arquivo). `shellcheck` não se aplica.
 
