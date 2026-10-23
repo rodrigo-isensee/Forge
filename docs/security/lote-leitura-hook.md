@@ -3,63 +3,135 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: b2c7d83919b3c2d7e68dad82c4a1f37fde680146
+commit: 3df051e400a7be84cba20a9da185f9e1ba86f3f7
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-23
 ---
-# Review de segurança: lote-leitura-hook (revalidação 8, opção A)
+# Review de segurança: lote-leitura-hook (revalidação 9, opção B)
 
-Pedido RET-LEITURA-HOOK-REV8, etapa E2.1. Escopo: a opção A escolhida pelo dono para os três bloqueantes da revalidação 7 (`docs/propostas/lote-leitura-hook-caminho-rev7.md`, seção 2A), nos commits `e4189d9`, `af335ca`, `171e3e1` e `b2c7d83`. `forge-check delta --parecer` sobre a revalidação 7 (`02d1aaa`) lista `hooks/_comum.py:608-610,733-734,1569-1655`, `hooks/conformidade.py:775-776`, `hooks/parecer.py:386-388`, o corpus, `tests/test_hooks.py` (T8 e T9), a ADR 0011 (linha 40), `docs/hooks.md:94`, o desenho (linhas 88 e 276-278) e o fragmento do changelog. É controle do Forge e foi relido inteiro, com o caminho de `conferir_linha` nos dois hooks até a gramática: no nível 0, fora do papel só de leitura, toda saída antes dela recusa (`barrar`/`bloquear` saem com 2), então o gatilho textual sempre chega a ela. O merge `8069653` (develop `7423c44`, #288) traz em controle só um comentário do shellcheck em `.githooks/pre-push:242` e o apoio de teste `tests/apoio_pathlib_312/`, que só entra no `PYTHONPATH` dos testes. Nada nos hooks.
+Pedido RET-LEITURA-HOOK-REV9, etapa E2.1. Escopo: a opção B escolhida pelo dono para as sondas Q1 a Q4 da revalidação 8 (`docs/propostas/lote-leitura-hook-caminho-rev8.md`, seções 3, 4A e 4B), nos commits `403a3a0`, `140256f`, `befe8d3`, `d6bd263` e `3df051e`. O parecer anterior é a revalidação 8, em `b2c7d83` (commit `14c9eeb`). `forge-check delta --parecer` sobre ele lista:
+- `hooks/_comum.py:1611-1622,1659-1660,1712-1796`;
+- `hooks/conformidade.py` (imports, `:623`, `:721-727`, `:853`);
+- `hooks/parecer.py:21-24,342-349,378-398`;
+- o corpus, dois fixtures do `conformidade` e `tests/test_hooks.py` (T9b e a propriedade);
+- a ADR 0011 (linha 41), `docs/hooks.md:94`, o desenho (linhas 88 e 280-281) e o fragmento do changelog.
 
-**critério mudou:** sim. Vale o critério da seção 2A da proposta, item (3), emendado no desenho (`docs/propostas/lote-leitura-hook-volta-unica.md:276-278`): uma sonda só bloqueia se o hook a liberar com marcador e `<<` e o T9 (o bash com registradores) mostrar um programa ou um argv que a gramática não listou. O que um programa da lista faz com as próprias opções (A4 do review, R1 da segurança) e X1 a X3 são recomendação ou cartão N-HOOK1. FD9 a FD11 têm contorno em `docs/hooks.md` e não bloqueiam. A condição é necessária, não suficiente: a divergência de argv sem caminho de ataque continua sendo recomendação (proporcionalidade).
+É controle do Forge e foi relido inteiro. Conferi também que o `befe8d3` só move código: as linhas tiradas de `hooks/conformidade.py` e as postas em `hooks/_comum.py` são as mesmas, salvo o import e um comentário.
+
+**critério mudou:** não. Vale a frase de parada da opção B (desenho, `docs/propostas/lote-leitura-hook-volta-unica.md:280`), lida com a linha 276 e a regra A4 do mesmo desenho. A sonda bloqueia se cair na linha **Promete** do Leitor, se um dos hooks a liberar com marcador e se o T9b mostrar que o bash rodou a `SENTINELA`. Pela A4, a pertença se decide pela tabela. A linha Promete da opção B nomeia:
+- `eval` e `bash`/`sh`/`zsh`/`dash`/`ksh` com `-…c…`, na forma direta ou por baixo dos lançadores que o hook separa;
+- o `<<` que o bash pode formar.
+
+O que essa linha não cobre é cartão (linha 276), mesmo que o bash rode a sentinela. FD12 e FD13 têm contorno em `docs/hooks.md` e não bloqueiam.
 
 ## Gatilhos
-`R-SEGURANCA`, gatilho controles do Forge: a gramática positiva da chamada com `<<` e ação crítica nos hooks `conformidade` e `parecer`, que guardam R-MAIN, R-VERIFY, R-CONTRIB, R-CONFORMIDADE e R-REVIEW/R-QA.
+`R-SEGURANCA`, gatilho controles do Forge: os hooks `conformidade` e `parecer`. A mudança é a gramática positiva da chamada com `<<` e ação crítica e a recusa da reavaliação pelo shell. Os hooks guardam R-MAIN, R-VERIFY, R-CONTRIB, R-CONFORMIDADE e R-REVIEW/R-QA.
 
 ## Achados
 
 ## Detalhe dos achados
-Nenhum bloqueante pela letra do critério da seção 2A. Há uma **divergência com o review REV8**, que precisa do dono (`R-DECISAO`). As sondas Q1 a Q4 do review (`ed4416e`, A1 bloqueante, classe "nível") contornam os dois hooks com efeito. Pelo critério decidido, eu as leio como da família X3: o `<<` não está no texto, e a gramática não é acionada. Por isso não as conto como bloqueante (R0 abaixo, com severidade alta). Se o dono ler Q1 a Q4 como da classe "nível", e não como X3, este parecer passa a `reprovado` com um único bloqueante, a mesma evidência do R0 em `hooks/_comum.py:1614`. Não há outro bloqueante escondido.
+Nenhum bloqueante. As sondas novas acharam uma classe aberta, a do reavaliador ou comando que o hook não reconhece (R5 e R5a abaixo). Ela fica fora da linha Promete, não depende de `<<` e dá o mesmo código na `develop` `7423c44`. Por isso não é da classe "nível" e não bloqueia. Vai a cartão, com severidade alta.
 
-### Revalidação dos achados da revalidação 7
-- **A1 (classe H, `EOF)` dentro de `$(`): resolvido.** `heredocs` dá dúvida à linha do corpo que começa pelo delimitador dentro de `$(` (`hooks/_comum.py:733`), e a gramática recusa essa linha em qualquer contexto (`hooks/_comum.py:1638`). HC1 a HC5 saem **2 / 2**. No `parecer`, HC1 e HC2 voltam a recusar, como na `develop`, então a regressão foi fechada. O bash 5.3.9 rodou a linha escondida em todas (tabela). Medi também as linhas que não começam pelo delimitador: ` EOF)` e `⇥EOF)` não fecham no bash dentro de `$(`, e `)`, `x)`, `)"`, `) ; echo X #`, crase e `$(…)` no corpo ficam no corpo. A regra da gramática cobre o caso.
-- **R1 (opções do `git` e do `gh` que rodam programa, `-C`, `--git-dir`, aliases): não resolvido, levado ao N-HOOK1** pela decisão do dono de 2026-10-23. Não bloqueia pelo critério. N19 (`git -C .. push origin main`) sai 2 no `conformidade` pela regra R-MAIN, que resolve `-C`.
+### Revalidação dos achados da revalidação 8
+Hooks reais da worktree em `3df051e`. Cada sonda passou pelo `decisoes_dos_hooks` e pelo `rodar_no_bash_do_t9b` do próprio T9b:
+- o modelo do corpus, com a sentinela do hook no `{CORPO}`;
+- o `bash 5.3.9` com `env -i` e registradores no `PATH`;
+- `HOME` e a pasta em `$TMPDIR`, sem rede.
 
-### Sondas contra os hooks reais
-Hooks da worktree em `b2c7d83`, modelos do corpus, células conf / par. Efeito no `bash 5.3.9 --noprofile --norc -c`, com `env -i`, numa pasta de `$TMPDIR`, e no `PATH` só registradores que gravam o argv. Sem rede.
+As células são conf / par.
+- **R0 (Q1 a Q4 e Q6): resolvido.** No corpus, Q1 a Q6 saem **2 / 2**, e rodei Q1 e Q4 de novo no T9b: 2 / 2. Variantes que a proposta não pôs no corpus também saem 2 / 2:
+  - `<'\''<` (QN3);
+  - `$""` entre os dois `<` (QN2);
+  - `$(echo $(true))` aninhado entre os dois `<` (QN1).
 
-| ID | b2c7d83 | rev. 7 (`02d1aaa`) | o que o bash rodou |
-|---|---|---|---|
-| G1, G2, G6 (`'-c'`, `"-c"`, `-'c'` antes de `commit -F -`) | 2 / 2 | 0 / 0 (G1) | `git -c color.ui=never commit -F -` |
-| G3, G3d (`git '-c' 'core.fsmonitor=…'`) | 2 / 2 | 0 / 0 | `git -c core.fsmonitor=git push origin main;: status` |
-| G3c (só `conformidade`) | 2 / (0, sem marcador do `parecer`) | 0 | `git -c core.fsmonitor=git push origin HEAD:main;: status` |
-| G4, G5, G7, G8, GL1 a GL6 | 2 / 2 | — | o `git` com `--config-env`, `--exec-path`, `-c` ou `sh -c` |
-| B1 (`bash -c '…<<…'`), B2 (`eval '…<<…'`) | 2 / 2 | 2 / 0 | B1: `bash -c …` |
-| BL1 (`<\⏎<'EOF'`) | 2 / 2 | não medido | heredoc no bash |
-| HC1, HC2, HC3, HC4, HC5 | 2 / 2 | 0 / 0 (HC4: 2 / 0) | a linha escondida (`git push origin main`, `gh pr merge …`; HC5 também `x`) |
-| controle (K3 e `&& {CORPO}`) | 2 / 2 | 2 / 2 | `git commit -m msg`, `git push origin main` |
-| Q1 a Q4 do review (`<''<`, `<""<`, `\<\<` dentro de `eval`/`bash -c`) | **0 / 0** | 0 / 0 (review) | com o leitor plantado na mesma chamada (`Q1um`, 0 / 0): `git push origin main` (R0) |
-| Q6 (`<""<` entre aspas simples) | 2 / 0 | — | não forma `<<` no `bash -c` |
+  A regex `HEREDOC_QUE_O_BASH_FORMA` (`hooks/_comum.py:1614`) não casa o QN1 por causa do `[^()]*`, mas a recusa da reavaliação fecha o caso antes.
+- **QC1 e QC2 (o `<<` calculado com `$(printf '\x3c\x3c')` dentro de `eval` e de `bash -c`): resolvidos.** No corpus e no T9b, os dois saem 2 / 2. Rodei também `command sh -ec` (QC3sh) e `env -i PATH=… nice -n 1 bash -lc` (QC4env): 2 / 2. A recusa entra em `hooks/conformidade.py:723` e em `hooks/parecer.py:393`, depois das regras específicas. O reconhecimento está em `reavaliacao` (`hooks/_comum.py:1760`).
+- **R1 (`~` no alfabeto fora de aspas): não resolvido.** `hooks/_comum.py:507` não mudou. `git push origin feature/x ~ && git commit -F - <<'EOF'⏎msg⏎EOF` sai 0 / 0 (TIL), e o bash roda o `git` com o caminho da casa no argv. Continua recomendação de severidade baixa, sem caminho de ataque, como na revalidação 8.
+- **R3 (limites do T9): não resolvido, e o T9b tem um limite do mesmo tipo.** O T9 não mudou. O T9b só põe shell de verdade para `bash`, `sh`, `dash`, `zsh` e `ksh` (`SHELLS_DO_T9B`, `tests/test_hooks.py:2283`). Os outros programas são registradores. Um reavaliador fora dessa lista (`rbash -c`, `find -exec bash -c`, `flock f bash -c`) fica só gravado e nunca roda a sentinela. Nas minhas sondas R1rb, R3fi e R49fl (parecer), o T9b dá "sentinela não rodou", e isso é artefato do oráculo, não prova. Recomendação abaixo (R6).
 
-Sondas novas desta volta, todas com efeito medido: K2 e K3 na mesma linha, dois K3, K3 sem aspas, programa partido por aspas (`g'i't`), `'s'h -c`, `bash -c`, `'eval'`, `exec`, `\r` e U+2028 como separador, espaço largo (U+00A0), `;;`, `cd ..` antes do `git`, `<<"EOF"`, corpo com ` EOF` e delimitador prefixo de uma linha (`<<'E'` com `EOF`). Todas recusam quando o bash roda algo fora da lista, ou passam e o bash roda só o que a gramática listou. N3 e N4 (`)` e `⇥EOF)` no corpo de K3) saem 0 / 0, e o bash põe essas linhas na mensagem do `git commit`, sem rodá-las.
+### Outra forma de esconder a ação crítica do nível 0, com a recusa da reavaliação em vigor
+Procurei pelo reconhecimento da reavaliação, que é a única entrada da opção B:
+- o nome do programa;
+- a opção `-c`;
+- a palavra antes do comando;
+- o shell que lê a entrada sem `-c`.
 
-### O T8 e o T9 provam o critério de fim da seção 2A?
-Dentro do gatilho, sim: para os três bloqueantes e para o que o bash roda, o que a gramática aceita, o bash roda como ela listou. Faltam dois cantos sem caminho de ataque (R1 e R3 abaixo). Fora do gatilho, não. Por construção, o T9 só olha o que a gramática aceitou, e o T8 por nível só envolve textos com `<<` literal. Por isso nenhum dos dois vê o R0.
-- (1) `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica -v` em `b2c7d83` (corpus, T6, T7, T8, T9 e cobertura): `Ran 6 tests in 29.161s`, `OK`.
-- (2) As células com marcador de G1 a G8, B1, B2, BL1 e HC1 a HC4 dão 2 (tabela). As sondas das voltas 1 a 6 estão no corpus, que passou.
-- Mutação do conserto, cada item revertido numa cópia em `$TMPDIR` com o corpus e o T8/T9 de `b2c7d83`:
-  - **item 1** sem `sem_aspas` em `comando_fora_da_gramatica`: 14 falhas (corpus G3, G3c, G3d, G7, G8, GL5, GL6 nos dois hooks, e o T8). O T9 continua verde, como deve: o argv é o mesmo e quem roda o programa é a configuração do `git`, não o bash. O item 1 é provado pelo T8 por palavra e pelo corpus.
-  - **item 2** com `if not achados: return None` de volta: 6 falhas (B1, B2, FD9, FD9b, FD11b e o T8 por nível).
-  - **item 3**, só a recusa da gramática retirada: o T8 por corpo falha. Com a recusa da gramática e o `duvidar` no `subst` retirados: 21 falhas, entre elas o T9 em HC1, HC2, HC4 e HC5 nos dois hooks.
-- Oráculo independente, no molde do T9 (com o `esperado_no_bash` e o registrador do próprio teste): mutações aleatórias de textos aceitos pelo alfabeto (aspas, separadores, quebras, `EOF`, `)`, abridores de K3 e de heredoc), sementes 1, 2 e 3, **4500 textos aceitos rodados no bash**. A única divergência foi por `~` (2 casos, R1). Não apareceu nenhum programa a mais.
+Sondei cada forma sem `<<` e com o `<<` calculado.
+
+| ID | texto (o `{CORPO}` é a sentinela do hook) | 3df051e | develop `7423c44` | sentinela no bash |
+|---|---|---|---|---|
+| R5ce, R6cq | `$(echo eval) '{CORPO}'`, `"$(printf eval)" '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
+| R50cm | `$(printf bash) -c '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
+| R1pe | `/proc/self/exe -c '{CORPO}'` (o próprio bash) | 0 / 0 | 0 / 0 | rodou |
+| R7pi | `echo '{CORPO}' \| bash` | 0 / 0 | 0 / 0 | rodou |
+| R9so | `. <(echo '{CORPO}')` | 0 / 0 | 0 / 0 | rodou |
+| R23tr | `trap '{CORPO}' EXIT` | 0 / 0 | 0 / 0 | rodou |
+| R26B | `"$BASH" -c '{CORPO}'` | 2 / 0 | 2 / 0 | rodou (parecer) |
+| CO1, CO3 | `coproc bash -c '{CORPO}'`, `coproc eval '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
+| CO4 | `coproc {CORPO}` (a linha crítica direta, sem reavaliação) | 0 / 0 | 0 / 0 | rodou |
+| CO2 | `coproc x { bash -c '{CORPO}'; }` | 2 / 0 | 2 / 0 | rodou (parecer) |
+| QCco, QCce, QPc | `coproc bash -c`, `$(echo eval)` e `printf … \| bash` com o `<<` calculado em vez do `{CORPO}` direto | 0 / 0 | — | rodou |
+| controles | `bash -c`, `'bash' -'c'`, `bash "-c"`, `(…)`, `f() {…}; f`, `case`, `exec`, `time -p`, `!`, `{ …; }`, `bash <<<` | 2 / 2 | o `parecer` libera quase todos | — |
+
+Leitura: com a opção B, o `eval` e os cinco shells com `-c` que o hook reconhece recusam nos dois hooks, em todas as formas que tentei. O que passa tem uma de três causas:
+- O nome do programa é calculado ou não está na lista: `$(echo eval)`, `/proc/self/exe` e, no `parecer`, `"$BASH"`.
+- O shell lê o texto por outra via que não o `-c`: `| bash`, `. <(…)`, `trap`.
+- A palavra reservada `coproc` vem antes do comando, e o hook não a pula (`CORPO_DE_LACO`, `hooks/_comum.py:1754`).
+
+Nenhuma dessas formas precisa de `<<`, e o `<<` calculado nelas não muda nada: o `{CORPO}` direto já roda. Todas dão o mesmo código na `develop`, e o `parecer` da `develop` libera ainda mais (linha dos controles). A opção B não abriu nenhuma delas e fechou as que estão na sua linha.
+
+### O T9b e a propriedade (5) provam o critério de fim da 4B?
+Pelo que a 4B escreve, sim. Para a classe, não: os dois oráculos quantificam sobre o corpus e as mutações do T8 por nível, e não sobre o domínio do reconhecedor.
+- (1) `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica` em `3df051e` (corpus, T6, T7, T8, T9, T9b, propriedade e cobertura): `Ran 8 tests in 95.445s`, `OK`.
+- (2) Q1 a Q6, QC1, QC2, BL2 e QP1 estão no corpus como 2 / 2 e passam.
+- (6) QC1 e QC2 estão no T9b (corpus com `{CORPO}`) e passam porque a chamada recusa.
+- (3) Mutações, cada uma numa cópia de `3df051e` em `$TMPDIR`, rodando o corpus, o T9b e a propriedade:
+  - **m1**: o gatilho volta ao de `b2c7d83` (`"<<" in texto.replace("\\\n", "")`, em `tem_heredoc_no_texto`). Resultado: 6 falhas. O T9b falha em QP1 nos dois hooks, e o corpus falha em QP1, FD12 e FD12b. B1, B2 e Q1 a Q4 **ficam verdes**, porque a recusa da reavaliação os pega antes. A mutação da seção 3 ("T9b vermelho em B1, B2 e Q1 a Q4") não vale mais como foi escrita. Com a opção B, o gatilho novo só é provado pelo shell que lê a entrada (QP1) e pelo FD12. É uma consequência esperada de B, e não um furo: o gatilho deixou de ser a única barreira.
+  - **m2**: a recusa da reavaliação sai dos dois hooks (`hooks/conformidade.py:723` e `hooks/parecer.py:393` com `if False:`). Resultado: 31 falhas.
+    - O T9b falha em QC1 e QC2 no `parecer`: o bash rodou a sentinela.
+    - A propriedade falha em todas as linhas diretas dentro de `eval`, `sh -c`, `bash -c`, `env X=1 bash -c` e `command eval`, nos dois hooks.
+    - O corpus falha em QC1 e QC2 (parecer) e em FD13a a FD13e.
+
+    No `conformidade`, QC1 e QC2 seguem 2 sem a regra nova: ele segue o `eval` e o `bash -c` até o nível 1, e o texto de lá não fecha.
+  - **m3**: a recusa sai só do `parecer`. Resultado: 21 falhas, todas no `parecer`. O T9b falha em QC1 e QC2, a propriedade falha nas linhas diretas dentro dos sete níveis, e o corpus falha em QC1, QC2, FD13b, FD13d e FD13e. A propriedade e o T9b separam os dois hooks: cada um tem de recusar sozinho.
+- (5) A propriedade usa uma leitura própria da reavaliação (`REAVALIACAO_DO_TESTE`, `tests/test_hooks.py:2398`). Ela casaria `coproc bash -c '…'`, mas esse texto não está entre as entradas. Por isso a propriedade prova a recusa para os textos que ela gera, e não para toda reavaliação que o regex dela reconhece. Pôr na entrada as formas da R5a que estão no alcance desse regex (`coproc bash -c`, `coproc eval`) mostraria a falha sem bash. Isso entra na R6.
 
 ### Recomendações (não bloqueiam; cartão N-HOOK1 ou cartão próprio)
-- **R0. `<<` montado pela remoção de aspas no nível 0 para o `eval`/`bash -c` (Q1 a Q4 do review; não é regressão)** (`hooks/_comum.py:1614`). O gatilho é `"<<" in texto`. Em `eval 'PATH=./x$(( cat )) cat <''<"EOF"⏎{CORPO}⏎EOF'`, a palavra que o `eval` recebe tem `<<`, mas o texto da chamada não tem. A gramática não vale, e o nível 1 volta ao leitor das voltas 1 a 6 (Z1). Medi nos hooks reais: Q1 a Q4 saem **0 / 0**, Q6 sai 2 / 0 e Q1 com `<<` literal sai 2 / 2. Medi também no bash, numa chamada só: `mkdir -p x0 && cp /usr/bin/bash x0/cat && eval 'PATH=…:./x$(( cat )) cat <''<"EOF"⏎git push origin main⏎EOF'` grava `RODOU git push origin main` no registrador. Os dois hooks dão 0 para essa linha (`Q1um`). A linha com `<<` literal dá 2 / 2. O review mediu 0 / 0 também na `develop` `7423c44`. Caminho de ataque: um agente, por engano ou por injeção de prompt, contorna no hook o R-MAIN (`git push` no corpo) e o R-REVIEW (o merge do PR pelo `gh`). Continuam como camada o `pre-push` e a proteção de branch. Severidade **alta**. A ADR 0011 (linha 40, emendada neste delta) promete que "`bash -c '…'`, `sh -c` e `eval '…'` recusam ali", e isso só é verdade com o `<<` literal: a frase precisa da ressalva ou do conserto. Correção mínima, esforço P: o gatilho também em `<(?:['"\\]|\\\n)*<`. Isso fecha a remoção de aspas e de `\`, mas não o `<<` montado com `$` (`$'\x3c'`, variável), que continua X3. A correção completa, esforço M, é aplicar a gramática em cada nível que o hook segue (`eval`, `bash -c`, `sh -c`), com o marcador do texto do nível 0. O T8 por nível ganha `<''<`, `<""<` e `\<\<`. Dono: o `software-architect` propõe o caminho e o dono decide, pela regra das duas voltas (decisão "A" de 2026-10-22).
-- **R1. `~` no alfabeto fora de aspas** (`hooks/_comum.py:507`). O bash troca `~`, `~+`, `~-` e `~user` por um caminho: `git push origin feature/x ~` passa nos dois hooks e roda com `/home/…` no argv. Pela letra do critério, é um argv que a gramática não listou. Não há caminho de ataque: o resultado é um caminho fixo da sessão (`HOME`, `PWD`, `OLDPWD`), sem atribuição possível na gramática, e `cd ~-` só repete o que `cd -` já faz com um argv listado (R2). Severidade baixa. Correção mínima, esforço P: tirar `~` do alfabeto fora de aspas (o `K1` mantém `~` no alvo e o `conformidade` o expande, `hooks/conformidade.py:525`) ou pôr no T9 uma mutação de palavra com `~`. Dono: `tech-lead`.
-- **R2. Estado do `cd` com `cd -`, `cd -P -` e `popd` (fora do lote; já na `develop` `7423c44`)** (`hooks/conformidade.py:907-908`). O hook toma o destino como a pasta `-` (literal), e o bash volta para `OLDPWD`. Num repositório na `main`, `mkdir -p sub && cd sub && cd - && git push origin HEAD` sai 0 no `conformidade` (e 0 na `develop`), e o bash envia a `main`. `git push origin HEAD` sozinho sai 2 (R-MAIN). `pushd sub && popd` e `cd -P -` também saem 0. `cd ~-` falha fechado (erro interno, 2). Com heredoc e marcador, a gramática aceita a mesma linha, porque `cd -` é argv listado. É o que o programa faz com o próprio argumento, então não bloqueia pelo critério. Também não é regressão. Caminho de ataque: um agente, por engano ou por injeção de prompt, envia direto para a `main`, e o hook não barra. Continuam como camada o `pre-push` do Forge e a proteção de branch. Severidade **alta** no hook. Correção mínima, esforço P: no `cd`, `-` e `-P -`/`-L -` tornam o destino desconhecido (recusa com ação crítica na linha), e `popd` sem a pilha conhecida também. Dono: `tech-lead`, com cartão próprio, que peço ao Jarvis.
-- **R3. Limites do T9** (`tests/test_hooks.py:2155,2179`). Os embutidos `cd`, `echo` e `true` não abrem processo, então o argv deles não é conferido. O `cd` com opção, absoluto ou com `..` é pulado. A entrada são o corpus e as mutações de palavra, sem as de caractere (que recusam). Assim o R1 e o R2 passam pelo T9 sem aparecer. Esforço P: registrar o `cd` por `PWD` depois de cada comando, ou guardar no corpus uma sonda K3 com `cd -` e `~` marcada como "Não promete".
-- **R4.** Continuam valendo a R1 da revalidação 7 (agora cartão N-HOOK1: `-C`, `--git-dir`, `--work-tree`, aliases e opções do `gh`), a R2 da revalidação 7 (`remote.<r>.receivepack`, `CONFIG_PROTEGIDA`, script gravado por K1 e rodado noutra chamada, limite [B] de `docs/hooks.md`) e a classe X do desenho. Falsos positivos FD9 a FD11: medidos no corpus (FD9, FD10, FD11 e as variantes b), com contorno em `docs/hooks.md`. Não bloqueiam.
+- **R5. Reavaliador ou comando que o hook não reconhece (classe nova, nem "nível" nem X1 a X3; já na `develop`)** (`hooks/_comum.py:1760-1777`; `hooks/conformidade.py:853`; `hooks/parecer.py:378`).
+  - Formas, na tabela acima: nome calculado (`$(echo eval)`, `$(printf bash) -c`), o bash por outro nome (`/proc/self/exe` e, no `parecer`, `"$BASH"`) e o shell que lê a entrada (`| bash`, `. <(…)`, `trap '…' EXIT`).
+  - Caminho de ataque: um agente, por engano ou por injeção de prompt, contorna no hook o R-MAIN e o R-REVIEW com efeito medido. Restam como camada o `pre-push` e a proteção de branch, como na R0 da revalidação 8.
+  - Severidade **alta**. Não é regressão: a `develop` dá o mesmo código.
+  - Correção mínima, esforço M. Precisa de decisão do dono, porque recusa mais e tem falso positivo. Três peças:
+    - com o marcador crítico na chamada, recusar o programa cujo nome não é literal (palavra de comando com `$(`, crase ou `$`);
+    - pôr `trap`, o `source`/`.` de `<(…)` ou de `/dev/stdin` e o shell que recebe a entrada por pipe ou por `<(…)` na mesma regra de B;
+    - pôr `/proc/self/exe` e `rbash` na lista dos shells.
+  - Dono: o `software-architect` propõe, e o caminho vai ao dono (`R-DECISAO`) pelo cartão N-HOOK1.
+- **R5a. `coproc` antes do comando (já na `develop`; cartão próprio, que peço ao Jarvis)** (`hooks/_comum.py:1754`, `CORPO_DE_LACO`).
+  - O CO4 é `coproc git push origin SENTINELA:main` (no `parecer`, `coproc gh pr merge SENTINELA --merge`). Ele sai 0 / 0, e o bash roda a linha crítica **direta**, sem reavaliação nenhuma. A mesma linha sem o `coproc` sai 2 / 2 (Zdir). O furo está no leitor de base, e não na opção B.
+  - Severidade **alta**.
+  - Correção mínima, esforço P: pular `coproc` e `coproc NOME` antes de `{` nos dois hooks (`CORPO_DE_LACO` e o `segmento`/`analisar`) e pôr CO1 a CO4 no corpus.
+  - Dono: `tech-lead`.
+- **R6. Oráculos sobre o domínio do reconhecedor** (`tests/test_hooks.py:2283,2398`).
+  - O problema: no T9b, os reavaliadores fora de `SHELLS_DO_T9B` são registradores, então o T9b não vê a sentinela que eles rodariam (R3). E a propriedade (5) só olha os textos que ela gera.
+  - Esforço P: pôr na entrada da propriedade as formas da R5 e da R5a que o regex dela reconhece. As outras entram no corpus com a marca "Não promete", para o conserto futuro aparecer como mudança de teste.
+  - Dono: `tech-lead`.
+- **R1 (`~`) e R3 (limites do T9)** da revalidação 8 seguem como estavam (acima). O mesmo vale para a R2 (`cd -`, cartão R2-CD-MENOS) e a R4 (o N-HOOK1 com as opções do `git`/`gh`, `remote.<r>.receivepack` e a classe X).
+- **FD13 num fixture `-libera`.** `tests/hooks/conformidade/contrib-remoto-nomeado-proprio-libera.json:25` perdeu o `bash -c`. A linha antiga foi para `contrib-remoto-nomeado-proprio-bash-c-bloqueia.json`, que espera 2. Isso endurece a regra e tem contorno (o `gh pr merge` direto). O R-CONTRIB continua coberto pelo `-libera` com a linha direta. A proposta dizia que não havia fixture assim, e essa é a única divergência com ela. Não bloqueia.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: `forge-check delta --parecer`; leitura do diff `8069653..b2c7d83` e do que o merge `02d1aaa..8069653` trouxe em controle; o corpus, o T8 e o T9; sondas pelo `Fixture`, `montar_proc` e `rodar` de `tests/test_hooks.py`, contra os hooks reais da worktree e contra uma cópia da `develop` `7423c44` (`git archive` em `$TMPDIR`, para o R2); mutação dos itens 1 a 3 em cópias em `$TMPDIR`; o `bash 5.3.9` com registradores, sem rede e sem custo (`R-CUSTO`). Lacunas: só o bash 5.3 está na máquina (a regra da gramática recusa nos dois sentidos e não depende da versão), e a suíte inteira não rodou (etapa do QA, `R-TETO`). `gitleaks`, `zizmor` e `actionlint` não se aplicam, porque o delta não tem segredo, workflow nem dependência. Incidente da sonda: duas sondas de efeito com alvo `~/` (`cat > ~/.bashrc` e `cat > ~/.claude/settings.json`) rodaram no bash com o `HOME` real, antes de eu fixar `HOME` na pasta temporária. O sandbox recusou as duas escritas (`Read-only file system`) e nada foi gravado. Nada foi instalado e nada saiu da máquina. Além deste parecer, só gravei em `$TMPDIR` e no scratchpad.
+Nenhum risco aceito. Ferramentas usadas:
+- `forge-check delta --parecer`;
+- a leitura do diff `b2c7d83..3df051e` e a conferência do move do `befe8d3`;
+- a classe `CorpusHeredocVoltaUnica`;
+- as sondas pelo `decisoes_dos_hooks` e pelo `rodar_no_bash_do_t9b` do próprio T9b, contra os hooks reais da worktree e contra os hooks da `develop` `7423c44` (`git archive` em `$TMPDIR`, com os testes de `3df051e`);
+- as mutações m1 a m3 em cópias em `$TMPDIR`;
+- o `bash 5.3.9`, com `HOME` numa pasta de `$TMPDIR`, sem rede e sem custo (`R-CUSTO`).
+
+Lacunas:
+- Só o bash 5.3 está na máquina.
+- `rbash` e `dash` existem, mas o oráculo não roda o `rbash` de verdade (R6). `find`, `flock` e `rbash` só foram gravados.
+- A suíte inteira não rodou fora do pre-push (`R-TETO`).
+- `gitleaks`, `zizmor`, `actionlint` e `semgrep` não estão no PATH e não se aplicam: o delta não tem segredo, workflow nem dependência.
+
+Nada foi instalado e nada saiu da máquina. Além deste parecer, só gravei em `$TMPDIR`.
