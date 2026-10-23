@@ -1,0 +1,31 @@
+{
+  "descricao": "C1: a reserva grava pid da sessão, namespace e session_id.",
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    },
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "\"sessao\": \"s1\"",
+          "\"pid\": ",
+          "\"pidns\": \"pid:["
+        ]
+      }
+    }
+  }
+}

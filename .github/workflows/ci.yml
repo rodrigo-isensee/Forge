@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Testes do Forge
-        run: python3 -m unittest discover -s tests -v
+        run: python3 scripts/suite-paralela.py
 
   bateria:
     name: bateria
@@ -153,7 +153,7 @@ jobs:
           python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
       - name: Testes do Forge
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: python3 -m unittest discover -s tests -v
+        run: python3 scripts/suite-paralela.py
       - name: shellcheck (scripts e hooks)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push

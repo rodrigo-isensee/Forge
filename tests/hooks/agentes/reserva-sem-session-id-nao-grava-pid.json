@@ -1,0 +1,33 @@
+{
+  "descricao": "C1-5: sem session_id no payload a reserva não leva pid nem namespace.",
+  "estado": {
+    "agentes.json": {
+      "agentes": []
+    }
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Agent",
+    "tool_use_id": "toolu_1",
+    "tool_input": {
+      "subagent_type": "forge:qa-engineer",
+      "description": "Validar a entrega",
+      "prompt": "..."
+    }
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "Validar a entrega"
+        ],
+        "ausente": [
+          "\"pid\"",
+          "pidns",
+          "sessao"
+        ]
+      }
+    }
+  }
+}
