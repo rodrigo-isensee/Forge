@@ -184,7 +184,7 @@ Decisões do esboço:
 
 **Ações destrutivas** (descartar mudanças, remover worktree com conteúdo, apagar branch) **sempre** dependem da confirmação do usuário. Isso segue a regra já existente do Jarvis: "Confirme com o usuário antes de apagar ou reescrever branch já enviada" [DOC].
 
-> Nota (LIMPEZA-REGRA, 2026-10-23): a regra mudou; a `R-VERIFY` ganhou a exceção da branch de trabalho com PR mesclado e head igual ao do PR, apagada sem nova confirmação. Vale a `R-VERIFY`; esta proposta fica como foi escrita.
+> Nota (LIMPEZA-REGRA, 2026-10-23): a regra mudou; a `R-VERIFY` ganhou a exceção: a branch de trabalho já mesclada por PR, com o head do PR, é apagada sem nova confirmação. Vale a `R-VERIFY`; esta proposta fica como foi escrita.
 
 ## 9. Relação com o `KANBAN.md`
 
