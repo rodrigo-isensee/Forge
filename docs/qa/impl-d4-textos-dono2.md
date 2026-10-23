@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: impl-d4-textos-dono2
 branch: melhoria/impl-d4-textos-dono2
-commit: 83c817f25f9dcc01da3404cde689b8587a6eab20
+commit: 872351ed09b9586c1585abad57b9cef3acfdc663
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -47,3 +47,6 @@ Ambiente: Linux/WSL2, Python 3.14, worktree `~/.forge-contrib/wt/qa-impl-d4-text
 
 ## Parecer
 Aprovado sobre `83c817f`. Revalidar só o que mudar quando a branch trouxer a `develop` com o PR #288 (as 4 falhas conhecidas somem).
+
+## Revalidação por delta (REVAL-288, E2.3)
+Depois do review e da segurança por delta aprovados, pela decisão "C" do dono (2026-10-23). Delta desde `83c817f` (commit do parecer anterior) até `872351e`: a entrada da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL: `.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`, documentos `suite-local-verde`) e pareceres em `docs/`. Nenhum código da entrega mudou. Comando: `bin/forge-testes`, que escolheu a suíte completa (`tests/hooks/vigia/entrada-com-2-itens-silencio.json` sem mapa): 1599 testes, 1106 s, `OK`, rc 0. As 4 falhas conhecidas somem, como previsto. Comportamento já aprovado (CT-01 a CT-06 do vigia e os achados A1 a A3, que seguem recomendados): igual, sem regressão. Veredito: aprovado, sem achado novo.
