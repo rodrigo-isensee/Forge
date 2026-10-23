@@ -1,7 +1,7 @@
 ---
 tipo: qa
 contrato: 1
-pedido: LOTE-F-TEXTOS-REV
+pedido: LOTE-F-TEXTOS
 branch: melhoria/lote-f-textos
 commit: 11eae9c7fca437d23f823fb0427c55621b0f9a94
 parecer: aprovado
