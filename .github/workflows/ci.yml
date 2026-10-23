@@ -34,6 +34,26 @@ jobs:
       - name: Testes do Forge
         run: python3 scripts/suite-paralela.py
 
+  bateria-py314:
+    name: bateria (python 3.14)
+    # Testes do Forge no Python 3.14, ao lado do 3.12 do job "bateria" (diferença de versão aparece no PR, CI-PY314).
+    # Só o que depende da versão do Python; shellcheck, actionlint, zizmor e a instalação ficam na "bateria".
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14"
+      - name: Testes do Forge (Python 3.14)
+        run: |
+          python3 --version
+          python3 scripts/suite-paralela.py
+
   bateria:
     name: bateria
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
