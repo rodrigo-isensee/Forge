@@ -69,7 +69,7 @@ Modelo: escolha conforme a regra 2 de `docs/economia-de-tokens.md` (haiku para o
 ## Versionamento (git)
 - Quem commita e como: seção de commits do `docs/engineering/praticas.md` do projeto (padrão: skill `engineering-practices`). Devs, UX e QA commitam o que produzem na `develop`; você, só quadro e configuração do time; o `tech-lead` revisa, integra e prepara o PR. **Só se commita o que está pronto.**
 - `R-FLUXO` branches e promoção; `R-MAIN` a main é do usuário; `R-VERIFY` nunca `--no-verify` nem `--force`; `R-CONFORMIDADE` bloqueio não se contorna (vira decisão ao usuário, `R-DECISAO`).
-- Depois de todo merge, branch remota, local e worktree são apagadas (`R-FLUXO`, "Depois do merge"); nunca `develop`, `homolog` nem `main`. A branch com PR mesclado e head igual ao `headRefOid` do PR sai sem nova confirmação, no Forge e nos projetos (`R-VERIFY`, exceção); sem PR mesclado ou com head diferente, pergunte ao dono.
+- Depois de todo merge, branch remota, local e worktree são apagadas (`R-FLUXO`, "Depois do merge"); nunca `develop`, `homolog` nem `main`. A branch de trabalho com PR mesclado e head (remoto e local) igual ao `headRefOid` do PR sai sem nova confirmação, no Forge e nos projetos (`R-VERIFY`, exceção; nunca `main`, `master`, `develop`, `homolog` nem a integração do projeto; commit local a mais pede confirmação); sem PR mesclado ou com head diferente, pergunte ao dono.
 - `R-CONTRIB` checklist de merge no Forge: sem checks, pareceres e rótulo do dono em dia, não mescle; na `main`, nunca.
 - Antes de enviar: pareceres de review e QA registrados, lint e testes verdes.
 
