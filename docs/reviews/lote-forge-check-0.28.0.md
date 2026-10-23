@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: e83da9fbd43e371e1ccd3f4cb3e1ff7d1ae66b45
+commit: 0b8a307bea766815b567409ff33fec4688fff9a1
 parecer: aprovado
 revisor: forge:tech-lead (outra instância; rodada 4 no RET-LOTE-FORGE-CHECK E1.1)
 data: 2026-10-22
@@ -74,3 +74,6 @@ Revisado: `e83da9fbd43e371e1ccd3f4cb3e1ff7d1ae66b45`, a `origin/develop` (`af79b
 - Recomendado, fora do delta e sem bloquear (já estava em `1d001b1`): `agents/jarvis.md` cita `forge-check brief gerar --pedido <pedido> --destino forge:<nome> --branch <b>` sem `--cobre`, que o lote torna obrigatório quando o destino tem mais de uma etapa no pedido; o erro do `gerar` avisa, mas o texto do agente poderia citar a opção.
 
 Já lido: tudo o que o lote trouxe até `1d001b1` (rodadas 1 a 3) e os pareceres `f503bfe` e `cd55376`; o conteúdo da `develop`, revisado nos PRs próprios.
+
+## Revalidação por delta (REVAL-288, E1.1)
+Revalidação feita por instância que não fez o merge (`R-REVIEW`), pela decisão "C" do dono (2026-10-23). Delta lido (`forge-check delta`, do commit do parecer anterior até `0b8a307`): o merge da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL). Conferido: (1) os arquivos do #288 (`.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*` e os documentos `suite-local-verde`) estão idênticos aos da `develop`, com `git diff 7423c44 HEAD` vazio sobre eles; (2) sem marcador de conflito, o merge não teve resolução; (3) fora do #288, o delta só traz pareceres (`docs/`), nenhum código da branch mudou. Já lido e não relido: todo o código aprovado no parecer acima. Achados: nenhum novo; os anteriores seguem como estavam. Veredito: aprovado.
