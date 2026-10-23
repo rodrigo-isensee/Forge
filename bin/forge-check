@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
-Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (--raiz também depois do subcomando)
+Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
