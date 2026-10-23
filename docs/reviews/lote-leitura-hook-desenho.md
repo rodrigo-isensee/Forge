@@ -3,40 +3,49 @@ tipo: review
 contrato: 1
 pedido: RET-LEITURA-HOOK
 branch: melhoria/lote-leitura-hook
-commit: d557a37ab9386d457bb9e896d1e0e4f4fbe78e3c
-parecer: reprovado
+commit: b9e15dc986bb74095fbf735cec9c0941db82767c
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-22
 ---
 # Review: desenho da volta única do lote-leitura-hook (RET-LEITURA-HOOK, E2.2)
 
-Escopo: só o desenho `docs/propostas/lote-leitura-hook-volta-unica.md` em `d557a37`, antes do código. O `d557a37` difere do `6d60a6d` lido só pelo exemplo do X1 (`npm test` virou `make test`, que o teste `NeutralidadeDoNucleo` exige, R-NEUTRO). Fiz essa troca como ajuste trivial: ela não muda o conteúdo revisado nem as linhas citadas. Li o desenho, a revalidação 5 (`docs/reviews/lote-leitura-hook.md`), a ADR 0011 e as seções 3 a 5 da retrospectiva (`docs/retrospectivas/2026-10-22-voltas-lote-leitura-hook.md`, na cópia principal). Conferi as funções em que M1 e M2 se apoiam (`grava_arquivo` e `programas_e_atribuicoes`, `hooks/_comum.py` de `1b0fb6b`, que o desenho não muda) chamando-as sobre o texto sem os corpos (`tirar_heredocs`). Também rodei uma sonda no bash, em `$TMPDIR`. Não rodei o hook inteiro: o M2 ainda não existe. Esta é a passada única: todos os bloqueantes estão abaixo.
+Revalidação 1 do desenho. Escopo: `docs/propostas/lote-leitura-hook-volta-unica.md` em `b9e15dc` (a volta 1 do arquiteto), contra os achados A1 a A8 do parecer anterior (reprovado sobre `d557a37`, commit do parecer `68bd13c`). Delta lido: o diff `d557a37..b9e15dc` do desenho inteiro (226 linhas a mais, 127 a menos), já que o documento todo mudou. Já lido e sem mudança: a ADR 0011, a revalidação 5 (`docs/reviews/lote-leitura-hook.md`) e as seções 3 a 5 da retrospectiva. Critério desta passada: o mesmo da anterior. Achado novo só entra se ferir uma linha "Promete" da tabela 2.3. Nenhum entrou.
+
+Sondas: os casos [INF] pedidos rodaram de dois modos, ambos em `$TMPDIR`. Primeiro, nos dois hooks do código atual (`1b0fb6b`, sem mudança até `b9e15dc`), montados pelo `Fixture` dos modelos da seção 3. Depois, no bash 5.3.9 (`bash --noprofile --norc -c`, ambiente limpo), com o corpo `echo RODOU > prova`.
 
 ## Achados
-- A1 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:38 · M2 lista os programas com programas_e_atribuicoes, que troca `2>&1`/`>&-` por `>` solto e esse `>` engole a palavra seguinte: `…⏎EOF⏎2>&1 ./x.sh` dá só `cat` [EXE], e o bash rodou o ./x.sh. Peça enumeração positiva e o caso S17
-- A2 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:31 · M1 diz "fora de aspas simples", mas não exige leitura sequencial; grava_arquivo apaga `'[^']*'`, e `echo "it's"; cat > .husky/pre-push <<'EOF'⏎{CORPO}⏎EOF⏎echo 'x'; git push origin feature/x` dá grava falso [EXE]. A ADR 0011, item 1, proíbe isso. Peça o caso R19
-- A3 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:191 · a ordem deixa a suíte vermelha do commit (1) ao (6), contra "os testes passam em cada commit" e a P3 = B. Marque cada caso com a regra que o fecha (`"fecha": "M2"`), faça o teste exigir a falha dos marcados e tire a marca no commit da regra
-- A4 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:193 · o critério (ii) não se decide por regra: "sem outra camada" vale sempre para R-MAIN no Forge, e "classe" não tem regra de pertença. Reprove só pelo caso (i) ou por uma sonda que sai 0, com efeito no bash, numa forma que o texto de M1 a M5 promete cobrir
-- A5 (bloqueante) docs/propostas/lote-leitura-hook-volta-unica.md:210 · a seção 5 diz que F3, F4 e F6 são os únicos novos. Faltam o M3 com os marcadores de caminho do conformidade (`cat > docs/reviews/x.md <<'EOF'⏎texto⏎EOF⏎git add docs/reviews/x.md`, sem apóstrofo) e o M4 (`LC_ALL=C cat <<'EOF'` e `GIT_AUTHOR_DATE=… git commit -F -` com apóstrofo)
-- A6 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:188 · o T6 depende do bash 4 ou mais novo (`{fd}>`, `&>>`). Pule com o motivo quando `BASH_VERSINFO` for menor que 4 (o bash do macOS é 3.2)
-- A7 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:174 · `"<a linha do modelo do parecer>"` é um marcador de lugar: escreva a linha literal do modelo, para o corpus não depender de quem o monta
-- A8 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:210 · conte as recusas de M2 e M3 à parte do contador da ADR 0011 (cada uma tem mensagem própria). Assim a leitura de reversão diz qual regra gera o falso positivo
+
+## Revalidação dos achados anteriores
+- A1 (bloqueante) · **resolvido**. M2, "Enumerador positivo" (linhas 63 a 67): a palavra é programa salvo redireção completa com alvo, atribuição ou `ANTES_DO_PROGRAMA`. Os casos S17 e S18 estão nas linhas 164 e 165, e o T7 na 260. Sonda S17a (`…⏎EOF⏎chmod +x x.sh⏎2>&1 ./x.sh`): no bash criou `prova` com `RODOU`.
+- A2 (bloqueante) · **resolvido**. Leitor sequencial com um estado para as aspas (linhas 47 a 53), sem `re.sub` de aspas no lote. Os casos R19a a R19e estão nas linhas 123 a 127, e o T6 tem os prefixos P1 a P4 (linha 259). Sondas R19b e R19c: 0 / 0 nos hooks e `.husky/pre-push` gravado no bash. Isso confirma o [INF] e a marca `M2`.
+- A3 (bloqueante) · **resolvido**. A marca `fecha` cobre os dois lados (linhas 252 a 255). A ordem tem um commit por regra, suíte e validação verdes em cada commit, fixtures invertidos no commit da regra e "depende de" declarado (linhas 263 a 271).
+- A4 (bloqueante) · **resolvido**. A tabela 2.3 (linhas 83 a 93) e o critério (i)/(ii) (linhas 273 a 276) decidem por pertença a uma linha "Promete". O texto é o proposto no parecer anterior.
+- A5 (bloqueante) · **resolvido**. F7a, F7b, F8a e F8b estão nas linhas 290 a 293, com contorno, e a seção 6 lista todos os F novos. A frase "são os únicos novos" saiu (`grep` vazio).
+- A6 (recomendado) · **resolvido**. O T6 pula quando `BASH_VERSINFO[0] < 4` e dá o motivo (linha 259).
+- A7 (recomendado) · **resolvido**. Os `corpos` trazem a linha literal do modelo do `parecer` (linha 237), igual ao `command` de `forge-clone-pr-merge-no-corpo-de-heredoc-gravado-e-make-bloqueia.json`.
+- A8 (recomendado) · **resolvido**. M2 e M3 têm frase própria (linhas 71 e 78), as leituras da ADR 0011 ganham linhas próprias (linha 80) e a seção 5 conta cada F pela regra que o gera (linha 279).
+
+## Sondas dos casos [INF]
+| Caso | Hooks em `1b0fb6b` (conf / par) | Bash 5.3.9 | Leitura |
+|---|---|---|---|
+| S18a, S18b, S18c | 0 / 0 | `prova` = `RODOU` nos três | furo real hoje. M2 promete "dono sem programa não só lê", e a marca `M2` confere |
+| R20a, R20c | 2 / 2 | `.husky/pre-push` gravado | já passam. A marca `M2` sobra e o passo (1) a tira, como diz a linha 255 |
+| R20b | 2 / 2 | `>&2 git apply` aplicou o patch | idem |
+| R19b, R19c | 0 / 0 | `.husky/pre-push` gravado | confirma a marca `M2` |
+| R19d | 2 / 2 (item 2, `$'`) | não rodado (o item 2 já recusa) | confere com "—" |
+| R19e | 2 / 2 | não rodado | confere com "—" |
+| L10 | 2 / 0 (par fora do `PREFILTRO`, "—") | nada gravado | confere com `fecha: M5`: o `echo` segura até o passo (6) |
+| F10 | 0 / 0 | nada roda | falso positivo esperado, marca `M2` confere |
+| R10 / F9 (sonda extra) | não rodado | `cat 1>&x` **gravou** o arquivo `x` | o [INF] "o bash não grava" está errado (nota abaixo) |
 
 ## Parecer
-**Reprovado, com o caminho aprovado.** O desenho é a resposta certa à causa-raiz da retrospectiva: troca a correção por forma por regras positivas (M1, M2) e por uma recusa de falha fechada (M3), como a ADR 0011 decide ("o que o analisador não modela é recusado onde importa"). Os cinco bloqueantes não mudam o caminho. Dois são furos nas peças em que as regras se apoiam (A1, A2). Os outros três são de forma do plano (A3), do critério (A4) e da lista de falsos positivos (A5). Todos se corrigem no próprio desenho, sem nova rodada de arquitetura. O que se pede ao software-architect é emendar o texto. A reescrita não é minha.
+**Aprovado.** A volta 1 fecha os oito achados sem mudar o caminho aprovado (B). Corpus, marcas e critério de parada servem como contrato comum da implementação (E3.1) e dos pareceres (E3.2 a E3.4). As sondas [INF] confirmam as marcas previstas, menos R20a a R20c, que já passam. O próprio desenho prevê a correção dessas marcas no passo (1), então nada bloqueia.
 
-### Decisões pedidas
-- **Caminho B (correção no lote): aceito.** O (A) repete a classe aberta das 5 voltas. O (C) deixaria o lote parado, contra a decisão do dono de 2026-10-22. O (B) fecha por construção e não afrouxa nada fora de L2 e L3, que voltam ao resultado da `develop` [EXE nos pareceres da rev. 5].
-- **Critério de parada da seção 4: aceito com o A4.** A forma (i) mais (ii), com a sonda nova entrando no corpus no mesmo commit, está certa. O texto do (ii) precisa ser decidível. Proposta de texto, que o arquiteto pode ajustar: "(ii) sonda que sai 0, com efeito provado no bash, numa forma que o texto de uma regra M1 a M5 diz cobrir. O parecer nomeia a regra. O que nenhuma regra M promete é cartão (N-HOOK1). Os dois pareceres rodam `CorpusHeredocVoltaUnica` inteiro e citam a saída, sem refazê-lo. Recomendação promovida a bloqueante leva `critério mudou:` com o motivo." Isso aplica ao lote as propostas 3 e 5 da retrospectiva sem regra nova. Elas continuam ao dono para o resto do Forge. Com o A1 e o A2 dentro do corpus, o S17 e o R19 passam a ser formas que M2 e M1 prometem cobrir.
-- **F3, F4 e F6: aceitos.** São endurecimento coerente com a ADR 0011, e cada um tem contorno de forma explícita: noutra chamada ou pelo Write. O F3 inverte um fixture que só existe no lote (`heredoc-apostrofo-gravado-em-arquivo-e-patch-depois-libera` não está em `ad6d96c`), então não é regressão contra a `develop`. Recusar a ampliação da lista positiva para `patch` e `ls` está certo. A aceitação vale para os três. F7 e F8 (A5) são novos e entram na mesma medida.
-
-### Explicação dos bloqueantes
-- **A1.** Em `programas_e_atribuicoes`, `re.sub(r"\d*[<>]&\d*-?|&>>?", " > ", …)` troca `2>&1` por um `>` solto. Depois, `REDIRECAO` vê `>` sem alvo colado e pula duas palavras (`i += 2`). Com `resto = 'cat > x.sh  \n2>&1 ./x.sh'`, a função devolve `[('cat', ['>', 'x.sh'])]`: o `./x.sh` some, e `>&- ./x.sh` dá o mesmo. No bash, `cat > x.sh <<'EOF'⏎echo RODOU > prova⏎EOF⏎chmod +x x.sh⏎2>&1 ./x.sh` criou `prova` com `RODOU`. O M2 promete que "o programa entra na conta onde quer que esteja", mas o enumerador ainda é uma enumeração do que não é programa, e é aberta. Requisito: a palavra que não se prova redireção completa (com o alvo dela), atribuição ou palavra de `ANTES_DO_PROGRAMA` é programa. Caso S17 no corpus, com `2>&1`, `>&2`, `>&-`, `3>&1-`, `<&0` e `0<&-` antes de `./x.sh`. A forma mecânica é derivar o S17 das classes R e N, com cada operador seguido de `./x.sh`, e afirmar que `./x.sh` aparece entre os programas.
-- **A2.** O `grava_arquivo` de hoje faz `re.sub(r"'[^']*'", "''", logico)`. Sobre `echo "it's"; cat > .husky/pre-push ⏎echo 'x'; git push origin feature/x`, a expressão apaga de `'s"` até `echo '` e leva o `> .husky/pre-push` junto: o resultado é `False`. Com M2 e M5, `echo` e `cat` não entram em `fora_do_texto`, e `git push origin feature/x` está na lista. O corpo fica só lido, e o `git` roda o gancho gravado. Requisito em M1: leitura com um estado só para as aspas (ADR 0011, item 1, "nunca tirar as aspas simples e olhar o resto"). Caso R19 no corpus e uma variante no T6 com apóstrofo entre aspas duplas antes do operador.
-- **A3.** A regra de commit das boas práticas exige a suíte verde em cada commit. A P3 = B exige que cada commit se reverta sozinho, e a retrospectiva mostra 4 entregas reprovadas só por isso. Com a marca `fecha`, o vermelho continua provado (o teste afirma que o caso marcado ainda falha e imprime a saída), cada passo de M1 a M6 tira as suas marcas, e reverter um passo devolve as marcas dele com o código.
-- **A4.** No Forge, R-MAIN sempre tem o pre-push e a proteção de branch como outra camada. Lida ao pé da letra, a segunda metade do (ii) nunca reprova, e a primeira ("a `develop` barrava") deixa de fora o A1 do conformidade, que saía 0 na base. É a ambiguidade que a retrospectiva aponta como causa 2 e 3 (critérios opostos sem árbitro, vereditos divergentes). O texto proposto acima amarra o veredito às promessas do próprio desenho.
-- **A5.** O `CRITICO` do conformidade (`hooks/conformidade.py:39`) inclui `docs/reviews`, `docs/qa`, `docs/security`, `CLAUDE.md`, `.claude/` e `tests/hooks`. Com M3, gravar um desses caminhos por heredoc e rodar qualquer `git` ou programa fora da lista na mesma chamada passa a recusar, mesmo sem apóstrofo. É a forma de um agente gravar um parecer e dar `git add`. Pelo M4, toda atribuição antes do dono põe o corpo como comando, e com apóstrofo recusa. Liste os dois como F7 e F8, com contorno (Write e outra chamada; atribuição por `export` noutra chamada ou opção do programa), como casos `F` no corpus, e corrija a frase "são os únicos novos" da seção 6.
+### Notas para o passo (1) do E3.1 (não são achados: nenhuma fere uma linha "Promete")
+- **R10 e F9.** No bash 5.3.9, `cat 1>&x <<'EOF'…` grava o arquivo `x`. O M1 já conta `[n]>&arquivo` como gravação (linha 60), e o T6 só exige a implicação, então o código e os testes ficam certos. O texto fica errado em três lugares. A linha 114 diz "o bash não grava". A linha 259 diz "R10 confirma o [INF]: o bash não grava". A linha 294 trata o F9 como falso positivo. No passo (1), o R10 vira caso R comum e o F9 sai da classe F e da lista da seção 6. Assim a contagem do A8 não soma um acerto como falso positivo.
+- **R20a a R20c.** Os três já dão 2 / 2 em `1b0fb6b`. A marca `M2` sobra e o passo (1) a tira. Eles ficam como guarda do enumerador.
 
 ### Fora do bloco
-- O desenho não altera código nem testes. Os testes, `scripts/validar-plugin.sh` e as regras de ferramenta do `praticas.md` não se aplicam a este diff (só documento) e não foram rodados.
-- Segurança: o A1 e o A2 são achados de leitura do desenho, sondados nas funções e não no hook. Entram no corpus pelo A1 e pelo A2. O `security-engineer` os recebe pelo corpus no E3.3, sem cartão à parte.
+- O diff é só documento. Os testes, `scripts/validar-plugin.sh` e as regras de ferramenta do `praticas.md` não se aplicam e não foram rodados.
+- Segurança: S18 é furo real em `1b0fb6b` (o corpo roda no bash e os dois hooks saem 0). Ele já está no corpus com a marca `M2`, e o `security-engineer` o recebe por ali no E3.3, sem cartão à parte.
