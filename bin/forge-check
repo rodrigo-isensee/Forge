@@ -17,6 +17,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
+     forge-check esperas [--pedido ID]
      forge-check fila
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
@@ -26,6 +27,9 @@ linha `fila: ... não tem KANBAN.md` (SEM_QUADRO).
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
 reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
 uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
+`esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
+`credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
+mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido`.
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -2015,6 +2019,71 @@ def cmd_voltas(raiz, pedido=None):
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
         soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
     print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
+    return 0
+
+
+# ---- M14b: esperas (quanto tempo um cartão ficou parado esperando o dono ou uma credencial), lidas de historico.md ----
+TIPOS_DE_ESPERA = ("dono", "credencial", "outra")
+FRASES_DE_ESPERA = (("aguardando o dono", "dono"), ("sem credencial", "credencial"))
+
+
+def tipo_da_espera(para, motivo=""):
+    """`dono` ou `credencial` se o movimento põe o cartão nessa espera (coluna de destino, ou motivo que abre com a frase: "Aguardando o
+    dono: ..."); `outra` se vai a "Bloqueado" sem dizer por quê; None se não é espera."""
+    destino, texto = _sem_acento(para), _sem_acento(motivo)
+    for frase, tipo in FRASES_DE_ESPERA:
+        if destino == frase or texto.startswith(frase):
+            return tipo
+    return "outra" if destino == "bloqueado" else None
+
+
+def esperas_do_cartao(movimentos):
+    """De [(hora, de, para, motivo)] em ordem de hora: [(tipo, hora, minutos|None)]. A espera começa no movimento que a abre e termina
+    no primeiro movimento seguinte que não a continua (None: ainda aberta). Continua a espera o movimento que sai de uma espera de um
+    tipo para outra coluna do mesmo tipo (Em andamento -> Aguardando o dono, depois Aguardando o dono -> Bloqueado com o motivo
+    "Aguardando o dono: ...") e esse movimento não abre outra."""
+    def continua(m, tipo):
+        return tipo_da_espera(m[1]) == tipo and tipo_da_espera(m[2], m[3]) == tipo
+    esperas = []
+    for i, movimento in enumerate(movimentos):
+        tipo = tipo_da_espera(movimento[2], movimento[3])
+        if tipo is None or tipo_da_espera(movimento[1]) == tipo:
+            continue
+        j = i + 1
+        while j < len(movimentos) and continua(movimentos[j], tipo):
+            j += 1
+        fim = movimentos[j][0] if j < len(movimentos) else None
+        esperas.append((tipo, movimento[0], _minutos(movimento[0], fim) if fim else None))
+    return esperas
+
+
+def cmd_esperas(raiz, pedido=None):
+    """Imprime as esperas por cartão (`esperas: <cartão> <tipo> inicio=<ISO> minutos=<n|aberta>`) e o total por tipo. Só lê
+    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`). rc 1 se o pedido não tem cartão."""
+    por_cartao, nomes = {}, {}
+    for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md"):
+        hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
+        if hora:
+            por_cartao.setdefault(c[1].casefold(), []).append((hora, c[2], c[3], "|".join(c[4:])))
+            nomes.setdefault(c[1].casefold(), c[1])
+    if not por_cartao:
+        print("esperas: aviso: docs/kanban/historico.md ausente ou sem movimento com hora", file=sys.stderr)
+    escolhidos = sorted(nomes.values(), key=str.casefold)
+    if pedido:
+        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos)
+        if not escolhidos:
+            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+            return 1
+    soma = {t: [0, 0.0] for t in TIPOS_DE_ESPERA}
+    abertas = 0
+    for nome in escolhidos:
+        for tipo, inicio, minutos in esperas_do_cartao(sorted(por_cartao[nome.casefold()], key=lambda m: m[0])):
+            print(f"esperas: {sem_controle(nome)} {tipo} inicio={inicio.isoformat(timespec='seconds')} minutos={_numero(minutos) if minutos is not None else 'aberta'}")
+            soma[tipo][0] += 1
+            soma[tipo][1] += minutos or 0
+            abertas += minutos is None
+    print("esperas: total: " + " ".join(f"{t}={soma[t][0]} minutos_{t}={_numero(soma[t][1])}" for t in TIPOS_DE_ESPERA)
+          + f" abertas={abertas} cartoes={len(escolhidos)}")
     return 0
 
 
@@ -4090,6 +4159,8 @@ def main():
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
+    es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
@@ -4174,6 +4245,8 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "esperas":
+        return cmd_esperas(raiz, a.pedido)
     if a.cmd == "fila":
         for linha in cmd_fila(raiz):
             print(linha)
