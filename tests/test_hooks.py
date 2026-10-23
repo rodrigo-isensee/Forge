@@ -2084,7 +2084,8 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         return aceitos
 
     # T8 por nível (seção 3 da proposta caminho-rev8): o texto do nível 1 dentro de cada reavaliação que o hook segue,
-    # escrito para o nível 0, e o `<<` dele em cada forma que o nível 0 apaga até `<<` (`HEREDOC_DO_TESTE`).
+    # escrito para o nível 0, e o `<<` dele em cada forma que o nível 0 apaga até `<<` (`HEREDOC_DO_TESTE`). Só o T8 a usa:
+    # no T9b e na propriedade da opção B, G1 (`textos_de_g1`) a substitui (RET-LEITURA-HOOK-C).
     NIVEIS = (("eval '{}'", "simples"), ('eval "{}"', "duplas"), ("eval {}", "sem aspas"), ("bash -c '{}'", "simples"),
               ('sh -c "{}"', "duplas"), ("env X=1 bash -c '{}'", "simples"), ("command eval '{}'", "simples"))
     FORMAS_DO_HEREDOC = ("<<", "<''<", '<""<', "\\<\\<", "<\\\n<", "<'\\''<", "<$(:)<")
@@ -2339,7 +2340,9 @@ exit 0
         z1 = base / "x0"
         for d in (registradores, pasta, casa, z1):
             d.mkdir(parents=True)
-        for nome in set(re.findall(r"[A-Za-z_][\w.+-]*", texto)) | {"cat", "git", "gh", "mkdir", "env"}:
+        # os shells e os repassadores entram sempre: a grafia do nome (`b''ash`, `$'\x62'ash`) não o mostra no texto
+        nomes = set(re.findall(r"[A-Za-z_][\w.+-]*", texto)) | {"cat", "git", "gh", "mkdir", "env"}
+        for nome in nomes | set(self.SHELLS_DO_T9B) | set(self.REPASSADORES_DO_T9B):
             for d in (registradores, z1):
                 arquivo = d / nome
                 if nome in self.SHELLS_DO_T9B:
@@ -2366,7 +2369,8 @@ exit 0
 
     def textos_do_t9b(self, base):
         """(rótulo, hook, texto, pasta, marca) dos textos do corpus com `{CORPO}` (a sentinela do hook no lugar, e
-        `/tmp/x` do Z1 numa pasta de `base`) e das mutações do T8 por nível dos casos L com a sentinela."""
+        `/tmp/x` do Z1 numa pasta de `base`) e dos textos de G1 com a sentinela (`textos_de_g1`, RET-LEITURA-HOOK-C: G1
+        substitui as mutações de `NIVEIS`)."""
         dados = corpus_da_volta_unica()
         textos = []
         for caso in dados["casos"]:
@@ -2381,9 +2385,8 @@ exit 0
                 marca = NAO_PROMETE if caso.get("nao_promete") else marca
                 texto = caso["comando"].replace("{CORPO}", sentinela).replace("/tmp/x", f"{pasta}/x")
                 textos.append((f"{caso['id']}/{hook}", hook, texto, pasta, marca))
-        for k, (id, hook, texto) in enumerate(self.casos_aceitos(self.SENTINELAS)):
-            for n, (rotulo, envolto) in enumerate(self.mutacoes_de_nivel(texto)):
-                textos.append((f"{id}/{hook} em {rotulo}", hook, envolto, base / f"nivel-{k}-{n}", None))
+        for k, (rotulo, hook, texto, _) in enumerate(self.textos_de_g1(self.SENTINELAS)):
+            textos.append((rotulo, hook, texto, base / f"g1-{k}", None))
         return textos
 
     def test_t9b_oraculo_do_gatilho(self):  # T9b (RET-LEITURA-HOOK-B, seção 3 da proposta caminho-rev8)
@@ -2417,17 +2420,91 @@ exit 0
         self.assertLessEqual({"K1a", "K1b"}, ids, "o T9b roda no bash o que o hook libera")
         self.assertGreaterEqual(len(textos), 500)
 
-    # Propriedade da opção B ((5) da seção 4B da proposta caminho-rev8), sem bash: com o marcador crítico e uma
-    # reavaliação pelo shell, o hook recusa. A reavaliação é reconhecida por uma leitura própria do teste.
-    REAVALIACAO_DO_TESTE = re.compile(r"(?<![\w.-])(?:eval|(?:bash|sh|zsh|dash|ksh)(?:\s+-\w+)*?\s+-[A-Za-z]*c[A-Za-z]*)(?=\s)")
-    LINHAS_DIRETAS = {"conformidade": ("git push origin feature/x",),
-                      "parecer": ("gh pr create --draft --base develop --title t --body x",)}
+    # G1, o gerador da classe "nível" (proposta caminho-rev9, 3B): o texto com uma reavaliação pelo shell, por produto
+    # de prefixos × grafias (`GRAFIAS`, no nome e na opção) × reavaliadores × corpos. A verdade vem da construção: o
+    # teste pôs a reavaliação ali, e `test_g1_esta_na_classe` prova no bash (hooks desligados) que ela roda o corpo.
+    # Prefixo: (nome, molde com `{R}` no lugar da reavaliação, nativo, para quem). Nativo: o bash o executa sozinho
+    # (palavra reservada, builtin), e o texto entra na prova de G1. Para quem: "eval", "shell" ou None (os dois); o que
+    # só repassa a um programa (`env`, `sudo`, `find -exec`) não roda o builtin `eval`. O `xprefixo` (programa
+    # desconhecido) só prova a regra do hook: no T9b, é um registrador (S6 da proposta).
+    PREFIXOS_DE_G1 = (
+        ("nenhum", "{R}", True, None),
+        ("coproc", "coproc {R}", True, None),
+        ("coproc NOME {", "coproc x { {R}; }", True, None),
+        ("time", "time {R}", True, None),
+        ("time -p", "time -p {R}", True, None),
+        ("!", "! {R}", True, None),
+        ("if", "if {R}; then :; fi", True, None),
+        ("{", "{ {R}; }", True, None),
+        ("$(…)", "x=$({R})", True, None),
+        ("pipeline", "true | {R}", True, None),
+        ("command", "command {R}", True, None),
+        ("builtin", "builtin {R}", True, "eval"),
+        ("exec", "exec {R}", True, "shell"),
+        ("env X=1", "env X=1 {R}", False, "shell"),
+        ("sudo", "sudo {R}", False, "shell"),
+        ("flock f", "flock f {R}", False, "shell"),
+        ("find -exec", "find . -maxdepth 0 -exec {R} \\;", False, "shell"),
+        ("xprefixo", "xprefixo {R}", False, None),
+    )
+    GRAFIAS_DE_G1 = ("direta", "simples", "duplas", "barra", "ansi", "hexa", "ansi no meio", "vazio no meio")
+    REAVALIADORES_DE_G1 = (("eval", None), ("bash", "-c"), ("sh", "-c"), ("zsh", "-c"), ("dash", "-c"), ("ksh", "-c"),
+                           ("rbash", "-c"), ("bash", "-ec"), ("bash", "-lc"))
+    LINHAS_DIRETAS = {"conformidade": "git push origin feature/x",
+                      "parecer": "gh pr create --draft --base develop --title t --body x"}
 
-    def test_propriedade_da_reavaliacao_com_marcador(self):  # (5) da opção B (RET-LEITURA-HOOK-B)
-        """Para todo texto com o marcador crítico de um hook (`CRITICO`) e uma reavaliação (`REAVALIACAO_DO_TESTE`), o
-        hook dá 2. No corpus, a célula do hook é 2 (o `test_corpus_nos_dois_hooks` prova o código). Nas mutações do T8
-        por nível (os casos L com a sentinela do T9b) e na linha crítica direta, e na sentinela, dentro de cada
-        reavaliação de `NIVEIS`, haja `<<` ou não, cada hook com o marcador roda e dá 2."""
+    @classmethod
+    def textos_de_g1(cls, corpos_por_hook, so_nativos=False):
+        """(rótulo, hook, texto, nativo) de G1 com o corpo de cada hook (`corpos_por_hook`: hook -> linha), entre aspas
+        simples como argumento da reavaliação. A grafia vale para o nome e para a opção do shell."""
+        saida = []
+        for prefixo, molde, nativo, para in cls.PREFIXOS_DE_G1:
+            if so_nativos and not nativo:
+                continue
+            for grafia in cls.GRAFIAS_DE_G1:
+                escrever = cls.GRAFIAS[grafia]
+                for nome, opcao in cls.REAVALIADORES_DE_G1:
+                    if para and para != ("eval" if opcao is None else "shell"):
+                        continue
+                    reavaliador = escrever(nome) + (f" {escrever(opcao)}" if opcao else "")
+                    for hook, corpo in corpos_por_hook.items():
+                        texto = molde.replace("{R}", f"{reavaliador} '{corpo}'")
+                        rotulo = f"G1 {prefixo} / {grafia} / {nome}{' ' + opcao if opcao else ''} / {hook}"
+                        saida.append((rotulo, hook, texto, nativo))
+        return saida
+
+    def test_g1_esta_na_classe(self):  # item 3 do critério de fim da opção B (proposta caminho-rev9): o oráculo do oráculo
+        """Com os hooks desligados, o bash roda a sentinela em cada texto de G1 de prefixo nativo: G1 só tem reavaliação
+        de verdade, e um gerador que não a produz fica vermelho. Roda como o T9b (`rodar_no_bash_do_t9b`: `env -i`,
+        `HOME` no `$TMPDIR`, sem rede, os shells são o próprio bash); só o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria()
+        textos = self.textos_de_g1(self.SENTINELAS, so_nativos=True)
+
+        def rodar(item):
+            k, (_, _, texto, _) = item
+            return self.rodar_no_bash_do_t9b(bash, texto, base / f"g1-{k}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+            rodados = list(pool.map(rodar, enumerate(textos)))
+        for (rotulo, hook, texto, _), rodou in zip(textos, rodados):
+            sentinela = shlex.split(self.SENTINELAS[hook])
+            with self.subTest(rotulo=rotulo):
+                self.assertIn((sentinela[0], sentinela[1:]), rodou, f"o bash não roda a sentinela em {texto!r}")
+        self.assertGreaterEqual(len(textos), 1500)
+
+    # Propriedade da opção B ((5) da seção 4B da proposta caminho-rev8, item 2 do critério da caminho-rev9), sem bash:
+    # com o marcador crítico e uma reavaliação pelo shell, o hook recusa. No corpus, a reavaliação é reconhecida por uma
+    # leitura própria do teste (`REAVALIACAO_DO_TESTE`); em G1, pela construção.
+    REAVALIACAO_DO_TESTE = re.compile(r"(?<![\w.-])(?:eval|(?:bash|sh|zsh|dash|ksh)(?:\s+-\w+)*?\s+-[A-Za-z]*c[A-Za-z]*)(?=\s)")
+
+    def test_propriedade_da_reavaliacao_com_marcador(self):  # (5) da opção B, sobre G1 (RET-LEITURA-HOOK-B e -C)
+        """Para todo texto de G1 (com a linha crítica direta e com a sentinela de cada hook), cada hook cujo marcador
+        crítico (`CRITICO`) o texto tem roda e dá 2. No corpus, o caso com marcador e reavaliação
+        (`REAVALIACAO_DO_TESTE`, fora das formas "não promete") tem a célula 2 (o `test_corpus_nos_dois_hooks` prova o
+        código)."""
         _comum, conformidade, parecer = modulos_dos_hooks()
         criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
         dados = corpus_da_volta_unica()
@@ -2440,22 +2517,18 @@ exit 0
                     no_corpus += 1
                     with self.subTest(caso=f"{caso['id']}/{hook}"):
                         self.assertEqual(caso[hook], 2, f"reavaliação com marcador e célula {caso[hook]}: {texto!r}")
-        textos = [(rotulo, texto) for rotulo, _, texto, _, _ in self.textos_do_t9b(self._pasta_temporaria())
-                  if " em " in rotulo]
-        for hook, linhas in self.LINHAS_DIRETAS.items():
-            for linha in linhas + (self.SENTINELAS[hook],):
-                for nivel, aspas in self.NIVEIS:
-                    textos.append((f"{linha!r} em {nivel.format('…')}", nivel.format(self.para_o_nivel_0(linha, aspas))))
-        pedidos = [(hook, texto) for _, texto in textos for hook, critico in criticos.items() if critico.search(texto)]
+        textos = self.textos_de_g1(self.LINHAS_DIRETAS) + self.textos_de_g1(self.SENTINELAS)
+        pedidos = [(hook, texto) for _, _, texto, _ in textos for hook, critico in criticos.items()
+                   if critico.search(texto)]
         decisoes = self.decisoes_dos_hooks(pedidos)
-        for rotulo, texto in textos:
-            self.assertRegex(texto, self.REAVALIACAO_DO_TESTE)
+        for rotulo, dono, texto, _ in textos:
+            self.assertRegex(texto, criticos[dono], "o corpo de G1 tem o marcador do hook dele")
             for hook, critico in criticos.items():
                 if critico.search(texto):
                     with self.subTest(rotulo=rotulo, hook=hook):
                         self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
-        self.assertGreaterEqual(no_corpus, 15)
-        self.assertGreaterEqual(len(pedidos), 500)
+        self.assertGreaterEqual(no_corpus, 25)
+        self.assertGreaterEqual(len(textos), 4000)
 
     # As grafias de G1 (proposta caminho-rev9, 3B): a mesma palavra escrita pelos mecanismos de aspas do bash, que a
     # entrega igual ao programa. O teste de diferença (`test_reducao_da_palavra_como_o_bash`) prova cada uma no bash.
