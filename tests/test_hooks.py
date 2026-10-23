@@ -1897,8 +1897,12 @@ class Hooks(unittest.TestCase):
 # de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
-REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B"})  # D, A e B: as opções (RET-LEITURA-HOOK-D, -A, -B)
-EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opções D, A e B: todas as regras entraram, nenhuma marca `fecha` sobra
+REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B", "B2"})  # D, A, B e B2: as opções (RET-LEITURA-HOOK-D, -A, -B, -C)
+EXIGE_NENHUMA_MARCA = False  # opção B da revalidação 9 (RET-LEITURA-HOOK-C): as sondas dela entram vermelhas, com a marca B2
+# A marca `nao_promete` (o cartão): a forma está na linha "Não promete" da frase de parada (RET-LEITURA-HOOK-CAMINHO4); a
+# célula é o código de hoje, para o conserto futuro aparecer como mudança de teste, e o T9b registra que o bash a roda.
+CARTOES_DO_NAO_PROMETE = frozenset({"N-HOOK1", "R5A-COPROC", "A6"})
+NAO_PROMETE = "não promete"
 MINIMO_POR_CLASSE = {"R": 32, "N": 12, "S": 34, "H": 8, "V": 13, "L": 12, "F": 12}
 IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e", "R20a", "R20b", "R20c", "S5", "S15",
                       "S17a", "S17b", "S17c", "S17d", "S17e", "S17f", "S18a", "S18b", "S18c", "F7a", "F7b", "F8a", "F8b",
@@ -1908,7 +1912,10 @@ IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e",
                       "FD11b",
                       # opção B (RET-LEITURA-HOOK-B): as sondas da revalidação 8 e os falsos positivos FD12 e FD13
                       "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "QC1", "QC2", "BL2", "FD12", "FD12b", "FD13a", "FD13b", "FD13c",
-                      "FD13d", "FD13e", "QP1")
+                      "FD13d", "FD13e", "QP1",
+                      # opção B da revalidação 9 (RET-LEITURA-HOOK-C): as sondas CO, AN, NR, VA, o FD14 e o "não promete"
+                      "CO1", "CO2", "CO3", "AN1", "AN2", "AN3", "AN4", "AN5", "NR1", "NR2", "NR3", "VA1", "FD14a",
+                      "FD14b", "FD14c", "FD14d", "CO4", "CO5", "CN1", "CN2", "CN3", "VA2", "PE1", "ST1", "ST2", "ST3")
 
 
 def corpus_da_volta_unica():
@@ -2280,7 +2287,17 @@ exit 0
     # T9b (seção 3 da proposta caminho-rev8): o oráculo do gatilho. O T9 só roda o que a gramática aceitou; aqui entra o
     # que o hook libera, com a linha sentinela no `{CORPO}`.
     SENTINELAS = {"conformidade": "git push origin SENTINELA:main", "parecer": "gh pr merge SENTINELA --merge"}
-    SHELLS_DO_T9B = ("bash", "sh", "dash", "zsh", "ksh")  # no `PATH` do T9b, o próprio bash: a reavaliação roda de verdade
+    SHELLS_DO_T9B = ("bash", "sh", "dash", "zsh", "ksh", "rbash")  # no `PATH` do T9b, o próprio bash: a reavaliação roda
+    # Os prefixos que só repassam o comando, no T9b, sem o programa real (R3 da segurança, revalidação 9): o resto roda.
+    REPASSADORES_DO_T9B = {
+        "sudo": 'while [[ $1 == -* ]]; do shift; done\nexec "$@"\n',
+        "nohup": 'exec "$@"\n',
+        "nice": '[[ $1 == -n ]] && shift 2\nexec "$@"\n',
+        "timeout": 'shift\nexec "$@"\n',
+        "flock": 'while [[ $1 == -* ]]; do shift; done\nshift\nexec "$@"\n',
+        "find": ('while [[ $# -gt 0 && $1 != -exec ]]; do shift; done\nshift\na=()\n'
+                 'while [[ $# -gt 0 && $1 != ";" ]]; do a+=("${1//\\{\\}/.}"); shift; done\nexec "${a[@]}"\n'),
+    }
     DECISOES = {}  # (hook, texto) -> código, de `decisoes_dos_hooks`
 
     def decisoes_dos_hooks(self, pedidos):
@@ -2327,6 +2344,8 @@ exit 0
                 arquivo = d / nome
                 if nome in self.SHELLS_DO_T9B:
                     arquivo.write_text(f'#!{bash}\nexec {bash} --noprofile --norc "$@"\n', encoding="utf-8")
+                elif nome in self.REPASSADORES_DO_T9B:
+                    arquivo.write_text(f"#!{bash}\n{self.REPASSADORES_DO_T9B[nome]}", encoding="utf-8")
                 elif nome == "env":  # o `env X=1 prog`, sem o programa real
                     arquivo.write_text(f'#!{bash}\nwhile [[ $1 == *=* ]]; do export "$1"; shift; done\nexec "$@"\n',
                                        encoding="utf-8")
@@ -2359,6 +2378,7 @@ exit 0
                 pasta = base / f"{caso['id']}-{hook}"
                 marca = caso.get("fecha")
                 marca = marca.get(hook) if isinstance(marca, dict) else marca
+                marca = NAO_PROMETE if caso.get("nao_promete") else marca
                 texto = caso["comando"].replace("{CORPO}", sentinela).replace("/tmp/x", f"{pasta}/x")
                 textos.append((f"{caso['id']}/{hook}", hook, texto, pasta, marca))
         for k, (id, hook, texto) in enumerate(self.casos_aceitos(self.SENTINELAS)):
@@ -2380,12 +2400,16 @@ exit 0
         ids = set()
         for rotulo, hook, texto, pasta, marca in textos:
             if decisoes[(hook, texto)] != 0:
-                if marca:
+                if marca and marca != NAO_PROMETE:
                     with self.subTest(rotulo=rotulo):
                         self.conferir_marca(marca, True, f"o {hook} já recusa {texto!r}")
                 continue
             sentinela = shlex.split(self.SENTINELAS[hook])
             rodou = self.rodar_no_bash_do_t9b(bash, texto, pasta)
+            if marca == NAO_PROMETE:  # o código de hoje: o hook libera e o bash roda a sentinela (cartão, não bloqueia)
+                with self.subTest(rotulo=rotulo):
+                    self.assertIn((sentinela[0], sentinela[1:]), rodou, f"{rotulo}: o bash não roda a sentinela")
+                continue
             with self.subTest(rotulo=rotulo):
                 self.conferir_marca(marca, (sentinela[0], sentinela[1:]) not in rodou,
                                     f"o {hook} libera {texto!r} e o bash roda {' '.join(sentinela)}: {rodou}")
@@ -2411,7 +2435,8 @@ exit 0
         for caso in dados["casos"]:
             for hook, critico in criticos.items():
                 texto = caso.get("comando", "").replace("{CORPO}", dados["corpos"][hook])
-                if caso[hook] is not None and critico.search(texto) and self.REAVALIACAO_DO_TESTE.search(texto):
+                if caso[hook] is not None and not caso.get("nao_promete") and critico.search(texto) \
+                        and self.REAVALIACAO_DO_TESTE.search(texto):
                     no_corpus += 1
                     with self.subTest(caso=f"{caso['id']}/{hook}"):
                         self.assertEqual(caso[hook], 2, f"reavaliação com marcador e célula {caso[hook]}: {texto!r}")
@@ -2452,6 +2477,9 @@ exit 0
         for caso in casos:
             self.assertTrue(caso["conformidade"] is not None or caso["parecer"] is not None, caso["id"])
             self.assertEqual(sum(chave in caso for chave in ("comando", "passos")), 1, caso["id"])
+            if "nao_promete" in caso:
+                self.assertIn(caso["nao_promete"], CARTOES_DO_NAO_PROMETE, caso["id"])
+                self.assertNotIn("fecha", caso, f"{caso['id']}: não promete e fecha ao mesmo tempo")
 
 
 if __name__ == "__main__":
