@@ -1641,8 +1641,11 @@ class Hooks(unittest.TestCase):
                         f"( cat > .husky/pre-commit <<'EOF' ) && git commit -m x\n{L}\nEOF": "git",
                         # M2 da volta única: o programa de outra linha do texto pode rodar o arquivo gravado
                         f"cat > f <<'EOF'\n{L}\nEOF\nbash f": "bash", f"cat <<'EOF'\n{L}\nEOF\nbash": "bash",
-                        f"cat <<'EOF' \\\\\n{L}\nEOF\nsh": "sh"}
-        for linha in minimo(list(noutra_linha), 36, "formas em que o corpo vai a quem o roda"):
+                        f"cat <<'EOF' \\\\\n{L}\nEOF\nsh": "sh",
+                        # M5 da volta única: `echo` redefinido no texto não é o builtin da lista dos outros
+                        f"echo() {{ ./x.sh; }}\ncat > x.sh <<'EOF'\n{L}\nEOF\necho": "./x.sh",
+                        f"alias echo=./x.sh\ncat > x.sh <<'EOF'\n{L}\nEOF\necho": "alias"}
+        for linha in minimo(list(noutra_linha), 38, "formas em que o corpo vai a quem o roda"):
             programa = noutra_linha[linha]
             with self.subTest(linha=linha):
                 [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
@@ -1653,7 +1656,8 @@ class Hooks(unittest.TestCase):
                      f"git add -A && git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && git push -u origin feature/x",
                      f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)",
                      f"cat <<'EOF' 2>/dev/null && git push -u origin feature/x\n{L}\nEOF",
-                     f"cat <<'EOF' 2>&1 && git status --short\n{L}\nEOF")
+                     f"cat <<'EOF' 2>&1 && git status --short\n{L}\nEOF",
+                     f"git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && echo feito", f"true && cat <<'EOF'\n{L}\nEOF")
         for linha in separados:  # outro comando da lista não lê o corpo (A1 do review: o comum dos projetos)
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.corpo_so_lido(_comum.tirar_heredocs(linha)[1][0][0]))

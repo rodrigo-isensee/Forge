@@ -844,7 +844,10 @@ COMPOSTOS = frozenset({"{", "}", "if", "then", "elif", "else", "fi", "case", "es
 # Os outros comandos do comando lógico (`&&`, `||`, `;`, outra linha) que não rodam o corpo do heredoc, nem o arquivo
 # que ele grava (A1 de segurança, volta 4). A lista é positiva, como a dos leitores: qualquer outro programa (`./x.sh`,
 # `make`, `bash x.sh`, `$x`, `git -c alias.x='!sh x.sh' x`) pode rodar o que o heredoc gravou, e faz do corpo comando.
-OUTROS_SEM_O_CORPO = frozenset({"cd", "mkdir"})
+# M5 da volta única: `echo` e `true`, builtins sem efeito além da saída; a função ou o alias com esse nome definidos no
+# texto aparecem como outro programa (`echo() { ./x.sh; }` põe `./x.sh`, `alias echo=./x.sh` põe `alias`), e a
+# redireção de saída deles conta em `grava_arquivo`. O `git log` não entra (`gpg.program`, pager).
+OUTROS_SEM_O_CORPO = frozenset({"cd", "mkdir", "echo", "true"})
 # A1 de segurança, volta 5: as opções que cada subcomando aceita como outro comando, numa lista fechada de opções que
 # não rodam programa. Opção fora dela, inclusive a abreviada (`--rec` é `--receive-pack` para o git), tira o comando da
 # lista: `git push --receive-pack='sh x.sh'` e `--exec=` rodam um programa da própria linha.
@@ -1348,7 +1351,7 @@ def subcomando_do_git(argumentos):
 
 def outro_sem_o_corpo(programa, argumentos, atribuicoes=()):
     """O comando simples `programa argumentos`, noutro ponto do comando lógico do heredoc, não roda o corpo nem o
-    arquivo que ele grava: um leitor (`corpo_so_lido`), `cd`, `mkdir` ou um `git` de `GIT_OUTRO_SEM_O_CORPO` só com as
+    arquivo que ele grava: um leitor (`le_o_corpo`), `OUTROS_SEM_O_CORPO` ou um `git` de `GIT_OUTRO_SEM_O_CORPO` só com as
     opções da lista dele. Nunca com atribuição antes (`GIT_SSH=sh git push`, `HOME=. git status`)."""
     if atribuicoes:
         return False
