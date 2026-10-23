@@ -30,6 +30,7 @@ Fica como "já lido" o que vem de antes de `b2c7d83` (revalidações 1 a 8). A s
 - A2 (bloqueante) hooks/parecer.py:378 · mesma classe: o `parecer` reconhece a reavaliação nas palavras do `shlex`, que lê `$'eval'` como `$eval`; `$'eval'`, `e$'val'`, `bash -$'c'` e afins saem 2 / 0 e o bash roda a SENTINELA (AN1 a AN5).
 - A3 (recomendado) tests/test_hooks.py:2081 · a propriedade (5) e o T9b só envolvem os textos em `NIVEIS`, a mesma lista que `reavaliacao` reconhece: ficam verdes com A1 e A2 abertos. Gerar os envoltórios com palavra reservada antes e com aspas no nome e na opção.
 - A4 (recomendado) hooks/_comum.py:1760 · reavaliação sem `<<` fora da lista enumerada (`| bash`, `. <(…)`, `trap`, alias, `mapfile -C`, nome calculado, `$x eval`, `rbash -c`, `find -exec`): 0 com a SENTINELA rodada, como na `develop`; cartão N-HOOK1 (ver a nota de leitura do critério).
+- A6 (recomendado) hooks/parecer.py:378 · leitor de base, fora do delta: `time gh pr merge …` sai 2 / 0 e `coproc git push … :main` sai 0 / 0, os dois com a SENTINELA rodada, como na `develop` (CO4, CO5); cartão ao `security-engineer` e ao N-HOOK1.
 - A5 (recomendado) hooks/_comum.py:1497 · o A4 da revalidação 8 (opção do git que roda programa, R1) segue no cartão N-HOOK1, por decisão do dono.
 
 ## Parecer
@@ -47,7 +48,7 @@ Mas a frase "fecha a classe nível por construção" só vale se o reconheciment
 
 Pela regra das duas voltas (decisão "A" de 2026-10-22), esta é a 3.ª volta seguida da classe "nível". Por isso a entrega para: o `software-architect` propõe o caminho e o dono decide. Não é uma volta direta ao autor.
 
-**A1.** A correção pontual é pôr `coproc` (com o nome opcional e o `{`) na lista que `reavaliacao` pula. Mas o achado mostra o mesmo padrão das voltas 7 e 8: a lista do hook e a lista do teste são a mesma (A3).
+**A1.** O CO4 (`coproc {CORPO}`, a linha crítica direta) também sai 0 / 0. Então o furo de origem está no leitor de base, e a segurança o leva como cartão próprio (R5a do parecer dela). Mantenho o A1 como bloqueante porque CO1 e CO2 são as formas que a promessa da opção B nomeia (`bash -c`, `eval`, "haja `<<` ou não"). Se o arquiteto puser o `coproc` no leitor de base, o A1 cai junto. A correção pontual é pôr `coproc` (com o nome opcional e o `{`) na lista que `reavaliacao` pula. Mas o achado mostra o mesmo padrão das voltas 7 e 8: a lista do hook e a lista do teste são a mesma (A3).
 
 **A2.** O `conformidade` dá 2 nessas formas porque já recusa o `$` com marcador. O `parecer` não recusa. Duas saídas possíveis: tirar as aspas como o bash antes de chamar `reavaliacao`, ou recusar com o marcador a palavra de comando que o `leituras` não lê literal.
 
@@ -73,6 +74,8 @@ Na coluna "develop", 0* quer dizer que o hook libera e a SENTINELA roda.
 | Z0 | `bash -c '{CORPO}'` (controle) | 2 / 2 | 2 / 0* |
 | CO1 | `coproc bash -c '{CORPO}'` | **0 / 0**, SENTINELA | 0* / 0* |
 | CO2 | `coproc eval '{CORPO}'` | **0 / 0**, SENTINELA | 0* / 0* |
+| CO4 | `coproc {CORPO}` (sem reavaliação) | 0 / 0, SENTINELA (A1, A6) | 0* / 0* |
+| CO5 | `time {CORPO}` (sem reavaliação) | 2 / **0**, SENTINELA (A6) | 2 / 0* |
 | CO3 | `coproc x { eval '{CORPO}'; }` | 2 / **0**, SENTINELA | 2 / 0* |
 | AN1 | `bash -$'c' '{CORPO}'` | 2 / **0**, SENTINELA | 2 / 0* |
 | AN2 a AN5 | `$'eval'`, `e$'val'`, `bash $'-c'`, `$'bash' -c` | 2 / **0**, SENTINELA | 2 / 0* |
@@ -117,4 +120,4 @@ Sem mutação, os mesmos 3 testes deram `Ran 3 tests in 102.896s OK`. No `confor
 - A suíte completa não rodou. O pedido limita a memória e manda rodar só o corpus e as sondas, e o pre-push do envio roda a suíte. O implementador registrou `suíte 1610 OK` no histórico do RET-LEITURA-HOOK-B. `scripts/validar-plugin.sh` também não rodou, porque o delta não toca o manifesto nem a estrutura do plugin.
 - Código: `reavaliacao` é curta e diz o que faz. `CONTORNO_DA_REAVALIACAO` é uma fonte única para as duas mensagens. O `env -S` ilegível como reavaliação fecha na dúvida. Há um falso positivo menor que não chega a achado: `OPCAO_DE_REAVALIACAO` olha todas as palavras depois do shell, então `bash x.sh -c` com marcador recusa.
 - Os commits estão em Conventional Commits em português e não tocam `tests/config.json`. O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar.
-- Segurança: A1 e A2 são furos no controle, com efeito no bash (`R-REVIEW` via `gh pr merge`, `R-MAIN` via `git push … :main`). A4 é o mesmo efeito em formas que a promessa não enumera. O `security-engineer` os recebe por este parecer (sondas CO, AN, VA, CN, ST e NR), sem cartão à parte.
+- Segurança: A1 e A2 são furos no controle, com efeito no bash (`R-REVIEW` via `gh pr merge`, `R-MAIN` via `git push … :main`). A4 é o mesmo efeito em formas que a promessa não enumera. O `security-engineer` os recebe por este parecer (sondas CO, AN, VA, CN, ST e NR), sem cartão à parte. O parecer dele, `eb3da15`, aprova a revalidação 9 e leva o `coproc` como cartão (R5a). A divergência sobre CO1 e CO2 está no A1 e é para o arquiteto decidir. O AN1 a AN5 e o CO5 não aparecem nas sondas dele.
