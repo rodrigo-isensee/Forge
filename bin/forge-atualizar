@@ -59,8 +59,13 @@ def adiantar_develop_local(projeto):
     if codigo != 0:
         return False
     _, remota = git(projeto, "rev-parse", "refs/remotes/origin/develop")
-    if local == remota or git(projeto, "merge-base", "--is-ancestor", remota, local)[0] == 0:
-        return False  # igual ao remoto ou à frente dele: nada a adiantar
+    if local == remota:
+        return False
+    if git(projeto, "merge-base", "--is-ancestor", remota, local)[0] == 0:  # à frente do remoto: nada a adiantar, mas o dono precisa saber
+        n = git(projeto, "rev-list", "--count", f"{remota}..{local}")[1]
+        print(f"A develop local do projeto está à frente do remoto ({n} commit(s) ainda não enviados): a branch do upgrade nasce com eles e eles "
+              "aparecerão no pull request. Se não é o que você quer, pare, envie ou ajuste a develop e rode de novo.")
+        return False
     if git(projeto, "merge-base", "--is-ancestor", local, remota)[0] != 0:
         print("A develop local do projeto divergiu da do remoto (tem commits que o remoto não tem): não mexi nela. A branch do upgrade nasce "
               "da develop local e as mudanças do remoto entram nela por mesclagem local, se houver.")
@@ -107,6 +112,18 @@ def integrar_develop(projeto, nova):
         print("A develop do projeto avançou durante a atualização: fiz um merge local de origin/develop na branch do upgrade (nada foi enviado).")
         trazidos(projeto, antes)
         return True
+    try:
+        return resolver_conflito(projeto, nova, antes)
+    except (EOFError, KeyboardInterrupt):
+        git(projeto, "merge", "--abort")
+        raise
+    except Exception as erro:  # nada deixa a mesclagem aberta no projeto: qualquer erro inesperado desfaz antes de sair
+        git(projeto, "merge", "--abort")
+        print(f"Algo inesperado aconteceu ao tratar o conflito ({type(erro).__name__}: {erro}). Desfiz a mesclagem; a branch do upgrade ficou como estava.")
+        return False
+
+
+def resolver_conflito(projeto, nova, antes):
     _, texto = git(projeto, "diff", "--name-only", "--diff-filter=U")
     conflitos = texto.splitlines()
     if conflitos == [".forge/versao"]:
@@ -114,8 +131,12 @@ def integrar_develop(projeto, nova):
         print("A develop do projeto avançou durante a atualização e mudou o arquivo .forge/versao, que também mudou aqui (conflito).")
         if da_develop and nossa:
             print(f"  versão que veio da develop: {da_develop}\n  versão nova do upgrade: {nossa}")
-            if fv.versao_de(da_develop) > fv.versao_de(nossa):
-                print(f"  Atenção: a da develop é MAIOR; responder s rebaixa o projeto de {da_develop} para {nossa}. O mais seguro é responder n.")
+            a, b = fv.versao_de(da_develop), fv.versao_de(nossa)
+            if a and b:
+                if a > b:
+                    print(f"  Atenção: a da develop é MAIOR; responder s rebaixa o projeto de {da_develop} para {nossa}. O mais seguro é responder n.")
+            else:
+                print("  Atenção: uma das versões não está no formato X.Y.Z, então não dá para comparar qual é a maior. O mais seguro é responder n.")
         if fv.confirmar(f"Manter a versão {nova} em .forge/versao (a versão da develop é descartada)?"):
             git(projeto, "checkout", "--ours", ".forge/versao")
             git(projeto, "add", ".forge/versao")
