@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: suite-local-verde
+pedido: FIX-SUITE-LOCAL
 branch: melhoria/suite-local-verde
 commit: 124c521ed00fca3280ea1e88c02f877a9e28aca6
 parecer: aprovado
