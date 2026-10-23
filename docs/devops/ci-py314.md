@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: CI-PY314
 branch: melhoria/ci-py314
-commit: aac6fb35094bdfc35936dd38f232ac5a6171e4bb
+commit: 0d971dae4013452272f307dce7449426a450aec4
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-23
@@ -11,7 +11,7 @@ data: 2026-10-23
 # Review de devops: CI-PY314
 
 ## Parecer
-Aprovado. `.github/workflows/ci.yml`: job novo `bateria-py314` (nome `bateria (python 3.14)`), ao lado do 3.12.
+Aprovado. `.github/workflows/ci.yml`: job novo `bateria-python-tres-quatorze` (nome `bateria (python 3.14)`), ao lado do 3.12.
 - Nomes exigidos intactos: `bateria`, `checagem rápida (push na develop)` e `catraca` não mudaram.
 - Mesma condição de gatilho da `bateria` (PR, push na homolog e na main; não no push da develop).
 - Ações fixadas pelos mesmos SHAs dos jobs atuais; `persist-credentials: false`; `permissions` herda `contents: read` do topo; `timeout-minutes: 15`; `concurrency` do workflow vale para o job.
