@@ -157,7 +157,7 @@ class PedidoForaDoClone(Repositorio):
                                "--branch", "melhoria/x", "--base", "develop")
         self.assertEqual(rc, 0, saida)
         self.assertIn("Pedido: p1", saida)
-        self.assertIn(f"Base-sha: {self.base}", saida)
+        self.assertIn("Branch: melhoria/x   Base: develop", saida)  # sem origin no repositório, o Base-sha fica PREENCHER
 
     def test_o_brief_de_uniao_vem_da_outra_raiz(self):
         brief = self.fora / "docs" / "briefs" / "b1.md"

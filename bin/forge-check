@@ -4421,7 +4421,11 @@ def guarda_de_versao(a, raiz):
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
+    AJUDA_RAIZ_PEDIDOS = ("raiz com docs/pedidos/ e docs/briefs/ fora do repositório (o git segue sendo o de --raiz); vale também depois do "
+                          "subcomando e acrescenta ~/.forge-contrib na busca")
+    ap.add_argument("--raiz-pedidos", default=None, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum = argparse.ArgumentParser(add_help=False)  # aceita --raiz também depois do subcomando
+    comum.add_argument("--raiz-pedidos", default=argparse.SUPPRESS, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum])
@@ -4521,6 +4525,9 @@ def main():
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
+    if a.raiz_pedidos:
+        global RAIZES_DE_BRIEF
+        RAIZES_DE_BRIEF = (Path(a.raiz_pedidos).resolve(), *RAIZES_DE_BRIEF)  # a escolhida na frente das demais
     if a.cmd == "brief" and a.alvo == "gerar" and a.etapa is not None and a.etapa not in ETAPAS_DO_GERAR:
         ap.error(f"argument --etapa: invalid choice: {a.etapa!r} (choose from {', '.join(map(repr, ETAPAS_DO_GERAR))})")
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):
