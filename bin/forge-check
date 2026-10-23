@@ -70,7 +70,7 @@ cabeçalho, `Brief-sha256:` e o brief entre `<<<BRIEF` e `BRIEF>>>`) só se o br
 lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
-o `--desde` vale só se for a `conferida <sha40>` mais recente do `## Histórico` do pedido (lido da cópia principal, não da
+o `--desde` vale só se for a `conferida <sha40>` (ou a `base do delta fixada pelo dono <sha40>`, saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
