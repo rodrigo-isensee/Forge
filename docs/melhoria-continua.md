@@ -17,6 +17,7 @@ Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Ja
 | Rodadas de review e de QA | contar `docs/reviews/*-rN.md` e `docs/qa/` da entrega | agile-coach |
 | Bugs por entrega e onde nasceram | pareceres por severidade; origem = fase (spec, arquitetura, código, teste, UX) | agile-coach |
 | Tempo de ciclo | `historico.md` (valores brutos até 20 itens) | agile-coach |
+| Execuções do pronto por entrega (meta ≤ 2: só testes e tipos do pacote durante o desenvolvimento, o pronto completo uma vez antes do commit final) | contar as execuções do comando de pronto nas saídas de ferramenta do autor (`forge-check transcricao`) ou no relatório | tech-lead |
 | Falhas de CI por entrega | `gh run list --json conclusion` filtrado pela branch | tech-lead |
 | Retrabalho | commits `fix:` na branch após o primeiro review; pais devolvidos | tech-lead |
 | Escapes | bugs achados após o parecer do QA | qa-engineer |
