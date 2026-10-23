@@ -18,6 +18,8 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
      forge-check esperas [--pedido ID]
+     forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
+     forge-check escape resumo [--dias N]
      forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
@@ -34,6 +36,9 @@ mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao
 `corrigidos` (M14b; só leitura, sem rede) lê a linha de PRs da `--ref` (padrão `origin/develop`) e lista os PRs `fix` que corrigem PR já mesclado:
 `evidencia=cita` (o texto do PR cita `#N` de PR mesclado antes: prova escrita) ou `evidencia=arquivo` (sem citação, mas mexe em arquivo que outro PR
 mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os `fix` sem nenhuma das duas (`nenhuma`).
+`escape registrar` (M14b) grava em docs/kanban/escapes.md, em formato fixo e com a hora real, o defeito escapado (bug achado depois do parecer
+final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava); `escape resumo`
+(só leitura) conta por gravidade e por controle e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -2174,6 +2179,77 @@ def _lista_de_prs(numeros):
     return ",".join(f"#{n}" for n in numeros) or "-"
 
 
+# ---- M14b: defeito escapado (bug achado depois do parecer final), registrado em docs/kanban/escapes.md ----
+CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota |\n"
+                     "|---|---|---|---|---|---|---|\n")
+ACHADO_POR = ("uso", "teste", "review", "outro-pedido", "ci")
+GRAVIDADES = ("critico", "alto", "medio", "baixo")
+CONTROLES_QUE_FALTARAM = ("review", "seguranca", "qa", "conferencia", "ci", "nenhum")
+JANELA_DE_ESCAPES = 30  # dias
+
+
+def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota):
+    """Registra um defeito escapado em docs/kanban/escapes.md: uma linha de formato fixo com a hora real `AAAA-MM-DD HH:MM`. Só acrescenta;
+    cria o arquivo com o cabeçalho se faltar. `parecer_final` é o parecer (caminho em docs/reviews, qa... ou commit) depois do qual o bug
+    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava). Recusa sem gravar; a recusa cita o
+    campo, nunca o valor."""
+    campos = (("--pedido", pedido), ("--parecer-final", parecer_final), ("--nota", nota))
+    for nome, valor in campos:
+        if "|" in valor or re.search(r"[\x00-\x1f\x7f]", valor) or len(valor.splitlines()) > 1:
+            return [f"escape: {nome} não pode ter `|` nem quebra de linha"]
+        motivo = recusa_do_campo(valor, nome)
+        if motivo:
+            return [f"escape: {motivo}"]
+    pedido, parecer_final, nota = pedido.strip(), parecer_final.strip(), nota.strip()
+    if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:
+        return ["escape: --pedido (letras, números, `.`, `_` e `-`), --parecer-final e --nota não podem ser vazios"]
+    for nome, valor, validos in (("--achado-por", achado_por, ACHADO_POR), ("--gravidade", gravidade, GRAVIDADES),
+                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM)):
+        if valor not in validos:
+            return [f"escape: {nome} deve ser um de {', '.join(validos)}"]
+    if not (raiz / "KANBAN.md").is_file():
+        return [SEM_QUADRO.format(cmd="escape", raiz=caminho_impresso(raiz))]
+    arq = raiz / "docs" / "kanban" / "escapes.md"
+    if arq.is_symlink():
+        return ["escape: docs/kanban/escapes.md é link simbólico; não escrevo através dele"]
+    arq.parent.mkdir(parents=True, exist_ok=True)
+    existe = arq.is_file() and arq.stat().st_size > 0
+    falta_quebra = False
+    if existe:
+        with arq.open("rb") as f:
+            f.seek(-1, 2)
+            falta_quebra = f.read(1) != b"\n"
+    hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} |\n"
+    with arq.open("a", encoding="utf-8") as f:
+        if not existe:
+            f.write(CABECALHO_ESCAPES)
+        elif falta_quebra:
+            f.write("\n")
+        f.write(linha)
+    return [linha.rstrip("\n")]
+
+
+def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
+    """Conta os escapes dos últimos `dias` por gravidade e por controle que faltou, e a taxa sobre os pedidos que chegaram a "Pronto" na
+    mesma janela (`docs/kanban/historico.md`). Só leitura; sem escapes registrados a taxa é 0, e sem pedido pronto, `-`."""
+    agora = agora or datetime.datetime.now().astimezone()
+    inicio = agora - datetime.timedelta(days=dias)
+    escapes = []
+    for c in _ler_tabela(raiz / "docs" / "kanban" / "escapes.md"):
+        if len(c) >= 7 and HORA_DO_REGISTRO.fullmatch(c[0]):
+            hora = _hora(c[0].replace(" ", "T"))
+            if hora and hora >= inicio:
+                escapes.append(c)
+    prontos = {c[1].casefold() for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md")
+               if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == "pronto" and (_hora(c[0]) or agora) >= inicio}
+    print("escapes: gravidade: " + " ".join(f"{g}={sum(1 for e in escapes if e[4] == g)}" for g in GRAVIDADES))
+    print("escapes: controle: " + " ".join(f"{k}={sum(1 for e in escapes if e[5] == k)}" for k in CONTROLES_QUE_FALTARAM))
+    taxa = f"{len(escapes) / len(prontos):.2f}" if prontos else "-"
+    print(f"escapes: total: escapes={len(escapes)} pedidos_prontos={len(prontos)} taxa={taxa} dias={dias}")
+    return 0
+
+
 def carregar_politica():
     """Lê `hooks/conformidade.json` como dado (papéis, ações, caminhos); vazio se não existir ou for inválido."""
     try:
@@ -4251,6 +4327,17 @@ def main():
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
+    ec = sub.add_parser("escape", help="defeito escapado: bug achado depois do parecer final (M14b)")
+    esub = ec.add_subparsers(dest="acao", required=True)
+    er = esub.add_parser("registrar", parents=[comum], help="acrescenta o defeito escapado em docs/kanban/escapes.md, em formato fixo, com a hora real")
+    er.add_argument("--pedido", required=True)
+    er.add_argument("--parecer-final", required=True, help="o parecer depois do qual o bug apareceu (caminho em docs/ ou commit)")
+    er.add_argument("--achado-por", required=True, help=f"como apareceu: {', '.join(ACHADO_POR)}")
+    er.add_argument("--gravidade", required=True, help=", ".join(GRAVIDADES))
+    er.add_argument("--controle-que-faltou", required=True, help=f"o controle que deveria tê-lo achado: {', '.join(CONTROLES_QUE_FALTARAM)}")
+    er.add_argument("--nota", required=True, help="uma linha: o que escapou")
+    eu = esub.add_parser("resumo", parents=[comum], help="escapes por gravidade e controle e a taxa sobre os pedidos prontos; só leitura")
+    eu.add_argument("--dias", type=int, default=JANELA_DE_ESCAPES, help=f"janela em dias (padrão {JANELA_DE_ESCAPES})")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
@@ -4335,6 +4422,13 @@ def executar(a, raiz):
         return cmd_entrega(raiz, a.pedido, a.branch, a.base, a.base_sha, a.etapa, a.desde, a.brief)
     if a.cmd == "voltas":
         return cmd_voltas(raiz, a.pedido)
+    if a.cmd == "escape":
+        if a.acao == "resumo":
+            return cmd_escape_resumo(raiz, a.dias)
+        linhas = cmd_escape_registrar(raiz, a.pedido, a.parecer_final, a.achado_por, a.gravidade, a.controle_que_faltou, a.nota)
+        for linha in linhas:
+            print(linha)
+        return 1 if linhas[0].startswith("escape:") else 0
     if a.cmd == "esperas":
         return cmd_esperas(raiz, a.pedido)
     if a.cmd == "corrigidos":

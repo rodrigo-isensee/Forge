@@ -1,5 +1,6 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
+import datetime
 import json
 import os
 import re
@@ -213,6 +214,83 @@ class PrsFixQueCorrigemPrMesclado(RepositorioDeTeste):
         primeiro = self.git("rev-list", "--max-parents=0", "HEAD")
         cod, linhas = self.corrigidos("--ref", primeiro)
         self.assertIn("prs=1 fix=0", linhas[0])
+
+
+ESCAPE = ["escape", "registrar", "--pedido", "ped-1", "--parecer-final", "docs/qa/ped-1.md", "--achado-por", "uso",
+          "--gravidade", "alto", "--controle-que-faltou", "qa", "--nota", "quebra ao abrir o painel"]
+
+
+class DefeitoEscapado(Raiz):
+    """`forge-check escape`: o registro do bug achado depois do parecer final, num formato fixo que o agile-coach lê."""
+
+    def setUp(self):
+        super().setUp()
+        self.gravar("KANBAN.md", "# Quadro\n")
+
+    def arquivo(self):
+        return (self.tmp / "docs/kanban/escapes.md").read_text(encoding="utf-8")
+
+    def com(self, **troca):
+        args = list(ESCAPE)
+        for chave, valor in troca.items():
+            args[args.index("--" + chave.replace("_", "-")) + 1] = valor
+        return args
+
+    def test_grava_linha_de_formato_fixo_com_cabecalho_e_hora_real(self):
+        cod, saida, _ = self.rodar(*ESCAPE)
+        self.assertEqual(cod, 0)
+        linhas = self.arquivo().splitlines()
+        self.assertEqual(linhas[0], "| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota |")
+        self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|")
+        self.assertRegex(linhas[2], r"^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| ped-1 \| docs/qa/ped-1\.md \| uso \| alto \| qa \| quebra ao abrir o painel \|$")
+        self.assertEqual(saida, [linhas[2]])
+        self.rodar(*self.com(pedido="ped-2"))
+        self.assertEqual(len(self.arquivo().splitlines()), 4)  # só acrescenta
+
+    def test_acrescenta_sem_colar_na_ultima_linha_sem_quebra(self):
+        self.gravar("docs/kanban/escapes.md", "| data-hora | x |\n|---|---|\n| 2020-01-01 10:00 | a")
+        self.assertEqual(self.rodar(*ESCAPE)[0], 0)
+        self.assertEqual(self.arquivo().splitlines()[2], "| 2020-01-01 10:00 | a")
+        self.assertTrue(self.arquivo().splitlines()[3].startswith("| 2"))
+
+    def test_recusa_sem_gravar_e_cita_o_campo_nunca_o_valor(self):
+        for troca, campo in (({"gravidade": "enorme"}, "--gravidade"), ({"achado_por": "sonho"}, "--achado-por"),
+                             ({"controle_que_faltou": "sorte"}, "--controle-que-faltou"), ({"nota": "a|b"}, "--nota"),
+                             ({"nota": "a\nb"}, "--nota"), ({"pedido": "a b"}, "--pedido"), ({"parecer_final": "x|y"}, "--parecer-final"),
+                             ({"nota": "  "}, "--nota")):
+            with self.subTest(troca):
+                cod, saida, _ = self.rodar(*self.com(**troca))
+                self.assertEqual(cod, 1)
+                self.assertTrue(saida[0].startswith("escape:"), saida)
+                self.assertTrue(campo in saida[0] or "não podem ser vazios" in saida[0], saida)
+                self.assertNotIn("enorme", saida[0])
+        self.assertFalse((self.tmp / "docs/kanban/escapes.md").exists())
+
+    def test_sem_quadro_nao_cria_arquivo(self):
+        (self.tmp / "KANBAN.md").unlink()
+        cod, saida, _ = self.rodar(*ESCAPE)
+        self.assertEqual(cod, 1)
+        self.assertFalse((self.tmp / "docs/kanban/escapes.md").exists())
+
+    def test_resumo_conta_por_gravidade_e_controle_e_da_a_taxa_sobre_os_pedidos_prontos(self):
+        self.rodar(*ESCAPE)
+        self.rodar(*self.com(pedido="ped-2", gravidade="critico", controle_que_faltou="nenhum"))
+        antigo = "| 2019-01-01 10:00 | velho | docs/qa/v.md | uso | baixo | review | fora da janela |\n"
+        (self.tmp / "docs/kanban/escapes.md").write_text(self.arquivo() + antigo, encoding="utf-8")
+        agora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+        self.gravar("docs/kanban/historico.md", CABECALHO_HISTORICO + "".join(
+            f"| {agora} | {c} | Aguardando sua validação | {para} | x |\n" for c, para in (("A", "Pronto"), ("A", "Pronto"), ("B", "Pronto"),
+                                                                                          ("C", "Pronto para fazer"))))
+        cod, saida, _ = self.rodar("escape", "resumo")
+        self.assertEqual(cod, 0)
+        self.assertEqual(saida, ["escapes: gravidade: critico=1 alto=1 medio=0 baixo=0",
+                                 "escapes: controle: review=0 seguranca=0 qa=1 conferencia=0 ci=0 nenhum=1",
+                                 "escapes: total: escapes=2 pedidos_prontos=2 taxa=1.00 dias=30"])
+
+    def test_resumo_sem_arquivo_nem_historico_zera_e_a_taxa_e_traco(self):
+        cod, saida, _ = self.rodar("escape", "resumo", "--dias", "7")
+        self.assertEqual(cod, 0)
+        self.assertEqual(saida[-1], "escapes: total: escapes=0 pedidos_prontos=0 taxa=- dias=7")
 
 
 if __name__ == "__main__":
