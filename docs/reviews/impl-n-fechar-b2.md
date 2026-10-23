@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: impl-n-fechar-b2
 branch: melhoria/impl-n-fechar-b2
-commit: 7f3b9ba84da9896dcce81cb3acae9ae7da17072a
+commit: 1196ebdad05588bbe48a48bf4d8c6be4ff90a47d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-22
@@ -53,3 +53,6 @@ Parecer anterior: reprovado sobre `801ffd0` (commit do parecer `9d84ddf`). `bin/
 - `bin/forge-fechar:480` e `:484` (`--dry-run`): o passo 1 ainda imprime `--ref $ref` e o passo 4 imprime `gh pr checks $ref`, mas o passo real usa o sha e o número do PR. Esta recomendação já constava do review anterior para o passo 4.
 - `docs/fechamento-integrador.md:65`: "a execução do evento `labeled` numa leitura em que o rótulo ainda não foi lido é tratada como velha e para pelo prazo". Se a velha aparecer em `cancel` nessa leitura (o rótulo ainda não foi lido), `estados_da_espera` só mapeia `fail` como pendente, então o `cancel` para o passo 4 na hora, como check vermelho. A parada continua fechada (não há merge), mas o texto e a mensagem não batem com o caso. Ajuste o texto ou mapeie também o `cancel` antes do rótulo.
 - O A2 do parecer de segurança (a Catraca reconhecida só pelo nome do check) é assunto dele, e este review não o refaz.
+
+## Revalidação por delta (REVAL-288, E1.1)
+Revalidação feita por instância que não fez o merge (`R-REVIEW`), pela decisão "C" do dono (2026-10-23). Delta lido (`forge-check delta`, do commit do parecer anterior até `1196ebd`): o merge da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL), o merge de `0a974e9` (parecer de segurança) e o commit que alinhou o `pedido:` dos pareceres. Conferido: (1) os arquivos do #288 (`.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*` e os documentos `suite-local-verde`) estão idênticos aos da `develop`, com `git diff 7423c44 HEAD` vazio sobre eles; (2) sem marcador de conflito, o merge não teve resolução; (3) fora do #288, o delta só traz pareceres (`docs/`), nenhum código da branch mudou. Já lido e não relido: todo o código aprovado no parecer acima. Achados: nenhum novo; os anteriores seguem como estavam. Veredito: aprovado.
