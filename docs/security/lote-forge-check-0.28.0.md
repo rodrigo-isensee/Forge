@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: e08438f4d6ebb894d122b64febfc4c1900ec6028
+commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-23
@@ -48,3 +48,11 @@ Delta `1d001b1..e08438f` (o parecer anterior vale para `1d001b1`): dois merges d
 - `.claude-plugin/plugin.json:3`: só a versão da release 0.28.0, vinda da `develop`, que a revisou; sem permissão, hook nem dependência nova.
 - O resto do delta (`bin/forge-doutor`, `bin/forge-fechar`, `.githooks/pre-push`, `.github/workflows/ci.yml`, testes) veio da `develop` pelos merges e passou pelos portões do PR de origem; não é entrega desta branch e não muda a superfície que o parecer cobre. Os controles do Forge tocados pela branch (R-BRIEF, `tests/config.json`, `hooks/parecer.py`, conferente) seguem como revisados.
 Veredito: aprovado, sem achado novo; as recomendações R1, R2, R4 e R5 acima seguem valendo. Ferramentas: `forge-check delta` e comparação dos diffs; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual à anterior).
+
+## Revalidação por delta (INTEG-LOTE-FC-REV)
+Delta `e08438f..8649439`: os pareceres do REVAL-288 (`d4bc926`, `ad6a9bd`) e o merge `8649439` da `develop` (`daf2ffa`, com a M14b do #291 e #292 a #296). O `forge-check delta` lista o que a `develop` trouxe (`.githooks/pre-push`, `bin/forge-atualizar`, `bin/forge-fechar`, `bin/forge-check` da M14b, agentes e docs), que passou pelos portões do PR de origem; a revisão aqui é a resolução dos conflitos.
+- `bin/forge-check`: o conjunto de linhas que cada lado mudou desde a base comum (`7423c44`) está inteiro no merge, dos dois lados (conferido pela diferença de cada pai para o merge). O `executar` (`bin/forge-check:4988-5004`) despacha `anotar` (lote) e `escape`, `afrouxamentos`, `esperas`, `corrigidos` (M14b, só leitura, exceto `escape registrar`); os parsers de `conferencia`, `brief`, `entrega` e `pr` (`:4850`, `:4906`, `:4920`, `:4924`) e as funções deles seguem como no lote revisado. Nenhum subcomando de controle perdeu o comportamento do lote nem da M14b.
+- Superfície da branch contra a `develop`: `bin/`, `hooks/`, `.githooks/`, `.github/`, `tests/config.json` e `agents/conferente.md` têm o mesmo diff de antes do merge (`7423c44..ad6a9bd` e `daf2ffa..8649439`), com uma linha de diferença, a de `FORGE_CHECK` em `bin/forge-testes:61-64`, que é a união (20 módulos, com `test_medidas_m14b`, `test_hooks`, `test_catraca` e `test_guarda_*`). O pre-push dirigido segue rodando os testes de portão. `tests/test_testes_tocados.py:57-63` confere os 20. `docs/hooks.md` veio por merge automático.
+- Nada no merge afrouxa portão: `hooks/`, `.githooks/`, `.github/` e `tests/config.json` iguais aos da `develop` mais o lote já revisado.
+- Testes do delta rodados na worktree com `HOME` isolado: `test_testes_tocados`, `test_medidas_m14b`, `test_anotar` (106 testes, OK).
+Veredito: aprovado, sem achado novo; R1, R2, R4 e R5 seguem valendo. Ferramentas: `forge-check delta`, comparação de diffs por pai; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual).
