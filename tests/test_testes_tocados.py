@@ -57,8 +57,8 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 19)
-        for modulo in ("test_erros_no_brief", "test_anotar", "test_isencoes", "test_citacao"):
+        self.assertEqual(len(modulos), 20)
+        for modulo in ("test_erros_no_brief", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b"):
             self.assertIn(modulo, modulos)
 
     def test_hooks_incluem_hooks_e_catraca(self):

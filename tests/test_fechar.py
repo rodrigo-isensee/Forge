@@ -29,12 +29,24 @@ falha_n() {
 }
 case "$1 $2" in
   "pr list")
+    case "$*" in *"--head "*) todos="$*"; h="${todos#*--head }"; echo "${h%% *}" > "$ESTADO/branch_vista" ;; esac  # a branch da entrega, para o head padrão do pr view
     falha_n falha_lista && { echo "HTTP 502" >&2; exit 1; }
-    [ -f "$ESTADO/aberto" ] && awk '{print $1 " OPEN " $2 " -"}' "$ESTADO/aberto"
+    [ -f "$ESTADO/aberto" ] && awk -v fork="$([ -f "$ESTADO/aberto_fork" ] && echo true || echo false)" '{print $1 " OPEN " $2 " - " fork}' "$ESTADO/aberto"
     cat "$ESTADO/lista_extra" 2>/dev/null; exit 0 ;;
   "pr view")
+    # head_do_pr [arquivo]: o head que o GitHub devolve (arquivo "head" ou o da branch no remoto, que é o conferido pelo script)
+    head_do_pr() { cat "$ESTADO/${1:-head}" 2>/dev/null || cat "$ESTADO/head" 2>/dev/null || git ls-remote origin "refs/heads/$(cat "$ESTADO/branch_vista" 2>/dev/null || echo melhoria/x)" | awk '{print $1}'; }
     case "$*" in
+      *"--json number --jq"*) cat "$ESTADO/numero_por_nome" 2>/dev/null || { [ -f "$ESTADO/aberto" ] && cut -d' ' -f1 "$ESTADO/aberto" || echo 7; }; exit 0 ;;
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
+      *state,headRefOid,baseRefName,mergeCommit*)
+        falha_n falha_estado && exit 1
+        pre_base="$(cut -d' ' -f1 "$ESTADO/pre" 2>/dev/null || echo develop)"
+        merge_oid="$(cat "$ESTADO/merge_commit" 2>/dev/null || echo 0123456789abcdef0123456789abcdef01234567)"
+        [ -f "$ESTADO/merge_commit_vazio" ] && merge_oid=-
+        echo "$(cat "$ESTADO/estado" 2>/dev/null || echo OPEN) $(head_do_pr head_final) $(cat "$ESTADO/base_final" 2>/dev/null || echo "$pre_base") $merge_oid"; exit 0 ;;
+      *baseRefName,isDraft*isCrossRepository*)
+        echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN) $(head_do_pr) $(cat "$ESTADO/cross" 2>/dev/null || echo false)"; exit 0 ;;
       *baseRefName,isDraft*) echo "$(cat "$ESTADO/pre" 2>/dev/null || echo "develop false") $(cat "$ESTADO/estado" 2>/dev/null || echo OPEN)"; exit 0 ;;
       *mergeCommit*) cat "$ESTADO/merge_commit" 2>/dev/null; exit 0 ;;
       *headRefOid*) cat "$ESTADO/head" 2>/dev/null; exit 0 ;;
@@ -52,7 +64,11 @@ case "$1 $2" in
       *title,body*) cat "$ESTADO/texto" 2>/dev/null; exit 0 ;;
       *state*) falha_n falha_estado && exit 1; cat "$ESTADO/estado" 2>/dev/null || echo OPEN; exit 0 ;;
     esac ;;
-  "pr create") echo "7 develop" > "$ESTADO/aberto"; exit 0 ;;
+  "pr create")
+    n="$(cat "$ESTADO/numero_criado" 2>/dev/null || echo 7)"
+    echo "$n develop" > "$ESTADO/aberto"
+    if [ -f "$ESTADO/saida_create" ]; then cat "$ESTADO/saida_create"; else echo "https://github.com/o/r/pull/$n"; fi
+    exit 0 ;;
   "pr ready") exit 0 ;;
   "pr checks")
     if [ -f "$ESTADO/sem_checks_ate" ] && [ "$(wc -l < "$REGISTRO")" -lt "$(cat "$ESTADO/sem_checks_ate")" ]; then
@@ -158,7 +174,7 @@ class Fechar(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         chamadas = self.chamadas()
-        self.assertEqual(chamadas[0], "forge-check pr p1 --ref melhoria/x --base origin/develop")
+        self.assertEqual(chamadas[0], f"forge-check pr p1 --ref {sha} --base origin/develop")  # B5: o parecer é conferido no sha
         self.assertTrue(any(c.startswith("gh pr create --base develop --head melhoria/x") for c in chamadas))
         self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", chamadas)
         self.assertNotIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
@@ -177,10 +193,11 @@ class Fechar(unittest.TestCase):
         self.assertEqual(self.estado_do_repo(), antes)
 
     def test_para_no_primeiro_erro_forge_check(self):
+        sha = self.git("rev-parse", "melhoria/x")
         r = self.fechar("p1", "--ref", "melhoria/x", CHECK_RC="1")
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("passo 1", r.stderr)
-        self.assertEqual(self.chamadas(), ["forge-check pr p1 --ref melhoria/x --base origin/develop"])
+        self.assertEqual(self.chamadas(), [f"forge-check pr p1 --ref {sha} --base origin/develop"])
 
     def test_para_se_head_remoto_difere_do_local(self):
         self.git("switch", "-q", "melhoria/x")

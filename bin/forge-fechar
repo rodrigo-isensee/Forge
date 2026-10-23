@@ -33,7 +33,7 @@ set -euo pipefail
 die() { echo "forge-fechar: $*" >&2; exit 1; }
 passo() { echo "[$1] $2"; }
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 tmp2b="" dorme_pid=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
@@ -213,6 +213,27 @@ dormir() {
   dorme_pid=""
 }
 
+# run_do_link <link>: define run_n e job_n com os números da execução e do job lidos do link de um check (`/runs/<n>/job/<j>`, só dígitos, até 20);
+# "?" quando o link está fora do padrão. É a extração do resumo verde e da parada do passo 4.
+run_do_link() {
+  run_n="?" job_n="?"
+  if [[ "$1" =~ /runs/([0-9]{1,20})/job/([0-9]{1,20}) ]]; then run_n="${BASH_REMATCH[1]}"; job_n="${BASH_REMATCH[2]}"; fi
+}
+# dicas_de_log: na parada do passo 4, uma linha `para ler: ...` por execução com check vermelho ou desconhecido (só impressa, nunca executada).
+# Só o número da execução, lido do link, entra no comando; o nome do check e o resto do link não. Com TMPDIR, o cache do `gh` vai para lá (no sandbox
+# o cache padrão não é gravável), entre aspas simples; sem TMPDIR o comando sai puro (nunca um /tmp previsível). Lê `saida` (a última leitura).
+dicas_de_log() {
+  local nome_ck estado_ck link_ck vistos=" " cache="" aspa="'"
+  [ -z "${TMPDIR:-}" ] || cache="XDG_CACHE_HOME='${TMPDIR//"$aspa"/"$aspa\\$aspa$aspa"}' "
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_do_link "$link_ck"
+    [ "$run_n" != "?" ] || continue
+    case "$vistos" in *" $run_n "*) continue ;; esac
+    vistos="$vistos$run_n "
+    echo "para ler: ${cache}gh run view $run_n --log-failed" >&2
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 && $2 !~ /^(pass|skipping|pending|queued|in_progress)$/ {print $1 "\037" $2 "\037" $4}')
+}
+
 # sha_confere <sha>: o sha é um dos heads mesclados (merged_heads) ou já está na base; só então a branch ou a remota podem ser apagadas.
 sha_confere() {
   local h
@@ -220,6 +241,29 @@ sha_confere() {
     if [ "$h" = "$1" ]; then return 0; fi
   done
   git merge-base --is-ancestor "$1" "$base" 2>/dev/null
+}
+# tira_c1 <texto>: imprime o texto sem os controles C1 em UTF-8 (U+0080 a U+009F, os bytes C2 80 a C2 9F), que o `tr` por byte não pega.
+tira_c1() {
+  local LC_ALL=C s="$1"
+  printf '%s' "${s//$'\xc2'[$'\x80'-$'\x9f']/}"
+}
+# aviso_do_rotulo: na parada do passo 4, diz se pedir o rótulo afrouxa-regra ao dono ajuda (só texto em stderr; a decisão da parada não muda).
+# O rótulo vale depois do último push: com outro check vermelho, pedi-lo agora não ajuda. Só a catraca vermelha pode ser o pedido do rótulo, e a falha
+# fechada dela não se resolve com ele, então manda ler o motivo antes. Os nomes que o script monta na frase passam sem caractere de controle
+# (C0, DEL e C1 em UTF-8).
+aviso_do_rotulo() {
+  local ruins outros
+  ruins="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 && $2 !~ /^(pass|skipping|pending|queued|in_progress)$/ {print $1}' | tr -d '\000-\010\013-\037\177')"
+  ruins="$(tira_c1 "$ruins")"
+  [ -n "$ruins" ] || return 0
+  outros="$(printf '%s\n' "$ruins" | grep -vxF catraca || true)"
+  if [ -n "$outros" ]; then
+    echo "aviso: não peça o rótulo agora: $(printf '%s\n' "$ruins" | paste -sd, - | sed 's/,/, /g') vermelho(s); corrija, faça o push e só depois peça o rótulo (ele vale depois do último push)." >&2
+  elif [ "$esperar" = 1 ]; then
+    echo "aviso: só a catraca está vermelha mesmo com a espera do rótulo; leia o motivo antes (o log da execução dela); o rótulo vale depois do último push." >&2
+  else
+    echo "aviso: só a catraca está vermelha: ela pode estar pedindo o rótulo afrouxa-regra, mas a falha fechada dela não se resolve com o rótulo; leia o motivo antes (o log da execução dela). Se for o rótulo, peça ao dono e rode com --esperar-rotulo." >&2
+  fi
 }
 # secao_da_branch: define secao_st (ausente, presente ou ilegivel) para a seção branch.<ref> do .git/config. Compara o NOME exato da seção por texto
 # fixo (o ref pode ter `.`; prefixo sozinho casaria a seção da branch `a.b` com a branch `a`) e só dá "ausente" com o código 1 do git (nenhuma seção);
@@ -233,6 +277,59 @@ secao_da_branch() {
     if [[ "$n" == "branch.$ref."* ]] && [[ "${n#"branch.$ref."}" != *.* ]]; then secao_st=presente; return 0; fi
   done <<<"$nomes"
 }
+# estados_da_espera: só com --esperar-rotulo; troca `estados` (lido de `saida`) pelo que a espera do rótulo considera, linha a linha da `catraca`.
+# Antes do rótulo, a catraca `fail` é o pedido dele: pendente, e o número da execução entra em `run_antes` (as execuções vistas antes do rótulo).
+# Depois do rótulo: só a linha cuja execução está em `run_antes`, e só em `fail` ou `cancel`, conta como pendente (é a velha, cancelada pela
+# concorrência do workflow quando a execução do evento do rótulo começa). A velha só deixa de contar quando a execução nova está na leitura em
+# `pass` ou ainda pendente; a nova decide. Execução nova que não é `pass` nem pendente PARA na hora: `fail` (a Catraca reprovou), `cancel` e
+# qualquer outra conclusão, `skipping` inclusive (só `pass` libera o merge). `cancel` fora de `run_antes`, ou com link fora do padrão, também para.
+# Link fora do padrão (ou rótulo já aplicado na primeira leitura, sem `run_antes`) mantém a rede de 10 leituras, só para `fail`. O `break` do laço
+# continua exigindo tudo `pass` ou `skipping` na última leitura, e a velha mapeada nunca chega a ele. Nunca reexecuta nada.
+estados_da_espera() {
+  local -a nomes=() sts=() runs=()
+  local nome_ck estado_ck link_ck run_ck i n=0 nova=0 st
+  velha_pendente=""
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_ck="?"
+    if [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/[0-9]{1,20} ]]; then run_ck="${BASH_REMATCH[1]}"; fi
+    nomes[n]="$nome_ck"; sts[n]="$estado_ck"; runs[n]="$run_ck"; n=$((n + 1))
+    [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ] || continue
+    if [ "$rotulo_ok" = 0 ]; then
+      case "$run_antes" in *" $run_ck "*) ;; *) run_antes="$run_antes$run_ck " ;; esac
+    elif [ "$run_antes" != " " ]; then
+      case "$run_antes" in
+        *" $run_ck "*) ;;
+        *) case "$estado_ck" in pass | pending | queued | in_progress) nova=1 ;; esac ;;
+      esac
+    fi
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $4}')
+  estados=""
+  for ((i = 0; i < n; i++)); do
+    st="${sts[i]}"
+    if [ "${nomes[i]}" = catraca ]; then
+      if [ "$rotulo_ok" = 0 ]; then
+        [ "$st" != fail ] || st=pending
+      elif [ "${runs[i]}" != "?" ] && case "$run_antes" in *" ${runs[i]} "*) true ;; *) false ;; esac; then
+        if [ "$st" = fail ] || [ "$st" = cancel ]; then
+          if [ "$nova" = 1 ]; then st=skipping; else st=pending; velha_pendente="${runs[i]}"; fi
+        fi
+      elif [ "$st" = fail ]; then
+        if [ "${runs[i]}" = "?" ] || [ "$run_antes" = " " ]; then
+          [ "$apos_rotulo" -gt 10 ] || st=pending
+        else
+          echo "aviso: a Catraca do rótulo reprovou (run ${runs[i]}); leia o motivo no log da execução e corrija; o script nunca reexecuta a catraca." >&2
+        fi
+      elif [ "${runs[i]}" != "?" ] && [ "$run_antes" != " " ]; then
+        case "$st" in
+          pass | pending | queued | in_progress | cancel) ;;
+          *) echo "aviso: a execução nova da Catraca (run ${runs[i]}) não terminou em pass; só pass libera o merge." >&2; st=sem-pass ;;
+        esac
+      fi
+    fi
+    estados="${estados:+$estados$'\n'}$st"
+  done
+}
+
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push roda a suíte nesse push). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
@@ -336,6 +433,15 @@ git push origin --delete $(printf '%q' "refs/heads/$ref")"
   fi
 }
 
+# estado_do_pr: lê o PR de número pr_n (leitura, com repetição) e define pr_estado, pr_head, pr_base e pr_merge ("-" sem commit de merge); vazios se a leitura falhar.
+estado_do_pr() {
+  local linha
+  pr_estado="" pr_head="" pr_base="" pr_merge=""
+  linha="$(ler "$gh" pr view "$pr_n" --json state,headRefOid,baseRefName,mergeCommit \
+    --jq '"\(.state) \(.headRefOid) \(.baseRefName) \(.mergeCommit.oid // "-")"')" || return 1
+  read -r pr_estado pr_head pr_base pr_merge <<<"$linha"
+}
+
 # conferir_base (passo 2b, só leitura): a base andou depois do ponto de partida da branch? Falha de leitura PARA (nada de `|| true` aqui):
 # só o caso "tudo certo" segue. Sem arquivo em comum, avisa e segue (o CI do PR confere o merge); com arquivo em comum, para.
 # `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
@@ -414,14 +520,21 @@ if [ "$limpar" = 1 ]; then
   exit 0
 fi
 
-passo 1 "pareceres: $check pr $pedido --ref $ref --base $base"
-"$check" pr "$pedido" --ref "$ref" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+# Cadeia única (B5): o parecer vale para sha_conferido, o remoto tem de ser esse mesmo sha e o merge sai preso a ele (--match-head-commit). O sha é
+# lido antes do passo 1 e o forge-check recebe o sha, não o nome da branch; o sha local é relido depois do passo 1 e de novo no passo 2.
+sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 1: a branch local $ref não existe"
+
+passo 1 "pareceres: $check pr $pedido --ref $sha_conferido --base $base"
+"$check" pr "$pedido" --ref "$sha_conferido" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
+local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null || true)"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 1: o head local de $ref mudou durante a conferência dos pareceres (conferido $sha_conferido, agora ${local_sha:-ausente}); os pareceres valem para o sha conferido; confira e rode de novo"
 
 passo 2 "head no servidor"
-local_sha="$(git rev-parse "refs/heads/$ref" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
+local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
+[ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
 remoto_sha="$(git ls-remote origin "refs/heads/$ref" | awk '{print $1}')"
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
-[ "$remoto_sha" = "$local_sha" ] || die "parou no passo 2: o head local ($local_sha) difere do remoto ($remoto_sha); envie a branch"
+[ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
 passo 3 "PR para $alvo"
 ja_mesclado=0
@@ -429,20 +542,28 @@ if git merge-base --is-ancestor "$remoto_sha" "$base" 2>/dev/null; then
   ja_mesclado=1
   echo "o head de $ref já está em $base; nada a abrir nem a mesclar."
 else
-  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid \
-    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid)"')" || die "parou no passo 3: não consegui ler os PRs de $ref"
+  lista="$(ler "$gh" pr list --head "$ref" --state all --limit 30 --json number,state,baseRefName,headRefOid,isCrossRepository \
+    --jq '.[] | "\(.number) \(.state) \(.baseRefName) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 3: não consegui ler os PRs de $ref"
   if printf '%s\n' "$lista" | awk -v s="$remoto_sha" -v b="$alvo" '$2=="MERGED" && $3==b && $4==s {f=1} END {exit !f}'; then
     ja_mesclado=1
     echo "já existe PR MERGED em $alvo com o head de $ref; nada a abrir nem a mesclar."
   else
     passo "2b" "base de $alvo"
     conferir_base
-    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3; exit}')"
+    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3 " " $5; exit}')"
     if [ -n "$aberto" ]; then
-      [ "${aberto#* }" = "$alvo" ] || die "parou no passo 3: o PR aberto #${aberto%% *} tem base ${aberto#* }, não $alvo; feche-o ou corrija a base (R-MAIN)"
-      echo "PR #${aberto%% *} já aberto; reusado."
+      read -r pr_n aberto_base aberto_fork <<<"$aberto"
+      [[ "$pr_n" =~ ^[0-9]{1,9}$ ]] || die "parou no passo 3: o número do PR aberto não é numérico"
+      [ "$aberto_fork" != true ] || die "parou no passo 3: o PR aberto #$pr_n vem de um fork (isCrossRepository) com o mesmo nome de branch; o fechamento só vale para PR do próprio repositório"
+      [ "$aberto_base" = "$alvo" ] || die "parou no passo 3: o PR aberto #$pr_n tem base $aberto_base, não $alvo; feche-o ou corrija a base (R-MAIN)"
+      echo "PR #$pr_n já aberto; reusado."
     else
-      "$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo" || die "parou no passo 3: não consegui abrir o PR"
+      url_pr="$("$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo")" || die "parou no passo 3: não consegui abrir o PR"
+      # O número vem da URL que o create imprime (uma só, terminando em /pull/<n>, só dígitos); sem ele o script para (o PR criado é reusado na rodada seguinte).
+      pr_n=""
+      if [ "$(printf '%s\n' "$url_pr" | grep -c .)" = 1 ] && [[ "$url_pr" =~ ^https://[^[:space:]]+/pull/([0-9]{1,9})$ ]]; then pr_n="${BASH_REMATCH[1]}"; fi
+      [ -n "$pr_n" ] || die "parou no passo 3: o PR foi criado, mas o número não foi lido; rode de novo (reusa o PR aberto)"
+      echo "PR #$pr_n aberto: $url_pr"
     fi
   fi
 fi
@@ -450,6 +571,7 @@ fi
 if [ "$ja_mesclado" = 0 ]; then
   inicio=$SECONDS
   apos_rotulo=0
+  run_antes=" " velha_pendente=""
   ultimo_resumo=""
   msg_rotulo="parou no passo 5: o PR pede o rótulo afrouxa-regra (no título ou em item marcado) e o dono ainda não o aplicou; o script nunca aplica rótulo"
   while :; do  # com --esperar-rotulo o laço repete os passos 4 e 5; sem a opção roda uma vez só
@@ -458,22 +580,18 @@ if [ "$ja_mesclado" = 0 ]; then
   rotulo_ok=0
   if [ "$esperar" = 1 ]; then
     # A espera continua presa ao head conferido no passo 2; push novo durante ela para (o merge também recusaria).
-    head_pr="$(ler "$gh" pr view "$ref" --json headRefOid --jq .headRefOid || true)"
+    head_pr="$(ler "$gh" pr view "$pr_n" --json headRefOid --jq .headRefOid || true)"
     [ -z "$head_pr" ] || [ "$head_pr" = "$remoto_sha" ] || die "parou na espera do rótulo: o head do PR ($head_pr) mudou desde o passo 2 ($remoto_sha); confira e rode de novo"
-    if ler "$gh" pr view "$ref" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then
+    if ler "$gh" pr view "$pr_n" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then
       rotulo_ok=1
       apos_rotulo=$((apos_rotulo + 1))
     fi
   fi
   while :; do
-    saida="$("$gh" pr checks "$ref" 2>&1 || true)"
+    saida="$("$gh" pr checks "$pr_n" 2>&1 || true)"
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
-    if [ "$esperar" = 1 ]; then
-      # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo (ou o resto da leitura velha logo depois dele): espera como pendente.
-      if [ "$rotulo_ok" = 0 ] || [ "$apos_rotulo" -le 10 ]; then
-        estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {if ($1=="catraca" && $2=="fail") print "pending"; else print $2}')"
-      fi
-    fi
+    # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo, ou a execução velha logo depois dele (ver estados_da_espera).
+    [ "$esperar" = 0 ] || estados_da_espera
     if [ -z "$estados" ]; then
       # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
       if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
@@ -489,7 +607,9 @@ if [ "$ja_mesclado" = 0 ]; then
     fi
     falhas=0
     if printf '%s\n' "$estados" | grep -qvE '^(pass|skipping|pending|queued|in_progress)$'; then
+      aviso_do_rotulo
       printf '%s\n' "$saida" >&2
+      dicas_de_log
       die "parou no passo 4: há check vermelho ou desconhecido; corrija e rode de novo"
     fi
     # Uma linha no log por mudança de contagem (não enche o log na espera longa).
@@ -498,6 +618,7 @@ if [ "$ja_mesclado" = 0 ]; then
     printf '%s\n' "$estados" | grep -qE '^(pending|queued|in_progress)$' || break
     if [ $((SECONDS - inicio)) -ge "$espera" ]; then
       [ "$esperar" = 0 ] || [ "$rotulo_ok" = 1 ] || die "$msg_rotulo"
+      [ -z "$velha_pendente" ] || die "parou no passo 4: o rótulo foi aplicado, mas só a execução velha da Catraca (run $velha_pendente) aparece após ${espera}s; confira se o evento do rótulo gerou a execução nova; o script nunca reexecuta a catraca"
       die "parou no passo 4: checks ainda pendentes após ${espera}s"
     fi
     dormir "$intervalo"
@@ -506,15 +627,15 @@ if [ "$ja_mesclado" = 0 ]; then
   done
   echo "checks verdes."
   # Só apresentação (não muda nenhuma decisão do passo 4): run e job de cada check, lidos do link da última leitura, sem chamada nova.
-  printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {
-    run = "?"; job = "?"
-    if (match($4, /\/runs\/[0-9]+\/job\/[0-9]+/)) { split(substr($4, RSTART, RLENGTH), p, "/"); run = p[3]; job = p[5] }
-    print "check " $1 " " $2 " run=" run " job=" job }'
+  while IFS=$'\037' read -r nome_ck estado_ck link_ck; do
+    run_do_link "$link_ck"
+    echo "check $nome_ck $estado_ck run=$run_n job=$job_n"
+  done < <(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $1 "\037" $2 "\037" $4}')
   echo "head: $remoto_sha"
 
   passo 5 "rótulo"
-  rotulos="$(ler "$gh" pr view "$ref" --json labels --jq '.labels[].name')" || die "parou no passo 5: não consegui ler os rótulos do PR"
-  texto="$(ler "$gh" pr view "$ref" --json title,body --jq '.title, .body')" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
+  rotulos="$(ler "$gh" pr view "$pr_n" --json labels --jq '.labels[].name')" || die "parou no passo 5: não consegui ler os rótulos do PR"
+  texto="$(ler "$gh" pr view "$pr_n" --json title,body --jq '.title, .body')" || die "parou no passo 5: não consegui ler o título e o corpo do PR"
   # O título é o lugar oficial do sinal de afrouxamento (primeira linha do texto): citar o rótulo nele já para.
   # No corpo, só a linha de item marcado (`- [x]`, `* [X]`, `+ [x]`, `1. [x]`, `1) [x]`) que cita o rótulo; texto que apenas o menciona não para.
   if ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
@@ -532,26 +653,37 @@ if [ "$ja_mesclado" = 0 ]; then
   done
 
   passo 6 "merge ($metodo) em $alvo"
-  pre="$(ler "$gh" pr view "$ref" --json baseRefName,isDraft,state --jq '"\(.baseRefName) \(.isDraft) \(.state)"')" || die "parou no passo 6: não consegui ler a base do PR"
-  read -r pre_base pre_rascunho pre_estado <<<"$pre"
+  # As leituras do passo 6 vão pelo número do PR (lido no passo 3); o merge continua por nome de branch (o hook `parecer` o exige) e preso ao head.
+  pre="$(ler "$gh" pr view "$pr_n" --json baseRefName,isDraft,state,headRefOid,isCrossRepository --jq '"\(.baseRefName) \(.isDraft) \(.state) \(.headRefOid) \(.isCrossRepository)"')" || die "parou no passo 6: não consegui ler a base do PR"
+  read -r pre_base pre_rascunho pre_estado pre_head pre_fork <<<"$pre"
   [ "$pre_base" != main ] || die "parou no passo 6: o PR tem base main; a main é só do dono (R-MAIN)"
   [ "$pre_base" = "$alvo" ] || die "parou no passo 6: o PR tem base $pre_base, não $alvo"
+  [ "$pre_fork" != true ] || die "parou no passo 6: o PR #$pr_n vem de um fork (isCrossRepository); o fechamento só vale para PR do próprio repositório"
+  [ "$pre_head" = "$remoto_sha" ] || die "parou no passo 6: o head do PR #$pr_n (${pre_head:-desconhecido}) difere do conferido no passo 2 ($remoto_sha); confira e rode de novo"
   if [ "${pre_estado:-OPEN}" = MERGED ]; then
     echo "o PR já consta como MERGED; o merge não se repete."
   else
+    # O ready e o merge agem no PR que o gh resolve pelo nome da branch (o hook `parecer` o exige): releio por esse nome e paro se não for o pr_n guardado.
+    # Sobra só a janela entre esta leitura e o merge (um PR novo do mesmo head aberto nesse intervalo); o --match-head-commit prende o head, não o PR.
+    por_nome="$(ler "$gh" pr view "$ref" --json number --jq '.number')" || die "parou no passo 6: não consegui reler o PR pelo nome da branch"
+    [ "$por_nome" = "$pr_n" ] || die "parou no passo 6: o nome da branch $ref resolve para o PR #${por_nome:-desconhecido}, não para o #$pr_n guardado; há mais de um PR aberto desse head; feche o outro e rode de novo"
     if [ "$pre_rascunho" = true ]; then
       "$gh" pr ready "$ref" || die "parou no passo 6: não consegui marcar o PR como pronto"
     fi
     # O merge muda o PR: não se repete sozinho. Se falhou, só se lê o estado: um 502 após o merge feito já deixou o PR MERGED.
     if ! "$gh" pr merge "$ref" "$metodo" --match-head-commit "$remoto_sha"; then
-      estado="$(ler "$gh" pr view "$ref" --json state --jq .state || true)"
-      [ "$estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
-      echo "o merge devolveu erro, mas o PR consta como MERGED."
+      estado_do_pr || true
+      [ "$pr_estado" = MERGED ] || die "parou no passo 6: o merge falhou (ou o head do PR mudou desde o passo 2)"
+      echo "o merge devolveu erro, mas o PR consta como MERGED; confiro o head, a base e o commit de merge abaixo."
     fi
   fi
-  estado="$(ler "$gh" pr view "$ref" --json state --jq .state || true)"
-  [ "$estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${estado:-desconhecido})"
-  echo "merge: $(ler "$gh" pr view "$ref" --json mergeCommit --jq .mergeCommit.oid || true)"
+  # MERGED só vale para este PR, com o head conferido no passo 2, na base alvo e com commit de merge (um MERGED de outro head não é sucesso).
+  estado_do_pr || true
+  [ "$pr_estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${pr_estado:-desconhecido})"
+  [ "$pr_head" = "$remoto_sha" ] || die "parou no passo 6: o PR #$pr_n consta MERGED com o head ${pr_head:-desconhecido}, não o conferido ($remoto_sha); não conto como sucesso"
+  [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"
+  [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ] || die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"
+  echo "merge: $pr_merge"
 fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
