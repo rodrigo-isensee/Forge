@@ -2167,15 +2167,15 @@ def cmd_corrigidos(raiz, ref=None, dias=DIAS_DO_CORRIGIDO):
     if commits is None:
         print(f"corrigidos: ref {nome_seguro(sem_controle(nome))} não existe ou o git falhou")
         return 1
-    contagem = {"cita": 0, "arquivo": 0, "nenhuma": 0}
+    contagem = {"cita": 0, "indicio": 0, "nenhuma": 0}
     fixes = corrigidos_da_linha(commits, dias)
     for c, evidencia, citados, tocados in fixes:
-        contagem[evidencia] += 1
+        contagem["indicio" if evidencia == "arquivo" else evidencia] += 1
         if evidencia != "nenhuma":
             print(f"corrigidos: #{c['pr']} {c['sha'][:7]} evidencia={evidencia} cita={_lista_de_prs(citados)} toca={_lista_de_prs(tocados)} "
                   f"{sem_controle(c['titulo'])[:100]}")
     print(f"corrigidos: total: prs={sum(1 for c in commits if c['pr'] is not None)} fix={len(fixes)} cita={contagem['cita']} "
-          f"arquivo={contagem['arquivo']} nenhuma={contagem['nenhuma']} dias={dias} ref={sha[:7]}")
+          f"arquivo={contagem['indicio']} nenhuma={contagem['nenhuma']} dias={dias} ref={sha[:7]}")
     return 0
 
 
@@ -2315,7 +2315,7 @@ def cmd_afrouxamentos(raiz, ref, prs, arquivo):
         print(f"afrouxamentos: {'ref ' + nome_seguro(sem_controle(nome)) + ' não existe ou o git falhou' if commits is None else 'não carreguei tests/catraca.py'}")
         return 1
     por_pr = {c["pr"]: c for c in commits if c["pr"] is not None}
-    contagem = {"real": 0, "so-protegido": 0, "sem-violacao": 0, "sem-commit": 0, "erro-git": 0}
+    contagem = {"afrouxa": 0, "so-protegido": 0, "sem-violacao": 0, "sem-commit": 0, "erro-git": 0}
     for n in numeros:
         c = por_pr.get(n)
         if c is None or git(raiz, "rev-parse", "--verify", "--quiet", f"{c['sha']}^")[0]:
@@ -2328,9 +2328,9 @@ def cmd_afrouxamentos(raiz, ref, prs, arquivo):
             else:
                 veredito = "real" if de_conteudo else "so-protegido" if violacoes else "sem-violacao"
             regras = sorted({v.split(":", 1)[0] for v in de_conteudo if re.fullmatch(r"R-[A-Z]+", v.split(":", 1)[0])})
-        contagem[veredito] += 1
+        contagem["afrouxa" if veredito == "real" else veredito] += 1
         print(f"afrouxamentos: #{n} {veredito}" + (f" regras={','.join(regras)}" if regras else ""))
-    print(f"afrouxamentos: total: rotulados={len(numeros)} real={contagem['real']} so-protegido={contagem['so-protegido']} "
+    print(f"afrouxamentos: total: rotulados={len(numeros)} real={contagem['afrouxa']} so-protegido={contagem['so-protegido']} "
           f"sem-violacao={contagem['sem-violacao']} sem-commit={contagem['sem-commit']} erro-git={contagem['erro-git']} ref={sha[:7]}")
     return 0
 

@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
 from test_voltas import Raiz  # noqa: E402
 
 CABECALHO_HISTORICO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
@@ -139,10 +140,9 @@ class RepositorioDeTeste(Raiz):
     """Um repositório git descartável, com commits de data fixa (a hora entra nas medidas por janela)."""
 
     def git(self, *args, data=None):
-        env = dict(os.environ, GIT_AUTHOR_NAME="Teste", GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="Teste",
-                   GIT_COMMITTER_EMAIL="t@example.com", GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
-        if data:
-            env.update(GIT_AUTHOR_DATE=data, GIT_COMMITTER_DATE=data)
+        datas = {"GIT_AUTHOR_DATE": data, "GIT_COMMITTER_DATE": data} if data else {}
+        env = sem_manutencao(dict(os.environ, GIT_AUTHOR_NAME="Teste", GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="Teste",
+                                  GIT_COMMITTER_EMAIL="t@example.com", GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null", **datas))
         r = subprocess.run(["git", "-C", str(self.tmp), *args], capture_output=True, text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stdout.strip()
