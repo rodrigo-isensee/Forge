@@ -906,19 +906,217 @@ class DonosDosHeredocs:
         return re.sub(MARCA + r"\d+__", " ", texto)
 
 
-# A2 do review, volta 5: o `git` roda ganchos (`core.hooksPath`), filtros e `fsmonitor` lidos de arquivos; se o comando
-# lógico grava arquivo, o heredoc pode ter escrito um deles, e nenhum `git` do comando fica na lista positiva.
-GRAVA_REDIRECAO = re.compile(r"(?:\d*|&)(?:>>|>\||>)(?!&)\s*(\S*)")
+# LOTE-LEITURA-HOOK, volta única (M1 e M2): o leitor sequencial do texto sem os corpos de heredoc. Uma passada, um
+# estado para as aspas em cada nível de substituição (ADR 0011, item 1), como o bash lê: as palavras e as redireções de
+# cada comando simples, de todos os níveis. A base de `grava_arquivo` e de `programas_e_atribuicoes`; nenhuma outra
+# função do lote tira aspas para decidir gravação ou programa.
+Palavra = collections.namedtuple("Palavra", "valor cru")  # o valor (sem aspas nem escapes) e o texto como escrito
+Redirecao = collections.namedtuple("Redirecao", "prefixo operador alvo")  # alvo: Palavra, ou None (sem alvo)
+ComandoSimples = collections.namedtuple("ComandoSimples", "palavras redirecoes")
+LeituraDoTexto = collections.namedtuple("LeituraDoTexto", "simples duvida")
+OPERADORES_DE_REDIRECAO = ("<<<", "<<-", "<<", "<>", "<&", ">&", ">>", ">|", "<", ">")
+PREFIXO_DE_REDIRECAO = re.compile(r"\d+|\{[A-Za-z_][A-Za-z0-9_]*\}")
+SEPARADORES_DO_LEITOR = frozenset(";&|\n()")
+ESCAPES_DAS_DUPLAS = frozenset('$`"\\\n')
+
+
+class _Nivel:
+    """Um nível do leitor: o texto de fora ou uma substituição (`$(…)`, crase, `<(…)`, `>(…)`), com o comando simples
+    corrente, a palavra corrente e o estado das aspas dele."""
+
+    def __init__(self, tipo):
+        self.tipo, self.profundidade, self.aspas = tipo, 0, None  # aspas: None | simples | duplas | ansi
+        self.palavras, self.redirecoes, self.pendente = [], [], None
+        self.valor, self.inicio = None, 0
+
+
+@functools.lru_cache(maxsize=256)
+def palavras_do_texto(texto):
+    """Os comandos simples de `texto` (a linha sem os corpos de heredoc), de todos os níveis de substituição, com as
+    palavras e as redireções de cada um, e se a leitura ficou em dúvida (aspas ou substituição sem fechar no fim).
+    Fora de aspas e numa substituição, `\\` torna o seguinte literal; entre aspas simples, tudo é literal; em `$'…'`,
+    `\\` escapa o seguinte; entre aspas duplas (e `$"…"`), `\\` só escapa `$`, crase, `"` e `\\`, e `$(` e crase abrem
+    substituição. `#` só abre comentário onde `comentarios` o prova. `${…}` e `$((…))` são texto do nível. Separadores
+    (`;`, `&`, `|`, quebra de linha, `(`, `)`) e redireções só valem fora de aspas. A redireção leva o prefixo (`2`,
+    `&`, `{fd}`) e o alvo, que é a palavra seguinte (colada ou não): `2>&1 x` tem o alvo `1` e deixa `x` como palavra."""
+    provados = comentarios(texto)
+    lidos, pilha, i, n, duvida = [], [_Nivel("fora")], 0, len(texto), False
+
+    def fechar_palavra(nivel, fim):
+        if nivel.valor is None:
+            return
+        palavra = Palavra("".join(nivel.valor), texto[nivel.inicio:fim])
+        nivel.valor = None
+        if nivel.pendente is not None:
+            nivel.redirecoes.append(nivel.pendente._replace(alvo=palavra))
+            nivel.pendente = None
+        else:
+            nivel.palavras.append(palavra)
+
+    def fechar_comando(nivel, fim):
+        fechar_palavra(nivel, fim)
+        if nivel.pendente is not None:
+            nivel.redirecoes.append(nivel.pendente)
+            nivel.pendente = None
+        if nivel.palavras or nivel.redirecoes:
+            lidos.append(ComandoSimples(tuple(nivel.palavras), tuple(nivel.redirecoes)))
+        nivel.palavras, nivel.redirecoes = [], []
+
+    def acrescentar(nivel, texto_lido, posicao):
+        if nivel.valor is None:
+            nivel.valor, nivel.inicio = [], posicao
+        nivel.valor.append(texto_lido)
+
+    def abrir(nivel, tipo, posicao, tamanho):
+        acrescentar(nivel, "_", posicao)  # a palavra de fora vale `_` no lugar da substituição
+        pilha.append(_Nivel(tipo))
+        return posicao + tamanho
+
+    while i < n:
+        nivel, c = pilha[-1], texto[i]
+        if nivel.tipo == "crase" and c == "`":  # o primeiro acento sem `\` fecha a crase; entre aspas, fica em dúvida
+            duvida = duvida or nivel.aspas is not None
+            fechar_comando(nivel, i)
+            pilha.pop()
+            i += 1
+            continue
+        if nivel.aspas == "simples":
+            if c == "'":
+                nivel.aspas = None
+            else:
+                nivel.valor.append(c)
+            i += 1
+            continue
+        if nivel.aspas == "ansi":
+            if c == "\\":
+                nivel.valor.append(texto[i:i + 2])
+                i += 2
+            else:
+                if c == "'":
+                    nivel.aspas = None
+                else:
+                    nivel.valor.append(c)
+                i += 1
+            continue
+        if nivel.aspas == "duplas":
+            if c == "\\":
+                seguinte = texto[i + 1:i + 2]
+                if seguinte in ESCAPES_DAS_DUPLAS and seguinte:
+                    if seguinte != "\n":
+                        nivel.valor.append(seguinte)
+                    i += 2
+                else:
+                    nivel.valor.append(c)
+                    i += 1
+            elif c == '"':
+                nivel.aspas = None
+                i += 1
+            elif texto.startswith("$(", i) and not texto.startswith("$((", i):
+                i = abrir(nivel, "subst", i, 2)
+            elif c == "`":
+                i = abrir(nivel, "crase", i, 1)
+            else:
+                nivel.valor.append(c)
+                i += 1
+            continue
+        # fora de aspas, no texto de fora ou numa substituição
+        if c == "\\":
+            if texto[i + 1:i + 2] != "\n":  # `\` + quebra de linha continua a linha
+                acrescentar(nivel, texto[i + 1:i + 2], i)
+            i += 2
+        elif c == "'":
+            acrescentar(nivel, "", i)
+            nivel.aspas = "simples"
+            i += 1
+        elif c == '"':
+            acrescentar(nivel, "", i)
+            nivel.aspas = "duplas"
+            i += 1
+        elif texto.startswith("$'", i):
+            acrescentar(nivel, "", i)
+            nivel.aspas = "ansi"
+            i += 2
+        elif texto.startswith('$"', i):
+            acrescentar(nivel, "", i)
+            nivel.aspas = "duplas"
+            i += 2
+        elif texto.startswith("$(", i) and not texto.startswith("$((", i):
+            i = abrir(nivel, "subst", i, 2)
+        elif c == "`":
+            i = abrir(nivel, "crase", i, 1)
+        elif texto.startswith(("<(", ">("), i) and nivel.valor is None:
+            i = abrir(nivel, "subst", i, 2)
+        elif c == "#" and i in provados:
+            fim = texto.find("\n", i)
+            i = n if fim < 0 else fim
+        elif c in "<>" or texto.startswith(("&>",), i):
+            prefixo = ""
+            if c == "&":
+                fechar_palavra(nivel, i)
+                prefixo, i = "&", i + 1
+            elif nivel.valor is not None and PREFIXO_DE_REDIRECAO.fullmatch(texto[nivel.inicio:i]):
+                prefixo, nivel.valor = texto[nivel.inicio:i], None
+            else:
+                fechar_palavra(nivel, i)
+            if nivel.pendente is not None:  # operador logo depois de outro, sem alvo
+                nivel.redirecoes.append(nivel.pendente)
+            operador = next(o for o in OPERADORES_DE_REDIRECAO if texto.startswith(o, i))
+            nivel.pendente = Redirecao(prefixo, operador, None)
+            i += len(operador)
+        elif c in " \t":
+            fechar_palavra(nivel, i)
+            i += 1
+        elif c in SEPARADORES_DO_LEITOR:
+            if nivel.tipo == "subst" and c == ")" and not nivel.profundidade:
+                fechar_comando(nivel, i)
+                pilha.pop()
+            else:
+                if nivel.tipo == "subst" and c in "()":
+                    nivel.profundidade += 1 if c == "(" else -1
+                fechar_comando(nivel, i)
+            i += 1
+        else:
+            acrescentar(nivel, c, i)
+            i += 1
+    for nivel in reversed(pilha):
+        fechar_comando(nivel, n)
+    duvida = duvida or len(pilha) > 1 or pilha[0].aspas is not None
+    return LeituraDoTexto(tuple(lidos), duvida)
+
+
+DESCRITOR = re.compile(r"\d+-?|-")  # o alvo de `>&` e `<&` que copia ou fecha um descritor
+SEM_GRAVAR = frozenset({'/dev/null', '"/dev/null"'})
+
+
+def redirecao_grava(redirecao):
+    """M1, classificação positiva: a redireção não grava só se é de entrada (`<`, `<<`, `<<-`, `<<<`, `[n]<&m`,
+    `[n]<&-`), cópia ou fechamento de descritor (`[n]>&m`, `[n]>&-`, `[n]>&m-`, com `m` só dígitos) ou saída para
+    exatamente `/dev/null`. Qualquer outra grava: `>&arquivo`, `&>`, `<>`, `{fd}>`, `> >(…)`, alvo com `$` ou montado."""
+    prefixo, operador, alvo = redirecao
+    cru = alvo.cru if alvo is not None else None
+    if prefixo.startswith("{"):
+        return True
+    if operador in ("<<", "<<-", "<<<", "<"):
+        return False
+    if operador in ("<&", ">&") and prefixo != "&":
+        return cru is None or not DESCRITOR.fullmatch(cru)
+    if operador in (">", ">>", ">|"):
+        return cru not in SEM_GRAVAR
+    return True
+
+
+# A2 do review, volta 5: o `git` roda ganchos (`core.hooksPath`), filtros e `fsmonitor` lidos de arquivos; se o texto
+# grava arquivo, o heredoc pode ter escrito um deles, e nenhum `git` do texto fica na lista positiva.
 GRAVAM_ARQUIVO = frozenset({"tee", "uniq"})
 GIT_GRAVA_ARQUIVO = frozenset({"apply", "am"})
 
 
-def grava_arquivo(logico):
-    """O comando lógico `logico` pode gravar arquivo (A2 do review, volta 5): redireção de saída que não seja cópia de
-    descritor (`2>&1`) nem `/dev/null`, `tee`, `uniq`, opção `-o`/`--output`, ou `git apply`/`git am`. Só o conteúdo
-    entre aspas simples fica de fora; na dúvida, grava."""
-    texto = re.sub(r"'[^']*'", "''", logico)
-    if any(m.group(1).strip("\"") != "/dev/null" for m in GRAVA_REDIRECAO.finditer(texto)):
+def grava_arquivo(texto):
+    """O texto pode gravar arquivo (A2 do review, volta 5; M1 da volta única): leitura em dúvida
+    (`palavras_do_texto`), redireção fora da lista fechada das que não gravam (`redirecao_grava`), em qualquer posição
+    e nível, `tee`, `uniq`, opção `-o`/`--output`, ou `git apply`/`git am`."""
+    leitura = palavras_do_texto(texto)
+    if leitura.duvida or any(redirecao_grava(r) for comando in leitura.simples for r in comando.redirecoes):
         return True
     for programa, argumentos in programas_da_linha(texto):
         if programa in GRAVAM_ARQUIVO or any(a.startswith(("-o", "--output", "--out")) for a in argumentos):
