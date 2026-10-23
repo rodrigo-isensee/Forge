@@ -37,7 +37,9 @@ jobs:
   bateria-python-tres-quatorze:
     name: bateria (python 3.14)
     # Testes do Forge no Python 3.14, ao lado do 3.12 do job "bateria" (diferença de versão aparece no PR, CI-PY314).
-    # Só o que depende da versão do Python; shellcheck, actionlint, zizmor e a instalação ficam na "bateria".
+    # Só o que depende da versão do Python: a suíte e o e2e de instalação (python3 -c e bin/forge-init). Os gates de PR em
+    # Python (changelog, release, catraca) ficam na "bateria" (testes travam um passo só de cada) e a suíte os cobre no 3.14.
+    # shellcheck, actionlint, zizmor, claude plugin validate e a varredura de segredos não executam Python.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -53,6 +55,19 @@ jobs:
         run: |
           python3 --version
           python3 scripts/suite-paralela.py
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ !cancelled() }}
+        with:
+          node-version: "24"
+      - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
+        if: ${{ !cancelled() }}
+        run: |
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
+          claude --version
+      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
+        if: ${{ !cancelled() }}
+        run: bash tests/e2e-instalacao.sh
 
   bateria:
     name: bateria
