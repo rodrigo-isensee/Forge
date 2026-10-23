@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: impl-d4-textos-dono2
 branch: melhoria/impl-d4-textos-dono2
-commit: d6da6d539de472120b3cfcfc3de0b3aa2001ddb9
+commit: d4a451a6a45fa83f2783465c2aeece9a583f332e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-22
@@ -35,3 +35,6 @@ Code review (R-REVIEW) da entrega inteira, `38c58247fdae5482ed441db4dd21bff4d554
 
 ## Parecer
 Aprovado. A entrega faz o que os commits e o fragmento dizem, com a privacidade do texto do dono tratada no código e nas fixtures, e o merge da `develop` não exigiu resolução. Os quatro achados são recomendados (limites da heurística a documentar ou estreitar e um teste de ausência rígido demais) e não bloqueiam; podem ir numa volta futura ou como cartão. Segue para o QA (E1.3).
+
+## Revalidação por delta (REVAL-288, E1.1)
+Revalidação feita por instância que não fez o merge (`R-REVIEW`), pela decisão "C" do dono (2026-10-23). Delta lido (`forge-check delta`, do commit do parecer anterior até `d4a451a`): o merge da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL), o merge de `d1b4576` (parecer de segurança) e o commit que alinhou o `pedido:` do parecer de segurança. Conferido: (1) os arquivos do #288 (`.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*` e os documentos `suite-local-verde`) estão idênticos aos da `develop`, com `git diff 7423c44 HEAD` vazio sobre eles; (2) sem marcador de conflito, o merge não teve resolução; (3) fora do #288, o delta só traz pareceres (`docs/`), nenhum código da branch mudou. Já lido e não relido: todo o código aprovado no parecer acima. Achados: nenhum novo; os anteriores seguem como estavam. Veredito: aprovado.
