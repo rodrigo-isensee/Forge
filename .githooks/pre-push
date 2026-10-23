@@ -239,7 +239,7 @@ fi
 # no hook encerram só esse filho (que encerra os grupos dos próprios processos) e esperam por ele antes de a trava
 # soltar. Parar reprova o envio e não anota prova. Nunca `pkill -f`: o padrão casa com a suíte de outro agente.
 suite_pid=""
-# shellcheck disable=SC2317  # falso positivo: o corpo de parar só é chamado pelo trap abaixo, que o shellcheck não segue.
+# shellcheck disable=SC2317,SC2329  # falso positivo: parar só é chamada pelo trap abaixo, que o shellcheck não segue (SC2317 até a 0.10, SC2329 na 0.11).
 parar() {
   trap '' TERM INT HUP
   if [ -n "$suite_pid" ]; then kill -TERM "$suite_pid" 2>/dev/null; wait "$suite_pid" 2>/dev/null; fi
