@@ -18,9 +18,9 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase, corpo_so_lido, e_clone_do_forge,
-                    executar, forge_check, git, nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra,
-                    tirar_heredocs)
+from _comum import (CONTORNO_DA_GRAMATICA, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, conteudos_de_crase,
+                    corpo_so_lido, e_clone_do_forge, executar, fora_da_gramatica_com_heredoc, forge_check, git,
+                    nome_da_branch, leituras, raiz_de_estado, sem_atribuicoes, separar_regra, tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -383,6 +383,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
                              "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
                              "o programa noutra")
+    if nivel == 0 and CRITICO.search(original):  # ADR 0011, item 2 (opção D), depois das regras da linha e do corpo
+        sinal = fora_da_gramatica_com_heredoc(original)
+        if sinal is not None:
+            bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
+                                 f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
 def conferir(hook, partes, pasta, branches):

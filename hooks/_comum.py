@@ -1486,6 +1486,128 @@ def construcao_nao_modelada(linha):
     return "case" if CASE.search("".join(esqueleto)) else None
 
 
+# ADR 0011, item 2, opção D (RET-LEITURA-HOOK-D): a chamada com heredoc e ação crítica só passa numa gramática positiva.
+# Sem os corpos, cada forma canônica vira uma palavra literal (K1 a K3); o resto usa o alfabeto do item 1, os separadores
+# `&&`, `;` e a quebra de linha, e cada comando simples começa por um programa da lista, sem atribuição antes.
+PROGRAMAS_DA_GRAMATICA = frozenset({"git", "gh", "cd", "mkdir", "echo", "true"})
+GIT_FORA_DA_GRAMATICA = re.compile(r"-c$|--config-env|--exec-path")  # o `git` sem configuração nem programa trocado
+VALOR_DE_TEXTO = frozenset({"-m", "--message", "-b", "--body", "-t", "--title", "--subject", "--notes"})
+OPERADOR_K = "\x01"  # o operador e o delimitador de um heredoc modelado, na linha sem os corpos
+PALAVRA_K3 = "\x02"  # a palavra `"$(cat <<'X'⏎…⏎X⏎)"`, já sem o corpo
+K1 = re.compile(r"[ \t]*cat[ \t]+>>?[ \t]*[\w./:@,+%~^-]+[ \t]+\x01[ \t\n]*")  # a chamada inteira (fullmatch)
+K3 = re.compile(r'"\$\(cat[ \t]+\x01[ \t]*\n\)"')
+CONTORNO_DA_GRAMATICA = ("na chamada com heredoc e ação crítica, só cat > arq <<'FIM' sozinho na chamada, "
+                         "git commit -F - <<'FIM' e -m, --body ou --title \"$(cat <<'FIM'…FIM)\", com comandos git, gh, "
+                         "cd, mkdir, echo e true literais, separados por &&, ; ou quebra de linha (sem atribuição, $, "
+                         "redireção nem pipe); o resto vai noutra chamada do Bash (docs/hooks.md)")
+
+
+def sem_os_corpos(texto, achados):
+    """O texto sem os corpos dos heredocs provados, com o operador e o delimitador de cada um trocados por `OPERADOR_K`."""
+    cortes = sorted([(h.operador, h.fim_do_operador, f" {OPERADOR_K} ") for h in achados]
+                    + [(h.corpo[0], h.fim, "") for h in achados])
+    saida, inicio = [], 0
+    for ini, fim, troca in cortes:
+        saida += [texto[inicio:ini], troca]
+        inicio = fim
+    saida.append(texto[inicio:])
+    return "".join(saida)
+
+
+def legivel(palavra):
+    """A palavra com as formas K de volta no texto, para a mensagem."""
+    return palavra.replace(OPERADOR_K, "<<'FIM'").replace(PALAVRA_K3, '"$(cat <<…)"')
+
+
+def simples_da_gramatica(resto):
+    """Os comandos simples do resto (listas de palavras cruas), ou o primeiro sinal fora da gramática (str). Aspas
+    como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`."""
+    simples, palavras, palavra, i, n = [], [], "", 0, len(resto)
+
+    def fechar():
+        nonlocal palavra
+        if palavra:
+            palavras.append(palavra)
+        palavra = ""
+
+    while i < n:
+        c = resto[i]
+        if c in "'\"":
+            fim = resto.find(c, i + 1)
+            if fim < 0:
+                return f"{c} sem fechar"
+            proibidos = DUPLAS_RECUSA if c == '"' else ()
+            ruim = next((x for x in resto[i + 1:fim] if x in proibidos or controle(x)), None)
+            if ruim is not None:
+                return nome_do_sinal(ruim)
+            palavra, i = palavra + resto[i:fim + 1], fim + 1
+            continue
+        if resto.startswith("&&", i) or c in ";\n":
+            fechar()
+            if palavras:
+                simples.append(palavras)
+            palavras = []
+            i += 2 if c == "&" else 1
+            continue
+        if c in " \t":
+            fechar()
+        elif c in (OPERADOR_K, PALAVRA_K3) or c.isalnum() or c in ALFABETO_LEITURA:
+            palavra += c
+        else:
+            return nome_do_sinal(c)
+        i += 1
+    fechar()
+    if palavras:
+        simples.append(palavras)
+    return simples
+
+
+def comando_fora_da_gramatica(palavras):
+    """O primeiro sinal do comando simples fora da gramática, ou None: o programa da lista, o heredoc só na forma K2
+    (`git commit … -F - <<'X'`) e a palavra K3 só como valor de `-m`, `--body`, `--title`…"""
+    programa = palavras[0]
+    if ATRIBUICAO.match(programa):
+        return f"{legivel(programa)} (atribuição antes do programa)"
+    if programa not in PROGRAMAS_DA_GRAMATICA:
+        return f"{legivel(programa)} (fora da lista de programas)"
+    for k, palavra in enumerate(palavras[1:], 1):
+        if programa == "git" and GIT_FORA_DA_GRAMATICA.match(palavra):
+            return f"git {legivel(palavra)}"
+        if OPERADOR_K in palavra and not (palavra == OPERADOR_K and programa == "git" and palavras[1] == "commit"
+                                          and palavras[k - 2:k] == ["-F", "-"]):
+            return "<<'FIM' fora de git commit -F -"
+        if PALAVRA_K3 in palavra and not (palavra == PALAVRA_K3 and palavras[k - 1] in VALOR_DE_TEXTO):
+            return '"$(cat <<…)" fora de -m, --body ou --title'
+    return None
+
+
+def fora_da_gramatica_com_heredoc(texto):
+    """ADR 0011, item 2 (opção D): o primeiro sinal da chamada com heredoc fora da gramática positiva, ou None (também
+    quando o texto não tem `<<` de heredoc). Quem chama a aplica só no texto inteiro da chamada e com o marcador
+    crítico. O `<<` em dúvida e o heredoc fora de `HEREDOC_MODELADO` recusam; tirados os corpos, K1 (`cat > arq <<'X'`,
+    ou `>>`) passa sozinha na chamada, K3 vira uma palavra literal e o resto passa por `simples_da_gramatica` e
+    `comando_fora_da_gramatica`. Nenhuma expansão sobra fora das formas K, então a decisão não depende de como o
+    leitor lê aspas e substituições."""
+    achados, duvida = heredocs(texto)
+    if duvida is not None:
+        return "<< que o hook não prova ser heredoc"
+    if not achados:
+        return None
+    if OPERADOR_K in texto or PALAVRA_K3 in texto:
+        return nome_do_sinal(OPERADOR_K if OPERADOR_K in texto else PALAVRA_K3)
+    for h in achados:
+        m = HEREDOC_MODELADO.match(texto, h.operador)
+        if m is None or m.end() != h.fim_do_operador:
+            return "heredoc fora da forma <<'FIM'"
+    resto = sem_os_corpos(texto, achados)
+    if len(achados) == 1 and K1.fullmatch(resto):
+        return None
+    lidos = simples_da_gramatica(K3.sub(PALAVRA_K3, resto))
+    if isinstance(lidos, str):
+        return lidos
+    return next((sinal for sinal in map(comando_fora_da_gramatica, lidos) if sinal), None)
+
+
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
 

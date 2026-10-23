@@ -24,10 +24,11 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios, construcao_nao_modelada,
-                    conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum, e_clone_do_forge, em_contrib, executar,
-                    fora_da_gramatica_de_leitura, forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada,
-                    raiz_do_projeto, sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
+from _comum import (CONTORNO_DA_GRAMATICA, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    construcao_nao_modelada, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
+                    e_clone_do_forge, em_contrib, executar, fora_da_gramatica_com_heredoc, fora_da_gramatica_de_leitura,
+                    forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto,
+                    sem_atribuicoes, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -771,6 +772,11 @@ class Guarda:
         if self.lancador_recusado:  # depois das regras específicas da linha (R-MAIN, R-VERIFY, atualizar...)
             self.barrar("R-CONFORMIDADE", f"lançador `{self.lancador_recusado}` repassa o comando sem que o hook o veja, "
                                           "numa sessão de projeto", f"rode o comando direto, sem o lançador; {SUGESTAO}")
+        if nivel == 0 and not self.leitura and CRITICO.search(original):  # ADR 0011, item 2 (opção D), por último
+            sinal = fora_da_gramatica_com_heredoc(original)
+            if sinal is not None:
+                self.barrar("R-CONFORMIDADE", f"`{sinal}` na chamada com heredoc e ação crítica: o hook não modela",
+                            CONTORNO_DA_GRAMATICA)
 
     def conferir_partes(self, partes, pasta, nivel, so_substituicoes):
         """As checagens de cada comando simples de uma leitura da linha (`leituras`); devolve a pasta depois dela e as
