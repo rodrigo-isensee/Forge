@@ -660,6 +660,10 @@ class Guarda:
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
             lidas = leituras(comando)
+            # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
+            # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
+            if not so_substituicoes:
+                self.reavaliacao = self.reavaliacao or reavaliacao(comando)
         if lidas is None or lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
@@ -850,7 +854,6 @@ class Guarda:
             return pasta
         prog = Path(palavras[0].lstrip("`")).name
         args = palavras[1:]
-        self.reavaliacao = self.reavaliacao or reavaliacao(palavras)  # recusa no fim da linha, com o marcador crítico
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)

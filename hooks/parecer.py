@@ -358,6 +358,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
     lidas = leituras(comando)
+    # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição. A palavra `"$(…)"` não: o texto
+    # dela é o do `shlex`, e o nível de fora já leu as substituições dela como escritas
+    achada = None if so_substituicoes else reavaliacao(comando)
+    if achada:
+        reavaliacoes.append(achada)
     if lidas.ilegivel and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
         bloquear("R-REVIEW", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o arquivo gravado, e "
                              "o corpo do heredoc tem aspa sem par. Corrigir: grave numa chamada do Bash e rode o "
@@ -375,8 +380,6 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
         partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]
-        reavaliacoes += [r for r in (reavaliacao(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes)
-                         if r]
         for pasta, branches in estados:
             for estado in conferir(hook, partes, pasta, branches):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items()))), estado)

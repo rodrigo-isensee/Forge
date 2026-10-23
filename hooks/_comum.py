@@ -1757,23 +1757,48 @@ CONTORNO_DA_REAVALIACAO = ("rode o comando direto, sem eval nem shell com -c, ou
                            "chamadas diferentes do Bash")
 
 
-def reavaliacao(palavras):
-    """ADR 0011, item 2 (opção B da revalidação 8): o comando simples reavalia um texto pelo shell, por baixo dos
-    lançadores que o hook separa (`separar_lancadores`)? `eval`, ou `bash`/`sh`/`zsh`/`dash`/`ksh` com opção curta que
-    contém `c`. Devolve o nome (`eval`, `bash -c`) ou None. O `env -S` que o hook não divide (aspas abertas) é ele mesmo
-    uma reavaliação que ele não lê: `env -S`. Com o marcador crítico no nível 0, os dois hooks recusam a chamada, haja
-    `<<` ou não: o texto reavaliado nunca chega ao leitor, então não importa como o `<<` nasce lá dentro."""
-    while palavras and palavras[0] in CORPO_DE_LACO:
-        palavras = palavras[1:]
-    try:
-        palavras, _ = separar_lancadores(palavras)
-    except ValueError:
-        return "env -S"
-    programa = Path(palavras[0].lstrip("`")).name if palavras else ""
-    if programa == "eval":
-        return "eval"
-    if programa in SHELLS and any(OPCAO_DE_REAVALIACAO.fullmatch(p) for p in palavras[1:]):
-        return f"{programa} -c"
+SHELLS_DA_REAVALIACAO = SHELLS | {"rbash"}
+
+
+def reavaliacao_das_palavras(palavras):
+    """ADR 0011, item 2 (opção B da revalidação 9): o comando simples, com as palavras já reduzidas como o bash
+    (`reduzida`; None: a palavra não se reduz), reavalia um texto pelo shell? Em qualquer posição: alguma palavra é
+    `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do arquivo) seguido, mais adiante no mesmo comando, de uma
+    opção curta com `c`. Não há lista de prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo que
+    vier caem pela mesma regra. O `env -S` divide o valor em palavras, que se conferem de novo; o que o hook não divide
+    (aspas abertas) é ele mesmo uma reavaliação que ele não lê: `env -S`. Devolve o nome (`eval`, `bash -c`) ou None."""
+    for k, palavra in enumerate(palavras):
+        if palavra is None:
+            continue
+        nome = Path(palavra).name
+        if palavra == "eval":
+            return "eval"
+        if nome in SHELLS_DA_REAVALIACAO and any(p is not None and OPCAO_DE_REAVALIACAO.fullmatch(p)
+                                                 for p in palavras[k + 1:]):
+            return f"{nome} -c"
+        if nome == "env":
+            cauda = ["" if p is None else p for p in palavras[k:]]
+            try:
+                depois, _ = separar_lancadores(cauda)
+            except ValueError:
+                return "env -S"
+            if depois != cauda[len(cauda) - len(depois):]:  # o `env -S` dividiu um valor: as palavras são outras
+                achada = reavaliacao_das_palavras(depois)
+                if achada:
+                    return achada
+    return None
+
+
+def reavaliacao(texto):
+    """A primeira reavaliação pelo shell (`reavaliacao_das_palavras`) em algum comando simples do texto, de qualquer
+    nível de substituição (`palavras_do_texto`: `$(…)`, crase, `<(…)`), sobre a palavra que o bash recebe (`reduzida`
+    do texto como escrito, e não a palavra do `shlex`, que lê `$'eval'` como `$eval`), ou None. `texto`: a linha sem os
+    corpos de heredoc. Com o marcador crítico no nível 0, os dois hooks recusam a chamada, haja `<<` ou não: o texto
+    reavaliado nunca chega ao leitor, então não importa como o `<<` nasce lá dentro."""
+    for simples in palavras_do_texto(texto).simples:
+        achada = reavaliacao_das_palavras([reduzida(p.cru) for p in simples.palavras])
+        if achada:
+            return achada
     return None
 
 
