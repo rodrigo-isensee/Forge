@@ -1,7 +1,9 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
 import json
+import os
 import re
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -130,6 +132,87 @@ class Esperas(Raiz):
         cod, linhas, _ = self.rodar("esperas")
         self.assertEqual(cod, 0)
         self.assertRegex(linhas[0], r"^esperas: K-9 dono inicio=\S+ minutos=aberta$")
+
+
+class RepositorioDeTeste(Raiz):
+    """Um repositório git descartável, com commits de data fixa (a hora entra nas medidas por janela)."""
+
+    def git(self, *args, data=None):
+        env = dict(os.environ, GIT_AUTHOR_NAME="Teste", GIT_AUTHOR_EMAIL="t@example.com", GIT_COMMITTER_NAME="Teste",
+                   GIT_COMMITTER_EMAIL="t@example.com", GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
+        if data:
+            env.update(GIT_AUTHOR_DATE=data, GIT_COMMITTER_DATE=data)
+        r = subprocess.run(["git", "-C", str(self.tmp), *args], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return r.stdout.strip()
+
+    def iniciar(self):
+        self.git("init", "-q", "-b", "develop")
+
+    def commitar(self, mensagem, arquivos, dia="2026-10-20"):
+        for nome, texto in arquivos.items():
+            self.gravar(nome, texto)
+        self.git("add", "--", *arquivos)
+        self.git("commit", "-q", "-m", mensagem, data=f"{dia}T12:00:00+00:00")
+        return self.git("rev-parse", "HEAD")
+
+
+class PrsFixQueCorrigemPrMesclado(RepositorioDeTeste):
+    def setUp(self):
+        super().setUp()
+        self.iniciar()
+        self.commitar("feat(a): coisa nova (#10)", {"a.py": "1\n", "b.py": "1\n"}, "2026-10-14")
+        self.commitar("feat(b): outra coisa (#11)", {"b.py": "2\n"}, "2026-10-15")
+        self.commitar("docs(x): texto (#12)", {"x.md": "1\n"}, "2026-10-16")
+
+    def corrigidos(self, *args):
+        cod, linhas, _ = self.rodar("corrigidos", *args)
+        return cod, linhas
+
+    def test_fix_que_cita_pr_mesclado_antes_e_prova_escrita(self):
+        self.commitar("fix(c): conserta o que o #11 quebrou (#13)", {"c.py": "1\n"}, "2026-10-17")
+        cod, linhas = self.corrigidos()
+        self.assertEqual(cod, 0)
+        self.assertRegex(linhas[0], r"^corrigidos: #13 [0-9a-f]{7} evidencia=cita cita=#11 toca=- fix\(c\): conserta o que o #11 quebrou \(#13\)$")
+        self.assertRegex(linhas[-1], r"^corrigidos: total: prs=4 fix=1 cita=1 arquivo=0 nenhuma=0 dias=7 ref=[0-9a-f]{7}$")
+
+    def test_fix_sem_citacao_que_mexe_em_arquivo_de_pr_recente_e_so_indicio(self):
+        self.commitar("fix(b): ajusta b (#13)", {"b.py": "3\n"}, "2026-10-17")  # b.py: último PR #11, dois dias antes
+        cod, linhas = self.corrigidos()
+        self.assertRegex(linhas[0], r"evidencia=arquivo cita=- toca=#11 ")
+
+    def test_arquivo_fora_da_janela_ou_citacao_de_pr_que_nao_existe_nao_contam(self):
+        self.commitar("fix(a): ajusta a, que o #99 mexeu (#13)", {"a.py": "9\n"}, "2026-10-25")  # a.py mudou em 14/10: 11 dias
+        cod, linhas = self.corrigidos()
+        self.assertEqual(len(linhas), 1, linhas)  # só o resumo: nenhuma evidência
+        self.assertIn("fix=1 cita=0 arquivo=0 nenhuma=1", linhas[0])
+        cod, linhas = self.corrigidos("--dias", "30")
+        self.assertIn("evidencia=arquivo cita=- toca=#10 ", linhas[0])
+
+    def test_so_conta_fix_de_pr_e_a_propria_citacao_nao_vale(self):
+        self.commitar("feat(c): coisa que cita o #11 (#13)", {"c.py": "1\n"}, "2026-10-17")
+        self.commitar("fix(d): sem numero de pr, commit direto", {"b.py": "4\n"}, "2026-10-17")
+        self.commitar("fix(e): fala de si mesmo, #14 (#14)", {"e.py": "1\n"}, "2026-10-18")
+        cod, linhas = self.corrigidos()
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertIn("prs=5 fix=1 cita=0 arquivo=0 nenhuma=1", linhas[0])
+
+    def test_commit_de_juncao_comum_conta_pelo_titulo_do_pr(self):
+        self.git("switch", "-q", "-c", "fix/z")
+        self.commitar("fix(z): corrige o #12", {"z.py": "1\n", "x.md": "2\n"}, "2026-10-17")
+        self.git("switch", "-q", "develop")
+        self.git("merge", "--no-ff", "-q", "-m", "Merge pull request #13 from o/fix/z", "-m", "fix(z): corrige o #12", "fix/z",
+                 data="2026-10-17T13:00:00+00:00")
+        cod, linhas = self.corrigidos()
+        self.assertRegex(linhas[0], r"^corrigidos: #13 [0-9a-f]{7} evidencia=cita cita=#12 toca=#12 fix\(z\): corrige o #12$")
+
+    def test_ref_inexistente_rc_1_e_a_ref_escolhe_a_linha(self):
+        cod, linhas = self.corrigidos("--ref", "nao-existe")
+        self.assertEqual(cod, 1)
+        self.assertTrue(linhas[0].startswith("corrigidos: ref"), linhas)
+        primeiro = self.git("rev-list", "--max-parents=0", "HEAD")
+        cod, linhas = self.corrigidos("--ref", primeiro)
+        self.assertIn("prs=1 fix=0", linhas[0])
 
 
 if __name__ == "__main__":

@@ -18,6 +18,7 @@ Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base RE
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
      forge-check esperas [--pedido ID]
+     forge-check corrigidos [--ref REF] [--dias N]
      forge-check fila
 `fila` (P9; só leitura, sem rede, rc 0) lista, em até 15 linhas, o que pode começar agora: cartões de "Pronto para fazer" do
 KANBAN.md sem `Depende de:` pendente (cabeçalho do pedido; satisfeita com o cartão em "Pronto") nem ciclo, até as vagas de R-TETO
@@ -30,6 +31,9 @@ uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
 mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido`.
+`corrigidos` (M14b; só leitura, sem rede) lê a linha de PRs da `--ref` (padrão `origin/develop`) e lista os PRs `fix` que corrigem PR já mesclado:
+`evidencia=cita` (o texto do PR cita `#N` de PR mesclado antes: prova escrita) ou `evidencia=arquivo` (sem citação, mas mexe em arquivo que outro PR
+mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os `fix` sem nenhuma das duas (`nenhuma`).
 `brief` (C2, C4; só leitura, determinístico: o mesmo texto dá a mesma saída) confere a forma e o corte de um brief: seções
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
@@ -2085,6 +2089,89 @@ def cmd_esperas(raiz, pedido=None):
     print("esperas: total: " + " ".join(f"{t}={soma[t][0]} minutos_{t}={_numero(soma[t][1])}" for t in TIPOS_DE_ESPERA)
           + f" abertas={abertas} cartoes={len(escolhidos)}")
     return 0
+
+
+# ---- M14b: PR `fix` que corrige PR já mesclado, lido do histórico do git (só leitura, sem rede) ----
+PR_NO_ASSUNTO = re.compile(r"\(#(\d+)\)\s*$|^Merge pull request #(\d+)\b")
+TIPO_FIX = re.compile(r"^fix(\([^)]*\))?!?:")
+PR_CITADO = re.compile(r"(?<![0-9A-Za-z&])#(\d{1,6})(?!\d)")
+DIAS_DO_CORRIGIDO = 7
+REFS_PADRAO = ("origin/develop", "develop", "HEAD")
+
+
+def resolver_ref(raiz, ref):
+    """(sha40, nome) da `ref` pedida ou, sem ela, da primeira de `REFS_PADRAO` que existe; (None, nome) se não existe."""
+    for nome in ([ref] if ref else REFS_PADRAO):
+        sha = sha_do_commit(raiz, nome)
+        if sha:
+            return sha, nome
+    return None, ref or REFS_PADRAO[0]
+
+
+def commits_da_ref(raiz, sha):
+    """Os commits da linha principal (`--first-parent`; o merge comum conta pelo diff contra o primeiro pai) até `sha`, do mais antigo
+    ao mais novo: dicts com `sha`, `hora` (epoch), `titulo` (o assunto; no merge comum, a 1.ª linha do corpo), `texto` (assunto e corpo),
+    `arquivos` e `pr` (número do PR, ou None se o commit não é de PR); None se o git falha."""
+    cod, bruto = git(raiz, "log", "--first-parent", "-m", "--reverse", "--name-only", "-z", "--format=%x1e%H%x1f%ct%x1f%s%x1f%b%x1f",
+                     "--end-of-options", sha, bruto=True)
+    if cod:
+        return None
+    commits = []
+    for pedaco in bruto.decode("utf-8", "replace").split("\x1e")[1:]:
+        campos = pedaco.split("\x1f", 4)
+        if len(campos) < 5 or not campos[1].isdigit():
+            continue
+        assunto, corpo = campos[2], campos[3]
+        achou = PR_NO_ASSUNTO.search(assunto)
+        titulo = assunto
+        if assunto.startswith("Merge pull request"):
+            titulo = next((l.strip() for l in corpo.splitlines() if l.strip()), assunto)
+        commits.append({"sha": campos[0], "hora": int(campos[1]), "titulo": titulo, "texto": f"{assunto}\n{corpo}",
+                        "arquivos": [a for a in campos[4].lstrip("\0\n").split("\0") if a],
+                        "pr": int(achou.group(1) or achou.group(2)) if achou else None})
+    return commits
+
+
+def corrigidos_da_linha(commits, dias=DIAS_DO_CORRIGIDO):
+    """[(commit, evidência, citados, tocados)] dos PRs `fix` da linha: `cita` se o texto do PR cita (#N) um PR mesclado antes dele (prova
+    escrita); `arquivo` se não cita, mas mexe num arquivo que outro PR mesclou até `dias` antes (indício: pode ser outro assunto no mesmo
+    arquivo); `nenhuma` nos demais. A ordem é a do histórico."""
+    vistos, ultimo, saida = set(), {}, []
+    for c in commits:
+        if c["pr"] is not None and TIPO_FIX.match(c["titulo"]):
+            citados = sorted(({int(n) for n in PR_CITADO.findall(c["texto"])} & vistos) - {c["pr"]})
+            antes = (ultimo.get(a, (None, 0)) for a in c["arquivos"])
+            tocados = sorted({pr for pr, h in antes if pr is not None and pr != c["pr"] and c["hora"] - h <= dias * 86400})
+            saida.append((c, "cita" if citados else "arquivo" if tocados else "nenhuma", citados, tocados))
+        if c["pr"] is not None:
+            vistos.add(c["pr"])
+        for a in c["arquivos"]:
+            ultimo[a] = (c["pr"], c["hora"])
+    return saida
+
+
+def cmd_corrigidos(raiz, ref=None, dias=DIAS_DO_CORRIGIDO):
+    """Lista os PRs `fix` que corrigem PR já mesclado (`corrigidos: #N sha evidencia=... cita=... toca=... titulo`) e o resumo; só leitura.
+    rc 1 se a ref não existe ou o git falha."""
+    sha, nome = resolver_ref(raiz, ref)
+    commits = commits_da_ref(raiz, sha) if sha else None
+    if commits is None:
+        print(f"corrigidos: ref {nome_seguro(sem_controle(nome))} não existe ou o git falhou")
+        return 1
+    contagem = {"cita": 0, "arquivo": 0, "nenhuma": 0}
+    fixes = corrigidos_da_linha(commits, dias)
+    for c, evidencia, citados, tocados in fixes:
+        contagem[evidencia] += 1
+        if evidencia != "nenhuma":
+            print(f"corrigidos: #{c['pr']} {c['sha'][:7]} evidencia={evidencia} cita={_lista_de_prs(citados)} toca={_lista_de_prs(tocados)} "
+                  f"{sem_controle(c['titulo'])[:100]}")
+    print(f"corrigidos: total: prs={sum(1 for c in commits if c['pr'] is not None)} fix={len(fixes)} cita={contagem['cita']} "
+          f"arquivo={contagem['arquivo']} nenhuma={contagem['nenhuma']} dias={dias} ref={sha[:7]}")
+    return 0
+
+
+def _lista_de_prs(numeros):
+    return ",".join(f"#{n}" for n in numeros) or "-"
 
 
 def carregar_politica():
@@ -4161,6 +4248,9 @@ def main():
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+    co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
+    co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
+    co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
     so = sub.add_parser("sobreposicao", parents=[comum], help="arquivos em comum entre as branches melhoria/* (informativo, rc 0)")
     so.add_argument("--base", help="branch de integração da comparação (padrão: origin/develop, develop, origin/main, main)")
     so.add_argument("--ref", help="branch prestes a ser mesclada na develop: com release em curso (versão da origin/develop maior que a da origin/homolog), só melhoria/release-<versão> passa; as outras saem com rc 1")
@@ -4247,6 +4337,8 @@ def executar(a, raiz):
         return cmd_voltas(raiz, a.pedido)
     if a.cmd == "esperas":
         return cmd_esperas(raiz, a.pedido)
+    if a.cmd == "corrigidos":
+        return cmd_corrigidos(raiz, a.ref, a.dias)
     if a.cmd == "fila":
         for linha in cmd_fila(raiz):
             print(linha)
