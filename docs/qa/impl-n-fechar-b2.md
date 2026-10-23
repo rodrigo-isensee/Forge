@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: impl-n-fechar-b2
 branch: melhoria/impl-n-fechar-b2
-commit: 4b0c0b901a2ecacdbfaf48101d6b0cf9ae5f9878
+commit: f62766c87ab10b0a0bb650b072a12364311f433b
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -41,3 +41,6 @@ Commit testado: `4b0c0b9` (HEAD `145fce0` da branch mais o merge `0a974e9`, que 
 
 ## Bugs abertos
 Nenhum. Recomendações não bloqueantes já registradas no review (A3: mensagem da linha 669; `--dry-run` nas linhas 480 e 484; `cancel` antes do rótulo no documento) seguem com o tech-lead.
+
+## Revalidação por delta (REVAL-288, E3.3)
+Depois do review por delta aprovado, pela decisão "C" do dono (2026-10-23). Delta desde `4b0c0b9` (commit do parecer anterior) até `f62766c`: a entrada da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL: `.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`, documentos `suite-local-verde`) e pareceres em `docs/` (a segurança só teve o `pedido:` alinhado). Nenhum código da entrega mudou. Comando: `bin/forge-testes`, que escolheu a suíte completa (`bin/forge-fechar` sem mapa): 1640 testes, 898 s, `OK`, rc 0. As falhas conhecidas do ambiente somem, como previsto. Comportamento já aprovado (B1 a B5, R2 e as recomendações do review): igual, sem regressão. Veredito: aprovado, sem achado novo.
