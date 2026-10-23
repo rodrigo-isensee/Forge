@@ -3,35 +3,42 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: F4-ATUALIZAR
 branch: melhoria/f4-atualizar
-commit: 4d86f26c7ff6266ff989476b75f2e2a1a3d691c3
-parecer: reprovado
+commit: 6634cd800fd9366b1e8fcaf75e01e948e758880c
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-23
 ---
-# Review de segurança: F4-ATUALIZAR (revalidação por delta)
+# Review de segurança: F4-ATUALIZAR (revalidação 2, por delta)
 
-Escopo: delta `044e986..4d86f26` (commits `1f2731b` testes e `4d86f26` correção) sobre o parecer anterior (`commit: 671c625`, reprovado por A1). `forge-check delta --parecer` lista `bin/forge-atualizar` (linhas 54-124, 208-272), `README.md:77` e `tests/test_atualizar.py:422-502`; tudo relido, mais o `main` do `forge-atualizar` (tratamento de exceção, linha 279). Revisão estática e sondas locais em repositórios descartáveis (`HOME` em `$TMPDIR/security-engineer-f4`), sem rede externa.
+Escopo: delta `4d86f26..6634cd8` (commits `106cb84` testes e `6634cd8` correção, volta 2) sobre o parecer anterior (`commit: 4d86f26`, reprovado por A4). `forge-check delta --parecer` lista `bin/forge-atualizar` (linhas 62-68, 115-126, 134-139), `changelog.d/f4-atualizar.md:2` e `tests/test_atualizar.py:495-525`. Reli tudo isso e também a função `resolver_conflito` inteira (linhas 126-153) e os chamadores (linha 273 e o `main`, linha 300). Revisão estática e sondas locais em repositórios descartáveis (`HOME` e `TMPDIR` em `$TMPDIR/security-engineer-f4`), sem rede externa.
 
 ## Gatilhos
 Controle do Forge (`R-SEGURANCA`): `.forge/versao`, que só o dono altera, pelo terminal (`R-CONFORMIDADE`); e a `main` local, que é do usuário (`R-MAIN`).
 
 ## Achados
-- A4 (bloqueante) bin/forge-atualizar:117 · fv.versao_de devolve None para .forge/versao fora de X.Y.Z (ex.: "0.4") e a comparação None > tupla levanta TypeError antes da pergunta: o comando morre no meio da mesclagem, com MERGE_HEAD e marcadores de conflito gravados em .forge/versao sem resposta do dono (sonda S9). Comparar só quando as duas versões forem válidas (senão, avisar que não deu para comparar) e um teste do caso
-- A1 resolvido (S7, S7b, S7c: nada a fazer na main, numa branch qualquer e na develop local atrasada, nenhum commit novo)
-- A2 resolvido (S2: mostra as duas versões e avisa que s rebaixa; resposta n deixa tudo como estava)
-- A3 resolvido (docstring bin/forge-atualizar:8-9, README.md:77 e a lista de arquivos trazidos, S5)
+- A4 resolvido (S9 rodada de novo: `0.4`, `lixo` e `1.0.0-rc1` na develop, sem Traceback, sem `UU`, sem `MERGE_HEAD`, sem marcadores; aviso de formato X.Y.Z e a pergunta ao dono)
+- A1 a A3 continuam resolvidos (o delta não toca nas linhas deles)
 
 ## Detalhe dos achados
-**A4. Versão malformada derruba o comando no meio da mesclagem (classe: conformidade, `R-CONFORMIDADE`, integridade de `.forge/versao`; regressão aberta pela correção de A2).** Evidência: `bin/forge-atualizar:117` faz `fv.versao_de(da_develop) > fv.versao_de(nossa)`; `bin/forge_versoes.py:30-32` devolve `None` quando o texto não casa `v?X.Y.Z`. O `main` só captura `EOFError` e `KeyboardInterrupt` (linha 279), então o `TypeError` sobe, o `merge --abort` da linha seguinte não roda, nem o doutor, nem o `oferecer_voltar`. Caminho: a `develop` do projeto traz um `.forge/versao` fora do formato (pré-release, valor truncado, linha extra que o `strip` não limpa); o dono roda `forge atualizar` e o conflito só em `.forge/versao` chega à linha 117. Sonda S9 (`.forge/versao` = `0.4` na develop, resposta n): `TypeError: '>' not supported between instances of 'NoneType' and 'tuple'`, `git status` = `UU .forge/versao`, `MERGE_HEAD` presente e o arquivo com `<<<<<<< HEAD|0.3.0|=======|0.4|>>>>>>>`. Antes da volta, o mesmo caso chegava à pergunta e a resposta n desfazia tudo (S3 do parecer anterior). Sem atacante: a `develop` entra por PR e o dono pode rodar `git merge --abort`. Mas o arquivo que só o dono altera fica alterado pela ferramenta sem a resposta dele, e a promessa "outro conflito é desfeito" quebra. Severidade: baixa (integridade local, sem exploração), bloqueante por ser controle do Forge e regressão desta volta. Correção mínima: `a, b = fv.versao_de(da_develop), fv.versao_de(nossa)`; `if a and b and a > b:` avisa; se `a` for `None`, imprimir que a versão da develop não está no formato X.Y.Z e seguir para a pergunta (padrão N). Teste: conflito com `.forge/versao` da develop = `0.4`, resposta n, termina com HEAD igual, árvore limpa e sem `MERGE_HEAD`. Esforço: P. Dono: devops-engineer (código), qa-engineer (teste).
+**A4. Versão malformada derrubava o comando no meio da mesclagem (classe: conformidade, `R-CONFORMIDADE`, integridade de `.forge/versao`): resolvido.** A correção tem duas camadas. Em `bin/forge-atualizar:134-139`, a comparação só roda quando as duas versões são válidas. Se uma delas não for, aparece o aviso "não dá para comparar" e a pergunta continua com o padrão N. Em `bin/forge-atualizar:115-123`, `integrar_develop` envolve `resolver_conflito`: `EOFError`/`KeyboardInterrupt` fazem `merge --abort` antes de repassar a exceção ao `main` (que já as captura na linha 300), e qualquer outra exceção faz `merge --abort`, avisa e devolve False (cai no `oferecer_voltar`). Sonda S9, repetida com a harness da suíte:
+- `0.4`, resposta n: `rc=1`, sem Traceback, aviso X.Y.Z, `status=[]`, sem `MERGE_HEAD`, `HEAD:.forge/versao=9.9.0`, sem marcadores.
+- `lixo`, resposta n: igual.
+- `1.0.0-rc1`, resposta n: igual.
+- `0.4`, resposta s: `rc=0`, `.forge/versao=9.9.0`, árvore limpa. É o dono que escolhe, no terminal.
 
-**A1 a A3 do parecer anterior, com a sonda rodada de novo.**
-- A1: `integrar_develop` sai com True sem mesclar quando a branch atual não é `forge/upgrade-<nova>` (linha 101). S7 (na `main` local já na 0.3.0, develop do remoto avançou): `True`, `main_mudou=nao`, último commit `main ja na 0.3.0`, árvore limpa, sem `MERGE_HEAD`. S7b (branch `feature/x`): `mudou=nao`. S7c (na `develop` local com commit próprio, atrás do remoto): `mudou=nao`. A saída final (linhas 266-270) diz "nenhuma branch criada e nada mesclado" nesse caso. Resolvido.
-- A2: `versoes_do_conflito` lê `:3:` (develop) e `:2:` (branch do upgrade) e o aviso aparece quando a da develop é maior. S2 (develop 0.4.0, nova 0.3.0, resposta n): as duas versões e o aviso na tela, `versao=0.3.0 head_igual=sim status=[] merge_head=nao`. Resolvido (o caso malformado é o A4).
-- A3: docstring e README passam a dizer "merge LOCAL só na branch do upgrade"; `trazidos` lista os arquivos e destaca `.forge/`, `.claude/` e hooks. S5: lista `.claude/settings.json` e `.githooks/pre-push` com o aviso. Os nomes vêm de `git diff --name-only`, que escapa caracteres de controle. Resolvido.
+O teste `test_versao_da_develop_fora_do_formato_avisa_pergunta_e_com_n_desfaz_tudo` cobre `0.4` e `lixo`.
 
-**Novo caminho para mexer em `.forge/versao` sem o dono?** Fora o A4, não. A pergunta continua atrás dos portões do `main` (`recusar_dentro_do_claude` e `tem_terminal`): S1, `yes s | forge-atualizar` e `CLAUDECODE=1 forge-atualizar` saem com 2. A guarda da linha 101 só reduz onde a mesclagem acontece. `adiantar_develop_local` continua só avançando (confere `--is-ancestor` nos dois sentidos, `update-ref` com valor antigo, `--ff-only`); S8, develop local divergente: aviso na tela e `develop_local_intacta=sim`. S4 (conflito em `a.txt` e `.forge/versao`): desfeito, `head_igual=sim status=[] merge_head=nao`. Informativo: se o dono já estiver numa `forge/upgrade-<nova>` de uma rodada anterior e o `forge-upgrade` disser "nada a fazer", a mesclagem acontece nessa branch, que é do próprio upgrade. Sem achado.
+**A correção abriu outro caminho para mexer em `.forge/versao` sem o dono? Não.**
+- O `.forge/versao` só é gravado em `checkout --ours` + `add` + `commit`, e só depois de `fv.confirmar` devolver verdadeiro. A pergunta continua atrás dos portões do `main` (`recusar_dentro_do_claude` e `tem_terminal`).
+- O `except Exception` só desfaz: nunca conclui a mesclagem.
+- O EOF no meio da pergunta, que antes deixava a mesclagem aberta, agora também desfaz.
+- O aviso da develop local à frente do remoto (`bin/forge-atualizar:62-68`) só lê (`rev-list --count`) e imprime. Ele não mexe na develop local, e o teste da linha 513 confere que ela fica intacta.
 
-**Sonda rodada** (`reval2.sh` no scratchpad da sessão, repositórios bare locais): S1 saída 2 e 2; S7, S7b e S7c sem commit novo; S2 com aviso e estado intacto; S4 desfeito; S5 lista com destaque; S8 develop intacta; S9 `TypeError` e conflito deixado (A4). `python3 -m unittest tests.test_atualizar`: 71 testes, OK (nenhum cobre a versão malformada).
+Informativo, sem achado: se uma exceção surgir depois de um `commit` bem-sucedido (em `trazidos`, que só roda `git diff` e `print`), o `merge --abort` não faz nada e a mensagem "Desfiz a mesclagem" fica imprecisa. O commit nesse caso é o que o dono acabou de aprovar. Não há caminho realista e nada muda sem a resposta dele.
+
+**Recomendados A7 e A8 (do review):** o delta do changelog (`changelog.d/f4-atualizar.md:2`) passa a descrever o merge local, a lista de arquivos trazidos, o padrão N e o desfazer em caso de erro. Bate com o código, e isso também é o que a A3 pedia. Nada novo pelo lado da segurança.
+
+**Sondas e testes:** `s9.py` no scratchpad da sessão (4 casos, saída acima). `python3 -m unittest tests.test_atualizar`: 73 testes, OK.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: revisão manual, `forge-check delta`, sondas com git e python3 locais. Lacuna: `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH. O delta não mexe em workflow nem em dependência; nenhum segredo à vista no diff.
+Nenhum risco aceito. Ferramentas: revisão manual, `forge-check delta` e sondas com git e python3 locais. Lacuna: `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner` não estão no PATH. O delta não mexe em workflow nem em dependência, e não há nenhum segredo à vista no diff.
