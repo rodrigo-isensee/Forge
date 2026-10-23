@@ -419,6 +419,86 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertIn("regras.txt", saida)
         self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
 
+    def test_nada_a_fazer_na_main_nao_mescla_a_develop_na_main(self):
+        # o projeto já está em 9.9.0 (a release chegou por PR) e o plugin ainda não: `forge-upgrade` diz "nada a fazer"
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "main")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore: versão 9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        antes = self.git("rev-parse", "main")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "main"), antes, "nenhum commit novo na main")
+        self.assertEqual(self.git("branch", "--show-current"), "main")
+        self.assertFalse((self.proj / "novo-do-time.txt").exists())
+        self.assertNotIn("atualizados na branch", saida, "não diz que mexeu em branch nenhuma")
+
+    def test_nada_a_fazer_em_branch_qualquer_nao_mescla_a_develop(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "-c", "funcionalidade/x")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore: versão 9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        antes = self.git("rev-parse", "HEAD")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "HEAD"), antes, "nenhum commit novo na branch")
+        self.assertFalse((self.proj / "novo-do-time.txt").exists())
+        self.assertEqual(self.git("rev-list", "--merges", "--count", "HEAD"), "0")
+
+    def test_parado_na_develop_atrasada_ela_avanca_e_a_branch_nasce_dela(self):
+        self.publicar("9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        self.git("switch", "-q", "develop")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), self.git("rev-parse", "origin/develop"))
+        self.assertIn("avancei", saida)
+        self.base_e_a_develop_remota("forge/upgrade-9.9.0")
+
+    def test_develop_local_divergente_fica_intacta_e_o_dono_e_avisado(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "develop")
+        self.escrever("meu.txt", "meu\n")
+        self.git("add", "meu.txt")
+        self.git("commit", "-q", "-m", "chore: meu commit local")
+        local = self.git("rev-parse", "develop")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), local, "a develop local não foi mexida")
+        self.assertIn("divergiu", saida)
+        self.assertNotIn("avancei", saida, "não diz que avançou o que não avançou")
+
+    def test_conflito_com_versao_maior_na_develop_mostra_as_duas_e_avisa_que_s_rebaixa(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "99.0.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("99.0.0", saida)
+        self.assertIn("9.9.0", saida)
+        self.assertIn("rebaixa", saida)
+
+    def test_conflito_com_versao_menor_na_develop_mostra_as_duas_sem_aviso_de_rebaixar(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "0.1.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("0.1.0", saida)
+        self.assertNotIn("rebaixa", saida)
+
+    def test_a_saida_lista_os_arquivos_trazidos_da_develop(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".githooks/commit-msg", "#!/bin/sh\nexit 0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn(".githooks/commit-msg", saida)
+
     def test_sem_remoto_o_fluxo_de_hoje_continua(self):
         self.publicar("9.9.0")
         self.git("remote", "remove", "origin")
