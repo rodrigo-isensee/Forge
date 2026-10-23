@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: d4bc9267cba743dd1397fe9c5f179a3bab2ce64a
+commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -43,3 +43,11 @@ Nenhum.
 
 ## Revalidação por delta (REVAL-288, E4.3)
 Depois do review e da segurança por delta aprovados, pela decisão "C" do dono (2026-10-23). Delta desde `a18209c` (commit do parecer anterior) até `d4bc926`: a entrada da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL: `.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*`, documentos `suite-local-verde`) e pareceres em `docs/`. Nenhum código da entrega mudou. `bin/forge-testes` escolheu a suíte completa (o hook sem mapa), que o dono vetou nesta rodada; rodei, no lugar, os 6 módulos da entrega mais `test_hooks` (`python3 -m unittest tests.test_etapa_do_brief tests.test_isencoes tests.test_forge tests.test_brief_gravar tests.test_anotar tests.test_citacao tests.test_estado_da_branch tests.test_hooks`): 529 testes, 448 s, `OK`. As 4 falhas conhecidas do ambiente agora passam (o #288 as corrigiu). Comportamento já aprovado (M16, P2 a P6, M4, M13): igual, sem regressão. Não refiz o vermelho antes do verde (fora do delta). Veredito: aprovado, sem achado novo.
+
+## Revalidação por delta (INTEG-LOTE-FC-REV, E3.1)
+Depois do review (`0be3566`) e da segurança (`f8b2a16`) do delta aprovados. Delta: o commit de merge `8649439` (integra a `develop` com a M14b, #291) e a resolução dos conflitos em `bin/forge-check` (despacho: ficam `anotar` do lote e `escape`, `afrouxamentos`, `esperas`, `corrigidos` da M14b), `bin/forge-testes` (`FORGE_CHECK` = união, 20 módulos) e `tests/test_testes_tocados.py` (contagem 20, `test_medidas_m14b` entre os conferidos); `docs/hooks.md` sem código. Worktree em `f8b2a16` (só pareceres sobre `8649439`; `git diff --name-only 8649439 HEAD` lista apenas `docs/reviews` e `docs/security`).
+- Módulos: os 20 de `FORGE_CHECK` (`python3 -m unittest tests.test_anotar ... tests.test_voltas`, `HOME` numa pasta própria): 1041 testes, 228 s, `OK`, rc 0. Cobrem os três arquivos em conflito, o lote e `test_medidas_m14b`. Sem suíte completa (teto de memória, decisão do pedido).
+- Ponta a ponta no `forge-check` mesclado, repositório de sonda em `$TMPDIR`: `anotar --tipo decisao` grava `DECISÃO DO DONO (hora): ctx → "vai"` em `## Decisões do usuário` (rc 0) e `--pedido ../x` é recusado (rc 2, nada gravado); `movimento` + `esperas` lista `EX-card dono ... minutos=aberta` e o total (rc 0); `escape registrar` grava a linha fixa (rc 0), recusa `--achado-por zzz` (rc 1), `escape resumo` conta `alto=1 qa=1` (rc 0); `corrigidos --ref HEAD` acha o `fix` que cita `#1` (`evidencia=cita`, rc 0); `afrouxamentos --prs 2 --ref HEAD` diz `sem-violacao` (rc 0). Os dois conjuntos de subcomandos coexistem no despacho, sem um engolir o outro.
+- `scripts/validar-plugin.sh`: "Validation passed".
+- Vermelho antes do verde e mutação: não refeitos (nenhum teste novo no delta; a resolução só une listas e contagens; sem ferramenta de mutação no Forge).
+- Comportamento do lote (M16, P2 a P6, M4, M13) e da M14b: sem regressão. Veredito: aprovado, sem achado, nenhum bloqueante.
