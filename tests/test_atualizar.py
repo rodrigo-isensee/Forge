@@ -414,7 +414,7 @@ class AtualizarComDevelopQueAvancou(Base):
         self.git("fetch", "-q", "origin", cwd=outro)
         self.git("reset", "-q", "--hard", "origin/develop", cwd=outro)
         self.avancar_no_meio("regras.txt", "do time\n", outro)
-        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "s"])
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n"])
         self.assertEqual(codigo, 1, saida)
         self.assertIn("regras.txt", saida)
         self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
