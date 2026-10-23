@@ -3,14 +3,30 @@ tipo: review
 contrato: 1
 pedido: F4-ATUALIZAR
 branch: melhoria/f4-atualizar
-commit: 4d86f26c7ff6266ff989476b75f2e2a1a3d691c3
-parecer: reprovado
+commit: 6634cd800fd9366b1e8fcaf75e01e948e758880c
+parecer: aprovado
 revisor: forge:tech-lead (outra instância)
 data: 2026-10-23
 ---
 # Review da F4: `forge atualizar` nasce da `develop` atual e oferece ao dono o conflito em `.forge/versao`
 
-## Revalidação por delta (volta `1f2731b` testes, `4d86f26` correção)
+## Revalidação 2 por delta (volta `106cb84` testes, `6634cd8` correção)
+Delta lido: `forge-check delta --parecer docs/reviews/f4-atualizar.md` (intervalo `4d86f26..6634cd8`) listou só `bin/forge-atualizar` (62-68, 115-126, 134-139), `changelog.d/f4-atualizar.md:2` e `tests/test_atualizar.py:495-525`. Li esses trechos e o que eles chamam (`resolver_conflito` inteiro, `trazidos`, `fv.versao_de` em `bin/forge_versoes.py:30`, o tratamento de `EOFError`/`KeyboardInterrupt` na linha 300). Já lido, sem mudança: o resto de `bin/forge-atualizar`, o `README.md` e os testes até a linha 494.
+
+Evidência de execução (`HOME=$TMPDIR/tech-lead-f4`):
+- `python3 -m unittest tests.test_atualizar` em `6634cd8`: `Ran 73 tests in 48.277s OK`.
+- A mesma suíte na árvore de `106cb84` (só os testes novos): `FAILED (failures=3)`, os subtestes `0.4` e `lixo` da versão fora de X.Y.Z e o da develop local à frente. Vermelho antes, verde depois: confere.
+- Commits: `test(...)` e `fix(...)` em Conventional Commits em português, um por mudança coerente, corpo citando cada achado. Sem `--force` nem `--no-verify` (`R-VERIFY`), sem custo (`R-CUSTO`), sem termo de projeto (`R-NEUTRO`).
+
+### Achados da revalidação anterior
+- A6 (= A4 da segurança, bloqueante): **resolvido**. `bin/forge-atualizar:134-139` só compara quando as duas versões são X.Y.Z; se não, avisa que não dá para comparar e pergunta (padrão N). `integrar_develop` (linhas 115-123) desfaz a mesclagem em qualquer erro inesperado e em `EOFError`/`KeyboardInterrupt` antes de sair. O teste da linha 495 (`0.4` e `lixo`) confere: sem traceback, status limpo, sem `MERGE_HEAD`, branch do upgrade intacta. A revalidação formal do A4 é do `security-engineer`.
+- A7 (recomendado): **resolvido**. Linhas 62-68 avisam quantos commits a develop local tem à frente e que eles entram no PR, sem mexer nela; teste da linha 512.
+- A8 (recomendado): **resolvido**. `changelog.d/f4-atualizar.md:2` cita o merge local de `origin/develop` só na branch do upgrade, a lista dos arquivos trazidos com o destaque, o padrão N e o aviso da develop à frente, alinhado ao `README.md:77`.
+
+### A correção abriu outro problema?
+Nenhum bloqueante. Um recomendado (A9): o `except Exception` envolve também o caminho em que o commit da resolução já deu certo (`trazidos` roda depois dele); se algo levantasse ali, o `merge --abort` falharia em silêncio e a mensagem diria "Desfiz a mesclagem" com o merge já feito. `trazidos` só chama `git` e formata texto, então a chance é baixa.
+
+## Revalidação 1 por delta (volta `1f2731b` testes, `4d86f26` correção)
 Delta lido: `forge-check delta --parecer docs/reviews/f4-atualizar.md` (intervalo `671c625..4d86f26`) listou só `README.md:77`, `bin/forge-atualizar` (8-9, 54-124, 208, 231-232, 241, 251, 266-272) e `tests/test_atualizar.py:422-502`. Li esses trechos e as funções que eles chamam (`git`, `fv.versao_de` em `bin/forge_versoes.py:30`, `bin/forge-upgrade:56-64`). Já lido, sem mudança: o resto de `bin/forge-atualizar`, `changelog.d/f4-atualizar.md` e os testes até a linha 421.
 
 Evidência de execução (`HOME=$TMPDIR/tech-lead-f4`):
@@ -35,9 +51,6 @@ Evidência de execução (`HOME=$TMPDIR/tech-lead-f4`):
 Branch do upgrade nascendo da `develop` atual por avanço simples; recusa sem terminal e dentro do Claude antes de qualquer passo; `.forge/versao` só pelo dono no terminal (`R-CONFORMIDADE`); outro conflito desfeito por inteiro; sem remoto o fluxo segue como antes; nada é enviado. Regras "ferramenta": o Forge não tem `docs/engineering/praticas.md`; a bateria completa (suíte, shellcheck, validação do plugin) roda no pre-push e no CI.
 
 ## Achados
-- A6 (bloqueante) bin/forge-atualizar:117 · versao_de dá None para .forge/versao fora de X.Y.Z e `None > tuple` levanta TypeError: traceback no meio do merge, sem abort, deixa UU e MERGE_HEAD (S1). Comparar só com as duas válidas; teste com versão inválida
-- A7 (recomendado) bin/forge-atualizar:63 · `develop` local à frente do remoto (commits não enviados) segue em silêncio e a branch do upgrade nasce com eles, que aparecem no PR; uma linha de aviso, como a da divergente.
-- A8 (recomendado) changelog.d/f4-atualizar.md:2 · o fragmento não diz que há merge local de `origin/develop` só na branch do upgrade nem que a saída lista os arquivos trazidos; alinhar ao `README.md:77`.
-
+- A9 (recomendado) bin/forge-atualizar:120 · o `except Exception` cobre também o pós-commit da resolução (`trazidos`); erro ali diria "Desfiz a mesclagem" com o merge feito. Sugestão: chamar `trazidos` fora do try ou abortar só se houver `MERGE_HEAD`.
 ## Parecer
-Reprovado. A volta resolve o bloqueante da segurança (A1) e os recomendados dos dois pareceres, com testes que falham antes e passam depois. A comparação de versões nova, porém, abre um caminho que derruba o comando no meio da mesclagem e deixa o repositório do projeto em conflito, justo o que a F4 promete não fazer (A6). A correção é uma guarda de uma linha e um teste; A7 e A8 podem ir na mesma volta.
+Aprovado. A6, A7 e A8 resolvidos (detalhe em "Revalidação 2"). A volta 2 fecha o bloqueante A6 (A4 da segurança) com a guarda na comparação e uma rede que desfaz a mesclagem em qualquer erro, e resolve A7 e A8, com testes que falham antes e passam depois. O A9 é recomendado e não impede o QA.
