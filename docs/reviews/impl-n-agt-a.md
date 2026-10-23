@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: impl-n-agt-a
 branch: melhoria/impl-n-agt-a
-commit: 535cd9a19c7108d19eea600226df1e06898a0f37
+commit: 3b89f380077a62a71c4b29d0af0eedc7b0935c78
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-22
@@ -35,3 +35,6 @@ Escopo: os 4 commits da branch sobre a base `38c5824` (56fca85 AGT-1, 494ad20 AG
 - R1 · `hooks/agentes.py:229`. A raiz de brief fora do clone é `~/.forge-contrib/docs/briefs/`, a convenção documentada (`docs/hooks.md:35`, `bin/forge-check:960`). Hoje, nesta retomada, os briefs estão em `~/.forge-contrib/forge/docs/briefs/`, que não é aceita nem pelo hook nem pelo `forge-check`. Antes da entrega, o hook nem rodava no clone. Depois da release, uma mensagem ao `forge:conferente` lançada do `~/Forge` com o brief nessa pasta passa a ser bloqueada por `R-BRIEF`. O código está certo frente ao contrato documentado. O que se corrige é o arranjo local, voltando os briefs para `~/.forge-contrib/docs/briefs/`, ou um pedido que decida a raiz. O Jarvis deve saber disso antes da release.
 - R2 · `hooks/agentes.py:197`. O mesmo R1 do parecer de segurança: um `chmod 0o700` depois do `mkdir` fecha a pasta `run/` que já exista mais aberta. Esforço P.
 - R3. Os R2 e R3 do parecer de segurança (config do clone lida de `.forge/config.json` da worktree; o `vigia` sobre `agentes.json`, o C2) ficam para o lote b, como ele propõe.
+
+## Revalidação por delta (REVAL-288, E1.1)
+Revalidação feita por instância que não fez o merge (`R-REVIEW`), pela decisão "C" do dono (2026-10-23). Delta lido (`forge-check delta`, do commit do parecer anterior até `3b89f38`): o merge da `develop` (`7423c44`, PR #288, FIX-SUITE-LOCAL). Conferido: (1) os arquivos do #288 (`.githooks/pre-push`, `tests/test_hooks.py`, `tests/apoio_pathlib_312/`, as duas fixtures `contrib-falha-fechada-pela-raiz-cwd-*` e os documentos `suite-local-verde`) estão idênticos aos da `develop`, com `git diff 7423c44 HEAD` vazio sobre eles; (2) sem marcador de conflito, o merge não teve resolução; (3) fora do #288, o delta só traz pareceres (`docs/`), nenhum código da branch mudou. Já lido e não relido: todo o código aprovado no parecer acima. Achados: nenhum novo; os anteriores seguem como estavam. Veredito: aprovado.
