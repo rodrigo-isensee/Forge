@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 1d001b1348dc915917f314eb99881e21dd1a4989
+commit: e08438f4d6ebb894d122b64febfc4c1900ec6028
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-10-21
+data: 2026-10-23
 ---
 # Review de segurança: lote-forge-check-0.28.0
 
@@ -42,3 +42,9 @@ Entrega revisada: `ad6d96ce6b19663f7695d361d61f59c7545bdca6..1d001b1348dc915917f
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: `gitleaks`, `semgrep`, `zizmor`, `actionlint`, `osv-scanner` e `shellcheck` não estão no PATH deste ambiente (lacuna registrada; nada foi instalado). O delta não toca workflow, dependência nem contêiner. Nenhum segredo real foi lido nem exibido.
+
+## Revalidação por delta (REVAL-288)
+Delta `1d001b1..e08438f` (o parecer anterior vale para `1d001b1`): dois merges da `develop` (`e83da9f`, com a 0.28.0 e #279 a #287, e `0b8a307`, com o #288), pareceres de review e QA e o `.claude-plugin/plugin.json` da release. Decisão do dono "C" (2026-10-23): revalidar por delta, sem afrouxar. Conferi que o que é da branch não mudou: o diff da branch contra a base (`ad6d96c..1d001b1`) e contra a `develop` atual (`7423c44..HEAD`) tem o mesmo conjunto de arquivos (a diferença é só `docs/qa/lote-forge-check-0.28.0.md`) e as mesmas linhas alteradas em `bin/`, `hooks/`, `agents/`, `.githooks/`, `.github/` e `tests/config.json`. Ou seja, `bin/forge-check`, `hooks/parecer.py`, `bin/forge-testes` e `agents/conferente.md` estão como foram revisados.
+- `.claude-plugin/plugin.json:3`: só a versão da release 0.28.0, vinda da `develop`, que a revisou; sem permissão, hook nem dependência nova.
+- O resto do delta (`bin/forge-doutor`, `bin/forge-fechar`, `.githooks/pre-push`, `.github/workflows/ci.yml`, testes) veio da `develop` pelos merges e passou pelos portões do PR de origem; não é entrega desta branch e não muda a superfície que o parecer cobre. Os controles do Forge tocados pela branch (R-BRIEF, `tests/config.json`, `hooks/parecer.py`, conferente) seguem como revisados.
+Veredito: aprovado, sem achado novo; as recomendações R1, R2, R4 e R5 acima seguem valendo. Ferramentas: `forge-check delta` e comparação dos diffs; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual à anterior).
