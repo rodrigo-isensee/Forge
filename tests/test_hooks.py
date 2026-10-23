@@ -31,6 +31,7 @@ Formato do fixture:
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               sem_caminho ([caminho]: não existem; {tmp} vale)
 """
+import collections
 import concurrent.futures
 import contextlib
 import functools
@@ -2016,69 +2017,229 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
                 self.conferir_marca(item.get("fecha", {}).get(forma), passou, f"programas: {programas}")
         self.assertGreaterEqual(len(casos), 70)
 
-    def test_t8_mutacao_da_gramatica_da_opcao_d(self):  # T8 (RET-LEITURA-HOOK-D)
-        """A classe "leitor" acaba quando nada fora do alfabeto passa: para cada caso L que a gramática aceita (com o
-        corpo de cada hook), cada caractere fora do alfabeto e cada abridor (`$(`, `$((`, `<(`, `>(`, crase, `${`,
-        `$'`, `$"`) inserido em cada posição faz a gramática recusar, salvo onde o bash não expande: dentro de aspas
-        simples, dentro de aspas duplas se a inserção não tem `$`, crase, `\\` nem `!`, e no corpo do heredoc. O oráculo
-        é uma varredura própria de aspas, sem o leitor do hook; dentro da palavra `"$(cat <<'X'…X⏎)"` e do operador do
-        heredoc, qualquer inserção recusa."""
+    # T8 e T9 (opções D e A): as zonas do texto saem de uma varredura própria, sem `_comum.heredocs` nem o leitor do hook.
+    K3_DO_TESTE = re.compile(r"\"\$\(cat[ \t]+<<'(\w+)'\n(.*?\n)?\1\n\)\"", re.S)
+    LINHAS_QUE_FECHAM = ("{X})", "{X} )", "{X} x)", "{X};)", "{X}foo")  # o bash 5.3 fecha as quatro primeiras em `$(`
+    TROCAS_DE_PALAVRA = ("-c", "--config-env=core.fsmonitor=X", "--exec-path=/tmp/x", "sh")
+
+    @classmethod
+    def heredocs_do_teste(cls, texto):
+        """Os heredocs `<<'X'` de um caso L, sem o hook: (início do operador, fim do operador, início do corpo, depois da
+        linha do delimitador, delimitador). Os casos L têm um heredoc por linha e o corpo acaba na linha igual a X."""
+        achados = []
+        for m in re.finditer(r"<<'(\w+)'", texto):
+            corpo = texto.index("\n", m.end()) + 1
+            fim = re.compile(rf"^{m[1]}(?:\n|$)", re.M).search(texto, corpo)
+            achados.append((m.start(), m.end(), corpo, fim.start(), min(fim.end(), len(texto)), m[1]))
+        assert len(achados) == texto.count("<<"), texto
+        return achados
+
+    @classmethod
+    def zonas_do_teste(cls, texto):
+        """A zona de cada ponto de inserção (0 a len): corpo, k (recusa sempre), simples, duplas ou fora."""
+        zona = [None] * (len(texto) + 1)
+        for operador, fim_do_operador, corpo, _, fim, _ in cls.heredocs_do_teste(texto):
+            for i in range(operador + 1, fim_do_operador):
+                zona[i] = "k"
+            for i in range(corpo, fim + 1):
+                zona[i] = "corpo"
+        for m in cls.K3_DO_TESTE.finditer(texto):
+            for i in range(m.start() + 1, m.end()):
+                zona[i] = zona[i] or "k"
+        estado = "fora"
+        for i, c in enumerate(texto):
+            zona[i] = zona[i] or estado
+            if zona[i] in ("corpo", "k"):
+                continue
+            if c == "'" and estado != "duplas":
+                estado = "fora" if estado == "simples" else "simples"
+            elif c == '"' and estado != "simples":
+                estado = "fora" if estado == "duplas" else "duplas"
+        zona[len(texto)] = zona[len(texto)] or estado
+        return zona
+
+    def casos_aceitos(self):
+        """(id, hook, texto) de cada caso L com heredoc que a gramática aceita, com o corpo de cada hook."""
         _comum, _, _ = modulos_dos_hooks()
         dados = corpus_da_volta_unica()
-        inseridos = list("#{}<>()*?[]!|$`\\") + ["$(", "$((", "<(", ">(", "${", "$'", '$"']
-        k3 = re.compile(r"\"\$\(cat[ \t]+<<'(\w+)'\n.*?\n\1\n\)\"", re.S)
-
-        def zonas(texto):
-            """A zona de cada ponto de inserção (0 a len): corpo, k (recusa sempre), simples, duplas ou fora."""
-            zona = [None] * (len(texto) + 1)
-            for h in _comum.heredocs(texto)[0]:
-                for i in range(h.operador + 1, h.fim_do_operador):
-                    zona[i] = "k"
-                for i in range(h.corpo[0], h.fim + 1):
-                    zona[i] = "corpo"
-            for m in k3.finditer(texto):
-                for i in range(m.start() + 1, m.end()):
-                    zona[i] = zona[i] or "k"
-            estado = "fora"
-            for i, c in enumerate(texto):
-                zona[i] = zona[i] or estado
-                if zona[i] in ("corpo", "k"):
-                    continue
-                if c == "'" and estado != "duplas":
-                    estado = "fora" if estado == "simples" else "simples"
-                elif c == '"' and estado != "simples":
-                    estado = "fora" if estado == "duplas" else "duplas"
-            zona[len(texto)] = zona[len(texto)] or estado
-            return zona
-
-        mutacoes, usados = 0, set()
+        aceitos = []
         for caso in dados["casos"]:
             if caso["classe"] != "L" or "comando" not in caso:
                 continue
             for hook, corpo in dados["corpos"].items():
-                if caso[hook] != 0:
-                    continue
                 texto = caso["comando"].replace("{CORPO}", corpo)
-                if _comum.fora_da_gramatica_com_heredoc(texto) is not None:
-                    continue  # sem o marcador crítico a gramática não vale (L4, L6, L7, L8 e L12 passam por outra regra)
-                usados.add(caso["id"])
-                zona = zonas(texto)
-                for i in range(len(texto) + 1):
-                    if zona[i] in ("corpo", "simples"):
+                if caso[hook] == 0 and isinstance(_comum.gramatica_com_heredoc(texto), _comum.Gramatica):
+                    aceitos.append((caso["id"], hook, texto))
+        return aceitos
+
+    def mutacoes_de_palavra(self):
+        """T8 por palavra: (rótulo, texto com a palavra simples, texto com a mesma palavra entre aspas). Cada palavra
+        fora de aspas, de corpo e das formas K, e cada troca de `TROCAS_DE_PALAVRA` no lugar dela, em `'…'`, `"…"` e
+        partida (`-'c'`): o bash entrega ao programa a mesma palavra."""
+        saida = []
+        for id, hook, texto in self.casos_aceitos():
+            zona = self.zonas_do_teste(texto)
+            for m in re.finditer(r"[\w./:=@,+%~^-]+", texto):
+                antes, depois = texto[m.start() - 1:m.start()], texto[m.end():m.end() + 1]
+                if any(zona[i] != "fora" for i in range(m.start(), m.end() + 1)) or antes not in ("", " ", "\n", ";", "&") \
+                        or depois not in ("", " ", "\n", ";", "&"):
+                    continue
+                for troca in (m[0],) + self.TROCAS_DE_PALAVRA:
+                    simples = texto[:m.start()] + troca + texto[m.end():]
+                    for aspas in (f"'{troca}'", f'"{troca}"', f"{troca[0]}'{troca[1:]}'" if len(troca) > 1 else None):
+                        if aspas:
+                            saida.append((f"{id}/{hook}: {m[0]!r} -> {aspas!r}", simples,
+                                          texto[:m.start()] + aspas + texto[m.end():]))
+        return saida
+
+    def test_t8_mutacao_da_gramatica_da_opcao_d(self):  # T8 (RET-LEITURA-HOOK-D e -A)
+        """A classe "leitor" acaba quando a gramática decide pelo texto que o bash roda. Para cada caso L que ela aceita
+        (com o corpo de cada hook): (1) cada caractere fora do alfabeto e cada abridor (`$(`, `$((`, `<(`, `>(`, crase,
+        `${`, `$'`, `$"`) inserido em cada posição recusa, salvo dentro de aspas simples, dentro de aspas duplas se a
+        inserção não tem `$`, crase, `\\` nem `!`, e no corpo; dentro da palavra `"$(cat <<'X'…X⏎)"` e do operador,
+        qualquer inserção recusa. (2) Por palavra: a palavra entre aspas só passa se ela passa sem as aspas (opção A,
+        item 1; o contrário é só recusa a mais, como `'cat' > arq` na K1, lida crua). (3) Por nível: o caso dentro de `bash -c '…'`, `sh -c "…"` e `eval '…'` recusa (item 2). (4) Por corpo:
+        uma linha `X)`, `X )`, `X x)`, `X;)` ou `Xfoo` no corpo recusa (item 3). As zonas vêm de uma varredura própria."""
+        _comum, _, _ = modulos_dos_hooks()
+        inseridos = list("#{}<>()*?[]!|$`\\") + ["$(", "$((", "<(", ">(", "${", "$'", '$"']
+        contagem = collections.Counter()
+        usados = set()
+        for id, hook, texto in self.casos_aceitos():
+            usados.add(id)
+            zona = self.zonas_do_teste(texto)
+            for i in range(len(texto) + 1):
+                if zona[i] in ("corpo", "simples"):
+                    continue
+                for inserido in inseridos:
+                    if zona[i] == "duplas" and not set(inserido) & _comum.DUPLAS_RECUSA:
                         continue
-                    for inserido in inseridos:
-                        if zona[i] == "duplas" and not set(inserido) & _comum.DUPLAS_RECUSA:
-                            continue
-                        mutada = texto[:i] + inserido + texto[i:]
-                        if mutada.replace("cat >>", "cat >") == texto.replace("cat >>", "cat >") and mutada != texto:
-                            continue  # `cat >` mais `>` é a forma K1 com `>>`, também aceita
-                        if "<<" not in mutada.replace("\\\n", ""):
-                            continue  # o sinal partiu o `<<` (`<#<`): sem `<<` no texto a gramática não vale (opção A)
-                        mutacoes += 1
+                    mutada = texto[:i] + inserido + texto[i:]
+                    if mutada.replace("cat >>", "cat >") == texto.replace("cat >>", "cat >") and mutada != texto:
+                        continue  # `cat >` mais `>` é a forma K1 com `>>`, também aceita
+                    if "<<" not in mutada.replace("\\\n", ""):
+                        continue  # o sinal partiu o `<<` (`<#<`): sem `<<` no texto a gramática não vale (opção A)
+                    contagem["caractere"] += 1
+                    self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(mutada),
+                                         f"{id}/{hook}: passou com {inserido!r} em {i}: {mutada!r}")
+            simples, duplas = texto.replace("'", "'\\''"), re.sub(r'([\\"$`])', r"\\\1", texto)
+            for envolto in (f"bash -c '{simples}'", f'sh -c "{duplas}"', f"eval '{simples}'"):
+                contagem["nivel"] += 1
+                self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(envolto), f"{id}/{hook}: passou {envolto!r}")
+            for _, _, corpo, fim_do_corpo, _, delimitador in self.heredocs_do_teste(texto):
+                pontos = [corpo] + [k + 1 for k in range(corpo, fim_do_corpo) if texto[k] == "\n"]
+                for ponto in dict.fromkeys(pontos):
+                    for linha in self.LINHAS_QUE_FECHAM:
+                        mutada = texto[:ponto] + linha.format(X=delimitador) + "\n" + texto[ponto:]
+                        contagem["corpo"] += 1
                         self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(mutada),
-                                             f"{caso['id']}/{hook}: passou com {inserido!r} em {i}: {mutada!r}")
+                                             f"{id}/{hook}: passou com {linha!r} no corpo: {mutada!r}")
+        for rotulo, simples, entre_aspas in self.mutacoes_de_palavra():
+            contagem["palavra"] += 1
+            if _comum.fora_da_gramatica_com_heredoc(entre_aspas) is None:  # a K1 é lida crua: `'cat' > a` só recusa
+                self.assertIsNone(_comum.fora_da_gramatica_com_heredoc(simples),
+                                  f"{rotulo}: passou entre aspas e recusa sem elas: {entre_aspas!r}")
         self.assertLessEqual({"L1", "L2", "L3", "L11", "K1a", "K1b", "K2", "K3a", "K3b"}, usados)
-        self.assertGreaterEqual(mutacoes, 1000)
+        self.assertGreaterEqual(contagem["caractere"], 1000)
+        self.assertGreaterEqual(contagem["palavra"], 500)
+        self.assertGreaterEqual(contagem["nivel"], 3 * len(usados))
+        self.assertGreaterEqual(contagem["corpo"], 5 * len(usados))
+
+    REGISTRADOR = """#!{bash}
+e=
+while IFS= read -r l; do e+="$l"$'\\n'; done
+e+="$l"
+{{ printf '%s\\037' "${{0##*/}}" "$@"; printf '\\035%s\\036' "$e"; }} >> "$REG"
+[[ ${{0##*/}} == cat ]] && printf '%s' "$e"
+exit 0
+"""
+    EMBUTIDOS = frozenset({"cd", "echo", "true"})  # da lista da gramática, o bash os roda sem processo
+
+    @classmethod
+    def esperado_no_bash(cls, lida, pasta):
+        """A sequência (programa, argumentos, entrada) que o bash tem de rodar para o que a gramática aceitou: os comandos
+        simples sem aspas, na ordem, cada `"$(cat <<'X'…)"` antes do comando dele (um `cat` com o corpo na entrada, e o
+        corpo sem as quebras do fim no lugar da palavra), o corpo de `-F - <<'X'` na entrada do `git`, e o `cat` da K1.
+        Os embutidos não abrem processo; as pastas de `cd` são criadas em `pasta`. None se um `cd` sai da pasta ou leva
+        opção (o bash para a lista no `cd` que falha)."""
+        _comum, _, _ = modulos_dos_hooks()
+        if lida.k1:
+            return [("cat", [], lida.corpos[0])]
+        eventos, corpos, atual = [], iter(lida.corpos), Path(pasta)
+        for palavras in lida.comandos:
+            argumentos, entrada = [], ""
+            for palavra in palavras:
+                if palavra == _comum.OPERADOR_K:
+                    entrada = next(corpos)
+                elif palavra == _comum.PALAVRA_K3:
+                    corpo = next(corpos)
+                    eventos.append(("cat", [], corpo))
+                    argumentos.append(corpo.rstrip("\n"))
+                else:
+                    argumentos.append(palavra)
+            if argumentos[0] == "cd":
+                if len(argumentos) != 2 or argumentos[1].startswith(("/", "-")) or ".." in argumentos[1].split("/"):
+                    return None
+                atual = atual / argumentos[1]
+                atual.mkdir(parents=True, exist_ok=True)
+            if argumentos[0] not in cls.EMBUTIDOS:
+                eventos.append((argumentos[0], argumentos[1:], entrada))
+        return eventos
+
+    def test_t9_oraculo_de_bash(self):  # T9 (RET-LEITURA-HOOK-A, seção 3 da proposta caminho-rev7)
+        """O que a gramática libera com o marcador crítico e `<<` roda no bash exatamente o que ela listou. Para cada
+        texto do corpus e das mutações de palavra do T8 que a gramática aceita, o bash roda o texto como `env -i bash
+        --noprofile --norc -c` (o ambiente só com `PATH` e `REG`), numa pasta de `$TMPDIR`, com o `PATH` só com
+        registradores (um script do próprio bash por nome que aparece no texto: grava o argv e a entrada em `REG`, sem
+        rede); a sequência gravada tem de ser a de `esperado_no_bash`, e nenhum programa pode faltar ao `PATH`. Só
+        roda o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        dados = corpus_da_volta_unica()
+        textos = {}
+        for caso in dados["casos"]:
+            for hook, corpo in dados["corpos"].items():
+                if "comando" in caso:
+                    textos.setdefault(caso["comando"].replace("{CORPO}", corpo), f"{caso['id']}/{hook}")
+        for rotulo, simples, entre_aspas in self.mutacoes_de_palavra():
+            textos.setdefault(simples, rotulo)
+            textos.setdefault(entre_aspas, rotulo)
+        rodados, ids = 0, set()
+        with tempfile.TemporaryDirectory(prefix="forge-t9-") as tmp:
+            for n, (texto, rotulo) in enumerate(textos.items()):
+                if not (conformidade.CRITICO.search(texto) or parecer.CRITICO.search(texto)):
+                    continue
+                lida = _comum.gramatica_com_heredoc(texto)
+                if not isinstance(lida, _comum.Gramatica):
+                    continue
+                base = Path(tmp) / str(n)
+                registradores, pasta, registro = base / "bin", base / "pasta", base / "registro"
+                registradores.mkdir(parents=True)
+                pasta.mkdir()
+                esperado = self.esperado_no_bash(lida, pasta)
+                if esperado is None:
+                    continue
+                for nome in set(re.findall(r"[A-Za-z_][\w.+-]*", texto)) | {"cat", "git", "gh", "mkdir", "sh"}:
+                    arquivo = registradores / nome
+                    arquivo.write_text(self.REGISTRADOR.format(bash=bash), encoding="utf-8")
+                    arquivo.chmod(0o755)
+                r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
+                                   env={"PATH": str(registradores), "REG": str(registro)}, capture_output=True,
+                                   text=True, timeout=10)
+                gravado = registro.read_text(encoding="utf-8") if registro.exists() else ""
+                rodou = []
+                for item in gravado.split("\036")[:-1]:
+                    argv, entrada = item.split("\035", 1)
+                    argv = argv.split("\037")[:-1]
+                    rodou.append((argv[0], argv[1:], entrada))
+                with self.subTest(rotulo=rotulo):
+                    self.assertNotIn("command not found", r.stderr, f"{texto!r}: o bash rodou um programa fora do PATH")
+                    self.assertEqual(rodou, esperado, f"{texto!r}: o bash rodou outra coisa ({r.stderr.strip()})")
+                rodados += 1
+                ids.add(rotulo.split("/")[0].split(":")[0])
+        self.assertLessEqual({"K1a", "K1b", "K2", "K3a", "K3b", "L1", "L3"}, ids)
+        self.assertGreaterEqual(rodados, 200)
 
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()
