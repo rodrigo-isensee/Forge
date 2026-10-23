@@ -34,7 +34,7 @@ jobs:
       - name: Testes do Forge
         run: python3 scripts/suite-paralela.py
 
-  bateria-py314:
+  bateria-python-tres-quatorze:
     name: bateria (python 3.14)
     # Testes do Forge no Python 3.14, ao lado do 3.12 do job "bateria" (diferença de versão aparece no PR, CI-PY314).
     # Só o que depende da versão do Python; shellcheck, actionlint, zizmor e a instalação ficam na "bateria".
