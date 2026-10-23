@@ -2007,6 +2007,70 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
                 self.conferir_marca(item.get("fecha", {}).get(forma), passou, f"programas: {programas}")
         self.assertGreaterEqual(len(casos), 70)
 
+    def test_t8_mutacao_da_gramatica_da_opcao_d(self):  # T8 (RET-LEITURA-HOOK-D)
+        """A classe "leitor" acaba quando nada fora do alfabeto passa: para cada caso L que a gramática aceita (com o
+        corpo de cada hook), cada caractere fora do alfabeto e cada abridor (`$(`, `$((`, `<(`, `>(`, crase, `${`,
+        `$'`, `$"`) inserido em cada posição faz a gramática recusar, salvo onde o bash não expande: dentro de aspas
+        simples, dentro de aspas duplas se a inserção não tem `$`, crase, `\\` nem `!`, e no corpo do heredoc. O oráculo
+        é uma varredura própria de aspas, sem o leitor do hook; dentro da palavra `"$(cat <<'X'…X⏎)"` e do operador do
+        heredoc, qualquer inserção recusa."""
+        _comum, _, _ = modulos_dos_hooks()
+        dados = corpus_da_volta_unica()
+        inseridos = list("#{}<>()*?[]!|$`\\") + ["$(", "$((", "<(", ">(", "${", "$'", '$"']
+        k3 = re.compile(r"\"\$\(cat[ \t]+<<'(\w+)'\n.*?\n\1\n\)\"", re.S)
+
+        def zonas(texto):
+            """A zona de cada ponto de inserção (0 a len): corpo, k (recusa sempre), simples, duplas ou fora."""
+            zona = [None] * (len(texto) + 1)
+            for h in _comum.heredocs(texto)[0]:
+                for i in range(h.operador + 1, h.fim_do_operador):
+                    zona[i] = "k"
+                for i in range(h.corpo[0], h.fim + 1):
+                    zona[i] = "corpo"
+            for m in k3.finditer(texto):
+                for i in range(m.start() + 1, m.end()):
+                    zona[i] = zona[i] or "k"
+            estado = "fora"
+            for i, c in enumerate(texto):
+                zona[i] = zona[i] or estado
+                if zona[i] in ("corpo", "k"):
+                    continue
+                if c == "'" and estado != "duplas":
+                    estado = "fora" if estado == "simples" else "simples"
+                elif c == '"' and estado != "simples":
+                    estado = "fora" if estado == "duplas" else "duplas"
+            zona[len(texto)] = zona[len(texto)] or estado
+            return zona
+
+        mutacoes, usados = 0, set()
+        for caso in dados["casos"]:
+            if caso["classe"] != "L" or "comando" not in caso:
+                continue
+            for hook, corpo in dados["corpos"].items():
+                if caso[hook] != 0:
+                    continue
+                texto = caso["comando"].replace("{CORPO}", corpo)
+                if _comum.fora_da_gramatica_com_heredoc(texto) is not None:
+                    continue  # sem o marcador crítico a gramática não vale (L4, L6, L7, L8 e L12 passam por outra regra)
+                usados.add(caso["id"])
+                zona = zonas(texto)
+                for i in range(len(texto) + 1):
+                    if zona[i] in ("corpo", "simples"):
+                        continue
+                    for inserido in inseridos:
+                        if zona[i] == "duplas" and not set(inserido) & _comum.DUPLAS_RECUSA:
+                            continue
+                        mutada = texto[:i] + inserido + texto[i:]
+                        if mutada.replace("cat >>", "cat >") == texto.replace("cat >>", "cat >") and mutada != texto:
+                            continue  # `cat >` mais `>` é a forma K1 com `>>`, também aceita
+                        if not _comum.heredocs(mutada)[0] and _comum.heredocs(mutada)[1] is None:
+                            continue  # o `#` virou comentário: sem heredoc provado, nada se esconde e a gramática não vale
+                        mutacoes += 1
+                        self.assertIsNotNone(_comum.fora_da_gramatica_com_heredoc(mutada),
+                                             f"{caso['id']}/{hook}: passou com {inserido!r} em {i}: {mutada!r}")
+        self.assertLessEqual({"L1", "L2", "L3", "L11", "K1a", "K1b", "K2", "K3a", "K3b"}, usados)
+        self.assertGreaterEqual(mutacoes, 1000)
+
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()
         casos = dados["casos"]
