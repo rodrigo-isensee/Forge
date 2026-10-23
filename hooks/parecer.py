@@ -361,8 +361,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                              "programa noutra")
     if lidas.ilegivel and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
         bloquear("R-REVIEW", "gh pr, gh api, merge ou pull e corpo de heredoc com aspa sem par, a programa que pode "
-                             "rodá-lo. Corrigir: grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o "
-                             "ao programa depois")
+                             "rodá-lo. Corrigir: grave o texto num arquivo e passe-o ao programa noutra chamada do "
+                             "Bash")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")

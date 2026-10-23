@@ -32,8 +32,10 @@ Trocar a omissão: **o que o analisador não modela é recusado** onde importa, 
    - **`$` fora de aspas simples que não abra `$(`** (cobre `$'`, `${`, `$"`, `$@`, `$*`, `$1`, `$$`, `$-` e `$nome`);
    - **`\` seguido de quebra de linha**;
    - **heredoc só como `<<'FIM'` exato** (delimitador entre aspas simples, ou duplas, sem `-`, terminado numa linha igual ao delimitador); o corpo dele não é lido. **Qualquer outro `<<` numa linha de várias linhas recusa** (sem aspas, `<<-`, `<<<`, escapado, entre aspas, sem fim, fim com espaço em volta). Isso mantém os usos legítimos (mensagem de commit por `<<'EOF'`, parecer do QA por heredoc) e fecha as formas em que o `tirar_heredocs` tomava por corpo uma linha que o bash executa.
+   - **heredoc que grava arquivo, com programa fora da lista positiva no texto** (`hooks/_comum.py`, `DonosDosHeredocs`): o texto tem heredoc provado, grava arquivo (redireção fora da lista fechada das que não gravam, `tee`, `uniq`, `-o`, `git apply`, `git am`) e roda um programa que não está na lista dos outros comandos; o corpo é conferido como comando antes, para a regra específica falar primeiro.
    A linha que o `shlex` não consegue ler (aspas "desbalanceadas" que o bash lê bem) também recusa. Sem marcador crítico, nada muda. O comentário que engole a quebra de linha fica fechado por esta regra, sem mexer no `shlex`.
    Emendado pela [0013](0013-leitura-do-comentario-nos-hooks.md): onde o `#` abre comentário e o que cada hook faz com a linha que não lê.
+   Emendado pelo lote LEITURA-HOOK (volta única, `docs/propostas/lote-leitura-hook-volta-unica.md`): a entrada do heredoc que grava arquivo com programa fora da lista. Endurece; sem rótulo `afrouxa-regra`.
 3. **Critério de parada das rodadas.** A próxima rodada de review de segurança desta fatia reprova só por: (i) fixture dos critérios abaixo com rc errado; (ii) brecha numa construção que a gramática do item 1 aceita ou que a lista do item 2 não cobre **e** que atinge ação crítica sem outra camada (sandbox, pre-push, proteção de branch). Brecha que depende de estado gravado antes (configuração do git, ou arquivo versionado que o git lê, como S7 e S8) ou fora do escopo dos itens 1 e 2 vira cartão, não reprovação.
 4. **Viram cartão:** os da seção "Cartões", abaixo.
 
@@ -92,6 +94,8 @@ Nas quatro semanas seguintes ao merge na `main`, mais de 5 recusas pelo motivo "
 | Data | Medida | Veredito (manter, ajustar, reverter) |
 |---|---|---|
 | 2026-11-14 | recusas legítimas por "não modelado" desde o merge | pendente |
+| 2026-11-14 | recusas legítimas com a frase de M2 do lote LEITURA-HOOK ("o texto roda `<programa>`, fora da lista dos que não rodam o arquivo gravado") desde o merge | pendente |
+| 2026-11-14 | recusas legítimas com a frase de M3 do lote LEITURA-HOOK ("heredoc gravado e programa não modelado na mesma chamada") desde o merge | pendente |
 
 ## Divergência (security-engineer, 2026-10-14)
 Registro histórico. **Resolução:** todos os pontos abaixo foram aceitos e estão incorporados aos itens 1 e 2 da "Decisão" (volta 3, commits 2131fb6 e e98d977, aprovada no re-review de segurança). Dois ajustes vieram depois: o heredoc ficou mais estreito que a lista original (só `<<'FIM'` exato, desvio de autor aceito pela segurança) e a volta 4 fechou o S6 (`test -v` reavalia texto entre aspas simples) com a restrição do `test`, a saída do `[` e a recusa de nível maior que 0, aprovada no re-review da volta 4. O texto abaixo é o original, sem edição.

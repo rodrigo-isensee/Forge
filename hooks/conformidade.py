@@ -727,8 +727,8 @@ class Guarda:
                             "grave numa chamada do Bash e rode o programa noutra")
             if not self.leitura and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
                 self.barrar("R-CONFORMIDADE", "corpo de heredoc com aspa sem par, dado a programa que pode rodá-lo",
-                            "grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o ao programa depois "
-                            "(patch -p1 < arq)")
+                            "grave o texto num arquivo (cat > arq <<'FIM', sozinho) e passe-o ao programa noutra "
+                            "chamada do Bash")
             if not self.leitura:
                 self.barrar("R-CONFORMIDADE", "aspas sem par na leitura do hook, # que ele não prova ser comentário ou "
                                               "<< que ele não prova ser heredoc: o hook não modela a linha",

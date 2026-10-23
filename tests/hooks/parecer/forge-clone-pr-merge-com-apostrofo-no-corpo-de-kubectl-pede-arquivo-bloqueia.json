@@ -66,6 +66,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "grave o texto num arquivo"
+    "stderr": "passe-o ao programa noutra chamada do Bash"
   }
 }
