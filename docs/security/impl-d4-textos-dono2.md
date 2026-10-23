@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: RET-TEXTOS-DONO2
+pedido: impl-d4-textos-dono2
 branch: melhoria/impl-d4-textos-dono2
 commit: be4a398e9898e6bada9a7a9f1967a6d830d0626c
 parecer: aprovado
