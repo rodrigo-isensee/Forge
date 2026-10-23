@@ -2767,23 +2767,47 @@ def pedido_existente(raiz, id_):
     return any((Path(pasta) / "docs" / "pedidos" / f"{id_}.md").is_file() for pasta in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF))
 
 
+def cartoes_do_quadro(raiz):
+    """[(ID do cartão, pedido)] das linhas de tabela do KANBAN.md (colunas `ID` e `Pedido`), na raiz e na cópia principal; só leitura."""
+    pares = []
+    for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz))):
+        for c in _ler_tabela(pasta / "KANBAN.md"):
+            if len(c) >= 3 and c[0] and c[0] != "ID" and not set(c[0]) <= set("-: "):
+                pares.append((c[0], c[2]))
+    return pares
+
+
+def cartoes_do_pedido(raiz, id_, nomes):
+    """Dos `nomes` de cartão do histórico, os que são do pedido `id_` (M14b: o `--pedido` não casava, porque o cartão do histórico
+    não leva o id do pedido). Casa: o mesmo nome; a família por prefixo até um `-` (cartão `X` e pedido `X-PR`, ou o inverso); ou
+    o cartão cuja coluna `Pedido` do KANBAN.md é este pedido. Sem caractere de controle: sai impresso."""
+    alvo = id_.casefold()
+    do_quadro = {i.casefold() for i, p in cartoes_do_quadro(raiz) if p.casefold() == alvo}
+    achados = {n for n in nomes if n.casefold() == alvo or n.casefold() in do_quadro
+               or alvo.startswith(n.casefold() + "-") or n.casefold().startswith(alvo + "-")}
+    return sorted(achados, key=str.casefold)
+
+
 def janela_do_pedido(raiz, id_):
-    """((de, ate), outros cartões em movimento nela): do primeiro ao último movimento do cartão em docs/kanban/historico.md (o leitor de `voltas`);
-    None se o cartão não tem movimento com hora."""
-    por_cartao = {}
+    """((de, ate), outros cartões em movimento nela, cartões do pedido): do primeiro ao último movimento dos cartões do pedido em
+    docs/kanban/historico.md (o leitor de `voltas`; o casamento é de `cartoes_do_pedido`); ((None, None), 0, []) se nenhum tem movimento com hora."""
+    por_cartao, nomes = {}, {}
     for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz))):
         for celulas in _ler_tabela(pasta / "docs" / "kanban" / "historico.md"):
             hora = _hora(celulas[0]) if len(celulas) >= 5 and ISO8601.match(celulas[0]) else None
             if hora:
                 por_cartao.setdefault(celulas[1].casefold(), []).append(hora)
+                nomes.setdefault(celulas[1].casefold(), celulas[1])
         if por_cartao:
             break
-    horas = sorted(por_cartao.get(id_.casefold(), []))
+    cartoes = cartoes_do_pedido(raiz, id_, nomes.values())
+    horas = sorted(h for c in cartoes for h in por_cartao[c.casefold()])
     if not horas:
-        return None, 0
+        return None, 0, []
     de, ate = horas[0], horas[-1]
-    outros = sum(1 for cartao, hs in por_cartao.items() if cartao != id_.casefold() and any(de <= h <= ate for h in hs))
-    return (de, ate), outros
+    do_pedido = {c.casefold() for c in cartoes}
+    outros = sum(1 for cartao, hs in por_cartao.items() if cartao not in do_pedido and any(de <= h <= ate for h in hs))
+    return (de, ate), outros, cartoes
 
 
 def janela_pedida(desde, ate):
@@ -2820,11 +2844,13 @@ def cmd_transcricao_custo(alvo, entregas=False, entrega="<entrega>", raiz=None, 
         if not pedido_existente(Path(raiz or "."), pedido):
             print("custo: --pedido: use o id de um pedido que existe em docs/pedidos/<id>.md (letras, números, `.`, `_` e `-`)")
             return 2
-        janela, outros = janela_do_pedido(Path(raiz or "."), pedido)
+        janela, outros, cartoes = janela_do_pedido(Path(raiz or "."), pedido)
         if janela is None:
-            print(f"custo: pedido {pedido} sem movimento em docs/kanban/historico.md; use --desde e --ate")
+            print(f"custo: pedido {pedido} sem movimento de cartão do pedido em docs/kanban/historico.md (cartão igual ao pedido, da mesma família "
+                  "de nome ou com o pedido na coluna Pedido do KANBAN.md); use --desde e --ate")
             return 1
         cabecalho.append(f"custo: pedido: {pedido} janela {janela[0].isoformat(timespec='seconds')} a {janela[1].isoformat(timespec='seconds')}")
+        cabecalho.append("custo: cartões: " + ", ".join(sem_controle(c) for c in cartoes))
         if outros:
             avisos.append(f"custo: aviso: {outros} outros cartões em movimento na janela (o principal se mistura)")
     try:
@@ -4113,7 +4139,7 @@ def main():
     cu.add_argument("--entrega", default="<entrega>", help="nome da entrega na linha gerada por --entregas (sem `|`, quebra de linha nem controle)")
     cu.add_argument("--desde", help="só as mensagens a partir desta hora (ISO 8601); a linha sem `timestamp` ou fora da janela vai para `fora_da_janela`")
     cu.add_argument("--ate", help="só as mensagens até esta hora (ISO 8601)")
-    cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento do cartão em docs/kanban/historico.md")
+    cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento dos cartões do pedido em docs/kanban/historico.md (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
                         ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)")):
         medida = tsub.add_parser(nome, help=ajuda)
