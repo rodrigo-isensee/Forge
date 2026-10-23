@@ -494,10 +494,11 @@ class AtualizarComDevelopQueAvancou(Base):
 
     def test_a_saida_lista_os_arquivos_trazidos_da_develop(self):
         self.publicar("9.9.0")
-        self.avancar_no_meio(".githooks/commit-msg", "#!/bin/sh\nexit 0\n")
+        self.avancar_no_meio(".claude/regras.md", "regra nova\n")
         codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
         self.assertEqual(codigo, 0, saida)
-        self.assertIn(".githooks/commit-msg", saida)
+        self.assertIn(".claude/regras.md", saida)
+        self.assertIn("Atenção", saida, "destaca o que vale na máquina (.claude/, .forge/, hooks)")
 
     def test_sem_remoto_o_fluxo_de_hoje_continua(self):
         self.publicar("9.9.0")
