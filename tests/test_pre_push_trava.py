@@ -369,11 +369,54 @@ class PrePushTrava(unittest.TestCase):
         self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou sem ref a enviar")
         self.assertEqual(list(self.run_dir.iterdir()), [], "sem ref a enviar, o hook não pega trava nem entra na fila")
 
-    def test_push_que_so_apaga_ainda_roda_a_suite(self):  # PREPUSH-DELETE-SEM-SUITE fica fora: apagar continua testando
+    def test_push_que_so_apaga_nao_roda_a_suite(self):  # PREPUSH-DELETE (decisão do dono, 2026-10-23: opção A)
+        """Só remoções (a limpeza pós-merge do R-FLUXO): sai com 0 sem suíte, sem trava e sem fila; uma ou várias."""
         self.suite(SUITE_RAPIDA)
-        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("melhoria/x", local="0" * 40, remoto="1" * 40))
+        um = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
+        dois = um + self.refs("fix/y", local="0" * 40, remoto="2" * 40)
+        for nome, entrada in (("uma", um), ("duas", dois)):
+            with self.subTest(nome):
+                codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+                self.assertEqual(codigo, 0, erro)
+                self.assertIn("só remove", erro)
+                self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
+                self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")
+
+    def test_push_que_so_apaga_nao_espera_a_trava_de_outra_suite(self):
+        self.suite(SUITE_RAPIDA)
+        self.segura_trava()
+        codigo, _, erro = self.roda("origin", "u", FORGE_TRAVA_ESPERA="1",
+                                    entrada=self.refs("melhoria/x", local="0" * 40, remoto="1" * 40))
         self.assertEqual(codigo, 0, erro)
-        self.assertTrue((self.repo / "rodou").exists(), "o push que só apaga deixou de rodar a suíte")
+        self.assertNotIn("esperando a vez", erro)
+
+    def test_apagar_main_homolog_ou_develop_segue_barrado(self):
+        self.suite(SUITE_RAPIDA)
+        for destino in ("main", "homolog", "develop"):
+            with self.subTest(destino):
+                codigo, _, erro = self.roda("origin", "u", entrada=self.refs(destino, local="0" * 40, remoto="1" * 40))
+                self.assertEqual(codigo, 1)
+                self.assertIn(f"envio direto para {destino} bloqueado", erro)
+                self.assertFalse((self.repo / "rodou").exists())
+
+    def test_remocao_de_branch_comum_com_develop_junto_segue_barrada(self):
+        self.suite(SUITE_RAPIDA)
+        entrada = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40) + self.refs("develop", local="0" * 40, remoto="1" * 40)
+        codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
+
+    def test_push_misto_remocao_mais_envio_roda_a_suite(self):
+        """Basta uma ref que envia código: a suíte roda como hoje, também quando a remoção vem antes."""
+        self.suite(SUITE_RAPIDA)
+        remocao = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
+        envio = self.refs("melhoria/y")
+        for nome, entrada in (("remocao-primeiro", remocao + envio), ("envio-primeiro", envio + remocao)):
+            with self.subTest(nome):
+                codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+                self.assertEqual(codigo, 0, erro)
+                self.assertTrue((self.repo / "rodou").exists(), "o push misto deixou de rodar a suíte")
+                (self.repo / "rodou").unlink()
 
     def test_ref_para_a_develop_segue_barrada(self):
         """Pular a suíte sem refs não afrouxa o bloqueio: uma ref para a develop barra como sempre."""
