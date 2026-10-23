@@ -492,6 +492,37 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertIn("0.1.0", saida)
         self.assertNotIn("rebaixa", saida)
 
+    def test_versao_da_develop_fora_do_formato_avisa_pergunta_e_com_n_desfaz_tudo(self):
+        for lixo in ("0.4", "lixo"):
+            with self.subTest(versao=lixo):
+                self.setUp()
+                self.publicar("9.9.0")
+                self.avancar_no_meio(".forge/versao", lixo + "\n")
+                codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+                self.assertEqual(codigo, 1, saida)
+                self.assertNotIn("Traceback", saida)
+                self.assertIn(lixo, saida)
+                self.assertIn("X.Y.Z", saida, "avisa que não dá para comparar")
+                self.assertIn("Manter a versão 9.9.0", saida, "pergunta ao dono (padrão N)")
+                self.assertEqual(self.git("status", "--porcelain"), "", "sem UU e sem marcadores")
+                merge_head = self.git("rev-parse", "--git-path", "MERGE_HEAD")
+                self.assertFalse((self.proj / merge_head).exists() or Path(merge_head).exists(), "sem MERGE_HEAD")
+                self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+                self.assertEqual(self.git("branch", "--show-current"), "forge/upgrade-9.9.0")
+
+    def test_develop_local_a_frente_do_remoto_avisa_que_a_branch_nasce_com_commits_nao_enviados(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "develop")
+        self.escrever("meu.txt", "meu\n")
+        self.git("add", "meu.txt")
+        self.git("commit", "-q", "-m", "chore: meu commit local")
+        local = self.git("rev-parse", "develop")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), local, "a develop local não foi mexida")
+        self.assertIn("ainda não enviados", saida)
+        self.assertNotIn("avancei", saida)
+
     def test_a_saida_lista_os_arquivos_trazidos_da_develop(self):
         self.publicar("9.9.0")
         self.avancar_no_meio(".claude/regras.md", "regra nova\n")
