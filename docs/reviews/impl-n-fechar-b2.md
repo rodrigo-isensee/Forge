@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: RET-FECHAR-B2
 branch: melhoria/impl-n-fechar-b2
-commit: 801ffd0d605d809cadaff623d7e0c650a12ccaac
-parecer: reprovado
+commit: 7f3b9ba84da9896dcce81cb3acae9ae7da17072a
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-22
 ---
@@ -13,10 +13,22 @@ data: 2026-10-22
 Escopo: `git diff 38c5824..801ffd0`, ou seja, os 7 commits da branch (`cf4ff32` a `2587662`) mais o merge da `develop` (`801ffd0`, com `af79bef`, sem conflito). Os arquivos são `bin/forge-fechar`, `docs/fechamento-integrador.md`, `changelog.d/impl-n-fechar-b2.md`, `tests/test_fechar.py` e seis arquivos novos `tests/test_fechar_*.py`. O pedido de origem se perdeu. A referência é o review anterior do lote (`c97e2cc`, `docs/reviews/impl-n-fechar-b.md` da branch `melhoria/impl-n-fechar-b`, reprovado com A1 e A2), e esta branch é a volta dele. Li a entrega inteira, sem `forge-check delta`, porque é uma branch nova.
 
 ## Achados
-- A1 (bloqueante) bin/forge-fechar:667 · gh pr ready e gh pr merge (667 e 670) agem no PR que o gh resolve pelo nome da branch, mas as guardas de base, fork e head (657 a 662) leem #pr_n; um 2º PR aberto do mesmo head para main/homolog é mesclado sem guarda. Releia pelo nome antes e pare se o número não for pr_n
-- A2 (bloqueante) docs/fechamento-integrador.md:16 · "dois PRs do mesmo head não se confundem" é falso para o ready e o merge (seguem pelo nome); corrigir junto do A1 e registrar a janela que sobra entre a releitura por nome e o merge
+- A3 (recomendado) bin/forge-fechar:669 · a mensagem afirma "há mais de um PR aberto desse head", mas o número diferente também sai de outro motivo (o PR guardado fechado entre o passo 3 e o 6, com o nome resolvendo para outro); diga "o nome resolve para outro PR" sem afirmar a causa
+- A1 (bloqueante) bin/forge-fechar:667 · resolvido em 18ae156 (ver Revalidação). ready e merge agiam no PR resolvido pelo nome da branch, e as guardas liam #pr_n; um 2º PR do mesmo head era mesclado sem guarda
+- A2 (bloqueante) docs/fechamento-integrador.md:16 · resolvido em 7f3b9ba (ver Revalidação). "dois PRs do mesmo head não se confundem" é falso para o ready e o merge (seguem pelo nome); corrigir junto do A1 e registrar a janela que sobra entre a releitura por nome e o merge
 
-## Parecer
+## Revalidação (volta 1, commit 7f3b9ba)
+Parecer anterior: reprovado sobre `801ffd0` (commit do parecer `9d84ddf`). `bin/forge-check delta --parecer docs/reviews/impl-n-fechar-b2.md` (intervalo `801ffd0..7f3b9ba`) listou o delta lido: `bin/forge-fechar`:666-669, `changelog.d/impl-n-fechar-b2.md`:6, `docs/fechamento-integrador.md`:16, `tests/test_fechar.py`:40, `tests/test_fechar_pr_numero.py`:23 e 117-135. Todo o resto da branch ficou como "já lido" na rodada anterior. Critério: o mesmo da rodada anterior, sem `critério mudou:`.
+
+- **A1: resolvido.** Antes do `pr ready` e do `pr merge`, o passo 6 relê `gh pr view "$ref" --json number`, a mesma resolução por nome que as duas ações usam, e para se o número não for `$pr_n`. A leitura passa por `ler`, então a falha de leitura também para. Sonda de mutação numa cópia própria (`$TMPDIR/sonda-b2v1`, apagada depois): com o `bin/forge-fechar` de `aba4857` e os testes de `7f3b9ba`, `test_segundo_pr_do_mesmo_head_para_antes_do_ready_e_do_merge` dá FAIL (`Ran 13 tests`, `FAILED (failures=1)`). Com a correção passa, e `test_mesmo_numero_pelo_nome_segue_para_o_merge` prova que o caminho normal segue para o merge. O teste afirma que não houve `gh pr ready` nem merge. O filtro novo em `leituras_de_pr` (linha 23) só tira a releitura por nome, e as asserções de "leituras pelo número" continuam valendo para as outras leituras.
+- **A2: resolvido.** `docs/fechamento-integrador.md:16` já não diz que os dois PRs "não se confundem". O texto descreve a releitura por nome antes do `ready` e do merge e registra a janela que sobra: um PR novo do mesmo head aberto entre a releitura e o merge, com o `--match-head-commit` prendendo o head e não o PR. O comentário do script (linhas 666 e 667) diz o mesmo.
+- **Achado novo no delta:** só o A3 (recomendado, sobre a mensagem). Não há bloqueante.
+- **Ferramentas:** `python3 -m unittest` dos 7 módulos `test_fechar*`: `Ran 126 tests in 41.930s`, `OK`. `shellcheck bin/forge-fechar` dá 3 avisos, os mesmos da rodada anterior, nenhum novo. O fragmento do changelog ganhou a linha do `Corrigido`, e o `CHANGELOG.md` não foi tocado. Os commits `18ae156` (fix) e `7f3b9ba` (docs) seguem Conventional Commits, um por achado. A suíte inteira não foi rodada de novo (`R-TETO`). As 4 falhas de ambiente da rodada anterior ficam fora do delta.
+- **Recomendações anteriores** (`--dry-run` nas linhas 480 e 484, `cancel` antes do rótulo na linha 65 do documento): não estão no delta e seguem como recomendação.
+
+**Aprovado** sobre `7f3b9ba`. Segurança (`docs/security/impl-n-fechar-b2.md`) e QA são de outros papéis e não estão refeitos aqui.
+
+## Parecer da rodada anterior (801ffd0)
 **Reprovado.** Os dois achados do review anterior estão resolvidos (ver "Conferido"). O B3, porém, abriu uma regressão no passo 6: guarda e ação já não olham necessariamente para o mesmo PR. O A1 é o mesmo achado do parecer de segurança desta rodada (`docs/security/impl-n-fechar-b2.md`, A1, commit `0fe6c1d`, sobre `2587662`). Cheguei a ele de forma independente e o registro aqui porque também é um erro de correção e de contrato, contra o `R-FLUXO` e o `R-MAIN`, e não só de segurança. A correção não é minha: volta ao autor.
 
 ### Detalhe dos achados
