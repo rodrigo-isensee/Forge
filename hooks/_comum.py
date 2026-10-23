@@ -1777,6 +1777,117 @@ def reavaliacao(palavras):
     return None
 
 
+# A redução da palavra como o bash (proposta caminho-rev9, seção 1; manual do bash, "Quoting" e "Quote Removal"): a
+# palavra que tem só caracteres comuns e os mecanismos de aspas tem um valor só, e o hook o calcula sem rodar nada. A
+# tabela é fechada: `\` fora de aspas, `'…'`, `"…"` (com `\` antes de `$`, crase, `"`, `\` e quebra de linha), `$'…'`
+# (os escapes ANSI-C de `ESCAPES_ANSI` e `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`) e `$"…"` (como `"…"`). O resto é
+# expansão (`$x`, `${…}`, `$(…)`, crase, glob, `{a,b}`, `~`): a palavra não se reduz (cartão N-HOOK1, R5).
+ESCAPES_ANSI = {"a": 7, "b": 8, "e": 27, "E": 27, "f": 12, "n": 10, "r": 13, "t": 9, "v": 11, "\\": 92, "'": 39,
+                '"': 34, "?": 63}
+EXPANDE_FORA_DE_ASPAS = frozenset("$`*?[{~")  # o `$` que não abre `$'` nem `$"`
+OCTAL, HEXA = frozenset("01234567"), frozenset("0123456789abcdefABCDEF")
+
+
+def _digitos(texto, i, alfabeto, maximo):
+    fim = i
+    while fim < len(texto) and fim - i < maximo and texto[fim] in alfabeto:
+        fim += 1
+    return texto[i:fim]
+
+
+def _ansi_c(texto, i):
+    """(bytes, posição depois do `'` que fecha) do `$'…'` cujo conteúdo começa em `i`, ou None se não fecha. Como o
+    bash: o byte nulo corta o resto do trecho, `\\nnn` fica no byte de baixo, e o escape que não está na tabela fica
+    com a barra (`\\z`, `\\x` sem dígito, `\\c` no fim)."""
+    saida, cortado = bytearray(), False
+
+    def por(dados):
+        nonlocal cortado
+        if not cortado:
+            if 0 in dados:
+                dados, cortado = dados[:dados.index(0)], True
+            saida.extend(dados)
+
+    while i < len(texto):
+        c = texto[i]
+        if c == "'":
+            return bytes(saida), i + 1
+        if c != "\\" or i + 1 >= len(texto):
+            por(c.encode("utf-8"))
+            i += 1
+            continue
+        e = texto[i + 1]
+        if e in ESCAPES_ANSI:
+            por(bytes([ESCAPES_ANSI[e]]))
+            i += 2
+        elif e in OCTAL:
+            digitos = _digitos(texto, i + 1, OCTAL, 3)
+            por(bytes([int(digitos, 8) & 0xFF]))
+            i += 1 + len(digitos)
+        elif e in "xuU" and _digitos(texto, i + 2, HEXA, {"x": 2, "u": 4, "U": 8}[e]):
+            digitos = _digitos(texto, i + 2, HEXA, {"x": 2, "u": 4, "U": 8}[e])
+            valor = int(digitos, 16)
+            por(bytes([valor]) if e == "x" else chr(valor).encode("utf-8", "surrogatepass") if valor < 0x110000 else b"")
+            i += 2 + len(digitos)
+        elif e == "c" and i + 2 < len(texto) and texto[i + 2] != "'":
+            x = texto[i + 2]
+            por(bytes([0x7F if x == "?" else ord(x.upper()) & 0x1F]))
+            i += 4 if texto.startswith("\\\\", i + 2) else 3  # `\c\\` é o controle da barra
+        else:
+            por(("\\" + e).encode("utf-8"))
+            i += 2
+    return None
+
+
+def _duplas(texto, i):
+    """(bytes, posição depois do `"` que fecha) do `"…"` cujo conteúdo começa em `i`; None se não fecha ou se há
+    expansão (`$` ou crase sem `\\`)."""
+    saida = bytearray()
+    while i < len(texto):
+        c = texto[i]
+        if c == '"':
+            return bytes(saida), i + 1
+        if c in "$`":
+            return None
+        if c == "\\" and texto[i + 1:i + 2] in ESCAPES_DAS_DUPLAS and texto[i + 1:i + 2]:
+            if texto[i + 1] != "\n":
+                saida.extend(texto[i + 1].encode("utf-8"))
+            i += 2
+            continue
+        saida.extend(c.encode("utf-8"))
+        i += 1
+    return None
+
+
+def reduzida(cru):
+    """A palavra como o bash a entrega ao programa (a remoção de aspas, sem expansão), ou None se ela não se reduz a
+    literal (expansão, aspas sem par). Os bytes fora do UTF-8 (`$'\\xff'`) voltam como `surrogateescape`."""
+    saida, i = bytearray(), 0
+    while i < len(cru):
+        c = cru[i]
+        if c == "\\":
+            if cru[i + 1:i + 2] != "\n":
+                saida.extend((cru[i + 1:i + 2] or "\\").encode("utf-8"))
+            i += 2
+        elif c == "'":
+            fim = cru.find("'", i + 1)
+            if fim < 0:
+                return None
+            saida.extend(cru[i + 1:fim].encode("utf-8"))
+            i = fim + 1
+        elif cru.startswith(("$'", '$"', '"'), i):
+            lido = (_ansi_c if cru.startswith("$'", i) else _duplas)(cru, i + (1 if c == '"' else 2))
+            if lido is None:
+                return None
+            saida.extend(lido[0])
+            i = lido[1]
+        elif c in EXPANDE_FORA_DE_ASPAS:
+            return None
+        else:
+            saida.extend(c.encode("utf-8"))
+            i += 1
+    return bytes(saida).decode("utf-8", "surrogateescape")
+
 def valor_do_split_string(opcao, seguinte):
     """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string`, o comando que o `env` divide e roda;
     None se a opção não é essa. No grupo curto (`-iS`), a primeira letra que leva valor decide (`-uS` é `-u S`)."""

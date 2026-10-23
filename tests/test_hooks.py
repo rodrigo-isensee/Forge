@@ -2457,6 +2457,57 @@ exit 0
         self.assertGreaterEqual(no_corpus, 15)
         self.assertGreaterEqual(len(pedidos), 500)
 
+    # As grafias de G1 (proposta caminho-rev9, 3B): a mesma palavra escrita pelos mecanismos de aspas do bash, que a
+    # entrega igual ao programa. O teste de diferença (`test_reducao_da_palavra_como_o_bash`) prova cada uma no bash.
+    GRAFIAS = {
+        "direta": lambda w: w,
+        "simples": lambda w: f"'{w}'",
+        "duplas": lambda w: f'"{w}"',
+        "barra": lambda w: "\\" + w,
+        "ansi": lambda w: f"$'{w}'",
+        "hexa": lambda w: f"$'\\x{ord(w[0]):02x}'{w[1:]}",
+        "ansi no meio": lambda w: f"{w[0]}$'{w[1:]}'",
+        "vazio no meio": lambda w: f"{w[0]}''{w[1:]}",
+        "locale": lambda w: f'$"{w}"',
+        "octal": lambda w: f"$'\\{ord(w[0]):03o}'{w[1:]}",
+        "unicode": lambda w: f"$'\\u{ord(w[0]):04x}'{w[1:]}",
+    }
+    PALAVRAS_DE_G1 = ("eval", "bash", "sh", "zsh", "dash", "ksh", "rbash", "-c", "-ec", "-lc")
+    # Os escapes e bordas da tabela que G1 não gera: o valor que o bash dá a cada um entra na mesma comparação.
+    BORDAS_DA_REDUCAO = ("$'ev\\0al'x", "$'\\545val'", "$'\\x656'", "$'\\U00000065'val", "$'\\0145'", "$'\\cA'",
+                         "$'\\c?'", "$'\\c\\\\'", "$'\\c'", "$'\\u'", "$'\\x'", "$'\\z'", "$'\\777'", "$'a\\'b'",
+                         "$'\\E\\e\\a\\b\\f\\n\\r\\t\\v\\\\\\\"\\?'", '"a\\b"', '"a\\$b"', '"a\\`b"', '"a\\"b"',
+                         '"a\\\nb"', "e\\\nval", "\\e\\v\\a\\l", "$'\\xff'", "$'\\u00e9'", "é'v'al", "$\"e\\$\"")
+    NAO_SE_REDUZEM = ("$x", "${x}", "$(echo eval)", "`echo eval`", "e*", "ev?l", "[e]val", "{e,}val", "~", "\"$x\"",
+                      '"a`b`"', "'ev", '"ev', "$'ev", "$((1))", "e$x")
+
+    def test_reducao_da_palavra_como_o_bash(self):  # item 4 do critério de fim da opção B (proposta caminho-rev9)
+        """A redução do hook (`_comum.reduzida`) é a do bash: para cada grafia de G1 de cada palavra de G1 e para as
+        bordas da tabela, a palavra reduzida é igual à que o `printf '%s'` do bash imprime (`env -i`, `HOME` no
+        `$TMPDIR`, sem rede; só o bash, R-CUSTO). A palavra com expansão não se reduz (None: fica no N-HOOK1)."""
+        _comum, _, _ = modulos_dos_hooks()
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("bash ausente")
+        crus = [grafia(w) for w in self.PALAVRAS_DE_G1 for grafia in self.GRAFIAS.values()] + list(self.BORDAS_DA_REDUCAO)
+        script = "".join(f"printf '%s\\036' {cru}\n" for cru in crus)
+        casa = self._pasta_temporaria()
+        saida = subprocess.run([bash, "--noprofile", "--norc", "-c", script], env={"HOME": str(casa), "LC_ALL": "C.UTF-8"},
+                               cwd=casa, capture_output=True, timeout=30)
+        self.assertEqual(saida.returncode, 0, saida.stderr)
+        do_bash = saida.stdout.decode("utf-8", "surrogateescape").split("\036")[:-1]
+        self.assertEqual(len(do_bash), len(crus))
+        for cru, valor in zip(crus, do_bash):
+            with self.subTest(cru=cru):
+                self.assertEqual(_comum.reduzida(cru), valor)
+        for w in self.PALAVRAS_DE_G1:
+            for nome, grafia in self.GRAFIAS.items():
+                self.assertEqual(_comum.reduzida(grafia(w)), w, f"{nome} de {w}")
+        for cru in self.NAO_SE_REDUZEM:
+            with self.subTest(cru=cru):
+                self.assertIsNone(_comum.reduzida(cru))
+        self.assertGreaterEqual(len(crus), 130)
+
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()
         casos = dados["casos"]
