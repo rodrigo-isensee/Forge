@@ -209,6 +209,20 @@ class Release(Base):
         self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
         self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
 
+    def test_changelog_que_resolve_fora_da_raiz_e_recusado_sem_gravar_nada(self):
+        with tempfile.TemporaryDirectory() as fora:
+            alvo = Path(fora) / "CHANGELOG.md"
+            alvo.write_text(CABECALHO, encoding="utf-8")
+            (self.dir / "CHANGELOG.md").unlink()
+            (self.dir / "CHANGELOG.md").symlink_to(alvo)
+            self._com_fragmento()
+            r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("fora da raiz", r.stderr)
+            self.assertEqual(alvo.read_text(encoding="utf-8"), CABECALHO)
+            self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+            self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
+
     def test_changelog_link_simbolico_quebrado_e_recusado(self):
         (self.dir / "CHANGELOG.md").unlink()
         (self.dir / "CHANGELOG.md").symlink_to(self.dir / "nao-existe.md")
