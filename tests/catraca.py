@@ -920,11 +920,22 @@ def tem_commit(raiz, sha):
     return not git(raiz, "cat-file", "-e", f"{sha}^{{commit}}")[0]
 
 
+def ponta_promovida(raiz, base, head):
+    """A ponta da branch promovida. No CI o head é o merge de teste do PR (`refs/pull/<n>/merge`), cujo primeiro pai é a base:
+    a cadeia de primeiro pai dele seria só ele mesmo, e a branch promovida é o segundo pai. Fora disso, o próprio head."""
+    cod, linha = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    pais = linha.split()[1:] if not cod else []
+    cod_b, b = git(raiz, "rev-parse", "--verify", "-q", f"{base}^{{commit}}")
+    return pais[1] if len(pais) == 2 and not cod_b and pais[0] == b.strip() else head
+
+
 def prova_do_squash(raiz, pull, n, s, m, base, head):
     """Substituto da ancestralidade quando o merge M é squash (S nunca é ancestral dele): M tem um pai só e está na cadeia de
-    primeiro pai de base..head; S, o head rotulado, é ancestral do `head.sha` da API, que é o que `refs/pull/<n>/head` traz."""
+    primeiro pai de base..ponta da branch promovida (`ponta_promovida`); S, o head rotulado, é ancestral do `head.sha` da API,
+    que é o que `refs/pull/<n>/head` traz."""
     cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", m)
-    if cod or len(pais.split()) != 2 or m not in git(raiz, "rev-list", "--first-parent", f"{base}..{head}")[1].split():
+    cadeia = git(raiz, "rev-list", "--first-parent", f"{base}..{ponta_promovida(raiz, base, head)}")[1].split()
+    if cod or len(pais.split()) != 2 or m not in cadeia:
         return False
     final = (pull.get("head") or {}).get("sha")
     if not isinstance(final, str) or not SHA_COMPLETO.fullmatch(final):

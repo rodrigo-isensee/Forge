@@ -2106,6 +2106,7 @@ class RotuloDePrSquash(Base):
         self.execs = [corrida(self.s, "2026-01-02T09:00:00Z", ramo="melhoria/x"), corrida(self.s, "2026-01-02T10:00:03Z", ramo="melhoria/x")]
         self.pr = {"head": lado("develop"), "base": lado("homolog")}
         self.args = []
+        self.head = "develop"
 
     def commita_na_fonte(self, texto, msg):
         (Path(self.clone.name) / "tests").mkdir(exist_ok=True)
@@ -2141,7 +2142,7 @@ class RotuloDePrSquash(Base):
         arq = self.repo.dir.parent / (self.repo.dir.name + "-squash.json")
         arq.write_text(json.dumps(d), encoding="utf-8")
         self.addCleanup(arq.unlink, missing_ok=True)
-        return ["--raiz", str(self.repo.dir), "--base", "homolog", "--head", "develop", "--mesclados", str(arq)]
+        return ["--raiz", str(self.repo.dir), "--base", "homolog", "--head", self.head, "--mesclados", str(arq)]
 
     def roda(self, **troca):
         env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REF")}
@@ -2167,6 +2168,42 @@ class RotuloDePrSquash(Base):
         self.final = self.commita_na_fonte(ROTULADO, "so o parecer mudou")
         self.publica(self.final)
         self.assertEqual(self.roda().returncode, 0)
+
+    # --- a promoção como o CI a roda: head no merge de teste do PR (refs/pull/<n>/merge) -----------------------
+    def merge_de_teste(self):
+        """O head que o CI entrega à catraca: o merge de teste do PR, com a base (homolog) como primeiro pai e a develop como segundo."""
+        arvore = self.repo.git("rev-parse", "develop^{tree}").strip()
+        return self.repo.git("commit-tree", arvore, "-p", "homolog", "-p", "develop", "-m", "Merge de teste").strip()
+
+    def segundo_pr(self, arquivo, texto):
+        """PR 11, rotulado e mesclado por squash depois do PR 10, mudando um outro arquivo protegido (forma das promoções #310 e #317)."""
+        _g(self.clone.name, "checkout", "-q", "-b", "melhoria/y", "origin/develop")
+        (Path(self.clone.name) / arquivo).parent.mkdir(parents=True, exist_ok=True)
+        (Path(self.clone.name) / arquivo).write_text(texto, encoding="utf-8")
+        _g(self.clone.name, "add", "-A")
+        _g(self.clone.name, "commit", "-q", "-m", "feat: do PR 11")
+        s = _g(self.clone.name, "rev-parse", "HEAD").strip()
+        self.publica(s, "refs/pull/11/head")
+        self.depois(arquivo, texto, "feat(y): outra mudança (#11)")
+        pull = {"number": 11, "created_at": "2026-01-02T11:00:00Z", "merged_at": "2026-01-02T12:30:00Z",
+                "merge_commit_sha": self.repo.git("rev-parse", "HEAD").strip(), "base": lado("develop"), "head": dict(lado("melhoria/y"), sha=s)}
+        execs = [corrida(s, "2026-01-02T11:30:00Z", ramo="melhoria/y"), corrida(s, "2026-01-02T12:00:03Z", ramo="melhoria/y")]
+        return pull, [rotulo(quando="2026-01-02T12:00:00Z")], execs
+
+    def test_promocoes_310_e_317_com_head_no_merge_de_teste_passam(self):
+        """#310 e #317: dois PRs da develop, cada um rotulado e mesclado por squash, cada um com um arquivo protegido idêntico ao do
+        head rotulado; o CI passa o merge de teste como head, e a cadeia de primeiro pai de base..head era só esse merge."""
+        pull, eventos, execs = self.segundo_pr("hooks/conformidade.py", "x = 'mudou no PR 11'\n")
+        self.head = self.merge_de_teste()
+        r = self.roda(pulls={"10": self.pull, "11": pull}, eventos={"10": self.eventos, "11": eventos}, execucoes={"10": self.execs, "11": execs})
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("mesmo conteúdo já rotulado no PR mesclado #11, #10", r.stdout)
+
+    def test_merge_de_teste_com_merge_fora_da_cadeia_de_primeiro_pai_da_develop_pede(self):
+        """O segundo pai do merge de teste é a ponta da develop: o M fora da cadeia de primeiro pai dela segue pedindo o rótulo."""
+        self.test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede()
+        self.head = self.merge_de_teste()
+        self.pede()
 
     # --- conteúdo alterado pede o rótulo --------------------------------------------------------------------
     def test_b2_push_depois_do_rotulo_pede(self):
