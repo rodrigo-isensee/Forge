@@ -109,6 +109,60 @@ class PrePushAfetados(unittest.TestCase):
         (self.repo / "sujo.txt").write_text("x")
         self.assertEqual(self.roda()[1], {"rodou-a", "rodou-b"})
 
+    def test_arvore_suja_com_arquivo_mapeado_nao_vira_envio_dirigido(self):  # QA A1: mutante da guarda de árvore limpa
+        # O plano já enxerga o arquivo mapeado sujo (rodaria a e b de qualquer jeito); o que prova a guarda é o caminho
+        # tomado: com a árvore suja o envio não é o dirigido.
+        self.commit("toca a", tests__test_a_py=BOA.format("a") + "# x\n")
+        (self.repo / "tests" / "test_b.py").write_text(BOA.format("b") + "# sujo\n")
+        codigo, marcas, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(marcas, {"rodou-a", "rodou-b"})
+        self.assertNotIn("rodando só os testes afetados", erro)
+
+    def test_ferramenta_que_e_link_roda_a_suite_inteira(self):  # QA A3: metade `! -L` da guarda
+        (self.repo / "bin" / "forge-testes").unlink()
+        (self.repo / "bin" / "forge-testes.real").write_text((RAIZ / "bin" / "forge-testes").read_text())
+        os.symlink("forge-testes.real", self.repo / "bin" / "forge-testes")
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "ferramenta vira link")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))  # o link já está na base
+        self.commit("toca a", tests__test_a_py=BOA.format("a") + "# x\n")
+        self.assertEqual(self.roda()[1], {"rodou-a", "rodou-b"})
+
+    def permissiva(self):
+        """Uma cópia do forge-testes que manda tudo para `test_a` e não altera o mapa: o que um diff mal-intencionado faria."""
+        texto = (RAIZ / "bin" / "forge-testes").read_text()
+        texto = texto.replace("ALTERA_O_MAPA = {", "ALTERA_O_MAPA = set(); _NAO_USADO = {", 1)
+        texto = texto.replace("MAPA = [\n", 'MAPA = [\n    (r".*", ("test_a",)),\n', 1)
+        self.assertIn('(r".*", ("test_a",))', texto)
+        return texto
+
+    def test_diff_que_toca_o_filtro_o_mapa_ou_o_hook_roda_a_suite_inteira(self):  # seg A2
+        (self.repo / "bin" / "forge-testes").write_text(self.permissiva())
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", "filtro permissivo")
+        base_pos_filtro = self.git("rev-parse", "HEAD")
+        self.git("update-ref", "refs/remotes/origin/develop", base_pos_filtro)
+        self.commit("toca b", tests__test_b_py=BOA.format("b") + "# x\n")
+        self.assertEqual(self.roda()[1], {"rodou-a"}, "controle: o filtro permissivo manda tudo para test_a")
+        casos = {"bin/forge-testes": self.permissiva() + "# y\n", "tests/config.json": "{}\n", ".githooks/pre-push": "#!/bin/sh\n"}
+        for caminho, texto in casos.items():
+            with self.subTest(caminho):
+                self.git("reset", "-q", "--hard", base_pos_filtro)
+                alvo = self.repo / caminho
+                alvo.parent.mkdir(parents=True, exist_ok=True)
+                alvo.write_text(texto)
+                self.git("add", "-A")
+                self.git("commit", "-q", "-m", f"toca {caminho}")
+                self.assertEqual(self.roda()[1], {"rodou-a", "rodou-b"})
+
+    def test_base_e_a_ref_remota_mesmo_com_branch_local_de_mesmo_nome(self):  # seg A3
+        self.commit("toca a", tests__test_a_py=BOA.format("a") + "# x\n")
+        self.git("update-ref", "refs/heads/origin/develop", self.git("rev-parse", "HEAD"))  # `origin/develop` curto aponta para cá
+        codigo, marcas, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(marcas, {"rodou-a"}, "a base é refs/remotes/origin/develop, não a branch local ambígua")
+
     def test_commit_enviado_diferente_do_head_roda_a_suite_inteira(self):
         anterior = self.commit("toca a", tests__test_a_py=BOA.format("a") + "# x\n")
         self.commit("toca a de novo", tests__test_a_py=BOA.format("a") + "# y\n")
