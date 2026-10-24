@@ -4,6 +4,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.0] - 2026-10-24
+### Adicionado
+- forge-check entrega aceita como --desde a base do delta fixada pelo dono no Histórico, limita o escopo de uma integração da base ao que difere dos dois pais e lê pedido e briefs fora do clone com --raiz-pedidos (CONF-BASE-DONO)
+- scripts/conferir-reversao.py: confere, antes do review, se cada commit da branch se reverte sozinho (git revert --no-commit e suíte afetada em cópia no TMPDIR); só avisa, nunca bloqueia (M10, EST-030-L4)
+### Alterado
+- Teto de 400 linhas alteradas por PR e uma classe de comportamento por PR em `hooks/` (M14); parecer só bloqueia por defeito provado, requisito ou segurança com gatilho, e promover recomendação exige `critério mudou:` (M3, afrouxa `R-REVIEW` e a política de segurança) (EST-030-L5)
+- R-VERIFY ganha a exceção da branch de trabalho com PR mesclado (head igual ao headRefOid do PR): é apagada depois do merge sem nova confirmação, no Forge e nos projetos; nunca main, master, develop, homolog nem a integração do projeto; commit local a mais pede confirmação; reescrever e apagar branch sem PR mesclado continuam pedindo confirmação (LIMPEZA-REGRA)
+### Corrigido
+- forge-fechar recusa --ref master e a branch de integração do CLAUDE.md do projeto, além de main, develop e homolog, antes de qualquer ação (FECHAR-MASTER)
+- hook conformidade: pedidos e briefs também em ~/.forge-contrib/<pasta>/docs/ só do jarvis (HOOK-RAIZ-CONTRIB)
+- **forge atualizar:** se algo falha depois do commit que resolve o conflito de `.forge/versao`, a mesclagem é desfeita de verdade (antes a mensagem dizia que desfez, mas a branch ficava com o merge), e a mensagem "Desfiz a mesclagem" só sai quando a branch voltou; senão o comando diz o estado real e o comando para desfazer à mão; o teste de publicar também deixa de copiar `__pycache__`.
+- **Release:** `bin/forge-changelog release` grava a versão também em `dev/.claude-plugin/plugin.json` (e no manifesto da raiz), para `test_versao_igual_a_do_forge` não falhar no pre-push da release.
+
 ## [0.29.0] - 2026-10-23
 ### Adicionado
 - CI: a suíte do Forge também roda no Python 3.14, em job próprio (bateria (python 3.14)) ao lado do 3.12 (CI-PY314)

@@ -115,6 +115,69 @@ class Release(Base):
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02").returncode, 0)
         self.assertTrue((d / "x.md").exists())
 
+    def _com_fragmento(self):
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Corrigido\n- X\n", encoding="utf-8")
+
+    def test_sobe_a_versao_dos_dois_manifestos_quando_o_dev_existe(self):
+        dev = self.dir / "dev" / ".claude-plugin"
+        dev.mkdir(parents=True)
+        (dev / "plugin.json").write_text('{\n  "name": "d",\n  "version": "0.1.0"\n}\n', encoding="utf-8")
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((dev / "plugin.json").read_text(encoding="utf-8"), '{\n  "name": "d",\n  "version": "0.2.0"\n}\n')
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.2.0"}\n')
+
+    def test_sem_o_manifesto_dev_a_release_nao_cria_nada(self):
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.dir / "dev").exists())
+
+    def _dev_com(self, conteudo):
+        dev = self.dir / "dev" / ".claude-plugin"
+        dev.mkdir(parents=True)
+        (dev / "plugin.json").write_text(conteudo, encoding="utf-8")
+        self._com_fragmento()
+        return dev / "plugin.json"
+
+    def _nada_gravado(self, r, arquivo=None):
+        self.assertNotEqual(r.returncode, 0)
+        if arquivo:
+            self.assertIn(arquivo, r.stderr)
+        self.assertEqual((self.dir / "CHANGELOG.md").read_text(encoding="utf-8"), CABECALHO)
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+        self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
+
+    def test_manifesto_que_nao_e_json_falha_sem_gravar_nada(self):
+        self._dev_com('{"version": "0.1.0",\n')
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+
+    def test_manifesto_sem_version_de_topo_falha_sem_gravar_nada(self):
+        self._dev_com('{"name": "d", "extra": {"version": "9"}}\n')
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+
+    def test_manifesto_link_simbolico_e_recusado_sem_gravar_nada(self):
+        alvo = self.dir / "fora.json"
+        alvo.write_text('{"version": "0.1.0"}\n', encoding="utf-8")
+        dev = self.dir / "dev" / ".claude-plugin"
+        dev.mkdir(parents=True)
+        (dev / "plugin.json").symlink_to(alvo)
+        self._com_fragmento()
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(alvo.read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+
+    def test_manifesto_que_resolve_fora_da_raiz_e_recusado_sem_gravar_nada(self):
+        with tempfile.TemporaryDirectory() as fora:
+            (Path(fora) / ".claude-plugin").mkdir()
+            alvo = Path(fora) / ".claude-plugin" / "plugin.json"
+            alvo.write_text('{"version": "0.1.0"}\n', encoding="utf-8")
+            (self.dir / "dev").symlink_to(fora)
+            self._com_fragmento()
+            self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"))
+            self.assertEqual(alvo.read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+
     def test_versao_ja_existente_recusada(self):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")
