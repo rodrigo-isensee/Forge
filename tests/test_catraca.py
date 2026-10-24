@@ -2205,6 +2205,45 @@ class RotuloDePrSquash(Base):
         self.head = self.merge_de_teste()
         self.pede()
 
+    # --- o motivo quando a conferência não libera (antes ela voltava calada) ---------------------------------
+    def motivo(self, r):
+        linhas = [l for l in r.stdout.splitlines() if l.startswith("catraca: a conferência do PR mesclado não liberou")]
+        self.assertEqual(len(linhas), 1, r.stdout)
+        self.assertTrue(linhas[0].endswith("vale como sem rótulo."), linhas[0])
+        return linhas[0]
+
+    def test_promocao_que_nao_libera_diz_o_motivo_de_cada_pr(self):
+        casos = (
+            (lambda: setattr(self, "eventos", [rotulo("intrusa")]), "#10: o último evento do rótulo `afrouxa-regra` não é `labeled` pelo dono"),
+            (lambda: self.pull.update(merged_at=None), "#10: não foi mesclado ou o merge não está em base..head"),
+            (lambda: setattr(self, "execs", []), "#10: sem o head do instante do rótulo"),
+        )
+        for prepara, esperado in casos:
+            with self.subTest(esperado=esperado):
+                self.setUp()
+                prepara()
+                linha = self.motivo(self.pede())
+                self.assertIn(esperado, linha)
+                self.assertIn("mesma violação para: .github/workflows/ci.yml, tests/catraca.py", linha)
+        self.setUp()
+        self.depois("tests/catraca.py", ROTULADO + "y = 1\n")  # #10 cobre o ci.yml, não o arquivo mudado depois do merge
+        self.assertIn("mesma violação para: tests/catraca.py)", self.motivo(self.pede()))
+
+    def test_merge_fora_da_cadeia_diz_o_motivo(self):
+        self.test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede()
+        self.assertIn("não é squash na cadeia de primeiro pai de homolog..", self.motivo(self.pede()))
+
+    def test_sem_pr_citado_e_violacao_sem_arquivo_dizem_o_motivo(self):
+        self.repo.git("commit", "-q", "--amend", "-m", "feat(x): mudança sem número")
+        self.assertIn("nenhum commit de base..head que toca esses arquivos cita um PR", self.motivo(self.pede()))
+        self.setUp()
+        self.depois("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
+        self.assertIn("há violação que não é \"mudança em <arquivo>\"", self.motivo(self.pede()))
+
+    def test_fora_da_promocao_nao_fala_da_conferencia(self):
+        self.pr = {"head": lado("melhoria/x"), "base": lado("develop")}
+        self.assertNotIn("conferência do PR mesclado", self.pede().stdout)
+
     # --- conteúdo alterado pede o rótulo --------------------------------------------------------------------
     def test_b2_push_depois_do_rotulo_pede(self):
         self.final = self.commita_na_fonte("# empurrado depois do rótulo\n", "push depois")
