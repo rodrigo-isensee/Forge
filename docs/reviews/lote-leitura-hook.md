@@ -24,11 +24,19 @@ Fica como "já lido" o que vem antes de `3df051e` (revalidações 1 a 9).
 - A1 (bloqueante) docs/hooks.md:95 · classe "texto", 1.ª volta: o parágrafo "Reavaliação pelo shell com ação crítica" descreve a regra da rev. 8 (5 shells, sem rbash; "por baixo dos lançadores que ele separa"; T9b sobre "mutações por nível") e não a do código (palavra reduzida em qualquer posição, rbash, G1)
 - A2 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:88 · a célula Promete da linha Leitor segue com a frase da rev. 8 (5 shells, por baixo dos lançadores); o rbash, que o código reconhece, não aparece no desenho, na ADR 0011 (linha 42: "um shell da lista") nem no docs/hooks.md
 - A3 (recomendado) hooks/_comum.py:1915 · uma linha em branco só entre `reduzida` e `valor_do_split_string` (o resto do módulo usa duas); ajuste de formatação
+- A4 (bloqueante) hooks/_comum.py:1852 · classe "nível" (grafia), 4.ª volta: `_ansi_c` não trata o `\x{HH…}` do bash 5.3; `$'\x{65}'val '…'`, `$'\x{0065}val' '…'` e `bash -$'\x{63}' '…'` saem 2 / 0 e o bash roda a SENTINELA (sondas XB1 a XB3; A1 da segurança)
+- A5 (bloqueante) hooks/_comum.py:1776 · classe "orçamento de tempo", 1.ª volta: para cada shell, `reavaliacao_das_palavras` refaz a busca da opção em toda a cauda (quadrática); `: bash ×10.000` leva 4,0 s só no reconhecedor; a segurança (A2) mostrou o timeout de 10 s liberando a linha crítica
 
 ## Parecer
-**Reprovado**, por um bloqueante, o A1. É da classe "texto" (documentação que diverge do código), na 1.ª volta. Não é da classe "nível". Por isso não aciona a parada das duas voltas (decisão "A" de 2026-10-22): a volta vai direto a quem escreveu `96227be`.
+**Reprovado**, por três bloqueantes: A1, A4 e A5. Esta seção foi corrigida depois do 1.º envio deste parecer (`528c04e`). O A4 e o A5 vieram do parecer da segurança (`97e51b3`), que entrou na branch antes do meu envio. Confirmei os dois contra os hooks reais e contra o bash 5.3.9 desta máquina.
 
-O código da opção B está certo e cumpre o critério de fim da seção 3B nos itens 1 a 6, que medi:
+**Parada.** O A4 é da classe "nível", dentro da frase corrigida: `$'…'` com escape ANSI-C está na linha Promete, e o bash recebe `eval`. É a 4.ª volta seguida da classe. Pela regra das duas voltas (decisão "A" de 2026-10-22) e pelo que a seção 5 da proposta caminho-rev9 prevê, a entrega **para**: o `software-architect` propõe o caminho e o dono decide. Não é volta direta ao autor. O A1 (classe "texto", 1.ª volta) e o A5 (classe "orçamento de tempo", 1.ª volta) vão junto, na mesma proposta.
+
+**A4.** A tabela de `reduzida` se diz fechada, mas não tem o `\x{HH…}`, que o bash 5.3 aceita: `printf '%s\n' $'\x{65}'val` imprime `eval`, e o hook reduz para `\x{65}val`. Meus dois fuzz e o teste de diferença não pegaram isso, porque nenhum deles gera essa forma. Os testes comparam com o bash, mas só sobre as grafias que o próprio teste enumera, e é o mesmo recorte do A3 da revalidação 9, agora na redução. Sugestão para o arquiteto pesar: tirar a tabela da lista e recusar, com marcador, toda palavra com `$'…'` cujo escape não seja um dos da tabela. Outra saída é gerar as bordas a partir do manual da versão do bash que roda o hook.
+
+**A5.** Medi `reavaliacao` sozinha com `: bash bash … ; git push origin X:main`: 2.000 palavras levam 0,16 s, 5.000 levam 1,01 s e 10.000 levam 4,0 s. O tempo cresce com o quadrado. O `any(... for p in palavras[k + 1:])` roda de novo para cada `bash`. A correção é linear: guardar, de trás para a frente, se já houve opção com `c`. O timeout e o efeito no bash são da segurança (A2 dela), e não os refiz.
+
+O resto do código da opção B está certo e cumpre os itens 1 a 6 do critério de fim da seção 3B, que medi:
 - Não sobrou lista de posição: `reavaliacao_das_palavras` olha toda palavra do comando simples, e `reavaliacao` percorre todos os níveis de `palavras_do_texto`.
 - A redução é uma função só, em `_comum`, usada pelos dois hooks.
 - O `parecer` não usa mais a palavra do `shlex`.
@@ -36,7 +44,7 @@ O código da opção B está certo e cumpre o critério de fim da seção 3B nos
 - Num fuzz de 15.000 palavras, a redução bateu com o bash em todas. Num fuzz de 9.000 grafias de `eval`, shell e `-c`, o reconhecedor acertou todas.
 - As três mutações ficam vermelhas, cada uma no lugar que a 3B diz.
 
-O que falta é o texto. Os testes e o código mudaram, mas o parágrafo de `docs/hooks.md` que descreve o controle ainda descreve a versão anterior (A1).
+Fora o A4 e o A5, falta o texto: o código e os testes mudaram, mas o parágrafo de `docs/hooks.md` que descreve o controle ainda descreve a versão anterior (A1).
 
 **A1 (bloqueante).** `docs/hooks.md:95`, no trecho "**Reavaliação pelo shell com ação crítica** (opção B, RET-LEITURA-HOOK-B)", diz três coisas que o código já não faz:
 - Que a recusa vale para "`eval` ou `bash`/`sh`/`zsh`/`dash`/`ksh` com opção curta que contém `c`, em qualquer nível que o hook lê (também por baixo de `env`, `command`, `nice`, `sudo` e dos outros lançadores que ele separa…)". É a regra posicional de `3df051e`. O código de `aadb806` vale em qualquer posição, sobre a palavra reduzida como o bash, e tem `rbash`.
@@ -126,4 +134,4 @@ Os outros recomendados da revalidação 9:
   - O `so_substituicoes` pula só a palavra `"$(…)"`, que o nível de fora já leu. As sondas `"${x:-$($'eval' …)}"`, `"$($'eval' …)"` e a crase aninhada confirmam isso.
   - Os commits estão em Conventional Commits em português e na ordem da 3B: o corpus vermelho, a redução, o reconhecedor, depois G1. Não tocam `tests/config.json`: as 3 linhas do intervalo vêm da `develop`.
   - O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar.
-- **Segurança:** é do E2.1 e não foi refeita aqui. Não achei furo novo no controle. As sondas e os fuzz estão nos scripts em `$TMPDIR/tech-lead-lh10/`, para o `security-engineer`.
+- **Segurança:** é do E2.1 e não foi refeita aqui. O A4 e o A5 vêm do parecer dela (`97e51b3`, A1 e A2), confirmados por mim nas sondas XB1 a XB3 e na medida de `reavaliacao`. As sondas e os fuzz estão nos scripts em `$TMPDIR/tech-lead-lh10/`.
