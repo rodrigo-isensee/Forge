@@ -120,6 +120,27 @@ class ConferirReversao(unittest.TestCase):
         self.assertEqual(impressao(self.repo / ".git"), antes)
         self.assertEqual(git(self.repo, "status", "--porcelain"), "")
 
+    def test_ponta_ja_vermelha_avisa_e_nao_classifica(self):
+        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)  # sem dado.txt: a suíte já falha na ponta
+        self.commitar("teste que le um dado ausente")
+        r = self.rodar(self.base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("já falha na ponta", r.stdout)
+        self.assertNotIn(" reverte", r.stdout)
+        self.assertNotIn("nao-reverte", r.stdout)
+
+    def test_commit_de_mescla_fica_fora(self):
+        git(self.repo, "switch", "-q", "-c", "lado")
+        (self.repo / "lado.txt").write_text("l\n")
+        lado = self.commitar("add lado")
+        git(self.repo, "switch", "-q", "feat")
+        (self.repo / "extra.txt").write_text("x\n")
+        extra = self.commitar("add extra")
+        git(self.repo, "merge", "-q", "--no-ff", "-m", "mescla lado", "lado")
+        r = self.rodar(self.base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(sorted(l.split()[0] for l in r.stdout.splitlines()), sorted([lado, extra]))
+
     def test_erro_de_uso_e_repositorio_invalido_saem_com_2(self):
         self.assertEqual(self.rodar().returncode, 2)
         self.assertEqual(self.rodar(self.base, "nao-existe").returncode, 2)

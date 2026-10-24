@@ -4,6 +4,7 @@
 Uso: conferir-reversao.py BASE BRANCH
   Para cada commit de BASE..BRANCH (sem os de mescla), numa cópia do repositório em $TMPDIR:
   `git revert --no-commit` sobre a ponta da branch e a suíte afetada escolhida pelo `bin/forge-testes`.
+  Antes, roda a suíte afetada na ponta: se já falha, avisa e não classifica (a falha não seria do commit).
   Imprime uma linha por commit: `<sha7> reverte` ou `<sha7> nao-reverte: <motivo>`.
 
 É aviso, não portão: sai com 0 sempre que conseguiu conferir (inclusive com `nao-reverte`) e com 2 em erro de
@@ -75,6 +76,7 @@ def main(argv):
     if not base or not ponta:
         print("conferir-reversao: base ou branch inexistente", file=sys.stderr)
         return 2
+    # Sem mesclas: reverter uma mescla exige `-m` e o conteúdo dela já vem dos commits de cada lado, conferidos à parte.
     lista = git(repo, "rev-list", "--reverse", "--no-merges", f"{base}..{ponta}")
     if lista.returncode:
         print("conferir-reversao: intervalo inválido", file=sys.stderr)
@@ -91,6 +93,10 @@ def main(argv):
         if git(copia, "checkout", "--quiet", "--detach", ponta).returncode:
             print("conferir-reversao: não consegui abrir a ponta da branch", file=sys.stderr)
             return 2
+        if not suite_afetada(copia, base):
+            print("conferir-reversao: a suíte afetada já falha na ponta da branch; "
+                  "nada classificado (corrija a suíte antes).")
+            return 0
         for commit in commits:
             print(f"{commit[:7]} {conferir_commit(copia, base, commit)}", flush=True)
     return 0
