@@ -11,8 +11,12 @@ from test_volta_por_delta import Repositorio, SHA_FALSO  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 
-def linha_do_dono(sha):
-    return f"- 2026-10-23 15:56: LACUNA R-PROVA (decisão B do dono): base do delta fixada pelo dono {sha}; implementação sem conferência formal\n"
+DECISAO = 'DECISÃO DO DONO (2026-10-23): "A" — conferência manual até o cartão entrar\n'
+
+
+def linha_do_dono(sha, decisao=True):
+    """A linha exata do Histórico e, se `decisao`, a linha `DECISÃO DO DONO` que o pedido exige."""
+    return f"- 2026-10-23 15:56: base do delta fixada pelo dono {sha}; LACUNA R-PROVA (decisão B)\n" + (DECISAO if decisao else "")
 
 
 class BaseDoDono(Repositorio):
@@ -42,7 +46,10 @@ class BaseDoDono(Repositorio):
         casos = {"fora do Histórico": (dict(secao="Decisões", extra=linha_do_dono(self.c2)), self.c2),
                  "sha abreviado": (dict(extra=linha_do_dono(self.c2[:7])), self.c2),
                  "sha fora da branch": (dict(extra=linha_do_dono(SHA_FALSO)), SHA_FALSO),
-                 "sem a palavra dono": (dict(extra=f"- 2026-10-23 15:56: base do delta fixada {self.c2}\n"), self.c2)}
+                 "sem a palavra dono": (dict(extra=f"- 2026-10-23 15:56: base do delta fixada {self.c2}\n" + DECISAO), self.c2),
+                 "frase citada no meio da linha": (dict(extra=f"- 2026-10-23 15:56: proposta recusada: base do delta fixada pelo dono {self.c2} não vale\n"
+                                                        + DECISAO), self.c2),
+                 "sem linha DECISÃO DO DONO no pedido": (dict(extra=linha_do_dono(self.c2, decisao=False)), self.c2)}
         for nome, (kwargs, desde) in casos.items():
             with self.subTest(nome):
                 self.gravar_pedido(**kwargs)
@@ -58,6 +65,12 @@ class BaseDoDono(Repositorio):
         rc, saida = self.entrega(desde=self.c2)
         self.assertEqual(rc, 0, saida)
         self.assertNotIn("base:", saida)  # veio da conferida: a saída de hoje
+
+    def test_base_do_dono_igual_ao_head_recusa_o_delta_vazio(self):
+        self.gravar_pedido(extra=linha_do_dono(self.c3))
+        rc, saida = self.entrega(desde=self.c3)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
 
     def test_a_base_do_dono_nao_vale_gravada_na_propria_entrega(self):
         self.gravar_pedido(extra=linha_do_dono(self.c2))

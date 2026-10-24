@@ -635,7 +635,7 @@ ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
-BASE_DO_DONO = re.compile(r"^\s*-\s.*\bbase do delta fixada pelo dono ([0-9a-f]{40})\b")  # decisão do dono, só dentro de `## Histórico` (CONF-BASE-DONO)
+BASE_DO_DONO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?: base do delta fixada pelo dono ([0-9a-f]{40})\b")  # forma exata, abre a linha do `## Histórico` (CONF-BASE-DONO)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
 
 
@@ -730,11 +730,13 @@ def conferidas_do_pedido(texto):
 
 def bases_do_pedido(texto):
     """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
-    delta fixada pelo dono (`base do delta fixada pelo dono <sha40>`, origem `dono`)."""
+    delta fixada pelo dono (`- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, origem `dono`; só vale com uma linha
+    `DECISÃO DO DONO` no pedido)."""
     achadas = []
+    com_decisao = bool(linhas_de_decisao(texto))
     for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
         for expressao, origem in ((CONFERIDA, "conferida"), (BASE_DO_DONO, "dono")):
-            if m := expressao.match(linha):
+            if (m := expressao.match(linha)) and (origem != "dono" or com_decisao):
                 achadas.append((m.group(1), origem))
                 break
     return achadas
@@ -745,7 +747,8 @@ def desde_valido(raiz, texto, head, base_sha):
     ancestral do head e trabalho da branch (não é ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica
     adiante de uma entrega conferida antes dele); (None, None) se nenhuma serve."""
     candidatas = [(c, o) for c, o in bases_do_pedido(texto)
-                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]
+                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)
+                  and not (o == "dono" and c == head)]  # base do dono igual ao head zeraria o delta sem aviso
     return candidatas[-1] if candidatas else (None, None)
 
 
