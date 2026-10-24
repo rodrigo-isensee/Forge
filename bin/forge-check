@@ -4295,7 +4295,9 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
     únicas linhas de decisão são cópias literais das `DECISÃO DO DONO` do pedido, dentro de `Decisões e restrições`, sem caractere
     invisível; em `Decisões e restrições` só passam essas cópias e os subtítulos do `gerar` (lista positiva, decisão do dono sobre o A4:
     qualquer outra linha é texto novo do Jarvis) e cada frase do `Entregar` cita `(E<n>)` ou a etapa do pedido (QA A4: a frase sem id,
-    que corta ou decide em prosa, não se confere); senão `conferente: necessário (<motivo>)`. Só informa: nunca reprova."""
+    que corta ou decide em prosa, não se confere). Pedido com item do `Fora do escopo` em prosa (sem id nem trecho citado) nunca
+    dispensa: a contradição não se decide e o conferente a lê (QA A5, lado seguro). Letra fora do alfabeto latino dá necessário (A10).
+    Senão `conferente: necessário (<motivo>)`; nunca reprova. Limite: a prosa de `Objetivo`, `Ler` e `Relatório` não se confere."""
     def necessario(motivo):
         return (f"conferente: necessário ({motivo})", False)
     if anterior is not None or re.search(r"^\s*(?:Volta-de|Anterior):", texto, re.M):
@@ -4321,7 +4323,7 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
         return necessario("papel não conferido: o Entregar não cita etapa do pedido")
     existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
     if not all(ids_do_fora(i) & existentes or any(len(f) >= 20 for f in fragmentos_citados(i)) for i in pedido["fora"]):
-        return necessario("Fora do escopo do pedido em prosa: contradição não conferida")
+        return necessario("Fora do escopo do pedido em prosa: contradição não conferida; o conferente lê, lado seguro")
     do_pedido = {chave_da_decisao(l) for _, itens in cobradas["fontes"] for _, l in itens}
     subtitulos = {SUBTITULO_DO_REGISTRO.format(rel) for rel, _ in cobradas["fontes"][1:]}
     vistos, atual = set(), None
