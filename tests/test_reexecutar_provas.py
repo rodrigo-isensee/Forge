@@ -1,5 +1,8 @@
 """Arquivo de provas na branch (EST-030-L2, M15): formato do modelo e texto da regra que o descreve."""
+import contextlib
 import importlib.util
+import io
+import itertools
 import os
 import re
 import subprocess
@@ -38,7 +41,7 @@ spec.loader.exec_module(rp)
 
 class Lista(unittest.TestCase):
     def test_permitidos(self):
-        for cmd in ("python3 -m unittest tests.test_x", "python3 -m unittest -v a.b c", "git rev-parse --verify HEAD",
+        for cmd in ("python3 -m unittest tests.test_x", "python3 -m unittest -v a.b c.d", "git rev-parse --verify HEAD",
                     "git diff --numstat abc...HEAD", "git ls-files -- docs"):
             self.assertIsNone(rp.comando_permitido(cmd.split()), cmd)
 
@@ -85,8 +88,9 @@ class Execucao(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.raiz = Path(self.tmp.name)
         (self.raiz / "docs" / "provas").mkdir(parents=True)
-        (self.raiz / "t_ok.py").write_text("import unittest\nclass T(unittest.TestCase):\n    def test(self): pass\n")
-        (self.raiz / "t_ruim.py").write_text("import unittest\nclass T(unittest.TestCase):\n    def test(self): self.fail('x')\n")
+        (self.raiz / "tests").mkdir()
+        (self.raiz / "tests" / "t_ok.py").write_text("import unittest\nclass T(unittest.TestCase):\n    def test(self): pass\n")
+        (self.raiz / "tests" / "t_ruim.py").write_text("import unittest\nclass T(unittest.TestCase):\n    def test(self): self.fail('x')\n")
 
     def rodar(self, linhas, nome="p.md"):
         (self.raiz / "docs" / "provas" / nome).write_text("\n".join(linhas) + "\n", encoding="utf-8")
@@ -94,14 +98,16 @@ class Execucao(unittest.TestCase):
                             f"docs/provas/{nome}"], capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
         return r.returncode, r.stdout + r.stderr
 
-    def test_prova_que_confere_passa_e_so_cmd_conta(self):
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-2 (sha): abc", "texto"])
+    def test_prova_que_confere_passa_com_titulo_proposito_e_linha_vazia(self):
+        rc, saida = self.rodar(["# Provas do pedido X", "", "Propósito: provas do pedido.", "## Provas",
+                                "- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0"])
         self.assertEqual(rc, 0, saida)
+        self.assertIn("ok docs/provas/p.md:5 PQ-1", saida)
         self.assertIn("1 prova(s) cmd", saida)
 
     def test_para_na_primeira_divergencia(self):
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ruim` · espera: rc=0",
-                                "- PQ-2 (cmd): `python3 -m unittest t_ok` · espera: rc=0"])
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_ruim` · espera: rc=0",
+                                "- PQ-2 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0"])
         self.assertEqual(rc, 1)
         self.assertIn("PQ-1", saida)
         self.assertNotIn("ok docs/provas/p.md:2", saida)
@@ -121,7 +127,7 @@ class Execucao(unittest.TestCase):
         self.assertFalse(marca.exists())
 
     def test_comando_permitido_chega_ao_subprocess_como_lista_e_sem_shell(self):
-        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok -v` · espera: rc=0\n", encoding="utf-8")
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest tests.t_ok -v` · espera: rc=0\n", encoding="utf-8")
         chamada = {}
 
         def falso(argv, **kwargs):
@@ -129,14 +135,14 @@ class Execucao(unittest.TestCase):
             return subprocess.CompletedProcess(argv, 0, "", "")
         with mock.patch.object(rp.subprocess, "run", falso):
             self.assertEqual(rp.reexecutar("docs/provas/p.md", self.raiz, 5), 1)
-        self.assertEqual(chamada["argv"], ["python3", "-m", "unittest", "t_ok", "-v"])
+        self.assertEqual(chamada["argv"], ["python3", "-m", "unittest", "tests.t_ok", "-v"])
         self.assertIs(chamada["shell"], False)
 
     def test_linha_que_parece_cmd_e_nao_casa_o_formato_falha_fechada(self):
-        for linha in (" - PQ-2 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-3 (CMD): `python3 -m unittest t_ok` · espera: rc=0",
-                      "- **PQ-4** (cmd): `python3 -m unittest t_ok` · espera: rc=0", "* PQ-5 (Cmd): `python3 -m unittest t_ok` · espera: rc=0",
-                      "- PQ-6 (cmd): python3 -m unittest t_ok · espera: rc=0"):
-            rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", linha])
+        for linha in (" - PQ-2 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-3 (CMD): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- **PQ-4** (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "* PQ-5 (Cmd): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-6 (cmd): python3 -m unittest tests.t_ok · espera: rc=0"):
+            rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", linha])
             self.assertNotEqual(rc, 0, linha)
             self.assertIn("fora do formato", saida, linha)
 
@@ -158,36 +164,36 @@ class Execucao(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
 
     def test_comando_sem_crases_e_recusado(self):
-        rc, saida = self.rodar(["- PQ-1 (cmd): python3 -m unittest t_ok · espera: rc=0"])
+        rc, saida = self.rodar(["- PQ-1 (cmd): python3 -m unittest tests.t_ok · espera: rc=0"])
         self.assertEqual(rc, 1)
         self.assertIn("fora do formato", saida)
 
     def test_espera_que_sempre_passa_e_recusada(self):
         for espera in ("linhas>=0", "contém ''", "rc=0 e linhas>=0"):
-            rc, saida = self.rodar([f"- PQ-1 (cmd): `python3 -m unittest t_ruim` · espera: {espera}"])
+            rc, saida = self.rodar([f"- PQ-1 (cmd): `python3 -m unittest tests.t_ruim` · espera: {espera}"])
             self.assertEqual(rc, 1, espera)
             self.assertIn("p.md:1: PQ-1: espera que sempre passa", saida, espera)
 
     def test_espera_sem_rc0_e_recusada_com_arquivo_linha_e_sem_rodar_o_comando(self):
         marca = self.raiz / "marca"
-        (self.raiz / "t_marca.py").write_text(f"import unittest\nclass T(unittest.TestCase):\n    def test(self): open({str(marca)!r}, 'w')\n")
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-2 (cmd): `python3 -m unittest t_marca` · espera: linhas>=1",
-                                "- PQ-3 (cmd): `python3 -m unittest t_ok` · espera: talvez"])
+        (self.raiz / "tests" / "t_marca.py").write_text(f"import unittest\nclass T(unittest.TestCase):\n    def test(self): open({str(marca)!r}, 'w')\n")
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-2 (cmd): `python3 -m unittest tests.t_marca` · espera: linhas>=1",
+                                "- PQ-3 (cmd): `python3 -m unittest tests.t_ok` · espera: talvez"])
         self.assertEqual(rc, 1)
         self.assertIn("p.md:2: PQ-2: espera sem rc=0", saida)
         self.assertFalse(marca.exists())
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: talvez"])
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: talvez"])
         self.assertIn("p.md:1: PQ-1: espera ilegível", saida)
 
     def test_variantes_de_grafia_da_linha_cmd_falham_fechadas(self):
-        for linha in ("- PQ 1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ\u20111 (cmd): `python3 -m unittest t_ok` · espera: rc=0",
-                      "- PQ-1 (cmd ): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 ( cmd ): `python3 -m unittest t_ok` · espera: rc=0",
-                      "- PQ-1 (cmd\u200b): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 （cmd）: `python3 -m unittest t_ok` · espera: rc=0",
-                      "- PQ-1 (cmd) `python3 -m unittest t_ok` · espera: rc=0", "-  PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0",
-                      "- (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 (cmd): `python3 -m unittest t_ok`"):
+        for linha in ("- PQ 1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ\u20111 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd ): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-1 ( cmd ): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd\u200b): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-1 （cmd）: `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd) `python3 -m unittest tests.t_ok` · espera: rc=0", "-  PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-1 (cmd): `python3 -m unittest tests.t_ok`"):
             rc, saida = self.rodar([linha])
             self.assertNotEqual(rc, 0, linha)
-            self.assertIn("p.md:1: linha cmd fora do formato", saida, linha)
+            self.assertIn("p.md:1: linha fora do formato do arquivo de provas", saida, linha)
             self.assertNotIn("0 prova(s)", saida, linha)
 
     def test_arquivo_de_provas_inexistente_sai_com_mensagem_e_sem_traceback(self):
@@ -198,16 +204,16 @@ class Execucao(unittest.TestCase):
         self.assertNotIn("Traceback", r.stderr)
 
     def test_linha_cmd_fora_do_formato_e_modelo_e_fora_de_provas_falham(self):
-        self.assertEqual(self.rodar(["- PQ-1 (cmd): python3 -m unittest t_ok"])[0], 1)
+        self.assertEqual(self.rodar(["- PQ-1 (cmd): python3 -m unittest tests.t_ok"])[0], 1)
         self.assertEqual(self.rodar(["- PQ-1 (cmd): `git rev-parse HEAD` · espera: talvez"])[0], 1)
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0"], "_modelo.md")
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0"], "_modelo.md")
         self.assertEqual(rc, 1)
         self.assertIn("é o modelo", saida)
         with self.assertRaises(rp.Falha):
             rp.reexecutar("../fora.md", self.raiz, 5)
 
     def test_ambiente_minimo_e_prazo_chegam_ao_subprocess(self):
-        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0\n", encoding="utf-8")
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0\n", encoding="utf-8")
         chamada = {}
 
         def falso(argv, **kwargs):
@@ -220,7 +226,7 @@ class Execucao(unittest.TestCase):
         self.assertEqual(chamada["cwd"], self.raiz)
 
     def test_passou_do_prazo_reprova_com_arquivo_linha(self):
-        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0\n", encoding="utf-8")
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0\n", encoding="utf-8")
 
         def estoura(argv, **kwargs):
             raise subprocess.TimeoutExpired(argv, 1)
@@ -231,9 +237,172 @@ class Execucao(unittest.TestCase):
         original = os.environ.get("GITHUB_TOKEN")
         os.environ["GITHUB_TOKEN"] = "segredo"
         self.addCleanup(lambda: os.environ.pop("GITHUB_TOKEN") if original is None else os.environ.update(GITHUB_TOKEN=original))
-        (self.raiz / "t_env.py").write_text("import os, unittest\nclass T(unittest.TestCase):\n    def test(self): assert 'GITHUB_TOKEN' not in os.environ\n")
-        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_env` · espera: rc=0"])
+        (self.raiz / "tests" / "t_env.py").write_text("import os, unittest\nclass T(unittest.TestCase):\n    def test(self): assert 'GITHUB_TOKEN' not in os.environ\n")
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest tests.t_env` · espera: rc=0"])
         self.assertEqual(rc, 0, saida)
+
+
+class ListaPositivaDeLinhas(unittest.TestCase):
+    """Classe "linha ou comando aceito por uma forma que o script não modela": toda linha é lida e só passa uma forma permitida."""
+    BASE = ["# Provas do pedido <ID>",
+            "Propósito: provas reexecutáveis do pedido, uma por linha; formato, lista permitida e recusas em docs/regras/R-PROVA.md"
+            " (\"Arquivo de provas na branch\"). Copie para docs/provas/<pedido>.md e troque as linhas abaixo. Público: autor da"
+            " entrega, tech-lead e QA. Revisão: <data>.",
+            "## Provas",
+            "- PQ-1 (cmd): `python3 -m unittest tests.test_exemplo` · espera: rc=0",
+            "- PQ-2 (cmd): `git rev-parse --verify HEAD` · espera: rc=0 e linhas=1"]
+    VALIDA = BASE[3]
+    ALFABETO = [chr(c) for c in range(0x20, 0x7F)] + [" ", "‑", "​", "﻿", "́", *"сеаор", "ο", *"（）［］"]
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.raiz = Path(self.tmp.name)
+        (self.raiz / ".git").mkdir()  # o git não roda: subprocess.run é trocado por um que devolve rc=0
+        falso = mock.patch.object(rp.subprocess, "run", lambda argv, **kw: subprocess.CompletedProcess(argv, 0, "x\n", ""))
+        falso.start()
+        self.addCleanup(falso.stop)
+
+    def executar(self, linhas):
+        """O caminho do script depois da leitura do arquivo; devolve (rc, saída) como o main()."""
+        saida = io.StringIO()
+        with contextlib.redirect_stdout(saida):
+            try:
+                rp.executar("docs/provas/p.md", "\n".join(linhas) + "\n", self.raiz, 5)
+                return 0, saida.getvalue()
+            except rp.Falha as erro:
+                return 1, saida.getvalue() + str(erro)
+
+    def assert_toda_linha_lida(self, linhas):
+        """Oráculo pela saída do script: rc=0 implica que toda linha não vazia é título, Propósito ou `ok <arquivo>:<N>`."""
+        rc, saida = self.executar(linhas)
+        if rc != 0:
+            return
+        for numero, linha in enumerate(linhas, 1):
+            if linha and not linha.startswith(("# ", "## ", "Propósito: ")):
+                self.assertIn(f"ok docs/provas/p.md:{numero} PQ-", saida, (linhas, numero))
+
+    def variantes(self, linha):
+        yield "  " + linha
+        yield "**" + linha + "**"
+        for i in range(len(linha) + 1):
+            if i < len(linha):
+                yield linha[:i] + linha[i + 1:]
+            for c in self.ALFABETO:
+                yield linha[:i] + c + linha[i:]
+                if i < len(linha):
+                    yield linha[:i] + c + linha[i + 1:]
+
+    def test_propriedade_toda_linha_gerada_e_lida_sozinha_e_ao_lado_de_prova_valida(self):
+        vistos = 0
+        for linha in self.BASE:
+            for variante in set(self.variantes(linha)):
+                self.assert_toda_linha_lida([variante])
+                self.assert_toda_linha_lida([self.VALIDA, variante])
+                vistos += 1
+        self.assertGreater(vistos, 80000)
+
+    def test_grafias_dos_pareceres_reprovam_ao_lado_de_prova_valida(self):
+        resto = " PQ-2: `python3 -m unittest tests.t_ok` · espera: rc=0"
+        for linha in ("- PQ-2 [cmd]: `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-2 {cmd}: `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-2 (cmd: `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-2 cmd: `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-2 (сmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-2 (cmd́): `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-2: `python3 -m unittest tests.t_ok` · espera: rc=0", "[cmd]" + resto, "- PQ-2 cmd: `python3 -m unittest tests.t_ok` · espera: rc=0",
+                      "- PQ-1 cmd: `python3 -m unittest tests.t_ok` · espera: rc=0", "- PQ-2 (cmd): `python3 -m unittest tests.t_ok` · еspera: rc=0",
+                      "- PQ-٣ (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0", "texto livre", "| tabela |", "### Outra seção",
+                      "## Outra", "Propósito: - PQ-2 (cmd): `x` · espera: rc=0"):
+            for linhas in ([linha], [self.VALIDA, linha]):
+                rc, saida = self.executar(linhas)
+                self.assertEqual(rc, 1, linhas)
+                self.assertIn(f"p.md:{len(linhas)}: linha fora do formato do arquivo de provas", saida, linhas)
+
+    def test_um_titulo_de_cada_e_um_proposito_no_maximo(self):
+        for repetida in ("# Outro título", "## Provas", "Propósito: outro."):
+            rc, saida = self.executar([*self.BASE, repetida])
+            self.assertEqual(rc, 1, repetida)
+            self.assertIn("p.md:6: linha fora do formato", saida, repetida)
+
+    def test_arquivo_sem_prova_conferida_reprova(self):
+        for linhas in (["# Provas do pedido X"], ["# Provas do pedido X", "", "## Provas"], [""], []):
+            rc, saida = self.executar(linhas)
+            self.assertEqual(rc, 1, linhas)
+            self.assertIn("nenhuma prova cmd", saida, linhas)
+
+    def test_linha_ruim_reprova_antes_de_executar_qualquer_prova(self):
+        chamadas = []
+        with mock.patch.object(rp.subprocess, "run", lambda argv, **kw: chamadas.append(argv)), self.assertRaises(rp.Falha):
+            rp.executar("docs/provas/p.md", self.VALIDA + "\ntexto\n", self.raiz, 5)
+        self.assertEqual(chamadas, [])
+
+
+class UnittestComModulo(unittest.TestCase):
+    OPCOES = ["-v", "-q", "--locals", "--durations 1", "-f", "-c", "-b", "-k x"]
+
+    def test_propriedade_todo_subconjunto_de_opcoes_sem_modulo_e_recusado(self):
+        for n in range(len(self.OPCOES) + 1):
+            for opcoes in itertools.combinations(self.OPCOES, n):
+                argv = ["python3", "-m", "unittest", *" ".join(opcoes).split()]
+                self.assertIsNotNone(rp.comando_permitido(argv), argv)
+
+    def test_propriedade_discover_em_toda_grafia_de_caixa_e_largura_e_recusado(self):
+        largura = {c: (c, c.upper(), chr(ord(c) + 0xFEE0), chr(ord(c.upper()) + 0xFEE0)) for c in "discover"}
+        subconjuntos = [list(o) for n in range(3) for o in itertools.combinations(["-v", "-q", "-b", "-f"], n)]
+        for i, grafia in enumerate(itertools.product(*(largura[c] for c in "discover"))):
+            for argv_resto in (["".join(grafia)], ["tests.t_x", "".join(grafia)]):
+                argv = ["python3", "-m", "unittest", *subconjuntos[i % len(subconjuntos)], *argv_resto]
+                self.assertIsNotNone(rp.comando_permitido(argv), argv)
+
+    def test_propriedade_toda_lista_aceita_traz_um_nome_de_modulo(self):
+        fichas = ["-v", "-q", "-b", "-f", "-k", "x", "a", "a.b", "tests.t_x", "discover", "a.discover", "a..b", ".a", "a.", "1.b"]
+        aceitas = 0
+        for n in range(1, 4):
+            for resto in itertools.product(fichas, repeat=n):
+                if rp.comando_permitido(["python3", "-m", "unittest", *resto]) is None:
+                    aceitas += 1
+                    modulos = [a for a in resto if not a.startswith("-")]
+                    self.assertTrue(modulos and all("." in a and "" not in a.split(".") and not a[0].isdigit() for a in modulos), resto)
+        self.assertGreater(aceitas, 50)
+
+    def preparar(self, init=""):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        raiz = Path(tmp.name)
+        (raiz / "docs" / "provas").mkdir(parents=True)
+        (raiz / "tests").mkdir()
+        (raiz / "tests" / "__init__.py").write_text(init)  # pacote regular: a descoberta do unittest entra em tests/
+        (raiz / "tests" / "test_sentinela.py").write_text(
+            "import unittest\nclass T(unittest.TestCase):\n    def test(self): open('sentinela', 'w').close()\n")
+        return raiz
+
+    def rodar(self, raiz, comando):
+        (raiz / "docs" / "provas" / "p.md").write_text(f"- PQ-1 (cmd): `{comando}` · espera: rc=0\n", encoding="utf-8")
+        r = subprocess.run([sys.executable, str(AQUI.parent / "scripts" / "reexecutar-provas.py"), "--raiz", str(raiz), "docs/provas/p.md"],
+                           capture_output=True, text=True, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+        return r.returncode, r.stdout + r.stderr
+
+    def test_efeito_real_unittest_so_com_opcoes_nao_roda_a_suite(self):
+        for comando in ("python3 -m unittest -v", "python3 -m unittest -b", "python3 -m unittest -q -f"):
+            raiz = self.preparar()
+            rc, saida = self.rodar(raiz, comando)
+            self.assertEqual(rc, 1, (comando, saida))
+            self.assertFalse((raiz / "sentinela").exists(), comando)
+        raiz = self.preparar()
+        rc, saida = self.rodar(raiz, "python3 -m unittest tests.test_sentinela")
+        self.assertEqual(rc, 0, saida)
+        self.assertTrue((raiz / "sentinela").exists())  # a sonda está viva
+
+    def test_s2_nome_de_pacote_com_load_tests_de_descoberta_e_recusado(self):
+        init = ("import os\ndef load_tests(loader, tests, pattern):\n    aqui = os.path.dirname(__file__)\n"
+                "    return loader.discover(aqui, top_level_dir=os.path.dirname(aqui))\n")
+        raiz = self.preparar(init)
+        rc, saida = self.rodar(raiz, "python3 -m unittest tests")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("recusado", saida)
+        self.assertFalse((raiz / "sentinela").exists())
+        r = subprocess.run([sys.executable, "-m", "unittest", "tests"], cwd=raiz, capture_output=True, text=True,
+                           env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertTrue((raiz / "sentinela").exists())  # medido: o nome do pacote sozinho roda a descoberta do load_tests
 
 
 class PassoDoCi(unittest.TestCase):
