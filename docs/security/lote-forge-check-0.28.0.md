@@ -64,3 +64,7 @@ Delta `8649439..31e78cd` (o `forge-check delta` sobre este parecer): o merge `31
 - Superfície da branch: o diff da branch contra a base comum (`daf2ffa..b8c19b9`) e o do merge contra a `develop` (`139a3b4..31e78cd`) têm as mesmas linhas alteradas em `bin/`, `hooks/`, `.githooks/`, `.github/`, `tests/config.json`, `agents/` e `docs/regras/`: nada do lote sumiu nem afrouxou, e nada do #294 foi tirado.
 - Testes do delta na worktree com `HOME` isolado: `test_agentes_clone`, `test_agentes_hash_brief`, `test_guarda_conferente`, `test_isencoes` (51 testes, OK).
 Veredito: aprovado, sem achado novo; R1, R2, R4 e R5 seguem valendo. Ferramentas: `forge-check delta`, `git show --cc`, comparação de diffs por pai; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual).
+
+Sem achado novo nesta revalidação.
+
+## Achados
