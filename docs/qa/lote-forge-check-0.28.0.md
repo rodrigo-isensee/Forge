@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
+commit: eee8e7316ea7bffd9c489e36b4f9f7898377d7f4
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -51,3 +51,9 @@ Depois do review (`0be3566`) e da segurança (`f8b2a16`) do delta aprovados. Del
 - `scripts/validar-plugin.sh`: "Validation passed".
 - Vermelho antes do verde e mutação: não refeitos (nenhum teste novo no delta; a resolução só une listas e contagens; sem ferramenta de mutação no Forge).
 - Comportamento do lote (M16, P2 a P6, M4, M13) e da M14b: sem regressão. Veredito: aprovado, sem achado, nenhum bloqueante.
+
+## Revalidação por delta (INTEG-LOTE-FC-2-REV, E3.1)
+Depois do review e da segurança do delta. Delta: o commit `31e78cd` (integra a `develop` `139a3b4`, com o #294: `hooks/agentes.py` com o hash do brief, `bin/forge-check`, `ci.yml`, testes `test_agentes_clone`, `test_agentes_hash_brief`, `test_guarda_conferente`) e a resolução do conflito em `docs/hooks.md` (`git show --cc`: as duas linhas mantidas, a do hook `agentes` com R-BRIEF e a do `parecer` com `isencoes_da_entrega`, M13). Worktree em `eee8e73` (só pareceres sobre `31e78cd`).
+- Módulos (`HOME` próprio): os 20 de `FORGE_CHECK` mais `test_agentes_clone` e `test_agentes_hash_brief`, que leem `hooks/agentes.py`, `hooks/parecer.py`, `bin/forge-check` e `docs/hooks.md`: 1071 testes, 278 s, `OK`, rc 0. Sem suíte completa (decisão do pedido).
+- Ponta a ponta do hook `agentes` (sonda em `$TMPDIR`): brief com hash certo ao `forge:conferente` passa (rc 0); hash errado é bloqueado (rc 2, `R-BRIEF: o hash do brief não bate com o arquivo`). Isenção da entrega (`isencoes_da_entrega` do `forge-check`, que o hook `parecer` usa): diff só de `docs/x.md` isenta `{'qa'}`; com `agents/y.md` a isenção some (`set()`). As duas regras coexistem na resolução.
+- Vermelho antes do verde e mutação: não refeitos (nenhum teste novo na resolução; os do #294 e do M13 já foram aprovados nas suas entregas). Sem regressão do lote. Veredito: aprovado, sem achado, nenhum bloqueante.
