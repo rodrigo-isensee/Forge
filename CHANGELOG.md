@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.3] - 2026-10-24
+### Adicionado
+- forge-fechar: a pasta do log com modo diferente de 700 é ajustada para 700 (com aviso), o passo 7 sai da worktree da própria branch e fecha com código 0, e a opção --sem-limpar faz o fechamento sem a limpeza (código 3 com os comandos pendentes)
+### Corrigido
+- **forge-changelog release:** a troca da versão é conferida por json (chave aninhada, repetida ou aspa escapada recusam sem gravar) e o CHANGELOG.md link simbólico ou fora da raiz é recusado.
+
 ## [0.30.2] - 2026-10-24
 ### Alterado
 - Primeiro lote da máquina (MAQ-LOTE-A): pesos da divisão regravados com teste de 20% sem peso, push de código em segundo plano e V2 do autor dirigida e na fila.
