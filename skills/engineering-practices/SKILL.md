@@ -56,6 +56,7 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Conventional Commits em português: `tipo(escopo): descrição no imperativo`. Tipos: feat, fix, docs, test, refactor, perf, chore, ci.
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
+- **Teto por PR:** até 400 linhas alteradas de código e teste (`git diff --numstat origin/develop...HEAD`, adições mais remoções); contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`; ficam fora pareceres, `changelog.d/`, corpus e fixtures de `tests/hooks/`, `tests/fixtures/`, `tests/transcricoes/`, `tests/migracoes/`, `tests/mutantes/` e o texto `.md`. Passou, divide; a exceção só vale com `teto: excedido, <n> linhas, <motivo>` no corpo do PR, aceita no review, e nunca em `hooks/`, onde vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
 
 ## Pull request e a main

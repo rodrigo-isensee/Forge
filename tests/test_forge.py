@@ -4794,3 +4794,24 @@ class GuiaDaPromocao(unittest.TestCase):
         for trecho in ("scripts/promover-homolog.py", "--dry-run", "não mescla", "R-FLUXO", "Reversão"):
             self.assertIn(trecho, guia)
         self.assertIn("promover-homolog", (RAIZ / "docs" / "fechamento-integrador.md").read_text(encoding="utf-8"))
+
+
+class TetoPorPr(unittest.TestCase):
+    """EST-030-L5, M14: o teto de tamanho por PR e a classe única em `hooks/` estão escritos onde o time lê."""
+
+    def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
+        for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in ("400 linhas alteradas de código e teste",
+                          "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
+                with self.subTest(arquivo=caminho, frase=frase):
+                    self.assertIn(frase, texto)
+
+    def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
+        for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in ("git diff --numstat origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
+                          "`tests/mutantes/` e o texto `.md`", "`teto: excedido, <n> linhas, <motivo>`",
+                          "nunca em `hooks/`"):
+                with self.subTest(arquivo=caminho, frase=frase):
+                    self.assertIn(frase, texto)
