@@ -569,6 +569,42 @@ class Protegidos(Base):
         self.passa()
 
 
+class CorpusDosAfrouxamentosReais(unittest.TestCase):
+    """E2 do EST-030-L3: os 11 PRs rotulados `afrouxa-regra` que a linha de base (`forge-check afrouxamentos`) mediu como afrouxamento real
+    seguem pedindo o rótulo depois da M9. Cada fixture em `tests/fixtures/afrouxamentos/` guarda, do diff real do PR, só os arquivos
+    (texto antes e depois) que fazem a catraca achar o afrouxamento; sem rede."""
+    PRS = (109, 125, 161, 195, 200, 204, 209, 218, 236, 253, 281)
+
+    def monta(self, arquivos):
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.git("checkout", "-q", "--orphan", "corpus")
+        repo.git("rm", "-rfq", "--ignore-unmatch", ".")
+        for lado in ("base", "head"):
+            for rel, textos in arquivos.items():
+                caminho = repo.dir / rel
+                if textos[lado] is None:
+                    caminho.unlink(missing_ok=True)
+                else:
+                    repo.escreve(rel, textos[lado])
+            repo.git("add", "-A")
+            repo.git("commit", "-q", "--allow-empty", "-m", lado)
+            repo.git("tag", "-f", "corpus-" + lado)
+        return repo.dir
+
+    def test_cada_afrouxamento_real_segue_pedindo_o_rotulo(self):
+        pasta = AQUI / "fixtures" / "afrouxamentos"
+        self.assertEqual(sorted(int(f.stem) for f in pasta.glob("*.json")), list(self.PRS))
+        for n in self.PRS:
+            with self.subTest(pr=n):
+                fixture = json.loads((pasta / f"{n}.json").read_text(encoding="utf-8"))
+                self.assertEqual(fixture["pr"], n)
+                achadas = catraca.violacoes_das_regras(self.monta(fixture["arquivos"]), "corpus-base", "corpus-head")
+                de_conteudo = [v for v in achadas if catraca.arquivo_da_violacao(v) is None]
+                self.assertTrue(de_conteudo, achadas)
+                self.assertTrue(all(v.startswith("R-CONFORMIDADE:") for v in de_conteudo), de_conteudo)
+
+
 class FalhaFechadaDoGit(Base):
     """Item 1 do N-CAT1: erro do git nunca vale como "ausente" nem como lista vazia, em qualquer ordem das regras."""
 
