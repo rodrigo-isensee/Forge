@@ -3,135 +3,177 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 3df051e400a7be84cba20a9da185f9e1ba86f3f7
-parecer: aprovado
+commit: 96227be7a53d1f7c4448f19fa452bc5116714f9b
+parecer: reprovado
 revisor: forge:security-engineer
-data: 2026-10-23
+data: 2026-10-24
 ---
-# Review de segurança: lote-leitura-hook (revalidação 9, opção B)
+# Review de segurança: lote-leitura-hook (revalidação 10, opção B da revalidação 9)
 
-Pedido RET-LEITURA-HOOK-REV9, etapa E2.1. Escopo: a opção B escolhida pelo dono para as sondas Q1 a Q4 da revalidação 8 (`docs/propostas/lote-leitura-hook-caminho-rev8.md`, seções 3, 4A e 4B), nos commits `403a3a0`, `140256f`, `befe8d3`, `d6bd263` e `3df051e`. O parecer anterior é a revalidação 8, em `b2c7d83` (commit `14c9eeb`). `forge-check delta --parecer` sobre ele lista:
-- `hooks/_comum.py:1611-1622,1659-1660,1712-1796`;
-- `hooks/conformidade.py` (imports, `:623`, `:721-727`, `:853`);
-- `hooks/parecer.py:21-24,342-349,378-398`;
-- o corpus, dois fixtures do `conformidade` e `tests/test_hooks.py` (T9b e a propriedade);
-- a ADR 0011 (linha 41), `docs/hooks.md:94`, o desenho (linhas 88 e 280-281) e o fragmento do changelog.
+Pedido RET-LEITURA-HOOK-REV10, etapa E2.1. Escopo: a opção B da proposta `docs/propostas/lote-leitura-hook-caminho-rev9.md` (seções 2, 3B e 5).
+- A implementação está em `83c63b2`, `53d0544`, `aadb806`, `d73c373` e `b42fd4b`. A `develop` foi trazida em `c3d55d5`, que é um merge limpo: `git show --cc` não mostra resolução. Os textos estão em `96227be`.
+- O parecer anterior é a revalidação 9, sobre `3df051e`, commitado em `eb3da15`.
+- `forge-check delta --parecer` sobre ele lista o intervalo `3df051e..96227be`. O intervalo inclui o que veio da `develop` pelo merge, que passou pelos gates dos próprios PRs.
+- Reli inteiro o que é do lote: `hooks/_comum.py:1757-1915`, `hooks/conformidade.py:660-670,854-857`, `hooks/parecer.py:358-385`, o corpus, `tests/test_hooks.py` (G1, a prova de G1 no bash, a redução contra o bash e a propriedade), a ADR 0011 (linha 41), `docs/hooks.md:95` e o desenho (linha 280).
 
-É controle do Forge e foi relido inteiro. Conferi também que o `befe8d3` só move código: as linhas tiradas de `hooks/conformidade.py` e as postas em `hooks/_comum.py` são as mesmas, salvo o import e um comentário.
-
-**critério mudou:** não. Vale a frase de parada da opção B (desenho, `docs/propostas/lote-leitura-hook-volta-unica.md:280`), lida com a linha 276 e a regra A4 do mesmo desenho. A sonda bloqueia se cair na linha **Promete** do Leitor, se um dos hooks a liberar com marcador e se o T9b mostrar que o bash rodou a `SENTINELA`. Pela A4, a pertença se decide pela tabela. A linha Promete da opção B nomeia:
-- `eval` e `bash`/`sh`/`zsh`/`dash`/`ksh` com `-…c…`, na forma direta ou por baixo dos lançadores que o hook separa;
-- o `<<` que o bash pode formar.
-
-O que essa linha não cobre é cartão (linha 276), mesmo que o bash rode a sentinela. FD12 e FD13 têm contorno em `docs/hooks.md` e não bloqueiam.
+**critério mudou:** não. Vale a frase de parada corrigida (RET-LEITURA-HOOK-CAMINHO4, desenho `docs/propostas/lote-leitura-hook-volta-unica.md`, linha 280 e seguintes), lida com a linha 276.
+- **Bloqueia** a sonda que um hook libera com marcador, com efeito provado no bash, numa forma que a linha Promete cobre.
+- **A reavaliação prometida** é a palavra que o bash recebe depois da remoção de aspas, inclusive `$'…'` com os escapes ANSI-C, em qualquer posição.
+- **O orçamento de tempo** também é promessa escrita. O desenho, na linha 45, diz que "o orçamento de tempo da regra 3.1 continua valendo". `docs/hooks.md:96` diz que "o hook decide antes do timeout de 10 s, que o Claude Code trata como liberado".
+- **Fica fora da Promete, e é cartão:** a palavra com expansão, o shell que lê o texto por outra via, os programas que não são shell (X1, X3) e o `coproc {CORPO}` (R5A-COPROC).
 
 ## Gatilhos
-`R-SEGURANCA`, gatilho controles do Forge: os hooks `conformidade` e `parecer`. A mudança é a gramática positiva da chamada com `<<` e ação crítica e a recusa da reavaliação pelo shell. Os hooks guardam R-MAIN, R-VERIFY, R-CONTRIB, R-CONFORMIDADE e R-REVIEW/R-QA.
+`R-SEGURANCA`, gatilho controles do Forge: os hooks `conformidade` e `parecer`. A mudança tira a posição do reconhecimento da reavaliação pelo shell e o faz sobre a palavra reduzida como o bash. Os hooks guardam R-MAIN, R-VERIFY, R-CONTRIB, R-CONFORMIDADE e R-REVIEW/R-QA.
 
 ## Achados
+- A1 (bloqueante) hooks/_comum.py:1852 · classe "nível" (grafia, redução de `$'…'`): a redução não trata o escape `\x{HH…}` do bash 5.3; `$'\x{65}'val '<gh pr merge …>'` e `bash -$'\x{63}' '…'` saem 0 no parecer e o bash roda a sentinela
+- A2 (bloqueante) hooks/_comum.py:1777 · classe nova "orçamento de tempo": `reavaliacao_das_palavras` é quadrática; `: bash bash … (20 mil) ; git push origin X:main` (100 KB) estoura o timeout de 10 s nos dois hooks (liberado) e o bash roda a linha crítica; em 3df051e e na develop, 0,2 a 0,4 s e rc 2
 
 ## Detalhe dos achados
-Nenhum bloqueante. As sondas novas acharam uma classe aberta, a do reavaliador ou comando que o hook não reconhece (R5 e R5a abaixo). Ela fica fora da linha Promete, não depende de `<<` e dá o mesmo código na `develop` `7423c44`. Por isso não é da classe "nível" e não bloqueia. Vai a cartão, com severidade alta.
+Os dois bloqueantes estão aqui, numa passada só. Sondei as famílias CO, AN, VA, CN, ST e NR, as grafias do marcador e os falsos positivos contra os hooks reais da worktree em `96227be`, e as sondas de comparação contra `3df051e` e contra a `develop` `40d8707` (`git archive` em `$TMPDIR`, com os testes de `96227be`). A redução passou por um teste de diferença aleatório contra o `printf` do bash: 9 mil palavras, em duas sementes.
 
-### Revalidação dos achados da revalidação 8
-Hooks reais da worktree em `3df051e`. Cada sonda passou pelo `decisoes_dos_hooks` e pelo `rodar_no_bash_do_t9b` do próprio T9b:
-- o modelo do corpus, com a sentinela do hook no `{CORPO}`;
-- o `bash 5.3.9` com `env -i` e registradores no `PATH`;
-- `HOME` e a pasta em `$TMPDIR`, sem rede.
+Condições das sondas:
+- cada hook rodou **sempre**, sem o atalho do `CRITICO` que o `decisoes_dos_hooks` usa;
+- o modelo de fixture é o do corpus;
+- a sentinela é a do T9b;
+- o bash é o 5.3.9 do `rodar_no_bash_do_t9b`, com `env -i`, registradores no `PATH`, `HOME` e a pasta em `$TMPDIR/security-engineer-lh10/` e sem rede.
 
-As células são conf / par.
-- **R0 (Q1 a Q4 e Q6): resolvido.** No corpus, Q1 a Q6 saem **2 / 2**, e rodei Q1 e Q4 de novo no T9b: 2 / 2. Variantes que a proposta não pôs no corpus também saem 2 / 2:
-  - `<'\''<` (QN3);
-  - `$""` entre os dois `<` (QN2);
-  - `$(echo $(true))` aninhado entre os dois `<` (QN1).
+As células são conf / par. "SENT" quer dizer que o bash rodou a sentinela; "-" quer dizer que não rodou.
 
-  A regex `HEREDOC_QUE_O_BASH_FORMA` (`hooks/_comum.py:1614`) não casa o QN1 por causa do `[^()]*`, mas a recusa da reavaliação fecha o caso antes.
-- **QC1 e QC2 (o `<<` calculado com `$(printf '\x3c\x3c')` dentro de `eval` e de `bash -c`): resolvidos.** No corpus e no T9b, os dois saem 2 / 2. Rodei também `command sh -ec` (QC3sh) e `env -i PATH=… nice -n 1 bash -lc` (QC4env): 2 / 2. A recusa entra em `hooks/conformidade.py:723` e em `hooks/parecer.py:393`, depois das regras específicas. O reconhecimento está em `reavaliacao` (`hooks/_comum.py:1760`).
-- **R1 (`~` no alfabeto fora de aspas): não resolvido.** `hooks/_comum.py:507` não mudou. `git push origin feature/x ~ && git commit -F - <<'EOF'⏎msg⏎EOF` sai 0 / 0 (TIL), e o bash roda o `git` com o caminho da casa no argv. Continua recomendação de severidade baixa, sem caminho de ataque, como na revalidação 8.
-- **R3 (limites do T9): não resolvido, e o T9b tem um limite do mesmo tipo.** O T9 não mudou. O T9b só põe shell de verdade para `bash`, `sh`, `dash`, `zsh` e `ksh` (`SHELLS_DO_T9B`, `tests/test_hooks.py:2283`). Os outros programas são registradores. Um reavaliador fora dessa lista (`rbash -c`, `find -exec bash -c`, `flock f bash -c`) fica só gravado e nunca roda a sentinela. Nas minhas sondas R1rb, R3fi e R49fl (parecer), o T9b dá "sentinela não rodou", e isso é artefato do oráculo, não prova. Recomendação abaixo (R6).
+### Resposta por classe: a reavaliação com ação crítica recusa em qualquer posição e grafia?
+- **CO (posição): sim.** As 66 sondas saem 2 / 2. Elas cobrem:
+  - `coproc` (com e sem nome, com `{ …; }`), `time`, `time -p`, `!` (antes e depois de `time`), `if`, `while`, `until`, `{ }`, `( )`, função (`f()` e `function`), `case` (também com `;;&`), `for` e `select`;
+  - redireção antes (`>/dev/null eval`, `2>&1 eval`), atribuição antes, `exec`, `exec -a`, `command -p`, `builtin`, `nohup`, `sudo -u`, `timeout`, `nice`, `setsid`, `stdbuf`, `env --`, `env -S` (as duas grafias), `xargs`, `find -exec`, `flock`, `busybox sh` e um programa desconhecido;
+  - depois de `&&`, `||`, `|`, `&`, de quebra de linha e de comentário;
+  - dentro de `$(…)`, crase, `"$(…)"`, `<(…)`, `>(…)`, `${x:-$(…)}` (com e sem aspas), `$(( ))`, `(( ))`, `$[ ]`, `a[$(…)]=1`, `a=( … )`, `[[ ]]`, `[ ]`, `case $(…) in` e `<<< "$(…)"`;
+  - no corpo de heredoc rodado (`bash <<'E'`, `cat <<'E' | bash`, `eval "$(cat <<'E' …)"`);
+  - `ev\`⏎`al`.
 
-### Outra forma de esconder a ação crítica do nível 0, com a recusa da reavaliação em vigor
-Procurei pelo reconhecimento da reavaliação, que é a única entrada da opção B:
-- o nome do programa;
-- a opção `-c`;
-- a palavra antes do comando;
-- o shell que lê a entrada sem `-c`.
+  CO1 a CO3, NR1 a NR3 e VA1 do corpus saem 2 / 2.
+- **AN (grafia): não, no `parecer`.** 44 das 47 grafias saem 2 / 2:
+  - `'…'`, `"…"`, `\`, `$'…'` com `\xHH`, `\nnn`, `\uHHHH` e `\UHHHHHHHH`;
+  - `\0` que corta o resto, `$"…"`, `''eval`, `$''eval`, `eval$''`;
+  - `"ev"\`⏎`al`, `/bin/b''ash`, `./bash`, `ba$'\x73'h -c`, `bash -$'\x63'`, `bash -"c"` e `bash -\c`.
 
-Sondei cada forma sem `<<` e com o `<<` calculado.
+  Três grafias corretamente não são `eval` e o bash não roda a sentinela: `"eva\l"`, `e"\v"al` e `$'\0145val'`. A exceção é o **A1**: o `$'\x{HH…}'`.
+- **VA (variável): sim, dentro da Promete.** `$x eval`, `$empty bash -c`, `x=1 bash -c` e `declare …; eval` saem 2 / 2. As formas em que a palavra do programa é calculada saem 2 / 0 SENT e são cartão N-HOOK1 (expansão): `"$BASH" -c`, `x=eval; $x`, `${x:-eval}` e `"${x}"eval`.
+- **CN (nome calculado): fora da Promete, cartão N-HOOK1.** Saem 0 / 0 SENT: `$(printf bash) -c`, `ev?l` e `~/../../bin/bash` no `parecer`. Saem 2 / 2, porque a palavra `eval` ou `bash` aparece dentro da substituição: `$(echo eval)`, `"$(printf eval)"` e `` `echo eval` ``.
+- **ST (outra via): fora da Promete, cartão N-HOOK1.** `| bash`, `. <(…)` e `trap` saem 0 / 0 SENT, como no corpus (ST1 a ST3, marca "não promete"). `bash <<<`, `bash -s <<<`, `source /dev/stdin <<<` e `x='a[$(…)]'; (( x ))` saem 2 / 2.
+- **NR (reavaliador fora da lista): fora da Promete, cartão N-HOOK1.** Saem 0 / 0: `ash -c`, `mksh -c`, `su x -c`, `script -qc` (2 / 0) e `ssh host '…'`. No T9b, esses programas são registradores, então o "-" não é prova. Eles não estão na lista de shells da frase.
 
-| ID | texto (o `{CORPO}` é a sentinela do hook) | 3df051e | develop `7423c44` | sentinela no bash |
-|---|---|---|---|---|
-| R5ce, R6cq | `$(echo eval) '{CORPO}'`, `"$(printf eval)" '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
-| R50cm | `$(printf bash) -c '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
-| R1pe | `/proc/self/exe -c '{CORPO}'` (o próprio bash) | 0 / 0 | 0 / 0 | rodou |
-| R7pi | `echo '{CORPO}' \| bash` | 0 / 0 | 0 / 0 | rodou |
-| R9so | `. <(echo '{CORPO}')` | 0 / 0 | 0 / 0 | rodou |
-| R23tr | `trap '{CORPO}' EXIT` | 0 / 0 | 0 / 0 | rodou |
-| R26B | `"$BASH" -c '{CORPO}'` | 2 / 0 | 2 / 0 | rodou (parecer) |
-| CO1, CO3 | `coproc bash -c '{CORPO}'`, `coproc eval '{CORPO}'` | 0 / 0 | 0 / 0 | rodou |
-| CO4 | `coproc {CORPO}` (a linha crítica direta, sem reavaliação) | 0 / 0 | 0 / 0 | rodou |
-| CO2 | `coproc x { bash -c '{CORPO}'; }` | 2 / 0 | 2 / 0 | rodou (parecer) |
-| QCco, QCce, QPc | `coproc bash -c`, `$(echo eval)` e `printf … \| bash` com o `<<` calculado em vez do `{CORPO}` direto | 0 / 0 | — | rodou |
-| controles | `bash -c`, `'bash' -'c'`, `bash "-c"`, `(…)`, `f() {…}; f`, `case`, `exec`, `time -p`, `!`, `{ …; }`, `bash <<<` | 2 / 2 | o `parecer` libera quase todos | — |
+### A1: o escape `\x{…}` do `$'…'` (bloqueante, classe "nível": grafia)
+- **Evidência.** `_ansi_c` (`hooks/_comum.py:1852`) só lê `\x` seguido de 1 ou 2 dígitos. O bash 5.3.9 também lê `\x{HH…}`, com qualquer número de dígitos e até sem a chave de fecho: `$'\x{65}val'`, `$'\x{0000065}val'` e `$'\x{65'` dão `e…`. A redução do hook devolve o texto com a barra. Resultado:
+  - `$'\x{65}'val`, `$'\x{65}\x{76}\x{61}\x{6c}'`, `bash -$'\x{63}'`, `$'\x{62}'ash -c`, `coproc $'\x{65}'val` e `$'\x{0000065}'val` saem **2 / 0, e o bash roda `gh pr merge SENTINELA --merge`** (AN34 a AN34f);
+  - o `conformidade` dá 2 por outra regra, a recusa do `$` com marcador;
+  - a `develop` dá o mesmo código, mas a pertença não depende da comparação (proposta, seção 2, motivo 3). A forma é `$'…'` com escape ANSI-C e se reduz a literal: está na Promete.
+- **Teste de diferença.**
+  - Na semente com `\x{`, 523 de 4 mil palavras divergem do bash. As 30 listadas divergem todas por `\x{`.
+  - Na semente sem os elementos `\x{`, 459 de 5 mil divergem. Nas listadas, as que formam letras vêm de `\x` seguido de `{`, e as demais não formam letras (R7).
+- **Por que o oráculo não viu.** O `test_reducao_da_palavra_como_o_bash` compara só as grafias de G1, e G1 não tem `\x{`. É o mesmo recorte por amostra que o critério de fim queria evitar, agora na tabela da redução.
+- **Caminho de ataque.** Um agente, por engano ou por injeção de prompt, escreve `$'\x{65}'val 'gh pr merge 12 --merge'`. O `parecer` libera, e o `gh pr merge` roda sem parecer de review e de QA (R-REVIEW, R-QA). Restam a proteção de branch e o `pre-push`.
+- **Severidade e correção.** Severidade alta. Correção mínima, esforço P:
+  - no `_ansi_c`, ler `\x{` como o bash: dígitos hexadecimais até `}`, e o que o bash faz sem a chave;
+  - pôr `\x{…}` na tabela de grafias de G1 e no teste de diferença;
+  - tornar o teste de diferença gerativo sobre a tabela inteira de escapes, e não só sobre G1;
+  - pôr AN34 a AN34f no corpus.
+- **Dono:** `tech-lead`.
+- **Contagem de voltas.** É a classe "nível" de novo, dentro da frase corrigida. Pela seção 5 da proposta e pela decisão "A" de 2026-10-22, a entrega para e volta ao `software-architect`. A falha está na redução, que a proposta tinha apontado como o único ponto restante da opção B.
 
-Leitura: com a opção B, o `eval` e os cinco shells com `-c` que o hook reconhece recusam nos dois hooks, em todas as formas que tentei. O que passa tem uma de três causas:
-- O nome do programa é calculado ou não está na lista: `$(echo eval)`, `/proc/self/exe` e, no `parecer`, `"$BASH"`.
-- O shell lê o texto por outra via que não o `-c`: `| bash`, `. <(…)`, `trap`.
-- A palavra reservada `coproc` vem antes do comando, e o hook não a pula (`CORPO_DE_LACO`, `hooks/_comum.py:1754`).
+### A2: orçamento de tempo do reconhecedor sem posição (bloqueante, classe nova "orçamento")
+- **Evidência.** `reavaliacao_das_palavras` (`hooks/_comum.py:1763-1789`) varre `palavras[k + 1:]` para cada palavra de nome de shell (`:1776-1777`), e faz a mesma coisa com `separar_lancadores` para cada `env`. O custo é quadrático no número de palavras do comando simples. A chamada fica dentro de `conferir_linha`, depois da conferência do prazo:
+  - no `conformidade` (`hooks/conformidade.py:670`), o prazo de 3 s e o teto de 150 mil caracteres só se conferem na entrada de `bash()`;
+  - no `parecer` (`hooks/parecer.py:365`), não há orçamento.
+- **Medidas** (`reavaliacao` sozinha): 2 mil palavras em 0,27 s, 5 mil em 2,2 s, 10 mil em 8,3 s e 20 mil em 32 s.
+- **De ponta a ponta,** com o hook real e o prazo de produção (`hooks/hooks.json`: 10 s), sobre `: bash bash … ; <sentinela>`:
 
-Nenhuma dessas formas precisa de `<<`, e o `<<` calculado nelas não muda nada: o `{CORPO}` direto já roda. Todas dão o mesmo código na `develop`, e o `parecer` da `develop` libera ainda mais (linha dos controles). A opção B não abriu nenhuma delas e fechou as que estão na sua linha.
+  | palavras | tamanho | `96227be` | `3df051e` e `develop` `40d8707` | sentinela no bash |
+  |---|---|---|---|---|
+  | 12 mil | 60 KB | 10,9 s / 10,3 s (rc 2, no prazo largo do teste) | 0,3 s | — |
+  | 20 mil | 100 KB, abaixo do teto de 150 mil | **estoura o timeout de 10 s nos dois hooks** | rc 2 em 0,2 a 0,4 s | roda (SENT) |
 
-### O T9b e a propriedade (5) provam o critério de fim da 4B?
-Pelo que a 4B escreve, sim. Para a classe, não: os dois oráculos quantificam sobre o corpus e as mutações do T8 por nível, e não sobre o domínio do reconhecedor.
-- (1) `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica` em `3df051e` (corpus, T6, T7, T8, T9, T9b, propriedade e cobertura): `Ran 8 tests in 95.445s`, `OK`.
-- (2) Q1 a Q6, QC1, QC2, BL2 e QP1 estão no corpus como 2 / 2 e passam.
-- (6) QC1 e QC2 estão no T9b (corpus com `{CORPO}`) e passam porque a chamada recusa.
-- (3) Mutações, cada uma numa cópia de `3df051e` em `$TMPDIR`, rodando o corpus, o T9b e a propriedade:
-  - **m1**: o gatilho volta ao de `b2c7d83` (`"<<" in texto.replace("\\\n", "")`, em `tem_heredoc_no_texto`). Resultado: 6 falhas. O T9b falha em QP1 nos dois hooks, e o corpus falha em QP1, FD12 e FD12b. B1, B2 e Q1 a Q4 **ficam verdes**, porque a recusa da reavaliação os pega antes. A mutação da seção 3 ("T9b vermelho em B1, B2 e Q1 a Q4") não vale mais como foi escrita. Com a opção B, o gatilho novo só é provado pelo shell que lê a entrada (QP1) e pelo FD12. É uma consequência esperada de B, e não um furo: o gatilho deixou de ser a única barreira.
-  - **m2**: a recusa da reavaliação sai dos dois hooks (`hooks/conformidade.py:723` e `hooks/parecer.py:393` com `if False:`). Resultado: 31 falhas.
-    - O T9b falha em QC1 e QC2 no `parecer`: o bash rodou a sentinela.
-    - A propriedade falha em todas as linhas diretas dentro de `eval`, `sh -c`, `bash -c`, `env X=1 bash -c` e `command eval`, nos dois hooks.
-    - O corpus falha em QC1 e QC2 (parecer) e em FD13a a FD13e.
+  Pelo `docs/hooks.md:96` e pelo comentário de `hooks/conformidade.py` (`bash()`), o Claude Code trata o timeout como liberado.
+- **Por que os testes não viram.** Os testes de tempo do lote passaram (`tests.test_hooks`: 61 testes, OK) porque nenhum deles usa um comando simples com muitas palavras.
+- **Caminho de ataque.** Um agente, por injeção de prompt, manda uma linha longa de palavras inertes seguida de `git push origin HEAD:main` ou de `gh pr merge`. Os dois hooks estouram o prazo, e a ação crítica direta roda sem R-MAIN e sem R-REVIEW. Não é preciso reavaliação nem grafia. Numa máquina carregada, basta menos.
+- **Natureza e severidade.** É regressão deste delta. A posição fixa de `3df051e` era linear. Severidade alta, porque exige uma linha deliberada e restam a proteção de branch e o `pre-push`.
+- **Correção mínima,** esforço P:
+  - tornar o reconhecimento linear: uma passada da direita para a esquerda, com um marcador "há opção com `c` depois";
+  - o mesmo para o `env`;
+  - conferir o prazo da linha dentro de `conferir_linha` nos dois hooks (o `parecer` com um prazo próprio), recusando ao estourar;
+  - um teste de tempo com um comando simples de 20 mil palavras com marcador, que tem de recusar abaixo de 3 s.
+- **Dono:** `tech-lead`. Proponho a classe "orçamento" como dimensão nova da matriz (tamanho por número de palavras, não só por caracteres).
 
-    No `conformidade`, QC1 e QC2 seguem 2 sem a regra nova: ele segue o `eval` e o `bash -c` até o nível 1, e o texto de lá não fecha.
-  - **m3**: a recusa sai só do `parecer`. Resultado: 21 falhas, todas no `parecer`. O T9b falha em QC1 e QC2, a propriedade falha nas linhas diretas dentro dos sete níveis, e o corpus falha em QC1, QC2, FD13b, FD13d e FD13e. A propriedade e o T9b separam os dois hooks: cada um tem de recusar sozinho.
-- (5) A propriedade usa uma leitura própria da reavaliação (`REAVALIACAO_DO_TESTE`, `tests/test_hooks.py:2398`). Ela casaria `coproc bash -c '…'`, mas esse texto não está entre as entradas. Por isso a propriedade prova a recusa para os textos que ela gera, e não para toda reavaliação que o regex dela reconhece. Pôr na entrada as formas da R5a que estão no alcance desse regex (`coproc bash -c`, `coproc eval`) mostraria a falha sem bash. Isso entra na R6.
+### Outra forma de esconder a ação crítica do nível 0
+Dentro da Promete, as únicas formas que achei são A1 e A2. As outras que testei ficam fora da Promete.
 
-### Recomendações (não bloqueiam; cartão N-HOOK1 ou cartão próprio)
-- **R5. Reavaliador ou comando que o hook não reconhece (classe nova, nem "nível" nem X1 a X3; já na `develop`)** (`hooks/_comum.py:1760-1777`; `hooks/conformidade.py:853`; `hooks/parecer.py:378`).
-  - Formas, na tabela acima: nome calculado (`$(echo eval)`, `$(printf bash) -c`), o bash por outro nome (`/proc/self/exe` e, no `parecer`, `"$BASH"`) e o shell que lê a entrada (`| bash`, `. <(…)`, `trap '…' EXIT`).
-  - Caminho de ataque: um agente, por engano ou por injeção de prompt, contorna no hook o R-MAIN e o R-REVIEW com efeito medido. Restam como camada o `pre-push` e a proteção de branch, como na R0 da revalidação 8.
-  - Severidade **alta**. Não é regressão: a `develop` dá o mesmo código.
-  - Correção mínima, esforço M. Precisa de decisão do dono, porque recusa mais e tem falso positivo. Três peças:
-    - com o marcador crítico na chamada, recusar o programa cujo nome não é literal (palavra de comando com `$(`, crase ou `$`);
-    - pôr `trap`, o `source`/`.` de `<(…)` ou de `/dev/stdin` e o shell que recebe a entrada por pipe ou por `<(…)` na mesma regra de B;
-    - pôr `/proc/self/exe` e `rbash` na lista dos shells.
-  - Dono: o `software-architect` propõe, e o caminho vai ao dono (`R-DECISAO`) pelo cartão N-HOOK1.
-- **R5a. `coproc` antes do comando (já na `develop`; cartão próprio, que peço ao Jarvis)** (`hooks/_comum.py:1754`, `CORPO_DE_LACO`).
-  - O CO4 é `coproc git push origin SENTINELA:main` (no `parecer`, `coproc gh pr merge SENTINELA --merge`). Ele sai 0 / 0, e o bash roda a linha crítica **direta**, sem reavaliação nenhuma. A mesma linha sem o `coproc` sai 2 / 2 (Zdir). O furo está no leitor de base, e não na opção B.
-  - Severidade **alta**.
-  - Correção mínima, esforço P: pular `coproc` e `coproc NOME` antes de `{` nos dois hooks (`CORPO_DE_LACO` e o `segmento`/`analisar`) e pôr CO1 a CO4 no corpus.
-  - Dono: `tech-lead`.
-- **R6. Oráculos sobre o domínio do reconhecedor** (`tests/test_hooks.py:2283,2398`).
-  - O problema: no T9b, os reavaliadores fora de `SHELLS_DO_T9B` são registradores, então o T9b não vê a sentinela que eles rodariam (R3). E a propriedade (5) só olha os textos que ela gera.
-  - Esforço P: pôr na entrada da propriedade as formas da R5 e da R5a que o regex dela reconhece. As outras entram no corpus com a marca "Não promete", para o conserto futuro aparecer como mudança de teste.
-  - Dono: `tech-lead`.
-- **R1 (`~`) e R3 (limites do T9)** da revalidação 8 seguem como estavam (acima). O mesmo vale para a R2 (`cd -`, cartão R2-CD-MENOS) e a R4 (o N-HOOK1 com as opções do `git`/`gh`, `remote.<r>.receivepack` e a classe X).
-- **FD13 num fixture `-libera`.** `tests/hooks/conformidade/contrib-remoto-nomeado-proprio-libera.json:25` perdeu o `bash -c`. A linha antiga foi para `contrib-remoto-nomeado-proprio-bash-c-bloqueia.json`, que espera 2. Isso endurece a regra e tem contorno (o `gh pr merge` direto). O R-CONTRIB continua coberto pelo `-libera` com a linha direta. A proposta dizia que não havia fixture assim, e essa é a única divergência com ela. Não bloqueia.
+**Marcador ofuscado (X3, cartão C8 da ADR 0011).**
+- **As formas.** O `CRITICO` do `conformidade` é `\b(git|gh)\b[^\n]*\b(push|…)`. Ele não atravessa a quebra de linha e lê o texto cru. Por isso escapam do marcador, nos dois níveis:
+  - `git \`⏎`push origin SENTINELA:main` direto (M9), que sai 0 e roda o push;
+  - `eval 'git \`⏎`push …'` (M1), `bash -c 'git \`⏎`push …'` (M4) e `coproc eval 'git \`⏎`push …'` (M10);
+  - `eval $'git \x70ush …'` (M5).
+
+  Todas saem 0 SENT no `conformidade`. A `develop` dá o mesmo (M1, M9).
+- **Por que é cartão.** Sem marcador, a recusa da reavaliação não liga. O que falha é o marcador, que está na "Não promete" (X3), e não a reavaliação.
+- **No `parecer`.** O `CRITICO` dele tem `re.S`, e as formas com `\`⏎ dão 2 (M7, M8).
+- **Pedido.** Peço ao Jarvis que junte o `\`⏎ e o `$'\x..'` ao cartão C8. A correção que a ADR já escreve para o C8 (rodar o `CRITICO` sobre as palavras reduzidas) cobre os dois, e agora a `reduzida` existe. Severidade alta, porque o push direto passa no hook. Dono: `tech-lead`.
+
+### Falsos positivos além do FD14?
+Não achei falso positivo fora da família do FD14 (a palavra `eval`, ou um shell seguido de opção com `c`, como argumento). Comparei com `3df051e`. Os novos são todos FD14:
+- `grep -rn eval … && git push`;
+- `echo "eval" && git push`;
+- `git log -S eval && git pull`;
+- `grep -c eval && git pull`;
+- `shfmt -ln bash -ci … && git push`;
+- `docker exec c bash -lc 'make test' && git push`;
+- `echo usa bash -c` com marcador.
+
+Ficaram iguais, sem falso positivo:
+- os corpos de heredoc dentro de `"$(cat <<'EOF' …)"` como valor de `-m` e `--body`, mesmo com `eval` ou `bash -c` numa linha (`reavaliacao` devolve None);
+- `--body 'Fecha bash -c e eval'`;
+- `python3 -c 'print(eval("1"))'`;
+- `git commit -F - <<'EOF'`;
+- o comentário `# roda bash -c`.
+
+O mais provável em projeto é o `docker exec … bash -lc` (ou `ssh host bash -c`) junto com o push. Recomendo citá-lo no FD14 de `docs/hooks.md:95` (dono: `software-architect`).
+
+### Revalidação das recomendações da revalidação 9
+- **R6 (oráculos sobre o domínio do reconhecedor): resolvido** para o que se reduz a literal, salvo o recorte da redução (A1).
+  - G1 é gerado por produto, e a verdade vem da construção.
+  - `test_g1_esta_na_classe` roda G1 nativo no bash.
+  - `rbash` entrou como shell do T9b, e `find`, `flock`, `sudo`, `nice`, `nohup` e `timeout` entraram como repassadores.
+- **R3 (limites do T9/T9b): parcial.** Os programas da NR acima seguem como registradores.
+- **R5:** segue no N-HOOK1. As formas estão no corpus com a marca "não promete" (CN1 a CN3, VA2, PE1, ST1 a ST3).
+- **R5a:** segue no R5A-COPROC (CO4, e CO5 no A6).
+- **R1 (`~`):** fora do delta, como estava.
+
+### Recomendações (não bloqueiam)
+- **R7. Divergências da redução que não formam letras** (`hooks/_comum.py:1857`, `:1852`). Três casos:
+  - `$'\c\''`: o hook fecha a aspa no `\'`, devolve None e pula a palavra;
+  - `\c` seguido de caractere fora do ASCII: o hook usa o caractere, e o bash usa o primeiro byte;
+  - `\U` acima de 10FFFF: o hook não gera nada, e o bash gera 4 bytes.
+
+  Nenhum dos três forma `eval`, nome de shell ou `-c`, porque o resultado tem byte de controle ou byte fora do ASCII. Não há caminho de ataque. Corrigir junto com o A1 e cobrir pelo teste de diferença. Dono: `tech-lead`.
+- **R8. `$"…"` com catálogo de mensagens** [inferência, não sondado]. Com `TEXTDOMAIN`, `TEXTDOMAINDIR`, um locale que traduz e um `.mo` gravado antes, o bash traduz a palavra, e ela deixa de ser literal. A redução a trata como `"…"`. É preciso preparar o arquivo deliberadamente e pôr as atribuições noutra linha. Cartão N-HOOK1.
+- **R9. `docs/hooks.md:95`, parágrafo "Reavaliação pelo shell com ação crítica".** Ele ainda diz "em qualquer nível que o hook lê (também por baixo de `env`, `command`, …, dos lançadores que ele separa)", que é a regra de posição de `3df051e`. A nota do arquiteto no pedido já aponta isso. Dono: `software-architect`.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas usadas:
+Nenhum risco aceito.
+
+Ferramentas usadas:
 - `forge-check delta --parecer`;
-- a leitura do diff `b2c7d83..3df051e` e a conferência do move do `befe8d3`;
-- a classe `CorpusHeredocVoltaUnica`;
-- as sondas pelo `decisoes_dos_hooks` e pelo `rodar_no_bash_do_t9b` do próprio T9b, contra os hooks reais da worktree e contra os hooks da `develop` `7423c44` (`git archive` em `$TMPDIR`, com os testes de `3df051e`);
-- as mutações m1 a m3 em cópias em `$TMPDIR`;
-- o `bash 5.3.9`, com `HOME` numa pasta de `$TMPDIR`, sem rede e sem custo (`R-CUSTO`).
+- `git show --cc c3d55d5`;
+- `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica -v`: `Ran 10 tests in 209.470s`, `OK`;
+- `python3 -m unittest tests.test_hooks`: `Ran 61 tests in 235.339s`, `OK`;
+- as sondas por um script próprio, que usa `Fixture`, `rodar` e `rodar_no_bash_do_t9b` do próprio teste;
+- o teste de diferença aleatório da `reduzida` contra o `printf` do bash;
+- a medida de tempo com o prazo de produção (10 s);
+- a comparação contra `3df051e` e a `develop` `40d8707` em cópias em `$TMPDIR`;
+- o bash 5.3.9, com `HOME` em `$TMPDIR/security-engineer-lh10/casa`, sem rede e sem custo (`R-CUSTO`).
 
 Lacunas:
-- Só o bash 5.3 está na máquina.
-- `rbash` e `dash` existem, mas o oráculo não roda o `rbash` de verdade (R6). `find`, `flock` e `rbash` só foram gravados.
+- Só o bash 5.3 está na máquina, e o `\x{` pode variar entre versões.
+- O "timeout = liberado" vem do próprio projeto (`docs/hooks.md:96`); não rodei o Claude Code.
+- `ash`, `mksh`, `su`, `script` e `ssh` só foram gravados.
 - A suíte inteira não rodou fora do pre-push (`R-TETO`).
-- `gitleaks`, `zizmor`, `actionlint` e `semgrep` não estão no PATH e não se aplicam: o delta não tem segredo, workflow nem dependência.
+- `gitleaks`, `zizmor`, `actionlint` e `semgrep` não estão no PATH e não se aplicam ao delta do lote, que não tem segredo, workflow nem dependência. O workflow trazido da `develop` passou pelo gate do PR dele.
 
 Nada foi instalado e nada saiu da máquina. Além deste parecer, só gravei em `$TMPDIR`.
