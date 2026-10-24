@@ -11,6 +11,10 @@ SessionStart grava em `.forge/run/vigia.json` os hashes dos arquivos em vigor do
                  escreve no caminho), por outro mecanismo de escrita (script, tee, python...) ou, para `R-MAIN`, o mesmo
                  push/merge na integração que passou. Repetir a mesma ferramenta sem a parte barrada não conta.
                  Cada contorno é identificado pelo id da chamada na transcrição (a reincidência é avisada de novo).
+  - `entrada-sem-registro`  só no `Stop` da sessão principal (nunca no `SubagentStop`): mensagem do dono no turno com 3 ou mais
+                 itens de lista e nenhuma gravação depois dela em `docs/pedidos/`, `docs/kanban/` nem `KANBAN.md` (aviso, nunca
+                 bloqueio). Só conta itens: o texto do dono não vai à saída, ao log (só a contagem e o id da mensagem) nem ao
+                 parser do `contorno`.
 Cada violação nova vai para `.forge/run/violacoes.jsonl`; havendo alguma, a saída é só
 `{"systemMessage": "Forge: <n> violação(ões) - ..."}` com código 0 (nunca `additionalContext`: ADR 0003).
 Sem violação não escreve nada. Erro interno: sai 0 e registra em `erros.log`. Só biblioteca padrão.
@@ -41,8 +45,16 @@ _ESCRITA = re.compile(r"(?<![\w.-])(?:tee|cp|mv|install|ln|rm|touch|dd|truncate|
                       r"sh|bash|zsh|eval|source)(?![\w.-])|>|<<")
 PODADOS = {".git", "node_modules"}  # nunca se desce neles
 # Gravidade: só o contorno acusa (violação); arquivo em vigor mudado pode ser o usuário ou o `forge-upgrade` (mudança).
-GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)")}
+GRAVIDADE = {"contorno": (0, "violação(ões)"), "versao-sumiu": (0, "violação(ões)"), "erro-hook": (1, "aviso(s)"), "em-vigor": (2, "mudança(s)"), "git": (2, "mudança(s)"),
+            "entrada-sem-registro": (1, "aviso(s)")}
 FERRAMENTAS_DE_ARQUIVO = {"Write", "Edit", "MultiEdit", "NotebookEdit"}
+# F10: lista do dono sem registro. O texto do aviso é fixo (nada do que o dono escreveu vai à saída).
+TEXTO_SEM_REGISTRO = "a lista do turno não foi gravada em docs/pedidos/"
+TEXTOS_FIXOS = {"entrada-sem-registro": TEXTO_SEM_REGISTRO}
+MINIMO_ITENS = 3
+LIMITE_MENSAGEM = 64 * 1024  # bytes lidos de cada mensagem do dono para a contagem
+_ITEM = re.compile(r"^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\S", re.M)  # sem repetição aninhada: tempo linear
+DESTINOS_DO_REGISTRO = ("docs/pedidos/", "docs/kanban/", "KANBAN.md")
 
 
 # Política ---------------------------------------------------------------------------------------
@@ -206,14 +218,67 @@ def contornos(linhas, estado, raiz, sessao, agora, expira):
     return achados
 
 
+def texto_do_dono(registro):
+    """Texto digitado pelo dono, ou None. Na dúvida (resultado de ferramenta, meta, subagente, lembrete de sistema,
+    saída de comando) a entrada não conta."""
+    if not isinstance(registro, dict) or registro.get("type") != "user":
+        return None
+    if registro.get("isMeta") or registro.get("isSidechain") or registro.get("toolUseResult") or registro.get("sourceToolUseID"):
+        return None
+    mensagem = registro.get("message")
+    conteudo = mensagem.get("content") if isinstance(mensagem, dict) else None
+    if isinstance(conteudo, list):
+        if not all(isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str) for b in conteudo):
+            return None
+        conteudo = "\n".join(b["text"] for b in conteudo)
+    if not isinstance(conteudo, str) or conteudo.lstrip().startswith("<"):
+        return None
+    return conteudo.encode("utf-8")[:LIMITE_MENSAGEM].decode("utf-8", "ignore")
+
+
+def grava_registro(bloco):
+    """A chamada escreve em `docs/pedidos/`, `docs/kanban/` ou `KANBAN.md` (Write, Edit ou Bash de escrita)?"""
+    entrada = bloco.get("input") if isinstance(bloco.get("input"), dict) else {}
+    if bloco.get("name") in FERRAMENTAS_DE_ARQUIVO:
+        alvo = entrada.get("file_path") or entrada.get("notebook_path")
+        alvo = alvo.replace("\\", "/") if isinstance(alvo, str) else ""
+        return any(d in alvo for d in DESTINOS_DO_REGISTRO)
+    comando = entrada.get("command")
+    return (bloco.get("name") == "Bash" and isinstance(comando, str) and bool(_ESCRITA.search(comando))
+            and any(d in comando for d in DESTINOS_DO_REGISTRO))
+
+
+def entradas_sem_registro(linhas):
+    """[(id da mensagem, itens)] das mensagens do dono com `MINIMO_ITENS` ou mais itens de lista e sem gravação depois
+    delas no mesmo trecho da transcrição (o turno). Só conta itens: não devolve texto."""
+    pendentes = []
+    for linha in linhas:
+        try:
+            registro = json.loads(linha)
+        except ValueError:
+            continue
+        texto = texto_do_dono(registro)
+        if texto is not None:
+            itens = len(_ITEM.findall(texto))
+            if itens >= MINIMO_ITENS:
+                id_ = re.sub(r"[^0-9A-Za-z_-]", "", str(registro.get("uuid") or ""))[:64] or "sem-id"
+                pendentes.append((id_, itens))
+            continue
+        mensagem = registro.get("message") if isinstance(registro, dict) else None
+        blocos = mensagem.get("content") if isinstance(mensagem, dict) else None
+        if any(isinstance(b, dict) and b.get("type") == "tool_use" and grava_registro(b) for b in (blocos if isinstance(blocos, list) else [])):
+            pendentes = []  # o turno gravou: as listas anteriores a esta gravação estão registradas
+    return pendentes
+
+
 # Estado e coleta --------------------------------------------------------------------------------
 def carregar(hook):
     estado = ler_json(hook.run() / "vigia.json", {})
     estado = estado if isinstance(estado, dict) else {}
-    for chave in ("raizes", "transcricoes", "git"):
+    for chave in ("raizes", "transcricoes", "git", "entradas"):
         if not isinstance(estado.get(chave), dict):
             estado[chave] = {}
-    for chave in ("contornos", "bloqueios"):
+    for chave in ("contornos", "bloqueios", "listas"):
         if not isinstance(estado.get(chave), list):
             estado[chave] = []
     estado.pop("vistos", None)  # versão anterior: deduplicava pelo texto e escondia a reincidência
@@ -227,6 +292,7 @@ def podar(estado, agora, expira):
     estado["transcricoes"] = {t: o for t, o in estado["transcricoes"].items()
                               if os.path.isfile(t) and agora - os.path.getmtime(t) < DIA}
     estado["bloqueios"] = [b for b in estado["bloqueios"] if isinstance(b, dict) and agora - b.get("em", 0) < expira]
+    estado["entradas"] = {t: o for t, o in estado.get("entradas", {}).items() if t in estado["transcricoes"]}
 
 
 def rotacionar(arquivo):
@@ -249,7 +315,7 @@ def iniciar(hook, raiz):
             estado["raizes"][str(raiz)] = hashes(raiz)
         caminho = hook.campo("transcript_path")
         if isinstance(caminho, str) and caminho and not (continuacao and caminho in estado["transcricoes"]):
-            estado["transcricoes"][caminho] = tamanho(caminho)
+            estado["transcricoes"][caminho] = estado["entradas"][caminho] = tamanho(caminho)
         if not (continuacao and "erros" in estado):
             estado["erros"] = tamanho(hook.run() / "erros.log")
         gravar_json(hook.run() / "vigia.json", estado)
@@ -303,6 +369,14 @@ def verificar(hook, raiz):
                 if id_ not in estado["contornos"]:  # a identidade é o evento (id da chamada), não o texto
                     estado["contornos"] = (estado["contornos"] + [id_])[-LIMITE_IDS:]
                     achados.append(("contorno", texto))
+        caminho = hook.campo("transcript_path")
+        if hook.campo("hook_event_name") == "Stop" and isinstance(caminho, str) and caminho:
+            # deslocamento próprio: o `SubagentStop` avança o do `contorno` na transcrição principal e esconderia a mensagem
+            linhas, estado["entradas"][caminho] = linhas_novas(caminho, estado["entradas"].get(caminho, tamanho(caminho)))
+            for id_, itens in entradas_sem_registro(linhas):
+                if id_ not in estado["listas"]:
+                    estado["listas"] = (estado["listas"] + [id_])[-LIMITE_IDS:]
+                    achados.append(("entrada-sem-registro", f"{TEXTO_SEM_REGISTRO} (itens={itens}, mensagem={id_})"))
         novas = achados
         gravar_json(hook.run() / "vigia.json", estado)
         if novas:
@@ -356,7 +430,7 @@ def principal(hook):
         for tipo, _ in novas:
             contagem[GRAVIDADE[tipo]] = contagem.get(GRAVIDADE[tipo], 0) + 1
         partes = ", ".join(f"{n} {nome}" for (_, nome), n in sorted(contagem.items()))
-        resumo = " ".join(f"{novas[0][0]}: {novas[0][1]}".split())[:120]
+        resumo = " ".join(f"{novas[0][0]}: {TEXTOS_FIXOS.get(novas[0][0], novas[0][1])}".split())[:120]
         print(json.dumps({"systemMessage": f"Forge: {partes} — {resumo} (.forge/run/violacoes.jsonl)"}, ensure_ascii=False))
 
 

@@ -1,0 +1,46 @@
+{
+  "descricao": "Mensagem do dono em blocos de texto (lista de 3 itens) sem gravação: avisa.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"user\", \"uuid\": \"m9\", \"message\": {\"role\": \"user\", \"content\": [{\"type\": \"text\", \"text\": \"- a\\n- b\\n- c\\n\"}]}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "a lista do turno não foi gravada em docs/pedidos/",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "itens=3",
+          "mensagem=m9"
+        ]
+      }
+    }
+  }
+}

@@ -102,9 +102,9 @@ fi
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
-n_refs=0; unico_local=""; unico_remoto=""; unico_ref=""
+n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""
 while read -r _ local_sha remote_ref remote_sha; do
-  n_refs=$((n_refs + 1)); unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
+  n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)) ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -135,6 +135,14 @@ done
 # também não lê refs e roda sempre.
 if [ "$modo_suite" -eq 0 ] && [ "$n_refs" -eq 0 ]; then
   echo "pre-push: nada a enviar (a branch já é igual à remota); suíte não roda." >&2
+  exit 0
+fi
+# PREPUSH-DELETE (decisão do dono, 2026-10-23): o push em que toda ref é remoção (local_sha zerado) não leva código
+# novo, então não há o que testar: é a limpeza pós-merge do R-FLUXO, que não espera a suíte nem a fila da trava. Decidido
+# aqui, depois de ler todas as refs (a recusa de main, homolog e develop, acima, já valeu para cada uma, inclusive as
+# remoções) e antes da trava. Uma ref que envia código, mesmo ao lado de remoções, segue o caminho de sempre.
+if [ "$modo_suite" -eq 0 ] && [ "$n_refs" -gt 0 ] && [ "$n_envios" -eq 0 ]; then
+  echo "pre-push: o envio só remove branch ou tag (nenhum código novo); suíte não roda." >&2
   exit 0
 fi
 # Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);

@@ -1,7 +1,7 @@
 ---
 id: R-DECISAO
 titulo: Uma decisão por vez, com opções e recomendação
-verificada_por: conferente (corte de escopo) e revisão (transcrições, ADR 0007); retrospectiva (linhas `MELHORIA:`)
+verificada_por: conferente (corte de escopo); vigia (lista do dono não gravada no turno, `entrada-sem-registro`) e revisão (transcrições, ADR 0007); retrospectiva (linhas `MELHORIA:`)
 ---
 # R-DECISAO: Uma decisão por vez, com opções e recomendação
 
@@ -21,7 +21,7 @@ Propósito: texto único desta regra; os outros arquivos citam o ID. Público: t
 - **O teste não se aplica** a custo (`R-CUSTO`), a acesso e credenciais, a exceção a uma regra (`R-CONFORMIDADE`) nem a fato de negócio que o usuário já declarou: esses casos vão sempre ao usuário, como o primeiro item desta regra manda.
 - **Escada da recomendação**, nesta ordem: o que o usuário disse, depois o fato do projeto, depois regra ou ADR, depois prática da fábrica, depois preferência do time.
 - **Recomendar sempre, com a base declarada:** toda recomendação diz o degrau da escada que a decidiu. Em escopo, prioridade ou custo, leva a marca "preferência do time", separada dos fatos.
-- **Decisão só vale gravada.** Quem recebe a resposta do usuário a grava, no mesmo turno, no arquivo do pedido ou no diário de retomada. Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
+- **Decisão só vale gravada.** Pedido, lista ou decisão do dono é gravado por quem o recebe, no mesmo turno, no arquivo do pedido (`docs/pedidos/`) ou no quadro; o scratchpad da sessão é temporário e nunca guarda o que é do dono. Lista de 3 ou mais itens do turno sem gravação o vigia avisa ao dono (aviso, nunca bloqueio). Resumo de compactação não autoriza: depois dela, decisão que não está no disco é perguntada de novo.
 
 ## Complemento: "tanto faz" e ordem ampla
 - **"Tanto faz" e "decidam vocês" viram item `delegado`.** O Jarvis grava a frase literal do usuário e a recomendação adotada, com a base, no arquivo do pedido, no mesmo turno. Esses nunca são delegáveis assim: **custo** (`R-CUSTO`), **acesso**, **exceção a regra** (`R-CONFORMIDADE`) e **ato irreversível**; continuam indo ao usuário.

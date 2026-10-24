@@ -16,6 +16,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from gh_falso import com_gh_falso  # noqa: E402
 
 FORGE_CHECK = str(RAIZ / "bin" / "forge-check")
 SHA_FALSO = "0123456789012345678901234567890123456789"
@@ -425,12 +426,12 @@ class BriefAnterior(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
         self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
-        novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Documentação do recurso A (E2).\n", "")
+        novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Recurso A no módulo de exemplo, em um commit (E1, E1.1).\n", "")
         rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
-        self.assertEqual(linhas, ["delta: - Entregar: - Documentação do recurso A (E2).",
+        self.assertEqual(linhas, ["delta: - Entregar: - Recurso A no módulo de exemplo, em um commit (E1, E1.1).",
                                   "delta: + Decisões e restrições: - Nova restrição."])
-        self.assertEqual(rc, 1, "o corte do E2 reprova como sempre; o delta não muda o rc")
+        self.assertEqual(rc, 1, "o corte do E1 e da E1.1 reprova como sempre; o delta não muda o rc")
 
     def test_sem_anterior_a_saida_e_a_mesma(self):
         sem = self.brief(self.texto)
@@ -470,17 +471,19 @@ class BriefAnterior(unittest.TestCase):
 class PqDeMerge(unittest.TestCase):
     PEDIDO = RAIZ / "tests" / "fixtures" / "brief" / "pedido.md"
 
-    def gerar(self, *extra):
+    def gerar(self, *extra, rc=0):
         r = subprocess.run([sys.executable, FORGE_CHECK, "brief", "gerar", "--pedido", str(self.PEDIDO), "--destino", "forge:tech-lead",
-                            "--branch", "melhoria/a", *extra], capture_output=True, text=True)
-        self.assertEqual(r.returncode, 0, r.stderr)
+                            "--branch", "melhoria/a", *extra], capture_output=True, text=True, env=com_gh_falso())
+        self.assertEqual(r.returncode, rc, r.stderr)
         return r.stdout
 
     def test_etapas_de_merge_trazem_o_pq_por_ancestralidade_da_base(self):  # E5
+        modulo = carregar_forge_check()
         for etapa, base in (("merge-integracao", "develop"), ("pedido-de-merge-ao-dono", "main")):
             with self.subTest(etapa):
-                saida = self.gerar("--etapa", etapa, "--base", base)
-                self.assertIn(f"`git merge-base --is-ancestor <mergeCommit> origin/{base}` · espera: rc=0", saida)
+                self.assertIn(f"`git merge-base --is-ancestor <mergeCommit> origin/{base}` · espera: rc=0", modulo.pq_de_merge(base))
+                # sem os pareceres exigidos, o gerar recusa o brief de merge (P2); com eles, o PQ sai (tests/test_etapa_do_brief.py)
+                self.assertIn("brief gerar: recusado:", self.gerar("--etapa", etapa, "--base", base, rc=1))
         for etapa in ("codigo", "review"):
             with self.subTest(etapa):
                 self.assertNotIn("--is-ancestor", self.gerar("--etapa", etapa))
@@ -490,7 +493,7 @@ class PqDeMerge(unittest.TestCase):
         modulo = carregar_forge_check()
         linhas, _ = modulo.conferir_pq(["- PQ-1 (cmd): `git merge-base --is-ancestor 0123456 origin/develop` · espera: rc=0"])
         self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente", False)])
-        self.assertIn("PREENCHER", self.gerar("--etapa", "merge-integracao"))  # o brief reprova até trocar o <mergeCommit>
+        self.assertIn("PREENCHER", modulo.pq_de_merge("develop"))  # o brief reprova até trocar o <mergeCommit>
 
 
 class BriefDeVolta(Repositorio):
@@ -554,7 +557,7 @@ class BriefDeVolta(Repositorio):
         entregar = saida.split("## Entregar (volta 1)")[1].split("## Fora do escopo")[0]
         self.assertIn("Recomendados", entregar)
         self.assertRegex(entregar, r"\(review \w{7} A2\) nome pouco claro \[src/app.txt:7\] · PREENCHER: entra ou corta")
-        self.assertIn("esta volta só corrige os achados abaixo (E1, E2)", saida)  # o escopo original segue coberto no corte por IDs
+        self.assertIn("esta volta só corrige os achados abaixo (E1, E1.1, E2)", saida)  # o escopo original e a etapa seguem cobertos no corte por IDs
         for decisao in ('DECISÃO DO DONO (2026-01-01): "A".', 'DECISÃO DO DONO (2026-01-02): "sem custo".'):
             self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
@@ -620,8 +623,10 @@ class BriefDeVolta(Repositorio):
         rc, saida = self.gerar("--parecer", "docs/reviews/p1.md")
         self.assertEqual(rc, 0, saida)
         self.assertIn("PREENCHER: nenhum achado bloqueante lido dos pareceres", saida)
-        rc, saida = self.gerar()  # sem --parecer: o mais recente que não aprovou; este aprovou
-        self.assertIn("PREENCHER: nenhum achado bloqueante", saida)
+        rc, saida = self.gerar()  # sem --parecer: o mais recente que não aprovou; este aprovou, e sem parecer lido não há volta (P5)
+        self.assertEqual(rc, 1)
+        self.assertIn("nenhum parecer lido", saida)
+        self.assertNotIn("PREENCHER: nenhum achado bloqueante", saida)
 
     def test_volta_dois_conta_a_partir_do_anterior(self):
         rc, saida = self.gerar()
