@@ -457,54 +457,90 @@ def regra_protegidos(raiz, b, h):
     return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS) and not acrescimo_inerte(raiz, b, h, a)]
 
 
-PRAGMA_DE_FERRAMENTA = re.compile(r"noqa|type:\s*ignore|pragma|nosec|pylint|shellcheck|fmt:|flake8", re.I)  # comentário que desliga uma checagem
+PRAGMA_DE_FERRAMENTA = re.compile(rb"noqa|type:\s*ignore|pragma|nosec|pylint|shellcheck|fmt:|flake8", re.I)  # comentário que desliga uma checagem
+MONOTONICAS = ("PROTEGIDOS", "SENSIVEIS", "PASTAS_CUSTO", "CUSTO")  # S2: constantes em que mais itens é mais estrito; vale a lista da base
 
 
-def so_acrescenta_linhas(raiz, base, head, caminho):
-    """True só se `caminho` existe nos dois lados, é texto, mantém o modo e não tem nenhuma linha removida ou alterada (`git diff`)."""
-    cod_n, numstat = git(raiz, "diff", "--no-renames", "--numstat", base, head, "--", caminho)
-    cod_r, bruto = git(raiz, "diff", "--no-renames", "--raw", "-z", base, head, "--", caminho)
-    if cod_n or cod_r:
+def ler_bytes(raiz, ref, caminho):
+    r = subprocess.run(["git", "-C", str(raiz), "show", f"{ref}:{caminho}"], capture_output=True, timeout=60,
+                       env={k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    return None if r.returncode else r.stdout
+
+
+def mesmo_arquivo_e_modo(raiz, base, head, caminho):
+    """True só se `caminho` existe nos dois lados como arquivo comum, alterado (`M`) e com o mesmo modo."""
+    cod, bruto = git(raiz, "diff", "--no-renames", "--raw", "-z", base, head, "--", caminho)
+    campos = bruto.split("\0")[0].split()
+    return not cod and len(campos) == 5 and campos[4] == "M" and campos[0] == ":" + campos[1] and campos[1] in ("100644", "100755")
+
+
+def _nome_atribuido(no):
+    """Nome da atribuição `NOME = ...` de um alvo só; None para qualquer outro nó."""
+    if isinstance(no, ast.Assign) and len(no.targets) == 1 and isinstance(no.targets[0], ast.Name):
+        return no.targets[0].id
+    return None
+
+
+def _itens(no):
+    """Itens de uma tupla, lista ou dicionário literal (par chave/valor no dicionário); None para outro valor."""
+    v = no.value
+    if isinstance(v, ast.Dict):
+        return list(zip(v.keys, v.values))
+    if isinstance(v, (ast.Tuple, ast.List)):
+        return [(x,) for x in v.elts]
+    return None
+
+
+def _so_acrescimo_de_itens(antes, depois):
+    """Mesma constante, mesmo tipo de contêiner, itens da base na mesma ordem no head e só literais de texto novos."""
+    a, d = _itens(antes), _itens(depois)
+    if a is None or d is None or type(antes.value) is not type(depois.value):
         return False
-    campos = numstat.split()
-    cabecalho = bruto.split("\0")[0].split()
-    return (len(campos) >= 3 and campos[0].isdigit() and int(campos[0]) > 0 and campos[1] == "0"
-            and len(cabecalho) == 5 and cabecalho[4] == "M" and cabecalho[0] == ":" + cabecalho[1])
+    marca = lambda par: tuple(ast.dump(x) for x in par)
+    faltam = [marca(p) for p in a]
+    novos = []
+    for par in d:
+        if faltam and marca(par) == faltam[0]:
+            faltam.pop(0)
+        else:
+            novos.append(par)
+    chaves_novas = [ast.dump(par[0]) for par in novos if len(par) == 2]
+    repete_chave = bool(set(chaves_novas) & {ast.dump(p[0]) for p in a if len(p) == 2}) or len(set(chaves_novas)) != len(chaves_novas)  # chave repetida troca o valor
+    return not faltam and not repete_chave and all(isinstance(x, ast.Constant) and isinstance(x.value, str) for par in novos for x in par)
 
 
-def _funcao_nova_inerte(no, nomes_da_base):
-    """Função de topo sem nada que rode ao definir (decorador, valor padrão, anotação) e que não toma o lugar de nome nenhum da base."""
-    if not isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef)):
-        return False
-    a = no.args
-    if no.decorator_list or no.returns or no.name.startswith("__") or no.name in nomes_da_base:
-        return False
-    todos = a.posonlyargs + a.args + a.kwonlyargs + [x for x in (a.vararg, a.kwarg) if x]
-    return not a.defaults and not any(a.kw_defaults) and not any(x.annotation for x in todos)
+def _monotonicas_da_base(arvore):
+    """Nomes da lista `MONOTONICAS` declarada na base (tupla de textos); vazio se não houver, e a S2 não vale."""
+    for no in arvore.body:
+        if _nome_atribuido(no) == "MONOTONICAS" and isinstance(no.value, ast.Tuple):
+            return {e.value for e in no.value.elts if isinstance(e, ast.Constant) and isinstance(e.value, str)}
+    return set()
 
 
 def acrescimo_inerte(raiz, base, head, caminho):
-    """M9: em Python, linha acrescentada que não muda o programa (comentário, linha em branco) ou função de topo nova e inerte passa sem o rótulo.
-    Remoção, alteração, arquivo novo ou apagado, binário, outra linguagem e qualquer acréscimo que mude o AST de código existente
-    (um `return` novo no começo de uma função de checagem, por exemplo) seguem pedindo o rótulo: o que não sei classificar falha fechado.
-    Comentário que desliga uma checagem de ferramenta (`PRAGMA_DE_FERRAMENTA`) também pede o rótulo.
-    Pendente do modelo de ameaças do L3: o AST não diz se um acréscimo que muda o programa afrouxa; por isso todo acréscimo desse tipo pede o rótulo."""
-    antes, depois = ler(raiz, base, caminho), ler(raiz, head, caminho)
-    if antes is None or depois is None or not so_acrescenta_linhas(raiz, base, head, caminho):
+    """M9, alcance S1 + S2 (decisão do dono, modelo de ameaças do L3). Passa sem o rótulo só em Python que mantém o modo e:
+    S1: a árvore de sintaxe é igual na base e no head (`ast.parse` sobre os bytes; só comentário, espaço ou quebra de linha; docstring conta como código);
+    S2: a diferença são só itens literais acrescentados a uma constante da lista `MONOTONICAS` da base, sem reatribuição nova nem outro nó mudado.
+    Todo o resto (função nova, arquivo novo ou apagado, binário, outra linguagem, AST diferente) pede o rótulo: falha fechada.
+    Comentário que desliga uma checagem de ferramenta (`PRAGMA_DE_FERRAMENTA`) também pede o rótulo."""
+    antes, depois = ler_bytes(raiz, base, caminho), ler_bytes(raiz, head, caminho)
+    if antes is None or depois is None or not mesmo_arquivo_e_modo(raiz, base, head, caminho):
         return False
-    if not (caminho.endswith(".py") or re.match(r"#!.*python", depois)):
+    if not (caminho.endswith(".py") or re.match(rb"#!.*python", depois)):
         return False
     try:
         arv_antes, arv_depois = ast.parse(antes), ast.parse(depois)
     except (SyntaxError, ValueError):
         return False
-    acrescentadas = Counter(depois.splitlines()) - Counter(antes.splitlines())
-    if any(PRAGMA_DE_FERRAMENTA.search(linha) for linha in acrescentadas):
+    if any(PRAGMA_DE_FERRAMENTA.search(linha) for linha in (Counter(depois.splitlines()) - Counter(antes.splitlines()))):
         return False
-    nomes = set(re.findall(r"\w+", antes))
-    novos = [n for n in arv_depois.body if _funcao_nova_inerte(n, nomes)]
-    restantes = [n for n in arv_depois.body if n not in novos]
-    return [ast.dump(n) for n in arv_antes.body] == [ast.dump(n) for n in restantes]
+    if ast.dump(arv_antes) == ast.dump(arv_depois):
+        return True
+    if caminho != "tests/catraca.py" or len(arv_antes.body) != len(arv_depois.body):
+        return False
+    monotonicas = _monotonicas_da_base(arv_antes)
+    mudados = [(a, d) for a, d in zip(arv_antes.body, arv_depois.body) if ast.dump(a) != ast.dump(d)]
+    return all(_nome_atribuido(a) in monotonicas and _nome_atribuido(d) == _nome_atribuido(a) and _so_acrescimo_de_itens(a, d) for a, d in mudados)
 
 
 FORMA_COMPILADA = re.compile(r"(^|/)__pycache__/|\.(pyc|pyo|pyd|so)$")  # lista fixa: o que o interpretador carrega no lugar do fonte (K10-CAT)

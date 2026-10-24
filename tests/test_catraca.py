@@ -60,7 +60,7 @@ class Repo:
         self.escreve("tests/test_x.py", TESTE)
         self.escreve("tests/hooks/p/um.json", "{}")
         self.escreve("tests/hooks/p/dois.json", "{}")
-        self.escreve("tests/catraca.py", "# presente na base\n")
+        self.escreve("tests/catraca.py", "x = 'presente na base'\n")
         self.escreve(".github/workflows/ci.yml", "name: CI\n")
         self.git("add", "-A")
         self.git("commit", "-q", "-m", "base")
@@ -453,16 +453,84 @@ class Protegidos(Base):
 
     CHECAGEM = "def checa(x):\n    if x:\n        return 1\n    return 0\n"
 
-    def test_m9_acrescimo_inerte_em_python_protegido_passa_sem_rotulo(self):
+    def test_m9_s1_arvore_igual_passa_sem_rotulo(self):
         casos = {
-            "comentário": self.CHECAGEM + "# nota\n",
+            "diff só de comentário": self.CHECAGEM + "# nota\n",
             "linha em branco": "\n" + self.CHECAGEM,
             "comentário dentro da função": self.CHECAGEM.replace("    if x:", "    # só 1 ou 0\n    if x:"),
-            "função de topo nova": self.CHECAGEM + "\n\ndef auxiliar(y):\n    return y + 1\n",
+            "espaço e quebra de linha": self.CHECAGEM.replace("return 1", "return  1  "),
         }
         for nome, depois in casos.items():
             with self.subTest(nome):
                 self.assertEqual(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, depois), [])
+
+    def test_m9_s1_docstring_conta_como_codigo(self):
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, self.CHECAGEM.replace("    if x:", '    """doc"""\n    if x:'))), 1)
+
+    def test_m9_s1_le_os_bytes_e_o_cookie_de_codificacao_muda_a_arvore(self):
+        base = "x = 'á'\n"
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", base, "# coding: latin-1\n" + base)), 1)
+
+    def test_m9_s2_item_novo_em_constante_monotonica_passa_sem_rotulo(self):
+        fonte = (AQUI / "catraca.py").read_text(encoding="utf-8")
+        self.assertIn("MONOTONICAS = (", fonte)
+        casos = {
+            "item novo em PROTEGIDOS": fonte.replace('"scripts/conferir-release.py")', '"scripts/conferir-release.py", "hooks/conformidade.json")', 1),
+            "item novo em SENSIVEIS": fonte.replace('SENSIVEIS = ("hooks/",', 'SENSIVEIS = ("lib/", "hooks/",', 1),
+            "item novo em PASTAS_CUSTO": fonte.replace('PASTAS_CUSTO = ("hooks/",', 'PASTAS_CUSTO = ("docs/provas/", "hooks/",', 1),
+            "chave nova em CUSTO": fonte.replace('CUSTO = {\n', 'CUSTO = {\n    "outra-url": r"api\\.exemplo\\.com",\n', 1),
+        }
+        for nome, depois in casos.items():
+            with self.subTest(nome):
+                self.assertNotEqual(depois, fonte)
+                self.assertEqual(self.altera_protegido("tests/catraca.py", fonte, depois), [])
+
+    def test_m9_s2_so_vale_para_a_lista_da_base_e_sem_reatribuicao_nem_outro_no(self):
+        fonte = (AQUI / "catraca.py").read_text(encoding="utf-8")
+        item = '"scripts/conferir-release.py")'
+        casos = {
+            "reatribuição de PROTEGIDOS": fonte + "\nPROTEGIDOS = ()\n",
+            "reatribuição que soma": fonte + "\nPARECERES = PARECERES + ('docs/',)\n",
+            "item tirado de PROTEGIDOS": fonte.replace('"hooks/parecer.py", ', "", 1),
+            "item novo em PARECERES (afrouxa)": fonte.replace('PARECERES = ("docs/reviews/",', 'PARECERES = ("docs/", "docs/reviews/",', 1),
+            "item que não é literal": fonte.replace(item, '*PARECERES, ' + item, 1),
+            "chave repetida em CUSTO troca o valor": fonte.replace('CUSTO = {\n', 'CUSTO = {\n    "chave-de-api": r"NUNCA",\n', 1),
+            "item novo e outro nó mudado": fonte.replace(item, '"x/", ' + item, 1).replace("ROTULO = ", "ROTULO0 = ", 1),
+        }
+        for nome, depois in casos.items():
+            with self.subTest(nome):
+                self.assertNotEqual(depois, fonte)
+                self.assertEqual(len(self.altera_protegido("tests/catraca.py", fonte, depois)), 1)
+
+    def test_m9_s2_sem_lista_na_base_nao_vale(self):
+        base = 'PROTEGIDOS = ("a/",)\n'
+        self.assertEqual(len(self.altera_protegido("tests/catraca.py", base, 'PROTEGIDOS = ("a/", "b/")\n')), 1)
+
+    def test_m9_so_python_de_texto_e_classificado(self):
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", "x = 1\n", "x = 1\n\x00")), 1)
+
+    def test_m9_casos_de_abuso_do_modelo_de_ameacas_pedem_o_rotulo(self):
+        """L3-1 a L3-10 e L3-13 (est-030-ameacas-l2-l3.md): cada um é só acréscimo e afrouxa; nenhum passa sem o rótulo."""
+        c = self.CHECAGEM
+        py = "hooks/_comum.py"
+        casos = {
+            "L3-1 return novo no começo da checagem": (py, c, c.replace("    if x:", "    return 0\n    if x:")),
+            "L3-1 sys.exit novo": (py, c, "import sys\n" + c.replace("    if x:", "    sys.exit(0)\n    if x:")),
+            "L3-2 redefinição no fim": (py, c, c + "def checa(*a): return 0\n"),
+            "L3-3 reatribuição de constante": ("tests/catraca.py", "PARECERES = ('docs/reviews/',)\n", "PARECERES = ('docs/reviews/',)\nPARECERES = PARECERES + ('docs/',)\n"),
+            "L3-5 try/except que engole": (py, c, c.replace("    return 0\n", "    return 0\n\n\ndef g(x):\n    try:\n        return checa(x)\n    except Exception:\n        pass\n")),
+            "L3-6 porta dos fundos por condição": (py, c, c.replace("    if x:", "    if os.environ.get('X'):\n        return 0\n    if x:")),
+            "L3-7 continue-on-error": (".github/workflows/ci.yml", "jobs:\n  a:\n    steps:\n      - run: x\n", "jobs:\n  a:\n    steps:\n      - run: x\n        continue-on-error: true\n"),
+            "L3-7 paths-ignore": (".github/workflows/catraca.yml", "on:\n  pull_request:\n", "on:\n  pull_request:\n    paths-ignore: ['**']\n"),
+            "L3-9 CODEOWNERS": (".github/CODEOWNERS", "* @dona\n", "* @dona\n/tests/ @outro\n"),
+            "L3-10 exit 0 no pre-push": (".githooks/pre-push", "#!/bin/sh\necho x\n", "#!/bin/sh\nexit 0\necho x\n"),
+        }
+        for nome, (rel, base, depois) in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(len(self.altera_protegido(rel, base, depois)), 1)
+
+    def test_m9_funcao_de_topo_nova_pede_o_rotulo(self):
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, self.CHECAGEM + "\n\ndef auxiliar(y):\n    return y + 1\n")), 1)
 
     def test_m9_script_python_sem_extensao_conta_pelo_shebang(self):
         base = "#!/usr/bin/env python3\n" + self.CHECAGEM
@@ -473,9 +541,6 @@ class Protegidos(Base):
             "linha alterada": (self.CHECAGEM, self.CHECAGEM.replace("return 0", "return 2")),
             "linha removida": (self.CHECAGEM, self.CHECAGEM.replace("    return 0\n", "")),
             "acréscimo que muda o programa": (self.CHECAGEM, self.CHECAGEM + "checa = lambda x: 0\n"),
-            "função nova com decorador": (self.CHECAGEM, self.CHECAGEM + "@staticmethod\ndef nova(y):\n    return y\n"),
-            "função nova com valor padrão": (self.CHECAGEM, self.CHECAGEM + "def nova(y=print('roda')):\n    return y\n"),
-            "função nova que toma o nome de uma da base": (self.CHECAGEM, self.CHECAGEM + "def checa(x):\n    return 0\n"),
             "pragma que desliga a checagem": (self.CHECAGEM, self.CHECAGEM + "x = 1  # noqa\n"),
             "Python que não compila": (self.CHECAGEM, self.CHECAGEM + "def (\n"),
         }
@@ -564,7 +629,7 @@ class Protegidos(Base):
         self.repo.git("tag", "-f", "base")
         self.repo.git("checkout", "-q", "pr")
         self.repo.git("reset", "-q", "--hard", "develop")
-        self.repo.escreve("tests/catraca.py", "# nova\n")
+        self.repo.escreve("tests/catraca.py", "x = 'nova'\n")
         self.repo.escreve(".github/workflows/ci.yml", "name: CI com catraca\n")
         self.passa()
 
@@ -681,13 +746,13 @@ class FalhaFechadaDoGit(Base):
         self.repo.git("rm", "-q", "tests/catraca.py")
         self.repo.git("commit", "-q", "-m", "sem catraca")
         self.repo.git("tag", "-f", "base")
-        self.repo.escreve("tests/catraca.py", "# nova\n")
+        self.repo.escreve("tests/catraca.py", "x = 'nova'\n")
         self.repo.commit()
         self.assertEqual(catraca.regra_protegidos(self.repo.dir, "base", "HEAD"), [])
 
     def test_rotulo_do_dono_nao_libera_o_ls_tree_que_falha(self):
         """Cada leitura do git que falha deixa a catraca vermelha mesmo com o rótulo do dono depois do push."""
-        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.escreve("tests/catraca.py", "x = 'mudou'\n")
         self.repo.commit()
         for nome, quando in (("ls-tree do head", self.ls_tree_do_head), ("ls-tree da catraca na base", self.ls_tree_da_catraca_na_base)):
             with self.subTest(nome):
@@ -712,7 +777,7 @@ class FalhaFechadaDoGit(Base):
                 self.assertIn("TimeoutExpired", linhas[0])
 
     def test_rotulo_do_dono_nao_libera_o_estouro_de_prazo(self):
-        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.escreve("tests/catraca.py", "x = 'mudou'\n")
         self.repo.commit()
         rc, saida = self.roda(self.argv(), self.git_que_falha(lambda a: a[0] == "diff", subprocess.TimeoutExpired(["git"], 60)))
         self.assertEqual(rc, 1, saida)
@@ -1380,7 +1445,7 @@ class RotuloSobreviveAoConteudo(Base):
 
     def setUp(self):
         super().setUp()
-        self.repo.escreve("tests/catraca.py", "# mudou no PR\n")  # protegido: só passa com o rótulo
+        self.repo.escreve("tests/catraca.py", "x = 'mudou no PR'\n")  # protegido: só passa com o rótulo
         self.repo.commit()
         self.rotulado = self.repo.git("rev-parse", "HEAD").strip()
 
@@ -1507,7 +1572,7 @@ class RotuloSobreviveAoConteudo(Base):
         self.assertEqual(r.returncode, 0, r.stdout)
 
     def test_mudanca_de_codigo_depois_do_rotulo_invalida(self):
-        for rel, texto in (("tests/catraca.py", "# mudou de novo\n"), ("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n")):
+        for rel, texto in (("tests/catraca.py", "x = 'mudou de novo'\n"), ("scripts/novo.sh", "echo\n"), ("KANBAN.md", "x\n")):
             with self.subTest(rel=rel):
                 self.repo.git("reset", "-q", "--hard", self.rotulado)
                 self.repo.escreve(rel, texto)
@@ -1586,7 +1651,7 @@ class RespostaCortadaEPaginacaoSemTeto(Base):
         self.assertEqual(saida.getvalue().count("vale como sem rótulo."), 3, saida.getvalue())
 
     def test_main_com_a_api_cortada_deixa_uma_linha_e_rc_1(self):
-        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.escreve("tests/catraca.py", "x = 'mudou'\n")
         self.repo.commit()
         with mock.patch.object(catraca, "requisicao", self.corta), contextlib.redirect_stdout(io.StringIO()) as saida:
             rc = catraca.main(["--raiz", str(self.repo.dir), "--base", "base"])
@@ -1684,7 +1749,7 @@ class RotuloDePrMesclado(Base):
         r.git("branch", "main", "base")
         r.git("checkout", "-q", "-b", "fonte", "base")  # head do PR #10 (develop -> homolog), rotulado pelo dono
         r.escreve(".github/workflows/ci.yml", "name: CI\non: push\n")
-        r.escreve("tests/catraca.py", "# mudou no PR 10\n")
+        r.escreve("tests/catraca.py", "x = 'mudou no PR 10'\n")
         r.commit()
         self.s = r.git("rev-parse", "HEAD").strip()
         r.git("checkout", "-q", "-b", "homolog", "base")
@@ -1741,16 +1806,16 @@ class RotuloDePrMesclado(Base):
 
     def test_arquivo_alterado_depois_pede(self):
         """Casos 2, A6 e A7: uma linha a mais ou o trecho movido no mesmo arquivo mudam o blob."""
-        for texto in ("# mudou no PR 10\n# e mais uma linha\n", "on: push\nname: CI\n"):
+        for texto in ("x = 'mudou no PR 10'\ny = 1\n", "on: push\nname: CI\n"):
             with self.subTest(texto=texto):
                 self.repo.git("reset", "-q", "--hard", self.m)
-                rel = "tests/catraca.py" if texto.startswith("#") else ".github/workflows/ci.yml"
+                rel = "tests/catraca.py" if texto.startswith("x") else ".github/workflows/ci.yml"
                 self.depois_do_merge(rel, texto)
                 self.pede()
 
     def test_a1_push_depois_do_rotulo_e_merge_pede(self):
         self.repo.git("checkout", "-q", "fonte")
-        self.depois_do_merge("tests/catraca.py", "# mudou de novo depois do rótulo\n")
+        self.depois_do_merge("tests/catraca.py", "x = 'mudou de novo depois do rótulo'\n")
         s2 = self.repo.git("rev-parse", "HEAD").strip()
         self.repo.git("checkout", "-q", "homolog")
         self.repo.git("reset", "-q", "--hard", "base")
@@ -1822,7 +1887,7 @@ class RotuloDePrMesclado(Base):
         self.pede()
 
     def test_a11_caso_7_um_arquivo_coberto_e_outro_nao_pede(self):
-        self.depois_do_merge("hooks/parecer.py", "# veio sem rótulo\n")
+        self.depois_do_merge("hooks/parecer.py", "x = 'veio sem rótulo'\n")
         r = self.pede()
         self.assertIn("mudança em hooks/parecer.py", r.stdout)
 
@@ -1846,13 +1911,13 @@ class RotuloDePrMesclado(Base):
         """O conteúdo volta ao rotulado em #10, mas o merge de #10 já está na base; a mensagem que cita #10 não basta."""
         self.repo.git("branch", "-f", "main", self.m)
         self.repo.git("checkout", "-q", "main")
-        self.depois_do_merge("tests/catraca.py", "# outro conteúdo na main\n")
+        self.depois_do_merge("tests/catraca.py", "x = 'outro conteúdo na main'\n")
         self.repo.git("checkout", "-q", "homolog")
         self.repo.git("merge", "-q", "--no-ff", "--no-edit", "main")
-        self.depois_do_merge("tests/catraca.py", "# mudou no PR 10\n", "volta ao rotulado (#10)")
+        self.depois_do_merge("tests/catraca.py", "x = 'mudou no PR 10'\n", "volta ao rotulado (#10)")
         self.pede()
         self.repo.git("reset", "-q", "--hard", self.m)
-        self.depois_do_merge("tests/catraca.py", "# conteúdo sem rótulo\n", "outra coisa (#10)")
+        self.depois_do_merge("tests/catraca.py", "x = 'conteúdo sem rótulo'\n", "outra coisa (#10)")
         self.pede()
 
     def test_sem_transitividade_pr_mesclado_sem_o_proprio_rotulo_pede(self):
@@ -1894,7 +1959,7 @@ def _tem(pasta, sha):
     return subprocess.run(["git", "-C", str(pasta), "cat-file", "-e", f"{sha}^{{commit}}"], capture_output=True, env=env).returncode == 0
 
 
-ROTULADO = "# mudou no PR 10\n"
+ROTULADO = "x = 'mudou no PR 10'\n"
 WORKFLOW = "name: CI\non: push\n"
 
 
@@ -2001,16 +2066,16 @@ class RotuloDePrSquash(Base):
 
     def test_b3_merge_com_conteudo_diferente_do_rotulado_pede_mesmo_se_o_head_volta_ao_rotulado(self):
         """Só `mesmo_arquivo(M, S)` pega: M gravou outra coisa e um commit posterior (sem PR) devolveu o conteúdo rotulado."""
-        self.pull["merge_commit_sha"] = self.squash("# misturado com a develop\n")
+        self.pull["merge_commit_sha"] = self.squash("x = 'misturado com a develop'\n")
         self.depois("tests/catraca.py", ROTULADO, "volta ao rotulado")
         self.pede()
 
     def test_b17_head_da_promocao_com_uma_linha_a_mais_pede(self):
-        self.depois("tests/catraca.py", ROTULADO + "# uma linha a mais\n")
+        self.depois("tests/catraca.py", ROTULADO + "y = 1\n")
         self.pede()
 
     def test_b12_numero_forjado_no_assunto_pede(self):
-        self.pull["merge_commit_sha"] = self.squash("# conteúdo sem rótulo\n", msg="outra coisa (#10)")
+        self.pull["merge_commit_sha"] = self.squash("x = 'conteúdo sem rótulo'\n", msg="outra coisa (#10)")
         self.pede()
 
     # --- o ref buscado -------------------------------------------------------------------------------------
@@ -2156,7 +2221,7 @@ class DonoSoDaBase(Base):
         self.repo.git("checkout", "-q", "pr")
         self.repo.git("reset", "-q", "--hard", "develop")
         self.repo.escreve("tests/config.json", json.dumps(CONFIG))  # o head traz `dono: dona`
-        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.escreve("tests/catraca.py", "x = 'mudou'\n")
         self.repo.commit()
         arq = self.repo.dir.parent / (self.repo.dir.name + "-eventos.json")
         arq.write_text(json.dumps([rotulo()]), encoding="utf-8")
@@ -2234,7 +2299,7 @@ class PrazoTotalDaApi(Base):
         self.repo.git("branch", "main", "base")
         self.repo.git("checkout", "-q", "-b", "homolog", "base")
         for n in range(21, 31):
-            self.repo.escreve("tests/catraca.py", f"# mudou {n}\n")
+            self.repo.escreve("tests/catraca.py", f"x = 'mudou {n}'\n")
             self.repo.git("add", "-A")
             self.repo.git("commit", "-q", "-m", f"fix: mudança (#{n})")
         pr = {"head": {"ref": "develop", "repo": {"full_name": "o/r"}}, "base": {"ref": "homolog", "repo": {"full_name": "o/r"}}}
