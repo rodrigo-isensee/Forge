@@ -1821,6 +1821,17 @@ class LancadorDemais(ValueError):
     o hook não lê as leituras todas e o comando não é analisável (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13)."""
 
 
+class TextoAbertoComLeituras(LancadorDemais):
+    """O texto dividido do `env` não fecha aspas e o comando tem mais de uma leitura (uma palavra fora da tabela
+    `LANCADORES` já vista antes dele): o hook não lê todas e o comando não é analisável; recusa como o teto, qualquer que
+    seja o resto (RET-LEITURA-HOOK-H, opção B da proposta caminho-rev14)."""
+
+
+class TextoDivididoAberto(ValueError):
+    """O texto dividido do `env` não fecha aspas, numa leitura só (nenhuma palavra fora da tabela antes dele): o `env`
+    não o roda, e o comando vai à regra do comando aninhado que o hook não analisa (`ilegivel`), como na `develop`."""
+
+
 # O teto K de palavras fora da tabela por leitura (contando os lançadores encadeados): cada uma abre até 3 leituras, e o
 # `segmento` roda as regras da linha sobre cada uma. K = 3 dá no máximo 27 leituras. Medido em RET-LEITURA-HOOK-G
 # (`test_tempo_do_teto_das_leituras_do_lancador`): com K palavras e 50 lançadores, a `Guarda` decide em cerca de 2 a 5 ms
@@ -1840,9 +1851,9 @@ def separar_lancadores(palavras):
     com `-` fora da tabela, antes do comando, o hook não escolhe qual leitura o lançador instalado faz (nenhuma
     tabela de opções do `env` volta) e lê as possíveis: sem valor (a palavra seguinte segue como opção ou comando); com
     valor (a palavra seguinte é o valor); e, no `env`, com o texto dividido, se a palavra tem o `S` (grupo curto
-    `-iS'…'` ou abreviação de `--split-string`): o resto dela, ou a palavra seguinte, é o comando. ValueError: aspas
-    abertas no texto dividido, e o comando não é analisável; `LancadorDemais`: mais de `TETO_FORA_DA_TABELA` palavras
-    fora da tabela. Anda por índices: só o texto dividido (que põe palavras novas na frente) copia a cauda."""
+    `-iS'…'` ou abreviação de `--split-string`): o resto dela, ou a palavra seguinte, é o comando. Texto dividido que
+    não fecha aspas: `TextoAbertoComLeituras` (recusa) se uma palavra fora da tabela veio antes, e `TextoDivididoAberto`
+    (`ilegivel`) se não; `LancadorDemais`: mais de `TETO_FORA_DA_TABELA` palavras fora da tabela. Anda por índices: só o texto dividido (que põe palavras novas na frente) copia a cauda."""
     saidas = []
     _ler_lancadores(palavras, depois_das_atribuicoes(palavras), [], 0, saidas)
     return saidas
@@ -1875,7 +1886,7 @@ def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
             texto = texto_dividido_do_env(opcao, seguinte) if nome == "env" else None
             if texto is not None and texto[2]:  # `-S`, `-Svalor`, `--split-string[=valor]`: o `env` sempre divide
                 i += texto[1]
-                dividido += shlex.split(texto[0])  # aspas abertas: ValueError, e o comando não é analisável
+                dividido += _dividir(texto[0], gasto, f"{nome} {opcao}")
                 continue
             consome = opcao_modelada(nome, opcao)
             if consome is None:  # fora da tabela: as leituras possíveis, e a sem valor segue aqui
@@ -1885,7 +1896,7 @@ def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
                 adiadas.append((base, inicio, list(lancadas), gasto, (nome, i + 1, list(dividido))))  # com valor
                 if texto is not None:  # no `env`, o texto dividido que a palavra tem depois do `S`
                     adiadas.append((base, inicio, list(lancadas), gasto,
-                                    (nome, i + texto[1], dividido + shlex.split(texto[0]))))
+                                    (nome, i + texto[1], dividido + _dividir(texto[0], gasto, f"{nome} {opcao}"))))
                 consome = 0
             i += consome
         if nome == "timeout" and i < len(base):
@@ -1900,6 +1911,18 @@ def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
         saidas.append(leitura)
     for resto in adiadas:
         _ler_lancadores(*resto[:4], saidas, meio=resto[4])
+
+
+def _dividir(texto, gasto, achado):
+    """O texto dividido do `env` (`shlex.split`). Se ele não fecha aspas: com `gasto` (palavras fora da tabela já vistas)
+    acima de 0, há mais de uma leitura e alguma não se lê, e o comando recusa (`TextoAbertoComLeituras`); com 0, a
+    leitura é uma só e o `env` não a roda (`TextoDivididoAberto`)."""
+    try:
+        return shlex.split(texto)
+    except ValueError:
+        if gasto:
+            raise TextoAbertoComLeituras(achado) from None
+        raise TextoDivididoAberto(achado) from None
 
 
 # A palavra de laço ou de condição antes do comando (`do rm …`, `then …`): o comando vem depois dela.

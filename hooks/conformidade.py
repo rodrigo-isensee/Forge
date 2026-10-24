@@ -25,7 +25,7 @@ from pathlib import Path
 
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
-                    LancadorDemais, OPACO,
+                    LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
@@ -842,16 +842,21 @@ class Guarda:
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`). Atrás de lançador com palavra de `-`
         fora da tabela (`separar_lancadores`), roda as regras sobre cada leitura possível e recusa se qualquer uma recusa
         (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13). A pasta e as variáveis que seguem na linha são as da
-        primeira leitura (sem valor, ADR 0013, item 5); as outras partem do estado de antes e o descartam depois."""
+        primeira leitura (sem valor, ADR 0013, item 5); as outras partem do estado de antes e o descartam depois. Com
+        mais de uma leitura, o texto dividido que não fecha aspas recusa (RET-LEITURA-HOOK-H, opção B da proposta
+        caminho-rev14); com uma só, vai a `ilegivel`."""
         while palavras and palavras[0] in CORPO_DE_LACO:  # `do rm ...`, `then ...`: o comando vem depois da palavra
             palavras = palavras[1:]
         try:
             leituras_do_lancador = separar_lancadores(palavras)
+        except TextoAbertoComLeituras as achado:  # mais de uma leitura, e uma não se lê: o hook não as lê todas
+            self.barrar("R-CONFORMIDADE", f"`{achado}` na chamada: opção de lançador que o hook não modela, com texto "
+                                          "dividido que não fecha aspas", CONTORNO_DO_LANCADOR)
         except LancadorDemais as achado:  # mais palavras fora da tabela que o teto: o hook não lê as leituras todas
             self.barrar("R-CONFORMIDADE", f"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de "
                                           f"{TETO_FORA_DA_TABELA} palavras fora da tabela no mesmo comando",
                         CONTORNO_DO_LANCADOR)
-        except ValueError:  # texto dividido do `env` com aspas abertas
+        except TextoDivididoAberto:  # texto dividido do `env` com aspas abertas, numa leitura só
             self.ilegivel(" ".join(palavras), pasta)
             return pasta
         ambiente, recusado = dict(self.ambiente), self.lancador_recusado
@@ -1692,7 +1697,8 @@ def autoria(hook, guarda, alvos):
 
 def alvos_de_escrita(comando):
     """Alvos de `>`, `>>` e `tee` na linha (para a autoria dos pareceres escritos pelo Bash): a união das leituras
-    (`leituras`, ADR 0013); a que não fecha não dá alvo."""
+    (`leituras`, ADR 0013); a que não fecha não dá alvo. Atrás de lançador com mais de uma leitura e texto dividido que
+    não fecha aspas, cada palavra depois de um `tee` da parte é alvo: ler a mais não esconde alvo."""
     try:
         comando, _ = tirar_heredocs(comando)
     except ValueError:
@@ -1703,6 +1709,10 @@ def alvos_de_escrita(comando):
             alvos += destinos
             try:
                 lidas = sem_lancadores(palavras)  # a união das leituras possíveis do lançador
+            except TextoAbertoComLeituras:
+                tees = [k for k, p in enumerate(palavras) if Path(p).name == "tee"]
+                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith("-")] if tees else []
+                continue
             except ValueError:  # texto dividido do `env` com aspas abertas, ou acima do teto de palavras fora da tabela
                 continue
             for lida in lidas:

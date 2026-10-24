@@ -3248,6 +3248,187 @@ print(json.dumps(saida))
         acima = conformidade.alvos_de_escrita(f"echo y > a.md; env -a -b -c -d tee {alvo}")
         self.assertEqual(acima, ["a.md"])
 
+    # RET-LEITURA-HOOK-H, opção B da proposta caminho-rev14: a dimensão "leitura a mais que falha não tira recusa".
+    FRAGMENTOS_ABERTOS = ("'", '"', "'\"", "\"'", "x'", "' y")  # o texto dividido, depois da remoção de aspas do shell
+    CORPOS_INOFENSIVOS = ("make", "echo ok")  # só a recusa do texto que não fecha os leva a 2
+    MOTIVO_DO_TEXTO_ABERTO = "texto dividido que não fecha aspas"
+    TEXTO_ABERTO_RECUSA = (
+        "env -uS\\' cat .env", "env -uS\\' rm -rf .git", "env -uS'\"' cat .env", "env -vuS\"'\" cat .env",
+        "env --spl='\"' cat .env", "env -iu X env -uS\\' cat .env", "env -iu -S\\' cat .env", "env -aS'\"' cat .env",
+        "env -aS'\"' rm -rf .git", "env -iS'\"' cat .env", "env -uS'\"' make")  # o último é o falso positivo do FD18
+    TEXTO_ABERTO_CONTROLE = "env -S'\"' cat .env"  # uma leitura só: `ilegivel`, como na `develop`
+
+    def textos_do_texto_aberto(self, corpos):
+        """[(rótulo, texto, deve recusar)] da propriedade da dimensão: o grupo `-<g>S<F>` (colado e com o texto na palavra
+        seguinte), com cada `g` de 1 caractere de `[A-Za-z0-9]` sem amostra e os de 2 numa amostra (um em 3); o `-S` certo
+        depois de cada palavra de 1 caractere fora da tabela e de grupos de 2 (um em 11); cada prefixo de `--split-string` (sem o inteiro);
+        cada forma logo depois do `env`, depois de `NOME=valor`, de `-i` e atrás de `env -iu X`; e cada lançador `L` com
+        cada palavra de 1 caractere fora da tabela dele antes de `env -<g>S<F> C`. Os corpos giram pelas formas. O
+        controle (`env -S<F> C`, uma leitura só) não recusa; atrás de `env -iu X`, recusa."""
+        _comum, _, _ = modulos_dos_hooks()
+        alnum = string.ascii_letters + string.digits
+        um = [g for g in alnum if g != "S"]
+        dois = [a + b for a in alnum for b in alnum if a != "S"]
+        tabela_do_env = _comum.LANCADORES["env"]
+        de_um_caractere = [w for w in ("-" + chr(c) for c in range(0x21, 0x7F))
+                           if not self.na_tabela_do_lancador(tabela_do_env, w) and not self.divide_sempre("env", w)]
+        prefixos = ["split-string"[:k] for k in range(1, len("split-string"))]
+        formas, k = [], itertools.count()
+
+        def corpo(todos=False):
+            return corpos if todos else [corpos[next(k) % len(corpos)]]
+
+        for f in self.FRAGMENTOS_ABERTOS:
+            for g in um:
+                formas += [(f"-{g}S<F>", [f"-{g}S{f}"], c) for c in corpo(todos=True)]
+                formas += [(f"-{g}S <F>", [f"-{g}S", f], c) for c in corpo()]
+            formas += [(f"-{g}S<F>", [f"-{g}S{f}"], c) for g in dois[::3] for c in corpo()]
+            formas += [("w -S<F>", [w, f"-S{f}"], c) for w in de_um_caractere for c in corpo()]
+            formas += [("-gg -S<F>", [f"-{g}", f"-S{f}"], c) for g in dois[::11] for c in corpo()]
+            for p in prefixos:
+                formas += [(f"--{p}=<F>", [f"--{p}={f}"], c) for c in corpo()]
+                formas += [(f"--{p} <F>", [f"--{p}", f], c) for c in corpo()]
+        saida = []
+        for rotulo, palavras, c in formas:
+            texto = " ".join(shlex.quote(p) for p in palavras) + " " + c
+            for antes in ("", "X=1 ", "-i ", "-iu X env "):
+                saida.append((f"env {antes}{rotulo} / {palavras} / {c}", f"env {antes}{texto}", True))
+        for f in self.FRAGMENTOS_ABERTOS:
+            for c in corpos:
+                certo = f"env {shlex.quote('-S' + f)} {c}"
+                saida.append((f"controle / -S<F> / {f!r} / {c}", certo, False))
+                saida.append((f"env -iu X / controle / {f!r} / {c}", certo.replace("env ", "env -iu X env ", 1), True))
+        for nome, tabela in sorted(_comum.LANCADORES.items()):
+            fora = [w for w in ("-" + chr(c) for c in range(0x21, 0x7F)) if not self.na_tabela_do_lancador(tabela, w)
+                    and not self.divide_sempre(nome, w)]
+            for i, w in enumerate(fora):
+                f, g, c = self.FRAGMENTOS_ABERTOS[i % 6], um[i % len(um)], corpo()[0]
+                duracao = "5 " if nome == "timeout" else ""
+                saida.append((f"{nome} / {w} / env -{g}S<F> / {c}",
+                              f"{nome} {shlex.quote(w)} {duracao}env {shlex.quote(f'-{g}S{f}')} {c}", True))
+        return saida
+
+    def test_propriedade_leitura_a_mais_que_falha_nao_tira_recusa(self):  # item 1 do critério de fim da opção B (rev14)
+        """Sem o marcador, toda forma com uma palavra fora da tabela antes do texto dividido que não fecha aspas
+        (`textos_do_texto_aberto`) dá 2, qualquer que seja o corpo, e, com corpo inofensivo, pelo motivo do texto que não
+        fecha (o oráculo é a construção); o `env -S<F> C` sem palavra fora da tabela segue 0 (`ilegivel`, como na
+        `develop`). A palavra de 1 caractere nunca é amostrada, e o tempo (60 s) é do lote inteiro, na `Guarda`."""
+        corpos = list(self.CORPOS_FIXOS + self.CORPOS_INOFENSIVOS)
+        textos = self.textos_do_texto_aberto(corpos)
+        inicio = time.monotonic()
+        decisoes = self.decidir_na_guarda([texto for _, texto, _ in textos], motivo=True)
+        segundos = time.monotonic() - inicio
+        erradas = [(rotulo, texto, codigo) for (rotulo, texto, recusa), (codigo, _, _) in zip(textos, decisoes)
+                   if codigo != (2 if recusa else 0)]
+        self.assertEqual(erradas[:10], [], f"{len(erradas)} de {len(textos)} formas fora da verdade da construção")
+        sem_motivo = [texto for (_, texto, recusa), (_, _, erro) in zip(textos, decisoes)
+                      if recusa and texto.endswith(self.CORPOS_INOFENSIVOS) and self.MOTIVO_DO_TEXTO_ABERTO not in erro]
+        self.assertEqual(sem_motivo[:10], [])
+        um = [rotulo for rotulo, _, _ in textos if re.match(r"env -[A-Za-z0-9]S<F> / ", rotulo)]
+        self.assertEqual(len(um), 61 * len(self.FRAGMENTOS_ABERTOS) * len(corpos), "a palavra de 1 letra sem amostra")
+        nomes = {rotulo.split(" / ")[0] for rotulo, _, _ in textos}
+        self.assertTrue(set(modulos_dos_hooks()[0].LANCADORES) <= nomes)
+        self.assertGreaterEqual(len(textos), 10_000)
+        print(f"\n[propriedade do texto aberto] {len(textos)} formas em {segundos:.1f} s", file=sys.stderr)
+        self.assertLess(segundos, 60, f"a propriedade levou {segundos:.1f} s para {len(textos)} formas")
+
+    def test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa(self):  # item 2 do critério de fim da opção B (rev14)
+        """As formas do A1 da revalidação 14 (o bug `lote-leitura-hook-3`), a variante do `-S` certo depois de outra
+        opção (`env -iu -S\\' cat .env`) e o falso positivo do FD18 (`env -uS'"' make`) saem 2 pelo motivo do texto que
+        não fecha; o controle `env -S'"' cat .env` (uma leitura só) segue 0, como na `develop`. A função levanta
+        `TextoAbertoComLeituras` (da família de `LancadorDemais`) com mais de uma leitura e `TextoDivididoAberto` com uma,
+        e a autoria dá o alvo do `tee` atrás do texto que não fecha."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        decisoes = self.decidir_na_guarda(list(self.TEXTO_ABERTO_RECUSA) + [self.TEXTO_ABERTO_CONTROLE], motivo=True)
+        for texto, (codigo, _, erro) in zip(self.TEXTO_ABERTO_RECUSA, decisoes):
+            self.assertEqual(codigo, 2, f"o conformidade libera {texto!r}")
+            self.assertIn(self.MOTIVO_DO_TEXTO_ABERTO, erro, texto)
+            self.assertIn("use o lançador só com as opções da lista", erro, texto)
+        self.assertEqual(decisoes[-1][0], 0, "com uma leitura só, o texto que não fecha segue `ilegivel`")
+        self.assertTrue(issubclass(_comum.TextoAbertoComLeituras, _comum.LancadorDemais))
+        self.assertFalse(issubclass(_comum.TextoDivididoAberto, _comum.LancadorDemais))
+        for palavras in (["env", "-uS'", "cat"], ["env", "-iu", "-S'", "cat"], ["env", "--spl='", "cat"]):
+            with self.assertRaises(_comum.TextoAbertoComLeituras):
+                _comum.separar_lancadores(palavras)
+        with self.assertRaises(_comum.TextoDivididoAberto):
+            _comum.separar_lancadores(["env", "-S'", "cat"])
+        with self.assertRaises(_comum.LancadorDemais) as teto:  # o teto não é engolido pelo texto que não fecha
+            _comum.separar_lancadores(["env", "-iSenv -a -b -c ls"])
+        self.assertNotIsInstance(teto.exception, _comum.TextoAbertoComLeituras)
+        self.assertEqual(conformidade.alvos_de_escrita("env -aS'\"' tee docs/reviews/x.md"), ["docs/reviews/x.md"])
+        self.assertEqual(conformidade.alvos_de_escrita("env -S'\"' tee docs/reviews/x.md"), [])
+
+    def test_sonda_viva_do_texto_dividido_aberto(self):  # item 4 do critério de fim da opção B (rev14)
+        """Com os hooks desligados, cada `env` da máquina (GNU e uutils) imprime o `.env` falso em `env -uS\\' cat .env`
+        (o `-u` tira a variável `S'` e roda o `cat`) e não roda nada em `env -S'"' cat .env` (o texto não fecha). `HOME`
+        numa pasta do `$TMPDIR`, `.env` falso, sem rede e sem escrever nada (R-CUSTO)."""
+        envs = self.envs_da_maquina()
+        if not envs:
+            self.skipTest("sem env nesta máquina")
+        pasta = self._pasta_temporaria()
+        (pasta / "home").mkdir()
+        (pasta / ".env").write_text("SEGREDO_FALSO=abc123\n", encoding="utf-8")
+        ambiente = {"HOME": str(pasta / "home"), "PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+        for env_real in envs:
+            with self.subTest(env=env_real, familia=self.familia_do_env(env_real)):
+                roda = subprocess.run([env_real, "-uS'", "cat", ".env"], cwd=pasta, env=ambiente, capture_output=True,
+                                      text=True, timeout=10, stdin=subprocess.DEVNULL)
+                self.assertIn("SEGREDO_FALSO=abc123", roda.stdout, roda.stderr)
+                falha = subprocess.run([env_real, "-S\"", "cat", ".env"], cwd=pasta, env=ambiente, capture_output=True,
+                                       text=True, timeout=10, stdin=subprocess.DEVNULL)
+                self.assertNotIn("SEGREDO_FALSO", falha.stdout)
+                self.assertNotEqual(falha.returncode, 0)
+
+    def alvos_de_escrita_em(self, hooks, texto):
+        """`alvos_de_escrita(texto)` do `conformidade` de `hooks` (uma cópia mutada), num filho só, sem rede."""
+        codigo = ("import json, sys; sys.path.insert(0, sys.argv[1]); import conformidade; "
+                  "print(json.dumps(conformidade.alvos_de_escrita(sys.argv[2])))")
+        r = subprocess.run([sys.executable, "-I", "-c", codigo, str(hooks), texto], env=ambiente_limpo(),
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        return json.loads(r.stdout.splitlines()[-1])
+
+    MUTACOES_DO_TEXTO_ABERTO = {  # item 5 do critério de fim da opção B (rev14): (arquivo, de, para) e a forma que a pega
+        "ilegivel_em_vez_de_barrar": (
+            "conformidade.py",
+            "            self.barrar(\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, "
+            "com texto \"\n",
+            "            return self.ilegivel(\" \".join(palavras), pasta) or pasta\n            (\"R-CONFORMIDADE\", "
+            "f\"`{achado}` na chamada: opção de lançador que o hook não modela, com texto \"\n",
+            "env -uS\\' cat .env"),
+        "so_a_leitura_adiada": (
+            "_comum.py", "                dividido += _dividir(texto[0], gasto, f\"{nome} {opcao}\")\n",
+            "                dividido += _dividir(texto[0], 0, f\"{nome} {opcao}\")\n", "env -iu -S\\' cat .env"),
+        "tambem_com_uma_leitura": (
+            "_comum.py", "        if gasto:\n            raise TextoAbertoComLeituras(achado) from None\n",
+            "        if True:\n            raise TextoAbertoComLeituras(achado) from None\n", "env -S'\"' cat .env"),
+        "sem_a_regra_do_tee": (
+            "conformidade.py",
+            "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
+            "                alvos += []\n", "env -aS'\"' tee docs/reviews/x.md"),
+    }
+
+    def test_mutacoes_do_texto_dividido_aberto_ficam_vermelhas(self):  # item 5 do critério de fim da opção B (rev14)
+        """Cada mutação, numa cópia limpa dos hooks, muda a decisão da forma que a pega: mandar o achado a `ilegivel`
+        libera `env -uS\\' cat .env`; recusar só o texto da leitura adiada libera `env -iu -S\\' cat .env`; recusar também
+        com uma leitura só recusa o controle `env -S'"' cat .env`; tirar a regra do `tee` perde o alvo de
+        `env -aS'"' tee docs/reviews/x.md`. Com o código de hoje, as três primeiras dão 2, 2 e 0, e a última dá o alvo."""
+        guarda = {nome: forma for nome, (_, _, _, forma) in self.MUTACOES_DO_TEXTO_ABERTO.items()
+                  if nome != "sem_a_regra_do_tee"}
+        hoje = {"ilegivel_em_vez_de_barrar": 2, "so_a_leitura_adiada": 2, "tambem_com_uma_leitura": 0}
+        textos = list(guarda.values())
+        self.assertEqual([c for c, _, _ in self.decidir_na_guarda(textos)], [hoje[n] for n in guarda])
+        alvo, tee = "docs/reviews/x.md", self.MUTACOES_DO_TEXTO_ABERTO["sem_a_regra_do_tee"][3]
+        self.assertEqual(self.alvos_de_escrita_em(HOOKS, tee), [alvo])
+        for nome, (arquivo, de, para, forma) in self.MUTACOES_DO_TEXTO_ABERTO.items():
+            with self.subTest(mutacao=nome):
+                hooks = self.copia_do_plugin_com((arquivo, de, para))
+                if nome == "sem_a_regra_do_tee":
+                    self.assertEqual(self.alvos_de_escrita_em(hooks, forma), [], "a mutação sem o tee não é pega")
+                    continue
+                codigos = [c for c, _, _ in self.decidir_na_guarda(textos, hooks=hooks)]
+                self.assertEqual(codigos[list(guarda).index(nome)], 2 - hoje[nome], f"a mutação {nome} não é pega")
+
     def comandos_de_um_fixture(self, caminho):
         """Os comandos do Bash de um fixture (os `passos` e a `entrada`)."""
         dados = json.loads(caminho.read_text(encoding="utf-8"))
