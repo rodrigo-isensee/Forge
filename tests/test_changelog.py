@@ -190,6 +190,13 @@ class Release(Base):
         self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
         self.assertEqual(arq.read_text(encoding="utf-8"), antes)
 
+    def test_chave_version_repetida_com_a_versao_nova_no_ultimo_valor_falha_sem_gravar_nada(self):
+        # Sem o gancho de chave repetida, o último valor (a versão nova) passaria nas duas conferências de `version`.
+        antes = '{"version": "0.1.0", "k": 1, "version": "0.2.0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
     def test_aspa_escapada_no_valor_da_version_falha_sem_gravar_nada(self):
         antes = '{"version": "0.1\\"0"}\n'
         arq = self._dev_com(antes)
@@ -210,6 +217,7 @@ class Release(Base):
         self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
 
     def test_changelog_que_resolve_fora_da_raiz_e_recusado_sem_gravar_nada(self):
+        # O link simbólico cai no ramo `is_symlink()` de `conferir_caminho` (a mensagem é a mesma para os dois ramos).
         with tempfile.TemporaryDirectory() as fora:
             alvo = Path(fora) / "CHANGELOG.md"
             alvo.write_text(CABECALHO, encoding="utf-8")
