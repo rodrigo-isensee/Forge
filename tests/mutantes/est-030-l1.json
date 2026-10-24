@@ -1,0 +1,87 @@
+{
+  "pedido": "est-030-l1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "A4: em Decisões e restrições só passam as cópias do pedido (lista positiva)",
+      "arquivo": "bin/forge-check",
+      "de": "        elif atual == \"Decisões e restrições\" and linha.strip():\n",
+      "para": "        elif False:\n",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a4_decisoes_e_restricoes_so_aceita_as_copias_do_pedido"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "QA A4: cada frase do Entregar cita um id do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "        elif atual == \"Entregar\" and any(",
+      "para": "        elif False and any(",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_qa_a4_frase_do_entregar_sem_id_do_pedido",
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_cada_sonda_da_seguranca_sai_necessario"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "A10: letra fora do alfabeto latino dá necessário",
+      "arquivo": "bin/forge-check",
+      "de": "c not in \"ªº\" and not unicodedata.name(c, \"\").startswith(\"LATIN\")",
+      "para": "False",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a10_forja_visual_da_decisao_do_dono"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "A10: a frase DECISÃO sem acento ou com marca combinante não é cópia",
+      "arquivo": "bin/forge-check",
+      "de": " or FRASE_FORJADA.search(sem_acento(linha))",
+      "para": "",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a10_forja_visual_da_decisao_do_dono"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "A11: sem Branch ou com etapa desconhecida o commit não decide",
+      "arquivo": "bin/forge-check",
+      "de": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n        return [], False\n",
+      "para": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n        return [], True\n",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "A11: na etapa codigo só decide com o head no remoto",
+      "arquivo": "bin/forge-check",
+      "de": "        return [], conferido and no_remoto and not (remota and worktree_a_frente(raiz, remota))",
+      "para": "        return [], True",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "A11: o gerar sem --etapa não escreve codigo",
+      "arquivo": "bin/forge-check",
+      "de": "saida.append(f\"Etapa: {etapa or PREENCHER}\"",
+      "para": "saida.append(f\"Etapa: {etapa or 'codigo'}\"",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "QA A3 (N1): a cópia literal da DECISÃO DO DONO fora de Decisões e restrições",
+      "arquivo": "bin/forge-check",
+      "de": "            if atual != \"Decisões e restrições\":\n",
+      "para": "            if False:\n",
+      "testes": [
+        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_qa_a3_copia_fora_de_decisoes_e_corte_real"
+      ]
+    }
+  ]
+}
