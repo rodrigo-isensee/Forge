@@ -100,3 +100,7 @@ Delta lido: `forge-check delta --parecer` listou `8649439..31e78cd` (9 arquivos:
 - Ferramenta, na worktree em `31e78cd` com `HOME` em `$TMPDIR/tech-lead-integ2`: `python3 -m unittest tests.test_testes_tocados tests.test_agentes_clone tests.test_agentes_hash_brief tests.test_guarda_conferente tests.test_isencoes` → `Ran 116 tests`, `OK`. A suíte inteira fica com o pre-push e o QA (E3.1); a segurança do delta é da E2.1.
 
 Já lido e não relido: todo o código do lote aprovado nas rodadas anteriores e o conteúdo da `develop`, revisado nos PRs próprios (#294, #295). Achados: nenhum novo bloqueante; as recomendações anteriores seguem como estavam.
+
+Sem achado novo nesta revalidação.
+
+## Achados
