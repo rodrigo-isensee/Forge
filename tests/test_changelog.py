@@ -178,6 +178,24 @@ class Release(Base):
             self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"))
             self.assertEqual(alvo.read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
 
+    def test_chave_version_aninhada_antes_da_de_topo_falha_sem_gravar_nada(self):
+        antes = '{"extra": {"version": "9"}, "version": "0.1.0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_chave_version_repetida_falha_sem_gravar_nada(self):
+        antes = '{"version": "0.1.0", "version": "0.1.1"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_aspa_escapada_no_valor_da_version_falha_sem_gravar_nada(self):
+        antes = '{"version": "0.1\\"0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
     def test_versao_ja_existente_recusada(self):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")

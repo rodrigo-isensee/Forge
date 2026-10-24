@@ -85,9 +85,17 @@ def novo(args):
 MANIFESTOS = (".claude-plugin/plugin.json", "dev/.claude-plugin/plugin.json")
 
 
-def ler_manifestos():
-    """Lê e valida os manifestos que existem; devolve [(caminho, texto)]. Recusa link simbólico, caminho fora da raiz,
-    JSON inválido e manifesto sem `version` de topo. Nada é gravado aqui."""
+def _recusa_chave_repetida(pares):
+    chaves = [k for k, _ in pares]
+    if len(chaves) != len(set(chaves)):
+        raise ValueError("chave repetida")
+    return dict(pares)
+
+
+def ler_manifestos(versao):
+    """Lê e valida os manifestos que existem e calcula o texto novo; devolve [(caminho, novo_texto)]. Recusa link
+    simbólico, caminho fora da raiz, JSON inválido, chave repetida, manifesto sem `version` de topo e troca que não
+    deixe `version` de topo igual a `versao`. Nada é gravado aqui."""
     raiz = Path.cwd().resolve()
     lidos = []
     for nome in MANIFESTOS:
@@ -98,19 +106,25 @@ def ler_manifestos():
             sys.exit(f"{nome}: link simbólico ou fora da raiz do repositório; recusado.")
         texto = caminho.read_text(encoding="utf-8")
         try:
-            dados = json.loads(texto)
+            dados = json.loads(texto, object_pairs_hook=_recusa_chave_repetida)
         except ValueError as erro:
             sys.exit(f"{nome}: não é JSON válido ({erro}).")
         if not isinstance(dados, dict) or not isinstance(dados.get("version"), str):
             sys.exit(f"{nome}: sem a chave 'version' de topo.")
-        lidos.append((caminho, texto))
+        novo_texto, _ = re.subn(r'("version"\s*:\s*")[^"]*(")', rf"\g<1>{versao}\g<2>", texto, count=1)
+        try:
+            conferido = json.loads(novo_texto, object_pairs_hook=_recusa_chave_repetida)
+        except ValueError as erro:
+            sys.exit(f"{nome}: a troca da versão geraria JSON inválido ({erro}); recusado.")
+        if conferido.get("version") != versao:
+            sys.exit(f"{nome}: a troca textual não acertou o 'version' de topo; recusado.")
+        lidos.append((caminho, novo_texto))
     return lidos
 
 
-def gravar_versao(manifestos, versao):
-    """Grava a versão nos manifestos já validados, sem mexer no resto do arquivo."""
-    for caminho, texto in manifestos:
-        novo_texto, _ = re.subn(r'("version"\s*:\s*")[^"]*(")', rf"\g<1>{versao}\g<2>", texto, count=1)
+def gravar_versao(manifestos):
+    """Grava o texto já conferido por `ler_manifestos`."""
+    for caminho, novo_texto in manifestos:
         caminho.write_text(novo_texto, encoding="utf-8")
 
 
@@ -134,14 +148,14 @@ def release(args):
             agrupado[tipo].extend(linhas)
     if not antigas and not arquivos:
         sys.exit("Nada a publicar: sem fragmentos em changelog.d/ nem linhas em '[Não publicado]'.")
-    manifestos = ler_manifestos()
+    manifestos = ler_manifestos(args.versao)
     corpo = list(antigas)
     for tipo in TIPOS:
         if agrupado[tipo]:
             corpo += [f"### {tipo}", *agrupado[tipo]]
     secao = f"## [Não publicado]\n\n## [{args.versao}] - {args.data}\n" + "\n".join(corpo) + "\n\n"
     caminho.write_text(texto[:m.start()] + secao + texto[m.end():], encoding="utf-8")
-    gravar_versao(manifestos, args.versao)
+    gravar_versao(manifestos)
     for a in arquivos:
         a.unlink()
     print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
