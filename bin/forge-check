@@ -3983,14 +3983,18 @@ def estado_do_commit(raiz, texto):
     """M1: (linhas, decidiu). Brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou
     atrás), lido do remoto por `git ls-remote`: a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Sem commit local ou
     sem remoto conhecido, não há o que conferir (como `parecer_commitado`); `decidiu` é False sem o remoto conferido, sem commit local ou
-    com um HEAD solto de worktree à frente do remoto (o brief mecânico não dispensa o conferente sem a checagem). Sem `Branch:` ou na
-    etapa `codigo`, a checagem não se aplica (decidiu)."""
+    com um HEAD solto de worktree à frente do remoto (o brief mecânico não dispensa o conferente sem a checagem). Sem `Etapa:` ou
+    `Branch:`, ou com etapa desconhecida, não decide (segurança A11). Na etapa `codigo` não reprova e só decide com o head local em
+    `origin/<branch>` ou com a branch ausente nos dois lados."""
     cabecalho = cabecalho_do_brief(texto)
     etapa, branch = grupo(ETAPA_DO_CABECALHO, cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
-    if not branch or etapa == "codigo":
-        return [], True
-    head = sha_do_commit(raiz, f"refs/heads/{branch}") if etapa in ETAPAS_DO_GERAR else None
+    if not branch or etapa not in ETAPAS_DO_GERAR:
+        return [], False
+    head = sha_do_commit(raiz, f"refs/heads/{branch}")
     remota, conferido = remoto_da_branch(raiz, branch)
+    if etapa == "codigo":
+        no_remoto = head == remota or bool(head and remota and e_ancestral(raiz, head, remota))
+        return [], conferido and no_remoto and not (remota and worktree_a_frente(raiz, remota))
     if not head or not (conferido or git(raiz, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/origin")[1]):
         return [], False
     if remota and (head == remota or e_ancestral(raiz, head, remota)):
@@ -4318,8 +4322,6 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
     existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
     if not all(ids_do_fora(i) & existentes or any(len(f) >= 20 for f in fragmentos_citados(i)) for i in pedido["fora"]):
         return necessario("Fora do escopo do pedido em prosa: contradição não conferida")
-    if not commit_decidiu:
-        return necessario("commit não conferido (sem commit local, sem remoto conhecido ou sem etapa)")
     do_pedido = {chave_da_decisao(l) for _, itens in cobradas["fontes"] for _, l in itens}
     subtitulos = {SUBTITULO_DO_REGISTRO.format(rel) for rel, _ in cobradas["fontes"][1:]}
     vistos, atual = set(), None
@@ -4339,6 +4341,8 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
             return necessario("decisão em prosa: linha de Decisões e restrições que não é cópia do pedido")
         elif atual == "Entregar" and any(not ids_em_citacao(f) & existentes for f in FRASE.split(sem_trechos_do_pedido(linha, pedido).strip(" -*+")) if f):
             return necessario("decisão em prosa: frase do Entregar sem id do pedido")
+    if not commit_decidiu:
+        return necessario("commit não conferido (sem Etapa ou Branch, sem commit local, sem remoto ou head fora dele)")
     return ("conferente: dispensado (brief mecânico)", False)
 
 
@@ -4727,7 +4731,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if branch:
         saida.append(f"Branch: {branch}   Base: {base}   Base-sha: {base_sha_real(raiz, base, branch) or PREENCHER}")
     if etapa or coberta:
-        saida.append(f"Etapa: {etapa or 'codigo'}" + (f"   Cobre: {coberta}" if coberta else ""))
+        saida.append(f"Etapa: {etapa or PREENCHER}" + (f"   Cobre: {coberta}" if coberta else ""))  # sem --etapa, o brief não passa
     if coberta:
         saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]

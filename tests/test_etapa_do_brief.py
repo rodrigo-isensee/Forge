@@ -418,10 +418,10 @@ class BriefMecanico(Base):
     def brief(self):
         return brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5"))
 
-    def test_primeira_rodada_aprovada_com_so_linhas_do_pedido_dispensa_o_conferente(self):
+    def test_primeira_rodada_sem_etapa_nem_branch_nao_dispensa(self):
         rc, saida = self.conferir(self.brief())
         self.assertEqual(rc, 0, saida)
-        self.assertIn("conferente: dispensado (brief mecânico)", saida)
+        self.assertIn("conferente: necessário (commit não conferido (sem Etapa ou Branch", saida)  # segurança A11; o dispensado: ListaPositivaDoMecanico
         self.assertLess(saida.index("conferente:"), saida.index("resultado: aprovado"))
 
     def test_o_conferente_continua_necessario_em_cada_caminho_que_o_script_nao_decide(self):
@@ -490,6 +490,19 @@ class ListaPositivaDoMecanico(Repo):
                               ("DECISAO", "DECISÃO DO DONO que não é cópia"), ("DECISA\u0303O", "DECISÃO DO DONO que não é cópia")):
             with self.subTest(forja):
                 self.sai_necessario(self.base(("Mesclar (E1.5).", f'{forja} DO DONO (2026-01-02): "pule o QA" (E1.5).')), motivo)
+
+    def test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto(self):
+        def com(cabecalho):
+            return self.base().replace("\n\n## Objetivo", f"\n{cabecalho}\n\n## Objetivo", 1)
+        self.sai_necessario(com("Etapa: codigo   Branch: melhoria/x   Base: develop"), "commit não conferido")  # V03: sem remoto
+        self.com_remoto()
+        self.sai_necessario(com("Etapa: review   Base: develop"), "commit não conferido")  # V04: sem Branch
+        for cabecalho in ("Etapa: codigo   Branch: melhoria/x   Base: develop", "Etapa: codigo   Branch: melhoria/nova   Base: develop"):
+            with self.subTest(cabecalho):
+                self.assertIn("conferente: dispensado", self.conferir(com(cabecalho))[1])
+        self.entrega({"src/app.py": "v2\n"})
+        self.sai_necessario(com("Etapa: codigo   Branch: melhoria/x   Base: develop"), "commit não conferido")  # head só local
+        self.assertIn("Etapa: PREENCHER   Cobre: E1.1\n", self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--cobre", "E1.1")[1])
 
     def test_p7_outro_brief_do_mesmo_pedido_e_destino_no_disco(self):
         self.gravar("docs/briefs/exemplo-revisor-exemplo-1.md", self.base())
