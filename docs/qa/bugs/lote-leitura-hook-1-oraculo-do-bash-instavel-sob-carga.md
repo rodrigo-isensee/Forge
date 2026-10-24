@@ -19,3 +19,6 @@ Logs em `$TMPDIR/qa-engineer-lote-leitura-hook/`: `par-1.log` a `par-4.log` (fal
 
 ## Contorno
 Rodar o teste sozinho. Correção sugerida (não feita pelo QA): criar todos os registradores antes de abrir as threads, ou repetir a execução quando o rc for 126 com "Text file busy", ou conferir rc e stderr e falhar com a causa real.
+
+## Estado
+Fechado em 1b4b0d8 (caminho 1 do lote): 20 de 20 cópias em paralelo sob carga 14,7 passaram; ver docs/qa/lote-leitura-hook.md.
