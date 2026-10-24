@@ -116,5 +116,33 @@ class Execucao(unittest.TestCase):
         self.assertEqual(rc, 0, saida)
 
 
+class PassoDoCi(unittest.TestCase):
+    CI = (AQUI.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    def passo(self):
+        m = re.search(r"(?m)^      - name: Provas cmd do arquivo de provas.*?(?=^      - name: )", self.CI, re.S)
+        self.assertIsNotNone(m)
+        return m.group(0)
+
+    def test_so_no_pull_request_sem_segredo_e_com_o_script_da_base(self):
+        passo = self.passo()
+        self.assertIn("github.event_name == 'pull_request'", passo)
+        self.assertNotIn("pull_request_target", self.CI)
+        self.assertNotIn("secrets.", passo)
+        self.assertNotIn("GITHUB_TOKEN", passo)
+        self.assertIn('git cat-file -e "$BASE:scripts/reexecutar-provas.py"', passo)
+        self.assertIn('script="$RUNNER_TEMP/base/scripts/reexecutar-provas.py"', passo)
+
+    def test_roda_no_sha_do_pr_sobre_o_arquivo_da_branch(self):
+        passo = self.passo()
+        self.assertIn('git worktree add --detach "$RUNNER_TEMP/pr" "$HEAD_SHA"', passo)
+        self.assertIn("docs/provas/*.md", passo)
+        self.assertIn('--raiz "$RUNNER_TEMP/pr"', passo)
+        self.assertNotIn("${{", passo.split("run:")[1])  # entrada do evento só por env:, nunca no script
+
+    def test_passo_vem_antes_da_suite(self):
+        self.assertLess(self.CI.index("Provas cmd do arquivo de provas"), self.CI.index("- name: Testes do Forge\n        if: ${{ !cancelled() && steps"))
+
+
 if __name__ == "__main__":
     unittest.main()
