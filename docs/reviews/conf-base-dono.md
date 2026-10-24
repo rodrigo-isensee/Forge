@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: conf-base-dono
 branch: melhoria/conf-base-dono
-commit: 8c243582ee0eadd602956a67e210337560f33912
-parecer: reprovado
+commit: d47d1b4728cae7d6811a21649eb333025b264d7b
+parecer: aprovado
 revisor: forge:tech-lead (CONF-BASE-DONO-REV E1.1)
 data: 2026-10-23
 ---
@@ -23,7 +23,7 @@ Ferramenta: o Forge não tem `docs/engineering/praticas.md`; a regra de ferramen
 ## Testes
 `tests/test_conferencia_base_dono.py` cobre: E1 em 6 testes (aceita e diz a origem; sem a linha, o de hoje; fora do Histórico, sha abreviado, sha fora da branch, sem "dono"; a mais recente entre conferida e dono; gravada na própria entrega; etapa de branch inteira); E2 em 3 (integração limpa, conflito resolvido, commit próprio depois da integração); E3 em 5 (sem a opção, com a opção, antes do subcomando, `brief gerar`, brief de união). Faltam: duas integrações seguidas no intervalo (A2, o caso que hoje escapa) e `brief gerar --volta` com `--raiz-pedidos`, que o E3 cita (A5).
 
-## Achados
+## Achados da rodada 1 (8c24358)
 - A1 (bloqueante) hooks/conformidade.json:49 · segurança/controle: o hook protege ~/.forge-contrib/docs/pedidos/, mas os pedidos reais e o alvo do --raiz-pedidos estão em ~/.forge-contrib/forge/docs/pedidos/; sonda do hook com forge:tech-lead gravando a linha da base do dono ali: rc 0 (no caminho protegido, rc 2). Proteja o caminho real
 - A2 (bloqueante) bin/forge-check:844 · correção: o E2 só exige que não haja commit próprio sem merge; com duas integrações seguidas no intervalo, conteúdo novo posto no primeiro merge some (sonda: s.txt no merge 1, merge 2 limpo: "sem commit"; a develop lista s.txt). Limite ao head ser o único commit do intervalo, mais teste
 - A3 (recomendado) bin/forge-check:1259 · consistência: brief gerar --volta propõe --desde só da última conferida; com a linha do dono mais recente, a PQ gerada reprova (--desde sem conferência anterior). Use bases_do_pedido aqui
@@ -31,9 +31,33 @@ Ferramenta: o Forge não tem `docs/engineering/praticas.md`; a regra de ferramen
 - A5 (recomendado) tests/test_conferencia_base_dono.py:123 · testes: o E3 cita brief gerar --volta com --raiz-pedidos e não há teste dele; acrescente um caso
 - A6 (recomendado) bin/forge-check:888 · clareza: na etapa codigo, integração limpa sem commit próprio sai "pendente: intervalo vazio ... nenhum commit novo", mas há um commit (o merge); a linha engana quem confere uma entrega que é só a integração
 
-## Parecer
+## Parecer da rodada 1
 **Reprovado**, por A1 e A2. O resto do E1 e do E3 está correto e confere com os casos reais; o E4 (agentes, changelog, mapa do `forge-testes`) está coerente e o `ESCOPO+` do mapa é técnico e justificado.
 
 - **A1** (bloqueia, segurança/controle). A linha nova afrouxa o `--desde` da mesma forma que a `conferida`, e o pedido põe fora do escopo "aceitar base sem decisão do dono registrada": essa garantia depende de só o Jarvis gravar no pedido. O hook casa `~/.forge-contrib/docs/pedidos/` e, no projeto, `docs/pedidos/` relativo à raiz da sessão; a pasta real `~/.forge-contrib/forge/docs/pedidos/` (sem git, fora das duas) fica livre para qualquer papel. A lacuna já existia para a `conferida`, mas esta entrega documenta o `--raiz-pedidos` apontando para lá e acrescenta uma segunda linha que abre o delta. O autor levantou o ponto no Histórico. Sugestão: proteger a raiz real (ou toda raiz `*/docs/pedidos/` sob `~/.forge-contrib/`) com fixture de hook. Vira cartão também para o `security-engineer` (E2.1).
 - **A2** (bloqueia, correção). `diferem_dos_dois_pais` olha só os pais do head. Com o intervalo `c1 -> M1 (merge da develop + s.txt novo) -> M2 (merge limpo da develop)`, o `log --no-merges` sai vazio, a interseção em M2 não tem s.txt (igual em M1) e a saída é `escopo: sem commit (nada a conferir)`, rc 0; a `bin/forge-check` da develop, no mesmo repositório, lista `confira "s.txt"`. É regressão e caminho para conteúdo sem conferência. O escopo diz "entrega cujo único commit é um merge de integração": exija `git rev-list de..head --not <base>` igual a só o head (ou some o `--cc` de cada merge do intervalo) e cubra com teste.
 - A3 a A6 (recomendados), na lista acima.
+
+## Revalidação (d47d1b4)
+
+Volta `557c602..d47d1b4`: `05bab4a`, `1a8e223`, `6eeecad`, `f7f2fdc` (correção, `git diff 557c602 f7f2fdc`: `agents/conferente.md`, `bin/forge-check`, `tests/test_conferencia_base_dono.py`, +144 -32) e `d47d1b4`, merge da `develop` (`139a3b4`) sem resolução própria (`git show --cc` vazio). Delta lido: `forge-check delta --parecer docs/reviews/conf-base-dono.md` (desde `8c24358`) lista, além da correção, `.github/workflows/ci.yml`, `changelog.d/ci-py314.md`, `changelog.d/impl-n-agt-a.md` e `bin/forge-check` 1503-1517, que vieram da `develop` (#294, #295) e têm pareceres próprios: ficaram como "já lido" (fora desta entrega). Li a correção inteira.
+
+Ferramenta: `tests.test_conferencia_base_dono` (HOME isolado em $TMPDIR): 21 testes OK (eram 14). A suíte completa é do QA e do pre-push (o autor registra 1744 OK).
+
+Achados da rodada 1:
+- **A1** fora desta volta por decisão técnica do Jarvis (cartão HOOK-RAIZ-CONTRIB; o PR desta branch só abre depois dele). A volta reduz a superfície: `--raiz-pedidos` agora só aceita pasta sob `~/.forge-contrib` ou sob a raiz do repositório (rc 2 fora, com teste), e a linha do dono exige a forma exata.
+- **A2 resolvido.** `diferem_dos_dois_pais` exige que o head seja o único commit próprio de `de..head` (`rev-list ... --not <base>` igual a `[head]`), que um pai seja o `--desde` e o outro ancestral da base; com dois merges seguidos volta ao escopo de sempre. O teste `test_dois_merges_seguidos_nao_escondem_arquivo_do_autor` reproduz a minha sonda (s.txt no primeiro merge) e afirma `confira "s.txt"`.
+- **A3 resolvido.** `gerar_volta` usa `bases_do_pedido` (a linha mais recente, `conferida` ou do dono); `conferidas_do_pedido` saiu sem outro uso. Testes `test_a_pq_da_volta_traz_a_base_do_dono_como_desde` e `test_a_pq_gerada_passa_no_entrega`.
+- **A4 resolvido.** No escopo de integração os números são, por arquivo, o maior `+`/`-` contra os dois pais (o `-` do binário prevalece), e a regra do anexo com remoção não é enganada. Teste `test_os_numeros_da_integracao_sao_contra_os_dois_pais` (`+1 -4`).
+- **A5 resolvido.** Classe nova de `brief gerar --volta` com `--raiz-pedidos` (os dois testes do A3).
+- **A6 resolvido.** Na etapa `codigo`, entrega só de integração sai `pendente: a entrega é só a integração da base (o merge não traz trabalho próprio)`, com teste.
+
+Contrato novo da linha do dono: `BASE_DO_DONO` casa só `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>` abrindo a linha do `## Histórico`, e só vale com uma `DECISÃO DO DONO` no pedido; base do dono igual ao head é recusada (delta vazio sem aviso), com teste. Documentado em `agents/conferente.md:81` (forma exata, exigência da decisão, regra dos dois merges e limite do `--raiz-pedidos`) e na ajuda do `bin/forge-check` (linha 73 e `AJUDA_RAIZ_PEDIDOS`).
+
+Commits: Conventional Commits em português, um por achado, mensagens claras.
+
+## Parecer da revalidação
+**Aprovado.** A2 a A6 resolvidos e testados; A1 segue no cartão HOOK-RAIZ-CONTRIB, fora desta entrega. Um recomendado novo (A7), que não bloqueia; vale também como cartão para o `security-engineer` (E2.1) avaliar.
+
+## Achados
+- A7 (recomendado) bin/forge-check:731 · controle: a linha do dono vale com qualquer DECISÃO DO DONO do pedido, não com a que fixou a base; quase todo pedido tem uma (este tem três), e a amarra é fraca. Exija que a decisão cite o sha da base (sha7 ou sha40)
