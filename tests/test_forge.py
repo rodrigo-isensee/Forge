@@ -4873,3 +4873,14 @@ class PesosDaSuite(unittest.TestCase):
             f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
             "regrave com FORGE_SUITE_MEDIR=1 python3 scripts/suite-paralela.py",
         )
+
+
+class EsperaDoPushEVerificadores(unittest.TestCase):
+    """A3 e A4 (MAQ-LOTE-A): o push de código em segundo plano e a V2 dirigida e na fila ficam no texto do tech-lead."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "tech-lead.md").read_text(encoding="utf-8")
+
+    def test_push_de_codigo_em_segundo_plano(self):
+        self.assertIn("o `git push` de código roda com o `run_in_background` da ferramenta", self.texto)
+        self.assertIn("espera a notificação do fim, sem mexer na worktree até lá", self.texto)
