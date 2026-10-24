@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
+commit: 31e78cdc1419753daf4ca711211126f61e77dbcd
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-23
@@ -56,3 +56,11 @@ Delta `e08438f..8649439`: os pareceres do REVAL-288 (`d4bc926`, `ad6a9bd`) e o m
 - Nada no merge afrouxa portão: `hooks/`, `.githooks/`, `.github/` e `tests/config.json` iguais aos da `develop` mais o lote já revisado.
 - Testes do delta rodados na worktree com `HOME` isolado: `test_testes_tocados`, `test_medidas_m14b`, `test_anotar` (106 testes, OK).
 Veredito: aprovado, sem achado novo; R1, R2, R4 e R5 seguem valendo. Ferramentas: `forge-check delta`, comparação de diffs por pai; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual).
+
+## Revalidação por delta (INTEG-LOTE-FC-2-REV)
+Delta `8649439..31e78cd` (o `forge-check delta` sobre este parecer): o merge `31e78cd` da `develop` (`139a3b4`, com o #294), base comum `daf2ffa`. O delta toca controle do Forge (`hooks/agentes.py`, `bin/forge-check`, `.github/workflows/ci.yml`, `docs/hooks.md`); a revisão aqui é a resolução e a convivência, não o #294, que passou pelos portões do PR de origem.
+- `docs/hooks.md` (conflito): `git show --cc` mostra a linha do `agentes` (`docs/hooks.md:11`) igual à da `develop` e a do `parecer` (`docs/hooks.md:12`) igual à da branch; desde a base comum, a `develop` só mudou a linha do `agentes` e a branch só a do `parecer`, então nenhuma das duas descrições perdeu texto. Cada linha descreve o código do head: `hooks/agentes.py` é idêntico ao da `develop` (forma do cabeçalho, recálculo do sha256, `realpath` em `docs/briefs/` da raiz ou de `~/.forge-contrib`, só arquivo regular, 256 KiB, `hooks/agentes.py:207-272`) e `hooks/parecer.py` é idêntico ao da branch (isenção do M13 pela `isencoes_da_entrega`). A linha 65 (estado do `agentes` no diretório comum do git no clone do Forge) veio da `develop` por mesclagem automática e bate com `arquivo_de_estado` (`hooks/agentes.py:178`).
+- Mesclagem automática: `bin/forge-check:1512-1526` (`agentes_vigentes` passa a ler `agentes.arquivo_de_estado`, com o caminho antigo de reserva) é a única mudança no lado da branch, só leitura de contagem, sem tocar portão. `.github/workflows/ci.yml` e `hooks/agentes.py` iguais aos da `develop`.
+- Superfície da branch: o diff da branch contra a base comum (`daf2ffa..b8c19b9`) e o do merge contra a `develop` (`139a3b4..31e78cd`) têm as mesmas linhas alteradas em `bin/`, `hooks/`, `.githooks/`, `.github/`, `tests/config.json`, `agents/` e `docs/regras/`: nada do lote sumiu nem afrouxou, e nada do #294 foi tirado.
+- Testes do delta na worktree com `HOME` isolado: `test_agentes_clone`, `test_agentes_hash_brief`, `test_guarda_conferente`, `test_isencoes` (51 testes, OK).
+Veredito: aprovado, sem achado novo; R1, R2, R4 e R5 seguem valendo. Ferramentas: `forge-check delta`, `git show --cc`, comparação de diffs por pai; `gitleaks`, `semgrep`, `zizmor`, `actionlint` fora do PATH (lacuna igual).
