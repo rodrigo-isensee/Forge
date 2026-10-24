@@ -3,61 +3,81 @@ tipo: review
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: e8b2af94d1e21a16899980910665d50e20404b2e
+commit: 1b4b0d8b060379d6e078d5ef15c2c63676e41b87
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-10-24
 ---
-# Review: lote-leitura-hook (revalidação 12, volta da revalidação 11: o lançador que divide texto)
+# Review: lote-leitura-hook (revalidação 13, volta pela opção A da revalidação 12)
 
-Pedido RET-LEITURA-HOOK-E-REV, E1.1. Sou revisor independente: não implementei esta volta (`R-REVIEW`). O parecer anterior (revalidação 11, `aprovado`, sem achados) está em `8a88be9`.
+Pedido RET-LEITURA-HOOK-F-REV, E1.1. Sou revisor independente: não implementei esta volta (`R-REVIEW`). O parecer anterior (revalidação 12, `reprovado`, A1 a A4) está em `8e9fc07`, sobre `e8b2af9`.
 
-**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `182f928..e8b2af9`. Os commits são `414ddd3` (corpus vermelho ES1 a ES17 e FD16a a FD16d), `debd17d` (`env_divide_texto`, a dimensão nova do G1 e o `env` GNU no T9b), `ef4c030` e `e8b2af9` (`docs/hooks.md:95`, FD14 e FD16). O trecho `8a88be9` e `a143cf4` são os pareceres da revalidação 11. Li inteiro:
-- `hooks/_comum.py:1800-1831`, `1837-1859`, `1890-1891` e `2258`;
-- `tests/test_hooks.py:1954-1956`, `2393-2406`, `2425-2427`, `2465-2466` e `2553-2625`;
-- `tests/fixtures/heredoc-volta-unica.json:258-279`;
-- as duas fixtures `tests/hooks/conformidade/contrib-remoto-nomeado-proprio-*.json:25`;
-- `docs/hooks.md:95` e `changelog.d/lote-leitura-hook.md:12`.
+**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `e8b2af9..1b4b0d8`. Os commits do autor são `b438b21` (caminho 1 do teste instável), `e8cc9e4` (opção A) e `f418569` (textos de `docs/hooks.md:95`). O merge `1b4b0d8` só traz a `develop` (`83d5faa`, segundo pai): nenhum arquivo de `hooks/` muda nele, e de `tests/` só `test_conferir_reversao.py` e `test_forge.py`, que vêm da `develop`. Li inteiro:
+- `hooks/_comum.py:1738-1888` (`LANCADORES`, `opcao_modelada`, `opcao_fora_da_tabela`, `separar_lancadores`, `achado_do_lancador`), `1897-1925` (`reavaliacao_das_palavras`), `1952-1966` e `2022-2033` (`valor_do_split_string`);
+- `hooks/conformidade.py:31` e `741-746`, `hooks/parecer.py:21-25` e `401-406`;
+- `tests/test_hooks.py` do delta: `executar_em_lote` (564-605), `montar_registradores_do_t9b`, `rodar_no_bash_do_t9b`, `rodar_em_paralelo_no_t9b`, `test_propriedade_do_alfabeto_de_opcoes_do_lancador`, `FORMAS_DO_LANCADOR`, `test_lancador_fora_da_tabela_com_efeito_real`, `test_env_nao_le_opcao_depois_do_comando`, `test_mutacoes_do_lancador_ficam_vermelhas`, `test_t9b_monta_os_registradores_antes_de_rodar` e `test_t9b_registrador_que_nao_roda_e_falha_do_arnes`;
+- `tests/fixtures/heredoc-volta-unica.json` (o corpus do T9b, `CORPUS_VOLTA_UNICA`), `docs/hooks.md:95` e `changelog.d/lote-leitura-hook.md:13`.
 
-Fica como "já lido" o que vem antes de `182f928` (revalidações 1 a 11). Uma exceção: reli `hooks/_comum.py:1739-1747` (`LANCADORES` e `ENV_COM_VALOR_CURTA`), porque o código novo do delta usa essas tabelas.
+Fica como "já lido" o que vem antes de `e8b2af9` (revalidações 1 a 12) e os arquivos que o merge traz da `develop`. Uma exceção: reli `separar_lancadores` e `valor_do_split_string` da base `d150ec8` (`hooks/conformidade.py:390-433`), para julgar o desvio declarado pelo autor ("como a develop").
 
-**Critério.** A DECISÃO TÉCNICA do Jarvis no pedido RET-LEITURA-HOOK-E, que fecha o A1 da segurança (`a143cf4`). Ela pede que, com o marcador crítico, todo `env` com a opção de dividir texto recuse nos dois hooks, sem dividir o valor. Também valem a frase de `docs/hooks.md:95` ("o `env` com a opção de dividir texto … recusa"), o ADR 0011 ("o que o analisador não modela é recusado") e a decisão "A" do dono de 2026-10-22, que conta as voltas por classe.
+**Critério.** A decisão "A" do dono de 2026-10-24 (opção A da proposta `lote-leitura-hook-caminho-rev12.md`, seção 2A, e caminho 1 da seção 3), os textos da seção 4.1, a decisão "A" de 2026-10-22 (voltas por classe) e o piso da M5 que a proposta registra: "nada disto é regressão" contra a `develop`.
 
 ## Achados
-- A1 (bloqueante) hooks/_comum.py:1747 · classe "lançador que divide texto" (2.ª volta seguida). O `-a` (`--argv0`) leva valor no GNU env 9.7, mas falta em `ENV_COM_VALOR_CURTA`. Em `env_divide_texto`, o valor `x` passa então por comando, e o laço para antes do `-S`. A tabela nova `ENV_LONGAS_COM_VALOR` (linha 1800) já traz `argv0`, então as duas tabelas se contradizem. Prova: `env -a x -S 'bash -c "git push origin SENTINELA:main"'` dá 0 no `conformidade`, e a forma com o `gh pr merge SENTINELA --merge` dá 0 no `parecer` (`$TMPDIR/tech-lead-lote-leitura-hook/sonda_env2.py`). Com os hooks desligados, `gnuenv -a x -S 'bash -c "echo RODOU"'` imprime `RODOU`, e `gnuenv -ax -S'…'` também. A recusa que a decisão técnica pede não acontece.
-- A2 (bloqueante) hooks/_comum.py:1810 · classe "lançador que divide texto" (2.ª volta seguida). O `env` desta máquina (`/usr/bin/env`, uutils coreutils 0.8.0, o padrão do Ubuntu) aceita o `-S` colado depois de `NOME=valor`, depois de `-` e depois de `-f arquivo`. O laço de `env_divide_texto` para na primeira palavra que não começa com `-`, e também em `-`. Prova, hooks ligados: `env X=1 -S'bash -c "<sentinela>"'`, `env - -S'…'`, `env -i X=1 -S'…'` e `env -f /dev/null -S'…'` dão 0 / 0 nos dois hooks (`sonda_env.py`). Hooks desligados, com o `env` do `PATH`: as quatro formas imprimem `RODOU`. O teste não vê isso porque o `env_gnu()` (`tests/test_hooks.py:2395`) escolhe o `gnuenv`, e a docstring dele diz que o uutils "não divide", mas o uutils divide o `-S` colado. O texto de `docs/hooks.md:95` promete a recusa do "`env` com a opção de dividir texto", sem limitar ao GNU.
-- A3 (bloqueante) hooks/_comum.py:1740 · classe nova "opção de lançador que o hook não modela" (1.ª volta; não é regressão, porque a `develop` tem a mesma tabela em `hooks/conformidade.py:37-38`). Na tabela `LANCADORES["env"]`, faltam o `-a` e o `--argv0`. Em `separar_lancadores`, o valor do `-a` vira o comando, e a ação crítica some. Prova: `env -a x git push origin SENTINELA:main` dá 0 no `conformidade`, `env -a x gh pr merge SENTINELA --merge` dá 0 no `parecer` e `env --argv0 x git push …` dá 0, enquanto `env git push origin SENTINELA:main` dá 2. O GNU 9.7 e o uutils rodam `env -a x git --version` normalmente. É segurança com gatilho (push direto para a `main`), e vai também como cartão para o `security-engineer`.
-- A4 (recomendado) tests/test_hooks.py:2435 · O defeito é do teste, não do hook. A falha esporádica de `test_divisao_esta_na_classe` e de `test_g1_esta_na_classe` vem de uma corrida `ETXTBSY`. As threads do pool (linhas 2602 e 2641) gravam os registradores executáveis enquanto outras threads fazem `fork`. O filho herda o descritor de escrita aberto até o `exec`, e o `exec` do script recém-gravado falha. Numa cópia instrumentada, que só grava o stderr do bash, saiu `FAILED (failures=4)` sem carga extra, e as 4 falhas são as 4 linhas `…/dv-78/bin/sudo: /usr/bin/bash: bad interpreter: Text file busy` (`$TMPDIR/tech-lead-lote-leitura-hook/diag0.log`). A cópia limpa passou na rodada anterior (`Ran 3 tests … OK`). A correção sugerida é montar todas as pastas e registradores antes do pool e só então rodar os textos em paralelo, ou repetir o `exec` diante de `ETXTBSY`. O stderr descartado escondia a causa.
+- A1 (bloqueante) hooks/_comum.py:1848 · classe "opção de lançador que o hook não modela" (2.ª volta seguida). Regressão contra a develop, sem marcador: `env -iu X cat .env` e `env -iu X rm -rf .git` davam 2 e agora dão 0; o env real lê e apaga
+- A2 (bloqueante) hooks/_comum.py:2030 · classe "lançador que divide texto" (3.ª volta). Regressão contra a develop, sem marcador: `env -iS'cat .env'` e `env -vS'cat .env'` davam 2 (a develop dividia o grupo) e agora dão 0; o GNU e o uutils rodam o cat
+- A3 (recomendado) tests/test_hooks.py:2711 · nenhum teste cobre as regras sem marcador (segredo, apagar o .git) atrás de lançador com opção fora da tabela, o que deixou A1 e A2 passarem; falta também o registro do item 5 do critério (fixtures -libera)
 
 ## Parecer
-**Reprovado.** Há três bloqueantes (A1 a A3), todos de comportamento provado com gatilho nos dois hooks. O resto da volta está certo, como mostram as seções abaixo.
+**Reprovado.** A opção A está certa onde o marcador crítico está na chamada: os três achados da revalidação 12 fecham, e o critério de fim passa. A falha está no caminho sem o marcador, que o desvio do autor quis proteger. Ali, a volta perdeu leituras que a `develop` fazia, e duas regras que não dependem do marcador deixaram de ver o comando.
+
+**A1, explicação.** A base (`d150ec8`, `hooks/conformidade.py:408`) lia o grupo curto do `env` terminado em `u` ou `C` com o regex `-[a-zA-Z]*[uC]`, e tomava a palavra seguinte como valor. A decisão do dono tirou esse regex. Agora `separar_lancadores` (linha 1848) lê `-iu` como opção sem valor, então o `X` vira o comando. A recusa da linha cobre isso só com o marcador. Prova (`$TMPDIR/tech-lead-lote-leitura-hook/f/sonda_f2.py`, que roda os hooks sem o filtro do marcador; a base é `git archive d150ec8` com os testes do lote):
+
+| Texto (só `conformidade`, sem marcador) | develop | lote |
+|---|---|---|
+| `env -iu X cat .env` | 2 (ler .env) | 0 |
+| `env -iu X rm -rf .git` | 2 (o .git da raiz) | 0 |
+| `env -iC / cat .env` | 2 | 0 |
+| `env -u X cat .env` (controle) | 2 | 2 |
+
+Com os hooks desligados, o `/usr/bin/env` (uutils 0.8.0) e o `gnuenv` (GNU 9.7) rodam `env -iu X cat .env` e imprimem o conteúdo (`$TMPDIR/tech-lead-lote-leitura-hook/f/efeito`). O `-a`, o `-f` e o `--un` sem marcador saem 0 nos dois lados. Esses não são regressão, e ficam como estavam.
+
+**A2, explicação.** A base dividia o `-S` também no grupo curto (`valor_do_split_string`, base `:428-432`). Agora ela só segue o `-S` por extenso (linha 2030), como a proposta pede para a recusa. Sem o marcador, porém, o texto do `-iS'…'` não é dividido, e as regras não o leem. `env -iS'cat .env'` e `env -vS'cat .env'` davam 2 e agora dão 0. O GNU e o uutils rodam o `cat` nas duas formas. A classe é a mesma da revalidação 11 e da 12: o texto que o `env` divide some das regras.
+
+**Julgamento do desvio declarado** (DECISÃO TÉCNICA do Jarvis). A intenção está certa: sem o marcador, as regras da linha precisam continuar rodando. A premissa "como a develop", porém, é falsa para o grupo curto do `env`. A `develop` lia o `-iu X` e dividia o `-iS…`, e a volta lê os dois como opção sem valor. A alternativa da proposta, "não analisável", também não protege. Sem o marcador, o texto não analisável sai 0 nos dois lados (`env -S'cat .env "'` dá 0 na `develop` e no lote). Nenhuma das duas leituras guarda as regras sem marcador. Por isso o desvio, sozinho, não reprova, mas A1 e A2 reprovam.
+
+**Uma sugestão para a proposta, sem decidir por ela.** Sem o marcador, a opção fora da tabela poderia levar as regras a ler as duas leituras possíveis: a palavra seguinte como valor e como comando, e o resto do grupo com `S` como texto dividido. Uma leitura extra não liberaria nada, só recusaria mais, e o hook continuaria sem imitar nenhum `env`. A outra saída é recusar, também sem o marcador, o lançador com opção fora da tabela quando o resto da linha toca uma regra. O caminho é do `software-architect` com o dono.
 
 **Contagem por classe** (decisão "A" de 2026-10-22):
-- "lançador que divide texto": a 1.ª volta foi o A1 da segurança na revalidação 11 (`a143cf4`). A1 e A2 são a 2.ª volta seguida da mesma classe. Pela decisão, **a entrega para**: o `software-architect` propõe o caminho e o dono decide (`R-DECISAO`).
-- "opção de lançador que o hook não modela": A3 abre a classe, na 1.ª volta.
+- "opção de lançador que o hook não modela": a 1.ª volta foi o A3 da revalidação 12, e A1 é a 2.ª volta seguida.
+- "lançador que divide texto": a revalidação 11 e a 12 foram a 1.ª e a 2.ª volta, e A2 é a 3.ª.
 
-Uma sugestão para a proposta, sem decidir por ela: aplicar ao `env` a mesma saída que a opção C deu ao `$'…'`. Com o marcador, recusaria o `env` que tem, em qualquer palavra depois dele no mesmo comando simples, uma opção fora do conjunto modelado (hoje `-i`, `-0`, `-v`, `-u`, `-C` e as longas sem valor) ou uma palavra `-S…` ou `--s…`. Isso cobre o `-a` e o `-f` e não depende de qual `env` está instalado.
+Pela decisão, **a entrega para**: o `software-architect` propõe o caminho e o dono decide (`R-DECISAO`). As duas classes já foram registradas mais de uma vez, então cabem em `docs/engineering/achados-recorrentes.md` (PA-7). Isso não entra aqui, porque o brief limita o commit a este parecer.
 
-### O que fecha
+**A3, explicação.** O critério de fim da opção A só mede o caminho com o marcador. Um teste do mesmo alfabeto, sem o marcador e com uma regra que não depende dele (`cat .env`, `rm -rf .git`), comparado com a leitura sem o lançador, teria ficado vermelho em A1 e A2. Sobre o item 5 do critério: há dois fixtures `-libera` com lançador e opção (`lancador-sudo-u-npm-test-libera.json`, `lancador-nice-git-status-libera.json`), os dois sem marcador e sem mudança. O resultado não está registrado no commit nem no fragmento.
+
+### Revalidação 12: o que fechou
+| Achado | Estado | Evidência (`sonda_f1.py`, hooks ligados) |
+|---|---|---|
+| A1 (`env -a x -S …`) | fechou | `env -a x -S'bash -c …'`, `env -i -a x …`, `env -u X -a x …`, `env -C / -a x …`, `nice -5 env -a x …` e `timeout -v 5 env -a x …`: 2 / 2 |
+| A2 (o `-S` colado do uutils) | fechou | `env X=1 -S'…'`, `env - -S'…'` e `env -iS'…'`: 2 / 2 |
+| A3 (`env -a x git push`) | fechou | `env -a x`, `env -a cat`, `env --argv0 cat`, `env -f /dev/null`, `sudo -s`, `sudo -i` e `exec -a cat` com o `git push`: 2 no `conformidade` |
+| A4 (o `ETXTBSY`) | fechou no código | caminho 1 aplicado; os itens 2 e 3 do critério são testes verdes (abaixo). O item 1 (5 rodadas sob carga) é a reprodução do QA e não foi refeito aqui |
+
+As formas `env -- -a x git push` e `env -u -a x git push` saem 0 / 0. Elas não são achado: o `env` real roda o programa `-a` ou o `x`, e não o `git`. `env gh pr merge …` e `exec -a cat gh pr merge …` saem 0 no `parecer`, que é o A3 da segurança (cartão R5A-COP, fora desta volta).
+
+### O que está certo na volta
 | Item | Estado | Evidência |
 |---|---|---|
-| Corpus vermelho ES1 a ES17 | verde | `test_corpus_nos_dois_hooks` `OK` na cópia limpa de `e8b2af9` |
-| FD16a a FD16d | verde | FD16a e FD16b dão 2; os contornos FD16c e FD16d dão 0 |
-| `env_divide_texto` contra a sua própria lista | certo | `-S`, `-iS`, `-vS`, `-uS` (é `-u S`, e não divide), `-u X -S`, `--split-string` com e sem `=`, `--split`, `--spl=` e `--s` |
-| A recusa e o seu texto | certo | a recusa não divide o valor; `contorno_da_reavaliacao` devolve `CONTORNO_DO_ENV_S` |
-| Dimensão nova do G1 | certa | 9 grafias × 2 separadores × 2 lados do `-c` × 3 shells × 2 "antes" × 2 moldes × 2 hooks; `test_divisao_esta_na_classe` exige pelo menos 400 textos e roda com o `gnuenv` |
-| Mutação (`env_divide_texto` sempre `False`, cópia `git archive`) | vermelha | `FAILED (failures=1980)`: 1944 na propriedade (o número do autor) e 36 no corpus (ES1 a ES17 nos dois hooks e FD16a e FD16b) |
-| As duas fixtures trocadas | certas | a troca de `env -S '…'` por `env X=1 …` mantém a intenção: a `-libera` libera, e a `-bash-c-bloqueia` recusa pelo `bash -c`; `Hooks.test_fixtures` `OK` |
-| Linha nova do fragmento | aceita | descreve o falso positivo novo e o contorno, como pede a DECISÃO TÉCNICA |
-| FD14 em `docs/hooks.md:95` | certo | tem agora o contorno do `env -S` ("o `env` sem `-S` (`env VAR=x comando`) ou o comando direto") |
-| Recomendado da revalidação 11 | fecha | a mensagem do prazo vencido cita o `git` lento (`hooks/_comum.py:2258`) |
+| `LANCADORES` como fonte positiva | certo | booleanas, com valor e coladas; `separar_lancadores` e `opcao_fora_da_tabela` leem a mesma tabela; o comentário "as demais são booleanas" saiu |
+| Recusa com o marcador nos dois hooks | certa | `motivo_da_reavaliacao` e `CONTORNO_DO_LANCADOR` nas duas mensagens; `achado_do_lancador` dá `env -S` para o `-S` em qualquer grafia |
+| Saídas exigidas | certas | `ENV_COM_VALOR_CURTA`, `ENV_LONGAS_COM_VALOR`, `env_divide_texto` e `opcoes_do_lancador` não existem mais no código, e `test_mutacoes_do_lancador_ficam_vermelhas` confere |
+| `memoria` de `opcao_fora_da_tabela` | certa | o resultado a partir de um índice só depende do índice e do lançador, então guardar cada passo do caminho é exato |
+| Itens 1 a 4 do critério de fim de A | verdes | os testes da tabela abaixo |
+| Textos da seção 4.1 | literais | as três citações da proposta estão inteiras em `docs/hooks.md:95`, e as frases antigas saíram (comparação por script) |
+| Caminho 1 | certo | montagem na thread principal antes do pool, rc 126 ou "Text file busy" falham com a causa, e o pool de `executar_em_lote` também foi corrigido |
+| Commits | limpos | Conventional Commits em português, um por item, e o merge da `develop` sem reescrever |
 
 ### Fora do bloco
-- **Testes que rodei**, na cópia limpa (`git archive e8b2af9`, em `$TMPDIR/tech-lead-lote-leitura-hook/orig`):
-  - `test_divisao_esta_na_classe`, `test_g1_esta_na_classe` e `test_propriedade_do_lancador_que_divide_texto_com_marcador`: `Ran 3 tests in 108.408s OK`;
-  - `Hooks.test_fixtures` e `test_corpus_nos_dois_hooks`: `Ran 2 tests in 67.033s OK`.
-
-  A suíte completa não rodou: o brief limita a execução aos testes do lote, e o pre-push roda a suíte.
-- **Commits:** em Conventional Commits em português, um por passo (corpus, correção, textos e FD14).
+- **Testes que rodei**, na cópia limpa (`git archive 1b4b0d8`, em `$TMPDIR/tech-lead-lote-leitura-hook/f/lote`): os quatro testes do critério de fim de A, os dois do caminho 1, `test_divisao_esta_na_classe`, `test_g1_esta_na_classe`, `test_corpus_nos_dois_hooks`, `test_propriedade_do_lancador_que_divide_texto_com_marcador` e os `test_fixtures`, com `Ran 12 tests in 169.830s OK`. A suíte completa não rodou: o brief limita a execução aos testes do lote.
 - O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar. O `docs/engineering/achados-recorrentes.md` (PA-7) está sem linhas, e não há item a conferir.
-- **Segurança:** é do E2.1 e não foi refeita aqui. A3 vai como cartão para o `security-engineer`, e A1 e A2 são da mesma classe do A1 dele.
+- **Segurança:** é do E2.1 e não foi refeita aqui. A1 e A2 vão como cartão para o `security-engineer`, porque são segredo e apagar o `.git` com gatilho.
