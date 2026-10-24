@@ -17,6 +17,10 @@ if [ "$1 $2" = "worktree prune" ] && [ -f "$ESTADO/prune_nega" ]; then
   echo "git $*" >> "$REGISTRO"
   echo "error: cannot prune: operation not permitted" >&2; exit 1
 fi
+if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_trava" ]; then
+  echo "git $*" >> "$REGISTRO"
+  exec sleep 30
+fi
 exec "$(dirname "$0")/git-base" "$@"
 '''
 
@@ -153,6 +157,26 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.marcas("git worktree remove"), [])
         self.assertEqual(self.marcas("git branch -D"), [])
         self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
+
+    # ---- LOTE-S1, FECHAR-DA-RAIZ: teto de tempo do push --delete e a remota viva dita em voz alta ----
+    def test_push_delete_que_trava_e_cortado_pelo_teto_e_a_remota_viva_e_dita(self):
+        (self.estado / "delete_trava").write_text("")
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_FECHAR_TETO_DELETE="1")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(len([c for c in self.chamadas() if c.startswith("git push origin --delete")]), 3)
+        self.assertIn("apagando a branch remota melhoria/x (até 1s por tentativa", r.stdout)
+        self.assertIn("a branch remota continua viva", r.stderr)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+        self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_teto_do_delete_fora_da_faixa_e_recusado_e_o_padrao_deixa_tres_tentativas_abaixo_de_300s(self):
+        for v in ("0", "101", "x"):
+            with self.subTest(v=v):
+                r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_TETO_DELETE=v)
+                self.assertEqual(r.returncode, 1, r.stderr)
+                self.assertIn("FORGE_FECHAR_TETO_DELETE", r.stderr)
+        texto = SCRIPT.read_text()
+        self.assertIn('"${FORGE_FECHAR_TETO_DELETE:-80}"', texto)  # 3 x 80 s + pausas < 300 s
 
     def fechar_em(self, cwd, *args):
         return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)
