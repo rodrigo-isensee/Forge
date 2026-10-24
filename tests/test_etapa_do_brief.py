@@ -401,3 +401,30 @@ class QuatroDefeitosDoScript(Repo):
         rc, saida = self.conferir(texto)
         self.assertNotIn("commit:", saida)
         self.assertEqual(rc, 0, saida)
+
+
+class BriefMecanico(Base):
+    """EST-030-L1 (BRIEF-MECANICO): o `forge-check brief` diz se o conferente é dispensado ou necessário."""
+    def brief(self):
+        return brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5"))
+
+    def test_primeira_rodada_aprovada_com_so_linhas_do_pedido_dispensa_o_conferente(self):
+        rc, saida = self.conferir(self.brief())
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("conferente: dispensado (brief mecânico)", saida)
+        self.assertLess(saida.index("conferente:"), saida.index("resultado: aprovado"))
+
+    def test_o_conferente_continua_necessario_em_cada_caminho_que_o_script_nao_decide(self):
+        casos = {
+            "decisão em prosa": self.brief().replace("\n\n## Pronto quando", "\n- A decisão é usar a opção B.\n\n## Pronto quando"),
+            "DECISÃO DO DONO que não é cópia literal do pedido": self.brief().replace("\n\n## Pronto quando", '\n- DECISÃO DO DONO (2026-01-02): "B".\n\n## Pronto quando'),
+            "o forge-check brief reprova": self.brief().replace("DECISÃO DO DONO (2026-01-01): \"A\".", "nada."),
+        }
+        for motivo, texto in casos.items():
+            with self.subTest(motivo=motivo):
+                rc, saida = self.conferir(texto)
+                self.assertIn(f"conferente: necessário ({motivo})", saida)
+                self.assertNotIn("dispensado", saida)
+        anterior = self.gravar("docs/briefs/exemplo-revisor-exemplo-1.md", self.brief())
+        rc, saida = self.rodar("brief", self.gravar("docs/briefs/exemplo-revisor-exemplo-2.md", self.brief()), "--pedido", self.pedido, "--anterior", anterior)
+        self.assertIn("conferente: necessário (brief de volta)", saida)

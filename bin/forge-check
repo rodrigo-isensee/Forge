@@ -47,7 +47,7 @@ contra o primeiro pai) e diz `real` (violação de conteúdo: regra piorada), `s
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
 (`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
-`corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
+`corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, a penúltima, `conferente: dispensado (brief mecânico)` ou `conferente: necessário (<motivo>)` (BRIEF-MECANICO: só informa), e a última, `resultado: aprovado|reprovado`
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
 `--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, sem o conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin`). `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
@@ -4225,6 +4225,34 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
+DECISAO_EM_PROSA = re.compile(r"\bdecis\w*|\bdecid\w*", re.I)
+ID_DE_REGRA = re.compile(r"R-[A-Z][A-Z0-9-]*")
+
+
+def conferente_do_brief(linhas, texto, secoes, cobradas, anterior):
+    """BRIEF-MECANICO (decisão do dono, 2026-10-24): `conferente: dispensado (brief mecânico)` quando o brief é de primeira rodada
+    (sem `--anterior` nem `Volta-de:`), sai aprovado, sem corte real, com as decisões ok e todas as linhas `DECISÃO DO DONO` do brief
+    copiadas literalmente do pedido (ou dos registros que ele cita), e nenhuma decisão em prosa em `Decisões e restrições`; senão
+    `conferente: necessário (<motivo>)`. Só informa: nunca reprova."""
+    def necessario(motivo):
+        return (f"conferente: necessário ({motivo})", False)
+    if anterior is not None or re.search(r"^Volta-de:", texto, re.M):
+        return necessario("brief de volta")
+    if any(r for _, r in linhas):
+        return necessario("o forge-check brief reprova")
+    if any(l.startswith("corte: real") for l, _ in linhas):
+        return necessario("corte de escopo")
+    if not any(l.startswith("decisões: ok") for l, _ in linhas) or any(l.startswith("decisões: fonte fora da regra") for l, _ in linhas):
+        return necessario("decisões não conferidas pelo script")
+    do_pedido = {chave_da_decisao(l) for _, itens in cobradas["fontes"] for _, l in itens}
+    for linha in secoes.get("Decisões e restrições", []):
+        if e_linha_de_decisao(linha) and chave_da_decisao(linha) not in do_pedido:
+            return necessario("DECISÃO DO DONO que não é cópia literal do pedido")
+        if not e_linha_de_decisao(linha) and not linha.lstrip().startswith("#") and DECISAO_EM_PROSA.search(ID_DE_REGRA.sub("", linha)):
+            return necessario("decisão em prosa")
+    return ("conferente: dispensado (brief mecânico)", False)
+
+
 def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, caminho, bytes_anterior, ref, pareceres):
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
@@ -4238,6 +4266,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
+    linhas.append(conferente_do_brief(linhas, texto, secoes_por(texto, CABECALHO_BRIEF), cobradas, bytes_anterior))
     return pedido_id, linhas
 
 
