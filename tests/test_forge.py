@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede, P5)
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
@@ -2871,7 +2872,7 @@ class ConferirBrief(unittest.TestCase):
 
     def rodar(self, *args, cwd=None):
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *map(str, args)],
-                           capture_output=True, text=True, cwd=cwd or RAIZ)
+                           capture_output=True, text=True, cwd=cwd or RAIZ, env=com_gh_falso())  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
     def conferir(self, nome, *extra, pedido=None):
@@ -2956,7 +2957,7 @@ class ConferirBrief(unittest.TestCase):
 
     def test_item_que_so_existe_em_etapas_e_etapa(self):
         rc, saida = self.conferir("item-so-em-etapas.md")
-        self.assertIn('corte: etapa (ok) "E3" por E3.2', saida)
+        self.assertIn('corte: etapa (ok) "E3" por E3.1, E3.2, E3.3', saida)
         self.assertEqual(rc, 0, saida)
 
     def test_item_que_so_existe_em_escopo_e_corte_real(self):
@@ -2966,7 +2967,9 @@ class ConferirBrief(unittest.TestCase):
         self.assertEqual(rc, 1)
 
     def test_item_do_escopo_sumido_do_brief_e_corte(self):
-        arq = self.variante("item-so-em-etapas.md", ("- Documentação do recurso A (E2).\n", ""))
+        # a E2.1 sai junto (Review A1): no Fora, ela cobriria o E2 como etapa de outra delegação
+        sumido = '- Documentação do recurso A (E2).\n\n## Fora do escopo\n- "E2.1 (dev-exemplo): texto da documentação." · etapa do mesmo papel em outra delegação; continua no pedido.\n'
+        arq = self.variante("item-so-em-etapas.md", (sumido, "\n## Fora do escopo\n"))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn('corte: sem marca "E2" (nem no Entregar nem no Fora do escopo)', saida)
         self.assertEqual(rc, 1)
@@ -2974,7 +2977,7 @@ class ConferirBrief(unittest.TestCase):
     def test_citacao_parecida_nao_cobre_o_item(self):
         for falsa in ("(E10)", "(E1.2)", "E1 sem parênteses"):
             with self.subTest(falsa=falsa):
-                arq = self.variante("item-so-em-etapas.md", ("(E1)", falsa))
+                arq = self.variante("item-so-em-etapas.md", ("(E1, E1.1)", falsa))
                 self.assertIn('corte: sem marca "E1"', self.rodar(arq, "--pedido", self.PEDIDO)[1])
 
     def test_etapa_do_papel_do_destino_que_falta_e_corte(self):
@@ -2983,9 +2986,10 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn('corte: sem marca "E3.4" (etapa do papel do destino fora do Entregar)', saida)
         self.assertIn('corte: etapa (ok) "E3"', saida)
         self.assertEqual(rc, 1)
-        # outro destino: a etapa passa a ser de outro papel
+        # outro destino: a etapa passa a ser de outro papel, e a etapa sem menção reprova para qualquer papel (M16)
         rc, saida = self.conferir("etapa-outro-papel.md", "--destino", "forge:revisor", pedido=pedido)
-        self.assertNotIn('"E3.4"', saida)
+        self.assertIn('corte: sem marca "E3.4" (etapa sem menção)', saida)
+        self.assertEqual(rc, 1)
 
     def test_forma_exige_as_secoes_e_nao_aceita_bloco_sem_preencher(self):
         arq = self.variante("etapa-outro-papel.md", ("## Relatório", "## Outra coisa"))
@@ -2997,7 +3001,8 @@ class ConferirBrief(unittest.TestCase):
 
     def test_brief_com_commit_precisa_de_pq_que_o_conferente_confira(self):
         arq = self.variante("etapa-outro-papel.md", ("- PQ-1 (sha)", "- PQ-1 (cmd): `pytest` · espera: rc=0 · antes: "))
-        arq.write_text(re.sub(r"- PQ-3 \(push\).*\n", "", arq.read_text(encoding="utf-8")), encoding="utf-8")
+        # M4: o `cmd` que o conferente roda (o `grep` do PQ-2) conta como prova dele; sem ele e sem o push, só o do autor sobra
+        arq.write_text(re.sub(r"- PQ-[23] \((push|cmd)\).*\n", "", arq.read_text(encoding="utf-8")), encoding="utf-8")
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
         self.assertIn("forma: sem PQ que o conferente confira", saida)
         self.assertIn("PQ-1: cmd · espera ok · verificador: autor", saida)
@@ -3056,17 +3061,19 @@ class ConferirBrief(unittest.TestCase):
 
     # PA-2: brief gerar
     def test_gerar_copia_as_decisoes_literalmente_e_traz_a_marca_e_as_provas(self):
-        rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")
+        args = ("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
+        rc, saida = self.rodar(*args)
         self.assertEqual(rc, 0, saida)
         for linha in self.PEDIDO.read_text(encoding="utf-8").splitlines():
             if "DECISÃO DO DONO" in linha:
                 self.assertIn(f"- {linha}\n", saida)
         self.assertIn("Retira do escopo original", saida)
         self.assertIn("E3.1 (revisor): revisão de código da branch.", saida)
-        self.assertNotIn("E1.1 (dev-exemplo)", saida)  # etapa do papel do destino não vai para o Fora do escopo
+        self.assertIn('- "E1.1 (dev-exemplo): implementação do recurso A." (E1.1)', saida)  # a etapa coberta abre o Entregar (P2)
+        self.assertIn('- "E2.1 (dev-exemplo): texto da documentação." · etapa de outra delegação', saida)  # a outra do mesmo papel, sem marca
         self.assertIn("git ls-remote origin refs/heads/melhoria/a", saida)
         self.assertRegex(saida, r"Base-sha: (?:[0-9a-f]{40}|PREENCHER)")
-        self.assertEqual(self.rodar("gerar", "--pedido", self.PEDIDO, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a")[1], saida)
+        self.assertEqual(self.rodar(*args)[1], saida)
 
     def test_gerar_sem_destino_pede_o_destino_e_o_brief_gerado_nao_passa_sem_preencher(self):
         rc, saida = self.rodar("gerar", "--pedido", self.PEDIDO)
@@ -3413,7 +3420,7 @@ class DecisoesCobradas(Cenario):
                 texto = "\n".join(saida)
                 self.assertEqual(rc, 1, texto)
                 self.assertIn("decisões: registro citado ausente", texto)
-                gerar = "\n".join(self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")[1])
+                gerar = "\n".join(self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")[1])
                 for conteudo in ("segredo de fora", "segredo da docs"):
                     self.assertNotIn(conteudo, texto)
                     self.assertNotIn(conteudo, gerar)
@@ -3518,7 +3525,7 @@ class DecisoesCobradas(Cenario):
         self.assertTrue([l for l in saida if l.startswith("decisões: falta") and "do registro de fora" in l and "s.md:1" in l], saida)
 
     def test_gerar_copia_o_registro_sob_o_subtitulo(self):  # 13
-        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         texto = "\n".join(saida)
         self.assertEqual(rc, 0, texto)
         sub = [l for l in saida if l.startswith("### Do registro citado docs/pedidos/r.md")]
@@ -3531,7 +3538,7 @@ class DecisoesCobradas(Cenario):
         self.assertLess(texto.index(CITA_R), texto.index(sub[0]))
 
     def test_brief_gerado_e_completado_passa_sem_falta(self):  # 13
-        _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        _, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         inicio = saida.index(next(l for l in saida if l.startswith("## Decisões e restrições"))) + 1
         fim = next(i for i in range(inicio, len(saida)) if saida[i].startswith("## "))
         decisoes = [l for l in saida[inicio:fim] if l.strip()]
@@ -3544,7 +3551,7 @@ class DecisoesCobradas(Cenario):
 
     def test_gerar_com_registro_ausente_deixa_preencher(self):
         (self.tmp / "docs" / "pedidos" / "r.md").unlink()
-        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         self.assertTrue([l for l in saida if "PREENCHER" in l and "docs/pedidos/r.md" in l], saida)
 
     def test_a_copia_da_branch_nao_vence_a_principal(self):  # abuso 12
@@ -3855,7 +3862,7 @@ class DecisaoAncora(Raiz):
 
     def test_gerar_copia_o_mesmo_conjunto_que_o_brief_cobra(self):  # abuso 16
         self.pedido_com(f'\n{self.MENCAO}\n- DECISÃO DO DONO (2026-10-20): "G1".\n')
-        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo"],
+        r = subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(self.tmp), "brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--cobre", "E1.1"],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")))
         self.assertIn('- DECISÃO DO DONO (2026-10-20): "G1".', r.stdout)
         self.assertNotIn("ajuste conforme", r.stdout)
@@ -4454,8 +4461,8 @@ class BaseShaDoBrief(RepoComOrigem):
         self.pedido.write_text(self.PEDIDO_TXT, encoding="utf-8")
 
     def gerar(self, branch, base="develop"):
-        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--branch", branch, "--base", base,
-                     raiz=self.repo, home=self.home)
+        r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--cobre", "E1.1", "--branch", branch, "--base", base,
+                     raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso()["PATH"]})
         linha = next((l for l in r.stdout.splitlines() if l.startswith("Branch:")), "")
         return r.returncode, linha
 
@@ -4489,24 +4496,25 @@ class BaseShaDoBrief(RepoComOrigem):
         r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
         return r.returncode, r.stdout
 
-    def test_aviso_quando_o_base_sha_nao_esta_na_branch(self):
+    def test_base_sha_fora_da_branch_reprova(self):  # P5: o aviso da E11 vira reprovação
         velho = self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # commit da develop que a branch não tem
         rc, saida = self.brief_com_base(velho)
-        self.assertEqual(rc, 0, saida)
-        self.assertIn(f"aviso: Base-sha {velho[:7]} do brief não está na branch melhoria/x", saida)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"base: Base-sha {velho[:7]} não está na branch melhoria/x", saida)
         base_ok = git("merge-base", "origin/develop", "melhoria/x", cwd=self.repo).stdout.strip()
         rc, saida = self.brief_com_base(base_ok)
         self.assertEqual(rc, 0, saida)
-        self.assertNotIn("aviso: Base-sha", saida)
+        self.assertNotIn("base: Base-sha", saida)
 
     def test_sem_a_linha_branch_nao_ha_o_que_avisar_e_branch_ausente_confere_a_base(self):
         arq = self.repo / "docs" / "briefs" / f"{ID}-dev-exemplo-1.md"
         arq.parent.mkdir(parents=True, exist_ok=True)
         arq.write_text(BRIEF, encoding="utf-8")
         r = rodar_fc("brief", str(arq), "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", raiz=self.repo, home=self.home)
-        self.assertNotIn("aviso: Base-sha", r.stdout)
+        self.assertNotIn("base: Base-sha", r.stdout)
         rc, saida = self.brief_com_base("0" * 40, branch="melhoria/ainda-nao-existe")
-        self.assertIn("aviso: Base-sha 0000000 do brief não está em origin/develop", saida)
+        self.assertIn("base: Base-sha 0000000 não está em origin/develop", saida)
+        self.assertEqual(rc, 1)
 
     def test_volta_grava_o_base_sha_real(self):
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
@@ -4517,7 +4525,7 @@ class BaseShaDoBrief(RepoComOrigem):
         anterior.write_text(BRIEF.replace("Agente destino: forge:dev-exemplo\n", f"Agente destino: forge:dev-exemplo\nBranch: melhoria/x   Base: develop   Base-sha: {'1' * 40}\n", 1), encoding="utf-8")
         (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--destino", "forge:dev-exemplo", "--volta", f"docs/briefs/{ID}-dev-exemplo-1.md",
-                     "--ref", "melhoria/x", raiz=self.repo, home=self.home)
+                     "--ref", "melhoria/x", "--parecer", "docs/reviews/p1.md", raiz=self.repo, home=self.home)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(f"Base-sha: {ponta}", r.stdout)
         self.assertNotIn("1" * 40, r.stdout)

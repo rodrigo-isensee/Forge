@@ -569,6 +569,9 @@
     ],
     "docs/regras/R-BRIEF.md": [
       "todos os achados",
+      "Um brief delega uma só etapa",
+      "\\*\\*sem\\*\\* a marca \"Retira do escopo original\"",
+      "Etapa que não aparece nem no \"Entregar\" nem no \"Fora do escopo\" reprova",
       "Autoconferência do Jarvis",
       "forge-check brief gerar",
       "só com o que o arquivo delas diz",
