@@ -1,0 +1,269 @@
+"""CONF-BASE-DONO: `forge-check entrega` aceita a base do delta fixada pelo dono (E1), isola o merge de integração (E2) e lê
+pedido e briefs de uma raiz enquanto o git é de outra (`--raiz-pedidos`, E3). Repositório temporário."""
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_forge import ambiente_limpo, git  # noqa: E402
+from test_volta_por_delta import Repositorio, SHA_FALSO  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
+
+DECISAO = 'DECISÃO DO DONO (2026-10-23): "A" — conferência manual até o cartão entrar\n'
+
+
+def linha_do_dono(sha, decisao=True):
+    """A linha exata do Histórico e, se `decisao`, a linha `DECISÃO DO DONO` que o pedido exige."""
+    return f"- 2026-10-23 15:56: base do delta fixada pelo dono {sha}; LACUNA R-PROVA (decisão B)\n" + (DECISAO if decisao else "")
+
+
+class BaseDoDono(Repositorio):
+    """E1: a forma é `base do delta fixada pelo dono <sha40>` numa linha do `## Histórico`."""
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"a.txt": "1\n"}, "1a")
+        self.c2 = self.commitar({"b.txt": "2\n"}, "2a")
+        self.c3 = self.commitar({"c.txt": "3\n"}, "3a")
+
+    def test_desde_aceita_a_base_fixada_pelo_dono_e_diz_de_onde_veio(self):
+        self.gravar_pedido(extra=linha_do_dono(self.c2))
+        rc, saida = self.entrega(desde=self.c2)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c2}..{self.c3}",
+                                              "base: fixada pelo dono (linha do Histórico)", 'escopo: confira "c.txt" +1 -0'])
+
+    def test_sem_a_linha_do_dono_o_comportamento_e_o_de_hoje(self):
+        self.gravar_pedido()
+        rc, saida = self.entrega(desde=self.c2)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+        self.assertNotIn("base:", saida)
+
+    def test_a_base_do_dono_so_vale_no_historico_com_sha40_da_branch(self):
+        casos = {"fora do Histórico": (dict(secao="Decisões", extra=linha_do_dono(self.c2)), self.c2),
+                 "sha abreviado": (dict(extra=linha_do_dono(self.c2[:7])), self.c2),
+                 "sha fora da branch": (dict(extra=linha_do_dono(SHA_FALSO)), SHA_FALSO),
+                 "sem a palavra dono": (dict(extra=f"- 2026-10-23 15:56: base do delta fixada {self.c2}\n" + DECISAO), self.c2),
+                 "frase citada no meio da linha": (dict(extra=f"- 2026-10-23 15:56: proposta recusada: base do delta fixada pelo dono {self.c2} não vale\n"
+                                                        + DECISAO), self.c2),
+                 "sem linha DECISÃO DO DONO no pedido": (dict(extra=linha_do_dono(self.c2, decisao=False)), self.c2)}
+        for nome, (kwargs, desde) in casos.items():
+            with self.subTest(nome):
+                self.gravar_pedido(**kwargs)
+                rc, saida = self.entrega(desde=desde)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("escopo: --desde sem conferência anterior", saida)
+
+    def test_vale_a_linha_mais_recente_entre_a_conferida_e_a_do_dono(self):
+        self.gravar_pedido([self.c1], extra=linha_do_dono(self.c2))
+        self.assertEqual(self.entrega(desde=self.c2)[0], 0)
+        self.assertEqual(self.entrega(desde=self.c1)[0], 1)  # a do dono é a mais recente
+        self.gravar_pedido(extra=linha_do_dono(self.c1) + f"- 2026-10-23 16:30: entrega conferida {self.c2}; delegado\n")
+        rc, saida = self.entrega(desde=self.c2)
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("base:", saida)  # veio da conferida: a saída de hoje
+
+    def test_base_do_dono_igual_ao_head_recusa_o_delta_vazio(self):
+        self.gravar_pedido(extra=linha_do_dono(self.c3))
+        rc, saida = self.entrega(desde=self.c3)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
+    def test_a_base_do_dono_nao_vale_gravada_na_propria_entrega(self):
+        self.gravar_pedido(extra=linha_do_dono(self.c2))
+        self.commitar({"docs/pedidos/p1.md": "x\n"}, "mexe no pedido")
+        rc, saida = self.entrega(desde=self.c2)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde gravado na própria entrega", saida)
+
+    def test_a_base_do_dono_nao_vale_nas_etapas_de_branch_inteira(self):
+        self.gravar_pedido(extra=linha_do_dono(self.c2))
+        rc, saida = self.entrega(desde=self.c2, etapa="pr")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde fora da etapa", saida)
+
+
+class IntegracaoNaBranch(Repositorio):
+    """E2: com o head um commit de integração, o escopo é o que difere dos dois pais."""
+
+    def integrar(self, conflito=False):
+        self.c1 = self.commitar({"a.txt": "1\n", "f.txt": "branch\n" if conflito else "0\n"}, "trabalho da branch")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.d1 = self.commitar({"d.txt": "d\n", "f.txt": "develop\n2\n3\n4\n"} if conflito else {"d.txt": "d\n"}, "develop andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        if conflito:
+            subprocess.run(["git", "-C", str(self.repo), "merge", "--no-edit", "develop"], env=ambiente_limpo(),
+                           capture_output=True)  # sai com conflito em f.txt
+            (self.repo / "f.txt").write_text("resolvido\n", encoding="utf-8")
+            git("add", "f.txt", cwd=self.repo)
+            git("commit", "-q", "--no-edit", cwd=self.repo)
+        else:
+            git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        self.m = self.head()
+
+    def test_integracao_limpa_nao_tem_escopo_proprio(self):
+        self.integrar()
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1, etapa="review")  # na etapa codigo o intervalo sem arquivo segue pendente
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c1}..{self.m}",
+                                              "escopo: integração da base (o que difere dos dois pais)",
+                                              "escopo: sem commit (nada a conferir)"])
+
+    def test_integracao_com_conflito_resolvido_so_mostra_o_arquivo_resolvido(self):
+        self.integrar(conflito=True)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: confira "f.txt"', saida)
+        for fora in ("d.txt", "a.txt"):
+            self.assertNotIn(fora, saida)
+
+    def test_com_commit_proprio_depois_da_integracao_a_conferencia_e_a_de_hoje(self):
+        self.integrar()
+        c = self.commitar({"z.txt": "z\n"}, "depois da integração")
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("integração da base", saida)
+        self.assertIn('confira "z.txt"', saida)
+        self.assertIn(f"intervalo: {self.c1}..{c}", saida)
+
+    def test_dois_merges_seguidos_nao_escondem_arquivo_do_autor(self):
+        self.c1 = self.commitar({"a.txt": "1\n"}, "trabalho da branch")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"d.txt": "d\n"}, "develop andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-commit", "--no-ff", "develop", cwd=self.repo)
+        (self.repo / "s.txt").write_text("do autor\n", encoding="utf-8")  # conteúdo novo posto no primeiro merge
+        git("add", "s.txt", cwd=self.repo)
+        git("commit", "-q", "-m", "integração com arquivo do autor", cwd=self.repo)
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"e.txt": "e\n"}, "develop andou de novo")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1, etapa="review")
+        self.assertNotIn("integração da base", saida)
+        self.assertIn('confira "s.txt"', saida)
+
+    def test_os_numeros_da_integracao_sao_contra_os_dois_pais(self):
+        self.integrar(conflito=True)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: confira "f.txt" +1 -4', saida)  # o maior: contra o pai da develop (4 linhas -> 1); contra o da branch seria -1
+
+    def test_a_pendente_diz_quando_a_entrega_e_so_a_integracao(self):
+        self.integrar()
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: a entrega é só a integração da base", saida)
+        self.assertNotIn("nenhum commit novo", saida)
+
+
+class PedidoForaDoClone(Repositorio):
+    """E3: `--raiz-pedidos <dir>`: pedido e briefs numa raiz, git em outra."""
+
+    def setUp(self):
+        super().setUp()
+        self.fora = self.repo / "pedidos-fora"  # dentro da raiz do repositório: a opção só aceita ali ou em ~/.forge-contrib
+        (self.fora / "docs" / "pedidos").mkdir(parents=True)
+        (self.fora / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / ".git" / "info" / "exclude").write_text("pedidos-fora/\n", encoding="utf-8")
+        self.c1 = self.commitar({"a.txt": "1\n"}, "1a")
+        self.pedido = self.fora / "docs" / "pedidos" / "p1.md"
+        self.gravar_pedido()
+
+    def entrega_por_id(self, *extra):
+        return self.check("entrega", "p1", "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base,
+                          "--etapa", "codigo", *extra)
+
+    def test_sem_a_opcao_o_pedido_so_pelo_id_nao_e_achado(self):
+        rc, saida = self.entrega_por_id()
+        self.assertEqual(rc, 2, saida)
+
+    def test_com_a_opcao_o_pedido_vem_da_outra_raiz_e_o_git_do_clone(self):
+        rc, saida = self.entrega_por_id("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {self.base}..{self.c1}", saida)
+        self.assertIn('escopo: confira "a.txt" +1 -0', saida)
+        self.assertIn("origem:", saida)
+
+    def test_a_opcao_recusa_pasta_fora_de_forge_contrib_e_da_raiz_do_repositorio(self):
+        fora_de_tudo = self.tmp / "outro-projeto"
+        (fora_de_tudo / "docs" / "pedidos").mkdir(parents=True)
+        (fora_de_tudo / "docs" / "pedidos" / "p1.md").write_text(self.pedido.read_text(encoding="utf-8"), encoding="utf-8")
+        for comando in (("entrega", "p1", "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo"),
+                        ("brief", "gerar", "--pedido", "p1", "--destino", "forge:tech-lead")):
+            with self.subTest(comando[0]):
+                rc, saida = self.check(*comando, "--raiz-pedidos", fora_de_tudo)
+                self.assertEqual(rc, 2, saida)
+                self.assertIn("--raiz-pedidos", saida)
+                self.assertNotIn("origem:", saida)
+
+    def test_a_opcao_vale_antes_do_subcomando(self):
+        rc, saida = self.check("--raiz-pedidos", self.fora, "entrega", "p1", "--branch", "melhoria/x", "--base", "develop",
+                               "--base-sha", self.base, "--etapa", "codigo")
+        self.assertEqual(rc, 0, saida)
+
+    def test_brief_gerar_le_o_pedido_da_outra_raiz(self):
+        rc, saida = self.check("brief", "gerar", "--pedido", "p1", "--raiz-pedidos", self.fora, "--destino", "forge:tech-lead",
+                               "--branch", "melhoria/x", "--base", "develop")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("Pedido: p1", saida)
+        self.assertIn("Branch: melhoria/x   Base: develop", saida)  # sem origin no repositório, o Base-sha fica PREENCHER
+
+    def test_o_brief_de_uniao_vem_da_outra_raiz(self):
+        brief = self.fora / "docs" / "briefs" / "b1.md"
+        brief.write_text(f"Agente destino: forge:tech-lead\nPedido: p1\nBranch: melhoria/x   Base: develop   Base-sha: {self.base}\n",
+                         encoding="utf-8")
+        rc, saida = self.entrega_por_id("--raiz-pedidos", self.fora, "--brief", "docs/briefs/b1.md")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("brief: docs/briefs/b1.md sha256 ", saida)
+
+
+class VoltaComABaseDoDono(Repositorio):
+    """`brief gerar --volta` propõe o `--desde` da linha mais recente do pedido, a do dono também, lida com `--raiz-pedidos`."""
+    FIXTURES = Path(__file__).resolve().parent / "fixtures" / "brief"
+
+    def setUp(self):
+        super().setUp()
+        self.fora = self.repo / "pedidos-fora"  # dentro da raiz do repositório (a opção só aceita ali ou em ~/.forge-contrib)
+        (self.fora / "docs" / "pedidos").mkdir(parents=True)
+        (self.fora / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / ".git" / "info" / "exclude").write_text("pedidos-fora/\n", encoding="utf-8")
+        self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
+        git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)
+        self.commitar({"docs/reviews/p1.md": "---\ntipo: review\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\n"
+                       f"commit: {self.c1[:7]}\nparecer: reprovado\nrevisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n"
+                       "## Achados\n- A1 (bloqueante) src/app.txt:3 · perde o erro de domínio\n"}, "parecer")
+        pedido = (self.FIXTURES / "pedido.md").read_text(encoding="utf-8")
+        self.pedido = self.fora / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-23 15:56: base do delta fixada pelo dono {self.c1}\n", encoding="utf-8")
+        anterior = self.fora / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-1.md"
+        anterior.write_bytes((self.FIXTURES / "etapa-outro-papel.md").read_bytes())
+
+    def gerar(self, *extra):
+        return self.check("brief", "gerar", "--pedido", "pedido-sintetico", "--destino", "forge:dev-exemplo", "--volta",
+                          "docs/briefs/pedido-sintetico-dev-exemplo-1.md", "--ref", "melhoria/x", *extra)
+
+    def test_a_pq_da_volta_traz_a_base_do_dono_como_desde(self):
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--etapa codigo --desde {self.c1}` · espera: rc=0", saida)
+        self.assertNotIn("--desde PREENCHER", saida)
+
+    def test_a_pq_gerada_passa_no_entrega(self):
+        rc, saida = self.check("entrega", "pedido-sintetico", "--raiz-pedidos", self.fora, "--branch", "melhoria/x", "--base",
+                               "develop", "--base-sha", self.base, "--etapa", "codigo", "--desde", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("base: fixada pelo dono (linha do Histórico)", saida)
+
+
+if __name__ == "__main__":
+    unittest.main()

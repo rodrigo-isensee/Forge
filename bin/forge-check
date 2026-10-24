@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
-Uso: forge-check [--raiz DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (--raiz também depois do subcomando)
+Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
@@ -70,7 +70,7 @@ cabeçalho, `Brief-sha256:` e o brief entre `<<<BRIEF` e `BRIEF>>>`) só se o br
 lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
-o `--desde` vale só se for a `conferida <sha40>` mais recente do `## Histórico` do pedido (lido da cópia principal, não da
+o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
@@ -661,6 +661,7 @@ ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
+BASE_DO_DONO = re.compile(r"^-\s+\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?: base do delta fixada pelo dono ([0-9a-f]{40})\b")  # forma exata, abre a linha do `## Histórico` (CONF-BASE-DONO)
 PASTAS_DE_PARECER = tuple(pasta for pasta, _ in PASTA_E_REGRA.values())
 
 
@@ -748,17 +749,28 @@ def linha_de_origem(arquivo):
     return None
 
 
-def conferidas_do_pedido(texto):
-    """Os sha40 das linhas `conferida <sha40>` do `## Histórico` do pedido, na ordem do arquivo (A4)."""
-    return [m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := CONFERIDA.match(linha))]
+def bases_do_pedido(texto):
+    """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
+    delta fixada pelo dono (`- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, origem `dono`; só vale com uma linha
+    `DECISÃO DO DONO` no pedido)."""
+    achadas = []
+    com_decisao = bool(linhas_de_decisao(texto))
+    for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []):
+        for expressao, origem in ((CONFERIDA, "conferida"), (BASE_DO_DONO, "dono")):
+            if (m := expressao.match(linha)) and (origem != "dono" or com_decisao):
+                achadas.append((m.group(1), origem))
+                break
+    return achadas
 
 
 def desde_valido(raiz, texto, head, base_sha):
-    """O único `--desde` aceito: a `conferida` mais recente do pedido que é ancestral do head e trabalho da branch (não é
-    ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica adiante de uma entrega conferida antes dele)."""
-    candidatas = [c for c in conferidas_do_pedido(texto)
-                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]
-    return candidatas[-1] if candidatas else None
+    """O único `--desde` aceito: (sha40, origem) da linha mais recente do pedido (`conferida` ou base fixada pelo dono) que é
+    ancestral do head e trabalho da branch (não é ancestral do Base-sha: o Base-sha regravado depois de um merge da base fica
+    adiante de uma entrega conferida antes dele); (None, None) se nenhuma serve."""
+    candidatas = [(c, o) for c, o in bases_do_pedido(texto)
+                  if sha_do_commit(raiz, c) == c and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)
+                  and not (o == "dono" and c == head)]  # base do dono igual ao head zeraria o delta sem aviso
+    return candidatas[-1] if candidatas else (None, None)
 
 
 def pedido_na_entrega(raiz, desde, head, base_ref):
@@ -845,6 +857,35 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
     return linhas
 
 
+def diferem_dos_dois_pais(raiz, de, head, base_ref):
+    """`(arquivos, contagens)` que o `head` muda contra cada um dos pais quando ele é um commit de integração da base: dois pais,
+    o único commit próprio do intervalo `de..head` (fora da base), um pai é o `de` e o outro é ancestral da base; senão None. É o
+    que `git show --cc` mostra: a integração limpa não tem escopo próprio; com conflito resolvido, só os arquivos resolvidos. Com
+    outro merge antes do head, o conteúdo posto nele não é visto pelo `--cc` do head: vale o escopo de hoje (CONF-BASE-DONO).
+    `contagens` é, por arquivo, o maior `+`/`-` entre os dois pais (a regra do anexo com remoção não pode ser enganada)."""
+    cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    partes = pais.split() if not cod else []
+    if len(partes) != 3 or not base_ref or de not in partes[1:]:
+        return None
+    outro = partes[2] if partes[1] == de else partes[1]
+    cod, proprios = git(raiz, "rev-list", f"{de}..{head}", "--not", base_ref)
+    if cod or proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):
+        return None
+    comuns, contagens = None, {}
+    for pai in partes[1:]:
+        nomes = set(nomes_do_intervalo(raiz, pai, head))
+        comuns = nomes if comuns is None else comuns & nomes
+        for nome, (mais, menos) in contagens_do_intervalo(raiz, pai, head).items():
+            antes = contagens.get(nome)
+            contagens[nome] = (maior_contagem(antes[0], mais), maior_contagem(antes[1], menos)) if antes else (mais, menos)
+    return comuns, contagens
+
+
+def maior_contagem(a, b):
+    """O maior de dois números do `--numstat`; o `-` do binário prevalece."""
+    return "-" if "-" in (a, b) else str(max(int(a), int(b)))
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     caminho = caminho_do_pedido(raiz, pedido)
@@ -865,11 +906,11 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     base_ref = sha_do_commit(raiz, f"refs/remotes/origin/{base}") or sha_do_commit(raiz, f"refs/heads/{base}")
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
-    valido = None
+    valido, origem_da_base = None, None
     if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:
         linhas.append(("escopo: --desde fora da etapa", True))
     elif desde is not None:
-        valido = desde_valido(raiz, texto, head, base_sha)
+        valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
         if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
             valido = None
             linhas.append(("escopo: --desde sem conferência anterior", True))
@@ -878,16 +919,22 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             linhas.append(("escopo: --desde gravado na própria entrega", True))
     de = valido or base_sha
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
+    informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
+    if dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref):  # E2: só integração na branch
+        arquivos = [n for n in arquivos if n in dos_dois_pais[0]]
+        informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
         diferem = set(nomes_do_intervalo(raiz, base_ref, head))
         arquivos = [n for n in arquivos if n in diferem]
-    contagens = contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None)
+    contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
+    linhas += informativas
     if not arquivos:
-        linhas.append(("pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit", True)
-                      if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
+        vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
+                 if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
+        linhas.append((vazio, True) if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
     for nome in arquivos:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         tipo = next((t for t, (pasta, _) in PASTA_E_REGRA.items() if nome.startswith(pasta + "/")), None)
@@ -1256,10 +1303,10 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     antigas = [l for l in copiado("Decisões e restrições") if ROTULO_DO_DESTINO not in l]  # as linhas de erro do anterior saem; valem as de agora
     saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
-    conferidas = conferidas_do_pedido(pedido_txt)
+    bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
     pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
-              f"--etapa codigo --desde {conferidas[-1] if conferidas else PREENCHER}` · espera: rc=0"]
+              f"--etapa codigo --desde {bases[-1][0] if bases else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
     saida += acrescentar(copiado("Pronto quando"), pronto)
@@ -4842,7 +4889,11 @@ def guarda_de_versao(a, raiz):
 def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
+    AJUDA_RAIZ_PEDIDOS = ("raiz com docs/pedidos/ e docs/briefs/ fora do repositório (o git segue sendo o de --raiz); vale também depois do "
+                          "subcomando e acrescenta ~/.forge-contrib na busca; só aceita pasta dentro de ~/.forge-contrib ou da raiz do repositório")
+    ap.add_argument("--raiz-pedidos", default=None, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum = argparse.ArgumentParser(add_help=False)  # aceita --raiz também depois do subcomando
+    comum.add_argument("--raiz-pedidos", default=argparse.SUPPRESS, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum.add_argument("--raiz", default=argparse.SUPPRESS, help="raiz do projeto (padrão: diretório atual)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("docs", parents=[comum])
@@ -4951,6 +5002,15 @@ def main():
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
     a = ap.parse_args()
+    if a.raiz_pedidos:
+        global RAIZES_DE_BRIEF
+        escolhida = Path(a.raiz_pedidos).resolve()
+        permitidas = (*RAIZES_DE_BRIEF, Path(a.raiz).resolve(), raiz_principal(Path(a.raiz).resolve()).resolve())
+        if not any(escolhida == p.resolve() or p.resolve() in escolhida.parents for p in permitidas):
+            print(f"forge-check: --raiz-pedidos {nome_seguro(str(escolhida))} fora de ~/.forge-contrib e da raiz do repositório "
+                  "(o hook só guarda os pedidos dali)")
+            return 2
+        RAIZES_DE_BRIEF = (escolhida, *RAIZES_DE_BRIEF)  # a escolhida na frente das demais
     if a.cmd == "brief" and a.alvo == "gerar" and a.etapa is not None and a.etapa not in ETAPAS_DO_GERAR:
         ap.error(f"argument --etapa: invalid choice: {a.etapa!r} (choose from {', '.join(map(repr, ETAPAS_DO_GERAR))})")
     if a.cmd == "brief":
