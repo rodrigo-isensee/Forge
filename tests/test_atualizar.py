@@ -398,6 +398,32 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
         self.assertNotEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", "forge/upgrade-9.9.0"))
 
+    def test_erro_depois_do_commit_da_resolucao_desfaz_a_mesclagem_e_diz_que_desfez(self):
+        # F4-A9: `trazidos` roda depois do commit da resolução; se levantar, a branch não pode ficar com o merge e a mensagem tem de ser verdadeira
+        import contextlib
+        import importlib.machinery
+        import importlib.util
+        import io
+        from unittest import mock
+        carregador = importlib.machinery.SourceFileLoader("forge_atualizar_em_teste", str(ATUALIZAR))
+        especificacao = importlib.util.spec_from_loader(carregador.name, carregador)
+        modulo = importlib.util.module_from_spec(especificacao)
+        carregador.exec_module(modulo)
+        self.git("switch", "-q", "-c", "forge/upgrade-9.9.0")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore(forge): versão 9.9.0")
+        antes = self.git("rev-parse", "HEAD")
+        self.avancar_remoto(".forge/versao", "0.1.0\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=self.tmp / "outro")
+        with mock.patch.object(modulo.fv, "confirmar", return_value=True), \
+                mock.patch.object(modulo, "trazidos", side_effect=RuntimeError("falha simulada")), \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            deu = modulo.integrar_develop(self.proj, "9.9.0")
+        self.assertFalse(deu)
+        self.assertIn("Desfiz a mesclagem", saida.getvalue())
+        self.assertEqual(self.git("rev-parse", "HEAD"), antes, "a branch volta ao estado de antes da mesclagem")
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
     def test_conflito_em_outro_arquivo_nao_e_resolvido_pelo_comando(self):
         self.publicar("9.9.0")
         # arquivo alterado nos dois lados: conflito que não é do `.forge/versao`
