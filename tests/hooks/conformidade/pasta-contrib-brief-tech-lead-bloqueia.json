@@ -1,0 +1,23 @@
+{
+  "descricao": "HOOK-RAIZ-CONTRIB: tech-lead grava em ~/.forge-contrib/forge/docs/briefs/ (a sessão do Forge grava ali).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.forge-contrib/forge/docs/briefs/x.md",
+      "content": "x\n"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "é do jarvis"
+  },
+  "env": {
+    "HOME": "{tmp}/home"
+  }
+}
