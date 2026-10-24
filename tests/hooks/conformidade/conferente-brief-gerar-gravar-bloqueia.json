@@ -1,0 +1,19 @@
+{
+  "descricao": "P6: o conferente (só leitura) não grava brief: `forge-check brief gerar --gravar` é opção que grava (FORGE_CHECK_GRAVA).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check brief gerar --pedido p1 --destino forge:tech-lead --gravar"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:conferente"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "opção que grava"
+  }
+}

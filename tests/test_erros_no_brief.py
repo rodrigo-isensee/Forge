@@ -264,7 +264,7 @@ Fazer a coisa (E1).
 - docs/pedidos/xpto.md
 
 ## Entregar
-- (E1) Fazer a coisa.
+- (E1, E1.1) Fazer a coisa.
 
 ## Fora do escopo
 - (nada)
@@ -404,6 +404,10 @@ class ErrosDoJarvis(Base):
             with self.subTest(etapa=etapa):
                 extra = ["--etapa", etapa] if etapa else []
                 cod, saida, _ = self.rodar("brief", "gerar", "--pedido", "xpto", "--destino", "forge:tech-lead", *extra)
+                if etapa in fc.ETAPAS_QUE_RECUSAM:  # sem branch nem pareceres o gerar recusa (P2); o tipo vem da mesma tabela
+                    self.assertEqual(cod, 1)
+                    self.assertEqual(fc.tipo_da_etapa(etapa), tipo)
+                    continue
                 self.assertEqual(cod, 0)
                 self.assertEqual([l for l in saida if l.startswith("Tipo:")], [f"Tipo: {tipo}"])
 
