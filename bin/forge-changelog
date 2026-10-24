@@ -92,6 +92,12 @@ def _recusa_chave_repetida(pares):
     return dict(pares)
 
 
+def conferir_caminho(caminho, nome, raiz):
+    """Recusa link simbólico (inclusive quebrado) e caminho que resolve fora da raiz."""
+    if caminho.is_symlink() or not caminho.resolve().is_relative_to(raiz):
+        sys.exit(f"{nome}: link simbólico ou fora da raiz do repositório; recusado.")
+
+
 def ler_manifestos(versao):
     """Lê e valida os manifestos que existem e calcula o texto novo; devolve [(caminho, novo_texto)]. Recusa link
     simbólico, caminho fora da raiz, JSON inválido, chave repetida, manifesto sem `version` de topo e troca que não
@@ -102,8 +108,7 @@ def ler_manifestos(versao):
         caminho = Path(nome)
         if not caminho.exists() and not caminho.is_symlink():
             continue
-        if caminho.is_symlink() or not caminho.resolve().is_relative_to(raiz):
-            sys.exit(f"{nome}: link simbólico ou fora da raiz do repositório; recusado.")
+        conferir_caminho(caminho, nome, raiz)
         texto = caminho.read_text(encoding="utf-8")
         try:
             dados = json.loads(texto, object_pairs_hook=_recusa_chave_repetida)
@@ -134,6 +139,7 @@ def release(args):
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", args.data):
         sys.exit("Data no formato AAAA-MM-DD.")
     caminho = Path("CHANGELOG.md")
+    conferir_caminho(caminho, "CHANGELOG.md", Path.cwd().resolve())
     texto = caminho.read_text(encoding="utf-8")
     if re.search(rf"^## \[{re.escape(args.versao)}\]", texto, re.M):
         sys.exit(f"CHANGELOG.md já tem a versão {args.versao}.")
