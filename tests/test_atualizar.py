@@ -398,8 +398,9 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
         self.assertNotEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", "forge/upgrade-9.9.0"))
 
-    def test_erro_depois_do_commit_da_resolucao_desfaz_a_mesclagem_e_diz_que_desfez(self):
-        # F4-A9: `trazidos` roda depois do commit da resolução; se levantar, a branch não pode ficar com o merge e a mensagem tem de ser verdadeira
+    def integrar_com_erro_depois_do_commit(self, efeito_colateral=None):
+        """Roda `integrar_develop` no processo, com o ambiente isolado do teste (`self.env`), num conflito de `.forge/versao`
+        resolvido pelo dono e com `trazidos` falhando depois do commit da resolução. Devolve (resultado, saída, `trazidos`, antes)."""
         import contextlib
         import importlib.machinery
         import importlib.util
@@ -415,12 +416,25 @@ class AtualizarComDevelopQueAvancou(Base):
         antes = self.git("rev-parse", "HEAD")
         self.avancar_remoto(".forge/versao", "0.1.0\n")
         self.git("push", "-q", "origin", "HEAD:develop", cwd=self.tmp / "outro")
-        with mock.patch.object(modulo.fv, "confirmar", return_value=True), \
-                mock.patch.object(modulo, "trazidos", side_effect=RuntimeError("falha simulada")), \
+
+        def falhar(*_args):
+            if efeito_colateral:
+                efeito_colateral()
+            raise RuntimeError("falha simulada")
+        with mock.patch.dict(os.environ, self.env, clear=True), \
+                mock.patch.object(modulo.fv, "confirmar", return_value=True), \
+                mock.patch.object(modulo, "trazidos", side_effect=falhar) as trazidos, \
                 contextlib.redirect_stdout(io.StringIO()) as saida:
             deu = modulo.integrar_develop(self.proj, "9.9.0")
+        return deu, saida.getvalue(), trazidos, antes
+
+    def test_erro_depois_do_commit_da_resolucao_desfaz_a_mesclagem_e_diz_que_desfez(self):
+        # F4-A9: `trazidos` roda depois do commit da resolução; se levantar, a branch não pode ficar com o merge e a mensagem tem de ser verdadeira
+        deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit()
+        self.assertIn("Conflito resolvido", saida, "o cenário aconteceu: a resolução foi commitada antes do erro")
+        trazidos.assert_called_once()
         self.assertFalse(deu)
-        self.assertIn("Desfiz a mesclagem", saida.getvalue())
+        self.assertIn("Desfiz a mesclagem", saida)
         self.assertEqual(self.git("rev-parse", "HEAD"), antes, "a branch volta ao estado de antes da mesclagem")
         self.assertEqual(self.git("status", "--porcelain"), "")
 
