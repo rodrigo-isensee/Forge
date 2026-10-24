@@ -83,6 +83,20 @@ class FecharLogCheck(unittest.TestCase):
                 self.assertIn(f"ajustei para 700: {pasta}", r.stderr)
                 self.assertEqual(len(list(pasta.glob("forge-fechar-*.log"))), 1)
 
+    def test_chmod_que_sai_0_sem_mudar_o_modo_faz_o_script_recusar(self):
+        # QA A2: a conferência do modo depois do chmod (mutante L4: `|| die` trocado por `|| true`)
+        falso = self.tmp / "bin" / "chmod"
+        falso.write_text("#!/usr/bin/env bash\nexit 0\n")
+        falso.chmod(0o755)
+        pasta = self.tmp / "logs-chmod-falso"
+        pasta.mkdir()
+        pasta.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(pasta))
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn(f"a pasta do log precisa ter modo 700: {pasta}", r.stderr)
+        self.assertNotIn("ajustei", r.stderr)
+        self.assertEqual(oct(pasta.stat().st_mode & 0o7777), "0o755")
+
     def test_pasta_com_modo_700_nao_traz_aviso_e_link_ou_nao_diretorio_continuam_recusados(self):
         certa = self.tmp / "certa"
         certa.mkdir(mode=0o700)

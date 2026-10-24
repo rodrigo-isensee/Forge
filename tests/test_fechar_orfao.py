@@ -129,6 +129,31 @@ class Teste(unittest.TestCase):
         self.assertTrue(wt.exists())
         self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
 
+    def test_de_dentro_da_worktree_com_log_relativo_com_ponto_ponto_fecha_com_fim_e_codigo_0(self):
+        # QA A1: FORGE_FECHAR_LOG_DIR relativo com `..` virava `$PWD/../x`; a worktree some no passo 7 e o registrador perdia o arquivo (SIGPIPE, sem `fim:`)
+        wt = self.com_worktree()
+        r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, capture_output=True, text=True, timeout=60,
+                                env=dict(self.env, FORGE_FECHAR_LOG_DIR="../x/../logrel"))
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        log = self.log_de(r)
+        self.assertEqual(log.parent, self.tmp.resolve() / "logrel")  # absoluto e normalizado
+        self.assertTrue(log.read_text().splitlines()[-1].endswith(" fim: código 0"))
+        self.assertFalse(wt.exists())
+
+    def test_branch_na_worktree_principal_rodado_nela_nao_acha_outra_para_sair_e_fica_pendente(self):
+        # QA A3: sem outra worktree para sair, a limpeza não remove nada e imprime o comando; código 3
+        sha_mesclado = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha_mesclado}\n")
+        self.git("switch", "-q", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("não achei outra para sair", r.stderr)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.marcas("git worktree remove"), [])
+        self.assertEqual(self.marcas("git branch -D"), [])
+        self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
+
     def fechar_em(self, cwd, *args):
         return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)
 

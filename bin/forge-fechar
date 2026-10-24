@@ -153,11 +153,12 @@ elif [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RU
 else
   logdir="${TMPDIR:-/tmp}/forge-fechar-logs-$(id -u)"
 fi
-case "$logdir" in /*) ;; *) logdir="$PWD/$logdir" ;; esac  # absoluto: a limpeza pode trocar de diretório (passo 7)
 [ ! -L "$logdir" ] || die "a pasta do log é um link simbólico: $logdir; recusada"
 (umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
 [ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
 [ -O "$logdir" ] || die "a pasta do log é de outro dono: $logdir; recusada"
+# Caminho absoluto e normalizado (sem `..` nem link no meio): a limpeza do passo 7 troca de diretório e o registrador precisa achar o arquivo depois disso.
+logdir="$(cd "$logdir" && pwd -P)" || die "não consegui resolver a pasta do log: $logdir"
 # Só o modo se corrige: link, outro dono e não diretório já foram recusados acima; pasta do próprio usuário com modo diferente de 700 vira 700, com aviso.
 # O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700).
 if [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" != 700 ]; then
