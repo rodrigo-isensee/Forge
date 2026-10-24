@@ -485,15 +485,25 @@ def montar_proc(tmp, proc):
     return pasta
 
 
-def rodar(hook, entrada, cwd, proc=None, extra=None):
+PRAZO_DO_CLAUDE_CODE_S = 10  # `timeout` de hooks/hooks.json: o Claude Code o trata como liberado
+
+
+def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_code=False):
+    """`como_o_claude_code`: o hook que passa de `PRAZO_DO_CLAUDE_CODE_S` é morto e a ação é liberada (código 0), como
+    o Claude Code faz; sem isso, o teste espera `prazo` s (largo, para a máquina carregada)."""
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
     env.pop("FORGE_CARGA_LIVRE", None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
-    return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd,
-                          env=env, capture_output=True, text=True, timeout=120)
+    try:
+        return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd, env=env, capture_output=True,
+                              text=True, timeout=PRAZO_DO_CLAUDE_CODE_S if como_o_claude_code else prazo)
+    except subprocess.TimeoutExpired:
+        if not como_o_claude_code:
+            raise
+        return subprocess.CompletedProcess(lancador(hook), 0, "", "")
 
 
 # O git dos hooks tem 5 s (o hook inteiro tem 10 s em hooks.json); com os processos da suíte em paralelo a máquina
@@ -1897,8 +1907,8 @@ class Hooks(unittest.TestCase):
 # de um caso é a regra (M1 a M5) em cujo commit ele passa a dar o resultado esperado: até lá o teste exige o resultado
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
-REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B", "B2"})  # D, A, B e B2: as opções (RET-LEITURA-HOOK-D, -A, -B, -C)
-EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opções D, A, B e B2: todas as regras entraram, nenhuma marca `fecha` sobra
+REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B", "B2", "C", "T"})  # D, A, B e B2: as opções (RET-LEITURA-HOOK-D, -A, -B, -C); C e T: a opção C e o bloco T da revalidação 10 (RET-LEITURA-HOOK-E)
+EXIGE_NENHUMA_MARCA = False  # passo (7) do desenho e opções D, A, B e B2: todas as regras entraram, nenhuma marca `fecha` sobra
 # A marca `nao_promete` (o cartão): a forma está na linha "Não promete" da frase de parada (RET-LEITURA-HOOK-CAMINHO4); a
 # célula é o código de hoje, para o conserto futuro aparecer como mudança de teste, e o T9b registra que o bash a roda.
 CARTOES_DO_NAO_PROMETE = frozenset({"N-HOOK1", "R5A-COPROC", "A6"})
@@ -1915,11 +1925,18 @@ IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e",
                       "FD13d", "FD13e", "QP1",
                       # opção B da revalidação 9 (RET-LEITURA-HOOK-C): as sondas CO, AN, NR, VA, o FD14 e o "não promete"
                       "CO1", "CO2", "CO3", "AN1", "AN2", "AN3", "AN4", "AN5", "NR1", "NR2", "NR3", "VA1", "FD14a",
-                      "FD14b", "FD14c", "FD14d", "CO4", "CO5", "CN1", "CN2", "CN3", "VA2", "PE1", "ST1", "ST2", "ST3")
+                      "FD14b", "FD14c", "FD14d", "CO4", "CO5", "CN1", "CN2", "CN3", "VA2", "PE1", "ST1", "ST2", "ST3",
+                      # opção C e bloco T da revalidação 10 (RET-LEITURA-HOOK-E): `\x{…}`, `$"…"`, 20 mil palavras e o FD15
+                      "AN34", "AN34b", "AN34c", "AN34d", "AN34e", "AN34f", "AN34g", "AN35a", "AN35b", "AN35c", "AN35d",
+                      "OT1", "OT2", "FD15a", "FD15b", "FD15c", "FD15d", "FD15e", "FD15f", "FD15g", "FD15h", "FD15i")
 
 
 def corpus_da_volta_unica():
-    return json.loads(CORPUS_VOLTA_UNICA.read_text(encoding="utf-8"))
+    """O corpus, com `{REPETE:<texto>:<n>}` no `comando` trocado pelo texto repetido n vezes (a sonda de 20 mil
+    palavras não cabe escrita no JSON)."""
+    texto = re.sub(r"\{REPETE:([^:}]+):(\d+)\}", lambda m: m.group(1) * int(m.group(2)),
+                   CORPUS_VOLTA_UNICA.read_text(encoding="utf-8"))
+    return json.loads(texto)
 
 
 class CorpusHeredocVoltaUnica(unittest.TestCase):
@@ -1944,7 +1961,7 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         proc = montar_proc(tmp, None)
         extra = {"FORGE_NPROC": "8"}
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
-        r = rodar(f.hook, entrada, raiz, proc, extra)
+        r = rodar(f.hook, entrada, raiz, proc, extra, como_o_claude_code=bool(f.dados.get("prazo_de_producao")))
         codigo = f.dados["esperado"]["codigo"]
         if codigo == 0:
             passou = r.returncode == 0 and r.stderr == ""
@@ -1971,6 +1988,8 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
                 base["passos"] = [{"entrada": entrada(c)} for c in comandos[:-1]]
                 base["entrada"] = entrada(comandos[-1])
                 base["esperado"] = {"codigo": caso[hook]}
+                if caso.get("prazo_de_producao"):  # a decisão tem de vir antes do timeout do Claude Code (bloco T)
+                    base["prazo_de_producao"] = True
                 fecha = caso.get("fecha")  # a regra, ou {hook: regra} quando só um dos hooks ainda falha
                 fecha = fecha.get(hook) if isinstance(fecha, dict) else fecha
                 if fecha:
@@ -2324,7 +2343,9 @@ exit 0
             raiz, entrada, proc = montados[hook]
             entrada = json.loads(json.dumps(entrada))
             entrada["tool_input"]["command"] = texto
-            return rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"}).returncode
+            # a sonda de tempo (texto de dezenas de KB) vale como o Claude Code a trata: passou de 10 s, liberou
+            return rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"},
+                         como_o_claude_code=len(texto) > 50_000).returncode
 
         faltam = [pedido for pedido in dict.fromkeys(pedidos) if pedido not in self.DECISOES]
         with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
