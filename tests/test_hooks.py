@@ -488,36 +488,58 @@ def montar_proc(tmp, proc):
 PRAZO_DO_CLAUDE_CODE_S = 10  # `timeout` de hooks/hooks.json: o Claude Code o trata como liberado
 
 
-def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_code=False):
+def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_code=False, producao=False, lento=False):
     """`como_o_claude_code`: o hook que passa de `PRAZO_DO_CLAUDE_CODE_S` é morto e a ação é liberada (código 0), como
-    o Claude Code faz; sem isso, o teste espera `prazo` s (largo, para a máquina carregada)."""
+    o Claude Code faz, e o vigia de prazo é o de produção; sem isso, o teste espera `prazo` s (largo, para a máquina
+    carregada). `producao`: só o vigia de produção. `lento`: o passo lento injetado (`lancador`)."""
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
     env.pop("FORGE_CARGA_LIVRE", None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
+    comando = lancador(hook, producao or como_o_claude_code, lento)
     try:
-        return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd, env=env, capture_output=True,
+        return subprocess.run(comando, input=json.dumps(entrada), cwd=cwd, env=env, capture_output=True,
                               text=True, timeout=PRAZO_DO_CLAUDE_CODE_S if como_o_claude_code else prazo)
     except subprocess.TimeoutExpired:
         if not como_o_claude_code:
             raise
-        return subprocess.CompletedProcess(lancador(hook), 0, "", "")
+        return subprocess.CompletedProcess(comando, 0, "", "")
 
 
 # O git dos hooks tem 5 s (o hook inteiro tem 10 s em hooks.json); com os processos da suíte em paralelo a máquina
 # carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
 # o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
+# O vigia de prazo (3 s, `_comum.PRAZO_DA_DECISAO_S`) segue o mesmo caminho: largo nos testes, de produção só onde o
+# teste mede o prazo (`producao=True`). `lento` injeta num passo da decisão um `sleep` de 60 s, uma vez só (monkeypatch
+# do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
-LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; "
-            "_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3]); "
-            "sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
+PRAZO_DA_DECISAO_NOS_TESTES = 120
+LANCADOR = """
+import runpy, sys, time
+sys.path.insert(0, sys.argv[1])
+import _comum
+_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3])
+if sys.argv[4] != "producao":
+    _comum.PRAZO_DA_DECISAO_S = float(sys.argv[4])
+if sys.argv[5] == "lento":
+    campo, chamadas = _comum.Hook.campo, []
+    def lento(self, *chaves):
+        chamadas.append(1)
+        if len(chamadas) == 2:  # a 1.a leitura é a do marcador; a 2.a é a 1.a do hook, depois dele
+            time.sleep(60)
+        return campo(self, *chaves)
+    _comum.Hook.campo = lento
+sys.argv = [sys.argv[2]]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
 
 
-def lancador(hook):
+def lancador(hook, producao=False, lento=False):
     """Comando que roda hooks/<hook>.py como o Claude Code o roda, com o prazo do git largo para os testes."""
-    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES)]
+    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES),
+            "producao" if producao else str(PRAZO_DA_DECISAO_NOS_TESTES), "lento" if lento else ""]
 
 
 class Hooks(unittest.TestCase):
@@ -2320,21 +2342,34 @@ exit 0
     }
     DECISOES = {}  # (hook, texto) -> código, de `decisoes_dos_hooks`
 
-    def decisoes_dos_hooks(self, pedidos):
-        """{(hook, texto): código} de cada hook, no modelo do corpus (um repositório por hook, montado uma vez), em
-        paralelo. O hook cujo marcador (`CRITICO`) o texto não tem não roda: ele libera sem ler (0). Os códigos ficam
-        em `DECISOES`, da classe: o T9b e a propriedade da opção B leem os mesmos textos."""
-        _comum, conformidade, parecer = modulos_dos_hooks()
-        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
-        dados = corpus_da_volta_unica()
+    def modelos_montados(self):
+        """{hook: (raiz, entrada, proc)}: um repositório por hook, no modelo do corpus, montado uma vez."""
         montados = {}
-        for hook, modelo in dados["modelos"].items():
+        for hook, modelo in corpus_da_volta_unica()["modelos"].items():
             caminho = FIXTURES / hook / f"{modelo}.json"
             base = json.loads(caminho.read_text(encoding="utf-8"))
             base["passos"] = []
             tmp = self._pasta_temporaria()
             raiz, entrada = Fixture(caminho, base).montar(tmp, os.getpid())
             montados[hook] = (raiz, entrada, montar_proc(tmp, None))
+        return montados
+
+    def decidir_com_prazo(self, montados, hook, texto, **como):
+        """(código, stderr, segundos) do hook real sobre `texto`, no modelo do corpus, com o vigia de produção."""
+        raiz, entrada, proc = montados[hook]
+        entrada = json.loads(json.dumps(entrada))
+        entrada["tool_input"]["command"] = texto
+        inicio = time.monotonic()
+        r = rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"}, producao=True, **como)
+        return r.returncode, r.stderr, time.monotonic() - inicio
+
+    def decisoes_dos_hooks(self, pedidos):
+        """{(hook, texto): código} de cada hook, no modelo do corpus (um repositório por hook, montado uma vez), em
+        paralelo. O hook cujo marcador (`CRITICO`) o texto não tem não roda: ele libera sem ler (0). Os códigos ficam
+        em `DECISOES`, da classe: o T9b e a propriedade da opção B leem os mesmos textos."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        montados = self.modelos_montados()
 
         def decidir(pedido):
             hook, texto = pedido
@@ -2601,6 +2636,90 @@ exit 0
             with self.subTest(cru=cru):
                 self.assertIsNone(_comum.reduzida(cru))
         self.assertGreaterEqual(len(crus), 130)
+
+    # Bloco T da revalidação 10 (proposta caminho-rev10, seção 2): o orçamento de tempo. Os tipos de palavra que mais
+    # custam (a unidade, quantas palavras ela tem e a forma de 2 a 3 caracteres, para o teto de caracteres), e o
+    # tamanho: 1 mil palavras, o teto de palavras, o teto + 1 e o teto de caracteres com as palavras curtas.
+    TIPOS_DO_ORCAMENTO = {
+        "nome de shell": ("bash ", 1, "sh "),
+        "env": ("env ", 1, "env "),
+        "env -S": ("env -S 'x' ", 3, "env -S x "),
+        "$'…' longo": ("$'" + "a" * 40 + "' ", 1, "$'a' "),
+        "-c": ("-c ", 1, "-c "),
+        "inerte": ("x ", 1, "x "),
+    }
+
+    def test_t_orcamento_por_numero_de_palavras(self):  # item 1 do critério de fim do bloco T (proposta caminho-rev10)
+        """Para cada tipo de palavra de `TIPOS_DO_ORCAMENTO` e cada tamanho, os dois hooks reais, com o vigia de
+        produção, recusam a chamada com o marcador (código 2, com a regra) em menos de 3 s, e não deixam o timeout de
+        10 s do Claude Code liberá-la. O texto é `: <palavras>; <linha crítica direta>`."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        montados = self.modelos_montados()
+        corpos = corpus_da_volta_unica()["corpos"]
+        tamanhos = {"1 mil": 1000, "o teto": _comum.TETO_DE_PALAVRAS, "o teto + 1": _comum.TETO_DE_PALAVRAS + 1,
+                    "o teto de caracteres": None}
+        pior = 0.0
+        for tipo, (unidade, por_unidade, curta) in self.TIPOS_DO_ORCAMENTO.items():
+            for nome, n in tamanhos.items():
+                if n is None:
+                    palavras = f": {curta * ((_comum.TETO_DE_CARACTERES_DA_CHAMADA - 200) // len(curta))}"
+                else:
+                    palavras = f": {unidade * (n // por_unidade)}"
+                for hook in ("conformidade", "parecer"):
+                    texto = f"{palavras}; {corpos[hook]}"
+                    with self.subTest(tipo=tipo, tamanho=nome, hook=hook):
+                        codigo, erro, segundos = self.decidir_com_prazo(montados, hook, texto)
+                        pior = max(pior, segundos)
+                        self.assertEqual(codigo, 2, f"{codigo}: {erro.strip()}")
+                        self.assertRegex(erro, r"^R-[A-Z]+: ")
+                        self.assertLess(segundos, 3.0, f"{len(texto)} caracteres")
+        print(f"\n[T] pior tempo de decisão: {pior:.2f} s", file=sys.stderr)
+
+    def test_t_reconhecedor_da_reavaliacao_e_linear(self):  # item 2 do critério de fim do bloco T
+        """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 1 s (a
+        versão quadrática levava 8,3 s com 10 mil): o limite não oscila com a máquina."""
+        _comum, _, _ = modulos_dos_hooks()
+        casos = {"shell": ["bash"] * 50_000, "shell com opção": ["bash"] * 49_999 + ["-c"], "env": ["env"] * 50_000,
+                 "env -S": ["env", "-S", "x"] * 16_000, "não se reduz": [None] * 50_000, "inerte": ["x"] * 50_000}
+        for nome, palavras in casos.items():
+            with self.subTest(nome=nome):
+                inicio = time.perf_counter()
+                _comum.reavaliacao_das_palavras(palavras)
+                _comum.separar_lancadores([p or "" for p in palavras])
+                self.assertLess(time.perf_counter() - inicio, 1.0)
+
+    def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
+        """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
+        recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e liberarem a
+        sem marcador. Sem o passo lento, a mesma chamada com marcador passa: o que recusa é o vigia, e é por construção,
+        para qualquer passo lento, e não só para os que o teste 1 gera."""
+        montados = self.modelos_montados()
+        linhas = {"conformidade": ("git push origin feature/x", "R-CONFORMIDADE"),
+                  "parecer": ("gh pr create --draft --base develop --title x --body y", "R-REVIEW")}
+        for hook, (critica, regra) in linhas.items():
+            with self.subTest(hook=hook, caso="sem passo lento"):
+                self.assertEqual(self.decidir_com_prazo(montados, hook, critica)[0], 0)
+            with self.subTest(hook=hook, caso="com marcador"):
+                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, critica, lento=True)
+                self.assertEqual(codigo, 2, erro)
+                self.assertRegex(erro, f"^{regra}: ")
+                self.assertGreater(segundos, 2.5, "o vigia vence aos 3 s")
+                self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
+            with self.subTest(hook=hook, caso="sem marcador"):
+                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, "echo oi", lento=True)
+                self.assertEqual((codigo, erro), (0, ""))
+                self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
+
+    def test_t_vigia_cobre_a_busca_do_proprio_marcador(self):
+        """O marcador é um regex com `.*`, e o texto de propósito o faz levar mais de 10 s (`pr pr … api`). O vigia o
+        interrompe, e o marcador desconhecido vale como marcado: recusa, em vez de o timeout liberar a chamada."""
+        montados = self.modelos_montados()
+        textos = {"parecer": "pr " * 20_000 + "api", "conformidade": "git " * 20_000 + "--no-verify"}
+        for hook, texto in textos.items():
+            with self.subTest(hook=hook):
+                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, texto)
+                self.assertEqual(codigo, 2, erro)
+                self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
 
     def test_corpus_cobre_as_classes(self):
         dados = corpus_da_volta_unica()

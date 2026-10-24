@@ -16,7 +16,9 @@ import json
 import os
 import re
 import shlex
+import signal
 import sys
+import threading
 import time
 import unicodedata
 from contextlib import contextmanager
@@ -1663,6 +1665,26 @@ def fora_da_gramatica_com_heredoc(texto):
     return lida if isinstance(lida, str) else None
 
 
+# Orçamento da chamada com marcador crítico (bloco T da revalidação 10): o texto sem os corpos de heredoc passa de 150 mil
+# caracteres, ou o leitor acha mais de 5 mil palavras (de todos os níveis). Uma chamada real não chega perto; o teto de
+# palavras faz a decisão independer da carga da máquina. O corpo de heredoc sai da conta, e o texto entre aspas é uma
+# palavra só.
+TETO_DE_CARACTERES_DA_CHAMADA = 150_000
+TETO_DE_PALAVRAS = 5_000
+CONTORNO_DO_TETO = "divida a chamada em comandos menores e grave o texto longo num arquivo"
+
+
+def excede_o_teto(texto):
+    """`texto`: a chamada sem os corpos de heredoc. O motivo (str) se ela passa do teto de caracteres ou de palavras, ou
+    None. Quem chama a confere só com o marcador crítico, no nível 0, antes de qualquer leitura cara."""
+    if len(texto) > TETO_DE_CARACTERES_DA_CHAMADA:
+        return f"{len(texto)} caracteres (o teto é {TETO_DE_CARACTERES_DA_CHAMADA})"
+    palavras = sum(len(simples.palavras) for simples in palavras_do_texto(texto).simples)
+    if palavras > TETO_DE_PALAVRAS:
+        return f"{palavras} palavras (o teto é {TETO_DE_PALAVRAS})"
+    return None
+
+
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
 
@@ -1701,12 +1723,16 @@ def leituras(comando, com_sinal=False):
     return Leituras(tuple(partes), fiel is None)
 
 
-def sem_atribuicoes(palavras):
-    """Tira as atribuições de variáveis do início de um comando simples (`A=1 B=2 git ...`)."""
-    i = 0
+def depois_das_atribuicoes(palavras, i=0):
+    """O índice da primeira palavra de `palavras`, a partir de `i`, que não é atribuição de variável (`A=1 B=2 git ...`)."""
     while i < len(palavras) and re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", palavras[i]):
         i += 1
-    return palavras[i:]
+    return i
+
+
+def sem_atribuicoes(palavras):
+    """Tira as atribuições de variáveis do início de um comando simples (`A=1 B=2 git ...`)."""
+    return palavras[depois_das_atribuicoes(palavras):]
 
 
 # Prefixo -> opções dele que levam valor (as demais são booleanas); `separar_lancadores` os tira para achar o comando.
@@ -1721,33 +1747,44 @@ SHELLS = {"bash", "sh", "zsh", "dash", "ksh"}
 ENV_COM_VALOR_CURTA = set("uCS")  # opções curtas do `env` com valor (no grupo `-iS`: o resto ou a palavra seguinte)
 
 
+def opcoes_do_lancador(palavras, i, nome, com_valor):
+    """As opções do lançador `nome` que começam em `palavras[i]` (depois do nome): (índice da primeira palavra depois
+    delas, palavras que o `env -S` dividiu). ValueError: aspas abertas no valor do `-S`, e o comando não é analisável.
+    Só anda pelas opções, nunca pela cauda (o custo não cresce com o número de palavras do comando)."""
+    dividido = []
+    while i < len(palavras) and palavras[i].startswith("-") and palavras[i] != "-":
+        opcao = palavras[i]
+        i += 1
+        if opcao == "--":
+            break
+        split = valor_do_split_string(opcao, palavras[i] if i < len(palavras) else "") if nome == "env" else None
+        if split is not None:  # `env -S '<comando>'`: o valor é o comando, dividido em palavras
+            texto, consome = split
+            i += consome
+            dividido += shlex.split(texto)  # aspas abertas: ValueError, e o comando não é analisável
+        elif opcao in com_valor or (nome == "env" and re.fullmatch(r"-[a-zA-Z]*[uC]", opcao)):
+            i += 1
+    return i, dividido
+
+
 def separar_lancadores(palavras):
     """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
     deles, para classificar o comando de verdade; opções do comando seguinte não se perdem. Devolve (comando,
-    atribuições feitas pelos lançadores): `env GH_REPO=x gh ...` passa a variável ao `gh` como `GH_REPO=x gh ...`."""
-    palavras, lancadas = sem_atribuicoes(palavras), []
-    while palavras and Path(palavras[0]).name in LANCADORES:
-        nome, com_valor = Path(palavras[0]).name, LANCADORES[Path(palavras[0]).name]
-        i, dividido = 1, []
-        while i < len(palavras) and palavras[i].startswith("-") and palavras[i] != "-":
-            opcao = palavras[i]
-            i += 1
-            if opcao == "--":
-                break
-            split = valor_do_split_string(opcao, palavras[i] if i < len(palavras) else "") if nome == "env" else None
-            if split is not None:  # `env -S '<comando>'`: o valor é o comando, dividido em palavras
-                texto, consome = split
-                i += consome
-                dividido += shlex.split(texto)  # aspas abertas: ValueError, e o comando não é analisável
-            elif opcao in com_valor or (nome == "env" and re.fullmatch(r"-[a-zA-Z]*[uC]", opcao)):
-                i += 1
-        if nome == "timeout" and i < len(palavras):
+    atribuições feitas pelos lançadores): `env GH_REPO=x gh ...` passa a variável ao `gh` como `GH_REPO=x gh ...`.
+    Anda por índices: só o `env -S` (que põe palavras novas na frente) copia a cauda."""
+    base, lancadas = palavras, []
+    inicio = depois_das_atribuicoes(base)
+    while inicio < len(base) and Path(base[inicio]).name in LANCADORES:
+        nome = Path(base[inicio]).name
+        i, dividido = opcoes_do_lancador(base, inicio + 1, nome, LANCADORES[nome])
+        if nome == "timeout" and i < len(base):
             i += 1  # a duração
-        cauda = dividido + palavras[i:]
-        resto = sem_atribuicoes(cauda)
-        lancadas += cauda[:len(cauda) - len(resto)]
-        palavras = resto
-    return palavras, lancadas
+        if dividido:
+            base, i = dividido + list(base[i:]), 0
+        fim = depois_das_atribuicoes(base, i)
+        lancadas += base[i:fim]
+        inicio = fim
+    return base[inicio:], lancadas
 
 
 # A palavra de laço ou de condição antes do comando (`do rm …`, `then …`): o comando vem depois dela.
@@ -1760,33 +1797,43 @@ CONTORNO_DA_REAVALIACAO = ("rode o comando direto, sem eval nem shell com -c, ou
 SHELLS_DA_REAVALIACAO = SHELLS | {"rbash"}
 
 
-def reavaliacao_das_palavras(palavras):
+def reavaliacao_das_palavras(palavras, opcao_depois=False):
     """ADR 0011, item 2 (opção B da revalidação 9): o comando simples, com as palavras já reduzidas como o bash
     (`reduzida`; None: a palavra não se reduz), reavalia um texto pelo shell? Em qualquer posição: alguma palavra é
-    `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do arquivo) seguido, mais adiante no mesmo comando, de uma
-    opção curta com `c`. Não há lista de prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo que
-    vier caem pela mesma regra. O `env -S` divide o valor em palavras, que se conferem de novo; o que o hook não divide
-    (aspas abertas) é ele mesmo uma reavaliação que ele não lê: `env -S`. Devolve o nome (`eval`, `bash -c`) ou None."""
-    for k, palavra in enumerate(palavras):
+    `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do arquivo) seguido, mais adiante no mesmo comando, de
+    uma opção curta com `c`. Não há lista de prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo
+    que vier caem pela mesma regra. O `env -S` divide o valor em palavras, que se conferem de novo; o que o hook não
+    divide (aspas abertas) é ele mesmo uma reavaliação que ele não lê: `env -S`. Devolve o nome (`eval`, `bash -c`)
+    ou None.
+    Linear (bloco T da revalidação 10): uma passada da direita para a esquerda, que guarda se há opção com `c` depois
+    de cada palavra; o `env` só lê as opções dele. `opcao_depois`: há opção com `c` nas palavras que seguem estas (a
+    cauda de um `env -S`). A passada vai até a esquerda e o último achado é o da palavra mais à esquerda."""
+    n = len(palavras)
+    textos = ["" if p is None else p for p in palavras]  # o que o `env` lê: a palavra que não se reduz é vazia
+    opcao_a_partir = [False] * n + [opcao_depois]  # [j]: há opção com `c` em palavras[j:] (ou depois delas)
+    achada = None
+    for k in range(n - 1, -1, -1):
+        palavra = palavras[k]
+        opcao_a_partir[k] = opcao_a_partir[k + 1] or (
+            palavra is not None and OPCAO_DE_REAVALIACAO.fullmatch(palavra) is not None)
         if palavra is None:
             continue
         nome = Path(palavra).name
         if palavra == "eval":
-            return "eval"
-        if nome in SHELLS_DA_REAVALIACAO and any(p is not None and OPCAO_DE_REAVALIACAO.fullmatch(p)
-                                                 for p in palavras[k + 1:]):
-            return f"{nome} -c"
-        if nome == "env":
-            cauda = ["" if p is None else p for p in palavras[k:]]
+            achada = "eval"
+        elif nome in SHELLS_DA_REAVALIACAO and opcao_a_partir[k + 1]:
+            achada = f"{nome} -c"
+        elif nome == "env":
             try:
-                depois, _ = separar_lancadores(cauda)
+                depois, dividido = opcoes_do_lancador(textos, k + 1, "env", LANCADORES["env"])
             except ValueError:
-                return "env -S"
-            if depois != cauda[len(cauda) - len(depois):]:  # o `env -S` dividiu um valor: as palavras são outras
-                achada = reavaliacao_das_palavras(depois)
-                if achada:
-                    return achada
-    return None
+                achada = "env -S"
+                continue
+            if dividido:  # o `env -S` dividiu um valor: as palavras são outras
+                dentro = reavaliacao_das_palavras(dividido, opcao_a_partir[min(depois, n)])
+                if dentro:
+                    achada = dentro
+    return achada
 
 
 def reavaliacao(texto):
@@ -1970,7 +2017,10 @@ def mensagem(rid, texto):
 
 
 def bloquear(rid, texto):
-    """Saída 2: o Claude Code bloqueia a ferramenta (PreToolUse) ou mostra o motivo (PostToolUse)."""
+    """Saída 2: o Claude Code bloqueia a ferramenta (PreToolUse) ou mostra o motivo (PostToolUse). A decisão já está
+    tomada: o vigia de prazo se desarma, para o alarme não trocar a recusa por um prazo vencido."""
+    if hasattr(signal, "setitimer"):
+        signal.setitimer(signal.ITIMER_REAL, 0)
     print(mensagem(rid, texto), file=sys.stderr)
     sys.exit(2)
 
@@ -2002,6 +2052,7 @@ class Hook:
         self.raiz = None
         self._config = None
         self._run = None
+        self.marcado = None  # o texto da ação tem o marcador crítico? None: ainda não se sabe (`marcado`)
 
     # Entrada -------------------------------------------------------------------------------
     def campo(self, *chaves):
@@ -2145,12 +2196,20 @@ def texto_da_acao(hook, bruto):
     return "\n".join(v for k in ("command", "file_path", "notebook_path") if isinstance(v := entrada.get(k), str))
 
 
+def marcado(hook, critico, bruto):
+    """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
+    decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
+    if hook.marcado is None:
+        hook.marcado = critico.search(texto_da_acao(hook, bruto)) is not None
+    return hook.marcado
+
+
 def falhar_fechado(hook, critico, bruto, clone_do_forge=False):
     """ADR 0009, seção 7: em erro interno, bloqueia só se o comando ou o caminho da ação tem marcador crítico e a
     sessão é vigiada (`sessao_vigiada`: pela raiz da sessão, não pela pasta corrente), e nunca depois da
     ferramenta, quando já não há o que impedir."""
     if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse"
-            or not critico.search(texto_da_acao(hook, bruto)) or not sessao_vigiada(hook, clone_do_forge)):
+            or not marcado(hook, critico, bruto) or not sessao_vigiada(hook, clone_do_forge)):
         return
     bloquear("R-CONFORMIDADE", f"erro interno do hook {hook.nome} diante de uma ação crítica; ele não pôde "
                                "decidir. Corrigir: veja .forge/run/erros.log e leve ao usuário (R-DECISAO)")
@@ -2166,26 +2225,74 @@ def desligado_na_config(hook):
 def barrar_sem_versao(hook, critico, bruto):
     """Ação crítica numa sessão que era de projeto e perdeu o `.forge/versao`: bloqueia (R-CONFORMIDADE), em vez de
     deixar os hooks se desligarem junto com o arquivo. Nunca depois da ferramenta; respeita `hooks_desligados`."""
-    if (hook.entrada.get("hook_event_name") != "PostToolUse" and critico.search(texto_da_acao(hook, bruto))
+    if (hook.entrada.get("hook_event_name") != "PostToolUse" and marcado(hook, critico, bruto)
             and versao_sumiu() and not desligado_na_config(hook)):
         bloquear("R-CONFORMIDADE", TEXTO_DA_FALHA[motivo_da_falha()])
 
 
-def executar(nome, funcao, critico=None, clone_do_forge=False):
+# O vigia de prazo (bloco T da revalidação 10): o Claude Code mata o hook aos 10 s (`timeout` de hooks.json) e libera a
+# ação, então a decisão de um hook que recusa tem de vir antes. Um alarme do processo (`signal.setitimer`, na thread
+# principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; com o marcador crítico na
+# chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
+# fica com os tetos de `excede_o_teto` e o prazo de `conformidade.bash`.
+PRAZO_DA_DECISAO_S = 3.0
+
+
+class PrazoVencido(BaseException):
+    """O vigia de prazo venceu no meio da decisão. `BaseException`: nenhum `except Exception` do hook a engole."""
+
+
+def _vencer(signo, quadro):
+    raise PrazoVencido()
+
+
+@contextmanager
+def vigia_de_prazo(segundos):
+    """Arma o alarme de `segundos` s (None: não arma) e o desarma na saída, por qualquer caminho."""
+    if not segundos or not hasattr(signal, "setitimer") or threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    anterior = signal.signal(signal.SIGALRM, _vencer)
+    signal.setitimer(signal.ITIMER_REAL, segundos)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        signal.signal(signal.SIGALRM, anterior)
+
+
+def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
+    """O vigia venceu: com o marcador crítico (e `marcado` ainda desconhecido vale como marcado: a busca do próprio
+    marcador passou do prazo), numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera,
+    com a linha no erros.log. Roda fora do vigia, e não refaz a busca do marcador."""
+    hook.registrar_erro(Aviso(f"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido"))
+    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or hook.marcado is False
+            or not sessao_vigiada(hook, clone_do_forge)):
+        return
+    bloquear(regra, f"o hook não decidiu em {PRAZO_DA_DECISAO_S:g} s a chamada com ação crítica (texto longo ou lento "
+                    f"demais): recusa, em vez de deixar o timeout liberá-la. Corrigir: {CONTORNO_DO_TETO}")
+
+
+def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None):
     """Lê o JSON do stdin, chama `funcao(hook)` e sai com 0; `bloquear` sai com 2. `critico` (regex) liga a falha
     fechada seletiva (`clone_do_forge`: também no clone do Forge); `FORGE_GUARDA_ABERTA=1` no ambiente do processo
-    (só o dono) abre a guarda desses hooks."""
+    (só o dono) abre a guarda desses hooks. `regra_do_prazo` (a regra que o hook cita ao recusar) liga o vigia de prazo:
+    o marcador se calcula primeiro, e a decisão toda roda sob `PRAZO_DA_DECISAO_S`."""
     hook = Hook(nome)
     bruto = sys.stdin.read()
     if critico is not None and os.environ.get("FORGE_GUARDA_ABERTA") == "1":
         sys.exit(0)
     try:
-        entrada = json.loads(bruto or "{}")
-        if isinstance(entrada, dict):
-            hook.entrada = entrada
-            if critico is not None:
-                barrar_sem_versao(hook, critico, bruto)
-            funcao(hook)
+        with vigia_de_prazo(PRAZO_DA_DECISAO_S if regra_do_prazo and critico is not None else None):
+            entrada = json.loads(bruto or "{}")
+            if isinstance(entrada, dict):
+                hook.entrada = entrada
+                if critico is not None:
+                    marcado(hook, critico, bruto)
+                    barrar_sem_versao(hook, critico, bruto)
+                funcao(hook)
+    except PrazoVencido:
+        prazo_vencido(hook, critico, bruto, clone_do_forge, regra_do_prazo)
     except Exception as erro:  # noqa: BLE001 - ADR 0003: erro interno libera e fica no erros.log
         hook.registrar_erro(erro)
         falhar_fechado(hook, critico, bruto, clone_do_forge)

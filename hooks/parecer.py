@@ -19,10 +19,10 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear,
-                    conteudos_de_crase, corpo_so_lido, e_clone_do_forge, executar, fora_da_gramatica_com_heredoc,
-                    forge_check, git, nome_da_branch, leituras, raiz_de_estado, reavaliacao, sem_atribuicoes,
-                    separar_regra, tirar_heredocs)
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, CONTORNO_DO_TETO, INTEGRACAO, OPACO, PLUGIN,
+                    PROFUNDIDADE, bloquear, conteudos_de_crase, corpo_so_lido, e_clone_do_forge, excede_o_teto, executar,
+                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, raiz_de_estado,
+                    reavaliacao, sem_atribuicoes, separar_regra, tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -359,6 +359,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
                              "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
                              "<<'FIM' ou separe os comandos")
+    if nivel == 0 and CRITICO.search(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
+        excesso = excede_o_teto(comando)
+        if excesso:
+            bloquear("R-REVIEW", f"chamada com gh pr, gh api, merge ou pull e {excesso}: o hook não a decide dentro do "
+                                 f"prazo. Corrigir: {CONTORNO_DO_TETO}")
     lidas = leituras(comando)
     # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição. A palavra `"$(…)"` não: o texto
     # dela é o do `shlex`, e o nível de fora já leu as substituições dela como escritas
@@ -437,4 +442,4 @@ def conferir(hook, partes, pasta, branches):
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO, clone_do_forge=True)
+    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW")

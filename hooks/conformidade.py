@@ -24,10 +24,11 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, CORPO_DE_LACO, INTEGRACAO, OPACO, PLUGIN,
-                    PROFUNDIDADE, bloquear, comentarios,
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO, OPACO,
+                    PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
-                    e_clone_do_forge, em_contrib, executar, fora_da_gramatica_com_heredoc, fora_da_gramatica_de_leitura,
+                    e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
+                    fora_da_gramatica_de_leitura,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
@@ -640,6 +641,15 @@ class Guarda:
         self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         self.conferidas[chave] = dict(self.ambiente or {})
 
+    def recusar_o_teto(self, comando, original, nivel):
+        """Bloco T da revalidação 10: com o marcador crítico no nível 0, a chamada acima do teto de caracteres (sem os
+        corpos de heredoc) ou de palavras (`excede_o_teto`) é recusada antes de qualquer leitura cara."""
+        if nivel == 0 and not self.leitura and CRITICO.search(original):
+            excesso = excede_o_teto(comando)
+            if excesso:
+                self.barrar("R-CONFORMIDADE", f"chamada com ação crítica e {excesso}: o hook não a decide dentro do "
+                                              "prazo", CONTORNO_DO_TETO)
+
     def conferir_linha(self, comando, pasta, nivel, so_substituicoes, corpo_de_heredoc=False):
         if nivel > PROFUNDIDADE:
             self.ilegivel(comando, pasta)
@@ -661,8 +671,10 @@ class Guarda:
             comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
         except ValueError:  # HEREDOC-FURO-HOOK: `<<` em dúvida com linha depois, ou corpo que o bash expande com `$(`
             lidas, corpos, gravado = None, [], None
+            self.recusar_o_teto(comando, original, nivel)
         else:
             comando = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", comando)  # `$(pwd)/x` é um caminho conhecido
+            self.recusar_o_teto(comando, original, nivel)
             lidas = leituras(comando)
             # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição; recusa no fim do nível 0.
             # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
@@ -1771,4 +1783,4 @@ def decidir(hook, guarda, ferramenta, entrada):
 
 
 if __name__ == "__main__":
-    executar("conformidade", principal, CRITICO)
+    executar("conformidade", principal, CRITICO, regra_do_prazo="R-CONFORMIDADE")
