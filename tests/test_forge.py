@@ -4815,3 +4815,35 @@ class TetoPorPr(unittest.TestCase):
                           "nunca em `hooks/`"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+
+class BloqueanteSoComDefeitoProvado(unittest.TestCase):
+    """EST-030-L5, M3: a regra do que bloqueia um parecer está nas regras, nos quatro agentes de parecer e nos cinco modelos."""
+
+    REGRAS_E_FRASES = {
+        "docs/regras/R-REVIEW.md": ("um parecer só reprova (`bloqueante`) por defeito de comportamento provado",
+                                    "requisito da especificação não atendido", "segurança com gatilho",
+                                    "exige a marca `critério mudou:` com o motivo"),
+        "docs/regras/R-SEGURANCA.md": ("só é `bloqueante` quando toca um gatilho desta regra",
+                                       "marca `critério mudou:` com o motivo", "(`R-REVIEW`)"),
+    }
+    CURTA = "defeito provado, requisito ou segurança com gatilho"
+    MODELOS = ("templates/projeto/docs/reviews/_modelo.md", "templates/projeto/docs/qa/_modelo.md",
+               "templates/projeto/docs/security/_modelo.md", "docs/security/_modelo.md", "docs/devops/_modelo.md")
+    AGENTES = ("tech-lead", "security-engineer", "qa-engineer", "devops-engineer")
+
+    def test_as_duas_regras_trazem_o_texto_do_que_bloqueia(self):
+        for caminho, frases in self.REGRAS_E_FRASES.items():
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in frases:
+                with self.subTest(regra=caminho, frase=frase):
+                    self.assertIn(frase, texto)
+
+    def test_os_quatro_agentes_e_os_cinco_modelos_citam_a_regra_e_a_marca(self):
+        arquivos = [f"agents/{a}.md" for a in self.AGENTES] + list(self.MODELOS)
+        self.assertEqual(len(arquivos), 9)
+        for caminho in arquivos:
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in (self.CURTA, "`critério mudou:` com o motivo", "(`R-REVIEW`)"):
+                with self.subTest(arquivo=caminho, frase=frase):
+                    self.assertIn(frase, texto)
