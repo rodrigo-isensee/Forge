@@ -156,6 +156,11 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                     self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
         self.assertGreaterEqual(total, 40)
 
+    def test_manifesto_do_plugin_de_dev_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # FORGE-TESTES-CAMINHOS
+        modo, modulos = self.f.planejar(["dev/.claude-plugin/plugin.json"], RAIZ)
+        self.assertEqual(modo, "dirigido")
+        self.assertEqual(modulos, self.f.planejar([".claude-plugin/plugin.json"], RAIZ)[1])
+
     def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
         self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
                          ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
@@ -252,6 +257,50 @@ class Execucao(unittest.TestCase):
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
         self.assertIn("dirigido (test_forge, test_novo, test_sugerir)", r.stdout)
+
+    # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
+    # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção
+    # incompatível e caminho começado por `-` (depois de `--`).
+    def rodar_com(self, *args, cwd=None):
+        return subprocess.run([sys.executable, str(FERRAMENTA), *args], cwd=cwd or self.dir, env=AMBIENTE,
+                              capture_output=True, text=True)
+
+    def test_caminhos_dirigem_o_plano_sem_olhar_o_git(self):
+        r = self.rodar_com("--listar", "tests/test_sugerir.py", "tests/test_outro.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("dirigido (test_outro, test_sugerir)", r.stdout)
+        self.assertFalse((self.dir / ".forge").exists())
+
+    def test_caminho_sem_mapa_cai_na_completa_e_o_alterado_no_git_nao_conta(self):
+        (self.dir / "tests" / "test_sugerir.py").write_text("x = 1\n", encoding="utf-8")  # alterado, mas não citado
+        r = self.rodar_com("--listar", "novo.txt")
+        self.assertIn("suíte completa (novo.txt sem mapa)", r.stdout)
+
+    def test_caminho_absoluto_com_ponto_ponto_e_de_subpasta_valem(self):
+        (self.dir / "sub").mkdir()
+        absoluto = str(self.dir / "tests" / "test_sugerir.py")
+        for args, cwd in (((absoluto,), None), (("sub/../tests/test_sugerir.py",), None),
+                          (("../tests/test_sugerir.py",), self.dir / "sub")):
+            with self.subTest(args=args, cwd=cwd):
+                r = self.rodar_com("--listar", *args, cwd=cwd)
+                self.assertIn("dirigido (test_sugerir)", r.stdout, r.stdout + r.stderr)
+
+    def test_caminho_fora_do_repositorio_e_recusado(self):
+        r = self.rodar_com("--listar", "../fora.py")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("fora do repositório", r.stderr)
+        self.assertNotIn("dirigido", r.stdout)
+
+    def test_caminhos_nao_combinam_com_completa_nem_com_vermelho(self):
+        for opcao in (("--completa",), ("--vermelho", "HEAD")):  # o `--vermelho` consome o argumento seguinte como base
+            with self.subTest(opcao):
+                r = self.rodar_com(*opcao, "tests/test_sugerir.py")
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("caminhos não combinam", r.stderr)
+
+    def test_caminho_comecado_por_hifen_so_depois_de_dois_hifens(self):
+        r = self.rodar_com("--listar", "--", "-x.py")
+        self.assertIn("suíte completa (-x.py sem mapa)", r.stdout)
 
     def test_nada_alterado_nao_roda(self):
         r = self.rodar()

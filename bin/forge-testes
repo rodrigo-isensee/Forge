@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
-Uso: forge-testes [--base REF] [--listar] [--completa]
+Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
-  --base REF    base da comparação (padrão origin/develop)
+  CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
+                não lê o git: o que mudou fica por conta de quem chama. Não combina com --completa nem com --vermelho
+  --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -88,7 +90,7 @@ MAPA = [
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
     (r"stacks/.*", CONTEUDO + ("test_hooks",)),
-    (r"\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
+    (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
@@ -122,6 +124,18 @@ def caminhos_alterados(base):
     nomes = set(git("diff", "--name-only", "--no-renames", ancora).splitlines())
     nomes |= set(git("ls-files", "--others", "--exclude-standard").splitlines())
     return sorted(n for n in nomes if n)
+
+
+def caminhos_pedidos(pedidos, origem, raiz):
+    """Caminhos dados na linha de comando, relativos à raiz do repositório e normalizados (`..` resolvido sem seguir
+    link). Levanta ValueError para o que cai fora do repositório."""
+    saida = []
+    for pedido in pedidos:
+        relativo = os.path.relpath(os.path.join(origem, pedido), raiz)
+        if relativo == ".." or relativo.startswith(".." + os.sep):
+            raise ValueError(f"{pedido}: fora do repositório")
+        saida.append(Path(relativo).as_posix())
+    return sorted(set(saida))
 
 
 def planejar(caminhos, raiz=Path(".")):
@@ -446,6 +460,7 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido durante a iteração (não é portão).")
+    p.add_argument("caminhos", nargs="*", metavar="CAMINHO")
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
@@ -472,16 +487,27 @@ def main(argv=None):
         if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
             p.error("--modulos: nomes de módulo de teste (test_<nome>) separados por vírgula")
 
+    if args.caminhos and (args.completa or args.vermelho is not None):
+        p.error("caminhos não combinam com --completa nem com --vermelho")
+    origem = os.getcwd()
     try:
-        os.chdir(git("rev-parse", "--show-toplevel").strip())
+        raiz = git("rev-parse", "--show-toplevel").strip()
+        os.chdir(raiz)
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
+    try:
+        pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
+    except ValueError as erro:
+        print(f"forge-testes: {erro}", file=sys.stderr)
+        return 2
 
     if args.vermelho is not None:
         return vermelho(args.base if args.vermelho is True else args.vermelho, modulos_pedidos, prazo)
 
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
+    elif pedidos:
+        modo, detalhe = planejar(pedidos)
     else:
         try:
             modo, detalhe = planejar(caminhos_alterados(args.base))
