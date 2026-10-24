@@ -156,6 +156,10 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                     self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
         self.assertGreaterEqual(total, 40)
 
+    def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
+        self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
+                         ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
+
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
         self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
 
@@ -270,6 +274,19 @@ class NaoEPortao(unittest.TestCase):
         for arquivo in arquivos:
             with self.subTest(str(arquivo.relative_to(RAIZ))):
                 self.assertNotIn("forge-testes", arquivo.read_text(encoding="utf-8", errors="replace"))
+
+    # REVERSAO-MAPA (A6): script de aviso chama o forge-testes e não é portão; a lista é fechada. Script novo que o
+    # cite sem entrar aqui reprova, e a entrada na lista é a decisão consciente de que ele só avisa.
+    AVISOS = {"scripts/conferir-reversao.py"}
+
+    def test_so_script_de_aviso_cita_o_script_em_scripts(self):
+        citam = set()
+        arquivos = [p for p in (RAIZ / "scripts").rglob("*") if p.is_file() and "__pycache__" not in p.parts]
+        self.assertGreaterEqual(len(arquivos), 5)
+        for arquivo in arquivos:
+            if "forge-testes" in arquivo.read_text(encoding="utf-8", errors="replace"):
+                citam.add(arquivo.relative_to(RAIZ).as_posix())
+        self.assertEqual(citam, self.AVISOS)
 
     def test_pre_push_roda_a_suite_inteira(self):
         self.assertIn("python3 -m unittest discover -s tests",
