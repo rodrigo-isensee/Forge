@@ -1,4 +1,6 @@
-"""M6 (R-BRIEF): a guarda do hook `agentes` ao lançar o `forge:conferente` (só a forma do cabeçalho)."""
+"""M6 (R-BRIEF): a guarda do hook `agentes` ao lançar o `forge:conferente` (a forma do cabeçalho; o hash do arquivo é conferido
+em `test_agentes_hash_brief`, e aqui só o caminho feliz com o arquivo de verdade)."""
+import hashlib
 import os
 import shutil
 import subprocess
@@ -15,9 +17,8 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda d
 
 
 class GuardaDoConferente(Cenario):
-    """M6 (R-BRIEF): o hook `agentes` recusa o `forge:conferente` sem o cabeçalho da mensagem; só a forma, sem ler o arquivo."""
-
-    HASH = "a" * 64
+    """M6 (R-BRIEF): o hook `agentes` recusa o `forge:conferente` sem o cabeçalho da mensagem; o arquivo do brief existe no
+    projeto e o hash do cabeçalho é o dele (AGT-2: o hook o recalcula)."""
 
     def setUp(self):
         super().setUp()
@@ -27,6 +28,18 @@ class GuardaDoConferente(Cenario):
         (self.projeto / ".forge").mkdir()
         (self.projeto / ".forge" / "versao").write_text("0.0.0\n", encoding="utf-8")
         self.proc = montar_proc(self.projeto, {"loadavg": "0.1 0.1 0.1", "mem_gb": 8})
+        conteudo = b"# brief\ncorpo\n"
+        for nome in ("p-x-1.md", "meu brief.md"):
+            (self.projeto / "docs" / "briefs").mkdir(parents=True, exist_ok=True)
+            (self.projeto / "docs" / "briefs" / nome).write_bytes(conteudo)
+        self.HASH = hashlib.sha256(conteudo).hexdigest()
+
+    def no_projeto(self, mensagem):
+        """A mensagem real do `forge-check brief mensagem` (gerada na raiz do cenário) com o brief copiado para o projeto do hook."""
+        origem = (self.tmp / ARQ).resolve()
+        destino = self.projeto / ARQ
+        destino.write_bytes(origem.read_bytes())
+        return mensagem.replace(f"Arquivo: {origem}", f"Arquivo: {destino}")
 
     def lancar(self, prompt, tipo="forge:conferente", descricao="d"):
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Agent", "session_id": "s", "cwd": str(self.projeto),
@@ -74,19 +87,19 @@ class GuardaDoConferente(Cenario):
     def test_passa_a_saida_real_do_brief_mensagem(self):
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
-        r = self.lancar(saida.decode())
+        r = self.lancar(self.no_projeto(saida.decode()))
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_passa_com_arquivo_relativo(self):
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
-        relativa = saida.decode().replace(f"Arquivo: {(self.tmp / ARQ).resolve()}", f"Arquivo: {ARQ}")
+        relativa = self.no_projeto(saida.decode()).replace(f"Arquivo: {self.projeto / ARQ}", f"Arquivo: {ARQ}")
         self.assertIn(f"Arquivo: {ARQ}\n", relativa)
         r = self.lancar(relativa)
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_passa_arquivo_absoluto_com_espaco(self):
-        r = self.lancar(self.cabecalho(arquivo="Arquivo: /mnt/c/Users/R/Meus Projetos/docs/briefs/p-x-1.md"))
+        r = self.lancar(self.cabecalho(arquivo=f"Arquivo: {self.projeto / 'docs' / 'briefs' / 'meu brief.md'}"))
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_recusa_arquivo_com_espaco_sem_nome_em_docs_briefs(self):
@@ -97,7 +110,7 @@ class GuardaDoConferente(Cenario):
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_passa_mensagem_com_varios_blocos(self):
-        r = self.lancar(self.cabecalho() + "\n" + self.cabecalho(arquivo="Arquivo: /abs/docs/briefs/q-y-2.md", sha="b" * 64))
+        r = self.lancar(self.cabecalho() + "\n" + self.cabecalho(arquivo="Arquivo: /abs/docs/briefs/q-y-2.md", sha="b" * 64))  # só o 1º bloco vale
         self.assertEqual(r.returncode, 0, r.stderr)
 
     def test_outro_agente_passa_sem_cabecalho(self):

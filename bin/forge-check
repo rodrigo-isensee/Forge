@@ -1500,8 +1500,8 @@ def em_ciclo(raiz, pedido):
 
 
 def agentes_vigentes(raiz):
-    """Quantos agentes vigentes há em .forge/run/agentes.json da cópia principal, onde o hook grava, mesmo de uma worktree
-    (a mesma função `vigentes` do hook `agentes`); 0 sem o arquivo."""
+    """Quantos agentes vigentes há no `agentes.json` onde o hook grava (`agentes.arquivo_de_estado`: .forge/run/ da cópia
+    principal, mesmo de uma worktree; no clone do Forge, o diretório comum do git), com a mesma função `vigentes` do hook; 0 sem o arquivo."""
     sys.path.insert(0, str(PLUGIN / "hooks"))
     try:
         import agentes
@@ -1513,7 +1513,8 @@ def agentes_vigentes(raiz):
     except (OSError, ValueError):
         horas = None  # sem config legível vale o padrão de 2 h; os agentes vigentes ainda são contados
     try:
-        estado = json.loads((raiz_principal(raiz) / ".forge" / "run" / "agentes.json").read_text(encoding="utf-8"))
+        arquivo = agentes.arquivo_de_estado(raiz) or raiz_principal(raiz) / ".forge" / "run" / "agentes.json"
+        estado = json.loads(arquivo.read_text(encoding="utf-8"))
         lista = estado.get("agentes", [])
     except (OSError, ValueError, AttributeError):
         lista = []
