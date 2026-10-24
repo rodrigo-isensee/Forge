@@ -30,6 +30,7 @@ class Teste(unittest.TestCase):
     resumo = base.Fechar.resumo
     marcas = base.Fechar.marcas
     log_de = base.Fechar.log_de
+    arvores = base.Fechar.arvores
 
     def setUp(self):
         base.Fechar.setUp(self)
@@ -97,6 +98,33 @@ class Teste(unittest.TestCase):
         final = [l for l in r.stdout.splitlines() if "ou forge-fechar" in l][0]  # o aviso final também é colado: ref escapado
         self.assertEqual(self.argumentos_da_linha("forge-fechar() { printf '%s\\n' \"$@\"; }; " + final.split("ou ")[1].rstrip(".")),
                          ["p1", "--ref", ref, "--limpar"])
+
+    # ---- LOTE-FECHAR-031, E2: rodado de dentro da worktree da própria branch ----
+    def test_de_dentro_da_worktree_da_branch_sai_para_a_principal_remove_e_fecha_com_0(self):
+        wt = self.com_worktree()
+        r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, env=self.env,
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertIn(f"registro: saí da worktree de melhoria/x para a principal: {self.proj}", r.stdout)
+        self.assertNotIn("saia dela", r.stderr)
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertEqual(len(self.arvores()), 1)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_de_dentro_da_worktree_com_commit_nao_mesclado_continua_pendente_sem_apagar(self):
+        wt = self.com_worktree()
+        (wt / "c").write_text("3\n")
+        self.git("add", "c", cwd=wt)
+        self.git("commit", "-q", "-m", "feat: c", cwd=wt)
+        r = self.fechar_em(wt, "p1", "--ref", "melhoria/x")
+        self.assertNotEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"], r.stderr + r.stdout)
+        self.assertTrue(wt.exists())
+        self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
+
+    def fechar_em(self, cwd, *args):
+        return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)
 
 
 if __name__ == "__main__":

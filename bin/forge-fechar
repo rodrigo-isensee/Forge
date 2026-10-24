@@ -7,7 +7,7 @@
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
-# efeito colateral). Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
+# efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
 # (a cada FORGE_FECHAR_INTERVALO, até --espera) e segue para o merge preso ao head quando o rótulo está no PR e a Catraca verde. Nessa
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
@@ -149,6 +149,7 @@ elif [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RU
 else
   logdir="${TMPDIR:-/tmp}/forge-fechar-logs-$(id -u)"
 fi
+case "$logdir" in /*) ;; *) logdir="$PWD/$logdir" ;; esac  # absoluto: a limpeza pode trocar de diretório (passo 7)
 [ ! -L "$logdir" ] || die "a pasta do log é um link simbólico: $logdir; recusada"
 (umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
 [ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
@@ -354,11 +355,20 @@ limpar_entrega() {
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-  local orfao=0
+  local orfao=0 principal
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
-      echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
-      arv_st=pendente
+      # Rodado de dentro da worktree da própria branch: sai dela para a worktree principal (a primeira de `worktree list`) antes de remover.
+      principal="$(git worktree list --porcelain | awk '$1=="worktree" && !f {print substr($0,10); f=1}')"
+      if [ -n "$principal" ] && [ -d "$principal" ] && [ "$(cd "$principal" && pwd -P)" != "$atual" ] && cd "$principal"; then
+        echo "registro: saí da worktree de $ref para a principal: $principal"
+      else
+        echo "aviso: você está na worktree de $ref e não achei outra para sair; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
+        arv_st=pendente
+      fi
+    fi
+    if [ "$arv_st" != ok ]; then
+      :
     elif [ -n "$sha_local" ] && ! sha_confere "$sha_local"; then
       echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não removi a worktree $(printf '%q' "$arvore") (arquivos ignorados dela se perderiam)." >&2
       arv_st=pendente
