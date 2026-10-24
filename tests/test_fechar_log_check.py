@@ -71,6 +71,40 @@ class FecharLogCheck(unittest.TestCase):
         self.assertIn("check extra skipping run=? job=?", r.stdout)
         self.assertEqual(self.dicas(r), [])
 
+    def test_pasta_do_log_do_proprio_usuario_com_modo_diferente_de_700_vira_700_com_aviso(self):
+        for modo in (0o755, 0o777, 0o500):
+            with self.subTest(modo=oct(modo)):
+                pasta = self.tmp / f"logs-{modo:o}"
+                pasta.mkdir()
+                pasta.chmod(modo)
+                r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(pasta))
+                self.assertEqual(r.returncode, 0, r.stderr)
+                self.assertEqual(oct(pasta.stat().st_mode & 0o777), "0o700")
+                self.assertIn(f"ajustei para 700: {pasta}", r.stderr)
+                self.assertEqual(len(list(pasta.glob("forge-fechar-*.log"))), 1)
+
+    def test_pasta_com_modo_700_nao_traz_aviso_e_link_ou_nao_diretorio_continuam_recusados(self):
+        certa = self.tmp / "certa"
+        certa.mkdir(mode=0o700)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(certa))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("ajustei", r.stderr)
+        aberta = self.tmp / "aberta"
+        aberta.mkdir()
+        aberta.chmod(0o755)
+        link = self.tmp / "link"
+        link.symlink_to(aberta)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(link))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertEqual(oct(aberta.stat().st_mode & 0o777), "0o755")  # o link nunca leva o chmod ao alvo
+        arquivo = self.tmp / "arq"
+        arquivo.write_text("x\n")
+        arquivo.chmod(0o644)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(arquivo))
+        self.assertNotEqual(r.returncode, 0)
+        self.assertEqual(oct(arquivo.stat().st_mode & 0o777), "0o644")
+
 
 if __name__ == "__main__":
     unittest.main()
