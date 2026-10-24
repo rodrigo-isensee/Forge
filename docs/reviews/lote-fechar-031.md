@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: lote-fechar-031
 branch: melhoria/lote-fechar-031
-commit: e0e83a414081a2ebdd6290eab36e85c4522b7c67
+commit: 7004cd9c76c89d993239c1a001949ec215462487
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-24
@@ -12,6 +12,14 @@ data: 2026-10-24
 
 ## Achados
 - A5 (recomendado) bin/forge-fechar:164 · classe: mensagem de erro que não resolve. O `chmod u=rwx,go=,g-s` tira o setgid, mas não o setuid de diretório: sonda com 4755 e 6777 fica 4700, e o script para pedindo "chmod 700", que também não tira o bit. Raro (setuid em diretório não tem efeito no Linux) e falha fechada; sugestão: `u=rwx,go=,u-s,g-s` e o modo 4755 no subTest.
+
+## Revalidação por delta (rodada 3, volta 3 do QA)
+- Parecer anterior: `e377173d8da5c6c35b765f3f3fe38fe6bf0a1590` (aprovado, A5 recomendado), sobre `e0e83a4`. Delta lido: `e0e83a4..7004cd9`, só `bin/forge-fechar` (linhas 156-161, o `case` relativo trocado por `cd ... && pwd -P` depois das recusas de link, dono e não diretório) e os testes novos de `test_fechar_log_check.py` e `test_fechar_orfao.py`; QA e segurança são só parecer, não lidos como código.
+- QA A1 (log relativo com `..`) resolvido: a normalização vem depois de `[ ! -L ]`, `mkdir`, `[ -d ]` e `[ -O ]`, então as recusas seguem intactas; o teste de dentro da worktree confere pasta absoluta e normalizada, `fim: código 0` e worktree removida.
+- QA A2 (chmod ineficaz) resolvido: teste com `chmod` falso que sai 0 espera rc=1 e a mensagem "precisa ter modo 700", sem "ajustei".
+- QA A3 (branch na worktree principal sem outra para sair) resolvido: teste espera código 3, `worktree=pendente branch=pendente`, nenhum `worktree remove` nem `branch -D`.
+- Achados anteriores seguem fechados; o A5 segue recomendado e aberto. Já lido e não relido: o resto do diff das rodadas 1 e 2.
+- Testes do delta: `python3 -m unittest tests.test_fechar_log_check tests.test_fechar_orfao` → `Ran 19 tests`, `OK`. Teto M14: 212 linhas de código e teste em `bin/` e `tests/`, dentro de 400.
 
 ## Revalidação por delta (rodada 2)
 - Parecer anterior: `0728af911db79e4225cf1c9e9c5c43c690e0ba5f` (reprovado, A1 bloqueante; A2 a A4 recomendados), sobre `432a0a7`.
@@ -32,4 +40,4 @@ data: 2026-10-24
 - Commits do delta: Conventional Commits em português, um por achado. `R-NEUTRO` e `R-CUSTO`: nada novo.
 
 ## Parecer
-Aprovado. O bloqueante A1 está resolvido e o teste falha sem a guarda; A2 a A4 entraram. Fica o A5, recomendado (setuid em diretório), para um cartão ou para a próxima mexida no trecho.
+Aprovado na rodada 3 (head 7004cd9). Sem bloqueante. O bloqueante A1 (rodada 1) está resolvido e o teste falha sem a guarda; A2 a A4 entraram. Fica o A5, recomendado (setuid em diretório), para um cartão ou para a próxima mexida no trecho.
