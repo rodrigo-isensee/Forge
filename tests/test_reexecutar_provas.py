@@ -271,6 +271,18 @@ class PassoDoCi(unittest.TestCase):
         self.assertNotIn("< <(git diff", passo)
         self.assertNotIn("set +e", passo)
 
+    def test_glob_do_passo_nao_casa_subpasta_de_provas(self):
+        pathspec = re.search(r"-- '(:\(glob\)docs/provas/\*\.md)'\)", self.passo()).group(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            env = sem_manutencao({**os.environ, "HOME": tmp})
+            git = lambda *a: subprocess.run(["git", "-C", tmp, *a], check=True, capture_output=True, text=True, env=env).stdout
+            git("init", "-q")
+            for f in ("docs/provas/a.md", "docs/provas/sub/b.md"):
+                (Path(tmp) / f).parent.mkdir(parents=True, exist_ok=True)
+                (Path(tmp) / f).write_text("x\n")
+            git("add", "-A")
+            self.assertEqual(git("diff", "--name-only", "--cached", "--", pathspec).split(), ["docs/provas/a.md"])
+
     def test_passo_vem_antes_da_suite(self):
         self.assertLess(self.CI.index("Provas cmd do arquivo de provas"), self.CI.index("- name: Testes do Forge\n        if: ${{ !cancelled() && steps"))
 
