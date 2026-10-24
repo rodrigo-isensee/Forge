@@ -36,7 +36,6 @@ import concurrent.futures
 import contextlib
 import functools
 import hashlib
-import importlib.machinery
 import importlib.util
 import io
 import itertools
@@ -3431,14 +3430,17 @@ print(json.dumps(saida))
                 self.assertEqual(codigos[list(guarda).index(nome)], 2 - hoje[nome], f"a mutação {nome} não é pega")
 
     def test_spec_de_mutantes_do_lote_e_valida(self):  # item 7 do critério de fim da opção B (rev14) e A4 do QA
-        """`tests/mutantes/lote-leitura-hook.json` é uma spec válida do `bin/forge-mutante` (no máximo 8 mutantes), cada
-        `de` aparece uma vez no arquivo de hoje, e ela declara os quatro mutantes do item 5 com as trocas deste teste."""
-        carregador = importlib.machinery.SourceFileLoader("forge_mutante", str(RAIZ / "bin" / "forge-mutante"))
-        modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_mutante", carregador))
-        carregador.exec_module(modulo)
+        """`tests/mutantes/lote-leitura-hook.json` tem a forma da spec do `forge-mutante` (pedido, executor e de 1 a 8
+        mutantes, cada um com id, guarda, arquivo, de, para e testes; a validação da ferramenta roda no QA, e o
+        `test_hooks` não lê o `bin/`), cada `de` aparece uma vez no arquivo de hoje, e ela declara os quatro mutantes do
+        item 5 com as trocas deste teste."""
         spec = json.loads((RAIZ / "tests" / "mutantes" / "lote-leitura-hook.json").read_text(encoding="utf-8"))
-        self.assertEqual(modulo.validar_spec(spec), [])
+        self.assertEqual(set(spec), {"pedido", "executor", "mutantes"})
+        self.assertTrue(1 <= len(spec["mutantes"]) <= 8)
+        self.assertEqual(len({m["id"] for m in spec["mutantes"]}), len(spec["mutantes"]))
         for m in spec["mutantes"]:
+            self.assertEqual(set(m), {"id", "guarda", "arquivo", "de", "para", "testes"}, m.get("id"))
+            self.assertTrue(m["arquivo"].startswith("hooks/") and m["testes"] and m["de"] != m["para"], m["id"])
             self.assertEqual((RAIZ / m["arquivo"]).read_text(encoding="utf-8").count(m["de"]), 1, m["id"])
         trocas = {(f"hooks/{arquivo}", de, para) for arquivo, de, para, _ in self.MUTACOES_DO_TEXTO_ABERTO.values()}
         self.assertLessEqual(trocas, {(m["arquivo"], m["de"], m["para"]) for m in spec["mutantes"]})
