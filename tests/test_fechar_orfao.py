@@ -114,12 +114,18 @@ class Teste(unittest.TestCase):
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
 
     def test_de_dentro_da_worktree_com_commit_nao_mesclado_continua_pendente_sem_apagar(self):
+        # --limpar com o PR MERGED no head antigo: o passo 7 roda de dentro da worktree e só a guarda de sha impede o `worktree remove`
+        sha_mesclado = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha_mesclado}\n")
         wt = self.com_worktree()
         (wt / "c").write_text("3\n")
         self.git("add", "c", cwd=wt)
         self.git("commit", "-q", "-m", "feat: c", cwd=wt)
-        r = self.fechar_em(wt, "p1", "--ref", "melhoria/x")
-        self.assertNotEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"], r.stderr + r.stdout)
+        r = self.fechar_em(wt, "p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn("tem commit que não foi mesclado", r.stderr)
+        self.assertEqual(self.marcas("git worktree remove"), [])
         self.assertTrue(wt.exists())
         self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
 
