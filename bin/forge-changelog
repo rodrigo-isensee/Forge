@@ -2,7 +2,8 @@
 """Forge: changelog por fragmentos (ADR 0006), para PRs paralelos não conflitarem no CHANGELOG.md. Só biblioteca padrão.
 
 Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em changelog.d/<branch-sem-prefixo>.md
-     forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md e os apaga
+     forge-changelog release <versão> <data>                          junta os fragmentos em CHANGELOG.md, os apaga e grava a versão
+                                                                      nos plugin.json (raiz e dev/, se existirem)
      forge-changelog conferir-release                                 gate da main: sobrou fragmento em changelog.d/?
      forge-changelog conferir --base REF                              checagem do CI: o PR deixou entrada de changelog?
 Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
@@ -80,6 +81,21 @@ def novo(args):
     print(f"gravado em {arquivo}")
 
 
+MANIFESTOS = (".claude-plugin/plugin.json", "dev/.claude-plugin/plugin.json")
+
+
+def gravar_versao(versao):
+    """Grava a versão nos manifestos que existem (o do plugin e o de desenvolvimento), sem mexer no resto do arquivo."""
+    for nome in MANIFESTOS:
+        caminho = Path(nome)
+        if not caminho.exists():
+            continue
+        texto = caminho.read_text(encoding="utf-8")
+        novo_texto, n = re.subn(r'("version"\s*:\s*")[^"]+(")', rf"\g<1>{versao}\g<2>", texto, count=1)
+        if n:
+            caminho.write_text(novo_texto, encoding="utf-8")
+
+
 def release(args):
     if not re.fullmatch(r"\d+\.\d+\.\d+", args.versao):
         sys.exit("Versão no formato X.Y.Z.")
@@ -106,6 +122,7 @@ def release(args):
             corpo += [f"### {tipo}", *agrupado[tipo]]
     secao = f"## [Não publicado]\n\n## [{args.versao}] - {args.data}\n" + "\n".join(corpo) + "\n\n"
     caminho.write_text(texto[:m.start()] + secao + texto[m.end():], encoding="utf-8")
+    gravar_versao(args.versao)
     for a in arquivos:
         a.unlink()
     print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
