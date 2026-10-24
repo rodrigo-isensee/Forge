@@ -3,135 +3,86 @@ tipo: review
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 96227be7a53d1f7c4448f19fa452bc5116714f9b
-parecer: reprovado
+commit: 182f9287110eaa9838c973aadef6757607e218a1
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-24
 ---
-# Review: lote-leitura-hook (revalidação 10, opção B da revalidação 9)
+# Review: lote-leitura-hook (revalidação 11, opção C da revalidação 10)
 
-Pedido RET-LEITURA-HOOK-REV10, E1.1. Sou revisor independente: não implementei a opção B da revalidação 9 nem escrevi os textos dela (`R-REVIEW`). O parecer anterior (revalidação 9, `reprovado`, A1 e A2 da classe "nível") está em `5ac6ab3`.
+Pedido RET-LEITURA-HOOK-E-REV, E1.1. Sou revisor independente: não implementei a opção C nem o bloco T (`R-REVIEW`). O parecer anterior (revalidação 10, `reprovado`, A1, A4 e A5 bloqueantes) está em `8d2b868`.
 
-**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `3df051e..96227be`. O intervalo inclui o merge `c3d55d5`, que só traz a `develop` (`9c9014d`). O `git show --remerge-diff c3d55d5` sai vazio, então não houve resolução manual. Esses arquivos são da `develop` e ficam como "já lido" nos PRs deles. Li inteiro o delta da branch:
-- `5ac6ab3..b42fd4b`, os 5 commits: `83c63b2` (o corpus vermelho), `53d0544` (`reduzida`), `aadb806` (o reconhecedor sem posição), `d73c373` (G1, a prova de G1 e a propriedade) e `b42fd4b` (o changelog). Os arquivos são `hooks/_comum.py:1757-1914`, `hooks/conformidade.py:660-670,854`, `hooks/parecer.py:358-383`, o corpus (`tests/fixtures/heredoc-volta-unica.json:210-236`), `tests/test_hooks.py:1897-2606` e `changelog.d/lote-leitura-hook.md:9`.
-- `96227be`, os textos: a ADR 0011, linha 42; o desenho, linhas 280-282; e `docs/hooks.md:95`.
+**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `96227be..182f928`. O trecho `96227be..8d2b868` são só os pareceres da revalidação 10 (`docs/reviews/` e `docs/security/`). O merge `182f928` traz a `develop` `d150ec8`; o `git show --remerge-diff 182f928` sai vazio, então não houve resolução manual, e os arquivos da `develop` (`bin/forge-atualizar`, `bin/forge-changelog`, `bin/forge-check`, `agents/`, os pareceres e testes de LOTE-ATUALIZAR, RELEASE-DEV-VERSAO e CONF-BASE-DONO) ficam como "já lido" nos PRs deles. Li inteiro o delta da branch, `8d2b868..874965a`:
+- `a49810f` (o corpus vermelho), `8333091` (bloco T), `f4163e6` (`INDECIDIVEL`), `7014072` e `00d83c2` (propriedade e par), `874965a` (textos);
+- arquivos: `hooks/_comum.py`, `hooks/conformidade.py`, `hooks/parecer.py`, `tests/test_hooks.py`, `tests/fixtures/heredoc-volta-unica.json`, `docs/hooks.md:95-96`, o desenho (linhas 88 e 282), a ADR 0011 (linha 42) e `changelog.d/lote-leitura-hook.md`.
 
-Fica como "já lido" o que vem antes de `3df051e` (revalidações 1 a 9).
+Fica como "já lido" o que vem antes de `96227be` (revalidações 1 a 10).
 
-**Critério.** Uso a frase de parada corrigida (proposta `lote-leitura-hook-caminho-rev9.md`, seção 2, no desenho, linha 282, e na ADR 0011, linha 42). O domínio é a linha Promete: a palavra que o bash recebe depois da remoção de aspas, em qualquer posição. O que está na linha "Não promete" é cartão. O fim é o critério verificável da seção 3B.
+**Critério.** A proposta `lote-leitura-hook-caminho-rev10.md`, seções 2 (blocos T e X), 3C (o critério de fim da opção C) e 6 (os textos), com a decisão "C" do dono de 2026-10-24.
 
 ## Achados
-- A1 (bloqueante) docs/hooks.md:95 · classe "texto", 1.ª volta: o parágrafo "Reavaliação pelo shell com ação crítica" descreve a regra da rev. 8 (5 shells, sem rbash; "por baixo dos lançadores que ele separa"; T9b sobre "mutações por nível") e não a do código (palavra reduzida em qualquer posição, rbash, G1)
-- A2 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:88 · a célula Promete da linha Leitor segue com a frase da rev. 8 (5 shells, por baixo dos lançadores); o rbash, que o código reconhece, não aparece no desenho, na ADR 0011 (linha 42: "um shell da lista") nem no docs/hooks.md
-- A3 (recomendado) hooks/_comum.py:1915 · uma linha em branco só entre `reduzida` e `valor_do_split_string` (o resto do módulo usa duas); ajuste de formatação
-- A4 (bloqueante) hooks/_comum.py:1852 · classe "nível" (grafia), 4.ª volta: `_ansi_c` não trata o `\x{HH…}` do bash 5.3; `$'\x{65}'val '…'`, `$'\x{0065}val' '…'` e `bash -$'\x{63}' '…'` saem 2 / 0 e o bash roda a SENTINELA (sondas XB1 a XB3; A1 da segurança)
-- A5 (bloqueante) hooks/_comum.py:1776 · classe "orçamento de tempo", 1.ª volta: para cada shell, `reavaliacao_das_palavras` refaz a busca da opção em toda a cauda (quadrática); `: bash ×10.000` leva 4,0 s só no reconhecedor; a segurança (A2) mostrou o timeout de 10 s liberando a linha crítica
 
 ## Parecer
-**Reprovado**, por três bloqueantes: A1, A4 e A5. Esta seção foi corrigida depois do 1.º envio deste parecer (`528c04e`). O A4 e o A5 vieram do parecer da segurança (`97e51b3`), que entrou na branch antes do meu envio. Confirmei os dois contra os hooks reais e contra o bash 5.3.9 desta máquina.
+**Aprovado.** Nenhum bloqueante. Os três bloqueantes da revalidação 10 fecham, e os critérios de fim de T e de C estão cumpridos e medidos.
 
-**Parada.** O A4 é da classe "nível", dentro da frase corrigida: `$'…'` com escape ANSI-C está na linha Promete, e o bash recebe `eval`. É a 4.ª volta seguida da classe. Pela regra das duas voltas (decisão "A" de 2026-10-22) e pelo que a seção 5 da proposta caminho-rev9 prevê, a entrega **para**: o `software-architect` propõe o caminho e o dono decide. Não é volta direta ao autor. O A1 (classe "texto", 1.ª volta) e o A5 (classe "orçamento de tempo", 1.ª volta) vão junto, na mesma proposta.
+**Contagem por classe** (decisão "A" de 2026-10-22): nesta volta não há achado em nenhuma classe. A classe "nível" (4.ª volta seguida na revalidação 10) fecha por construção; "orçamento de tempo" e "texto" fecham na 1.ª volta. Não há parada.
 
-**A4.** A tabela de `reduzida` se diz fechada, mas não tem o `\x{HH…}`, que o bash 5.3 aceita: `printf '%s\n' $'\x{65}'val` imprime `eval`, e o hook reduz para `\x{65}val`. Meus dois fuzz e o teste de diferença não pegaram isso, porque nenhum deles gera essa forma. Os testes comparam com o bash, mas só sobre as grafias que o próprio teste enumera, e é o mesmo recorte do A3 da revalidação 9, agora na redução. Sugestão para o arquiteto pesar: tirar a tabela da lista e recusar, com marcador, toda palavra com `$'…'` cujo escape não seja um dos da tabela. Outra saída é gerar as bordas a partir do manual da versão do bash que roda o hook.
+### Os achados da revalidação 10
+| Achado | Estado | Evidência |
+|---|---|---|
+| A1 (bloqueante, texto) `docs/hooks.md:95` | **fecha** | o trecho da seção 6.1 está na linha 95, palavra por palavra, e a frase antiga do T9 ("corpus e mutações por nível") sumiu do arquivo |
+| A2 (recomendado) célula Promete, linha 88, e `rbash` | **fecha** | o texto da 6.3 está na célula, com "Antes, pela opção B da revalidação 8:" e a data `2026-10-24` no lugar do marcador; `rbash` está na linha 88, na linha 282 e na ADR 0011, linha 42 |
+| A3 (recomendado) `hooks/_comum.py:1915` | **fecha** | duas linhas em branco antes de `valor_do_split_string` (agora `hooks/_comum.py:1924-1925`) |
+| A4 (bloqueante, nível) `\x{HH…}` | **fecha por construção** | `_ansi_c` e `ESCAPES_ANSI` saíram (o `grep` em `hooks/` não acha nenhum dos dois); AN34 a AN34g saem 2 / 2 no corpus |
+| A5 (bloqueante, orçamento) a reavaliação quadrática | **fecha** | passada da direita para a esquerda; 50 mil palavras em menos de 1 s; OT1 e OT2 (20 mil palavras) saem 2 / 2 com o prazo de produção |
 
-**A5.** Medi `reavaliacao` sozinha com `: bash bash … ; git push origin X:main`: 2.000 palavras levam 0,16 s, 5.000 levam 1,01 s e 10.000 levam 4,0 s. O tempo cresce com o quadrado. O `any(... for p in palavras[k + 1:])` roda de novo para cada `bash`. A correção é linear: guardar, de trás para a frente, se já houve opção com `c`. O timeout e o efeito no bash são da segurança (A2 dela), e não os refiz.
+### Textos da seção 6
+Conferi por script cada citação da seção 6 contra os arquivos (`grep -F` do texto inteiro): 6.1 (o trecho, os três itens de provas, a frase do T9, o acréscimo e o FD15 no FD14) e 6.2 estão literalmente em `docs/hooks.md`, e 6.4 está no desenho (linha 282) e na ADR 0011 (linha 42), com "um shell da lista (`bash`, `sh`, `zsh`, `dash`, `ksh`, `rbash`)". A 6.3 só difere pelo `<data da decisão>`, trocado por `2026-10-24`, que é o que a proposta pede. Os itens de provas da 6.1 entraram em linha, separados por ponto e vírgula, e não em sublista. O commit diz que foi para não partir o parágrafo, e o texto é o mesmo. Não sobrou "escapes ANSI-C" nos textos normativos. A ADR só endurece e não leva o rótulo `afrouxa-regra`, o que está certo.
 
-O resto do código da opção B está certo e cumpre os itens 1 a 6 do critério de fim da seção 3B, que medi:
-- Não sobrou lista de posição: `reavaliacao_das_palavras` olha toda palavra do comando simples, e `reavaliacao` percorre todos os níveis de `palavras_do_texto`.
-- A redução é uma função só, em `_comum`, usada pelos dois hooks.
-- O `parecer` não usa mais a palavra do `shlex`.
-- As sondas da revalidação 9 e mais 60 sondas novas saem 2 / 2.
-- Num fuzz de 15.000 palavras, a redução bateu com o bash em todas. Num fuzz de 9.000 grafias de `eval`, shell e `-c`, o reconhecedor acertou todas.
-- As três mutações ficam vermelhas, cada uma no lugar que a 3B diz.
-
-Fora o A4 e o A5, falta o texto: o código e os testes mudaram, mas o parágrafo de `docs/hooks.md` que descreve o controle ainda descreve a versão anterior (A1).
-
-**A1 (bloqueante).** `docs/hooks.md:95`, no trecho "**Reavaliação pelo shell com ação crítica** (opção B, RET-LEITURA-HOOK-B)", diz três coisas que o código já não faz:
-- Que a recusa vale para "`eval` ou `bash`/`sh`/`zsh`/`dash`/`ksh` com opção curta que contém `c`, em qualquer nível que o hook lê (também por baixo de `env`, `command`, `nice`, `sudo` e dos outros lançadores que ele separa…)". É a regra posicional de `3df051e`. O código de `aadb806` vale em qualquer posição, sobre a palavra reduzida como o bash, e tem `rbash`.
-- Que "o T9b roda no bash o que cada hook libera (corpus e mutações por nível…)". Desde `d73c373`, o T9b e a propriedade rodam sobre G1 (prefixos × grafias × reavaliadores × corpos), e `NIVEIS` só serve ao T8.
-- Nada sobre a redução (`reduzida`), a prova de G1 no bash (`test_g1_esta_na_classe`) e o teste de diferença contra o bash (`test_reducao_da_palavra_como_o_bash`).
-
-O `96227be` só acrescentou o FD14 no fim do parágrafo. O FD14 diz "em qualquer posição e grafia", então o mesmo parágrafo se contradiz: a frase do controle diz "por baixo dos lançadores" e o FD14 diz "em qualquer posição". É a divergência que o arquiteto apontou na nota do pedido.
-
-`docs/hooks.md` é a referência do comportamento do hook para quem mantém a fábrica. A definição de pronto pede a documentação afetada atualizada na mesma entrega.
-
-Sugestão: reescrever só esse trecho com a frase da linha Promete corrigida (desenho, linha 282) e citar `reduzida`, `rbash`, G1, `test_g1_esta_na_classe` e `test_reducao_da_palavra_como_o_bash`. Não muda código nem teste. A revalidação será pelo delta desse parágrafo.
-
-**A2 (recomendado).** A frase de parada da linha 282 já corrige o domínio por referência ("na linha Leitor, a reavaliação prometida é…"), então a promessa vale. Mas a célula Promete (linha 88), que é o que se lê primeiro, ainda tem a frase antiga. O `rbash` está no código (`SHELLS_DA_REAVALIACAO`), no corpus (NR1) e no changelog ("rbash entra na lista dos shells"), mas em nenhum texto normativo. Como o código recusa mais do que o texto promete, não há furo. Sugestão: um `critério mudou:` curto na célula 88, apontando para a linha 282, e o `rbash` na lista.
-
-**Os textos de `96227be` e o código.** A frase de parada é a mesma, palavra por palavra, na proposta (seção 2), no desenho (linha 282) e na ADR 0011 (linha 42). A frase antiga (linha 280) ficou marcada como "substituído pelo critério seguinte". O FD14 em `docs/hooks.md` bate com o corpus: FD14a sai 2 no `conformidade`, FD14b e FD14c saem 2 no `parecer`, e FD14d (o contorno) sai 0. A ADR só endurece e não tem rótulo `afrouxa-regra`, o que está certo. O que diverge está no A1 (`docs/hooks.md:95`) e no A2 (célula 88 e `rbash`).
-
-### A1 e A2 da revalidação 9, contra os hooks reais
-O runner é próprio (`$TMPDIR/tech-lead-lh10/sonda.py`). Ele usa `decisoes_dos_hooks` e `rodar_no_bash_do_t9b` de `tests/test_hooks.py`: os modelos do corpus, a SENTINELA do T9b no `{CORPO}`, `env -i`, `HOME` em `$TMPDIR/tech-lead-lh10/casa`, sem rede e com só o bash de programa real. Rodou sobre a worktree em `96227be`. Na tabela, "(s=2)" quer dizer que o hook também recusa a versão com a SENTINELA.
-
-| Sonda | 3df051e conf / par | 96227be conf / par | Estado |
-|---|---|---|---|
-| CO1 `coproc bash -c '{CORPO}'` | 0 / 0, SENTINELA | 2 / 2 (s=2) | **A1 resolvido** |
-| CO2 `coproc eval '{CORPO}'` | 0 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| CO3 `coproc x { eval '{CORPO}'; }` | 2 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| AN1 `bash -$'c' '{CORPO}'` | 2 / 0, SENTINELA | 2 / 2 (s=2) | **A2 resolvido** |
-| AN2 `$'eval' '{CORPO}'` | 2 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| AN3 `e$'val' '{CORPO}'` | 2 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| AN4 `bash $'-c' '{CORPO}'` | 2 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| AN5 `$'bash' -c '{CORPO}'` | 2 / 0, SENTINELA | 2 / 2 (s=2) | resolvido |
-| CO4 `coproc {CORPO}` | 0 / 0, SENTINELA | 0 / 0, SENTINELA | não promete, cartão R5A-COPROC (no corpus com a marca) |
-| CO5 `time {CORPO}` | 2 / 0, SENTINELA | 2 / 0, SENTINELA | não promete, cartão A6 (no corpus com a marca) |
-
-Os outros recomendados da revalidação 9:
-- **A3** (propriedade só sobre `NIVEIS`): resolvido por G1, com 4.000 textos ou mais na propriedade e 1.500 ou mais na prova no bash.
-- **A4** (formas sem reavaliação literal): estão no corpus com a marca `nao_promete` (CN1 a CN3, VA2, PE1, ST1 a ST3), cartão N-HOOK1. NR1, NR2, NR3 e VA1 passaram à linha Promete e saem 2 / 2.
-- **A5** (opções do git): segue no cartão N-HOOK1.
-- **A6**: segue nos cartões R5A-COPROC e A6.
-
-### Sondas novas sobre a frase corrigida (todas 2 / 2, s=2)
-- **Posição:**
-  - prefixos: `exec -a nome bash -c`, `command -p eval`, `builtin eval`, `X=1 eval`, `time -p eval`, `! eval`, `{ eval …; }`, `( eval … )`;
-  - separadores e compostos: `true && eval`, `true;eval`, `true|eval`, `eval … & wait`, `case … in x) eval …;; esac`, `f() { eval …; }; f`, `for … do eval …; done`, `while eval …`, a segunda linha física (`true`⏎`eval …`);
-  - lançadores: `env -S "bash -c '…'"`, `echo x | xargs bash -c`, `sudo -u root bash -c`, `nice -n 1`, `timeout 5`, `nohup`, `find -exec $'bash' -$'c'`.
-- **Nível:**
-  - `$(…)` em vários contextos: `${x:-$(eval …)}`, com e sem aspas duplas e com `$'eval'` dentro; `$(( $(eval …) + 1 ))`; `(( $($'eval' …) ))`; `x[$($'eval' …)]=1`; `a=( "$($'eval' …)" )`; `case $($'eval' …) in`; o alvo de redireção `> "$($'eval' …)"`; o `<<< "$($'eval' …)"`; `$(echo $(echo $($'eval' …)))`;
-  - `$((eval …) )`, que o bash roda como substituição;
-  - substituição de processo: `cat <(eval …)`, `cat x<(eval …)`, `> >(eval …)`;
-  - crase simples e entre aspas, e a crase aninhada com `` \` `` (`` x=`echo \`eval …\`` `` e com `$'eval'`);
-  - heredoc sem aspas com `$(eval …)` ou crase no corpo, e `cat <<'X' && eval …`.
-- **Grafia:**
-  - escapes ANSI-C e afins: `$'\145val'`, `$'eval'`, `$"eval"`, `$'eval\0x'`;
-  - barra e aspas parciais: `e\val`, `'e'"v"$'a'l`, `"e"val`;
-  - continuação de linha: `e\`⏎`val` e `bash -\`⏎`c`;
-  - nome do shell: `/bin/bash`, `$'/bin/bash'`, `$'rbash'`, `` k''sh -$'c' ``, `zsh "-c"`, `\dash`;
-  - opções: `-O extglob -c`, `--norc -c`, `-x -c`, `-ce` e `+x -c`.
-- **Controle:** `"\eval"` sai 0 / 0 e o bash não roda a SENTINELA. O bash recebe `\eval`, que não é `eval`, e por isso a liberação está certa.
-- **Falso positivo:** o corpo de heredoc com as palavras `eval` e `bash -c` não recusa no `parecer`: no `--body "$(cat <<'EOF'…)"` sai 0, e no `git commit -F - <<'EOF'` com `git push` também sai 0. O 2 do `conformidade` no `gh pr create` é do papel `dev` do modelo, e não da reavaliação. `git commit -m 'eval' && git push` sai 2: é o FD14, documentado.
-
-**Fuzz da redução e do reconhecedor** (`fuzz.py` e `fuzz2.py`, só o bash):
-- `fuzz.py`: 5 sementes × 3.000 palavras aleatórias, montadas com `\`, `'…'`, `"…"`, `$"…"` e `$'…'`, com os escapes `\xHH`, `\nnn`, `\0nnn`, `\uHHHH`, `\UHHHHHHHH`, `\cX`, `\c\\`, `\0` e os incompletos. `reduzida` deu o mesmo valor que o `printf '%s'` do bash em todas: 0 diferenças em 15.000.
-- `fuzz2.py`: 3 sementes × 3.000 grafias aleatórias de `eval`, `bash`, `sh`, `rbash` e `zsh` com `-c`, `-ec`, `-lc` e `-xc`, cortadas em pedaços com aspas diferentes. `reavaliacao` reconheceu todas: 0 falhas em 9.000.
-
-### Critério de fim da 3B
-1. **Corpus** (item 1): CO1 a CO3, AN1 a AN5, NR1 a NR3 e VA1 saem 2 / 2. FD14a a FD14d têm a célula do hook com marcador, e FD14d, o contorno, sai 0. Nenhuma marca `fecha` sobra.
-2. **Propriedade sobre G1** (item 2) e **redução contra o bash** (item 4): verdes no `tests.test_hooks` abaixo.
-3. **G1 está na classe** (item 3): `test_g1_esta_na_classe` está verde. Fiz uma mutação do oráculo, numa cópia limpa: a grafia "simples" passou a gerar `'eval '`, com um espaço, que o bash não roda como `eval`. A prova no bash ficou vermelha, `FAILED (failures=216)`. Um gerador que não produz reavaliação de verdade fica vermelho, como a 3B pede.
-4. **Mutações** (item 5): cada uma numa cópia limpa (`git archive 96227be`), uma de cada vez, rodando a propriedade, o corpus e o T9b (`$TMPDIR/tech-lead-lh10/mutacoes.sh`):
+### Critério de fim do bloco T (seção 2), medido
+1. **Por número de palavras:** `test_t_orcamento_por_numero_de_palavras` cobre 6 tipos × {1 mil, o teto = 5 mil, o teto + 1, o teto de caracteres} × 2 hooks. Recusa com 2 em menos de 3 s, com pior tempo de **0,57 s** na minha rodada. Na proposta, "5 mil" e "o teto" são o mesmo número.
+2. **Linearidade:** `test_t_reconhecedor_da_reavaliacao_e_linear` roda 50 mil palavras em menos de 1 s, com o seu próprio alarme de 5 s. Fiz também um fuzz de equivalência entre a versão quadrática de `96227be` e a linear: 200 mil listas aleatórias de palavras de shell, `env`, `-S`, `--split-string`, lançadores, `-c` e `None`. Não houve nenhuma diferença em achar ou não achar (`$TMPDIR/tech-lead-rev-lote-leitura-hook/equiv.py`).
+3. **Vigia:** `test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem` recusa com a regra do hook entre 2,5 e 10 s. Conferi à parte que o caso "sem marcador" passa mesmo pelo passo lento: `echo oi` com o passo lento leva **3,23 s** no `conformidade` e **3,18 s** no `parecer`, e sai 0. Sem o passo lento, leva 0,25 s. Então ele prova a liberação pelo vigia, e não um atalho. O `test_t_vigia_cobre_a_busca_do_proprio_marcador` cobre o próprio regex do marcador, com 20 mil `pr` e o `api` no fim.
+4. **Mutações**, cada uma numa cópia limpa (`git archive 182f928`), só os testes do item (`$TMPDIR/tech-lead-rev-lote-leitura-hook/mut/`):
 
 | Mutação | Resultado | Onde fica vermelho |
 |---|---|---|
-| posição: a regra de `3df051e` (pula `CORPO_DE_LACO` e os lançadores, olha só a 1.ª palavra), sobre as palavras já reduzidas | `FAILED (failures=1806)` | propriedade em `G1 coproc / … / eval` e `… / bash -c` nos dois hooks; corpus em CO1, CO2 (os dois hooks), CO3, NR2, NR3, VA1, FD14a a c, CN1, CN3 |
-| shlex: o `parecer` volta às palavras do `shlex` (com o reconhecedor novo, sem posição) | `FAILED (failures=1325)` | só no `parecer` (894 falhas da propriedade, todas `hook='parecer'`); corpus em `parecer/AN1` a `AN5` e `parecer/CN3` |
-| um hook: sem a recusa só no `parecer` | `FAILED (failures=3539)` | a propriedade separa os hooks: 2.384 falhas, todas `hook='parecer'`, nenhuma no `conformidade` |
+| `reavaliacao_das_palavras` volta à de `96227be` | `FAILED (failures=3)` | linearidade em `shell`, `env` e `env -S` |
+| o vigia não arma (`vigia_de_prazo` sempre cede) | `FAILED (failures=5, errors=1)` | o vigia nos dois hooks, com e sem marcador, e a busca do marcador nos dois hooks |
+| sem o teto no `parecer` | `FAILED (failures=18)` | só `hook='parecer'` (18 de 18), no teto, no teto + 1 e no teto de caracteres |
 
-5. **Não promete** (item 6): CO4, CO5, CN1 a CN3, VA2, PE1 e ST1 a ST3 estão no corpus com `nao_promete` e com o código de hoje. Quando o hook libera, o T9b afirma que a SENTINELA roda, então o conserto futuro aparece como mudança de teste.
-6. **Frase de parada** (item 7): é a da seção 2, nos três textos.
+5. **A sonda de 20 mil palavras:** OT1 e OT2 saem 2 / 2 no corpus, que vale como o Claude Code, porque passar de 10 s libera.
+
+### Critério de fim da opção C (seção 3C), medido
+1. **Propriedade sobre o alfabeto:** o teste gera mais de 40 mil textos. Põe `$'` e `$"` em cada posição do nome e da opção, com `\` e cada caractere de 0x20 a 0x7E, a quebra de linha e as formas `\x{…}`, `\u{…}` e `\c\'`. Todos são reconhecidos por `reavaliacao`, o reconhecedor que os dois hooks usam. Uma amostra de 800 ou mais textos dá 2 nos dois hooks reais. A proposta pede os dois hooks reais para todo texto gerado, e o teste os roda só na amostra. Aceito a troca: os dois hooks chamam a mesma `reavaliacao(comando)` no nível 0, e a mutação "um hook só" mostra que a amostra separa os hooks (abaixo). Rodar 40 mil subprocessos levaria horas.
+2. **Par exaustivo contra o bash:** 96 caracteres × 7 sufixos × 2 contextos, ou seja, 1.344 casos, dentro de `test_reducao_da_palavra_como_o_bash`, como o texto da 6.1 promete. A `reduzida` dá o valor do `printf '%s'` ou `None`, e nunca `INDECIDIVEL` para uma barra com um caractere.
+3. AN34 a AN34g e AN35a a AN35d saem 2 / 2. Os FD15a, b, c, g e h saem 2 no `parecer`, e os contornos FD15d, e, f e i saem 0.
+4. **Mutações:**
+
+| Mutação | Resultado | Onde fica vermelho |
+|---|---|---|
+| `reduzida` sem o `INDECIDIVEL` do `$'` (só o do `$"`) | `FAILED (failures=1)` | a propriedade, já na parte do reconhecedor (o `fail` para no primeiro texto liberado) |
+| o `parecer` não guarda o achado `INDECIDIVEL` | `FAILED (failures=455)` | só no `parecer` (455 de 455, nenhuma no `conformidade`): a propriedade separa os hooks |
+
+5. A busca de `$'` e `$"` nos fixtures `-libera` do `parecer` está registrada no `a49810f`, e nenhum fixture muda de código.
+
+**Sonda própria da classe "nível"** (`fuzz_eval.py`, só o bash). Gerei 10 mil textos `: <miolo> eval SENT`. O miolo junta pedaços de `$'`, `$"`, aspas, barras, `\x{65}`, separadores, quebra de linha, `#`, `bash` e `-c`. Rodei cada texto no bash com `eval` e `bash … -c` trocados por funções sentinela. Destes, **623** rodam a sentinela no bash, e o reconhecedor libera **0**. A confusão do leitor sobre onde termina um `$'…'` fica sempre na mesma palavra que tem o `$'`, e por isso essa palavra cai em `INDECIDIVEL`.
+
+### A invariante `def conteudos_de_crase` em `tests/config.json`
+**Não é afrouxamento.** A troca vem do `f34a329` (CRASE-ASPA-HOOK), de pedido anterior do lote, e não deste delta. A função saiu de `hooks/conformidade.py` e foi para `hooks/_comum.py:346`. A invariante da definição foi junto: a chave nova `"hooks/_comum.py": ["def conteudos_de_crase"]` segue protegendo a definição, agora no lugar onde ela está. Em `hooks/conformidade.py`, a entrada passou a `conteudos_de_crase\(`, que protege o uso: as chamadas nas linhas 723 e 1355. A linha do `import` não casa, porque não tem o parêntese. Proteger o uso no hook é tão forte quanto proteger a definição, e a definição continua protegida. O PR não precisa do destaque de afrouxamento.
+
+### Recomendação, fora do bloco (não bloqueia)
+A mensagem do prazo vencido (`hooks/_comum.py:2235`) usa o contorno do teto ("divida a chamada em comandos menores…"). Quando o que passou dos 3 s foi um `git` lento, e não o texto, esse contorno não ajuda. A medida tem folga: um `git push origin melhoria/sonda` legítimo, num clone de sonda do Forge, levou de 0,12 a 0,24 s com o prazo de produção (o `gh pr create` levou de 0,12 a 0,18 s). Sugestão para um cartão: dizer também "ou tente de novo; o motivo está em `.forge/run/erros.log`".
 
 ### Fora do bloco
-- **Testes que rodei**, na worktree em `96227be`, com `HOME` em `$TMPDIR/tech-lead-lh10/casa`:
-  - `python3 -m unittest tests.test_hooks`: `Ran 61 tests in 227.313s OK`.
-  - `test_g1_esta_na_classe` e `test_reducao_da_palavra_como_o_bash`, à parte: `Ran 2 tests in 11.566s OK`.
-
-  A suíte completa não rodou: o pedido limita a execução a estes testes, e o pre-push do envio roda a suíte. `scripts/validar-plugin.sh` também não rodou, porque o delta não toca o manifesto nem a estrutura do plugin.
+- **Testes que rodei**, na worktree em `182f928`, com `HOME` em `$TMPDIR/tech-lead-rev-lote-leitura-hook/casa`: `python3 -m unittest tests.test_hooks` deu `Ran 66 tests in 482.958s OK`. A suíte completa não rodou, porque o brief limita a execução aos testes do lote, e o pre-push do envio roda a suíte. `scripts/validar-plugin.sh` também não rodou: o delta não toca o manifesto nem a estrutura do plugin.
 - **Código:**
-  - `reavaliacao_das_palavras` é curta e não tem lista de prefixos.
-  - A tabela de `reduzida` está escrita no comentário e coberta por teste contra o bash.
-  - O `so_substituicoes` pula só a palavra `"$(…)"`, que o nível de fora já leu. As sondas `"${x:-$($'eval' …)}"`, `"$($'eval' …)"` e a crase aninhada confirmam isso.
-  - Os commits estão em Conventional Commits em português e na ordem da 3B: o corpus vermelho, a redução, o reconhecedor, depois G1. Não tocam `tests/config.json`: as 3 linhas do intervalo vêm da `develop`.
-  - O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar.
-- **Segurança:** é do E2.1 e não foi refeita aqui. O A4 e o A5 vêm do parecer dela (`97e51b3`, A1 e A2), confirmados por mim nas sondas XB1 a XB3 e na medida de `reavaliacao`. As sondas e os fuzz estão nos scripts em `$TMPDIR/tech-lead-lh10/`.
+  - `reduzida` ficou menor e só tem a remoção de aspas do POSIX.
+  - `_resto_com_ansi` é conservador depois de `$(`, `${` e crase. No máximo recusa um `$'` que estava entre aspas.
+  - O vigia desarma em `bloquear` e no `finally`.
+  - `PrazoVencido` deriva de `BaseException`, então nenhum `except Exception` a engole.
+  - O caminho depois do vigia (`registrar_erro` e `sessao_vigiada`) só lê o sistema de arquivos e não roda `git`, então não come o resto dos 10 s.
+  - Sem `SIGALRM` (Windows nativo), valem só os tetos, e isso está no comentário e no changelog.
+- **Commits:** em Conventional Commits em português e na ordem da seção 5 da proposta. O passo 4 saiu em dois commits (`7014072` e `00d83c2`). É o desvio de forma que o Jarvis já aceitou no pedido, e não pede retrabalho. O delta não toca `tests/config.json`.
+- O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar. O `docs/engineering/achados-recorrentes.md` (PA-7) não tem linha, e nada nele se aplica.
+- **Segurança:** é do E2.1 e não foi refeita aqui. O parecer dela (`a143cf4`, `reprovado`) entrou na branch antes do meu envio, e o A1 dela é da classe nova "lançador que divide texto" (`env -S`). Conferi só se é regressão deste delta, e não é: `env -S 'X=1 bash' -c '…'` dá `None` em `reavaliacao` tanto em `182f928` como em `96227be`. O `-c` depois do valor é lido como opção do `env` pelos dois modelos, e o fuzz de equivalência acima também não mostra diferença. O achado é anterior ao delta e fica com a segurança. Ele não muda o meu veredito sobre o código da opção C e do bloco T, mas o lote não vai ao PR enquanto o parecer dela estiver reprovado.
