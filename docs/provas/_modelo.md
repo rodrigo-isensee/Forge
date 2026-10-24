@@ -6,7 +6,7 @@ Formato de cada linha (uma por prova, sem quebra de linha; o comando entre crase
 
 `- PQ-<n> (cmd): `<comando>` · espera: <espera>`
 
-Espera aceita: `rc=0`, `contém '<t>'`, `igual '<t>'`, `linhas=N`, `linhas>=N`, e a combinação `rc=0 e <espera de saída>`. A saída comparada é a padrão e a de erro juntas. Linhas que não são `(cmd)` ficam como estão (o script as ignora); linha `(cmd)` fora do formato ou com comando fora da lista permitida reprova (falha fechada).
+Espera aceita: `rc=0`, `contém '<t>'`, `igual '<t>'`, `linhas=N`, `linhas>=N`, e a combinação `rc=0 e <espera de saída>`; toda espera traz `rc=0` (o CI recusa a que não traz). A saída comparada é a padrão e a de erro juntas. Linhas que não são `(cmd)` ficam como estão (o script as ignora); linha com `(cmd)` fora do formato exato (ID com espaço, hífen Unicode, `(cmd )`) ou com comando fora da lista permitida reprova (falha fechada).
 
 Lista permitida de comandos (`scripts/reexecutar-provas.py`): `python3 -m unittest <módulo>...` (sem `discover`: a suíte completa já roda no passo "Testes do Forge") e `git rev-parse|ls-files|diff --numstat|diff --name-only`.
 

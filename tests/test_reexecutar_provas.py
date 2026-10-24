@@ -42,10 +42,16 @@ class Lista(unittest.TestCase):
                     "git diff --numstat abc...HEAD", "git ls-files -- docs"):
             self.assertIsNone(rp.comando_permitido(cmd.split()), cmd)
 
+    def test_opcao_de_git_fora_da_lista_cai_pelo_filtro_e_nao_pelo_prefixo(self):
+        for cmd in ("git diff --numstat --output=x", "git diff --numstat --no-index a b", "git ls-files --ext-diff",
+                    "git diff --name-only --textconv"):
+            self.assertIn("opção de git", rp.comando_permitido(cmd.split()) or "", cmd)
+
     def test_recusados_por_falha_fechada(self):
         for cmd in ("rm -rf x", "python3 -c print(1)", "python3 -m unittest discover -s tests", "python3 -m unittest",
                     "python3 -m unittest discover", "python3 -m unittest discover tests", "python3 -m unittest tests.x discover",
-                    "python3 -m unittest -v discover",
+                    "python3 -m unittest -v discover", "python3 -m unittest DISCOVER", "python3 -m unittest Discover -v",
+                    "python3 -m unittest tests.x DiScOvEr", "python3 -m unittest ｄｉｓｃｏｖｅｒ", "python3 -m unittest dis\u200bcover",
                     "git diff --numstat /etc/hostname /dev/null", "git diff --numstat ../fora", "git diff --numstat a/../../b",
                     "git diff --numstat ~/x", "git ls-files -- /etc", "git diff --name-only ..",
                     "python3 -m http.server", "python3 scripts/x.py", "git push origin x", "git diff --output=x",
@@ -56,16 +62,21 @@ class Lista(unittest.TestCase):
 
 class Espera(unittest.TestCase):
     def test_cada_forma(self):
-        casos = [("rc=0", "x\n", 0, None), ("rc=0", "", 1, "rc=0"), ("contém 'ab'", "xaby", 1, None),
-                 ("contém 'zz'", "xaby", 0, "contém 'zz'"), ("igual 'ok'", "ok\n", 1, None), ("igual 'ok'", "ok2", 0, "igual 'ok'"),
-                 ("linhas=2", "a\nb\n", 0, None), ("linhas=2", "a\n", 0, "linhas=2"), ("linhas>=2", "a\nb\nc", 0, None),
-                 ("linhas>=2", "a", 0, "linhas>=2"), ("rc=0 e linhas=1", "a", 0, None), ("rc=0 e linhas=1", "a\nb", 0, "linhas=1")]
+        casos = [("rc=0", "x\n", 0, None), ("rc=0", "", 1, "rc=0"), ("rc=0 e contém 'ab'", "xaby", 0, None),
+                 ("rc=0 e contém 'zz'", "xaby", 0, "contém 'zz'"), ("rc=0 e igual 'ok'", "ok\n", 0, None), ("rc=0 e igual 'ok'", "ok2", 0, "igual 'ok'"),
+                 ("rc=0 e linhas=2", "a\nb\n", 0, None), ("rc=0 e linhas=2", "a\n", 0, "linhas=2"), ("rc=0 e linhas>=2", "a\nb\nc", 0, None),
+                 ("rc=0 e linhas>=2", "a", 0, "linhas>=2"), ("rc=0 e linhas=1", "a", 0, None), ("rc=0 e linhas=1", "a\nb", 0, "linhas=1")]
         for espera, saida, rc, esperado in casos:
             self.assertEqual(rp.avaliar(espera, saida, rc), esperado, (espera, saida, rc))
 
     def test_espera_ilegivel_falha_fechada(self):
         with self.assertRaises(rp.Falha):
             rp.avaliar("talvez", "x", 0)
+
+    def test_espera_sem_rc0_falha_fechada_mesmo_com_saida_que_confere(self):
+        for espera in ("linhas>=1", "contém 'x'", "igual 'x'", "linhas=1"):
+            with self.assertRaises(rp.Falha, msg=espera):
+                rp.avaliar(espera, "x", 128)
 
 
 class Execucao(unittest.TestCase):
@@ -132,7 +143,7 @@ class Execucao(unittest.TestCase):
     def test_git_com_caminho_fora_da_arvore_e_recusado_e_nao_le_o_arquivo(self):
         subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env=sem_manutencao({**os.environ, "HOME": self.tmp.name}))
         for caminho in ("/etc/hostname", "../fora", "docs/../../fora", "~/x"):
-            rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho} /dev/null` · espera: contém 'hostname'"])
+            rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho} /dev/null` · espera: rc=0 e contém 'hostname'"])
             self.assertEqual(rc, 1, caminho)
             self.assertIn("recusado", saida, caminho)
 
@@ -155,14 +166,66 @@ class Execucao(unittest.TestCase):
         for espera in ("linhas>=0", "contém ''", "rc=0 e linhas>=0"):
             rc, saida = self.rodar([f"- PQ-1 (cmd): `python3 -m unittest t_ruim` · espera: {espera}"])
             self.assertEqual(rc, 1, espera)
-            self.assertIn("sempre passa", saida, espera)
+            self.assertIn("p.md:1: PQ-1: espera que sempre passa", saida, espera)
+
+    def test_espera_sem_rc0_e_recusada_com_arquivo_linha_e_sem_rodar_o_comando(self):
+        marca = self.raiz / "marca"
+        (self.raiz / "t_marca.py").write_text(f"import unittest\nclass T(unittest.TestCase):\n    def test(self): open({str(marca)!r}, 'w')\n")
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-2 (cmd): `python3 -m unittest t_marca` · espera: linhas>=1",
+                                "- PQ-3 (cmd): `python3 -m unittest t_ok` · espera: talvez"])
+        self.assertEqual(rc, 1)
+        self.assertIn("p.md:2: PQ-2: espera sem rc=0", saida)
+        self.assertFalse(marca.exists())
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: talvez"])
+        self.assertIn("p.md:1: PQ-1: espera ilegível", saida)
+
+    def test_variantes_de_grafia_da_linha_cmd_falham_fechadas(self):
+        for linha in ("- PQ 1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ\u20111 (cmd): `python3 -m unittest t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd ): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 ( cmd ): `python3 -m unittest t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd\u200b): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 （cmd）: `python3 -m unittest t_ok` · espera: rc=0",
+                      "- PQ-1 (cmd) `python3 -m unittest t_ok` · espera: rc=0", "-  PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0",
+                      "- (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-1 (cmd): `python3 -m unittest t_ok`"):
+            rc, saida = self.rodar([linha])
+            self.assertNotEqual(rc, 0, linha)
+            self.assertIn("p.md:1: linha cmd fora do formato", saida, linha)
+            self.assertNotIn("0 prova(s)", saida, linha)
+
+    def test_arquivo_de_provas_inexistente_sai_com_mensagem_e_sem_traceback(self):
+        r = subprocess.run([sys.executable, str(AQUI.parent / "scripts" / "reexecutar-provas.py"), "--raiz", str(self.raiz), "docs/provas/nada.md"],
+                           capture_output=True, text=True)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("reexecutar-provas: docs/provas/nada.md: não foi possível ler", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_linha_cmd_fora_do_formato_e_modelo_e_fora_de_provas_falham(self):
         self.assertEqual(self.rodar(["- PQ-1 (cmd): python3 -m unittest t_ok"])[0], 1)
         self.assertEqual(self.rodar(["- PQ-1 (cmd): `git rev-parse HEAD` · espera: talvez"])[0], 1)
-        self.assertEqual(self.rodar(["- PQ-1 (cmd): `git rev-parse --verify HEAD` · espera: rc=0"], "_modelo.md")[0], 1)
+        rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0"], "_modelo.md")
+        self.assertEqual(rc, 1)
+        self.assertIn("é o modelo", saida)
         with self.assertRaises(rp.Falha):
             rp.reexecutar("../fora.md", self.raiz, 5)
+
+    def test_ambiente_minimo_e_prazo_chegam_ao_subprocess(self):
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0\n", encoding="utf-8")
+        chamada = {}
+
+        def falso(argv, **kwargs):
+            chamada.update(kwargs)
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        with mock.patch.object(rp.subprocess, "run", falso), mock.patch.dict(os.environ, {"HOME": "/h", "GITHUB_TOKEN": "s"}):
+            rp.reexecutar("docs/provas/p.md", self.raiz, 7)
+        self.assertEqual(set(chamada["env"]), {"PATH", "LC_ALL", "PYTHONDONTWRITEBYTECODE"})
+        self.assertEqual(chamada["timeout"], 7)
+        self.assertEqual(chamada["cwd"], self.raiz)
+
+    def test_passou_do_prazo_reprova_com_arquivo_linha(self):
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0\n", encoding="utf-8")
+
+        def estoura(argv, **kwargs):
+            raise subprocess.TimeoutExpired(argv, 1)
+        with mock.patch.object(rp.subprocess, "run", estoura), self.assertRaisesRegex(rp.Falha, r"p\.md:1: PQ-1: passou de 3s"):
+            rp.reexecutar("docs/provas/p.md", self.raiz, 3)
 
     def test_ambiente_sem_segredo(self):
         original = os.environ.get("GITHUB_TOKEN")
