@@ -70,7 +70,7 @@ cabeçalho, `Brief-sha256:` e o brief entre `<<<BRIEF` e `BRIEF>>>`) só se o br
 lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
-o `--desde` vale só se for a `conferida <sha40>` (ou a `base do delta fixada pelo dono <sha40>`, saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
+o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
 `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
@@ -4431,7 +4431,7 @@ def main():
     ap = argparse.ArgumentParser(prog="forge-check", description="Valida o contrato entre agentes (ADR 0004).")
     ap.add_argument("--raiz", default=".", help="raiz do projeto (padrão: diretório atual)")
     AJUDA_RAIZ_PEDIDOS = ("raiz com docs/pedidos/ e docs/briefs/ fora do repositório (o git segue sendo o de --raiz); vale também depois do "
-                          "subcomando e acrescenta ~/.forge-contrib na busca")
+                          "subcomando e acrescenta ~/.forge-contrib na busca; só aceita pasta dentro de ~/.forge-contrib ou da raiz do repositório")
     ap.add_argument("--raiz-pedidos", default=None, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
     comum = argparse.ArgumentParser(add_help=False)  # aceita --raiz também depois do subcomando
     comum.add_argument("--raiz-pedidos", default=argparse.SUPPRESS, metavar="DIR", help=AJUDA_RAIZ_PEDIDOS)
@@ -4536,7 +4536,13 @@ def main():
     a = ap.parse_args()
     if a.raiz_pedidos:
         global RAIZES_DE_BRIEF
-        RAIZES_DE_BRIEF = (Path(a.raiz_pedidos).resolve(), *RAIZES_DE_BRIEF)  # a escolhida na frente das demais
+        escolhida = Path(a.raiz_pedidos).resolve()
+        permitidas = (*RAIZES_DE_BRIEF, Path(a.raiz).resolve(), raiz_principal(Path(a.raiz).resolve()).resolve())
+        if not any(escolhida == p.resolve() or p.resolve() in escolhida.parents for p in permitidas):
+            print(f"forge-check: --raiz-pedidos {nome_seguro(str(escolhida))} fora de ~/.forge-contrib e da raiz do repositório "
+                  "(o hook só guarda os pedidos dali)")
+            return 2
+        RAIZES_DE_BRIEF = (escolhida, *RAIZES_DE_BRIEF)  # a escolhida na frente das demais
     if a.cmd == "brief" and a.alvo == "gerar" and a.etapa is not None and a.etapa not in ETAPAS_DO_GERAR:
         ap.error(f"argument --etapa: invalid choice: {a.etapa!r} (choose from {', '.join(map(repr, ETAPAS_DO_GERAR))})")
     if a.cmd == "brief" and a.incluir and not (a.alvo == "gerar" and a.volta):

@@ -171,9 +171,10 @@ class PedidoForaDoClone(Repositorio):
 
     def setUp(self):
         super().setUp()
-        self.fora = self.tmp / "fora"
+        self.fora = self.repo / "pedidos-fora"  # dentro da raiz do repositório: a opção só aceita ali ou em ~/.forge-contrib
         (self.fora / "docs" / "pedidos").mkdir(parents=True)
         (self.fora / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / ".git" / "info" / "exclude").write_text("pedidos-fora/\n", encoding="utf-8")
         self.c1 = self.commitar({"a.txt": "1\n"}, "1a")
         self.pedido = self.fora / "docs" / "pedidos" / "p1.md"
         self.gravar_pedido()
@@ -192,6 +193,18 @@ class PedidoForaDoClone(Repositorio):
         self.assertIn(f"intervalo: {self.base}..{self.c1}", saida)
         self.assertIn('escopo: confira "a.txt" +1 -0', saida)
         self.assertIn("origem:", saida)
+
+    def test_a_opcao_recusa_pasta_fora_de_forge_contrib_e_da_raiz_do_repositorio(self):
+        fora_de_tudo = self.tmp / "outro-projeto"
+        (fora_de_tudo / "docs" / "pedidos").mkdir(parents=True)
+        (fora_de_tudo / "docs" / "pedidos" / "p1.md").write_text(self.pedido.read_text(encoding="utf-8"), encoding="utf-8")
+        for comando in (("entrega", "p1", "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo"),
+                        ("brief", "gerar", "--pedido", "p1", "--destino", "forge:tech-lead")):
+            with self.subTest(comando[0]):
+                rc, saida = self.check(*comando, "--raiz-pedidos", fora_de_tudo)
+                self.assertEqual(rc, 2, saida)
+                self.assertIn("--raiz-pedidos", saida)
+                self.assertNotIn("origem:", saida)
 
     def test_a_opcao_vale_antes_do_subcomando(self):
         rc, saida = self.check("--raiz-pedidos", self.fora, "entrega", "p1", "--branch", "melhoria/x", "--base", "develop",
