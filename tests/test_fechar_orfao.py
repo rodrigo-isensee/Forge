@@ -126,6 +126,36 @@ class Teste(unittest.TestCase):
     def fechar_em(self, cwd, *args):
         return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)
 
+    # ---- LOTE-FECHAR-031, E3: --sem-limpar ----
+    def test_sem_limpar_mescla_pula_o_passo_7_imprime_os_comandos_e_sai_com_3(self):
+        wt = self.com_worktree()
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
+        self.assertEqual(self.resumo(r), ["limpeza: pulada (--sem-limpar)"])
+        pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
+        self.assertEqual(pendentes[:3], [f"git worktree remove {wt}", "git branch -D melhoria/x",
+                                        "git push origin --delete refs/heads/melhoria/x"])
+        self.assertIn("--limpar.", r.stdout)
+        self.assertEqual(len(self.marcas("git branch -D")), 0)
+        self.assertEqual(len(self.marcas("git worktree remove")), 0)
+        self.assertTrue(wt.exists())
+        self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
+
+    def test_sem_limpar_com_limpar_e_erro_de_uso_antes_de_qualquer_passo(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--sem-limpar")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("não combinam", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_sem_limpar_com_dry_run_so_descreve(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("--sem-limpar: o passo 7 é pulado", r.stdout)
+        self.assertEqual(self.chamadas(), [])
+
 
 if __name__ == "__main__":
     unittest.main()

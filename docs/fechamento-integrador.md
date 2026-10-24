@@ -5,7 +5,7 @@ Propósito: tirar da conversa os passos mecânicos do integrador, sem tirar nenh
 ## Uso
 ```bash
 bin/forge-fechar <pedido> --ref <branch> [--base origin/develop] \
-  [--titulo T] [--origem T] [--muda T] [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--dry-run]
+  [--titulo T] [--origem T] [--muda T] [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--sem-limpar] [--dry-run]
 ```
 Rode na raiz do repositório do Forge (o script recusa rodar em outro lugar: sem `.claude-plugin/plugin.json` com `"name": "forge"`, ele para; em sessão de projeto o fechamento não é do script nem do projeto, `R-CONTRIB`). Só serve para a `develop`; a promoção `develop` → `homolog` segue com o `tech-lead` (`R-FLUXO`) e tem o script próprio `scripts/promover-homolog.py`, que prepara e confere sem mesclar (`docs/promocao-integrador.md`); este exige a branch já enviada ao `origin` e os pareceres gravados. `--dry-run` imprime os sete passos (com `--limpar`, só descreve o passo 7) e não executa nenhum (nem `forge-check`, nem `git` remoto, nem `gh`); se o diff da branch contra a base toca um caminho de controle que a catraca protege (a lista `PROTEGIDOS` de `tests/catraca.py`, lida de lá, sem cópia no script), acrescenta uma linha de aviso de que o rótulo `afrouxa-regra` do dono vai ser pedido. Se não consegue ler o diff (por exemplo, `--ref` sem branch local), avisa "não consegui conferir"; a falta do aviso não dispensa a catraca, que é o controle (passo 4). `--origem`, `--muda` e `--medir` preenchem as seções que a catraca exige no corpo do PR (`Projeto de origem` e `Como medir`, mínimo de 20 caracteres); sem elas, o corpo cita o pedido.
 
@@ -34,6 +34,9 @@ Ao parar no passo 4 com check vermelho ou desconhecido, o script imprime, em std
 XDG_CACHE_HOME="$TMPDIR" gh run view <run> --log-failed
 ```
 Medido contra o hook `conformidade` (sonda em pasta descartável): esse comando passa para os papéis que escrevem (por exemplo o `tech-lead`) e o papel só de leitura (`conferente`) o recusa por "variável na linha"; o hook não se afrouxa para isso, então o conferente lê o motivo pelo log do script ou pede ao integrador.
+
+## Opção `--sem-limpar`
+`bin/forge-fechar <pedido> --ref <branch> --sem-limpar` faz tudo até o merge (passos 1 a 6, com as mesmas checagens) e pula o passo 7: não toca worktree nem branch. Imprime `limpeza: pulada (--sem-limpar)` e, em `pendente, rode:`, os comandos (`git worktree remove`, se a branch tem worktree, `git branch -D` e `git push origin --delete`), escapados com `printf '%q'`, e a linha final com o `--limpar`; sai com **código 3**, como qualquer fechamento com limpeza pendente. Serve a quem quer limpar depois ou fora do sandbox. Incompatível com `--limpar` (erro de uso, antes de qualquer passo). Com `--dry-run` só descreve.
 
 ## Modo `--limpar`
 `bin/forge-fechar <pedido> --ref <branch> --limpar` roda só o passo 7, para terminar uma limpeza que ficou pela metade (a reexecução normal não serve: o passo 2 exige a branch local e a remota). Não roda `forge-check`, não abre PR e não mescla. Só age com a prova de que há PR `MERGED` na `develop` para a branch (`gh pr list --head`, a mesma leitura do passo 3); sem ela recusa (falha fechada, nada é apagado) e continua recusando `main`, `develop` e `homolog`. Branch local ou remota só some se o sha é o de um PR `MERGED` ou já está na base. Repetir não tem efeito colateral: o que já foi apagado conta como `ok` e a segunda rodada sai com 0. Com `--dry-run` só descreve.
