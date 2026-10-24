@@ -3,9 +3,9 @@ tipo: review
 contrato: 1
 pedido: conf-base-dono
 branch: melhoria/conf-base-dono
-commit: d47d1b4728cae7d6811a21649eb333025b264d7b
+commit: 0bb264163d0d60c5ef8d49cf376755964654a9cf
 parecer: aprovado
-revisor: forge:tech-lead (CONF-BASE-DONO-REV E1.1)
+revisor: forge:tech-lead (CONF-BASE-DONO-INTEG-REV E1.1)
 data: 2026-10-23
 ---
 # Review: CONF-BASE-DONO (E1.1 do CONF-BASE-DONO-REV)
@@ -56,8 +56,16 @@ Contrato novo da linha do dono: `BASE_DO_DONO` casa só `- <data>[ <hora>]: base
 
 Commits: Conventional Commits em português, um por achado, mensagens claras.
 
+## Revalidação da integração (0bb2641)
+
+Delta `09e6b3d..0bb2641`: `0bb2641`, merge da `develop` (`f744533`, 0.29.0 e LIMPEZA-REGRA) com dois conflitos, `bin/forge-testes` e `tests/test_testes_tocados.py`. O resto do que o merge trouxe é da `develop` e tem parecer próprio ("já lido"). Conferi só a resolução:
+- **`FORGE_CHECK` (`bin/forge-testes`):** 21 módulos, é exatamente a união das listas de `09e6b3d` e da `develop` (diff vazio), cada módulo existe em `tests/`. Contra a `develop` o único acréscimo é `test_conferencia_base_dono`.
+- **`tests/test_testes_tocados.py`:** 76 testes nos três lados (nenhum sumiu); `test_forge_check_roda_os_modulos_dele` fica com o nome e a verificação da `develop` (lista de módulos) mais `test_conferencia_base_dono` e a contagem 21 (20 da `develop` + o módulo da branch).
+- **Código da branch intacto:** as linhas `+/-` de `bin/forge-check`, `agents/conferente.md`, `agents/jarvis.md`, `tests/test_conferencia_base_dono.py` (21 testes, igual) e `changelog.d/conf-base-dono.md`, contra a `develop`, são idênticas às da branch contra a base antiga (`139a3b4`); o stat contra a `develop` é o mesmo da branch (só mudou `bin/forge-testes`, +1 linha por conta da lista).
+- Ferramenta: `tests.test_testes_tocados` e `tests.test_conferencia_base_dono` (HOME isolado em $TMPDIR): 86 testes OK.
+
 ## Parecer da revalidação
-**Aprovado.** A2 a A6 resolvidos e testados; A1 segue no cartão HOOK-RAIZ-CONTRIB, fora desta entrega. Um recomendado novo (A7), que não bloqueia; vale também como cartão para o `security-engineer` (E2.1) avaliar.
+**Aprovado.** A resolução dos dois conflitos mantém o comportamento dos dois lados, nenhum teste sumiu e o merge não alterou código da branch. A2 a A6 seguem resolvidos (rodada anterior); A1 segue no cartão HOOK-RAIZ-CONTRIB, fora desta entrega. A7 (recomendado) continua aberto, não bloqueia; vale também como cartão para o `security-engineer` (E2.1).
 
 ## Achados
 - A7 (recomendado) bin/forge-check:731 · controle: a linha do dono vale com qualquer DECISÃO DO DONO do pedido, não com a que fixou a base; quase todo pedido tem uma (este tem três), e a amarra é fraca. Exija que a decisão cite o sha da base (sha7 ou sha40)
