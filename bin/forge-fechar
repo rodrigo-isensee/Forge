@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
-#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--dry-run]
+#                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--sem-limpar] [--dry-run]
 # Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
 # (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou, para (só leitura; falha de leitura também para);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
-# efeito colateral). Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
+# efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
+# --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
+# código 3 (fechado, limpeza pendente). Incompatível com --limpar (erro de uso). Serve a quem prefere limpar depois (ou fora do sandbox).
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
 # (a cada FORGE_FECHAR_INTERVALO, até --espera) e segue para o merge preso ao head quando o rótulo está no PR e a Catraca verde. Nessa
 # espera o check `catraca` vermelho conta como pendente (é ele que pede o rótulo); qualquer outro check vermelho para. O head do PR
@@ -25,7 +27,7 @@
 # para 0 só com FORGE_FECHAR_TESTE=1); --espera 0 a 7200. Só inteiro decimal, no máximo 3 dígitos (5 em --espera).
 # Log: depois das checagens iniciais, a primeira linha da saída é "log: <caminho>"; todo o resto (stdout e stderr, igual à tela) vai também
 # para esse arquivo (modo 600, criado com mktemp), uma linha por registro, com hora UTC, stderr marcado [err] e segredo mascarado; a última
-# linha é "fim: código <n>". Pasta por usuário (modo 700, sem link, do próprio dono): FORGE_FECHAR_LOG_DIR, senão
+# linha é "fim: código <n>". Pasta por usuário (sem link, do próprio dono; modo diferente de 700 é ajustado para 700, com aviso): FORGE_FECHAR_LOG_DIR, senão
 # $XDG_RUNTIME_DIR/forge-fechar-logs, senão ${TMPDIR:-/tmp}/forge-fechar-logs-<uid>. Log com mais de 14 dias é apagado. Vale também
 # para --dry-run. Serve para quando o comando é cortado pelo teto de tempo.
 set -euo pipefail
@@ -33,7 +35,7 @@ set -euo pipefail
 die() { echo "forge-fechar: $*" >&2; exit 1; }
 passo() { echo "[$1] $2"; }
 
-pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 tmp2b="" dorme_pid=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
+pedido="" ref="" base="origin/develop" titulo="" origem="" muda="" medir="" espera=1800 seco=0 esperar=0 limpar=0 sem_limpar=0 tmp2b="" dorme_pid=""  # nascem vazios: o fim (rm -rf, kill) nunca age em valor herdado do ambiente (R2 do parecer de segurança do lote a)
 while [ $# -gt 0 ]; do
   case "$1" in
     --ref) ref="${2-}"; shift 2 || die "--ref pede a branch" ;;
@@ -45,6 +47,7 @@ while [ $# -gt 0 ]; do
     --espera) espera="${2-}"; shift 2 || die "--espera pede os segundos" ;;
     --esperar-rotulo) esperar=1; shift ;;
     --limpar) limpar=1; shift ;;
+    --sem-limpar) sem_limpar=1; shift ;;
     --dry-run) seco=1; shift ;;
     -*) die "opção desconhecida: $1" ;;
     *) [ -z "$pedido" ] || die "pedido repetido: $1"; pedido="$1"; shift ;;
@@ -53,6 +56,7 @@ done
 
 [ -n "$pedido" ] || die "informe o pedido (forge-fechar <pedido> --ref <branch>)"
 [ -n "$ref" ] || die "informe --ref <branch>"
+[ "$limpar" = 0 ] || [ "$sem_limpar" = 0 ] || die "--limpar e --sem-limpar não combinam: um só roda a limpeza, o outro a pula"
 case "$ref" in main|master|develop|homolog) die "a branch da entrega não pode ser $ref (R-FLUXO, R-VERIFY)" ;; esac
 # Branch de integração do projeto: a primeira palavra entre crases na linha do CLAUDE.md da raiz que cita "integração"; sem a linha, só a lista fixa.
 raiz_proj=$(git rev-parse --show-toplevel 2>/dev/null || true)
@@ -141,7 +145,7 @@ if ! grep -qE '"name"[[:space:]]*:[[:space:]]*"forge"' .claude-plugin/plugin.jso
 fi
 
 # Log em arquivo: stdout e stderr continuam na tela; cada linha também vai ao arquivo, com hora e sem segredo (ver `mascarar`).
-# A pasta é por usuário e só é aceita se for diretório de verdade (sem link simbólico), do próprio usuário e com modo 700.
+# A pasta é por usuário e só é aceita se for diretório de verdade (sem link simbólico) e do próprio usuário; o modo é ajustado para 700 (com aviso), setgid incluído.
 if [ -n "${FORGE_FECHAR_LOG_DIR:-}" ]; then
   logdir="$FORGE_FECHAR_LOG_DIR"
 elif [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RUNTIME_DIR" ]; then
@@ -153,7 +157,15 @@ fi
 (umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
 [ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
 [ -O "$logdir" ] || die "a pasta do log é de outro dono: $logdir; recusada"
-[ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+# Caminho absoluto e normalizado (sem `..` nem link no meio): a limpeza do passo 7 troca de diretório e o registrador precisa achar o arquivo depois disso.
+logdir="$(cd "$logdir" && pwd -P)" || die "não consegui resolver a pasta do log: $logdir"
+# Só o modo se corrige: link, outro dono e não diretório já foram recusados acima; pasta do próprio usuário com modo diferente de 700 vira 700, com aviso.
+# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700).
+if [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" != 700 ]; then
+  chmod u=rwx,go=,g-s "$logdir" 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+  [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+  echo "aviso: a pasta do log não tinha modo 700; ajustei para 700: $logdir" >&2
+fi
 # Retenção: log do próprio usuário com mais de 14 dias, só nesta pasta, sem seguir link.
 find "$logdir" -maxdepth 1 -type f -user "$(id -u)" -name 'forge-fechar-*.log' -mtime +14 -delete 2>/dev/null || true
 log="$(umask 077; mktemp "$logdir/forge-fechar-$(printf '%s' "$pedido" | tr -c 'A-Za-z0-9._-' '_')-$(date -u +%Y%m%dT%H%M%SZ)-XXXXXX.log")" \
@@ -349,11 +361,20 @@ limpar_entrega() {
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-  local orfao=0
+  local orfao=0 principal
   if [ -n "$arvore" ]; then
     if [ -d "$arvore" ] && [ "$(cd "$arvore" && pwd -P)" = "$atual" ]; then
-      echo "aviso: você está na worktree de $ref; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
-      arv_st=pendente
+      # Rodado de dentro da worktree da própria branch: sai dela para a worktree principal (a primeira de `worktree list`) antes de remover.
+      principal="$(git worktree list --porcelain | awk '$1=="worktree" && !f {print substr($0,10); f=1}')"
+      if [ -n "$principal" ] && [ -d "$principal" ] && [ "$(cd "$principal" && pwd -P)" != "$atual" ] && cd "$principal"; then
+        echo "registro: saí da worktree de $ref para a principal: $principal"
+      else
+        echo "aviso: você está na worktree de $ref e não achei outra para sair; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
+        arv_st=pendente
+      fi
+    fi
+    if [ "$arv_st" != ok ]; then
+      :
     elif [ -n "$sha_local" ] && ! sha_confere "$sha_local"; then
       echo "aviso: a branch local $ref ($sha_local) tem commit que não foi mesclado; não removi a worktree $(printf '%q' "$arvore") (arquivos ignorados dela se perderiam)." >&2
       arv_st=pendente
@@ -491,6 +512,7 @@ if [ "$seco" = 1 ]; then
   passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
   passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
+  [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
   [ "$limpar" = 0 ] || echo "--limpar: só o passo 7, com prova de PR MERGED em $alvo ($gh pr list --head $ref); sem prova, recusa."
   # Aviso: os caminhos de controle vêm da lista PROTEGIDOS da própria catraca (tests/catraca.py), sem cópia aqui.
@@ -695,6 +717,18 @@ fi
 
 passo 7 "limpeza (R-FLUXO, Depois do merge)"
 merged_heads="$remoto_sha"
+if [ "$sem_limpar" = 1 ]; then
+  arvore_sl="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
+  echo "limpeza: pulada (--sem-limpar)"
+  printf 'pendente, rode:\n'
+  # O --limpar vem primeiro porque confere o sha antes de apagar (R-VERIFY); os comandos soltos abaixo não conferem nada. O `branch -D` só entra se a branch local existe.
+  printf 'forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
+  [ -z "$arvore_sl" ] || printf 'git worktree remove %q\n' "$arvore_sl"
+  ! git rev-parse --verify -q "refs/heads/$ref" >/dev/null || printf 'git branch -D %q\n' "$ref"
+  printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  echo "Entrega $pedido fechada em $alvo; limpeza pulada por --sem-limpar (código 3): rode o --limpar acima (confere o sha antes de apagar) ou os comandos soltos."
+  exit 3
+fi
 limpar_entrega
 if [ "$pendencia" = 0 ]; then
   echo "Entrega $pedido fechada em $alvo."

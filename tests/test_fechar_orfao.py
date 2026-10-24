@@ -30,6 +30,7 @@ class Teste(unittest.TestCase):
     resumo = base.Fechar.resumo
     marcas = base.Fechar.marcas
     log_de = base.Fechar.log_de
+    arvores = base.Fechar.arvores
 
     def setUp(self):
         base.Fechar.setUp(self)
@@ -97,6 +98,105 @@ class Teste(unittest.TestCase):
         final = [l for l in r.stdout.splitlines() if "ou forge-fechar" in l][0]  # o aviso final também é colado: ref escapado
         self.assertEqual(self.argumentos_da_linha("forge-fechar() { printf '%s\\n' \"$@\"; }; " + final.split("ou ")[1].rstrip(".")),
                          ["p1", "--ref", ref, "--limpar"])
+
+    # ---- LOTE-FECHAR-031, E2: rodado de dentro da worktree da própria branch ----
+    def test_de_dentro_da_worktree_da_branch_sai_para_a_principal_remove_e_fecha_com_0(self):
+        wt = self.com_worktree()
+        r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, env=self.env,
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertIn(f"registro: saí da worktree de melhoria/x para a principal: {self.proj}", r.stdout)
+        self.assertNotIn("saia dela", r.stderr)
+        self.assertFalse(wt.exists())
+        self.assertEqual(self.git("branch", "--list", "melhoria/x"), "")
+        self.assertEqual(len(self.arvores()), 1)
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 0"))
+
+    def test_de_dentro_da_worktree_com_commit_nao_mesclado_continua_pendente_sem_apagar(self):
+        # --limpar com o PR MERGED no head antigo: o passo 7 roda de dentro da worktree e só a guarda de sha impede o `worktree remove`
+        sha_mesclado = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha_mesclado}\n")
+        wt = self.com_worktree()
+        (wt / "c").write_text("3\n")
+        self.git("add", "c", cwd=wt)
+        self.git("commit", "-q", "-m", "feat: c", cwd=wt)
+        r = self.fechar_em(wt, "p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn("tem commit que não foi mesclado", r.stderr)
+        self.assertEqual(self.marcas("git worktree remove"), [])
+        self.assertTrue(wt.exists())
+        self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
+
+    def test_de_dentro_da_worktree_com_log_relativo_com_ponto_ponto_fecha_com_fim_e_codigo_0(self):
+        # QA A1: FORGE_FECHAR_LOG_DIR relativo com `..` virava `$PWD/../x`; a worktree some no passo 7 e o registrador perdia o arquivo (SIGPIPE, sem `fim:`)
+        wt = self.com_worktree()
+        r = base.subprocess.run(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x"], cwd=wt, capture_output=True, text=True, timeout=60,
+                                env=dict(self.env, FORGE_FECHAR_LOG_DIR="../x/../logrel"))
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        log = self.log_de(r)
+        self.assertEqual(log.parent, self.tmp.resolve() / "logrel")  # absoluto e normalizado
+        self.assertTrue(log.read_text().splitlines()[-1].endswith(" fim: código 0"))
+        self.assertFalse(wt.exists())
+
+    def test_branch_na_worktree_principal_rodado_nela_nao_acha_outra_para_sair_e_fica_pendente(self):
+        # QA A3: sem outra worktree para sair, a limpeza não remove nada e imprime o comando; código 3
+        sha_mesclado = self.git("rev-parse", "melhoria/x")
+        (self.estado / "lista_extra").write_text(f"234 MERGED develop {sha_mesclado}\n")
+        self.git("switch", "-q", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("não achei outra para sair", r.stderr)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertEqual(self.marcas("git worktree remove"), [])
+        self.assertEqual(self.marcas("git branch -D"), [])
+        self.assertIn("melhoria/x", self.git("branch", "--list", "melhoria/x"))
+
+    def fechar_em(self, cwd, *args):
+        return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)
+
+    # ---- LOTE-FECHAR-031, E3: --sem-limpar ----
+    def test_sem_limpar_mescla_pula_o_passo_7_imprime_os_comandos_e_sai_com_3(self):
+        wt = self.com_worktree()
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
+        self.assertEqual(self.resumo(r), ["limpeza: pulada (--sem-limpar)"])
+        pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
+        self.assertEqual(pendentes[:4], ["forge-fechar p1 --ref melhoria/x --limpar", f"git worktree remove {wt}",
+                                        "git branch -D melhoria/x", "git push origin --delete refs/heads/melhoria/x"])
+        self.assertEqual(len(self.marcas("git branch -D")), 0)
+        self.assertEqual(len(self.marcas("git worktree remove")), 0)
+        self.assertTrue(wt.exists())
+        self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+        self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
+
+    def test_sem_limpar_sem_branch_local_nao_imprime_branch_d_e_poe_o_limpar_primeiro(self):
+        # a branch local some entre o passo 1 e o passo 7: o falso do GitHub a apaga ao mesclar
+        falso = self.tmp / "gh"
+        falso.rename(self.tmp / "gh-base")
+        falso.write_text(f'#!/usr/bin/env bash\n[ "$1 $2" = "pr merge" ] && git -C "{self.proj}" branch -q -D melhoria/x\nexec "{self.tmp / "gh-base"}" "$@"\n')
+        falso.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
+        self.assertEqual(pendentes[:2], ["forge-fechar p1 --ref melhoria/x --limpar", "git push origin --delete refs/heads/melhoria/x"])
+        self.assertFalse(any("branch -D" in l for l in pendentes), pendentes)
+
+    def test_sem_limpar_com_limpar_e_erro_de_uso_antes_de_qualquer_passo(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--sem-limpar")
+        self.assertEqual(r.returncode, 1, r.stderr)
+        self.assertIn("não combinam", r.stderr)
+        self.assertEqual(self.chamadas(), [])
+
+    def test_sem_limpar_com_dry_run_so_descreve(self):
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("--sem-limpar: o passo 7 é pulado", r.stdout)
+        self.assertEqual(self.chamadas(), [])
 
 
 if __name__ == "__main__":
