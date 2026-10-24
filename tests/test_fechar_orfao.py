@@ -21,6 +21,16 @@ if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_trava" ]; the
   echo "git $*" >> "$REGISTRO"
   exec sleep 30
 fi
+if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_apaga_e_trava" ]; then
+  # o servidor apaga a ref e a resposta não volta a tempo: o `timeout` corta; as tentativas seguintes falham porque a ref já não existe
+  echo "git $*" >> "$REGISTRO"
+  "$(dirname "$0")/git-base" "$@" >/dev/null 2>&1 || true
+  [ ! -f "$ESTADO/ls_falha" ] || touch "$ESTADO/ls_deve_falhar"
+  exec sleep 30
+fi
+if [ "$1" = ls-remote ] && [ -f "$ESTADO/ls_deve_falhar" ]; then
+  echo "fatal: unable to access remote" >&2; exit 128
+fi
 exec "$(dirname "$0")/git-base" "$@"
 '''
 
@@ -168,6 +178,31 @@ class Teste(unittest.TestCase):
         self.assertIn("a branch remota continua viva", r.stderr)
         self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
         self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
+
+    def test_corte_depois_que_o_servidor_apagou_a_remota_confere_e_nao_diz_que_ela_continua_viva(self):
+        (self.estado / "delete_apaga_e_trava").write_text("")
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_FECHAR_TETO_DELETE="1")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("continua viva", r.stderr + r.stdout)
+        self.assertIn("já não existe no servidor", r.stdout)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=ok branch=ok"])
+        self.assertEqual(self.git("ls-remote", "origin", "refs/heads/melhoria/x").strip(), "")
+
+    def test_corte_com_a_remota_ainda_no_servidor_segue_dizendo_que_ela_continua_viva(self):
+        (self.estado / "delete_trava").write_text("")  # não apaga: a conferência acha a ref
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_FECHAR_TETO_DELETE="1")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("a branch remota continua viva", r.stderr)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
+
+    def test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva(self):
+        (self.estado / "delete_apaga_e_trava").write_text("")
+        (self.estado / "ls_falha").write_text("")
+        r = self.fechar("p1", "--ref", "melhoria/x", FORGE_FECHAR_TETO_DELETE="1")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("não consegui conferir a branch remota melhoria/x", r.stderr)
+        self.assertNotIn("continua viva", r.stderr)
+        self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
 
     def test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s(self):
         # pior caso: 3 tentativas no teto + 2 pausas no máximo (30 s) + a conferência da remota (10 s); o teto máximo é o maior que cabe em 300 s

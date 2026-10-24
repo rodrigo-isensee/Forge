@@ -463,8 +463,18 @@ git branch -D $(printf '%q' "$ref")"
     else
       echo "registro: apagando a branch remota $ref (até ${teto_delete}s por tentativa, 3 tentativas)"
       if ! repetir com_teto "$teto_delete" git push origin --delete "refs/heads/$ref"; then
-        echo "aviso: não apaguei a branch remota $ref (a exclusão foi negada, falhou ou passou de ${teto_delete}s); a branch remota continua viva; apague-a (git push origin --delete $(printf '%q' "$ref"))." >&2
-        rem_st=pendente
+        # O corte (ou uma resposta perdida) pode vir depois de o servidor já ter apagado a ref: confere antes de dizer que ela continua viva.
+        if sha_depois="$(com_teto 10 git ls-remote origin "refs/heads/$ref")"; then
+          if [ -z "$sha_depois" ]; then
+            echo "registro: a branch remota $ref já não existe no servidor (o comando falhou ou foi cortado depois de apagá-la)"
+          else
+            echo "aviso: não apaguei a branch remota $ref (a exclusão foi negada, falhou ou passou de ${teto_delete}s); a branch remota continua viva; apague-a (git push origin --delete $(printf '%q' "$ref"))." >&2
+            rem_st=pendente
+          fi
+        else
+          echo "aviso: não consegui conferir a branch remota $ref depois de a exclusão falhar ou passar de ${teto_delete}s; ela pode ou não ter sido apagada; confira (git ls-remote origin $(printf '%q' "refs/heads/$ref"))." >&2
+          rem_st=pendente
+        fi
       fi
     fi
   fi
