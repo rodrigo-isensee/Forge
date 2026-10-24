@@ -3,9 +3,9 @@ tipo: review
 contrato: 1
 pedido: lote-forge-check-0.28.0
 branch: melhoria/lote-forge-check-0.28.0
-commit: 8649439b7357a3adfe9f36d3531ae3bee0eca506
+commit: 31e78cdc1419753daf4ca711211126f61e77dbcd
 parecer: aprovado
-revisor: forge:tech-lead (INTEG-LOTE-FC-REV E1.1, revalidação por delta do merge 8649439)
+revisor: forge:tech-lead (INTEG-LOTE-FC-2-REV E1.1, revalidação por delta do merge 31e78cd)
 data: 2026-10-23
 ---
 # Review do LOTE-FORGE-CHECK-0.28.0 (E1.2)
@@ -89,3 +89,14 @@ Delta lido: `forge-check delta --parecer` listou `0b8a307..8649439` (68 arquivos
 - Ferramenta, na worktree em `8649439` com `HOME` em `$TMPDIR/tech-lead-integ`: `python3 -m unittest tests.test_testes_tocados tests.test_medidas_m14b tests.test_anotar` → `Ran 106 tests`, `OK`. A suíte inteira fica com o pre-push e o QA (E3.1); a segurança do delta é da E2.1.
 
 Já lido e não relido: todo o código do lote aprovado nas rodadas anteriores e o conteúdo da `develop`, revisado nos PRs próprios. Achados: nenhum novo; as recomendações anteriores seguem como estavam.
+
+## Revalidação por delta (INTEG-LOTE-FC-2-REV, E1.1)
+Revisado: `31e78cdc1419753daf4ca711211126f61e77dbcd`, merge de `139a3b4` (`develop`, com o #294 impl-n-agt-a e o #295 CI-PY314) sobre `b8c19b9`. Veredito: **aprovado**, sem bloqueante.
+
+Delta lido: `forge-check delta --parecer` listou `8649439..31e78cd` (9 arquivos: `ci.yml`, `bin/forge-check`, dois fragmentos, `docs/hooks.md`, `hooks/agentes.py` e três módulos de teste), todos vindos da `develop`. Li só a resolução: `git show --cc 31e78cd` e os arquivos que diferem dos dois pais (`git show --cc --name-only`): `bin/forge-check` e `docs/hooks.md`.
+- `docs/hooks.md` (único trecho de resolução no `--cc`): a linha do hook `agentes` é a da `develop` (#294, `R-BRIEF`: forma da mensagem ao `forge:conferente`, `Brief-sha256:` recalculado, `realpath` em `docs/briefs/` da raiz ou de `~/.forge-contrib`, arquivo regular, 256 KiB, coluna `R-TETO`, `R-BRIEF`) e a do hook `parecer` é a da branch (isenção só de QA pela regra única `isencoes_da_entrega`, M13, com os `.md` de controle). `git diff 139a3b4 HEAD -- docs/hooks.md` só troca a linha do `parecer`; `git diff b8c19b9 HEAD -- docs/hooks.md` só traz a linha do `agentes` e o parágrafo de `## Estado e expiração` da `develop` (estado do `agentes` no clone do Forge). Sem marcador de conflito. Coerente com o código no head: `hooks/agentes.py` igual ao da `develop` (`ARQUIVO_DA_MENSAGEM`, `HASH_DA_MENSAGEM`, `ABRE_BLOCO`, `LIMITE_DO_BRIEF = 256 * 1024`, `realpath` nas duas raízes) e `hooks/parecer.py` igual ao de `b8c19b9` (chama `fc.isencoes_da_entrega`).
+- `bin/forge-check` (mesclagem automática): o patch da `develop` (`daf2ffa..139a3b4`, `agentes_vigentes` passa a usar `agentes.arquivo_de_estado`) e o de `b8c19b9..31e78cd` são idênticos linha a linha; o lote não tocava essa função.
+- Os demais arquivos do delta (`hooks/agentes.py`, `ci.yml`, `tests/test_agentes_clone.py`, `tests/test_agentes_hash_brief.py`, `tests/test_guarda_conferente.py`) têm `git diff 139a3b4 HEAD` vazio: entram como na `develop`, revisados nos PRs próprios.
+- Ferramenta, na worktree em `31e78cd` com `HOME` em `$TMPDIR/tech-lead-integ2`: `python3 -m unittest tests.test_testes_tocados tests.test_agentes_clone tests.test_agentes_hash_brief tests.test_guarda_conferente tests.test_isencoes` → `Ran 116 tests`, `OK`. A suíte inteira fica com o pre-push e o QA (E3.1); a segurança do delta é da E2.1.
+
+Já lido e não relido: todo o código do lote aprovado nas rodadas anteriores e o conteúdo da `develop`, revisado nos PRs próprios (#294, #295). Achados: nenhum novo bloqueante; as recomendações anteriores seguem como estavam.
