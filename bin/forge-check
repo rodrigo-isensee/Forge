@@ -49,7 +49,7 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 (`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
 `corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
-`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. `brief gerar` monta os blocos fixos (decisões
+`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, sem o conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin`). `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
@@ -3713,7 +3713,8 @@ def ler_pedido_brief(texto):
         etapas[f"E{m.group(1)}.{m.group(2)}{m.group(3)}"] = (papel, corpo[m.start():fim].strip(" -"))
     etapas = dict(sorted(etapas.items(), key=lambda par: ordem_do_id(par[0])))
     decisoes = [l.strip() for l in texto.splitlines() if e_linha_de_decisao(l)]
-    return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "texto": normalizar_espacos(texto)}
+    return {"escopo": escopo, "etapas": etapas, "decisoes": decisoes, "fora": itens_de(secoes.get("Fora do escopo", [])),
+            "texto": normalizar_espacos(texto)}
 
 
 def ordem_do_id(id_):
@@ -3888,6 +3889,10 @@ def conferir_corte(brief_secoes, pedido, destino):
     etapas_citadas = [e for e in pedido["etapas"] if e in citados]
     if len(etapas_citadas) > 1:
         saida.append((f"etapa: junta delegações {', '.join(etapas_citadas)} (R-BRIEF)", True))
+    for etapa in etapas_citadas:  # M1: o destino não tem a etapa que o Entregar cita (papel errado)
+        papel = pedido["etapas"][etapa][0]
+        if papel_destino and nome_do_papel(papel) != papel_destino:
+            saida.append((f"etapa: papel errado {etapa} (o pedido a põe em \"{sem_controle(papel)[:40]}\", o destino é \"{sem_controle(papel_destino)[:40]}\") (R-BRIEF)", True))
     cobertos, cortados, agregadas = set(), set(), set()
     for n in sorted(pedido["escopo"]):
         chave = f"E{n}"
@@ -3926,6 +3931,38 @@ def conferir_corte(brief_secoes, pedido, destino):
         else:
             saida.append((f"corte: sem marca \"{etapa}\" (etapa sem menção)", True))
     return saida
+
+
+def conferir_pedido_contraditorio(secoes, pedido):
+    """M1: o `Entregar` do brief não manda o que o `## Fora do escopo` do pedido exclui: ids (`E<n>`, `E<n>.<m>`) escritos nesse `Fora do
+    escopo` e trechos entre aspas de 20 caracteres ou mais que o `Entregar` cita ou copia. Só o que o script decide; o resto é do conferente."""
+    entregar = " ".join(secoes.get("Entregar", []))
+    citados, texto = ids_em_citacao(entregar), normalizar_espacos(entregar)
+    existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
+    saida = []
+    for item in pedido["fora"]:
+        excluidos = sorted(ids_do_texto(item) & existentes & citados, key=ordem_do_id)
+        copiados = [f for f in fragmentos_citados(item) if len(f) >= 20 and f in texto]
+        if excluidos or copiados:
+            alvo = ", ".join(excluidos) or sem_controle(copiados[0])[:60]
+            saida.append((f"contradição: o Entregar manda {sem_controle(alvo)}, que o `Fora do escopo` do pedido exclui (R-BRIEF)", True))
+    return saida
+
+
+def commit_so_na_worktree(raiz, texto):
+    """M1: brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou atrás): a prova
+    `sha` ou `push` do brief aceitaria um commit só da worktree. Mesma regra de `parecer_commitado`: sem commit local ou sem remoto
+    conhecido, não há o que conferir. Offline, só com git de leitura."""
+    cabecalho = cabecalho_do_brief(texto)
+    etapa, branch = grupo(ETAPA_DO_CABECALHO, cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+    head = sha_do_commit(raiz, f"refs/heads/{branch}") if branch and etapa in ETAPAS_DO_GERAR and etapa != "codigo" else None
+    if not head or not git(raiz, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/origin")[1]:
+        return []
+    remota = sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+    if remota and e_ancestral(raiz, head, remota):
+        return []
+    return [(f"commit: o head {head[:7]} de {caminho_impresso(branch)} só existe na worktree (origin/{caminho_impresso(branch)} "
+             f"{'atrás' if remota else 'ausente'}); envie a branch antes do brief (git push origin <branch>)", True)]
 
 
 def delta_de_brief(texto, anterior):
@@ -4081,6 +4118,7 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     if not any(r for _, r in forma + pqs):
         saida.append(("forma: ok", False))
     saida += conferir_corte(secoes, pedido, destino)
+    saida += conferir_pedido_contraditorio(secoes, pedido)
     if cobradas is not None:
         saida += conferir_decisoes(cobradas, secoes)
     saida.append((f"arquivo: {len(conteudo)} bytes sha256 {hashlib.sha256(conteudo).hexdigest()}", False))
@@ -4195,6 +4233,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
+    linhas += commit_so_na_worktree(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres

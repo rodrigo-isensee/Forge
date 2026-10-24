@@ -360,3 +360,44 @@ class TabelaDePareceres(Repo):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class QuatroDefeitosDoScript(Repo):
+    """EST-030-L1 (M1): os quatro defeitos reais de brief que o conferente pegava viram checagem do `forge-check brief`."""
+    CABECALHO = "\nEtapa: review   Branch: melhoria/x   Base: develop\n\n## Objetivo"
+
+    def test_papel_errado_o_destino_nao_tem_a_etapa_citada(self):
+        rc, saida = self.conferir(brief("dev-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn('etapa: papel errado E1.2 (o pedido a põe em "revisor-exemplo", o destino é "dev-exemplo") (R-BRIEF)', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")), "ok.md")
+        self.assertNotIn("papel errado", saida)
+
+    def test_decisao_ausente_a_linha_do_pedido_falta_no_brief(self):
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace('DECISÃO DO DONO (2026-01-01): "A".', "nada.")
+        rc, saida = self.conferir(sem)
+        self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-01): \\"A\\"."', saida)
+        self.assertEqual(rc, 1)
+
+    def test_pedido_contraditorio_o_entregar_manda_o_que_o_fora_do_escopo_do_pedido_exclui(self):
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", "## Fora do escopo\n- O review (E1.2) não entra nesta rodada · `confirmado`\n\n## Decisões"))
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn("contradição: o Entregar manda E1.2, que o `Fora do escopo` do pedido exclui (R-BRIEF)", saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")), "ok.md")
+        self.assertNotIn("contradição: o Entregar", saida)
+
+    def test_commit_so_na_worktree_o_head_nao_esta_em_origin(self):
+        self.entrega({"src/app.py": "v2\n"})
+        head = self.git("rev-parse", "HEAD")
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida, "sem remoto conhecido não há o que conferir (como parecer_commitado)")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "develop"))
+        rc, saida = self.conferir(texto)
+        self.assertIn(f"commit: o head {head[:7]} de melhoria/x só existe na worktree (origin/melhoria/x ausente)", saida)
+        self.assertEqual(rc, 1)
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", head)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertEqual(rc, 0, saida)
