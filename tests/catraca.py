@@ -519,15 +519,18 @@ def _monotonicas_da_base(arvore):
 
 def acrescimo_inerte(raiz, base, head, caminho):
     """M9, alcance S1 + S2 (decisão do dono, modelo de ameaças do L3). Passa sem o rótulo só em Python que mantém o modo e:
-    S1: a árvore de sintaxe é igual na base e no head (`ast.parse` sobre os bytes; só comentário, espaço ou quebra de linha; docstring conta como código);
+    S1: a árvore de sintaxe é igual na base e no head (`ast.parse` sobre os bytes; só comentário, espaço ou quebra de linha; docstring conta como código;
+        a linha `#!` não é comentário: com `#!` na base ou no head, a primeira linha tem de ser igual byte a byte);
     S2: a diferença são só itens literais acrescentados a uma constante da lista `MONOTONICAS` da base, sem reatribuição nova nem outro nó mudado.
     Todo o resto (função nova, arquivo novo ou apagado, binário, outra linguagem, AST diferente) pede o rótulo: falha fechada.
     Comentário que desliga uma checagem de ferramenta (`PRAGMA_DE_FERRAMENTA`) também pede o rótulo."""
     antes, depois = ler_bytes(raiz, base, caminho), ler_bytes(raiz, head, caminho)
     if antes is None or depois is None or not mesmo_arquivo_e_modo(raiz, base, head, caminho):
         return False
-    if not (caminho.endswith(".py") or re.match(rb"#!.*python", depois)):
+    if not all(caminho.endswith(".py") or re.match(rb"#!.*python", lado) for lado in (antes, depois)):  # Python nos dois lados
         return False
+    if (antes.startswith(b"#!") or depois.startswith(b"#!")) and antes.split(b"\n", 1)[0] != depois.split(b"\n", 1)[0]:
+        return False  # a linha `#!` escolhe o interpretador e as opções: tem efeito que a árvore não compara
     try:
         arv_antes, arv_depois = ast.parse(antes), ast.parse(depois)
     except (SyntaxError, ValueError):

@@ -604,6 +604,51 @@ class Protegidos(Base):
         base = "#!/usr/bin/env python3\n" + self.CHECAGEM
         self.assertEqual(self.altera_protegido("bin/forge-check", base, base + "# nota\n"), [])
 
+    def shebang(self, antes, depois, rel="bin/forge-check"):
+        """Classe "linha com efeito que a S1 não compara": a `#!` escolhe o interpretador e as opções; trocá-la pede o rótulo."""
+        return len(self.altera_protegido(rel, antes + self.CHECAGEM, depois + self.CHECAGEM))
+
+    def test_m9_shebang_trocado_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", "#!/bin/true python3\n"), 1)
+
+    def test_m9_shebang_com_env_s_e_sh_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", "#!/usr/bin/env -S sh -c 'exit 0' python3\n"), 1)
+
+    def test_m9_shebang_sem_a_opcao_i_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env -S python3 -I\n", "#!/usr/bin/env -S python3\n"), 1)
+
+    def test_m9_shebang_com_a_opcao_o_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", "#!/usr/bin/env -S python3 -O\n"), 1)
+
+    def test_m9_shebang_com_env_s_python3_u_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", "#!/usr/bin/env -S python3 -u\n"), 1)
+
+    def test_m9_shebang_com_fim_de_linha_diferente_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", "#!/usr/bin/env python3\r\n"), 1)
+
+    def test_m9_shebang_acrescentado_em_py_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("", "#!/bin/true python3\n", "hooks/_comum.py"), 1)
+
+    def test_m9_shebang_removido_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/usr/bin/env python3\n", ""), 1)
+
+    def test_m9_arquivo_so_python_de_um_lado_pede_o_rotulo(self):
+        self.assertEqual(self.shebang("#!/bin/sh\n", "#!/usr/bin/env python3\n"), 1)
+        self.assertEqual(self.shebang("", "#!/usr/bin/env python3\n"), 1)
+
+    def test_m9_shebang_igual_com_comentario_novo_passa_sem_rotulo(self):
+        self.assertEqual(len(self.altera_protegido("bin/forge-check", "#!/usr/bin/env -S python3 -I\n" + self.CHECAGEM, "#!/usr/bin/env -S python3 -I\n# nota\n" + self.CHECAGEM)), 0)
+
+    def test_m9_s2_so_vale_em_tests_catraca_py_mesmo_que_outro_py_declare_a_lista(self):
+        base = 'MONOTONICAS = ("PROTEGIDOS",)\nPROTEGIDOS = ("a/",)\n'
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", base, base.replace('("a/",)', '("a/", "b/")'))), 1)
+
+    def test_m9_s2_renomear_constante_monotonica_pede_o_rotulo(self):
+        fonte = (AQUI / "catraca.py").read_text(encoding="utf-8")
+        depois = fonte.replace('PASTAS_CUSTO = ("hooks/",', 'PASTAS_RENOMEADA = ("docs/provas/", "hooks/",', 1)
+        self.assertNotEqual(depois, fonte)
+        self.assertEqual(len(self.altera_protegido("tests/catraca.py", fonte, depois)), 1)
+
     def test_m9_remocao_alteracao_e_o_que_nao_sabe_classificar_seguem_pedindo_o_rotulo(self):
         casos = {
             "linha alterada": (self.CHECAGEM, self.CHECAGEM.replace("return 0", "return 2")),
@@ -2566,9 +2611,10 @@ if __name__ == "__main__":
 class ExcecaoDoAcrescimoNaAdr(unittest.TestCase):
     def test_adr_0008_registra_a_excecao_da_m9_e_o_que_continua_pedindo(self):
         texto = (AQUI.parent / catraca.ADR).read_text(encoding="utf-8")
+        self.assertIn("**Exceção estreita da M9", texto)
         trecho = texto[texto.index("**Exceção estreita da M9"):]
         trecho = trecho[:trecho.index("\n")]
         for esperado in ("S1: a árvore de sintaxe é igual", "S2:", "MONOTONICAS", "falha fechada", "função de topo nova", "linha removida ou alterada", "outra linguagem",
                          "um `return` novo no começo de uma função de checagem", "modelo de ameaças", "decisão do dono",
-                         "tests/fixtures/afrouxamentos/", "A forma compilada não entra"):
+                         "tests/fixtures/afrouxamentos/", "A forma compilada não entra", "a linha `#!` não é comentário"):
             self.assertIn(esperado, trecho)
