@@ -109,14 +109,15 @@ class ConferirReversao(unittest.TestCase):
 
     def test_ambiente_com_git_index_file_nao_toca_o_original(self):
         (self.repo / "extra.txt").write_text("x\n")
-        self.commitar("add extra")
+        extra = self.commitar("add extra")
         (self.repo / "outro.txt").write_text("o\n")
-        self.commitar("add outro")
+        outro = self.commitar("add outro")
         antes = impressao(self.repo / ".git")
         env = {**AMBIENTE, "GIT_INDEX_FILE": str(self.repo / ".git" / "index")}
         r = subprocess.run([sys.executable, str(SCRIPT), self.base, "feat"], cwd=self.repo, capture_output=True,
                            text=True, env=env)
         self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines(), [f"{extra} reverte", f"{outro} reverte"])
         self.assertEqual(impressao(self.repo / ".git"), antes)
         self.assertEqual(git(self.repo, "status", "--porcelain"), "")
 
