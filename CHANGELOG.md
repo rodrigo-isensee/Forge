@@ -4,6 +4,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.2] - 2026-10-24
+### Alterado
+- Primeiro lote da máquina (MAQ-LOTE-A): pesos da divisão regravados com teste de 20% sem peso, push de código em segundo plano e V2 do autor dirigida e na fila.
+
 ## [0.30.1] - 2026-10-24
 ### Adicionado
 - CI do Forge reexecuta as provas `cmd` do arquivo `docs/provas/<pedido>.md` no sha do PR, sem shell, com lista permitida e falha fechada: toda linha do arquivo é lida e só passa vazia, título, `Propósito:` ou prova no formato exato; arquivo sem prova reprova; `unittest` só com `pacote.modulo` (`scripts/reexecutar-provas.py`, EST-030-L2, M15)
