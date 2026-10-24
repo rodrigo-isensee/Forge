@@ -201,7 +201,8 @@ jobs:
             script="$RUNNER_TEMP/base/scripts/reexecutar-provas.py"
           fi
           git worktree add --detach "$RUNNER_TEMP/pr" "$HEAD_SHA"
-          mapfile -t provas < <(git diff --name-only --no-renames --diff-filter=AM "$BASE...$HEAD_SHA" -- 'docs/provas/*.md' | grep -v '/_modelo\.md$' || true)
+          lista=$(git diff --name-only --no-renames --diff-filter=AM "$BASE...$HEAD_SHA" -- 'docs/provas/*.md')
+          mapfile -t provas < <(printf '%s\n' "$lista" | grep -v -e '^$' -e '/_modelo\.md$' || true)
           if [ "${#provas[@]}" -eq 0 ]; then
             echo "provas cmd: sem arquivo de provas no PR" >> "$GITHUB_STEP_SUMMARY"
             exit 0

@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
@@ -40,6 +41,10 @@ class Lista(unittest.TestCase):
 
     def test_recusados_por_falha_fechada(self):
         for cmd in ("rm -rf x", "python3 -c print(1)", "python3 -m unittest discover -s tests", "python3 -m unittest",
+                    "python3 -m unittest discover", "python3 -m unittest discover tests", "python3 -m unittest tests.x discover",
+                    "python3 -m unittest -v discover",
+                    "git diff --numstat /etc/hostname /dev/null", "git diff --numstat ../fora", "git diff --numstat a/../../b",
+                    "git diff --numstat ~/x", "git ls-files -- /etc", "git diff --name-only ..",
                     "python3 -m http.server", "python3 scripts/x.py", "git push origin x", "git diff --output=x",
                     "git diff --no-index a b", "git log", "bash -c ls", "curl http://x", "python3 -m unittest a;b",
                     "git rev-parse $(id)"):
@@ -94,11 +99,60 @@ class Execucao(unittest.TestCase):
         self.assertIn("recusado", saida)
         self.assertFalse(marca.exists())
 
-    def test_sem_shell_o_metacaractere_nao_age(self):
+    def test_metacaractere_e_recusado_antes_de_executar(self):
         marca = self.raiz / "marca"
         rc, saida = self.rodar([f"- PQ-1 (cmd): `git rev-parse HEAD; touch {marca}` · espera: rc=0"])
         self.assertEqual(rc, 1)
+        self.assertIn("recusado", saida)
         self.assertFalse(marca.exists())
+
+    def test_comando_permitido_chega_ao_subprocess_como_lista_e_sem_shell(self):
+        (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest t_ok -v` · espera: rc=0\n", encoding="utf-8")
+        chamada = {}
+
+        def falso(argv, **kwargs):
+            chamada.update(argv=argv, **kwargs)
+            return subprocess.CompletedProcess(argv, 0, "", "")
+        with mock.patch.object(rp.subprocess, "run", falso):
+            self.assertEqual(rp.reexecutar("docs/provas/p.md", self.raiz, 5), 1)
+        self.assertEqual(chamada["argv"], ["python3", "-m", "unittest", "t_ok", "-v"])
+        self.assertIs(chamada["shell"], False)
+
+    def test_linha_que_parece_cmd_e_nao_casa_o_formato_falha_fechada(self):
+        for linha in (" - PQ-2 (cmd): `python3 -m unittest t_ok` · espera: rc=0", "- PQ-3 (CMD): `python3 -m unittest t_ok` · espera: rc=0",
+                      "- **PQ-4** (cmd): `python3 -m unittest t_ok` · espera: rc=0", "* PQ-5 (Cmd): `python3 -m unittest t_ok` · espera: rc=0",
+                      "- PQ-6 (cmd): python3 -m unittest t_ok · espera: rc=0"):
+            rc, saida = self.rodar(["- PQ-1 (cmd): `python3 -m unittest t_ok` · espera: rc=0", linha])
+            self.assertNotEqual(rc, 0, linha)
+            self.assertIn("fora do formato", saida, linha)
+
+    def test_git_com_caminho_fora_da_arvore_e_recusado_e_nao_le_o_arquivo(self):
+        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env={**os.environ, "HOME": self.tmp.name})
+        for caminho in ("/etc/hostname", "../fora", "docs/../../fora", "~/x"):
+            rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho} /dev/null` · espera: contém 'hostname'"])
+            self.assertEqual(rc, 1, caminho)
+            self.assertIn("recusado", saida, caminho)
+
+    def test_git_sem_repositorio_na_raiz_e_recusado(self):
+        rc, saida = self.rodar(["- PQ-1 (cmd): `git ls-files` · espera: rc=0"])
+        self.assertEqual(rc, 1)
+        self.assertIn("sem repositório", saida)
+
+    def test_git_dentro_da_arvore_passa(self):
+        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env={**os.environ, "HOME": self.tmp.name})
+        rc, saida = self.rodar(["- PQ-1 (cmd): `git ls-files -- docs` · espera: rc=0"])
+        self.assertEqual(rc, 0, saida)
+
+    def test_comando_sem_crases_e_recusado(self):
+        rc, saida = self.rodar(["- PQ-1 (cmd): python3 -m unittest t_ok · espera: rc=0"])
+        self.assertEqual(rc, 1)
+        self.assertIn("fora do formato", saida)
+
+    def test_espera_que_sempre_passa_e_recusada(self):
+        for espera in ("linhas>=0", "contém ''", "rc=0 e linhas>=0"):
+            rc, saida = self.rodar([f"- PQ-1 (cmd): `python3 -m unittest t_ruim` · espera: {espera}"])
+            self.assertEqual(rc, 1, espera)
+            self.assertIn("sempre passa", saida, espera)
 
     def test_linha_cmd_fora_do_formato_e_modelo_e_fora_de_provas_falham(self):
         self.assertEqual(self.rodar(["- PQ-1 (cmd): python3 -m unittest t_ok"])[0], 1)
@@ -144,6 +198,12 @@ class PassoDoCi(unittest.TestCase):
         self.assertIn("docs/provas/*.md", passo)
         self.assertIn('--raiz "$RUNNER_TEMP/pr"', passo)
         self.assertNotIn("${{", passo.split("run:")[1])  # entrada do evento só por env:, nunca no script
+
+    def test_erro_do_git_diff_falha_fechado_a_lista_vem_de_variavel_sob_set_e(self):
+        passo = self.passo()
+        self.assertIn('lista=$(git diff', passo)
+        self.assertNotIn("< <(git diff", passo)
+        self.assertNotIn("set +e", passo)
 
     def test_passo_vem_antes_da_suite(self):
         self.assertLess(self.CI.index("Provas cmd do arquivo de provas"), self.CI.index("- name: Testes do Forge\n        if: ${{ !cancelled() && steps"))
