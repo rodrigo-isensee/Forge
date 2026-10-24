@@ -282,7 +282,7 @@ Arquivo `skills/retomada/SKILL.md`, frontmatter com `name: retomada` e `descript
 | `operacao.inicio` sem fim, diff com mais que o esperado, ou na dúvida | Mostrar o diff e perguntar | Exige o usuário |
 | `decisao.pendente` aberta | Refazer a pergunta, uma por vez | Exige o usuário (a resposta) |
 | Worktree ou branch sem registro no diário | Listar; não remover | Exige o usuário para qualquer remoção |
-| Descartar mudança, remover worktree com conteúdo, apagar ou reescrever branch enviada, `reset`/`checkout` de arquivos com mudança que não é a operação transitória | Não fazer | **Sempre** exige a confirmação do usuário |
+| Descartar mudança, remover worktree com conteúdo, apagar ou reescrever branch enviada, `reset`/`checkout` de arquivos com mudança que não é a operação transitória | Não fazer | **Sempre** exige a confirmação do usuário; exceção (`R-VERIFY`): branch de trabalho com PR mesclado e head igual ao `headRefOid` é apagada sem nova confirmação, nunca `main`, `master`, `develop`, `homolog` nem a integração do projeto |
 | Qualquer ação na `main` | Nunca | Proibido (regra da fábrica) |
 
 Mesmo no autônomo, vale o teto de recursos e a regra de 1 cartão por agente.

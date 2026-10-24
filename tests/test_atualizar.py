@@ -124,7 +124,7 @@ class Base(unittest.TestCase):
             return
         trabalho.mkdir()
         for pasta in ("bin", "migrations", "templates", ".claude-plugin"):
-            shutil.copytree(RAIZ / pasta, trabalho / pasta)
+            shutil.copytree(RAIZ / pasta, trabalho / pasta, ignore=shutil.ignore_patterns("__pycache__"))
         plugin = trabalho / ".claude-plugin" / "plugin.json"
         dados = json.loads(plugin.read_text(encoding="utf-8"))
         dados["version"] = versao
@@ -397,6 +397,87 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
         self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
         self.assertNotEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", "forge/upgrade-9.9.0"))
+
+    def integrar_com_erro_depois_do_commit(self, efeito_colateral=None, na_pergunta=None):
+        """Roda `integrar_develop` no processo, com o ambiente isolado do teste (`self.env`), num conflito de `.forge/versao`
+        resolvido pelo dono e com `trazidos` falhando depois do commit da resolução. Com `na_pergunta` (uma exceção), a falha vem
+        na pergunta ao dono, com a mesclagem ainda aberta e sem commit. Devolve (resultado, saída, `trazidos`, antes)."""
+        import contextlib
+        import importlib.machinery
+        import importlib.util
+        import io
+        from unittest import mock
+        carregador = importlib.machinery.SourceFileLoader("forge_atualizar_em_teste", str(ATUALIZAR))
+        especificacao = importlib.util.spec_from_loader(carregador.name, carregador)
+        modulo = importlib.util.module_from_spec(especificacao)
+        carregador.exec_module(modulo)
+        self.git("switch", "-q", "-c", "forge/upgrade-9.9.0")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore(forge): versão 9.9.0")
+        antes = self.git("rev-parse", "HEAD")
+        self.avancar_remoto(".forge/versao", "0.1.0\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=self.tmp / "outro")
+
+        def falhar(*_args):
+            if efeito_colateral:
+                efeito_colateral()
+            raise RuntimeError("falha simulada")
+        with mock.patch.dict(os.environ, self.env, clear=True), \
+                mock.patch.object(modulo.fv, "confirmar", **({"side_effect": na_pergunta} if na_pergunta else {"return_value": True})), \
+                mock.patch.object(modulo, "trazidos", side_effect=falhar) as trazidos, \
+                contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.levantou = None
+            try:
+                deu = modulo.integrar_develop(self.proj, "9.9.0")
+            except (EOFError, KeyboardInterrupt) as erro:  # repassada depois de desfazer: o teste confere o que ficou
+                deu, self.levantou = None, erro
+        return deu, saida.getvalue(), trazidos, antes
+
+    def test_erro_depois_do_commit_da_resolucao_desfaz_a_mesclagem_e_diz_que_desfez(self):
+        # F4-A9: `trazidos` roda depois do commit da resolução; se levantar, a branch não pode ficar com o merge e a mensagem tem de ser verdadeira
+        deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit()
+        self.assertIn("Conflito resolvido", saida, "o cenário aconteceu: a resolução foi commitada antes do erro")
+        trazidos.assert_called_once()
+        self.assertFalse(deu)
+        self.assertIn("Desfiz a mesclagem", saida)
+        self.assertEqual(self.git("rev-parse", "HEAD"), antes, "a branch volta ao estado de antes da mesclagem")
+        self.assertEqual(self.git("status", "--porcelain"), "")
+
+    def confere_abort_da_mesclagem_aberta(self, erro):
+        # QA A1 / review A5: o erro vem com a mesclagem aberta (sem commit); só o `merge --abort` a desfaz
+        deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit(na_pergunta=erro)
+        trazidos.assert_not_called()
+        if isinstance(erro, RuntimeError):
+            self.assertIn("Desfiz a mesclagem", saida)
+        else:  # Ctrl-C e EOF: desfaz em silêncio e repassa; só a falha em desfazer imprime algo
+            self.assertNotIn("Desfiz", saida)
+        self.assertNotIn("Não consegui desfazer", saida)
+        self.assertFalse((self.proj / ".git" / "MERGE_HEAD").exists(), "sem mesclagem aberta")
+        self.assertEqual(self.git("rev-parse", "HEAD"), antes)
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        return deu
+
+    def test_erro_com_a_mesclagem_aberta_desfaz_por_abort(self):
+        self.assertFalse(self.confere_abort_da_mesclagem_aberta(RuntimeError("falha na pergunta")))
+
+    def test_ctrl_c_com_a_mesclagem_aberta_desfaz_por_abort_e_repassa(self):
+        self.confere_abort_da_mesclagem_aberta(KeyboardInterrupt())
+        self.assertIsInstance(self.levantou, KeyboardInterrupt)
+
+    def test_eof_com_a_mesclagem_aberta_desfaz_por_abort_e_repassa(self):
+        self.confere_abort_da_mesclagem_aberta(EOFError())
+        self.assertIsInstance(self.levantou, EOFError)
+
+    def test_desfazer_recusado_nao_diz_que_desfez_e_ensina_o_comando(self):
+        # review A2 / ATUALIZAR-DESFEZ-RC: se o checkout que volta a branch falha (aqui, `index.lock` presente), a mensagem não pode mentir
+        trava = self.proj / ".git" / "index.lock"
+        deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit(lambda: trava.write_text(""))
+        trazidos.assert_called_once()
+        self.assertFalse(deu)
+        self.assertNotIn("Desfiz a mesclagem", saida)
+        self.assertIn("Não consegui desfazer", saida)
+        self.assertIn(f"git checkout -B forge/upgrade-9.9.0 {antes}", saida, "o comando para desfazer à mão")
+        self.assertNotEqual(self.git("rev-parse", "HEAD"), antes, "o cenário é o da branch que ficou com o merge")
 
     def test_conflito_em_outro_arquivo_nao_e_resolvido_pelo_comando(self):
         self.publicar("9.9.0")

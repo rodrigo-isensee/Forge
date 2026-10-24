@@ -263,7 +263,11 @@ def papel_de(politica, agent_type):
 
 
 def casa(rel, caminho):
-    """`rel` é o `caminho` (arquivo) ou está dentro dele (diretório, que termina em `/`)."""
+    """`rel` é o `caminho` (arquivo) ou está dentro dele (diretório, que termina em `/`). Um `*` no `caminho` vale por
+    uma pasta qualquer (`~/.forge-contrib/*/docs/pedidos/`: a cópia de trabalho do Forge, qualquer que seja o nome)."""
+    if "*" in caminho:
+        padrao = "[^/]+".join(re.escape(p) for p in caminho.split("*"))
+        return re.match(padrao + ("" if caminho.endswith("/") else "$"), rel + ("/" if caminho.endswith("/") else "")) is not None
     return rel.startswith(caminho) or rel + "/" == caminho if caminho.endswith("/") else rel == caminho
 
 
@@ -1088,7 +1092,7 @@ class Guarda:
         if self.pol.get("escrita_permitida", {}).get(self.papel) is not None:
             return True
         if not hasattr(self, "_citacoes"):
-            self._citacoes = tuple({e["caminho"].removeprefix("~/").rstrip("/") for e in self.pol["caminhos"]}
+            self._citacoes = tuple({e["caminho"].removeprefix("~/").rstrip("/").rsplit("*", 1)[-1] for e in self.pol["caminhos"]}
                                    | {".forge/perfil", MANIFESTO})
         return any(t in caminho for t in self._citacoes)
 
