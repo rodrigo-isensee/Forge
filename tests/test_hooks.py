@@ -242,31 +242,33 @@ def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
 
 
 def ler_dentro_do_comando(palavras, nivel):
-    """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`."""
+    """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`, em cada
+    leitura possível do lançador (`separar_lancadores`: a recusa é a união delas, RET-LEITURA-HOOK-G)."""
     _, conformidade, _ = modulos_dos_hooks()
     while palavras and palavras[0] in conformidade.CORPO_DE_LACO:
         palavras = palavras[1:]
     atribuicoes = palavras[:len(palavras) - len(conformidade.sem_atribuicoes(palavras))]
     try:
-        palavras, lancadas = conformidade.separar_lancadores(palavras)
+        possiveis = conformidade.separar_lancadores(palavras)
     except ValueError:
-        return []  # `env -S` com aspas abertas: o hook só dá o R-CONTRIB para o Forge
+        return []  # texto dividido com aspas abertas, ou palavras demais fora da tabela: o hook só dá o R-CONTRIB para o Forge
     lidos = []
-    for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
-        if "`" in p:
-            lidos += ler_como_o_conformidade(p, nivel + 1)
-        elif "$(" in p.replace(conformidade.OPACO["$"], ""):
-            lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
-    prog = Path(palavras[0].lstrip("`")).name if palavras else ""
-    internos = []
-    if prog in conformidade.SHELLS:
-        internos = [palavras[i + 2] for i, a in enumerate(palavras[1:-1]) if re.fullmatch(r"-[a-z]*c[a-z]*", a)]
-    elif prog == "eval":
-        internos = [" ".join(palavras[1:])]
-    for interno in internos:
-        lidos += ler_como_o_conformidade(interno, nivel + 1)
-        if "\\`" in interno:
-            lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+    for palavras, lancadas in possiveis:
+        for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
+            if "`" in p:
+                lidos += ler_como_o_conformidade(p, nivel + 1)
+            elif "$(" in p.replace(conformidade.OPACO["$"], ""):
+                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+        prog = Path(palavras[0].lstrip("`")).name if palavras else ""
+        internos = []
+        if prog in conformidade.SHELLS:
+            internos = [palavras[i + 2] for i, a in enumerate(palavras[1:-1]) if re.fullmatch(r"-[a-z]*c[a-z]*", a)]
+        elif prog == "eval":
+            internos = [" ".join(palavras[1:])]
+        for interno in internos:
+            lidos += ler_como_o_conformidade(interno, nivel + 1)
+            if "\\`" in interno:
+                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
     return lidos
 
 
@@ -2879,6 +2881,425 @@ exit 0
             self.assertFalse(hasattr(_comum, nome), f"{nome} voltou: o hook imita um env de novo")
         self.assertIsNone(_comum.opcao_modelada("env", "-a"))
         self.assertIsNone(_comum.opcao_modelada("env", "--argv0"))
+
+    # RET-LEITURA-HOOK-G (opção A da proposta caminho-rev13): a classe "regra sem o marcador atrás de lançador com opção
+    # fora da tabela". Sem o marcador, as regras da linha (segredo, apagar o `.git`, o rótulo, a autoria) leem todas as
+    # leituras possíveis de cada palavra com `-` que `LANCADORES` não modela (sem valor; com a palavra seguinte como valor;
+    # no `env`, o texto dividido do `S`) e recusam se qualquer uma recusa. O oráculo é a leitura sem o lançador: se o
+    # corpo sozinho dá 2 no `conformidade`, a forma com o lançador também dá 2. As decisões vêm da `Guarda` real, no mesmo
+    # processo (`DRIVER_DA_GUARDA`: um processo por lote, e não um por texto), sobre o modelo do corpus.
+    DRIVER_DA_GUARDA = """
+import contextlib, io, json, os, sys, time
+dados = json.loads(sys.stdin.read())
+sys.path.insert(0, dados["hooks"])
+import _comum, conformidade
+_comum.forge_check().GIT_TIMEOUT_S = 120
+os.environ.clear()
+os.environ.update(dados["env"])
+os.chdir(dados["raiz"])
+saida = []
+for texto in dados["textos"]:
+    hook = _comum.Hook("conformidade")
+    hook.entrada = {**dados["entrada"], "tool_input": {**dados["entrada"]["tool_input"], "command": texto}}
+    erro, codigo, inicio = io.StringIO(), 0, time.perf_counter()
+    with contextlib.redirect_stderr(erro), contextlib.redirect_stdout(io.StringIO()):
+        try:
+            conformidade.principal(hook)
+        except SystemExit as saiu:
+            codigo = saiu.code
+    saida.append([codigo, time.perf_counter() - inicio, erro.getvalue()[:300] if dados["motivo"] else ""])
+print(json.dumps(saida))
+"""
+    CORPOS_FIXOS = ("cat .env", "rm -rf .git")  # `env-cat-bloqueia.json` e o `.git` da raiz (`trava-rm-*-bloqueia.json`)
+    # O lançador que o hook não modela (`LANCADORES_RECUSADOS`) recusa no fim da linha, e a leitura a mais só soma essa recusa.
+    CORPOS_DE_LANCADOR_RECUSADO = ("flock f true", "ionice -c3 ls", "script -qc ls /dev/null")
+    # O corpo que muda o estado do próprio shell (`cd`, `export`...) não o muda atrás de lançador (o `env cd` roda outro
+    # processo): a pasta e as variáveis que seguem são as da leitura sem valor (ADR 0013, item 5), e não valem o oráculo.
+    MUDA_O_ESTADO_DO_SHELL = frozenset({"cd", "export", "pushd", "popd", "read", "declare", "typeset", "unset", "set"})
+    NO_FIXTURE_DE_OUTRO_DIA = ("{tmp}", "{raiz}", "{marca", "{HEAD}", "{pid")  # o texto só vale depois do `Fixture.montar`
+    SO_PALAVRAS = re.compile(r"[\w./=:@%+,-]+(?: [\w./=:@%+,-]+)*")  # corpo que o `env -S` divide como o shell o leria
+
+    def decidir_na_guarda(self, textos, hooks=HOOKS, motivo=False):
+        """[(código, segundos, stderr)] da `Guarda` do `conformidade` de `hooks`, no mesmo processo (um filho só), sobre o
+        modelo do corpus e com o ambiente limpo dos testes (`HOME` e `PATH` herdados do teste, sem rede)."""
+        raiz, entrada, proc = self.modelos_montados()["conformidade"]
+        env = ambiente_limpo()
+        env.update(FORGE_PROC=str(proc), FORGE_NPROC="8")
+        dados = {"hooks": str(hooks), "raiz": str(raiz), "entrada": entrada, "env": env, "textos": list(textos),
+                 "motivo": motivo}
+        r = subprocess.run([sys.executable, "-I", "-c", self.DRIVER_DA_GUARDA], input=json.dumps(dados), cwd=raiz,
+                           env=env, capture_output=True, text=True, timeout=600)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        return json.loads(r.stdout.splitlines()[-1])
+
+    def corpos_sem_marcador(self):
+        """`CORPOS_SEM_MARCADOR` (item 1 do critério de fim da opção A, caminho-rev13): `cat .env` e `rm -rf .git` mais o
+        comando de cada fixture `tests/hooks/conformidade/*-bloqueia.json` sem passos, sem o marcador do `conformidade` e
+        sem lançador, que dá 2 sozinho no modelo do corpus (o oráculo: a leitura sem o lançador)."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        candidatos = list(self.CORPOS_FIXOS + self.CORPOS_DE_LANCADOR_RECUSADO)
+        for caminho in sorted((FIXTURES / "conformidade").glob("*-bloqueia.json")):
+            dados = json.loads(caminho.read_text(encoding="utf-8"))
+            comando = dados.get("entrada", {}).get("tool_input", {}).get("command")
+            if (dados.get("passos") or not isinstance(comando, str) or "\n" in comando
+                    or any(marca in comando for marca in self.NO_FIXTURE_DE_OUTRO_DIA)
+                    or conformidade.CRITICO.search(comando)
+                    or any(Path(w).name in _comum.LANCADORES for w in re.split(r"[\s;&|()`'\"]+", comando))):
+                continue
+            if comando.split()[0] not in self.MUDA_O_ESTADO_DO_SHELL:
+                candidatos.append(comando)
+        candidatos = list(dict.fromkeys(candidatos))
+        decisoes = self.decidir_na_guarda(candidatos)
+        return [c for c, (codigo, _, _) in zip(candidatos, decisoes) if codigo == 2]
+
+    @staticmethod
+    def divide_sempre(nome, palavra):
+        """O `env` sempre divide o texto desta palavra (`-S`, `-Svalor`, `--split-string[=valor]`)? Lida da palavra, sem o
+        código do hook: nelas o texto é o comando, e "palavra com valor, e o comando depois" não é uma leitura dela."""
+        return nome == "env" and (palavra.startswith("-S") or (palavra.startswith("--")
+                                                              and palavra[2:].partition("=")[0] == "split-string"))
+
+    def textos_sem_marcador(self, corpos, passo_env=5, passo_outros=29, passo_posicoes=97):
+        """[(rótulo, texto)] da propriedade: para cada lançador, as palavras do alfabeto fora da tabela
+        (`alfabeto_de_opcoes`, a do gerador com marcador; `passo_*`: uma em cada tantas) antes de cada corpo fixo, como
+        `L w C` e `L w X C`, também depois de `NOME=valor` e de uma opção modelada (o `timeout` leva a duração), e algumas
+        palavras antes de cada um dos outros corpos. No `env`, mais, com cada grupo de 0 a 2 letras antes do `S`:
+        `env -<g>S'C'`, `env -<g>S 'C'` e `env --<prefixo de split-string>='C'`, só com os corpos que ele lê como o shell."""
+        _comum, _, _ = modulos_dos_hooks()
+        fixos = [c for c in self.CORPOS_FIXOS if c in corpos]
+        outros = [c for c in corpos if c not in fixos]
+        saida = []
+
+        def formas(nome, antes, palavra, corpo):
+            if self.divide_sempre(nome, palavra):
+                return
+            quotada, duracao = shlex.quote(palavra), "5 " if nome == "timeout" else ""
+            saida.append((f"{nome} / {palavra} / {antes!r} / L w C / {corpo}", f"{nome} {antes}{quotada} {duracao}{corpo}"))
+            saida.append((f"{nome} / {palavra} / {antes!r} / L w X C / {corpo}",
+                          f"{nome} {antes}{quotada} X {duracao}{corpo}"))
+
+        for nome, tabela in sorted(_comum.LANCADORES.items()):
+            fora = [w for w in self.alfabeto_de_opcoes(tabela) if not self.na_tabela_do_lancador(tabela, w)]
+            modeladas = sorted(tabela.get("booleanas", ())) or sorted(f"{o} X" for o in tabela.get("com_valor", ()))
+            posicoes = ["X=1 "] + ([modeladas[0] + " "] if modeladas else [])
+            for k, palavra in enumerate(fora):
+                for corpo in fixos if k % (passo_env if nome == "env" else passo_outros) == 0 else ():
+                    formas(nome, "", palavra, corpo)
+                for corpo in fixos if k % passo_posicoes == 0 else ():
+                    for antes in posicoes:
+                        formas(nome, antes, palavra, corpo)
+            for palavra in ("-iu", "--un"):
+                if palavra in fora:
+                    for corpo in outros:
+                        formas(nome, "", palavra, corpo)
+        letras = string.ascii_letters.replace("S", "")
+        grupos = [""] + list(letras) + [a + b for a in letras for b in letras][::7]
+        recusados = [c for c in self.CORPOS_DE_LANCADOR_RECUSADO if c in corpos]
+        lidos_como_o_shell = fixos + recusados + [c for c in outros if c not in recusados
+                                                  and self.SO_PALAVRAS.fullmatch(c)][:2]
+        prefixos = ["split-string"[:k] for k in range(1, len("split-string") + 1)]
+        for corpo in lidos_como_o_shell:
+            quotado = shlex.quote(corpo)
+            for g in grupos:
+                saida.append((f"env / -{g}S'C' / {corpo}", f"env -{g}S{quotado}"))
+                saida.append((f"env / -{g}S 'C' / {corpo}", f"env -{g}S {quotado}"))
+            for prefixo in prefixos:
+                saida.append((f"env / --{prefixo}='C' / {corpo}", f"env --{prefixo}={quotado}"))
+                saida.append((f"env / --{prefixo} 'C' / {corpo}", f"env --{prefixo} {quotado}"))
+        return saida
+
+    def test_propriedade_sem_marcador_atras_de_lancador_com_opcao_fora_da_tabela(self):  # item 1 do critério de fim (rev13)
+        """Para cada lançador de `LANCADORES`, a palavra com `-` fora da tabela antes do comando, sem o marcador crítico,
+        nunca esconde a regra da linha: se o corpo sozinho (`CORPOS_SEM_MARCADOR`, com `cat .env` e `rm -rf .git`) dá 2
+        no `conformidade`, a forma `L w C`, `L w X C` (a palavra seguinte como valor), depois de `NOME=valor` e de uma
+        opção modelada, e as do `env` com o corpo colado ao `S` do grupo, depois dele ou na abreviação de
+        `--split-string`, também dá 2. A verdade vem da construção, e não de um `env`. Fora das formas só ficam as
+        palavras em que o `env` sempre divide o texto (`-S…`, `--split-string…`): nelas o corpo não é o comando de
+        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (60 s) é do lote inteiro, na `Guarda`."""
+        corpos = self.corpos_sem_marcador()
+        for fixo in self.CORPOS_FIXOS + self.CORPOS_DE_LANCADOR_RECUSADO:
+            self.assertIn(fixo, corpos, f"o corpo {fixo!r} não dá 2 sozinho no modelo: o oráculo não vale")
+        self.assertGreaterEqual(len(corpos), 20)
+        textos = self.textos_sem_marcador(corpos)
+        inicio = time.monotonic()
+        decisoes = self.decidir_na_guarda([texto for _, texto in textos])
+        segundos = time.monotonic() - inicio
+        liberadas = [(rotulo, texto) for (rotulo, texto), (codigo, _, _) in zip(textos, decisoes) if codigo != 2]
+        self.assertEqual(liberadas[:10], [], f"{len(liberadas)} de {len(textos)} formas dão 0 e o corpo dá 2 sozinho")
+        nomes = {rotulo.split(" / ")[0] for rotulo, _ in textos}
+        self.assertEqual(nomes, set(modulos_dos_hooks()[0].LANCADORES))
+        self.assertGreaterEqual(len(textos), 10_000)
+        self.assertLess(segundos, 60, f"a propriedade levou {segundos:.1f} s para {len(textos)} formas")
+
+    def test_formas_do_s_do_env_sem_marcador_tem_o_texto_colado_e_separado(self):  # item 1, formas do `env`
+        """O gerador da propriedade produz, para o `env`, o corpo colado ao `S` do grupo (`-iS'C'`), depois dele
+        (`-iS 'C'`) e na abreviação de `--split-string` (`--spl='C'`), só para o corpo que o `env` lê como o shell, e as
+        formas `L w C` e `L w X C` para o resto (sem as palavras em que o `env` sempre divide o texto)."""
+        grande = 10 ** 9
+        textos = dict(self.textos_sem_marcador(list(self.CORPOS_FIXOS) + ["git config user.name t", "echo x; cat .env"],
+                                               passo_env=grande, passo_outros=grande, passo_posicoes=grande))
+        self.assertEqual(textos["env / -iS'C' / cat .env"], "env -iS'cat .env'")
+        self.assertEqual(textos["env / -iS 'C' / rm -rf .git"], "env -iS 'rm -rf .git'")
+        self.assertEqual(textos["env / --spl='C' / cat .env"], "env --spl='cat .env'")
+        self.assertEqual(textos["env / --split-string 'C' / cat .env"], "env --split-string 'cat .env'")
+        self.assertEqual(textos["env / -S'C' / cat .env"], "env -S'cat .env'")  # sem o grupo, o `S` é a primeira letra
+        self.assertEqual(textos["env / -iS'C' / git config user.name t"], "env -iS'git config user.name t'")
+        self.assertNotIn("env / -iS'C' / echo x; cat .env", textos)  # o `env -S` não roda `;`: só os corpos simples
+        self.assertEqual(textos["env / -iu / '' / L w C / echo x; cat .env"], "env -iu echo x; cat .env")
+        self.assertEqual(textos["env / --un / '' / L w X C / git config user.name t"], "env --un X git config user.name t")
+        self.assertEqual(textos["timeout / -iu / '' / L w C / git config user.name t"], "timeout -iu 5 git config user.name t")
+        self.assertFalse([r for r in textos if r.startswith("env / -S")
+                          and (r.endswith("L w C / cat .env") or r.endswith("L w X C / cat .env"))],
+                         "as palavras em que o `env` sempre divide o texto ficam fora de `L w C` e `L w X C`")
+
+    def test_separar_lancadores_devolve_as_leituras_possiveis(self):  # item 1 da opção A (rev13), a função
+        """A palavra com `-` fora da tabela tem as leituras possíveis, a sem valor primeiro; a da tabela e o `-S` por
+        extenso (o `env` sempre divide) têm uma só; só o `env` tem a do texto dividido; o texto dividido com aspas abertas
+        é `ValueError`, e o excesso de palavras fora da tabela, `LancadorDemais` (que também é `ValueError`)."""
+        _comum, _, _ = modulos_dos_hooks()
+        separar = _comum.separar_lancadores
+        self.assertEqual(separar(["env", "-i", "-u", "X", "cat", ".env"]), [(["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "-Scat .env"]), [(["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "-S", "cat .env"]), [(["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "--split-string=cat .env"]), [(["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "-iu", "X", "cat", ".env"]), [(["X", "cat", ".env"], []), (["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "-iScat .env"]), [([], []), (["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "-vS", "cat .env"]), [(["cat .env"], []), ([], []), (["cat", ".env"], [])])
+        self.assertEqual(separar(["env", "--spl=cat .env", "x"]), [(["x"], []), ([], []), (["cat", ".env", "x"], [])])
+        self.assertEqual(separar(["sudo", "-s", "cat", ".env"]), [(["cat", ".env"], []), ([".env"], [])])
+        self.assertEqual(separar(["nice", "-Z", "-n", "5", "cat"]), [(["cat"], []), (["5", "cat"], [])])
+        self.assertEqual(separar(["env", "X=1", "-iu", "Y", "Z=2", "cat"]),
+                         [(["Y", "Z=2", "cat"], ["X=1"]), (["cat"], ["X=1", "Z=2"])])
+        self.assertEqual(separar(["env", "-iScat", "-Z", "x"]), [(["x"], []), (["cat", "x"], []), (["cat"], []), ([], [])])
+        self.assertEqual(separar(["sudo", "-u", "-s", "cat"]), [(["cat"], [])], "`-u` está na tabela e leva o `-s`")
+        self.assertEqual(separar(["env", "--", "cat"]), [(["cat"], [])])
+        self.assertEqual(separar(["cat", ".env"]), [(["cat", ".env"], [])])
+        with self.assertRaises(ValueError):
+            separar(["env", "-iScat .env \""])
+        with self.assertRaises(ValueError):
+            separar(["env", "-S", "cat .env \""])
+        self.assertEqual(_comum.TETO_FORA_DA_TABELA, 3)
+        self.assertEqual(separar(["env", "-a", "-b", "-c", "cat"]), [(["cat"], []), ([], [])])
+        with self.assertRaises(_comum.LancadorDemais) as demais:
+            separar(["env", "-a", "-b", "-c", "-d", "cat"])
+        self.assertIsInstance(demais.exception, ValueError)
+        with self.assertRaises(_comum.LancadorDemais):
+            separar(["env", "-Z", "env", "-Z", "env", "-Z", "env", "-Z", "cat"])  # os lançadores encadeados contam juntos
+
+    def test_o_teste_do_s_do_env_e_um_so(self):  # item 1 da opção A (rev13): `achado_do_lancador` e a leitura
+        """A recusa (`achado_do_lancador`) e a leitura (`separar_lancadores`) usam o mesmo teste do `S`
+        (`texto_dividido_do_env`): para toda palavra do alfabeto do `env` fora da tabela, é `env -S` exatamente quando a
+        função acha o texto dividido, e o `sudo` e o resto nunca são `env -S`."""
+        _comum, _, _ = modulos_dos_hooks()
+        tabela = _comum.LANCADORES["env"]
+        fora = [w for w in self.alfabeto_de_opcoes(tabela) if not self.na_tabela_do_lancador(tabela, w)]
+        divide = 0
+        for palavra in fora:
+            achado = _comum.achado_do_lancador("env", palavra)
+            tem_s = _comum.texto_dividido_do_env(palavra, "x") is not None
+            self.assertEqual(achado == _comum.ACHADO_DO_ENV_S, tem_s, palavra)
+            self.assertIsInstance(achado, str)
+            self.assertNotEqual(_comum.achado_do_lancador("sudo", palavra), _comum.ACHADO_DO_ENV_S)
+            divide += tem_s
+        self.assertGreaterEqual(divide, 100)
+        self.assertEqual(_comum.texto_dividido_do_env("-iS'cat", "x"), ("'cat", 0, False))
+        self.assertEqual(_comum.texto_dividido_do_env("-S", "x"), ("x", 1, True))
+        self.assertEqual(_comum.texto_dividido_do_env("--spl", "x"), ("x", 1, False))
+        self.assertEqual(_comum.texto_dividido_do_env("--split-string=y", "x"), ("y", 0, True))
+        self.assertIsNone(_comum.texto_dividido_do_env("-iu", "x"))
+        self.assertIsNone(_comum.texto_dividido_do_env("--sig=S", "x"))
+
+    REGRESSOES_SEM_MARCADOR = (
+        "env -iu X cat .env", "env -iC / cat .env", "env -iu X rm -rf .git", "env -iS'cat .env'", "env -vS'cat .env'",
+        "env -iS\"rm -rf .git\"", "env -a x cat .env", "env -f /dev/null cat .env", "env --un X cat .env")
+    CONTROLES_SEM_MARCADOR = ("env -u X cat .env", "env -S'cat .env'", "env -i cat .env")
+
+    def test_regressoes_sem_marcador_do_lancador_dao_2(self):  # item 2 do critério de fim da opção A (caminho-rev13)
+        """As seis formas da tabela da seção 1 da proposta (a `develop` recusava as seis) e `-a`, `-f` e `--un` saem 2
+        no `conformidade`, e os controles da tabela seguem 2. O texto dividido com aspas abertas segue como na `develop`
+        (`ilegivel`, que só recusa o que aponta para o Forge), e a opção sobre o teto recusa pelo motivo dela."""
+        textos = list(self.REGRESSOES_SEM_MARCADOR + self.CONTROLES_SEM_MARCADOR)
+        decisoes = self.decidir_na_guarda(textos + ["env -S'cat .env \"'", "env -a -b -c -d ls"], motivo=True)
+        for texto, (codigo, _, _) in zip(textos, decisoes):
+            self.assertEqual(codigo, 2, f"o conformidade libera {texto!r}")
+        self.assertEqual(decisoes[-2][0], 0, "o texto dividido sem aspas fechadas segue `ilegivel`, como na develop")
+        self.assertEqual(decisoes[-1][0], 2)
+        self.assertIn("opção de lançador que o hook não modela", decisoes[-1][2])
+
+    def test_sonda_viva_do_lancador_sem_marcador(self):  # item 3 do critério de fim da opção A (caminho-rev13)
+        """Com os hooks desligados, cada `env` da máquina (GNU e uutils) imprime o `.env` falso nas formas que o item 2
+        manda recusar: a sonda está viva, e as formas rodam de verdade. `HOME` numa pasta do `$TMPDIR`, `.env` falso,
+        sem rede e sem escrever nada (R-CUSTO). O uutils desta máquina não divide o `-iS'…'` (grupo com o `i`): essa
+        forma é só do GNU, e o `-vS'…'` é dos dois."""
+        envs = self.envs_da_maquina()
+        if not envs:
+            self.skipTest("sem env nesta máquina")
+        pasta = self._pasta_temporaria()
+        (pasta / "home").mkdir()
+        (pasta / ".env").write_text("SEGREDO_FALSO=abc123\n", encoding="utf-8")
+        ambiente = {"HOME": str(pasta / "home"), "PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+        formas = (("-iu X cat .env", ["-iu", "X", "cat", ".env"], None), ("-iC cat .env", ["-iC", str(pasta), "cat", ".env"], None),
+                  ("-vS'cat .env'", ["-vScat .env"], None), ("-iS'cat .env'", ["-iScat .env"], "gnu"))
+        vistas = 0
+        for env_real in envs:
+            familia = self.familia_do_env(env_real)
+            for rotulo, argv, so_da in formas:
+                if so_da not in (None, familia):
+                    continue
+                with self.subTest(env=env_real, familia=familia, forma=rotulo):
+                    r = subprocess.run([env_real, *argv], cwd=pasta, env=ambiente, capture_output=True, text=True,
+                                       timeout=10, stdin=subprocess.DEVNULL)
+                    self.assertIn("SEGREDO_FALSO=abc123", r.stdout, f"o env {familia} não roda {rotulo}: {r.stderr!r}")
+                    vistas += 1
+        self.assertGreaterEqual(vistas, 3 * len(envs))
+
+    def test_tempo_do_teto_das_leituras_do_lancador(self):  # item 4 do critério de fim da opção A (caminho-rev13)
+        """Com `K` palavras fora da tabela e 50 lançadores encadeados, o `conformidade` decide em menos de 0,5 s na
+        `Guarda` (o vigia de produção é 3 s) e libera (o corpo `ls` não tem regra); com `K + 1`, recusa pelo teto. `K` é
+        3: no máximo 27 leituras, e a medida do lote está no `--numstat` e no relatório do pedido."""
+        _comum, _, _ = modulos_dos_hooks()
+        k = _comum.TETO_FORA_DA_TABELA
+        self.assertEqual(k, 3)
+
+        def linha(palavras):
+            return " ".join(["env", "-Z"] * palavras + ["env"] * (50 - palavras) + ["ls"])
+
+        (dentro, _, motivo_dentro), (acima, _, motivo_acima) = self.decidir_na_guarda([linha(k), linha(k + 1)], motivo=True)
+        self.assertEqual(dentro, 0, motivo_dentro)
+        self.assertEqual(acima, 2)
+        self.assertIn("opção de lançador que o hook não modela", motivo_acima)
+        medida = self.decidir_na_guarda([linha(k)] * 20)
+        self.assertLess(max(segundos for _, segundos, _ in medida), 0.5, "o teto K não decide em 0,5 s")
+        self.assertLess(sum(segundos for _, segundos, _ in medida) / 20, 0.05)
+
+    def test_estado_da_leitura_a_mais_nao_segue_adiante(self):  # item 5 do critério de fim da opção A, teste de unidade
+        """Depois de `env -Z X cd /tmp/y; rm -rf .forge`, a pasta que segue é a da leitura sem valor (o `X` é o comando, e
+        o `cd` não roda): o `rm` apaga o `.forge` do projeto, e dá 2. A leitura com valor tem o `cd` e deixaria a pasta
+        em `/tmp/y`, onde o `rm` libera (o controle, sem o `env`): o estado dela é descartado (ADR 0013, item 5)."""
+        decisoes = self.decidir_na_guarda(["env -Z X cd /tmp/y; rm -rf .forge", "cd /tmp/y; rm -rf .forge",
+                                           "env -Z X cd /tmp/y; true"])
+        self.assertEqual([codigo for codigo, _, _ in decisoes], [2, 0, 0])
+
+    def test_lancador_recusado_na_leitura_a_mais_soma_a_recusa(self):  # item 5 da opção A: o estado só soma recusa
+        """O lançador que o hook não modela (`flock`, `ionice`, `script`...) recusa no fim da linha, e a leitura a mais, que
+        descarta o ambiente, não descarta essa recusa: `env -iu X flock f true` e `env -iS'flock f true'` dão 2 como
+        `flock f true` (com o `X` como comando, a leitura sem valor não vê o `flock`)."""
+        textos = ["flock f true", "env -iu X flock f true", "env -iS'flock f true'", "env -a x ionice -c3 ls",
+                  "env -iu X script -qc ls /dev/null", "env -iu X ls"]
+        self.assertEqual([codigo for codigo, _, _ in self.decidir_na_guarda(textos)], [2, 2, 2, 2, 2, 0])
+
+    def copia_do_plugin_com(self, *mudancas):
+        """A pasta `hooks` de uma cópia limpa do plugin (`bin`, `templates` e o resto por link, para o `PLUGIN` do hook
+        achar o que lê), com cada (arquivo, velho, novo) aplicado uma vez: uma mutação, sem tocar o código de hoje."""
+        pasta = self._pasta_temporaria() / "plugin"
+        pasta.mkdir()
+        shutil.copytree(HOOKS, pasta / "hooks", ignore=shutil.ignore_patterns("__pycache__"))
+        for item in RAIZ.iterdir():
+            if item.name not in {"hooks", ".git", "tests", "__pycache__", "changelog.d"}:
+                (pasta / item.name).symlink_to(item)
+        for arquivo, velho, novo in mudancas:
+            alvo = pasta / "hooks" / arquivo
+            fonte = alvo.read_text(encoding="utf-8")
+            self.assertEqual(fonte.count(velho), 1, f"a mutação não acha o trecho de {arquivo}: {velho!r}")
+            alvo.write_text(fonte.replace(velho, novo), encoding="utf-8")
+        return pasta / "hooks"
+
+    def test_mutacoes_das_leituras_do_lancador_ficam_vermelhas(self):  # item 5 do critério de fim da opção A (rev13)
+        """Cada mutação, numa cópia limpa dos hooks, deixa vermelha a forma que a pega (com o código de hoje, a forma dá
+        2): tirar a leitura "com valor" libera `env -iu X cat .env`; tirar a do "texto dividido" libera
+        `env -iS'cat .env'`; deixar o estado da leitura a mais seguir adiante libera `env -Z X cd /tmp/y; rm -rf .forge`;
+        tirar o teto libera a linha com `K + 1` palavras fora da tabela. O regex `-[a-zA-Z]*[uC]` e as tabelas do `env`
+        não voltam (`test_mutacoes_do_lancador_ficam_vermelhas` segue exigindo a ausência)."""
+        _comum, _, _ = modulos_dos_hooks()
+        k_mais_1 = " ".join(["env", "-Z"] * (_comum.TETO_FORA_DA_TABELA + 1) + ["ls"])
+        alvos = {"com_valor": "env -iu X cat .env", "texto_dividido": "env -iS'cat .env'",
+                 "estado": "env -Z X cd /tmp/y; rm -rf .forge", "teto": k_mais_1}
+        textos = list(alvos.values())
+        self.assertEqual([c for c, _, _ in self.decidir_na_guarda(textos)], [2, 2, 2, 2], "o código de hoje recusa")
+        mutacoes = {
+            "com_valor": [("_comum.py", "                adiadas.append((base, inicio, list(lancadas), gasto, (nome, i + 1, list(dividido))))  # com valor\n",
+                           "")],
+            "texto_dividido": [("_comum.py", "                if texto is not None:  # no `env`, o texto dividido que a palavra tem depois do `S`\n",
+                                "                if False:\n")],
+            "estado": [("conformidade.py", "                self.leitura_do_segmento(palavras, comando, lancadas, pasta, dict(ramos), nivel)\n",
+                        "                depois = self.leitura_do_segmento(palavras, comando, lancadas, pasta, dict(ramos), nivel)\n")],
+            "teto": [("_comum.py", "                if gasto >= TETO_FORA_DA_TABELA:\n", "                if False:\n")],
+        }
+        for nome, mudancas in mutacoes.items():
+            with self.subTest(mutacao=nome):
+                hooks = self.copia_do_plugin_com(*mudancas)
+                codigos = [c for c, _, _ in self.decidir_na_guarda(textos, hooks=hooks)]
+                self.assertEqual(codigos[list(alvos).index(nome)], 0, f"a mutação {nome} não é pega: {codigos}")
+        for nome in ("ENV_COM_VALOR_CURTA", "ENV_LONGAS_COM_VALOR", "env_divide_texto", "valor_do_split_string"):
+            self.assertFalse(hasattr(_comum, nome), f"{nome} voltou: o hook imita um env de novo")
+        self.assertNotIn("[uC]", (HOOKS / "_comum.py").read_text(encoding="utf-8"))
+        self.assertNotIn("[uC]", (HOOKS / "conformidade.py").read_text(encoding="utf-8"))
+
+    def test_alvos_de_escrita_leem_a_uniao_das_leituras_do_lancador(self):  # a autoria atrás de lançador (rev13)
+        """`alvos_de_escrita` (a autoria dos pareceres escritos pelo Bash) soma os alvos de cada leitura possível do
+        lançador: o `tee` atrás de `env -iu X` e de `env -iS'…'` conta, e a linha acima do teto não dá o alvo do `tee`
+        (só a autoria depende dele), mas guarda os redirecionamentos que vieram antes."""
+        _, conformidade, _ = modulos_dos_hooks()
+        alvo = "docs/reviews/x.md"
+        for texto in (f"env -iu X tee {alvo}", f"env -iS'tee {alvo}'", f"env -a x tee {alvo}", f"env -S 'tee {alvo}'",
+                      f"env -i tee {alvo}", f"sudo -s tee {alvo}", f"echo y > {alvo}"):
+            with self.subTest(texto=texto):
+                self.assertEqual(conformidade.alvos_de_escrita(texto), [alvo])
+        acima = conformidade.alvos_de_escrita(f"echo y > a.md; env -a -b -c -d tee {alvo}")
+        self.assertEqual(acima, ["a.md"])
+
+    def comandos_de_um_fixture(self, caminho):
+        """Os comandos do Bash de um fixture (os `passos` e a `entrada`)."""
+        dados = json.loads(caminho.read_text(encoding="utf-8"))
+        entradas = [p["entrada"] for p in dados.get("passos", []) if "entrada" in p] + [dados.get("entrada", {})]
+        return [e["tool_input"]["command"] for e in entradas
+                if isinstance(e.get("tool_input"), dict) and isinstance(e["tool_input"].get("command"), str)]
+
+    def lancadores_com_opcao_fora_da_tabela(self, comando):
+        """[(lançador, palavra)] de cada lançador do comando, em qualquer leitura da linha, seguido de palavra com `-` que
+        `LANCADORES` não modela antes do comando."""
+        _comum, _, _ = modulos_dos_hooks()
+        achados, lancadores = [], 0
+        try:
+            lidas = _comum.leituras(_comum.tirar_heredocs(comando)[0])
+        except ValueError:
+            return achados, lancadores
+        for partes in lidas.partes:
+            for palavras, _, _ in partes:
+                for k, palavra in enumerate(palavras):
+                    nome = Path(palavra).name
+                    if nome in _comum.LANCADORES and (k == 0 or _comum.sem_atribuicoes(palavras[:k]) == []):
+                        lancadores += 1
+                        fora = _comum.opcao_fora_da_tabela(list(palavras), k + 1, nome)
+                        if fora is not None:
+                            achados.append((nome, fora))
+        return achados, lancadores
+
+    def test_fixtures_libera_nao_tem_lancador_com_opcao_fora_da_tabela(self):  # item 7 do critério de fim (rev13)
+        """O registro do item 5 da rev12: a busca de lançador com opção fora da tabela nos fixtures `-libera` dos dois
+        hooks e nos casos do corpus que algum hook libera. Não há nenhum: o que o `segmento` lê a mais (a opção com valor
+        e o texto dividido) só soma recusa, e nenhum caso liberado muda. Os dois fixtures com lançador e opção
+        (`lancador-sudo-u-npm-test-libera.json`, `lancador-nice-git-status-libera.json`) têm opção da tabela. Se um
+        caso novo com lançador e opção fora da tabela entrar como liberado, este teste o mostra e o autor decide."""
+        achados, lancadores, lidos = [], 0, 0
+        for hook in ("conformidade", "parecer"):
+            for caminho in sorted((FIXTURES / hook).glob("*-libera*.json")):
+                for comando in self.comandos_de_um_fixture(caminho):
+                    lidos += 1
+                    fora, quantos = self.lancadores_com_opcao_fora_da_tabela(comando)
+                    achados += [(f"{hook}/{caminho.name}", comando, *f) for f in fora]
+                    lancadores += quantos
+        corpus = corpus_da_volta_unica()
+        for caso in corpus["casos"]:
+            if 0 in (caso.get("conformidade"), caso.get("parecer")):
+                for comando in caso.get("passos", [caso.get("comando")]):
+                    lidos += 1
+                    fora, quantos = self.lancadores_com_opcao_fora_da_tabela(comando.replace("{CORPO}", "ls"))
+                    achados += [(caso["id"], comando, *f) for f in fora]
+                    lancadores += quantos
+        self.assertEqual(achados, [])
+        self.assertGreaterEqual(lidos, 200)
+        self.assertGreaterEqual(lancadores, 5, "a busca acha os lançadores com opção da tabela")
 
     def test_propriedade_do_lancador_que_divide_texto_com_marcador(self):  # A1 da segurança, revalidação 11
         """Todo texto da dimensão "lançador que divide texto" (com a linha crítica direta e com a sentinela de cada

@@ -1741,7 +1741,9 @@ def sem_atribuicoes(palavras):
 # leva o valor colado (`stdbuf -oL`). O `--` fecha as opções de todos. Com o marcador crítico, a palavra com `-` fora da
 # tabela, antes do comando, recusa nos dois hooks, sem que o hook tente lê-la (ADR 0011: o que o analisador não modela é
 # recusado): o `env -S` em qualquer grafia, o `-a`, o `-f`, o grupo curto (`-iu X`), a abreviação longa (`--un`), o
-# `sudo -s` e a opção de um `env` que o hook não conhece. O hook não imita nenhum `env` (GNU, uutils, BSD).
+# `sudo -s` e a opção de um `env` que o hook não conhece. Sem o marcador, a recusa não vale: `separar_lancadores` devolve
+# as leituras possíveis da palavra fora da tabela, e as regras da linha recusam se qualquer uma recusa. O hook não imita
+# nenhum `env` (GNU, uutils, BSD).
 LANCADORES = {
     "env": {"booleanas": frozenset({"-i", "-", "--ignore-environment", "-0", "--null", "-v", "--debug"}),
             "com_valor": frozenset({"-u", "--unset", "-C", "--chdir"})},
@@ -1814,20 +1816,50 @@ def opcao_fora_da_tabela(palavras, i, nome, memoria=None):
     return fora
 
 
+class LancadorDemais(ValueError):
+    """O comando simples tem mais de `TETO_FORA_DA_TABELA` palavras com `-` fora da tabela `LANCADORES` antes do comando:
+    o hook não lê as leituras todas e o comando não é analisável (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13)."""
+
+
+# O teto K de palavras fora da tabela por leitura (contando os lançadores encadeados): cada uma abre até 3 leituras, e o
+# `segmento` roda as regras da linha sobre cada uma. K = 3 dá no máximo 27 leituras. Medido em RET-LEITURA-HOOK-G
+# (`test_tempo_do_teto_das_leituras_do_lancador`): com K palavras e 50 lançadores, a `Guarda` decide em cerca de 2 a 5 ms
+# (o limite do teste é 0,5 s; o vigia de produção, 3 s), e com K + 1 o comando não é analisável e recusa. K fica em 3
+# porque cobre o uso real (as opções da tabela não contam) e o contorno é escrever as opções da lista.
+TETO_FORA_DA_TABELA = 3
+
+
 def separar_lancadores(palavras):
     """Tira os prefixos que só repassam o comando (`env`, `sudo`, `nice`, `timeout`, `xargs`...) com as opções
     deles, pela tabela `LANCADORES` (a mesma da recusa), para classificar o comando de verdade; opções do comando
-    seguinte não se perdem. Devolve (comando, atribuições feitas pelos lançadores): `env GH_REPO=x gh ...` passa a
-    variável ao `gh` como `GH_REPO=x gh ...`, e o `NOME=valor` misturado às opções também. O `env -S` por extenso
-    (`valor_do_split_string`) é dividido, para que a regra específica fale antes da recusa. A opção fora da tabela não
-    tem leitura: com o marcador crítico, a linha recusa (`reavaliacao`); sem ele, as regras da linha seguem com a
-    opção lida como sem valor, como na `develop`. ValueError: aspas abertas no valor do `-S`, e o comando não é
-    analisável. Anda por índices: só o `env -S` (que põe palavras novas na frente) copia a cauda."""
-    base, lancadas = palavras, []
-    inicio = depois_das_atribuicoes(base)
-    while inicio < len(base) and Path(base[inicio]).name in LANCADORES:
-        nome = Path(base[inicio]).name
-        i, dividido = inicio + 1, []
+    seguinte não se perdem. Devolve a lista das leituras possíveis, cada uma (comando, atribuições feitas pelos
+    lançadores): `env GH_REPO=x gh ...` passa a variável ao `gh` como `GH_REPO=x gh ...`, e o `NOME=valor` misturado às
+    opções também. A primeira é a leitura sem valor, que dá a pasta e as variáveis que seguem na linha (ADR 0013, item
+    5); as outras só somam recusa. As palavras da tabela têm uma leitura só; o `env -S` por extenso
+    (`texto_dividido_do_env`, certo) é dividido, para que a regra específica fale antes da recusa. Para cada palavra
+    com `-` fora da tabela, antes do comando, o hook não escolhe qual leitura o lançador instalado faz (nenhuma
+    tabela de opções do `env` volta) e lê as possíveis: sem valor (a palavra seguinte segue como opção ou comando); com
+    valor (a palavra seguinte é o valor); e, no `env`, com o texto dividido, se a palavra tem o `S` (grupo curto
+    `-iS'…'` ou abreviação de `--split-string`): o resto dela, ou a palavra seguinte, é o comando. ValueError: aspas
+    abertas no texto dividido, e o comando não é analisável; `LancadorDemais`: mais de `TETO_FORA_DA_TABELA` palavras
+    fora da tabela. Anda por índices: só o texto dividido (que põe palavras novas na frente) copia a cauda."""
+    saidas = []
+    _ler_lancadores(palavras, depois_das_atribuicoes(palavras), [], 0, saidas)
+    return saidas
+
+
+def _ler_lancadores(base, inicio, lancadas, gasto, saidas, meio=None):
+    """Anda pela cadeia de lançadores de `base` a partir de `inicio` (ou de `meio`: (lançador, índice, texto dividido) no
+    meio das opções de um), junta a leitura que fecha em `saidas` e, depois dela, as que cada palavra fora da tabela
+    adiou (com valor, texto dividido): a leitura sem valor sai primeiro. `gasto`: as palavras fora da tabela vistas."""
+    adiadas = []
+    while meio or (inicio < len(base) and Path(base[inicio]).name in LANCADORES):
+        if meio:
+            nome, i, dividido = meio
+            meio = None
+        else:
+            nome = Path(base[inicio]).name
+            i, dividido = inicio + 1, []
         while i < len(base):
             opcao = base[i]
             if ATRIBUICAO.match(opcao):
@@ -1839,13 +1871,23 @@ def separar_lancadores(palavras):
             i += 1
             if opcao == "--":
                 break
-            split = valor_do_split_string(opcao, base[i] if i < len(base) else "") if nome == "env" else None
-            if split is not None:  # `env -S '<comando>'`: o valor é o comando, dividido em palavras
-                texto, consome = split
-                i += consome
-                dividido += shlex.split(texto)  # aspas abertas: ValueError, e o comando não é analisável
-            else:
-                i += opcao_modelada(nome, opcao) or 0
+            seguinte = base[i] if i < len(base) else ""
+            texto = texto_dividido_do_env(opcao, seguinte) if nome == "env" else None
+            if texto is not None and texto[2]:  # `-S`, `-Svalor`, `--split-string[=valor]`: o `env` sempre divide
+                i += texto[1]
+                dividido += shlex.split(texto[0])  # aspas abertas: ValueError, e o comando não é analisável
+                continue
+            consome = opcao_modelada(nome, opcao)
+            if consome is None:  # fora da tabela: as leituras possíveis, e a sem valor segue aqui
+                if gasto >= TETO_FORA_DA_TABELA:
+                    raise LancadorDemais(f"{nome} {opcao}")
+                gasto += 1
+                adiadas.append((base, inicio, list(lancadas), gasto, (nome, i + 1, list(dividido))))  # com valor
+                if texto is not None:  # no `env`, o texto dividido que a palavra tem depois do `S`
+                    adiadas.append((base, inicio, list(lancadas), gasto,
+                                    (nome, i + texto[1], dividido + shlex.split(texto[0]))))
+                consome = 0
+            i += consome
         if nome == "timeout" and i < len(base):
             i += 1  # a duração
         if dividido:
@@ -1853,7 +1895,11 @@ def separar_lancadores(palavras):
         fim = depois_das_atribuicoes(base, i)
         lancadas += base[i:fim]
         inicio = fim
-    return base[inicio:], lancadas
+    leitura = (base[inicio:], lancadas)
+    if leitura not in saidas:
+        saidas.append(leitura)
+    for resto in adiadas:
+        _ler_lancadores(*resto[:4], saidas, meio=resto[4])
 
 
 # A palavra de laço ou de condição antes do comando (`do rm …`, `then …`): o comando vem depois dela.
@@ -1879,12 +1925,10 @@ class OpcaoDeLancador(str):
 
 def achado_do_lancador(nome, opcao):
     """O nome que `reavaliacao_das_palavras` dá à opção `opcao`, fora da tabela, do lançador `nome`: a opção de dividir
-    texto do `env` (`-S` em qualquer grafia ou grupo, `--split-string` e toda abreviação) é `env -S`; o resto,
-    `OpcaoDeLancador`."""
-    if nome == "env":
-        longa = opcao[2:].partition("=")[0] if opcao.startswith("--") else None
-        if (longa and "split-string".startswith(longa)) or (longa is None and "S" in opcao[1:]):
-            return ACHADO_DO_ENV_S
+    texto do `env` (o teste do `S` de `texto_dividido_do_env`, o mesmo de `separar_lancadores`: `-S` em qualquer grafia
+    ou grupo, `--split-string` e toda abreviação) é `env -S`; o resto, `OpcaoDeLancador`."""
+    if nome == "env" and texto_dividido_do_env(opcao, "") is not None:
+        return ACHADO_DO_ENV_S
     return OpcaoDeLancador(f"{nome} {opcao}")
 
 
@@ -2019,17 +2063,22 @@ def reduzida(cru):
     return None if expande else "".join(saida)
 
 
-def valor_do_split_string(opcao, seguinte):
-    """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string` por extenso (`-S valor`, `-Svalor`,
-    `--split-string valor`, `--split-string=valor`), o comando que o `env` divide e roda; None para qualquer outra
-    palavra (o grupo curto e a abreviação não se dividem: com o marcador, recusam como `env -S`)."""
-    if opcao in ("-S", "--split-string"):
-        return seguinte, 1
-    if opcao.startswith("--split-string="):
-        return opcao.split("=", 1)[1], 0
-    if opcao.startswith("-S"):
-        return opcao[2:], 0
-    return None
+def texto_dividido_do_env(opcao, seguinte):
+    """(texto, 1 se consumiu a palavra seguinte, certo) do `env` que divide o texto da opção `opcao` e roda o resultado,
+    ou None se a palavra não tem o `S`. O teste do `S` é um só, para a leitura (`separar_lancadores`) e para a recusa
+    (`achado_do_lancador`): palavra curta com `S` depois do `-` (o resto dela depois do primeiro `S`, ou `seguinte` se o
+    resto é vazio) e `--` seguido de um prefixo de `split-string` (o resto depois do `=`, ou `seguinte`). `certo`: o `S`
+    é a primeira letra (`-S`, `-Svalor`) ou a longa é inteira (`--split-string`): o `env` sempre divide, e a palavra tem
+    uma leitura só; o grupo (`-iS'…'`) e a abreviação são leituras possíveis, e o hook não decide qual vale."""
+    if opcao.startswith("--"):
+        longa, igual, resto = opcao[2:].partition("=")
+        if not longa or not "split-string".startswith(longa):
+            return None
+        return (resto, 0, longa == "split-string") if igual else (seguinte, 1, longa == "split-string")
+    if "S" not in opcao[1:]:
+        return None
+    resto = opcao[opcao.index("S") + 1:]
+    return (resto, 0, opcao[1] == "S") if resto else (seguinte, 1, opcao[1] == "S")
 
 
 @functools.lru_cache(maxsize=1)

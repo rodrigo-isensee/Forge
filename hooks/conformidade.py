@@ -24,13 +24,14 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO, OPACO,
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
+                    LancadorDemais, OPACO,
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
-                    sem_atribuicoes, separar_lancadores, SHELLS, tem_manifesto_do_forge, tirar_heredocs)
+                    sem_atribuicoes, separar_lancadores, SHELLS, TETO_FORA_DA_TABELA, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
@@ -343,7 +344,8 @@ def sed_no_lugar(args):
 
 
 def sem_lancadores(palavras):
-    return separar_lancadores(palavras)[0]
+    """O comando atrás dos lançadores, em cada leitura possível (`separar_lancadores`)."""
+    return [comando for comando, _ in separar_lancadores(palavras)]
 
 
 def exporta(palavras):
@@ -837,16 +839,37 @@ class Guarda:
                     self.ambiente[nome] = valor
 
     def segmento(self, palavras, pasta, ramos, nivel):
-        """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`)."""
+        """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`). Atrás de lançador com palavra de `-`
+        fora da tabela (`separar_lancadores`), roda as regras sobre cada leitura possível e recusa se qualquer uma recusa
+        (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13). A pasta e as variáveis que seguem na linha são as da
+        primeira leitura (sem valor, ADR 0013, item 5); as outras partem do estado de antes e o descartam depois."""
         while palavras and palavras[0] in CORPO_DE_LACO:  # `do rm ...`, `then ...`: o comando vem depois da palavra
             palavras = palavras[1:]
-        atribuicoes = palavras[: len(palavras) - len(sem_atribuicoes(palavras))]
-        originais = sem_atribuicoes(palavras)
         try:
-            palavras, lancadas = separar_lancadores(palavras)
-        except ValueError:  # `env -S` com aspas abertas
+            leituras_do_lancador = separar_lancadores(palavras)
+        except LancadorDemais as achado:  # mais palavras fora da tabela que o teto: o hook não lê as leituras todas
+            self.barrar("R-CONFORMIDADE", f"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de "
+                                          f"{TETO_FORA_DA_TABELA} palavras fora da tabela no mesmo comando",
+                        CONTORNO_DO_LANCADOR)
+        except ValueError:  # texto dividido do `env` com aspas abertas
             self.ilegivel(" ".join(palavras), pasta)
             return pasta
+        ambiente, recusado = dict(self.ambiente), self.lancador_recusado
+        depois = self.leitura_do_segmento(palavras, *leituras_do_lancador[0], pasta, ramos, nivel)
+        for comando, lancadas in leituras_do_lancador[1:]:
+            ambiente_fiel, recusado_fiel = self.ambiente, self.lancador_recusado
+            self.ambiente, self.lancador_recusado = dict(ambiente), recusado
+            try:
+                self.leitura_do_segmento(palavras, comando, lancadas, pasta, dict(ramos), nivel)
+            finally:  # o ambiente da leitura a mais se descarta; a recusa do lançador (no fim da linha) só soma
+                self.ambiente, self.lancador_recusado = ambiente_fiel, recusado_fiel or self.lancador_recusado
+        return depois
+
+    def leitura_do_segmento(self, escritas, palavras, lancadas, pasta, ramos, nivel):
+        """As checagens de uma leitura (`palavras`, com `lancadas` pelos lançadores) do comando simples `escritas`, como
+        veio escrito; devolve a pasta depois dele."""
+        originais = sem_atribuicoes(escritas)
+        atribuicoes = escritas[: len(escritas) - len(originais)]
         atribuicoes += lancadas
         if self.leitura:
             if originais[:1] != palavras[:1]:
@@ -1363,19 +1386,19 @@ class Guarda:
             for palavras, _, _ in (parte for partes in lidas.partes for parte in partes):  # ADR 0013: as duas leituras
                 while palavras and palavras[0] in CORPO_DE_LACO:
                     palavras = palavras[1:]
-                palavras, _ = separar_lancadores(palavras)
-                for p in palavras:
-                    if "$(" in p.replace(OPACO["$"], ""):
-                        self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
-                prog = Path(palavras[0].lstrip("`")).name if palavras else ""
-                if prog == "gh":
-                    self.gh_rotulo(palavras, pasta)
-                elif prog in SHELLS:
-                    for i, a in enumerate(palavras[1:]):
-                        if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
-                            self.rotulo_no_argumento(palavras[i + 2], pasta, nivel + 1)
-                elif prog == "eval":
-                    self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
+                for palavras in sem_lancadores(palavras):  # a recusa é a união das leituras possíveis do lançador
+                    for p in palavras:
+                        if "$(" in p.replace(OPACO["$"], ""):
+                            self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
+                    prog = Path(palavras[0].lstrip("`")).name if palavras else ""
+                    if prog == "gh":
+                        self.gh_rotulo(palavras, pasta)
+                    elif prog in SHELLS:
+                        for i, a in enumerate(palavras[1:]):
+                            if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
+                                self.rotulo_no_argumento(palavras[i + 2], pasta, nivel + 1)
+                    elif prog == "eval":
+                        self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
             for dono, corpo in corpos:
                 if not corpo_so_lido(dono):
                     self.rotulo_na_sessao_do_forge(corpo, pasta, nivel + 1)
@@ -1676,14 +1699,15 @@ def alvos_de_escrita(comando):
         pass  # lê os corpos como comando: é só autoria, e ler a mais não esconde alvo
     alvos = []
     for partes in leituras(comando).partes:
-        try:
-            for palavras, destinos, _ in partes:
-                alvos += destinos
-                palavras = sem_lancadores(palavras)
-                if palavras[:1] == ["tee"]:
-                    alvos += [a for a in palavras[1:] if not a.startswith("-")]
-        except ValueError:  # `env -S` com aspas abertas
-            pass
+        for palavras, destinos, _ in partes:
+            alvos += destinos
+            try:
+                lidas = sem_lancadores(palavras)  # a união das leituras possíveis do lançador
+            except ValueError:  # texto dividido do `env` com aspas abertas, ou acima do teto de palavras fora da tabela
+                continue
+            for lida in lidas:
+                if lida[:1] == ["tee"]:
+                    alvos += [a for a in lida[1:] if not a.startswith("-")]
     return list(dict.fromkeys(alvos))
 
 
