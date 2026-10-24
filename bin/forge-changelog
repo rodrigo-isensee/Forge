@@ -9,6 +9,7 @@ Uso: forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"   grava em c
 Fragmento: `### <tipo>` seguido de linhas `- texto`. Roda na raiz do repositório (cwd).
 """
 import argparse
+import json
 import re
 import subprocess
 import sys
@@ -84,16 +85,33 @@ def novo(args):
 MANIFESTOS = (".claude-plugin/plugin.json", "dev/.claude-plugin/plugin.json")
 
 
-def gravar_versao(versao):
-    """Grava a versão nos manifestos que existem (o do plugin e o de desenvolvimento), sem mexer no resto do arquivo."""
+def ler_manifestos():
+    """Lê e valida os manifestos que existem; devolve [(caminho, texto)]. Recusa link simbólico, caminho fora da raiz,
+    JSON inválido e manifesto sem `version` de topo. Nada é gravado aqui."""
+    raiz = Path.cwd().resolve()
+    lidos = []
     for nome in MANIFESTOS:
         caminho = Path(nome)
-        if not caminho.exists():
+        if not caminho.exists() and not caminho.is_symlink():
             continue
+        if caminho.is_symlink() or not caminho.resolve().is_relative_to(raiz):
+            sys.exit(f"{nome}: link simbólico ou fora da raiz do repositório; recusado.")
         texto = caminho.read_text(encoding="utf-8")
-        novo_texto, n = re.subn(r'("version"\s*:\s*")[^"]+(")', rf"\g<1>{versao}\g<2>", texto, count=1)
-        if n:
-            caminho.write_text(novo_texto, encoding="utf-8")
+        try:
+            dados = json.loads(texto)
+        except ValueError as erro:
+            sys.exit(f"{nome}: não é JSON válido ({erro}).")
+        if not isinstance(dados, dict) or not isinstance(dados.get("version"), str):
+            sys.exit(f"{nome}: sem a chave 'version' de topo.")
+        lidos.append((caminho, texto))
+    return lidos
+
+
+def gravar_versao(manifestos, versao):
+    """Grava a versão nos manifestos já validados, sem mexer no resto do arquivo."""
+    for caminho, texto in manifestos:
+        novo_texto, _ = re.subn(r'("version"\s*:\s*")[^"]*(")', rf"\g<1>{versao}\g<2>", texto, count=1)
+        caminho.write_text(novo_texto, encoding="utf-8")
 
 
 def release(args):
@@ -116,13 +134,14 @@ def release(args):
             agrupado[tipo].extend(linhas)
     if not antigas and not arquivos:
         sys.exit("Nada a publicar: sem fragmentos em changelog.d/ nem linhas em '[Não publicado]'.")
+    manifestos = ler_manifestos()
     corpo = list(antigas)
     for tipo in TIPOS:
         if agrupado[tipo]:
             corpo += [f"### {tipo}", *agrupado[tipo]]
     secao = f"## [Não publicado]\n\n## [{args.versao}] - {args.data}\n" + "\n".join(corpo) + "\n\n"
     caminho.write_text(texto[:m.start()] + secao + texto[m.end():], encoding="utf-8")
-    gravar_versao(args.versao)
+    gravar_versao(manifestos, args.versao)
     for a in arquivos:
         a.unlink()
     print(f"[{args.versao}]: {len(arquivos)} fragmento(s) juntado(s) e apagado(s)")
