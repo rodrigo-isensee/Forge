@@ -160,10 +160,13 @@ fi
 # Caminho absoluto e normalizado (sem `..` nem link no meio): a limpeza do passo 7 troca de diretório e o registrador precisa achar o arquivo depois disso.
 logdir="$(cd "$logdir" && pwd -P)" || die "não consegui resolver a pasta do log: $logdir"
 # Só o modo se corrige: link, outro dono e não diretório já foram recusados acima; pasta do próprio usuário com modo diferente de 700 vira 700, com aviso.
-# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700).
-if [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" != 700 ]; then
-  chmod u=rwx,go=,g-s "$logdir" 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
-  [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700), e `u-s` tira o setuid.
+# Sem janela de corrida (FECHAR-TOCTOU): entra na pasta com `cd -P`, confere o dono do diretório já aberto (`.`) e o chmod age sobre `.`, não sobre o
+# caminho, que podia virar link entre a checagem e o chmod. `$logdir` já é o caminho resolvido (`pwd -P`).
+modo_de() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
+if [ "$(modo_de "$logdir")" != 700 ]; then
+  (cd -P "$logdir" && [ -O . ] && chmod u=rwx,go=,g-s,u-s .) 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+  [ "$(modo_de "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
   echo "aviso: a pasta do log não tinha modo 700; ajustei para 700: $logdir" >&2
 fi
 # Retenção: log do próprio usuário com mais de 14 dias, só nesta pasta, sem seguir link.
