@@ -115,12 +115,20 @@ def integrar_develop(projeto, nova):
     try:
         return resolver_conflito(projeto, nova, antes)
     except (EOFError, KeyboardInterrupt):
-        git(projeto, "merge", "--abort")
+        desfazer_mesclagem(projeto, antes)
         raise
-    except Exception as erro:  # nada deixa a mesclagem aberta no projeto: qualquer erro inesperado desfaz antes de sair
-        git(projeto, "merge", "--abort")
+    except Exception as erro:  # nada deixa a mesclagem no projeto: qualquer erro inesperado desfaz antes de sair
+        desfazer_mesclagem(projeto, antes)
         print(f"Algo inesperado aconteceu ao tratar o conflito ({type(erro).__name__}: {erro}). Desfiz a mesclagem; a branch do upgrade ficou como estava.")
         return False
+
+
+def desfazer_mesclagem(projeto, antes):
+    """Desfaz a mesclagem: aborta se ainda está aberta; se o commit da resolução já saiu, volta a branch (limpa) ao commit de antes."""
+    if git(projeto, "rev-parse", "-q", "--verify", "MERGE_HEAD")[0] == 0:
+        git(projeto, "merge", "--abort")
+    elif git(projeto, "rev-parse", "HEAD")[1] != antes:
+        git(projeto, "reset", "--hard", antes)
 
 
 def resolver_conflito(projeto, nova, antes):
