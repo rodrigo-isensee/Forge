@@ -173,9 +173,9 @@ class Execucao(unittest.TestCase):
     def test_git_com_caminho_fora_da_arvore_e_recusado_e_nao_le_o_arquivo(self):
         subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env=sem_manutencao({**os.environ, "HOME": self.tmp.name}))
         for caminho in ("/etc/hostname", "../fora", "docs/../../fora", "~/x"):
-            rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho} /dev/null` · espera: rc=0 e contém 'hostname'"])
+            rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho}` · espera: rc=0 e contém 'hostname'"])
             self.assertEqual(rc, 1, caminho)
-            self.assertIn("recusado", saida, caminho)
+            self.assertIn("recusado (caminho de git fora da árvore", saida, caminho)
 
     def test_git_sem_repositorio_na_raiz_e_recusado(self):
         rc, saida = self.rodar(["- PQ-1 (cmd): `git ls-files` · espera: rc=0"])
@@ -235,6 +235,10 @@ class Execucao(unittest.TestCase):
         self.assertIn("é o modelo", saida)
         with self.assertRaises(rp.Falha):
             rp.reexecutar("../fora.md", self.raiz, 5)
+        (self.raiz / "docs" / "outra").mkdir()
+        (self.raiz / "docs" / "outra" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0\n", encoding="utf-8")
+        with self.assertRaisesRegex(rp.Falha, r"docs/outra/p\.md: fora de docs/provas/"):
+            rp.reexecutar("docs/outra/p.md", self.raiz, 5)
 
     def test_ambiente_minimo_e_prazo_chegam_ao_subprocess(self):
         (self.raiz / "docs" / "provas" / "p.md").write_text("- PQ-1 (cmd): `python3 -m unittest tests.t_ok` · espera: rc=0\n", encoding="utf-8")
