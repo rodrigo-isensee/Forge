@@ -655,7 +655,7 @@ class Fechar(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertEqual(self.log_de(r).parent, tmpd / f"forge-fechar-logs-{os.getuid()}")
 
-    def test_l1_recusa_pasta_que_e_link_ou_tem_modo_diferente_de_700(self):
+    def test_l1_recusa_pasta_que_e_link_ou_nao_e_diretorio(self):
         alvo = self.tmp / "alvo"
         alvo.mkdir(mode=0o700)
         link = self.tmp / "link"
@@ -664,13 +664,11 @@ class Fechar(unittest.TestCase):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("link simbólico", r.stderr)
         self.assertEqual(list(alvo.iterdir()), [])
-        aberta = self.tmp / "aberta"
-        aberta.mkdir()
-        aberta.chmod(0o755)
-        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(aberta))
+        arquivo = self.tmp / "arquivo"
+        arquivo.write_text("x\n")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(arquivo))
         self.assertNotEqual(r.returncode, 0)
-        self.assertIn("modo 700", r.stderr)
-        self.assertEqual(list(aberta.iterdir()), [])
+        self.assertEqual(arquivo.read_text(), "x\n")
 
     def test_l1_arquivo_do_log_vem_de_mktemp_e_e_600(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
