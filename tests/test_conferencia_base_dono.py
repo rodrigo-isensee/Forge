@@ -79,7 +79,7 @@ class IntegracaoNaBranch(Repositorio):
     def integrar(self, conflito=False):
         self.c1 = self.commitar({"a.txt": "1\n", "f.txt": "branch\n" if conflito else "0\n"}, "trabalho da branch")
         git("switch", "-q", "develop", cwd=self.repo)
-        self.d1 = self.commitar({"d.txt": "d\n", "f.txt": "develop\n"} if conflito else {"d.txt": "d\n"}, "develop andou")
+        self.d1 = self.commitar({"d.txt": "d\n", "f.txt": "develop\n2\n3\n4\n"} if conflito else {"d.txt": "d\n"}, "develop andou")
         git("switch", "-q", "melhoria/x", cwd=self.repo)
         if conflito:
             subprocess.run(["git", "-C", str(self.repo), "merge", "--no-edit", "develop"], env=ambiente_limpo(),
@@ -118,6 +118,39 @@ class IntegracaoNaBranch(Repositorio):
         self.assertNotIn("integração da base", saida)
         self.assertIn('confira "z.txt"', saida)
         self.assertIn(f"intervalo: {self.c1}..{c}", saida)
+
+    def test_dois_merges_seguidos_nao_escondem_arquivo_do_autor(self):
+        self.c1 = self.commitar({"a.txt": "1\n"}, "trabalho da branch")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"d.txt": "d\n"}, "develop andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-commit", "--no-ff", "develop", cwd=self.repo)
+        (self.repo / "s.txt").write_text("do autor\n", encoding="utf-8")  # conteúdo novo posto no primeiro merge
+        git("add", "s.txt", cwd=self.repo)
+        git("commit", "-q", "-m", "integração com arquivo do autor", cwd=self.repo)
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"e.txt": "e\n"}, "develop andou de novo")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1, etapa="review")
+        self.assertNotIn("integração da base", saida)
+        self.assertIn('confira "s.txt"', saida)
+
+    def test_os_numeros_da_integracao_sao_contra_os_dois_pais(self):
+        self.integrar(conflito=True)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: confira "f.txt" +1 -4', saida)  # o maior: contra o pai da develop (4 linhas -> 1); contra o da branch seria -1
+
+    def test_a_pendente_diz_quando_a_entrega_e_so_a_integracao(self):
+        self.integrar()
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("pendente: a entrega é só a integração da base", saida)
+        self.assertNotIn("nenhum commit novo", saida)
 
 
 class PedidoForaDoClone(Repositorio):

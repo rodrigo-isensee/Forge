@@ -833,22 +833,32 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
 
 
 def diferem_dos_dois_pais(raiz, de, head, base_ref):
-    """`(arquivos,)` que o `head` muda contra cada um dos pais quando o head é um commit de integração (dois pais) e todo
-    commit próprio do intervalo `de..head` (fora da base) é também de integração; senão None. É o que `git show --cc` mostra: a
-    integração limpa não tem escopo próprio; com conflito resolvido, só os arquivos resolvidos (CONF-BASE-DONO)."""
+    """`(arquivos, contagens)` que o `head` muda contra cada um dos pais quando ele é um commit de integração da base: dois pais,
+    o único commit próprio do intervalo `de..head` (fora da base), um pai é o `de` e o outro é ancestral da base; senão None. É o
+    que `git show --cc` mostra: a integração limpa não tem escopo próprio; com conflito resolvido, só os arquivos resolvidos. Com
+    outro merge antes do head, o conteúdo posto nele não é visto pelo `--cc` do head: vale o escopo de hoje (CONF-BASE-DONO).
+    `contagens` é, por arquivo, o maior `+`/`-` entre os dois pais (a regra do anexo com remoção não pode ser enganada)."""
     cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
     partes = pais.split() if not cod else []
-    if len(partes) != 3:
+    if len(partes) != 3 or not base_ref or de not in partes[1:]:
         return None
-    extra = ["--not", base_ref] if base_ref else []
-    cod, proprios = git(raiz, "log", "--no-merges", "--format=%H", f"{de}..{head}", *extra)
-    if cod or proprios:
+    outro = partes[2] if partes[1] == de else partes[1]
+    cod, proprios = git(raiz, "rev-list", f"{de}..{head}", "--not", base_ref)
+    if cod or proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):
         return None
-    comuns = None
+    comuns, contagens = None, {}
     for pai in partes[1:]:
         nomes = set(nomes_do_intervalo(raiz, pai, head))
         comuns = nomes if comuns is None else comuns & nomes
-    return (comuns,)
+        for nome, (mais, menos) in contagens_do_intervalo(raiz, pai, head).items():
+            antes = contagens.get(nome)
+            contagens[nome] = (maior_contagem(antes[0], mais), maior_contagem(antes[1], menos)) if antes else (mais, menos)
+    return comuns, contagens
+
+
+def maior_contagem(a, b):
+    """O maior de dois números do `--numstat`; o `-` do binário prevalece."""
+    return "-" if "-" in (a, b) else str(max(int(a), int(b)))
 
 
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
@@ -893,12 +903,13 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
         diferem = set(nomes_do_intervalo(raiz, base_ref, head))
         arquivos = [n for n in arquivos if n in diferem]
-    contagens = contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None)
+    contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
     linhas += informativas
     if not arquivos:
-        linhas.append(("pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit", True)
-                      if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
+        vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
+                 if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
+        linhas.append((vazio, True) if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
     for nome in arquivos:
         acrescidas, removidas = contagens.get(nome, ("?", "?"))
         tipo = next((t for t, (pasta, _) in PASTA_E_REGRA.items() if nome.startswith(pasta + "/")), None)
