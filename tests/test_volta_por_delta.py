@@ -438,8 +438,9 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
+        igual = lambda l: l.replace("não conferida: conferente dispensado", "conferida pelo conferente")  # a linha `decisões:` muda com o veredito
         self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "conferente:"))],
-                         [l for l in linhas_sem if not l.startswith("conferente:")])
+                         [igual(l) for l in linhas_sem if not l.startswith("conferente:")])
         self.assertIn("conferente: dispensado (brief mecânico)", linhas_sem)
         self.assertIn("conferente: necessário (brief de volta)", com[1])
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))

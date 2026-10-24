@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede)
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -358,9 +358,6 @@ class TabelaDePareceres(Repo):
         self.assertNotIn("docs/qa", r.stderr)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class QuatroDefeitosDoScript(Repo):
     """EST-030-L1 (M1): os quatro defeitos reais de brief que o conferente pegava viram checagem do `forge-check brief`."""
@@ -448,6 +445,13 @@ class ListaPositivaDoMecanico(Repo):
     def base(self, entregar=("Mesclar (E1.5).",), fora=None):
         return brief("revisor-exemplo", list(entregar), fora_sem("E1.5") if fora is None else fora)
 
+    def com_remoto(self):
+        """`origin` de verdade (um repositório nu local) com a branch enviada: o `commit:` lê o remoto por `git ls-remote`."""
+        self.git("init", "-q", "--bare", str(self.tmp / "remoto.git"))
+        remoto_sem_manutencao(self.tmp / "remoto.git")
+        self.git("remote", "add", "origin", str(self.tmp / "remoto.git"))
+        self.git("push", "-q", "origin", "melhoria/x")
+
     def sai_necessario(self, texto, trecho, nome="b.md"):
         rc, saida = self.conferir(texto, nome)
         self.assertIn(f"conferente: necessário ({trecho}", saida)
@@ -482,9 +486,10 @@ class ListaPositivaDoMecanico(Repo):
         cabecalho = "\nEtapa: review   Branch: melhoria/x   Base: develop\n\n## Objetivo"
         texto = self.base(("Review (E1.2).",), fora_sem("E1.2")).replace("\n\n## Objetivo", cabecalho, 1)
         head = self.git("rev-parse", "HEAD")
-        self.git("update-ref", "refs/remotes/origin/melhoria/x", head)
+        self.com_remoto()
         rc, saida = self.conferir(texto)
         self.assertIn("conferente: dispensado", saida, saida)
+        self.assertIn("contradição não conferida: conferente dispensado", saida)
         self.git("worktree", "add", "-q", "--detach", str(self.tmp / "wt"), head)
         env = ambiente_do_git()
         subprocess.run(["git", "-C", str(self.tmp / "wt"), "-c", "user.email=t@e", "-c", "user.name=T", "commit", "-q", "--allow-empty", "-m", "só na worktree"],
@@ -493,3 +498,17 @@ class ListaPositivaDoMecanico(Repo):
         self.git("worktree", "remove", "--force", str(self.tmp / "wt"))
         qa = brief("qa-exemplo", ["QA (E1.4)."], fora_sem("E1.4")).replace("\n\n## Objetivo", cabecalho.replace("review", "qa"), 1)
         self.sai_necessario(qa, "o script não decide: aviso: etapa:")
+
+    def test_o_commit_le_o_remoto_e_nao_so_o_ref_de_rastreio_velho(self):
+        """Segurança A8, review A6: o ref de rastreio local diz que a branch foi enviada, mas `origin` ainda está atrás."""
+        self.com_remoto()
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", self.git("rev-parse", "HEAD"))
+        texto = self.base(("Review (E1.2).",), fora_sem("E1.2")).replace("\n\n## Objetivo", QuatroDefeitosDoScript.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertIn("(origin/melhoria/x atrás); rode git fetch origin", saida)
+        self.assertEqual(rc, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

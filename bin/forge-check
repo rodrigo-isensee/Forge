@@ -3966,23 +3966,37 @@ def worktree_a_frente(raiz, remota):
     return any(h != remota and e_ancestral(raiz, remota, h) for h in heads)
 
 
+def remoto_da_branch(raiz, branch):
+    """(sha da branch em `origin` ou None, conferido): `git ls-remote origin refs/heads/<branch>` (o remoto, não o último fetch); sem rede
+    ou sem `origin`, cai no ref de rastreio local e `conferido` é False."""
+    try:
+        cod, saida = git(raiz, "ls-remote", "origin", f"refs/heads/{branch}")
+    except subprocess.TimeoutExpired:
+        cod, saida = 1, ""
+    if cod == 0:
+        sha = saida.split("\t")[0]
+        return (sha if SHA40.match(sha) else None), True
+    return sha_do_commit(raiz, f"refs/remotes/origin/{branch}"), False
+
+
 def estado_do_commit(raiz, texto):
     """M1: (linhas, decidiu). Brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou
-    atrás): a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Mesma regra de `parecer_commitado`: sem commit local ou
-    sem remoto conhecido, não há o que conferir, e `decidiu` é False, como com um HEAD solto de worktree à frente do remoto (o brief mecânico não dispensa o conferente sem a checagem).
-    Sem `Branch:` ou na etapa `codigo`, a checagem não se aplica (decidiu). Offline, só com git de leitura."""
+    atrás), lido do remoto por `git ls-remote`: a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Sem commit local ou
+    sem remoto conhecido, não há o que conferir (como `parecer_commitado`); `decidiu` é False sem o remoto conferido, sem commit local ou
+    com um HEAD solto de worktree à frente do remoto (o brief mecânico não dispensa o conferente sem a checagem). Sem `Branch:` ou na
+    etapa `codigo`, a checagem não se aplica (decidiu)."""
     cabecalho = cabecalho_do_brief(texto)
     etapa, branch = grupo(ETAPA_DO_CABECALHO, cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
     if not branch or etapa == "codigo":
         return [], True
     head = sha_do_commit(raiz, f"refs/heads/{branch}") if etapa in ETAPAS_DO_GERAR else None
-    if not head or not git(raiz, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/origin")[1]:
+    remota, conferido = remoto_da_branch(raiz, branch)
+    if not head or not (conferido or git(raiz, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/origin")[1]):
         return [], False
-    remota = sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
-    if remota and e_ancestral(raiz, head, remota):
-        return [], not worktree_a_frente(raiz, remota)
+    if remota and (head == remota or e_ancestral(raiz, head, remota)):
+        return [], conferido and not worktree_a_frente(raiz, remota)
     return [(f"commit: o head {head[:7]} de {caminho_impresso(branch)} só existe na worktree (origin/{caminho_impresso(branch)} "
-             f"{'atrás' if remota else 'ausente'}); envie a branch antes do brief (git push origin <branch>)", True)], True
+             f"{'atrás' if remota else 'ausente'}); rode git fetch origin, se for ref velho, ou envie a branch antes do brief (git push origin <branch>)", True)], True
 
 
 def delta_de_brief(texto, anterior):
@@ -4329,8 +4343,11 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
-    linhas.append(conferente_do_brief(raiz, brief, pedido_id, destino_do_brief(texto, brief.name, pedido_id, destino), pedido_txt, texto,
-                                      linhas, cobradas, bytes_anterior, commit_decidiu))
+    veredito = conferente_do_brief(raiz, brief, pedido_id, destino_do_brief(texto, brief.name, pedido_id, destino), pedido_txt, texto,
+                                   linhas, cobradas, bytes_anterior, commit_decidiu)
+    if "dispensado" in veredito[0]:  # sem conferente, a linha não diz que alguém confere a contradição
+        linhas = [(l.replace("contradição conferida pelo conferente", "contradição não conferida: conferente dispensado"), r) for l, r in linhas]
+    linhas.append(veredito)
     return pedido_id, linhas
 
 
