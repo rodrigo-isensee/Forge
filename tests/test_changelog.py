@@ -178,6 +178,68 @@ class Release(Base):
             self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"))
             self.assertEqual(alvo.read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
 
+    def test_chave_version_aninhada_antes_da_de_topo_falha_sem_gravar_nada(self):
+        antes = '{"extra": {"version": "9"}, "version": "0.1.0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_chave_version_repetida_falha_sem_gravar_nada(self):
+        antes = '{"version": "0.1.0", "version": "0.1.1"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_chave_version_repetida_com_a_versao_nova_no_ultimo_valor_falha_sem_gravar_nada(self):
+        # Sem o gancho de chave repetida, o último valor (a versão nova) passaria nas duas conferências de `version`.
+        antes = '{"version": "0.1.0", "k": 1, "version": "0.2.0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_aspa_escapada_no_valor_da_version_falha_sem_gravar_nada(self):
+        antes = '{"version": "0.1\\"0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_changelog_link_simbolico_e_recusado_sem_gravar_nada(self):
+        alvo = self.dir / "fora.md"
+        alvo.write_text(CABECALHO, encoding="utf-8")
+        (self.dir / "CHANGELOG.md").unlink()
+        (self.dir / "CHANGELOG.md").symlink_to(alvo)
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("CHANGELOG.md", r.stderr)
+        self.assertEqual(alvo.read_text(encoding="utf-8"), CABECALHO)
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+        self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
+
+    def test_changelog_que_resolve_fora_da_raiz_e_recusado_sem_gravar_nada(self):
+        # O link simbólico cai no ramo `is_symlink()` de `conferir_caminho` (a mensagem é a mesma para os dois ramos).
+        with tempfile.TemporaryDirectory() as fora:
+            alvo = Path(fora) / "CHANGELOG.md"
+            alvo.write_text(CABECALHO, encoding="utf-8")
+            (self.dir / "CHANGELOG.md").unlink()
+            (self.dir / "CHANGELOG.md").symlink_to(alvo)
+            self._com_fragmento()
+            r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("fora da raiz", r.stderr)
+            self.assertEqual(alvo.read_text(encoding="utf-8"), CABECALHO)
+            self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+            self.assertTrue((self.dir / "changelog.d" / "x.md").exists())
+
+    def test_changelog_link_simbolico_quebrado_e_recusado(self):
+        (self.dir / "CHANGELOG.md").unlink()
+        (self.dir / "CHANGELOG.md").symlink_to(self.dir / "nao-existe.md")
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("link simbólico", r.stderr)
+        self.assertFalse((self.dir / "nao-existe.md").exists())
+
     def test_versao_ja_existente_recusada(self):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")
