@@ -723,11 +723,6 @@ def linha_de_origem(arquivo):
     return None
 
 
-def conferidas_do_pedido(texto):
-    """Os sha40 das linhas `conferida <sha40>` do `## Histórico` do pedido, na ordem do arquivo (A4)."""
-    return [m.group(1) for linha in secoes_por(texto, CABECALHO_PEDIDO).get("Histórico", []) if (m := CONFERIDA.match(linha))]
-
-
 def bases_do_pedido(texto):
     """[(sha40, origem)] do `## Histórico`, na ordem do arquivo: as linhas `conferida <sha40>` (origem `conferida`) e as de base do
     delta fixada pelo dono (`- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, origem `dono`; só vale com uma linha
@@ -1270,10 +1265,10 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     antigas = [l for l in copiado("Decisões e restrições") if ROTULO_DO_DESTINO not in l]  # as linhas de erro do anterior saem; valem as de agora
     saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
-    conferidas = conferidas_do_pedido(pedido_txt)
+    bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
     pronto = [f"- PQ-{proximo} (cmd, do autor): `forge-check entrega {caminho_impresso(pedido_id)} --branch {caminho_impresso(branch)} --base {caminho_impresso(a.base)} --base-sha {sha_base} "
-              f"--etapa codigo --desde {conferidas[-1] if conferidas else PREENCHER}` · espera: rc=0"]
+              f"--etapa codigo --desde {bases[-1][0] if bases else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
     saida += acrescentar(copiado("Pronto quando"), pronto)

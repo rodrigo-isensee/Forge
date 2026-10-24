@@ -214,5 +214,43 @@ class PedidoForaDoClone(Repositorio):
         self.assertIn("brief: docs/briefs/b1.md sha256 ", saida)
 
 
+class VoltaComABaseDoDono(Repositorio):
+    """`brief gerar --volta` propõe o `--desde` da linha mais recente do pedido, a do dono também, lida com `--raiz-pedidos`."""
+    FIXTURES = Path(__file__).resolve().parent / "fixtures" / "brief"
+
+    def setUp(self):
+        super().setUp()
+        self.fora = self.repo / "pedidos-fora"  # dentro da raiz do repositório (a opção só aceita ali ou em ~/.forge-contrib)
+        (self.fora / "docs" / "pedidos").mkdir(parents=True)
+        (self.fora / "docs" / "briefs").mkdir(parents=True)
+        (self.repo / ".git" / "info" / "exclude").write_text("pedidos-fora/\n", encoding="utf-8")
+        self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
+        git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)
+        self.commitar({"docs/reviews/p1.md": "---\ntipo: review\ncontrato: 1\npedido: pedido-sintetico\nbranch: melhoria/x\n"
+                       f"commit: {self.c1[:7]}\nparecer: reprovado\nrevisor: forge:tech-lead\ndata: 2026-10-19\n---\n# Parecer\n"
+                       "## Achados\n- A1 (bloqueante) src/app.txt:3 · perde o erro de domínio\n"}, "parecer")
+        pedido = (self.FIXTURES / "pedido.md").read_text(encoding="utf-8")
+        self.pedido = self.fora / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-23 15:56: base do delta fixada pelo dono {self.c1}\n", encoding="utf-8")
+        anterior = self.fora / "docs" / "briefs" / "pedido-sintetico-dev-exemplo-1.md"
+        anterior.write_bytes((self.FIXTURES / "etapa-outro-papel.md").read_bytes())
+
+    def gerar(self, *extra):
+        return self.check("brief", "gerar", "--pedido", "pedido-sintetico", "--destino", "forge:dev-exemplo", "--volta",
+                          "docs/briefs/pedido-sintetico-dev-exemplo-1.md", "--ref", "melhoria/x", *extra)
+
+    def test_a_pq_da_volta_traz_a_base_do_dono_como_desde(self):
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--etapa codigo --desde {self.c1}` · espera: rc=0", saida)
+        self.assertNotIn("--desde PREENCHER", saida)
+
+    def test_a_pq_gerada_passa_no_entrega(self):
+        rc, saida = self.check("entrega", "pedido-sintetico", "--raiz-pedidos", self.fora, "--branch", "melhoria/x", "--base",
+                               "develop", "--base-sha", self.base, "--etapa", "codigo", "--desde", self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("base: fixada pelo dono (linha do Histórico)", saida)
+
+
 if __name__ == "__main__":
     unittest.main()
