@@ -4825,7 +4825,9 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
                                     "requisito da especificação não atendido", "segurança com gatilho",
                                     "exige a marca `critério mudou:` com o motivo"),
         "docs/regras/R-SEGURANCA.md": ("só é `bloqueante` quando toca um gatilho desta regra",
-                                       "marca `critério mudou:` com o motivo", "(`R-REVIEW`)"),
+                                       "marca `critério mudou:` com o motivo", "(`R-REVIEW`)",
+                                       "os caminhos `PROTEGIDOS` de `tests/catraca.py`",
+                                       "defeito de comportamento provado"),
     }
     CURTA = "defeito provado, requisito ou segurança com gatilho"
     MODELOS = ("templates/projeto/docs/reviews/_modelo.md", "templates/projeto/docs/qa/_modelo.md",
