@@ -20,9 +20,22 @@ IDENTIDADE = {"GIT_AUTHOR_NAME": "conferir-reversao", "GIT_AUTHOR_EMAIL": "c@c",
               "GIT_COMMITTER_NAME": "conferir-reversao", "GIT_COMMITTER_EMAIL": "c@c"}
 
 
+# Variáveis de local do git (um hook de commit as define): herdadas, mandariam o git da cópia para o repositório real.
+LOCAIS_GIT = ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY",
+              "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR")
+
+
+def ambiente():
+    return {**{k: v for k, v in os.environ.items() if k not in LOCAIS_GIT}, **IDENTIDADE}
+
+
 def git(cwd, *args):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True,
-                          env={**os.environ, **IDENTIDADE})
+    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=ambiente())
+
+
+def suite_afetada(copia, base):
+    return subprocess.run([sys.executable, str(FORGE_TESTES), "--base", base], cwd=copia,
+                          capture_output=True, text=True, env=ambiente()).returncode == 0
 
 
 def resolver(repo, ref):
@@ -44,9 +57,7 @@ def conferir_commit(copia, base, commit):
     r = git(copia, "revert", "--no-commit", commit)
     if r.returncode:
         return "nao-reverte: conflito ao reverter"
-    t = subprocess.run([sys.executable, str(FORGE_TESTES), "--base", base], cwd=copia,
-                       capture_output=True, text=True)
-    if t.returncode:
+    if not suite_afetada(copia, base):
         return "nao-reverte: a suíte afetada falha sem o commit"
     return "reverte"
 

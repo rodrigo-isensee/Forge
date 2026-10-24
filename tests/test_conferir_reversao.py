@@ -98,6 +98,28 @@ class ConferirReversao(unittest.TestCase):
         self.assertEqual(impressao(self.repo), antes)
         self.assertEqual(git(self.repo, "status", "--porcelain"), "")
 
+    def test_suite_afetada_falha_sem_o_commit(self):
+        (self.repo / "dado.txt").write_text("d\n")
+        ruim = self.commitar("dado")
+        (self.repo / "tests" / "test_a.py").write_text(TESTE_LE)
+        self.commitar("teste que le o dado")
+        r = self.rodar(self.base, "feat")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.splitlines()[0], f"{ruim} nao-reverte: a suíte afetada falha sem o commit")
+
+    def test_ambiente_com_git_index_file_nao_toca_o_original(self):
+        (self.repo / "extra.txt").write_text("x\n")
+        self.commitar("add extra")
+        (self.repo / "outro.txt").write_text("o\n")
+        self.commitar("add outro")
+        antes = impressao(self.repo / ".git")
+        env = {**AMBIENTE, "GIT_INDEX_FILE": str(self.repo / ".git" / "index")}
+        r = subprocess.run([sys.executable, str(SCRIPT), self.base, "feat"], cwd=self.repo, capture_output=True,
+                           text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(impressao(self.repo / ".git"), antes)
+        self.assertEqual(git(self.repo, "status", "--porcelain"), "")
+
     def test_erro_de_uso_e_repositorio_invalido_saem_com_2(self):
         self.assertEqual(self.rodar().returncode, 2)
         self.assertEqual(self.rodar(self.base, "nao-existe").returncode, 2)
