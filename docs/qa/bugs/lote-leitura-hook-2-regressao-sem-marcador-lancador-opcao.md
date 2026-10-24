@@ -28,3 +28,6 @@ Sem os hooks, `env -iu X echo OK` imprime `OK` aqui: o `env` real roda o comando
 
 ## Contorno
 Nenhum para o usuário. Para o hook: o review sugere, sem decidir, ler as duas leituras possíveis (palavra seguinte como valor e como comando; resto do grupo com `S` como texto) ou recusar o lançador com opção fora da tabela também sem o marcador.
+
+## Estado
+As formas relatadas aqui (`-iu`, `-iC`, `-iS'…'`, `-vS'…'`) fecham em 6d5252d: rc 2 no `conformidade`, e a varredura de 49 888 formas (base contra lote) não achou regressão sem aspa aberta. A classe "regressão sem o marcador atrás de lançador com opção fora da tabela" não fecha: o texto dividido com aspa aberta reabre a mesma regressão, no bug `lote-leitura-hook-3`.
