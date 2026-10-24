@@ -163,6 +163,24 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         self.assertNotIn("for ", teste["run"])
         self.assertNotIn("||", teste["run"])
 
+    def test_bateria_lint_e_ferramentas_antes_de_qualquer_codigo_da_branch(self):
+        """CI-ORDEM-LINT: actionlint e zizmor baixados e rodados antes de todo passo que executa código da branch."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
+        nomes = [p["nome"] for p in bateria["passos"]]
+
+        def pos(trecho):
+            (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
+            return i
+        baixa, lint, ziz = pos("Baixa actionlint"), nomes.index("actionlint"), pos("zizmor (offline")
+        self.assertLess(baixa, lint)
+        self.assertLess(lint, ziz)
+        executam_codigo = ("Claude Code CLI", "claude plugin validate", "changelog.d", "release exige versão",
+                           "Nada pula degrau", "Segredo, .env", "Parecer de review", "Provas cmd",
+                           "Testes do Forge", "shellcheck", "Instala o Forge")
+        for trecho in executam_codigo:
+            self.assertLess(ziz, pos(trecho), trecho)
+
     def test_passo_com_bloco_env_e_if(self):
         texto = (
             "jobs:\n  j:\n    name: Meu job\n    if: github.base_ref == 'develop'\n    steps:\n"
