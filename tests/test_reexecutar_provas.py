@@ -133,6 +133,11 @@ class PassoDoCi(unittest.TestCase):
         self.assertIn('git cat-file -e "$BASE:scripts/reexecutar-provas.py"', passo)
         self.assertIn('script="$RUNNER_TEMP/base/scripts/reexecutar-provas.py"', passo)
 
+    def test_so_em_pr_para_a_develop_as_promocoes_ficam_fora(self):
+        condicao = re.search(r"(?m)^        if: (.*)$", self.passo()).group(1)
+        self.assertIn("github.event_name == 'pull_request'", condicao)
+        self.assertIn("github.base_ref == 'develop'", condicao)
+
     def test_roda_no_sha_do_pr_sobre_o_arquivo_da_branch(self):
         passo = self.passo()
         self.assertIn('git worktree add --detach "$RUNNER_TEMP/pr" "$HEAD_SHA"', passo)
