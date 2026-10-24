@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: lote-atualizar
 branch: melhoria/lote-atualizar
-commit: 6ecddee7869463e475600677fc814406c447674b
-parecer: reprovado
-escopo: completo
+commit: 1776e2dcdad82e4f9ae0e2bf69612993988875c5
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,10 +14,9 @@ data: 2026-10-23
 ---
 # QA: lote-atualizar (F4-A9 e publicar sem `__pycache__`)
 
-Base `db55859`, head `6ecddee`, código de `8353dae`. Sem especificação de UX: as obrigações são as do pedido LOTE-ATUALIZAR (F4-A9, review A1 e A2) e de `docs/regras`.
+Revalidação (rodada 2) sobre o head `1776e2d`; o delta desde `bafc740` é só `tests/test_atualizar.py` (código de `bin/forge-atualizar` inalterado desde `8353dae`). Base `db55859`. Sem especificação de UX: as obrigações são as do pedido LOTE-ATUALIZAR (F4-A9, review A1 e A2) e de `docs/regras`.
 
 ## Achados
-- A1 (bloqueante) bin/forge-atualizar:138 · mutante M5 sobrevive: o ramo "a mesclagem ainda está aberta, então abortar" de `desfazer_mesclagem` (guarda nova no diff) não tem teste; os dois testes novos só cobrem o commit já feito. Classe: guarda sem teste. Falta teste com erro ou Ctrl-C com MERGE_HEAD aberto (mesmo buraco do A5 do review)
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -27,7 +26,7 @@ Base `db55859`, head `6ecddee`, código de `8353dae`. Sem especificação de UX:
 | Review A1: teste usa o ambiente isolado (`self.env`) | os dois acima, sob `mock.patch.dict(os.environ, self.env, clear=True)` | sem `.gitconfig` herdado | passou |
 | Publicar não copia `__pycache__` | `publicar()` com `ignore_patterns`; suíte do módulo | n/a | passou |
 | "n" na pergunta desfaz a mesclagem | `test_conflito_em_forge_versao_recusado_pelo_dono_desfaz_a_mesclagem` + sonda (cenário d) | sem commit de mesclagem, árvore limpa | passou |
-| Erro ou Ctrl-C com a mesclagem aberta desfaz por abort | nenhum | n/a | SEM TESTE (A1) |
+| Erro, Ctrl-C e EOF com a mesclagem aberta desfazem por abort (A1 resolvido) | `test_erro_com_a_mesclagem_aberta_desfaz_por_abort`, `test_ctrl_c_com_a_mesclagem_aberta_desfaz_por_abort_e_repassa`, `test_eof_com_a_mesclagem_aberta_desfaz_por_abort_e_repassa` | MERGE_HEAD ausente, HEAD em `antes`, árvore limpa, exceção repassada | passou |
 
 ## Cenários e resultado real
 - `python3 -m unittest tests.test_atualizar`: 75 testes, OK (`$TMPDIR/qa-loteatualizar/unit1.log`). Suíte completa fica para o pre-push.
@@ -48,3 +47,7 @@ M5 · sobreviveu · bin/forge-atualizar:138
 ```
 
 M5 também sobrevive com a classe inteira `AtualizarComDevelopQueAvancou` como testes, e não é equivalente: sem o abort a função devolve False e diz que não conseguiu desfazer, comportamento diferente. Correção sugerida (agente de dev da stack): teste em que `fv.confirmar` ou o commit levante com a mesclagem aberta e espere "Desfiz", MERGE_HEAD ausente e HEAD em `antes` (cobre também o A5 do review).
+
+## Revalidação (rodada 2, só o delta)
+- `python3 -m unittest tests.test_atualizar`: 78 testes, OK (`$TMPDIR/qa-loteatualizar2/unit2.log`); os 3 novos cobrem erro, Ctrl-C e EOF com a mesclagem aberta.
+- Mutante M5 (`if False:` no lugar da guarda do `merge --abort`), `bin/forge-mutante` rc 0: `M5 · morreu · bin/forge-atualizar:138` (`$TMPDIR/qa-loteatualizar2/mut.log`). A1 do parecer anterior resolvido. M1 a M4 não dependem do delta (código inalterado).
