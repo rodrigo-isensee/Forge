@@ -4857,3 +4857,19 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
             for frase in (self.CURTA, "`critério mudou:` com o motivo", "(`R-REVIEW`)"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+
+class PesosDaSuite(unittest.TestCase):
+    """C5: o peso só equilibra a divisão, mas sem peso a mediana chuta; avisa quando passa de 20% sem peso."""
+
+    def test_no_maximo_20_por_cento_dos_modulos_sem_peso(self):
+        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test*.py") if p.stem.isidentifier())
+        pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
+        sem_peso = [m for m in modulos if m not in pesos]
+        self.assertGreaterEqual(len(modulos), 1)
+        self.assertLessEqual(
+            len(sem_peso) * 5,
+            len(modulos),
+            f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
+            "regrave com FORGE_SUITE_MEDIR=1 python3 scripts/suite-paralela.py",
+        )
