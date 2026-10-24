@@ -3,166 +3,163 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 1b4b0d8b060379d6e078d5ef15c2c63676e41b87
+commit: 6d5252db2c3799d8114fb432647d4ae0dfcb5109
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-24
 ---
-# Review de segurança: lote-leitura-hook (revalidação 13, volta pela opção A da revalidação 12)
+# Review de segurança: lote-leitura-hook (revalidação 14, volta pela opção A da revalidação 13)
 
-Pedido RET-LEITURA-HOOK-F-REV, etapa E2.1. Escopo: a volta pela opção A (decisão "A" do dono, 2026-10-24, proposta `docs/propostas/lote-leitura-hook-caminho-rev12.md`). Com o marcador crítico, o lançador de `LANCADORES` só passa com as opções da tabela. O teste instável do T9b é corrigido no lote.
-- A volta está em quatro commits:
-  - `e8cc9e4`: a lista positiva e a recusa;
-  - `f418569`: os textos da seção 4.1 em `docs/hooks.md:95`;
-  - `b438b21`: os registradores do T9b montados antes do pool;
-  - o merge `1b4b0d8`, que traz a `develop` (`83d5faa`, versão 0.30.0) sem tocar em `hooks/` (`git diff e8cc9e4 1b4b0d8 -- hooks/` vazio).
-- O parecer anterior é a revalidação 12, sobre `e8b2af9` (commit do parecer `60c91f8`). `forge-check delta --parecer` lista o intervalo `e8b2af9..1b4b0d8`.
+Pedido RET-LEITURA-HOOK-G-REV, etapa E2.1. Escopo: a volta pela opção A da proposta `docs/propostas/lote-leitura-hook-caminho-rev13.md` (decisão "A" do dono, 2026-10-24). Sem o marcador, as regras leem todas as leituras possíveis de cada palavra com `-` que `LANCADORES` não modela e recusam pela união. Acima do teto K = 3, o comando recusa.
+- A volta está em dois commits:
+  - `ef78e68`: as leituras possíveis, o teto, os textos da seção 3.1 em `docs/hooks.md:95` e os testes;
+  - o merge `6d5252d`, que traz a `develop` (`ba57c0b`, versão 0.30.2) sem tocar em `hooks/` nem em `docs/hooks.md` (`git diff ef78e68 6d5252d -- hooks docs/hooks.md` vazio).
+- O parecer anterior é a revalidação 13, sobre `1b4b0d8` (commit do parecer `35a5d15`). `forge-check delta --parecer` lista o intervalo `1b4b0d8..6d5252d`.
 - Do lado dos controles do Forge, reli inteiros:
-  - em `hooks/_comum.py`: `:1738-1870` (`LANCADORES`, `opcao_modelada`, `opcao_fora_da_tabela`, `separar_lancadores`), `:1880-1975` (`achado_do_lancador`, `reavaliacao_das_palavras`, `contorno_da_reavaliacao`, `motivo_da_reavaliacao`) e `:2022-2033` (`valor_do_split_string`);
-  - `hooks/conformidade.py:741-746` e `:842-856` (o `segmento`, com o papel só de leitura) e `hooks/parecer.py:401-406`;
-  - `docs/hooks.md:95` e o corpus `tests/fixtures/heredoc-volta-unica.json:276-317`;
-  - em `tests/test_hooks.py`, o arnês do T9b e o pool de `executar_em_lote`.
-- Reli também `separar_lancadores` e `valor_do_split_string` da base `d150ec8` (`hooks/conformidade.py:390-433`), para julgar o desvio declarado ("como a `develop`"). A `develop` atual (`9e9ead2`) tem os mesmos `hooks/` da base (`git diff --stat d150ec8 9e9ead2 -- hooks` vazio).
-- O resto do delta vem da `develop`, que já passou pelos portões dela (`scripts/conferir-reversao.py`, regras, modelos, agentes).
+  - em `hooks/_comum.py`: `:1738-1903` (`LANCADORES`, `LancadorDemais`, `TETO_FORA_DA_TABELA`, `separar_lancadores`, `_ler_lancadores`), `:1925-1931` (`achado_do_lancador`) e `:2066-2081` (`texto_dividido_do_env`);
+  - em `hooks/conformidade.py`: `:346-348` (`sem_lancadores`), `:841-872` (`segmento` e `leitura_do_segmento`), `:1370-1404` (`rotulo_na_sessao_do_forge`), `:1695-1711` (`alvos_de_escrita`) e o tratamento de erro de `principal` (`:1755-1792`);
+  - `docs/hooks.md:95` e, em `tests/test_hooks.py`, os testes novos da classe `CorpusHeredocVoltaUnica`: a propriedade sem o marcador, as regressões, a sonda viva, o teto, o estado, as mutações e os alvos de escrita.
+- O `parecer` não chama `separar_lancadores` (`grep` nos hooks). Então o caminho sem o marcador só existe no `conformidade`.
+- O resto do delta vem da `develop` (`ci.yml`, `R-PROVA`, `tech-lead`, a release), que já passou pelos portões dela (PRs #313, #315 e #316).
 
-**critério mudou:** sim, pela decisão do dono.
-- Desde esta volta, `docs/hooks.md:95` promete que, com o marcador, "um lançador de `LANCADORES` … em qualquer posição só passa com as opções que o hook modela, escritas por extenso e uma por palavra". Promete também que "qualquer outra palavra com `-` antes do comando recusa, sem que o hook tente lê-la".
-- Conferi por substring que os três textos da seção 4.1 da proposta estão em `docs/hooks.md:95` como estão na proposta.
-- A emenda da ADR 0011 ficou no cartão ADR0011-EMENDA (decisão técnica do Jarvis).
+**critério mudou:** sim, pela decisão do dono. Desde esta volta, `docs/hooks.md:95` promete que, sem o marcador, as regras "leem o comando atrás do lançador em todas as leituras possíveis de cada palavra com `-` que `LANCADORES` não modela, e recusam se qualquer leitura recusa". Conferi por substring que os textos da seção 3.1 da proposta estão em `docs/hooks.md:95`.
 
 ## Gatilhos
 `R-SEGURANCA`, gatilho controles do Forge: os hooks `conformidade` e `parecer`. Eles guardam R-MAIN, R-VERIFY, R-CONTRIB, R-CONFORMIDADE e R-REVIEW/R-QA e, sem o marcador, a leitura do `.env` e o apagar do `.git`.
 
 ## Achados
-- A1 (bloqueante) hooks/_comum.py:1848 · classe "opção de lançador que o hook não modela" (2.ª volta seguida), regressão sem o marcador: env -iu X cat .env, env -iC d cat .env e env -iu X rm -rf .git saem 0 e saíam 2 na develop; o env real (GNU 9.7 e uutils) imprime o .env e apaga o .git
-- A2 (bloqueante) hooks/_comum.py:2030 · classe "lançador que divide texto" (3.ª volta), regressão sem o marcador: env -iS'cat .env', env -vS'cat .env' e env -iS"rm -rf .git" saem 0 e saíam 2 na develop; o GNU env roda o cat nas duas primeiras, o uutils na com -i
-- A3 (recomendado) hooks/parecer.py:117 · leitor de base (cartão R5A-COP): o parecer segue sem pular o lançador com opções da tabela; env gh pr merge, env -u x gh pr merge e sudo -u -s gh pr merge saem 0 no parecer, igual à develop
-- A4 (recomendado) hooks/conformidade.py:58 · lançador que entrega texto ao shell (cartão N-HOOK1): flock -c, script -c, watch, su -c, runuser -c, tmux e ssh seguem como na revalidação 12
-- A5 (recomendado) hooks/parecer.py:28 · marcador ofuscado (X3, cartão C8): env -S 'git\_push\_forge\_feature/x' segue sem marcador, como na revalidação 12
-- A6 (recomendado) hooks/_comum.py:1905 · palavra com expansão antes da opção do lançador (Não promete, cartão N-HOOK1): env $(echo -a) x git push origin SENTINELA:main sai 0 / 0 e o env real roda o push
+- A1 (bloqueante) hooks/_comum.py:1888 · classe "regra sem o marcador atrás de lançador com opção fora da tabela" (2.ª volta seguida): o texto dividido com aspas abertas derruba as outras leituras; env -uS\' cat .env e env -uS\' rm -rf .git saem 0 (develop: 2), e o env real os roda
+- A2 (recomendado) hooks/_comum.py:1893 · lançador que divide texto: a opção dentro do texto dividido não é relida; env -S'-u X cat .env' e env -iS'-u X cat .env' saem 0, como na develop, e o GNU env roda o cat
+- A3 (recomendado) hooks/parecer.py:108 · leitor de base (cartão R5A-COP): o parecer segue sem pular o lançador com opções da tabela, como na revalidação 13
+- A4 (recomendado) hooks/conformidade.py:59 · lançador que entrega texto ao shell (cartão N-HOOK1): flock -c, script -c, watch, su -c, runuser -c, tmux e ssh seguem como na revalidação 13
+- A5 (recomendado) hooks/parecer.py:28 · marcador ofuscado (X3, cartão C8): env -S 'git\_push\_forge\_feature/x' segue sem marcador, como na revalidação 13
+- A6 (recomendado) hooks/_comum.py:1949 · palavra com expansão antes da opção do lançador (Não promete, cartão N-HOOK1): env $(echo -a) x git push origin SENTINELA:main segue 0 / 0; env -[a] x passou a 2 no conformidade
 
 ## Detalhe dos achados
-Há dois bloqueantes, nesta passada só, os dois no caminho sem o marcador. Com o marcador, o A1 da revalidação 12 e a classe "opção de lançador que o hook não modela" fecharam por construção nos dois hooks.
+Há um bloqueante, nesta passada só, no caminho sem o marcador. O A1 e o A2 da revalidação 13 fecharam em todas as formas que eu tinha sondado. Com o marcador, nenhuma decisão mudou, salvo uma recusa a mais (abaixo).
 
 Como sondei:
-- as sondas com marcador rodaram contra os hooks reais da worktree em `1b4b0d8`, com o vigia de produção (3 s), no modelo de fixture do corpus (`Fixture`, `rodar` e `modelos_montados` do próprio teste);
-- as sondas sem marcador (A1 e A2) rodaram como fixture do `conformidade`, nos modelos de `tests/hooks/conformidade/env-cat-bloqueia.json` (o `.env`) e `trava-rm-projeto-bloqueia.json` (o `rm`). Rodaram na branch e na `develop` `9e9ead2`, numa cópia de `git archive` em `$TMPDIR`;
-- o efeito foi provado com o `env` real (GNU 9.7 e uutils), com `git` e `gh` registradores, `env -i`, um `.env` falso e um `.git` vazio, com `HOME` e a pasta em `$TMPDIR/security-engineer-lote-leitura-hook/` e sem rede.
+- as sondas sem o marcador rodaram como fixture do `conformidade`, nos modelos de `tests/hooks/conformidade/env-cat-bloqueia.json` (o `.env`) e `trava-rm-projeto-bloqueia.json` (o `rm` e o `git`). Rodaram na branch e na `develop` `ba57c0b`, numa cópia de `git archive` em `$TMPDIR`;
+- as sondas com o marcador rodaram contra os hooks reais da worktree em `6d5252d`, com o vigia de produção (3 s), no modelo de fixture do corpus (`Fixture`, `rodar` e `modelos_montados` do próprio teste);
+- o efeito foi provado com o `env` real (GNU 9.7 e uutils 0.8.0), com um `.env` falso e um `.git` vazio numa pasta de `$TMPDIR/security-engineer-lote-leitura-hook/`, sem rede.
 
-As células são conf / par.
-
-### A1 e A2: o desvio declarado, sem o marcador, é regressão
-- **O que o autor declarou.** Sem o marcador, `separar_lancadores` lê a opção fora da tabela como sem valor, "como a `develop`" (commit `e8cc9e4`). A proposta (seção 2, linha 47) mandava devolver "não analisável". O autor desviou para não pular as regras da linha que não dependem do marcador.
-- **Julgamento: a intenção do desvio está certa, e ele é melhor que o "não analisável", mas a premissa "como a `develop`" é falsa.**
-  - O "não analisável" iria a `ilegivel` (`hooks/conformidade.py:809`). Essa função só recusa o que aponta para o Forge e volta sem as outras regras. Com ela, `env --foo cat .env` e `sudo -s cat .env` deixariam de recusar. Com o desvio, as duas saem 2. Então o desvio, sozinho, não reprova.
-  - A `develop` lia o grupo curto do `env` terminado em `u` ou `C` com o regex `-[a-zA-Z]*[uC]` e tomava a palavra seguinte como valor (base `hooks/conformidade.py:408`). E dividia o `-S` também no grupo curto (base `:428-432`). A decisão do dono tirou o regex e as tabelas do `env`, e nada tomou o lugar dessas duas leituras no caminho sem o marcador. A volta só segue o `-S` por extenso (`hooks/_comum.py:2026-2031`) e lê `-iu` como booleana (`:1848`).
+### A1: uma leitura que não se lê derruba as outras
+- **Causa.**
+  - Em `_ler_lancadores`, a leitura do texto dividido de uma palavra fora da tabela é montada na hora (`hooks/_comum.py:1887-1888`, `shlex.split(texto[0])`), mesmo sendo só uma leitura possível.
+  - Se o resto da palavra depois do `S` tem aspas abertas, o `ValueError` sai de `separar_lancadores` inteiro.
+  - `segmento` manda o erro a `ilegivel` (`hooks/conformidade.py:854-856`), que só recusa o que aponta para o Forge e volta sem as outras regras. A leitura sem valor, que recusaria, nunca roda.
+- **Por que é a dimensão da volta.**
+  - A decisão do dono diz "recusam se qualquer leitura recusa". Aqui, uma leitura que o `env` nem consegue fazer (ele falharia ao dividir) anula a que ele faz de fato.
+  - O `-u`, o `-C` e o `-a` levam valor no `env` real. Então `-uS'` quer dizer "tire a variável `S'`", e o comando roda.
 - **Sondas sem o marcador (só `conformidade`):**
 
 | Texto | `develop` | lote |
 |---|---|---|
-| `env -iu X cat .env` | 2 (ler .env) | 0 |
-| `env -iC d cat .env` | 2 | 0 |
-| `env -iu X rm -rf .git` | 2 | 0 |
-| `env -iS'cat .env'` | 2 | 0 |
-| `env -vS'cat .env'` | 2 | 0 |
-| `env -iS"rm -rf .git"` | 2 | 0 |
-| `env -u X cat .env`, `env -S'cat .env'`, `env -i cat .env`, `env -u X rm -rf .git` (controle) | 2 | 2 |
-| `env -a x cat .env`, `env -a x rm -rf .git` | 0 | 0 |
+| `env -uS\' cat .env` | 2 (ler .env) | 0 |
+| `env -uS\" cat .env`, `env -iuS\" cat .env` | 2 | 0 |
+| `env -uS"'" cat .env`, `env -uS'"' cat .env` | 2 | 0 |
+| `env -uS\' rm -rf .git` | 2 (o .git) | 0 |
+| `env -aS\' cat .env` | 0 | 0 |
+| `env -S'cat .env "'` (o `-S` por extenso, controle) | 0 | 0 |
 
-- **Efeito real.** Com os hooks desligados, numa pasta de `$TMPDIR` com um `.env` falso, o GNU env imprime o arquivo em `-iu X /bin/cat .env`, `-iS'/bin/cat .env'` e `-vS'/bin/cat .env'` e apaga o `.git` em `-iu X /bin/rm -rf .git`. O uutils faz o mesmo nas formas com `-i`.
-- **Por que é bloqueante.**
-  - Não é o caso (ii) do critério de parada do lote (`docs/propostas/lote-leitura-hook-volta-unica.md:276-282`), que mede as promessas novas da seção 2.3. É defeito de comportamento provado num controle que já existia: a volta tira uma recusa que a `develop` fazia, com efeito real (`R-REVIEW`, e `R-SEGURANCA` com gatilho). O critério do lote não dispensa regressão, e o commit `e8cc9e4` afirma o contrário ("como a `develop`").
-  - É a primeira vez que o achado aparece nos meus pareceres. Não é recomendação promovida.
-  - O review (`c48f097`) chegou ao mesmo resultado, por sondas próprias.
-- **Caminho de ataque.** Um agente, por engano ou por injeção de prompt, escreve `env -iu X cat .env` ou `env -iS'cat .env'`. O hook libera, e o segredo do projeto entra no contexto e pode sair num commit, num PR ou numa mensagem. Ou `env -iu X rm -rf .git` apaga o histórico local.
-- **Severidade:** média. O alcance já existia na `develop` por `env -a x cat .env` (sai 0 nos dois lados), então o ganho de quem ataca é pequeno. O que pesa é a recusa existente que some.
-- **Correção mínima,** esforço P a M, dono `tech-lead`. O caminho é do `software-architect` com o dono (abaixo), porque a decisão "A" tirou o regex e as tabelas do `env`.
-  - Sem o marcador, as regras da linha leem as duas leituras possíveis da opção fora da tabela: sem valor, e com a palavra seguinte como valor; e o resto de um grupo curto com `S` como texto dividido. Recusa se uma das leituras recusa. Uma leitura a mais só recusa mais, e o hook não volta a imitar um `env`. Isso fecha também `-a x`, `-f x` e `--adj 1`, que já saíam 0 na `develop`.
-  - A outra saída: também sem o marcador, recusar o lançador com opção fora da tabela quando o resto da linha toca uma regra.
-  - Nos dois caminhos, as linhas da tabela entram como fixture `-bloqueia` (ou no corpus), com a leitura sem o lançador como oráculo. Proponho a dimensão "regra sem o marcador atrás de lançador com opção fora da tabela" para a matriz da família.
+- **Efeito real.**
+  - Com os hooks desligados, o GNU env e o uutils imprimem o `.env` falso nestas formas: `-uS\' /bin/cat .env`, `-uS\" …`, `-iuS\" …` e `-aS\' …`.
+  - O GNU env apaga o `.git` em `-uS\' /bin/rm -rf .git`.
+- **Com o marcador, a forma recusa.** `env -uS\' git push origin SENTINELA:main` e as variantes saem 2 / 2, como `env -S`. O defeito é só do caminho sem o marcador.
+- **Por que os testes não pegam.**
+  - A propriedade só gera o texto colado ao `S` com corpos que o shell lê (`SO_PALAVRAS`) e com palavras de até duas letras. Nunca gera um resto com aspas abertas.
+  - `test_regressoes_sem_marcador_do_lancador_dao_2` fixa `env -S'cat .env "'` em 0, "como na develop". Isso vale para o `-S` por extenso, em que o `env` sempre divide e falha. Não vale para o grupo, em que dividir é só uma das leituras.
+  - Rodei os 8 testes novos do lote: `Ran 8 tests in 23.091s`, `OK`.
+- **Caminho de ataque.**
+  - Um agente, por engano ou por injeção de prompt, escreve `env -uS\' cat .env`. O hook libera, e o segredo do projeto entra no contexto. De lá, pode sair num commit, num PR ou numa mensagem.
+  - Ou o agente escreve `env -uS\' rm -rf .git`, que apaga o histórico local.
+- **Severidade:** média, como o A1 da revalidação 13. A `develop` fazia essa recusa, ela some, e o efeito é real. O alcance de ler o `.env` sem o marcador já existia por outras grafias.
+- **Correção mínima,** esforço P, dono `tech-lead`:
+  - Em `_ler_lancadores`, o `ValueError` da leitura do texto dividido de uma palavra fora da tabela descarta só essa leitura. É o que o `env` faz: com aspas abertas, ele falha e não roda nada. O `ValueError` do `-S` por extenso (`:1878`) segue indo a `ilegivel`, como hoje.
+  - Na propriedade, gerar o resto com aspas abertas depois do `S`, com uma letra antes dele (`-uS'`, `-aS"`, `-iuS'`), com o mesmo oráculo (a leitura sem o lançador). Pôr `env -uS\' cat .env` e `env -uS\' rm -rf .git` como fixtures `-bloqueia`.
+  - Em `test_regressoes_sem_marcador_do_lancador_dao_2`, deixar claro que o 0 do texto com aspas abertas vale só para o `-S` por extenso.
+- **Dimensão nova para a matriz da família:** "leitura possível que não se lê". Uma leitura que falha não pode anular as outras.
 - **Contagem por classe** (decisão "A" de 2026-10-22):
-  - A1, "opção de lançador que o hook não modela": a 1.ª volta foi a revalidação 12 (o A2 dela, `env -a x git push`), e esta é a 2.ª seguida.
-  - A2, "lançador que divide texto": revalidação 11, revalidação 12 e esta, a 3.ª.
-  - Pela decisão, a entrega para: o `software-architect` propõe o caminho e o dono decide (`R-DECISAO`). As duas classes já foram registradas mais de uma vez e cabem em `docs/engineering/achados-recorrentes.md` (PA-7). O brief limita o commit a este parecer, então a linha fica para o PR do lote.
+  - O autor nomeou a classe da volta "regra sem o marcador atrás de lançador com opção fora da tabela" (commit `ef78e68`). Ela abriu na revalidação 13 (A1 e A2), e esta é a 2.ª volta seguida. Na contagem antiga, é também a 4.ª volta da classe "lançador que divide texto".
+  - Pela decisão, a entrega para: o `software-architect` propõe o caminho e o dono decide (`R-DECISAO`), ainda que a correção seja pequena.
+  - As classes já foram registradas mais de uma vez e cabem em `docs/engineering/achados-recorrentes.md` (PA-7, hoje vazio). O brief limita o commit a este parecer, então a linha fica para o PR do lote.
 
-### O A1 da revalidação 12 e a classe: fechados com o marcador
-- **As sondas do parecer anterior: todas recusam.**
-  - As 11 formas do `-a` antes do `-S` saem 2 / 2:
-    - `env -a x -S 'X=1 bash' -c …`, `-a x -S 'bash\_-c'`, `-ia x -S`, `-a x --split-string=`, `-a x -S'…'` colado e `-i -a x -S`;
-    - `-a x -v -S`, o `-a` e o valor separados por tab e `-a ''`;
-    - `timeout 5 env -a x -S` e `x=$(env -a x -S …)`.
-  - As 4 do uutils (EU1 a EU4) saem 2 / 2: o `-S` colado depois de `X=1`, de `-`, de `-i X=1` e de `-f /dev/null`.
-  - Das 12 formas do `-a` sem `-S`, 10 saem 2 / 2: `env -a x`, `--argv0 x`, `--ar x`, `-ia x`, `-a x X=1`, `-ax`, `--argv0=x`, `sudo env -a x`, `env -a x bash -c` e `x=$(env -a x …)`. As outras duas são o controle, `env` simples e `env -u x` antes da linha crítica: saem 2 no `conformidade`, pela regra específica, e 0 no `parecer`, pelo A3.
-  - `env -a x git push origin SENTINELA:main` sai 2 no `conformidade`.
-  - As 42 grafias da revalidação 12 que já fechavam seguem 2 / 2.
-- **Variantes novas: 117 formas, fora as de expansão (A6) e os legítimos.** Todas recusam nos dois hooks, salvo sete que não rodam o comando crítico (abaixo). Rodei de novo nesta retomada, e o resultado bateu linha a linha com a primeira rodada. As famílias:
-  - Opção agrupada: `env -iu X`, `-i0`, `-vi`, `-0i`, `-ia x`, `-iS`, `nice -n5`, `sudo -En`, `exec -cl`, `timeout -vk 1 5`, `time -pv`, `xargs -0r`, `command -pv`.
-  - Abreviação longa:
-    - do `env`: `--ig`, `--ignore`, `--nu`, `--deb`, `--ch /`, `--uns X`, `--arg x`, `--ignore-environment=x` e `--debug=1`;
-    - dos outros lançadores: `sudo --us root`, `sudo --use=root`, `timeout --sig KILL 5`, `timeout --preserve 5`, `xargs --max-a 1`, `stdbuf --out=L` e `nice --adj 1`.
-  - `sudo -s` e `-i`:
-    - as formas: `sudo -s`, `-i`, `-is`, `-u root -s`, `-E -s`, `--shell`, `--login`, `--sh`, `-su root`, `-uroot -s`, `X=1 -s`, `nice -n 1 sudo -s` e `sudo -l`;
-    - o `sudo` em outra grafia: `/usr/bin/sudo`, `\sudo`, `"sudo"` e `su''do`.
-  - Opção de outro `env`:
-    - GNU: `--default-signal`, `--block-signal=INT`, `--list-signal-handling`, `--ignore-signal`, `-a` e `--argv0`;
-    - uutils: `-f /dev/null` e `--file /dev/null`;
-    - BSD: `-P /usr/bin`, `-L 0` e `-U 0`;
-    - e `--help`.
-  - Os outros lançadores: `nohup --x`, `nohup -`, `setsid -c`, `setsid -f`, `command -x`, `builtin -x`, `exec -x`, `time -a`, `time -v`, `nice --10`, `nice -+1`, `nice -20`, `timeout -p 5`, `timeout -f 5`, `xargs -i`, `xargs -p`, `stdbuf -x` e `timeout --signal=KILL 5 env -a x`.
-  - A opção entre aspas ou escapada: `"-a"`, `'-a'`, `-\a` e `-'a'`.
-  - O `env` em outra grafia: `e""nv`, `/usr/bin/env`, o tab e a barra com quebra de linha.
-  - O `env` em outra posição: `true;`, `!`, `{ …; }`, `( … )`, `if`, `while`, `coproc`, `time`, `|`, `&`, `command env`, `sudo env`, `exec env`, `env -i env`, `env env`, crase, `<(…)`, `busybox env` e `coreutils env`.
-  - `NOME=valor` misturado: `env X=1 -a x`, `-i X=1 Y=2 -a x`, `sudo X=1 env -a x`, `'X=1' -a x`, `X=1 -iu Y` e `-u Y X=1 --un Z`.
-- **As sete que saem 0 não rodam o comando crítico.** Provei com o `env` real ou pelo argv:
-  - `sudo -- -s …`: o `sudo` roda o programa `-s`. `env '' -a x …`: o `env` roda o programa vazio.
-  - O valor que parece opção: `env -u -a x …`, `env -C -a x …` e `env -u -S 'bash -c' '…'`.
-    - O GNU env toma o `-a` e o `-S` como valor, como a tabela. Ele roda `x` ou `bash -c` como nome de programa e falha.
-    - O uutils recusa com "a value is required".
-  - `xargs -n -a x` falha com "invalid number".
-  - No `parecer`, `sudo -u -s gh pr merge …` sai 0 pelo A3, não pela tabela (no `conformidade`, a forma equivalente sai 2).
-- **Legítimos: saem 0 / 0.** As formas: `env -i -u X`, `env X=1`, `sudo -u x`, `nice -n 1`, `timeout 5`, `stdbuf -oL`, `env -C / -i X=1` e `env --chdir=/ --unset=X`. Rodei cada uma antes de `git push origin feature/x` e de `gh pr create --draft …`.
-- **A tabela contra os programas.**
-  - Conferi cada lançador contra o optstring do getopt dele. Nenhuma opção marcada como booleana leva valor no programa real. Se levasse, o hook leria o valor como comando.
-  - O `sudo -h` é o único caso divergente. A tabela o lê com valor, e o `sudo` só aceita o valor colado. O erro fica do lado seguro: `sudo -h git push …` mostra a ajuda, e nada roda.
-- **A memória de `opcao_fora_da_tabela`.**
-  - A chave (lançador, índice) só guarda posições em que a passada começa uma palavra de opção. Então o resultado guardado é o mesmo de uma passada nova dali.
-  - Todas as sondas decidiram entre 0,06 s e 0,22 s.
+### O A1 e o A2 da revalidação 13: fechados nas formas sondadas
+- **As 22 linhas sem o marcador da revalidação 13 recusam.**
+  - Entre elas: `env -iu X cat .env`, `env -iC d cat .env`, `env -iu X rm -rf .git`, `env -iS'cat .env'`, `env -vS'cat .env'` e `env -iS"rm -rf .git"`.
+  - Os controles seguem 2.
+  - `env -a x cat .env` e `env -a x rm -rf .git`, que saíam 0 nos dois lados, passaram a 2.
+- **Variantes novas sem o marcador: 98 formas do `.env` e 20 do `rm` e do `git`, na branch e na `develop`.** Resultado: 81 saem 2 nos dois lados, 25 saem 2 na branch e 0 na `develop`, 6 são o A1 (2 na `develop`, 0 na branch) e 6 saem 0 nos dois lados. As famílias:
+  - abreviações de `--split-string`: `--sp`, `--split`, `--split-s=` e `--s=`;
+  - grupos com `S`: `-0S'…'`, `-i0vS'…'`, `-iSx`, `-iS ''`, `-iS` com o corpo na palavra seguinte, `-iS` depois de `-iu X`, de `-a x` e de `-uX`;
+  - texto dividido com `NOME=valor`, com outro `env -iS` dentro e com `nice -n5`; `bash -c` e `eval` atrás do lançador;
+  - lançadores encadeados: `env -iu X env -iS'…'`; `env -iu X` antes de `nice`, `timeout`, `nohup`, `stdbuf`, `sudo -u root`, `command`, `exec`, `time -p`, `xargs -a f` e `setsid -w`; `env -a x sudo -s`;
+  - `flock`, `ionice` e `script` atrás de `env` com opção (`env -a x flock -n x`, `env -iu X ionice -c3`, `env -iu X script -qc`): recusam como `LANCADORES_RECUSADOS`;
+  - posição: `$(…)`, crase (que a `develop` liberava), `;`, `&&`, `( … )`, `{ …; }`, `if`, `|` e `<(…)`;
+  - grafias do `env`: `/usr/bin/env`, `e""nv` e `\env`; o `--`; `NOME=valor` antes e depois;
+  - pasta: `env -iC sub cat ../.env`, `env -iC .. cat .env` e `cd sub && env -iC .. cat .env`;
+  - do lado do `rm` e do `git`: o `.forge` pelo `rm`, `git push --force`, `git push origin HEAD:main` e `git commit --no-verify`, atrás de `env -iu X` e de `env -iS'…'`.
+- **O teto K = 3.**
+  - Com três palavras fora da tabela (`env -a x -a y -a z cat .env`), recusa pela regra.
+  - Com quatro, recusa pelo teto, também com quatro `env -iu` encadeados.
+  - Todas as sondas decidiram entre 0,06 s e 0,18 s.
+- **As 6 formas que saem 0 nos dois lados.**
+  - Duas são do lançador: `env -aS\' cat .env` é o A1, e `env -iS'-u X cat .env` é o A2.
+  - As outras quatro não recusam nem sem o lançador, porque nenhuma regra as pega: `env -iu X sed -n p .env`, `env -iu X cp .env /tmp/x`, `env -iu X find . -delete` e `env -iS'find .git -delete'`.
 
-### A3 a A5: recomendações, iguais à revalidação 12
-- **A3 (leitor de base, R5A-COP).**
-  - `analisar` (`hooks/parecer.py:117`) só reconhece o `gh` na primeira palavra.
-  - Com o marcador e só opções da tabela, saem 0 no `parecer`: `env gh pr merge SENTINELA --merge`, `env -u x …` e `sudo -u -s …`.
-  - Com opção fora da tabela, a recusa nova pega: EB1 a EB10 saem 2 no `parecer`.
-- **A4 (N-HOOK1).** `flock`, `script`, `watch`, `su`, `runuser`, `tmux` e `ssh` não estão em `LANCADORES`. As 10 formas saem como na revalidação 12. A promessa nova fala só dos lançadores da tabela, então eles seguem no cartão.
-- **A5 (X3, C8).** Sem mudança no delta.
+### As duas exclusões da propriedade: aceitas
+- **Corpos que mudam o estado do shell** (`MUDA_O_ESTADO_DO_SHELL`: `cd`, `export`, `set` e afins).
+  - Atrás de um lançador, o `cd` e o `export` rodam noutro processo, ou não existem como programa, e não mudam o shell. Por isso o oráculo "o corpo sozinho dá 2" não vale para eles.
+  - O estado tem teste à parte, `test_estado_da_leitura_a_mais_nao_segue_adiante`. A regra "a pasta e as variáveis são as da leitura sem valor" vem da decisão.
+- **Palavras em que o `env` sempre divide** (`-S…` e `--split-string…`, `divide_sempre`).
+  - Nelas, a palavra seguinte é o texto, e não um valor ou o comando. Então `L w C` e `L w X C` não são leituras delas.
+  - O `-S` por extenso tem os controles do item 2 e as sondas acima.
+- **O corte do gerador.** O gerador das formas com `S` também se limita aos corpos que o shell lê como palavras (`SO_PALAVRAS`), porque o `env -S` não roda `;` nem `|`. O corte é correto, mas é por ele que o A1 escapou: falta a linha do resto que não se lê.
 
-### A6: expansão antes da opção do lançador
-- `reavaliacao_das_palavras` lê vazia a palavra que não se reduz (`hooks/_comum.py:1905`), e `opcao_fora_da_tabela` a toma pelo comando.
-- `env $(echo -a) x git push origin SENTINELA:main` sai 0 / 0, e o env real (GNU e uutils) roda o registrador.
-- `env -i $X -a x …` sai 2 / 0. Com `X` vazio, o env roda o `git` real.
-- `env ${X:--a} x`, `env {-a,x}`, `env -i ~ -a x` e `env -[a] x` também saem 0 em ao menos um hook.
-- É a palavra com expansão, que o critério do lote põe no Não promete (cartão N-HOOK1).
-- A correção mais barata, para o cartão: com o marcador, a palavra que não se reduz logo depois de um lançador, antes do comando, recusa como opção não modelada.
+### O caminho com o marcador: igual
+- **O teste do `S`.** `achado_do_lancador` passou a usar `texto_dividido_do_env`. Conferi que o teste novo é equivalente ao anterior: a longa precisa de um prefixo não vazio de `split-string`, e a curta, de um `S` depois do `-`. `--=x`, `--S` e `--sig=S` seguem fora.
+- **As sondas antigas.**
+  - Rodei de novo, em `6d5252d`, as 81 formas da revalidação 12 e as 131 da revalidação 13, nos dois hooks.
+  - As 424 decisões batem com as da revalidação 13, salvo uma: `env -[a] x git push origin SENTINELA:main` (A6) passou de 0 a 2 no `conformidade`, pelas leituras possíveis.
+- **As formas novas.** 22 formas novas com o marcador saem 2 / 2:
+  - o A1: `-uS\'`, `-uS\"`, `-iuS\"` e `-aS\'`;
+  - o teto: três e quatro palavras, e quatro `env` encadeados;
+  - as abreviações e os grupos com `S`;
+  - `flock`, `ionice` e `script` atrás de `env` com opção;
+  - `env -S'-u X …'`.
+- **Os legítimos.** Com o marcador, saem 0 / 0: `env -i -u X`, `env X=1`, `nice -n 1`, `timeout 5` e `env -C / -i X=1`. Rodei cada um antes de `git push origin feature/x` e de `gh pr create --draft …`.
+- **O teto sem o marcador.**
+  - Ele recusa linhas legítimas raras com quatro opções fora da tabela, como `xargs -o -p -l -i echo` e `sudo --preserve-env=PATH -A -S -B ls`. É o que a decisão do dono manda, e a mensagem dá o contorno.
+  - As formas comuns saem 0: `xargs -0 -n1 -P4`, `timeout --kill-after=5 --signal=KILL 10`, `env --unset=X --chdir=/`, `stdbuf -oL -eL` e `time -v -a -q -o f`.
 
-### O teste instável (T9b) e o resto do delta
-- `b438b21` monta os registradores na thread principal antes do pool. Quando o bash sai 126 ou diz "Text file busy", o teste falha com "falha do arnês, não do gerador".
-- A falha fica do lado seguro: o teste fica vermelho e nenhum hook libera. Não há repetição automática que esconda um 0.
-- `motivo_da_reavaliacao` e `contorno_da_reavaliacao` só mudam texto. A recusa segue depois das regras específicas, nos dois hooks.
+### O resto do caminho sem o marcador
+- **`alvos_de_escrita`** (`hooks/conformidade.py:1702-1710`) soma os alvos das leituras e pula a linha com `ValueError`. Com o A1, `env -uS\' tee docs/reviews/x.md` não dá o alvo. Só a autoria do parecer escrito pelo Bash fica sem registro, e a mesma correção do A1 fecha isso.
+- **`rotulo_na_sessao_do_forge`** não pega o `LancadorDemais`. Ele sobe a `principal`, que barra se a linha cita o rótulo. Se não cita, cai em `falhar_fechado`, que só libera sem o marcador. É o comportamento de antes para o `ValueError` do `-S`.
+- **O `LancadorDemais` em `segmento`** chama `barrar`, que sai com 2 (`bloquear`). Então o código seguinte não roda com `leituras_do_lancador` indefinida.
+
+### A2: opção dentro do texto dividido
+- **O defeito.** O GNU env relê como opção o que vem no começo do texto dividido: `env -S'-u X /bin/cat .env'` imprime o `.env` (o uutils, só na forma por extenso). O hook toma `-u` como o comando (`hooks/_comum.py:1893`) e libera, na branch e na `develop`.
+- **Por que é recomendação.** Não é regressão, e a decisão manda ler o texto dividido "como comando", que é o que o hook faz. Com o marcador, a forma recusa como `env -S`.
+- **Correção barata, para o cartão:** depois de dividir, continuar lendo as opções do mesmo `env` sobre as palavras divididas, com as mesmas leituras possíveis.
+
+### A3 a A6: recomendações, iguais à revalidação 13
+- A3, A4 e A5: sem mudança no delta. As formas da revalidação 13 saem igual.
+- A6: `env $(echo -a) x …` segue 0 / 0. A linha passou de `:1905` a `:1949` porque o código acima cresceu. `env -[a] x …` agora sai 2 no `conformidade` e segue 0 no `parecer`.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
 Ferramentas usadas:
 - `forge-check delta --parecer docs/security/lote-leitura-hook.md`;
-- `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica -v`: `Ran 23 tests in 338.704s`, `OK`. O corpus passa e não pega o A1 nem o A2, porque mede só o caminho com o marcador;
-- as sondas, por um script próprio sobre `Fixture`, `rodar` e `modelos_montados` do próprio teste:
-  - 81 formas do parecer anterior e 131 novas, nos dois hooks;
-  - 22 linhas sem o marcador como fixture, na branch e na `develop`;
-- o `env` real (GNU 9.7 e uutils) com registradores e o bash, com `HOME` em `$TMPDIR/security-engineer-lote-leitura-hook/`, sem rede e sem custo (`R-CUSTO`).
+- os 8 testes novos do lote em `tests.test_hooks.CorpusHeredocVoltaUnica`: `Ran 8 tests in 23.091s`, `OK`. Eles passam e não pegam o A1;
+- as sondas, por scripts próprios sobre `Fixture`, `rodar` e `modelos_montados` do próprio teste:
+  - sem o marcador, 129 linhas (98 do `.env`, 20 do `rm` e do `git`, 11 legítimas), na branch e na `develop`;
+  - com o marcador, 81 formas da revalidação 12, 131 da revalidação 13 e 27 novas, nos dois hooks;
+- o `env` real (GNU 9.7 e uutils 0.8.0), com `HOME` e a pasta em `$TMPDIR/security-engineer-lote-leitura-hook/`, sem rede e sem custo (`R-CUSTO`).
 
 Lacunas:
-- O `sudo` da máquina não roda, por causa do "no new privileges" do sandbox. Não há BSD env nem macOS. Para as formas do `sudo` e do BSD, provei só a decisão do hook, que recusa sem depender do programa.
-- A suíte inteira não rodou fora do pre-push (`R-TETO`).
-- `gitleaks`, `zizmor`, `actionlint` e `semgrep` não estão no PATH. Também não se aplicam ao delta, que não tem segredo, workflow nem dependência.
+- O `sudo` da máquina não roda, por causa do "no new privileges" do sandbox. Não há BSD env nem macOS. Para essas formas, provei só a decisão do hook.
+- A suíte inteira não rodou fora do pre-push (decisão ACELERA-RODADA, corte 1).
+- `gitleaks`, `zizmor`, `actionlint` e `semgrep` não estão no PATH. O `ci.yml` do delta veio da `develop` (PR #313) e já foi revisado lá.
 
 Nada foi instalado e nada saiu da máquina. Além deste parecer, só gravei em `$TMPDIR`.
