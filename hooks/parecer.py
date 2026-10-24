@@ -21,8 +21,8 @@ from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear,
                     contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, e_clone_do_forge, excede_o_teto, executar,
-                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, raiz_de_estado,
-                    reavaliacao, sem_atribuicoes, separar_regra, tirar_heredocs)
+                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
+                    raiz_de_estado, reavaliacao, sem_atribuicoes, separar_regra, tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -401,8 +401,9 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
     # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
     if nivel == 0 and reavaliacoes and CRITICO.search(original):
-        bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: o hook não modela o "
-                             f"texto que o shell reavalia. Corrigir: {contorno_da_reavaliacao(reavaliacoes[0])}")
+        bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: "
+                             f"{motivo_da_reavaliacao(reavaliacoes[0])}. Corrigir: "
+                             f"{contorno_da_reavaliacao(reavaliacoes[0])}")
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não

@@ -36,6 +36,7 @@ import concurrent.futures
 import contextlib
 import functools
 import hashlib
+import importlib.util
 import io
 import itertools
 import json
@@ -44,6 +45,7 @@ import re
 import shlex
 import shutil
 import signal
+import string
 import subprocess
 import sys
 import tempfile
@@ -2405,8 +2407,9 @@ exit 0
     @staticmethod
     @functools.lru_cache(maxsize=1)
     def env_gnu():
-        """O caminho do `env` que divide o `-S` como o GNU (o `env` desta máquina pode ser o do uutils, que não divide),
-        ou None. Programa local, sem rede (R-CUSTO)."""
+        """O caminho do `env` que divide o valor separado do `-S` como o GNU (`-S 'echo a  b'`), ou None: o gerador da
+        dimensão "lançador que divide texto" usa essa forma. O uutils 0.8.0 divide o `-S` colado (`-S'…'`), também
+        depois de `NOME=valor`, de `-` e de `-f`, mas não o valor separado. Programa local, sem rede (R-CUSTO)."""
         for nome in ("env", "gnuenv", "genv"):
             caminho = shutil.which(nome)
             if caminho and " " not in caminho:
@@ -2416,12 +2419,30 @@ exit 0
                     return caminho
         return None
 
-    def montar_registradores_do_t9b(self, bash, texto, base):
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def envs_da_maquina():
+        """Os caminhos de cada `env` desta máquina (GNU, uutils, …: `env`, `gnuenv` e `genv` no `PATH`, um por arquivo
+        real), que rodam `env X=1 printf`. O T9b roda o corpus com cada um, e a recusa não depende de qual está
+        instalado (opção A da proposta caminho-rev12). Programas locais, sem rede (R-CUSTO)."""
+        achados = {}
+        for nome in ("env", "gnuenv", "genv"):
+            caminho = shutil.which(nome)
+            if caminho and " " not in caminho and os.path.realpath(caminho) not in achados:
+                r = subprocess.run([caminho, "X=1", "printf", "%s", "ok"], capture_output=True, text=True, timeout=10,
+                                   stdin=subprocess.DEVNULL)
+                if r.returncode == 0 and r.stdout == "ok":
+                    achados[os.path.realpath(caminho)] = caminho
+        return tuple(achados.values())
+
+    def montar_registradores_do_t9b(self, bash, texto, base, env_real=None):
         """Monta a pasta do T9b para o texto (RET-LEITURA-HOOK-F, caminho 1 da proposta caminho-rev12): `HOME` e a
         pasta em `base`, no `$TMPDIR`, com registradores no `PATH` e em `base/x0` (o `PATH` que o Z1 monta:
         `PATH=<base>/x$(( cat ))`), onde o `cat` roda a entrada como o bash (o B1 da revalidação 7). Os shells são o
-        próprio bash. Grava e dá `chmod`: roda antes de qualquer pool (`rodar_em_paralelo_no_t9b`), porque o executável
-        gravado por uma thread enquanto outra faz `fork` sai com `ETXTBSY` (bug `lote-leitura-hook-1`)."""
+        próprio bash, e o `env` é `env_real` (o GNU, se None e se houver). Grava e dá `chmod`: roda antes de qualquer pool
+        (`rodar_em_paralelo_no_t9b`), porque o executável gravado por uma thread enquanto outra faz `fork` sai com
+        `ETXTBSY` (bug `lote-leitura-hook-1`)."""
+        env_real = env_real or self.env_gnu()
         registradores, pasta, casa, z1 = base / "bin", base / "pasta", base / "casa", base / "x0"
         for d in (registradores, pasta, casa, z1):
             d.mkdir(parents=True)
@@ -2434,9 +2455,9 @@ exit 0
                     arquivo.write_text(f'#!{bash}\nexec {bash} --noprofile --norc "$@"\n', encoding="utf-8")
                 elif nome in self.REPASSADORES_DO_T9B:
                     arquivo.write_text(f"#!{bash}\n{self.REPASSADORES_DO_T9B[nome]}", encoding="utf-8")
-                elif nome == "env" and self.env_gnu():  # o `env` real, GNU: divide o `-S` como o bash vai ver
-                    arquivo.write_text(f'#!{bash}\nexec {self.env_gnu()} "$@"\n', encoding="utf-8")
-                elif nome == "env":  # sem o GNU nesta máquina: o `env X=1 prog`, sem o `-S`
+                elif nome == "env" and env_real:  # o `env` real: divide o `-S` como o bash vai ver
+                    arquivo.write_text(f'#!{bash}\nexec {env_real} "$@"\n', encoding="utf-8")
+                elif nome == "env":  # sem `env` real: o `env X=1 prog`, sem o `-S`
                     arquivo.write_text(f'#!{bash}\nwhile [[ $1 == *=* ]]; do export "$1"; shift; done\nexec "$@"\n',
                                        encoding="utf-8")
                 elif nome == "cat" and d == z1:
@@ -2500,9 +2521,10 @@ exit 0
 
     def test_t9b_oraculo_do_gatilho(self):  # T9b (RET-LEITURA-HOOK-B, seção 3 da proposta caminho-rev8)
         """O que o hook libera com o marcador crítico, o bash não roda escondido. Para cada texto de `textos_do_t9b` que
-        o hook dono da sentinela libera (código 0), o bash roda o texto (`rodar_no_bash_do_t9b`), e nenhum registrador
-        pode gravar a linha sentinela: o hook liberou, e o bash rodou a linha que ele não viu. Com a marca `fecha`, o
-        caso ainda tem de mostrar a sentinela rodada (o vermelho continua provado). Só roda o bash (R-CUSTO)."""
+        o hook dono da sentinela libera (código 0), o bash roda o texto (`rodar_no_bash_do_t9b`) com cada `env` da
+        máquina (`envs_da_maquina`: GNU e uutils), e nenhum registrador pode gravar a linha sentinela: o hook liberou, e
+        o bash rodou a linha que ele não viu. Com a marca `fecha`, o caso ainda tem de mostrar a sentinela rodada (o
+        vermelho continua provado). Só roda o bash e os `env` locais (R-CUSTO)."""
         bash = shutil.which("bash")
         if not bash or " " in bash:
             self.skipTest("bash ausente ou num caminho com espaço")
@@ -2517,16 +2539,19 @@ exit 0
                         self.conferir_marca(marca, True, f"o {hook} já recusa {texto!r}")
                 continue
             sentinela = shlex.split(self.SENTINELAS[hook])
-            self.montar_registradores_do_t9b(bash, texto, pasta)
-            rodou = self.rodar_no_bash_do_t9b(bash, texto, pasta)
-            if marca == NAO_PROMETE:  # o código de hoje: o hook libera e o bash roda a sentinela (cartão, não bloqueia)
-                with self.subTest(rotulo=rotulo):
-                    self.assertIn((sentinela[0], sentinela[1:]), rodou, f"{rotulo}: o bash não roda a sentinela")
-                continue
-            with self.subTest(rotulo=rotulo):
-                self.conferir_marca(marca, (sentinela[0], sentinela[1:]) not in rodou,
-                                    f"o {hook} libera {texto!r} e o bash roda {' '.join(sentinela)}: {rodou}")
-            ids.add(rotulo.split("/")[0])
+            for env_real in self.envs_da_maquina() or (None,):
+                shutil.rmtree(pasta, ignore_errors=True)  # a pasta do texto (`/tmp/x` do Z1 está nela), nova por `env`
+                self.montar_registradores_do_t9b(bash, texto, pasta, env_real)
+                rodou = self.rodar_no_bash_do_t9b(bash, texto, pasta)
+                if marca == NAO_PROMETE:  # o código de hoje: o hook libera e o bash roda a sentinela (cartão)
+                    with self.subTest(rotulo=rotulo, env=env_real):
+                        self.assertIn((sentinela[0], sentinela[1:]), rodou, f"{rotulo}: o bash não roda a sentinela")
+                    continue
+                with self.subTest(rotulo=rotulo, env=env_real):
+                    self.conferir_marca(marca, (sentinela[0], sentinela[1:]) not in rodou,
+                                        f"o {hook} libera {texto!r} e o bash roda {' '.join(sentinela)} com o "
+                                        f"{env_real}: {rodou}")
+                ids.add(rotulo.split("/")[0])
         self.assertLessEqual({"K1a", "K1b"}, ids, "o T9b roda no bash o que o hook libera")
         self.assertGreaterEqual(len(textos), 500)
 
@@ -2633,6 +2658,227 @@ exit 0
             with self.subTest(rotulo=rotulo):
                 self.assertIn((sentinela[0], sentinela[1:]), rodou, f"o bash não roda a sentinela em {texto!r}")
         self.assertGreaterEqual(len(textos), 400)
+
+    # A classe "opção de lançador que o hook não modela" (opção A da proposta caminho-rev12, RET-LEITURA-HOOK-F): com o
+    # marcador crítico, o lançador de `LANCADORES` só passa com as opções da tabela, por extenso e uma por palavra. A
+    # verdade vem da construção: a palavra gerada está ou não está na tabela (`na_tabela_do_lancador`, lida aqui
+    # direto dos conjuntos, sem o código do hook), e o teste não depende de nenhum `env`.
+    LONGAS_FORA_DA_TABELA = ("split-string", "argv0", "file", "preserve-env", "shell", "login")
+
+    @staticmethod
+    def na_tabela_do_lancador(tabela, palavra):
+        """A palavra é uma opção que a tabela do lançador modela? (Dela não sai nada: só os conjuntos.)"""
+        com_valor = tabela.get("com_valor", ())
+        return (palavra == "--" or palavra in tabela.get("booleanas", ()) or palavra in com_valor
+                or (palavra.startswith("--") and "=" in palavra and palavra.split("=", 1)[0] in com_valor)
+                or (len(palavra) > 2 and palavra[:2] in tabela.get("coladas", ())))
+
+    @classmethod
+    def alfabeto_de_opcoes(cls, tabela):
+        """As palavras do item 1 do critério de fim da opção A: `-` mais cada caractere de 0x21 a 0x7E, cada par de
+        letras (`-xy`), cada prefixo de cada opção longa da tabela e de `LONGAS_FORA_DA_TABELA`, com e sem `=`, e o `-`
+        sozinho."""
+        longas = sorted({o[2:] for grupo in ("booleanas", "com_valor") for o in tabela.get(grupo, ())
+                         if o.startswith("--")} | set(cls.LONGAS_FORA_DA_TABELA))
+        palavras = ["-" + chr(c) for c in range(0x21, 0x7F)]
+        palavras += ["-" + a + b for a in string.ascii_letters for b in string.ascii_letters]
+        palavras += [f"--{longa[:k]}{igual}" for longa in longas for k in range(1, len(longa) + 1) for igual in ("", "=x")]
+        return list(dict.fromkeys(palavras + ["-"]))
+
+    @classmethod
+    def textos_do_alfabeto_de_opcoes(cls, lancadores, comandos, amostra=None):
+        """(rótulo, lançador, palavra, na tabela, texto): cada palavra do alfabeto de cada lançador, logo depois dele,
+        depois de `NOME=valor` e depois de uma opção modelada, antes de cada comando de `comandos`. A palavra entra
+        entre aspas simples (`shlex.quote`: o bash a recebe como foi gerada); a da tabela com valor leva `X`. O
+        `timeout` leva a duração antes do comando. `amostra`: passo para tomar só uma parte das palavras."""
+        saida = []
+        for nome, tabela in sorted(lancadores.items()):
+            modeladas = sorted(tabela.get("booleanas", ())) or sorted(f"{o} X" for o in tabela.get("com_valor", ()))
+            posicoes = {"logo depois": "", "depois de NOME=valor": "X=1 "}
+            if modeladas:
+                posicoes["depois de opção modelada"] = modeladas[0] + " "
+            palavras = cls.alfabeto_de_opcoes(tabela)
+            for palavra in palavras[::amostra] if amostra else palavras:
+                na_tabela = cls.na_tabela_do_lancador(tabela, palavra)
+                valor = " X" if na_tabela and palavra in tabela.get("com_valor", ()) else ""
+                for onde, antes in posicoes.items():
+                    for hook, comando in comandos.items():
+                        duracao = "5 " if nome == "timeout" else ""
+                        texto = f"{nome} {antes}{shlex.quote(palavra)}{valor} {duracao}{comando}"
+                        saida.append((f"{nome} / {palavra} / {onde} / {hook}", nome, palavra, na_tabela, hook, texto))
+        return saida
+
+    def test_propriedade_do_alfabeto_de_opcoes_do_lancador(self):  # item 1 do critério de fim da opção A (caminho-rev12)
+        """Com o marcador crítico, toda palavra com `-` fora da tabela de um lançador, antes do comando, recusa. Todo
+        texto do alfabeto (`textos_do_alfabeto_de_opcoes`, os 12 lançadores) com a palavra fora da tabela é reconhecido
+        por `reavaliacao`, o reconhecedor que os dois hooks usam; uma amostra dá 2 nos DOIS hooks reais, e toda palavra
+        da tabela, antes do `git push` da sentinela, dá 2 no `conformidade` pela regra específica (R-MAIN). A palavra da
+        tabela antes do `gh pr merge` sai 0 no `parecer`, que não pula lançador (A3 da segurança na revalidação 12,
+        cartão R5A-COP, fora desta volta)."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        self.assertEqual(set(_comum.LANCADORES), {"env", "sudo", "command", "nohup", "time", "exec", "builtin", "nice",
+                                                  "setsid", "stdbuf", "timeout", "xargs"})
+        todos = self.textos_do_alfabeto_de_opcoes(_comum.LANCADORES, self.SENTINELAS)
+        fora = [t for t in todos if not t[3]]
+        self.assertGreaterEqual(len(fora), 150_000)
+        for rotulo, _, _, _, hook, texto in fora:
+            self.assertRegex(texto, criticos[hook], "o texto tem o marcador do hook dele")
+            if _comum.reavaliacao(texto) is None:
+                self.fail(f"o reconhecedor libera {rotulo}: {texto!r}")
+        amostra = self.textos_do_alfabeto_de_opcoes(_comum.LANCADORES, self.SENTINELAS, amostra=199)
+        reais = [t for t in amostra if not t[3]]
+        explicitas = {(nome, o) for nome, tabela in _comum.LANCADORES.items() for grupo in ("booleanas", "com_valor")
+                      for o in tabela.get(grupo, ())} | {(nome, "--") for nome in _comum.LANCADORES}
+        na_amostra = set(amostra)
+        da_tabela = list(dict.fromkeys(t for t in todos if t[3] and t[4] == "conformidade"
+                                       and ((t[1], t[2]) in explicitas or t in na_amostra)))
+        self.assertGreaterEqual(len(da_tabela), 200)
+        pedidos = [(hook, texto) for _, _, _, _, _, texto in reais for hook, critico in criticos.items()
+                   if critico.search(texto)]
+        pedidos += [(hook, texto) for _, _, _, _, hook, texto in da_tabela]
+        decisoes = self.decisoes_dos_hooks(pedidos)
+        for rotulo, _, _, _, _, texto in reais:
+            for hook, critico in criticos.items():
+                if critico.search(texto):
+                    with self.subTest(rotulo=rotulo, hook=hook):
+                        self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
+        for rotulo, _, _, _, hook, texto in da_tabela:
+            with self.subTest(rotulo=rotulo, hook=hook):
+                self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}, com a palavra da tabela")
+        self.assertGreaterEqual(len(reais), 800)
+
+    # Item 2 do critério de fim da opção A: as formas das revalidações 12 (rótulo, molde com `{C}`, família do `env` em
+    # que a forma roda com os hooks desligados: None é qualquer `env` da máquina). `-a`: as 11 formas do A1 da segurança
+    # e as 12 do `-a` sem `-S` (duas são os controles dela, sem `-a`: `env {C}` e `env -u x {C}`, que o `parecer` não
+    # pula, cartão R5A-COP). uutils: as 4 do A2 do review (o `-S` colado depois de `NOME=valor`, de `-` e de `-f`).
+    FORMAS_DO_LANCADOR = (
+        ("seg A1 E1", "env -a x -S 'X=1 bash' -c '{C}'", "gnu"), ("seg A1 E2", "env -a x -S 'bash\\_-c' '{C}'", "gnu"),
+        ("seg A1 E3", "env -ia x -S 'bash -c' '{C}'", "gnu"),
+        ("seg A1 E4", "env -a x --split-string='bash -c' '{C}'", "gnu"),
+        ("seg A1 E4b", "env -a x -S'bash -c' '{C}'", None), ("seg A1 E4c", "env -i -a x -S 'bash -c' '{C}'", "gnu"),
+        ("seg A1 E37", "timeout 5 env -a x -S 'bash -c' '{C}'", "gnu"),
+        ("seg A1 E40", "x=$(env -a x -S 'bash -c' '{C}')", "gnu"), ("seg A1 E41", "env -a x -v -S 'bash -c' '{C}'", "gnu"),
+        ("seg A1 E42", "env -a\tx -S 'bash -c' '{C}'", "gnu"), ("seg A1 E43", "env -a '' -S 'bash -c' '{C}'", "gnu"),
+        ("rev A2 X=1", "env X=1 -S'bash -c \"{C}\"'", "uutils"), ("rev A2 -", "env - -S'bash -c \"{C}\"'", "uutils"),
+        ("rev A2 -i X=1", "env -i X=1 -S'bash -c \"{C}\"'", "uutils"),
+        ("rev A2 -f", "env -f /dev/null -S'bash -c \"{C}\"'", "uutils"),
+        ("seg A2 A1 (env -a x git push)", "env -a x {C}", None), ("seg A2 A2", "env --argv0 x {C}", None),
+        ("seg A2 A3", "env --ar x {C}", None), ("seg A2 A4", "env -ia x {C}", None), ("seg A2 A5", "env -a x X=1 {C}", None),
+        ("seg A2 A6 controle", "env {C}", None), ("seg A2 A7 controle", "env -u x {C}", None),
+        ("seg A2 A8", "env -ax {C}", None), ("seg A2 A9", "env --argv0=x {C}", None),
+        ("seg A2 A10", "sudo env -a x {C}", None), ("seg A2 A11", "env -a x bash -c '{C}'", None),
+        ("seg A2 A12", "x=$(env -a x {C})", None),
+    )
+
+    def familia_do_env(self, caminho):
+        """`gnu`, `uutils` ou o nome do arquivo, pelo `--version` do `env` (local, sem rede)."""
+        r = subprocess.run([caminho, "--version"], capture_output=True, text=True, timeout=10, stdin=subprocess.DEVNULL)
+        return "uutils" if "uutils" in r.stdout else "gnu" if "GNU coreutils" in r.stdout else Path(caminho).name
+
+    def rodou_com_o_env(self, bash, env_real, molde, base):
+        """Hooks desligados: o bash roda o molde com o `env` real, e o `{C}` é um registrador de caminho absoluto que
+        grava sem depender do ambiente (o `-i` limpa o `PATH` e o `REG`). Devolve se ele rodou."""
+        self.montar_registradores_do_t9b(bash, molde, base, env_real)
+        marca, rodou = base / "marca", base / "rodou"
+        marca.write_text(f'#!{bash}\nprintf "%s\\n" "$*" >> {shlex.quote(str(rodou))}\n', encoding="utf-8")
+        marca.chmod(0o755)
+        texto = molde.replace("{C}", f"{marca} SENTINELA")
+        self.rodar_no_bash_do_t9b(bash, texto, base)
+        return rodou.exists() and "SENTINELA" in rodou.read_text(encoding="utf-8")
+
+    def test_lancador_fora_da_tabela_com_efeito_real(self):  # item 2 do critério de fim da opção A (caminho-rev12)
+        """As formas das revalidações 12 (`FORMAS_DO_LANCADOR`) dão 2 em cada hook cujo marcador está no texto (os dois
+        controles sem `-a`, só no `conformidade`). Com os hooks desligados, o `env` real roda o comando em cada forma, com
+        cada `env` da máquina da família dela (GNU e uutils): a sonda está viva. Só o bash e os `env` locais (R-CUSTO)."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        textos = [(rotulo, hook, molde.replace("{C}", self.SENTINELAS[dono]))
+                  for rotulo, molde, _ in self.FORMAS_DO_LANCADOR for dono in self.SENTINELAS
+                  for hook in criticos if criticos[hook].search(self.SENTINELAS[dono])
+                  and not ("controle" in rotulo and hook == "parecer")]
+        decisoes = self.decisoes_dos_hooks([(hook, texto) for _, hook, texto in textos])
+        for rotulo, hook, texto in textos:
+            with self.subTest(rotulo=rotulo, hook=hook):
+                self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
+        self.assertGreaterEqual(len(textos), 75)
+        bash = shutil.which("bash")
+        envs = {self.familia_do_env(e): e for e in self.envs_da_maquina()}
+        if not bash or " " in bash or not envs:
+            self.skipTest("bash ou env ausente, ou num caminho com espaço")
+        base = self._pasta_temporaria()
+        vivas = 0
+        for k, (rotulo, molde, familia) in enumerate(self.FORMAS_DO_LANCADOR):
+            alvos = {f: e for f, e in envs.items() if familia in (None, f)}
+            with self.subTest(rotulo=rotulo):
+                if not alvos:
+                    self.skipTest(f"sem o env {familia} nesta máquina")
+                for f, env_real in alvos.items():
+                    self.assertTrue(self.rodou_com_o_env(bash, env_real, molde, base / f"{k}-{f}"),
+                                    f"com os hooks desligados, o env {f} ({env_real}) não roda o comando de {molde!r}")
+                vivas += 1
+        self.assertGreaterEqual(vivas, 20)
+
+    def test_env_nao_le_opcao_depois_do_comando(self):  # item 3 do critério de fim da opção A (sonda do S2)
+        """Cada `env` da máquina (GNU e uutils) entrega ao comando, sem ler, a palavra com `-` que vem depois dele
+        (`env X=1 printf %s -S`): a recusa só olha até o comando, e `env X=1 git commit -S` não é falso positivo. Se um
+        `env` ler, este teste fica vermelho e a regra passa a olhar até o `--` (variante da segurança)."""
+        envs = self.envs_da_maquina()
+        if not envs:
+            self.skipTest("sem env nesta máquina")
+        for env_real in envs:
+            with self.subTest(env=env_real):
+                r = subprocess.run([env_real, "X=1", "printf", "%s|", "-S", "-S'x'", "--split-string=x", "-i", "-a",
+                                    "x", "-f", "/dev/null"], capture_output=True, text=True, timeout=10,
+                                   stdin=subprocess.DEVNULL)
+                self.assertEqual((r.returncode, r.stdout), (0, "-S|-S'x'|--split-string=x|-i|-a|x|-f|/dev/null|"))
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertIsNone(_comum.reavaliacao("env X=1 git commit -S -m x && git push origin feature/x"))
+
+    def test_mutacoes_do_lancador_ficam_vermelhas(self):  # item 4 do critério de fim da opção A (caminho-rev12)
+        """Cada mutação, numa cópia de `hooks/_comum.py` carregada à parte, deixa vermelha a parte do critério que a
+        pega: aceitar a opção fora da tabela (voltar a "as demais são booleanas") deixa o alfabeto do item 1 passar; parar
+        no 1.º `NOME=valor` deixa passar as formas do uutils do item 2. A terceira não tem alvo: não há mais tabela de
+        `env` em que tirar o `a`."""
+        _comum, _, _ = modulos_dos_hooks()
+        fonte = (HOOKS / "_comum.py").read_text(encoding="utf-8")
+        pasta = self._pasta_temporaria()
+
+        def mutante(nome, velho, novo):
+            self.assertEqual(fonte.count(velho), 1, f"a mutação {nome} não acha o trecho")
+            caminho = pasta / f"{nome}.py"
+            caminho.write_text(fonte.replace(velho, novo), encoding="utf-8")
+            spec = importlib.util.spec_from_file_location(f"_comum_{nome}", caminho)
+            modulo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(modulo)
+            return modulo
+
+        booleanas = mutante("as_demais_sao_booleanas", "    return None  # fora da tabela\n", "    return 0\n")
+        alfabeto = self.textos_do_alfabeto_de_opcoes(_comum.LANCADORES, {"conformidade": self.SENTINELAS["conformidade"]},
+                                                     amostra=7)
+        liberados = [t for t in alfabeto if not t[3] and booleanas.reavaliacao(t[5]) is None]
+        self.assertGreaterEqual(len(liberados), len([t for t in alfabeto if not t[3]]) // 2, "a mutação 1 não é pega")
+        parar = mutante("parar_no_nome_valor", """        if ATRIBUICAO.match(palavra):
+            i += 1
+            continue
+        if not palavra.startswith("-"):
+            break
+        consome = opcao_modelada(nome, palavra)""", """        if ATRIBUICAO.match(palavra):
+            break
+        if not palavra.startswith("-"):
+            break
+        consome = opcao_modelada(nome, palavra)""")
+        uutils = [molde.replace("{C}", self.SENTINELAS["conformidade"]) for _, molde, familia in self.FORMAS_DO_LANCADOR
+                  if familia == "uutils"]
+        self.assertEqual(len(uutils), 4)
+        for texto in uutils:
+            with self.subTest(mutacao="parar no NOME=valor", texto=texto):
+                self.assertIsNotNone(_comum.reavaliacao(texto), "o código de hoje recusa")
+        self.assertIn(None, [parar.reavaliacao(t) for t in uutils], "a mutação 2 não é pega")
+        for nome in ("ENV_COM_VALOR_CURTA", "ENV_LONGAS_COM_VALOR", "env_divide_texto", "opcoes_do_lancador"):
+            self.assertFalse(hasattr(_comum, nome), f"{nome} voltou: o hook imita um env de novo")
+        self.assertIsNone(_comum.opcao_modelada("env", "-a"))
+        self.assertIsNone(_comum.opcao_modelada("env", "--argv0"))
 
     def test_propriedade_do_lancador_que_divide_texto_com_marcador(self):  # A1 da segurança, revalidação 11
         """Todo texto da dimensão "lançador que divide texto" (com a linha crítica direta e com a sentinela de cada
@@ -2955,7 +3201,8 @@ exit 0
         versão quadrática levava 8,3 s com 10 mil): o limite não oscila com a máquina."""
         _comum, _, _ = modulos_dos_hooks()
         casos = {"shell": ["bash"] * 50_000, "shell com opção": ["bash"] * 49_999 + ["-c"], "env": ["env"] * 50_000,
-                 "env -S": ["env", "-S", "x"] * 16_000, "não se reduz": [None] * 50_000, "inerte": ["x"] * 50_000}
+                 "env -S": ["env", "-S", "x"] * 16_000, "não se reduz": [None] * 50_000, "inerte": ["x"] * 50_000,
+                 "lançador com valor": ["sudo", "-u"] * 25_000, "env com NOME=valor": ["env", "X=1"] * 25_000}
         for nome, palavras in casos.items():
             with self.subTest(nome=nome), self.limite_de_tempo(5):
                 inicio = time.perf_counter()

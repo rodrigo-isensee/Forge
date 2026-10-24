@@ -28,7 +28,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, CORPO_DE_LACO, INTE
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
-                    fora_da_gramatica_de_leitura,
+                    fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
                     sem_atribuicoes, separar_lancadores, SHELLS, tem_manifesto_do_forge, tirar_heredocs)
 # Orçamento de `Guarda.bash` por linha; acima de qualquer um, a linha é recusada (fecha na dúvida, como PROFUNDIDADE). O
@@ -741,8 +741,9 @@ class Guarda:
         # ADR 0011, item 2 (opção B da revalidação 8), depois das regras específicas, também as do texto reavaliado (o
         # `aninhado` já o conferiu): com o marcador crítico no nível 0, a reavaliação pelo shell em qualquer nível recusa
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
-            self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: o hook não modela o texto "
-                                          "que o shell reavalia", contorno_da_reavaliacao(self.reavaliacao))
+            self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: "
+                                          f"{motivo_da_reavaliacao(self.reavaliacao)}",
+                        contorno_da_reavaliacao(self.reavaliacao))
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
