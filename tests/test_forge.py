@@ -4884,3 +4884,7 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
     def test_push_de_codigo_em_segundo_plano(self):
         self.assertIn("o `git push` de código roda com o `run_in_background` da ferramenta", self.texto)
         self.assertIn("espera a notificação do fim, sem mexer na worktree até lá", self.texto)
+
+    def test_v2_dirigida_e_na_fila(self):
+        self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
+        self.assertIn("1 processo, pela fila; a suíte completa roda uma vez, no push", self.texto)
