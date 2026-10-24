@@ -20,9 +20,10 @@ um módulo mapeado que não existe ou um erro ao ler o git fazem rodar a suíte 
 Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
-Isto é ferramenta de iteração do autor. NÃO é portão: pre-push, review, QA, CI e o caminho para a main
-rodam a suíte inteira (`python3 -m unittest discover -s tests`). Nenhum deles chama este script, `--vermelho`
-incluído: é evidência que o autor e o QA colam no parecer.
+Ferramenta de iteração do autor e, por decisão do dono (2026-10-23, EST-M8), o filtro do pre-push do envio de
+código: o pre-push roda só os módulos que este plano aponta (qualquer dúvida cai na suíte inteira). Review, QA, o
+CI do PR e o caminho para a main rodam a suíte inteira (`python3 -m unittest discover -s tests`) e não chamam este
+script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no parecer.
 """
 import argparse
 import ast
@@ -522,7 +523,7 @@ def main(argv=None):
         print(f"forge-testes: suíte completa ({'; '.join(detalhe)})")
         comando, modulos = SUITE_COMPLETA, []
     else:
-        print(f"forge-testes: dirigido ({', '.join(detalhe)}). Os portões rodam a suíte inteira.")
+        print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
     if args.listar:
         return 0

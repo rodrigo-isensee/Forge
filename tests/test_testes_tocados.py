@@ -1,4 +1,4 @@
-"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; não é portão."""
+"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; filtro do pre-push (EST-M8), nunca portão de CI."""
 import importlib.machinery
 import importlib.util
 import os
@@ -309,17 +309,17 @@ class Execucao(unittest.TestCase):
 
 
 class NaoEPortao(unittest.TestCase):
-    """Decisão do dono: "A, desde que para main rode tudo." Nenhum portão chama o script."""
+    """Decisão do dono: "A, desde que para main rode tudo." O CI e os hooks do Claude não chamam o script; o único
+    portão local que o chama é o pre-push (EST-M8, decisão do dono de 2026-10-23: A), que recua para a suíte inteira."""
 
     def test_nenhum_portao_cita_o_script(self):
-        alvos = [RAIZ / ".githooks", RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local",
-                 RAIZ / "bin" / "forge-check"]
+        alvos = [RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local", RAIZ / "bin" / "forge-check"]
         arquivos = []
         for alvo in alvos:
             # __pycache__ fica de fora: o .pyc guarda o caminho da worktree, que pode se chamar forge-testes-*
             arquivos += [alvo] if alvo.is_file() else [p for p in alvo.rglob("*")
                                                        if p.is_file() and "__pycache__" not in p.parts]
-        self.assertGreaterEqual(len(arquivos), 5)
+        self.assertGreaterEqual(len(arquivos), 4)
         for arquivo in arquivos:
             with self.subTest(str(arquivo.relative_to(RAIZ))):
                 self.assertNotIn("forge-testes", arquivo.read_text(encoding="utf-8", errors="replace"))
@@ -337,7 +337,12 @@ class NaoEPortao(unittest.TestCase):
                 citam.add(arquivo.relative_to(RAIZ).as_posix())
         self.assertEqual(citam, self.AVISOS)
 
-    def test_pre_push_roda_a_suite_inteira(self):
+    def test_so_o_pre_push_cita_o_script_em_githooks(self):
+        citam = {p.relative_to(RAIZ).as_posix() for p in (RAIZ / ".githooks").rglob("*")
+                 if p.is_file() and "forge-testes" in p.read_text(encoding="utf-8", errors="replace")}
+        self.assertEqual(citam, {".githooks/pre-push"})
+
+    def test_pre_push_recua_para_a_suite_inteira(self):
         self.assertIn("python3 -m unittest discover -s tests",
                       (RAIZ / ".githooks" / "pre-push").read_text(encoding="utf-8"))
 
