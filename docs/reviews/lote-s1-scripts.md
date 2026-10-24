@@ -1,0 +1,38 @@
+---
+tipo: review
+contrato: 1
+pedido: lote-s1-scripts
+branch: melhoria/lote-s1-scripts
+commit: 8e22f173e103f04a77bab9152747f0d79473f9f0
+parecer: aprovado
+revisor: forge:tech-lead (instância de review, não a autora)
+data: 2026-10-24
+---
+# Review: LOTE-S1-SCRIPTS (E1.1 do LOTE-S1-SCRIPTS-REV)
+
+Escopo: `git diff 3c66b881af31817ce5d2dde996c7ca56d54cb511...8e22f173e103f04a77bab9152747f0d79473f9f0`. São cinco commits: um por cartão (a8fb887 FECHAR-TOCTOU, ae0136f FECHAR-DA-RAIZ, bdbe7e0 CHANGELOG-D-LINK, 3c26001 VALIDAR-AVISO-X) e o fragmento (8e22f17). Arquivos: `bin/forge-fechar`, `bin/forge-changelog`, `scripts/validar-plugin.sh`, `changelog.d/lote-s1-scripts.md` e os testes em `tests/test_fechar_log_check.py`, `tests/test_fechar_orfao.py`, `tests/test_changelog.py` e `tests/test_forge.py`.
+
+## O que conferi, cartão por cartão
+- **FECHAR-TOCTOU (a8fb887):** o chmod age sobre `.`, dentro de um subshell que fez `cd -P "$logdir"` e conferiu `[ -O . ]`, e não mais sobre o caminho (`bin/forge-fechar:178`). O modo simbólico ganhou `u-s`. A releitura do modo pelo caminho (linha 179) continua lá. A linha 171 já fazia `cd "$logdir" && pwd -P` antes, então a exigência de poder entrar na pasta não cria recusa nova: o caminho antigo continua igual. Os testes cobrem 4755 e 6755 no subTest existente e o chmod falso registra que o único argumento de alvo é `.`, sem o caminho. A falta do bit x também já era recusada antes.
+- **FECHAR-DA-RAIZ (ae0136f):** `FORGE_FECHAR_TETO_DELETE` passa pela mesma função `faixa` das outras variáveis, de 1 a 100, com padrão 80 e até 3 dígitos. Fica recusado antes do passo 1, e o teste cobre 0, 101 e `x`. `com_teto` cerca cada tentativa do `repetir`. Com o padrão, o pior caso é 3 x 80 + 2 x 3 = 246 s. Antes de tentar sai `registro: apagando ...`. Quando a exclusão falha, o aviso diz "a branch remota continua viva", a remota fica `pendente`, o comando vai para o resumo e o código de saída é 3. O teste `test_push_delete_que_trava_e_cortado_pelo_teto_e_a_remota_viva_e_dita` prova isso com um git que trava 30 s. A metade "sair da worktree" já estava no script: o commit diz isso, e `test_de_dentro_da_worktree_da_branch_sai_para_a_principal_remove_e_fecha_com_0` segue verde. O push de remoção não roda a suíte no pre-push (PREPUSH-DELETE, `.githooks/pre-push:140`), então o teto de 80 s não corta um push legítimo. O GNU `timeout` mata o grupo de processos e leva o hook junto. Sem `timeout`, o comando roda sem limite, como o cabeçalho documenta (ver R2).
+- **CHANGELOG-D-LINK (bdbe7e0):** `conferir_pasta_de_fragmentos` recusa `changelog.d` que seja link, inclusive quebrado, ou que resolva fora da raiz, e recusa qualquer fragmento que seja link. Roda no `novo`, antes do `mkdir` e da gravação, e na `release`, antes de ler os fragmentos e antes de gravar o CHANGELOG, os manifestos ou de apagar qualquer coisa. Os testes cobrem a pasta como link, o fragmento como link e o `novo` com a pasta como link: os `.md` externos ficam, e o CHANGELOG e o manifesto ficam intactos. A troca da versão agora confere `conferido == {**dados, "version": versao}`, ou seja, só o campo de topo pode mudar. Isso fecha o caso em que o topo já está na versão alvo e um `version` aninhado vem antes, e o teste novo o prova sem gravar nada. Os testes antigos de manifesto seguem verdes.
+- **VALIDAR-AVISO-X (3c26001):** a troca de `✘ Found ` por "aviso do perfil directory" só acontece com código 0. Com falha, a saída e o código ficam como vieram, e os dois lados têm teste com um `claude` falso. O `set -e` continua parando no primeiro validador que falha, como antes.
+- **Caminhos antigos do forge-fechar:** fora o chmod e o bloco da remota, o diff só acrescenta a validação da variável e duas funções. As suítes `test_fechar_log_check` e `test_fechar_orfao` seguem verdes.
+- **Testes do lote:** `python3 -m unittest tests.test_changelog tests.test_fechar_log_check tests.test_fechar_orfao tests.test_forge.ValidarPluginAviso` deu 70 testes, OK, 1 pulado. O pulado é `FragmentoTemONomeDaBranch`, porque a worktree de review está em HEAD destacado. Não rodei a suíte inteira: ela roda no pre-push do autor, que deu 1946 OK segundo o pedido.
+- **Ferramentas:** o Forge não tem `docs/engineering/praticas.md`. `shellcheck scripts/validar-plugin.sh` (está no CI) não acusa nada. O `shellcheck bin/forge-fechar` (fora do CI) acusa SC2034, SC2015 e SC2086 nas linhas 494, 511 e 518, que são as mesmas três da base 3c66b88 e ficam fora do diff. `bin/forge-check docs` deu rc 0.
+- **Teto M14:** 180 linhas de código e teste (`git diff --numstat --no-renames`: bin 47, scripts 16, tests 117, contando adições e remoções; o fragmento fica fora). Fica abaixo de 400 e não toca `hooks/` nem `PROTEGIDOS`.
+- **Regras:** R-CUSTO e R-NEUTRO estão preservadas. O diff não toca `tests/config.json`, invariantes nem regra com ID. O fragmento está em `changelog.d/` e o `CHANGELOG.md` não foi editado. Os commits seguem Conventional Commits em português, um por cartão.
+- **Segurança:** a análise do TOCTOU e dos links é da E2.1 (`docs/security/lote-s1-scripts.md`), que roda em paralelo, e não a refaço aqui.
+- **PA-7:** `docs/engineering/achados-recorrentes.md` não tem nenhum achado registrado e não havia item a conferir.
+
+## Achados
+
+## Detalhe dos achados (recomendações, não devolvem)
+- R1 (recomendado) docs/fechamento-integrador.md:52 · a documentação do integrador ficou atrás do código. A linha 52 ainda diz `chmod u=rwx,go=,g-s` sobre o caminho, sem o `u-s` nem o `.`. A linha 58 diz que o script confere "os três números" e não cita `FORGE_FECHAR_TETO_DELETE` (1 a 100, padrão 80). As linhas 20 e 71 descrevem as 3 tentativas do `push --delete` sem o teto nem o aviso "a remota continua viva". A definição de pronto pede a documentação afetada na mesma entrega. Sugestão: ajustar as três passagens antes do PR. O texto `.md` não conta no teto.
+- R2 (recomendado) bin/forge-fechar:120 · sem `timeout` no PATH (macOS sem coreutils), `com_teto` roda sem limite e o requisito "não passar de 300 s" deixa de valer em silêncio depois da linha `registro:`. Esse recuo não tem teste. Sugestão: um teste com PATH sem `timeout` que confirme que o comando roda, e um aviso de uma linha quando o teto não puder ser aplicado. A outra opção é um vigia em bash puro (`sleep` + `kill` do pid).
+- R3 (recomendado) bin/forge-fechar:107 · a faixa aceita até 100 s. Com `FORGE_FECHAR_TETO_DELETE=100` e a pausa padrão, são 3 x 100 + 2 x 3 = 306 s sem nenhuma saída entre o `registro:` e o aviso, acima dos 300 s do cartão. Isso só acontece por escolha explícita do operador. Sugestão: teto 95, ou uma linha de registro por tentativa.
+- R4 (recomendado) bin/forge-fechar:465 · se o `timeout` cortar uma tentativa depois que o servidor já apagou a ref, as tentativas seguintes falham com "remote ref does not exist" e o script diz "a remota continua viva" sem ela estar. Sugestão: depois do `repetir` falhar, reler `git ls-remote` e só declarar `pendente` se a ref ainda existir.
+- R5 (recomendado) tests/test_fechar_orfao.py:179 · o teste que promete "o padrão deixa três tentativas abaixo de 300 s" só procura o texto `:-80` no script e não calcula nada: um mutante que suba o teto máximo ou a pausa passa. Sugestão: calcular `3 * padrão + 2 * pausa padrão < 300` a partir dos valores lidos, ou medir o tempo com teto 1 e pausa 0.
+
+## Parecer
+Aprovado. Os quatro cartões fazem o que o pedido pede, cada um com um teste que falharia sem a correção, e nenhum caminho antigo do forge-fechar mudou de comportamento. Os cinco itens acima são recomendações. A R1 (documentação do integrador) deve entrar antes do PR, para o `docs/fechamento-integrador.md` não chegar à main descrevendo o comportamento antigo.
