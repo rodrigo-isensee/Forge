@@ -454,7 +454,57 @@ def arquivo_da_violacao(v):
 def regra_protegidos(raiz, b, h):
     if not existe(raiz, b, "tests/catraca.py"):  # introdução da própria catraca; erro do git levanta (não é "ausente")
         return []
-    return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
+    return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS) and not acrescimo_inerte(raiz, b, h, a)]
+
+
+PRAGMA_DE_FERRAMENTA = re.compile(r"noqa|type:\s*ignore|pragma|nosec|pylint|shellcheck|fmt:|flake8", re.I)  # comentário que desliga uma checagem
+
+
+def so_acrescenta_linhas(raiz, base, head, caminho):
+    """True só se `caminho` existe nos dois lados, é texto, mantém o modo e não tem nenhuma linha removida ou alterada (`git diff`)."""
+    cod_n, numstat = git(raiz, "diff", "--no-renames", "--numstat", base, head, "--", caminho)
+    cod_r, bruto = git(raiz, "diff", "--no-renames", "--raw", "-z", base, head, "--", caminho)
+    if cod_n or cod_r:
+        return False
+    campos = numstat.split()
+    cabecalho = bruto.split("\0")[0].split()
+    return (len(campos) >= 3 and campos[0].isdigit() and int(campos[0]) > 0 and campos[1] == "0"
+            and len(cabecalho) == 5 and cabecalho[4] == "M" and cabecalho[0] == ":" + cabecalho[1])
+
+
+def _funcao_nova_inerte(no, nomes_da_base):
+    """Função de topo sem nada que rode ao definir (decorador, valor padrão, anotação) e que não toma o lugar de nome nenhum da base."""
+    if not isinstance(no, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    a = no.args
+    if no.decorator_list or no.returns or no.name.startswith("__") or no.name in nomes_da_base:
+        return False
+    todos = a.posonlyargs + a.args + a.kwonlyargs + [x for x in (a.vararg, a.kwarg) if x]
+    return not a.defaults and not any(a.kw_defaults) and not any(x.annotation for x in todos)
+
+
+def acrescimo_inerte(raiz, base, head, caminho):
+    """M9: em Python, linha acrescentada que não muda o programa (comentário, linha em branco) ou função de topo nova e inerte passa sem o rótulo.
+    Remoção, alteração, arquivo novo ou apagado, binário, outra linguagem e qualquer acréscimo que mude o AST de código existente
+    (um `return` novo no começo de uma função de checagem, por exemplo) seguem pedindo o rótulo: o que não sei classificar falha fechado.
+    Comentário que desliga uma checagem de ferramenta (`PRAGMA_DE_FERRAMENTA`) também pede o rótulo.
+    Pendente do modelo de ameaças do L3: o AST não diz se um acréscimo que muda o programa afrouxa; por isso todo acréscimo desse tipo pede o rótulo."""
+    antes, depois = ler(raiz, base, caminho), ler(raiz, head, caminho)
+    if antes is None or depois is None or not so_acrescenta_linhas(raiz, base, head, caminho):
+        return False
+    if not (caminho.endswith(".py") or re.match(r"#!.*python", depois)):
+        return False
+    try:
+        arv_antes, arv_depois = ast.parse(antes), ast.parse(depois)
+    except (SyntaxError, ValueError):
+        return False
+    acrescentadas = Counter(depois.splitlines()) - Counter(antes.splitlines())
+    if any(PRAGMA_DE_FERRAMENTA.search(linha) for linha in acrescentadas):
+        return False
+    nomes = set(re.findall(r"\w+", antes))
+    novos = [n for n in arv_depois.body if _funcao_nova_inerte(n, nomes)]
+    restantes = [n for n in arv_depois.body if n not in novos]
+    return [ast.dump(n) for n in arv_antes.body] == [ast.dump(n) for n in restantes]
 
 
 FORMA_COMPILADA = re.compile(r"(^|/)__pycache__/|\.(pyc|pyo|pyd|so)$")  # lista fixa: o que o interpretador carrega no lugar do fonte (K10-CAT)

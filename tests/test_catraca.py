@@ -434,6 +434,87 @@ class Protegidos(Base):
                 repo.commit()
                 self.assertTrue(any(f"mudança em {rel}" in v for v in repo.violacoes()))
 
+    def altera_protegido(self, rel, base, depois, modo=None):
+        """Repositório novo com `base` em `rel` na base do PR e `depois` no head; devolve as violações de `regra_protegidos`."""
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.git("checkout", "-q", "develop")
+        repo.escreve(rel, base)
+        repo.git("add", "-A")
+        repo.git("commit", "-q", "--allow-empty", "-m", "base com o arquivo")
+        repo.git("tag", "-f", "base")
+        repo.git("checkout", "-q", "pr")
+        repo.git("reset", "-q", "--hard", "develop")
+        repo.escreve(rel, depois)
+        if modo:
+            os.chmod(repo.dir / rel, modo)
+        repo.commit()
+        return catraca.regra_protegidos(repo.dir, "base", "HEAD")
+
+    CHECAGEM = "def checa(x):\n    if x:\n        return 1\n    return 0\n"
+
+    def test_m9_acrescimo_inerte_em_python_protegido_passa_sem_rotulo(self):
+        casos = {
+            "comentário": self.CHECAGEM + "# nota\n",
+            "linha em branco": "\n" + self.CHECAGEM,
+            "comentário dentro da função": self.CHECAGEM.replace("    if x:", "    # só 1 ou 0\n    if x:"),
+            "função de topo nova": self.CHECAGEM + "\n\ndef auxiliar(y):\n    return y + 1\n",
+        }
+        for nome, depois in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, depois), [])
+
+    def test_m9_script_python_sem_extensao_conta_pelo_shebang(self):
+        base = "#!/usr/bin/env python3\n" + self.CHECAGEM
+        self.assertEqual(self.altera_protegido("bin/forge-check", base, base + "# nota\n"), [])
+
+    def test_m9_remocao_alteracao_e_o_que_nao_sabe_classificar_seguem_pedindo_o_rotulo(self):
+        casos = {
+            "linha alterada": (self.CHECAGEM, self.CHECAGEM.replace("return 0", "return 2")),
+            "linha removida": (self.CHECAGEM, self.CHECAGEM.replace("    return 0\n", "")),
+            "acréscimo que muda o programa": (self.CHECAGEM, self.CHECAGEM + "checa = lambda x: 0\n"),
+            "função nova com decorador": (self.CHECAGEM, self.CHECAGEM + "@staticmethod\ndef nova(y):\n    return y\n"),
+            "função nova com valor padrão": (self.CHECAGEM, self.CHECAGEM + "def nova(y=print('roda')):\n    return y\n"),
+            "função nova que toma o nome de uma da base": (self.CHECAGEM, self.CHECAGEM + "def checa(x):\n    return 0\n"),
+            "pragma que desliga a checagem": (self.CHECAGEM, self.CHECAGEM + "x = 1  # noqa\n"),
+            "Python que não compila": (self.CHECAGEM, self.CHECAGEM + "def (\n"),
+        }
+        for nome, (base, depois) in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(len(self.altera_protegido("hooks/_comum.py", base, depois)), 1)
+
+    def test_m9_acrescimo_em_outra_linguagem_ou_arquivo_novo_continua_pedindo_o_rotulo(self):
+        """Só Python é classificado; workflow, shell e JSON de política seguem pedindo o rótulo mesmo só acrescentando linhas."""
+        for rel, base in ((".github/workflows/ci.yml", "name: CI\n"), (".githooks/pre-push", "#!/bin/sh\nexit 0\n"), (".github/CODEOWNERS", "* @dona\n")):
+            with self.subTest(rel):
+                self.assertEqual(len(self.altera_protegido(rel, base, base + "# nota\n")), 1)
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve("scripts/conferir-release.py", "# novo\n")
+        repo.commit()
+        self.assertEqual(len(catraca.regra_protegidos(repo.dir, "base", "HEAD")), 1)
+
+    def test_m9_acrescimo_que_afrouxa_pendente_do_modelo_de_ameacas_continua_pedindo_o_rotulo(self):
+        """PENDENTE (modelo de ameaças do L3): um `return` novo no começo de uma função de checagem é só acréscimo de linha,
+        mas desliga a checagem. A regra não o separa de um acréscimo inocente pelo diff; ela o barra por mudar o AST, e a
+        decisão de uma regra mais fina é do dono. Este teste fixa o comportamento seguro: pede o rótulo."""
+        depois = self.CHECAGEM.replace("    if x:", "    return 0\n    if x:")
+        self.assertEqual(len(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, depois)), 1)
+
+    def test_m9_modo_do_arquivo_mudado_continua_pedindo_o_rotulo(self):
+        base = "#!/usr/bin/env python3\n" + self.CHECAGEM
+        self.assertEqual(len(self.altera_protegido("bin/forge-check", base, base + "# nota\n", modo=0o755)), 1)
+
+    def test_m9_forma_compilada_continua_pedindo_o_rotulo_mesmo_so_acrescentando(self):
+        """`regra_compilados` não usa a classificação: bytecode e extensão nativa não têm 'linha acrescentada'."""
+        self.repo.escreve("pacote/x.so", "# so texto\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "x.so")
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("pacote/x.so", "# so texto\n# mais\n")
+        self.repo.commit()
+        self.assertEqual(len(catraca.regra_compilados(self.repo.dir, "base", "HEAD")), 1)
+
     def test_regra_de_release_e_protegida(self):
         self.repo.escreve("scripts/conferir-release.py", "mudou\n")
         self.barra("mudança em scripts/conferir-release.py", "R-CONFORMIDADE")
