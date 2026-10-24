@@ -529,6 +529,74 @@ class Protegidos(Base):
             with self.subTest(nome):
                 self.assertEqual(len(self.altera_protegido(rel, base, depois)), 1)
 
+    def test_m9_l3_4_item_novo_em_linha_nova_de_lista_de_isencao_pede_o_rotulo(self):
+        """L3-4: o diff não sabe o sentido de um item novo; fora de `MONOTONICAS` (PARECERES, REESCRITA) ele afrouxa e pede o rótulo."""
+        for nome in ("PARECERES", "REESCRITA"):
+            with self.subTest(nome):
+                base = f'MONOTONICAS = ("PROTEGIDOS",)\n{nome} = (\n    "a/",\n    "b/",\n)\n'
+                depois = f'MONOTONICAS = ("PROTEGIDOS",)\n{nome} = (\n    "a/",\n    "b/",\n    "docs/",\n)\n'
+                self.assertEqual(len(self.altera_protegido("tests/catraca.py", base, depois)), 1)
+
+    def test_m9_l3_8_arquivo_novo_em_caminho_protegido_pede_o_rotulo(self):
+        """L3-8: workflow novo com `pull_request_target` e ruleset novo com `bypass_actors` são acréscimo puro e pedem o rótulo."""
+        casos = {
+            ".github/workflows/novo.yml": "on:\n  pull_request_target:\njobs:\n  a:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}\n",
+            ".github/rulesets/novo.json": '{"bypass_actors": [{"actor_id": 1, "actor_type": "Team", "bypass_mode": "always"}]}\n',
+        }
+        for rel, texto in casos.items():
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, texto)
+                repo.commit()
+                self.assertEqual(len(catraca.regra_protegidos(repo.dir, "base", "HEAD")), 1)
+
+    def test_m9_l3_13_diff_que_a_contagem_le_errado_conta_como_alteracao(self):
+        """L3-13: binário (`-\\t-` no numstat), `.gitattributes` com `-diff`, troca de modo, de link simbólico e de submódulo, sem linha apagada: cada um pede o rótulo."""
+        py = "hooks/_comum.py"
+        c = self.CHECAGEM
+        self.assertEqual(len(self.altera_protegido(py, c, c + "\x00\xff")), 1, "binário")
+        self.assertEqual(len(self.altera_protegido("bin/forge-check", "#!/usr/bin/env python3\n" + c, "#!/usr/bin/env python3\n" + c, modo=0o755)), 1, "troca de modo")
+
+        def forma(nome, muda):
+            repo = Repo()
+            self.addCleanup(repo.fecha)
+            repo.git("checkout", "-q", "develop")
+            repo.escreve(py, c)
+            repo.git("add", "-A")
+            repo.git("commit", "-q", "-m", "base com o arquivo")
+            repo.git("tag", "-f", "base")
+            repo.git("checkout", "-q", "pr")
+            repo.git("reset", "-q", "--hard", "develop")
+            muda(repo)
+            repo.commit()
+            self.assertEqual(len(catraca.regra_protegidos(repo.dir, "base", "HEAD")), 1, nome)
+
+        def gitattributes(repo):
+            repo.escreve(".gitattributes", f"{py} -diff\n")
+            repo.escreve(py, c.replace("return 0", "return 2"))
+
+        def link(repo):
+            (repo.dir / py).unlink()
+            (repo.dir / py).symlink_to("outro.py")
+
+        def submodulo(repo):
+            repo.git("rm", "-q", "--cached", py)
+            (repo.dir / py).unlink()
+            repo.git("update-index", "--add", "--cacheinfo", "160000", "1" * 40, py)
+
+        forma(".gitattributes -diff", gitattributes)
+        forma("link simbólico", link)
+        forma("submódulo", submodulo)
+
+    def test_m9_pragma_de_ferramenta_em_comentario_pede_o_rotulo(self):
+        """Um pragma desliga uma checagem de ferramenta: não é 'sem efeito' e pede o rótulo, mesmo com a árvore igual."""
+        for pragma in ("# noqa", "# nosec", "# type: ignore", "# pylint: disable=all", "# fmt: off", "# pragma: no cover"):
+            with self.subTest(pragma):
+                self.assertEqual(len(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, self.CHECAGEM.replace("return 1", f"return 1  {pragma}"))), 1)
+        self.assertEqual(len(self.altera_protegido("bin/forge-check", "#!/usr/bin/env python3\n" + self.CHECAGEM, "#!/usr/bin/env python3\n" + self.CHECAGEM + "# noqa\n")), 1)
+        self.assertEqual(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, self.CHECAGEM + "# nota\n"), [])
+
     def test_m9_funcao_de_topo_nova_pede_o_rotulo(self):
         self.assertEqual(len(self.altera_protegido("hooks/_comum.py", self.CHECAGEM, self.CHECAGEM + "\n\ndef auxiliar(y):\n    return y + 1\n")), 1)
 
