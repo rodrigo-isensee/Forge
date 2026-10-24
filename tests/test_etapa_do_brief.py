@@ -504,6 +504,12 @@ class ListaPositivaDoMecanico(Repo):
         self.sai_necessario(com("Etapa: codigo   Branch: melhoria/x   Base: develop"), "commit não conferido")  # head só local
         self.assertIn("Etapa: PREENCHER   Cobre: E1.1\n", self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--cobre", "E1.1")[1])
 
+    def test_qa_a3_copia_fora_de_decisoes_e_corte_real(self):
+        """QA A3 (mutantes N1 e N6): a cópia literal da DECISÃO DO DONO fora da seção e o corte real levam ao conferente."""
+        self.sai_necessario(self.base(("Mesclar (E1.5).", 'DECISÃO DO DONO (2026-01-01): "A".')), "DECISÃO DO DONO fora de Decisões e restrições")
+        fora = fora_sem("E1.5", "E1.2") + [f'Retira do escopo original: {ETAPAS["E1.2"]} · justificativa: x · consequência: y · decisão: z']
+        self.sai_necessario(self.base(fora=fora), "corte de escopo")
+
     def test_p7_outro_brief_do_mesmo_pedido_e_destino_no_disco(self):
         self.gravar("docs/briefs/exemplo-revisor-exemplo-1.md", self.base())
         rc, saida = self.rodar("brief", self.gravar("docs/briefs/exemplo-revisor-exemplo-2.md", self.base()), "--pedido", self.pedido)
