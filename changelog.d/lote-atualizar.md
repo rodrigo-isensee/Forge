@@ -1,2 +1,0 @@
-### Corrigido
-- **forge atualizar:** se algo falha depois do commit que resolve o conflito de `.forge/versao`, a mesclagem é desfeita de verdade (antes a mensagem dizia que desfez, mas a branch ficava com o merge), e a mensagem "Desfiz a mesclagem" só sai quando a branch voltou; senão o comando diz o estado real e o comando para desfazer à mão; o teste de publicar também deixa de copiar `__pycache__`.
