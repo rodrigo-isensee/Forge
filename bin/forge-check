@@ -4259,8 +4259,13 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
-DECISAO_EM_PROSA = re.compile(r"\bdecis\w*|\bdecid\w*|\bescolh\w*|\bprefer\w*|\bautoriz\w*|\bdono\s+(?:quer|mand|pedi|dis|aprov|determin|exig)\w*|\bop(?:ç|c)(?:ão|ao|ões|oes)\b", re.I)
-ID_DE_REGRA = re.compile(r"R-[A-Z][A-Z0-9-]*")
+FRASE = re.compile(r"(?<=[.;!?])\s+")  # fim de frase no Entregar: cada uma cita um id do pedido
+FRASE_FORJADA = re.compile(r"decisao\s+(?:do\s+dono|tecnica)", re.I)  # sobre o texto sem acento (NFKD): a frase fora da cópia literal
+
+
+def sem_acento(texto):
+    """O texto em NFKD sem as marcas combinantes: `DECISÃO`, `DECISAO` e `ＤＥＣＩＳÃＯ` comparam igual."""
+    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
 
 
 def sem_trechos_do_pedido(linha, pedido):
@@ -4283,8 +4288,10 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
     """BRIEF-MECANICO (decisão do dono, 2026-10-24), por lista positiva (segurança A1 a A7): `conferente: dispensado (brief mecânico)` só
     quando todas as checagens rodaram e decidiram (forma, corte, decisões sem linha `não verificável` nem `aviso:`, papel, contradição e
     commit), o brief é de primeira rodada provada (sem `Volta-de:`, `Anterior:` nem outro brief do mesmo pedido e destino no disco) e as
-    únicas linhas de decisão são cópias literais das `DECISÃO DO DONO` do pedido, dentro de `Decisões e restrições`, sem decisão em
-    prosa nem caractere invisível; senão `conferente: necessário (<motivo>)`. Só informa: nunca reprova."""
+    únicas linhas de decisão são cópias literais das `DECISÃO DO DONO` do pedido, dentro de `Decisões e restrições`, sem caractere
+    invisível; em `Decisões e restrições` só passam essas cópias e os subtítulos do `gerar` (lista positiva, decisão do dono sobre o A4:
+    qualquer outra linha é texto novo do Jarvis) e cada frase do `Entregar` cita `(E<n>)` ou a etapa do pedido (QA A4: a frase sem id,
+    que corta ou decide em prosa, não se confere); senão `conferente: necessário (<motivo>)`. Só informa: nunca reprova."""
     def necessario(motivo):
         return (f"conferente: necessário ({motivo})", False)
     if anterior is not None or re.search(r"^\s*(?:Volta-de|Anterior):", texto, re.M):
@@ -4322,10 +4329,14 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
         elif chave_da_decisao(linha) in do_pedido:
             if atual != "Decisões e restrições":
                 return necessario("DECISÃO DO DONO fora de Decisões e restrições")
-        elif e_linha_de_decisao(linha):
+        elif linha.strip() in subtitulos:
+            continue
+        elif e_linha_de_decisao(linha) or FRASE_FORJADA.search(sem_acento(linha)):
             return necessario("DECISÃO DO DONO que não é cópia literal do pedido")
-        elif linha.strip() not in subtitulos and DECISAO_EM_PROSA.search(ID_DE_REGRA.sub("", sem_trechos_do_pedido(linha, pedido))):
-            return necessario("decisão em prosa")
+        elif atual == "Decisões e restrições" and linha.strip():
+            return necessario("decisão em prosa: linha de Decisões e restrições que não é cópia do pedido")
+        elif atual == "Entregar" and any(not ids_em_citacao(f) & existentes for f in FRASE.split(sem_trechos_do_pedido(linha, pedido).strip(" -*+")) if f):
+            return necessario("decisão em prosa: frase do Entregar sem id do pedido")
     return ("conferente: dispensado (brief mecânico)", False)
 
 
