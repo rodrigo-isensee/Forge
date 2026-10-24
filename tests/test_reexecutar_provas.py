@@ -17,15 +17,39 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
 DOCS = AQUI.parent / "docs"
-LINHA_CMD = re.compile(r"^- PQ-(\d+) \(cmd\): `([^`]+)` · espera: (.+)$")
 
 
 class ModeloDeProvas(unittest.TestCase):
-    def test_modelo_traz_linhas_cmd_no_formato_da_regra(self):
-        linhas = (DOCS / "provas" / "_modelo.md").read_text(encoding="utf-8").splitlines()
-        cmd = [LINHA_CMD.match(l) for l in linhas if "(cmd)" in l and l.startswith("- PQ-")]
-        self.assertEqual(len(cmd), 2)
-        self.assertTrue(all(cmd))
+    def rodar_copia(self, extra=()):
+        """Copia o modelo para docs/provas/p.md num git temporário e roda o próprio script sobre a cópia."""
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz = Path(tmp)
+            env = sem_manutencao({**os.environ, "HOME": tmp})
+            (raiz / "tests").mkdir()
+            (raiz / "tests" / "__init__.py").write_text("")
+            (raiz / "tests" / "test_exemplo.py").write_text("import unittest\nclass T(unittest.TestCase):\n    def test(self): pass\n")
+            (raiz / "docs" / "provas").mkdir(parents=True)
+            modelo = (DOCS / "provas" / "_modelo.md").read_text(encoding="utf-8")
+            (raiz / "docs" / "provas" / "p.md").write_text(modelo + "".join(l + "\n" for l in extra), encoding="utf-8")
+            git = lambda *a: subprocess.run(["git", "-C", tmp, *a], check=True, capture_output=True, env=env)
+            git("init", "-q")
+            git("add", "-A")
+            git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x")
+            r = subprocess.run([sys.executable, str(AQUI.parent / "scripts" / "reexecutar-provas.py"), "--raiz", tmp, "docs/provas/p.md"],
+                               capture_output=True, text=True, env={**env, "PYTHONDONTWRITEBYTECODE": "1"})
+            return r.returncode, r.stdout + r.stderr
+
+    def test_modelo_copiado_passa(self):
+        rc, saida = self.rodar_copia()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("ok docs/provas/p.md:7 PQ-1", saida)
+        self.assertIn("ok docs/provas/p.md:8 PQ-2", saida)
+        self.assertIn("reexecutar-provas: 2 prova(s) cmd conferida(s)", saida)
+
+    def test_prosa_antiga_do_formato_na_copia_reprova(self):
+        rc, saida = self.rodar_copia(["`- PQ-<n> (cmd): `<comando>` · espera: <espera>`"])
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("p.md:9: linha fora do formato do arquivo de provas", saida)
 
     def test_regra_descreve_o_arquivo_a_lista_permitida_e_a_falha_fechada(self):
         regra = (DOCS / "regras" / "R-PROVA.md").read_text(encoding="utf-8")
@@ -244,14 +268,8 @@ class Execucao(unittest.TestCase):
 
 class ListaPositivaDeLinhas(unittest.TestCase):
     """Classe "linha ou comando aceito por uma forma que o script não modela": toda linha é lida e só passa uma forma permitida."""
-    BASE = ["# Provas do pedido <ID>",
-            "Propósito: provas reexecutáveis do pedido, uma por linha; formato, lista permitida e recusas em docs/regras/R-PROVA.md"
-            " (\"Arquivo de provas na branch\"). Copie para docs/provas/<pedido>.md e troque as linhas abaixo. Público: autor da"
-            " entrega, tech-lead e QA. Revisão: <data>.",
-            "## Provas",
-            "- PQ-1 (cmd): `python3 -m unittest tests.test_exemplo` · espera: rc=0",
-            "- PQ-2 (cmd): `git rev-parse --verify HEAD` · espera: rc=0 e linhas=1"]
-    VALIDA = BASE[3]
+    BASE = [l for l in (DOCS / "provas" / "_modelo.md").read_text(encoding="utf-8").splitlines() if l]  # título, Propósito e as PQ
+    VALIDA = next(l for l in BASE if l.startswith("- PQ-1 "))
     ALFABETO = [chr(c) for c in range(0x20, 0x7F)] + [" ", "‑", "​", "﻿", "́", *"сеаор", "ο", *"（）［］"]
 
     def setUp(self):
