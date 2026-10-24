@@ -3,78 +3,80 @@ tipo: review
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 6d5252db2c3799d8114fb432647d4ae0dfcb5109
-parecer: reprovado
+commit: 0e8776d7b330e57036c6d7684c205e888d058e55
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-24
 ---
-# Review: lote-leitura-hook (revalidação 14, volta pela opção A da rev13)
+# Review: lote-leitura-hook (revalidação 15, volta H pela opção B da rev14)
 
-Pedido RET-LEITURA-HOOK-G-REV, E1.1. Sou revisor independente e não implementei esta volta (`R-REVIEW`). O parecer anterior (revalidação 13, `reprovado`, A1 a A3) está em `c48f097`, sobre `1b4b0d8`.
+Pedido RET-LEITURA-HOOK-H-REV, E1.1. Sou revisor independente e não implementei esta volta (`R-REVIEW`). O parecer anterior (revalidação 14, `reprovado`, A1 bloqueante, A2 e A3 recomendados) está em `72a6b97`, sobre `6d5252d`.
 
-**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `1b4b0d8..6d5252d`. O commit do autor é `ef78e68`. O merge `6d5252d` só traz a `develop` (`ba57c0b`, segundo pai): `git diff ef78e68 6d5252d -- hooks/ tests/test_hooks.py docs/hooks.md` sai vazio. Li inteiro:
-- `hooks/_comum.py:1738-1905` (`LANCADORES`, `LancadorDemais`, `TETO_FORA_DA_TABELA`, `separar_lancadores`, `_ler_lancadores`), `1925-1932` (`achado_do_lancador`) e `2066-2081` (`texto_dividido_do_env`);
-- `hooks/conformidade.py:27-34`, `346-348` (`sem_lancadores`), `840-900` (`segmento`, `leitura_do_segmento`), `1375-1407` (`rotulo_na_sessao_do_forge`) e `1699-1711` (`alvos_de_escrita`);
-- `tests/test_hooks.py` do delta (`ler_dentro_do_comando` e os testes de 2885 a 3300, da propriedade ao item 7), os 17 fixtures `lancador-sem-marcador-*`, `docs/hooks.md:95` e `changelog.d/lote-leitura-hook.md:14`.
+**Delta lido.** O `forge-check delta --parecer docs/reviews/lote-leitura-hook.md` deu `6d5252d..0e8776d`. Os commits do autor são `73aa3c4` (E1 e E2), `f3ff1ef` e `0e8776d` (E3). O merge `fa3a35c` só traz a `develop` (`c96f622`, segundo pai): `git diff fa3a35c^2 fa3a35c` sobre `bin/`, `docs/fechamento-integrador.md`, `tests/test_changelog.py` e `tests/test_fechar*.py` sai vazio. Li inteiro:
+- `hooks/_comum.py:1819-1926`: `LancadorDemais`, as duas exceções novas, `separar_lancadores`, `_ler_lancadores` e `_dividir`;
+- `hooks/conformidade.py:27-34`, `841-873` (`segmento`) e `1698-1722` (`alvos_de_escrita`), e conferi que `rotulo_na_sessao_do_forge` (`1394`) segue no `except ValueError`;
+- `tests/test_hooks.py:3251-3446` (as formas, os testes dos itens 1, 2, 4, 5 e 7 e as mutações), os 11 fixtures `lancador-texto-aberto-*`, `tests/mutantes/lote-leitura-hook.json`, `docs/hooks.md:95` e `changelog.d/lote-leitura-hook.md:15`.
 
-Fica como "já lido" o que vem antes de `1b4b0d8` (revalidações 1 a 13) e os arquivos que o merge traz da `develop` (`scripts/reexecutar-provas.py`, `tests/catraca.py`, o CI e o resto do `--stat`).
+Fica como "já lido" o que vem antes de `6d5252d` (revalidações 1 a 14) e o que o merge traz da `develop` (`bin/forge-changelog`, `bin/forge-fechar`, os pareceres e fragmentos de `changelog-json-link` e `lote-fechar-031`, `docs/fechamento-integrador.md` e os testes deles), revisados nos PRs #319 e #320.
 
-**Critério.** A decisão "A" do dono de 2026-10-24 sobre a rev13 (opção A da proposta `lote-leitura-hook-caminho-rev13.md`, seção 2A, itens 1 a 7, e os textos da seção 3.1), a decisão "A" da rev12, que segue inteira, a decisão "A" de 2026-10-22 (voltas por classe) e o piso da `develop`.
+**Critério.** A decisão "B" do dono de 2026-10-24 sobre a rev14 (opção B da proposta `lote-leitura-hook-caminho-rev14.md`, seção 2B, itens 1 a 7, os textos da seção 3.2 e os recomendados da seção 4), as decisões "A" da rev12 e da rev13, que seguem, a decisão "A" de 2026-10-22 (voltas por classe) e o piso da `develop`.
 
 ## Achados
-- A1 (bloqueante) hooks/_comum.py:1888 · classe "lançador que divide texto" (2.ª volta seguida). A leitura a mais com texto dividido de aspas abertas apaga as outras: env -uS'"' cat .env e env --spl='"' cat .env davam 2 na develop e dão 0; env -aS'"' cat .env e env -aS'"' rm -rf .git dão 0, e o env real lê e apaga
-- A2 (recomendado) tests/test_hooks.py:2962 · a propriedade do item 1 amostra as palavras (uma em 5 no env, uma em 29 nos outros, uma em 97 nas posições, dois corpos no -S em grupo); o critério pede cada palavra
-- A3 (recomendado) tests/test_hooks.py:2918 · as duas exclusões da propriedade não estão escritas onde a propriedade é prometida (docs/hooks.md:95 diz "exige 2 sempre que o corpo sozinho dá 2"); a (b) muda a saída contra a develop em env -iu X cd .git; rm -rf . (2 para 0, sem efeito real)
+- A1 (recomendado) hooks/conformidade.py:1713 · a regra do tee só vê a palavra tee solta: env -uS'"' -S'tee docs/reviews/x.md' dá [] (a develop dava o alvo, e os dois env gravam); sem efeito hoje, porque o PreToolUse recusa a linha e a autoria ausente falha fechado no forge-check pr
+- A2 (recomendado) tests/mutantes/lote-leitura-hook.json:4 · o item 7 de B pede os 14 mutantes (M1 a M10 e B1 a B4) e a spec traz 8 pelo teto do forge-mutante; M4 a M8 e M10 caberiam numa segunda spec (cartão MUTANTE-TETO)
+- A3 (recomendado) tests/test_hooks.py:3032 · o teto de 60 s das propriedades é tempo de relógio: com carga 12 em 8 núcleos (review, segurança e QA juntos, M6), a da rev13 deu 83,6 s e 74,2 s e falhou, e a nova (linha 3333) deu 56,0 s; medir a CPU do filho tira a instabilidade
 
 ## Parecer
-**Reprovado.** A volta fecha os três achados da revalidação 13 e cumpre os itens 1 a 7 do critério de fim. Falta um caso da mesma classe: quando uma leitura a mais não se lê, o hook descarta também a leitura sem valor, e com ela a regra da linha.
+**Aprovado.** A volta fecha o A1 da revalidação 14 pela opção B, como o dono decidiu, e cumpre os itens 1 a 6 do critério de fim de B; o 7 fica em parte, pelo limite da ferramenta (A2). Nenhum achado bloqueia. Os três recomendados não devolvem.
 
-**A1, explicação.** Em `_ler_lancadores` (linha 1888), a leitura possível do texto dividido chama `shlex.split` na hora, durante a leitura sem valor. Se o texto tem aspas abertas, o `ValueError` sobe por `separar_lancadores` inteiro. O `segmento` (`conformidade.py:854`) manda a linha a `ilegivel`, que só recusa o que aponta para o Forge, e a autoria (`conformidade.py:1706`) pula a parte inteira. A leitura sem valor (`cat .env`) e a com valor nunca rodam. Isso contraria o texto aprovado pelo dono em `docs/hooks.md:95`: "recusam se qualquer leitura recusa" e "a leitura a mais só soma recusa". A proposta (seção 2A) mandou o `ValueError` a `ilegivel` pensando no `-S` por extenso, em que o texto é o único comando. Para a leitura possível, ela não previu o caso.
+**Como a opção B ficou.** Os dois `shlex.split` de `_ler_lancadores` passam por `_dividir` (`_comum.py:1916`). Com `gasto > 0`, isto é, com uma palavra fora da tabela já vista, ele levanta `TextoAbertoComLeituras`, subclasse de `LancadorDemais`. Com `gasto == 0`, levanta `TextoDivididoAberto`, que é `ValueError` e não é `LancadorDemais`. O `gasto` sobe (linha 1895) antes do `_dividir` da leitura adiada (linha 1899), e assim `env -uS'"' cat .env` já cai na recusa. O `-S` certo (linha 1889) usa o mesmo `gasto`, e assim `env -iu -S\' cat .env` também recusa. O `segmento` (`conformidade.py:852`) pega a subclasse antes de `LancadorDemais` e recusa com `barrar`, o motivo da proposta e o `CONTORNO_DO_LANCADOR`. Só `TextoDivididoAberto` vai a `ilegivel`. Não há `except ValueError` genérico no `segmento`, e por isso o teto não é engolido: `env -iS'env -a -b -c ls'` recusa pelo teto (sonda abaixo e `test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa`). No `rotulo_na_sessao_do_forge`, o achado cai no `except ValueError`, como a proposta manda. Em `alvos_de_escrita`, a subclasse vem antes do `except ValueError`, e o teto e a leitura única seguem sem alvo, como antes.
 
-Prova (`$TMPDIR/tech-lead-lote-leitura-hook/g/sonda.py`, que roda o `conformidade` sem o marcador; a base é `git archive d150ec8`):
+**Prova** (`$TMPDIR/tech-lead-lote-leitura-hook/h/sonda.py`: o `conformidade` sem o marcador, na cópia limpa de `0e8776d` e na `origin/develop` `f142001`, com o mesmo modelo de corpus):
 
-| Texto (só `conformidade`, sem marcador) | develop | lote | `env` real, hooks desligados |
-|---|---|---|---|
-| `env -uS'"' cat .env` | 2 | 0 | GNU 9.7 e uutils 0.8.0 imprimem o `.env` |
-| `env --spl='"' cat .env` | 2 | 0 | o uutils (o `/usr/bin/env` da máquina) imprime o `.env` |
-| `env -aS'"' cat .env` | 0 | 0 | GNU e uutils imprimem o `.env` |
-| `env -aS'"' rm -rf .git` | 0 | 0 | GNU e uutils apagam o `.git` falso |
-| `env -iS'"' cat .env` | 0 | 0 | o uutils imprime o `.env` |
-| `env -aS'"' tee docs/reviews/x.md` (`alvos_de_escrita`) | — | `[]` | — (com `-iu X`, o alvo aparece) |
-| controle `env -S'"' cat .env` | 0 | 0 | os dois param ("no terminating quote") |
-
-As duas primeiras linhas são regressão contra a `develop`, com efeito real. As outras ficam abaixo da promessa da volta. A causa é uma só. A correção cabe dentro da opção A, sem tabela: a leitura possível que não se divide sai do conjunto, ou vai a `ilegivel` sozinha, e as outras leituras rodam. O caminho, porém, não é meu.
-
-**Contagem por classe** (decisão "A" de 2026-10-22). "Lançador que divide texto" foi o A2 da revalidação 13 (3.ª volta) e volta agora como A1: é a 2.ª volta seguida. O autor chamou a classe desta volta de "regra sem o marcador atrás de lançador com opção fora da tabela", que junta o A1 e o A2 da revalidação 13. Pelos dois nomes, é volta seguida. Pela decisão, **a entrega para**: o `software-architect` propõe o caminho e o dono decide (`R-DECISAO`). A proposta rev13 (seção 5) já previa que, nesse caso, sobra a opção D com o FD17. Este achado tem correção local, e cabe ao arquiteto dizer se a D é precisa.
-
-**A2, explicação.** O critério (item 1, "Palavras") pede cada caractere, cada par de letras e cada prefixo das longas, para cada lançador. O gerador usa `passo_env=5`, `passo_outros=29` e `passo_posicoes=97`, e no `-S` em grupo só dois corpos além dos fixos (`[:2]`, linha 2999). Rodei a propriedade sem amostra (`prop_cheia.py`, `passo_*=1`): 118 corpos, 384.704 formas, **0 liberadas**, em 452,5 s. O comportamento está certo no alfabeto inteiro, e a amostra é o preço do limite de 60 s do item 1. Mesmo assim, ela deixa a propriedade mais fraca do que o texto de `docs/hooks.md:95` diz ("gera as mesmas palavras"). A sugestão é variar o deslocamento da amostra entre as rodadas, ou rodar o alfabeto inteiro num alvo lento. Nem o alfabeto inteiro pegaria o A1, porque nenhuma palavra dele tem o `S` seguido de aspas (os pares são só de letras).
-
-**Julgamento das duas exclusões** (pedido no brief):
-- **(a) palavras em que o `env` sempre divide (`-S…`, `--split-string…`), fora de `L w C` e `L w X C`: aceita.** Nelas o texto dividido é o programa, e o corpo vira argumento dele. Em `env -Sx cat .env`, o GNU e o uutils rodam `x`, e não o `cat`. O oráculo "o corpo sozinho" não vale aí. A própria seção 2A manda o `-S` por extenso ficar com a leitura única de hoje. O "sem exceção" do item 1, lido ao pé da letra, contradiz essa parte da proposta, e o autor seguiu o "O que muda". Os controles do item 2 cobrem o `-S` por extenso.
-- **(b) corpos que mudam o estado do shell (`cd`, `export`…) atrás de lançador: aceita.** A decisão do dono diz que "a pasta e as variáveis que seguem são as da leitura sem valor". Atrás de `env`, o `cd` roda noutro processo (nesta máquina, `env cd` dá "No such file or directory"), então o oráculo também não vale. Há uma consequência que a proposta não viu: o piso "por construção" falha aqui. `env -iu X cd .git; rm -rf .` dava 2 na `develop`, que tomava o `X` por valor e a pasta por `.git`, e agora dá 0. Não há efeito real, porque a pasta real segue na raiz e o GNU `rm` recusa o `.`. Por isso é o A3, recomendado.
-
-Os textos de `docs/hooks.md:95` estão literais: as duas citações da seção 3.1 aparecem inteiras, e "Sem marcador, nada muda." saiu (comparação por script). Só que o texto promete "exige 2 sempre que o corpo sozinho dá 2", sem as exceções (a) e (b). A sugestão é registrá-las na emenda do cartão ADR0011-EMENDA, sem mexer no texto literal deste lote.
-
-### Revalidação 13: o que fechou
-| Achado | Estado | Evidência (`sonda.py`, sem marcador) |
+| Texto (sem marcador) | develop | lote |
 |---|---|---|
-| A1 (`-iu X`, `-iC`) | fechou | `env -iu X cat .env`, `env -iC / cat .env` e `env -iu X rm -rf .git`: 2, como na `develop` |
-| A2 (`-iS'…'`, `-vS'…'`) | fechou nas formas do achado | `env -iS'cat .env'` e `env -vS'cat .env'`: 2. A classe volta pelo caso das aspas abertas (A1 acima) |
-| A3 (teste da dimensão, item 5 da rev12) | fechou | a propriedade sem marcador existe e passa; o item 5 da rev12 está no commit `ef78e68`, no fragmento e em `test_fixtures_libera_nao_tem_lancador_com_opcao_fora_da_tabela` |
+| `env -uS\' cat .env`, `env -uS'"' cat .env`, `env -uS\' rm -rf .git`, `env --spl='"' cat .env`, `env -vuS"'" cat .env` | 2 | 2 (texto que não fecha) |
+| `env -iu X env -uS\' cat .env`, `env -iu -S\' cat .env`, `X=1 env -uS\' cat .env` | 2 | 2 |
+| `env -aS'"' cat .env`, `env -aS'"' rm -rf .git`, `env -iS'"' cat .env` | 0 | 2 (endurecimento) |
+| `env -uS\' cd /tmp/y; rm -rf .git`, `echo ok; env -uS\' true; cat .env` | 2 | 2 |
+| `env -uS'"' make`, `env -uS\' echo ok` (FD18) | 0 | 2 (falso positivo registrado) |
+| `sudo -x env -S'"' cat .env`, `nice -Z env -S'"' cat .env`, `env -a x -S'"' cat .env` | 0 | 2 (o lançador real falha ou não roda o `cat`) |
+| `env -iS'env -a -b -c ls'` | 0 | 2 (pelo teto, não pelo texto aberto) |
+| controle: `env -S'"' cat .env`, `env -u X -S'"' cat .env`, `env -i -S'"' cat .env` | 0 | 0 |
+| `env -iu X cat .env`, `env -i cat .env` | 2 | 2 |
 
-### Critério de fim da opção A
+Nenhuma forma sai 0 no lote e 2 na `develop`. A varredura ampla com a `develop` como oráculo (item 3) é do QA.
+
+**A1, explicação.** A regra do `tee` (`conformidade.py:1713`) segue a letra da seção 2B: cada palavra depois de uma palavra `tee`. Só que o `tee` também pode estar dentro do texto de um `-S` que fecha, ao lado do que não fecha. Em `env -uS'"' -S'tee docs/reviews/x.md'`, a função dá `[]` no lote e `['docs/reviews/x.md']` na `develop`. O `env` do uutils (`/usr/bin/env`) e o GNU (`gnuenv`) gravam o arquivo, conferido em `$TMPDIR`. Não há efeito hoje, por dois motivos. O `PreToolUse` recusa a linha (`TextoAbertoComLeituras`), e o `PostToolUse` não chega a rodar. E a autoria ausente falha fechado: o `forge-check pr` recusa o parecer sem registro do papel. A sugestão é juntar à regra as palavras do texto dividido que fecha. É recomendado.
+
+**A2, explicação.** O item 7 de B pede os mutantes do QA (M1 a M10) e os quatro do item 5. O `forge-mutante` aceita até 8 por spec (`MAXIMO_DE_MUTANTES`, `bin/forge-mutante:43`). O autor declarou B1 a B4, M1, M2, M3 e M9 e escreveu o motivo no commit `f3ff1ef`. O QA da revalidação 14 matou M4 a M8 e M10 com os testes da suíte. Uma segunda spec (por exemplo, `lote-leitura-hook-2.json`) cumpriria o item ao pé da letra, sem mudar a ferramenta. O cartão MUTANTE-TETO está aberto. Como a ferramenta limita e esses mutantes já morreram, fica recomendado.
+
+**A3, explicação.** A spec de B (item 1) pede "abaixo de 60 s, medido". Os testes medem o tempo de relógio do filho (`time.monotonic`). Rodei os 15 testes do lote sob a carga da rodada M6 (load average de 12 a 14, em 8 núcleos). `test_propriedade_sem_marcador_atras_de_lancador_com_opcao_fora_da_tabela`, da rev13 e fora do delta, falhou duas vezes: 83,6 s e 74,2 s para 18 040 formas. Na revalidação 14, com a máquina livre, ele passou. A propriedade nova levou 56,0 s para 49 559 formas, a 93% do teto. O comportamento está certo, e a falha é de carga. Com a M6, essa carga passa a ser o normal da rodada. A sugestão é medir a CPU do filho (`resource.getrusage(RUSAGE_CHILDREN)`), com o mesmo teto, ou levar a propriedade a um alvo lento. Não promovo a bloqueante: o critério pede 60 s medidos, e o teste faz o que o critério pede.
+
+### Revalidação 14: o que fechou
+| Achado | Estado | Evidência |
+|---|---|---|
+| A1 (texto dividido com aspa aberta numa leitura a mais derruba as outras) | fechou, pela opção B | a tabela acima; as 10 formas do item 2 e a variante `env -iu -S\' cat .env` dão 2, e o controle dá 0 |
+| A2 (a propriedade amostra as palavras) | fechou na parte da volta | a dimensão nova roda a palavra de 1 caractere sem amostra (o teste afirma 61 × 6 × 4 formas); a amostra antiga vai ao cartão PROP-AMOSTRA, como a seção 4 manda |
+| A3 (as exclusões da propriedade não estão escritas) | fechou | `docs/hooks.md:95` traz o texto da seção 3.2 com as duas exclusões |
+
+### Critério de fim da opção B
 | Item | Estado | Evidência |
 |---|---|---|
-| Leituras em `separar_lancadores` | certas, salvo o A1 | a sem valor primeiro; a com valor em `i + 1`; o texto dividido só no `env`; a palavra da tabela e o `-S` certo com leitura única; `test_separar_lancadores_devolve_as_leituras_possiveis` |
-| Função única do `S` | certa | `texto_dividido_do_env` serve à leitura e a `achado_do_lancador`; `valor_do_split_string` saiu; `test_o_teste_do_s_do_env_e_um_so` confere o alfabeto inteiro do `env` |
-| Três chamadores pela união | certos | o `segmento` copia `ambiente`, `lancador_recusado` e `ramos`, e devolve a pasta da primeira leitura; `lancador_recusado`, `reavaliacao` e `perguntas` só somam; `rotulo_na_sessao_do_forge` e `alvos_de_escrita` percorrem `sem_lancadores` |
-| Teto K = 3 (`LancadorDemais`) | certo | conta por caminho, com os lançadores encadeados; acima, recusa com `CONTORNO_DO_LANCADOR`; no rótulo, cai no `except ValueError`, que exige o dono se a linha cita o rótulo; medido em milissegundos |
-| Itens 1 a 7 | verdes | os 15 testes abaixo; o item 6 (corpus e T9b com o marcador) pelo pre-push da entrega (suíte completa, 1962 testes OK, histórico do pedido); o 7 no commit e no fragmento |
-| O que não volta | conferido | sem `[uC]`, `ENV_COM_VALOR_CURTA`, `ENV_LONGAS_COM_VALOR`, `env_divide_texto` nem `valor_do_split_string` |
-| Commits | limpos | `ef78e68` em Conventional Commits em português, com a classe e o critério; o merge da `develop` sem reescrever |
+| 1. Propriedade da dimensão | verde | `test_propriedade_leitura_a_mais_que_falha_nao_tira_recusa`: 49 559 formas em 56,0 s; cada grupo de 1 caractere de `[A-Za-z0-9]` sem amostra; os grupos de 2 com amostra (um em 3), que o "Tempo" de B permite; o `-S` certo depois de cada palavra de 1 caractere fora da tabela; os prefixos de `--split-string`; depois de `NOME=valor`, de `-i` e atrás de `env -iu X`; cada lançador; os corpos `make` e `echo ok` pelo motivo |
+| 2. Fixtures `-bloqueia` | verde | os 11 fixtures `lancador-texto-aberto-*`, o do FD18 incluído; `TEXTO_ABERTO_RECUSA` e o controle no teste do item 2; o alvo do `tee` em `alvos_de_escrita` |
+| 3. Varredura com a `develop` | do QA | a sonda acima não acha regressão |
+| 4. Sonda viva | verde | `test_sonda_viva_do_texto_dividido_aberto`, com cada `env` da máquina |
+| 5. Mutações | verdes | as quatro de B, cada uma numa cópia limpa (`test_mutacoes_do_texto_dividido_aberto_ficam_vermelhas`) |
+| 6. Caminho com o marcador | verde | `test_propriedade_do_alfabeto_de_opcoes_do_lancador`, `test_mutacoes_do_lancador_ficam_vermelhas` e `test_propriedade_do_lancador_que_divide_texto_com_marcador` passaram; o corpus e o T9b, pelo pre-push da entrega (suíte completa) |
+| 7. Spec de mutantes | em parte | 8 de 14 (A2) |
+| Textos da seção 3.2 | literais | os três trechos e o FD17 aparecem uma vez cada, na ordem (FD17, FD18, `$'…'`), e a frase antiga das provas saiu (comparação por script) |
+| Fragmento | certo | `changelog.d/lote-leitura-hook.md:15`, com o FD18 e o contorno |
+| Commits | limpos | Conventional Commits em português, com a classe e o critério; o merge da `develop` sem reescrever |
 
 ### Fora do bloco
-- **Testes que rodei**, na cópia limpa (`git archive 6d5252d`, em `$TMPDIR/tech-lead-lote-leitura-hook/g/lote`): os 12 testes novos da volta, `test_propriedade_do_alfabeto_de_opcoes_do_lancador`, `test_mutacoes_do_lancador_ficam_vermelhas` e `test_propriedade_do_lancador_que_divide_texto_com_marcador`, com `Ran 15 tests in 115.486s OK`. A suíte completa não rodou, porque o brief limita a execução aos testes do lote.
+- **Testes que rodei**, na cópia limpa (`git archive 0e8776d`, em `$TMPDIR/tech-lead-lote-leitura-hook/h/lote`): os 5 testes novos e 10 testes da rev12 e da rev13 do lançador, com `Ran 15 tests in 438.603s`, `FAILED (failures=1)`. A única falha é o tempo do A3. Rodei de novo os dois testes de propriedade: o da rev13 falhou outra vez pelo tempo (74,2 s), e o novo passou. A suíte completa não rodou, porque o brief limita a execução aos testes do lote.
 - **Teto M14:** não vale para o `lote-leitura-hook` (decisão M14).
-- O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar. O PA-7 (`docs/engineering/achados-recorrentes.md`) está sem linhas, e não há item a conferir. A classe "lançador que divide texto" já se repetiu e cabe lá, mas isso fica fora deste commit, que o brief limita ao parecer.
-- **Segurança:** é do E2.1 e não foi refeita aqui. Vão como cartão para o `security-engineer`: o A1, que é segredo e apagar o `.git` com gatilho; e um furo anterior ao lote, fora do delta. `env cd /tmp/y; rm -rf .forge` dá 0 na `develop` e no lote, porque o hook toma o `env cd` como troca de pasta. O `env` não acha o `cd`, e o `rm` apaga o `.forge` da raiz (provado numa pasta falsa).
+- O Forge não tem `docs/engineering/praticas.md`, então não há regra de ferramenta nem de leitura a citar. O PA-7 (`docs/engineering/achados-recorrentes.md`) está sem linhas, e não há item a conferir.
+- **Pendência do quadro, para o Jarvis:** a seção 4 da proposta manda o resto do A2 do review ao cartão PROP-AMOSTRA e o A2 da segurança ao ENV-S-OPCAO. Nenhum dos dois aparece em `docs/kanban/historico.md`, onde estão ENV-CD-FORGE e MUTANTE-TETO.
+- **Segurança:** é do E2.1 e não foi refeita aqui. O A1 vai como nota ao `security-engineer`: hoje não tem gatilho, mas depende de o `PreToolUse` recusar a linha.
