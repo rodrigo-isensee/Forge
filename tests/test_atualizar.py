@@ -124,7 +124,7 @@ class Base(unittest.TestCase):
             return
         trabalho.mkdir()
         for pasta in ("bin", "migrations", "templates", ".claude-plugin"):
-            shutil.copytree(RAIZ / pasta, trabalho / pasta)
+            shutil.copytree(RAIZ / pasta, trabalho / pasta, ignore=shutil.ignore_patterns("__pycache__"))
         plugin = trabalho / ".claude-plugin" / "plugin.json"
         dados = json.loads(plugin.read_text(encoding="utf-8"))
         dados["version"] = versao
