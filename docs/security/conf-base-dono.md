@@ -3,43 +3,49 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: conf-base-dono
 branch: melhoria/conf-base-dono
-commit: 8c243582ee0eadd602956a67e210337560f33912
-parecer: reprovado
+commit: d47d1b4728cae7d6811a21649eb333025b264d7b
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-23
 ---
 # Review de segurança: conf-base-dono
 
-Pedido CONF-BASE-DONO (pareceres em CONF-BASE-DONO-REV, E2.1). Diff revisado: `origin/develop...8c24358` (base `daf2ffa`), 7 arquivos. Revisão estática, com sondas locais num repositório temporário (`HOME` próprio em `$TMPDIR`) que rodam o `bin/forge-check` da branch. `tests.test_conferencia_base_dono`: 14 testes, OK.
+Pedido CONF-BASE-DONO (pareceres em CONF-BASE-DONO-REV, E2.1). **Revalidação por delta** da volta `557c602..d47d1b4`: quatro commits de correção (`05bab4a`, `1a8e223`, `6eeecad`, `f7f2fdc`; diff `557c602..f7f2fdc`: `bin/forge-check`, `agents/conferente.md`, `tests/test_conferencia_base_dono.py`) e o merge da `develop` `d47d1b4`, cujo `git show --cc` sai vazio (não traz nada além dos dois pais). Revisão estática, com sondas num repositório temporário (`HOME` próprio em `$TMPDIR`) que rodam o `bin/forge-check` da branch. `tests.test_conferencia_base_dono`: 21 testes, OK.
 
 ## Gatilhos
-- `controles do Forge`: `bin/forge-check` (`forge-check entrega`, a conferência `R-PROVA`), `agents/conferente.md`, `agents/jarvis.md`.
+- `controles do Forge`: `bin/forge-check` (`forge-check entrega`, a conferência `R-PROVA`), `agents/conferente.md`.
+
+## Revalidação (d47d1b4): os achados anteriores
+- **A1 (bloqueante) resolvido.** `diferem_dos_dois_pais` (`bin/forge-check:833-854`) só vale quando o head é o único commit próprio do intervalo (`rev-list de..head --not <base>` igual a `[head]`), um pai é o `--desde` e o outro é ancestral da base. Sonda dos dois merges (M1 com `X.txt` novo, M2 limpo, `--desde` antes de M1): sai `confira "X.txt"`, sem a linha `integração da base`. Teste `test_dois_merges_seguidos_nao_escondem_arquivo_do_autor`.
+- **A2 (recomendado) resolvido em parte.** `BASE_DO_DONO` (`bin/forge-check:638`) exige a forma exata no começo da linha. A minha sonda antiga (`- proposta recusada: base do delta fixada pelo dono <sha> não vale`) agora é recusada (`escopo: --desde sem conferência anterior`, rc 1), e um pedido sem nenhuma `DECISÃO DO DONO` também. Fica uma folga, a R1 abaixo.
+- **A3 (recomendado) resolvido.** Base do dono igual ao head é recusada (`bin/forge-check:745-746`; sonda: rc 1). Teste `test_base_do_dono_igual_ao_head_recusa_o_delta_vazio`.
+- **A4 (recomendado) resolvido em parte.** `--raiz-pedidos` fora de `~/.forge-contrib` e da raiz do repositório sai rc 2 (sonda com `$TMPDIR/outro`). Fica a folga das subpastas, a R2 abaixo.
+- **A volta abre outro caminho para encurtar a conferência?** Não. O `brief gerar --volta` agora propõe o `--desde` pela mesma `bases_do_pedido` que o `entrega` valida, então não aceita nada a mais. No escopo de integração, as contagens passam a ser o maior `+`/`-` contra os dois pais, o que fecha o A4 do review: a regra do anexo com remoção não pode mais ser enganada. O merge `d47d1b4` não mexe em `bin/forge-check` além do que vem dos pais.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:835 · diferem_dos_dois_pais confere só o head: um merge maligno anterior (arquivo novo do autor posto no commit de integração) seguido de outra integração da base some do escopo (sonda: X.txt fora, "sem commit", rc 0)
-- A2 (recomendado) bin/forge-check:638 · BASE_DO_DONO aceita a frase em qualquer ponto da linha (sonda: "proposta recusada: base do delta fixada pelo dono <sha> não vale" vira base) e não exige a DECISÃO DO DONO correspondente no pedido
-- A3 (recomendado) bin/forge-check:748 · base do dono igual ao head é aceita e zera o delta (review, seguranca, qa: "sem commit (nada a conferir)", rc 0); a base do dono deveria ser ancestral próprio do head
-- A4 (recomendado) bin/forge-check:4530 · --raiz-pedidos aceita qualquer pasta (outro projeto, $TMPDIR) e passa na frente de ~/.forge-contrib; docs/pedidos/ ali não é protegido pelo hook, então o Histórico que abre o --desde pode ser escrito por qualquer agente
 
 ## Detalhe dos achados
-**Perguntas do brief, respondidas uma a uma.**
+São recomendações, sem caminho de ataque que bloqueie: quem grava o pedido e escolhe a pasta é o Jarvis, num canal que o autor não escreve. Cada uma vira cartão.
 
-1. *Um agente que não é o Jarvis consegue gravar a linha "base do delta fixada pelo dono" e encurtar a conferência?* Não pelo caminho normal. A proteção não é por conteúdo (nenhum hook procura a palavra `conferida`): é por caminho, o arquivo inteiro do pedido, `hooks/conformidade.json:48` (`docs/pedidos/`) e `:49` (`~/.forge-contrib/docs/pedidos/`), só `jarvis`. A linha nova mora no mesmo arquivo e herda a mesma barreira; além disso, `pedido_na_entrega` (`bin/forge-check:752`) reprova o `--desde` quando a entrega comitou em `docs/pedidos/`, e o teste `test_a_base_do_dono_nao_vale_gravada_na_propria_entrega` cobre isso. Não estender o hook **não é bloqueante**. A brecha que sobra é a fonte do pedido fora das pastas protegidas (A4), anterior a esta mudança no argumento `<pedido>` como caminho e agora também por `--raiz-pedidos`.
-2. *A base do dono pode estar fora da branch ou depois da entrega?* Fora da branch, não: `desde_valido` exige sha40 existente, ancestral do head e não ancestral do Base-sha (o teste "sha fora da branch" cobre). Depois da entrega, não. Igual ao head, sim (A3).
-3. *O escopo de integração pode esconder arquivo novo de autor num merge?* Sim, com dois merges (A1). Com um merge só, o arquivo aparece (sonda A2: `confira "X.txt"`).
-4. *O `--raiz-pedidos` lê pedido de outro projeto ou fora de `docs/pedidos/`?* Fora de `docs/pedidos/`, não: `dentro_da_raiz` (`bin/forge-check:926`) usa `realpath`; nas sondas, o symlink de `docs/pedidos/p1.md` para fora e a travessia `../../alvo/p1` saem com rc 2. De outro projeto (ou de qualquer pasta), sim (A4).
+**R1 · recomendado · baixa.** Evidência: `bin/forge-check:731` (`com_decisao = bool(linhas_de_decisao(texto))`). Qualquer `DECISÃO DO DONO` do pedido abre a linha da base do dono, mesmo uma que não cite o sha40 dela. Sonda: com a decisão `"outra coisa qualquer"`, a base vale (rc 0, `base: fixada pelo dono`). Quase todo pedido tem alguma decisão do dono, então a exigência pesa pouco. Correção mínima: exigir uma linha `DECISÃO DO DONO` que cite o sha da base. Esforço P. Dono: `tech-lead`.
 
-**A1 · bloqueante · média.** Evidência: `bin/forge-check:835-851`, chamada em `:888`. A função olha só os pais do head e pede que os commits do intervalo sem merge (`git log --no-merges`) estejam vazios. Assim, um merge *intermediário* pode trazer conteúdo próprio sem ser examinado. Caminho de ataque: o agente que implementa (sem má-fé basta: um arquivo esquecido numa resolução de conflito) faz `git merge --no-commit develop`, acrescenta `X.txt` e comita (M1). Depois a `develop` anda e ele integra de novo (M2). Com `--desde <conferida>` e head M2, `X.txt` não difere de M1 (o primeiro pai), sai da interseção e a saída é `escopo: integração da base (o que difere dos dois pais)` / `escopo: sem commit (nada a conferir)`, rc 0, nas etapas `review`, `seguranca` e `qa`. O código entra sem passar pela conferência `R-PROVA` do delta, que é o controle que a mudança relaxa. Correção mínima: só tratar como integração quando o único commit próprio do intervalo (`git rev-list <de>..<head> --not origin/<Base>`) for o próprio head, um pai for `<de>` (ou o contiver) e o outro for ancestral de `origin/<Base>`. Fora disso, `None` (a conferência de hoje). Mais um teste com os dois merges. Esforço P. Dono: `tech-lead`.
+**R2 · recomendado · média.** Evidência: `bin/forge-check:4542` (`p.resolve() in escolhida.parents`). Vale qualquer subpasta de `~/.forge-contrib` ou da raiz do repositório. Sondas: `--raiz-pedidos ~/.forge-contrib/wt/qq` e `--raiz-pedidos <raiz>/sub` leem o `docs/pedidos/P1.md` dali (rc 0, com a linha `origem:`). O hook `conformidade` só guarda `docs/pedidos/` relativo à raiz da sessão e `~/.forge-contrib/docs/pedidos/` (`hooks/conformidade.py:569-590`). Então qualquer papel pode escrever um pedido numa worktree (`~/.forge-contrib/wt/<x>/docs/pedidos/`) ou em `templates/projeto/docs/pedidos/`, pasta que o `pedido_na_entrega` também não olha (`bin/forge-check:753`, pathspec só `docs/pedidos/`). O mesmo vale para `~/.forge-contrib/forge/docs/pedidos/`, a raiz real: é o A1 do review, que vai para o HOOK-RAIZ-CONTRIB. Correção mínima: o HOOK-RAIZ-CONTRIB guarda todo `docs/pedidos/` sob `~/.forge-contrib/`, worktrees incluídas, ou o `--raiz-pedidos` aceita só as raízes exatas (`~/.forge-contrib`, `~/.forge-contrib/forge`, a raiz e a cópia principal). Esforço P. Dono: `tech-lead`, junto com o HOOK-RAIZ-CONTRIB.
 
-**A2 · recomendado · baixa.** Evidência: `bin/forge-check:638` (`^\s*-\s.*\bbase do delta…`). Mesma folga que a `CONFERIDA` já tinha em `:637`. Quem escreve é só o Jarvis, então não há atacante externo: o risco é uma linha que cita a frase (recusa, proposta) virar base. Correção mínima: ancorar a forma (`- <data hora>: base do delta fixada pelo dono <sha40>`) e exigir, no `## Decisões do usuário (registro literal)`, uma `DECISÃO DO DONO` que cite o mesmo sha40. É o que o próprio pedido põe fora do escopo: "aceitar base sem decisão do dono registrada". Esforço P. Dono: `tech-lead`.
+**R3 · recomendado · baixa, anterior à branch.** Com `--desde`, o `forge-check entrega` não vê um merge da base que desfaz uma mudança da base (`git merge -s ours develop`, ou um conflito resolvido com o lado da branch). Sonda: a `develop` corrige `seg.txt` e a branch integra com `-s ours`. O `forge-check` da branch e o da `origin/develop` dão a mesma saída, `escopo: sem commit (nada a conferir)`, rc 0. Até a etapa `pr` (pelo Base-sha antigo) mostra só `c.txt`, enquanto `git diff develop melhoria/y` mostra o `seg.txt` revertido. A mudança não abre esse caminho, porque o diff contra o `--desde` já não via a reversão, e o PR no GitHub (diff contra a ponta da base) a mostra ao usuário. Correção mínima: quando há merge da base no intervalo, listar também os arquivos que a base mudou desde a integração anterior e que o head não traz iguais aos da base. Esforço M. Dono: `tech-lead`, num cartão próprio.
 
-**A3 · recomendado · baixa.** Evidência: `bin/forge-check:743-749` (`e_ancestral(c, head)` vale para `c == head`). Para a `conferida` isso é certo (nada novo desde a conferência). Para a base do dono, significa que nada da entrega foi conferido, sem nenhum aviso. Correção mínima: na origem `dono`, exigir `c != head`. Esforço P. Dono: `tech-lead`.
+## Rodada anterior (8c24358, reprovado)
+Os achados de então:
+- A1 (bloqueante): dois merges seguidos escondiam arquivo do autor.
+- A2 (recomendado): a linha do dono valia em qualquer ponto da linha e sem decisão.
+- A3 (recomendado): a base do dono igual ao head zerava o delta.
+- A4 (recomendado): o `--raiz-pedidos` aceitava qualquer pasta.
 
-**A4 · recomendado · média.** Evidência: `bin/forge-check:4530` (qualquer pasta, posta na frente de `RAIZES_DE_BRIEF`) e `hooks/conformidade.py:569-590` (o `docs/pedidos/` com dono só é casado relativo à raiz da sessão ou como `~/.forge-contrib/docs/pedidos/`). Sonda: `--raiz-pedidos outro` lê `outro/docs/pedidos/p1.md` (`origem:` impresso) e aceita a base do dono escrita ali. Caminho de ataque: um agente grava um pedido com a linha da base numa pasta que o hook não guarda, e o conferente é chamado com essa pasta. Não é bloqueante por proporcionalidade: a pasta vem da mensagem do Jarvis, que o autor não escreve, e o argumento `<pedido>` como caminho de arquivo (`bin/forge-check:701`, anterior a esta branch) já tinha a mesma exposição. Correção mínima: aceitar `--raiz-pedidos` só em raiz guardada pelo hook (`~/.forge-contrib` ou a cópia principal) ou reprovar o `--desde` quando o pedido veio de fora delas. Em `agents/conferente.md:81`, dizer que o `<dir>` vem da mensagem do Jarvis. Esforço P. Dono: `tech-lead`.
+Respostas de então:
+- A linha do dono herda a proteção do arquivo do pedido (`hooks/conformidade.json:48-49`, só `jarvis`).
+- O `pedido_na_entrega` reprova a linha gravada na própria entrega.
+- O `desde_valido` recusa a base do dono fora da branch ou depois da entrega.
 
-## Plano em cartões
-- A1: corrigir antes do PR (volta à branch, `tech-lead`), com o teste dos dois merges.
-- A2, A3, A4: podem entrar na mesma volta (esforço P cada) ou virar cartão.
+A situação de cada achado está na seção de revalidação acima.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais com o `forge-check` da branch, `python3 -m unittest tests.test_conferencia_base_dono`. Lacunas: `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH. A entrega não toca workflow, dependência nem configuração com segredo, e o CI do Forge roda as suas varreduras.
+Nenhum risco aceito. Ferramentas: leitura do delta, sondas locais com o `forge-check` da branch e o da `origin/develop`, `python3 -m unittest tests.test_conferencia_base_dono`. Lacunas: `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH. A volta não toca workflow, dependência nem configuração com segredo.
