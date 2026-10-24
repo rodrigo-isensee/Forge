@@ -115,6 +115,26 @@ class Release(Base):
         self.assertNotEqual(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02").returncode, 0)
         self.assertTrue((d / "x.md").exists())
 
+    def _com_fragmento(self):
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("### Corrigido\n- X\n", encoding="utf-8")
+
+    def test_sobe_a_versao_dos_dois_manifestos_quando_o_dev_existe(self):
+        dev = self.dir / "dev" / ".claude-plugin"
+        dev.mkdir(parents=True)
+        (dev / "plugin.json").write_text('{\n  "name": "d",\n  "version": "0.1.0"\n}\n', encoding="utf-8")
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual((dev / "plugin.json").read_text(encoding="utf-8"), '{\n  "name": "d",\n  "version": "0.2.0"\n}\n')
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.2.0"}\n')
+
+    def test_sem_o_manifesto_dev_a_release_nao_cria_nada(self):
+        self._com_fragmento()
+        r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertFalse((self.dir / "dev").exists())
+
     def test_versao_ja_existente_recusada(self):
         (self.dir / "changelog.d").mkdir()
         (self.dir / "changelog.d" / "x.md").write_text("### Alterado\n- N\n", encoding="utf-8")
