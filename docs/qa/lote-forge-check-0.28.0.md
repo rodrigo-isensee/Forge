@@ -57,3 +57,7 @@ Depois do review e da segurança do delta. Delta: o commit `31e78cd` (integra a 
 - Módulos (`HOME` próprio): os 20 de `FORGE_CHECK` mais `test_agentes_clone` e `test_agentes_hash_brief`, que leem `hooks/agentes.py`, `hooks/parecer.py`, `bin/forge-check` e `docs/hooks.md`: 1071 testes, 278 s, `OK`, rc 0. Sem suíte completa (decisão do pedido).
 - Ponta a ponta do hook `agentes` (sonda em `$TMPDIR`): brief com hash certo ao `forge:conferente` passa (rc 0); hash errado é bloqueado (rc 2, `R-BRIEF: o hash do brief não bate com o arquivo`). Isenção da entrega (`isencoes_da_entrega` do `forge-check`, que o hook `parecer` usa): diff só de `docs/x.md` isenta `{'qa'}`; com `agents/y.md` a isenção some (`set()`). As duas regras coexistem na resolução.
 - Vermelho antes do verde e mutação: não refeitos (nenhum teste novo na resolução; os do #294 e do M13 já foram aprovados nas suas entregas). Sem regressão do lote. Veredito: aprovado, sem achado, nenhum bloqueante.
+
+Sem achado novo nesta revalidação.
+
+## Achados
