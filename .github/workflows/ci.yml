@@ -186,6 +186,28 @@ jobs:
             script="$RUNNER_TEMP/base/tests/catraca.py"
           fi
           python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
+      - name: Provas cmd do arquivo de provas, reexecutadas no sha do PR (R-PROVA)
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'develop' }}
+        # Roda o script da base (a introdução usa o do PR) sobre docs/provas/*.md da branch, numa cópia limpa do sha do PR.
+        # Só em PR para a develop: as promoções (develop -> homolog, homolog -> main) reexecutariam provas de outros PRs num sha que não é o delas.
+        # Sem shell, só comando da lista permitida do script, sem segredo no ambiente do comando; sem arquivo, nada a fazer.
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          BASE=$(git rev-parse HEAD^1)
+          script=scripts/reexecutar-provas.py
+          if git cat-file -e "$BASE:scripts/reexecutar-provas.py" 2>/dev/null; then
+            [ -d "$RUNNER_TEMP/base" ] || git worktree add --detach "$RUNNER_TEMP/base" "$BASE"
+            script="$RUNNER_TEMP/base/scripts/reexecutar-provas.py"
+          fi
+          git worktree add --detach "$RUNNER_TEMP/pr" "$HEAD_SHA"
+          lista=$(git diff --name-only --no-renames --diff-filter=AM "$BASE...$HEAD_SHA" -- ':(glob)docs/provas/*.md')
+          mapfile -t provas < <(printf '%s\n' "$lista" | grep -v -e '^$' -e '/_modelo\.md$' || true)
+          if [ "${#provas[@]}" -eq 0 ]; then
+            echo "provas cmd: sem arquivo de provas no PR" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 "$script" --raiz "$RUNNER_TEMP/pr" "${provas[@]}"
       - name: Testes do Forge
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: python3 scripts/suite-paralela.py
