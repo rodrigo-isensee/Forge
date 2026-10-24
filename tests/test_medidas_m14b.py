@@ -305,7 +305,7 @@ class RotulosAfrouxaRegraQueEramReais(RepositorioDeTeste):
         self.commitar("docs(x): texto novo (#20)", {"docs/x.md": "oi\n"}, "2026-10-11")
         config["invariantes"]["agents/a.md"] = ["regra importante"]
         self.commitar("refactor(a): tira uma regra (#21)", {"tests/config.json": json.dumps(config)}, "2026-10-12")
-        self.commitar("fix(catraca): ajuste (#22)", {"tests/catraca.py": "# controle\n# ajustado\n"}, "2026-10-13")
+        self.commitar("fix(catraca): ajuste (#22)", {"tests/catraca.py": "controle = 2\n"}, "2026-10-13")
 
     def afrouxamentos(self, *args):
         cod, linhas, _ = self.rodar("afrouxamentos", *args)
