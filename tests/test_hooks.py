@@ -47,6 +47,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -563,10 +564,20 @@ class Hooks(unittest.TestCase):
         verificados = 0
         # Montar e rodar é espera de subprocesso (não segura o GIL); cada fixture tem a sua pasta temporária.
         # As falhas voltam como objeto e viram subTest na thread principal, com o mesmo nome de caso.
+        # O fixture com `executaveis` grava e dá `chmod` num programa que o hook roda: ele é montado antes do pool, na
+        # thread principal, porque o executável gravado enquanto outra thread faz `fork` sai com `ETXTBSY` (o mesmo
+        # defeito do T9b, bug `lote-leitura-hook-1`).
+        montados = {}
+        for nome, f in em_paralelo:
+            if f.dados.get("executaveis"):
+                tmp = self._pasta_temporaria()
+                montados[nome] = (tmp, f.montar(tmp, outro.pid))
         trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
-            futuros = [(nome, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
-                       for nome, f in em_paralelo]
+            futuros = []
+            for nome, f in em_paralelo:
+                tmp, montado = montados.get(nome, (self._pasta_temporaria(), None))
+                futuros.append((nome, pool.submit(self.executar_fixture, f, tmp, outro.pid, montado)))
             for nome, futuro in futuros:
                 with self.subTest(fixture=nome):
                     verificados += 1
@@ -588,8 +599,9 @@ class Hooks(unittest.TestCase):
     def depende_de_pid_ou_trava(f):
         return f.hook == "pesado" or "{pid_" in json.dumps(f.dados)
 
-    def executar_fixture(self, f, tmp, outro_pid):
-        raiz, entrada = f.montar(tmp, outro_pid)
+    def executar_fixture(self, f, tmp, outro_pid, montado=None):
+        """Monta (ou recebe montado: (raiz, entrada) de `Fixture.montar`) e roda o fixture, conferindo o esperado."""
+        raiz, entrada = montado or f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, f.dados.get("proc"))
         extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
         extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
@@ -1981,8 +1993,8 @@ class CorpusHeredocVoltaUnica(unittest.TestCase):
         else:
             self.assertTrue(passou, saida)
 
-    def executar_fixture(self, f, tmp, outro_pid):
-        raiz, entrada = f.montar(tmp, outro_pid)
+    def executar_fixture(self, f, tmp, outro_pid, montado=None):
+        raiz, entrada = montado or f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, None)
         extra = {"FORGE_NPROC": "8"}
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
@@ -2404,13 +2416,13 @@ exit 0
                     return caminho
         return None
 
-    def rodar_no_bash_do_t9b(self, bash, texto, base):
-        """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, `HOME` e a pasta em `base`, no `$TMPDIR`, sem
-        rede), com registradores no `PATH` e em `base/x0` (o `PATH` que o Z1 monta: `PATH=<base>/x$(( cat ))`), onde o
-        `cat` roda a entrada como o bash (o B1 da revalidação 7). Os shells são o próprio bash. Devolve os (programa,
-        argumentos) gravados. Nenhum programa real além do bash (R-CUSTO)."""
-        registradores, pasta, registro, casa = base / "bin", base / "pasta", base / "registro", base / "casa"
-        z1 = base / "x0"
+    def montar_registradores_do_t9b(self, bash, texto, base):
+        """Monta a pasta do T9b para o texto (RET-LEITURA-HOOK-F, caminho 1 da proposta caminho-rev12): `HOME` e a
+        pasta em `base`, no `$TMPDIR`, com registradores no `PATH` e em `base/x0` (o `PATH` que o Z1 monta:
+        `PATH=<base>/x$(( cat ))`), onde o `cat` roda a entrada como o bash (o B1 da revalidação 7). Os shells são o
+        próprio bash. Grava e dá `chmod`: roda antes de qualquer pool (`rodar_em_paralelo_no_t9b`), porque o executável
+        gravado por uma thread enquanto outra faz `fork` sai com `ETXTBSY` (bug `lote-leitura-hook-1`)."""
+        registradores, pasta, casa, z1 = base / "bin", base / "pasta", base / "casa", base / "x0"
         for d in (registradores, pasta, casa, z1):
             d.mkdir(parents=True)
         # os shells e os repassadores entram sempre: a grafia do nome (`b''ash`, `$'\x62'ash`) não o mostra no texto
@@ -2432,15 +2444,35 @@ exit 0
                 else:
                     arquivo.write_text(self.REGISTRADOR.format(bash=bash), encoding="utf-8")
                 arquivo.chmod(0o755)
-        subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
-                       env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)}, capture_output=True,
-                       text=True, timeout=10)
+
+    def rodar_no_bash_do_t9b(self, bash, texto, base):
+        """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, sem rede) na pasta que
+        `montar_registradores_do_t9b` montou em `base`, sem gravar nada. Devolve os (programa, argumentos) gravados.
+        O bash que não consegue rodar um registrador (rc 126 ou "Text file busy" no stderr) é falha do arnês, e não do
+        gerador: o teste falha com a causa e o stderr, sem repetir. Nenhum programa real além do bash (R-CUSTO)."""
+        registradores, pasta, registro, casa = base / "bin", base / "pasta", base / "registro", base / "casa"
+        r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
+                           env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)}, capture_output=True,
+                           text=True, timeout=10)
+        if r.returncode == 126 or "Text file busy" in r.stderr:
+            raise AssertionError(f"falha do arnês, não do gerador: o bash não rodou um registrador (rc {r.returncode}) "
+                                 f"em {texto!r}; stderr: {r.stderr.strip()}")
         gravado = registro.read_text(encoding="utf-8") if registro.exists() else ""
         rodou = []
         for item in gravado.split("\036")[:-1]:
             argv = item.split("\035", 1)[0].split("\037")[:-1]
             rodou.append((argv[0], argv[1:]))
         return rodou
+
+    def rodar_em_paralelo_no_t9b(self, bash, itens):
+        """Os (programa, argumentos) gravados de cada (texto, pasta) de `itens`, na ordem: monta todas as pastas na
+        thread principal, antes de abrir o pool, e só então roda em paralelo (nenhum descritor de escrita fica aberto
+        durante um `fork`)."""
+        itens = list(itens)
+        for texto, base in itens:
+            self.montar_registradores_do_t9b(bash, texto, base)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+            return list(pool.map(lambda item: self.rodar_no_bash_do_t9b(bash, *item), itens))
 
     def textos_do_t9b(self, base):
         """(rótulo, hook, texto, pasta, marca) dos textos do corpus com `{CORPO}` (a sentinela do hook no lugar, e
@@ -2485,6 +2517,7 @@ exit 0
                         self.conferir_marca(marca, True, f"o {hook} já recusa {texto!r}")
                 continue
             sentinela = shlex.split(self.SENTINELAS[hook])
+            self.montar_registradores_do_t9b(bash, texto, pasta)
             rodou = self.rodar_no_bash_do_t9b(bash, texto, pasta)
             if marca == NAO_PROMETE:  # o código de hoje: o hook libera e o bash roda a sentinela (cartão, não bloqueia)
                 with self.subTest(rotulo=rotulo):
@@ -2593,13 +2626,8 @@ exit 0
             self.skipTest("bash ausente ou sem o env GNU nesta máquina")
         base = self._pasta_temporaria()
         textos = self.textos_da_divisao(self.SENTINELAS)
-
-        def rodar(item):
-            k, (_, _, texto, _) = item
-            return self.rodar_no_bash_do_t9b(bash, texto, base / f"dv-{k}")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
-            rodados = list(pool.map(rodar, enumerate(textos)))
+        rodados = self.rodar_em_paralelo_no_t9b(bash, ((texto, base / f"dv-{k}")
+                                                       for k, (_, _, texto, _) in enumerate(textos)))
         for (rotulo, hook, texto, _), rodou in zip(textos, rodados):
             sentinela = shlex.split(self.SENTINELAS[hook])
             with self.subTest(rotulo=rotulo):
@@ -2623,6 +2651,48 @@ exit 0
                         self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
         self.assertGreaterEqual(len(textos), 1700)
 
+    def test_t9b_monta_os_registradores_antes_de_rodar(self):  # item 2 do critério de fim do caminho 1 (caminho-rev12)
+        """O arnês do T9b só grava na thread principal, antes do pool (`rodar_em_paralelo_no_t9b`): com `Path.write_text`
+        e `Path.chmod` levantando erro fora dela, os textos rodam e a sentinela aparece. Voltar a gravar dentro do pool
+        deixa este teste vermelho. Só o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria()
+        textos = self.textos_de_g1(self.SENTINELAS, so_nativos=True)[:16]
+        principal = threading.main_thread()
+
+        def so_na_principal(nome, original):
+            def gravar(caminho, *args, **kwargs):
+                if threading.current_thread() is not principal:
+                    raise AssertionError(f"{nome} de {caminho} na fase de rodar, dentro do pool")
+                return original(caminho, *args, **kwargs)
+            return gravar
+
+        with mock.patch.object(Path, "write_text", so_na_principal("write_text", Path.write_text)), \
+                mock.patch.object(Path, "chmod", so_na_principal("chmod", Path.chmod)):
+            rodados = self.rodar_em_paralelo_no_t9b(bash, ((texto, base / f"m-{k}")
+                                                           for k, (_, _, texto, _) in enumerate(textos)))
+        for (rotulo, hook, texto, _), rodou in zip(textos, rodados):
+            sentinela = shlex.split(self.SENTINELAS[hook])
+            with self.subTest(rotulo=rotulo):
+                self.assertIn((sentinela[0], sentinela[1:]), rodou, f"o bash não roda a sentinela em {texto!r}")
+        self.assertEqual(len(rodados), 16)
+
+    def test_t9b_registrador_que_nao_roda_e_falha_do_arnes(self):  # item 3 do critério de fim do caminho 1
+        """O registrador que o bash não consegue rodar (rc 126) faz o oráculo falhar com "falha do arnês" e o stderr do
+        bash, e não com "o bash não roda a sentinela". Só o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria() / "t"
+        texto = self.SENTINELAS["conformidade"]
+        self.montar_registradores_do_t9b(bash, texto, base)
+        self.assertEqual(self.rodar_no_bash_do_t9b(bash, texto, base), [("git", ["push", "origin", "SENTINELA:main"])])
+        (base / "bin" / "git").chmod(0o644)  # o bash acha o registrador e não consegue rodá-lo: rc 126
+        with self.assertRaisesRegex(AssertionError, r"falha do arnês, não do gerador: .*rc 126.*stderr: .*git"):
+            self.rodar_no_bash_do_t9b(bash, texto, base)
+
     def test_g1_esta_na_classe(self):  # item 3 do critério de fim da opção B (proposta caminho-rev9): o oráculo do oráculo
         """Com os hooks desligados, o bash roda a sentinela em cada texto de G1 de prefixo nativo: G1 só tem reavaliação
         de verdade, e um gerador que não a produz fica vermelho. Roda como o T9b (`rodar_no_bash_do_t9b`: `env -i`,
@@ -2632,13 +2702,8 @@ exit 0
             self.skipTest("bash ausente ou num caminho com espaço")
         base = self._pasta_temporaria()
         textos = self.textos_de_g1(self.SENTINELAS, so_nativos=True)
-
-        def rodar(item):
-            k, (_, _, texto, _) = item
-            return self.rodar_no_bash_do_t9b(bash, texto, base / f"g1-{k}")
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
-            rodados = list(pool.map(rodar, enumerate(textos)))
+        rodados = self.rodar_em_paralelo_no_t9b(bash, ((texto, base / f"g1-{k}")
+                                                       for k, (_, _, texto, _) in enumerate(textos)))
         for (rotulo, hook, texto, _), rodou in zip(textos, rodados):
             sentinela = shlex.split(self.SENTINELAS[hook])
             with self.subTest(rotulo=rotulo):
