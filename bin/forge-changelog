@@ -71,6 +71,7 @@ def novo(args):
     branch = git("rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch in PROTEGIDAS:
         sys.exit(f"Branch '{branch}': rode numa branch de trabalho (melhoria/<tema>).")
+    conferir_pasta_de_fragmentos()
     slug = slug_da_branch(branch)
     if not slug:
         sys.exit(f"Não consegui um nome de arquivo a partir da branch '{branch}'.")
@@ -98,6 +99,17 @@ def conferir_caminho(caminho, nome, raiz):
         sys.exit(f"{nome}: link simbólico ou fora da raiz do repositório; recusado.")
 
 
+def conferir_pasta_de_fragmentos():
+    """Recusa `changelog.d` que seja link ou resolva fora da raiz, e fragmento que seja link: a release lê e apaga esses arquivos."""
+    raiz = Path.cwd().resolve()
+    pasta = Path(PASTA)
+    if not pasta.exists() and not pasta.is_symlink():
+        return
+    conferir_caminho(pasta, PASTA, raiz)
+    for a in fragmentos():
+        conferir_caminho(a, f"{PASTA}/{a.name}", raiz)
+
+
 def ler_manifestos(versao):
     """Lê e valida os manifestos que existem e calcula o texto novo; devolve [(caminho, novo_texto)]. Recusa link
     simbólico, caminho fora da raiz, JSON inválido, chave repetida, manifesto sem `version` de topo e troca que não
@@ -121,8 +133,8 @@ def ler_manifestos(versao):
             conferido = json.loads(novo_texto, object_pairs_hook=_recusa_chave_repetida)
         except ValueError as erro:
             sys.exit(f"{nome}: a troca da versão geraria JSON inválido ({erro}); recusado.")
-        if conferido.get("version") != versao:
-            sys.exit(f"{nome}: a troca textual não acertou o 'version' de topo; recusado.")
+        if conferido != {**dados, "version": versao}:
+            sys.exit(f"{nome}: a troca textual não acertou só o 'version' de topo (campo aninhado antes dele?); recusado.")
         lidos.append((caminho, novo_texto))
     return lidos
 
@@ -147,6 +159,7 @@ def release(args):
     if not m:
         sys.exit("CHANGELOG.md sem a seção '## [Não publicado]'.")
     antigas = [l for l in m.group(1).splitlines() if l.strip()]
+    conferir_pasta_de_fragmentos()
     arquivos = fragmentos()
     agrupado = {t: [] for t in TIPOS}
     for a in arquivos:
