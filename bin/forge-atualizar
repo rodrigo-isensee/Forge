@@ -115,20 +115,32 @@ def integrar_develop(projeto, nova):
     try:
         return resolver_conflito(projeto, nova, antes)
     except (EOFError, KeyboardInterrupt):
-        desfazer_mesclagem(projeto, nova, antes)
+        if not desfazer_mesclagem(projeto, nova, antes):
+            print(avisar_nao_desfez(nova, antes))
         raise
     except Exception as erro:  # nada deixa a mesclagem no projeto: qualquer erro inesperado desfaz antes de sair
-        desfazer_mesclagem(projeto, nova, antes)
-        print(f"Algo inesperado aconteceu ao tratar o conflito ({type(erro).__name__}: {erro}). Desfiz a mesclagem; a branch do upgrade ficou como estava.")
+        inesperado = f"Algo inesperado aconteceu ao tratar o conflito ({type(erro).__name__}: {erro})."
+        if desfazer_mesclagem(projeto, nova, antes):
+            print(f"{inesperado} Desfiz a mesclagem; a branch do upgrade ficou como estava.")
+        else:
+            print(f"{inesperado} {avisar_nao_desfez(nova, antes)}")
         return False
 
 
+def avisar_nao_desfez(nova, antes):
+    return (f"Não consegui desfazer a mesclagem: a branch forge/upgrade-{nova} ficou com ela. "
+            f"Para desfazer à mão: git merge --abort (se ainda estiver aberta) ou git checkout -B forge/upgrade-{nova} {antes}")
+
+
 def desfazer_mesclagem(projeto, nova, antes):
-    """Desfaz a mesclagem: aborta se ainda está aberta; se o commit da resolução já saiu, volta a branch (limpa) ao commit de antes."""
+    """Desfaz a mesclagem: aborta se ainda está aberta; se o commit da resolução já saiu, volta a branch ao commit de antes.
+    Devolve True só se voltou (sem mesclagem aberta e com o HEAD em `antes`)."""
     if git(projeto, "rev-parse", "-q", "--verify", "MERGE_HEAD")[0] == 0:
         git(projeto, "merge", "--abort")
-    elif git(projeto, "rev-parse", "HEAD")[1] != antes:
-        git(projeto, "checkout", "-q", "-B", f"forge/upgrade-{nova}", antes)  # a árvore estava limpa: só a branch volta ao commit de antes
+    if git(projeto, "rev-parse", "-q", "--verify", "MERGE_HEAD")[0] != 0 and git(projeto, "rev-parse", "HEAD")[1] != antes:
+        # o checkout sem -f leva as mudanças locais junto e recusa se sobrescreveriam algo; só some o commit da mesclagem
+        git(projeto, "checkout", "-q", "-B", f"forge/upgrade-{nova}", antes)
+    return git(projeto, "rev-parse", "-q", "--verify", "MERGE_HEAD")[0] != 0 and git(projeto, "rev-parse", "HEAD")[1] == antes
 
 
 def resolver_conflito(projeto, nova, antes):
