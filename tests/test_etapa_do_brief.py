@@ -387,6 +387,19 @@ class QuatroDefeitosDoScript(Repo):
         rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")), "ok.md")
         self.assertNotIn("contradição: o Entregar", saida)
 
+    def test_o_id_dentro_de_outro_nome_ou_na_prosa_do_fora_do_escopo_nao_exclui_nada(self):
+        """Review A1: `E1.2` no nome de outro pedido (`EXEMPLO-E1.2-ENVIO`) e como contexto de uma frase não contradizem o Entregar."""
+        for item in ("Envio dos textos: pedido EXEMPLO-E1.2-ENVIO · `técnico`",
+                     "Mudar o processo sem o dono: a proposta do E1.2 que afrouxa controle vai a ele · `confirmado`"):
+            with self.subTest(item=item):
+                self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", f"## Fora do escopo\n- {item}\n\n## Decisões"))
+                rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+                self.assertNotIn("contradição:", saida)
+                self.assertEqual(rc, 0, saida)
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", "## Fora do escopo\n- E1.2 e E1.3: pedido seguinte\n\n## Decisões"))
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn("contradição: o Entregar manda E1.2", saida)
+
     def test_commit_so_na_worktree_o_head_nao_esta_em_origin(self):
         self.entrega({"src/app.py": "v2\n"})
         head = self.git("rev-parse", "HEAD")

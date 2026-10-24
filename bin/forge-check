@@ -3933,15 +3933,26 @@ def conferir_corte(brief_secoes, pedido, destino):
     return saida
 
 
+ID_INTEIRO = r"(?<![\w-])E\d+(?:\.\d+[a-z]?)?(?![\w-]|\.\d)"  # palavra inteira: nunca dentro de `RET-X-E2-ENVIO`
+LISTA_DE_IDS = rf"{ID_INTEIRO}(?:\s*(?:,|;|e|\+|/)\s*{ID_INTEIRO})*"
+
+
+def ids_do_fora(item):
+    """Ids que um item do `Fora do escopo` do pedido exclui: em citação `(E<n>)` ou como palavra inteira que abre o item; um id no
+    meio da prosa de contexto ou dentro de outro nome não exclui nada."""
+    abre = re.match(rf"^[\W_]*({LISTA_DE_IDS})", item)
+    return ids_em_citacao(item) | (ids_do_texto(abre.group(1)) if abre else set())
+
+
 def conferir_pedido_contraditorio(secoes, pedido):
-    """M1: o `Entregar` do brief não manda o que o `## Fora do escopo` do pedido exclui: ids (`E<n>`, `E<n>.<m>`) escritos nesse `Fora do
+    """M1: o `Entregar` do brief não manda o que o `## Fora do escopo` do pedido exclui: ids (`ids_do_fora`) desse `Fora do
     escopo` e trechos entre aspas de 20 caracteres ou mais que o `Entregar` cita ou copia. Só o que o script decide; o resto é do conferente."""
     entregar = " ".join(secoes.get("Entregar", []))
     citados, texto = ids_em_citacao(entregar), normalizar_espacos(entregar)
     existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
     saida = []
     for item in pedido["fora"]:
-        excluidos = sorted(ids_do_texto(item) & existentes & citados, key=ordem_do_id)
+        excluidos = sorted(ids_do_fora(item) & existentes & citados, key=ordem_do_id)
         copiados = [f for f in fragmentos_citados(item) if len(f) >= 20 and f in texto]
         if excluidos or copiados:
             alvo = ", ".join(excluidos) or sem_controle(copiados[0])[:60]
