@@ -1797,21 +1797,50 @@ CONTORNO_DA_REAVALIACAO = ("rode o comando direto, sem eval nem shell com -c, ou
 SHELLS_DA_REAVALIACAO = SHELLS | {"rbash"}
 
 
-def reavaliacao_das_palavras(palavras, opcao_depois=False):
+ENV_LONGAS_COM_VALOR = ("unset", "chdir", "argv0")  # opções longas do `env` que levam a palavra seguinte (e suas abreviações)
+ACHADO_DO_ENV_S = "env -S"
+CONTORNO_DO_ENV_S = "use o env sem -S (`env VAR=x comando`) ou rode o comando direto"
+
+
+def env_divide_texto(palavras, i):
+    """O `env` cujas opções começam em `palavras[i]` tem a opção de dividir texto (`-S`, sozinho ou num grupo curto,
+    `--split-string` e toda abreviação que o getopt do GNU env aceita, com ou sem `=`)? O hook não divide o valor nem
+    imita o env (ADR 0011: o que o analisador não modela é recusado); só anda pelas opções do env, até a primeira
+    palavra que não é opção."""
+    while i < len(palavras) and palavras[i].startswith("-") and palavras[i] != "-":
+        opcao = palavras[i]
+        i += 1
+        if opcao == "--":
+            return False
+        if opcao.startswith("--"):
+            nome, igual, _ = opcao[2:].partition("=")
+            if nome and "split-string".startswith(nome):
+                return True
+            if nome and not igual and any(longa.startswith(nome) for longa in ENV_LONGAS_COM_VALOR):
+                i += 1
+        else:
+            for k, letra in enumerate(opcao[1:], 1):
+                if letra == "S":
+                    return True
+                if letra in ENV_COM_VALOR_CURTA:  # `-u`, `-C`: o resto da palavra ou a seguinte é o valor
+                    i += k + 1 == len(opcao)
+                    break
+    return False
+
+
+def reavaliacao_das_palavras(palavras):
     """ADR 0011, item 2 (opção B da revalidação 9): o comando simples, com as palavras já reduzidas como o bash
     (`reduzida`; None: a palavra não se reduz; `INDECIDIVEL`: tem `$'…'` ou `$"…"`, que o hook não lê), reavalia um texto
     pelo shell? Em qualquer posição: alguma palavra é `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do
     arquivo) seguido, mais adiante no mesmo comando, de uma opção curta com `c`, ou é `INDECIDIVEL`. Não há lista de
     prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo
-    que vier caem pela mesma regra. O `env -S` divide o valor em palavras, que se conferem de novo; o que o hook não
-    divide (aspas abertas) é ele mesmo uma reavaliação que ele não lê: `env -S`. Devolve o nome (`eval`, `bash -c`)
-    ou None.
+    que vier caem pela mesma regra. O `env` com a opção de dividir texto (`env_divide_texto`) é ele mesmo uma reavaliação que
+    o hook não lê, e recusa sem dividir o valor: `env -S`. Devolve o nome (`eval`, `bash -c`) ou None.
     Linear (bloco T da revalidação 10): uma passada da direita para a esquerda, que guarda se há opção com `c` depois
-    de cada palavra; o `env` só lê as opções dele. `opcao_depois`: há opção com `c` nas palavras que seguem estas (a
-    cauda de um `env -S`). A passada vai até a esquerda e o último achado é o da palavra mais à esquerda."""
+    de cada palavra; o `env` só lê as opções dele. A passada vai até a esquerda e o último achado é o da palavra mais à esquerda."""
     n = len(palavras)
     textos = ["" if p is None or p is INDECIDIVEL else p for p in palavras]  # o `env` lê vazia a palavra que não se lê
-    opcao_a_partir = [False] * n + [opcao_depois]  # [j]: há opção com `c` em palavras[j:] (ou depois delas)
+    opcao_a_partir = [False] * (n + 1)  # [j]: há opção com `c` em palavras[j:]
     achada = None
     for k in range(n - 1, -1, -1):
         palavra = palavras[k]
@@ -1826,16 +1855,8 @@ def reavaliacao_das_palavras(palavras, opcao_depois=False):
             achada = "eval"
         elif nome in SHELLS_DA_REAVALIACAO and opcao_a_partir[k + 1]:
             achada = f"{nome} -c"
-        elif nome == "env":
-            try:
-                depois, dividido = opcoes_do_lancador(textos, k + 1, "env", LANCADORES["env"])
-            except ValueError:
-                achada = "env -S"
-                continue
-            if dividido:  # o `env -S` dividiu um valor: as palavras são outras
-                dentro = reavaliacao_das_palavras(dividido, opcao_a_partir[min(depois, n)])
-                if dentro:
-                    achada = dentro
+        elif nome == "env" and env_divide_texto(textos, k + 1):
+            achada = ACHADO_DO_ENV_S
     return achada
 
 
@@ -1866,7 +1887,8 @@ EXPANDE_FORA_DE_ASPAS = frozenset("`*?[{~")  # além do `$`, que `reduzida` olha
 
 def contorno_da_reavaliacao(achada):
     """O contorno que a recusa diz para o que `reavaliacao` achou."""
-    return CONTORNO_DO_INDECIDIVEL if achada == ACHADO_DO_INDECIDIVEL else CONTORNO_DA_REAVALIACAO
+    return {ACHADO_DO_INDECIDIVEL: CONTORNO_DO_INDECIDIVEL, ACHADO_DO_ENV_S: CONTORNO_DO_ENV_S}.get(
+        achada, CONTORNO_DA_REAVALIACAO)
 
 
 def _resto_com_ansi(cru, i):
@@ -2233,7 +2255,7 @@ def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
             or not sessao_vigiada(hook, clone_do_forge)):
         return
     bloquear(regra, f"o hook não decidiu em {PRAZO_DA_DECISAO_S:g} s a chamada com ação crítica (texto longo ou lento "
-                    f"demais): recusa, em vez de deixar o timeout liberá-la. Corrigir: {CONTORNO_DO_TETO}")
+                    f"demais, ou um `git` lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {CONTORNO_DO_TETO}")
 
 
 def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None):

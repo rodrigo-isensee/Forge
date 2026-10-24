@@ -2390,6 +2390,20 @@ exit 0
             self.DECISOES.update(zip(faltam, pool.map(decidir, faltam)))
         return {pedido: self.DECISOES[pedido] for pedido in pedidos}
 
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def env_gnu():
+        """O caminho do `env` que divide o `-S` como o GNU (o `env` desta máquina pode ser o do uutils, que não divide),
+        ou None. Programa local, sem rede (R-CUSTO)."""
+        for nome in ("env", "gnuenv", "genv"):
+            caminho = shutil.which(nome)
+            if caminho and " " not in caminho:
+                r = subprocess.run([caminho, "-S", "echo a  b"], capture_output=True, text=True, timeout=10,
+                                   stdin=subprocess.DEVNULL)
+                if r.returncode == 0 and r.stdout == "a b\n":
+                    return caminho
+        return None
+
     def rodar_no_bash_do_t9b(self, bash, texto, base):
         """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, `HOME` e a pasta em `base`, no `$TMPDIR`, sem
         rede), com registradores no `PATH` e em `base/x0` (o `PATH` que o Z1 monta: `PATH=<base>/x$(( cat ))`), onde o
@@ -2408,7 +2422,9 @@ exit 0
                     arquivo.write_text(f'#!{bash}\nexec {bash} --noprofile --norc "$@"\n', encoding="utf-8")
                 elif nome in self.REPASSADORES_DO_T9B:
                     arquivo.write_text(f"#!{bash}\n{self.REPASSADORES_DO_T9B[nome]}", encoding="utf-8")
-                elif nome == "env":  # o `env X=1 prog`, sem o programa real
+                elif nome == "env" and self.env_gnu():  # o `env` real, GNU: divide o `-S` como o bash vai ver
+                    arquivo.write_text(f'#!{bash}\nexec {self.env_gnu()} "$@"\n', encoding="utf-8")
+                elif nome == "env":  # sem o GNU nesta máquina: o `env X=1 prog`, sem o `-S`
                     arquivo.write_text(f'#!{bash}\nwhile [[ $1 == *=* ]]; do export "$1"; shift; done\nexec "$@"\n',
                                        encoding="utf-8")
                 elif nome == "cat" and d == z1:
@@ -2446,6 +2462,8 @@ exit 0
                 textos.append((f"{caso['id']}/{hook}", hook, texto, pasta, marca))
         for k, (rotulo, hook, texto, _) in enumerate(self.textos_de_g1(self.SENTINELAS)):
             textos.append((rotulo, hook, texto, base / f"g1-{k}", None))
+        for k, (rotulo, hook, texto, _) in enumerate(self.textos_da_divisao(self.SENTINELAS) if self.env_gnu() else ()):
+            textos.append((rotulo, hook, texto, base / f"dv-{k}", None))
         return textos
 
     def test_t9b_oraculo_do_gatilho(self):  # T9b (RET-LEITURA-HOOK-B, seção 3 da proposta caminho-rev8)
@@ -2531,6 +2549,79 @@ exit 0
                         rotulo = f"G1 {prefixo} / {grafia} / {nome}{' ' + opcao if opcao else ''} / {hook}"
                         saida.append((rotulo, hook, texto, nativo))
         return saida
+
+    # A dimensão "lançador que divide texto" de G1 (A1 da segurança, revalidação 11): o `env` com a opção de dividir
+    # (`-S`, `-S` colado, `-vS`, `--split-string` com e sem `=`, e as abreviações `--split`, `--spl=` e `--s`) × o
+    # separador das palavras do valor (espaço e `\_`) × o lado do `-c` (dentro do valor ou depois dele) × o shell × o
+    # que vem antes do shell dentro do valor × o molde. A verdade vem da construção: `test_divisao_esta_na_classe` prova,
+    # com o `env` GNU e os hooks desligados, que o bash roda a sentinela em cada texto.
+    OPCOES_DE_DIVISAO = {"-S": "-S '{V}'", "-S colado": "-S'{V}'", "-vS": "-vS '{V}'", "-u X -S": "-u X -S '{V}'",
+                         "--split-string": "--split-string '{V}'", "--split-string=": "--split-string='{V}'",
+                         "--split": "--split '{V}'", "--spl=": "--spl='{V}'", "--s": "--s '{V}'"}
+    SEPARADORES_DE_DIVISAO = {"espaço": " ", "barra-sublinhado": "\\_"}
+    LADOS_DO_C = ("dentro", "fora")
+    SHELLS_DA_DIVISAO = (("bash", "-c"), ("sh", "-ec"), ("bash", "-lc"))
+    ANTES_DO_SHELL = ("", "timeout 5")
+    MOLDES_DA_DIVISAO = ("{R}", "sudo {R}")
+
+    @classmethod
+    def textos_da_divisao(cls, corpos_por_hook):
+        """(rótulo, hook, texto, nativo) da dimensão "lançador que divide texto" de G1 (o nativo é sempre verdadeiro:
+        com o `env` GNU o bash roda o corpo)."""
+        saida = []
+        for grafia, modelo in cls.OPCOES_DE_DIVISAO.items():
+            for sep_nome, sep in cls.SEPARADORES_DE_DIVISAO.items():
+                for lado in cls.LADOS_DO_C:
+                    for shell, opcao in cls.SHELLS_DA_DIVISAO:
+                        for antes in cls.ANTES_DO_SHELL:
+                            for molde in cls.MOLDES_DA_DIVISAO:
+                                palavras = [*antes.split(), shell] + ([opcao] if lado == "dentro" else [])
+                                for hook, corpo in corpos_por_hook.items():
+                                    resto = f"'{corpo}'" if lado == "dentro" else f"{opcao} '{corpo}'"
+                                    reavaliador = "env " + modelo.replace("{V}", sep.join(palavras)) + " " + resto
+                                    rotulo = (f"G1 divide / {grafia} / {sep_nome} / -c {lado} / {shell} {opcao} / "
+                                              f"{antes or 'sem antes'} / {molde} / {hook}")
+                                    saida.append((rotulo, hook, molde.replace("{R}", reavaliador), True))
+        return saida
+
+    def test_divisao_esta_na_classe(self):  # o oráculo do oráculo da dimensão "lançador que divide texto"
+        """Com os hooks desligados e o `env` GNU, o bash roda a sentinela em cada texto da dimensão: um gerador que não
+        produz a divisão de verdade fica vermelho. Roda como o T9b (`rodar_no_bash_do_t9b`); só o bash e o `env`
+        locais (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash or not self.env_gnu():
+            self.skipTest("bash ausente ou sem o env GNU nesta máquina")
+        base = self._pasta_temporaria()
+        textos = self.textos_da_divisao(self.SENTINELAS)
+
+        def rodar(item):
+            k, (_, _, texto, _) = item
+            return self.rodar_no_bash_do_t9b(bash, texto, base / f"dv-{k}")
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+            rodados = list(pool.map(rodar, enumerate(textos)))
+        for (rotulo, hook, texto, _), rodou in zip(textos, rodados):
+            sentinela = shlex.split(self.SENTINELAS[hook])
+            with self.subTest(rotulo=rotulo):
+                self.assertIn((sentinela[0], sentinela[1:]), rodou, f"o bash não roda a sentinela em {texto!r}")
+        self.assertGreaterEqual(len(textos), 400)
+
+    def test_propriedade_do_lancador_que_divide_texto_com_marcador(self):  # A1 da segurança, revalidação 11
+        """Todo texto da dimensão "lançador que divide texto" (com a linha crítica direta e com a sentinela de cada
+        hook) dá 2 nos dois hooks quando o marcador crítico do hook está no texto: o `env` com a opção de dividir
+        recusa sem que o hook divida o valor. Sem o bash: a verdade vem da construção."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        textos = self.textos_da_divisao(self.LINHAS_DIRETAS) + self.textos_da_divisao(self.SENTINELAS)
+        decisoes = self.decisoes_dos_hooks([(hook, texto) for _, _, texto, _ in textos for hook, critico in
+                                            criticos.items() if critico.search(texto)])
+        for rotulo, dono, texto, _ in textos:
+            self.assertRegex(texto, criticos[dono], "o corpo tem o marcador do hook dele")
+            for hook, critico in criticos.items():
+                if critico.search(texto):
+                    with self.subTest(rotulo=rotulo, hook=hook):
+                        self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
+        self.assertGreaterEqual(len(textos), 1700)
 
     def test_g1_esta_na_classe(self):  # item 3 do critério de fim da opção B (proposta caminho-rev9): o oráculo do oráculo
         """Com os hooks desligados, o bash roda a sentinela em cada texto de G1 de prefixo nativo: G1 só tem reavaliação
