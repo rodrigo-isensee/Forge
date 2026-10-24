@@ -145,7 +145,7 @@ if ! grep -qE '"name"[[:space:]]*:[[:space:]]*"forge"' .claude-plugin/plugin.jso
 fi
 
 # Log em arquivo: stdout e stderr continuam na tela; cada linha também vai ao arquivo, com hora e sem segredo (ver `mascarar`).
-# A pasta é por usuário e só é aceita se for diretório de verdade (sem link simbólico), do próprio usuário e com modo 700.
+# A pasta é por usuário e só é aceita se for diretório de verdade (sem link simbólico) e do próprio usuário; o modo é ajustado para 700 (com aviso), setgid incluído.
 if [ -n "${FORGE_FECHAR_LOG_DIR:-}" ]; then
   logdir="$FORGE_FECHAR_LOG_DIR"
 elif [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -d "$XDG_RUNTIME_DIR" ] && [ -w "$XDG_RUNTIME_DIR" ]; then
@@ -159,8 +159,9 @@ case "$logdir" in /*) ;; *) logdir="$PWD/$logdir" ;; esac  # absoluto: a limpeza
 [ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
 [ -O "$logdir" ] || die "a pasta do log é de outro dono: $logdir; recusada"
 # Só o modo se corrige: link, outro dono e não diretório já foram recusados acima; pasta do próprio usuário com modo diferente de 700 vira 700, com aviso.
+# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700).
 if [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" != 700 ]; then
-  chmod 700 "$logdir" 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+  chmod u=rwx,go=,g-s "$logdir" 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
   [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
   echo "aviso: a pasta do log não tinha modo 700; ajustei para 700: $logdir" >&2
 fi

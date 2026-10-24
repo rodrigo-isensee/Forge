@@ -72,14 +72,14 @@ class FecharLogCheck(unittest.TestCase):
         self.assertEqual(self.dicas(r), [])
 
     def test_pasta_do_log_do_proprio_usuario_com_modo_diferente_de_700_vira_700_com_aviso(self):
-        for modo in (0o755, 0o777, 0o500):
+        for modo in (0o755, 0o777, 0o500, 0o2755):
             with self.subTest(modo=oct(modo)):
                 pasta = self.tmp / f"logs-{modo:o}"
                 pasta.mkdir()
                 pasta.chmod(modo)
                 r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(pasta))
                 self.assertEqual(r.returncode, 0, r.stderr)
-                self.assertEqual(oct(pasta.stat().st_mode & 0o777), "0o700")
+                self.assertEqual(oct(pasta.stat().st_mode & 0o7777), "0o700")  # inclui o setgid
                 self.assertIn(f"ajustei para 700: {pasta}", r.stderr)
                 self.assertEqual(len(list(pasta.glob("forge-fechar-*.log"))), 1)
 
