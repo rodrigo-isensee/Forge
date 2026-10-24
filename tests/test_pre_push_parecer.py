@@ -16,7 +16,8 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+# FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 ZERO = "0" * 40
 
 SUITE = '''import unittest, pathlib
@@ -185,6 +186,29 @@ class PrePushSoParecer(unittest.TestCase):
         codigo, marcas, _ = self.roda(novo, quebrado)
         self.assertEqual(codigo, 1)
         self.assertIn("rodou-outra", marcas)
+
+    def test_com_o_script_dividido_vermelho_nao_anota_e_verde_anota(self):
+        # D4 (AB-3, T3): o hook chama scripts/suite-paralela.py quando ele existe; a prova só sai da suíte inteira verde
+        import shutil
+        (self.repo / "scripts").mkdir()
+        shutil.copy(RAIZ / "scripts" / "suite-paralela.py", self.repo / "scripts" / "suite-paralela.py")
+        for apoio in ("guarda_git.py", "ambiente_git.py"):
+            shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
+        (self.repo / "tests" / "test_quebra.py").write_text(
+            "import unittest\nclass Q(unittest.TestCase):\n    def test_a(self):\n        self.fail('x')\n")
+        quebrado = self.commit("script e teste vermelho")
+        prova = self.run_dir / f"forge-suite-{os.getuid()}.verde"
+        codigo, marcas, erro = self.roda(quebrado, ZERO)
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("processos", erro)
+        self.assertIn("rodou-outra", marcas)
+        self.assertFalse(prova.exists() and self.git("rev-parse", "HEAD^{tree}") in prova.read_text().split())
+        (self.repo / "tests" / "test_quebra.py").unlink()
+        verde = self.commit("sem o vermelho")
+        codigo, marcas, erro = self.roda(verde, ZERO)
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("processos", erro)
+        self.assertIn(self.git("rev-parse", "HEAD^{tree}"), prova.read_text().split())
 
     def test_mudanca_em_tests_roda_a_suite_inteira(self):
         self.verde()

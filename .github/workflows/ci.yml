@@ -32,7 +32,42 @@ jobs:
         with:
           python-version: "3.12"
       - name: Testes do Forge
-        run: python3 -m unittest discover -s tests -v
+        run: python3 scripts/suite-paralela.py
+
+  bateria-python-tres-quatorze:
+    name: bateria (python 3.14)
+    # Testes do Forge no Python 3.14, ao lado do 3.12 do job "bateria" (diferença de versão aparece no PR, CI-PY314).
+    # Só o que depende da versão do Python: a suíte e o e2e de instalação (python3 -c e bin/forge-init). Os gates de PR em
+    # Python (changelog, release, catraca) ficam na "bateria" (testes travam um passo só de cada) e a suíte os cobre no 3.14.
+    # shellcheck, actionlint, zizmor, claude plugin validate e a varredura de segredos não executam Python.
+    if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.14"
+      - name: Testes do Forge (Python 3.14)
+        run: |
+          python3 --version
+          python3 scripts/suite-paralela.py
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ !cancelled() }}
+        with:
+          node-version: "24"
+      - name: Claude Code CLI (nova tentativa só na instalação, por falha de rede; confere a versão)
+        if: ${{ !cancelled() }}
+        run: |
+          instalar() { npm install -g --allow-scripts=@anthropic-ai/claude-code @anthropic-ai/claude-code@2.1.296; }
+          instalar || { echo "instalação falhou (rede); uma segunda tentativa"; sleep 5; instalar; }
+          claude --version
+      - name: Instala o Forge num projeto vazio e inicializa (Python 3.14)
+        if: ${{ !cancelled() }}
+        run: bash tests/e2e-instalacao.sh
 
   bateria:
     name: bateria
@@ -153,7 +188,7 @@ jobs:
           python3 "$script" --modo pareceres --base "$BASE" --head "$HEAD_SHA" --ramo="$HEAD_REF" --base-ref "$BASE_REF"
       - name: Testes do Forge
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: python3 -m unittest discover -s tests -v
+        run: python3 scripts/suite-paralela.py
       - name: shellcheck (scripts e hooks)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push

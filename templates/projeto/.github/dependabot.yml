@@ -1,0 +1,32 @@
+# Dependabot do projeto (modelo do Forge). Este modelo traz só a entrada neutra, das ações do CI.
+# Falta a entrada do ecossistema de pacotes da sua stack: copie o bloco de stacks/<stack>/pronto.md, seção "CI",
+# para o fim de `updates:` e remova esta frase.
+#
+# Regras que valem aqui (skills/ci-cd/SKILL.md, "Tempo e dependências"):
+# - Esta configuração só vale depois de chegar à branch padrão do repositório (a `main`), mesmo com `target-branch: develop`.
+# - O alerta de segurança abre contra a branch padrão, não contra o `target-branch`; o conserto segue pela branch de integração.
+# - Atualização de rotina (minor e patch) vai num grupo; major vai num grupo à parte e vira cartão de migração no quadro.
+# - Sem `ignore` amplo. Se precisar ignorar, só por pacote e versão, com o cartão de migração no comentário.
+# - Sem credencial em claro de registro privado, sem execução de código externo e sem mesclar sozinho: o PR do robô
+#   passa pelos mesmos pareceres e checks de qualquer outro.
+# - Não edite o PR do robô (base, título, corpo); abra um cartão.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: develop
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"  # ajuste ao fuso do time
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7  # espera a versão amadurecer; não vale para alerta de segurança
+    groups:
+      rotina:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+      maiores:
+        patterns: ["*"]
+        update-types: ["major"]

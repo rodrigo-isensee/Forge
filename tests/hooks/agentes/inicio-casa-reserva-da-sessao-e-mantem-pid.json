@@ -1,0 +1,39 @@
+{
+  "descricao": "C1-5: o SubagentStart da mesma sessão confirma a reserva e ela mantém o pid.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": null,
+          "tipo": "forge:qa-engineer",
+          "descricao": "Reserva da mesma",
+          "desde": "{agora-2}",
+          "pid": "{pid_vivo}",
+          "pidns": "{pid_ns}",
+          "sessao": "s1"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStart",
+    "agent_id": "ag-77",
+    "agent_type": "forge:qa-engineer",
+    "session_id": "s1"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "ag-77",
+          "Reserva da mesma",
+          "\"pidns\": \"pid:["
+        ],
+        "ausente": [
+          "null"
+        ]
+      }
+    }
+  }
+}

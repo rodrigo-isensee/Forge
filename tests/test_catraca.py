@@ -488,6 +488,120 @@ class Protegidos(Base):
         self.passa()
 
 
+class FalhaFechadaDoGit(Base):
+    """Item 1 do N-CAT1: erro do git nunca vale como "ausente" nem como lista vazia, em qualquer ordem das regras."""
+
+    def git_que_falha(self, quando, erro=None):
+        """Substituto de `catraca.git`: com `quando(args)` verdadeiro, falha (rc 128 ou a exceção `erro`); senão, o git de verdade."""
+        real = catraca.git
+
+        def falso(raiz, *args):
+            if quando(args):
+                if erro:
+                    raise erro
+                return 128, ""
+            return real(raiz, *args)
+        return falso
+
+    def argv(self, *extra, eventos=True):
+        a = ["--raiz", str(self.repo.dir), "--base", "base", *extra]
+        if eventos:
+            arq = self.repo.dir.parent / (self.repo.dir.name + "-falha-git-eventos.json")
+            if not arq.exists():
+                arq.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"},
+                                            "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+                self.addCleanup(arq.unlink)
+            a += ["--eventos", str(arq), "--ultimo-push", "2026-01-02T09:00:00Z"]
+        return a
+
+    def roda(self, argv, git_falho):
+        with mock.patch.object(catraca, "git", git_falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(argv)
+        return rc, saida.getvalue()
+
+    def ls_tree_do_head(self, args):
+        return "ls-tree" in args and "HEAD" in args
+
+    def ls_tree_da_catraca_na_base(self, args):
+        return "ls-tree" in args and "tests/catraca.py" in args
+
+    def test_listar_levanta_quando_o_ls_tree_falha(self):
+        with mock.patch.object(catraca, "git", self.git_que_falha(lambda a: "ls-tree" in a)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.listar(self.repo.dir, "HEAD", "tests")
+
+    def test_ls_tree_do_head_que_falha_nao_esconde_o_custo(self):
+        self.repo.escreve("scripts/x.sh", "claude -p oi\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "git", self.git_que_falha(self.ls_tree_do_head)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.regra_custo(self.repo.dir, "HEAD", {})
+            achadas = self.repo.violacoes()
+        self.assertTrue(any(catraca.NAO_LIBERAVEL in v and v.startswith("R-CONFORMIDADE:") for v in achadas), achadas)
+
+    def test_ls_tree_da_base_que_falha_nao_zera_a_contagem_de_testes(self):
+        self.repo.git("rm", "-q", "tests/test_x.py")
+        self.repo.commit()
+        base = self.repo.git("rev-parse", "base").strip()
+        falho = self.git_que_falha(lambda a: "ls-tree" in a and base in a)
+        with mock.patch.object(catraca, "git", falho):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.contar_testes(self.repo.dir, base)
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.forca_dos_testes(self.repo.dir, base)
+
+    def test_regra_protegidos_sozinha_falha_fechada(self):
+        """Sem depender de `regra_arquivos_de_regras` rodar antes: base inexistente e erro do `ls-tree` da base levantam."""
+        self.repo.escreve("hooks/_comum.py", "mudou\n")
+        self.repo.commit()
+        with self.assertRaises(catraca.ErroDeGit):
+            catraca.regra_protegidos(self.repo.dir, "ref-que-nao-existe", "HEAD")
+        with mock.patch.object(catraca, "git", self.git_que_falha(self.ls_tree_da_catraca_na_base)):
+            with self.assertRaises(catraca.ErroDeGit):
+                catraca.regra_protegidos(self.repo.dir, "base", "HEAD")
+
+    def test_introducao_real_da_catraca_continua_sem_violacao(self):
+        self.repo.git("rm", "-q", "tests/catraca.py")
+        self.repo.git("commit", "-q", "-m", "sem catraca")
+        self.repo.git("tag", "-f", "base")
+        self.repo.escreve("tests/catraca.py", "# nova\n")
+        self.repo.commit()
+        self.assertEqual(catraca.regra_protegidos(self.repo.dir, "base", "HEAD"), [])
+
+    def test_rotulo_do_dono_nao_libera_o_ls_tree_que_falha(self):
+        """Cada leitura do git que falha deixa a catraca vermelha mesmo com o rótulo do dono depois do push."""
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        for nome, quando in (("ls-tree do head", self.ls_tree_do_head), ("ls-tree da catraca na base", self.ls_tree_da_catraca_na_base)):
+            with self.subTest(nome):
+                rc, saida = self.roda(self.argv(), self.git_que_falha(quando))
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(catraca.NAO_LIBERAVEL, saida)
+                self.assertNotIn("liberada", saida)
+
+    def test_estouro_de_prazo_do_git_vira_uma_linha_e_rc_1(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.repo.commit()
+        estouro = subprocess.TimeoutExpired(["git"], 60)
+        casos = (("regras", self.argv(eventos=False)),
+                 ("pareceres", ["--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base", "--ramo", "pr", "--base-ref", "develop"]))
+        for modo, argv in casos:
+            with self.subTest(modo):
+                rc, saida = self.roda(argv, self.git_que_falha(lambda a: a[0] == "diff", estouro))
+                self.assertEqual(rc, 1, saida)
+                linhas = [l for l in saida.splitlines() if l.strip()]
+                self.assertEqual(len(linhas), 1, saida)
+                self.assertRegex(linhas[0], r"^R-CONFORMIDADE: .+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+                self.assertIn("TimeoutExpired", linhas[0])
+
+    def test_rotulo_do_dono_nao_libera_o_estouro_de_prazo(self):
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        rc, saida = self.roda(self.argv(), self.git_que_falha(lambda a: a[0] == "diff", subprocess.TimeoutExpired(["git"], 60)))
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("liberada", saida)
+
+
 class Rotulo(unittest.TestCase):
     def evento(self, quem, quando, tipo="labeled", rotulo=catraca.ROTULO):
         return {"event": tipo, "label": {"name": rotulo}, "actor": {"login": quem}, "created_at": quando}
@@ -990,6 +1104,120 @@ class Pareceres(Base):
         self.assertFalse(any("desatualizado" in l for l in fc.cmd_pr(self.repo.dir, "ped", None, "develop")))
 
 
+class ParecerReprovadoBarraSempre(Base):
+    """Item 5 do N-CAT1: o último parecer de cada tipo dos pedidos da branch barra se não aprova, com ou sem arquivo sensível,
+    com o tipo exigido ou não e na entrada da `develop` também (promoção fica de fora)."""
+
+    PASTAS = {"review": "reviews", "qa": "qa", "revisao-seguranca": "security", "revisao-devops": "devops"}
+
+    def parecer(self, tipo, parecer="aprovado", ramo="pr", pedido="ped", data="2026-01-01", arquivo=None, commita=True, commit=None):
+        if commita:
+            self.repo.commit()
+        commit = commit or self.repo.git("rev-parse", "--short", "HEAD").strip()
+        pasta = self.PASTAS[tipo]
+        extra = "qa: forge:qa-engineer\nescopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0" if tipo == "qa" else "revisor: forge:tech-lead"
+        self.repo.escreve(f"docs/{pasta}/{arquivo or pedido}.md",
+                          f"---\ntipo: {tipo}\ncontrato: 1\npedido: {pedido}\nbranch: {ramo}\ncommit: {commit}\n"
+                          f"parecer: {parecer}\n{extra}\ndata: {data}\n---\n# parecer\n")
+
+    def roda(self, base_ref="develop", ramo="pr"):
+        self.repo.commit()
+        return catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref)
+
+    def test_review_reprovado_barra_pr_que_nao_toca_arquivo_sensivel(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-REVIEW: .+docs/reviews/ped\.md.+\. Por quê: .+\. Corrigir: .+ \(.+\)$")
+
+    def test_review_reprovado_barra_em_agents_e_skills(self):
+        for rel in ("agents/x.md", "skills/x/SKILL.md"):
+            with self.subTest(rel):
+                self.setUp()
+                self.repo.escreve(rel, "x\n")
+                self.parecer("review", "reprovado")
+                self.assertEqual(len(self.roda()), 1)
+
+    def test_seguranca_reprovada_barra_mesmo_sem_gatilho_no_diff(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.parecer("review")
+        self.parecer("qa", commita=False)
+        self.parecer("revisao-seguranca", "reprovado", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-SEGURANCA: .+docs/security/ped\.md")
+
+    def test_devops_reprovado_barra_mesmo_sem_infra_no_diff(self):
+        self.repo.escreve("scripts/x.sh", "echo\n")
+        self.parecer("review")
+        self.parecer("revisao-devops", "reprovado", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/devops/ped.md", achadas[0])
+
+    def test_qa_reprovado_barra_na_entrada_da_develop(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("qa", "reprovado", commita=False)
+        achadas = self.roda("develop")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertRegex(achadas[0], r"^R-QA: .+docs/qa/ped\.md")
+
+    def test_valor_fora_do_contrato_barra(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "ajustes")
+        self.assertEqual(len(self.roda()), 1)
+
+    def test_riscos_aceitos_so_passa_com_o_aceite_do_usuario(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review")
+        self.parecer("revisao-seguranca", "riscos-aceitos", commit="abc1234", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/security/ped.md", achadas[0])
+        self.repo.escreve("docs/security/aceites/ped.md", "---\npedido: ped\naceite: sim\ncommit: abc1234\n---\n")
+        self.assertEqual(self.roda(), [])
+
+    def test_sensivel_com_review_reprovado_continua_com_uma_violacao_so(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/reviews/ped.md", achadas[0])
+
+    def test_nao_regressao_parecer_mais_novo_aprovado_substitui_o_reprovado(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado", arquivo="ped-v1", data="2026-01-01")
+        self.parecer("review", "aprovado", arquivo="ped-v2", data="2026-01-02", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_parecer_regravado_no_mesmo_arquivo(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        self.repo.commit()
+        self.parecer("review", "aprovado", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_parecer_de_outra_branch_nao_barra(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado", ramo="outra")
+        self.assertEqual(self.roda(), [])
+
+    def test_nao_regressao_promocao_nao_le_parecer(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.parecer("review", "reprovado")
+        self.repo.commit()
+        for ramo, base_ref in (("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref), [])
+
+    def test_nao_regressao_sem_parecer_e_sem_arquivo_sensivel_passa(self):
+        """A exigência de parecer não cresce: só o reprovado que já existe barra."""
+        self.repo.escreve("docs/x.md", "x\n")
+        self.assertEqual(self.roda(), [])
+
+
 def execucao(sha, quando, numero=7, evento="pull_request"):
     return {"event": evento, "head_sha": sha, "created_at": quando, "pull_requests": [{"number": numero}]}
 
@@ -1213,6 +1441,72 @@ class RotuloSobreviveAoConteudo(Base):
         r = self.roda()
         self.assertEqual(r.returncode, 1)
         self.assertIn("R-CUSTO:", r.stdout)
+
+
+class RespostaCortadaEPaginacaoSemTeto(Base):
+    """Item 3 do N-CAT1: `IncompleteRead` e páginas demais na API valem como sem rótulo, com uma linha, e nunca por rastro de pilha."""
+
+    ENV = {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "7", "HEAD_SHA": "abc"}
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.dict(os.environ, self.ENV)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def corta(self, *a, **k):
+        raise http.client.IncompleteRead(b"x")
+
+    def test_resposta_cortada_vale_como_sem_dado_nas_tres_funcoes(self):
+        with mock.patch.object(catraca, "requisicao", self.corta), contextlib.redirect_stdout(io.StringIO()) as saida:
+            with self.subTest("eventos_do_github"):
+                self.assertEqual(catraca.eventos_do_github(), (None, None))
+            with self.subTest("ramo_do_pr"):
+                self.assertEqual(catraca.ramo_do_pr(), "")
+            with self.subTest("execucoes_do_pr"):
+                with mock.patch.object(catraca, "ramo_do_pr", lambda: "melhoria/x"):
+                    self.assertIsNone(catraca.execucoes_do_pr())
+        self.assertEqual(saida.getvalue().count("vale como sem rótulo."), 3, saida.getvalue())
+
+    def test_main_com_a_api_cortada_deixa_uma_linha_e_rc_1(self):
+        self.repo.escreve("tests/catraca.py", "# mudou\n")
+        self.repo.commit()
+        with mock.patch.object(catraca, "requisicao", self.corta), contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--raiz", str(self.repo.dir), "--base", "base"])
+        self.assertEqual(rc, 1, saida.getvalue())
+        avisos = [l for l in saida.getvalue().splitlines() if l.startswith("catraca: ") and l.endswith("vale como sem rótulo.")]
+        self.assertEqual(len(avisos), 1, saida.getvalue())
+        self.assertIn("mudança em tests/catraca.py", saida.getvalue())
+
+    def paginas(self, cheias):
+        """`requisicao` falsa: `cheias` páginas de 100 itens e depois uma curta; anota as páginas pedidas."""
+        pedidas = []
+
+        def falsa(caminho, token):
+            pagina = int(caminho.rsplit("page=", 1)[1])
+            pedidas.append(pagina)
+            lote = [{"created_at": "2026-01-02T09:00:00Z", "head_sha": "abc"}] * (100 if pagina <= cheias else 1)
+            return {"workflow_runs": lote} if "runs" in caminho else lote
+        return falsa, pedidas
+
+    def test_api_acima_do_teto_de_paginas_e_none(self):
+        falsa, pedidas = self.paginas(catraca.TETO_PAGINAS + 1)
+        with mock.patch.object(catraca, "requisicao", falsa):
+            self.assertIsNone(catraca.api("/x", "t"))
+            self.assertEqual(pedidas, list(range(1, catraca.TETO_PAGINAS + 1)))
+            self.assertIsNone(catraca.api("/runs", "t", "workflow_runs"))
+
+    def test_api_no_teto_ou_abaixo_devolve_tudo(self):
+        falsa, pedidas = self.paginas(catraca.TETO_PAGINAS - 1)
+        with mock.patch.object(catraca, "requisicao", falsa):
+            self.assertEqual(len(catraca.api("/x", "t")), 100 * (catraca.TETO_PAGINAS - 1) + 1)
+
+    def test_paginas_demais_valem_como_sem_rotulo_nas_funcoes_que_usam_a_api(self):
+        falsa, _ = self.paginas(catraca.TETO_PAGINAS + 1)
+        with mock.patch.object(catraca, "requisicao", falsa), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(catraca.eventos_do_github(), (None, None))
+            with mock.patch.object(catraca, "ramo_do_pr", lambda: "melhoria/x"):
+                self.assertIsNone(catraca.execucoes_do_pr())
 
 
 class ExecucoesDoPr(unittest.TestCase):
@@ -1757,6 +2051,86 @@ class DonoSoDaBase(Base):
         self.assertIn("mudança em tests/catraca.py", r.stdout)
 
 
+class PrazoTotalDaApi(Base):
+    """Item 4 do N-CAT1: um prazo total para as chamadas à API, num relógio monotônico; estourou, vale como sem rótulo."""
+
+    ENV = {"GITHUB_TOKEN": "t", "GITHUB_REPOSITORY": "o/r", "PR_NUMBER": "11", "HEAD_SHA": "abc"}
+
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.dict(os.environ, self.ENV)
+        patch.start()
+        self.addCleanup(patch.stop)
+        self.agora = 0.0
+        for alvo, valor in (("relogio", lambda: self.agora), ("urlopen", self.urlopen)):
+            patch = mock.patch.object(catraca if alvo == "relogio" else catraca.urllib.request, alvo, valor)
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.chamadas, self.salto, self.resposta = [], 0.0, []
+        catraca.PRAZO.reiniciar()
+        self.addCleanup(catraca.PRAZO.reiniciar)
+
+    def urlopen(self, req, timeout=None):
+        self.chamadas.append((req.full_url, timeout))
+        self.agora += self.salto
+        corpo = json.dumps(self.resposta(req.full_url) if callable(self.resposta) else self.resposta).encode()
+        return contextlib.nullcontext(io.BytesIO(corpo))
+
+    def test_o_prazo_total_cabe_na_metade_do_timeout_do_job(self):
+        """Se o N-CI baixar o `timeout-minutes` do job `catraca`, a suíte acusa."""
+        yml = (AQUI.parent / ".github" / "workflows" / "catraca.yml").read_text(encoding="utf-8")
+        job = re.search(r"^  catraca:\n(.*?)(?=^  \S|\Z)", yml, re.M | re.S).group(1)
+        minutos = int(re.search(r"^    timeout-minutes: (\d+)\s*$", job, re.M).group(1))
+        self.assertLessEqual(catraca.PRAZO_TOTAL_DA_API, minutos * 60 / 2)
+        self.assertGreater(catraca.PRAZO_TOTAL_DA_API, 0)
+
+    def test_a_excecao_do_prazo_e_oserror(self):
+        """Assim as capturas que já existem a tratam como sem rótulo."""
+        self.assertTrue(issubclass(catraca.PrazoDaApiEsgotado, OSError))
+
+    def test_prazo_esgotado_nao_chama_a_rede_e_a_fonte_devolve_none(self):
+        self.salto = 150.0
+        fonte = catraca.FonteGithub("t", "o/r", "11")
+        self.assertEqual(fonte.pull(1), [])
+        self.assertEqual(fonte.pull(2), [])
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertIsNone(fonte.pull(3))
+            self.assertIsNone(fonte.pull(4))
+        self.assertEqual(len(self.chamadas), 2, self.chamadas)
+        self.assertEqual(saida.getvalue().count("prazo da API esgotado; vale como sem rótulo."), 1, saida.getvalue())
+
+    def test_o_prazo_de_cada_chamada_e_o_menor_entre_30_e_o_que_resta(self):
+        catraca.requisicao("/a", "t")
+        self.agora = catraca.PRAZO_TOTAL_DA_API - 12.5
+        catraca.requisicao("/b", "t")
+        self.assertEqual([t for _, t in self.chamadas], [30, 12.5])
+
+    def test_o_relogio_comeca_na_primeira_chamada(self):
+        self.agora = 1000.0
+        catraca.requisicao("/a", "t")
+        self.agora = 1000.0 + catraca.PRAZO_TOTAL_DA_API - 1
+        catraca.requisicao("/b", "t")
+        self.assertEqual(len(self.chamadas), 2)
+
+    def test_promocao_com_o_prazo_esgotado_para_de_consultar_e_deixa_rc_1(self):
+        """O caminho da S-16 (um PR candidato por commit citado) não pode consumir os 10 minutos do job."""
+        self.repo.git("branch", "main", "base")
+        self.repo.git("checkout", "-q", "-b", "homolog", "base")
+        for n in range(21, 31):
+            self.repo.escreve("tests/catraca.py", f"# mudou {n}\n")
+            self.repo.git("add", "-A")
+            self.repo.git("commit", "-q", "-m", f"fix: mudança (#{n})")
+        pr = {"head": {"ref": "develop", "repo": {"full_name": "o/r"}}, "base": {"ref": "homolog", "repo": {"full_name": "o/r"}}}
+        self.resposta = lambda url: pr if url.endswith("/pulls/11") else ({"workflow_runs": []} if "runs" in url else [])
+        self.salto = 100.0
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            rc = catraca.main(["--raiz", str(self.repo.dir), "--base", "main", "--head", "homolog"])
+        self.assertEqual(rc, 1, saida.getvalue())
+        self.assertIn("mudança em tests/catraca.py", saida.getvalue())
+        self.assertEqual(len(self.chamadas), 3, self.chamadas)
+        self.assertEqual(saida.getvalue().count("prazo da API esgotado; vale como sem rótulo."), 1, saida.getvalue())
+
+
 class FonteDoGithub(unittest.TestCase):
     """S-16: as consultas dos PRs mesclados (só leitura, gratuitas) e a falha fechada sem token, com erro ou além do teto."""
 
@@ -1870,6 +2244,69 @@ class Workflows(unittest.TestCase):
 
     def test_dependabot_vai_para_a_develop(self):
         self.assertIn("target-branch: develop", (self.RAIZ / "dependabot.yml").read_text(encoding="utf-8"))
+
+
+class FormaCompiladaDosControles(Base):
+    """Item 6 do N-CAT1 (K10-CAT): a forma compilada (`__pycache__/`, `.pyc`, `.pyo`, `.pyd`, `.so`) troca o fonte sem o fonte
+    mudar; por isso, em qualquer pasta, pede o rótulo do dono como qualquer arquivo protegido."""
+
+    COMPILADOS = ("hooks/__pycache__/_comum.cpython-312.pyc", "hooks/_comum.cpython-312-x86_64-linux-gnu.so", "hooks/_comum.abi3.so",
+                  "hooks/conformidade.abi3.so", "tests/__pycache__/neutralidade.cpython-312.pyc", "bin/__pycache__/x.pyc",
+                  "hooks/agentes.pyd", "hooks/sub/x.pyo", "__pycache__/x.txt", "x.pyc")
+
+    def test_forma_compilada_pede_o_rotulo(self):
+        for rel in self.COMPILADOS:
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "binario\n")
+                repo.commit()
+                achadas = repo.violacoes()
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertTrue(achadas[0].startswith("R-CONFORMIDADE: ") and f"mudança em {rel}" in achadas[0], achadas)
+
+    def test_prefixo_ja_protegido_nao_conta_duas_vezes(self):
+        self.repo.escreve("hooks/_comum.pyc", "binario\n")
+        self.repo.commit()
+        self.assertEqual(len(self.repo.violacoes()), 1, self.repo.violacoes())
+
+    def test_apagar_ou_mover_a_forma_compilada_tambem_pede(self):
+        self.repo.escreve("hooks/__pycache__/x.pyc", "binario\n")
+        self.repo.git("add", "-A")
+        self.repo.git("commit", "-q", "-m", "tinha")
+        self.repo.git("tag", "-f", "base")
+        self.repo.git("rm", "-q", "hooks/__pycache__/x.pyc")
+        self.barra("mudança em hooks/__pycache__/x.pyc", "R-CONFORMIDADE")
+
+    def test_o_rotulo_do_dono_libera_como_a_qualquer_protegido(self):
+        self.repo.escreve("hooks/__pycache__/_comum.cpython-312.pyc", "binario\n")
+        self.repo.commit()
+        eventos = self.repo.dir.parent / (self.repo.dir.name + "-compilado-eventos.json")
+        eventos.write_text(json.dumps([{"event": "labeled", "label": {"name": catraca.ROTULO}, "actor": {"login": "dona"},
+                                        "created_at": "2026-01-02T10:00:00Z"}]), encoding="utf-8")
+        self.addCleanup(eventos.unlink)
+        argv = ["--raiz", str(self.repo.dir), "--base", "base", "--eventos", str(eventos), "--ultimo-push", "2026-01-02T09:00:00Z"]
+        with contextlib.redirect_stdout(io.StringIO()) as saida:
+            self.assertEqual(catraca.main(argv), 0, saida.getvalue())
+            self.assertEqual(catraca.main(argv[:4]), 1)
+
+    def test_ancora_e_extensao_nao_pegam_nome_parecido(self):
+        for rel in ("docs/notas.so.md", "src/pycache/x.txt", "src/__pycache__x/y.txt", "docs/x.pyc.md"):
+            with self.subTest(rel):
+                repo = Repo()
+                self.addCleanup(repo.fecha)
+                repo.escreve(rel, "texto\n")
+                repo.commit()
+                self.assertEqual(repo.violacoes(), [])
+
+    def test_nenhum_arquivo_versionado_da_arvore_real_tem_forma_compilada(self):
+        """Medido: 0 (M3). A catraca só vê o que o PR muda; isto pega o que já está na árvore."""
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+        r = subprocess.run(["git", "-C", str(AQUI.parent), "ls-files"], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        arquivos = r.stdout.splitlines()
+        self.assertGreater(len(arquivos), 100)
+        self.assertEqual([a for a in arquivos if catraca.FORMA_COMPILADA.search(a)], [])
 
 
 if __name__ == "__main__":

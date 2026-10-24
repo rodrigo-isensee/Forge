@@ -63,7 +63,12 @@ Para cada critério de aceite da especificação, pelo menos um cenário. A tabe
 - **Guarda contra suíte vazia:** teste que percorre pasta, glob ou lista afirma um mínimo de itens (N de hoje menos margem pequena); pasta renomeada derruba o teste em vez de passar sem ler nada.
 
 ## Vermelho antes do verde
-Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação: guarde o código de produção (`git stash`) ou rode contra o commit anterior. O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
+Todo teste novo de correção ou de regra (`R-QA`) precisa ser visto falhando sem a implementação.
+- **No Forge:** `forge-testes --vermelho <base>`, rodado pelo autor e de novo pelo QA, com a saída colada no parecer (ela abre com `vermelho: base=… head=…` e lista o que voltou à base). Ele roda em cópias em `$TMPDIR` e exige a árvore limpa; nunca mexe na árvore do autor. O veredito é por teste: saída 0 = ao menos um teste prova e nenhum cai no HEAD; 1 = nenhum prova ou algum cai; 2 = sem veredito (prazo, sinal, erro do próprio módulo de teste), que volta ao autor e nunca vale como vermelho. A falha de carga ou de preparação (módulo ou classe) da base só prova teste que a base não tinha; o que já existia sai "não prova (herdada da base)", então um `import` novo num módulo existente, sem teste novo, sai 1.
+- **"Dívida pré-existente"** é só etiqueta: o teste que cai no HEAD continua bloqueando e vira cartão.
+- **Projeto:** a forma da stack (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`): rodar o teste novo contra o código anterior, numa cópia; `git stash` na árvore do autor só como recuo.
+
+O parecer de QA registra o comando e a falha observada; teste que nunca falhou não prova nada.
 
 ## Mutação no código alterado
 Quando a stack tiver ferramenta gratuita (`${CLAUDE_PLUGIN_ROOT}/stacks/<stack>/pronto.md`), rode mutação só nos arquivos alterados pelo diff, nunca no projeto inteiro. A meta de pontuação é do projeto, em `docs/engineering/praticas.md`; mutante sobrevivente vira teste novo ou justificativa no parecer. Cobertura de linhas não é meta.
@@ -75,6 +80,13 @@ Para saber como a entrega fica sobre a base de integração, simule o merge fora
 3. Rode a checagem **contra essa base** (a mesma da validação), nunca contra a base local.
 
 Nunca use um clone sem as refs remotas (por exemplo `git clone --no-tags --single-branch` de outra ref, ou clone local sem `origin/<base>`): a checagem compara com a base errada e sai com rc 0. Confira que `git rev-parse refs/remotes/origin/<base>` responde antes de confiar no resultado.
+
+## Mutantes declarados nos pedidos de controle
+No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `tests/catraca.py`) tem a prova de mutação feita à mão e declarada: `bin/forge-mutante tests/mutantes/<pedido>.json` lê a spec (3 a 8 mutantes: arquivo, trecho `de`, trecho `para`, testes que devem cair) e roda cada um numa cópia descartável.
+- Pedido de controle: o autor declara os mutantes, **um por linha de guarda mudada no diff**. Nos demais, o QA escreve a lista e pode somar até 8.
+- O QA confere a lista contra o diff antes de rodar: linha de guarda mudada sem mutante é achado bloqueante do QA, porque a saída 0 só prova o que a lista cobre (o autor, sozinho, escolheria mutantes que o teste dele já mata).
+- O QA roda `forge-mutante` e cola a saída no parecer. Saída 0 é o inverso do usual: todos os mutantes morreram. Prazo estourado ou erro de carga é "sem veredito", nunca "morreu".
+- Mutante sobrevivente é achado bloqueante do QA até virar teste ou justificativa de mutante equivalente aceita pelo QA.
 
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown

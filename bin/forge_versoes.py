@@ -4,14 +4,20 @@ Consulta as releases do Forge por `git` (grátis, R-CUSTO), com as mesmas defesa
 só https, pasta corrente neutra (nunca o projeto), todos os outros protocolos negados, sem pergunta de senha, sem configuração
 do git do usuário. Fixa e troca a versão do plugin pelo `claude plugin ...` (marketplace na tag `vX.Y.Z`, sempre no escopo do usuário). Só biblioteca padrão."""
 import contextlib
+import datetime
+import email.utils
+import http.client
+import ipaddress
 import json
 import os
 import re
 import shutil
 import signal
+import ssl
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -166,6 +172,83 @@ def aviso_de_versao_nova(limite, superficie="projeto"):
     """Uma frase avisando que saiu versão nova do Forge, ou "" (em dia, sem rede, consulta desligada ou endereço inválido)."""
     r = consultar_versao(limite)
     return texto_de_versao_nova(r["atual"], r["ultima"], superficie) if r["estado"] == "defasada" else ""
+
+
+# Relógio ----------------------------------------------------------------------------------------
+LIMIAR_RELOGIO = 300  # segundos: abaixo disso a latência e a resolução de 1 s do `Date` explicam a diferença
+TETO_RELOGIO = 30 * 24 * 3600  # acima disso o `Date` não é confiável: "não consegui conferir", não "relógio errado por 30 dias"
+
+
+def host_publico(url):
+    """O host de `https://host[:443]/...` se for nome público (com ponto, último rótulo com letra, nunca IP, `localhost` nem
+    porta diferente de 443, sem usuário); senão None. Fecha a sondagem de rede interna por `FORGE_REPO_URL` (CR-2)."""
+    achou = re.fullmatch(r"https://([A-Za-z0-9.-]+)(?::(\d+))?(?:/.*)?", url) if isinstance(url, str) else None
+    if not achou or achou.group(2) not in (None, "443"):
+        return None
+    host = achou.group(1).lower()
+    rotulos = host.split(".")
+    if len(rotulos) < 2 or not all(rotulos) or host == "localhost" or rotulos[-1] == "localhost" \
+            or not re.fullmatch(r"[a-z][a-z0-9-]*", rotulos[-1]):
+        return None
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return host
+    return None
+
+
+def desvio_do_relogio(url, limite):
+    """`hora remota - hora local`, em segundos, lida do cabeçalho `Date` do host de `url` (um `HEAD` em https, sem seguir redirecionamento,
+    sem corpo, sem credencial, certificado validado, prazo TOTAL de `limite` s); None se não deu para conferir. Só informa: nunca acerta
+    o relógio. `FORGE_RELOGIO_REMOTO=<época>` substitui a rede, só com FORGE_PERMITE_LOCAL=1 (os testes)."""
+    if url is None or not url_valida(url, permite_local()):
+        return None
+    injetado = os.environ.get("FORGE_RELOGIO_REMOTO") if permite_local() else None
+    if injetado:
+        try:
+            desvio = float(injetado) - time.time()
+        except ValueError:
+            return None
+        return round(desvio) if abs(desvio) <= TETO_RELOGIO else None
+    host = host_publico(url)
+    if host is None:
+        return None
+    cabecalho = []
+
+    def pedir():
+        try:
+            conexao = http.client.HTTPSConnection(host, 443, timeout=limite, context=ssl.create_default_context())
+            conexao.request("HEAD", "/", headers={"User-Agent": "forge-doutor"})
+            cabecalho.append(conexao.getresponse().getheader("Date"))
+            conexao.close()
+        except (OSError, http.client.HTTPException):
+            pass
+
+    fio = threading.Thread(target=pedir, daemon=True)
+    fio.start()
+    fio.join(limite)  # prazo total: conexão, resposta e leitura do cabeçalho
+    if fio.is_alive() or not cabecalho or not isinstance(cabecalho[0], str) or len(cabecalho[0]) > 100:
+        return None
+    try:
+        hora = email.utils.parsedate_to_datetime(cabecalho[0])
+    except (ValueError, TypeError, IndexError, OverflowError):
+        return None
+    if hora.tzinfo is None:  # sem fuso explícito não há como comparar
+        return None
+    try:
+        desvio = hora.timestamp() - time.time()
+    except (ValueError, OverflowError, OSError):
+        return None
+    return round(desvio) if abs(desvio) <= TETO_RELOGIO else None
+
+
+def texto_de_relogio(desvio):
+    """A frase do aviso, ou "" (sem desvio medido ou dentro do limiar). O número é de minutos inteiros calculados aqui, nunca o texto do cabeçalho."""
+    if desvio is None or abs(desvio) <= LIMIAR_RELOGIO:
+        return ""
+    estado = "atrasado" if desvio > 0 else "adiantado"
+    return (f"O relógio deste computador está {round(abs(desvio) / 60)} min {estado} em relação ao GitHub: os horários dos registros "
+            "e do quadro saem errados. Acerte o relógio do sistema (no WSL: `wsl --shutdown` no Windows e abra de novo).")
 
 
 # Plugin ----------------------------------------------------------------------------------------
