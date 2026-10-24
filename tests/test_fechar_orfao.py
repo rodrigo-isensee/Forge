@@ -141,14 +141,25 @@ class Teste(unittest.TestCase):
         self.assertIn(f"gh pr merge melhoria/x --squash --match-head-commit {sha}", self.chamadas())
         self.assertEqual(self.resumo(r), ["limpeza: pulada (--sem-limpar)"])
         pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
-        self.assertEqual(pendentes[:3], [f"git worktree remove {wt}", "git branch -D melhoria/x",
-                                        "git push origin --delete refs/heads/melhoria/x"])
-        self.assertIn("--limpar.", r.stdout)
+        self.assertEqual(pendentes[:4], ["forge-fechar p1 --ref melhoria/x --limpar", f"git worktree remove {wt}",
+                                        "git branch -D melhoria/x", "git push origin --delete refs/heads/melhoria/x"])
         self.assertEqual(len(self.marcas("git branch -D")), 0)
         self.assertEqual(len(self.marcas("git worktree remove")), 0)
         self.assertTrue(wt.exists())
         self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
+
+    def test_sem_limpar_sem_branch_local_nao_imprime_branch_d_e_poe_o_limpar_primeiro(self):
+        # a branch local some entre o passo 1 e o passo 7: o falso do GitHub a apaga ao mesclar
+        falso = self.tmp / "gh"
+        falso.rename(self.tmp / "gh-base")
+        falso.write_text(f'#!/usr/bin/env bash\n[ "$1 $2" = "pr merge" ] && git -C "{self.proj}" branch -q -D melhoria/x\nexec "{self.tmp / "gh-base"}" "$@"\n')
+        falso.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        pendentes = r.stdout.split("pendente, rode:\n")[1].splitlines()
+        self.assertEqual(pendentes[:2], ["forge-fechar p1 --ref melhoria/x --limpar", "git push origin --delete refs/heads/melhoria/x"])
+        self.assertFalse(any("branch -D" in l for l in pendentes), pendentes)
 
     def test_sem_limpar_com_limpar_e_erro_de_uso_antes_de_qualquer_passo(self):
         r = self.fechar("p1", "--ref", "melhoria/x", "--limpar", "--sem-limpar")

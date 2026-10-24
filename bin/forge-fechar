@@ -8,7 +8,7 @@
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
 # --limpar: roda só o passo 7, sem forge-check nem merge, e só com prova de PR MERGED na develop para a branch; cada parte é "se existe" (repete sem
 # efeito colateral). Rodado de dentro da worktree da própria branch, sai dela para a principal antes de remover. Só apaga a branch (local e remota) se o sha é o do PR mesclado ou já está na base; nunca usa a opção que força.
-# --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (worktree, branch local, branch remota e o `--limpar`) e sai com
+# --sem-limpar: faz o merge e pula o passo 7: imprime os comandos da limpeza pendente (o `--limpar` primeiro, que confere o sha; worktree, branch local se existe e branch remota) e sai com
 # código 3 (fechado, limpeza pendente). Incompatível com --limpar (erro de uso). Serve a quem prefere limpar depois (ou fora do sandbox).
 # --esperar-rotulo: em vez de parar quando o PR pede o rótulo do dono e ele não está aplicado, repete a leitura dos checks e do rótulo
 # (a cada FORGE_FECHAR_INTERVALO, até --espera) e segue para o merge preso ao head quando o rótulo está no PR e a Catraca verde. Nessa
@@ -720,9 +720,12 @@ if [ "$sem_limpar" = 1 ]; then
   arvore_sl="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
   echo "limpeza: pulada (--sem-limpar)"
   printf 'pendente, rode:\n'
+  # O --limpar vem primeiro porque confere o sha antes de apagar (R-VERIFY); os comandos soltos abaixo não conferem nada. O `branch -D` só entra se a branch local existe.
+  printf 'forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
   [ -z "$arvore_sl" ] || printf 'git worktree remove %q\n' "$arvore_sl"
-  printf 'git branch -D %q\ngit push origin --delete %q\n' "$ref" "refs/heads/$ref"
-  echo "Entrega $pedido fechada em $alvo; limpeza pulada por --sem-limpar (código 3): rode os comandos acima ou forge-fechar $(printf '%q' "$pedido") --ref $(printf '%q' "$ref") --limpar."
+  ! git rev-parse --verify -q "refs/heads/$ref" >/dev/null || printf 'git branch -D %q\n' "$ref"
+  printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  echo "Entrega $pedido fechada em $alvo; limpeza pulada por --sem-limpar (código 3): rode o --limpar acima (confere o sha antes de apagar) ou os comandos soltos."
   exit 3
 fi
 limpar_entrega
