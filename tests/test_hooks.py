@@ -37,6 +37,7 @@ import contextlib
 import functools
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -2586,6 +2587,93 @@ exit 0
         self.assertGreaterEqual(no_corpus, 25)
         self.assertGreaterEqual(len(textos), 4000)
 
+    # Propriedade da opção C (item 1 do critério de fim, proposta caminho-rev10, 3C): o `$'` e o `$"` entram em cada
+    # posição da palavra do reavaliador e da opção de G1, com cada escape do alfabeto inteiro (`\` e cada caractere de
+    # 0x20 a 0x7E, a quebra de linha e o `\x{…}` do bash 5.3, com e sem a chave de fecho). A verdade vem da construção:
+    # a palavra gerada tem `$'` ou `$"` fora de aspas, e o teste não depende do que o bash faz com o escape.
+    ESCAPES_DO_ALFABETO = tuple("\\" + chr(c) for c in range(0x20, 0x7F)) + (
+        "\\\n", "\\x{65}", "\\x{0000065}", "\\x{65", "\\x{}", "\\x{zz}", "\\u{65}", "\\U", "\\c", "\\c\\'")
+    FORMAS_ANSI = (("$'", "'"), ('$"', '"'))
+    PREFIXOS_DO_ALFABETO = ("nenhum", "coproc", "env X=1", "$(…)", "pipeline")
+
+    @classmethod
+    def textos_do_alfabeto(cls, corpos_por_hook, escapes=None, prefixos=None, reavaliadores=None):
+        """(rótulo, hook, texto) de G1 com o `$'` ou o `$"` e um escape em cada posição do nome do reavaliador e da opção."""
+        saida = []
+        escapes = cls.ESCAPES_DO_ALFABETO if escapes is None else escapes
+        for prefixo, molde, _, para in cls.PREFIXOS_DE_G1:
+            if prefixo not in (prefixos or cls.PREFIXOS_DO_ALFABETO):
+                continue
+            for nome, opcao in (reavaliadores or cls.REAVALIADORES_DE_G1):
+                if para and para != ("eval" if opcao is None else "shell"):
+                    continue
+                for onde, palavra in (("nome", nome), ("opção", opcao)):
+                    if palavra is None:
+                        continue
+                    for posicao in range(len(palavra) + 1):
+                        for (abre, fecha), escape in itertools.product(cls.FORMAS_ANSI, escapes):
+                            nova = palavra[:posicao] + abre + escape + fecha + palavra[posicao:]
+                            reavaliador = (nova if onde == "nome" else nome) + (f" {nova if onde == 'opção' else opcao}" if opcao else "")
+                            for hook, corpo in corpos_por_hook.items():
+                                rotulo = f"alfabeto {prefixo} / {nome} {opcao or ''} / {onde}@{posicao} / {abre}{escape}{fecha} / {hook}"
+                                saida.append((rotulo, hook, molde.replace("{R}", f"{reavaliador} '{corpo}'")))
+        return saida
+
+    def test_propriedade_do_alfabeto_de_escapes_com_marcador(self):  # item 1 do critério de fim da opção C
+        """Com o marcador crítico, toda palavra com `$'` ou `$"` fora de aspas recusa, qualquer que seja o escape. Todo
+        texto gerado (`textos_do_alfabeto`) é reconhecido por `reavaliacao`, o reconhecedor que os dois hooks usam, e
+        uma amostra dos escapes, em cada posição, dá 2 nos DOIS hooks reais: a propriedade separa os hooks (a mutação que
+        tira a recusa de um só deixa essa parte vermelha)."""
+        _comum, conformidade, parecer = modulos_dos_hooks()
+        criticos = {"conformidade": conformidade.CRITICO, "parecer": parecer.CRITICO}
+        todos = self.textos_do_alfabeto(self.LINHAS_DIRETAS)
+        self.assertGreaterEqual(len(todos), 40_000)
+        for rotulo, hook, texto in todos:
+            self.assertRegex(texto, criticos[hook], "o texto tem o marcador do hook dele")
+            if _comum.reavaliacao(texto) is None:
+                self.fail(f"o reconhecedor libera {rotulo}: {texto!r}")
+        amostra = self.ESCAPES_DO_ALFABETO[::9] + ("\\x{65}", "\\x{0000065}", "\\x{65", "\\'", '\\"', "\\$")
+        reais = self.textos_do_alfabeto(self.LINHAS_DIRETAS, amostra, ("nenhum",), (("bash", "-c"), ("eval", None)))
+        decisoes = self.decisoes_dos_hooks([(hook, texto) for _, hook, texto in reais])
+        for rotulo, hook, texto in reais:
+            with self.subTest(rotulo=rotulo):
+                self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
+        self.assertGreaterEqual(len(reais), 800)
+
+    def test_reducao_exaustiva_por_par_contra_o_bash(self):  # item 2 do critério de fim da opção C
+        """Para toda `\\` seguida de cada caractere de 0x20 a 0x7E e da quebra de linha, e depois de cada sufixo (nada, `{`,
+        `}`, dígito octal, dígito hexadecimal, `'`, fim), fora de aspas e entre aspas duplas: a `reduzida` dá o mesmo que o
+        `printf '%s'` do bash, ou `None` (expansão ou aspas sem par). Nunca um literal diferente, nunca um literal onde
+        o bash recusa a palavra. Cobre o alfabeto inteiro, e não uma tabela. Só o bash (R-CUSTO)."""
+        _comum, _, _ = modulos_dos_hooks()
+        bash = shutil.which("bash")
+        if not bash:
+            self.skipTest("bash ausente")
+        casa = self._pasta_temporaria()
+        casos = []
+        for c in [chr(x) for x in range(0x20, 0x7F)] + ["\n"]:
+            for sufixo in ("b", "{b", "}b", "7b", "fb", "'b", ""):
+                miolo = f"a\\{c}{sufixo}"
+                casos += [("fora", miolo), ("duplas", f'"{miolo}"')]
+
+        def do_bash(caso):
+            return subprocess.run([bash, "--noprofile", "--norc", "-c", f"printf '%s' {caso[1]}"], cwd=casa,
+                                  env={"HOME": str(casa), "LC_ALL": "C.UTF-8"}, capture_output=True, timeout=30)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(8, (os.cpu_count() or 2)))) as pool:
+            do_bash_de = list(pool.map(do_bash, casos))
+        for (contexto, cru), r in zip(casos, do_bash_de):
+            valor = _comum.reduzida(cru)
+            com_expansao = any(ch in cru for ch in "$`*?[{~")
+            with self.subTest(contexto=contexto, cru=cru):
+                self.assertIsNot(valor, _comum.INDECIDIVEL, "a barra e um caractere não formam `$'` nem `$\"`")
+                if valor is None:
+                    self.assertTrue(com_expansao or r.returncode != 0, f"None sem expansão nem erro do bash: {cru!r}")
+                else:
+                    self.assertEqual(r.returncode, 0, f"o bash recusa {cru!r} e o hook o reduz a {valor!r}")
+                    self.assertEqual(r.stdout.decode("utf-8", "surrogateescape"), valor)
+        self.assertGreaterEqual(len(casos), 1300)
+
     # As grafias de G1 (proposta caminho-rev9, 3B): a mesma palavra escrita pelos mecanismos de aspas do bash, que a
     # entrega igual ao programa. O teste de diferença (`test_reducao_da_palavra_como_o_bash`) prova cada uma no bash.
     GRAFIAS = {
@@ -2686,7 +2774,23 @@ exit 0
                         self.assertEqual(codigo, 2, f"{codigo}: {erro.strip()}")
                         self.assertRegex(erro, r"^R-[A-Z]+: ")
                         self.assertLess(segundos, 3.0, f"{len(texto)} caracteres")
+                        if n != 1000:  # `:`, o corpo e as palavras passam de 5 mil: quem recusa é o teto, não a regra do corpo
+                            self.assertRegex(erro, "o teto é|linha longa demais")  # o 2.o: o teto antigo do conformidade
         print(f"\n[T] pior tempo de decisão: {pior:.2f} s", file=sys.stderr)
+
+    @staticmethod
+    @contextlib.contextmanager
+    def limite_de_tempo(segundos):
+        """Falha o teste (AssertionError) se o bloco passa de `segundos` s: o alarme interrompe a conta lenta."""
+        def estourar(signo, quadro):
+            raise AssertionError(f"passou de {segundos} s")
+        anterior = signal.signal(signal.SIGALRM, estourar)
+        signal.setitimer(signal.ITIMER_REAL, segundos)
+        try:
+            yield
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, anterior)
 
     def test_t_reconhecedor_da_reavaliacao_e_linear(self):  # item 2 do critério de fim do bloco T
         """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 1 s (a
@@ -2695,7 +2799,7 @@ exit 0
         casos = {"shell": ["bash"] * 50_000, "shell com opção": ["bash"] * 49_999 + ["-c"], "env": ["env"] * 50_000,
                  "env -S": ["env", "-S", "x"] * 16_000, "não se reduz": [None] * 50_000, "inerte": ["x"] * 50_000}
         for nome, palavras in casos.items():
-            with self.subTest(nome=nome):
+            with self.subTest(nome=nome), self.limite_de_tempo(5):
                 inicio = time.perf_counter()
                 _comum.reavaliacao_das_palavras(palavras)
                 _comum.separar_lancadores([p or "" for p in palavras])
