@@ -1,0 +1,49 @@
+{
+  "pedido": "est-030-l3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "regra_protegidos so libera o que acrescimo_inerte prova",
+      "arquivo": "tests/catraca.py",
+      "de": "if a.startswith(PROTEGIDOS) and not acrescimo_inerte(raiz, b, h, a)]",
+      "para": "if a.startswith(PROTEGIDOS) and not True]",
+      "testes": [
+        "tests.test_catraca.Protegidos.test_m9_s1_arvore_igual_passa_sem_rotulo",
+        "tests.test_catraca.Protegidos.test_m9_remocao_alteracao_e_o_que_nao_sabe_classificar_seguem_pedindo_o_rotulo"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a S2 so vale em tests/catraca.py, mesmo que outro .py declare MONOTONICAS",
+      "arquivo": "tests/catraca.py",
+      "de": "if caminho != \"tests/catraca.py\" or len(arv_antes.body)",
+      "para": "if len(arv_antes.body)",
+      "testes": [
+        "tests.test_catraca.Protegidos.test_m9_s2_so_vale_em_tests_catraca_py_mesmo_que_outro_py_declare_a_lista"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a S2 exige o mesmo nome de constante no head (renomear pede o rotulo)",
+      "arquivo": "tests/catraca.py",
+      "de": "_nome_atribuido(d) == _nome_atribuido(a) and ",
+      "para": "",
+      "testes": [
+        "tests.test_catraca.Protegidos.test_m9_s2_renomear_constante_monotonica_pede_o_rotulo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "S1: primeira linha com #! igual byte a byte",
+      "arquivo": "tests/catraca.py",
+      "de": "and antes.split(b\"\\n\", 1)[0] != depois.split(b\"\\n\", 1)[0]:",
+      "para": "and False:",
+      "testes": [
+        "tests.test_catraca.Protegidos.test_m9_shebang_trocado_pede_o_rotulo",
+        "tests.test_catraca.Protegidos.test_m9_shebang_com_a_opcao_o_pede_o_rotulo",
+        "tests.test_catraca.Protegidos.test_m9_shebang_com_fim_de_linha_diferente_pede_o_rotulo"
+      ]
+    }
+  ]
+}
