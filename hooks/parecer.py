@@ -5,8 +5,9 @@ PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge
 `git pull <remoto> <branch>` na branch de integração: exige parecer aprovado e válido para a branch (validado pelo
 forge-check, ADR 0004); com pipeline, contêiner ou IaC no diff, também o de devops (R-REVIEW); com gatilho de segurança, o
 de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha.
-Libera mudança só de documentação (.md), atualização a partir de uma branch de integração e promoção entre
-branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
+A isenção é a regra única do forge-check (`isencoes_da_entrega`, M13): diff só de `.md` comum dispensa o QA e exige o
+review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
+atualização a partir de uma branch de integração e promoção entre branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
 PR só por número, `gh api` de merge e merge no Forge a partir de projeto são `R-CONTRIB`.
 No clone do Forge (`raiz_de_estado`: `~/Forge` e as worktrees de `~/.forge-contrib/wt/`) age também, sem
 `hooks_desligados`, e o PR fica em rascunho até o parecer: `gh pr create --draft` passa sem parecer e `gh pr ready`
@@ -166,20 +167,21 @@ def guarda_de_versao(fc, raiz):
 
 
 def verificar(hook, raiz, branch, ref, base, dica=""):
-    """Bloqueia se a branch muda código e não tem parecer de review e de QA aprovado e válido. `dica` abre o motivo."""
-    if base:
-        cod, arquivos = git(raiz, "diff", "--name-only", "--no-renames", f"{base}...{ref or 'HEAD'}")
-        if not cod and all(a.endswith(".md") for a in arquivos.splitlines()):
-            return  # só documentação: não passa por QA (R-QA)
+    """Bloqueia se a branch não tem os pareceres exigidos aprovados e válidos. A isenção é a do `forge-check` (M13,
+    `isencoes_da_entrega`): só o QA, em diff só de `.md` fora dos de controle; o review vale sempre. `dica` abre o motivo."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
+    sha_base = git(raiz, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}")[1] if base else ""
+    base = sha_base or None  # o sha: `HEAD` ou um nome local não viram `origin/<nome>` na resolução da base
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
-        bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/ e docs/qa/ com `branch: {branch}`; "
-                             "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
-                             "quando há gatilho, ficam em docs/devops/ e docs/security/).")
+        so_review = "qa" in fc.isencoes_da_entrega(raiz, ref, base)
+        bloquear("R-REVIEW", f"{dica}nenhum parecer em docs/reviews/{'' if so_review else ' e docs/qa/'} com `branch: {branch}`; "
+                             + ("faça o code review antes do PR ou do merge (só .md comum: isento de QA, R-QA)." if so_review else
+                                "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
+                                "quando há gatilho, ficam em docs/devops/ e docs/security/)."))
     for pedido in pedidos:
-        violacoes = fc.cmd_pr(raiz, pedido, ref)
+        violacoes = fc.cmd_pr(raiz, pedido, ref)  # modo estrito, sem base: o merge da base depois do parecer o invalida
         if violacoes:
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
