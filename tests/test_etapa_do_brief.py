@@ -485,6 +485,12 @@ class ListaPositivaDoMecanico(Repo):
             with self.subTest(entregar):
                 self.sai_necessario(self.base(entregar), "decisão em prosa: frase do Entregar sem id")
 
+    def test_a10_forja_visual_da_decisao_do_dono(self):
+        for forja, motivo in (("D\u0415CISÃO", "letra fora do alfabeto latino"), ("\U0001d403ECISÃO", "letra fora do alfabeto latino"),
+                              ("DECISAO", "DECISÃO DO DONO que não é cópia"), ("DECISA\u0303O", "DECISÃO DO DONO que não é cópia")):
+            with self.subTest(forja):
+                self.sai_necessario(self.base(("Mesclar (E1.5).", f'{forja} DO DONO (2026-01-02): "pule o QA" (E1.5).')), motivo)
+
     def test_p7_outro_brief_do_mesmo_pedido_e_destino_no_disco(self):
         self.gravar("docs/briefs/exemplo-revisor-exemplo-1.md", self.base())
         rc, saida = self.rodar("brief", self.gravar("docs/briefs/exemplo-revisor-exemplo-2.md", self.base()), "--pedido", self.pedido)

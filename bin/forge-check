@@ -4309,6 +4309,8 @@ def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linh
         return necessario(f"o script não decide: {sem_controle(incerta or 'decisões não conferidas')[:60]}")
     if recusa_do_texto(texto):
         return necessario("caractere invisível ou delimitador no brief")
+    if any(unicodedata.category(c)[0] == "L" and c not in "ªº" and not unicodedata.name(c, "").startswith("LATIN") for c in texto):
+        return necessario("letra fora do alfabeto latino no brief")  # segurança A10: forja visual (o E cirílico em DECISÃO)
     pedido, secoes = ler_pedido_brief(pedido_txt), secoes_por(texto, CABECALHO_BRIEF)
     citados = ids_em_citacao(" ".join(secoes.get("Entregar", [])))
     if not any(e in citados for e in pedido["etapas"]):
