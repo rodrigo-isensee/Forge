@@ -4,6 +4,12 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.1] - 2026-10-24
+### Adicionado
+- CI do Forge reexecuta as provas `cmd` do arquivo `docs/provas/<pedido>.md` no sha do PR, sem shell, com lista permitida e falha fechada: toda linha do arquivo é lida e só passa vazia, título, `Propósito:` ou prova no formato exato; arquivo sem prova reprova; `unittest` só com `pacote.modulo` (`scripts/reexecutar-provas.py`, EST-030-L2, M15)
+### Alterado
+- a catraca deixa de pedir o rótulo afrouxa-regra em dois casos estreitos de Python em caminho protegido: a árvore de sintaxe não muda (S1: só comentário, espaço ou quebra de linha) ou só entram itens literais numa constante da lista `MONOTONICAS` da base (S2: `PROTEGIDOS`, `SENSIVEIS`, `PASTAS_CUSTO`, chaves de `CUSTO`); função nova, remoção, alteração e o que não sabe classificar seguem pedindo; corpus dos 11 afrouxamentos reais e ADR 0008 atualizados (EST-030-L3, M9)
+
 ## [0.30.0] - 2026-10-24
 ### Adicionado
 - forge-check entrega aceita como --desde a base do delta fixada pelo dono no Histórico, limita o escopo de uma integração da base ao que difere dos dois pais e lê pedido e briefs fora do clone com --raiz-pedidos (CONF-BASE-DONO)
