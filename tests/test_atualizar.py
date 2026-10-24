@@ -17,7 +17,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -42,6 +42,10 @@ fi
 if [ -f "$FAKE_DIR/sigint-no-add" ] && [ "$2 $3" = "marketplace add" ] && [[ "$*" == *"#v"* ]]; then
   kill -INT $PPID; sleep 0.6; exit 1
 fi
+# Imita a develop do projeto avançando no remoto no meio da atualização (outra pessoa enviou um commit)
+if [ -f "$FAKE_DIR/avanca-develop" ] && [ "$2 $3" = "marketplace add" ] && [[ "$*" == *"#v"* ]]; then
+  sh "$FAKE_DIR/avanca-develop"; rm -f "$FAKE_DIR/avanca-develop"
+fi
 exit 0
 """
 
@@ -61,7 +65,7 @@ class Base(unittest.TestCase):
         # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas), e os scripts se recusam a rodar
         # aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do ambiente do subprocesso.
         self.env = {k: v for k, v in os.environ.items()
-                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT")}
+                    if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
                         PATH=f"{self.bin}:{os.environ['PATH']}", FAKE_DIR=str(self.fake), FORGE_HOJE=HOJE,
                         FORGE_REPO_URL=str(self.publicado), FORGE_PERMITE_LOCAL="1")
@@ -158,18 +162,25 @@ class Base(unittest.TestCase):
         os.close(escravo)
         saida, fim = b"", time.time() + limite
         ultima_saida = time.time()
+        fechou = False
         while time.time() < fim and time.time() - ultima_saida < ocioso:
             if not select.select([mestre], [], [], 1)[0]:
                 continue
             try:
                 bloco = os.read(mestre, 4096)
             except OSError:
-                break
+                bloco = b""
             if not bloco:
+                fechou = True
                 break
             saida += bloco
             ultima_saida = time.time()
-        if p.poll() is None:  # pergunta sem resposta: o teste falha em vez de travar
+        if fechou:  # terminal fechado: sem como ler resposta; o fim do processo pode vir logo depois (sob carga)
+            try:
+                p.wait(timeout=max(1, fim - time.time()))
+            except subprocess.TimeoutExpired:
+                pass
+        if p.poll() is None:  # pergunta sem resposta (ou o limite): o teste falha em vez de travar
             p.kill()
             saida += b"\n[TRAVOU esperando resposta]"
         p.wait(timeout=30)
@@ -321,6 +332,213 @@ class Atualizar(Base):
         self.assertIn("forge/upgrade-9.9.2", saida)
 
 
+class AtualizarComDevelopQueAvancou(Base):
+    """F4: a branch do upgrade nasce da develop atual do projeto; conflito só em `.forge/versao` é oferecido ao dono."""
+
+    def outro_clone(self):
+        outro = self.tmp / "outro"
+        self.git("clone", "-q", str(self.tmp / "remoto.git"), str(outro), cwd=self.tmp)
+        self.git("switch", "-q", "develop", cwd=outro)
+        return outro
+
+    def avancar_remoto(self, arquivo, texto, outro=None):
+        outro = outro or self.outro_clone()
+        (outro / arquivo).parent.mkdir(parents=True, exist_ok=True)
+        (outro / arquivo).write_text(texto, encoding="utf-8")
+        self.git("add", arquivo, cwd=outro)
+        self.git("commit", "-q", "-m", f"chore: mexe em {arquivo}", cwd=outro)
+        return outro
+
+    def avancar_no_meio(self, arquivo, texto, outro=None):
+        """Prepara o commit e deixa o `claude` falso enviá-lo à develop remota durante a troca do plugin."""
+        outro = self.avancar_remoto(arquivo, texto, outro)
+        (self.fake / "avanca-develop").write_text(f"#!/bin/sh\ngit -C {outro} push -q origin HEAD:develop\n", encoding="utf-8")
+
+    def base_e_a_develop_remota(self, ramo):
+        self.assertEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", ramo))
+
+    def test_a_branch_nasce_da_develop_atual_mesmo_com_a_local_atrasada(self):
+        self.publicar("9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:novo-do-time.txt"), "do time")
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+        self.base_e_a_develop_remota("forge/upgrade-9.9.0")
+
+    def test_develop_que_avanca_no_meio_sem_conflito_entra_na_branch(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio("novo-do-time.txt", "do time\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:novo-do-time.txt"), "do time")
+        self.base_e_a_develop_remota("forge/upgrade-9.9.0")
+        self.assertNotIn("conflito", saida.lower())
+
+    def test_conflito_em_forge_versao_oferece_manter_a_nova_e_conclui(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "0.1.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn(".forge/versao", saida)
+        self.assertIn("Manter a versão 9.9.0", saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+        self.base_e_a_develop_remota("forge/upgrade-9.9.0")
+        self.assertEqual(self.git("status", "--porcelain"), "")
+        self.assertEqual(self.git("branch", "--show-current"), "forge/upgrade-9.9.0")
+        self.assertEqual(self.git("ls-remote", "--heads", "origin").count("upgrade"), 0, "nunca envia nada")
+
+    def test_conflito_em_forge_versao_recusado_pelo_dono_desfaz_a_mesclagem(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "0.1.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+        self.assertNotEqual(self.git("rev-parse", "origin/develop"), self.git("merge-base", "origin/develop", "forge/upgrade-9.9.0"))
+
+    def test_conflito_em_outro_arquivo_nao_e_resolvido_pelo_comando(self):
+        self.publicar("9.9.0")
+        # arquivo alterado nos dois lados: conflito que não é do `.forge/versao`
+        self.escrever("regras.txt", "base\n")
+        self.git("add", "regras.txt")
+        self.git("commit", "-q", "-m", "chore: regras")
+        self.git("push", "-q", "origin", "main")
+        self.git("push", "-q", "origin", "HEAD:develop")
+        self.git("branch", "-f", "develop", "HEAD")
+        self.git("switch", "-q", "develop")
+        self.escrever("regras.txt", "meu\n")
+        self.git("commit", "-q", "-am", "chore: regras minhas")
+        outro = self.outro_clone()
+        self.git("fetch", "-q", "origin", cwd=outro)
+        self.git("reset", "-q", "--hard", "origin/develop", cwd=outro)
+        self.avancar_no_meio("regras.txt", "do time\n", outro)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("regras.txt", saida)
+        self.assertEqual(self.git("status", "--porcelain"), "", "a mesclagem foi desfeita")
+
+    def test_nada_a_fazer_na_main_nao_mescla_a_develop_na_main(self):
+        # o projeto já está em 9.9.0 (a release chegou por PR) e o plugin ainda não: `forge-upgrade` diz "nada a fazer"
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "main")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore: versão 9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        antes = self.git("rev-parse", "main")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "main"), antes, "nenhum commit novo na main")
+        self.assertEqual(self.git("branch", "--show-current"), "main")
+        self.assertFalse((self.proj / "novo-do-time.txt").exists())
+        self.assertNotIn("atualizados na branch", saida, "não diz que mexeu em branch nenhuma")
+
+    def test_nada_a_fazer_em_branch_qualquer_nao_mescla_a_develop(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "-c", "funcionalidade/x")
+        self.escrever(".forge/versao", "9.9.0\n")
+        self.git("commit", "-q", "-am", "chore: versão 9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        antes = self.git("rev-parse", "HEAD")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "HEAD"), antes, "nenhum commit novo na branch")
+        self.assertFalse((self.proj / "novo-do-time.txt").exists())
+        self.assertEqual(self.git("rev-list", "--merges", "--count", "HEAD"), "0")
+
+    def test_parado_na_develop_atrasada_ela_avanca_e_a_branch_nasce_dela(self):
+        self.publicar("9.9.0")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        self.git("switch", "-q", "develop")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), self.git("rev-parse", "origin/develop"))
+        self.assertIn("avancei", saida)
+        self.base_e_a_develop_remota("forge/upgrade-9.9.0")
+
+    def test_develop_local_divergente_fica_intacta_e_o_dono_e_avisado(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "develop")
+        self.escrever("meu.txt", "meu\n")
+        self.git("add", "meu.txt")
+        self.git("commit", "-q", "-m", "chore: meu commit local")
+        local = self.git("rev-parse", "develop")
+        outro = self.avancar_remoto("novo-do-time.txt", "do time\n")
+        self.git("push", "-q", "origin", "HEAD:develop", cwd=outro)
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), local, "a develop local não foi mexida")
+        self.assertIn("divergiu", saida)
+        self.assertNotIn("avancei", saida, "não diz que avançou o que não avançou")
+
+    def test_conflito_com_versao_maior_na_develop_mostra_as_duas_e_avisa_que_s_rebaixa(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "99.0.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("99.0.0", saida)
+        self.assertIn("9.9.0", saida)
+        self.assertIn("rebaixa", saida)
+
+    def test_conflito_com_versao_menor_na_develop_mostra_as_duas_sem_aviso_de_rebaixar(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".forge/versao", "0.1.0\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("0.1.0", saida)
+        self.assertNotIn("rebaixa", saida)
+
+    def test_versao_da_develop_fora_do_formato_avisa_pergunta_e_com_n_desfaz_tudo(self):
+        for lixo in ("0.4", "lixo"):
+            with self.subTest(versao=lixo):
+                self.setUp()
+                self.publicar("9.9.0")
+                self.avancar_no_meio(".forge/versao", lixo + "\n")
+                codigo, saida = self.rodar(ATUALIZAR, respostas=["s", "n", "n"])
+                self.assertEqual(codigo, 1, saida)
+                self.assertNotIn("Traceback", saida)
+                self.assertIn(lixo, saida)
+                self.assertIn("X.Y.Z", saida, "avisa que não dá para comparar")
+                self.assertIn("Manter a versão 9.9.0", saida, "pergunta ao dono (padrão N)")
+                self.assertEqual(self.git("status", "--porcelain"), "", "sem UU e sem marcadores")
+                merge_head = self.git("rev-parse", "--git-path", "MERGE_HEAD")
+                self.assertFalse((self.proj / merge_head).exists() or Path(merge_head).exists(), "sem MERGE_HEAD")
+                self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+                self.assertEqual(self.git("branch", "--show-current"), "forge/upgrade-9.9.0")
+
+    def test_develop_local_a_frente_do_remoto_avisa_que_a_branch_nasce_com_commits_nao_enviados(self):
+        self.publicar("9.9.0")
+        self.git("switch", "-q", "develop")
+        self.escrever("meu.txt", "meu\n")
+        self.git("add", "meu.txt")
+        self.git("commit", "-q", "-m", "chore: meu commit local")
+        local = self.git("rev-parse", "develop")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("rev-parse", "develop"), local, "a develop local não foi mexida")
+        self.assertIn("ainda não enviados", saida)
+        self.assertNotIn("avancei", saida)
+
+    def test_a_saida_lista_os_arquivos_trazidos_da_develop(self):
+        self.publicar("9.9.0")
+        self.avancar_no_meio(".claude/regras.md", "regra nova\n")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn(".claude/regras.md", saida)
+        self.assertIn("Atenção", saida, "destaca o que vale na máquina (.claude/, .forge/, hooks)")
+
+    def test_sem_remoto_o_fluxo_de_hoje_continua(self):
+        self.publicar("9.9.0")
+        self.git("remote", "remove", "origin")
+        codigo, saida = self.rodar(ATUALIZAR, respostas=["s"])
+        self.assertEqual(codigo, 0, saida)
+        self.assertEqual(self.git("show", "forge/upgrade-9.9.0:.forge/versao"), "9.9.0")
+
+
 class EsperaDoTerminal(Base):
     """`rodar` com respostas: lentidão do processo não reprova; pergunta sem resposta continua reprovando."""
 
@@ -333,6 +551,16 @@ class EsperaDoTerminal(Base):
         falso = self.script_falso("import time\nfor i in range(4):\n    print('passo', i, flush=True)\n    time.sleep(1.5)\nprint('pronto', flush=True)\ntime.sleep(1.5)\n")
         # o total (~7,5 s) passa do intervalo ocioso (3 s), mas nunca ficam 3 s seguidos sem saída
         codigo, saida = self.rodar(falso, respostas=[], ocioso=3, limite=30)
+        self.assertEqual(codigo, 0, saida)
+        self.assertIn("pronto", saida)
+        self.assertNotIn("TRAVOU", saida)
+
+    def test_saida_fechada_antes_do_fim_do_processo_nao_marca_travou(self):
+        # Corrida vista no CI sob carga (PR #277): o terminal fecha (EIO no mestre) antes de o processo virar zumbi;
+        # aqui a janela é larga de propósito: o processo fecha o terminal e só termina 2 s depois.
+        falso = self.script_falso("import os, time\nprint('pronto', flush=True)\nfor fd in (0, 1, 2):\n"
+                                  "    os.close(fd)\ntime.sleep(2)\n")
+        codigo, saida = self.rodar(falso, respostas=[], ocioso=1, limite=30)
         self.assertEqual(codigo, 0, saida)
         self.assertIn("pronto", saida)
         self.assertNotIn("TRAVOU", saida)

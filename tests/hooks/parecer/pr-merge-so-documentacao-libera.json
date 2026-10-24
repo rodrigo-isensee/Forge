@@ -1,5 +1,5 @@
 {
-  "descricao": "Só .md contra a base: não passa por QA.",
+  "descricao": "Só .md comum contra a base, com review aprovado e sem QA: isento de QA (R-QA, M13), libera.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -12,6 +12,24 @@
         "notas.md": "oi\n"
       },
       "commit": "docs: notas"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: docs/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ]
+      },
+      "commit": "docs: review"
     },
     {
       "config": {

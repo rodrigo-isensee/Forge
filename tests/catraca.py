@@ -25,6 +25,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.parse
 import urllib.request
 from datetime import datetime
@@ -69,8 +70,20 @@ def ler(raiz, ref, caminho):
 
 
 def listar(raiz, ref, prefixo):
+    """Arquivos de `prefixo` em `ref`. Falha fechada: o git que falha levanta `ErroDeGit`, nunca devolve lista vazia."""
     cod, saida = git(raiz, "ls-tree", "-r", "--name-only", ref, prefixo)
-    return [] if cod else saida.splitlines()
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"o `git ls-tree` de {prefixo} em {ref} falhou"))
+    return saida.splitlines()
+
+
+def existe(raiz, ref, caminho):
+    """True se `caminho` existe em `ref`. O `ls-tree` sai 0 sem linha para caminho ausente num commit válido; código diferente
+    de 0 é erro do git (levanta `ErroDeGit`), e não "ausente" como no `ler`."""
+    cod, saida = git(raiz, "--literal-pathspecs", "ls-tree", "--name-only", ref, "--", caminho)
+    if cod:
+        raise ErroDeGit(msg_falha_git(f"o `git ls-tree` de {caminho} em {ref} falhou"))
+    return bool(saida.strip())
 
 
 def json_de(raiz, ref, caminho):
@@ -81,17 +94,38 @@ def json_de(raiz, ref, caminho):
         return {}
 
 
-class ErroDeDiff(Exception):
+class ErroDeGit(Exception):
+    """Uma leitura do git de que a decisão depende falhou: erro do git não é "ausente" nem "nada mudou". O texto já é a violação."""
+
+
+class ErroDeDiff(ErroDeGit):
     """O `git diff` que lista os arquivos alterados falhou: sem a lista, a catraca não pode dizer que nada mudou."""
 
 
 SEM_LISTA = "não consegui listar os arquivos alterados"
+NAO_LIBERAVEL = "o rótulo não libera esta violação"  # marca comum das violações de falha do git (a guarda do rótulo a procura)
+
+
+def msg_falha_git(detalhe):
+    return msg("R-CONFORMIDADE", f"falha do git ao ler o repositório ({detalhe})",
+               "sem a leitura a catraca não sabe o que mudou, e tratar o erro como arquivo ausente ou lista vazia deixaria passar a mudança",
+               f"confira se a base e o head existem no clone (`git fetch`) e rode de novo; {NAO_LIBERAVEL}", ADR)
 
 
 def msg_diff(base, head):
     return msg("R-CONFORMIDADE", f"{SEM_LISTA} entre {base} e {head} (o `git diff` falhou)",
                "sem a lista a catraca não sabe o que mudou, e lista vazia deixaria passar mudança em arquivo protegido",
-               "confira se a base e o head existem no clone (`git fetch`) e rode de novo; o rótulo não libera esta violação", ADR)
+               f"confira se a base e o head existem no clone (`git fetch`) e rode de novo; {NAO_LIBERAVEL}", ADR)
+
+
+def violacao_de_git(e):
+    """A violação de uma falha do git: o texto de `ErroDeGit`, ou o estouro de prazo ou a falta do próprio `git`."""
+    if isinstance(e, ErroDeGit):
+        return str(e)
+    return msg_falha_git(f"o git não terminou: {type(e).__name__}")
+
+
+FALHAS_DO_GIT = (ErroDeGit, subprocess.TimeoutExpired, OSError)
 
 
 def alterados(raiz, base, head):
@@ -418,9 +452,18 @@ def arquivo_da_violacao(v):
 
 
 def regra_protegidos(raiz, b, h):
-    if ler(raiz, b, "tests/catraca.py") is None:  # introdução da própria catraca
+    if not existe(raiz, b, "tests/catraca.py"):  # introdução da própria catraca; erro do git levanta (não é "ausente")
         return []
     return [msg_protegido(a) for a in alterados(raiz, b, h) if a.startswith(PROTEGIDOS)]
+
+
+FORMA_COMPILADA = re.compile(r"(^|/)__pycache__/|\.(pyc|pyo|pyd|so)$")  # lista fixa: o que o interpretador carrega no lugar do fonte (K10-CAT)
+
+
+def regra_compilados(raiz, b, h):
+    """A forma compilada (bytecode, extensão nativa) é carregada no lugar do fonte: mudá-la troca o controle sem mudar o fonte.
+    Em qualquer pasta, pede o rótulo como um protegido; o que `regra_protegidos` já pede (prefixo de `hooks/_comum.py`) não conta duas vezes."""
+    return [msg_protegido(a) for a in alterados(raiz, b, h) if FORMA_COMPILADA.search(a) and not a.startswith(PROTEGIDOS)]
 
 
 def regra_arquivos_de_regras(raiz, b, h, cfg_base):
@@ -436,8 +479,8 @@ def regra_arquivos_de_regras(raiz, b, h, cfg_base):
 def violacoes_das_regras(raiz, base, head="HEAD"):
     try:
         return _violacoes_das_regras(raiz, base, head)
-    except ErroDeDiff as e:
-        return [str(e)]
+    except FALHAS_DO_GIT as e:
+        return [violacao_de_git(e)]
 
 
 def _violacoes_das_regras(raiz, base, head):
@@ -446,7 +489,7 @@ def _violacoes_das_regras(raiz, base, head):
     permitido = (ch or {}).get("custo_permitido", {})
     return (regras_de_config(cb, ch or {}) + regra_arquivos_de_regras(raiz, b, head, cb or {}) + regra_hooks(raiz, b, head) + regra_testes(raiz, b, head)
             + regra_testes_enfraquecidos(raiz, b, head) + regra_politica(raiz, b, head)
-            + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head))
+            + regra_custo(raiz, head, permitido) + regra_protegidos(raiz, b, head) + regra_compilados(raiz, b, head))
 
 
 # --- Rótulo do dono ----------------------------------------------------------------------------------------
@@ -528,10 +571,48 @@ def rotulo_vale_pelo_conteudo(raiz, base, head, eventos, execucoes, numero, dono
     return not violacoes_novas(atuais, violacoes_das_regras(raiz, base, sha))
 
 
+PRAZO_TOTAL_DA_API = 240  # segundos para todas as chamadas à API: no máximo metade do `timeout-minutes: 10` do job (medido: p95 do job 20 s)
+PRAZO_POR_CHAMADA = 30  # segundos por operação de rede, limitado pelo que resta do prazo total
+
+
+class PrazoDaApiEsgotado(OSError):
+    """O prazo total da API acabou. É `OSError` para que as capturas que já existem a tratem como "sem rótulo"."""
+
+
+def relogio():
+    return time.monotonic()
+
+
+class PrazoDaApi:
+    """Prazo total das chamadas à API, contado num relógio monotônico desde a primeira chamada."""
+
+    def __init__(self):
+        self.reiniciar()
+
+    def reiniciar(self):
+        self.inicio, self.avisou = None, False
+
+    def por_chamada(self):
+        """Prazo da próxima chamada: o menor entre PRAZO_POR_CHAMADA e o que resta; levanta `PrazoDaApiEsgotado` se acabou."""
+        if self.inicio is None:
+            self.inicio = relogio()
+        restante = PRAZO_TOTAL_DA_API - (relogio() - self.inicio)
+        if restante <= 0:
+            if not self.avisou:
+                self.avisou = True
+                aviso("prazo da API esgotado")
+            raise PrazoDaApiEsgotado("prazo total da API esgotado")
+        return min(PRAZO_POR_CHAMADA, restante)
+
+
+PRAZO = PrazoDaApi()
+
+
 def requisicao(caminho, token):
+    prazo = PRAZO.por_chamada()
     req = urllib.request.Request(f"https://api.github.com{caminho}",
                                  headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=30) as r:
+    with urllib.request.urlopen(req, timeout=prazo) as r:
         return json.load(r)
 
 
@@ -540,16 +621,13 @@ def api_objeto(caminho, token):
     return requisicao(caminho, token)
 
 
+ERROS_DA_API = (OSError, ValueError, KeyError, TypeError, http.client.HTTPException)  # HTTPException inclui `IncompleteRead` (resposta cortada)
+
+
 def api(caminho, token, chave=None):
-    """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`)."""
-    itens, pagina = [], 1
-    while True:
-        lote = requisicao(f"{caminho}{'&' if '?' in caminho else '?'}per_page=100&page={pagina}", token)
-        lote = lote[chave] if chave else lote
-        itens += lote
-        if len(lote) < 100:
-            return itens
-        pagina += 1
+    """GET paginado; `chave` extrai a lista de uma resposta em objeto (ex.: `workflow_runs`). None se a lista passa de
+    TETO_PAGINAS páginas ou não é lista (`api_com_teto`): lista incompleta não decide nada."""
+    return api_com_teto(caminho, token, chave)
 
 
 def eventos_do_github():
@@ -565,7 +643,11 @@ def eventos_do_github():
     try:
         eventos = api(f"/repos/{repo}/issues/{numero}/events", token)
         execucoes = api(f"/repos/{repo}/actions/runs?head_sha={head}", token, "workflow_runs")
-    except (OSError, ValueError, KeyError, TypeError):
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
+        return None, None
+    if eventos is None or execucoes is None:
+        aviso(f"a resposta da API é incompleta ou passa de {TETO_PAGINAS} páginas")
         return None, None
     datas = [e["created_at"] for e in execucoes if e.get("head_sha", head) == head and e.get("created_at")]
     return eventos, (min(datas, key=instante) if datas else None)
@@ -579,7 +661,8 @@ def ramo_do_pr():
         return ""
     try:
         ramo = api_objeto(f"/repos/{repo}/pulls/{numero}", token)["head"]["ref"]
-    except (OSError, ValueError, KeyError, TypeError):
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
         return ""
     return ramo if isinstance(ramo, str) else ""
 
@@ -591,9 +674,13 @@ def execucoes_do_pr():
     if not ramo:
         return None
     try:
-        return api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
-    except (OSError, ValueError, KeyError, TypeError):
+        execucoes = api(f"/repos/{repo}/actions/runs?event=pull_request&branch={urllib.parse.quote(ramo, safe='')}", token, "workflow_runs")
+    except ERROS_DA_API as e:
+        aviso(f"a API do GitHub não respondeu por inteiro ({type(e).__name__})")
         return None
+    if execucoes is None:
+        aviso(f"a resposta da API é incompleta ou passa de {TETO_PAGINAS} páginas")
+    return execucoes
 
 
 # --- Rótulo já posto num PR mesclado (S-16) ----------------------------------------------------------------
@@ -626,7 +713,7 @@ class FonteGithub:
     def _ou_none(self, f):
         try:
             return f()
-        except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException):
+        except ERROS_DA_API:
             return None
 
     def pr_atual(self):
@@ -835,7 +922,7 @@ def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
     """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem."""
     try:
         return liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono)
-    except (subprocess.TimeoutExpired, OSError) as e:
+    except FALHAS_DO_GIT as e:
         aviso(f"o git não terminou ({type(e).__name__})")
         return None
 
@@ -891,8 +978,32 @@ def so_troca_sha_de_acoes(raiz, b, h):
 def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     try:
         return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
-    except ErroDeDiff as e:
-        return [str(e)]
+    except FALHAS_DO_GIT as e:
+        return [violacao_de_git(e)]
+
+
+def pareceres_que_nao_aprovam(raiz, fc, pedidos, head):
+    """Violações do último parecer de cada tipo (review, qa, revisao-devops, revisao-seguranca) dos `pedidos` da branch, quando
+    ele não aprova. O "último" usa a chave do `cmd_pr` (data, caminho); o critério é o dele: `aprovado`, ou `riscos-aceitos` com
+    o aceite do usuário. Não depende de arquivo sensível, do tipo ser exigido nem da base (QA na `develop` inclusive)."""
+    achadas = []
+    for ped in pedidos:
+        for tipo, (_, rid) in fc.PASTA_E_REGRA.items():
+            candidatos = []
+            for rel, texto in fc.documentos(Path(raiz), tipo, head):
+                campos, _ = fc.validar_documento(rel, texto)
+                if campos is not None and campos.get("pedido") == ped:
+                    candidatos.append((campos.get("data", ""), rel, campos))
+            if not candidatos:
+                continue
+            _, rel, campos = sorted(candidatos, key=lambda c: c[:2])[-1]
+            valor = campos.get("parecer")
+            if valor == "aprovado" or (valor == "riscos-aceitos" and fc.aceite_do_usuario(Path(raiz), ped, campos.get("commit"), head)):
+                continue
+            achadas.append(msg(rid, f"parecer que não aprova: {fc.caminho_impresso(rel)} (parecer: {valor})",
+                               "o último parecer do tipo não aprova (ou `riscos-aceitos` sem o aceite do usuário), e a mudança entraria mesmo assim",
+                               f"corrija e peça novo parecer, e confira com `bin/forge-check pr {ped}`", f"docs/regras/{rid}.md"))
+    return achadas
 
 
 def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
@@ -900,23 +1011,28 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
         return []
     b = base_efetiva(raiz, base, head)
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
-    if not tocados:
-        return []
-    fc, achados = forge_check(), []
+    fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
+    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head)
+    if not tocados:
+        return nao_aprovam
+    achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
         linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base) if l.strip()]
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas
     if pedidos and not achados:
-        return []
+        return nao_aprovam
     exige = "review e QA" if base_ref == "homolog" else "review"
     detalhe = f" ({'; '.join(achados[:2])})" if achados else ""
-    return [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
-                "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
-                f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
-                "docs/regras/R-REVIEW.md")]
+    sem_parecer = [msg("R-REVIEW", f"PR toca {tocados[0]} (e outros {len(tocados) - 1}) sem parecer aprovado de {exige}{detalhe}",
+                       "código que muda o comportamento dos agentes precisa de revisão antes de entrar",
+                       f"peça o parecer e confira com `bin/forge-check pr <pedido>` (parecer com `branch: {ramo}`)",
+                       "docs/regras/R-REVIEW.md")]
+    # o parecer de tipo exigido que não aprova já está dito no `detalhe`: só entra o que o `cmd_pr` não lê (tipo não exigido, QA na develop)
+    ja_ditos = [l.split(": parecer:", 1)[0] for l in achados if ": parecer: o último" in l]
+    return sem_parecer + [v for v in nao_aprovam if not any(caminho in v for caminho in ja_ditos)]
 
 
 def resumo(titulo, linhas):
@@ -930,7 +1046,7 @@ def resumo(titulo, linhas):
 def main(argv=None):
     try:
         return _main(argv)
-    except ErroDeDiff as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
+    except ErroDeGit as e:  # um diff que falha fora das regras (ex.: conferir o rótulo) também deixa a catraca vermelha
         print(e)
         resumo("catraca", [str(e)])
         return 1
@@ -951,6 +1067,7 @@ def _main(argv=None):
     ap.add_argument("--pr", default=os.environ.get("PR_NUMBER", ""), help="número do PR")
     ap.add_argument("--mesclados", help="JSON com o PR atual e os PRs mesclados (testes; formato em FonteJson); ignora a API")
     a = ap.parse_args(argv)
+    PRAZO.reiniciar()  # o prazo da API vale por execução
     raiz = Path(a.raiz).resolve()
     if a.modo in ("regras", "pareceres") and a.autor == DEPENDABOT and so_troca_sha_de_acoes(raiz, base_efetiva(raiz, a.base, a.head), a.head):
         resumo(a.modo, ["PR do dependabot que só troca SHA de ações em workflows: passa sem rótulo e sem parecer (ADR 0008)"])
@@ -968,7 +1085,7 @@ def _main(argv=None):
                 eventos, push = eventos_do_github()
             cfg = json_de(raiz, base_efetiva(raiz, a.base, a.head), "tests/config.json")  # só a base: o head é do autor
             cfg = cfg if isinstance(cfg, dict) else {}
-            custo = [x for x in viol if x.startswith("R-CUSTO:") or SEM_LISTA in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem sem a lista de arquivos
+            custo = [x for x in viol if x.startswith("R-CUSTO:") or NAO_LIBERAVEL in x]  # só `custo_permitido` abre exceção de custo; o rótulo não vale nem com o git falho
             dono, liberado = cfg.get("dono"), None
             if not custo and eventos is not None:
                 if push and rotulo_liberado(eventos, dono, push):

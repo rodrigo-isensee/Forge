@@ -18,7 +18,8 @@ Formato do fixture:
               "nproc": núcleos (8)} ou {"ausente": true} (padrão: sem leitura, ou seja, o padrão 3)
   estado      {arquivo: objeto ou texto} gravados em .forge/run/ antes de rodar
   entrada     JSON do hook ({raiz} e {tmp} viram caminhos; "{agora-N}" e os PIDs viram números: "{pid_vivo}" é a
-              sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada)
+              sessão que chama o hook, "{pid_outro}" outra sessão viva, "{pid_morto}" uma encerrada; "{pid_ns}" é o namespace de PID
+              do teste, como o `agentes` o grava, ou texto vazio sem /proc)
   passos      antes da `entrada`, em ordem: {"entrada": {...}} roda o hook (código 0; no SessionStart, stdout vazio); {"gravar": {caminho: texto}} e
               {"anexar": {caminho: texto}} mexem em arquivos ({tmp} e {raiz} valem; relativo = da raiz do projeto)
               Também em passos: {"remover": [caminho]} apaga arquivos (como um `git rm` que o hook não viu) e
@@ -52,6 +53,8 @@ from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
+# Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
+PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -59,6 +62,13 @@ def pid_morto():
     p = subprocess.Popen([sys.executable, "-c", ""])
     p.wait()
     return p.pid
+
+
+def namespace_de_pid():
+    try:
+        return os.readlink("/proc/self/ns/pid")
+    except OSError:
+        return ""
 
 
 def substituir(valor, mapa, agora):
@@ -161,7 +171,7 @@ class Fixture:
         raiz.mkdir()
         d = self.dados
         mapa = {"{tmp}": str(tmp), "{raiz}": str(raiz), "{pid_vivo}": os.getpid(), "{pid_outro}": outro,
-                "{pid_morto}": pid_morto()}
+                "{pid_morto}": pid_morto(), "{pid_ns}": namespace_de_pid()}
         for chave, pasta in (("{marca}", raiz), ("{marca_wt}", tmp / "wt")):  # a marca da sessão: uma por raiz
             mapa[chave] = f".git/forge/projeto-{hashlib.sha256(os.path.realpath(pasta).encode()).hexdigest()[:16]}"
         git("init", "-q", "-b", "develop", cwd=raiz)
@@ -281,8 +291,22 @@ def rodar(hook, entrada, cwd, proc=None, extra=None):
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
-    return subprocess.run([sys.executable, str(HOOKS / f"{hook}.py")], input=json.dumps(entrada), cwd=cwd,
-                          env=env, capture_output=True, text=True, timeout=30)
+    return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd,
+                          env=env, capture_output=True, text=True, timeout=120)
+
+
+# O git dos hooks tem 5 s (o hook inteiro tem 10 s em hooks.json); com os processos da suíte em paralelo a máquina
+# carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
+# o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
+PRAZO_GIT_NOS_TESTES = 120
+LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; "
+            "_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3]); "
+            "sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
+
+
+def lancador(hook):
+    """Comando que roda hooks/<hook>.py como o Claude Code o roda, com o prazo do git largo para os testes."""
+    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES)]
 
 
 class Hooks(unittest.TestCase):
@@ -335,6 +359,8 @@ class Hooks(unittest.TestCase):
         proc = montar_proc(tmp, f.dados.get("proc"))
         extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
         extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
+        if f.dados.get("pathlib_312"):  # a fixture provoca erro interno por Path.exists (tests/apoio_pathlib_312)
+            extra["PYTHONPATH"] = str(PATHLIB_312)
         f.executar_passos(raiz, lambda e: rodar(f.hook, e, raiz, proc, extra))
         r = rodar(f.hook, entrada, raiz, proc, extra)
         esperado = f.dados["esperado"]
@@ -399,6 +425,28 @@ class Hooks(unittest.TestCase):
                 arquivo.parent.mkdir()
                 arquivo.write_text(json.dumps(dados), encoding="utf-8")
                 self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+
+    def test_vigia_com_git_lento_nao_falha_por_carga(self):
+        """O git lento (carga da máquina com a suíte em processos) não derruba o vigia: o primeiro `git` do PATH demora 6 s, mais que
+        os 5 s de produção, e o fixture `settings-local-nao-conta` segue verde; com o prazo de produção ele falharia."""
+        base = json.loads((FIXTURES / "vigia/settings-local-nao-conta.json").read_text(encoding="utf-8"))
+        real = shutil.which("git")
+        for prazo, passa in ((120, True), (5, False)):
+            with self.subTest(prazo=prazo), mock.patch(f"{__name__}.PRAZO_GIT_NOS_TESTES", prazo):
+                tmp = self._pasta_temporaria()
+                (tmp / "lento").mkdir()
+                atalho = tmp / "lento" / "git"
+                atalho.write_text(f'#!/bin/sh\n[ -e "{tmp}/lento/ja" ] || {{ : > "{tmp}/lento/ja"; sleep 6; }}\nexec "{real}" "$@"\n', encoding="utf-8")
+                atalho.chmod(0o755)
+                dados = {**base, "env": {"PATH": f"{tmp / 'lento'}{os.pathsep}{os.environ['PATH']}"}}
+                arquivo = tmp / "vigia" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(dados), encoding="utf-8")
+                if passa:
+                    self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
+                else:
+                    with self.assertRaises(AssertionError):
+                        self.executar_fixture(Fixture(arquivo), tmp, os.getpid())
 
     def test_git_rm_com_pathspec_magico_bloqueia(self):
         """As formas do pathspec do git (`:(literal)`, `:(glob)`, `:(icase)`, `:/`, curinga e `-r :/`) valem pelo que o git
@@ -768,6 +816,39 @@ class Hooks(unittest.TestCase):
                     if saved is not None:
                         os.sched_getaffinity = saved
 
+    def test_registro_de_agente_solta_so_com_prova_de_sessao_morta(self):
+        """F1 (C1-1, C1-2, C1-4): `sessao_morta` só diz True com pid válido, mesmo namespace e processo inexistente;
+        `vigentes` nunca levanta por causa de um registro; a casca ou o pid morto não entram no registro."""
+        sys.path.insert(0, str(HOOKS))
+        import agentes
+        agora, ns, morto = time.time(), agentes.namespace_de_pid(), pid_morto()
+        self.assertIsNotNone(ns, "o teste precisa de /proc/self/ns/pid")
+        base = {"id": "a1", "desde": agora - 60}
+        self.assertTrue(agentes.sessao_morta({**base, "pid": morto, "pidns": ns}))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": os.getpid(), "pidns": ns}))
+        for pid in ("123", True, 0, -1, 1.5, None, 2 ** 63, agentes.pid_max() + 1):
+            self.assertFalse(agentes.sessao_morta({**base, "pid": pid, "pidns": ns}), repr(pid))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": morto}))
+        self.assertFalse(agentes.sessao_morta({**base, "pid": morto, "pidns": "pid:[0]"}))
+        registros = [None, "x", 7, {"desde": "ontem"}, {**base, "pid": 2 ** 70, "pidns": ns}, {**base, "pid": morto, "pidns": ns}]
+        with mock.patch.object(agentes.os, "kill", side_effect=PermissionError):  # sem permissão: não é prova de morte
+            self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:])
+        with mock.patch.object(agentes, "sessao_morta", side_effect=RuntimeError):  # erro por registro mantém o registro
+            self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:])
+        self.assertEqual(agentes.vigentes(registros, agora, 7200), registros[4:5])
+        hook = mock.Mock()
+        hook.campo.return_value = "s1"
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
+            self.assertEqual(agentes.da_sessao(hook), {"pid": os.getpid(), "pidns": ns, "sessao": "s1"})
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=morto):  # pid que já morreu
+            self.assertEqual(agentes.da_sessao(hook), {})
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()), \
+                mock.patch.object(agentes, "CASCAS", {Path(f"/proc/{os.getpid()}/comm").read_text(encoding="utf-8").strip()}):
+            self.assertEqual(agentes.da_sessao(hook), {})  # casca: o intermediário some depois do hook
+        hook.campo.return_value = None  # sem session_id
+        with mock.patch.object(agentes, "pid_da_sessao", return_value=os.getpid()):
+            self.assertEqual(agentes.da_sessao(hook), {})
+
     def test_variaveis_de_substituicao_ficam_no_erros_log(self):  # R1
         raiz = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, raiz, True)
@@ -851,10 +932,19 @@ class Hooks(unittest.TestCase):
         self.assertTrue(pesado.pesado("cd tests && PYTHONPATH=. python -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
         self.assertFalse(pesado.pesado("python3 -m unittest tests.test_forge", pesado.pesados_da_raiz(hook, raiz)))
         self.assertFalse(pesado.pesado("echo python3 -m unittest discover", pesado.pesados_da_raiz(hook, raiz)))
+        # D4: a suíte dividida em processos (o que o pre-push e o CI chamam) também é a suíte inteira
+        for comando in ("python3 scripts/suite-paralela.py", "python scripts/suite-paralela.py",
+                        "scripts/suite-paralela.py", "./scripts/suite-paralela.py",
+                        "FORGE_SUITE_PROCS=2 python3 scripts/suite-paralela.py 2>&1 | tail -1",
+                        ".githooks/pre-push --suite"):
+            with self.subTest(comando=comando):
+                self.assertTrue(pesado.pesado(comando, pesado.pesados_da_raiz(hook, raiz)))
+        self.assertFalse(pesado.pesado("cat scripts/suite-paralela.py", pesado.pesados_da_raiz(hook, raiz)))
         hook = _comum.Hook("pesado")
         raiz = hook.projeto(projeto, clone_do_forge=True)
         self.assertEqual(raiz, projeto)
         self.assertFalse(pesado.pesado(suite, pesado.pesados_da_raiz(hook, raiz)))  # projeto: só o que a config lista
+        self.assertFalse(pesado.pesado("python3 scripts/suite-paralela.py", pesado.pesados_da_raiz(hook, raiz)))
 
     def test_entrada_invalida_libera(self):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
@@ -953,6 +1043,7 @@ class Hooks(unittest.TestCase):
             self.skipTest("o processo ignora permissões de pasta (root)")
         env = ambiente_limpo()
         env.pop("FORGE_GUARDA_ABERTA", None)
+        env["PYTHONPATH"] = str(PATHLIB_312)  # o PermissionError de exists() em toda versão do Python (a 3.14 o engole)
         for papel, esperado in {"forge-dev:aq": 2, "forge:dev": 0}.items():
             with self.subTest(papel):
                 entrada = {"tool_name": "Write", "tool_input": {"file_path": str(ilegivel / "sub" / "x.md")},

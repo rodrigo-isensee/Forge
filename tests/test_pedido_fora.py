@@ -41,7 +41,7 @@ class Fora(Raiz):
         self.assertIn(f"origem: {self.brief.resolve()}", saida)
 
     def test_brief_gerar_acha_o_pedido_fora(self):
-        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", "pedido-sintetico", "--destino", "forge:dev-exemplo")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", "pedido-sintetico", "--destino", "forge:dev-exemplo", "--cobre", "E1.1")
         self.assertEqual(rc, 0, saida)
         self.assertIn("Pedido: pedido-sintetico", saida)
 

@@ -56,5 +56,17 @@ class TestClareza(unittest.TestCase):
         self.assertIn("custo de eficiência em tempo e tokens por opção", ler("agents/jarvis.md"))
 
 
+
+class TestNomeDoPedidoNeutro(unittest.TestCase):
+    def test_modelo_de_pedido_pede_nome_neutro_no_forge(self):
+        t = ler("templates/projeto/docs/pedidos/_modelo.md")
+        self.assertIn("não leva nome de linguagem", t)
+        self.assertIn("`R-NEUTRO`", t)
+        self.assertIn("nunca leva segredo nem dado de pessoa", t)
+        self.assertIn("minúsculas, dígitos e hífen", t)
+        self.assertIn("renomear o `<assunto>`", t)
+        self.assertIn("nunca uma exceção", t)
+
+
 if __name__ == "__main__":
     unittest.main()

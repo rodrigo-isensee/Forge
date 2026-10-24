@@ -1,0 +1,26 @@
+{
+  "descricao": "Diff só de .md comum sem parecer: o review vale em toda entrega (R-REVIEW, M13); só o QA é isento.",
+  "git": [
+    {
+      "branch": "docs/guia"
+    },
+    {
+      "arquivos": {
+        "docs/guia.md": "# Guia\n"
+      },
+      "commit": "docs: mudança"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'docs: x' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW: nenhum parecer em docs/reviews/ com"
+  }
+}

@@ -35,6 +35,7 @@ Políticas:
 - Puxar, não empurrar; terminar antes de começar (`R-WIP`).
 - Nenhuma coluna é pulada no downstream (`R-REVIEW` code review antes do QA; `R-QA` portão de QA).
 - "Pronto" só com o merge do usuário (`R-MAIN` a main é do usuário).
+- **"Pronto: não reproduz"** (bug sem código, nada a mesclar): o cartão só entra em "Pronto" com a prova no lugar do merge, anotada no cartão ou no parecer: passos tentados, ambiente e versão (sistema, runtime, commit ou release) e a saída copiada da ferramenta. O usuário valida a prova; sem ela o cartão fica em "Aguardando sua validação". Medida: cartões em "Pronto" fora da política = 0.
 - Bloqueio: o cartão vai para "Bloqueado" com a coluna de origem anotada e volta para ela.
 - Cartão devolvido no code review ou no QA volta para "Em andamento" e conta como retrabalho.
 

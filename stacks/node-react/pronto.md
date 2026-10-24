@@ -48,3 +48,32 @@ O Chromium do Playwright precisa de bibliotecas do sistema (por exemplo `libnspr
 
 ## CI
 Insumos da skill `ci-cd` para o `devops-engineer`: toolchain Node da versão do `engines`/`.nvmrc`, com `pnpm` pela versão do `packageManager`; chave do cache de pacotes derivada do `pnpm-lock.yaml`; instalação congelada (`pnpm install --frozen-lockfile`); jobs na ordem lint e type-check, testes unitários e de integração, build, E2E (Chromium por padrão; Firefox e WebKit só no CI); imagem base `node` fixada por digest, em multi-stage, com usuário não root.
+
+### Dependabot (ecossistema de pacotes)
+Copie o bloco para o fim de `updates:` do `.github/dependabot.yml` do projeto (modelo em `templates/projeto/.github/dependabot.yml`). Diário às 06:00 (ajuste ao fuso do time); `cooldown` de 1 dia para minor e patch e de 7 para major; rotina só com minor e patch, e o grupo `maiores` à parte, que vira cartão de migração. `ignore` só versionado, por pacote, com o cartão no comentário.
+
+```yaml
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: develop
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 5
+    cooldown:
+      semver-major-days: 7
+      semver-minor-days: 1
+      semver-patch-days: 1
+    groups:
+      producao:
+        dependency-type: "production"
+        update-types: ["minor", "patch"]
+      desenvolvimento:
+        dependency-type: "development"
+        update-types: ["minor", "patch"]
+      maiores:
+        patterns: ["*"]
+        update-types: ["major"]
+    ignore: []
+```

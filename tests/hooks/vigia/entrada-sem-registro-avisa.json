@@ -1,0 +1,53 @@
+{
+  "descricao": "Lista de 4 itens do dono e nada gravado em docs/pedidos, docs/kanban nem KANBAN.md: avisa o dono, sem texto dele na saída nem no log.",
+  "arquivos": {
+    ".claude/settings.json": "{}\n",
+    ".githooks/pre-push": "#!/bin/sh\n"
+  },
+  "passos": [
+    {
+      "gravar": {
+        "{tmp}/t.jsonl": ""
+      }
+    },
+    {
+      "entrada": {
+        "hook_event_name": "SessionStart",
+        "source": "startup",
+        "session_id": "s1",
+        "transcript_path": "{tmp}/t.jsonl"
+      }
+    },
+    {
+      "anexar": {
+        "{tmp}/t.jsonl": [
+          "{\"type\": \"user\", \"uuid\": \"m1\", \"message\": {\"role\": \"user\", \"content\": \"Anota isso:\\n- banana azul\\n- laranja\\n3. maca verde\\n- uva\\n\"}}"
+        ]
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "Stop",
+    "session_id": "s1",
+    "transcript_path": "{tmp}/t.jsonl"
+  },
+  "esperado": {
+    "codigo": 0,
+    "saida": "a lista do turno não foi gravada em docs/pedidos/",
+    "estado": {
+      "violacoes.jsonl": {
+        "contem": [
+          "\"tipo\": \"entrada-sem-registro\"",
+          "itens=4",
+          "mensagem=m1"
+        ],
+        "ausente": [
+          "banana",
+          "laranja",
+          "maca",
+          "Anota"
+        ]
+      }
+    }
+  }
+}

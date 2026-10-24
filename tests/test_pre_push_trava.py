@@ -17,7 +17,8 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / ".githooks" / "pre-push"
-AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+# FORGE_SUITE_* (processos, medição, trava) da suíte que roda estes testes não vazam para a suíte de brinquedo.
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_"))})
 
 SUITE_RAPIDA = '''import unittest, pathlib
 class T(unittest.TestCase):
@@ -43,6 +44,22 @@ SUITE_VE_DESCRITOR = '''import unittest, pathlib, os
 class T(unittest.TestCase):
     def test_descritor(self):
         pathlib.Path("fd9").write_text(str(os.path.exists("/proc/self/fd/9")))
+'''
+SUITE_ORDEM = '''import unittest, pathlib, os
+class T(unittest.TestCase):
+    def test_ordem(self):
+        with open("ordem", "a") as f:
+            f.write(os.environ["QUEM"] + "\\n")
+'''
+SUITE_COM_PID = '''import unittest, pathlib, os, time
+class T(unittest.TestCase):
+    def test_espera_liberar(self):
+        pathlib.Path("suite-pid").write_text(str(os.getpid()))
+        for _ in range(600):
+            if pathlib.Path("liberar").exists():
+                return
+            time.sleep(0.1)
+        self.fail("ninguem liberou")
 '''
 SEGURA_TRAVA = '''import fcntl, sys, time
 f = open(sys.argv[1], "a")
@@ -79,7 +96,8 @@ class PrePushTrava(unittest.TestCase):
     def suite(self, texto):
         (self.repo / "tests" / "test_x.py").write_text(texto)
 
-    def hook(self, *args, entrada="", env=None, **extra):
+    def hook(self, *args, entrada=None, env=None, **extra):
+        entrada = self.refs("melhoria/x") if entrada is None else entrada  # um push de verdade traz ao menos uma ref
         env = dict(self.env if env is None else env, **extra)
         arquivo = Path(self._tmp.name) / f"entrada-{len(self.filhos)}-{time.monotonic_ns()}"
         arquivo.write_text(entrada)
@@ -88,7 +106,7 @@ class PrePushTrava(unittest.TestCase):
                 [str(HOOK), *args], cwd=self.repo, env=env, stdin=stdin,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
-    def roda(self, *args, entrada="", env=None, **extra):
+    def roda(self, *args, entrada=None, env=None, **extra):
         p = self.hook(*args, entrada=entrada, env=env, **extra)
         self.filhos.append(p)
         saida, erro = p.communicate(timeout=60)
@@ -276,6 +294,185 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(codigo, 1)
         self.assertIn("não é uma pasta do próprio usuário", erro)
         self.assertFalse((self.repo / "rodou").exists())
+
+    # SUITE-FILA-JUSTA: ordem de chegada pela fila de vezes ao lado da trava.
+    def fila(self):
+        return self.run_dir / f"forge-suite-{os.getuid()}.fila"
+
+    def vezes(self):
+        return sorted(p.name for p in self.fila().iterdir() if not p.name.startswith(".")) if self.fila().is_dir() else []
+
+    def segura_vez(self, nome="0000000000000000001-1"):
+        """Uma espera anterior viva: a vez presa por um processo externo."""
+        self.fila().mkdir(mode=0o700, exist_ok=True)
+        vez = self.fila() / nome
+        vez.write_text("")
+        p = subprocess.Popen([sys.executable, "-I", "-c", SEGURA_TRAVA, str(vez)], stdout=subprocess.PIPE, text=True)
+        self.filhos.append(p)
+        self.assertEqual(p.stdout.readline().strip(), "pronto")
+        return p
+
+    def test_espera_anterior_viva_tem_a_vez_mesmo_com_a_trava_livre(self):
+        self.suite(SUITE_RAPIDA)
+        self.segura_vez()
+        codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("esperando a vez", erro)
+        self.assertIn("a vez não chegou", erro)
+        self.assertFalse((self.repo / "rodou").exists(), "passou na frente de quem chegou antes")
+        self.assertEqual(self.vezes(), ["0000000000000000001-1"], "a vez de quem desistiu ficou na fila")
+
+    def test_vez_de_processo_morto_e_descartada(self):
+        self.suite(SUITE_RAPIDA)
+        self.fila().mkdir(mode=0o700)
+        (self.fila() / "0000000000000000001-1").write_text("")
+        codigo, _, erro = self.roda(FORGE_TRAVA_ESPERA="5")
+        self.assertEqual(codigo, 0, erro)
+        self.assertTrue((self.repo / "rodou").exists())
+        self.assertEqual(self.vezes(), [])
+
+    def test_quem_chega_antes_roda_antes(self):
+        self.suite(SUITE_ORDEM)
+        dono = self.segura_trava()
+        b = self.hook(QUEM="B")
+        self.filhos.append(b)
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "B não entrou na fila")
+        c = self.hook(QUEM="C")
+        self.filhos.append(c)
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 2), "C não entrou na fila")
+        _, saida, _ = self.roda("--status")
+        self.assertIn("2 na fila", saida)
+        dono.kill()
+        dono.wait()
+        self.assertEqual(b.wait(timeout=60), 0)
+        self.assertEqual(c.wait(timeout=60), 0)
+        self.assertEqual((self.repo / "ordem").read_text().split(), ["B", "C"])
+        self.assertEqual(self.vezes(), [])
+
+    def test_fila_que_e_link_espera_so_pela_trava(self):
+        self.suite(SUITE_RAPIDA)
+        alvo = self.run_dir / "alvo"
+        alvo.mkdir()
+        self.fila().symlink_to(alvo)
+        codigo, _, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("espera sem a ordem de chegada", erro)
+        self.assertEqual(list(alvo.iterdir()), [])
+        self.assertTrue((self.repo / "rodou").exists())
+
+    def test_push_sem_refs_a_enviar_nao_roda_a_suite(self):  # PREPUSH-JA-NO-REMOTO (decisão do dono, 2026-10-21 14:12)
+        """A branch já igual à remota: o git chama o hook sem nenhuma linha no stdin; não há o que testar nem a trava a pegar."""
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("origin", "u", entrada="")
+        self.assertEqual(codigo, 0, erro)
+        self.assertIn("nada a enviar", erro)
+        self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou sem ref a enviar")
+        self.assertEqual(list(self.run_dir.iterdir()), [], "sem ref a enviar, o hook não pega trava nem entra na fila")
+
+    def test_push_que_so_apaga_nao_roda_a_suite(self):  # PREPUSH-DELETE (decisão do dono, 2026-10-23: opção A)
+        """Só remoções (a limpeza pós-merge do R-FLUXO): sai com 0 sem suíte, sem trava e sem fila; uma ou várias."""
+        self.suite(SUITE_RAPIDA)
+        um = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
+        dois = um + self.refs("fix/y", local="0" * 40, remoto="2" * 40)
+        for nome, entrada in (("uma", um), ("duas", dois)):
+            with self.subTest(nome):
+                codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+                self.assertEqual(codigo, 0, erro)
+                self.assertIn("só remove", erro)
+                self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou em push que só apaga")
+                self.assertEqual(list(self.run_dir.iterdir()), [], "push que só apaga não pega trava nem entra na fila")
+
+    def test_push_que_so_apaga_nao_espera_a_trava_de_outra_suite(self):
+        self.suite(SUITE_RAPIDA)
+        self.segura_trava()
+        codigo, _, erro = self.roda("origin", "u", FORGE_TRAVA_ESPERA="1",
+                                    entrada=self.refs("melhoria/x", local="0" * 40, remoto="1" * 40))
+        self.assertEqual(codigo, 0, erro)
+        self.assertNotIn("esperando a vez", erro)
+
+    def test_apagar_main_homolog_ou_develop_segue_barrado(self):
+        self.suite(SUITE_RAPIDA)
+        for destino in ("main", "homolog", "develop"):
+            with self.subTest(destino):
+                codigo, _, erro = self.roda("origin", "u", entrada=self.refs(destino, local="0" * 40, remoto="1" * 40))
+                self.assertEqual(codigo, 1)
+                self.assertIn(f"envio direto para {destino} bloqueado", erro)
+                self.assertFalse((self.repo / "rodou").exists())
+
+    def test_remocao_de_branch_comum_com_develop_junto_segue_barrada(self):
+        self.suite(SUITE_RAPIDA)
+        entrada = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40) + self.refs("develop", local="0" * 40, remoto="1" * 40)
+        codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
+
+    def test_push_misto_remocao_mais_envio_roda_a_suite(self):
+        """Basta uma ref que envia código: a suíte roda como hoje, também quando a remoção vem antes."""
+        self.suite(SUITE_RAPIDA)
+        remocao = self.refs("melhoria/x", local="0" * 40, remoto="1" * 40)
+        envio = self.refs("melhoria/y")
+        for nome, entrada in (("remocao-primeiro", remocao + envio), ("envio-primeiro", envio + remocao)):
+            with self.subTest(nome):
+                codigo, _, erro = self.roda("origin", "u", entrada=entrada)
+                self.assertEqual(codigo, 0, erro)
+                self.assertTrue((self.repo / "rodou").exists(), "o push misto deixou de rodar a suíte")
+                (self.repo / "rodou").unlink()
+
+    def test_ref_para_a_develop_segue_barrada(self):
+        """Pular a suíte sem refs não afrouxa o bloqueio: uma ref para a develop barra como sempre."""
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
+
+    def test_modo_suite_usa_a_trava_e_nao_le_refs(self):
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("--suite", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 0, erro)  # não lê o stdin: nenhuma ref, nada a barrar
+        self.assertTrue((self.repo / "rodou").exists())
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists(), "o modo --suite anotou prova")
+        (self.repo / "rodou").unlink()
+        self.segura_trava()
+        codigo, _, erro = self.roda("--suite", FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("a vez não chegou", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+        self.suite(SUITE_FALHA)
+        codigo, _, _ = self.roda("--suite", FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+
+    def test_remoto_chamado_suite_segue_o_caminho_normal(self):
+        self.suite(SUITE_RAPIDA)
+        codigo, _, erro = self.roda("--suite", "/url", entrada=self.refs("develop"))
+        self.assertEqual(codigo, 1)
+        self.assertIn("envio direto para develop bloqueado", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+
+    def test_parar_o_hook_para_so_a_propria_suite(self):  # PREPUSH-PKILL-ALHEIO, AB-6, AB-12
+        self.suite(SUITE_COM_PID)
+        pid_arquivo = self.repo / "suite-pid"
+        primeira = self.hook()
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(pid_arquivo.exists), "a primeira suíte não começou")
+        suite_da_primeira = int(pid_arquivo.read_text())
+        segunda = self.hook()
+        self.filhos.append(segunda)
+        self.assertTrue(self.espera_ate(lambda: len(self.vezes()) == 1), "a segunda não entrou na fila")
+        primeira.send_signal(signal.SIGTERM)  # o "kill <pid>" que o hook imprime
+        self.assertEqual(primeira.wait(timeout=30), 1)
+        erro = primeira.stderr.read()
+        self.assertIn(f"para parar só esta execução: kill {primeira.pid}", erro)
+        self.assertIn("nunca pkill", erro)
+        self.assertIn("suíte interrompida", erro)
+        with self.assertRaises(ProcessLookupError):  # a suíte da primeira morreu antes de a trava soltar
+            os.kill(suite_da_primeira, 0)
+        # a segunda segue: pega a vez e roda a própria suíte até o fim
+        self.assertTrue(self.espera_ate(lambda: pid_arquivo.read_text() != str(suite_da_primeira), 30),
+                        "a segunda não rodou depois da parada da primeira")
+        self.assertIsNone(segunda.poll(), "parar a primeira derrubou a segunda")
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(segunda.wait(timeout=60), 0)
+        self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
 
     def test_descritor_da_trava_nao_vaza_para_a_suite(self):
         self.suite(SUITE_VE_DESCRITOR)

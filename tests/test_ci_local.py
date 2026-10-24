@@ -122,9 +122,23 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
         comandos = "\n".join(p["run"] for p in bateria["passos"])
-        for trecho in ("unittest discover", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
+        for trecho in ("scripts/suite-paralela.py", "shellcheck", "actionlint", "zizmor", "claude plugin validate", "e2e-instalacao",
                        "scripts/conferir-release.py", "Nada pula degrau", "verificar-contribuicao"):
             self.assertIn(trecho, comandos + "\n".join(p["nome"] for p in bateria["passos"]))
+
+    def test_rapida_e_bateria_rodam_a_suite_pelo_script_dividido(self):
+        """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
+        o passo curto dos pareceres continua como está; a release continua em série (contraprova)."""
+        jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
+        for nome in ("rapida", "bateria"):
+            with self.subTest(job=nome):
+                (passo,) = [p for p in jobs[nome]["passos"] if p["nome"] == "Testes do Forge"]
+                self.assertEqual(passo["run"].strip(), "python3 scripts/suite-paralela.py")
+                self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
+        self.assertTrue([p for p in jobs["bateria"]["passos"] if p["nome"].startswith("Testes que leem pareceres")
+                         and "python3 -m unittest tests.test_forge.Neutralidade" in p["run"]])
+        self.assertIn("python3 -m unittest discover -s tests",
+                      (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""

@@ -1,0 +1,45 @@
+{
+  "descricao": "C1: o SubagentStop remove só o agent_id; o outro, de sessão viva, fica.",
+  "estado": {
+    "agentes.json": {
+      "agentes": [
+        {
+          "id": "a1",
+          "tipo": "forge:node-backend",
+          "descricao": "Implementar a API",
+          "desde": "{agora-60}",
+          "pid": "{pid_vivo}",
+          "pidns": "{pid_ns}",
+          "sessao": "s0"
+        },
+        {
+          "id": "a2",
+          "tipo": "forge:node-backend",
+          "descricao": "Tela",
+          "desde": "{agora-60}",
+          "pid": "{pid_vivo}",
+          "pidns": "{pid_ns}",
+          "sessao": "s0"
+        }
+      ]
+    }
+  },
+  "entrada": {
+    "hook_event_name": "SubagentStop",
+    "agent_id": "a2",
+    "agent_type": "forge:node-backend"
+  },
+  "esperado": {
+    "codigo": 0,
+    "estado": {
+      "agentes.json": {
+        "contem": [
+          "\"a1\""
+        ],
+        "ausente": [
+          "\"a2\""
+        ]
+      }
+    }
+  }
+}

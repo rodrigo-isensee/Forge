@@ -4,9 +4,9 @@ Uso: forge atualizar [--fixar]
   --fixar   só deixa o plugin fixado na versão que está em uso (nada muda no projeto)
 Só começa com tudo salvo no projeto (também com --fixar). Passos: mostra a versão atual, a nova e o que mudou (do CHANGELOG, em linguagem simples); pede "s"; guarda o ponto de retorno
 (versão do plugin e cópia dos arquivos VERSIONADOS de `.forge/`, em ~/.local/state/forge/retorno/; nunca segredo nem arquivo local);
-roda o doutor antes; roda `forge-upgrade --simular` e, se der certo, troca o plugin (só no escopo do usuário, fixado na tag vX.Y.Z, depois de
-confirmar a tag e guardar a fonte original da marketplace) e aplica o `forge-upgrade` numa branch nova; roda o doutor de novo; só se
-aparecer problema NOVO oferece voltar (`forge voltar-versao`). Nunca envia nada ao GitHub, nem mescla, nem força nada.
+roda o doutor antes; traz a `develop` do projeto para a versão do remoto (só avanço, sem forçar) para a branch do upgrade nascer dela; roda `forge-upgrade --simular` e, se der certo, troca o plugin (só no escopo do usuário, fixado na tag vX.Y.Z, depois de
+confirmar a tag e guardar a fonte original da marketplace) e aplica o `forge-upgrade` numa branch nova; só nessa branch (`forge/upgrade-<nova>`), se a `develop` avançou no meio, faz um merge LOCAL de `origin/develop` nela e lista os arquivos trazidos (em destaque `.forge/`, `.claude/` e hooks); se deu conflito só em `.forge/versao`, mostra a versão da `develop` e a nova e pergunta se mantém a nova (a escolha é sua, no terminal); roda o doutor de novo; só se
+aparecer problema NOVO oferece voltar (`forge voltar-versao`). Nunca envia nada ao GitHub, nunca mescla em outra branch que não a do upgrade e nunca força nada.
 Saída: 0 atualizou ou nada a fazer; 1 não atualizou ou algo falhou; 2 sem terminal."""
 import os
 import shutil
@@ -39,6 +39,118 @@ def rodar_do_forge_novo(forge_novo, nome, *args):
     r = subprocess.run([str(forge_novo / "bin" / nome), *args], capture_output=True, text=True, stdin=subprocess.DEVNULL,
                        env={**os.environ, "FORGE_SEM_DOUTOR": "1"})
     return r.returncode, (r.stdout + r.stderr).strip()
+
+
+def tem_remoto_develop(projeto):
+    return git(projeto, "rev-parse", "-q", "--verify", "refs/remotes/origin/develop")[0] == 0
+
+
+def buscar_develop(projeto):
+    """Busca a develop do remoto (sem rede ou sem remoto: segue como está). True se há origin/develop atualizada."""
+    return git(projeto, "fetch", "-q", "origin", "develop")[0] == 0 and tem_remoto_develop(projeto)
+
+
+def adiantar_develop_local(projeto):
+    """Leva a develop local até a do remoto só quando é avanço direto (nunca força nem perde commit local).
+    Devolve True só se a develop local de fato avançou; avisa se ela divergiu do remoto (e não mexe nela)."""
+    if not buscar_develop(projeto):
+        return False
+    codigo, local = git(projeto, "rev-parse", "-q", "--verify", "refs/heads/develop")
+    if codigo != 0:
+        return False
+    _, remota = git(projeto, "rev-parse", "refs/remotes/origin/develop")
+    if local == remota:
+        return False
+    if git(projeto, "merge-base", "--is-ancestor", remota, local)[0] == 0:  # à frente do remoto: nada a adiantar, mas o dono precisa saber
+        n = git(projeto, "rev-list", "--count", f"{remota}..{local}")[1]
+        print(f"A develop local do projeto está à frente do remoto ({n} commit(s) ainda não enviados): a branch do upgrade nasce com eles e eles "
+              "aparecerão no pull request. Se não é o que você quer, pare, envie ou ajuste a develop e rode de novo.")
+        return False
+    if git(projeto, "merge-base", "--is-ancestor", local, remota)[0] != 0:
+        print("A develop local do projeto divergiu da do remoto (tem commits que o remoto não tem): não mexi nela. A branch do upgrade nasce "
+              "da develop local e as mudanças do remoto entram nela por mesclagem local, se houver.")
+        return False
+    if git(projeto, "branch", "--show-current")[1] == "develop":
+        deu = git(projeto, "merge", "-q", "--ff-only", "origin/develop")[0] == 0
+    else:
+        deu = git(projeto, "update-ref", "refs/heads/develop", remota, local)[0] == 0
+    if deu:
+        print("A develop do projeto estava atrás do remoto: avancei a cópia local (nada foi enviado) para a branch do upgrade nascer dela.")
+    return deu
+
+
+def trazidos(projeto, antes):
+    """Lista os arquivos que a mesclagem trouxe da develop, com destaque para o que vale na máquina (.forge/, .claude/, hooks)."""
+    _, texto = git(projeto, "diff", "--name-only", antes, "HEAD")
+    arquivos = texto.splitlines()
+    if not arquivos:
+        return
+    sensivel = [a for a in arquivos if a.startswith((".forge/", ".claude/", ".githooks/", "hooks/")) or "/hooks/" in a]
+    print(f"Arquivos trazidos da develop ({len(arquivos)}):")
+    print("\n".join(f"  - {a}" for a in arquivos[:30]) + (f"\n  ... e mais {len(arquivos) - 30}" if len(arquivos) > 30 else ""))
+    if sensivel:
+        print("Atenção: entre eles há configuração e hooks do projeto (" + ", ".join(sensivel[:10]) + "); passam a valer nesta cópia, como num `git pull`.")
+
+
+def versoes_do_conflito(projeto):
+    """(versão da develop, versão nova) no conflito de `.forge/versao`, ou (None, None) se não deu para ler."""
+    codigo_t, theirs = git(projeto, "show", ":3:.forge/versao")
+    codigo_o, ours = git(projeto, "show", ":2:.forge/versao")
+    return (theirs, ours) if codigo_t == 0 and codigo_o == 0 else (None, None)
+
+
+def integrar_develop(projeto, nova):
+    """Se a develop do remoto avançou durante a atualização, traz para a branch do upgrade (merge local). Devolve True se está tudo certo.
+    Só mexe na branch `forge/upgrade-<nova>`: em qualquer outra (o `forge-upgrade` disse "nada a fazer"), não mescla nada.
+    Conflito só em `.forge/versao`: pergunta ao dono se mantém a versão nova (só ele mexe nesse arquivo). Outro conflito: desfaz."""
+    if git(projeto, "branch", "--show-current")[1] != f"forge/upgrade-{nova}":
+        return True
+    if not buscar_develop(projeto) or git(projeto, "merge-base", "--is-ancestor", "origin/develop", "HEAD")[0] == 0:
+        return True
+    _, antes = git(projeto, "rev-parse", "HEAD")
+    if git(projeto, "merge", "--no-edit", "-m", "chore(forge): traz a develop para a atualização", "origin/develop")[0] == 0:
+        print("A develop do projeto avançou durante a atualização: fiz um merge local de origin/develop na branch do upgrade (nada foi enviado).")
+        trazidos(projeto, antes)
+        return True
+    try:
+        return resolver_conflito(projeto, nova, antes)
+    except (EOFError, KeyboardInterrupt):
+        git(projeto, "merge", "--abort")
+        raise
+    except Exception as erro:  # nada deixa a mesclagem aberta no projeto: qualquer erro inesperado desfaz antes de sair
+        git(projeto, "merge", "--abort")
+        print(f"Algo inesperado aconteceu ao tratar o conflito ({type(erro).__name__}: {erro}). Desfiz a mesclagem; a branch do upgrade ficou como estava.")
+        return False
+
+
+def resolver_conflito(projeto, nova, antes):
+    _, texto = git(projeto, "diff", "--name-only", "--diff-filter=U")
+    conflitos = texto.splitlines()
+    if conflitos == [".forge/versao"]:
+        da_develop, nossa = versoes_do_conflito(projeto)
+        print("A develop do projeto avançou durante a atualização e mudou o arquivo .forge/versao, que também mudou aqui (conflito).")
+        if da_develop and nossa:
+            print(f"  versão que veio da develop: {da_develop}\n  versão nova do upgrade: {nossa}")
+            a, b = fv.versao_de(da_develop), fv.versao_de(nossa)
+            if a and b:
+                if a > b:
+                    print(f"  Atenção: a da develop é MAIOR; responder s rebaixa o projeto de {da_develop} para {nossa}. O mais seguro é responder n.")
+            else:
+                print("  Atenção: uma das versões não está no formato X.Y.Z, então não dá para comparar qual é a maior. O mais seguro é responder n.")
+        if fv.confirmar(f"Manter a versão {nova} em .forge/versao (a versão da develop é descartada)?"):
+            git(projeto, "checkout", "--ours", ".forge/versao")
+            git(projeto, "add", ".forge/versao")
+            if git(projeto, "commit", "--no-edit")[0] == 0:
+                print(f"Conflito resolvido: .forge/versao ficou na {nova}.")
+                trazidos(projeto, antes)
+                return True
+        git(projeto, "merge", "--abort")
+        print("Desfiz a mesclagem: a branch ficou como estava, sem a develop nova. Resolva `.forge/versao` à mão e traga a develop depois.")
+        return False
+    git(projeto, "merge", "--abort")
+    print("A develop do projeto avançou durante a atualização e deu conflito em: " + (", ".join(conflitos) or "(arquivos)") +
+          ". Desfiz a mesclagem; resolva à mão na branch do upgrade, que ficou como estava.")
+    return False
 
 
 def oferecer_voltar(atual):
@@ -114,6 +226,7 @@ def main():
 
 
 def atualizar(projeto, url, atual, nova, forge_novo):
+    avancou = adiantar_develop_local(projeto)
     problemas_antes, _ = fv.problemas_do_doutor(RAIZ / "bin", projeto)
     _, ramo_antes = git(projeto, "branch", "--show-current")
     _, cabeca = git(projeto, "rev-parse", "HEAD")
@@ -136,7 +249,8 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         if codigo != 0:
             print(f"A simulação da atualização falhou, então parei antes de mudar qualquer coisa:\n{saida}")
             descartar()
-            print("Não mudei nada no projeto nem no plugin. Se o problema persistir, peça ao Jarvis para registrar como sugestão ao Forge.")
+            print(("Só a cópia local da develop avançou (nada foi enviado); o resto do projeto e o plugin não mudaram." if avancou
+                   else "Não mudei nada no projeto nem no plugin.") + " Se o problema persistir, peça ao Jarvis para registrar como sugestão ao Forge.")
             return 1
         deu, msg = fv.fixar_plugin(url, nova, voltar_para=atual, projeto=projeto)
     except KeyboardInterrupt:  # Ctrl-C antes de o plugin trocar: o ponto e a marca não valem, a versão nova nunca foi instalada
@@ -145,7 +259,7 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         return 1
     if not deu:
         descartar()
-        print(f"Não deu para trocar o plugin: {msg}. O projeto não foi mexido.")
+        print(f"Não deu para trocar o plugin: {msg}. " + ("Só a cópia local da develop avançou; o resto do projeto não foi mexido." if avancou else "O projeto não foi mexido."))
         return 1
     print(f"Plugin: {msg}.")
 
@@ -155,6 +269,9 @@ def atualizar(projeto, url, atual, nova, forge_novo):
         print("A atualização do projeto parou no meio (a branch de trabalho ficou como está, nada se perdeu).")
         return oferecer_voltar(atual)
     ramo = f"forge/upgrade-{nova}"
+    criou_ramo = git(projeto, "branch", "--show-current")[1] == ramo
+    if not integrar_develop(projeto, nova):
+        return oferecer_voltar(atual)
     abrir_pr = next((l.strip() for l in saida.splitlines() if l.strip().startswith("gh pr create")), "gh pr create")
 
     problemas, saida = fv.problemas_do_doutor(forge_novo / "bin", projeto)
@@ -167,9 +284,13 @@ def atualizar(projeto, url, atual, nova, forge_novo):
             print("Já existiam antes da atualização:\n" + "\n".join(f"- {p}" for p in antigos))
         return oferecer_voltar(atual)
     resto = ("\nJá existiam antes da atualização (não mexi):\n" + "\n".join(f"- {p}" for p in antigos)) if antigos else ""
+    if criou_ramo:
+        onde = (f"Os arquivos do projeto foram atualizados na branch {ramo} (nada foi enviado ao GitHub). Revise as mudanças e abra o pull request; "
+                f"o merge é seu:\n  {abrir_pr}")
+    else:
+        onde = f"Os arquivos do projeto já estavam na versão {nova}: nada a mudar neles, nenhuma branch criada e nada mesclado."
     print(f"\nPronto: o Forge está na versão {nova} e a checagem de saúde do projeto não achou nada novo.{resto}\n"
-          f"Os arquivos do projeto foram atualizados na branch {ramo} (nada foi enviado ao GitHub). Revise as mudanças e abra o pull request; "
-          f"o merge é seu:\n  {abrir_pr}\nPara voltar: forge voltar-versao\n"
+          f"{onde}\nPara voltar: forge voltar-versao\n"
           f"O Forge {nova} está instalado, mas esta sessão roda a {atual}: feche e abra a sessão.")
     return 0
 

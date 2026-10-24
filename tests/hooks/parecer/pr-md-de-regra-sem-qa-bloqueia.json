@@ -1,0 +1,44 @@
+{
+  "descricao": "Diff só de .md de regra (docs/regras/) com review e sem QA: sem isenção (M13), bloqueia.",
+  "git": [
+    {
+      "branch": "melhoria/regra"
+    },
+    {
+      "arquivos": {
+        "docs/regras/R-X.md": "# R-X\n"
+      },
+      "commit": "docs: mudança"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: melhoria/regra",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ]
+      },
+      "commit": "docs: review"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base develop --title 'docs: x' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-QA: docs/qa: qa: sem parecer"
+  }
+}
