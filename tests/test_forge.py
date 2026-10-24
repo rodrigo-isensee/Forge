@@ -4812,14 +4812,14 @@ class TetoPorPr(unittest.TestCase):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
             for frase in ("git diff --numstat --no-renames origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
                           "`teto: excedido, <n> linhas, <motivo>`", "decisão M14",
-                          "a exceção não alcança nenhum caminho de `PROTEGIDOS`"):
+                          "a exceção não vale em PR que mexe em qualquer arquivo de `hooks/` nem em caminho de `PROTEGIDOS`"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
 
     def test_tech_lead_marca_o_no_forge_e_nao_cita_a_r_review_como_fonte_do_teto(self):
         texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
         for frase in ("**No Forge:**", "`tests/mutantes/` e o texto `.md`", "A M14 não vale para o `lote-leitura-hook`",
-                      "requisito da decisão M14"):
+                      "requisito da decisão M14", "duas classes em `hooks/` é achado `bloqueante`"):
             with self.subTest(frase=frase):
                 self.assertIn(frase, texto)
         self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
