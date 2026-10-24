@@ -1951,7 +1951,9 @@ IDS_DA_VOLTA_UNICA = ("R8", "R9", "R18", "R19a", "R19b", "R19c", "R19d", "R19e",
                       "FD14b", "FD14c", "FD14d", "CO4", "CO5", "CN1", "CN2", "CN3", "VA2", "PE1", "ST1", "ST2", "ST3",
                       # opção C e bloco T da revalidação 10 (RET-LEITURA-HOOK-E): `\x{…}`, `$"…"`, 20 mil palavras e o FD15
                       "AN34", "AN34b", "AN34c", "AN34d", "AN34e", "AN34f", "AN34g", "AN35a", "AN35b", "AN35c", "AN35d",
-                      "OT1", "OT2", "FD15a", "FD15b", "FD15c", "FD15d", "FD15e", "FD15f", "FD15g", "FD15h", "FD15i")
+                      "OT1", "OT2", "FD15a", "FD15b", "FD15c", "FD15d", "FD15e", "FD15f", "FD15g", "FD15h", "FD15i",
+                      # A1 da segurança na revalidação 11 (RET-LEITURA-HOOK-E): o lançador que divide texto (`env -S`)
+                      *(f"ES{k}" for k in range(1, 18)), "FD16a", "FD16b", "FD16c", "FD16d")
 
 
 def corpus_da_volta_unica():
