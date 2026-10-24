@@ -438,6 +438,17 @@ class AtualizarComDevelopQueAvancou(Base):
         self.assertEqual(self.git("rev-parse", "HEAD"), antes, "a branch volta ao estado de antes da mesclagem")
         self.assertEqual(self.git("status", "--porcelain"), "")
 
+    def test_desfazer_recusado_nao_diz_que_desfez_e_ensina_o_comando(self):
+        # review A2 / ATUALIZAR-DESFEZ-RC: se o checkout que volta a branch falha (aqui, `index.lock` presente), a mensagem não pode mentir
+        trava = self.proj / ".git" / "index.lock"
+        deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit(lambda: trava.write_text(""))
+        trazidos.assert_called_once()
+        self.assertFalse(deu)
+        self.assertNotIn("Desfiz a mesclagem", saida)
+        self.assertIn("Não consegui desfazer", saida)
+        self.assertIn(f"git checkout -B forge/upgrade-9.9.0 {antes}", saida, "o comando para desfazer à mão")
+        self.assertNotEqual(self.git("rev-parse", "HEAD"), antes, "o cenário é o da branch que ficou com o merge")
+
     def test_conflito_em_outro_arquivo_nao_e_resolvido_pelo_comando(self):
         self.publicar("9.9.0")
         # arquivo alterado nos dois lados: conflito que não é do `.forge/versao`
