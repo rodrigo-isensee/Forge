@@ -169,14 +169,20 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.resumo(r), ["limpeza: remota=pendente worktree=ok branch=ok"])
         self.assertIn("melhoria/x", self.git("ls-remote", "origin", "refs/heads/melhoria/x"))
 
-    def test_teto_do_delete_fora_da_faixa_e_recusado_e_o_padrao_deixa_tres_tentativas_abaixo_de_300s(self):
-        for v in ("0", "101", "x"):
+    def test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s(self):
+        # pior caso: 3 tentativas no teto + 2 pausas no máximo (30 s) + a conferência da remota (10 s); o teto máximo é o maior que cabe em 300 s
+        for v in ("0", "76", "100", "101", "x"):
             with self.subTest(v=v):
                 r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_TETO_DELETE=v)
                 self.assertEqual(r.returncode, 1, r.stderr)
                 self.assertIn("FORGE_FECHAR_TETO_DELETE", r.stderr)
-        texto = SCRIPT.read_text()
-        self.assertIn('"${FORGE_FECHAR_TETO_DELETE:-80}"', texto)  # 3 x 80 s + pausas < 300 s
+                self.assertIn("1 a 75", r.stderr)
+        for v in ("1", "75"):
+            with self.subTest(v=v):
+                r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_TETO_DELETE=v)
+                self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertLessEqual(3 * 75 + 2 * 30 + 10, 300)
+        self.assertIn('"${FORGE_FECHAR_TETO_DELETE:-75}"', SCRIPT.read_text())  # o padrão é o teto máximo
 
     def fechar_em(self, cwd, *args):
         return base.subprocess.run(["bash", str(SCRIPT), *args], cwd=cwd, env=self.env, capture_output=True, text=True, timeout=60)

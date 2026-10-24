@@ -22,7 +22,7 @@
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre
 # leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as duas primeiras são ignoradas, com aviso.
-# FORGE_FECHAR_TETO_DELETE (segundos, 1 a 100, padrão 80): limite de cada uma das 3 tentativas do `git push --delete` da limpeza (com `timeout`);
+# FORGE_FECHAR_TETO_DELETE (segundos, 1 a 75, padrão 75): limite de cada uma das 3 tentativas do `git push --delete` da limpeza (com `timeout`);
 # estourado ou negado, a limpeza diz que a remota continua viva e sai com código 3. Rodar da raiz com --ref evita o aviso de sair da worktree.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
@@ -103,8 +103,8 @@ faixa FORGE_FECHAR_INTERVALO "${FORGE_FECHAR_INTERVALO:-30}" "$piso_intervalo" 1
 intervalo="$faixa_valor"
 faixa FORGE_FECHAR_PAUSA "${FORGE_FECHAR_PAUSA:-3}" "$piso_pausa" 30 3
 pausa="$faixa_valor"
-# FECHAR-DA-RAIZ: teto de cada tentativa do `git push --delete` da limpeza (o pre-push roda nele); 3 tentativas no teto padrão ficam abaixo de 300 s.
-faixa FORGE_FECHAR_TETO_DELETE "${FORGE_FECHAR_TETO_DELETE:-80}" 1 100 3
+# FECHAR-DA-RAIZ: teto de cada tentativa do `git push --delete` da limpeza (o pre-push roda nele); o pior caso (3 tentativas no teto, 2 pausas de 30 s no máximo e a conferência da remota, 10 s) fica em até 300 s com o teto de 75 s.
+faixa FORGE_FECHAR_TETO_DELETE "${FORGE_FECHAR_TETO_DELETE:-75}" 1 75 3
 teto_delete="$faixa_valor"
 # ler <comando...>: leitura idempotente; imprime a saída da primeira tentativa que passa (até 3, com pausa); falha se as 3 falham.
 ler() {
