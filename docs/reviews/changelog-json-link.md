@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: changelog-json-link
 branch: melhoria/changelog-json-link
-commit: 705d5a9a4716adb692a3f19b31bde0bae0dfa494
+commit: 0eddfc2bb80b0d4d9a8fff045abe65ac6afcf81c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-24
@@ -13,7 +13,7 @@ data: 2026-10-24
 Pedido CHANGELOG-JSON-LINK-REV, E1.1. Diff `d150ec8...705d5a9`, 4 commits (`80cf5bf` A1, `1acc698` A2, `e1ba013` fragmento, `705d5a9` teste), 3 arquivos: `bin/forge-changelog`, `tests/test_changelog.py`, `changelog.d/changelog-json-link.md`. Fecha A1 e A2 de `docs/security/release-dev-versao.md`.
 
 ## Achados
-- A1 (recomendado) tests/test_changelog.py:212 · o teste "fora da raiz" do CHANGELOG.md usa link simbólico e cai no ramo is_symlink de conferir_caminho; a asserção casa pela mensagem comum. Sem link, o CHANGELOG.md da raiz não sai dela. Sugestão: registrar isso num comentário do teste; o código está certo.
+- A1 (recomendado) tests/test_changelog.py:220 · o teste "fora da raiz" do CHANGELOG.md usa link simbólico e cai no ramo is_symlink de conferir_caminho; a asserção casa pela mensagem comum. Sem link, o CHANGELOG.md da raiz não sai dela. Sugestão: registrar isso num comentário do teste; o código está certo.
 
 ## Parecer
 **Aprovado.** Faz o que E1 e E2 pedem, sem mais nem menos.
@@ -31,3 +31,10 @@ Pedido CHANGELOG-JSON-LINK-REV, E1.1. Diff `d150ec8...705d5a9`, 4 commits (`80cf
 - Sonda em `$TMPDIR` com chave `version` aninhada no manifesto **raiz** e o dev válido: rc=1, "a troca textual não acertou o 'version' de topo", e os dois manifestos, o CHANGELOG.md e o fragmento ficaram intactos.
 - Sonda com `"version" :  "0.1.0"` (espaços) e um valor com `\"version\": \"1\"` escapado em outra chave: rc=0, só a `version` de topo trocada nos dois manifestos.
 - Achados recorrentes (PA-7): a lista está vazia, sem item a conferir.
+
+## Revalidação (volta 2)
+Delta lido: `705d5a9..0eddfc2`, só `tests/test_changelog.py` (+8 linhas, commit `3f3b7de`); os pareceres de QA e segurança não são código. Já lido: o restante da branch, no parecer acima, sem mudança.
+- Teste novo da `version` repetida com a versão nova no último valor (`:193`): usa `_dev_com` e `_nada_gravado`, e confere o manifesto intacto. Sem o gancho de chave repetida o último valor passaria; o teste cobre o mutante M1 do QA. Correto.
+- Comentário do ramo `is_symlink` (`:220`): atende ao A1 recomendado, que fica resolvido.
+- `python3 -m unittest tests.test_changelog` no head `0eddfc2`: `Ran 42 tests`, `OK (skipped=1)` (o pulado é o da branch `melhoria/*`, pela worktree destacada).
+- Sem achado novo. Parecer segue **aprovado**.
