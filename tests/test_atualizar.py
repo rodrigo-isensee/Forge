@@ -447,7 +447,10 @@ class AtualizarComDevelopQueAvancou(Base):
         # QA A1 / review A5: o erro vem com a mesclagem aberta (sem commit); só o `merge --abort` a desfaz
         deu, saida, trazidos, antes = self.integrar_com_erro_depois_do_commit(na_pergunta=erro)
         trazidos.assert_not_called()
-        self.assertIn("Desfiz a mesclagem" if isinstance(erro, RuntimeError) else "", saida)
+        if isinstance(erro, RuntimeError):
+            self.assertIn("Desfiz a mesclagem", saida)
+        else:  # Ctrl-C e EOF: desfaz em silêncio e repassa; só a falha em desfazer imprime algo
+            self.assertNotIn("Desfiz", saida)
         self.assertNotIn("Não consegui desfazer", saida)
         self.assertFalse((self.proj / ".git" / "MERGE_HEAD").exists(), "sem mesclagem aberta")
         self.assertEqual(self.git("rev-parse", "HEAD"), antes)
