@@ -2640,15 +2640,13 @@ exit 0
                 self.assertEqual(decisoes[(hook, texto)], 2, f"o {hook} libera {texto!r}")
         self.assertGreaterEqual(len(reais), 800)
 
-    def test_reducao_exaustiva_por_par_contra_o_bash(self):  # item 2 do critério de fim da opção C
-        """Para toda `\\` seguida de cada caractere de 0x20 a 0x7E e da quebra de linha, e depois de cada sufixo (nada, `{`,
+    def conferir_os_pares_contra_o_bash(self):  # item 2 do critério de fim da opção C
+        """Parte de `test_reducao_da_palavra_como_o_bash`. Para toda `\\` seguida de cada caractere de 0x20 a 0x7E e da quebra de linha, e depois de cada sufixo (nada, `{`,
         `}`, dígito octal, dígito hexadecimal, `'`, fim), fora de aspas e entre aspas duplas: a `reduzida` dá o mesmo que o
         `printf '%s'` do bash, ou `None` (expansão ou aspas sem par). Nunca um literal diferente, nunca um literal onde
         o bash recusa a palavra. Cobre o alfabeto inteiro, e não uma tabela. Só o bash (R-CUSTO)."""
         _comum, _, _ = modulos_dos_hooks()
         bash = shutil.which("bash")
-        if not bash:
-            self.skipTest("bash ausente")
         casa = self._pasta_temporaria()
         casos = []
         for c in [chr(x) for x in range(0x20, 0x7F)] + ["\n"]:
@@ -2706,7 +2704,8 @@ exit 0
         """A redução do hook (`_comum.reduzida`) é a do bash: para cada grafia de G1 de cada palavra de G1 que não usa
         `$'` nem `$"`, e para as bordas, a palavra reduzida é igual à que o `printf '%s'` do bash imprime (`env -i`,
         `HOME` no `$TMPDIR`, sem rede; só o bash, R-CUSTO). A palavra com expansão não se reduz (None: fica no N-HOOK1),
-        e a com `$'` ou `$"` fora de aspas é INDECIDIVEL (opção C da revalidação 10)."""
+        e a com `$'` ou `$"` fora de aspas é INDECIDIVEL (opção C da revalidação 10). Por último, o teste exaustivo por par
+        (`conferir_os_pares_contra_o_bash`)."""
         _comum, _, _ = modulos_dos_hooks()
         bash = shutil.which("bash")
         if not bash:
@@ -2737,6 +2736,7 @@ exit 0
             with self.subTest(cru=cru):
                 self.assertIsNone(_comum.reduzida(cru))
         self.assertGreaterEqual(len(crus), 60)
+        self.conferir_os_pares_contra_o_bash()
 
     # Bloco T da revalidação 10 (proposta caminho-rev10, seção 2): o orçamento de tempo. Os tipos de palavra que mais
     # custam (a unidade, quantas palavras ela tem e a forma de 2 a 3 caracteres, para o teto de caracteres), e o
