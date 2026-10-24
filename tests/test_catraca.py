@@ -2428,3 +2428,14 @@ class FormaCompiladaDosControles(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ExcecaoDoAcrescimoNaAdr(unittest.TestCase):
+    def test_adr_0008_registra_a_excecao_da_m9_e_o_que_continua_pedindo(self):
+        texto = (AQUI.parent / catraca.ADR).read_text(encoding="utf-8")
+        trecho = texto[texto.index("**Exceção do acréscimo inerte (M9"):]
+        trecho = trecho[:trecho.index("\n")]
+        for esperado in ("só de linhas acrescentadas", "falha fechada", "linha removida ou alterada", "outra linguagem",
+                         "um `return` novo no começo de uma função de checagem", "modelo de ameaças", "decisão do dono",
+                         "tests/fixtures/afrouxamentos/", "A forma compilada não entra"):
+            self.assertIn(esperado, trecho)
