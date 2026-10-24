@@ -9,6 +9,9 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 AQUI = Path(__file__).resolve().parent
 DOCS = AQUI.parent / "docs"
 LINHA_CMD = re.compile(r"^- PQ-(\d+) \(cmd\): `([^`]+)` · espera: (.+)$")
@@ -127,7 +130,7 @@ class Execucao(unittest.TestCase):
             self.assertIn("fora do formato", saida, linha)
 
     def test_git_com_caminho_fora_da_arvore_e_recusado_e_nao_le_o_arquivo(self):
-        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env={**os.environ, "HOME": self.tmp.name})
+        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env=sem_manutencao({**os.environ, "HOME": self.tmp.name}))
         for caminho in ("/etc/hostname", "../fora", "docs/../../fora", "~/x"):
             rc, saida = self.rodar([f"- PQ-1 (cmd): `git diff --numstat {caminho} /dev/null` · espera: contém 'hostname'"])
             self.assertEqual(rc, 1, caminho)
@@ -139,7 +142,7 @@ class Execucao(unittest.TestCase):
         self.assertIn("sem repositório", saida)
 
     def test_git_dentro_da_arvore_passa(self):
-        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env={**os.environ, "HOME": self.tmp.name})
+        subprocess.run(["git", "init", "-q", str(self.raiz)], check=True, env=sem_manutencao({**os.environ, "HOME": self.tmp.name}))
         rc, saida = self.rodar(["- PQ-1 (cmd): `git ls-files -- docs` · espera: rc=0"])
         self.assertEqual(rc, 0, saida)
 
