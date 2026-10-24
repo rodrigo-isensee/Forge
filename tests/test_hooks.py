@@ -1930,7 +1930,7 @@ class Hooks(unittest.TestCase):
 # errado (o vermelho continua provado) e falha se a marca sobra. A classe X do desenho fica fora (cartão N-HOOK1).
 CORPUS_VOLTA_UNICA = Path(__file__).resolve().parent / "fixtures" / "heredoc-volta-unica.json"
 REGRAS_DA_VOLTA_UNICA = frozenset({"M1", "M2", "M3", "M4", "M5", "D", "A", "B", "B2", "C", "T"})  # D, A, B e B2: as opções (RET-LEITURA-HOOK-D, -A, -B, -C); C e T: a opção C e o bloco T da revalidação 10 (RET-LEITURA-HOOK-E)
-EXIGE_NENHUMA_MARCA = False  # passo (7) do desenho e opções D, A, B e B2: todas as regras entraram, nenhuma marca `fecha` sobra
+EXIGE_NENHUMA_MARCA = True  # passo (7) do desenho e opções D, A, B e B2: todas as regras entraram, nenhuma marca `fecha` sobra
 # A marca `nao_promete` (o cartão): a forma está na linha "Não promete" da frase de parada (RET-LEITURA-HOOK-CAMINHO4); a
 # célula é o código de hoje, para o conserto futuro aparecer como mudança de teste, e o T9b registra que o bash a roda.
 CARTOES_DO_NAO_PROMETE = frozenset({"N-HOOK1", "R5A-COPROC", "A6"})
@@ -2602,23 +2602,29 @@ exit 0
         "unicode": lambda w: f"$'\\u{ord(w[0]):04x}'{w[1:]}",
     }
     PALAVRAS_DE_G1 = ("eval", "bash", "sh", "zsh", "dash", "ksh", "rbash", "-c", "-ec", "-lc")
-    # Os escapes e bordas da tabela que G1 não gera: o valor que o bash dá a cada um entra na mesma comparação.
-    BORDAS_DA_REDUCAO = ("$'ev\\0al'x", "$'\\545val'", "$'\\x656'", "$'\\U00000065'val", "$'\\0145'", "$'\\cA'",
-                         "$'\\c?'", "$'\\c\\\\'", "$'\\c'", "$'\\u'", "$'\\x'", "$'\\z'", "$'\\777'", "$'a\\'b'",
-                         "$'\\E\\e\\a\\b\\f\\n\\r\\t\\v\\\\\\\"\\?'", '"a\\b"', '"a\\$b"', '"a\\`b"', '"a\\"b"',
-                         '"a\\\nb"', "e\\\nval", "\\e\\v\\a\\l", "$'\\xff'", "$'\\u00e9'", "é'v'al", "$\"e\\$\"")
+    # As bordas da remoção de aspas do POSIX que G1 não gera (a redução não tem tabela de escapes: o `$'…'` e o `$"…"` são
+    # INDECIDIVEL, sem ler o escape). Cada uma entra na comparação com o bash.
+    BORDAS_DA_REDUCAO = ('"a\\b"', '"a\\$b"', '"a\\`b"', '"a\\"b"', '"a\\\nb"', "e\\\nval", "\\e\\v\\a\\l", "é'v'al",
+                         "'$'", "a''b", '""', "\\\\", '"\\\\"', "'\\'", '"\\\nx"')
+    # Com `$'` ou `$"` fora de aspas, em qualquer posição e com qualquer escape (o bash 5.3 lê `\x{65}`, o 5.2 não): o
+    # hook não lê o escape e não decide.
+    INDECIDIVEIS = ("$'eval'", "e$'val'", "$'\\x{65}'val", "$'\\x{0000065}'val", "$'\\x{65'val", "$'ev\\0al'x", "$'\\545val'",
+                    "$'\\cA'", "$'\\c\\''", "$'\\u'", "$'\\U00110000'", "$'a\\'b'", "$'ev", "$\"eval\"", "e$\"val\"",
+                    "$\"e\\$\"", "$\"ev", "$x$'a'", "$(x)$'a'", "${x}$\"a\"", "`x`$'a'", "\"$(x)\"$'y'", "\"`x`\"$'y'")
     NAO_SE_REDUZEM = ("$x", "${x}", "$(echo eval)", "`echo eval`", "e*", "ev?l", "[e]val", "{e,}val", "~", "\"$x\"",
-                      '"a`b`"', "'ev", '"ev', "$'ev", "$((1))", "e$x")
+                      '"a`b`"', "'ev", '"ev', "$((1))", "e$x", "\"$'a'\"", "\"$\\\"\"x", "x\"$(y)\"z", "\"${x}\"")
 
     def test_reducao_da_palavra_como_o_bash(self):  # item 4 do critério de fim da opção B (proposta caminho-rev9)
-        """A redução do hook (`_comum.reduzida`) é a do bash: para cada grafia de G1 de cada palavra de G1 e para as
-        bordas da tabela, a palavra reduzida é igual à que o `printf '%s'` do bash imprime (`env -i`, `HOME` no
-        `$TMPDIR`, sem rede; só o bash, R-CUSTO). A palavra com expansão não se reduz (None: fica no N-HOOK1)."""
+        """A redução do hook (`_comum.reduzida`) é a do bash: para cada grafia de G1 de cada palavra de G1 que não usa
+        `$'` nem `$"`, e para as bordas, a palavra reduzida é igual à que o `printf '%s'` do bash imprime (`env -i`,
+        `HOME` no `$TMPDIR`, sem rede; só o bash, R-CUSTO). A palavra com expansão não se reduz (None: fica no N-HOOK1),
+        e a com `$'` ou `$"` fora de aspas é INDECIDIVEL (opção C da revalidação 10)."""
         _comum, _, _ = modulos_dos_hooks()
         bash = shutil.which("bash")
         if not bash:
             self.skipTest("bash ausente")
-        crus = [grafia(w) for w in self.PALAVRAS_DE_G1 for grafia in self.GRAFIAS.values()] + list(self.BORDAS_DA_REDUCAO)
+        todas = [grafia(w) for w in self.PALAVRAS_DE_G1 for grafia in self.GRAFIAS.values()]
+        crus = [cru for cru in todas if "$'" not in cru and '$"' not in cru] + list(self.BORDAS_DA_REDUCAO)
         script = "".join(f"printf '%s\\036' {cru}\n" for cru in crus)
         casa = self._pasta_temporaria()
         saida = subprocess.run([bash, "--noprofile", "--norc", "-c", script], env={"HOME": str(casa), "LC_ALL": "C.UTF-8"},
@@ -2631,11 +2637,18 @@ exit 0
                 self.assertEqual(_comum.reduzida(cru), valor)
         for w in self.PALAVRAS_DE_G1:
             for nome, grafia in self.GRAFIAS.items():
-                self.assertEqual(_comum.reduzida(grafia(w)), w, f"{nome} de {w}")
+                cru = grafia(w)
+                if "$'" in cru or '$"' in cru:
+                    self.assertIs(_comum.reduzida(cru), _comum.INDECIDIVEL, f"{nome} de {w}")
+                else:
+                    self.assertEqual(_comum.reduzida(cru), w, f"{nome} de {w}")
+        for cru in self.INDECIDIVEIS:
+            with self.subTest(indecidivel=cru):
+                self.assertIs(_comum.reduzida(cru), _comum.INDECIDIVEL)
         for cru in self.NAO_SE_REDUZEM:
             with self.subTest(cru=cru):
                 self.assertIsNone(_comum.reduzida(cru))
-        self.assertGreaterEqual(len(crus), 130)
+        self.assertGreaterEqual(len(crus), 60)
 
     # Bloco T da revalidação 10 (proposta caminho-rev10, seção 2): o orçamento de tempo. Os tipos de palavra que mais
     # custam (a unidade, quantas palavras ela tem e a forma de 2 a 3 caracteres, para o teto de caracteres), e o

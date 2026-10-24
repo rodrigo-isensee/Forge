@@ -1799,9 +1799,10 @@ SHELLS_DA_REAVALIACAO = SHELLS | {"rbash"}
 
 def reavaliacao_das_palavras(palavras, opcao_depois=False):
     """ADR 0011, item 2 (opção B da revalidação 9): o comando simples, com as palavras já reduzidas como o bash
-    (`reduzida`; None: a palavra não se reduz), reavalia um texto pelo shell? Em qualquer posição: alguma palavra é
-    `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do arquivo) seguido, mais adiante no mesmo comando, de
-    uma opção curta com `c`. Não há lista de prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo
+    (`reduzida`; None: a palavra não se reduz; `INDECIDIVEL`: tem `$'…'` ou `$"…"`, que o hook não lê), reavalia um texto
+    pelo shell? Em qualquer posição: alguma palavra é `eval`, ou um shell de `SHELLS_DA_REAVALIACAO` (pelo nome do
+    arquivo) seguido, mais adiante no mesmo comando, de uma opção curta com `c`, ou é `INDECIDIVEL`. Não há lista de
+    prefixos: `coproc`, `time`, `find -exec`, `flock f`, `sudo` e o prefixo
     que vier caem pela mesma regra. O `env -S` divide o valor em palavras, que se conferem de novo; o que o hook não
     divide (aspas abertas) é ele mesmo uma reavaliação que ele não lê: `env -S`. Devolve o nome (`eval`, `bash -c`)
     ou None.
@@ -1809,14 +1810,16 @@ def reavaliacao_das_palavras(palavras, opcao_depois=False):
     de cada palavra; o `env` só lê as opções dele. `opcao_depois`: há opção com `c` nas palavras que seguem estas (a
     cauda de um `env -S`). A passada vai até a esquerda e o último achado é o da palavra mais à esquerda."""
     n = len(palavras)
-    textos = ["" if p is None else p for p in palavras]  # o que o `env` lê: a palavra que não se reduz é vazia
+    textos = ["" if p is None or p is INDECIDIVEL else p for p in palavras]  # o `env` lê vazia a palavra que não se lê
     opcao_a_partir = [False] * n + [opcao_depois]  # [j]: há opção com `c` em palavras[j:] (ou depois delas)
     achada = None
     for k in range(n - 1, -1, -1):
         palavra = palavras[k]
-        opcao_a_partir[k] = opcao_a_partir[k + 1] or (
-            palavra is not None and OPCAO_DE_REAVALIACAO.fullmatch(palavra) is not None)
+        opcao_a_partir[k] = opcao_a_partir[k + 1] or OPCAO_DE_REAVALIACAO.fullmatch(textos[k]) is not None
         if palavra is None:
+            continue
+        if palavra is INDECIDIVEL:
+            achada = ACHADO_DO_INDECIDIVEL
             continue
         nome = Path(palavra).name
         if palavra == "eval":
@@ -1850,115 +1853,75 @@ def reavaliacao(texto):
 
 
 # A redução da palavra como o bash (proposta caminho-rev9, seção 1; manual do bash, "Quoting" e "Quote Removal"): a
-# palavra que tem só caracteres comuns e os mecanismos de aspas tem um valor só, e o hook o calcula sem rodar nada. A
-# tabela é fechada: `\` fora de aspas, `'…'`, `"…"` (com `\` antes de `$`, crase, `"`, `\` e quebra de linha), `$'…'`
-# (os escapes ANSI-C de `ESCAPES_ANSI` e `\nnn`, `\xHH`, `\uHHHH`, `\UHHHHHHHH`, `\cX`) e `$"…"` (como `"…"`). O resto é
-# expansão (`$x`, `${…}`, `$(…)`, crase, glob, `{a,b}`, `~`): a palavra não se reduz (cartão N-HOOK1, R5).
-ESCAPES_ANSI = {"a": 7, "b": 8, "e": 27, "E": 27, "f": 12, "n": 10, "r": 13, "t": 9, "v": 11, "\\": 92, "'": 39,
-                '"': 34, "?": 63}
-EXPANDE_FORA_DE_ASPAS = frozenset("$`*?[{~")  # o `$` que não abre `$'` nem `$"`
-OCTAL, HEXA = frozenset("01234567"), frozenset("0123456789abcdefABCDEF")
+# palavra que tem só caracteres comuns e os mecanismos de aspas do POSIX tem um valor só, e o hook o calcula sem rodar
+# nada: `\` fora de aspas, `'…'` e `"…"` (com `\` antes de `$`, crase, `"`, `\` e quebra de linha). Não há tabela de
+# escapes: a palavra com `$'…'` ou `$"…"` fora de aspas é `INDECIDIVEL` (opção C da revalidação 10, RET-LEITURA-HOOK-E), e
+# o hook não depende do que a versão do bash faz com cada escape; com o marcador, os dois hooks a recusam. O resto é
+# expansão (`$x`, `${…}`, `$(…)`, crase, glob, `{a,b}`, `~`): a palavra não se reduz (None; cartão N-HOOK1, R5).
+INDECIDIVEL = object()
+ACHADO_DO_INDECIDIVEL = "$'…' ou $\"…\""  # o nome que `reavaliacao_das_palavras` dá à palavra INDECIDIVEL
+CONTORNO_DO_INDECIDIVEL = "escreva a palavra entre aspas simples ou duplas, sem $'…' nem $\"…\""
+EXPANDE_FORA_DE_ASPAS = frozenset("`*?[{~")  # além do `$`, que `reduzida` olha à parte
 
 
-def _digitos(texto, i, alfabeto, maximo):
-    fim = i
-    while fim < len(texto) and fim - i < maximo and texto[fim] in alfabeto:
-        fim += 1
-    return texto[i:fim]
+def contorno_da_reavaliacao(achada):
+    """O contorno que a recusa diz para o que `reavaliacao` achou."""
+    return CONTORNO_DO_INDECIDIVEL if achada == ACHADO_DO_INDECIDIVEL else CONTORNO_DA_REAVALIACAO
 
 
-def _ansi_c(texto, i):
-    """(bytes, posição depois do `'` que fecha) do `$'…'` cujo conteúdo começa em `i`, ou None se não fecha. Como o
-    bash: o byte nulo corta o resto do trecho, `\\nnn` fica no byte de baixo, e o escape que não está na tabela fica
-    com a barra (`\\z`, `\\x` sem dígito, `\\c` no fim)."""
-    saida, cortado = bytearray(), False
-
-    def por(dados):
-        nonlocal cortado
-        if not cortado:
-            if 0 in dados:
-                dados, cortado = dados[:dados.index(0)], True
-            saida.extend(dados)
-
-    while i < len(texto):
-        c = texto[i]
-        if c == "'":
-            return bytes(saida), i + 1
-        if c != "\\" or i + 1 >= len(texto):
-            por(c.encode("utf-8"))
-            i += 1
-            continue
-        e = texto[i + 1]
-        if e in ESCAPES_ANSI:
-            por(bytes([ESCAPES_ANSI[e]]))
-            i += 2
-        elif e in OCTAL:
-            digitos = _digitos(texto, i + 1, OCTAL, 3)
-            por(bytes([int(digitos, 8) & 0xFF]))
-            i += 1 + len(digitos)
-        elif e in "xuU" and _digitos(texto, i + 2, HEXA, {"x": 2, "u": 4, "U": 8}[e]):
-            digitos = _digitos(texto, i + 2, HEXA, {"x": 2, "u": 4, "U": 8}[e])
-            valor = int(digitos, 16)
-            por(bytes([valor]) if e == "x" else chr(valor).encode("utf-8", "surrogatepass") if valor < 0x110000 else b"")
-            i += 2 + len(digitos)
-        elif e == "c" and i + 2 < len(texto) and texto[i + 2] != "'":
-            x = texto[i + 2]
-            por(bytes([0x7F if x == "?" else ord(x.upper()) & 0x1F]))
-            i += 4 if texto.startswith("\\\\", i + 2) else 3  # `\c\\` é o controle da barra
-        else:
-            por(("\\" + e).encode("utf-8"))
-            i += 2
-    return None
-
-
-def _duplas(texto, i):
-    """(bytes, posição depois do `"` que fecha) do `"…"` cujo conteúdo começa em `i`; None se não fecha ou se há
-    expansão (`$` ou crase sem `\\`)."""
-    saida = bytearray()
-    while i < len(texto):
-        c = texto[i]
-        if c == '"':
-            return bytes(saida), i + 1
-        if c in "$`":
-            return None
-        if c == "\\" and texto[i + 1:i + 2] in ESCAPES_DAS_DUPLAS and texto[i + 1:i + 2]:
-            if texto[i + 1] != "\n":
-                saida.extend(texto[i + 1].encode("utf-8"))
-            i += 2
-            continue
-        saida.extend(c.encode("utf-8"))
-        i += 1
-    return None
+def _resto_com_ansi(cru, i):
+    """Depois de uma construção que aninha (`$(`, `${`, crase), o hook não segue mais as aspas da palavra: `$'` ou `$"`
+    em qualquer ponto do resto vale como INDECIDIVEL (no máximo recusa um que estava entre aspas); sem eles, a palavra
+    não se reduz (None)."""
+    return INDECIDIVEL if "$'" in cru[i:] or '$"' in cru[i:] else None
 
 
 def reduzida(cru):
-    """A palavra como o bash a entrega ao programa (a remoção de aspas, sem expansão), ou None se ela não se reduz a
-    literal (expansão, aspas sem par). Os bytes fora do UTF-8 (`$'\\xff'`) voltam como `surrogateescape`."""
-    saida, i = bytearray(), 0
+    """A palavra como o bash a entrega ao programa (a remoção de aspas, sem expansão): o str; None se ela não se reduz
+    a literal (expansão, aspas sem par); `INDECIDIVEL` se tem `$'` ou `$"` fora de aspas. Dentro de aspas simples, o `$`
+    é literal; dentro de aspas duplas, o `$'` e o `$"` também (o `$` sozinho é expansão)."""
+    saida, i, expande = [], 0, False
     while i < len(cru):
         c = cru[i]
         if c == "\\":
             if cru[i + 1:i + 2] != "\n":
-                saida.extend((cru[i + 1:i + 2] or "\\").encode("utf-8"))
+                saida.append(cru[i + 1:i + 2] or "\\")
             i += 2
         elif c == "'":
             fim = cru.find("'", i + 1)
             if fim < 0:
                 return None
-            saida.extend(cru[i + 1:fim].encode("utf-8"))
+            saida.append(cru[i + 1:fim])
             i = fim + 1
-        elif cru.startswith(("$'", '$"', '"'), i):
-            lido = (_ansi_c if cru.startswith("$'", i) else _duplas)(cru, i + (1 if c == '"' else 2))
-            if lido is None:
-                return None
-            saida.extend(lido[0])
-            i = lido[1]
-        elif c in EXPANDE_FORA_DE_ASPAS:
-            return None
-        else:
-            saida.extend(c.encode("utf-8"))
+        elif cru.startswith(("$'", '$"'), i):
+            return INDECIDIVEL
+        elif c == "`" or cru.startswith(("$(", "${"), i):
+            return _resto_com_ansi(cru, i)
+        elif c == '"':
             i += 1
-    return bytes(saida).decode("utf-8", "surrogateescape")
+            while True:
+                if i >= len(cru):
+                    return None  # aspas sem par
+                d = cru[i]
+                if d == '"':
+                    i += 1
+                    break
+                if d == "`" or cru.startswith(("$(", "${"), i):
+                    return _resto_com_ansi(cru, i)
+                if d == "\\" and cru[i + 1:i + 2] in ESCAPES_DAS_DUPLAS:
+                    if cru[i + 1] != "\n":
+                        saida.append(cru[i + 1])
+                    i += 2
+                    continue
+                expande = expande or d == "$"
+                saida.append(d)
+                i += 1
+        else:
+            expande = expande or c == "$" or c in EXPANDE_FORA_DE_ASPAS
+            saida.append(c)
+            i += 1
+    return None if expande else "".join(saida)
+
 
 def valor_do_split_string(opcao, seguinte):
     """(texto, 1 se consumiu a palavra seguinte) do `env -S`/`--split-string`, o comando que o `env` divide e roda;

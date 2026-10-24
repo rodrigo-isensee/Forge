@@ -24,9 +24,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import parecer
-from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DA_REAVALIACAO, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO, OPACO,
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO, OPACO,
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
-                    construcao_nao_modelada, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
+                    construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
@@ -742,7 +742,7 @@ class Guarda:
         # `aninhado` já o conferiu): com o marcador crítico no nível 0, a reavaliação pelo shell em qualquer nível recusa
         if nivel == 0 and not self.leitura and self.reavaliacao and CRITICO.search(original):
             self.barrar("R-CONFORMIDADE", f"`{self.reavaliacao}` na chamada com ação crítica: o hook não modela o texto "
-                                          "que o shell reavalia", CONTORNO_DA_REAVALIACAO)
+                                          "que o shell reavalia", contorno_da_reavaliacao(self.reavaliacao))
         # ADR 0011, item 2 (opções D e A), por último: sobre o texto do nível 0, com o `<<` que o bash pode formar nele
         # ou num nível de cima (`tem_heredoc_no_texto`)
         if nivel == 0 and not self.leitura and CRITICO.search(original):
