@@ -4810,11 +4810,19 @@ class TetoPorPr(unittest.TestCase):
     def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("git diff --numstat origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
-                          "`tests/mutantes/` e o texto `.md`", "`teto: excedido, <n> linhas, <motivo>`",
-                          "nunca em `hooks/`"):
+            for frase in ("git diff --numstat --no-renames origin/develop...HEAD", "`tests/*.py` e `tests/config.json`",
+                          "`teto: excedido, <n> linhas, <motivo>`", "decisão M14",
+                          "a exceção não alcança nenhum caminho de `PROTEGIDOS`"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+    def test_tech_lead_marca_o_no_forge_e_nao_cita_a_r_review_como_fonte_do_teto(self):
+        texto = (RAIZ / "agents/tech-lead.md").read_text(encoding="utf-8")
+        for frase in ("**No Forge:**", "`tests/mutantes/` e o texto `.md`", "A M14 não vale para o `lote-leitura-hook`",
+                      "requisito da decisão M14"):
+            with self.subTest(frase=frase):
+                self.assertIn(frase, texto)
+        self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
 
 
 class BloqueanteSoComDefeitoProvado(unittest.TestCase):
