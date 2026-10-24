@@ -4857,3 +4857,34 @@ class BloqueanteSoComDefeitoProvado(unittest.TestCase):
             for frase in (self.CURTA, "`critério mudou:` com o motivo", "(`R-REVIEW`)"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+
+class PesosDaSuite(unittest.TestCase):
+    """C5: o peso só equilibra a divisão, mas sem peso a mediana chuta; avisa quando passa de 20% sem peso."""
+
+    def test_no_maximo_20_por_cento_dos_modulos_sem_peso(self):
+        modulos = sorted(p.stem for p in (RAIZ / "tests").glob("test*.py") if p.stem.isidentifier())
+        pesos = json.loads((RAIZ / "tests" / "pesos-d4.json").read_text(encoding="utf-8"))
+        sem_peso = [m for m in modulos if m not in pesos]
+        self.assertGreaterEqual(len(modulos), 1)
+        self.assertLessEqual(
+            len(sem_peso) * 5,
+            len(modulos),
+            f"{len(sem_peso)} de {len(modulos)} módulos sem peso ({', '.join(sem_peso)}); "
+            "regrave com FORGE_SUITE_MEDIR=1 python3 scripts/suite-paralela.py",
+        )
+
+
+class EsperaDoPushEVerificadores(unittest.TestCase):
+    """A3 e A4 (MAQ-LOTE-A): o push de código em segundo plano e a V2 dirigida e na fila ficam no texto do tech-lead."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "tech-lead.md").read_text(encoding="utf-8")
+
+    def test_push_de_codigo_em_segundo_plano(self):
+        self.assertIn("o `git push` de código roda com o `run_in_background` da ferramenta", self.texto)
+        self.assertIn("espera a notificação do fim, sem mexer na worktree até lá", self.texto)
+
+    def test_v2_dirigida_e_na_fila(self):
+        self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
+        self.assertIn("1 processo, pela fila; a suíte completa roda uma vez, no push", self.texto)
