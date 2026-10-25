@@ -4,83 +4,82 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "A4: em Decisões e restrições só passam as cópias do pedido (lista positiva)",
+      "guarda": "M1: papel errado (o destino não tem a etapa que o Entregar cita)",
       "arquivo": "bin/forge-check",
-      "de": "        elif atual == \"Decisões e restrições\" and linha.strip():\n",
-      "para": "        elif False:\n",
+      "de": "        if papel_destino and nome_do_papel(papel) != papel_destino:\n",
+      "para": "        if False:\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a4_decisoes_e_restricoes_so_aceita_as_copias_do_pedido"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_papel_errado_o_destino_nao_tem_a_etapa_citada"
       ]
     },
     {
       "id": "M2",
-      "guarda": "QA A4: cada frase do Entregar cita um id do pedido",
+      "guarda": "M1: pedido contraditório (o Entregar manda o que o Fora do escopo do pedido exclui)",
       "arquivo": "bin/forge-check",
-      "de": "        elif atual == \"Entregar\" and any(",
-      "para": "        elif False and any(",
+      "de": "        if excluidos or copiados:\n",
+      "para": "        if False:\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_qa_a4_frase_do_entregar_sem_id_do_pedido",
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_cada_sonda_da_seguranca_sai_necessario"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_pedido_contraditorio_o_entregar_manda_o_que_o_fora_do_escopo_do_pedido_exclui"
       ]
     },
     {
       "id": "M3",
-      "guarda": "A10: letra fora do alfabeto latino dá necessário",
+      "guarda": "Review A1: o id que abre o item do Fora do escopo exclui; o id na prosa ou dentro de outro nome não",
       "arquivo": "bin/forge-check",
-      "de": "c not in \"ªº\" and not unicodedata.name(c, \"\").startswith(\"LATIN\")",
-      "para": "False",
+      "de": "    return ids_em_citacao(item) | (ids_do_texto(abre.group(1)) if abre else set())",
+      "para": "    return ids_em_citacao(item)",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a10_forja_visual_da_decisao_do_dono"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_id_dentro_de_outro_nome_ou_na_prosa_do_fora_do_escopo_nao_exclui_nada"
       ]
     },
     {
       "id": "M4",
-      "guarda": "A10: a frase DECISÃO sem acento ou com marca combinante não é cópia",
+      "guarda": "M1: na etapa codigo o commit não se confere (o autor ainda vai commitar)",
       "arquivo": "bin/forge-check",
-      "de": " or FRASE_FORJADA.search(sem_acento(linha))",
-      "para": "",
+      "de": "    if not branch or etapa not in ETAPAS_DO_GERAR or etapa == \"codigo\":\n",
+      "para": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a10_forja_visual_da_decisao_do_dono"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher"
       ]
     },
     {
       "id": "M5",
-      "guarda": "A11: sem Branch ou com etapa desconhecida o commit não decide",
+      "guarda": "M1: sem remoto conhecido não há o que conferir (como parecer_commitado)",
       "arquivo": "bin/forge-check",
-      "de": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n        return [], False\n",
-      "para": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n        return [], True\n",
+      "de": " or not (conferido or git(raiz, \"for-each-ref\", \"--count=1\", \"--format=%(refname)\", \"refs/remotes/origin\")[1]):\n",
+      "para": ":\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_commit_so_na_worktree_o_head_nao_esta_em_origin"
       ]
     },
     {
       "id": "M6",
-      "guarda": "A11: na etapa codigo só decide com o head no remoto",
+      "guarda": "M1: o head local em origin/<branch> (igual ou ancestral) não reprova",
       "arquivo": "bin/forge-check",
-      "de": "        return [], conferido and no_remoto and not (remota and worktree_a_frente(raiz, remota))",
-      "para": "        return [], True",
+      "de": "    if remota and (head == remota or e_ancestral(raiz, head, remota)):\n        return []\n",
+      "para": "    if False:\n        return []\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_commit_so_na_worktree_o_head_nao_esta_em_origin"
       ]
     },
     {
       "id": "M7",
-      "guarda": "A11: o gerar sem --etapa não escreve codigo",
+      "guarda": "Segurança A8, review A6: o commit lê o remoto por git ls-remote, não só o ref de rastreio",
       "arquivo": "bin/forge-check",
-      "de": "saida.append(f\"Etapa: {etapa or PREENCHER}\"",
-      "para": "saida.append(f\"Etapa: {etapa or 'codigo'}\"",
+      "de": "    if cod == 0:\n        sha = saida.split(\"\\t\")[0]\n",
+      "para": "    if False:\n        sha = saida.split(\"\\t\")[0]\n",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_a11_commit_so_decide_com_etapa_branch_e_head_no_remoto"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_commit_le_o_remoto_e_nao_so_o_ref_de_rastreio_velho"
       ]
     },
     {
       "id": "M8",
-      "guarda": "QA A3 (N1): a cópia literal da DECISÃO DO DONO fora de Decisões e restrições",
+      "guarda": "Segurança A11: o gerar sem --etapa não escreve codigo",
       "arquivo": "bin/forge-check",
-      "de": "            if atual != \"Decisões e restrições\":\n",
-      "para": "            if False:\n",
+      "de": "saida.append(f\"Etapa: {etapa or PREENCHER}\"",
+      "para": "saida.append(f\"Etapa: {etapa or 'codigo'}\"",
       "testes": [
-        "tests.test_etapa_do_brief.ListaPositivaDoMecanico.test_qa_a3_copia_fora_de_decisoes_e_corte_real"
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher"
       ]
     }
   ]
