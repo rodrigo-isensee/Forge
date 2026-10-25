@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: lote-s1-scripts
 branch: melhoria/lote-s1-scripts
-commit: 8e22f173e103f04a77bab9152747f0d79473f9f0
+commit: 979c1ffd8ef43e608aca0f792c56afa4dd6d27d6
 parecer: aprovado
 revisor: forge:tech-lead (instância de review, não a autora)
 data: 2026-10-24
@@ -25,9 +25,23 @@ Escopo: `git diff 3c66b881af31817ce5d2dde996c7ca56d54cb511...8e22f173e103f04a77b
 - **Segurança:** a análise do TOCTOU e dos links é da E2.1 (`docs/security/lote-s1-scripts.md`), que roda em paralelo, e não a refaço aqui.
 - **PA-7:** `docs/engineering/achados-recorrentes.md` não tem nenhum achado registrado e não havia item a conferir.
 
-## Achados
+## Revalidação 2 (por delta, head 979c1ffd8ef43e608aca0f792c56afa4dd6d27d6)
+Delta lido: `bin/forge-check delta --parecer docs/reviews/lote-s1-scripts.md` (intervalo 8e22f17..979c1ff) listou `bin/forge-fechar` 25, 106-107 e 466-477, `docs/fechamento-integrador.md` 20, 52, 58 e 71, `tests/test_fechar_orfao.py` 24-33, 182-209 e 214-220, e as duas specs novas em `tests/mutantes/`. Conferi também `git diff 61cd772..979c1ff`, que traz os mesmos quatro commits (d0e15d6, dfe06f8, ac6e760 e 979c1ff). Já lido e fora do delta: o restante dos quatro cartões, que segue como na rodada 1, abaixo.
+- **R1 (doc do integrador): resolvida.** `docs/fechamento-integrador.md` descreve agora o `chmod u=rwx,go=,g-s,u-s` sobre `.` depois de `cd -P` e `[ -O . ]` (linha 52), os quatro números com `FORGE_FECHAR_TETO_DELETE` de 1 a 75 s e padrão 75 s (linha 58), e as 3 tentativas com teto, a releitura por `git ls-remote` e os três desfechos (linhas 20 e 71). As quatro passagens batem com o código.
+- **R3 (faixa): resolvida.** A faixa caiu para 1 a 75 s, com padrão 75 s (`bin/forge-fechar:107`). O pior caso é 3 x 75 + 2 x 30 (pausa máxima) + 10 (`com_teto 10` do `ls-remote`) = 295 s, que fica em até 300 s mesmo com a pausa no máximo. O `repetir` não dorme depois da terceira falha, então não há uma terceira pausa a somar. O teste recusa 0, 76, 100, 101 e `x`, cita "1 a 75" na mensagem e aceita 1 e 75.
+- **R4 (ls-remote antes de dizer viva): resolvida.** Depois de o `repetir` falhar, o script relê a ref com `com_teto 10 git ls-remote` (linhas 467-477). Saída vazia vira `registro: ... já não existe no servidor` e `remota=ok`. Ref presente mantém o aviso "continua viva" e `pendente`. Leitura que falha avisa "não consegui conferir" e fica `pendente`, sem afirmar nada (falha fechada). Os três desfechos têm teste: o git falso `delete_apaga_e_trava` apaga a ref e trava; `delete_trava` não apaga; e `ls_falha` derruba o `ls-remote`.
+- **Spec em dois arquivos:** o `bin/forge-mutante` aceita de 1 a 8 mutantes por spec (`MAXIMO_DE_MUTANTES = 8`, linha 43). As 11 guardas do lote não cabem num arquivo só. Dividir em `lote-s1-scripts.json` (M1-M8, os quatro cartões) e `lote-s1-scripts-volta.json` (V1-V3, a volta) é o caminho certo sem mexer no teto da ferramenta, e cada arquivo fica dentro do limite. A justificativa do M8 (`[ -O . ]`) está no campo `guarda`, como o A2 do QA pedia. Rodei só a spec do delta: `bin/forge-mutante tests/mutantes/lote-s1-scripts-volta.json --rev 979c1ff` deu rc 0 e V1, V2 e V3 morreram (linhas 107, 468 e 467). A spec M1-M8 é evidência do QA (E3.1) e não a refiz.
+- **Testes do lote:** `python3 -m unittest tests.test_fechar_orfao tests.test_fechar_log_check tests.test_changelog` deu 71 testes, OK, 1 pulado (o `FragmentoTemONomeDaBranch`, porque o HEAD está destacado). A suíte completa roda no pre-push do autor (1949 OK, segundo o pedido).
+- **Ferramentas:** `shellcheck scripts/validar-plugin.sh` passa limpo. Em `bin/forge-fechar` aparecem os mesmos três avisos de antes (SC2034, SC2015 e SC2086), agora nas linhas 504, 521 e 528, deslocadas em 10 pelo bloco novo e fora do diff (cartão SHELLCHECK-FECHAR).
+- **Teto M14:** a branch inteira soma 231 linhas de código e teste (bin 57, scripts 16, tests 158; ficam fora as specs JSON de `tests/mutantes/`, os pareceres, o fragmento e o `.md`). Fica abaixo de 400 e não toca `hooks/` nem `PROTEGIDOS`.
+- **PA-7:** `docs/engineering/achados-recorrentes.md` continua sem nenhum achado registrado.
 
-## Detalhe dos achados (recomendações, não devolvem)
+## Achados
+- A1 (recomendado) bin/forge-fechar:26 · o cabeçalho ainda diz que teto estourado ou exclusão negada dá "remota continua viva" e código 3; desde dfe06f8 isso só vale se o `ls-remote` ainda achar a ref. Sugestão: citar a conferência.
+- A2 (recomendado) tests/test_fechar_orfao.py:219 · a soma do pior caso compara só constantes, e um mutante na pausa máxima (30) ou no teto do `ls-remote` (10) passa (resto da R5). Sugestão: ler esses números do script e somar.
+- A3 (recomendado) bin/forge-fechar:120 · a R2 continua aberta: sem `timeout` no PATH, `com_teto` roda sem limite, inclusive o `ls-remote` novo, sem aviso nem teste.
+
+## Detalhe dos achados da rodada 1 (recomendações, não devolvem; R1, R3 e R4 resolvidas na revalidação 2, R2 segue como A3, R5 em parte como A2)
 - R1 (recomendado) docs/fechamento-integrador.md:52 · a documentação do integrador ficou atrás do código. A linha 52 ainda diz `chmod u=rwx,go=,g-s` sobre o caminho, sem o `u-s` nem o `.`. A linha 58 diz que o script confere "os três números" e não cita `FORGE_FECHAR_TETO_DELETE` (1 a 100, padrão 80). As linhas 20 e 71 descrevem as 3 tentativas do `push --delete` sem o teto nem o aviso "a remota continua viva". A definição de pronto pede a documentação afetada na mesma entrega. Sugestão: ajustar as três passagens antes do PR. O texto `.md` não conta no teto.
 - R2 (recomendado) bin/forge-fechar:120 · sem `timeout` no PATH (macOS sem coreutils), `com_teto` roda sem limite e o requisito "não passar de 300 s" deixa de valer em silêncio depois da linha `registro:`. Esse recuo não tem teste. Sugestão: um teste com PATH sem `timeout` que confirme que o comando roda, e um aviso de uma linha quando o teto não puder ser aplicado. A outra opção é um vigia em bash puro (`sleep` + `kill` do pid).
 - R3 (recomendado) bin/forge-fechar:107 · a faixa aceita até 100 s. Com `FORGE_FECHAR_TETO_DELETE=100` e a pausa padrão, são 3 x 100 + 2 x 3 = 306 s sem nenhuma saída entre o `registro:` e o aviso, acima dos 300 s do cartão. Isso só acontece por escolha explícita do operador. Sugestão: teto 95, ou uma linha de registro por tentativa.
@@ -35,4 +49,4 @@ Escopo: `git diff 3c66b881af31817ce5d2dde996c7ca56d54cb511...8e22f173e103f04a77b
 - R5 (recomendado) tests/test_fechar_orfao.py:179 · o teste que promete "o padrão deixa três tentativas abaixo de 300 s" só procura o texto `:-80` no script e não calcula nada: um mutante que suba o teto máximo ou a pausa passa. Sugestão: calcular `3 * padrão + 2 * pausa padrão < 300` a partir dos valores lidos, ou medir o tempo com teto 1 e pausa 0.
 
 ## Parecer
-Aprovado. Os quatro cartões fazem o que o pedido pede, cada um com um teste que falharia sem a correção, e nenhum caminho antigo do forge-fechar mudou de comportamento. Os cinco itens acima são recomendações. A R1 (documentação do integrador) deve entrar antes do PR, para o `docs/fechamento-integrador.md` não chegar à main descrevendo o comportamento antigo.
+Aprovado (revalidação 2, head 979c1ff). As R1, R3 e R4 da rodada 1 estão resolvidas, com teste nos três desfechos da conferência da remota e com o pior caso da limpeza em 295 s. A spec de mutantes em dois arquivos respeita o teto de 8 do `forge-mutante`, e os três mutantes da volta morreram. Não há bloqueante. A1 a A3 são recomendações e não devolvem a entrega.
