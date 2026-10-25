@@ -1,4 +1,5 @@
-"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; não é portão."""
+"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; filtro do pre-push (EST-M8), nunca portão de CI."""
+import ast
 import importlib.machinery
 import importlib.util
 import os
@@ -45,7 +46,7 @@ class Mapa(unittest.TestCase):
 
     def test_caminhos_conhecidos_rodam_so_os_modulos_do_mapa(self):
         casos = {
-            "bin/forge-changelog": ["test_changelog", "test_forge"],
+            "bin/forge-changelog": ["test_changelog", "test_conferir_release", "test_forge"],
             "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge"],
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
@@ -125,24 +126,79 @@ class Mapa(unittest.TestCase):
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
-    """Cada `RAIZ / "..."` de um tests/test_*.py que aponta para um arquivo do Forge tem de levar a esse módulo."""
+    """Cada arquivo do Forge que um tests/test_*.py lê ou executa tem de levar a esse módulo (o pre-push filtra por isto).
 
-    CAMINHO = re.compile(r'RAIZ\s*/\s*"([^"]+)"((?:\s*/\s*"[^"]+")*)')
-    # Testes que só montam o próprio projeto de brinquedo e não dependem do conteúdo do Forge ficam de fora
-    # por não citarem RAIZ; os módulos abaixo citam e são conferidos.
+    Formas reconhecidas (ast, não regex): `RAIZ / "a" / "b"`, `RAIZ.joinpath(...)`, uma variável de módulo que guarda
+    um caminho (`HOOKS = RAIZ / "hooks"` ou `...parent.parent / "hooks"`) usada como `HOOKS / "x.py"`, e `ler("...")`.
+    Quando o módulo monta o caminho com uma variável (`RAIZ / rel`), todo literal do módulo que é um arquivo do
+    Forge conta: falha fechada, o mapa tem de ser tão largo quanto o que o teste pode ler."""
+
+    # Este próprio módulo só passa caminhos como texto para `planejar`: não os lê.
+    SO_CITA = {"test_testes_tocados"}
 
     @classmethod
     def setUpClass(cls):
         cls.f = carregar()
 
+    @classmethod
+    def partes(cls, no, vars_):
+        """Caminho relativo à raiz (tupla) de uma expressão de caminho, ou None; "*" marca a parte dada por variável."""
+        if isinstance(no, ast.Constant) and isinstance(no.value, str):
+            return tuple(p for p in no.value.split("/") if p)
+        if isinstance(no, ast.Name):
+            return vars_.get(no.id)
+        if isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div):
+            esq = cls.partes(no.left, vars_)
+            if esq is None:
+                return None
+            direita = cls.partes(no.right, vars_) if isinstance(no.right, ast.Constant) else None
+            return esq + (direita if direita is not None else ("*",))
+        if isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "joinpath":
+            base = cls.partes(no.func.value, vars_)
+            if base is None:
+                return None
+            for arg in no.args:
+                p = cls.partes(arg, vars_) if isinstance(arg, ast.Constant) else None
+                base = base + (p if p is not None else ("*",))
+            return base
+        if isinstance(no, ast.Attribute) and no.attr == "parent":  # Path(__file__).resolve().parent[.parent]
+            dentro = no.value
+            if isinstance(dentro, ast.Attribute) and dentro.attr == "parent":
+                return () if ast.unparse(dentro.value) in ("Path(__file__).resolve()", "Path(__file__)") else None
+            return ("tests",) if ast.unparse(dentro) in ("Path(__file__).resolve()", "Path(__file__)") else None
+        return None
+
     def lidos(self, modulo):
-        texto = (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8")
-        achados = set()
-        for inicio, resto in self.CAMINHO.findall(texto):
-            partes = [inicio] + re.findall(r'"([^"]+)"', resto)
-            caminho = "/".join(partes)
-            if (RAIZ / caminho).is_file():
-                achados.add(caminho)
+        return self.lidos_do_texto(modulo, (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+
+    def lidos_do_texto(self, modulo, texto):
+        arvore = ast.parse(texto)
+        vars_ = {"RAIZ": ()}
+        for no in arvore.body:
+            if isinstance(no, ast.Assign) and len(no.targets) == 1 and isinstance(no.targets[0], ast.Name):
+                p = self.partes(no.value, vars_)
+                if p is not None and "*" not in p:
+                    vars_.setdefault(no.targets[0].id, p)
+        achados, dinamico = set(), False
+        for no in ast.walk(arvore):
+            candidato = None
+            if isinstance(no, ast.Call) and isinstance(no.func, ast.Name) and no.func.id == "ler":
+                if no.args and isinstance(no.args[0], ast.Constant) and isinstance(no.args[0].value, str):
+                    candidato = tuple(p for p in no.args[0].value.split("/") if p)
+            elif (isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div)) or isinstance(no, ast.Call):
+                candidato = self.partes(no, vars_)
+            if candidato is None:
+                continue
+            if "*" in candidato:
+                dinamico = True
+                candidato = candidato[:candidato.index("*")]
+            if candidato and (RAIZ / Path(*candidato)).is_file():
+                achados.add("/".join(candidato))
+        if dinamico and modulo not in self.SO_CITA:
+            for no in ast.walk(arvore):
+                if isinstance(no, ast.Constant) and isinstance(no.value, str) and "/" in no.value \
+                        and "\n" not in no.value and (RAIZ / no.value).is_file():
+                    achados.add(no.value)
         return achados
 
     def test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo(self):
@@ -155,6 +211,38 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                     modo, planejados = self.f.planejar([caminho], RAIZ)
                     self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
         self.assertGreaterEqual(total, 40)
+
+    def test_a_conferencia_enxerga_as_formas_de_citar_um_caminho(self):  # LOTE-M8-PREPUSH (seg A1)
+        fonte = (
+            "from pathlib import Path\n"
+            "RAIZ = Path(__file__).resolve().parent.parent\n"
+            "HOOKS = Path(__file__).resolve().parent.parent / 'hooks'\n"
+            "def ler(rel):\n    return (RAIZ / rel).read_text()\n"
+            "a = HOOKS / 'agentes.py'\n"
+            "b = ler('hooks/vigia.py')\n"
+            "c = RAIZ.joinpath('bin', 'forge-changelog')\n"
+            "def f(rel):\n    return RAIZ / rel\n"
+            "d = ('docs/regras/R-BRIEF.md',)\n"
+        )
+        self.assertEqual(self.lidos_do_texto("test_x", fonte),
+                         {"hooks/agentes.py", "hooks/vigia.py", "bin/forge-changelog", "docs/regras/R-BRIEF.md"})
+
+    def test_a_familia_dos_testes_que_executam_hooks_e_bin_roda_no_envio_dirigido(self):  # LOTE-M8-PREPUSH (seg A1)
+        for caminho, modulo in (("hooks/agentes.py", "test_agentes_hash_brief"), ("hooks/agentes.py", "test_agentes_clone"),
+                                ("hooks/_comum.py", "test_agentes_hash_brief"), ("hooks/_comum.py", "test_agentes_clone"),
+                                ("hooks/vigia.py", "test_textos_dono_f10"), ("bin/forge-changelog", "test_conferir_release"),
+                                ("agents/jarvis.md", "test_clareza"), ("tests/test_portao_diff_proprio.py", "test_ambiente_git")):
+            with self.subTest(caminho=caminho, modulo=modulo):
+                self.assertIn(modulo, self.f.planejar([caminho], RAIZ)[1])
+
+    def test_manifesto_do_plugin_de_dev_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # FORGE-TESTES-CAMINHOS
+        modo, modulos = self.f.planejar(["dev/.claude-plugin/plugin.json"], RAIZ)
+        self.assertEqual(modo, "dirigido")
+        self.assertEqual(modulos, self.f.planejar([".claude-plugin/plugin.json"], RAIZ)[1])
+
+    def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
+        self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
+                         ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
         self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
@@ -248,6 +336,50 @@ class Execucao(unittest.TestCase):
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
         self.assertIn("dirigido (test_forge, test_novo, test_sugerir)", r.stdout)
+
+    # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
+    # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção
+    # incompatível e caminho começado por `-` (depois de `--`).
+    def rodar_com(self, *args, cwd=None):
+        return subprocess.run([sys.executable, str(FERRAMENTA), *args], cwd=cwd or self.dir, env=AMBIENTE,
+                              capture_output=True, text=True)
+
+    def test_caminhos_dirigem_o_plano_sem_olhar_o_git(self):
+        r = self.rodar_com("--listar", "tests/test_sugerir.py", "tests/test_outro.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("dirigido (test_outro, test_sugerir)", r.stdout)
+        self.assertFalse((self.dir / ".forge").exists())
+
+    def test_caminho_sem_mapa_cai_na_completa_e_o_alterado_no_git_nao_conta(self):
+        (self.dir / "tests" / "test_sugerir.py").write_text("x = 1\n", encoding="utf-8")  # alterado, mas não citado
+        r = self.rodar_com("--listar", "novo.txt")
+        self.assertIn("suíte completa (novo.txt sem mapa)", r.stdout)
+
+    def test_caminho_absoluto_com_ponto_ponto_e_de_subpasta_valem(self):
+        (self.dir / "sub").mkdir()
+        absoluto = str(self.dir / "tests" / "test_sugerir.py")
+        for args, cwd in (((absoluto,), None), (("sub/../tests/test_sugerir.py",), None),
+                          (("../tests/test_sugerir.py",), self.dir / "sub")):
+            with self.subTest(args=args, cwd=cwd):
+                r = self.rodar_com("--listar", *args, cwd=cwd)
+                self.assertIn("dirigido (test_sugerir)", r.stdout, r.stdout + r.stderr)
+
+    def test_caminho_fora_do_repositorio_e_recusado(self):
+        r = self.rodar_com("--listar", "../fora.py")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("fora do repositório", r.stderr)
+        self.assertNotIn("dirigido", r.stdout)
+
+    def test_caminhos_nao_combinam_com_completa_nem_com_vermelho(self):
+        for opcao in (("--completa",), ("--vermelho", "HEAD")):  # o `--vermelho` consome o argumento seguinte como base
+            with self.subTest(opcao):
+                r = self.rodar_com(*opcao, "tests/test_sugerir.py")
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("caminhos não combinam", r.stderr)
+
+    def test_caminho_comecado_por_hifen_so_depois_de_dois_hifens(self):
+        r = self.rodar_com("--listar", "--", "-x.py")
+        self.assertIn("suíte completa (-x.py sem mapa)", r.stdout)
 
     def test_nada_alterado_nao_roda(self):
         r = self.rodar()
