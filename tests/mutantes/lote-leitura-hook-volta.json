@@ -3,6 +3,26 @@
   "executor": "unittest",
   "mutantes": [
     {
+      "id": "X1",
+      "guarda": "volta H: o texto dividido da palavra com S dentro da leitura adiada conta as palavras fora da tabela já vistas (env -uS\\' cat .env recusa)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                                    (nome, i + texto[1], dividido + _dividir(texto[0], gasto, f\"{nome} {opcao}\"))))\n",
+      "para": "                                    (nome, i + texto[1], dividido + _dividir(texto[0], 0, f\"{nome} {opcao}\"))))\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
+      "id": "X3",
+      "guarda": "volta H: a linha com uma leitura só e texto que não fecha segue por ilegivel (except TextoDivididoAberto)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        except TextoDivididoAberto:  # texto dividido do `env` com aspas abertas, numa leitura só\n",
+      "para": "        except ZeroDivisionError:  # texto dividido do `env` com aspas abertas, numa leitura só\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
       "id": "X5",
       "guarda": "volta H: atrás do texto que não fecha, todo alvo depois do tee conta, não só o primeiro",
       "arquivo": "hooks/conformidade.py",
