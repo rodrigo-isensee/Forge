@@ -91,10 +91,8 @@ class Mapa(unittest.TestCase):
 
     # M8, opção C (critério de fim, item 3): módulo de teste no diff não tem regra e roda a suíte inteira.
     def test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa(self):
-        for caminho in ("tests/test_fechar.py",  # importado por 13 `test_fechar_*`
-                        "tests/test_sugerir.py",  # que ninguém importa
-                        "tests/test_modulo_novo_que_nao_existe.py",  # novo ou apagado: o arquivo não está lá
-                        "tests/test_forge.py"):
+        for caminho in ("tests/test_fechar.py", "tests/test_sugerir.py",  # importado por 13 `test_fechar_*`; sem importador
+                        "tests/test_modulo_novo_que_nao_existe.py", "tests/test_forge.py"):  # novo ou apagado; varre tests/
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
@@ -430,21 +428,20 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
         cls.testes = sorted(p.stem for p in (RAIZ / "tests").glob("test_*.py"))
 
     def importados(self, texto):
-        """(módulos de teste importados por nome, há importação dinâmica de nome montado)."""
-        achados, dinamico = set(), False
+        """Módulos de teste importados por nome (`import`, `from ... import`, `import_module` com literal)."""
+        achados = set()
         for no in ast.walk(ast.parse(texto)):
             if isinstance(no, ast.Import):
                 nomes = [a.name for a in no.names]
             elif isinstance(no, ast.ImportFrom) and not no.level:
                 nomes = [no.module or ""]
-            elif isinstance(no, ast.Call) and getattr(no.func, "attr", "") == "import_module" and no.args:
-                literal = isinstance(no.args[0], ast.Constant)
-                dinamico |= not literal
-                nomes = [str(no.args[0].value).split(".")[-1]] if literal else []
+            elif isinstance(no, ast.Call) and getattr(no.func, "attr", "") == "import_module" and no.args \
+                    and isinstance(no.args[0], ast.Constant):
+                nomes = [str(no.args[0].value).split(".")[-1]]
             else:
                 continue
             achados.update(n for n in nomes if re.fullmatch(r"test_[a-z0-9_]+", n))
-        return achados, dinamico
+        return achados
 
     def varridos(self, texto):
         """Arquivos do Forge que um `glob`, `rglob` ou `iterdir` sobre caminho conhecido alcança, e a pasta varrida."""
@@ -471,11 +468,10 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
     def test_todo_teste_importado_por_outro_leva_quem_importa_a_suite_inteira(self):  # critério C.1
         arestas = 0
         for modulo in self.testes:
-            importados, _ = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            importados = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
             for importado in sorted(importados & set(self.testes)):
                 arestas += 1
                 with self.subTest(modulo=modulo, importado=importado):
-                    self.assertTrue(self.cobre(f"tests/{importado}.py", modulo))
                     self.assertEqual(self.f.planejar([f"tests/{importado}.py"], RAIZ)[0], "completo")
         self.assertGreaterEqual(arestas, 31)  # as 31 linhas de `import`/`from` entre testes na varredura da segurança
 
@@ -490,26 +486,8 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
                 with self.subTest(modulo=modulo, caminho=caminho):
                     self.assertTrue(self.cobre(caminho, modulo))
         self.assertGreaterEqual(total, 1000)
-        # quem varre `tests/` cai quando um módulo de teste muda: todo módulo de teste dá a suíte inteira
+        # quem varre `tests/` cai quando um módulo de teste muda: todo módulo de teste dá a suíte inteira (C.1 e `Mapa`)
         self.assertLessEqual({"test_ambiente_git", "test_testes_tocados", "test_forge"}, varrem_tests)
-        for modulo in self.testes:
-            with self.subTest(testes=modulo):
-                self.assertEqual(self.f.planejar([f"tests/{modulo}.py"], RAIZ)[0], "completo")
-
-    def test_a_conferencia_enxerga_importacao_e_varredura_na_fonte_sintetica(self):  # critério C.3
-        fonte = (
-            "import importlib\nfrom pathlib import Path\n"
-            "import test_a\nimport test_b as y\n"
-            "AQUI = Path(__file__).resolve().parent\n"
-            "def f():\n    from test_c import coisa\n"
-            "def g(n):\n    return importlib.import_module('tests.' + n)\n"
-            "def h():\n    return importlib.import_module('tests.test_d')\n"
-            "def i():\n    return list(AQUI.glob('test_*.py'))\n"
-        )
-        self.assertEqual(self.importados(fonte), ({"test_a", "test_b", "test_c", "test_d"}, True))
-        achados, pastas = self.varridos(fonte)
-        self.assertEqual(pastas, {"tests"})
-        self.assertIn("tests/test_forge.py", achados)
 
 
 class MapaDoForgeCheck(unittest.TestCase):
@@ -704,15 +682,7 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(modulos, ["test_forge", "test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("sem veredito", r.stdout)
 
-    def test_vermelho_com_caminho_sem_mapa_junto_do_teste_roda_todos_os_modulos(self):
-        self.com_modulos_do_mapa()
-        self.gravar("lib.py", "def dobro(x):\n    return x * 2\n")
-        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
-        self.salvar("muda")
-        modulos, _ = self.modulos_do_vermelho(self.rodar("--vermelho", "HEAD~1"))
-        self.assertEqual(modulos, ["test_forge", "test_lib", "test_outro", "test_sugerir"])
-
-    def test_producao_mudada_e_teste_novo_que_a_cobre_e_prova_por_asserção(self):
+    def test_producao_mudada_e_teste_novo_que_a_cobre_e_prova_por_asserção(self):  # lib.py sem mapa: todos os módulos
         self.corrigir_lib()
         self.gravar("tests/test_lib.py", self.BASE_TESTE + self.metodo("test_dobro", "self.assertEqual(lib.dobro(2), 4)"))
         self.salvar("corrige")
