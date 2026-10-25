@@ -16,7 +16,9 @@ Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
 Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
-um módulo mapeado que não existe ou um erro ao ler o git fazem rodar a suíte completa.
+um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
+ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
+sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos.
 Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
@@ -77,7 +79,6 @@ CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_no
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)
 MAPA = [
-    (r"tests/(test_[a-z0-9_]+)\.py", None),  # o próprio módulo de teste (caso especial em `planejar`)
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge")),
     (r"bin/forge-check", FORGE_CHECK),
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge")),
@@ -113,8 +114,8 @@ MAPA = [
 # arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
 # CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa.
 # O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
-# Módulos de teste que importam outro módulo de teste: mexer no importado roda também quem o importa.
-IMPORTADO_POR = {"test_forge": ("test_hooks", "test_guarda_git"), "test_portao_diff_proprio": ("test_ambiente_git",)}
+# Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
+# de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 
@@ -156,13 +157,11 @@ def planejar(caminhos, raiz=Path(".")):
         casou = None
         for padrao, destino in MAPA:
             if re.fullmatch(padrao, caminho):
-                casou = destino if destino is not None else (MODULO_DE_TESTE.fullmatch(caminho).group(1),)
+                casou = destino
                 break
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
-        for modulo in casou:
-            modulos.update(IMPORTADO_POR.get(modulo, ()) if MODULO_DE_TESTE.fullmatch(caminho) else ())
     ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
@@ -404,8 +403,11 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
             print(f"forge-testes --vermelho: módulo sem arquivo em tests/: {', '.join(ausentes)}", file=sys.stderr)
             return 2
     else:
-        modo, plano = planejar(caminhos, raiz)
-        modulos, restrito = (todos if modo == "completo" else plano), ""
+        # `--vermelho` é evidência, não portão: os módulos de teste do diff mais o plano dos outros caminhos (se esse
+        # plano é completo, todos). Mandar o módulo de teste ao `planejar` rodaria a suíte inteira duas vezes, em série.
+        modo, plano = planejar([c for c in caminhos if not MODULO_DE_TESTE.fullmatch(c)], raiz)
+        modulos = todos if modo == "completo" else sorted({m for m in modificados if m in todos} | set(plano))
+        restrito = ""
     print(f"vermelho: base={ancora[:12]} head={cabeca[:12]} módulos={','.join(modulos)}{restrito}")
     print(f"revertidos à base: {', '.join(c for _, c in producao) or '-'}")
     print(f"mantidos no HEAD: {', '.join(mantidos) or '-'}")

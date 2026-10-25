@@ -89,17 +89,24 @@ class Mapa(unittest.TestCase):
         self.assertEqual(modo, "dirigido")
         self.assertIn("test_hooks", modulos)
 
-    def test_modulo_importado_roda_quem_importa(self):
-        modo, modulos = self.plano("tests/test_forge.py")
-        self.assertEqual(modo, "dirigido")
-        self.assertEqual(modulos, ["test_forge", "test_guarda_git", "test_hooks"])
+    # M8, opção C (critério de fim, item 3): módulo de teste no diff não tem regra e roda a suíte inteira.
+    def test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa(self):
+        for caminho in ("tests/test_fechar.py",  # importado por 13 `test_fechar_*`
+                        "tests/test_sugerir.py",  # que ninguém importa
+                        "tests/test_modulo_novo_que_nao_existe.py",  # novo ou apagado: o arquivo não está lá
+                        "tests/test_forge.py"):
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
-    def test_o_proprio_modulo_de_teste_roda_sozinho(self):
-        self.assertEqual(self.plano("tests/test_sugerir.py"), ("dirigido", ["test_sugerir"]))
+    def test_codigo_sem_teste_segue_dirigido(self):
+        self.assertEqual(self.plano("bin/forge-sugerir"), ("dirigido", ["test_forge", "test_sugerir"]))
 
-    def test_varios_caminhos_unem_os_modulos(self):
-        self.assertEqual(self.plano("bin/forge-sugerir", "tests/test_doutor.py"),
-                         ("dirigido", ["test_doutor", "test_forge", "test_sugerir"]))
+    def test_modulo_de_teste_junto_de_outro_caminho_leva_tudo_a_completa(self):
+        self.assertEqual(self.plano("bin/forge-sugerir", "tests/test_doutor.py"), ("completo", ["tests/test_doutor.py sem mapa"]))
+
+    def test_o_mapa_nao_guarda_regra_nem_grafo_de_modulo_de_teste(self):
+        self.assertFalse(hasattr(self.f, "IMPORTADO_POR"))
+        self.assertFalse([p for p, _ in self.f.MAPA if re.fullmatch(p, "tests/test_sugerir.py")])
 
     def test_caminho_sem_mapa_cai_na_completa(self):
         for caminho in ("coisa-nova/x.py", ".github/workflows/ci.yml", ".githooks/pre-push", "LICENSE",
@@ -231,7 +238,7 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
         for caminho, modulo in (("hooks/agentes.py", "test_agentes_hash_brief"), ("hooks/agentes.py", "test_agentes_clone"),
                                 ("hooks/_comum.py", "test_agentes_hash_brief"), ("hooks/_comum.py", "test_agentes_clone"),
                                 ("hooks/vigia.py", "test_textos_dono_f10"), ("bin/forge-changelog", "test_conferir_release"),
-                                ("agents/jarvis.md", "test_clareza"), ("tests/test_portao_diff_proprio.py", "test_ambiente_git")):
+                                ("agents/jarvis.md", "test_clareza")):
             with self.subTest(caminho=caminho, modulo=modulo):
                 self.assertIn(modulo, self.f.planejar([caminho], RAIZ)[1])
 
@@ -259,8 +266,11 @@ class Execucao(unittest.TestCase):
         (self.dir / "tests").mkdir()
         (self.dir / "tests" / "test_sugerir.py").write_text(
             "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
-        (self.dir / "tests" / "test_outro.py").write_text(
-            "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
+        for modulo in ("test_outro", "test_forge"):
+            (self.dir / "tests" / f"{modulo}.py").write_text(
+                "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")  # o mapa leva a test_forge e test_sugerir
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "base")
         git(self.dir, "switch", "-q", "-c", "melhoria/x")
@@ -272,20 +282,20 @@ class Execucao(unittest.TestCase):
     def log(self):
         return (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8")
 
-    def test_dirigido_roda_so_o_modulo_tocado_e_anota_o_log(self):
-        (self.dir / "tests" / "test_sugerir.py").write_text(
-            "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n# x\n", encoding="utf-8")
+    def test_dirigido_roda_so_os_modulos_do_mapa_e_anota_o_log(self):
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 2\n", encoding="utf-8")
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("dirigido (test_sugerir)", r.stdout)
+        self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout)
+        self.assertNotIn("test_outro", r.stdout)
         linha = self.log().strip().splitlines()[-1]
-        for trecho in ("modo=dirigido", "modulos=test_sugerir", "duracao=", "saida=0", "Z "):
+        for trecho in ("modo=dirigido", "modulos=test_forge,test_sugerir", "duracao=", "saida=0", "Z "):
             self.assertIn(trecho, linha)
 
     def test_arquivo_novo_nao_versionado_conta(self):
         (self.dir / "tests" / "test_novo.py").write_text("x = 1\n", encoding="utf-8")
         r = self.rodar("--listar")
-        self.assertIn("dirigido (test_novo)", r.stdout)
+        self.assertIn("suíte completa (tests/test_novo.py sem mapa)", r.stdout)  # o teste novo leva à completa
 
     def test_sem_mapa_roda_a_completa_e_anota(self):
         (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
@@ -326,16 +336,14 @@ class Execucao(unittest.TestCase):
         self.assertIn("suíte completa (tests/config.json altera o mapa ou a configuração)", r.stdout)
 
     def test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo(self):
-        (self.dir / "bin").mkdir()
-        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")
-        (self.dir / "tests" / "test_forge.py").write_text("x = 1\n", encoding="utf-8")  # o mapa também o cita
+        (self.dir / "tests" / "test_forge_mutante.py").write_text("x = 1\n", encoding="utf-8")  # o mapa de bin/forge-mutante o cita
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "bin")
         git(self.dir, "switch", "-q", "-c", "melhoria/z")
-        git(self.dir, "mv", "bin/forge-sugerir", "tests/test_novo.py")
+        git(self.dir, "mv", "bin/forge-sugerir", "bin/forge-mutante")
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
-        self.assertIn("dirigido (test_forge, test_novo, test_sugerir)", r.stdout)
+        self.assertIn("dirigido (test_forge, test_forge_mutante, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
 
     # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
     # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção
@@ -345,9 +353,9 @@ class Execucao(unittest.TestCase):
                               capture_output=True, text=True)
 
     def test_caminhos_dirigem_o_plano_sem_olhar_o_git(self):
-        r = self.rodar_com("--listar", "tests/test_sugerir.py", "tests/test_outro.py")
+        r = self.rodar_com("--listar", "bin/forge-sugerir", "bin/forge-sugerir")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("dirigido (test_outro, test_sugerir)", r.stdout)
+        self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout)
         self.assertFalse((self.dir / ".forge").exists())
 
     def test_caminho_sem_mapa_cai_na_completa_e_o_alterado_no_git_nao_conta(self):
@@ -357,12 +365,12 @@ class Execucao(unittest.TestCase):
 
     def test_caminho_absoluto_com_ponto_ponto_e_de_subpasta_valem(self):
         (self.dir / "sub").mkdir()
-        absoluto = str(self.dir / "tests" / "test_sugerir.py")
-        for args, cwd in (((absoluto,), None), (("sub/../tests/test_sugerir.py",), None),
-                          (("../tests/test_sugerir.py",), self.dir / "sub")):
+        absoluto = str(self.dir / "bin" / "forge-sugerir")
+        for args, cwd in (((absoluto,), None), (("sub/../bin/forge-sugerir",), None),
+                          (("../bin/forge-sugerir",), self.dir / "sub")):
             with self.subTest(args=args, cwd=cwd):
                 r = self.rodar_com("--listar", *args, cwd=cwd)
-                self.assertIn("dirigido (test_sugerir)", r.stdout, r.stdout + r.stderr)
+                self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout, r.stdout + r.stderr)
 
     def test_caminho_fora_do_repositorio_e_recusado(self):
         r = self.rodar_com("--listar", "../fora.py")
@@ -572,6 +580,49 @@ class Vermelho(unittest.TestCase):
 
     def corrigir_lib(self):
         self.gravar("lib.py", "def dobro(x):\n    return x * 2\n")
+
+    TRIVIAL = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n"
+
+    def com_modulos_do_mapa(self):
+        """Commita (como base do vermelho) `bin/forge-sugerir`, que o mapa leva a test_forge e test_sugerir, e um
+        módulo que o mapa não cita (test_outro)."""
+        self.gravar("bin/forge-sugerir", "x = 1\n")
+        for modulo in ("test_forge", "test_sugerir", "test_outro"):
+            self.gravar(f"tests/{modulo}.py", self.TRIVIAL)
+        self.salvar("apoio")
+
+    def modulos_do_vermelho(self, r):
+        linha = next(l for l in r.stdout.splitlines() if l.startswith("vermelho: base="))
+        return linha.split("módulos=")[1].split(" ")[0].split(","), linha
+
+    # M8, opção C (critério de fim, item 4): o `--vermelho` sem `--modulos` não manda módulo de teste ao `planejar`.
+    def test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.gravar("tests/test_outro.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, linha = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("restrito", linha)
+
+    def test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite(self):
+        self.com_modulos_do_mapa()
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, linha = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("restrito", linha)
+
+    def test_vermelho_com_caminho_sem_mapa_junto_do_teste_roda_todos_os_modulos(self):
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x * 2\n")
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        modulos, _ = self.modulos_do_vermelho(self.rodar("--vermelho", "HEAD~1"))
+        self.assertEqual(modulos, ["test_forge", "test_lib", "test_outro", "test_sugerir"])
 
     def test_producao_mudada_e_teste_novo_que_a_cobre_e_prova_por_asserção(self):
         self.corrigir_lib()
