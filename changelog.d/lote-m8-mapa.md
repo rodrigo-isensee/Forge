@@ -1,0 +1,2 @@
+### Alterado
+- forge-testes: todo módulo de teste no diff (alterado, novo ou apagado) roda a suíte inteira, porque um teste pode importar outro, ler todos os de tests/ ou carregá-los pelo nome; o envio dirigido fica para mudanças de texto e de código sem teste. O `--vermelho` sem `--modulos` usa os módulos de teste do diff mais o plano dos outros caminhos. O `forge-testes` também aceita caminhos na linha de comando e cobre mais famílias de teste no mapa.
