@@ -47,9 +47,9 @@ contra o primeiro pai) e diz `real` (violação de conteúdo: regra piorada), `s
 do prompt-padrão, `PQ-n` com tipo e, no `cmd`, `espera:` (e quem o confere, `conferente` ou `autor`), e o corte por IDs:
 cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), em `Fora do escopo` como etapa de outro papel
 (`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
-`corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, a penúltima, `conferente: dispensado (brief mecânico)` (só quando todas as checagens decidiram) ou `conferente: necessário (<motivo>)` (BRIEF-MECANICO: só informa), e a última, `resultado: aprovado|reprovado`
+`corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
-`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, sem o conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin`). `brief gerar` monta os blocos fixos (decisões
+`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, antes do conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin`, nas etapas que não são `codigo`). `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
@@ -3960,12 +3960,6 @@ def conferir_pedido_contraditorio(secoes, pedido):
     return saida
 
 
-def worktree_a_frente(raiz, remota):
-    """True se alguma worktree tem um HEAD que descende de `remota` e não é ela: o commit feito num HEAD solto, que `refs/heads` não mostra."""
-    heads = [l[5:] for l in git(raiz, "worktree", "list", "--porcelain")[1].splitlines() if l.startswith("HEAD ")]
-    return any(h != remota and e_ancestral(raiz, remota, h) for h in heads)
-
-
 def remoto_da_branch(raiz, branch):
     """(sha da branch em `origin` ou None, conferido): `git ls-remote origin refs/heads/<branch>` (o remoto, não o último fetch); sem rede
     ou sem `origin`, cai no ref de rastreio local e `conferido` é False."""
@@ -3980,27 +3974,22 @@ def remoto_da_branch(raiz, branch):
 
 
 def estado_do_commit(raiz, texto):
-    """M1: (linhas, decidiu). Brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou
-    atrás), lido do remoto por `git ls-remote`: a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Sem commit local ou
-    sem remoto conhecido, não há o que conferir (como `parecer_commitado`); `decidiu` é False sem o remoto conferido, sem commit local ou
-    com um HEAD solto de worktree à frente do remoto (o brief mecânico não dispensa o conferente sem a checagem). Sem `Etapa:` ou
-    `Branch:`, ou com etapa desconhecida, não decide (segurança A11). Na etapa `codigo` não reprova e só decide com o head local em
-    `origin/<branch>` ou com a branch ausente nos dois lados."""
+    """M1: brief de etapa que não é `codigo`, com `Branch:` cujo head local não está em `origin/<branch>` (ausente ou atrás), lido do
+    remoto por `git ls-remote`: a prova `sha` ou `push` do brief aceitaria um commit só da worktree. Sem `Etapa:` ou `Branch:`, com etapa
+    desconhecida ou `codigo` (o autor ainda vai commitar), sem commit local ou sem remoto conhecido, não há o que conferir (como
+    `parecer_commitado`)."""
     cabecalho = cabecalho_do_brief(texto)
     etapa, branch = grupo(ETAPA_DO_CABECALHO, cabecalho), grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
-    if not branch or etapa not in ETAPAS_DO_GERAR:
-        return [], False
+    if not branch or etapa not in ETAPAS_DO_GERAR or etapa == "codigo":
+        return []
     head = sha_do_commit(raiz, f"refs/heads/{branch}")
     remota, conferido = remoto_da_branch(raiz, branch)
-    if etapa == "codigo":
-        no_remoto = head == remota or bool(head and remota and e_ancestral(raiz, head, remota))
-        return [], conferido and no_remoto and not (remota and worktree_a_frente(raiz, remota))
     if not head or not (conferido or git(raiz, "for-each-ref", "--count=1", "--format=%(refname)", "refs/remotes/origin")[1]):
-        return [], False
+        return []
     if remota and (head == remota or e_ancestral(raiz, head, remota)):
-        return [], conferido and not worktree_a_frente(raiz, remota)
+        return []
     return [(f"commit: o head {head[:7]} de {caminho_impresso(branch)} só existe na worktree (origin/{caminho_impresso(branch)} "
-             f"{'atrás' if remota else 'ausente'}); rode git fetch origin, se for ref velho, ou envie a branch antes do brief (git push origin <branch>)", True)], True
+             f"{'atrás' if remota else 'ausente'}); rode git fetch origin, se for ref velho, ou envie a branch antes do brief (git push origin <branch>)", True)]
 
 
 def delta_de_brief(texto, anterior):
@@ -4263,91 +4252,6 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
-FRASE = re.compile(r"(?<=[.;!?])\s+")  # fim de frase no Entregar: cada uma cita um id do pedido
-FRASE_FORJADA = re.compile(r"decisao\s+(?:do\s+dono|tecnica)", re.I)  # sobre o texto sem acento (NFKD): a frase fora da cópia literal
-
-
-def sem_acento(texto):
-    """O texto em NFKD sem as marcas combinantes: `DECISÃO`, `DECISAO` e `ＤＥＣＩＳÃＯ` comparam igual."""
-    return "".join(c for c in unicodedata.normalize("NFKD", texto) if not unicodedata.combining(c))
-
-
-def sem_trechos_do_pedido(linha, pedido):
-    """A linha sem os trechos entre aspas que são texto literal do pedido (etapa copiada, por exemplo): a fonte é do dono, não é prosa nova."""
-    def literal(m):
-        partes = fragmentos_citados(m.group(0))
-        return "" if partes and all(p in pedido["texto"] for p in partes) else m.group(0)
-    return ASPAS.sub(literal, linha)
-
-
-def outro_brief_do_mesmo_destino(raiz, brief, pedido_id, destino):
-    """True se `docs/briefs/` (raiz principal, raiz ou raiz de brief) tem outro `<pedido>-<papel>-<n>.md`: este não é a primeira rodada provada."""
-    padrao = re.compile(re.escape("-".join((pedido_id, nome_do_papel(destino))) + "-") + r"\d+\.md")  # só compara nomes de arquivo; nada é impresso
-    return any(f.is_file() and padrao.fullmatch(f.name) and f.resolve() != brief.resolve()
-               for base in (Path(raiz_principal(raiz)), Path(raiz), *RAIZES_DE_BRIEF) if (Path(base) / "docs" / "briefs").is_dir()
-               for f in (Path(base) / "docs" / "briefs").iterdir())
-
-
-def conferente_do_brief(raiz, brief, pedido_id, destino, pedido_txt, texto, linhas, cobradas, anterior, commit_decidiu):
-    """BRIEF-MECANICO (decisão do dono, 2026-10-24), por lista positiva (segurança A1 a A7): `conferente: dispensado (brief mecânico)` só
-    quando todas as checagens rodaram e decidiram (forma, corte, decisões sem linha `não verificável` nem `aviso:`, papel, contradição e
-    commit), o brief é de primeira rodada provada (sem `Volta-de:`, `Anterior:` nem outro brief do mesmo pedido e destino no disco) e as
-    únicas linhas de decisão são cópias literais das `DECISÃO DO DONO` do pedido, dentro de `Decisões e restrições`, sem caractere
-    invisível; em `Decisões e restrições` só passam essas cópias e os subtítulos do `gerar` (lista positiva, decisão do dono sobre o A4:
-    qualquer outra linha é texto novo do Jarvis) e cada frase do `Entregar` cita `(E<n>)` ou a etapa do pedido (QA A4: a frase sem id,
-    que corta ou decide em prosa, não se confere). Pedido com item do `Fora do escopo` em prosa (sem id nem trecho citado) nunca
-    dispensa: a contradição não se decide e o conferente a lê (QA A5, lado seguro). Letra fora do alfabeto latino dá necessário (A10).
-    Senão `conferente: necessário (<motivo>)`; nunca reprova. Limite: a prosa de `Objetivo`, `Ler` e `Relatório` não se confere."""
-    def necessario(motivo):
-        return (f"conferente: necessário ({motivo})", False)
-    if anterior is not None or re.search(r"^\s*(?:Volta-de|Anterior):", texto, re.M):
-        return necessario("brief de volta")
-    if not destino:
-        return necessario("destino desconhecido")
-    if outro_brief_do_mesmo_destino(raiz, brief, pedido_id, destino):
-        return necessario("há outro brief do mesmo pedido e destino (volta ou revalidação)")
-    if any(r for _, r in linhas):
-        return necessario("o forge-check brief reprova")
-    if any(l.startswith("corte: real") for l, _ in linhas):
-        return necessario("corte de escopo")
-    incerta = next((l for l, _ in linhas if "não verificável" in l or l.startswith("aviso:")), None)
-    if incerta or not any(l.startswith("decisões: ok") for l, _ in linhas):
-        return necessario(f"o script não decide: {sem_controle(incerta or 'decisões não conferidas')[:60]}")
-    if recusa_do_texto(texto):
-        return necessario("caractere invisível ou delimitador no brief")
-    if any(unicodedata.category(c)[0] == "L" and c not in "ªº" and not unicodedata.name(c, "").startswith("LATIN") for c in texto):
-        return necessario("letra fora do alfabeto latino no brief")  # segurança A10: forja visual (o E cirílico em DECISÃO)
-    pedido, secoes = ler_pedido_brief(pedido_txt), secoes_por(texto, CABECALHO_BRIEF)
-    citados = ids_em_citacao(" ".join(secoes.get("Entregar", [])))
-    if not any(e in citados for e in pedido["etapas"]):
-        return necessario("papel não conferido: o Entregar não cita etapa do pedido")
-    existentes = {f"E{n}" for n in pedido["escopo"]} | set(pedido["etapas"])
-    if not all(ids_do_fora(i) & existentes or any(len(f) >= 20 for f in fragmentos_citados(i)) for i in pedido["fora"]):
-        return necessario("Fora do escopo do pedido em prosa: contradição não conferida; o conferente lê, lado seguro")
-    do_pedido = {chave_da_decisao(l) for _, itens in cobradas["fontes"] for _, l in itens}
-    subtitulos = {SUBTITULO_DO_REGISTRO.format(rel) for rel, _ in cobradas["fontes"][1:]}
-    vistos, atual = set(), None
-    for linha in texto.split("\n"):
-        m = CABECALHO_BRIEF.match(linha)
-        if m:  # cabeçalho (o do `gerar` cita a frase do dono): o primeiro de cada nome abre a seção (como `secoes_por`), o repetido não é de nenhuma
-            atual = None if m.group(1) in vistos else m.group(1)
-            vistos.add(m.group(1))
-        elif chave_da_decisao(linha) in do_pedido:
-            if atual != "Decisões e restrições":
-                return necessario("DECISÃO DO DONO fora de Decisões e restrições")
-        elif linha.strip() in subtitulos:
-            continue
-        elif e_linha_de_decisao(linha) or FRASE_FORJADA.search(sem_acento(linha)):
-            return necessario("DECISÃO DO DONO que não é cópia literal do pedido")
-        elif atual == "Decisões e restrições" and linha.strip():
-            return necessario("decisão em prosa: linha de Decisões e restrições que não é cópia do pedido")
-        elif atual == "Entregar" and any(not ids_em_citacao(f) & existentes for f in FRASE.split(sem_trechos_do_pedido(linha, pedido).strip(" -*+")) if f):
-            return necessario("decisão em prosa: frase do Entregar sem id do pedido")
-    if not commit_decidiu:
-        return necessario("commit não conferido (sem Etapa ou Branch, sem commit local, sem remoto ou head fora dele)")
-    return ("conferente: dispensado (brief mecânico)", False)
-
-
 def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, caminho, bytes_anterior, ref, pareceres):
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
@@ -4356,17 +4260,11 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
-    do_commit, commit_decidiu = estado_do_commit(raiz, texto)
-    linhas += do_commit
+    linhas += estado_do_commit(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
-    veredito = conferente_do_brief(raiz, brief, pedido_id, destino_do_brief(texto, brief.name, pedido_id, destino), pedido_txt, texto,
-                                   linhas, cobradas, bytes_anterior, commit_decidiu)
-    if "dispensado" in veredito[0]:  # sem conferente, a linha não diz que alguém confere a contradição
-        linhas = [(l.replace("contradição conferida pelo conferente", "contradição não conferida: conferente dispensado"), r) for l, r in linhas]
-    linhas.append(veredito)
     return pedido_id, linhas
 
 

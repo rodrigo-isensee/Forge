@@ -425,7 +425,7 @@ class BriefAnterior(unittest.TestCase):
         rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
-        self.assertTrue(saida.endswith("delta: nenhum\nconferente: necessário (brief de volta)\nresultado: aprovado\n"), saida)
+        self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
         novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Recurso A no módulo de exemplo, em um commit (E1, E1.1).\n", "")
         rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
@@ -438,11 +438,7 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
-        igual = lambda l: l.replace("não conferida: conferente dispensado", "conferida pelo conferente")  # a linha `decisões:` muda com o veredito
-        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "conferente:"))],
-                         [igual(l) for l in linhas_sem if not l.startswith("conferente:")])
-        self.assertIn("conferente: necessário (decisão em prosa: linha de Decisões e restrições que não é cópia do pedido)", linhas_sem)  # o NÃO tocar
-        self.assertIn("conferente: necessário (brief de volta)", com[1])
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:"))], linhas_sem)
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
 
     def test_anterior_fora_de_docs_briefs_ou_da_raiz_rc_2(self):  # B3

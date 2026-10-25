@@ -441,9 +441,7 @@ class ErrosDoJarvis(Base):
         cod_c, conf, err_c = self.conferir()
         self.assertEqual((cod, cod_c), (0, 0))
         self.assertEqual(hashlib.sha256(out).hexdigest(), hashlib.sha256(out0).hexdigest())
-        sem_conferente = lambda b: [l.replace("não conferida: conferente dispensado".encode(), "conferida pelo conferente".encode())
-                                    for l in b.splitlines() if not l.startswith(b"conferente:")]  # os briefs 2 a 4 tornam o 1 não-inédito
-        self.assertEqual(sem_conferente(conf), sem_conferente(conf0))
+        self.assertEqual(conf, conf0)
         self.assertNotIn(b"jarvis-recorrente", out + conf)
         for e in (err, err_c):
             self.assertEqual([l for l in e.splitlines() if l.startswith("jarvis-recorrente:")],
