@@ -3,19 +3,20 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-s1-scripts
 branch: melhoria/lote-s1-scripts
-commit: 8e22f173e103f04a77bab9152747f0d79473f9f0
+commit: 979c1ffd8ef43e608aca0f792c56afa4dd6d27d6
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-24
 ---
 # Review de segurança: lote-s1-scripts
 
-Diff revisado: `3c66b881af31817ce5d2dde996c7ca56d54cb511...8e22f173e103f04a77bab9152747f0d79473f9f0` (FECHAR-TOCTOU, FECHAR-DA-RAIZ, CHANGELOG-D-LINK, VALIDAR-AVISO-X). Veredito: aprovado, sem bloqueante.
+Diff revisado: `3c66b881af31817ce5d2dde996c7ca56d54cb511...979c1ffd8ef43e608aca0f792c56afa4dd6d27d6` (FECHAR-TOCTOU, FECHAR-DA-RAIZ, CHANGELOG-D-LINK, VALIDAR-AVISO-X). Revalidação 2, por delta sobre o parecer anterior (`8e22f17`): `forge-check delta` lista `bin/forge-fechar:25`, `106-107` e `466-477`, `docs/fechamento-integrador.md:20,52,58,71`, as duas specs de `tests/mutantes/` e `tests/test_fechar_orfao.py`. Veredito: aprovado, sem bloqueante.
 
 ## Gatilhos
 Controle do Forge: `bin/forge-fechar` (pasta do log e limpeza da branch remota), `bin/forge-changelog` (lê, publica e apaga arquivos de `changelog.d/` e grava os manifestos) e `scripts/validar-plugin.sh` (saída do validador).
 
 ## Achados
+- A1 (recomendado) bin/forge-fechar:467 · o `git ls-remote origin refs/heads/<ref>` casa pelo fim do nome: outra branch terminada em `/refs/heads/<ref>` faz a conferência dizer que a remota continua viva quando ela já sumiu; erro conservador (pendente, saída 3), sem caminho de ataque; filtrar a coluna 2 igual a `refs/heads/<ref>` deixa a mensagem exata (vai ao `tech-lead`)
 
 ## Detalhe dos achados
 Conferências pedidas no brief, com a evidência:
@@ -33,5 +34,14 @@ Conferências pedidas no brief, com a evidência:
 
 PA-7 (`docs/engineering/achados-recorrentes.md`): a lista está vazia, sem item a conferir.
 
+## Revalidação 2 (delta 61cd772..979c1ff)
+6. **Nota (a), pior caso abaixo de 300 s** (`bin/forge-fechar:107`, `120-123`, `466-477`). Fechada. A faixa agora é 1 a 75 (padrão 75); 76, 100, 101, 0 e texto são recusados antes do passo 1 (teste `test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s`, mutante V1). Pior caso da limpeza remota: 3 x 75 + 2 x 30 (pausa máxima, `dormir`) + 10 (conferência) = 295 s, e a linha `registro: apagando ...` sai antes. O `timeout` sem `-k` só não corta processo que ignora `TERM`; o `git push` e o `pre-push` (`.githooks/pre-push:252-257`, sai 1 no `TERM`) morrem com ele, e o `timeout` sinaliza o grupo inteiro. Fora da conta e fora do delta: o primeiro `ls-remote` (`bin/forge-fechar:453`) não tem teto (já era assim na base); sem `timeout` no PATH, nada tem teto (R2 do review).
+7. **A releitura depois do corte pode dar saída 0 com a remota viva?** (`bin/forge-fechar:467-477`). Não, nos três casos pedidos, com sonda em repositório descartável (`$TMPDIR/security-engineer-lote-s1-scripts/sonda-lsremote-v2`):
+   - leitura que falha: remota inacessível devolve 128 e o corte do `com_teto 10` devolve 124; os dois caem no `else`, `rem_st=pendente` e saída 3, sem dizer "viva" nem "apagada" (teste `test_corte_com_a_conferencia_da_remota_falhando...`, mutante V3);
+   - ref com outro sha (alguém enviou depois do corte): a saída não fica vazia, então vai a `pendente` com "continua viva"; o script não repete o delete sobre o sha novo, que não foi conferido;
+   - remota trocada: o `ls-remote` usa a mesma `origin` do delete; trocar a URL entre os dois exige escrita no `.git/config` local (protegido no sandbox), sem atacante realista. Informativa: com `remote.origin.pushurl` diferente da `url`, o delete vai a um servidor e as duas leituras a outro; isso já valia para a conferência de sha antes do delete (`:453`) e não é do delta.
+   Só a saída vazia com código 0 vira `remota=ok`, e o `ls-remote` só devolve vazio quando nenhuma ref casa com o padrão; como o casamento é pelo fim do nome, o erro possível é o inverso (A1, conservador). Nome de ref com `*`, `?` ou `[` não existe (`git check-ref-format`), então o padrão não vira curinga.
+8. **Doc e specs.** `docs/fechamento-integrador.md:20,52,58,71` descrevem o comportamento novo (teto 1 a 75, `u-s`, `cd -P` com `[ -O . ]`, a conferência por `ls-remote`), sem afrouxar nada. As specs de mutantes são dado de teste, sem comando executável além do executor `unittest`.
+
 ## Riscos aceitos e ferramentas
-Sem risco aceito. Ferramentas: `shellcheck` (os avisos em `bin/forge-fechar:494`, `511` e `518` são de linhas fora do diff), `timeout` do coreutils e os testes do lote (`tests.test_changelog`, `tests.test_fechar_log_check`, `tests.test_fechar_orfao` e `tests.test_forge.ValidarPluginAviso`: 70 testes, OK, 1 pulado), mais as sondas em `$TMPDIR`. Faltaram no PATH, e ficam como lacuna: `gitleaks`, `zizmor` e `semgrep`. O diff não toca workflow nem segredo.
+Sem risco aceito. Ferramentas: `shellcheck` 0.11 (os avisos, agora em `bin/forge-fechar:504`, `521` e `528`, são as mesmas linhas fora do diff, deslocadas), `timeout` do coreutils e os testes do lote (`tests.test_changelog`, `tests.test_fechar_log_check`, `tests.test_fechar_orfao` e `tests.test_forge.ValidarPluginAviso`: 70 testes, OK, 1 pulado; na revalidação 2, `tests.test_fechar_orfao`, `tests.test_fechar_log_check` e `tests.test_changelog`: 71 testes, OK, 1 pulado), mais as sondas em `$TMPDIR`. Faltaram no PATH, e ficam como lacuna: `gitleaks`, `zizmor` e `semgrep`. O diff não toca workflow nem segredo.
