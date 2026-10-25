@@ -3429,19 +3429,38 @@ print(json.dumps(saida))
                 codigos = [c for c, _, _ in self.decidir_na_guarda(textos, hooks=hooks)]
                 self.assertEqual(codigos[list(guarda).index(nome)], 2 - hoje[nome], f"a mutação {nome} não é pega")
 
+    def test_alvos_do_tee_atras_do_texto_dividido_aberto(self):  # qa 7f378b0 A1: X5 e X6 da segunda spec de mutantes
+        """Atrás de lançador com mais de uma leitura e texto dividido que não fecha aspas, todo alvo depois do `tee` é alvo
+        da autoria (mais de um alvo) e a opção do `tee` (`-a`, `--append`, `-i`) não é alvo."""
+        _, conformidade, _ = modulos_dos_hooks()
+        abre = "env -aS'\"' tee"
+        casos = {
+            f"{abre} docs/reviews/x.md docs/reviews/y.md": ["docs/reviews/x.md", "docs/reviews/y.md"],
+            f"{abre} -a docs/reviews/x.md": ["docs/reviews/x.md"],
+            f"{abre} --append docs/reviews/x.md": ["docs/reviews/x.md"],
+            f"{abre} -i docs/reviews/x.md docs/reviews/y.md": ["docs/reviews/x.md", "docs/reviews/y.md"],
+            f"{abre} -a -i docs/reviews/x.md --append docs/reviews/y.md": ["docs/reviews/x.md", "docs/reviews/y.md"],
+        }
+        for texto, esperado in casos.items():
+            with self.subTest(texto=texto):
+                self.assertEqual(conformidade.alvos_de_escrita(texto), esperado)
+
     def test_spec_de_mutantes_do_lote_e_valida(self):  # item 7 do critério de fim da opção B (rev14) e A4 do QA
         """`tests/mutantes/lote-leitura-hook.json` tem a forma da spec do `forge-mutante` (pedido, executor e de 1 a 8
         mutantes, cada um com id, guarda, arquivo, de, para e testes; a validação da ferramenta roda no QA, e o
         `test_hooks` não lê o `bin/`), cada `de` aparece uma vez no arquivo de hoje, e ela declara os quatro mutantes do
         item 5 com as trocas deste teste."""
-        spec = json.loads((RAIZ / "tests" / "mutantes" / "lote-leitura-hook.json").read_text(encoding="utf-8"))
-        self.assertEqual(set(spec), {"pedido", "executor", "mutantes"})
-        self.assertTrue(1 <= len(spec["mutantes"]) <= 8)
-        self.assertEqual(len({m["id"] for m in spec["mutantes"]}), len(spec["mutantes"]))
-        for m in spec["mutantes"]:
-            self.assertEqual(set(m), {"id", "guarda", "arquivo", "de", "para", "testes"}, m.get("id"))
-            self.assertTrue(m["arquivo"].startswith("hooks/") and m["testes"] and m["de"] != m["para"], m["id"])
-            self.assertEqual((RAIZ / m["arquivo"]).read_text(encoding="utf-8").count(m["de"]), 1, m["id"])
+        specs = [json.loads((RAIZ / "tests" / "mutantes" / f"{nome}.json").read_text(encoding="utf-8"))
+                 for nome in ("lote-leitura-hook", "lote-leitura-hook-volta")]  # a segunda, pelo teto de 8 mutantes
+        for spec in specs:
+            self.assertEqual(set(spec), {"pedido", "executor", "mutantes"})
+            self.assertTrue(1 <= len(spec["mutantes"]) <= 8)
+            self.assertEqual(len({m["id"] for m in spec["mutantes"]}), len(spec["mutantes"]))
+            for m in spec["mutantes"]:
+                self.assertEqual(set(m), {"id", "guarda", "arquivo", "de", "para", "testes"}, m.get("id"))
+                self.assertTrue(m["arquivo"].startswith("hooks/") and m["testes"] and m["de"] != m["para"], m["id"])
+                self.assertEqual((RAIZ / m["arquivo"]).read_text(encoding="utf-8").count(m["de"]), 1, m["id"])
+        spec = {"mutantes": specs[0]["mutantes"]}
         trocas = {(f"hooks/{arquivo}", de, para) for arquivo, de, para, _ in self.MUTACOES_DO_TEXTO_ABERTO.values()}
         self.assertLessEqual(trocas, {(m["arquivo"], m["de"], m["para"]) for m in spec["mutantes"]})
 

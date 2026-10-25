@@ -1,0 +1,26 @@
+{
+  "pedido": "lote-leitura-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "X5",
+      "guarda": "volta H: atrás do texto que não fecha, todo alvo depois do tee conta, não só o primeiro",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
+      "para": "                alvos += [a for a in palavras[tees[0] + 1:][:1] if not a.startswith(\"-\")] if tees else []\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
+      ]
+    },
+    {
+      "id": "X6",
+      "guarda": "volta H: atrás do texto que não fecha, a opção do tee (-a, --append, -i) não é alvo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
+      "para": "                alvos += [a for a in palavras[tees[0] + 1:]] if tees else []\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
+      ]
+    }
+  ]
+}
