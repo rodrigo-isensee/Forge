@@ -175,17 +175,23 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
             return ("tests",) if ast.unparse(dentro) in ("Path(__file__).resolve()", "Path(__file__)") else None
         return None
 
+    @classmethod
+    def variaveis(cls, arvore):
+        """Variáveis de módulo que guardam um caminho fixo (tupla relativa à raiz)."""
+        vars_ = {"RAIZ": ()}
+        for no in arvore.body:
+            if isinstance(no, ast.Assign) and len(no.targets) == 1 and isinstance(no.targets[0], ast.Name):
+                p = cls.partes(no.value, vars_)
+                if p is not None and "*" not in p:
+                    vars_.setdefault(no.targets[0].id, p)
+        return vars_
+
     def lidos(self, modulo):
         return self.lidos_do_texto(modulo, (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
 
     def lidos_do_texto(self, modulo, texto):
         arvore = ast.parse(texto)
-        vars_ = {"RAIZ": ()}
-        for no in arvore.body:
-            if isinstance(no, ast.Assign) and len(no.targets) == 1 and isinstance(no.targets[0], ast.Name):
-                p = self.partes(no.value, vars_)
-                if p is not None and "*" not in p:
-                    vars_.setdefault(no.targets[0].id, p)
+        vars_ = self.variaveis(arvore)
         achados, dinamico = set(), False
         for no in ast.walk(arvore):
             candidato = None
@@ -422,6 +428,111 @@ class NaoEPortao(unittest.TestCase):
 
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
+
+
+class MapaCobreImportacaoEVarredura(unittest.TestCase):
+    """M8, opção C: o que um teste executa de outro teste ou varre de uma pasta não precisa de grafo no mapa, porque
+    módulo de teste no diff roda a suíte inteira; estas conferências provam isso para as formas que o repositório usa
+    (importação entre testes, estática e dinâmica; `glob`, `rglob` e `iterdir` sobre caminho conhecido)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+        cls.testes = sorted(p.stem for p in (RAIZ / "tests").glob("test_*.py"))
+
+    def importados(self, texto):
+        """(módulos de teste importados por nome, há importação dinâmica de nome montado). Qualquer nível do código."""
+        achados, dinamico = set(), False
+        for no in ast.walk(ast.parse(texto)):
+            if isinstance(no, ast.Import):
+                achados.update(a.name for a in no.names if re.fullmatch(r"test_[a-z0-9_]+", a.name))
+            elif isinstance(no, ast.ImportFrom) and no.module and re.fullmatch(r"test_[a-z0-9_]+", no.module) and not no.level:
+                achados.add(no.module)
+            elif isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "import_module" \
+                    and no.args:
+                arg = no.args[0]
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    achados.update(m for m in (arg.value.split(".")[-1],) if re.fullmatch(r"test_[a-z0-9_]+", m))
+                else:
+                    dinamico = True
+        return achados, dinamico
+
+    def varridos(self, texto):
+        """Arquivos do Forge que um `glob`, `rglob` ou `iterdir` sobre caminho conhecido alcança, e a pasta varrida."""
+        arvore = ast.parse(texto)
+        vars_ = MapaCobreOQueOsTestesLeem.variaveis(arvore)
+        achados, pastas = set(), set()
+        for no in ast.walk(arvore):
+            if not (isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute)
+                    and no.func.attr in ("glob", "rglob", "iterdir")):
+                continue
+            base = MapaCobreOQueOsTestesLeem.partes(no.func.value, vars_)
+            if base is None or "*" in base or not (RAIZ / Path(*base)).is_dir():
+                continue
+            pasta = RAIZ / Path(*base)
+            padrao = no.args[0].value if no.args and isinstance(no.args[0], ast.Constant) else "*"
+            casados = pasta.iterdir() if no.func.attr == "iterdir" else getattr(pasta, no.func.attr)(padrao)
+            pastas.add("/".join(base))
+            achados.update(c.relative_to(RAIZ).as_posix() for c in casados if c.is_file() and "__pycache__" not in c.parts)
+        return achados, pastas
+
+    def cobre(self, caminho, modulo):
+        modo, planejados = self.f.planejar([caminho], RAIZ)
+        return modo == "completo" or modulo in planejados
+
+    def test_todo_teste_importado_por_outro_leva_quem_importa_a_suite_inteira(self):  # critério C.1
+        arestas = 0
+        for modulo in self.testes:
+            importados, _ = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            for importado in sorted(importados & set(self.testes)):
+                arestas += 1
+                with self.subTest(modulo=modulo, importado=importado):
+                    self.assertTrue(self.cobre(f"tests/{importado}.py", modulo))
+                    self.assertEqual(self.f.planejar([f"tests/{importado}.py"], RAIZ)[0], "completo")
+        self.assertGreaterEqual(arestas, 31)  # as 31 linhas de `import`/`from` entre testes na varredura da segurança
+
+    def test_os_modulos_importados_por_outros_sao_os_conhecidos(self):  # critério C.1 (o conjunto não encolhe)
+        importados = set()
+        for modulo in self.testes:
+            achados, _ = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            importados |= achados & set(self.testes)
+        self.assertLessEqual({"test_fechar", "test_forge", "test_voltas", "test_volta_por_delta", "test_doutor",
+                              "test_hooks", "test_atualizar"}, importados)
+
+    def test_toda_varredura_de_pasta_conhecida_leva_o_modulo_a_suite_inteira_ou_ao_plano(self):  # critério C.2
+        total, varrem_tests = 0, set()
+        for modulo in self.testes:
+            achados, pastas = self.varridos((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            if "tests" in pastas:
+                varrem_tests.add(modulo)
+            for caminho in sorted(achados):
+                total += 1
+                with self.subTest(modulo=modulo, caminho=caminho):
+                    self.assertTrue(self.cobre(caminho, modulo))
+        self.assertGreaterEqual(total, 1000)
+        # quem varre `tests/` cai quando um módulo de teste muda: todo módulo de teste dá a suíte inteira
+        self.assertLessEqual({"test_ambiente_git", "test_testes_tocados", "test_forge"}, varrem_tests)
+        for modulo in self.testes:
+            with self.subTest(testes=modulo):
+                self.assertEqual(self.f.planejar([f"tests/{modulo}.py"], RAIZ)[0], "completo")
+
+    def test_a_conferencia_enxerga_importacao_e_varredura_na_fonte_sintetica(self):  # critério C.3
+        fonte = (
+            "import importlib\nfrom pathlib import Path\n"
+            "import test_a\nimport test_b as y\n"
+            "AQUI = Path(__file__).resolve().parent\n"
+            "def f():\n    from test_c import coisa\n"
+            "def g(n):\n    return importlib.import_module('tests.' + n)\n"
+            "def h():\n    return importlib.import_module('tests.test_d')\n"
+            "def i():\n    return list(AQUI.glob('test_*.py'))\n"
+        )
+        self.assertEqual(self.importados(fonte), ({"test_a", "test_b", "test_c", "test_d"}, True))
+        self.assertEqual(self.importados("import os\n"), (set(), False))
+        achados, pastas = self.varridos(fonte)
+        self.assertEqual(pastas, {"tests"})
+        self.assertIn("tests/test_forge.py", achados)
+        achados, pastas = self.varridos("from pathlib import Path\nx = list(Path(d).iterdir())\n")
+        self.assertEqual((achados, pastas), (set(), set()))
 
 
 class MapaDoForgeCheck(unittest.TestCase):
