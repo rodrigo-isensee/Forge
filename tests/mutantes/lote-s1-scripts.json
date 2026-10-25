@@ -1,0 +1,86 @@
+{
+  "pedido": "lote-s1-scripts",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "novo recusa changelog.d como link",
+      "arquivo": "bin/forge-changelog",
+      "de": "    conferir_pasta_de_fragmentos()\n    slug = slug_da_branch",
+      "para": "    slug = slug_da_branch",
+      "testes": [
+        "tests.test_changelog.Release.test_novo_com_changelog_d_como_link_e_recusado_sem_gravar_fora"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "release recusa changelog.d como link",
+      "arquivo": "bin/forge-changelog",
+      "de": "    conferir_pasta_de_fragmentos()\n    arquivos = fragmentos()",
+      "para": "    arquivos = fragmentos()",
+      "testes": [
+        "tests.test_changelog.Release.test_changelog_d_como_link_para_fora_da_raiz_nao_publica_nem_apaga_os_md_externos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "fragmento link e recusado",
+      "arquivo": "bin/forge-changelog",
+      "de": "    for a in fragmentos():\n        conferir_caminho(a, f",
+      "para": "    for a in []:\n        conferir_caminho(a, f",
+      "testes": [
+        "tests.test_changelog.Release.test_fragmento_que_e_link_para_fora_da_raiz_e_recusado_e_o_alvo_fica"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "troca textual so no version de topo",
+      "arquivo": "bin/forge-changelog",
+      "de": "if conferido != {**dados, \"version\": versao}:",
+      "para": "if conferido.get(\"version\") != versao:",
+      "testes": [
+        "tests.test_changelog.Release.test_versao_aninhada_antes_da_de_topo_com_o_manifesto_ja_na_versao_alvo_falha_sem_gravar_nada"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "chmod tira o setuid",
+      "arquivo": "bin/forge-fechar",
+      "de": "g-s,u-s .)",
+      "para": "g-s .)",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_pasta_do_log_do_proprio_usuario_com_modo_diferente_de_700_vira_700_com_aviso"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "chmod age sobre . e nao sobre o caminho",
+      "arquivo": "bin/forge-fechar",
+      "de": "g-s,u-s .)",
+      "para": "g-s,u-s \"$logdir\")",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_o_chmod_da_pasta_do_log_age_sobre_a_pasta_ja_aberta_e_nao_sobre_o_caminho"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "push --delete cortado pelo teto",
+      "arquivo": "bin/forge-fechar",
+      "de": "then timeout \"$t\" \"$@\"; else",
+      "para": "then \"$@\"; else",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_push_delete_que_trava_e_cortado_pelo_teto_e_a_remota_viva_e_dita"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so ajusta pasta do proprio usuario ([ -O . ]). Sobrevive por desenho, equivalente para usuario comum: o chmod em pasta de outro dono ja falha com EPERM (cai no die) e a checagem de dono do caminho vem antes (`[ -O \"$logdir\" ]`, linha 168); a guarda e defesa em profundidade contra a troca do caminho depois dessa checagem, que nao ha como provocar de forma deterministica num teste",
+      "arquivo": "bin/forge-fechar",
+      "de": "&& [ -O . ] &&",
+      "para": "&&",
+      "testes": [
+        "tests.test_fechar_log_check.FecharLogCheck.test_pasta_do_log_do_proprio_usuario_com_modo_diferente_de_700_vira_700_com_aviso"
+      ]
+    }
+  ]
+}

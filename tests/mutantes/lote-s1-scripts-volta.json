@@ -1,0 +1,36 @@
+{
+  "pedido": "lote-s1-scripts-volta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "faixa do teto do delete vai ate 75 s (pior caso em 300 s)",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"${FORGE_FECHAR_TETO_DELETE:-75}\" 1 75 3",
+      "para": "\"${FORGE_FECHAR_TETO_DELETE:-75}\" 1 100 3",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "remota que ja sumiu no servidor nao e dita viva",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -z \"$sha_depois\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_corte_depois_que_o_servidor_apagou_a_remota_confere_e_nao_diz_que_ela_continua_viva"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "falha da conferencia da remota fica pendente e nao vira ok",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$(com_teto 10 git ls-remote origin \"refs/heads/$ref\")\"; then",
+      "para": "\"$(com_teto 10 git ls-remote origin \"refs/heads/$ref\" || true)\"; then",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva"
+      ]
+    }
+  ]
+}
