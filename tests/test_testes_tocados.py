@@ -727,6 +727,16 @@ class Vermelho(unittest.TestCase):
         self.assertEqual(modulos, ["test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("restrito", linha)
 
+    def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
+        self.com_modulos_do_mapa()
+        (self.dir / "tests" / "test_outro.py").unlink()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.salvar("apaga")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("sem veredito", r.stdout)
+
     def test_vermelho_com_caminho_sem_mapa_junto_do_teste_roda_todos_os_modulos(self):
         self.com_modulos_do_mapa()
         self.gravar("lib.py", "def dobro(x):\n    return x * 2\n")
