@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: lote-s1-scripts
 branch: melhoria/lote-s1-scripts
-commit: 8e22f173e103f04a77bab9152747f0d79473f9f0
-parecer: reprovado
-escopo: completo
+commit: 979c1ffd8ef43e608aca0f792c56afa4dd6d27d6
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,11 +14,13 @@ data: 2026-10-24
 ---
 # QA: lote-s1-scripts
 
-Pedido LOTE-S1-SCRIPTS (E1 a E4; revisão LOTE-S1-SCRIPTS-REV, E3.1). Head testado `8e22f173e103f04a77bab9152747f0d79473f9f0`, base `3c66b881af31817ce5d2dde996c7ca56d54cb511`. Sem especificação de UX nem contrato de API: as obrigações são os itens E1 a E4 do pedido.
+Pedido LOTE-S1-SCRIPTS (E1 a E4; revisão LOTE-S1-SCRIPTS-REV, E3.1), revalidação 2. Head testado `979c1ffd8ef43e608aca0f792c56afa4dd6d27d6` (código idêntico ao do commit seguinte, que só traz pareceres), base `3c66b881af31817ce5d2dde996c7ca56d54cb511`; parecer anterior sobre `61cd77261133a31fe4ba900d12b668a740f51e50` (reprovado: A1 bloqueante, A2 recomendado). Sem especificação de UX nem contrato de API: as obrigações são os itens E1 a E4 do pedido e as decisões da volta 1 (teto 1 a 75 s, conferência da remota com `ls-remote`, documentação do integrador).
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/lote-s1-scripts.json:1 · o diff muda guardas em bin/ (chmod da pasta do log, link em changelog.d, versão de topo, teto do push --delete) e a branch não traz spec de mutantes; declarar um por linha de guarda (classe: guarda sem mutante)
-- A2 (recomendado) bin/forge-fechar:178 · o mutante que remove `[ -O . ]` do subshell do chmod sobrevive; equivalente para usuário comum (chmod em pasta alheia já falha com EPERM) e a checagem de dono do caminho vem antes (linha 168); registrar a justificativa na spec do A1
+
+## Revalidação dos achados anteriores
+- A1 (spec de mutantes): resolvido. `tests/mutantes/lote-s1-scripts.json` (M1 a M8, um por guarda mudada na entrega original) e `tests/mutantes/lote-s1-scripts-volta.json` (V1 a V3, as guardas da volta 1; dois arquivos pelo teto de 8 do `forge-mutante`). Conferido contra o diff: as guardas mudadas na volta (faixa 1 a 75 na linha 107, `[ -z "$sha_depois" ]` na 468, falha do `ls-remote` na 467) têm mutante cada uma.
+- A2 (M8, `[ -O . ]`): justificativa aceita. O mutante sobrevive, é equivalente para usuário comum: o `chmod` em pasta de outro dono falha com EPERM (cai no `die`) e a checagem de dono do caminho vem antes (linha 168); a guarda é defesa em profundidade contra a troca do caminho depois dela, o que não há como provocar de forma determinística. A justificativa consta no campo `guarda` do M8 na spec.
 
 ## Critério → teste → resultado
 | Obrigação | Teste | Fronteira protegida | Resultado |
@@ -26,7 +28,11 @@ Pedido LOTE-S1-SCRIPTS (E1 a E4; revisão LOTE-S1-SCRIPTS-REV, E3.1). Head testa
 | E1 modo da pasta do log vira 700, setuid e setgid saem | tests.test_fechar_log_check.FecharLogCheck.test_pasta_do_log_do_proprio_usuario_com_modo_diferente_de_700_vira_700_com_aviso (4755 e 6755 novos) | modos 755, 777, 500, 2755, 4755, 6755 | passou |
 | E1 chmod age sobre a pasta já aberta, não sobre o caminho (TOCTOU) | ...FecharLogCheck.test_o_chmod_da_pasta_do_log_age_sobre_a_pasta_ja_aberta_e_nao_sobre_o_caminho | argumento do chmod é `.` | passou |
 | E2 push --delete que trava é cortado pelo teto, 3 tentativas, remota dita viva, código 3 | tests.test_fechar_orfao.Teste.test_push_delete_que_trava_e_cortado_pelo_teto_e_a_remota_viva_e_dita | teto 1 s; remota segue no servidor | passou |
-| E2 teto fora da faixa recusado; padrão 80 s (3x80 + pausas < 300 s) | ...Teste.test_teto_do_delete_fora_da_faixa_e_recusado_e_o_padrao_deixa_tres_tentativas_abaixo_de_300s | 0, 101, não numérico | passou (parte do padrão confere o texto-fonte, estrutural) |
+| E2 teto 1 a 75 s, padrão 75 s; pior caso 3x75 + 2x30 + 10 = 295 s (volta 1) | ...Teste.test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s | 0, 1, 75, 76, 100, 101, não numérico | passou (vermelho na base 61cd772) |
+| E2 corte depois de o servidor apagar a ref: confere com ls-remote, remota=ok, sem "continua viva" (volta 1) | ...Teste.test_corte_depois_que_o_servidor_apagou_a_remota_confere_e_nao_diz_que_ela_continua_viva | ref ausente no servidor | passou (vermelho na base) |
+| E2 ref ainda no servidor após o corte: segue dita viva, pendente, código 3 | ...Teste.test_corte_com_a_remota_ainda_no_servidor_segue_dizendo_que_ela_continua_viva | ref presente | passou (guarda; passa na base por desenho) |
+| E2 ls-remote falha: pendente, sem afirmar que está viva | ...Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva | leitura da remota falha | passou (vermelho na base) |
+| Doc do integrador descreve chmod u-s, teto 1 a 75 e a conferência da remota (volta 1) | leitura de docs/fechamento-integrador.md:20,52,58,71 contra o código | n/a | conferido, bate com bin/forge-fechar:25,107,466-476,178 |
 | E3 changelog.d link: release não publica nem apaga .md externos | tests.test_changelog.Release.test_changelog_d_como_link_para_fora_da_raiz_nao_publica_nem_apaga_os_md_externos | pasta como link para fora | passou |
 | E3 fragmento que é link para fora recusado, alvo fica | ...Release.test_fragmento_que_e_link_para_fora_da_raiz_e_recusado_e_o_alvo_fica | arquivo como link | passou |
 | E3 `novo` com changelog.d link não grava fora | ...Release.test_novo_com_changelog_d_como_link_e_recusado_sem_gravar_fora | pasta como link | passou |
@@ -35,18 +41,14 @@ Pedido LOTE-S1-SCRIPTS (E1 a E4; revisão LOTE-S1-SCRIPTS-REV, E3.1). Head testa
 | E4 falha real mantém ✘ e código | ...ValidarPluginAviso.test_validacao_que_falha_mantem_o_x_e_o_codigo | rc 1 | passou (guarda; passa também na base, por desenho) |
 
 ## Cenários e resultado real
-- Suíte dirigida do lote (`python3 -m unittest tests.test_fechar tests.test_fechar_log_check tests.test_fechar_orfao tests.test_changelog tests.test_forge`, head): `Ran 577 tests in 164.650s · OK (skipped=1)`. O skip é `FragmentoTemONomeDaBranch` (worktree em HEAD solta, branch não é `melhoria/*`), preexistente e não adicionado pelo lote.
-- Vermelho (`forge-testes --vermelho 3c66b881af31817ce5d2dde996c7ca56d54cb511 --prazo 900`, saída 0): abre com `vermelho: base=3c66b881af31 head=8e22f173e103`; `revertidos à base: bin/forge-changelog, bin/forge-fechar, changelog.d/lote-s1-scripts.md, scripts/validar-plugin.sh`; `contagem: não prova (passa na base)=1936; prova (asserção)=9; pulado=1`. Os 9 que provam são os 9 testes novos ou ampliados da tabela acima, todos `H=ok · B=falha`.
-- Mão, forge-changelog em repositório de brinquedo em `$TMPDIR/qa-engineer-lote-s1-scripts/cl`: `release` e `novo` com `changelog.d` como link para pasta externa: `changelog.d: link simbólico ou fora da raiz do repositório; recusado.`, rc=1, `e.md` externo intacto, CHANGELOG sem mudança. Manifesto `{"extra": {"version": "9"}, "version": "0.2.0"}`: recusado, nada gravado. Manifesto aninhado antes com topo 0.1.0: recusado (a troca textual pegaria o campo errado). Manifesto com o aninhado depois do topo: passa, topo trocado, aninhado intacto (sem falso positivo).
-- Mão, forge-fechar com `push --delete` que trava de verdade (pre-receive do remoto dormindo 30 s, `FORGE_FECHAR_TETO_DELETE=2`, fluxo completo sobre o harness de gh e forge-check falsos): `registro: apagando a branch remota melhoria/x (até 2s por tentativa, 3 tentativas)`, `limpeza: remota=pendente worktree=ok branch=ok`, aviso `a branch remota continua viva`, rc=3, 7,9 s no total, remota ainda no servidor.
-- `scripts/validar-plugin.sh` real: `aviso do perfil directory (não reprova; a validação passou): 1 problem ...`, `✔ Validation passed`, rc=0. A linha `⚠ Found 1 plugin directory warning` do validador segue como veio.
-- shellcheck (`-S warning`): `bin/forge-fechar` 1 ocorrência na base e 1 no head (a mesma, preexistente); `scripts/validar-plugin.sh` 0 e 0.
-- Mutação (spec minha, fora da branch, em `$TMPDIR/qa-engineer-lote-s1-scripts/lote.json`, 8 mutantes, um por guarda mudada), `forge-mutante` rc=1:
-  - `M1 · morreu · bin/forge-changelog:74` · `M2 · morreu · bin/forge-changelog:162` · `M3 · morreu · bin/forge-changelog:109` · `M4 · morreu · bin/forge-changelog:136`
-  - `M5 · morreu · bin/forge-fechar:178` (tirar `u-s`) · `M6 · morreu · bin/forge-fechar:178` (chmod no caminho em vez de `.`) · `M7 · morreu · bin/forge-fechar:122` (sem `timeout`)
-  - `M8 · sobreviveu · bin/forge-fechar:178` (sem `[ -O . ]`): ver A2.
-- Não executado: acessibilidade e E2E de navegador (sem interface); PA-7 (`docs/engineering/achados-recorrentes.md`) está vazio ("nenhum ainda"), nada a conferir.
+- Testes do lote no head: `tests.test_fechar` `Ran 80 tests in 29.774s · OK`; `tests.test_fechar_log_check tests.test_fechar_orfao tests.test_changelog` `Ran 71 tests in 33.310s · OK (skipped=1)`. O skip é `FragmentoTemONomeDaBranch` (worktree em HEAD solta, branch não `melhoria/*`), preexistente. A suíte completa roda no pre-push; `test_forge` e `validar-plugin.sh` não mudaram desde o parecer anterior (577 testes OK no `8e22f17`).
+- Vermelho (`forge-testes --vermelho 61cd77261133a31fe4ba900d12b668a740f51e50 --prazo 900`, saída 0): `vermelho: base=61cd77261133 head=979c1ffd8ef4`; `revertidos à base: bin/forge-fechar, docs/fechamento-integrador.md`; `contagem: não prova (passa na base)=1945; prova (asserção)=3; pulado=1`. Os 3 que provam, todos `H=ok · B=falha`: `test_corte_depois_que_o_servidor_apagou_a_remota_confere_e_nao_diz_que_ela_continua_viva`, `test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva`, `test_teto_do_delete_fora_da_faixa_e_recusado_e_o_pior_caso_das_tres_tentativas_fica_em_300s`. `test_corte_com_a_remota_ainda_no_servidor_segue_dizendo_que_ela_continua_viva` passa na base por desenho (guarda do comportamento que não podia mudar).
+- Mutação, `forge-mutante` sobre a spec da branch: `lote-s1-scripts.json` rc=1 só por M8 (`M1 a M7 · morreu`, `M8 · sobreviveu · bin/forge-fechar:178`, equivalente justificado acima); `lote-s1-scripts-volta.json` rc=0 (`V1 · morreu · bin/forge-fechar:107`, `V2 · morreu · :468`, `V3 · morreu · :467`). Somei 3 mutantes meus (spec fora da branch, em `$TMPDIR`): `Q1` tirar `rem_st=pendente` da remota viva, `Q2` padrão 75 para 60, `Q3` tirar `rem_st=pendente` da conferência que falha: os três `morreu`, rc=0.
+- Mão, `push --delete` que trava de verdade (remota real com `pre-receive` dormindo 30 s, `FORGE_FECHAR_TETO_DELETE=2`, fluxo completo sobre `gh` e `forge-check` falsos): `registro: apagando a branch remota melhoria/x (até 2s por tentativa, 3 tentativas)`, `limpeza: remota=pendente worktree=ok branch=ok`, aviso `a branch remota continua viva`, rc=3, 6,4 s, `ls-remote` ainda mostra a ref.
+- Mão, servidor apaga antes do corte (`post-receive` dormindo 30 s, mesmo teto): `limpeza: remota=ok worktree=ok branch=ok`, `fim: código 0`, 2,4 s, sem a frase "continua viva", `ls-remote` vazio (o corte caiu depois de a ref sair; a rodada seguinte viu a ref ausente).
+- Não executado: acessibilidade e E2E de navegador (sem interface). PA-7 (`docs/engineering/achados-recorrentes.md`) segue vazio ("nenhum ainda"): nada a conferir.
 
 ## Riscos
 - `timeout` mata só o `git push`; um filho do pre-push que ignore o sinal pode sobreviver ao corte (não provado, não bloqueia).
-- Sem o `timeout` no PATH, a limpeza roda sem teto (desenhado e documentado no código).
+- Sem o `timeout` no PATH (macOS), a limpeza roda sem teto (desenhado e documentado).
+- A cota de 300 s do pior caso soma as pausas no máximo (30 s); o teste confere a aritmética, não mede o tempo de relógio.
