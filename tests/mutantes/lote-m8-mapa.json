@@ -1,0 +1,79 @@
+{
+  "pedido": "lote-m8-mapa",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "módulo de teste não tem regra no MAPA (cai na completa, opção C)",
+      "arquivo": "bin/forge-testes",
+      "de": "MAPA = [\n",
+      "para": "MAPA = [\n    (r\"tests/(test_[a-z0-9_]+)\\.py\", (\"test_sugerir\",)),\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa",
+        "tests.test_testes_tocados.Mapa.test_o_mapa_nao_guarda_regra_nem_grafo_de_modulo_de_teste"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o --vermelho não manda módulo de teste ao planejar",
+      "arquivo": "bin/forge-testes",
+      "de": "planejar([c for c in caminhos if not MODULO_DE_TESTE.fullmatch(c)], raiz)",
+      "para": "planejar(caminhos, raiz)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o --vermelho soma os módulos de teste do diff ao plano",
+      "arquivo": "bin/forge-testes",
+      "de": "sorted({m for m in modificados if m in todos} | set(plano))",
+      "para": "sorted(set(plano))",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos",
+        "tests.test_testes_tocados.Vermelho.test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o --vermelho não roda módulo de teste apagado",
+      "arquivo": "bin/forge-testes",
+      "de": "{m for m in modificados if m in todos}",
+      "para": "{m for m in modificados}",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "plano completo no --vermelho roda todos os módulos",
+      "arquivo": "bin/forge-testes",
+      "de": "todos if modo == \"completo\" else",
+      "para": "[] if modo == \"completo\" else",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_caminho_sem_mapa_junto_do_teste_roda_todos_os_modulos"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "caminho fora do repositório é recusado",
+      "arquivo": "bin/forge-testes",
+      "de": "relativo.startswith(\"..\" + os.sep)",
+      "para": "False",
+      "testes": [
+        "tests.test_testes_tocados.Execucao.test_caminho_fora_do_repositorio_e_recusado"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "caminho não combina com --vermelho",
+      "arquivo": "bin/forge-testes",
+      "de": "(args.completa or args.vermelho is not None)",
+      "para": "args.completa",
+      "testes": [
+        "tests.test_testes_tocados.Execucao.test_caminhos_nao_combinam_com_completa_nem_com_vermelho"
+      ]
+    }
+  ]
+}
