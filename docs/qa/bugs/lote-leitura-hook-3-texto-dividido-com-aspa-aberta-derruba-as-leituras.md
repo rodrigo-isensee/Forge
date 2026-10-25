@@ -22,4 +22,4 @@ Sonda viva, hooks desligados, `.env` falso, `HOME` e pasta no `$TMPDIR`, sem red
 Nenhum para o usuário. Para o hook: a falha de `shlex.split` de uma leitura a mais não pode derrubar as outras (a leitura a mais que não fecha aspas é descartada, ou vira "ilegível" só depois das outras leituras recusarem); e o teste de propriedade precisa gerar o grupo com aspa aberta, que o gerador de hoje não gera.
 
 ## Estado
-Aberto.
+Fechado em 0e8776d (revalidação 15, opção B da rev14): as formas relatadas (`env -uS\' cat .env`, `env -uS'"' cat .env`, `env -vuS"'" cat .env`, `env --spl='"' cat .env`, `env -iu X env -uS\' cat .env`) e as variantes da classe (`env -iu -S\' cat .env`, `env -aS'"'`, `env -iS'"'`, `env X=1 -uS\'`, `sudo -Z env -uS\'`, `env -S'env -uS\'…'`) saem 2 no `conformidade`; varredura contra a develop: 0 regressões em 2502 formas com aspa aberta e em 49 888 sem. Prova em `docs/qa/lote-leitura-hook.md`.

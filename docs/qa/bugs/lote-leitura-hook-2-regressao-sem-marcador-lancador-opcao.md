@@ -31,3 +31,5 @@ Nenhum para o usuário. Para o hook: o review sugere, sem decidir, ler as duas l
 
 ## Estado
 As formas relatadas aqui (`-iu`, `-iC`, `-iS'…'`, `-vS'…'`) fecham em 6d5252d: rc 2 no `conformidade`, e a varredura de 49 888 formas (base contra lote) não achou regressão sem aspa aberta. A classe "regressão sem o marcador atrás de lançador com opção fora da tabela" não fecha: o texto dividido com aspa aberta reabre a mesma regressão, no bug `lote-leitura-hook-3`.
+
+Fechado em 0e8776d (revalidação 15): a classe, com a aspa aberta, fecha pela opção B da rev14 (ver o bug `lote-leitura-hook-3`).
