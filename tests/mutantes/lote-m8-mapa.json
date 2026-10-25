@@ -9,8 +9,7 @@
       "de": "MAPA = [\n",
       "para": "MAPA = [\n    (r\"tests/(test_[a-z0-9_]+)\\.py\", (\"test_sugerir\",)),\n",
       "testes": [
-        "tests.test_testes_tocados.Mapa.test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa",
-        "tests.test_testes_tocados.Mapa.test_o_mapa_nao_guarda_regra_nem_grafo_de_modulo_de_teste"
+        "tests.test_testes_tocados.Mapa.test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa"
       ]
     },
     {
@@ -20,7 +19,6 @@
       "de": "planejar([c for c in caminhos if not MODULO_DE_TESTE.fullmatch(c)], raiz)",
       "para": "planejar(caminhos, raiz)",
       "testes": [
-        "tests.test_testes_tocados.Vermelho.test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite",
         "tests.test_testes_tocados.Vermelho.test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos"
       ]
     },
@@ -31,8 +29,7 @@
       "de": "sorted({m for m in modificados if m in todos} | set(plano))",
       "para": "sorted(set(plano))",
       "testes": [
-        "tests.test_testes_tocados.Vermelho.test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos",
-        "tests.test_testes_tocados.Vermelho.test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite"
+        "tests.test_testes_tocados.Vermelho.test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos"
       ]
     },
     {

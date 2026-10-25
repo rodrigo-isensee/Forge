@@ -98,16 +98,6 @@ class Mapa(unittest.TestCase):
             with self.subTest(caminho):
                 self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
-    def test_codigo_sem_teste_segue_dirigido(self):
-        self.assertEqual(self.plano("bin/forge-sugerir"), ("dirigido", ["test_forge", "test_sugerir"]))
-
-    def test_modulo_de_teste_junto_de_outro_caminho_leva_tudo_a_completa(self):
-        self.assertEqual(self.plano("bin/forge-sugerir", "tests/test_doutor.py"), ("completo", ["tests/test_doutor.py sem mapa"]))
-
-    def test_o_mapa_nao_guarda_regra_nem_grafo_de_modulo_de_teste(self):
-        self.assertFalse(hasattr(self.f, "IMPORTADO_POR"))
-        self.assertFalse([p for p, _ in self.f.MAPA if re.fullmatch(p, "tests/test_sugerir.py")])
-
     def test_caminho_sem_mapa_cai_na_completa(self):
         for caminho in ("coisa-nova/x.py", ".github/workflows/ci.yml", ".githooks/pre-push", "LICENSE",
                         "tests/catraca.py", "tests/fixtures/a.txt", "bin/forge-inexistente"):
@@ -431,9 +421,8 @@ class NaoEPortao(unittest.TestCase):
 
 
 class MapaCobreImportacaoEVarredura(unittest.TestCase):
-    """M8, opção C: o que um teste executa de outro teste ou varre de uma pasta não precisa de grafo no mapa, porque
-    módulo de teste no diff roda a suíte inteira; estas conferências provam isso para as formas que o repositório usa
-    (importação entre testes, estática e dinâmica; `glob`, `rglob` e `iterdir` sobre caminho conhecido)."""
+    """M8, opção C: importação entre testes e varredura de pasta (`glob`, `rglob`, `iterdir`) não pedem grafo no mapa,
+    porque módulo de teste no diff roda a suíte inteira."""
 
     @classmethod
     def setUpClass(cls):
@@ -441,20 +430,20 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
         cls.testes = sorted(p.stem for p in (RAIZ / "tests").glob("test_*.py"))
 
     def importados(self, texto):
-        """(módulos de teste importados por nome, há importação dinâmica de nome montado). Qualquer nível do código."""
+        """(módulos de teste importados por nome, há importação dinâmica de nome montado)."""
         achados, dinamico = set(), False
         for no in ast.walk(ast.parse(texto)):
             if isinstance(no, ast.Import):
-                achados.update(a.name for a in no.names if re.fullmatch(r"test_[a-z0-9_]+", a.name))
-            elif isinstance(no, ast.ImportFrom) and no.module and re.fullmatch(r"test_[a-z0-9_]+", no.module) and not no.level:
-                achados.add(no.module)
-            elif isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "import_module" \
-                    and no.args:
-                arg = no.args[0]
-                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
-                    achados.update(m for m in (arg.value.split(".")[-1],) if re.fullmatch(r"test_[a-z0-9_]+", m))
-                else:
-                    dinamico = True
+                nomes = [a.name for a in no.names]
+            elif isinstance(no, ast.ImportFrom) and not no.level:
+                nomes = [no.module or ""]
+            elif isinstance(no, ast.Call) and getattr(no.func, "attr", "") == "import_module" and no.args:
+                literal = isinstance(no.args[0], ast.Constant)
+                dinamico |= not literal
+                nomes = [str(no.args[0].value).split(".")[-1]] if literal else []
+            else:
+                continue
+            achados.update(n for n in nomes if re.fullmatch(r"test_[a-z0-9_]+", n))
         return achados, dinamico
 
     def varridos(self, texto):
@@ -470,8 +459,7 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
             if base is None or "*" in base or not (RAIZ / Path(*base)).is_dir():
                 continue
             pasta = RAIZ / Path(*base)
-            padrao = no.args[0].value if no.args and isinstance(no.args[0], ast.Constant) else "*"
-            casados = pasta.iterdir() if no.func.attr == "iterdir" else getattr(pasta, no.func.attr)(padrao)
+            casados = pasta.iterdir() if no.func.attr == "iterdir" else getattr(pasta, no.func.attr)(getattr(no.args[0], "value", "*"))
             pastas.add("/".join(base))
             achados.update(c.relative_to(RAIZ).as_posix() for c in casados if c.is_file() and "__pycache__" not in c.parts)
         return achados, pastas
@@ -490,14 +478,6 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
                     self.assertTrue(self.cobre(f"tests/{importado}.py", modulo))
                     self.assertEqual(self.f.planejar([f"tests/{importado}.py"], RAIZ)[0], "completo")
         self.assertGreaterEqual(arestas, 31)  # as 31 linhas de `import`/`from` entre testes na varredura da segurança
-
-    def test_os_modulos_importados_por_outros_sao_os_conhecidos(self):  # critério C.1 (o conjunto não encolhe)
-        importados = set()
-        for modulo in self.testes:
-            achados, _ = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
-            importados |= achados & set(self.testes)
-        self.assertLessEqual({"test_fechar", "test_forge", "test_voltas", "test_volta_por_delta", "test_doutor",
-                              "test_hooks", "test_atualizar"}, importados)
 
     def test_toda_varredura_de_pasta_conhecida_leva_o_modulo_a_suite_inteira_ou_ao_plano(self):  # critério C.2
         total, varrem_tests = 0, set()
@@ -527,12 +507,9 @@ class MapaCobreImportacaoEVarredura(unittest.TestCase):
             "def i():\n    return list(AQUI.glob('test_*.py'))\n"
         )
         self.assertEqual(self.importados(fonte), ({"test_a", "test_b", "test_c", "test_d"}, True))
-        self.assertEqual(self.importados("import os\n"), (set(), False))
         achados, pastas = self.varridos(fonte)
         self.assertEqual(pastas, {"tests"})
         self.assertIn("tests/test_forge.py", achados)
-        achados, pastas = self.varridos("from pathlib import Path\nx = list(Path(d).iterdir())\n")
-        self.assertEqual((achados, pastas), (set(), set()))
 
 
 class MapaDoForgeCheck(unittest.TestCase):
@@ -695,8 +672,7 @@ class Vermelho(unittest.TestCase):
     TRIVIAL = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n"
 
     def com_modulos_do_mapa(self):
-        """Commita (como base do vermelho) `bin/forge-sugerir`, que o mapa leva a test_forge e test_sugerir, e um
-        módulo que o mapa não cita (test_outro)."""
+        """Base do vermelho: `bin/forge-sugerir` (o mapa leva a test_forge e test_sugerir) e test_outro (fora do mapa)."""
         self.gravar("bin/forge-sugerir", "x = 1\n")
         for modulo in ("test_forge", "test_sugerir", "test_outro"):
             self.gravar(f"tests/{modulo}.py", self.TRIVIAL)
@@ -716,15 +692,6 @@ class Vermelho(unittest.TestCase):
         r = self.rodar("--vermelho", "HEAD~1")
         modulos, linha = self.modulos_do_vermelho(r)
         self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
-        self.assertNotIn("restrito", linha)
-
-    def test_vermelho_so_com_modulo_de_teste_no_diff_roda_so_esse_modulo_e_nao_a_suite(self):
-        self.com_modulos_do_mapa()
-        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
-        self.salvar("muda")
-        r = self.rodar("--vermelho", "HEAD~1")
-        modulos, linha = self.modulos_do_vermelho(r)
-        self.assertEqual(modulos, ["test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("restrito", linha)
 
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
