@@ -1,0 +1,28 @@
+{
+  "pedido": "lote-fechar2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "LSREMOTE-EXATO: so a linha com a coluna 2 igual a refs/heads/<branch> vale",
+      "arquivo": "bin/forge-fechar",
+      "de": "awk -v r=\"$nome\" '$2 == r {print $1; exit}'",
+      "para": "awk -v r=\"$nome\" '{print $1; exit}'",
+      "testes": [
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_com_o_mesmo_fim_nao_engana_o_passo_2_nem_a_limpeza",
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_da_base_nao_engana_o_passo_2b",
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_nao_engana_a_conferencia_depois_do_delete_que_falhou"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "LSREMOTE-EXATO: leitura que falha nao vira branch ausente",
+      "arquivo": "bin/forge-fechar",
+      "de": "saida_remota=\"$(\"$@\" git ls-remote origin \"$nome\")\" || return 1",
+      "para": "saida_remota=\"$(\"$@\" git ls-remote origin \"$nome\")\" || :",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva"
+      ]
+    }
+  ]
+}

@@ -35,7 +35,7 @@ case "$1 $2" in
     cat "$ESTADO/lista_extra" 2>/dev/null; exit 0 ;;
   "pr view")
     # head_do_pr [arquivo]: o head que o GitHub devolve (arquivo "head" ou o da branch no remoto, que é o conferido pelo script)
-    head_do_pr() { cat "$ESTADO/${1:-head}" 2>/dev/null || cat "$ESTADO/head" 2>/dev/null || git ls-remote origin "refs/heads/$(cat "$ESTADO/branch_vista" 2>/dev/null || echo melhoria/x)" | awk '{print $1}'; }
+    head_do_pr() { cat "$ESTADO/${1:-head}" 2>/dev/null || cat "$ESTADO/head" 2>/dev/null || { r="refs/heads/$(cat "$ESTADO/branch_vista" 2>/dev/null || echo melhoria/x)"; git ls-remote origin "$r" | awk -v r="$r" '$2 == r {print $1}'; }; }
     case "$*" in
       *"--json number --jq"*) cat "$ESTADO/numero_por_nome" 2>/dev/null || { [ -f "$ESTADO/aberto" ] && cut -d' ' -f1 "$ESTADO/aberto" || echo 7; }; exit 0 ;;
       *number,state*) [ -f "$ESTADO/aberto" ] && cat "$ESTADO/aberto"; exit 0 ;;
@@ -96,6 +96,8 @@ if [ "$1 $2" = "push origin" ] && [ "$3" = "--delete" ]; then
   echo "git $*" >> "$REGISTRO"
   n="$(cat "$ESTADO/falha_delete" 2>/dev/null || echo 0)"
   if [ "$n" -gt 0 ]; then echo $((n - 1)) > "$ESTADO/falha_delete"; echo "HTTP 502" >&2; exit 1; fi
+  # $ESTADO/delete_apaga_e_falha: o servidor apaga a ref, mas a resposta se perde (o comando sai com erro)
+  if [ -f "$ESTADO/delete_apaga_e_falha" ]; then "$REAL_GIT_FALSO" "$@" >/dev/null 2>&1; exit 1; fi
 fi
 case "$1 $2" in
   "worktree remove")
@@ -559,6 +561,41 @@ class Fechar(unittest.TestCase):
 
     def test_limpeza_apaga_a_branch_remota_por_refs_heads(self):
         self.assertIn('git push origin --delete "refs/heads/$ref"', SCRIPT.read_text())
+
+    # ---- LSREMOTE-EXATO: `git ls-remote origin refs/heads/<ref>` casa pelo fim do nome; só a coluna 2 igual ao nome inteiro vale ----
+    def isca(self, nome, sha):
+        """Põe no servidor outra branch cujo nome termina em /refs/heads/<nome>, com outro sha, listada antes dela (a/ < d, m)."""
+        self.git("push", "-q", "origin", f"{sha}:refs/heads/a/refs/heads/{nome}")
+        self.assertEqual(len(self.git("ls-remote", "origin", f"refs/heads/{nome}").splitlines()), 2)
+
+    def test_lsremote_exato_isca_com_o_mesmo_fim_nao_engana_o_passo_2_nem_a_limpeza(self):
+        self.isca("melhoria/x", self.git("rev-parse", "develop"))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("remota=ok", r.stdout)
+        self.assertEqual(self.git("ls-remote", "--heads", "origin", "melhoria/x").split()[1:],
+                         ["refs/heads/a/refs/heads/melhoria/x"])  # a isca fica; só a branch da entrega sai
+
+    def test_lsremote_exato_isca_da_base_nao_engana_o_passo_2b(self):
+        self.isca("develop", self.git("rev-parse", "melhoria/x"))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("passo 2b", r.stderr)
+
+    def test_lsremote_exato_isca_nao_engana_a_conferencia_depois_do_delete_que_falhou(self):
+        self.isca("melhoria/x", self.git("rev-parse", "develop"))
+        (self.estado / "delete_apaga_e_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("já não existe no servidor", r.stdout)
+
+    def test_lsremote_exato_um_ajudante_unico_le_a_branch_remota(self):
+        codigo = [l for l in SCRIPT.read_text().splitlines() if not l.lstrip().startswith(("#", "echo", "passo"))]
+        chamadas = [l for l in codigo if "ls-remote" in l and "printf" not in l]
+        self.assertEqual(len(chamadas), 1, chamadas)
+        corpo = SCRIPT.read_text().split("remoto_exato() {", 1)[1].split("\n}", 1)[0]
+        self.assertIn(chamadas[0].strip(), corpo)  # a única chamada é a do ajudante
+        self.assertIn("$2 == r", corpo)  # e o ajudante filtra a coluna 2 pelo nome inteiro
 
     def test_espera_os_checks_aparecerem_em_pr_recem_aberto(self):
         (self.estado / "sem_checks_ate").write_text("6")

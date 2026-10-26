@@ -131,6 +131,14 @@ repetir() {
     dormir "$pausa"
   done
 }
+# remoto_exato <branch> [prefixo...]: sha de refs/heads/<branch> no origin (vazio se não existe); falha se a leitura falha. O padrão do
+# `git ls-remote` casa pelo fim do nome (refs/heads/a/refs/heads/<branch> também sai): só vale a linha com a coluna 2 igual ao nome inteiro.
+# O prefixo (com_teto 10) roda na frente do git.
+remoto_exato() {
+  local nome="refs/heads/$1" saida_remota; shift
+  saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
+  printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r {print $1; exit}'
+}
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
 ${origem:-Forge (melhoria da fábrica, pedido $pedido)}
@@ -450,11 +458,10 @@ git branch -D $(printf '%q' "$ref")"
   fi
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
-  if ! sha_remoto="$(git ls-remote origin "refs/heads/$ref")"; then
+  if ! sha_remoto="$(remoto_exato "$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
   else
-    sha_remoto="$(printf '%s' "$sha_remoto" | awk '{print $1}')"
     if [ -z "$sha_remoto" ]; then
       :
     elif ! sha_confere "$sha_remoto"; then
@@ -464,7 +471,7 @@ git branch -D $(printf '%q' "$ref")"
       echo "registro: apagando a branch remota $ref (até ${teto_delete}s por tentativa, 3 tentativas)"
       if ! repetir com_teto "$teto_delete" git push origin --delete "refs/heads/$ref"; then
         # O corte (ou uma resposta perdida) pode vir depois de o servidor já ter apagado a ref: confere antes de dizer que ela continua viva.
-        if sha_depois="$(com_teto 10 git ls-remote origin "refs/heads/$ref")"; then
+        if sha_depois="$(remoto_exato "$ref" com_teto 10)"; then
           if [ -z "$sha_depois" ]; then
             echo "registro: a branch remota $ref já não existe no servidor (o comando falhou ou foi cortado depois de apagá-la)"
           else
@@ -502,8 +509,7 @@ estado_do_pr() {
 # `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
 conferir_base() {
   local srv base_sha mbs mb n comuns f
-  srv="$(git ls-remote origin "refs/heads/$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
-  srv="${srv%%[[:space:]]*}"
+  srv="$(remoto_exato "$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
   [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
   base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
   [ "$srv" = "$base_sha" ] || die "parou no passo 2b: $base ($base_sha) está atrás da $alvo no servidor ($srv); rode: git fetch origin $alvo, e rode de novo"
@@ -587,7 +593,7 @@ local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null ||
 passo 2 "head no servidor"
 local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
-remoto_sha="$(git ls-remote origin "refs/heads/$ref" | awk '{print $1}')"
+remoto_sha="$(remoto_exato "$ref")" || die "parou no passo 2: não consegui ler a branch $ref no origin"
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
 [ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
