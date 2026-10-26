@@ -112,6 +112,15 @@ class ValidacaoDaSpec(unittest.TestCase):
             with self.subTest(teste):
                 self.assertTrue(self.problemas(mutante(testes=[teste])))
 
+    def test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido(self):  # QA A2, A3 e review A2 do lote
+        for teste in (1, None, ["tests.x"], {"a": 1}):
+            with self.subTest(repr(teste)):
+                self.assertFalse(self.f.id_de_teste_valido(teste))
+                self.assertTrue(self.problemas(mutante(testes=[teste])))
+        for teste in ("tests.c\u0327", "tests.x.\uff21b", "outro.x", "x.tests.y"):  # fora da NFKC e raiz que não é tests
+            with self.subTest(teste):
+                self.assertFalse(self.f.id_de_teste_valido(teste))
+
     def test_troca_vazia_igual_ou_enorme_e_invalida(self):  # CA-14
         self.assertTrue(self.problemas(mutante(de="")))
         self.assertTrue(self.problemas(mutante(de="a", para="a")))
@@ -304,6 +313,23 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(mutante(), executor="outro"))
         self.assertEqual(r.returncode, 2)
         self.assertIn("sem leitor de veredito", r.stderr)
+
+    def test_sem_executor_e_sem_testes_unittest_sai_2_em_qualquer_spec_do_conjunto(self):  # QA A1 do lote
+        git(self.dir, "rm", "-q", "tests/test_lib.py")
+        self.salvar()
+        sem = self.spec(mutante("M1"), nome="x-1.json")
+        com = self.spec(mutante("M2"), nome="x-2.json", executor="unittest")
+        for specs in ((sem,), (com, sem), (sem, com)):
+            with self.subTest(len(specs)):
+                r = self.rodar(*specs)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("sem leitor de veredito", r.stderr)
+
+    def test_spec_com_testes_que_nao_sao_texto_sai_2_como_spec_invalida(self):  # QA A2 do lote
+        r = self.rodar(self.spec(mutante(testes=[1])))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nada foi executado", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_rev_invalido_sai_2_sem_criar_arquivo(self):
         r = self.rodar(self.spec(mutante()), "--rev=--output=gravado.txt")

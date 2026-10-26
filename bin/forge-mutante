@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -208,11 +209,12 @@ def validar_spec(dados):
 
 def id_de_teste_valido(teste):
     """`tests.<parte>[.<parte>...]`, cada parte um identificador Python (`str.isidentifier`, que aceita letra não
-    ASCII como a do `def test_ação`): sem espaço, hífen, ponto vazio nem metacaractere."""
+    ASCII como a do `def test_ação`, e já na forma NFKC): sem espaço, hífen, ponto vazio nem metacaractere."""
     if not isinstance(teste, str):
         return False
     partes = teste.split(".")
-    return len(partes) > 1 and partes[0] == "tests" and all(p.isidentifier() for p in partes[1:])
+    return (len(partes) > 1 and partes[0] == "tests"
+            and all(p.isidentifier() and unicodedata.normalize("NFKC", p) == p for p in partes[1:]))
 
 
 def validar_specs(lista):

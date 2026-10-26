@@ -57,8 +57,8 @@
       "id": "M6",
       "guarda": "cada parte do id de teste e identificador Python",
       "arquivo": "bin/forge-mutante",
-      "de": "partes[0] == \"tests\" and all(p.isidentifier() for p in partes[1:])",
-      "para": "partes[0] == \"tests\"",
+      "de": "p.isidentifier() and unicodedata",
+      "para": "unicodedata",
       "testes": [
         "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_com_identificador_python_nao_ascii_e_valido"
       ]
@@ -67,10 +67,20 @@
       "id": "M7",
       "guarda": "id de teste precisa de parte depois de tests",
       "arquivo": "bin/forge-mutante",
-      "de": "    return len(partes) > 1 and partes[0]",
-      "para": "    return partes[0]",
+      "de": "    return (len(partes) > 1 and partes[0]",
+      "para": "    return (partes[0]",
       "testes": [
         "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_com_identificador_python_nao_ascii_e_valido"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "raiz do id de teste e tests",
+      "arquivo": "bin/forge-mutante",
+      "de": "partes[0] == \"tests\"",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido"
       ]
     }
   ]
