@@ -116,6 +116,19 @@ class ValidacaoDaSpec(unittest.TestCase):
         self.assertTrue(self.problemas(mutante(), executor="outro"))
         self.assertEqual(self.problemas(mutante(), executor="unittest"), [])
 
+    def test_varias_specs_do_pedido_passam_de_oito_sem_subir_o_teto_por_spec(self):  # MUTANTE-TETO
+        oito = {"pedido": "x", "mutantes": [mutante(f"A{i}") for i in range(1, 9)]}
+        mais = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 7)]}
+        self.assertEqual(self.f.validar_specs([oito, mais]), [])
+        nove = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 10)]}
+        self.assertTrue(self.f.validar_specs([oito, nove]), "o teto de 8 continua por spec")
+
+    def test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas(self):  # MUTANTE-TETO
+        a = {"pedido": "x", "mutantes": [mutante("M1")]}
+        self.assertTrue(self.f.validar_specs([a, {"pedido": "y", "mutantes": [mutante("M2")]}]))
+        self.assertTrue(self.f.validar_specs([a, {"pedido": "x", "mutantes": [mutante("M1")]}]))
+        self.assertTrue(self.f.validar_specs([]))
+
 
 class Execucao(unittest.TestCase):
     """Roda o script de verdade num repositório de brinquedo, com a spec fora dele."""
@@ -142,8 +155,8 @@ class Execucao(unittest.TestCase):
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "c")
 
-    def spec(self, *mutantes, **extra):
-        caminho = Path(self._t.name) / "spec.json"
+    def spec(self, *mutantes, nome="spec.json", **extra):
+        caminho = Path(self._t.name) / nome
         caminho.write_text(json.dumps({"pedido": "x", "mutantes": list(mutantes), **extra}), encoding="utf-8")
         return str(caminho)
 
@@ -220,6 +233,24 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(*[mutante(f"M{i}") for i in range(1, 10)]))
         self.assertEqual(r.returncode, 2)
         self.assertIn("nada foi executado", r.stderr)
+
+    def test_duas_specs_do_mesmo_pedido_rodam_juntas_com_o_hash_de_cada_uma(self):  # MUTANTE-TETO
+        a = self.spec(mutante("M1"), nome="x-1.json")
+        b = self.spec(mutante("M2", para="x > 9"), nome="x-2.json")
+        r = self.rodar(a, b)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("M2 · sobreviveu · lib.py:2", r.stdout)
+        for caminho in (a, b):
+            self.assertIn("spec=" + hashlib.sha256(Path(caminho).read_bytes()).hexdigest(), r.stdout)
+
+    def test_segunda_spec_invalida_barra_tudo_antes_de_rodar(self):  # MUTANTE-TETO
+        a = self.spec(mutante("M1"), nome="x-1.json")
+        b = self.spec(*[mutante(f"B{i}") for i in range(1, 10)], nome="x-2.json")
+        r = self.rodar(a, b)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nada foi executado", r.stderr)
+        self.assertNotIn("morreu", r.stdout)
 
     def test_modulo_com_metacaractere_sai_2_e_nada_roda(self):  # CA-16
         marca = self.fora / "marca"
