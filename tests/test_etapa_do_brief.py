@@ -452,6 +452,65 @@ class QuatroDefeitosDoScript(Repo):
         self.assertNotIn("conferente:", saida)
         self.assertTrue(saida.endswith("resultado: aprovado\n"), saida)
 
+    def fora_do_pedido(self, item):
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", f"## Fora do escopo\n- {item}\n\n## Decisões"))
+
+    def test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz(self):
+        """QA A2 e A3: o trecho entre aspas (sem id) de 20 caracteres ou mais que o Entregar copia contradiz; com 19, ou ausente do Entregar, não."""
+        vinte, dezenove = "desenho do recurso X", "esenho do recurso X"
+        self.assertEqual((len(vinte), len(dezenove)), (20, 19))
+        for trecho, esperado in ((vinte, True), (dezenove, False)):
+            with self.subTest(trecho=trecho):
+                self.fora_do_pedido(f'Não entra o "{trecho}" · `confirmado`')
+                rc, saida = self.conferir(brief("revisor-exemplo", [f"Mesclar (E1.5) com o {trecho}."], fora_sem("E1.5")))
+                self.assertEqual("contradição: o Entregar manda" in saida, esperado, saida)
+                self.assertEqual(rc, 1 if esperado else 0, saida)
+        self.fora_do_pedido(f'Não entra o "{vinte}" · `confirmado`')
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")), "ausente.md")
+        self.assertNotIn("contradição:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_o_id_que_o_pedido_nao_tem_nao_exclui_nada(self):
+        """QA A4: `(E9)` no Fora do escopo do pedido e no Entregar, sem E9 no pedido, não é contradição."""
+        self.fora_do_pedido("Outra frente (E9) fica para depois · `confirmado`")
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5), sem tocar (E9)."], fora_sem("E1.5")))
+        self.assertNotIn("contradição:", saida)
+
+    def test_head_local_atras_do_remoto_nao_reprova(self):
+        """QA A1 (sonda X2): a branch avançou em `origin` e a worktree ficou para trás: o head local está em `origin/<branch>`."""
+        self.entrega({"src/app.py": "v2\n"})
+        atras = self.git("rev-parse", "HEAD")
+        self.entrega({"src/app.py": "v3\n"})
+        self.com_remoto()
+        self.git("reset", "-q", "--hard", atras)
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace("\n\n## Objetivo", self.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_branch_sem_commit_local_nao_reprova_nem_quebra(self):
+        """QA A1 (sonda X3): `Branch:` que não existe na worktree não tem head a conferir (sem traceback)."""
+        self.com_remoto()
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace(
+            "\n\n## Objetivo", self.CABECALHO.replace("melhoria/x", "melhoria/outra"), 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertNotIn("Traceback", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_a_saida_malformada_do_remoto_nao_vira_sha(self):
+        """QA A5: `git ls-remote` com rc 0 e linha que não começa por sha40 (ou vazia) é branch ausente, não sha."""
+        real = fc.git
+        try:
+            for saida in ("lixo\trefs/heads/melhoria/x\n", ""):
+                fc.git = lambda raiz, *args, _s=saida: (0, _s)
+                self.assertEqual(fc.remoto_da_branch(self.tmp, "melhoria/x"), (None, True), repr(saida))
+            sha = "a" * 40
+            fc.git = lambda raiz, *args: (0, f"{sha}\trefs/heads/melhoria/x\n")
+            self.assertEqual(fc.remoto_da_branch(self.tmp, "melhoria/x"), (sha, True))
+        finally:
+            fc.git = real
+
 
 if __name__ == "__main__":
     unittest.main()
