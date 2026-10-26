@@ -21,6 +21,16 @@
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_diff_da_branch_que_falha_sozinho_para_no_passo_2b"
       ]
+    },
+    {
+      "id": "M3",
+      "guarda": "2b: o laco dos diffs cobre todos os pontos de partida, nao so o primeiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "for mb in \"${lista_mb[@]}\"; do",
+      "para": "for mb in \"${lista_mb[0]}\"; do",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois"
+      ]
     }
   ]
 }

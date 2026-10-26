@@ -154,12 +154,19 @@ class Teste(unittest.TestCase):
         self.assertEqual(self.chamadas(), [])
 
     # ---- LOTE-FECHAR2: guardas do passo 2b e do passo 2 que a QA mostrou sem teste ----
-    def criss_cross(self):
-        """develop e melhoria/c com dois pontos de partida (B e C), sem diferença de árvore: cada lado traz o commit do outro."""
+    def criss_cross(self, arquivos=False):
+        """develop e melhoria/c com dois pontos de partida (B e C), sem diferença de árvore: cada lado traz o commit do outro.
+        Com `arquivos`, B grava `so_b` e C grava `so_c`: cada arquivo só aparece nos diffs de um dos dois pontos de partida."""
         self.git("switch", "-q", "-c", "melhoria/c", "develop")
+        if arquivos:
+            (self.proj / "so_b").write_text("b\n")
+            self.git("add", "--", "so_b")
         self.git("commit", "-q", "--allow-empty", "-m", "chore: B")
         b = self.git("rev-parse", "HEAD")
         self.git("switch", "-q", "develop")
+        if arquivos:
+            (self.proj / "so_c").write_text("c\n")
+            self.git("add", "--", "so_c")
         self.git("commit", "-q", "--allow-empty", "-m", "chore: C")
         c = self.git("rev-parse", "HEAD")
         self.git("switch", "-q", "melhoria/c")
@@ -175,6 +182,14 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         # só o merge da base é da base; com um só ponto de partida na conta, o commit C também entraria (2 commits)
         self.assertIn("a base andou 1 commit sem arquivo em comum", r.stdout)
+
+    def test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois(self):
+        self.criss_cross(arquivos=True)
+        r = self.fechar("p1", "--ref", "melhoria/c")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        # so_b só entra no diff de B e so_c só no de C: o laço sobre um só ponto de partida listaria um deles
+        self.assertEqual([l for l in r.stderr.splitlines() if l.startswith("  ")], ["  so_b", "  so_c"])
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
     def test_comm_que_falha_para_no_passo_2b_sem_abrir_pr(self):
         self.base_anda({"outro": "x\n"})
