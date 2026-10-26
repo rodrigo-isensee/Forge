@@ -103,6 +103,15 @@ class ValidacaoDaSpec(unittest.TestCase):
                 self.assertTrue(self.problemas(mutante(testes=[teste])))
         self.assertTrue(self.problemas(mutante(testes=[])))
 
+    def test_id_de_teste_com_identificador_python_nao_ascii_e_valido(self):  # MUTANTE-ID-ASCII
+        for teste in ("tests.test_lib.Vermelho.test_produção_mudada_e_prova_por_asserção", "tests.teste_ção",
+                      "tests.test_lib.Ação"):
+            with self.subTest(teste):
+                self.assertEqual(self.problemas(mutante(testes=[teste])), [])
+        for teste in ("tests.ç-x", "tests.x.1a", "tests.x.ç ç", "tests.x\u00a0y", "tests", "testes.x", "tests.x․y"):
+            with self.subTest(teste):
+                self.assertTrue(self.problemas(mutante(testes=[teste])))
+
     def test_troca_vazia_igual_ou_enorme_e_invalida(self):  # CA-14
         self.assertTrue(self.problemas(mutante(de="")))
         self.assertTrue(self.problemas(mutante(de="a", para="a")))
@@ -251,6 +260,13 @@ class Execucao(unittest.TestCase):
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("nada foi executado", r.stderr)
         self.assertNotIn("morreu", r.stdout)
+
+    def test_teste_com_nome_nao_ascii_roda_e_mata(self):  # MUTANTE-ID-ASCII
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_borda_ação(self):\n        self.assertEqual(lib.limite(11), 2)\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda_ação"])))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
 
     def test_modulo_com_metacaractere_sai_2_e_nada_roda(self):  # CA-16
         marca = self.fora / "marca"

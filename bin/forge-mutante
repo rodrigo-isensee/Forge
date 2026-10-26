@@ -49,7 +49,6 @@ MAXIMO_DO_TRECHO = 4000
 # `forge-testes --vermelho`; cada script tem a sua cópia, porque o `bin/` não ganha um módulo comum publicado.
 TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
 ID_DE_MUTANTE = re.compile(r"[A-Za-z0-9_-]{1,32}")
-ID_DE_TESTE = re.compile(r"tests\.[A-Za-z0-9_.]+")
 CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
@@ -202,11 +201,18 @@ def validar_spec(dados):
             problemas.append(f"{nome}: para igual ao de")
         problemas += [f"{nome}: {p}" for p in validar_caminho(m["arquivo"])]
         testes = m["testes"]
-        if (not isinstance(testes, list) or not testes
-                or not all(isinstance(t, str) and ID_DE_TESTE.fullmatch(t) and ".." not in t
-                           and not t.endswith(".") for t in testes)):
+        if not isinstance(testes, list) or not testes or not all(id_de_teste_valido(t) for t in testes):
             problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
     return problemas
+
+
+def id_de_teste_valido(teste):
+    """`tests.<parte>[.<parte>...]`, cada parte um identificador Python (`str.isidentifier`, que aceita letra não
+    ASCII como a do `def test_ação`): sem espaço, hífen, ponto vazio nem metacaractere."""
+    if not isinstance(teste, str):
+        return False
+    partes = teste.split(".")
+    return len(partes) > 1 and partes[0] == "tests" and all(p.isidentifier() for p in partes[1:])
 
 
 def validar_specs(lista):
