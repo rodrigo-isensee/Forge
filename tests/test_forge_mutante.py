@@ -103,6 +103,28 @@ class ValidacaoDaSpec(unittest.TestCase):
                 self.assertTrue(self.problemas(mutante(testes=[teste])))
         self.assertTrue(self.problemas(mutante(testes=[])))
 
+    def test_id_de_teste_com_identificador_python_nao_ascii_e_valido(self):  # MUTANTE-ID-ASCII
+        for teste in ("tests.test_lib.Vermelho.test_produção_mudada_e_prova_por_asserção", "tests.teste_ção",
+                      "tests.test_lib.Ação"):
+            with self.subTest(teste):
+                self.assertEqual(self.problemas(mutante(testes=[teste])), [])
+        for teste in ("tests.ç-x", "tests.x.1a", "tests.x.ç ç", "tests.x\u00a0y", "tests", "testes.x", "tests.x․y"):
+            with self.subTest(teste):
+                self.assertTrue(self.problemas(mutante(testes=[teste])))
+
+    def test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido(self):  # QA A2, A3 e review A2 do lote
+        for teste in (1, None, ["tests.x"], {"a": 1}):
+            with self.subTest(repr(teste)):
+                try:  # a guarda some: AttributeError vira falha de asserção, que o leitor de veredito conta como morreu
+                    valido = self.f.id_de_teste_valido(teste)
+                except AttributeError as erro:
+                    self.fail(f"id que não é texto quebrou em vez de ser recusado: {erro}")
+                self.assertFalse(valido)
+                self.assertTrue(self.problemas(mutante(testes=[teste])))
+        for teste in ("tests.c\u0327", "tests.x.\uff21b", "outro.x", "x.tests.y"):  # fora da NFKC e raiz que não é tests
+            with self.subTest(teste):
+                self.assertFalse(self.f.id_de_teste_valido(teste))
+
     def test_troca_vazia_igual_ou_enorme_e_invalida(self):  # CA-14
         self.assertTrue(self.problemas(mutante(de="")))
         self.assertTrue(self.problemas(mutante(de="a", para="a")))
@@ -115,6 +137,19 @@ class ValidacaoDaSpec(unittest.TestCase):
     def test_executor_sem_leitor_e_invalido(self):  # CA-22
         self.assertTrue(self.problemas(mutante(), executor="outro"))
         self.assertEqual(self.problemas(mutante(), executor="unittest"), [])
+
+    def test_varias_specs_do_pedido_passam_de_oito_sem_subir_o_teto_por_spec(self):  # MUTANTE-TETO
+        oito = {"pedido": "x", "mutantes": [mutante(f"A{i}") for i in range(1, 9)]}
+        mais = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 7)]}
+        self.assertEqual(self.f.validar_specs([oito, mais]), [])
+        nove = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 10)]}
+        self.assertTrue(self.f.validar_specs([oito, nove]), "o teto de 8 continua por spec")
+
+    def test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas(self):  # MUTANTE-TETO
+        a = {"pedido": "x", "mutantes": [mutante("M1")]}
+        self.assertTrue(self.f.validar_specs([a, {"pedido": "y", "mutantes": [mutante("M2")]}]))
+        self.assertTrue(self.f.validar_specs([a, {"pedido": "x", "mutantes": [mutante("M1")]}]))
+        self.assertTrue(self.f.validar_specs([]))
 
 
 class Execucao(unittest.TestCase):
@@ -142,8 +177,8 @@ class Execucao(unittest.TestCase):
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "c")
 
-    def spec(self, *mutantes, **extra):
-        caminho = Path(self._t.name) / "spec.json"
+    def spec(self, *mutantes, nome="spec.json", **extra):
+        caminho = Path(self._t.name) / nome
         caminho.write_text(json.dumps({"pedido": "x", "mutantes": list(mutantes), **extra}), encoding="utf-8")
         return str(caminho)
 
@@ -221,6 +256,31 @@ class Execucao(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("nada foi executado", r.stderr)
 
+    def test_duas_specs_do_mesmo_pedido_rodam_juntas_com_o_hash_de_cada_uma(self):  # MUTANTE-TETO
+        a = self.spec(mutante("M1"), nome="x-1.json")
+        b = self.spec(mutante("M2", para="x > 9"), nome="x-2.json")
+        r = self.rodar(a, b)
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("M2 · sobreviveu · lib.py:2", r.stdout)
+        for caminho in (a, b):
+            self.assertIn("spec=" + hashlib.sha256(Path(caminho).read_bytes()).hexdigest(), r.stdout)
+
+    def test_segunda_spec_invalida_barra_tudo_antes_de_rodar(self):  # MUTANTE-TETO
+        a = self.spec(mutante("M1"), nome="x-1.json")
+        b = self.spec(*[mutante(f"B{i}") for i in range(1, 10)], nome="x-2.json")
+        r = self.rodar(a, b)
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nada foi executado", r.stderr)
+        self.assertNotIn("morreu", r.stdout)
+
+    def test_teste_com_nome_nao_ascii_roda_e_mata(self):  # MUTANTE-ID-ASCII
+        self.gravar("tests/test_lib.py", TESTE + "\n    def test_borda_ação(self):\n        self.assertEqual(lib.limite(11), 2)\n")
+        self.salvar()
+        r = self.rodar(self.spec(mutante(testes=["tests.test_lib.T.test_borda_ação"])))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+
     def test_modulo_com_metacaractere_sai_2_e_nada_roda(self):  # CA-16
         marca = self.fora / "marca"
         for teste in (f"tests.x;touch {marca}", f"tests.$(touch {marca})", "tests.x y"):
@@ -257,6 +317,23 @@ class Execucao(unittest.TestCase):
         r = self.rodar(self.spec(mutante(), executor="outro"))
         self.assertEqual(r.returncode, 2)
         self.assertIn("sem leitor de veredito", r.stderr)
+
+    def test_sem_executor_e_sem_testes_unittest_sai_2_em_qualquer_spec_do_conjunto(self):  # QA A1 do lote
+        git(self.dir, "rm", "-q", "tests/test_lib.py")
+        self.salvar()
+        sem = self.spec(mutante("M1"), nome="x-1.json")
+        com = self.spec(mutante("M2"), nome="x-2.json", executor="unittest")
+        for specs in ((sem,), (com, sem), (sem, com)):
+            with self.subTest(len(specs)):
+                r = self.rodar(*specs)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("sem leitor de veredito", r.stderr)
+
+    def test_spec_com_testes_que_nao_sao_texto_sai_2_como_spec_invalida(self):  # QA A2 do lote
+        r = self.rodar(self.spec(mutante(testes=[1])))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nada foi executado", r.stderr)
+        self.assertNotIn("Traceback", r.stderr)
 
     def test_rev_invalido_sai_2_sem_criar_arquivo(self):
         r = self.rodar(self.spec(mutante()), "--rev=--output=gravado.txt")

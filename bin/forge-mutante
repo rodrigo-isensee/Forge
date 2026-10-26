@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
-Uso: forge-mutante SPEC [--rev REV] [--prazo SEGUNDOS]
-  SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`):
+Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
+  SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 8 mutantes
+           divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
            {"pedido": "<id>", "executor": "unittest",
             "mutantes": [{"id": "M1", "guarda": "<o que a linha protege>", "arquivo": "<caminho relativo>",
                           "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
@@ -17,7 +18,8 @@ quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem ve
 
 Saída: 0 = todos morreram; 1 = algum sobreviveu e nenhum é inválido; 2 = spec inválida, controle vermelho,
 mutante inválido ou sem veredito. Atenção: o 0 aqui é "provado", o inverso do costume das ferramentas de mutação.
-Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 8 mutantes por spec. Sem shell.
+Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 8 mutantes por spec. Sem shell. Uma spec
+inválida barra todas antes de rodar qualquer mutante.
 
 Isto é evidência que o QA cola no parecer. NÃO é portão: nenhum hook, pre-push, CI ou `forge-check` o chama.
 """
@@ -33,6 +35,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import unicodedata
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
@@ -47,7 +50,6 @@ MAXIMO_DO_TRECHO = 4000
 # `forge-testes --vermelho`; cada script tem a sua cópia, porque o `bin/` não ganha um módulo comum publicado.
 TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
 ID_DE_MUTANTE = re.compile(r"[A-Za-z0-9_-]{1,32}")
-ID_DE_TESTE = re.compile(r"tests\.[A-Za-z0-9_.]+")
 CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
@@ -200,11 +202,36 @@ def validar_spec(dados):
             problemas.append(f"{nome}: para igual ao de")
         problemas += [f"{nome}: {p}" for p in validar_caminho(m["arquivo"])]
         testes = m["testes"]
-        if (not isinstance(testes, list) or not testes
-                or not all(isinstance(t, str) and ID_DE_TESTE.fullmatch(t) and ".." not in t
-                           and not t.endswith(".") for t in testes)):
+        if not isinstance(testes, list) or not testes or not all(id_de_teste_valido(t) for t in testes):
             problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
     return problemas
+
+
+def id_de_teste_valido(teste):
+    """`tests.<parte>[.<parte>...]`, cada parte um identificador Python (`str.isidentifier`, que aceita letra não
+    ASCII como a do `def test_ação`, e já na forma NFKC): sem espaço, hífen, ponto vazio nem metacaractere."""
+    if not isinstance(teste, str):
+        return False
+    partes = teste.split(".")
+    return (len(partes) > 1 and partes[0] == "tests"
+            and all(p.isidentifier() and unicodedata.normalize("NFKC", p) == p for p in partes[1:]))
+
+
+def validar_specs(lista):
+    """Problemas do conjunto de specs de um pedido (vazia = válido): cada uma com o seu teto, o mesmo pedido em
+    todas e id de mutante único no conjunto (a cópia de cada mutante tem o nome do id)."""
+    if not lista:
+        return ["nenhuma spec"]
+    problemas = []
+    for i, dados in enumerate(lista, 1):
+        problemas += [p if len(lista) == 1 else f"spec {i}: {p}" for p in validar_spec(dados)]
+    if problemas:
+        return problemas
+    if len({dados["pedido"] for dados in lista}) > 1:
+        return ["as specs são de pedidos diferentes"]
+    ids = [m["id"] for dados in lista for m in dados["mutantes"]]
+    repetidos = sorted({i for i in ids if ids.count(i) > 1})
+    return [f"id de mutante repetido entre as specs: {', '.join(repetidos)}"] if repetidos else []
 
 
 def validar_caminho(arquivo):
@@ -263,16 +290,18 @@ def anotar(segundos, codigo):
         f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}\n")
 
 
-def principal(spec_bytes, dados, sha, prazo):
+def principal(specs, sha, prazo):
+    """`specs`: lista de (bytes, dados) já validada por `validar_specs`; os mutantes rodam na ordem das specs."""
     raiz = Path.cwd()
     antes = git("status", "--porcelain")
-    print(f"forge-mutante: pedido={dados['pedido']} rev={sha[:12]} spec={hashlib.sha256(spec_bytes).hexdigest()}")
+    hashes = " ".join(f"spec={hashlib.sha256(spec_bytes).hexdigest()}" for spec_bytes, _ in specs)
+    print(f"forge-mutante: pedido={specs[0][1]['pedido']} rev={sha[:12]} {hashes}")
     anterior = signal.signal(signal.SIGTERM, lambda numero, quadro: sys.exit(143))  # o `finally` apaga as cópias
     trabalho = Path(tempfile.mkdtemp(prefix="forge-mutante-"))
     controles, linhas, codigo = {}, [], 0
     inicio = time.monotonic()
     try:
-        for m in dados["mutantes"]:
+        for m in (m for _, dados in specs for m in dados["mutantes"]):
             copia = trabalho / m["id"]
             montar_copia(raiz, copia, sha)
             chave = tuple(m["testes"])
@@ -319,7 +348,7 @@ def principal(spec_bytes, dados, sha, prazo):
 
 def main(argv=None):
     p = argparse.ArgumentParser(prog="forge-mutante", description="Mutantes declarados do pedido (não é portão).")
-    p.add_argument("spec", nargs="?")
+    p.add_argument("spec", nargs="*")
     p.add_argument("--rev", default="HEAD")
     p.add_argument("--prazo", type=int, default=PRAZO_PADRAO)
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
@@ -331,33 +360,35 @@ def main(argv=None):
         p.error("falta a SPEC")
     if not 0 < args.prazo <= PRAZO_MAXIMO:
         p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
-    caminho_da_spec = Path(args.spec).resolve()
+    caminhos = [Path(s).resolve() for s in args.spec]
     try:
         os.chdir(git("rev-parse", "--show-toplevel").strip())
     except RuntimeError as erro:
         print(f"forge-mutante: fora de um repositório git ({erro})", file=sys.stderr)
         return 2
-    try:
-        if caminho_da_spec.stat().st_size > MAXIMO_DA_SPEC:
-            raise ValueError(f"spec com mais de {MAXIMO_DA_SPEC} bytes")
-        spec_bytes = caminho_da_spec.read_bytes()
-        dados = json.loads(spec_bytes.decode("utf-8"))
-    except (OSError, ValueError) as erro:  # UnicodeDecodeError e JSONDecodeError são ValueError
-        print(f"forge-mutante: spec ilegível ({erro})", file=sys.stderr)
-        return 2
-    problemas = validar_spec(dados)
+    specs = []
+    for caminho_da_spec in caminhos:
+        try:
+            if caminho_da_spec.stat().st_size > MAXIMO_DA_SPEC:
+                raise ValueError(f"spec com mais de {MAXIMO_DA_SPEC} bytes")
+            spec_bytes = caminho_da_spec.read_bytes()
+            specs.append((spec_bytes, json.loads(spec_bytes.decode("utf-8"))))
+        except (OSError, ValueError) as erro:  # UnicodeDecodeError e JSONDecodeError são ValueError
+            print(f"forge-mutante: spec ilegível ({caminho_da_spec}: {erro})", file=sys.stderr)
+            return 2
+    problemas = validar_specs([dados for _, dados in specs])
     if problemas:
         print("forge-mutante: spec inválida; nada foi executado.", file=sys.stderr)
         print("\n".join(f"  - {x}" for x in problemas), file=sys.stderr)
         return 2
-    if "executor" not in dados and not list(Path("tests").glob("test_*.py")):
+    if any("executor" not in dados for _, dados in specs) and not list(Path("tests").glob("test_*.py")):
         print("forge-mutante: sem leitor de veredito para a stack (declare `executor` na spec).", file=sys.stderr)
         return 2
     sha = resolver(args.rev)
     if sha is None:
         print(f"forge-mutante: --rev ilegível ({args.rev!r}).", file=sys.stderr)
         return 2
-    return principal(spec_bytes, dados, sha, args.prazo)
+    return principal(specs, sha, args.prazo)
 
 
 if __name__ == "__main__":
