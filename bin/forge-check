@@ -49,7 +49,7 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 (`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
 `corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
-`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, antes do conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin`, nas etapas que não são `codigo`). `brief gerar` monta os blocos fixos (decisões
+`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, antes do conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin` ou à frente dele, nas etapas que não são `codigo`). `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
