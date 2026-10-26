@@ -33,6 +33,57 @@
       "testes": [
         "tests.test_fechar.Fechar.test_shellcheck_fechar_esta_na_lista_do_ci"
       ]
+    },
+    {
+      "id": "M4",
+      "guarda": "2b: a contagem da base exclui todos os pontos de partida, nao so o primeiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "--not \"${lista_mb[@]}\")\"",
+      "para": "--not \"${lista_mb[0]}\")\"",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_varios_pontos_de_partida_entram_todos_na_contagem_da_base"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "2b: falha de sort ou comm ao cruzar as listas para, nao segue como sem arquivo em comum",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo 2b: não consegui cruzar as listas de arquivos\"",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_comm_que_falha_para_no_passo_2b_sem_abrir_pr"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "passo 2: leitura da branch remota que falha para com a mensagem da leitura",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 2: não consegui ler a branch $ref no origin\"",
+      "para": "|| :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_ls_remote_da_branch_que_falha_para_no_passo_2_com_a_mensagem_da_leitura",
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "remoto_exato: a coluna 1 tem 40 ou 64 caracteres",
+      "arquivo": "bin/forge-fechar",
+      "de": "(length($1) == 40 || length($1) == 64) && $1 ~",
+      "para": "$1 ~",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "remoto_exato: a coluna 1 e hexadecimal",
+      "arquivo": "bin/forge-fechar",
+      "de": "$1 ~ /^[0-9a-f]+$/",
+      "para": "length($1) > 0",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
     }
   ]
 }

@@ -133,11 +133,12 @@ repetir() {
 }
 # remoto_exato <branch> [prefixo...]: sha de refs/heads/<branch> no origin (vazio se não existe); falha se a leitura falha. O padrão do
 # `git ls-remote` casa pelo fim do nome (refs/heads/a/refs/heads/<branch> também sai): só vale a linha com a coluna 2 igual ao nome inteiro.
-# O prefixo (com_teto 10) roda na frente do git.
+# O prefixo (com_teto 10) roda na frente do git. A coluna 1 tem de ser um sha hexadecimal (40 ou 64 caracteres); linha que casa o nome com outra
+# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes.
 remoto_exato() {
   local nome="refs/heads/$1" saida_remota; shift
   saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
-  printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r {print $1; exit}'
+  printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
