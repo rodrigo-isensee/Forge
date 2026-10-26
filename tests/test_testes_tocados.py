@@ -418,7 +418,10 @@ class NaoEPortao(unittest.TestCase):
     def test_regra_5_cita_o_script_e_a_decisao_do_dono(self):
         texto = (RAIZ / "docs" / "economia-de-tokens.md").read_text(encoding="utf-8")
         self.assertIn("bin/forge-testes", texto)
-        self.assertIn("A, desde que para main rode tudo.", texto)
+        self.assertIn("M8", texto)
+        self.assertIn("2026-10-24", texto)  # a decisão do dono que substitui a de 2026-10-15
+        self.assertNotIn("pre-push, review, QA, CI e o caminho para a main rodam a suíte inteira", texto)
+        self.assertIn("CI de todo PR", texto)
 
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
