@@ -1,6 +1,7 @@
 """Testes da lógica pura do scripts/ci-local (resumo, status, regra do pulado, leitura dos workflows), sem rede e sem git."""
 import importlib.machinery
 import importlib.util
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -15,6 +16,67 @@ _loader.exec_module(ci)
 
 PR = {"number": 7, "headRefOid": "a" * 40, "headRefName": "melhoria/x", "baseRefName": "develop",
       "body": "texto", "author": {"login": "dona"}}
+
+
+# CI-LINT-LISTA-ABERTA: lista fechada do que pode rodar antes do actionlint e do zizmor na bateria.
+ACOES_ANTES_DO_LINT = {"actions/checkout", "actions/setup-python", "actions/setup-node"}
+NOME_DO_GATE = "Gate (commit só de parecer, com a bateria verde no commit anterior, pula os passos pesados)"
+NOME_DO_DOWNLOAD = "Baixa actionlint e zizmor em versão fixa e confere o checksum"
+# O passo curto do commit só de parecer roda quando o lint não roda (o gate os separa); só com esta condição exata.
+SO_SEM_LINT = "${{ !cancelled() && steps.gate.outputs.pesada != 'true' }}"
+SO_COM_LINT = "${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}"
+CODIGO_DA_BRANCH = re.compile(r"\b(python3?|node|npm|npx|bash|sh|source|make|claude)\b|\./|\b(scripts|bin|tests|hooks|\.github)/")
+
+
+def passos_da_bateria(texto):
+    """Passos do job bateria na ordem do arquivo: o que o ci-local lê mais `uses` e `id` (que ele não guarda)."""
+    (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
+    linhas = texto.splitlines()
+    inicio = linhas.index("  bateria:")
+    blocos, dentro = [], False
+    for linha in linhas[inicio + 1:]:
+        if linha.strip() and len(linha) - len(linha.lstrip()) <= 2:
+            break
+        if linha == "    steps:":
+            dentro = True
+        elif dentro and linha.startswith("      - "):
+            blocos.append({"uses": "", "id": ""})
+            linha = "        " + linha[8:]
+        if dentro and blocos and linha.startswith("        ") and not linha.startswith("         "):
+            chave, _, valor = linha.strip().partition(":")
+            if chave in ("uses", "id"):
+                blocos[-1][chave] = valor.split(" #")[0].strip()
+    assert len(blocos) == len(bateria["passos"]), (len(blocos), len(bateria["passos"]))
+    return [{**p, **b} for p, b in zip(bateria["passos"], blocos)]
+
+
+def _pode_antes_do_lint(passo):
+    if passo["uses"]:
+        acao, _, ref = passo["uses"].partition("@")
+        return acao in ACOES_ANTES_DO_LINT and re.fullmatch(r"[0-9a-f]{40}", ref) is not None and not passo["run"]
+    if passo["se"] == SO_SEM_LINT:
+        return True
+    if CODIGO_DA_BRANCH.search(passo["run"]):
+        return False
+    if passo["nome"] == NOME_DO_GATE:
+        return passo["id"] == "gate"
+    if passo["nome"] == NOME_DO_DOWNLOAD:
+        run = passo["run"]
+        return run.count("curl ") >= 1 and run.count("curl ") == run.count("sha256sum -c")
+    return False
+
+
+def passos_antes_do_lint_fora_da_lista(texto):
+    """Nomes (ou `uses`) dos passos antes do actionlint e do zizmor que não estão na lista fechada."""
+    passos = passos_da_bateria(texto)
+    nomes = [p["nome"] for p in passos]
+    lint = nomes.index("actionlint")
+    (ziz,) = [n for n, nome in enumerate(nomes) if nome.startswith("zizmor (offline")]
+    fora = [p["nome"] or p["uses"] or p["run"].strip() for n, p in enumerate(passos[:max(lint, ziz)])
+            if n != lint and not _pode_antes_do_lint(p)]
+    if passos[lint]["se"] != SO_COM_LINT or passos[ziz]["se"] != SO_COM_LINT:
+        fora.append("condição do actionlint ou do zizmor fora da esperada")
+    return fora
 
 
 class StatusTest(unittest.TestCase):
@@ -166,20 +228,42 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
     def test_bateria_lint_e_ferramentas_antes_de_qualquer_codigo_da_branch(self):
         """CI-ORDEM-LINT: actionlint e zizmor baixados e rodados antes de todo passo que executa código da branch."""
         texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-        (bateria,) = [j for j in ci.ler_jobs(texto) if j["id"] == "bateria"]
-        nomes = [p["nome"] for p in bateria["passos"]]
-
-        def pos(trecho):
-            (i,) = [n for n, nome in enumerate(nomes) if trecho in nome]
-            return i
-        baixa, lint, ziz = pos("Baixa actionlint"), nomes.index("actionlint"), pos("zizmor (offline")
-        self.assertLess(baixa, lint)
+        passos = passos_da_bateria(texto)
+        nomes = [p["nome"] for p in passos]
+        baixa = [n for n, nome in enumerate(nomes) if nome.startswith("Baixa actionlint")]
+        self.assertEqual(len(baixa), 1)
+        lint, ziz = nomes.index("actionlint"), [n for n, nome in enumerate(nomes) if nome.startswith("zizmor (offline")][0]
+        self.assertLess(baixa[0], lint)
         self.assertLess(lint, ziz)
-        executam_codigo = ("Claude Code CLI", "claude plugin validate", "changelog.d", "release exige versão",
-                           "Nada pula degrau", "Segredo, .env", "Parecer de review", "Provas cmd",
-                           "Testes do Forge", "shellcheck", "Instala o Forge")
-        for trecho in executam_codigo:
-            self.assertLess(ziz, pos(trecho), trecho)
+        self.assertEqual(passos_antes_do_lint_fora_da_lista(texto), [])
+
+    def test_passo_novo_antes_do_lint_reprova(self):
+        """CI-LINT-LISTA-ABERTA: a lista é do que pode rodar antes do lint; qualquer outro passo antes do zizmor reprova."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        marco = "      - name: actionlint\n"
+        self.assertEqual(texto.count(marco), 1)
+        novos = {
+            "passo de nome novo que roda código da branch": "      - name: Prepara o cache\n        run: python3 scripts/x.py\n",
+            "passo sem nome que roda código da branch": "      - run: bash scripts/prepara.sh\n",
+            "ação de terceiros fora da lista": "      - uses: terceiro/acao@" + "a" * 40 + " # v1\n",
+            "setup permitido sem SHA fixo": "      - uses: actions/setup-python@v7\n",
+            "nome do gate copiado com código da branch": (
+                "      - name: Gate (commit só de parecer, com a bateria verde no commit anterior, pula os passos pesados)\n"
+                "        run: python3 scripts/x.py\n"),
+            "download sem checksum": (
+                "      - name: Baixa actionlint e zizmor em versão fixa e confere o checksum\n"
+                "        run: curl -fsSL -o x https://e.x/y\n"),
+            "passo exclusivo do gate com outra condição": (
+                "      - name: Testes que leem pareceres (commit só de parecer)\n"
+                "        if: ${{ always() || steps.gate.outputs.pesada != 'true' }}\n        run: python3 -m unittest tests.x\n"),
+        }
+        for caso, passo in novos.items():
+            with self.subTest(caso=caso):
+                fora = passos_antes_do_lint_fora_da_lista(texto.replace(marco, passo + marco))
+                self.assertEqual(len(fora), 1, fora)
+        depois = texto.replace("      - name: Testes do Forge\n", novos["passo de nome novo que roda código da branch"]
+                               + "      - name: Testes do Forge\n")
+        self.assertEqual(passos_antes_do_lint_fora_da_lista(depois), [])  # contraprova: depois do zizmor, vale
 
     def test_passo_com_bloco_env_e_if(self):
         texto = (
