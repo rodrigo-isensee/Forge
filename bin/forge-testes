@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
-Uso: forge-testes [--base REF] [--listar] [--completa]
+Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
-  --base REF    base da comparação (padrão origin/develop)
+  CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
+                não lê o git: o que mudou fica por conta de quem chama. Não combina com --completa nem com --vermelho
+  --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -14,13 +16,16 @@ Uso: forge-testes [--base REF] [--listar] [--completa]
                 1 = sem prova ou com falha no HEAD; 2 = uso inválido, erro do git ou sem veredito.
 
 Falha fechada: qualquer caminho sem entrada no mapa, `tests/config.json`, este script (que contém o mapa),
-um módulo mapeado que não existe ou um erro ao ler o git fazem rodar a suíte completa.
+um módulo mapeado que não existe, um erro ao ler o git e todo módulo de teste no diff (alterado, novo ou apagado:
+ele pode importar outro, ler todos os de tests/ ou carregá-los pelo nome) fazem rodar a suíte completa. O `--vermelho`
+sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano dos outros caminhos.
 Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
-Isto é ferramenta de iteração do autor. NÃO é portão: pre-push, review, QA, CI e o caminho para a main
-rodam a suíte inteira (`python3 -m unittest discover -s tests`). Nenhum deles chama este script, `--vermelho`
-incluído: é evidência que o autor e o QA colam no parecer.
+Ferramenta de iteração do autor e, por decisão do dono (2026-10-23, EST-M8), o filtro do pre-push do envio de
+código: o pre-push roda só os módulos que este plano aponta (qualquer dúvida cai na suíte inteira). Review, QA, o
+CI do PR e o caminho para a main rodam a suíte inteira (`python3 -m unittest discover -s tests`) e não chamam este
+script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no parecer.
 """
 import argparse
 import ast
@@ -63,14 +68,18 @@ FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao
                "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks",
                "test_isencoes", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas")
+# Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
+# rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
+LEITORES_DE_TEXTO = ("test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
+                     "test_forge_mutante", "test_modelos_projeto", "test_stack_prereq_sistema",
+                     "test_textos_dono_f7", "test_textos_dono_f10")
 CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_novo_projeto", "test_doutor",
-            "test_modelos_citados")
+            "test_modelos_citados") + LEITORES_DE_TEXTO
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)
 MAPA = [
-    (r"tests/(test_[a-z0-9_]+)\.py", None),  # o próprio módulo de teste (caso especial em `planejar`)
-    (r"bin/forge-changelog", ("test_changelog", "test_forge")),
+    (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge")),
     (r"bin/forge-check", FORGE_CHECK),
     (r"bin/forge-doutor", ("test_doutor", "test_atualizar", "test_forge")),
     (r"bin/forge-(init|novo-projeto)", ("test_novo_projeto", "test_forge")),
@@ -82,12 +91,16 @@ MAPA = [
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor")),
-    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados")),
+    # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO) e o hash do brief (R-BRIEF) rodam o script nos testes abaixo;
+    # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
+    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
+                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10")),
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
+    (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
     (r"scripts/(validar-plugin|configurar-ambiente-local|preparar-estacao|verificar-contribuicao)\.sh", ("test_forge",)),
     (r"stacks/.*", CONTEUDO + ("test_hooks",)),
-    (r"\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
+    (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",)),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
@@ -101,8 +114,8 @@ MAPA = [
 # arquivos de apoio de tests/ (inclui tests/hooks/, tests/migracoes/, tests/transcricoes/ e fixtures), LICENSE,
 # CLAUDE.md, .claude/ e .gitignore. Tudo o que não casa com uma regra acima cai na suíte completa.
 # O próprio script entra na suíte completa: ver ALTERA_O_MAPA.
-# Módulos de teste que importam outro módulo de teste: mexer no importado roda também quem o importa.
-IMPORTADO_POR = {"test_forge": ("test_hooks", "test_guarda_git")}
+# Módulo de teste no diff não tem regra: cai na suíte completa (M8, opção C). Um teste pode importar outro, ler todos os
+# de tests/ ou carregá-los pelo nome; o mapa não tenta saber como, e por isso não há grafo de importação para divergir.
 ALTERA_O_MAPA = {"bin/forge-testes", "tests/config.json"}
 MODULO_DE_TESTE = re.compile(r"tests/(test_[a-z0-9_]+)\.py")
 
@@ -123,6 +136,18 @@ def caminhos_alterados(base):
     return sorted(n for n in nomes if n)
 
 
+def caminhos_pedidos(pedidos, origem, raiz):
+    """Caminhos dados na linha de comando, relativos à raiz do repositório e normalizados (`..` resolvido sem seguir
+    link). Levanta ValueError para o que cai fora do repositório."""
+    saida = []
+    for pedido in pedidos:
+        relativo = os.path.relpath(os.path.join(origem, pedido), raiz)
+        if relativo == ".." or relativo.startswith(".." + os.sep):
+            raise ValueError(f"{pedido}: fora do repositório")
+        saida.append(Path(relativo).as_posix())
+    return sorted(set(saida))
+
+
 def planejar(caminhos, raiz=Path(".")):
     """Devolve ("dirigido", [módulos]) ou ("completo", [motivo])."""
     modulos = set()
@@ -132,13 +157,11 @@ def planejar(caminhos, raiz=Path(".")):
         casou = None
         for padrao, destino in MAPA:
             if re.fullmatch(padrao, caminho):
-                casou = destino if destino is not None else (MODULO_DE_TESTE.fullmatch(caminho).group(1),)
+                casou = destino
                 break
         if casou is None:
             return "completo", [f"{caminho} sem mapa"]
         modulos.update(casou)
-        for modulo in casou:
-            modulos.update(IMPORTADO_POR.get(modulo, ()) if MODULO_DE_TESTE.fullmatch(caminho) else ())
     ausentes = sorted(m for m in modulos if not (raiz / "tests" / f"{m}.py").is_file())
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
@@ -380,8 +403,11 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
             print(f"forge-testes --vermelho: módulo sem arquivo em tests/: {', '.join(ausentes)}", file=sys.stderr)
             return 2
     else:
-        modo, plano = planejar(caminhos, raiz)
-        modulos, restrito = (todos if modo == "completo" else plano), ""
+        # `--vermelho` é evidência, não portão: os módulos de teste do diff mais o plano dos outros caminhos (se esse
+        # plano é completo, todos). Mandar o módulo de teste ao `planejar` rodaria a suíte inteira duas vezes, em série.
+        modo, plano = planejar([c for c in caminhos if not MODULO_DE_TESTE.fullmatch(c)], raiz)
+        modulos = todos if modo == "completo" else sorted({m for m in modificados if m in todos} | set(plano))
+        restrito = ""
     print(f"vermelho: base={ancora[:12]} head={cabeca[:12]} módulos={','.join(modulos)}{restrito}")
     print(f"revertidos à base: {', '.join(c for _, c in producao) or '-'}")
     print(f"mantidos no HEAD: {', '.join(mantidos) or '-'}")
@@ -444,7 +470,8 @@ def vermelho(base_pedida, modulos_pedidos, prazo):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido durante a iteração (não é portão).")
+    p = argparse.ArgumentParser(prog="forge-testes", description="Teste dirigido: iteração do autor e filtro do pre-push do envio de código (nunca portão de CI).")
+    p.add_argument("caminhos", nargs="*", metavar="CAMINHO")
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
@@ -471,16 +498,27 @@ def main(argv=None):
         if not all(NOME_DE_MODULO.fullmatch(m) for m in modulos_pedidos):
             p.error("--modulos: nomes de módulo de teste (test_<nome>) separados por vírgula")
 
+    if args.caminhos and (args.completa or args.vermelho is not None):
+        p.error("caminhos não combinam com --completa nem com --vermelho")
+    origem = os.getcwd()
     try:
-        os.chdir(git("rev-parse", "--show-toplevel").strip())
+        raiz = git("rev-parse", "--show-toplevel").strip()
+        os.chdir(raiz)
     except RuntimeError as erro:
         sys.exit(f"forge-testes: fora de um repositório git ({erro})")
+    try:
+        pedidos = caminhos_pedidos(args.caminhos, origem, raiz) if args.caminhos else []
+    except ValueError as erro:
+        print(f"forge-testes: {erro}", file=sys.stderr)
+        return 2
 
     if args.vermelho is not None:
         return vermelho(args.base if args.vermelho is True else args.vermelho, modulos_pedidos, prazo)
 
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
+    elif pedidos:
+        modo, detalhe = planejar(pedidos)
     else:
         try:
             modo, detalhe = planejar(caminhos_alterados(args.base))
@@ -495,7 +533,7 @@ def main(argv=None):
         print(f"forge-testes: suíte completa ({'; '.join(detalhe)})")
         comando, modulos = SUITE_COMPLETA, []
     else:
-        print(f"forge-testes: dirigido ({', '.join(detalhe)}). Os portões rodam a suíte inteira.")
+        print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
     if args.listar:
         return 0
