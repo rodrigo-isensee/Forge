@@ -1008,6 +1008,41 @@ class SandboxDoBash(unittest.TestCase):
         self.assertEqual(versionados_ignorados.strip(), "", "o .gitignore casa com arquivo versionado")
 
 
+VALIDAR_SCRIPT = RAIZ / "scripts" / "validar-plugin.sh"
+# claude falso: imprime a saída de $SAIDA e sai com $RC (uma vez por chamada, a raiz e o dev/)
+CLAUDE_FALSO = '#!/usr/bin/env bash\ncat "$SAIDA"\nexit "${RC:-0}"\n'
+AVISO = "✘ Found 1 problem the plugin directory refuses a submission for:\n\n  README missing (README_MISSING)\n\n✔ Validation passed\n"
+
+
+class ValidarPluginAviso(unittest.TestCase):
+    """VALIDAR-AVISO-X: o aviso do perfil directory não parece falha quando a validação passa."""
+
+    def rodar(self, saida, rc):
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            (t / "bin").mkdir()
+            falso = t / "bin" / "claude"
+            falso.write_text(CLAUDE_FALSO)
+            falso.chmod(0o755)
+            (t / "saida").write_text(saida, encoding="utf-8")
+            env = dict(os.environ, PATH=f"{t / 'bin'}:{os.environ['PATH']}", SAIDA=str(t / "saida"), RC=str(rc), TMPDIR=str(t))
+            return subprocess.run(["bash", str(VALIDAR_SCRIPT)], cwd=RAIZ, env=env, capture_output=True, text=True, timeout=120)
+
+    def test_aviso_do_perfil_directory_com_validacao_passando_nao_sai_como_x(self):
+        r = self.rodar(AVISO, 0)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("✘", r.stdout + r.stderr)
+        self.assertIn("aviso do perfil directory", r.stdout)
+        self.assertIn("README_MISSING", r.stdout)  # o texto do validador segue inteiro
+        self.assertIn("✔ Validation passed", r.stdout)
+
+    def test_validacao_que_falha_mantem_o_x_e_o_codigo(self):
+        r = self.rodar("✘ Validation failed\n  erro real\n", 1)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("✘ Validation failed", r.stdout + r.stderr)
+        self.assertNotIn("aviso do perfil directory", r.stdout + r.stderr)
+
+
 class JarvisForgeVigente(unittest.TestCase):
     """ADR 0009, seção 4: o jarvis-forge carrega a cópia vigente (clone da origin/develop), não a de trabalho."""
 
