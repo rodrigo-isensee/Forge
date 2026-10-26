@@ -3,12 +3,30 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
-commit: 0e8776d7b330e57036c6d7684c205e888d058e55
+commit: d67f31fdeb1b66b85771a7687b2f2a88e2a63c9a
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-10-24
+data: 2026-10-26
 ---
-# Review de segurança: lote-leitura-hook (revalidação 15, volta pela opção B da revalidação 14)
+# Review de segurança: lote-leitura-hook (revalidação 16, volta I: só testes e specs)
+
+Pedido RET-LEITURA-HOOK-H-REV, etapa E2.1. Escopo: a volta I, que responde ao A1 do QA `7f378b0` (mutantes X5 e X6 de `hooks/conformidade.py:1714` sobreviviam). São dois commits, `bb21376` e `d67f31f`:
+- `tests/test_hooks.py:3432-3446`: o teste novo `test_alvos_do_tee_atras_do_texto_dividido_aberto` (mais de um alvo depois do `tee`, e `-a`, `--append` e `-i` fora dos alvos);
+- `tests/test_hooks.py:3448-3465`: `test_spec_de_mutantes_do_lote_e_valida` passa a validar as duas specs;
+- `tests/mutantes/lote-leitura-hook-volta.json`: a segunda spec, com X1, X3, X5 e X6, pelo teto de 8 do `forge-mutante`.
+
+## Revalidação 16 por delta
+- `forge-check delta --parecer docs/security/lote-leitura-hook.md` lista o intervalo `0e8776d..d67f31f`: só `tests/mutantes/lote-leitura-hook-volta.json` (+46) e `tests/test_hooks.py` (+27 -8). O resto do intervalo são pareceres (`docs/reviews/`, `docs/security/`, `docs/qa/`).
+- **`hooks/` não mudou.** `git diff --name-only` de `7f378b0..d67f31f` e de `0e8776d..d67f31f` sobre `hooks/`, `docs/hooks.md`, `bin/` e `.github/` sai vazio. O código dos controles é o mesmo do parecer `941a0dc`; por isso não rodei sondas novas, e os números de linha dos achados A2 a A7 valem como estão.
+- **Nenhuma asserção afrouxa.** O teste da spec aplica a cada uma das duas specs as mesmas seis asserções de antes (chaves, de 1 a 8 mutantes, ids únicos, chaves do mutante, `arquivo` em `hooks/`, `de` diferente de `para`, `de` uma vez só no arquivo de hoje). A asserção de inclusão das trocas de `MUTACOES_DO_TEXTO_ABERTO` segue sobre a primeira spec, como antes. Nenhuma outra linha de teste sai.
+- **As âncoras da segunda spec existem uma vez no código de hoje:** X1 em `hooks/_comum.py:1899`, X3 em `hooks/conformidade.py:859`, X5 e X6 em `hooks/conformidade.py:1714`.
+- **Os testes do lote:** `test_alvos_do_tee_atras_do_texto_dividido_aberto`, `test_spec_de_mutantes_do_lote_e_valida` e `test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa`: `Ran 3 tests in 0.704s`, `OK`. A morte dos mutantes fica com o QA (`forge-mutante`).
+- **A8, por leitura, recomendado.** A regra do `tee` em `hooks/conformidade.py:1714` descarta toda palavra que começa por `-`, também depois de `--`. Então, atrás de lançador com mais de uma leitura e texto dividido aberto (o único caminho que chega a essa linha), `tee -- -x.md` esconde o alvo `-x.md`. Não tem efeito hoje: essa linha já recusa no `PreToolUse` (revalidação 15, "O resto do delta"), e o `PostToolUse` da autoria não roda para ela. É da mesma família do A1 do review `96cf447` (alvo perdido sem efeito hoje). Correção mínima, esforço P, dono `tech-lead`: parar de descartar opções depois de `--`. Fica para o cartão TEE-TETO-ALVO.
+- **PA-7.** Conferi `docs/engineering/achados-recorrentes.md`: a lista segue vazia. A linha das classes recorrentes do lote fica para o PR do lote, como na revalidação 15 (o brief limita o commit a este parecer).
+
+Veredito: **aprovado**. Nenhum bloqueante; A2 a A7 seguem como recomendação, iguais à revalidação 15, e o A8 entra como recomendação.
+
+**Revalidação 15 (histórico, sobre `0e8776d`).** O que segue é o parecer anterior; os achados abaixo valem para o head novo.
 
 Pedido RET-LEITURA-HOOK-H-REV, etapa E2.1. Escopo: a volta pela opção B da proposta `docs/propostas/lote-leitura-hook-caminho-rev14.md` (decisão "B" do dono, 2026-10-24). Sem o marcador, com mais de uma leitura (uma palavra fora da tabela já vista), o texto dividido que não fecha aspas recusa com `barrar`. Com uma leitura só, segue a `ilegivel`, como antes.
 - A volta está em quatro commits:
@@ -33,6 +51,7 @@ Pedido RET-LEITURA-HOOK-H-REV, etapa E2.1. Escopo: a volta pela opção B da pro
 - A5 (recomendado) hooks/parecer.py:28 · marcador ofuscado (X3, cartão C8): sem mudança no delta
 - A6 (recomendado) hooks/_comum.py:1972 · palavra com expansão antes da opção do lançador (cartão N-HOOK1): env $(echo -a) x git push origin SENTINELA:main segue 0 / 0
 - A7 (recomendado) docs/hooks.md:95 · texto do FD18 mais estreito que o código: a palavra fora da tabela pode ser de outro lançador da cadeia (sudo -s env -S\' ls e nice -Z env --split-string=\' make recusam), e o FD18 fala só do env com opção fora da tabela
+- A8 (recomendado) hooks/conformidade.py:1714 · alvo do tee depois de -- atrás do texto dividido aberto com mais de uma leitura: env -aS'"' tee -- -x.md esconde o alvo -x.md; sem efeito hoje, a linha já recusa no PreToolUse (cartão TEE-TETO-ALVO)
 
 ## Detalhe dos achados
 Nenhum bloqueante. O A1 da revalidação 14 fechou em todas as formas sondadas. Não há regressão contra a `develop`, e nenhuma decisão mudou nas formas sem aspa aberta nem no caminho com o marcador.
@@ -115,7 +134,8 @@ Como sondei:
 Nenhum risco aceito.
 
 Ferramentas usadas:
-- `forge-check delta --parecer docs/security/lote-leitura-hook.md` (intervalo `6d5252d..0e8776d`);
+- `forge-check delta --parecer docs/security/lote-leitura-hook.md` (intervalo `6d5252d..0e8776d` na revalidação 15 e `0e8776d..d67f31f` na 16);
+- na revalidação 16, três testes do lote: `Ran 3 tests in 0.704s`, `OK`;
 - os cinco testes novos do lote em `tests.test_hooks.CorpusHeredocVoltaUnica`: `Ran 5 tests in 31.314s`, `OK`;
 - as sondas, por um script próprio sobre `Fixture`, `LANCADOR` e `ambiente_limpo` do próprio teste. Sem o marcador: 56 formas do A1 e controles e 5 390 da varredura. Com o marcador: 11 formas, nos dois hooks. Cada uma rodou nas três árvores;
 - o `env` real (GNU 9.7 e uutils 0.8.0), com `HOME` e a pasta em `$TMPDIR`, sem rede e sem custo (`R-CUSTO`).
