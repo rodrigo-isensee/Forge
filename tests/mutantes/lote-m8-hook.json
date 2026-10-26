@@ -1,0 +1,86 @@
+{
+  "pedido": "lote-m8-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M4",
+      "guarda": "diff em filtro, mapa ou hook roda a suíte inteira",
+      "arquivo": ".githooks/pre-push",
+      "de": "  [ -z \"$(git -c core.quotepath=false diff --name-only --no-renames \"$ancora\" HEAD -- bin/forge-testes tests/config.json .githooks/ 2>/dev/null)\" ] || return 1\n",
+      "para": "  true\n",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_diff_que_toca_o_filtro_o_mapa_ou_o_hook_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o diff vigiado inclui tests/config.json",
+      "arquivo": ".githooks/pre-push",
+      "de": "HEAD -- bin/forge-testes tests/config.json .githooks/ 2>/dev/null",
+      "para": "HEAD -- bin/forge-testes .githooks/ 2>/dev/null",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_diff_que_toca_o_filtro_o_mapa_ou_o_hook_roda_a_suite_inteira"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a base é refs/remotes/origin/develop",
+      "arquivo": ".githooks/pre-push",
+      "de": "git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}'",
+      "para": "git rev-parse --verify -q 'origin/develop^{commit}'",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_base_e_a_ref_remota_mesmo_com_branch_local_de_mesmo_nome"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "só a suíte completa (completa=1) anota a árvore verde",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$completa\" = 1 ] && [ \"$inicio_limpo\" = 1 ]",
+      "para": "if [ \"$inicio_limpo\" = 1 ]",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_so_os_modulos_do_mapa_rodam_e_nao_anotam_a_arvore_verde"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o plano roda com python -I (sem o bin da branch no sys.path)",
+      "arquivo": ".githooks/pre-push",
+      "de": "plano=\"$(python3 -I bin/forge-testes --listar",
+      "para": "plano=\"$(python3 bin/forge-testes --listar",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_modulo_falso_em_bin_nao_decide_o_plano_nem_a_execucao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a execução dirigida roda com python -I",
+      "arquivo": ".githooks/pre-push",
+      "de": "suite=(python3 -I bin/forge-testes --base",
+      "para": "suite=(python3 bin/forge-testes --base",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_modulo_falso_ja_na_base_nao_zera_a_execucao_dirigida"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o envio dirigido vale só para refs/heads/melhoria/*",
+      "arquivo": ".githooks/pre-push",
+      "de": "  case \"$unico_ref\" in refs/heads/melhoria/*) ;; *) return 1 ;; esac",
+      "para": "  case \"$unico_ref\" in refs/heads/*) ;; *) return 1 ;; esac",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_dirigido_so_vale_para_melhoria"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a âncora do diff vigiado é a base comum com a develop",
+      "arquivo": ".githooks/pre-push",
+      "de": "ancora=\"$(git merge-base \"$base_dev\" HEAD 2>/dev/null)\" || return 1",
+      "para": "ancora=\"$base_dev\"",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_ancora_e_a_base_comum_com_a_develop_nao_a_ponta_da_develop"
+      ]
+    }
+  ]
+}
