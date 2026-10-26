@@ -3,49 +3,48 @@ tipo: review
 contrato: 1
 pedido: RET-LEITURA-HOOK
 branch: melhoria/lote-leitura-hook
-commit: b9e15dc986bb74095fbf735cec9c0941db82767c
+commit: 335ea5e2975658e3a04e4addfe50301a55f1fc29
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-22
+data: 2026-10-26
 ---
-# Review: desenho da volta única do lote-leitura-hook (RET-LEITURA-HOOK, E2.2)
+# Review: o desenho do lote-leitura-hook conferido contra o código do head (RET-LEITURA-HOOK-PR, E1.0)
 
-Revalidação 1 do desenho. Escopo: `docs/propostas/lote-leitura-hook-volta-unica.md` em `b9e15dc` (a volta 1 do arquiteto), contra os achados A1 a A8 do parecer anterior (reprovado sobre `d557a37`, commit do parecer `68bd13c`). Delta lido: o diff `d557a37..b9e15dc` do desenho inteiro (226 linhas a mais, 127 a menos), já que o documento todo mudou. Já lido e sem mudança: a ADR 0011, a revalidação 5 (`docs/reviews/lote-leitura-hook.md`) e as seções 3 a 5 da retrospectiva. Critério desta passada: o mesmo da anterior. Achado novo só entra se ferir uma linha "Promete" da tabela 2.3. Nenhum entrou.
+Esta revisão atualiza o parecer de desenho de 2026-10-22, que estava sobre `b9e15dc` e foi aprovado. Ela confere se o código de `335ea5e` segue o desenho em vigor. O desenho é a proposta `docs/propostas/lote-leitura-hook-volta-unica.md` com as emendas que o dono decidiu depois:
+- rev12, opção A: o lançador passa só com as opções da lista positiva `LANCADORES`, e o teste instável (`ETXTBSY`) é corrigido no lote;
+- rev13, opção A: sem o marcador, as regras leem todas as leituras possíveis, com teto K;
+- rev14, opção B: com mais de uma leitura e um texto dividido sem aspa fechada, a linha recusa;
+- a ADR 0011.
 
-Sondas: os casos [INF] pedidos rodaram de dois modos, ambos em `$TMPDIR`. Primeiro, nos dois hooks do código atual (`1b0fb6b`, sem mudança até `b9e15dc`), montados pelo `Fixture` dos modelos da seção 3. Depois, no bash 5.3.9 (`bash --noprofile --norc -c`, ambiente limpo), com o corpo `echo RODOU > prova`.
+Quem revisou é uma instância que não escreveu o código do lote.
+
+Delta lido: `git diff b9e15dc..335ea5e` em `hooks/` e `docs/hooks.md` (9 arquivos, 1448 linhas a mais e 232 a menos), lido nos pontos que o desenho e as três emendas nomeiam. De `d67f31f` a `335ea5e` só mudaram os três pareceres (`git diff --stat`: `docs/qa`, `docs/reviews` e `docs/security`). Então o código do head é o mesmo que os pareceres vigentes aprovaram, todos sobre `d67f31f`: review, segurança e QA da revalidação 16.
+
+Ficou como "já lido", sem refazer: a correção do código caso a caso e as sondas dos pareceres de review, de segurança e de QA. Este parecer só responde se o código segue o desenho.
 
 ## Achados
+- A1 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:114 · R10 e F9 ainda dizem "o bash não grava" (linhas 114, 259, 300, 306 e 318). O corpus já corrigiu isso: R10 é caso R e o F9 saiu (`tests/fixtures/heredoc-volta-unica.json:21`). Corrigir o texto da proposta num PR de documento.
+- A2 (recomendado) docs/adr/0011-analisador-de-comandos-gramatica-positiva.md:42 · O item 2 da ADR 0011 não tem as emendas das rev12, rev13 e rev14 (lista positiva dos lançadores, leituras possíveis, teto K). Elas foram adiadas ao cartão ADR0011-EMENDA por decisão técnica do Jarvis. Até lá, `docs/hooks.md` é a única fonte da regra.
 
-## Revalidação dos achados anteriores
-- A1 (bloqueante) · **resolvido**. M2, "Enumerador positivo" (linhas 63 a 67): a palavra é programa salvo redireção completa com alvo, atribuição ou `ANTES_DO_PROGRAMA`. Os casos S17 e S18 estão nas linhas 164 e 165, e o T7 na 260. Sonda S17a (`…⏎EOF⏎chmod +x x.sh⏎2>&1 ./x.sh`): no bash criou `prova` com `RODOU`.
-- A2 (bloqueante) · **resolvido**. Leitor sequencial com um estado para as aspas (linhas 47 a 53), sem `re.sub` de aspas no lote. Os casos R19a a R19e estão nas linhas 123 a 127, e o T6 tem os prefixos P1 a P4 (linha 259). Sondas R19b e R19c: 0 / 0 nos hooks e `.husky/pre-push` gravado no bash. Isso confirma o [INF] e a marca `M2`.
-- A3 (bloqueante) · **resolvido**. A marca `fecha` cobre os dois lados (linhas 252 a 255). A ordem tem um commit por regra, suíte e validação verdes em cada commit, fixtures invertidos no commit da regra e "depende de" declarado (linhas 263 a 271).
-- A4 (bloqueante) · **resolvido**. A tabela 2.3 (linhas 83 a 93) e o critério (i)/(ii) (linhas 273 a 276) decidem por pertença a uma linha "Promete". O texto é o proposto no parecer anterior.
-- A5 (bloqueante) · **resolvido**. F7a, F7b, F8a e F8b estão nas linhas 290 a 293, com contorno, e a seção 6 lista todos os F novos. A frase "são os únicos novos" saiu (`grep` vazio).
-- A6 (recomendado) · **resolvido**. O T6 pula quando `BASH_VERSINFO[0] < 4` e dá o motivo (linha 259).
-- A7 (recomendado) · **resolvido**. Os `corpos` trazem a linha literal do modelo do `parecer` (linha 237), igual ao `command` de `forge-clone-pr-merge-no-corpo-de-heredoc-gravado-e-make-bloqueia.json`.
-- A8 (recomendado) · **resolvido**. M2 e M3 têm frase própria (linhas 71 e 78), as leituras da ADR 0011 ganham linhas próprias (linha 80) e a seção 5 conta cada F pela regra que o gera (linha 279).
+## Conferência do desenho contra o código
+| Peça do desenho | Onde está em `335ea5e` | Segue? |
+|---|---|---|
+| M1 a M3 da volta única: leitor sequencial, `grava_arquivo` sobre o texto inteiro, `fora_do_texto`, `gravado_e_rodado` | `hooks/_comum.py:793`, `:890-916`, `:981`, `:1162`; M3 em `hooks/conformidade.py:737` e `hooks/parecer.py:398`, depois das regras específicas e só com `CRITICO` | sim. `GRAVA_REDIRECAO` saiu (`grep` vazio) |
+| M5: `echo` e `true` na lista dos outros | `hooks/_comum.py:856` | sim |
+| M6: frases próprias de M2 e M3, contorno "noutra chamada" | `hooks/conformidade.py:694` e `:738`, `hooks/parecer.py:374`, `:379` e `:398`; as leituras novas estão na ADR 0011, linhas 101 e 102 | sim |
+| rev12 A: `LANCADORES` é a fonte única e positiva, e opção fora da tabela recusa com o marcador | `hooks/_comum.py:1747-1768` (env: `-i`, `-`, `--ignore-environment`, `-0`, `--null`, `-v`, `--debug`, `-u`/`--unset`, `-C`/`--chdir`); a recusa sai de `opcao_fora_da_tabela` (`:1789`) e de `reavaliacao_das_palavras` | sim. `env_divide_texto`, `ENV_COM_VALOR_CURTA`, `ENV_LONGAS_COM_VALOR`, `opcoes_do_lancador` e o regex `-[a-zA-Z]*[uC]` não existem em `hooks/` (`grep` vazio; o teste `tests/test_hooks.py:2880` exige essa ausência). `sudo -s` e `sudo -i` ficam fora da tabela e recusam |
+| rev12, caminho 1 do teste instável | `tests/test_hooks.py:2440` (`montar_registradores_do_t9b`, separado da execução), `:2481` ("falha do arnês"), `:2426` (`envs_da_maquina`, GNU e uutils) | sim |
+| rev13 A: leituras possíveis (sem valor, com valor e, no `env`, texto dividido); a primeira dá o estado; teto K = 3 | `_ler_lancadores` (`hooks/_comum.py:1862`), `TETO_FORA_DA_TABELA = 3` (`:1840`); os três chamadores: `segmento` (`hooks/conformidade.py:841-872`, com estado copiado e descartado), `rotulo_na_sessao_do_forge` (`:1394`, via `sem_lancadores`), `alvos_de_escrita` (`:1698`, união) | sim. O `parecer` não usa `separar_lancadores`, como a proposta diz |
+| rev14 B: `TextoAbertoComLeituras` com `gasto > 0` recusa com `barrar`; com `gasto == 0` vai a `ilegivel`; `alvos_de_escrita` toma as palavras depois do `tee` | `_dividir` (`hooks/_comum.py:1916-1925`); `hooks/conformidade.py:852-861`; `:1712-1715` | sim. `rotulo_na_sessao_do_forge` não mudou, como a opção B manda |
+| Textos de `docs/hooks.md`: rev12 4.1, rev13 3.1 e rev14 3.2 | `docs/hooks.md:95`; `grep -cF` deu 1 para cada frase-chave das três seções (REV12, REV13, REV14, "Com mais de três palavras fora da tabela", "salvo em dois casos em que o oráculo não vale", FD17 e FD18) e 0 para "Sem marcador, nada muda", que saiu | sim |
 
-## Sondas dos casos [INF]
-| Caso | Hooks em `1b0fb6b` (conf / par) | Bash 5.3.9 | Leitura |
-|---|---|---|---|
-| S18a, S18b, S18c | 0 / 0 | `prova` = `RODOU` nos três | furo real hoje. M2 promete "dono sem programa não só lê", e a marca `M2` confere |
-| R20a, R20c | 2 / 2 | `.husky/pre-push` gravado | já passam. A marca `M2` sobra e o passo (1) a tira, como diz a linha 255 |
-| R20b | 2 / 2 | `>&2 git apply` aplicou o patch | idem |
-| R19b, R19c | 0 / 0 | `.husky/pre-push` gravado | confirma a marca `M2` |
-| R19d | 2 / 2 (item 2, `$'`) | não rodado (o item 2 já recusa) | confere com "—" |
-| R19e | 2 / 2 | não rodado | confere com "—" |
-| L10 | 2 / 0 (par fora do `PREFILTRO`, "—") | nada gravado | confere com `fecha: M5`: o `echo` segura até o passo (6) |
-| F10 | 0 / 0 | nada roda | falso positivo esperado, marca `M2` confere |
-| R10 / F9 (sonda extra) | não rodado | `cat 1>&x` **gravou** o arquivo `x` | o [INF] "o bash não grava" está errado (nota abaixo) |
+O código não se afastou do desenho. Não há mecanismo novo fora do que as três decisões pediram, e nenhuma regra ficou mais frouxa: todas as mudanças só recusam mais. As únicas exceções são L2, L3, L10 e L12, que a proposta já previa.
+
+## Execução
+- `python3 -m unittest tests.test_hooks.CorpusHeredocVoltaUnica` na worktree em `335ea5e`: `Ran 41 tests in 354.168s`, `OK`. Esse é o critério (i) da seção 4 da proposta, e passou.
+- Não rodei a suíte completa, `scripts/validar-plugin.sh` nem as regras de ferramenta do `praticas.md`. Este parecer não muda código, e os pareceres vigentes já citam essas execuções sobre o mesmo código (`d67f31f`).
 
 ## Parecer
-**Aprovado.** A volta 1 fecha os oito achados sem mudar o caminho aprovado (B). Corpus, marcas e critério de parada servem como contrato comum da implementação (E3.1) e dos pareceres (E3.2 a E3.4). As sondas [INF] confirmam as marcas previstas, menos R20a a R20c, que já passam. O próprio desenho prevê a correção dessas marcas no passo (1), então nada bloqueia.
+**Aprovado.** O código do head segue a proposta volta-unica com as emendas rev12 A, rev13 A e rev14 B e com a ADR 0011. Os dois recomendados são texto: a proposta tem trechos desatualizados sobre R10 e F9, e a emenda da ADR está num cartão. Nenhum deles muda o comportamento nem fere uma linha "Promete" da tabela 2.3.
 
-### Notas para o passo (1) do E3.1 (não são achados: nenhuma fere uma linha "Promete")
-- **R10 e F9.** No bash 5.3.9, `cat 1>&x <<'EOF'…` grava o arquivo `x`. O M1 já conta `[n]>&arquivo` como gravação (linha 60), e o T6 só exige a implicação, então o código e os testes ficam certos. O texto fica errado em três lugares. A linha 114 diz "o bash não grava". A linha 259 diz "R10 confirma o [INF]: o bash não grava". A linha 294 trata o F9 como falso positivo. No passo (1), o R10 vira caso R comum e o F9 sai da classe F e da lista da seção 6. Assim a contagem do A8 não soma um acerto como falso positivo.
-- **R20a a R20c.** Os três já dão 2 / 2 em `1b0fb6b`. A marca `M2` sobra e o passo (1) a tira. Eles ficam como guarda do enumerador.
-
-### Fora do bloco
-- O diff é só documento. Os testes, `scripts/validar-plugin.sh` e as regras de ferramenta do `praticas.md` não se aplicam e não foram rodados.
-- Segurança: S18 é furo real em `1b0fb6b` (o corpo roda no bash e os dois hooks saem 0). Ele já está no corpus com a marca `M2`, e o `security-engineer` o recebe por ali no E3.3, sem cartão à parte.
+Segurança: sem achado novo. O controle do lançador e do heredoc é do `security-engineer`, e o parecer dele (`docs/security/lote-leitura-hook.md`, aprovado sobre `d67f31f`) é o que vale.
