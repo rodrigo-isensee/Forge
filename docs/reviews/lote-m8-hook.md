@@ -3,23 +3,40 @@ tipo: review
 contrato: 1
 pedido: lote-m8-hook
 branch: melhoria/lote-m8-hook
-commit: 0e64acb2341f43de138ebfdfe405edb264617d11
+commit: 0ff73965e955912d52fc078fa03d219a6f43e0a6
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-26
 ---
 # Review: lote-m8-hook
 
-Este é o PR 2 do M8. O pre-push de branch roda só os testes afetados pelo `bin/forge-testes` quando o envio é simples e dirigido; fora desse caso, roda a suíte inteira. O diff vai de `35057a2` (a `develop` já com o PR 1, #328) a `0e64acb`: três commits do autor e o merge da `develop`. Ele mexe em `.githooks/pre-push`, `tests/test_pre_push_afetados.py`, `tests/test_testes_tocados.py` (`NaoEPortao`), na spec `tests/mutantes/lote-m8-hook.json` e no fragmento `changelog.d/lote-m8-hook.md`. Sou um revisor independente e não fui o autor do lote. A conferência PA-7 (`docs/engineering/achados-recorrentes.md`) não tem item registrado.
+Este é o PR 2 do M8. O pre-push de `melhoria/*` roda só os testes afetados pelo `bin/forge-testes` quando o envio é simples e dirigido; fora desse caso, roda a suíte inteira. Base `35057a2` (a `develop` com o PR 1, #328). Revisor independente: não fui o autor do lote. A conferência PA-7 (`docs/engineering/achados-recorrentes.md`) não tem item registrado.
+
+## Revalidação por delta (volta 1, `0ff7396`)
+- **Delta lido** (`bin/forge-check delta --parecer docs/reviews/lote-m8-hook.md`, intervalo `0e64acb..0ff7396`, commits `4877566` e `0ff7396`): `.githooks/pre-push` l.240-241, 252, 266 e 276; `changelog.d/lote-m8-hook.md` l.3; `tests/mutantes/lote-m8-hook.json` l.4 e 46-82; `tests/test_pre_push_afetados.py` l.182-223. Os pareceres de QA e de segurança no intervalo não são código e não os revisei.
+- **Já lido na rodada 1 e fora do delta:** o resto de `.githooks/pre-push` (`dirigido()`, `so_parecer`, laço dos bloqueios, anotação da árvore verde), o resto de `tests/test_pre_push_afetados.py`, `tests/test_testes_tocados.py` (`NaoEPortao`) e a linha 2 do fragmento.
+- **A1 (rodada 1), fechado.** `.githooks/pre-push:266` (plano) e `:276` (execução dirigida) chamam `python3 -I bin/forge-testes`. Com o `-I`, o `bin/` da branch não entra no sys.path e as variáveis `PYTHON*` são ignoradas. O `bin/forge-testes` só importa a biblioteca padrão (l.30-43), então o `-I` não quebra nada. O processo que roda os testes (`sys.executable -m unittest`, l.537) põe a raiz no sys.path, não o `bin/`. Isso é o mesmo que a suíte inteira já faz, e não é uma regressão. Os dois testes novos matam um mutante cada. `test_modulo_falso_em_bin_nao_decide_o_plano_nem_a_execucao` (M9) mostra que, sem o `-I` no plano, o `bin/json.py` falso faria o hook anunciar o dirigido. `test_modulo_falso_ja_na_base_nao_zera_a_execucao_dirigida` (M10) põe o falso na base, fora do diff, e mostra que, sem o `-I` na execução, o dirigido rodaria zero testes. As outras chamadas `python3` do hook (l.195, 197, 272, 279 e 282) rodam a suíte, não decidem o plano. O juízo final sobre elas é da segurança (decisão técnica de 20:28) e não o refaço.
+- **A2 (rodada 1), fechado.** `.githooks/pre-push:252` passou a aceitar só `refs/heads/melhoria/*`, como diz a decisão do dono de 2026-10-24. `test_dirigido_so_vale_para_melhoria` cobre `feature/x`, `fix/x` e `chore/x` (subTest) e confere que esses envios rodam a suíte inteira, sem o aviso do dirigido. Ele também mata o M11.
+- **Teste da âncora (A1 do QA).** `test_ancora_e_a_base_comum_com_a_develop_nao_a_ponta_da_develop` monta uma `develop` que andou depois da saída da branch e grava nela um `tests/config.json` (o commit `0ff7396` corrige o teste para gravar o arquivo de fato). Com a âncora na ponta da `develop`, o diff vigiado mostraria o arquivo e o envio cairia na suíte inteira. Com o `merge-base`, o envio segue dirigido. O teste mata o M12.
+- **Spec de mutantes.** M1, M2, M3 e M8 (árvore limpa, ferramenta como link, HEAD igual ao enviado, um único ref) saíram, e entraram M9 a M12. A spec fica em 8, que é o teto de `MAXIMO_DE_MUTANTES` (`bin/forge-mutante:43`). As quatro guardas que perderam o mutante continuam no código e com teste próprio: `test_arvore_suja_com_arquivo_mapeado_nao_vira_envio_dirigido`, `test_ferramenta_que_e_link_roda_a_suite_inteira`, `test_commit_enviado_diferente_do_head_roda_a_suite_inteira` e `test_varias_refs_rodam_a_suite_inteira`. A troca troca guardas antigas por guardas mudadas nesta volta, o que atende ao "uma por guarda mudada" do pedido dentro do teto. Não abro achado. A mutação em si é do QA.
+- **Teto M14.** `git diff --numstat --no-renames 35057a2...0ff7396` dá 42+3 (`.githooks/pre-push`), 267 (`tests/test_pre_push_afetados.py`) e 11+5 (`tests/test_testes_tocados.py`), ou seja, 328 linhas de 400. A spec, o fragmento e os pareceres ficam fora da conta. Não há linha `teto:` e ela não é necessária. Nenhum arquivo de `hooks/` está no diff.
+- **Commits do delta.** `fix(pre-push)` e `test(pre-push)` seguem Conventional Commits em português, um por mudança coerente. O fragmento ganhou uma linha que descreve o `-I` e o filtro.
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:264 · `python3 bin/forge-testes` põe `bin/` no topo do sys.path: um `bin/argparse.py` da branch toma o plano (sonda: imprimiu "forge-testes: dirigido (test_a)" com rc 0) e o diff vigiado não o vê; usar `python3 -I` aqui e em :274; cartão ao security-engineer
-- A2 (recomendado) .githooks/pre-push:250 · o envio dirigido aceita qualquer refs/heads/*; a decisão do dono fala do pre-push de melhoria/*; restringir a `refs/heads/melhoria/*` (o resto cai na suíte inteira) deixa o código igual à decisão
 - A3 (recomendado) README.md:68 · README.md:68, docs/economia-de-tokens.md:10 e agents/tech-lead.md:22 ainda dizem que o pre-push roda a suíte inteira; ficaram para o cartão DOCS-REGRA5-PREPUSH (proposta m8-caminho, riscos), que precisa entrar antes da próxima release
 - A4 (recomendado) tests/test_pre_push_afetados.py:100 · vírgula dobrada na mensagem ("cita,, não roda"); `NaoEPortao.test_pre_push_recua_para_a_suite_inteira` (tests/test_testes_tocados.py:414) repete a asserção de `NaoRecuaDoHook` (:221); basta uma das duas
 
 ## Parecer
-**Aprovado.** Não achei defeito de comportamento provado, requisito da decisão do dono descumprido nem problema de segurança com gatilho. Os quatro achados são recomendações e não devolvem a entrega.
+**Aprovado.** O A1 e o A2 da rodada 1 estão fechados. O A3 e o A4 continuam como recomendações e, pela decisão técnica de 20:11, ficam fora desta volta. Não achei defeito de comportamento provado, requisito descumprido nem problema de segurança com gatilho no delta.
+
+Regras de ferramenta (cito a saída, não refiz):
+- `python3 -m unittest tests.test_pre_push_afetados tests.test_testes_tocados.NaoEPortao` na worktree em `0ff7396` deu `Ran 25 tests ... OK`.
+- A suíte completa não rodou aqui, por instrução do brief. Ela roda no pre-push e no CI do PR.
+
+Risco para o PR: `.githooks/` está em `PROTEGIDOS` (`tests/catraca.py:43`). O PR só passa com o rótulo do dono aplicado depois do último push (`R-CONFORMIDADE`).
+
+## Rodada 1 (`0e64acb`, parecer `7d6a9e2`)
+Achados da rodada 1: A1 (`-I` em :264 e :274) e A2 (dirigido para qualquer `refs/heads/*`), os dois fechados acima; A3 e A4, mantidos acima.
 
 Pontos que o brief pede para conferir:
 - **Condições do envio dirigido** (`dirigido()`, `.githooks/pre-push:247-267`):
@@ -45,8 +62,3 @@ Pontos que o brief pede para conferir:
 Sobre o A1: o risco não é novo em classe, porque a suíte inteira também executa código da branch e um `unittest.py` na raiz já faria sombra no `-m unittest`. Mesmo assim, essa sombra contorna a guarda "quem muda o filtro não pode se auto-julgar" que o próprio hook declara (:259-260). Uma sombra acidental tende a quebrar o `forge-testes`, e o hook então cai na suíte inteira. O gatilho exige um arquivo feito de propósito, e o CI do PR roda tudo. Por isso o classifiquei como recomendado e o encaminho como cartão para o `security-engineer`, que faz o parecer próprio deste PR (`R-SEGURANCA`, controle do Forge).
 
 Risco para o PR: `.githooks/` está em `PROTEGIDOS` (`tests/catraca.py:43`). O PR só passa com o rótulo do dono aplicado depois do último push (`R-CONFORMIDADE`).
-
-Regras de ferramenta (cito a saída, não refiz):
-- `python3 -m unittest tests.test_pre_push_afetados tests.test_testes_tocados.NaoEPortao` na worktree em `0e64acb` deu `Ran 21 tests ... OK`.
-- Sonda de sombra (em `$TMPDIR`): `bin/argparse.py` ao lado de uma cópia do `bin/forge-testes`, e `python3 bin/forge-testes --listar` imprimiu o plano da sombra com rc 0.
-- A suíte completa não rodou aqui, por instrução do brief. O pedido registra o pre-push da entrega com `1985 OK`.
