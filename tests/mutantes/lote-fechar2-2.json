@@ -31,6 +31,26 @@
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois"
       ]
+    },
+    {
+      "id": "M4",
+      "guarda": "2b: arquivo em comum so segue se a lista de comuns nao esta vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -s \"$tmp2b/comuns\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "2b: arquivo em comum para com die, nao so lista",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo 2b: a base andou e tocou arquivo que a branch também tocou",
+      "para": ": \"parou no passo 2b: a base andou e tocou arquivo que a branch também tocou",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr"
+      ]
     }
   ]
 }
