@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede)
-from ambiente_git import sem_manutencao  # noqa: E402
+from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 RAIZ = Path(__file__).resolve().parent.parent
@@ -356,6 +356,160 @@ class TabelaDePareceres(Repo):
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("brief gerar: aviso: docs/reviews: review: sem parecer", r.stderr)
         self.assertNotIn("docs/qa", r.stderr)
+
+
+class QuatroDefeitosDoScript(Repo):
+    """EST-030-L1 (M1): os quatro defeitos reais de brief que o conferente pegava viram checagem do `forge-check brief`; o conferente
+    segue lendo todo brief (decisão do dono "C", 2026-10-24: a dispensa, BRIEF-MECANICO, saiu do código)."""
+    CABECALHO = "\nEtapa: review   Branch: melhoria/x   Base: develop\n\n## Objetivo"
+
+    def com_remoto(self):
+        """`origin` de verdade (um repositório nu local) com a branch enviada: o `commit:` lê o remoto por `git ls-remote`."""
+        self.git("init", "-q", "--bare", str(self.tmp / "remoto.git"))
+        remoto_sem_manutencao(self.tmp / "remoto.git")
+        self.git("remote", "add", "origin", str(self.tmp / "remoto.git"))
+        self.git("push", "-q", "origin", "melhoria/x")
+
+    def test_papel_errado_o_destino_nao_tem_a_etapa_citada(self):
+        rc, saida = self.conferir(brief("dev-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn('etapa: papel errado E1.2 (o pedido a põe em "revisor-exemplo", o destino é "dev-exemplo") (R-BRIEF)', saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")), "ok.md")
+        self.assertNotIn("papel errado", saida)
+
+    def test_decisao_ausente_a_linha_do_pedido_falta_no_brief(self):
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace('DECISÃO DO DONO (2026-01-01): "A".', "nada.")
+        rc, saida = self.conferir(sem)
+        self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-01): \\"A\\"."', saida)
+        self.assertEqual(rc, 1)
+
+    def test_pedido_contraditorio_o_entregar_manda_o_que_o_fora_do_escopo_do_pedido_exclui(self):
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", "## Fora do escopo\n- O review (E1.2) não entra nesta rodada · `confirmado`\n\n## Decisões"))
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn("contradição: o Entregar manda E1.2, que o `Fora do escopo` do pedido exclui (R-BRIEF)", saida)
+        self.assertEqual(rc, 1)
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")), "ok.md")
+        self.assertNotIn("contradição: o Entregar", saida)
+
+    def test_o_id_dentro_de_outro_nome_ou_na_prosa_do_fora_do_escopo_nao_exclui_nada(self):
+        """Review A1: `E1.2` no nome de outro pedido (`EXEMPLO-E1.2-ENVIO`) e como contexto de uma frase não contradizem o Entregar."""
+        for item in ("Envio dos textos: pedido EXEMPLO-E1.2-ENVIO · `técnico`",
+                     "Mudar o processo sem o dono: a proposta do E1.2 que afrouxa controle vai a ele · `confirmado`"):
+            with self.subTest(item=item):
+                self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", f"## Fora do escopo\n- {item}\n\n## Decisões"))
+                rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+                self.assertNotIn("contradição:", saida)
+                self.assertEqual(rc, 0, saida)
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", "## Fora do escopo\n- E1.2 e E1.3: pedido seguinte\n\n## Decisões"))
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")))
+        self.assertIn("contradição: o Entregar manda E1.2", saida)
+
+    def test_commit_so_na_worktree_o_head_nao_esta_em_origin(self):
+        self.entrega({"src/app.py": "v2\n"})
+        head = self.git("rev-parse", "HEAD")
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida, "sem remoto conhecido não há o que conferir (como parecer_commitado)")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "develop"))
+        rc, saida = self.conferir(texto)
+        self.assertIn(f"commit: o head {head[:7]} de melhoria/x só existe na worktree (origin/melhoria/x ausente)", saida)
+        self.assertEqual(rc, 1)
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", head)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_o_commit_le_o_remoto_e_nao_so_o_ref_de_rastreio_velho(self):
+        """Segurança A8, review A6: o ref de rastreio local diz que a branch foi enviada, mas `origin` ainda está atrás."""
+        self.com_remoto()
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("update-ref", "refs/remotes/origin/melhoria/x", self.git("rev-parse", "HEAD"))
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace("\n\n## Objetivo", self.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertIn("(origin/melhoria/x atrás); rode git fetch origin", saida)
+        self.assertEqual(rc, 1)
+
+    def test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher(self):
+        """O brief de `codigo` é para quem ainda vai commitar: head só local não reprova. O `gerar` com `--cobre` e sem `--etapa`
+        escreve `Etapa: PREENCHER` (segurança A11), que o `brief` reprova até o Jarvis escolher a etapa."""
+        self.com_remoto()
+        self.entrega({"src/app.py": "v2\n"})
+        codigo = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO.replace("review", "codigo"), 1)
+        rc, saida = self.conferir(codigo)
+        self.assertNotIn("commit:", saida)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("commit: o head", self.conferir(codigo.replace("Etapa: codigo", "Etapa: review"))[1])
+        self.assertIn("Etapa: PREENCHER   Cobre: E1.1\n", self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", "forge:dev-exemplo", "--cobre", "E1.1")[1])
+
+    def test_o_brief_mecanico_nao_dispensa_o_conferente(self):
+        """Decisão do dono "C" (2026-10-24): o fixture que antes saía `conferente: dispensado (brief mecânico)` (primeira rodada, etapa
+        `codigo`, branch no remoto, só cópias literais do pedido) não imprime linha `conferente:` nenhuma; todo brief passa pelo conferente."""
+        self.com_remoto()
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", self.CABECALHO.replace("review", "codigo"), 1)
+        rc, saida = self.conferir(texto)
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("dispensado", saida)
+        self.assertNotIn("conferente:", saida)
+        self.assertTrue(saida.endswith("resultado: aprovado\n"), saida)
+
+    def fora_do_pedido(self, item):
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("## Decisões", f"## Fora do escopo\n- {item}\n\n## Decisões"))
+
+    def test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz(self):
+        """QA A2 e A3: o trecho entre aspas (sem id) de 20 caracteres ou mais que o Entregar copia contradiz; com 19, ou ausente do Entregar, não."""
+        vinte, dezenove = "desenho do recurso X", "esenho do recurso X"
+        self.assertEqual((len(vinte), len(dezenove)), (20, 19))
+        for trecho, esperado in ((vinte, True), (dezenove, False)):
+            with self.subTest(trecho=trecho):
+                self.fora_do_pedido(f'Não entra o "{trecho}" · `confirmado`')
+                rc, saida = self.conferir(brief("revisor-exemplo", [f"Mesclar (E1.5) com o {trecho}."], fora_sem("E1.5")))
+                self.assertEqual("contradição: o Entregar manda" in saida, esperado, saida)
+                self.assertEqual(rc, 1 if esperado else 0, saida)
+        self.fora_do_pedido(f'Não entra o "{vinte}" · `confirmado`')
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")), "ausente.md")
+        self.assertNotIn("contradição:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_o_id_que_o_pedido_nao_tem_nao_exclui_nada(self):
+        """QA A4: `(E9)` no Fora do escopo do pedido e no Entregar, sem E9 no pedido, não é contradição."""
+        self.fora_do_pedido("Outra frente (E9) fica para depois · `confirmado`")
+        rc, saida = self.conferir(brief("revisor-exemplo", ["Mesclar (E1.5), sem tocar (E9)."], fora_sem("E1.5")))
+        self.assertNotIn("contradição:", saida)
+
+    def test_head_local_atras_do_remoto_nao_reprova(self):
+        """QA A1 (sonda X2): a branch avançou em `origin` e a worktree ficou para trás: o head local está em `origin/<branch>`."""
+        self.entrega({"src/app.py": "v2\n"})
+        atras = self.git("rev-parse", "HEAD")
+        self.entrega({"src/app.py": "v3\n"})
+        self.com_remoto()
+        self.git("reset", "-q", "--hard", atras)
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace("\n\n## Objetivo", self.CABECALHO, 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_branch_sem_commit_local_nao_reprova_nem_quebra(self):
+        """QA A1 (sonda X3): `Branch:` que não existe na worktree não tem head a conferir (sem traceback)."""
+        self.com_remoto()
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2")).replace(
+            "\n\n## Objetivo", self.CABECALHO.replace("melhoria/x", "melhoria/outra"), 1)
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("commit:", saida)
+        self.assertNotIn("Traceback", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_a_saida_malformada_do_remoto_nao_vira_sha(self):
+        """QA A5: `git ls-remote` com rc 0 e linha que não começa por sha40 (ou vazia) é branch ausente, não sha."""
+        real = fc.git
+        try:
+            for saida in ("lixo\trefs/heads/melhoria/x\n", ""):
+                fc.git = lambda raiz, *args, _s=saida: (0, _s)
+                self.assertEqual(fc.remoto_da_branch(self.tmp, "melhoria/x"), (None, True), repr(saida))
+            sha = "a" * 40
+            fc.git = lambda raiz, *args: (0, f"{sha}\trefs/heads/melhoria/x\n")
+            self.assertEqual(fc.remoto_da_branch(self.tmp, "melhoria/x"), (sha, True))
+        finally:
+            fc.git = real
 
 
 if __name__ == "__main__":

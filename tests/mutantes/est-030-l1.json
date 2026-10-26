@@ -1,0 +1,86 @@
+{
+  "pedido": "est-030-l1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "M1: papel errado (o destino não tem a etapa que o Entregar cita)",
+      "arquivo": "bin/forge-check",
+      "de": "        if papel_destino and nome_do_papel(papel) != papel_destino:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_papel_errado_o_destino_nao_tem_a_etapa_citada"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "M1: pedido contraditório (o Entregar manda o que o Fora do escopo do pedido exclui)",
+      "arquivo": "bin/forge-check",
+      "de": "        if excluidos or copiados:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_pedido_contraditorio_o_entregar_manda_o_que_o_fora_do_escopo_do_pedido_exclui"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "Review A1: o id que abre o item do Fora do escopo exclui; o id na prosa ou dentro de outro nome não",
+      "arquivo": "bin/forge-check",
+      "de": "    return ids_em_citacao(item) | (ids_do_texto(abre.group(1)) if abre else set())",
+      "para": "    return ids_em_citacao(item)",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_id_dentro_de_outro_nome_ou_na_prosa_do_fora_do_escopo_nao_exclui_nada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "M1: na etapa codigo o commit não se confere (o autor ainda vai commitar)",
+      "arquivo": "bin/forge-check",
+      "de": "    if not branch or etapa not in ETAPAS_DO_GERAR or etapa == \"codigo\":\n",
+      "para": "    if not branch or etapa not in ETAPAS_DO_GERAR:\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "M1: sem remoto conhecido não há o que conferir (como parecer_commitado)",
+      "arquivo": "bin/forge-check",
+      "de": " or not (conferido or git(raiz, \"for-each-ref\", \"--count=1\", \"--format=%(refname)\", \"refs/remotes/origin\")[1]):\n",
+      "para": ":\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_commit_so_na_worktree_o_head_nao_esta_em_origin"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "M1: o head local em origin/<branch> (igual ou ancestral) não reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if remota and (head == remota or e_ancestral(raiz, head, remota)):\n        return []\n",
+      "para": "    if False:\n        return []\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_commit_so_na_worktree_o_head_nao_esta_em_origin"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "Segurança A8, review A6: o commit lê o remoto por git ls-remote, não só o ref de rastreio",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod == 0:\n        sha = saida.split(\"\\t\")[0]\n",
+      "para": "    if False:\n        sha = saida.split(\"\\t\")[0]\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_commit_le_o_remoto_e_nao_so_o_ref_de_rastreio_velho"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "Segurança A11: o gerar sem --etapa não escreve codigo",
+      "arquivo": "bin/forge-check",
+      "de": "saida.append(f\"Etapa: {etapa or PREENCHER}\"",
+      "para": "saida.append(f\"Etapa: {etapa or 'codigo'}\"",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher"
+      ]
+    }
+  ]
+}
