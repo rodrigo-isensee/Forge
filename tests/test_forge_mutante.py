@@ -115,7 +115,11 @@ class ValidacaoDaSpec(unittest.TestCase):
     def test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido(self):  # QA A2, A3 e review A2 do lote
         for teste in (1, None, ["tests.x"], {"a": 1}):
             with self.subTest(repr(teste)):
-                self.assertFalse(self.f.id_de_teste_valido(teste))
+                try:  # a guarda some: AttributeError vira falha de asserção, que o leitor de veredito conta como morreu
+                    valido = self.f.id_de_teste_valido(teste)
+                except AttributeError as erro:
+                    self.fail(f"id que não é texto quebrou em vez de ser recusado: {erro}")
+                self.assertFalse(valido)
                 self.assertTrue(self.problemas(mutante(testes=[teste])))
         for teste in ("tests.c\u0327", "tests.x.\uff21b", "outro.x", "x.tests.y"):  # fora da NFKC e raiz que não é tests
             with self.subTest(teste):
