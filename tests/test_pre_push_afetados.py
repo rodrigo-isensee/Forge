@@ -211,7 +211,8 @@ class PrePushAfetados(unittest.TestCase):
         # A develop andou depois que a branch saiu dela e agora tem um arquivo vigiado novo; o diff contra a ponta da
         # develop o mostraria como mudado pela branch. O diff contra a base comum não: o envio segue dirigido.
         self.git("switch", "-q", "-c", "dev", self.base)
-        self.commit("a develop muda o mapa", tests__config_json="{}\n")
+        (self.repo / "tests" / "config.json").write_text("{}\n")
+        self.commit("a develop muda o mapa")
         self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
         self.git("switch", "-q", "melhoria/x")
         self.commit("toca a ferramenta", bin__forge_sugerir="x = 2\n")
