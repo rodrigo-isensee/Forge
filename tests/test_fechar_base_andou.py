@@ -24,7 +24,9 @@ case "$1 $2" in
     if [ -f "$ESTADO/ls_ref_lixo" ] && [ "$3" = refs/heads/melhoria/x ]; then printf '%s\t%s\n' "$(cat "$ESTADO/ls_ref_lixo")" "$3"; exit 0; fi ;;
   "diff --no-renames")
     # $ESTADO/diff_falha: o diff da conta do passo 2b falha (objeto ausente)
-    if [ -f "$ESTADO/diff_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
+    if [ -f "$ESTADO/diff_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi
+    # $ESTADO/diff_falha_em: só o diff cujo último argumento é o sha gravado ali falha (a base ou a branch, não os dois)
+    if [ -f "$ESTADO/diff_falha_em" ] && [ "${@: -1}" = "$(cat "$ESTADO/diff_falha_em")" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
 esac
 exec "$(dirname "$0")/git-base" "$@"
 '''
@@ -198,6 +200,21 @@ class Teste(unittest.TestCase):
                 self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
                 self.assertIn("parou no passo 2: não consegui ler a branch melhoria/x no origin", r.stderr)
                 self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def _diff_que_falha_so_em(self, rev, mensagem):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "diff_falha_em").write_text(self.git("rev-parse", rev))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(mensagem, r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_diff_da_base_que_falha_sozinho_para_no_passo_2b(self):
+        self._diff_que_falha_so_em("origin/develop", "parou no passo 2b: o diff da base falhou")
+
+    def test_diff_da_branch_que_falha_sozinho_para_no_passo_2b(self):
+        self._diff_que_falha_so_em("origin/melhoria/x", "parou no passo 2b: o diff da branch falhou")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,26 @@
+{
+  "pedido": "lote-fechar2-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "2b: falha do diff da base para, nao segue com a lista da base vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$mb\" \"$base_sha\" >> \"$tmp2b/a\" || die \"parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo\"",
+      "para": "\"$mb\" \"$base_sha\" >> \"$tmp2b/a\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_diff_da_base_que_falha_sozinho_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "2b: falha do diff da branch para, nao segue com a lista da branch vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$mb\" \"$remoto_sha\" >> \"$tmp2b/b\" || die \"parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo\"",
+      "para": "\"$mb\" \"$remoto_sha\" >> \"$tmp2b/b\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_diff_da_branch_que_falha_sozinho_para_no_passo_2b"
+      ]
+    }
+  ]
+}
