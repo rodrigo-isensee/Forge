@@ -237,6 +237,8 @@ so_parecer() {
 # a suíte completa fica no CI do PR (a bateria completa roda lá). Os bloqueios de conteúdo (main, homolog, develop,
 # não fast-forward) já valeram acima, antes de qualquer teste. Falha fechada: tudo o que não for um envio simples de
 # uma branch com a ferramenta e a base presentes, o plano dirigido e a árvore limpa roda a suíte inteira, como antes.
+# O dirigido vale só para `refs/heads/melhoria/*` (decisão do dono); outra branch roda a suíte inteira. O Python do plano e da
+# execução roda com `-I` (sem o diretório do script no sys.path nem PYTHON*): um `bin/json.py` da branch não decide o plano.
 # O plano vem do `--listar` (primeira linha "forge-testes: dirigido (...)"); qualquer outra saída ou erro = suíte inteira.
 # A prova de árvore verde (`so_parecer`) vale "a suíte inteira passou": só a suíte inteira anota a prova, e o caminho
 # `so_parecer` a repete porque a árvore remota que ele confere já estava verde (herança da suíte inteira, não prova nova).
@@ -247,7 +249,7 @@ base_dev=""
 dirigido() {
   local plano ancora
   [ "$n_refs" -eq 1 ] || return 1
-  case "$unico_ref" in refs/heads/*) ;; *) return 1 ;; esac
+  case "$unico_ref" in refs/heads/melhoria/*) ;; *) return 1 ;; esac
   case "$unico_local" in ''|*[!0-9a-f]*) return 1 ;; esac
   case "$unico_local" in *[!0]*) ;; *) return 1 ;; esac
   [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
@@ -261,7 +263,7 @@ dirigido() {
   ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || return 1
   [ -n "$ancora" ] || return 1
   [ -z "$(git -c core.quotepath=false diff --name-only --no-renames "$ancora" HEAD -- bin/forge-testes tests/config.json .githooks/ 2>/dev/null)" ] || return 1
-  plano="$(python3 bin/forge-testes --listar --base "$base_dev" 2>/dev/null)" || return 1
+  plano="$(python3 -I bin/forge-testes --listar --base "$base_dev" 2>/dev/null)" || return 1
   case "$plano" in "forge-testes: dirigido ("*) return 0 ;; esac
   return 1
 }
@@ -271,7 +273,7 @@ if so_parecer; then
 elif dirigido; then
   completa=0
   echo "pre-push: rodando só os testes afetados (bin/forge-testes, base origin/develop); a suíte completa roda no CI do PR." >&2
-  suite=(python3 bin/forge-testes --base "$base_dev")
+  suite=(python3 -I bin/forge-testes --base "$base_dev")
 elif [ -f scripts/suite-paralela.py ]; then
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
   suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)

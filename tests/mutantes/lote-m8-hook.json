@@ -3,36 +3,6 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
-      "guarda": "dirigido exige árvore de trabalho limpa",
-      "arquivo": ".githooks/pre-push",
-      "de": "  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1\n  [ \"$(git rev-parse HEAD 2>/dev/null)\" = \"$unico_local\" ] || return 1\n  [ -z \"$(git status --porcelain --untracked-files=all 2>/dev/null)\" ] || return 1\n",
-      "para": "  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1\n  [ \"$(git rev-parse HEAD 2>/dev/null)\" = \"$unico_local\" ] || return 1\n",
-      "testes": [
-        "tests.test_pre_push_afetados.PrePushAfetados.test_arvore_suja_com_arquivo_mapeado_nao_vira_envio_dirigido"
-      ]
-    },
-    {
-      "id": "M2",
-      "guarda": "a ferramenta do envio dirigido não pode ser link",
-      "arquivo": ".githooks/pre-push",
-      "de": "[ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1",
-      "para": "[ -f bin/forge-testes ] || return 1",
-      "testes": [
-        "tests.test_pre_push_afetados.PrePushAfetados.test_ferramenta_que_e_link_roda_a_suite_inteira"
-      ]
-    },
-    {
-      "id": "M3",
-      "guarda": "dirigido exige HEAD igual ao commit enviado",
-      "arquivo": ".githooks/pre-push",
-      "de": "  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1\n  [ \"$(git rev-parse HEAD 2>/dev/null)\" = \"$unico_local\" ] || return 1\n",
-      "para": "  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1\n",
-      "testes": [
-        "tests.test_pre_push_afetados.PrePushAfetados.test_commit_enviado_diferente_do_head_roda_a_suite_inteira"
-      ]
-    },
-    {
       "id": "M4",
       "guarda": "diff em filtro, mapa ou hook roda a suíte inteira",
       "arquivo": ".githooks/pre-push",
@@ -73,13 +43,43 @@
       ]
     },
     {
-      "id": "M8",
-      "guarda": "dirigido exige um único ref enviado",
+      "id": "M9",
+      "guarda": "o plano roda com python -I (sem o bin da branch no sys.path)",
       "arquivo": ".githooks/pre-push",
-      "de": "  local plano ancora\n  [ \"$n_refs\" -eq 1 ] || return 1\n",
-      "para": "  local plano ancora\n",
+      "de": "plano=\"$(python3 -I bin/forge-testes --listar",
+      "para": "plano=\"$(python3 bin/forge-testes --listar",
       "testes": [
-        "tests.test_pre_push_afetados.PrePushAfetados.test_varias_refs_rodam_a_suite_inteira"
+        "tests.test_pre_push_afetados.PrePushAfetados.test_modulo_falso_em_bin_nao_decide_o_plano_nem_a_execucao"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a execução dirigida roda com python -I",
+      "arquivo": ".githooks/pre-push",
+      "de": "suite=(python3 -I bin/forge-testes --base",
+      "para": "suite=(python3 bin/forge-testes --base",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_modulo_falso_ja_na_base_nao_zera_a_execucao_dirigida"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o envio dirigido vale só para refs/heads/melhoria/*",
+      "arquivo": ".githooks/pre-push",
+      "de": "  case \"$unico_ref\" in refs/heads/melhoria/*) ;; *) return 1 ;; esac",
+      "para": "  case \"$unico_ref\" in refs/heads/*) ;; *) return 1 ;; esac",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_dirigido_so_vale_para_melhoria"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a âncora do diff vigiado é a base comum com a develop",
+      "arquivo": ".githooks/pre-push",
+      "de": "ancora=\"$(git merge-base \"$base_dev\" HEAD 2>/dev/null)\" || return 1",
+      "para": "ancora=\"$base_dev\"",
+      "testes": [
+        "tests.test_pre_push_afetados.PrePushAfetados.test_ancora_e_a_base_comum_com_a_develop_nao_a_ponta_da_develop"
       ]
     }
   ]

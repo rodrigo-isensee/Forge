@@ -179,6 +179,47 @@ class PrePushAfetados(unittest.TestCase):
         self.assertEqual(codigo, 0, erro)
         self.assertEqual(marcas, AFETADOS, "a base é refs/remotes/origin/develop, não a branch local ambígua")
 
+    def test_modulo_falso_em_bin_nao_decide_o_plano_nem_a_execucao(self):  # seg A1: Python do hook com `-I`
+        falso = "import sys\nprint('forge-testes: dirigido (falso)')\nsys.exit(0)\n"
+        self.commit("toca a ferramenta e planta um json falso", bin__forge_sugerir="x = 2\n", bin__json_py=falso)
+        codigo, marcas, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(marcas, TODAS, "o json falso da branch não pode zerar os testes; bin/json.py não tem regra, o plano real é a suíte inteira")
+        self.assertNotIn("rodando só os testes afetados", erro, "o plano falso não pode virar o envio dirigido")
+
+    def test_modulo_falso_ja_na_base_nao_zera_a_execucao_dirigida(self):  # seg A1: o `-I` da execução, não só o do plano
+        # O falso mente só na execução (sem `--listar`): fica na base, fora do diff, então o plano real é o dirigido.
+        falso = "import sys\nif '--listar' not in sys.argv:\n    sys.exit(0)\n"
+        self.commit("planta o json falso", bin__json_py=falso)
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
+        self.commit("toca a ferramenta", bin__forge_sugerir="x = 2\n")
+        codigo, marcas, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(marcas, AFETADOS)
+        self.assertIn("rodando só os testes afetados", erro)
+
+    def test_dirigido_so_vale_para_melhoria(self):  # review A2: o resto cai na suíte inteira
+        self.commit("toca a ferramenta", bin__forge_sugerir="x = 2\n")
+        for destino in ("feature/x", "fix/x", "chore/x"):
+            with self.subTest(destino):
+                codigo, marcas, erro = self.roda(destino=destino)
+                self.assertEqual(codigo, 0, erro)
+                self.assertEqual(marcas, TODAS)
+                self.assertNotIn("rodando só os testes afetados", erro)
+
+    def test_ancora_e_a_base_comum_com_a_develop_nao_a_ponta_da_develop(self):  # QA A1: mutante `ancora="$base_dev"`
+        # A develop andou depois que a branch saiu dela e agora tem um arquivo vigiado novo; o diff contra a ponta da
+        # develop o mostraria como mudado pela branch. O diff contra a base comum não: o envio segue dirigido.
+        self.git("switch", "-q", "-c", "dev", self.base)
+        self.commit("a develop muda o mapa", tests__config_json="{}\n")
+        self.git("update-ref", "refs/remotes/origin/develop", self.git("rev-parse", "HEAD"))
+        self.git("switch", "-q", "melhoria/x")
+        self.commit("toca a ferramenta", bin__forge_sugerir="x = 2\n")
+        codigo, marcas, erro = self.roda()
+        self.assertEqual(codigo, 0, erro)
+        self.assertEqual(marcas, AFETADOS)
+        self.assertIn("rodando só os testes afetados", erro)
+
     def test_commit_enviado_diferente_do_head_roda_a_suite_inteira(self):
         anterior = self.commit("toca a ferramenta", bin__forge_sugerir="x = 2\n")
         self.commit("toca a ferramenta de novo", bin__forge_sugerir="x = 3\n")
