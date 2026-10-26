@@ -358,7 +358,6 @@ class TabelaDePareceres(Repo):
         self.assertNotIn("docs/qa", r.stderr)
 
 
-
 class QuatroDefeitosDoScript(Repo):
     """EST-030-L1 (M1): os quatro defeitos reais de brief que o conferente pegava viram checagem do `forge-check brief`; o conferente
     segue lendo todo brief (decisão do dono "C", 2026-10-24: a dispensa, BRIEF-MECANICO, saiu do código)."""
