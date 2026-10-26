@@ -597,6 +597,19 @@ class Fechar(unittest.TestCase):
         self.assertIn(chamadas[0].strip(), corpo)  # a única chamada é a do ajudante
         self.assertIn("$2 == r", corpo)  # e o ajudante filtra a coluna 2 pelo nome inteiro
 
+    # ---- SHELLCHECK-FECHAR: o forge-fechar passa no shellcheck e está na lista do shellcheck do CI ----
+    def test_shellcheck_fechar_esta_na_lista_do_ci(self):
+        ci = (RAIZ / ".github/workflows/ci.yml").read_text()
+        linhas = [l.split("run:", 1)[1].split() for l in ci.splitlines() if l.strip().startswith("run: shellcheck ")]
+        self.assertEqual(len(linhas), 1, linhas)
+        self.assertIn("bin/forge-fechar", linhas[0])
+
+    def test_shellcheck_fechar_passa_limpo(self):
+        if shutil.which("shellcheck") is None:
+            self.skipTest("AVISO: shellcheck fora do PATH; o CI roda este passo")
+        r = subprocess.run(["shellcheck", str(SCRIPT)], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_espera_os_checks_aparecerem_em_pr_recem_aberto(self):
         (self.estado / "sem_checks_ate").write_text("6")
         r = self.fechar("p1", "--ref", "melhoria/x")

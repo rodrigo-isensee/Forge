@@ -23,6 +23,16 @@
       "testes": [
         "tests.test_fechar_orfao.Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva"
       ]
+    },
+    {
+      "id": "M3",
+      "guarda": "SHELLCHECK-FECHAR: bin/forge-fechar na lista do shellcheck do CI",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis",
+      "para": "run: shellcheck bin/forge-init scripts/jarvis",
+      "testes": [
+        "tests.test_fechar.Fechar.test_shellcheck_fechar_esta_na_lista_do_ci"
+      ]
     }
   ]
 }

@@ -508,7 +508,8 @@ estado_do_pr() {
 # `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
 # `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
 conferir_base() {
-  local srv base_sha mbs mb n comuns f
+  local srv base_sha mbs mb n f
+  local -a lista_mb
   srv="$(remoto_exato "$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
   [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
   base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
@@ -518,20 +519,22 @@ conferir_base() {
   fi
   mbs="$(git merge-base --all "$base_sha" "$remoto_sha")" || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
   [ -n "$mbs" ] || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  mapfile -t lista_mb <<< "$mbs"  # um sha por linha (pode haver mais de um ponto de partida)
   tmp2b="$(mktemp -d)" || die "parou no passo 2b: não consegui criar a pasta temporária"
   : > "$tmp2b/a"; : > "$tmp2b/b"
-  for mb in $mbs; do
+  for mb in "${lista_mb[@]}"; do
     git diff --no-renames --name-only -z "$mb" "$base_sha" >> "$tmp2b/a" || die "parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo"
     git diff --no-renames --name-only -z "$mb" "$remoto_sha" >> "$tmp2b/b" || die "parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo"
   done
-  sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns" \
-    || die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  if ! { sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns"; }; then
+    die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  fi
   if [ -s "$tmp2b/comuns" ]; then
     echo "arquivos que a $alvo e $ref mudaram depois do ponto de partida:" >&2
     while IFS= read -r -d '' f; do printf '  %q\n' "$f" >&2; done < "$tmp2b/comuns"
     die "parou no passo 2b: a base andou e tocou arquivo que a branch também tocou (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
   fi
-  n="$(git rev-list --count "$base_sha" --not $mbs)" || die "parou no passo 2b: não consegui contar os commits da base"
+  n="$(git rev-list --count "$base_sha" --not "${lista_mb[@]}")" || die "parou no passo 2b: não consegui contar os commits da base"
   echo "a base andou $n commit$([ "$n" = 1 ] || echo s) sem arquivo em comum com $ref; o CI do PR confere o merge."
 }
 

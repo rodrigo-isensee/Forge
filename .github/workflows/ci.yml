@@ -235,7 +235,7 @@ jobs:
         run: python3 scripts/suite-paralela.py
       - name: shellcheck (scripts e hooks)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
-        run: shellcheck bin/forge-init scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
+        run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis scripts/jarvis-forge scripts/preparar-estacao.sh scripts/instalar-atalho.sh scripts/verificar-contribuicao.sh scripts/validar-plugin.sh scripts/configurar-ambiente-local.sh tests/e2e-instalacao.sh .githooks/pre-push templates/projeto/.githooks/pre-push
       - name: Instala o Forge num projeto vazio e inicializa
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: bash tests/e2e-instalacao.sh
