@@ -24,7 +24,7 @@ Ficou como "já lido", sem refazer: a correção do código caso a caso e as son
 
 ## Achados
 - A1 (recomendado) docs/propostas/lote-leitura-hook-volta-unica.md:114 · R10 e F9 ainda dizem "o bash não grava" (linhas 114, 259, 300, 306 e 318). O corpus já corrigiu isso: R10 é caso R e o F9 saiu (`tests/fixtures/heredoc-volta-unica.json:21`). Corrigir o texto da proposta num PR de documento.
-- A2 (recomendado) docs/adr/0011-analisador-de-comandos-gramatica-positiva.md:42 · O item 2 da ADR 0011 não tem as emendas das rev12, rev13 e rev14 (lista positiva dos lançadores, leituras possíveis, teto K). Elas foram adiadas ao cartão ADR0011-EMENDA por decisão técnica do Jarvis. Até lá, `docs/hooks.md` é a única fonte da regra.
+- A2 (recomendado) docs/adr/0011-analisador-de-comandos-gramatica-positiva.md:42 · O item 2 da ADR 0011 não tem as emendas das rev12 a rev14 (lista positiva dos lançadores, leituras possíveis, teto K); adiadas ao cartão ADR0011-EMENDA (decisão do Jarvis). Até lá, `docs/hooks.md` é a fonte da regra.
 
 ## Conferência do desenho contra o código
 | Peça do desenho | Onde está em `335ea5e` | Segue? |
