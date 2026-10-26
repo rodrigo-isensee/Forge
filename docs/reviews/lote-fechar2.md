@@ -3,32 +3,33 @@ tipo: review
 contrato: 1
 pedido: lote-fechar2
 branch: melhoria/lote-fechar2
-commit: 68f100685208dfccefde80f81e43ac5eb6aff224
+commit: 7c926e42a3a6b333c46bf4967dadac9e18724f5b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-26
 ---
 # Review: lote-fechar2
 
-Base `b6eb84fed86e3b5289f3950b33d43a86f34343c2`, head `68f100685208dfccefde80f81e43ac5eb6aff224`. Revalidação 2, por delta sobre o parecer `2206568` (head `0315561`): volta 1 (`403bdc1`, `36731f2`) e o complemento (`68f1006`).
+Base `b6eb84fed86e3b5289f3950b33d43a86f34343c2`, head `7c926e42a3a6b333c46bf4967dadac9e18724f5b`. Revalidação 3, por delta sobre o parecer `f10ec5b` (head `68f1006`): volta 2 (`926b390`, `7c926e4`), pela DECISÃO DO DONO 2026-10-26 19:34 "B". Só testes e specs mudaram.
 
 ## Achados
 - A3 (recomendado) bin/forge-fechar:523 · `mapfile` é o primeiro uso de recurso do bash 4 no repositório; o script já depende de `sort -z` e `comm -z` do GNU, então não é regressão prática, mas vale uma linha no comentário do cabeçalho (fora da volta por decisão técnica de 2026-10-26 17:13; segue informativo)
+- A4 (recomendado) bin/forge-fechar:526 · com dois pontos de partida, o laço junta os diffs de cada lado antes de cruzar: no criss-cross do teste novo, `so_b` e `so_c`, iguais nos dois lados, saem como em comum e o 2b para (falha segura); cruzar por ponto de partida resolveria, em cartão próprio
 
 ## Revalidação por delta
-- Delta lido (`forge-check delta --parecer docs/reviews/lote-fechar2.md`, intervalo `0315561..68f1006`): `bin/forge-fechar`:136-137 e :141; `changelog.d/lote-fechar2.md`:4; `tests/mutantes/lote-fechar2-2.json`:1-26; `tests/mutantes/lote-fechar2.json`:9-10 e :36-86; `tests/test_fechar.py`:594; `tests/test_fechar_base_andou.py`:12-16, :21-24, :27-29, :49-50 e :156-217.
-- Já lido no parecer `2206568`, sem mudança no delta: o resto do `remoto_exato`, os quatro pontos de uso (:462, :475, :514, :600), `conferir_base` e `.github/workflows/ci.yml` (o parecer de devops `204abdd` segue valendo para a linha do CI).
-- A1 (mensagem do passo 2 com ls-remote falho): fechado. `test_ls_remote_da_branch_que_falha_para_no_passo_2_com_a_mensagem_da_leitura` faz o git falso sair 128 só para `refs/heads/melhoria/x` e afirma a mensagem da leitura, a ausência da mensagem de branch ausente e nenhum PR criado; o mutante M6 (`|| :` no :600) morre.
-- A2 (filtro `printf` em tests/test_fechar.py:594): fechado. O filtro saiu e o teste segue verde com uma única chamada, a do ajudante (`Ran 1 test` / `OK`).
-- Coluna 1 como sha (recomendado da segurança `2dc5cb2`): o `awk` usa `length($1) == 40 || length($1) == 64` com `^[0-9a-f]+$`, em vez de `{n}`, que o mawk não aceita. Com a linha casada e a coluna 1 inválida, o `exit` vai ao `END` com `ruim = 1` e o ajudante devolve rc 1, que os quatro pontos de uso já tratam como leitura que falhou; sem linha casada, rc 0 e sha vazio, como antes. Conferi na mão em mawk e gawk: sha de 40 imprime e rc 0; `abc` e 40 `z` dão rc 1 sem imprimir; entrada vazia dá rc 0 e nada.
-- Testes novos de `tests/test_fechar_base_andou.py` exercitam as rotas dos mutantes: o criss-cross gera dois pontos de partida (a asserção do `merge-base --all` prova isso) e, com um só na contagem, o resultado é 2 commits em vez de 1 (M4), qualquer que seja a ordem da lista; o `comm` falso falha só com o marcador e, sem ele, delega ao `comm` de verdade tirando a primeira entrada do PATH, que o `setUp` põe na frente (M5); `diff_falha_em` derruba só o diff cujo último argumento é o sha da base ou o da branch, então cada `die` de :527 e :528 é provado sozinho (M1 e M2 da segunda spec); os três lixos da coluna 1 separam o tamanho (M7) do hexadecimal (M8).
+- Delta lido (`forge-check delta --parecer docs/reviews/lote-fechar2.md`, intervalo `68f1006..7c926e4`): `tests/mutantes/lote-fechar2-2.json`:24-53; `tests/test_fechar_base_andou.py`:157-159, :161-163, :167-169 e :186-193. Os outros arquivos do intervalo são pareceres (`docs/qa/`, `docs/reviews/`).
+- Já lido no parecer `f10ec5b`, sem mudança no delta: `bin/forge-fechar` inteiro (nenhuma linha de código mudou), `tests/test_fechar.py`, a primeira spec `tests/mutantes/lote-fechar2.json`, `.github/workflows/ci.yml` (o parecer de devops `204abdd` segue valendo).
+- Teste criss-cross exercita o laço de :526 de verdade: com `arquivos=True`, B (lado da branch) grava `so_b` e C (lado da base) grava `so_c`; o helper afirma que `merge-base --all` devolve {B, C}. Com mb=B, os dois diffs trazem só `so_c`; com mb=C, só `so_b`. O laço inteiro lista os dois; o mutante M3 (`lista_mb[0]`) lista só um, e a asserção exige a lista `["  so_b", "  so_c"]` exata, então ele morre qualquer que seja a ordem do `merge-base --all`. O teste também afirma rc 1 e nenhuma criação nem merge de PR. O caso sem arquivos (`test_varios_pontos_de_partida_entram_todos_na_contagem_da_base`) segue igual.
+- Mutantes novos apontam as linhas certas: M3 em :526 (`for mb in "${lista_mb[@]}"; do`), M4 em :533 (`if [ -s "$tmp2b/comuns" ]; then` → `if false`) e M5 em :536 (o `die` do arquivo em comum → `:`); cada trecho `de` casa uma vez só no arquivo (`grep -cF` = 1). M4 e M5 são mortos por `test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr`, que afirma rc 1 e a lista `["  b"]`: M4 pula a lista e o `die` (rc 0), M5 lista e segue (rc 0).
+- Com a volta 2, as guardas de :525-537 têm mutante: :526 (M3 da 2.ª spec), :527 e :528 (M1, M2 da 2.ª spec), :529-531 (o cruzamento, M5 da 1.ª spec), :533 (M4), :536 (M5) e :538 (contagem, M4 da 1.ª spec); :525 só inicializa os arquivos.
 
 ## Ferramentas (citadas, não refeitas à mão)
-- `bin/forge-mutante tests/mutantes/lote-fechar2.json`: M1 a M8 `morreu`, rc=0. `bin/forge-mutante tests/mutantes/lote-fechar2-2.json`: M1 (:527) e M2 (:528) `morreu`, rc=0. Os trechos `de` casam uma vez só no arquivo.
-- `python3 -m unittest tests.test_fechar_base_andou`: `Ran 16 tests in 6.315s` / `OK`.
+- `bin/forge-mutante tests/mutantes/lote-fechar2-2.json` (rev `7c926e42a3a6`): M1 :527, M2 :528, M3 :526, M4 :533, M5 :536, todos `morreu`, rc=0.
+- `python3 -m unittest tests.test_fechar_base_andou`: `Ran 17 tests in 9.224s` / `OK`.
 - `shellcheck bin/forge-fechar`: rc=0, sem aviso.
-- Teto M14: 164 linhas de código e teste (`ci.yml` 2, `bin/forge-fechar` 32, `tests/test_fechar.py` 52, `tests/test_fechar_base_andou.py` 78); specs de mutantes, changelog e pareceres ficam fora. Sem `hooks/` e sem caminho protegido.
+- Teto M14: 179 linhas de código e teste (`ci.yml` 2, `bin/forge-fechar` 32, `tests/test_fechar.py` 52, `tests/test_fechar_base_andou.py` 93); specs de mutantes, changelog e pareceres ficam fora. Sem `hooks/` e sem caminho protegido.
+- `docs/engineering/achados-recorrentes.md` (PA-7): lista vazia, nada a conferir.
 - Segurança e QA: pareceres próprios (E2.1, E3.1), que não refaço aqui.
 
 ## Parecer
-Aprovado. A1 e A2 fecharam, a validação da coluna 1 transforma lixo em leitura que falhou sem mudar o caso da branch ausente, e cada guarda apontada pela QA (A1 do parecer `1473646`) tem agora um mutante que morre com um teste que exercita a rota. O A3 continua como recomendação e não devolve a entrega.
+Aprovado. O teste criss-cross separa os dois pontos de partida por arquivo e mata o mutante do laço em qualquer ordem, e os mutantes M4 e M5 da segunda spec caem nas linhas :533 e :536 com o teste que exercita a rota. A3 e A4 são recomendações e não devolvem a entrega.
