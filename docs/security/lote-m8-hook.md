@@ -3,79 +3,71 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: lote-m8-hook
 branch: melhoria/lote-m8-hook
-commit: 0e64acb2341f43de138ebfdfe405edb264617d11
-parecer: reprovado
+commit: 0ff73965e955912d52fc078fa03d219a6f43e0a6
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-26
 ---
 # Review de segurança: lote-m8-hook
 
-Escopo: `git diff 35057a2c5436f7415a9473bf4bd656b85264125c...0e64acb2341f43de138ebfdfe405edb264617d11`, 5 arquivos (`.githooks/pre-push`, `tests/test_pre_push_afetados.py`, `tests/test_testes_tocados.py`, `tests/mutantes/lote-m8-hook.json`, `changelog.d/lote-m8-hook.md`). É o PR 2 do M8: o pre-push de branch roda só os testes afetados pelo `bin/forge-testes` quando o envio é simples e o plano é dirigido; fora disso, roda a suíte inteira.
+Escopo: `git diff 35057a2c5436f7415a9473bf4bd656b85264125c...0ff73965e955912d52fc078fa03d219a6f43e0a6`. Esta é a revalidação por delta do parecer `02f5224`, que reprovou o head `0e64acb`. O delta é `0e64acb..0ff7396` (`forge-check delta --parecer`): `.githooks/pre-push:240-241`, `:252`, `:266`, `:276`, `tests/test_pre_push_afetados.py:182-223`, `tests/mutantes/lote-m8-hook.json` e `changelog.d/lote-m8-hook.md:3`. Como o delta toca o controle do Forge, reli o hook inteiro de `:180` a `:314`, não só as linhas mudadas.
 
 Ameaças consideradas:
 - um envio que não é simples cair no caminho dirigido;
-- o filtro julgar a própria mudança;
+- o filtro se auto-julgar, inclusive por código da branch carregado pelo Python do plano;
 - os bloqueios de conteúdo perderem a precedência;
 - a prova de árvore verde ser anotada sem a suíte inteira.
 
 ## Gatilhos
-`R-SEGURANCA`, gatilho "controles do Forge": o `.githooks/pre-push` é portão local (`R-MAIN`, `R-VERIFY`, `R-FLUXO`). As decisões que valem aqui são as do dono de 2026-10-23 "A", 2026-10-24 "A" e 2026-10-24 "C".
+`R-SEGURANCA`, gatilho "controles do Forge": o `.githooks/pre-push` é portão local (`R-MAIN`, `R-VERIFY`, `R-FLUXO`). Valem as decisões do dono de 2026-10-23 "A", 2026-10-24 "A" e 2026-10-24 "C".
 
 ## Resumo
-**Reprovado por um bloqueante (A1).** Os bloqueios de conteúdo continuam antes de qualquer caminho. Cada envio que não é simples cai na suíte inteira. A árvore verde não é anotada no caminho dirigido.
+**Aprovado, sem achado.** O A1 do parecer anterior foi fechado. O plano (`:266`) e a execução dirigida (`:276`) agora rodam com `python3 -I`. Com isso, um módulo da biblioteca padrão falso no `bin/` da branch não decide mais o plano nem zera a execução.
 
-A falha está na guarda contra o filtro se auto-julgar. O hook roda `python3 bin/forge-testes`, e assim o diretório `bin/` da própria branch entra no início do `sys.path`. Um arquivo novo `bin/<módulo da biblioteca padrão>.py` não tem regra no mapa e por isso devia levar à suíte inteira. Em vez disso, ele toma o lugar do módulo que o filtro importa e decide o plano. Provei com um repositório-sonda: o push passou com zero testes. Testes do item: `python3 -m unittest tests.test_pre_push_afetados tests.test_testes_tocados.NaoEPortao`, 21 testes, OK. `shellcheck .githooks/pre-push` sem aviso.
+O dirigido passou a valer só para `refs/heads/melhoria/*` (`:252`). Isso endurece o controle e segue a decisão do dono.
+
+Julguei uma a uma as cinco chamadas `python3` que continuam sem `-I` (`:195`, `:197`, `:272`, `:279`, `:282`). Nenhuma decide o plano nem escolhe o que roda. Elas são a suíte da branch, executada por desenho. Detalhe na verificação 2.
+
+Testes do item: `python3 -m unittest tests.test_pre_push_afetados tests.test_testes_tocados.NaoEPortao`, 25 testes, OK. `shellcheck .githooks/pre-push` sem aviso. `bin/forge-mutante tests/mutantes/lote-m8-hook.json`: M4, M5, M6, M7, M9, M10, M11 e M12, todos mortos.
 
 ## Verificações
-1. **Bloqueios de conteúdo antes de qualquer caminho.**
-   - Main, homolog e develop são recusadas em `.githooks/pre-push:127-131`. O envio não fast-forward e o objeto remoto ausente são recusados em `:111-126`.
-   - Tudo isso roda dentro do laço de leitura das refs (`:106-132`), com `exit 1`. Fica antes da trava, do `so_parecer` (`:268`) e do `dirigido` (`:271`).
-   - `test_bloqueios_de_conteudo_valem_antes_do_filtro` confere as três branches e o histórico reescrito, sem nenhuma marca de teste rodado.
-   - O `--no-verify` não passa pelo hook. Quem o recusa é o `hooks/conformidade.py`, sem mudança neste diff.
-2. **Envio que não é simples cai na suíte inteira** (`dirigido`, `:247-267`).
-   - Várias refs: `n_refs` conta também as linhas de remoção (`:107`), e `:249` pede exatamente uma.
-   - Ref que não é branch: `:250`. Sha local malformado ou zerado: `:251-252`.
-   - Ferramenta ausente ou que é link: `:253`.
-   - HEAD diferente do sha enviado: `:254`.
-   - Árvore suja: `:255` usa `--untracked-files=all`. O `.forge/` (log do filtro) é ignorado pelo `.gitignore:20` e não suja a árvore.
-   - Base: só `refs/remotes/origin/develop`, resolvida para um sha (`:257`) e passada igual ao plano e à execução (`:264`, `:274`). Uma branch local chamada `origin/develop` não a substitui (`test_base_e_a_ref_remota_mesmo_com_branch_local_de_mesmo_nome`).
-   - Base desatualizada: o merge-base fica mais velho e o diff, maior. Isso roda mais testes, nunca menos.
-   - Diff vazio: o filtro diz "nada alterado", a saída não começa por `forge-testes: dirigido (` e o hook roda a suíte inteira (`:265-266`).
-   - Diff que toca `bin/forge-testes`, `tests/config.json` ou `.githooks/`: a conferência fica no próprio hook (`:263`), sobre o mesmo intervalo âncora..HEAD que o filtro usa. Os mutantes M4 e M5 cobrem essa conferência.
-   - Falha nessa conferência: as dependências executáveis do filtro ficam de fora dela (A1).
-3. **A árvore verde não sai do dirigido.**
-   - `completa=0` só é atribuída no ramo dirigido (`:272`), e a anotação exige `completa = 1` (`:305`).
-   - O `so_parecer` segue anotando como antes, porque só passa sobre uma árvore remota que já estava na prova.
-   - Um push dirigido não anota nada. O próximo push só de parecer sobre essa árvore não acha prova e roda a suíte (dirigida ou inteira).
-   - `test_so_os_modulos_do_mapa_rodam_e_nao_anotam_a_arvore_verde` confere isso.
-4. **Fora dos portões de CI.** `NaoEPortao` segue vigiando `.github`, `hooks`, `scripts/ci-local` e `bin/forge-check`. Em `.githooks/`, só o `pre-push` pode citar o filtro (`test_so_o_pre_push_cita_o_script_em_githooks`). A bateria completa do CI do PR não muda.
+1. **A1 fechado** (`:266`, `:276`).
+   - Sonda num clone em `$TMPDIR/security-engineer-lote-m8-hook/sonda-v2`, com `refs/remotes/origin/develop` no head revisado. Um commit muda o `README.md` e planta em `bin/` os falsos `json`, `argparse`, `re`, `subprocess`, `shutil`, `tempfile`, `unittest`, `ast`, `signal`, `pathlib` e `datetime`. Cada falso imprime `forge-testes: dirigido (falso)` e sai 0.
+   - `python3 -I bin/forge-testes --listar` deu `suíte completa (bin/argparse.py sem mapa)`. Sem `-I`, deu `dirigido (falso)`.
+   - Com `PYTHONPATH=bin` no ambiente e `-I`, o plano continua sendo a suíte completa.
+   - `test_modulo_falso_em_bin_nao_decide_o_plano_nem_a_execucao` cobre o plano pelo hook de ponta a ponta, e o mutante M9 morre.
+   - `test_modulo_falso_ja_na_base_nao_zera_a_execucao_dirigida` cobre o `-I` da execução, com o falso fora do diff, e o mutante M10 morre.
+   - O filho que a execução dirigida abre (`bin/forge-testes:537`, `sys.executable -m unittest`, sem `-I`) põe a raiz no `sys.path`, não o `bin/`. Um `.py` novo na raiz não tem regra no `MAPA` (`bin/forge-testes:81-112`) e leva à suíte inteira. Nenhuma regra mapeia um `.py` da raiz.
+2. **As chamadas sem `-I`, uma a uma.**
+   - **`:195` e `:197`, modo `--suite`.** Usam `exec` e não chegam ao `so_parecer`, ao `dirigido` nem à anotação (`:307`). Rodam a suíte inteira da árvore local, como a pessoa pediu. Não decidem plano nem prova.
+   - **`:272`, `so_parecer`.** O conjunto de classes é fixo no hook. O caminho só é tomado quando a árvore remota já está na prova (`:223`) e o delta só acrescenta arquivos em `docs/{reviews,security,qa,devops}/` (`:225-233`). Um `.py` na raiz ou em `scripts/` cai em `return 1` (`:231`), e um arquivo dentro de `docs/` não é importável como módulo de topo pelo `python3 -m unittest`. O código Python executado é o da árvore que já passou na suíte inteira. Não decide plano.
+   - **`:279` e `:282`, suíte inteira.** Com `scripts/` (`:279`) ou a raiz (`:282`) no `sys.path`, um `scripts/json.py` falso poderia fazer a `suite-paralela.py` sair 0. Nesse caso a árvore seria anotada como verde (`completa=1`, `:307`).
+     - Isso não é uma capacidade nova. A mesma branch pode editar o próprio `scripts/suite-paralela.py` ou um módulo de teste, que a suíte inteira executa por desenho. Nenhum dos dois está protegido: `hooks/conformidade.py:34` e `:130` protegem `.githooks`, `tests/config.json`, `.claude` e `.forge`, não `scripts/` nem `tests/test_*.py`.
+     - Um `-I` nessas linhas não fecha nada: a suíte abre `unittest` sobre os testes da branch, e um teste pode sair 0 por conta própria.
+     - Isso é diferente do A1. Lá existia uma guarda declarada contra o auto-julgamento do filtro (`:261-265`, decisão do dono) e ela podia ser contornada. Aqui não há guarda nem requisito.
+     - Também não está no diff deste PR. Quem fecha esse risco é o CI do PR, que roda a bateria completa num ambiente que a branch não controla.
+     - Um sombreamento por acidente (um auxiliar novo em `scripts/` com nome de módulo) quebraria a suíte, isto é, falharia fechado. Sem caminho realista, não há achado.
+3. **Dirigido só para `melhoria/*`** (`:252`). Os destinos `feature/x`, `fix/x` e `chore/x` rodam a suíte inteira (`test_dirigido_so_vale_para_melhoria`, mutante M11). Main, homolog e develop continuam recusadas antes, dentro do laço das refs (`:106-132`, `exit 1`).
+4. **Âncora do diff vigiado** (`:263-265`). Ela é o `merge-base` com a develop. `test_ancora_e_a_base_comum_com_a_develop_nao_a_ponta_da_develop` e o mutante M12 cobrem a troca pela ponta da develop. O resto do `dirigido` (`:251-260`) não mudou e continua falhando fechado, como no parecer anterior.
+5. **Árvore verde.** `completa=0` só é atribuída no ramo dirigido (`:274`), e a anotação exige `completa = 1` (`:307`). Isso não mudou.
+6. **Spec de mutantes.** Ela trocou M1, M2, M3 e M8 por M9 a M12, para caber no teto de 8 (E2 do pedido). Os testes das guardas que saíram da spec continuam no arquivo (`tests/test_pre_push_afetados.py:128`, `:138`, `:224`, `:229`), e as guardas continuam no hook (`:251`, `:255-257`). Não há regressão de controle.
+7. **PA-7** (`docs/engineering/achados-recorrentes.md`): não há linha `AR-` registrada, então não havia item para conferir.
 
 ## Achados
-- A1 (bloqueante) .githooks/pre-push:264 · classe guarda de auto-julgamento incompleta (código da branch executado pelo filtro fora da conferência do diff): `python3 bin/forge-testes` põe bin/ no sys.path; um bin/json.py novo, sem regra, decide o plano e o push passa com zero testes
 
 ## Detalhe dos achados
-**A1.** Evidência: `.githooks/pre-push:264` e `:274`. Ambas chamam `python3 bin/forge-testes` sem `-I`. O filtro importa `json`, `argparse`, `ast`, `re`, `shutil`, `tempfile`, `unittest` e outros módulos da biblioteca padrão (`bin/forge-testes:30-43`). O Python procura cada um primeiro no diretório do script, que é o `bin/` da branch.
+Não há achado.
 
-Requisito violado: a decisão do dono de 2026-10-24 "A" diz que um caminho sem regra cai na suíte completa. O comentário do próprio hook (`:259-260`) diz que quem muda o filtro não se auto-julga. Um `bin/json.py` não casa nenhuma regra do `MAPA` (`bin/forge-testes:81-112`), mas muda o comportamento do filtro.
-
-Prova, num clone em `$TMPDIR`, com `refs/remotes/origin/develop` no head revisado e uma trava isolada:
-1. Um commit acrescenta uma linha ao `README.md` e cria um `bin/json.py` que imprime `forge-testes: dirigido (nada). ...` e sai 0.
-2. O hook, chamado com uma ref `refs/heads/melhoria/sonda`, imprimiu "rodando só os testes afetados", depois a linha falsa, e saiu `rc=0`. Nenhum teste rodou.
-3. O mesmo plano com `python3 -I` dá suíte completa.
-
-Caminho de ataque: um agente implementador quer passar o push com testes vermelhos. O `--no-verify` está barrado, e editar o `.githooks/` também (`hooks/conformidade.py:34`, `:130`). O `bin/` não é protegido, então criar um arquivo nele vence o portão local. O histórico do LOTE-M8-HOOK registra uma tentativa de `--no-verify` nesta mesma entrega. Também pode acontecer por acidente, com um script auxiliar novo em `bin/` cujo nome coincida com o de um módulo.
-
-Severidade: baixa como risco, porque o CI do PR roda a bateria completa e o review e o QA continuam. Mesmo assim é bloqueante, porque o defeito foi provado e viola o requisito da decisão do dono sobre o controle que este PR introduz.
-
-Correção mínima: `python3 -I bin/forge-testes` nas duas chamadas (`:264` e `:274`). O `-I` tira o diretório do script do `sys.path` e ignora `PYTHON*` do ambiente. O filtro só importa a biblioteca padrão, e com `-I` a sonda funcionou. O `unittest` filho do filtro roda com `sys.executable` sem `-I` e continua achando `tests.*` pela raiz. Junto, um teste no `test_pre_push_afetados`: uma branch com `bin/json.py` (ou outro nome da biblioteca padrão) roda a suíte inteira. Também um mutante que tire o `-I`. Esforço P. Dono: tech-lead (autor do hook).
-
-**Observações sem achado:**
-- O caminho dirigido vale para qualquer `refs/heads/*` fora das três protegidas, não só para `melhoria/*`. Isso não é defeito: pelo `R-FLUXO`, toda outra branch vai à develop, e o CI dela roda a bateria completa.
-- Resta um risco que não muda com este PR. Quem controla a cópia local pode mover `refs/remotes/origin/develop` (`git update-ref`) para estreitar o diff, ou mudar o `scripts/suite-paralela.py` da própria branch. O portão local confia no código da branch, e quem fecha isso é o CI do PR.
+Observação sem achado, que segue do parecer anterior e não muda com este PR: o portão local confia no código da branch e na cópia local. Isso inclui `refs/remotes/origin/develop`, que pode ser movida com `git update-ref`, a `scripts/suite-paralela.py` e os testes. Quem fecha esse risco é o CI do PR.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito.
 
-Ferramentas usadas: `shellcheck` (sem aviso no hook), `python3 -m unittest` nos testes do item e as sondas em `$TMPDIR/security-engineer-lote-m8-hook/`.
+Ferramentas usadas:
+- `shellcheck`, sem aviso;
+- `python3 -m unittest` nos testes do item;
+- `bin/forge-mutante` na spec do pedido;
+- `bin/forge-check delta`;
+- sondas em `$TMPDIR/security-engineer-lote-m8-hook/`.
 
 Ferramentas ausentes no PATH e não instaladas (`R-CUSTO`): `gitleaks`, `semgrep`, `zizmor`, `actionlint` e `osv-scanner`. Este diff não toca workflow nem dependência, então a lacuna não afeta o veredito.
