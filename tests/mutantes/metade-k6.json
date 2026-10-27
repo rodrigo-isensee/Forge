@@ -49,7 +49,7 @@
       "guarda": "carimbo ilegivel roda",
       "arquivo": "scripts/suite-paralela.py",
       "de": "    except (OSError, ValueError):\n        return None\n    if not isinstance(dados, dict) or",
-      "para": "    except OSError:\n        return None\n    if not isinstance(dados, dict) or",
+      "para": "    except (OSError, ValueError):\n        dados = {\"hash\": atual, \"python\": python or sys.version}\n    if not isinstance(dados, dict) or",
       "testes": [
         "tests.test_suite_reuso.Reuso.test_carimbo_corrompido_roda"
       ]
