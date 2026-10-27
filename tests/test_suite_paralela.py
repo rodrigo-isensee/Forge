@@ -207,8 +207,10 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 0, saida + erro)
         for marca in self.marcas.iterdir():
             marca.unlink()
-        self.roda()
-        self.assertEqual(len(self.rodaram()), 3)  # a segunda chamada rodou: não reusou a árvore antiga
+        self.git("reset", "-q", "--hard", "HEAD~1")  # volta à árvore que a suíte começou testando
+        codigo, saida, erro = self.roda()
+        self.assertNotIn("suite: reusa", saida)  # sem carimbo da árvore antiga, que não foi a testada inteira
+        self.assertEqual(len(self.rodaram()), 3)
 
     def test_cada_processo_tem_tmpdir_proprio_nice_e_grupo_proprio(self):
         codigo, saida, erro = self.roda()

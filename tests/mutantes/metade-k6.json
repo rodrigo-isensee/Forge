@@ -6,7 +6,7 @@
       "id": "M1",
       "guarda": "pareceres e changelog fora do hash",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "if entrada and not caminho.startswith(FORA_DO_HASH):",
+      "de": "if entrada and not fora_do_hash(caminho):",
       "para": "if entrada:",
       "testes": [
         "tests.test_suite_reuso.Reuso.test_caminho_de_parecer_e_changelog_nao_muda_o_hash"
@@ -14,10 +14,10 @@
     },
     {
       "id": "M2",
-      "guarda": "arquivo de bin/ muda o hash",
+      "guarda": "doc comum muda o hash",
       "arquivo": "scripts/suite-paralela.py",
       "de": "FORA_DO_HASH = (\"docs/reviews/\",",
-      "para": "FORA_DO_HASH = (\"bin/\", \"docs/reviews/\",",
+      "para": "FORA_DO_HASH = (\"docs/\", \"docs/reviews/\",",
       "testes": [
         "tests.test_suite_reuso.Reuso.test_arquivo_de_codigo_ou_doc_comum_muda_o_hash"
       ]
