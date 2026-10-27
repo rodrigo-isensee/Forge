@@ -1,0 +1,46 @@
+{
+  "pedido": "prop-tempo-cpu",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "PROP-TEMPO-CPU: voltar a medir o relógio faria o filho que dorme contar",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        self.cpu = (time.process_time() - self._cpu) + (self._filhos() - self._filhos_antes)\n",
+      "para": "        self.cpu = time.monotonic() - self._relogio\n",
+      "testes": [
+        "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_filho_que_dorme_nao_conta_e_o_relogio_passa_do_limite"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "PROP-TEMPO-CPU: esquecer os filhos faria o filho que gasta CPU não contar",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        self.cpu = (time.process_time() - self._cpu) + (self._filhos() - self._filhos_antes)\n",
+      "para": "        self.cpu = (time.process_time() - self._cpu) + 0.0\n",
+      "testes": [
+        "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_filho_que_gasta_cpu_conta"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "PROP-TEMPO-CPU: esquecer o próprio processo faria o trabalho dele não contar",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "        self.cpu = (time.process_time() - self._cpu) + (self._filhos() - self._filhos_antes)\n",
+      "para": "        self.cpu = 0.0 + (self._filhos() - self._filhos_antes)\n",
+      "testes": [
+        "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_o_trabalho_do_proprio_processo_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PROP-TEMPO-CPU: voltar o limite do corpus a 90 s fixos reprovaria o lote paralelo (CPU somada dos trabalhadores)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    return 90 * trabalhadores_do_lote()\n",
+      "para": "    return 90\n",
+      "testes": [
+        "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_limite_do_corpus_e_90_s_por_trabalhador"
+      ]
+    }
+  ]
+}
