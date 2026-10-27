@@ -35,17 +35,26 @@
     },
     {
       "id": "M4",
-      "guarda": "hash ou Python diferente roda",
+      "guarda": "hash diferente roda",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "dados.get(\"hash\") != atual or dados.get(\"python\") != (python or sys.version):",
-      "para": "False:",
+      "de": "dados.get(\"hash\") != atual or ",
+      "para": "",
       "testes": [
-        "tests.test_suite_reuso.Reuso.test_hash_diferente_roda",
-        "tests.test_suite_reuso.Reuso.test_python_diferente_roda"
+        "tests.test_suite_reuso.Reuso.test_hash_diferente_roda"
       ]
     },
     {
       "id": "M5",
+      "guarda": "Python diferente roda",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": " or dados.get(\"python\") != (python or sys.version):",
+      "para": ":",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_python_diferente_roda"
+      ]
+    },
+    {
+      "id": "M6",
       "guarda": "carimbo ilegivel roda",
       "arquivo": "scripts/suite-paralela.py",
       "de": "    except (OSError, ValueError):\n        return None\n    if not isinstance(dados, dict) or",
@@ -55,34 +64,23 @@
       ]
     },
     {
-      "id": "M6",
-      "guarda": "SEM_REUSO e CI forcam a execucao",
-      "arquivo": "scripts/suite-paralela.py",
-      "de": "if environ.get(\"CI\") or environ.get(\"FORGE_SUITE_SEM_REUSO\") == \"1\":",
-      "para": "if False:",
-      "testes": [
-        "tests.test_suite_reuso.Reuso.test_sem_reuso_forca_a_execucao",
-        "tests.test_suite_reuso.Reuso.test_ci_nunca_reusa"
-      ]
-    },
-    {
       "id": "M7",
-      "guarda": "verde grava o carimbo",
+      "guarda": "FORGE_SUITE_SEM_REUSO=1 forca a execucao",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "    gravar_carimbo(RAIZ, hash_arvore)\n",
-      "para": "",
+      "de": " or environ.get(\"FORGE_SUITE_SEM_REUSO\") == \"1\":",
+      "para": ":",
       "testes": [
-        "tests.test_suite_paralela.Brinquedo.test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar"
+        "tests.test_suite_reuso.Reuso.test_sem_reuso_forca_a_execucao"
       ]
     },
     {
       "id": "M8",
-      "guarda": "reuso consultado antes da trava",
+      "guarda": "CI definido nunca reusa",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "        igual = reuso(RAIZ, os.environ)",
-      "para": "        igual = None",
+      "de": "if environ.get(\"CI\") or ",
+      "para": "if ",
       "testes": [
-        "tests.test_suite_reuso.Reuso.test_chamada_a_mao_imprime_reusa_e_ok"
+        "tests.test_suite_reuso.Reuso.test_ci_nunca_reusa"
       ]
     }
   ]

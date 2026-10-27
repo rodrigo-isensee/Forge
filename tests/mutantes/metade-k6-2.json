@@ -1,0 +1,36 @@
+{
+  "pedido": "metade-k6",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "verde grava o carimbo",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    gravar_carimbo(RAIZ, hash_arvore)\n",
+      "para": "",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "vermelho nao grava o carimbo",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        print(f\"FAILED ({', '.join(detalhes)})\")\n",
+      "para": "        print(f\"FAILED ({', '.join(detalhes)})\")\n        gravar_carimbo(RAIZ, hash_arvore)\n",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelho_nao_grava_carimbo"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "reuso consultado antes da trava",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        igual = reuso(RAIZ, os.environ)",
+      "para": "        igual = None",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_chamada_a_mao_imprime_reusa_e_ok"
+      ]
+    }
+  ]
+}
