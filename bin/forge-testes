@@ -22,9 +22,10 @@ sem `--modulos` é a exceção: usa os módulos de teste do diff mais o plano do
 Cada execução (dirigida ou completa) anota uma linha em `.forge/run/testes.log` (ignorado pelo git):
 data UTC, modo, módulos, duração e código de saída.
 
-Ferramenta de iteração do autor e, por decisão do dono (2026-10-23, EST-M8), o filtro do pre-push do envio de
-código: o pre-push roda só os módulos que este plano aponta (qualquer dúvida cai na suíte inteira). Review, QA, o
-CI do PR e o caminho para a main rodam a suíte inteira (`python3 -m unittest discover -s tests`) e não chamam este
+Ferramenta de iteração do autor e, por decisão do dono (M8, 2026-10-24, que substitui a de 2026-10-23), o filtro
+do pre-push do envio de código: o pre-push roda só os módulos que este plano aponta (qualquer dúvida cai na
+suíte inteira). O autor e os revisores rodam só os testes do item; a suíte inteira fica no pre-push e no CI
+(`python3 -m unittest discover -s tests`, de todo PR e do caminho para a main) e não chama este
 script, `--vermelho` incluído: ele é evidência que o autor e o QA colam no parecer.
 """
 import argparse
