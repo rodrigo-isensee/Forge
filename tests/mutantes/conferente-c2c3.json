@@ -33,6 +33,38 @@
       "de": "{verificador}{valido}\", False))",
       "para": "{verificador}\", False))",
       "testes": ["tests.test_etapa_do_brief.VerificadorOk.test_pq_do_vocabulario_termina_em_rotulo_do_verificador_ok"]
+    },
+    {
+      "id": "C5",
+      "guarda": "a linha do comando do pr sai no forge-check brief",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas += linha_do_comando_pr(texto)\n",
+      "para": "    pass\n",
+      "testes": ["tests.test_etapa_do_brief.TabelaDePareceres.test_brief_da_etapa_imprime_o_comando_com_o_slug"]
+    },
+    {
+      "id": "C6",
+      "guarda": "o brief de volta marca os blocos identicos no brief --anterior",
+      "arquivo": "bin/forge-check",
+      "de": "            saida += blocos_identicos(texto, anterior.decode(\"utf-8\", \"replace\"))",
+      "para": "            pass",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_brief_de_volta_marca_os_blocos_identicos_ao_anterior"]
+    },
+    {
+      "id": "C7",
+      "guarda": "branch homonima so em origin/ vale",
+      "arquivo": "bin/forge-check",
+      "de": " or sha_do_commit(raiz, f\"refs/remotes/origin/melhoria/{pedido}\")",
+      "para": "",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_com_a_branch_do_mesmo_nome_so_em_origin_o_argumento_vale"]
+    },
+    {
+      "id": "C8",
+      "guarda": "o id do pedido so com caracteres de nome",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.fullmatch(r\"[A-Za-z0-9._-]+\", pedido or \"\") or",
+      "para": "if not pedido or",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_argumento_com_barra_nao_sobe_nem_desce_de_pasta"]
     }
   ]
 }

@@ -185,6 +185,19 @@ class Entrega(Repositorio):
                 for nome in ("a.txt", "b.txt", "c.txt", "tests/config.json"):
                     self.assertIn(f'confira "{nome}"', saida)
 
+    def test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo(self):  # segurança A1
+        c1 = self.commitar({"teste.py": "t\n", "cod.py": "1\n", "docs/reviews/p1.md": "# parecer\n"}, "conferida")
+        self.gravar_pedido([c1])
+        git("rm", "-q", "teste.py", "docs/reviews/p1.md", cwd=self.repo)
+        git("commit", "-q", "-m", "apaga o teste e o parecer", cwd=self.repo)
+        self.commitar({"cod.py": "2\n"}, "muda o código")
+        for etapa in ("codigo", "pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(etapa):
+                saida = self.entrega(desde=c1, etapa=etapa)[1]
+                self.assertIn('confira "teste.py" +0 -1', saida)
+                self.assertIn('"docs/reviews/p1.md"', saida)
+                self.assertIn('confira "cod.py" +1 -1', saida)
+
     def test_commit_depois_da_conferida_aparece_no_delta_do_pr(self):  # C1
         self.tres_delegacoes()
         self.gravar_pedido([self.c3])
@@ -484,6 +497,10 @@ class BriefAnterior(unittest.TestCase):
         self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco"))], linhas_sem)
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
 
+    def test_brief_sem_volta_de_nao_marca_bloco_identico(self):  # C3, review A4: o bloco só é exigido no brief de volta
+        rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
+        self.assertNotIn("volta: bloco", saida)
+
     def test_anterior_fora_de_docs_briefs_ou_da_raiz_rc_2(self):  # B3
         (self.tmp / "docs" / "outro.md").write_text("x\n", encoding="utf-8")
         fora = self.tmp.parent / (self.tmp.name + "-fora.md")
@@ -605,6 +622,12 @@ class BriefDeVolta(Repositorio):
             self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
+
+    def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
+        rc, saida = self.gerar()
+        rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
+        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+            self.assertIn(f'volta: bloco "{nome}" idêntico ao anterior (exigido)\n', conferencia)
 
     def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "- DECISÃO DO DONO (2026-02-01): \"B\" para a volta.\n", encoding="utf-8")

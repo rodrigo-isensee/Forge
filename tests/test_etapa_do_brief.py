@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
@@ -348,6 +349,13 @@ class TabelaDePareceres(Repo):
         self.assertIn("aviso: etapa: docs/reviews: review: sem parecer para o pedido `exemplo` (R-REVIEW)", conferido)
         self.assertEqual(rc, 0, conferido)
 
+    def test_brief_da_etapa_imprime_o_comando_com_o_slug(self):  # C2, qa A1: a fiação no `forge-check brief`
+        self.entrega({"docs/x.md": "# x\n"}, "review")
+        rc, saida = self.gerar("pr")
+        preenchido = preencher(saida, pq_proprio=True, base_sha=self.git("rev-parse", "develop"))
+        rc, conferido = self.conferir(preenchido)
+        self.assertIn("etapa: comando forge-check pr x --ref origin/melhoria/x --base develop\n", conferido)
+
     def test_qa_gera_com_aviso_do_review(self):
         self.entrega({"src/app.py": "v2\n"})
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", "gerar", "--pedido", "exemplo",
@@ -526,22 +534,36 @@ class ComandoDoPr(unittest.TestCase):
     def test_outras_etapas_e_branch_estranha_nao_imprimem(self):
         self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("codigo")), [])
         self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("pr", branch="melhoria/a;b")), [])
+        self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("pr", base="dev;x")), [])  # a base também é validada
+
+    def test_fora_da_convencao_melhoria_nao_imprime(self):  # review A2: o slug não existe; o argumento é o `pedido:` do parecer
+        self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("pr", branch="feature/cad-cliente")), [])
 
 
 class RecusaDoIdDoPedido(unittest.TestCase):
+    """C2: numa branch `melhoria/<slug>`, o id do pedido no lugar do slug é recusado (rc=2); fora dela, ou com parecer do pedido, vale."""
+    ID = "ID-DO-PEDIDO"
+    PARECER = "---\ntipo: review\ncontrato: 1\npedido: ID-DO-PEDIDO\nbranch: melhoria/outra\ncommit: {c}\nparecer: aprovado\nrevisor: forge:tech-lead\ndata: 2026-10-12\n---\n# x\n"
+
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-c2c3-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         (self.tmp / "docs" / "pedidos").mkdir(parents=True)
-        (self.tmp / "docs" / "pedidos" / "ID-DO-PEDIDO.md").write_text("---\nid: ID-DO-PEDIDO\n---\n", encoding="utf-8")
+        (self.tmp / "docs" / "pedidos" / f"{self.ID}.md").write_text(f"---\nid: {self.ID}\n---\n", encoding="utf-8")
+        self.git("init", "-q", "-b", "develop")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x")
+        self.git("switch", "-q", "-c", "melhoria/outra")
 
-    def pr(self, argumento):
-        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "pr", argumento],
+    def git(self, *args):
+        return subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, text=True, env=ambiente_do_git()).stdout.strip()
+
+    def pr(self, argumento, *extra):
+        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "pr", argumento, *extra],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp)), timeout=60)
         return r.returncode, r.stdout
 
     def test_id_de_pedido_existente_sem_branch_sai_rc2_com_uso(self):
-        rc, saida = self.pr("ID-DO-PEDIDO")
+        rc, saida = self.pr(self.ID)
         self.assertEqual(rc, 2, saida)
         self.assertIn("uso: use o slug da branch (<slug>), não o id do pedido", saida)
 
@@ -551,12 +573,48 @@ class RecusaDoIdDoPedido(unittest.TestCase):
         self.assertNotIn("uso:", saida)
 
     def test_com_a_branch_do_mesmo_nome_o_argumento_vale(self):
-        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
-        for args in (("init", "-q"), ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"),
-                     ("branch", "melhoria/ID-DO-PEDIDO")):
-            subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, env=env)
-        rc, saida = self.pr("ID-DO-PEDIDO")
-        self.assertNotIn("uso:", saida)
+        self.git("branch", f"melhoria/{self.ID}")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID))
+
+    def test_com_a_branch_do_mesmo_nome_so_em_origin_o_argumento_vale(self):
+        self.git("update-ref", f"refs/remotes/origin/melhoria/{self.ID}", "HEAD")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID))
+
+    def test_argumento_com_barra_nao_sobe_nem_desce_de_pasta(self):
+        (self.tmp / "docs" / "pedidos" / "sub").mkdir()
+        (self.tmp / "docs" / "pedidos" / "sub" / "X.md").write_text("x\n", encoding="utf-8")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, "sub/X"))
+        self.assertIsNotNone(fc.uso_do_pr(self.tmp, self.ID))
+
+    def test_fora_da_convencao_melhoria_o_id_do_parecer_vale(self):  # review A1: o projeto usa feature/ e `pedido: <id>`
+        self.git("switch", "-q", "-c", "feature/cad-cliente")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID))
+        rc, saida = self.pr(self.ID)
+        self.assertNotEqual(rc, 2, saida)
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID, "origin/feature/cad-cliente"))
+        self.assertIsNotNone(fc.uso_do_pr(self.tmp, self.ID, "origin/melhoria/outra"))
+
+    def test_com_parecer_do_pedido_na_ref_o_argumento_vale(self):  # review A1: o `pedido:` do parecer é o argumento
+        head = self.git("rev-parse", "HEAD")
+        (self.tmp / "docs" / "reviews").mkdir()
+        (self.tmp / "docs" / "reviews" / "x.md").write_text(self.PARECER.format(c=head), encoding="utf-8")
+        self.git("add", "docs/reviews/x.md")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "parecer")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID, "melhoria/outra"))
+        self.git("branch", "melhoria/vazia", "develop")
+        self.assertIsNotNone(fc.uso_do_pr(self.tmp, self.ID, "melhoria/vazia"))  # a ref sem o parecer não o vê
+
+    def test_pedido_so_na_copia_principal_ou_na_raiz_de_brief_tambem_recusa(self):  # review A3, qa A4
+        (self.tmp / "docs" / "pedidos" / f"{self.ID}.md").unlink()
+        outra = Path(tempfile.mkdtemp(prefix="forge-c2c3-outra-"))
+        self.addCleanup(shutil.rmtree, outra, ignore_errors=True)
+        (outra / "docs" / "pedidos").mkdir(parents=True)
+        (outra / "docs" / "pedidos" / f"{self.ID}.md").write_text("x\n", encoding="utf-8")
+        self.assertIsNone(fc.uso_do_pr(self.tmp, self.ID))
+        with mock.patch.object(fc, "raiz_principal", return_value=outra):
+            self.assertIsNotNone(fc.uso_do_pr(self.tmp, self.ID))
+        with mock.patch.object(fc, "RAIZES_DE_BRIEF", (outra,)):
+            self.assertIsNotNone(fc.uso_do_pr(self.tmp, self.ID))
 
 
 class VoltaIdentica(unittest.TestCase):
@@ -570,6 +628,13 @@ class VoltaIdentica(unittest.TestCase):
         linhas = [l for l, _ in fc.blocos_identicos(self.ANTES.replace("- b", "- c"), self.ANTES)]
         self.assertNotIn('volta: bloco "Fora do escopo" idêntico ao anterior (exigido)', linhas)
         self.assertEqual(len(linhas), 2)
+
+
+    def test_bloco_ausente_no_anterior_nao_e_marcado(self):
+        sem_fora = self.ANTES.replace("## Fora do escopo\n- b\n\n", "")
+        novo = self.ANTES.replace("- b\n", "")  # o bloco existe, vazio, no brief novo
+        linhas = [l for l, _ in fc.blocos_identicos(novo, sem_fora)]
+        self.assertNotIn('volta: bloco "Fora do escopo" idêntico ao anterior (exigido)', linhas)
 
 
 class VerificadorOk(unittest.TestCase):

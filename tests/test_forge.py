@@ -4356,7 +4356,7 @@ class RepoComOrigem(unittest.TestCase):
         remoto_sem_manutencao(self.origem)
         self.semente = self.clone("semente")
         self.commitar(self.semente, {"src/x.txt": "x1\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n", "src/y.txt": "y1\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n",
-                                     "hooks/conformidade.json": "{}\n"}, "base")
+                                     "hooks/conformidade.json": "{}\n", "docs/pedidos/p1.md": "# p1\n"}, "base")
         git("push", "-q", "origin", "develop", cwd=self.semente)
         self.repo = self.clone("repo")
         git("switch", "-q", "-c", "melhoria/x", cwd=self.repo)
