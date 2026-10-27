@@ -554,7 +554,7 @@ class ForgeInit(unittest.TestCase):
     def test_stack_padrao_define_o_pronto_sugerido(self):
         forge_init("--nome", "Demo", str(self.tmp), cwd=self.tmp)
         claude_md = (self.tmp / "CLAUDE.md").read_text(encoding="utf-8")
-        self.assertIn("`npm run pronto`", claude_md)
+        self.assertIn("`pnpm run pronto`", claude_md)
 
     def test_stack_desconhecida_ou_invalida_e_recusada(self):
         for ruim in ("inexistente", "../templates"):
@@ -4994,3 +4994,28 @@ class TextosAQ3AgileCoach(unittest.TestCase):
         self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)
         self.assertIn("mudança em agente, skill, script ou teste do Forge vira cartão para o `tech-lead`", self.texto)
         self.assertIn("(na sessão do Forge, com o AQ, `forge-dev:aq`)", self.texto)
+
+
+class TextosAQ3Stack(unittest.TestCase):
+    """T5 (AQ3-TEXTO): contrato com uma fonte só, parada sem especificação e `R-CONFORMIDADE` nos agentes da stack."""
+
+    def setUp(self):
+        base = RAIZ / "stacks" / "node-react"
+        self.agentes = {n: (base / "agents" / f"{n}.md").read_text(encoding="utf-8") for n in ("node-backend", "react-frontend")}
+        self.pronto = (base / "pronto.md").read_text(encoding="utf-8")
+
+    def test_os_dois_agentes_param_sem_especificacao_e_citam_a_regra_de_conformidade(self):
+        for nome, texto in self.agentes.items():
+            with self.subTest(nome):
+                self.assertIn("Sem especificação validada nem plano, pare e devolva a lacuna (`R-DISCOVERY`)", texto)
+                self.assertIn("- `R-CONFORMIDADE`: bloqueio não se contorna; vira decisão ao usuário (`R-DECISAO`).", texto)
+
+    def test_contrato_tem_o_esquema_como_fonte_e_o_markdown_como_descricao(self):
+        texto = self.agentes["node-backend"]
+        self.assertIn("defina o contrato no esquema compartilhado (a fonte única, `pronto.md`, \"contrato back-front\")", texto)
+        self.assertIn("- Contrato back-front: o esquema", self.pronto)
+        self.assertNotIn("esse é o contrato que o agente", texto)
+
+    def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
+        self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)
+        self.assertNotRegex(self.pronto, r"\bnpm run")
