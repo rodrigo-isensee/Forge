@@ -55,6 +55,7 @@ Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · 
 - Branches: `R-FLUXO` branches e promoção (prefixos `feature/`, `fix/`, `docs/`, `chore/`, `refactor/` + slug).
 - Conventional Commits em português: `tipo(escopo): descrição no imperativo`. Tipos: feat, fix, docs, test, refactor, perf, chore, ci.
 - Um commit por mudança coerente; o projeto compila e os testes passam em cada commit.
+- Guarda nova ou mudada: mutante declarado e teste do ramo de falha (ver `qa-testing`, 'Mutantes declarados').
 - Antes de commitar: `git status` e `git diff --staged`. Nunca versionar `.env`, segredos, dependências instaladas, builds, relatórios de teste.
 - **Teto por PR (decisão M14):** até 400 linhas alteradas de código e teste (`git diff --numstat --no-renames origin/develop...HEAD`, adições mais remoções); ficam fora pareceres, fragmentos de changelog, corpus e fixtures de teste e o texto `.md`. Passou, divide; a exceção só vale com `teto: excedido, <n> linhas, <motivo>` no corpo do PR, aceita no review. No Forge: contam `bin/`, `hooks/`, `scripts/`, `.github/`, `.githooks/`, `tests/*.py` e `tests/config.json`; a exceção não vale em PR que mexe em qualquer arquivo de `hooks/` nem em caminho de `PROTEGIDOS` (`tests/catraca.py`), e vale uma classe de comportamento por PR em `hooks/`, com corpus próprio.
 - Para trazer a `main`: `git fetch` + `git merge origin/main` na sua branch (`R-MAIN`). `R-VERIFY` nunca `--no-verify` nem `--force`.
