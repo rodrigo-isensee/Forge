@@ -41,5 +41,11 @@ class AchadosDoQa(unittest.TestCase):
         self.assertIn("Classe que já reprovou antes vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.", texto)
 
 
+class BriefSeguinte(unittest.TestCase):
+    def test_jarvis_fixa_o_brief_seguinte_depois_de_gravar_a_etapa_em_curso(self):
+        texto = ler("agents", "jarvis.md")
+        self.assertIn("prepare o brief da etapa seguinte em paralelo à etapa em curso; o `Desde:`, o head, o `Base-sha:` e as decisões dele só se fixam depois de gravar no pedido a `conferida` e a decisão da etapa em curso: rode o `brief gerar` de novo na hora de enviar", texto)
+
+
 if __name__ == "__main__":
     unittest.main()
