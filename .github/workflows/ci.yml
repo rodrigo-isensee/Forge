@@ -51,6 +51,25 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
+      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
+        run: |
+          # uutils-coreutils do apt do runner (universe, sem custo): o GNU env 9.4 do runner recusa `-a`/`--argv0` e a prova viva
+          # do lançador cairia de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
+          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
+          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
+          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          env --version | head -1
       - name: Testes do Forge (Python 3.14)
         run: |
           python3 --version
@@ -230,6 +249,26 @@ jobs:
             exit 0
           fi
           python3 "$script" --raiz "$RUNNER_TEMP/pr" "${provas[@]}"
+      - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
+        if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
+        run: |
+          # uutils-coreutils do apt do runner (universe, sem custo): o GNU env 9.4 do runner recusa `-a`/`--argv0` e a prova viva
+          # do lançador cairia de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends rust-coreutils
+          alvo=/usr/lib/cargo/bin/coreutils/env
+          [ -x "$alvo" ] || { echo "faltou $alvo depois da instalação"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/env-argv0"
+          ln -sf "$alvo" "$RUNNER_TEMP/env-argv0/env"
+          echo "$RUNNER_TEMP/env-argv0" >> "$GITHUB_PATH"
+          # conferência no caminho que tests/apoio_volta_unica.py (envs_da_maquina, shutil.which) acha
+          export PATH="$RUNNER_TEMP/env-argv0:$PATH"
+          achado=$(python3 -c 'import shutil; print(shutil.which("env"))')
+          [ "$achado" = "$RUNNER_TEMP/env-argv0/env" ] || { echo "o env do PATH é $achado, não o do uutils"; exit 1; }
+          env -a x true || { echo "o env $achado não aceita -a"; exit 1; }
+          env X=1 printf '%s' ok | grep -qx ok || { echo "o env $achado não roda env X=1 printf"; exit 1; }
+          env --version | head -1
       - name: Testes do Forge
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: python3 scripts/suite-paralela.py
