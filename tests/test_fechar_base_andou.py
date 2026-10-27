@@ -27,6 +27,9 @@ case "$1 $2" in
     # $ESTADO/ls_ref_falha: sem resposta do servidor para a branch da entrega (passo 2); $ESTADO/ls_ref_lixo: a coluna 1 não é sha
     if [ -f "$ESTADO/ls_ref_falha" ] && [ "$3" = refs/heads/melhoria/x ]; then echo "fatal: unable to access" >&2; exit 128; fi
     if [ -f "$ESTADO/ls_ref_lixo" ] && [ "$3" = refs/heads/melhoria/x ]; then printf '%s\t%s\n' "$(cat "$ESTADO/ls_ref_lixo")" "$3"; exit 0; fi ;;
+  "rev-list --count")
+    # $ESTADO/revlist_falha: a contagem de commits da base (passo 2b) falha
+    if [ -f "$ESTADO/revlist_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
   "diff --no-renames")
     # $ESTADO/diff_falha: o diff da conta do passo 2b falha (objeto ausente)
     if [ -f "$ESTADO/diff_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi
@@ -251,6 +254,14 @@ class Teste(unittest.TestCase):
 
     def test_sort_da_lista_da_branch_que_falha_para_no_passo_2b(self):
         self._sort_que_falha_so_em("b")
+
+    def test_contagem_de_commits_da_base_que_falha_para_no_passo_2b(self):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "revlist_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("não consegui contar os commits da base", r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
 
 if __name__ == "__main__":
