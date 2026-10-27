@@ -5019,3 +5019,22 @@ class TextosAQ3Stack(unittest.TestCase):
     def test_comando_sugerido_usa_o_gerenciador_do_monorepo(self):
         self.assertIn("Comando sugerido: `pnpm run pronto`", self.pronto)
         self.assertNotRegex(self.pronto, r"\bnpm run")
+
+
+class TextosAQ3Ux(unittest.TestCase):
+    """T6 (AQ3-TEXTO): validação do usuário só com a frase literal e acessibilidade marcada `lido` ou `medido`."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "ux-designer.md").read_text(encoding="utf-8")
+
+    def test_validacao_so_com_a_frase_literal_e_data(self):
+        self.assertIn("O retorno entra só como a frase literal do usuário, com data, trazida pelo Jarvis", self.texto)
+        self.assertIn("sem ela, o estado é \"aguardando o usuário\", nunca \"aprovado\"", self.texto)
+
+    def test_acessibilidade_lida_ou_medida(self):
+        self.assertIn("marcado `lido` (pelo código) ou `medido` (saída de ferramenta citada)", self.texto)
+        self.assertIn("contraste e leitor de tela sem medição são `lido`", self.texto)
+
+    def test_prototipo_sem_url_externa_e_discovery_so_com_interface(self):
+        self.assertIn("confira com `Grep` que nada no protótipo carrega URL externa", self.texto)
+        self.assertIn("Nenhuma demanda com interface entra em desenvolvimento sem passar por você", self.texto)
