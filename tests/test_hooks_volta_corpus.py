@@ -34,6 +34,8 @@ from apoio_volta_unica import (  # noqa: E402
     corpus_da_volta_unica,
     modulos_dos_hooks,
     rodar,
+    limite_de_cpu_do_corpus,
+    trabalhadores_do_lote,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
@@ -108,7 +110,9 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         with MedidaDeCpu() as medida:
             casos = self.fixtures_do_corpus()
             self.assertEqual(self.executar_em_lote(casos), len(casos))
-        self.assertLess(medida.cpu, 60, f"o corpus gastou {medida.texto()}")
+        trabalhadores = trabalhadores_do_lote()
+        self.assertLess(medida.cpu, limite_de_cpu_do_corpus(),
+                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 60 s de CPU por trabalhador)")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`

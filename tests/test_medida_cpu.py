@@ -3,9 +3,10 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from apoio_volta_unica import MedidaDeCpu  # noqa: E402
+from apoio_volta_unica import MedidaDeCpu, limite_de_cpu_do_corpus  # noqa: E402
 
 DORME = "import time; time.sleep(1.5)"
 GASTA = "import time\nwhile time.process_time() < 0.8: pass"
@@ -38,6 +39,11 @@ class MedidaDeCpuDosTestesDeDesempenho(unittest.TestCase):
         with MedidaDeCpu() as medida:
             pass
         self.assertRegex(medida.texto(), r"^CPU \d+\.\d\d s, relógio \d+\.\d\d s$")
+
+    def test_limite_do_corpus_e_60_s_por_trabalhador(self):
+        for nucleos, trabalhadores in ((1, 1), (2, 1), (4, 2), (8, 4), (64, 4)):
+            with self.subTest(nucleos=nucleos), mock.patch("os.cpu_count", return_value=nucleos):
+                self.assertEqual(limite_de_cpu_do_corpus(), 60 * trabalhadores)
 
 
 if __name__ == "__main__":

@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_o_trabalho_do_proprio_processo_conta"
       ]
+    },
+    {
+      "id": "M4",
+      "guarda": "PROP-TEMPO-CPU: voltar o limite do corpus a 60 s fixos reprovaria o lote paralelo (CPU somada dos trabalhadores)",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "    return 60 * trabalhadores_do_lote()\n",
+      "para": "    return 60\n",
+      "testes": [
+        "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_limite_do_corpus_e_60_s_por_trabalhador"
+      ]
     }
   ]
 }

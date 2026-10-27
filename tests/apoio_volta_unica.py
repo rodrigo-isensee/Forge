@@ -34,6 +34,16 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     texto)
 
 
+def trabalhadores_do_lote():
+    """O número de trabalhadores em paralelo do lote (`decisoes_dos_hooks`); o limite de CPU do corpus é 60 s por um deles."""
+    return max(1, min(4, (os.cpu_count() or 2) // 2))
+
+
+def limite_de_cpu_do_corpus():
+    """60 s de CPU por trabalhador do lote: o mesmo orçamento que os 60 s de relógio davam a cada um (PROP-TEMPO-CPU)."""
+    return 60 * trabalhadores_do_lote()
+
+
 class MedidaDeCpu:
     """O tempo de CPU de um trecho, e não o do relógio (PROP-TEMPO-CPU): `time.process_time()` (o processo, com as threads)
     mais `ru_utime + ru_stime` de `RUSAGE_CHILDREN` (os filhos já esperados). O runner carregado alonga o relógio, mas não o
@@ -405,7 +415,7 @@ print(json.dumps(saida))
         grandes = [p for p in a_rodar if len(p[1]) > self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         em_lote = [p for p in a_rodar if len(p[1]) <= self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         montados = self.modelos_montados()
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_lote()
         fatias = [em_lote[i::trabalhadores] for i in range(trabalhadores) if em_lote[i::trabalhadores]]
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             for fatia, codigos in zip(fatias, pool.map(lambda f: self.decidir_em_lote(f, montados), fatias)):
