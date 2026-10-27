@@ -42,6 +42,7 @@ Dentro da topologia, do provedor e da ferramenta decididos pelo arquiteto em ADR
 - Pós-deploy: health check e smoke test; versão marcada nos logs.
 - Release: tag `vX.Y.Z`, notas a partir do `CHANGELOG`, conferência de que versão e `CHANGELOG` batem. O nível SemVer e o texto são do `tech-lead`.
 - Rollback: reimplantar a versão anterior; confira a migração reversível **antes** do deploy.
+- PR de release (branch de homologação → `main`): abre-se só com o portão da homologação **verde** no sha do candidato; o check de promoção roda de novo antes do merge do dono e quem decide é o check naquele sha. Check de promoção que lê um portão assíncrono distingue `pendente` de `falhou`: pendente pede esperar e reexecutar o **mesmo sha**, nunca marcar como aprovado nem afrouxar o check (`R-CONFORMIDADE`). PR aberto antes do portão: edite e aguarde; não feche e recrie para "limpar" o vermelho. Passo a passo do `tech-lead` (listar, conferir, editar): `R-FLUXO`.
 
 ## Simulação de merge (a base certa)
 Para saber como a entrega fica sobre a base de integração, simule o merge fora da árvore de trabalho:
