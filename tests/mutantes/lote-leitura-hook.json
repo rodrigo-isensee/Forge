@@ -9,7 +9,7 @@
       "de": "            self.barrar(\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, com texto \"\n",
       "para": "            return self.ilegivel(\" \".join(palavras), pasta) or pasta\n            (\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, com texto \"\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "                dividido += _dividir(texto[0], gasto, f\"{nome} {opcao}\")\n",
       "para": "                dividido += _dividir(texto[0], 0, f\"{nome} {opcao}\")\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "        if gasto:\n            raise TextoAbertoComLeituras(achado) from None\n",
       "para": "        if True:\n            raise TextoAbertoComLeituras(achado) from None\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
       "para": "                alvos += []\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -49,8 +49,8 @@
       "de": "                adiadas.append((base, inicio, list(lancadas), gasto, (nome, i + 1, list(dividido))))  # com valor\n",
       "para": "",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
       ]
     },
     {
@@ -60,8 +60,8 @@
       "de": "                if texto is not None:  # no `env`, o texto dividido que a palavra tem depois do `S`\n",
       "para": "                if False:\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
       ]
     },
     {
@@ -71,8 +71,8 @@
       "de": "                if gasto >= TETO_FORA_DA_TABELA:\n",
       "para": "                if False:\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
       ]
     },
     {
@@ -82,8 +82,8 @@
       "de": "            self.barrar(\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de \"\n",
       "para": "            return self.ilegivel(\" \".join(palavras), pasta) or pasta\n            (\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de \"\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2"
       ]
     }
   ]
