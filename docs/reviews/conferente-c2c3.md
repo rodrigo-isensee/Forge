@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: conferente-c2c3
 branch: melhoria/conferente-c2c3
-commit: a2cb36d03c266fcfd3bbb643bcb900ecb64ae25a
-parecer: reprovado
+commit: cbb522765094be22586e61487bd1f54970829453
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-27
 ---
@@ -42,11 +42,19 @@ O ajuste do fixture em `tests/test_forge.py:4359`, que tira `docs/pedidos/p1.md`
 
 No próprio Forge, o rc=2 prometido não acontece. Os pedidos ficam em `~/.forge-contrib/docs/pedidos/` e `uso_do_pr` só procura em `raiz_principal(raiz)` e em `raiz`. Rodei `forge-check pr CONFERENTE-VELOCIDADE-REV --ref origin/melhoria/conferente-c2c3 --base origin/develop`, com e sem `--raiz-pedidos ~/.forge-contrib`, e as duas vezes saiu rc=1, `sem parecer`. Não aprova nada errado: só a promessa do texto não se cumpre.
 
+## Revalidação 2 (delta a2cb36d..cbb5227)
+Lido só o que `forge-check delta --parecer docs/reviews/conferente-c2c3.md` lista: `agents/conferente.md`:53, `bin/forge-check`:492-514, 625-642, 956-957, 4189-4190, 4198, 4299-4300, 5227; `tests/test_etapa_do_brief.py`, `tests/test_volta_por_delta.py`, `tests/test_forge.py`:4359 e os mutantes `tests/mutantes/conferente-c1.json` e `conferente-c2c3.json`. O resto do lote (C1 e C3 fora dessas linhas, ajuda do argparse, `tests/test_conferencia_base_dono.py`) fica como "já lido" na primeira passada.
+
+- **A1 resolvido.** `uso_do_pr` só recusa numa branch `melhoria/<slug>` (`branch_da_convencao`, pela `--ref` ou pela branch atual) e quando nenhum parecer da ref leva `pedido: <argumento>`. Num projeto de teste (`$TMPDIR/tech-lead-conferente-c2c3/proj2`, `docs/pedidos/CAD-CLIENTE.md`, branch `feature/cad-cliente`): `forge-check pr CAD-CLIENTE` sem parecer sai `sem parecer para o pedido CAD-CLIENTE` rc=1 (o caminho normal, igual ao ce1a341); com o parecer `pedido: CAD-CLIENTE`, rc=0, também com `--ref <sha>`. O fixture `docs/pedidos/p1.md` voltou a `tests/test_forge.py:4359`, igual ao ce1a341, e `PrAposMergeDaBase` e `BaseShaDoBrief` (que usam `pr p1` em `melhoria/x` com pareceres `pedido: p1`) passam: `Ran 17 tests ... OK`.
+- **Mudança de contrato do `forge-check pr`:** o rc=2 vale só em `melhoria/` sem parecer do pedido na ref. Conferido nos testes `test_fora_da_convencao_melhoria_o_id_do_parecer_vale` e `test_com_parecer_do_pedido_na_ref_o_argumento_vale` e nas sondas acima. Sem `--ref` e com HEAD avulso (detached), a recusa não dispara e o comando segue para o rc=1 de `sem parecer`: não aprova nada errado (A5, recomendado).
+- **A2 resolvido.** `linha_do_comando_pr` não imprime fora de `melhoria/` (teste `test_fora_da_convencao_melhoria_nao_imprime`), e a frase de `agents/conferente.md:53` diz que fora de `melhoria/` o argumento é o `pedido:` do parecer.
+- **A3 resolvido.** `uso_do_pr` procura também em `RAIZES_DE_BRIEF`. No Forge, `forge-check pr CONFERENTE-VELOCIDADE-REV --ref origin/melhoria/conferente-c2c3 --base origin/develop` sai `uso: use o slug da branch (<slug>), não o id do pedido (CONFERENTE-VELOCIDADE-REV)` rc=2, também com `--ref refs/remotes/origin/...`; o slug `conferente-c2c3` vai ao caminho normal (rc=1 enquanto há parecer reprovado).
+- **A4 resolvido.** `blocos_identicos` só roda com `Volta-de:` e não marca bloco ausente no anterior (testes `test_brief_sem_volta_de_nao_marca_bloco_identico`, `test_bloco_ausente_no_anterior_nao_e_marcado`, `test_brief_de_volta_marca_os_blocos_identicos_ao_anterior`).
+- **Correção da segurança A1 (`desfeitos_da_entrega`), lida como código:** em `arquivos_da_entrega`, o arquivo mudado até a conferida e devolvido à base depois volta ao escopo (interseção com `desde..head`, sem repetir nome). Em `cmd_entrega`, a união em `diferem` só amplia o filtro, e o resultado é mais largo, nunca mais estreito. O teste `test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo` cobre as quatro etapas. O parecer de mérito fica com o `security-engineer` (`docs/security/conferente-c2c3.md`).
+- Ferramentas: `python3 -m unittest tests.test_etapa_do_brief tests.test_volta_por_delta tests.test_conferencia_base_dono` deu `Ran 131 tests ... OK`. Teto M14 sobre `ce1a341...cbb5227`: 302 linhas de código e teste (`bin/forge-check` 75, `tests/*.py` 227), abaixo de 400, sem `hooks/` nem `PROTEGIDOS`. PA-7 (`docs/engineering/achados-recorrentes.md`): sem item registrado.
+
 ## Achados
-- A1 (bloqueante) bin/forge-check:617 · defeito provado: no projeto (parecer com pedido: <id-do-pedido>, branch feature/) uso_do_pr recusa com rc=2 o id certo; CAD-CLIENTE: ce1a341 rc=1, a2cb36d rc=2; limitar à convenção melhoria/<slug> e devolver o fixture p1 de tests/test_forge.py:4359
-- A2 (bloqueante) bin/forge-check:4280 · defeito provado: linha_do_comando_pr com Branch feature/cad-cliente imprime forge-check pr feature/cad-cliente, que nunca casa com o pedido: de um parecer; fora de melhoria/ não imprimir (ou usar o Pedido: do cabeçalho) e ajustar a frase de agents/conferente.md:53
-- A3 (recomendado) bin/forge-check:622 · no Forge os pedidos ficam em ~/.forge-contrib (RAIZES_DE_BRIEF) e uso_do_pr não olha ali: forge-check pr CONFERENTE-VELOCIDADE-REV sai rc=1, não o rc=2 prometido em agents/conferente.md:53
-- A4 (recomendado) bin/forge-check:4169 · blocos_identicos roda em todo --anterior, também fora de brief com Volta-de:, e diz "(exigido)" onde a cópia não é exigida; restringir ao brief de volta ou tirar o "(exigido)" nesse caso
+- A5 (recomendado) bin/forge-check:627 · sem --ref e com HEAD avulso, ou com --ref <sha>, branch_da_convencao dá None e o id do pedido segue ao rc=1 de "sem parecer", não ao rc=2 do item 5 de agents/conferente.md; não aprova nada errado, só a mensagem de uso não aparece
 
 ## Parecer
-**Reprovado** por A1 e A2. C1 e C3 estão corretos e cobertos por teste. Os dois defeitos são do C2 e aparecem só fora da convenção `melhoria/<slug>` do Forge, mas o conferente roda em todos os projetos. A correção é pequena e fica no C2 (`uso_do_pr`, `linha_do_comando_pr`, o fixture `p1` e a frase do item 5). A revalidação lê só o delta (`forge-check delta --parecer docs/reviews/conferente-c2c3.md`).
+**Aprovado** em cbb5227. A1 a A4 resolvidos e cobertos por teste. A correção da segurança A1 está correta como código. A5 é só recomendação e não devolve a entrega.
