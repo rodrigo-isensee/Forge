@@ -7,9 +7,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from ambiente_git import sem_manutencao  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "scripts" / "suite-paralela.py"
-ENV = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_", "CI"))}
+ENV = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_", "CI"))})
 ENV.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t",
            GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
 
