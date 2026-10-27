@@ -87,6 +87,7 @@ No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `te
 - O QA confere a lista contra o diff antes de rodar: linha de guarda mudada sem mutante é achado bloqueante do QA, porque a saída 0 só prova o que a lista cobre (o autor, sozinho, escolheria mutantes que o teste dele já mata).
 - O QA roda `forge-mutante` e cola a saída no parecer. Saída 0 é o inverso do usual: todos os mutantes morreram. Prazo estourado ou erro de carga é "sem veredito", nunca "morreu".
 - Mutante sobrevivente é achado bloqueante do QA até virar teste ou justificativa de mutante equivalente aceita pelo QA.
+- Classe que já reprovou antes vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.
 
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown

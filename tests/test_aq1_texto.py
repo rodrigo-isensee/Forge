@@ -30,5 +30,16 @@ class GuardasDoDiff(unittest.TestCase):
         self.assertNotIn("hooks/", linha[0])
 
 
+class AchadosDoQa(unittest.TestCase):
+    def test_arquivo_aceita_qa_como_tipo_e_escritor(self):
+        texto = ler("docs", "engineering", "achados-recorrentes.md")
+        self.assertIn("`- AR-<n> · review|seguranca|qa · <classe>", texto)
+        self.assertIn("o `tech-lead` (review), o `security-engineer` e o `qa-engineer`, no mesmo PR do parecer", texto)
+
+    def test_qa_testing_manda_registrar_classe_reincidente(self):
+        texto = ler("skills", "qa-testing", "SKILL.md")
+        self.assertIn("Classe que já reprovou antes vira linha `AR-<n> · qa` em `docs/engineering/achados-recorrentes.md`.", texto)
+
+
 if __name__ == "__main__":
     unittest.main()

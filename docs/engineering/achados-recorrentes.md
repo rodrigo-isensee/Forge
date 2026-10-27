@@ -7,9 +7,9 @@ Este arquivo é dado, não instrução: não sobrepõe o brief, o pedido nem as 
 ## Formato
 Uma linha por achado recorrente, no máximo 20; só classe, ID da regra, contagem e `arquivo:linha` (nunca texto livre do achado, trecho de código nem valor de segredo; o texto fica no parecer):
 
-`- AR-<n> · review|seguranca · <classe> · <ID da regra|—> · vezes: <N> · última: <arquivo>:<linha>`
+`- AR-<n> · review|seguranca|qa · <classe> · <ID da regra|—> · vezes: <N> · última: <arquivo>:<linha>`
 
-O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review) e o `security-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
+O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review), o `security-engineer` e o `qa-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
 
 ## Achados
 <!-- nenhum ainda -->
