@@ -4,6 +4,7 @@ Os testes saíram da classe `CorpusHeredocVoltaUnica` de tests/test_hooks.py (HO
 tests/apoio_volta_unica.py."""
 from pathlib import Path
 from unittest import mock
+import ast
 import collections
 import concurrent.futures
 import json
@@ -24,6 +25,7 @@ from apoio_volta_unica import (  # noqa: E402
     CARTOES_DO_NAO_PROMETE,
     EXIGE_NENHUMA_MARCA,
     FIXTURES,
+    HOOKS,
     IDS_DA_VOLTA_UNICA,
     MINIMO_POR_CLASSE,
     NAO_PROMETE,
@@ -74,6 +76,34 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             with self.subTest(hook=pedido[0], texto=pedido[1][:80]):
                 self.assertEqual(lote, real, f"o lote dá {lote} e o hook real dá {real}: {pedido[1]!r}")
         self.assertEqual(set(reais), {0, 2}, "a amostra tem de ter recusa e liberação")
+
+    def test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook(self):  # A2 da segurança, E1
+        """O driver do lote (`DRIVER_DOS_HOOKS`) passa a `_comum.executar` os mesmos argumentos do `__main__` de cada hook:
+        o nome, `principal`, `CRITICO` (não `None`), `clone_do_forge` e `regra_do_prazo`; e roda na pasta do hook."""
+        def chamada(arvore):
+            achadas = [n for n in ast.walk(arvore) if isinstance(n, ast.Call) and isinstance(n.func, (ast.Name, ast.Attribute))
+                       and getattr(n.func, "attr", getattr(n.func, "id", None)) == "executar"]
+            self.assertEqual(len(achadas), 1)
+            return achadas[0]
+
+        driver = ast.parse(self.DRIVER_DOS_HOOKS)
+        no_driver = chamada(driver)
+        self.assertEqual([ast.unparse(a) for a in no_driver.args], ["hook", "modulo.principal", "modulo.CRITICO"])
+        self.assertEqual([ast.unparse(k) for k in no_driver.keywords], ["**argumentos"])
+        execucao = next(n.value for n in ast.walk(driver) if isinstance(n, ast.Assign)
+                        and any(getattr(t, "id", None) == "EXECUCAO" for t in n.targets))
+        argumentos = {ast.literal_eval(k): dict((kw.arg, ast.literal_eval(kw.value)) for kw in v.elts[1].keywords)
+                      for k, v in zip(execucao.keys, execucao.values)}
+        modulos = {ast.literal_eval(k): v.elts[0].id for k, v in zip(execucao.keys, execucao.values)}
+        self.assertEqual(set(argumentos), {"conformidade", "parecer"})
+        for hook in argumentos:
+            with self.subTest(hook=hook):
+                principal = chamada(ast.parse((HOOKS / f"{hook}.py").read_text(encoding="utf-8")))
+                self.assertEqual([ast.literal_eval(principal.args[0]), ast.unparse(principal.args[1]), ast.unparse(principal.args[2])],
+                                 [hook, "principal", "CRITICO"])
+                self.assertEqual({k.arg: ast.literal_eval(k.value) for k in principal.keywords}, argumentos[hook])
+                self.assertEqual(modulos[hook], hook)
+        self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_corpus_nos_dois_hooks(self):
         inicio = time.monotonic()

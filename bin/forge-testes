@@ -64,13 +64,14 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # `test_testes_tocados` vigia que nenhum portão (hooks/, scripts/ci-local, bin/forge-check) chame este script.
 # FORGE_CHECK lista todo módulo que importa ou executa o script (inclui quem importa de um deles); o teste
 # `MapaDoForgeCheck` compara esta lista com os arquivos.
-FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono",
+# Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda e executam o `bin/forge-check`
+# pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
+VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
+FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio",
                "test_conferencia_registrar", "test_erros_no_brief",
                "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks",
                "test_isencoes", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_volta_por_delta", "test_voltas")
-# Os módulos que saíram de `test_hooks` (HOOKS-CORPUS-RAPIDO) rodam onde `test_hooks` roda.
-VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
+               "test_testes_tocados", "test_volta_por_delta", "test_voltas") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
