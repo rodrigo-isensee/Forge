@@ -4958,3 +4958,19 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
         self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)
+
+
+class TextosAQ3Arquiteto(unittest.TestCase):
+    """T2 (AQ3-TEXTO): `gatilhos_seguranca` na lista de campos do plano e a classificação de afrouxamento no arquiteto."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "software-architect.md").read_text(encoding="utf-8")
+
+    def test_gatilhos_seguranca_na_lista_de_campos_e_vazio_so_com_a_frase(self):
+        self.assertIn("`agentes: [..]`, `gatilhos_seguranca` (percorra a lista de `R-SEGURANCA`", self.texto)
+        self.assertIn("`[]` só com \"sem gatilho de segurança\" escrito no plano", self.texto)
+        self.assertEqual(self.texto.count("`gatilhos_seguranca`"), 1)
+
+    def test_toda_proposta_diz_se_afrouxa(self):
+        self.assertIn("Toda proposta diz se afrouxa: tirar ou trocar texto de `docs/regras/`, de item de `tests/config.json`", self.texto)
+        self.assertIn("e vai ao dono (`R-DECISAO`)", self.texto)
