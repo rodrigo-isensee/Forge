@@ -293,6 +293,13 @@ class PrePushSoOsAfetados(unittest.TestCase):
         self.assertNotIn("a suíte completa roda uma vez, no push", lider)
         self.assertIn("a suíte completa fica no CI do PR", lider)
 
+    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
+        for esperado in ("bin/forge-testes", "tests/config.json", ".githooks/", "só acrescenta pareceres", "docs/reviews/"):
+            with self.subTest(esperado=esperado):
+                self.assertIn(esperado, trecho)
+
 
 class Skills(unittest.TestCase):
     def test_frontmatter_valido(self):

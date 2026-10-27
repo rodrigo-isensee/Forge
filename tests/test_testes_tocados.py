@@ -423,6 +423,12 @@ class NaoEPortao(unittest.TestCase):
         self.assertNotIn("pre-push, review, QA, CI e o caminho para a main rodam a suíte inteira", texto)
         self.assertIn("CI de todo PR", texto)
 
+    def test_docstring_cita_a_decisao_m8_de_2026_10_24(self):  # COMENTARIOS-PREPUSH
+        doc = ast.get_docstring(ast.parse(FERRAMENTA.read_text(encoding="utf-8")))
+        self.assertIn("M8", doc)
+        self.assertIn("2026-10-24", doc)
+        self.assertIn("substitui", doc)
+
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
 
