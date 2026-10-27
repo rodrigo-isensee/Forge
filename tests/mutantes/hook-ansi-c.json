@@ -1,0 +1,60 @@
+{
+  "pedido": "hook-ansi-c",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "leituras não falha fechado na aspa escapada do ansi (os dois casos do cartão voltam a sair 0)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                or palavras_do_texto(comando).aspa_escapada  # HOOK-ANSI-C: o `shlex` não fecha `$'…\\'…'` como o bash\n",
+      "para": "",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_os_dois_casos_do_cartao_saem_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_a_aspa_escapada_mais_adiante_na_linha_tambem_falha_fechado"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "o leitor fiel não sinaliza a aspa escapada",
+      "arquivo": "hooks/_comum.py",
+      "de": "    return LeituraDoTexto(tuple(lidos), duvida, aspa_escapada)",
+      "para": "    return LeituraDoTexto(tuple(lidos), duvida, False)",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_os_dois_casos_do_cartao_saem_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "qualquer barra no ansi vale como aspa escapada (controle com \\n e \\\\ passa a sair 2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\"",
+      "para": "aspa_escapada = True",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_a_decisao_de_hoje_nao_muda",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "a barra seguida de `\\'` conta sem pular o par (`\\\\'` do fecho vira aspa escapada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\"",
+      "para": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\" or texto[i - 1:i] == \"\\\\\"",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_barra_barra_antes_do_fecho_nao_e_aspa_escapada",
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_a_decisao_de_hoje_nao_muda"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "a marca vale também fora do ansi (aspas simples com `\\'` dentro passam a ser recusadas)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if nivel.aspas == \"simples\":\n            if c == \"'\":\n                nivel.aspas = None",
+      "para": "        if nivel.aspas == \"simples\":\n            aspa_escapada = aspa_escapada or texto[i - 1:i] == \"\\\\\"\n            if c == \"'\":\n                nivel.aspas = None",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    }
+  ]
+}
