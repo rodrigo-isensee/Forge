@@ -282,6 +282,18 @@ class Agentes(unittest.TestCase):
         self.assertIn("stacks/<stack>/agents/", tabela)
 
 
+class PrePushSoOsAfetados(unittest.TestCase):
+    """M8 (decisão do dono, 2026-10-24): os textos não dizem mais que o pre-push roda a suíte inteira."""
+
+    def test_readme_e_tech_lead_dizem_so_os_afetados(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("o `pre-push` e o CI rodam a suíte inteira", readme)
+        self.assertIn("só os testes afetados", readme)
+        lider = (RAIZ / "agents" / "tech-lead.md").read_text(encoding="utf-8")
+        self.assertNotIn("a suíte completa roda uma vez, no push", lider)
+        self.assertIn("a suíte completa fica no CI do PR", lider)
+
+
 class Skills(unittest.TestCase):
     def test_frontmatter_valido(self):
         for p in skills_do_plugin():
@@ -4922,4 +4934,4 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
 
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
-        self.assertIn("1 processo, pela fila; a suíte completa roda uma vez, no push", self.texto)
+        self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)
