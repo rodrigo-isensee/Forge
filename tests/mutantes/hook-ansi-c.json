@@ -37,10 +37,10 @@
     },
     {
       "id": "A4",
-      "guarda": "a barra seguida de `\\'` conta sem pular o par (`\\\\'` do fecho vira aspa escapada)",
+      "guarda": "a barra do ansi não pula o caractere seguinte (o `\\\\'` do fecho vira aspa escapada)",
       "arquivo": "hooks/_comum.py",
-      "de": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\"",
-      "para": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\" or texto[i - 1:i] == \"\\\\\"",
+      "de": "                nivel.valor.append(texto[i:i + 2])\n                i += 2\n",
+      "para": "                nivel.valor.append(texto[i:i + 2])\n                i += 1\n",
       "testes": [
         "tests.test_hook_ansi_c.HookAnsiC.test_barra_barra_antes_do_fecho_nao_e_aspa_escapada",
         "tests.test_hook_ansi_c.HookAnsiC.test_controles_a_decisao_de_hoje_nao_muda"
