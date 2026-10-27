@@ -4974,3 +4974,23 @@ class TextosAQ3Arquiteto(unittest.TestCase):
     def test_toda_proposta_diz_se_afrouxa(self):
         self.assertIn("Toda proposta diz se afrouxa: tirar ou trocar texto de `docs/regras/`, de item de `tests/config.json`", self.texto)
         self.assertIn("e vai ao dono (`R-DECISAO`)", self.texto)
+
+
+class TextosAQ3AgileCoach(unittest.TestCase):
+    """T4 (AQ3-TEXTO): o coach usa as marcas de `R-DECISAO`, separa propor de implementar e lê o git sem escrever."""
+
+    def setUp(self):
+        self.texto = (RAIZ / "agents" / "agile-coach.md").read_text(encoding="utf-8")
+
+    def test_numero_leva_uma_das_tres_marcas_e_nao_proibe_estimado(self):
+        self.assertIn("Todo número leva a marca de `R-DECISAO`: `medido` (comando citado), `estimado` (com a base) ou `não medido`", self.texto)
+        self.assertNotIn("nunca número estimado", self.texto)
+
+    def test_git_so_de_leitura_em_outra_ref(self):
+        self.assertIn("`git show <ref>:<caminho>`, `git archive <ref> | tar -x -C $TMPDIR/...` ou `--ref` do `forge-check`", self.texto)
+        self.assertIn("nada de `worktree`, `checkout` nem `switch` no repositório medido", self.texto)
+
+    def test_propor_e_implementar_numa_regra_so(self):
+        self.assertEqual(self.texto.count("**Melhorias você mesmo implementa**"), 0)
+        self.assertIn("mudança em agente, skill, script ou teste do Forge vira cartão para o `tech-lead`", self.texto)
+        self.assertIn("(na sessão do Forge, com o AQ, `forge-dev:aq`)", self.texto)
