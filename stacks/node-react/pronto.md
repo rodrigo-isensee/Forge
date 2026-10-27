@@ -2,7 +2,7 @@
 
 O `forge-init` usa o comando abaixo como padrão do "pronto" do projeto (`--pronto` sobrescreve).
 
-Comando sugerido: `npm run pronto`
+Comando sugerido: `pnpm run pronto`
 
 Ele precisa rodar, e falhar se algo falhar: lint (ESLint) e formatação (Prettier) · type-check (TypeScript `strict`) · testes unitários e de integração · build. Reporte o resultado real.
 
