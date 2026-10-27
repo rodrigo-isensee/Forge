@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: lote-fechar2
 branch: melhoria/lote-fechar2
-commit: 5c6684ddd222f18cd82c055f0602e23340720d98
+commit: a35a18171fd920286e73c511dfe5c5d0cfb897f6
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-27
@@ -11,7 +11,7 @@ data: 2026-10-27
 # Review de devops: lote-fechar2
 
 ## Parecer
-Aprovado, revalidado por delta contra o head 5c6684d (parecer anterior em 03155612). O diff de `.github/` contra a base b6eb84f segue sendo uma linha de `.github/workflows/ci.yml` (passo "shellcheck (scripts e hooks)": `bin/forge-fechar` na lista depois de `bin/forge-init`); `git diff 03155612..5c6684d -- .github scripts` e vazio, então gatilhos, permissões, ações, segredos, `concurrency`, `if:` e `timeout-minutes` não mudaram. A lista do shellcheck (SHELLCHECK-FECHAR) continua cobrindo `bin/forge-fechar` como o arquivo está agora: `shellcheck bin/forge-fechar` no worktree em 5c6684d, shellcheck 0.11.0, rc=0, sem aviso. As voltas 1 a 3 mudaram em `bin/forge-fechar` apenas o ajudante `remoto_exato` (coluna 1 do ls-remote validada como sha hexadecimal de 40 ou 64 caracteres, leitura ruim vira rc 1) e o passo 2b (laço sobre `lista_mb`, cadeia `sort -zu && sort -zu && comm -z -12` com `die` se falhar, contagem `rev-list --count --not "${lista_mb[@]}"`); lidos em :520-540 e sem defeito de comportamento ou de pipeline: o diretório temporário é criado com `mktemp -d` e removido na saída (`rm -rf` guardado por `[ -z "${tmp2b:-}" ]`), nenhuma entrada não confiável vai para `run:`. `mapfile` exige bash 4: o runner `ubuntu-24.04` tem bash 5, então só vale como recomendação já registrada no review (A3). Ferramentas: `git diff`, `shellcheck`. Faltou no ambiente: `actionlint` (lacuna registrada; a mudança é só o argumento de um `run:`).
+Aprovado, revalidado por delta contra o head a35a181 (parecer anterior em 137c359, sobre 5c6684d). `git diff 5c6684d..a35a181 -- .github scripts` e vazio: gatilhos, permissões, ações, segredos, `concurrency`, `if:` e `timeout-minutes` não mudaram; o diff de `.github/` contra a base b6eb84f segue sendo a linha do passo "shellcheck (scripts e hooks)" com `bin/forge-fechar` (ci.yml:238). Em `bin/forge-fechar` o delta são quatro linhas (80, 177, 337 e 750) reescritas de `A && B || C` para `if ! { A && B; }; then C; fi`, equivalentes em comportamento (o `die` e o `continue` disparam nas mesmas condições). `shellcheck bin/forge-fechar` no worktree em a35a181, shellcheck 0.11.0, rc=0, sem aviso: o SC2015 sumiu e o job do CI cobre o arquivo como está agora. Run 40507619168 (pull_request, CI): passos "Testes do Forge" e "shellcheck (scripts e hooks)" success no job `bateria`, e "Testes do Forge (Python 3.14)" success. Ressalva de SHA: o run é de a356288, pai de a35a181; o delta a356288..a35a181 é só `tests/mutantes/lote-fechar2-4.json` (20 linhas), então o código e o CI cobertos são os mesmos. O job `bateria` consta failure por causa do passo de gate de parecer ("Parecer de review ... quando o PR toca código que governa os agentes"), que é do fluxo de pareceres do tech-lead e não de pipeline; o passo "Testes que leem pareceres" ficou skipped (commit só de parecer). Ferramentas: `git diff`, `shellcheck`, `gh run view`. Faltou `actionlint` no ambiente (lacuna; nenhuma mudança de workflow nesta volta).
 
 ## Achados
 
