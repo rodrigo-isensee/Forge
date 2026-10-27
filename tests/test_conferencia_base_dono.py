@@ -79,11 +79,11 @@ class BaseDoDono(Repositorio):
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde gravado na própria entrega", saida)
 
-    def test_a_base_do_dono_nao_vale_nas_etapas_de_branch_inteira(self):
+    def test_a_base_do_dono_vale_nas_etapas_de_branch_inteira(self):  # C1
         self.gravar_pedido(extra=linha_do_dono(self.c2))
         rc, saida = self.entrega(desde=self.c2, etapa="pr")
-        self.assertEqual(rc, 1, saida)
-        self.assertIn("escopo: --desde fora da etapa", saida)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {self.c2}..", saida)
 
 
 class IntegracaoNaBranch(Repositorio):
