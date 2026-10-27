@@ -1,0 +1,30 @@
+{
+  "descricao": "A1 de segurança (volta 3): o pipe e a barra põem o bash na linha seguinte ao <<; o dono do heredoc é o comando lógico, e o gh repo delete do corpo é conferido.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat <<'EOF' | \\\nbash\ngh repo delete dono/proj --yes\nEOF"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

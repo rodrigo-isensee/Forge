@@ -1,0 +1,90 @@
+{
+  "pedido": "lote-leitura-hook",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "B1",
+      "guarda": "opção B (rev14): com mais de uma leitura, o texto dividido que não fecha aspas recusa por barrar, não por ilegivel",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.barrar(\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, com texto \"\n",
+      "para": "            return self.ilegivel(\" \".join(palavras), pasta) or pasta\n            (\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, com texto \"\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
+      "id": "B2",
+      "guarda": "opção B (rev14): o -S certo depois de palavra fora da tabela também recusa (env -iu -S\\' cat .env)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                dividido += _dividir(texto[0], gasto, f\"{nome} {opcao}\")\n",
+      "para": "                dividido += _dividir(texto[0], 0, f\"{nome} {opcao}\")\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
+      "id": "B3",
+      "guarda": "opção B (rev14): com uma leitura só (env -S'\"' cat .env) segue ilegivel, como na develop",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if gasto:\n            raise TextoAbertoComLeituras(achado) from None\n",
+      "para": "        if True:\n            raise TextoAbertoComLeituras(achado) from None\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
+      "id": "B4",
+      "guarda": "opção B (rev14): atrás do texto que não fecha, cada palavra depois de um tee é alvo da autoria",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
+      "para": "                alvos += []\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+      ]
+    },
+    {
+      "id": "M1",
+      "guarda": "QA rev14: a leitura com valor da palavra fora da tabela",
+      "arquivo": "hooks/_comum.py",
+      "de": "                adiadas.append((base, inicio, list(lancadas), gasto, (nome, i + 1, list(dividido))))  # com valor\n",
+      "para": "",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "QA rev14: a leitura do texto dividido do S no grupo do env",
+      "arquivo": "hooks/_comum.py",
+      "de": "                if texto is not None:  # no `env`, o texto dividido que a palavra tem depois do `S`\n",
+      "para": "                if False:\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2",
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "QA rev14: o teto K de palavras fora da tabela",
+      "arquivo": "hooks/_comum.py",
+      "de": "                if gasto >= TETO_FORA_DA_TABELA:\n",
+      "para": "                if False:\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_separar_lancadores_devolve_as_leituras_possiveis"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "QA rev14: o handler do teto recusa por barrar",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.barrar(\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de \"\n",
+      "para": "            return self.ilegivel(\" \".join(palavras), pasta) or pasta\n            (\"R-CONFORMIDADE\", f\"`{achado}` na chamada: opção de lançador que o hook não modela, em mais de \"\n",
+      "testes": [
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_tempo_do_teto_das_leituras_do_lancador",
+        "tests.test_hooks.CorpusHeredocVoltaUnica.test_regressoes_sem_marcador_do_lancador_dao_2"
+      ]
+    }
+  ]
+}

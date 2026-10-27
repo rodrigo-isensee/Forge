@@ -1,0 +1,29 @@
+{
+  "descricao": "Sessão do Forge, sem o marcador: o rótulo afrouxa-regra atrás de lançador com opção fora da tabela é lido em todas as leituras (RET-LEITURA-HOOK-G): env -iS'gh pr create --draft --label afrouxa-regra --title x --body y'",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -iS'gh pr create --draft --label afrouxa-regra --title x --body y'"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "só o dono do Forge aplica ou delega o rótulo afrouxa-regra"
+  }
+}

@@ -19,8 +19,10 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (INTEGRACAO, PLUGIN, bloquear, e_clone_do_forge, executar, forge_check, git, nome_da_branch,
-                    leituras, raiz_de_estado, sem_atribuicoes, separar_regra)
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear,
+                    contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, e_clone_do_forge, excede_o_teto, executar,
+                    fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
+                    raiz_de_estado, reavaliacao, sem_atribuicoes, separar_regra, tirar_heredocs)
 
 PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
 CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
@@ -336,17 +338,87 @@ def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
         return
+    conferir_linha(hook, comando, [(hook.cwd(), {})])
+
+
+def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
+    """Confere a linha a partir de cada estado (pasta, branches) e, depois, o que ela roda dentro de uma palavra só: o
+    corpo de cada crase (P4: `` echo `gh pr merge …` ``) e a palavra com `$(…)` entre aspas (N2: `echo "$(gh pr merge
+    …)"`), esta só pelo conteúdo das substituições. O de dentro roda num subshell, a partir de um dos estados por onde a
+    linha passa: é conferido a partir de cada um. `so_substituicoes`: a linha é uma dessas palavras. `corpo_de_heredoc`:
+    a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
+    reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
+    reavaliacoes = [] if reavaliacoes is None else reavaliacoes
+    if nivel > PROFUNDIDADE:
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
+                             "rode o comando direto, sem crase nem $( dentro de outro")
+    original = comando
+    try:  # o corpo de um heredoc não é comando: com apóstrofo, sem par, ele deixaria a linha ilegível (A1 do review)
+        comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
+    except ValueError:  # `<<` em dúvida com linha depois, ou corpo sem aspas no delimitador com `$(` ou crase (o bash roda)
+        bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
+                             "prova ser heredoc, ou corpo sem aspas no delimitador com $( ou crase). Corrigir: use "
+                             "<<'FIM' ou separe os comandos")
+    if nivel == 0 and CRITICO.search(original):  # bloco T da revalidação 10: o orçamento da chamada, antes de ler o resto
+        excesso = excede_o_teto(comando)
+        if excesso:
+            bloquear("R-REVIEW", f"chamada com gh pr, gh api, merge ou pull e {excesso}: o hook não a decide dentro do "
+                                 f"prazo. Corrigir: {CONTORNO_DO_TETO}")
     lidas = leituras(comando)
+    # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição. A palavra `"$(…)"` não: o texto
+    # dela é o do `shlex`, e o nível de fora já leu as substituições dela como escritas
+    achada = None if so_substituicoes else reavaliacao(comando)
+    if achada:
+        reavaliacoes.append(achada)
+    if lidas.ilegivel and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
+        bloquear("R-REVIEW", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o arquivo gravado, e "
+                             "o corpo do heredoc tem aspa sem par. Corrigir: grave numa chamada do Bash e rode o "
+                             "programa noutra")
+    if lidas.ilegivel and corpo_de_heredoc:  # A1 do review, volta 3: <<'FIM' já está na linha
+        bloquear("R-REVIEW", "gh pr, gh api, merge ou pull e corpo de heredoc com aspa sem par, a programa que pode "
+                             "rodá-lo. Corrigir: grave o texto num arquivo e passe-o ao programa noutra chamada do "
+                             "Bash")
     if lidas.ilegivel:  # ADR 0013, tabela 2.4: passou no PREFILTRO (gh pr, gh api, merge, pull) e o hook não a lê
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull que o hook não lê (aspas sem par ou # que ele "
                              "não prova ser comentário). Corrigir: feche as aspas, tire o comentário ou separe os comandos")
+    internos = [(corpo, False, False) for corpo in conteudos_de_crase(comando, so_os_fechados=True)]
+    internos += [(corpo, False, getattr(dono, "rodado", None) or True)  # o dono (ou o programa do texto) pode rodá-lo
+                 for dono, corpo in corpos if not corpo_so_lido(dono)]
+    vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
-        conferir(hook, [analisar(palavras) for palavras, _, _ in leitura])
+        partes = [analisar(palavras) for palavras, _, sub in leitura if sub or not so_substituicoes]
+        for pasta, branches in estados:
+            for estado in conferir(hook, partes, pasta, branches):
+                vistos.setdefault((estado[0], tuple(sorted(estado[1].items()))), estado)
+        internos += [(p, True, False) for palavras, _, _ in leitura for p in palavras
+                     if "$(" in p.replace(OPACO["$"], "")]
+    for texto, so, de_heredoc in dict.fromkeys(internos):
+        conferir_linha(hook, texto, list(vistos.values()), nivel + 1, so, de_heredoc, reavaliacoes)
+    if gravado and CRITICO.search(original):  # M3 (ADR 0011, item 2), depois das regras da linha e do corpo
+        bloquear("R-REVIEW", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`), com gh pr, gh "
+                             "api, merge ou pull. Corrigir: grave o arquivo pelo Write ou numa chamada do Bash e rode "
+                             "o programa noutra")
+    # ADR 0011, item 2 (opção B da revalidação 8), depois das regras da linha e do corpo: com o marcador no nível 0, a
+    # reavaliação pelo shell em qualquer nível recusa (o parecer não segue `eval` nem `bash -c`; o texto deles não chega)
+    if nivel == 0 and reavaliacoes and CRITICO.search(original):
+        bloquear("R-REVIEW", f"`{reavaliacoes[0]}` na chamada com gh pr, gh api, merge ou pull: "
+                             f"{motivo_da_reavaliacao(reavaliacoes[0])}. Corrigir: "
+                             f"{contorno_da_reavaliacao(reavaliacoes[0])}")
+    # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
+    # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
+    # provado ou não
+    if nivel == 0 and CRITICO.search(original):
+        sinal = fora_da_gramatica_com_heredoc(original)
+        if sinal is not None:
+            bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
+                                 f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
-def conferir(hook, partes):
-    """Os comandos de uma leitura da linha, em ordem (`cd` e checkout/switch valem para os seguintes)."""
-    pasta, branches = hook.cwd(), {}  # branches: raiz do projeto -> branch depois de checkout/switch na linha
+def conferir(hook, partes, pasta, branches):
+    """Os comandos de uma leitura da linha, em ordem (`cd` e checkout/switch valem para os seguintes), a partir da pasta e
+    das branches dadas; devolve os estados (pasta, branches) por onde a leitura passou."""
+    branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
+    estados = [(pasta, dict(branches))]
     for parte in partes:
         if parte is None:
             continue
@@ -366,7 +438,9 @@ def conferir(hook, partes):
                 branches[raiz.resolve()] = parte[2]
         else:
             merge(hook, pasta / parte[1] if parte[1] else pasta, parte[2], branches)
+        estados.append((pasta, dict(branches)))
+    return estados
 
 
 if __name__ == "__main__":
-    executar("parecer", principal, CRITICO, clone_do_forge=True)
+    executar("parecer", principal, CRITICO, clone_do_forge=True, regra_do_prazo="R-REVIEW")
