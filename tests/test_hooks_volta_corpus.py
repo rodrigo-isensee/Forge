@@ -16,7 +16,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -27,6 +26,7 @@ from apoio_volta_unica import (  # noqa: E402
     FIXTURES,
     HOOKS,
     IDS_DA_VOLTA_UNICA,
+    MedidaDeCpu,
     MINIMO_POR_CLASSE,
     NAO_PROMETE,
     RAIZ,
@@ -105,10 +105,10 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_corpus_nos_dois_hooks(self):
-        inicio = time.monotonic()
-        casos = self.fixtures_do_corpus()
-        self.assertEqual(self.executar_em_lote(casos), len(casos))
-        self.assertLess(time.monotonic() - inicio, 60, "o corpus roda em paralelo, como os fixtures")
+        with MedidaDeCpu() as medida:
+            casos = self.fixtures_do_corpus()
+            self.assertEqual(self.executar_em_lote(casos), len(casos))
+        self.assertLess(medida.cpu, 60, f"o corpus gastou {medida.texto()}")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`

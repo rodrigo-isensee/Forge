@@ -8,6 +8,7 @@ import itertools
 import json
 import os
 import re
+import resource
 import shlex
 import shutil
 import signal
@@ -31,6 +32,29 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     montar_proc,
     rodar,
     texto)
+
+
+class MedidaDeCpu:
+    """O tempo de CPU de um trecho, e não o do relógio (PROP-TEMPO-CPU): `time.process_time()` (o processo, com as threads)
+    mais `ru_utime + ru_stime` de `RUSAGE_CHILDREN` (os filhos já esperados). O runner carregado alonga o relógio, mas não o
+    que o trecho gasta; o limite dos testes de desempenho é do custo da decisão, e não da fila da máquina."""
+
+    @staticmethod
+    def _filhos():
+        uso = resource.getrusage(resource.RUSAGE_CHILDREN)
+        return uso.ru_utime + uso.ru_stime
+
+    def __enter__(self):
+        self._cpu, self._filhos_antes, self._relogio = time.process_time(), self._filhos(), time.monotonic()
+        return self
+
+    def __exit__(self, *_):
+        self.cpu = (time.process_time() - self._cpu) + (self._filhos() - self._filhos_antes)
+        self.relogio = time.monotonic() - self._relogio
+        return False
+
+    def texto(self):
+        return f"CPU {self.cpu:.2f} s, relógio {self.relogio:.2f} s"
 
 
 # LOTE-LEITURA-HOOK, volta única (docs/propostas/lote-leitura-hook-volta-unica.md, seções 3 a 5): o corpus das classes

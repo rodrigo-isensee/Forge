@@ -6,12 +6,12 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_volta_unica import (  # noqa: E402
     BaseVoltaUnica,
+    MedidaDeCpu,
     PRAZO_DO_CLAUDE_CODE_S,
     corpus_da_volta_unica,
     modulos_dos_hooks,
@@ -139,18 +139,18 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         print(f"\n[T] pior tempo de decisão: {pior:.2f} s", file=sys.stderr)
 
     def test_t_reconhecedor_da_reavaliacao_e_linear(self):  # item 2 do critério de fim do bloco T
-        """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 1 s (a
-        versão quadrática levava 8,3 s com 10 mil): o limite não oscila com a máquina."""
+        """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 1 s de CPU (a
+        versão quadrática levava 8,3 s com 10 mil): o limite é do custo, e não da fila da máquina."""
         _comum, _, _ = modulos_dos_hooks()
         casos = {"shell": ["bash"] * 50_000, "shell com opção": ["bash"] * 49_999 + ["-c"], "env": ["env"] * 50_000,
                  "env -S": ["env", "-S", "x"] * 16_000, "não se reduz": [None] * 50_000, "inerte": ["x"] * 50_000,
                  "lançador com valor": ["sudo", "-u"] * 25_000, "env com NOME=valor": ["env", "X=1"] * 25_000}
         for nome, palavras in casos.items():
             with self.subTest(nome=nome), self.limite_de_tempo(5):
-                inicio = time.perf_counter()
-                _comum.reavaliacao_das_palavras(palavras)
-                _comum.separar_lancadores([p or "" for p in palavras])
-                self.assertLess(time.perf_counter() - inicio, 1.0)
+                with MedidaDeCpu() as medida:
+                    _comum.reavaliacao_das_palavras(palavras)
+                    _comum.separar_lancadores([p or "" for p in palavras])
+                self.assertLess(medida.cpu, 1.0, f"{nome}: {medida.texto()}")
 
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
