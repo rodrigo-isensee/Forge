@@ -22,7 +22,7 @@
       "id": "C3",
       "guarda": "bloco alterado nao e marcado identico",
       "arquivo": "bin/forge-check",
-      "de": "if nome in novos and bloco_sem_final(novos[nome]) == bloco_sem_final(antigos.get(nome, []))]",
+      "de": "if nome in novos and nome in antigos and bloco_sem_final(novos[nome]) == bloco_sem_final(antigos[nome])]",
       "para": "if nome in novos]",
       "testes": ["tests.test_etapa_do_brief.VoltaIdentica.test_bloco_alterado_nao_e_marcado"]
     },
