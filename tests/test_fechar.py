@@ -610,6 +610,24 @@ class Fechar(unittest.TestCase):
         r = subprocess.run(["shellcheck", str(SCRIPT)], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_fechar_sem_a_e_b_ou_c_solto(self):
+        # O shellcheck do runner (pacote do Ubuntu, mais velho que o local) acusa SC2015 em `A && B || C`; o local não.
+        # O teste recusa a forma na fonte, qualquer que seja a versão do shellcheck instalada.
+        import re
+        achados = []
+        for n, linha in enumerate(SCRIPT.read_text().splitlines(), 1):
+            t = linha.strip()
+            if t.startswith("#"):
+                continue
+            t = re.sub(r'"(?:\\.|[^"\\])*"|\'[^\']*\'', '""', t)  # texto entre aspas
+            ant = None
+            while ant != t:  # tira grupos internos: $(...), (...), { ...; }, [[ ... ]], [ ... ]
+                ant = t
+                t = re.sub(r'\$?\([^()]*\)|\{ [^{}]*\}|\[\[ .*?\]\]|\[ [^\[\]]*\]', 'G', t)
+            if re.search(r'&&.*\|\|', t):
+                achados.append(f"{n}: {linha.strip()}")
+        self.assertEqual(achados, [], "use `if ! { A && B; }; then C; fi`: " + "\n".join(achados))
+
     def test_espera_os_checks_aparecerem_em_pr_recem_aberto(self):
         (self.estado / "sem_checks_ate").write_text("6")
         r = self.fechar("p1", "--ref", "melhoria/x")

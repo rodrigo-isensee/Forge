@@ -77,7 +77,7 @@ esac
 # número enorme não passar na comparação) e dentro da faixa; compara em base 10 (`08` vale 8). Devolve o valor normalizado em `faixa_valor`.
 faixa() {
   local nome="$1" v="$2" min="$3" max="$4" dig="$5"
-  [[ "$v" =~ ^[0-9]+$ ]] && [ "${#v}" -le "$dig" ] || die "$nome pede um número inteiro de $min a $max segundos (recebi: $v)"
+  if ! { [[ "$v" =~ ^[0-9]+$ ]] && [ "${#v}" -le "$dig" ]; }; then die "$nome pede um número inteiro de $min a $max segundos (recebi: $v)"; fi
   v=$((10#$v))
   { [ "$v" -ge "$min" ] && [ "$v" -le "$max" ]; } || die "$nome fora da faixa: pede de $min a $max segundos (recebi: $v)"
   faixa_valor="$v"
@@ -174,7 +174,7 @@ else
 fi
 [ ! -L "$logdir" ] || die "a pasta do log é um link simbólico: $logdir; recusada"
 (umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
-[ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
+if ! { [ -d "$logdir" ] && [ ! -L "$logdir" ]; }; then die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"; fi
 [ -O "$logdir" ] || die "a pasta do log é de outro dono: $logdir; recusada"
 # Caminho absoluto e normalizado (sem `..` nem link no meio): a limpeza do passo 7 troca de diretório e o registrador precisa achar o arquivo depois disso.
 logdir="$(cd "$logdir" && pwd -P)" || die "não consegui resolver a pasta do log: $logdir"
@@ -334,7 +334,7 @@ estados_da_espera() {
     run_ck="?"
     if [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/[0-9]{1,20} ]]; then run_ck="${BASH_REMATCH[1]}"; fi
     nomes[n]="$nome_ck"; sts[n]="$estado_ck"; runs[n]="$run_ck"; n=$((n + 1))
-    [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ] || continue
+    if ! { [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ]; }; then continue; fi
     if [ "$rotulo_ok" = 0 ]; then
       case "$run_antes" in *" $run_ck "*) ;; *) run_antes="$run_antes$run_ck " ;; esac
     elif [ "$run_antes" != " " ]; then
@@ -747,7 +747,7 @@ if [ "$ja_mesclado" = 0 ]; then
   [ "$pr_estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${pr_estado:-desconhecido})"
   [ "$pr_head" = "$remoto_sha" ] || die "parou no passo 6: o PR #$pr_n consta MERGED com o head ${pr_head:-desconhecido}, não o conferido ($remoto_sha); não conto como sucesso"
   [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"
-  [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ] || die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"
+  if ! { [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ]; }; then die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"; fi
   echo "merge: $pr_merge"
 fi
 

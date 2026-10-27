@@ -1,0 +1,26 @@
+{
+  "pedido": "lote-fechar2-4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "S1",
+      "guarda": "shellcheck do CI: o laço dos checks pula com if/continue, sem a forma A && B || C (SC2015)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ \"$nome_ck\" = catraca ] && [ \"$run_ck\" != \"?\" ]; }; then continue; fi",
+      "para": "[ \"$nome_ck\" = catraca ] && [ \"$run_ck\" != \"?\" ] || continue",
+      "testes": [
+        "tests.test_fechar.Fechar.test_fechar_sem_a_e_b_ou_c_solto"
+      ]
+    },
+    {
+      "id": "S2",
+      "guarda": "shellcheck do CI: a validacao da faixa nao volta a A && B || C",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [[ \"$v\" =~ ^[0-9]+$ ]] && [ \"${#v}\" -le \"$dig\" ]; }; then die \"$nome pede um número inteiro de $min a $max segundos (recebi: $v)\"; fi",
+      "para": "[[ \"$v\" =~ ^[0-9]+$ ]] && [ \"${#v}\" -le \"$dig\" ] || die \"$nome pede um número inteiro de $min a $max segundos (recebi: $v)\"",
+      "testes": [
+        "tests.test_fechar.Fechar.test_fechar_sem_a_e_b_ou_c_solto"
+      ]
+    }
+  ]
+}
