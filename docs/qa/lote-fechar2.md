@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: lote-fechar2
 branch: melhoria/lote-fechar2
-commit: 5c6684ddd222f18cd82c055f0602e23340720d98
-parecer: aprovado
+commit: a35a18171fd920286e73c511dfe5c5d0cfb897f6
+parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -14,39 +14,35 @@ data: 2026-10-27
 ---
 # QA: lote-fechar2
 
-Revalidação 4 (decisão B do dono de 2026-10-27) sobre o head 5c6684d (base b6eb84f). Plano antecipado não se aplica (correção sem especificação nova); obrigações: E1 LSREMOTE-EXATO, E2 SHELLCHECK-FECHAR, laço :526 (A1 de 4b4d286) e cadeia :530 (A1 de 4451985). Delta 7c926e4..5c6684d: só tests/ (sort falso, 3 testes, specs lote-fechar2-2 e -3); bin/ não mudou.
+Revalidação 5 (voltas 4 e 5: SC2015 em bin/forge-fechar:80, :177, :337, :750 reescrito para `if ! { A && B; }; then C; fi`, teste de fonte `test_fechar_sem_a_e_b_ou_c_solto`, spec lote-fechar2-4 S1..S4) sobre o head a35a181 (base b6eb84f). Delta de código só em bin/forge-fechar (4 linhas) e testes; o resto do parecer anterior (5c6684d: E1, E2, laço :526, cadeia :530) segue valendo, pois :520-540 não mudou.
 
 ## Achados
-- A1 (recomendado) bin/forge-fechar:539 · o plural da mensagem (`echo s` virado `echo`) sobrevive à varredura: linha fora das alterações do lote (autoria aaba5605), só texto; vale um teste com 2 commits na base se a mensagem for contrato
-- A2 (recomendado) bin/forge-fechar:521 · `|| die` de :521/:522 (merge-base falho ou vazio) e de :524 (mktemp) sobrevivem; linhas anteriores ao lote (aaba5605), fora do diff e da varredura exigida; vira cartão, não devolve a entrega
+- A1 (bloqueante) bin/forge-fechar:177 · guarda reescrita sem teste do ramo de falha: trocada por `:` sobrevive a toda a suíte do lote; nada prova que pasta do log não-diretório é recusada
+- A2 (bloqueante) bin/forge-fechar:337 · mesma classe: sem a linha (`continue` dos checks que não são catraca) todos os testes passam; nenhum teste de comportamento prova que check de outro nome ou run `?` é pulado
+- A3 (bloqueante) bin/forge-fechar:750 · mesma classe: sem a guarda "MERGED sem commit de merge" todos os testes passam; nenhum teste prova a recusa com pr_merge vazio ou `-`
+- A4 (recomendado) bin/forge-fechar:539 · plural da mensagem sobrevive (linha anterior ao lote); vale teste com 2 commits na base se a mensagem for contrato
+- A5 (recomendado) bin/forge-fechar:521 · `|| die` de :521/:522/:524 sobrevivem; linhas anteriores ao lote
+
+## Correção pedida
+Um teste de comportamento por linha, no mesmo passe: :177 pasta do log não-diretório recusada; :337 check com nome diferente de catraca (ou run `?`) pulado; :750 PR MERGED com pr_merge vazio e com `-` para no passo 6; com mutante que remova a guarda (S3 e S4 hoje só trocam a forma).
 
 ## Critério -> teste -> resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| E1 isca com o mesmo fim (passo 2 e limpeza) | test_lsremote_exato_isca_com_o_mesmo_fim_nao_engana_o_passo_2_nem_a_limpeza | coluna 2 igual ao nome inteiro | passou (M1 morreu) |
-| E1 isca na base (2b) e pós-delete | test_lsremote_exato_isca_da_base_...; ..._conferencia_depois_do_delete_que_falhou | idem | passou |
-| E1 leitura que falha não vira ausente | test_fechar_orfao...conferencia_da_remota_falhando...; test_ls_remote_da_branch_que_falha_... | falha da leitura | passou (M2, M6 morreram) |
-| Segurança: coluna 1 é sha | test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor | não hex, curto, 40 não hex | passou (M7, M8 morreram) |
-| E2 shellcheck na lista do CI | test_shellcheck_fechar_esta_na_lista_do_ci | lista do CI | passou (M3 morreu) |
-| 2b vários pontos de partida (contagem :538) | test_varios_pontos_de_partida_entram_todos_na_contagem_da_base | merge-base múltiplo | passou (M4 spec 1, M1 spec 3 morreram) |
-| 2b contagem que falha (:538) | test_contagem_de_commits_da_base_que_falha_para_no_passo_2b | falha do rev-list | passou (M1 spec 3 morreu) |
-| 2b vários pontos de partida (diffs, laço :526) | test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois | arquivo só no diff do 2.º ponto | passou (M3 spec 2 morreu) |
-| 2b arquivo em comum (:533, :536) | test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr | lista de comuns não vazia | passou (M4, M5 spec 2 morreram) |
-| 2b comm que falha (:531) | test_comm_que_falha_para_no_passo_2b_sem_abrir_pr | falha de comm | passou (M5 spec 1, Y1 morreram) |
-| 2b sort que falha (:530) | test_sort_da_lista_da_base_que_falha_...; test_sort_da_lista_da_branch_que_falha_... | sort falho de cada lado | passou (Y2, Y4 morreram) |
-| 2b diffs que falham | test_diff_da_base/da_branch_que_falha_sozinho_... | falha de diff | passou (M1, M2 spec 2 morreram) |
+| SC2015 fora de bin/forge-fechar | test_fechar_sem_a_e_b_ou_c_solto; test_shellcheck_fechar_passa_limpo | forma A && B \|\| C | passou (S1..S4 morreram; shellcheck rc 0) |
+| :80 faixa não numérica recusada | test_teto_do_delete_fora_da_faixa_... (v='x'); test_shellcheck_fechar_passa_limpo | valor não inteiro | passou (mutação à mão derrubou 2 testes) |
+| :177 pasta do log não-diretório | nenhum de comportamento | n/a | SEM TESTE (A1) |
+| :337 pula check não catraca | nenhum de comportamento | n/a | SEM TESTE (A2) |
+| :750 MERGED sem commit de merge | nenhum de comportamento | n/a | SEM TESTE (A3) |
+| E1, E2, 2b (:520-540) | ver parecer 5c6684d (inalterado) | idem | passou nos 174+ testes e nas specs 1..3 |
 
 ## Cenários e resultado real
-- `python3 -m unittest tests.test_fechar tests.test_fechar_orfao tests.test_ci_local tests.test_fechar_base_andou`: Ran 174 tests, OK. `shellcheck bin/forge-fechar`: rc 0.
-- `bin/forge-mutante` (uma spec por vez; aceita uma só), todas rc 0:
-  - lote-fechar2.json: M1..M8 morreram (forge-fechar:141, 140, ci.yml:238, :538, :531, :600, :141, :141).
-  - lote-fechar2-2.json: M1 (:527), M2 (:528), M3 (:526), M4 (:533), M5 (:536), Y1, Y2, Y4 (:530) morreram.
-  - lote-fechar2-3.json: M1 (:538), M2 (:523) morreram.
-- A1 do parecer 4451985 (cadeia :530; Y1, Y2, Y4): fechado, os três morrem contra o head, com teste de sort falso por lado.
-- Varredura de :520-540 (script próprio, mutantes em cópia, rodando tests.test_fechar_base_andou e tests.test_fechar_orfao; 41 mutantes, um ou mais por linha com código, os de :520/:532/:537/:540 são `fi`/`}` sem comportamento): linhas mudadas pelo lote (:523, :526, :530, :531, :538) e as demais com guarda real (:527, :528, :533, :535 read/printf/redirecionamento, :536): todos morreram, exceto equivalentes. Sobreviventes: `: > a`/`: > b` (:525) e `>>` virado `>>>`-sem-efeito em :530 (`> comuns` vs `>> comuns` em arquivo novo) e a troca dos argumentos de `comm -12` (simétrico): equivalentes. Sobreviventes em linhas que o lote não mudou: :521/:522/:524 (die), :534 (cabeçalho em stderr), :535 `IFS=` (espaço de borda no nome impresso), :539 plural; ver A1 e A2 (recomendados).
-- Conferência da lista contra o diff: toda linha de guarda mudada (remoto_exato, :459/:472, :523, :526, :530-532, :538, :600) tem mutante declarado; nenhuma sem mutante.
-- Vermelho: os testes novos protegem código que já existe no head (delta só em tests/); a prova é por mutante, com a saída de `forge-mutante` acima; `forge-testes --vermelho` não se aplica.
+- `python3 -m unittest tests.test_fechar tests.test_fechar_orfao tests.test_ci_local tests.test_fechar_base_andou tests.test_pre_push_shellcheck`: Ran 178 tests, OK. `shellcheck bin/forge-fechar`: rc 0.
+- `bin/forge-mutante` (uma spec por chamada), todas rc 0: lote-fechar2 M1..M8 morreram; lote-fechar2-2 M1..M5, Y1, Y2, Y4 morreram; lote-fechar2-3 M1, M2 morreram; lote-fechar2-4 S1 (:337), S2 (:80), S3 (:177), S4 (:750) morreram, todos pelo teste de fonte.
+- Mutação à mão (guarda trocada por `:`, rodando test_fechar, test_fechar_orfao, test_fechar_base_andou; 123 testes): :80 morreu (2 falhas); :177 SOBREVIVEU (OK); :337 SOBREVIVEU (OK); :750 SOBREVIVEU (OK). Os mutantes S1..S4 mudam só a forma e morrem pelo teste de fonte, o que não prova o comportamento.
+- Conferência da lista contra o diff: as quatro linhas mudadas têm mutante (S1..S4), mas S1, S3, S4 não exercem o ramo de falha; por isso A1..A3.
+- Vermelho: sem teste de comportamento novo; o teste de fonte falha nas formas S1..S4 (provado pela spec).
 - PA-7 (achados-recorrentes): sem itens, nada a conferir.
 
 ## Riscos
-Sobreviventes só em linhas anteriores ao lote (mensagens e mktemp), sem efeito na decisão de arquivo em comum.
+A reescrita é equivalente por leitura, mas a equivalência das linhas :177, :337 e :750 não tem teste que a proteja (inclusive a recusa de MERGED sem commit de merge, guarda do passo 6).
