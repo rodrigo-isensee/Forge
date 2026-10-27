@@ -614,6 +614,16 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     return cmd_pr(raiz, pedido, ref, resolvida)
 
 
+def uso_do_pr(raiz, pedido):
+    """C2: `uso: ...` quando o argumento do `forge-check pr` é o id de um pedido existente e não há branch `melhoria/<argumento>`; senão None."""
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", pedido or "") or sha_do_commit(raiz, f"refs/heads/melhoria/{pedido}") \
+            or sha_do_commit(raiz, f"refs/remotes/origin/melhoria/{pedido}"):
+        return None
+    if any((p / "docs" / "pedidos" / f"{pedido}.md").is_file() for p in (raiz_principal(raiz), Path(raiz))):
+        return f"uso: use o slug da branch (<slug>), não o id do pedido ({pedido})"
+    return None
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
@@ -3847,7 +3857,7 @@ def conferir_pq(linhas_pq):
                 verificador = "autor"
             else:
                 tipos.append(CMD_DO_CONFERENTE)
-        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}", False))
+        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador} · verificador: ok", False))  # C3: o rótulo é do vocabulário do comando
     if not vistos:
         saida.append(("forma: sem PQ", True))
     return saida, tipos
@@ -4157,7 +4167,15 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     if anterior is not None:  # M12: só informa (nunca reprova); a rodada de confirmação lê estas linhas
         saida.append((f"anterior: {len(anterior)} bytes sha256 {hashlib.sha256(anterior).hexdigest()}", False))
         saida += [(linha, False) for linha in delta_de_brief(texto, anterior.decode("utf-8", "replace"))]
+        saida += blocos_identicos(texto, anterior.decode("utf-8", "replace"))
     return saida
+
+
+def blocos_identicos(texto, anterior):
+    """C3: uma linha `volta:` por bloco de `SECOES_COPIADAS` igual byte a byte ao do anterior; o conferente a copia e não relê o bloco."""
+    novos, antigos = blocos_literais(texto), blocos_literais(anterior)
+    return [(f'volta: bloco "{nome}" idêntico ao anterior (exigido)', False) for nome in SECOES_COPIADAS
+            if nome in novos and bloco_sem_final(novos[nome]) == bloco_sem_final(antigos.get(nome, []))]
 
 
 FONTE_DE_CITACAO = re.compile(r"[\"“]([^\"”]+)[\"”]\s*\((R-[A-Z][A-Z0-9-]*|[^\s()\"“”]+?:\d+(?:-\d+)?)\)")
@@ -4252,6 +4270,17 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
+def linha_do_comando_pr(texto):
+    """C2: nas etapas de branch inteira, o `forge-check pr` pronto com o slug da branch do cabeçalho (sem `melhoria/`), para o conferente copiar."""
+    cabecalho = cabecalho_do_brief(texto)
+    branch, base = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho) for c in ("Branch", "Base"))
+    if grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_BRANCH_INTEIRA or not (branch and base):
+        return []
+    if not all(re.fullmatch(r"[A-Za-z0-9._/-]+", v) for v in (branch, base)):
+        return []
+    return [(f"etapa: comando forge-check pr {branch.removeprefix('melhoria/')} --ref origin/{branch} --base {base}", False)]
+
+
 def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, caminho, bytes_anterior, ref, pareceres):
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
@@ -4262,6 +4291,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += aviso_de_base_sha(raiz, texto)
     linhas += estado_do_commit(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
+    linhas += linha_do_comando_pr(texto)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
@@ -5174,6 +5204,9 @@ def executar(a, raiz):
     if pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
+    if a.cmd == "pr" and (uso := uso_do_pr(raiz, getattr(a, "pedido", ""))):
+        print(uso)
+        return 2
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
     for v in violacoes:

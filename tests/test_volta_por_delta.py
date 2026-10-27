@@ -425,7 +425,8 @@ class BriefAnterior(unittest.TestCase):
         rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
-        self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
+        self.assertIn("delta: nenhum\n", saida)
+        self.assertTrue(saida.endswith("resultado: aprovado\n"), saida)
         novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Recurso A no módulo de exemplo, em um commit (E1, E1.1).\n", "")
         rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
@@ -438,7 +439,7 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
-        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:"))], linhas_sem)
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco"))], linhas_sem)
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
 
     def test_anterior_fora_de_docs_briefs_ou_da_raiz_rc_2(self):  # B3
@@ -492,7 +493,7 @@ class PqDeMerge(unittest.TestCase):
     def test_o_pq_preenchido_o_conferente_confere_sozinho(self):
         modulo = carregar_forge_check()
         linhas, _ = modulo.conferir_pq(["- PQ-1 (cmd): `git merge-base --is-ancestor 0123456 origin/develop` · espera: rc=0"])
-        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente", False)])
+        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente · verificador: ok", False)])
         self.assertIn("PREENCHER", modulo.pq_de_merge("develop"))  # o brief reprova até trocar o <mergeCommit>
 
 

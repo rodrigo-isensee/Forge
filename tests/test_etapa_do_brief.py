@@ -512,5 +512,73 @@ class QuatroDefeitosDoScript(Repo):
             fc.git = real
 
 
+def cabecalho_c2(etapa, branch="melhoria/meu-slug", base="develop"):
+    return f"Agente destino: forge:revisor\nPedido: x\nBranch: {branch}   Base: {base}   Base-sha: {'a' * 40}\nEtapa: {etapa}\n\n## Objetivo\nX.\n"
+
+
+# --- CONF-C2C3 (CONFERENTE-VELOCIDADE, E3.1): o comando decide o que o conferente lia por julgamento -----------
+class ComandoDoPr(unittest.TestCase):
+    def test_etapa_pr_imprime_o_comando_com_o_slug_sem_o_prefixo(self):
+        for etapa in ("pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2(etapa)),
+                             [("etapa: comando forge-check pr meu-slug --ref origin/melhoria/meu-slug --base develop", False)])
+
+    def test_outras_etapas_e_branch_estranha_nao_imprimem(self):
+        self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("codigo")), [])
+        self.assertEqual(fc.linha_do_comando_pr(cabecalho_c2("pr", branch="melhoria/a;b")), [])
+
+
+class RecusaDoIdDoPedido(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-c2c3-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        (self.tmp / "docs" / "pedidos").mkdir(parents=True)
+        (self.tmp / "docs" / "pedidos" / "ID-DO-PEDIDO.md").write_text("---\nid: ID-DO-PEDIDO\n---\n", encoding="utf-8")
+
+    def pr(self, argumento):
+        r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "pr", argumento],
+                           capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp)), timeout=60)
+        return r.returncode, r.stdout
+
+    def test_id_de_pedido_existente_sem_branch_sai_rc2_com_uso(self):
+        rc, saida = self.pr("ID-DO-PEDIDO")
+        self.assertEqual(rc, 2, saida)
+        self.assertIn("uso: use o slug da branch (<slug>), não o id do pedido", saida)
+
+    def test_slug_sem_pedido_com_esse_nome_segue_o_caminho_antigo(self):
+        rc, saida = self.pr("meu-slug")
+        self.assertNotEqual(rc, 2, saida)
+        self.assertNotIn("uso:", saida)
+
+    def test_com_a_branch_do_mesmo_nome_o_argumento_vale(self):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        for args in (("init", "-q"), ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"),
+                     ("branch", "melhoria/ID-DO-PEDIDO")):
+            subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, env=env)
+        rc, saida = self.pr("ID-DO-PEDIDO")
+        self.assertNotIn("uso:", saida)
+
+
+class VoltaIdentica(unittest.TestCase):
+    ANTES = "Agente destino: forge:dev\n\n## Objetivo\nA.\n\n## Fora do escopo\n- b\n\n## Relatório\nR.\n"
+
+    def test_bloco_igual_byte_a_byte_e_marcado_idêntico(self):
+        linhas = [l for l, _ in fc.blocos_identicos(self.ANTES, self.ANTES)]
+        self.assertEqual(linhas, [f'volta: bloco "{n}" idêntico ao anterior (exigido)' for n in ("Objetivo", "Fora do escopo", "Relatório")])
+
+    def test_bloco_alterado_nao_e_marcado(self):
+        linhas = [l for l, _ in fc.blocos_identicos(self.ANTES.replace("- b", "- c"), self.ANTES)]
+        self.assertNotIn('volta: bloco "Fora do escopo" idêntico ao anterior (exigido)', linhas)
+        self.assertEqual(len(linhas), 2)
+
+
+class VerificadorOk(unittest.TestCase):
+    def test_pq_do_vocabulario_termina_em_verificador_ok(self):
+        for pq in ("- PQ-1 (cmd): `git log` · espera: rc=0", "- PQ-2 (cmd, do autor): `pytest` · espera: rc=0"):
+            linhas, _ = fc.conferir_pq([pq])
+            self.assertTrue(linhas[-1][0].endswith("verificador: ok"), linhas)
+            self.assertFalse(linhas[-1][1])
+
+
 if __name__ == "__main__":
     unittest.main()
