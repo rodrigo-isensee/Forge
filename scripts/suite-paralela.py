@@ -18,7 +18,9 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   FORGE_SUITE_TRAVA; o script confere que a trava está presa e anotada pelo hook (o pid nela). Chamado à mão,
   sem a variável, ele se executa de novo por `.githooks/pre-push --suite`, que pega a mesma trava e a mesma fila.
 - Reuso (K6): ao fechar verde, grava em `$(git rev-parse --git-common-dir)/forge-suite-verde` o hash da árvore
-  testada (`git ls-tree -r HEAD` sem `docs/reviews/`, `docs/qa/`, `docs/devops/`, `docs/security/` e `changelog.d/`)
+  testada (`git ls-tree -r HEAD` sem os `*.md` de parecer direto em `docs/reviews/`, `docs/qa/`, `docs/devops/`,
+  `docs/security/` e `changelog.d/`: `_modelo`, README e subpastas entram; arquivo com skip-worktree ou
+  assume-unchanged não dá hash; o carimbo só grava se o hash no fim for o do começo)
   e a versão do Python. Chamado à mão, antes da trava e da fila, com árvore limpa e o mesmo hash e Python, imprime
   `suite: reusa <hash> de <hora>` e `OK` e sai com 0 sem rodar. Qualquer diferença, árvore suja ou carimbo ausente
   ou ilegível roda a suíte (falha fechada). FORGE_SUITE_SEM_REUSO=1 força a execução; com CI definido sempre roda.
@@ -229,16 +231,25 @@ def _git(raiz, *args):
     return subprocess.run(["git", *args], cwd=raiz, capture_output=True, env=env)
 
 
+def fora_do_hash(caminho):
+    """Só o parecer e o fragmento de changelog: `*.md` direto nas pastas de FORA_DO_HASH, sem `_modelo` nem README."""
+    pasta, _, nome = caminho.rpartition("/")
+    return f"{pasta}/" in FORA_DO_HASH and nome.endswith(".md") and not nome.startswith("_") and nome != "README.md"
+
+
 def hash_da_arvore(raiz):
-    """Hash dos objetos do git de HEAD sem os caminhos de parecer e de changelog; None com a árvore suja ou erro."""
+    """Hash dos objetos do git de HEAD sem os pareceres e os fragmentos de changelog (`fora_do_hash`); None com a
+    árvore suja, com arquivo skip-worktree ou assume-unchanged (o `git status` não os vê) ou erro."""
     status = _git(raiz, "status", "--porcelain", "--untracked-files=all")
     lista = _git(raiz, "ls-tree", "-r", "-z", "HEAD")
-    if status.returncode != 0 or status.stdout.strip() or lista.returncode != 0 or not lista.stdout:
+    marcas = _git(raiz, "ls-files", "-v", "-z")
+    if status.returncode != 0 or status.stdout.strip() or lista.returncode != 0 or not lista.stdout \
+            or marcas.returncode != 0 or any(m[:1].islower() or m[:1] == b"S" for m in marcas.stdout.split(b"\0") if m):
         return None
     resumo = hashlib.sha256()
     for entrada in lista.stdout.split(b"\0"):
         caminho = entrada.partition(b"\t")[2].decode("utf-8", "surrogateescape")
-        if entrada and not caminho.startswith(FORA_DO_HASH):
+        if entrada and not fora_do_hash(caminho):
             resumo.update(entrada + b"\0")
     return resumo.hexdigest()
 
@@ -483,7 +494,8 @@ def orquestrar():
     if os.environ.get("FORGE_SUITE_MEDIR") == "1":
         gravar_pesos(relatorios)
         print(f"suite-paralela: pesos regravados em {PESOS.relative_to(RAIZ)}.", file=sys.stderr)
-    gravar_carimbo(RAIZ, hash_arvore)
+    if hash_da_arvore(RAIZ) == hash_arvore:  # commit no meio da suíte: o carimbo seria de outra árvore
+        gravar_carimbo(RAIZ, hash_arvore)
     print(f"OK (skipped={pulados})" if pulados else "OK")
     return 0
 

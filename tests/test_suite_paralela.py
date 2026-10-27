@@ -144,6 +144,7 @@ class Brinquedo(unittest.TestCase):
         self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
                         XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
+        self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
         self.env.pop("GITHUB_STEP_SUMMARY", None)
 
@@ -181,7 +182,8 @@ class Brinquedo(unittest.TestCase):
         self.assertTrue(linhas[0].startswith("suite: reusa "), saida)
         self.assertEqual(linhas[-1], "OK")
         self.assertEqual(self.rodaram(), [])
-        self.roda(FORGE_SUITE_SEM_REUSO="1")
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
         self.assertEqual(len(self.rodaram()), 3)
 
     def test_vermelho_nao_grava_carimbo(self):  # K6
@@ -193,6 +195,20 @@ class Brinquedo(unittest.TestCase):
             marca.unlink()
         self.assertNotEqual(self.roda()[0], 0)
         self.assertEqual(len(self.rodaram()), 3)
+
+    def test_commit_no_meio_da_suite_nao_grava_carimbo(self):  # A2 da segurança
+        corpo = ("import subprocess; open('novo.txt', 'w').write('x'); "
+                 "[subprocess.run(c, check=True) for c in (['git', 'add', 'novo.txt'], "
+                 "['git', '-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'meio'])]")
+        self.modulo("c", modulo_de_teste("c", corpo))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        self.roda()
+        self.assertEqual(len(self.rodaram()), 3)  # a segunda chamada rodou: não reusou a árvore antiga
 
     def test_cada_processo_tem_tmpdir_proprio_nice_e_grupo_proprio(self):
         codigo, saida, erro = self.roda()

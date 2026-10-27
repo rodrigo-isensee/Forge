@@ -108,6 +108,23 @@ class Reuso(unittest.TestCase):
         self.commitar()
         self.assertEqual(self.s.hash_da_arvore(self.repo), antes)
 
+    def test_modelo_readme_e_subpasta_das_pastas_de_parecer_mudam_o_hash(self):  # A1 da segurança
+        for caminho in ("docs/security/_modelo.md", "docs/reviews/README.md", "docs/qa/bugs/x.md",
+                        "docs/security/ameacas/x.md", "changelog.d/sub/x.md", "docs/qa/p.txt"):
+            with self.subTest(caminho=caminho):
+                antes = self.s.hash_da_arvore(self.repo)
+                self.escrever(caminho, "mudou\n")
+                self.commitar()
+                self.assertNotEqual(self.s.hash_da_arvore(self.repo), antes)
+
+    def test_skip_worktree_e_assume_unchanged_nao_dao_hash(self):  # A3 da segurança
+        for marca in ("--skip-worktree", "--assume-unchanged"):
+            with self.subTest(marca=marca):
+                self.git("update-index", marca, "bin/x")
+                self.assertIsNone(self.s.hash_da_arvore(self.repo))
+                self.git("update-index", marca.replace("--", "--no-"), "bin/x")
+                self.assertIsNotNone(self.s.hash_da_arvore(self.repo))
+
     def test_arquivo_de_codigo_ou_doc_comum_muda_o_hash(self):
         for caminho in ("bin/x", "docs/outro.md", "bin/y", "docs/reviewsx/p.md"):
             with self.subTest(caminho=caminho):
