@@ -9,13 +9,13 @@ import re
 import shutil
 import subprocess
 import sys
-import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_volta_unica import (  # noqa: E402
     BaseVoltaUnica,
     HOOKS,
+    MedidaDeCpu,
     modulos_dos_hooks,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
@@ -137,21 +137,20 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         opção modelada, e as do `env` com o corpo colado ao `S` do grupo, depois dele ou na abreviação de
         `--split-string`, também dá 2. A verdade vem da construção, e não de um `env`. Fora das formas só ficam as
         palavras em que o `env` sempre divide o texto (`-S…`, `--split-string…`): nelas o corpo não é o comando de
-        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (60 s) é do lote inteiro, na `Guarda`."""
+        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
         corpos = self.corpos_sem_marcador()
         for fixo in self.CORPOS_FIXOS + self.CORPOS_DE_LANCADOR_RECUSADO:
             self.assertIn(fixo, corpos, f"o corpo {fixo!r} não dá 2 sozinho no modelo: o oráculo não vale")
         self.assertGreaterEqual(len(corpos), 20)
         textos = self.textos_sem_marcador(corpos)
-        inicio = time.monotonic()
-        decisoes = self.decidir_na_guarda([texto for _, texto in textos])
-        segundos = time.monotonic() - inicio
+        with MedidaDeCpu() as medida:
+            decisoes = self.decidir_na_guarda([texto for _, texto in textos])
         liberadas = [(rotulo, texto) for (rotulo, texto), (codigo, _, _) in zip(textos, decisoes) if codigo != 2]
         self.assertEqual(liberadas[:10], [], f"{len(liberadas)} de {len(textos)} formas dão 0 e o corpo dá 2 sozinho")
         nomes = {rotulo.split(" / ")[0] for rotulo, _ in textos}
         self.assertEqual(nomes, set(modulos_dos_hooks()[0].LANCADORES))
         self.assertGreaterEqual(len(textos), 10_000)
-        self.assertLess(segundos, 60, f"a propriedade levou {segundos:.1f} s para {len(textos)} formas")
+        self.assertLess(medida.cpu, 120, f"a propriedade gastou {medida.texto()} para {len(textos)} formas")
 
     def test_formas_do_s_do_env_sem_marcador_tem_o_texto_colado_e_separado(self):  # item 1, formas do `env`
         """O gerador da propriedade produz, para o `env`, o corpo colado ao `S` do grupo (`-iS'C'`), depois dele
@@ -353,12 +352,11 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         """Sem o marcador, toda forma com uma palavra fora da tabela antes do texto dividido que não fecha aspas
         (`textos_do_texto_aberto`) dá 2, qualquer que seja o corpo, e, com corpo inofensivo, pelo motivo do texto que não
         fecha (o oráculo é a construção); o `env -S<F> C` sem palavra fora da tabela segue 0 (`ilegivel`, como na
-        `develop`). A palavra de 1 caractere nunca é amostrada, e o tempo (60 s) é do lote inteiro, na `Guarda`."""
+        `develop`). A palavra de 1 caractere nunca é amostrada, e o tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
         corpos = list(self.CORPOS_FIXOS + self.CORPOS_INOFENSIVOS)
         textos = self.textos_do_texto_aberto(corpos)
-        inicio = time.monotonic()
-        decisoes = self.decidir_na_guarda([texto for _, texto, _ in textos], motivo=True)
-        segundos = time.monotonic() - inicio
+        with MedidaDeCpu() as medida:
+            decisoes = self.decidir_na_guarda([texto for _, texto, _ in textos], motivo=True)
         erradas = [(rotulo, texto, codigo) for (rotulo, texto, recusa), (codigo, _, _) in zip(textos, decisoes)
                    if codigo != (2 if recusa else 0)]
         self.assertEqual(erradas[:10], [], f"{len(erradas)} de {len(textos)} formas fora da verdade da construção")
@@ -370,8 +368,8 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         nomes = {rotulo.split(" / ")[0] for rotulo, _, _ in textos}
         self.assertTrue(set(modulos_dos_hooks()[0].LANCADORES) <= nomes)
         self.assertGreaterEqual(len(textos), 10_000)
-        print(f"\n[propriedade do texto aberto] {len(textos)} formas em {segundos:.1f} s", file=sys.stderr)
-        self.assertLess(segundos, 60, f"a propriedade levou {segundos:.1f} s para {len(textos)} formas")
+        print(f"\n[propriedade do texto aberto] {len(textos)} formas: {medida.texto()}", file=sys.stderr)
+        self.assertLess(medida.cpu, 120, f"a propriedade gastou {medida.texto()} para {len(textos)} formas")
 
     def test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa(self):  # item 2 do critério de fim da opção B (rev14)
         """As formas do A1 da revalidação 14 (o bug `lote-leitura-hook-3`), a variante do `-S` certo depois de outra

@@ -8,6 +8,7 @@ import itertools
 import json
 import os
 import re
+import resource
 import shlex
 import shutil
 import signal
@@ -31,6 +32,39 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     montar_proc,
     rodar,
     texto)
+
+
+def trabalhadores_do_lote():
+    """O número de trabalhadores em paralelo do lote (`decisoes_dos_hooks`); o limite de CPU do corpus é 90 s por um deles."""
+    return max(1, min(4, (os.cpu_count() or 2) // 2))
+
+
+def limite_de_cpu_do_corpus():
+    """90 s de CPU por trabalhador do lote (PROP-TEMPO-CPU, decisão do dono de 2026-10-27: cabe no runner do CI)."""
+    return 90 * trabalhadores_do_lote()
+
+
+class MedidaDeCpu:
+    """O tempo de CPU de um trecho, e não o do relógio (PROP-TEMPO-CPU): `time.process_time()` (o processo, com as threads)
+    mais `ru_utime + ru_stime` de `RUSAGE_CHILDREN` (os filhos já esperados). O runner carregado alonga o relógio, mas não o
+    que o trecho gasta; o limite dos testes de desempenho é do custo da decisão, e não da fila da máquina."""
+
+    @staticmethod
+    def _filhos():
+        uso = resource.getrusage(resource.RUSAGE_CHILDREN)
+        return uso.ru_utime + uso.ru_stime
+
+    def __enter__(self):
+        self._cpu, self._filhos_antes, self._relogio = time.process_time(), self._filhos(), time.monotonic()
+        return self
+
+    def __exit__(self, *_):
+        self.cpu = (time.process_time() - self._cpu) + (self._filhos() - self._filhos_antes)
+        self.relogio = time.monotonic() - self._relogio
+        return False
+
+    def texto(self):
+        return f"CPU {self.cpu:.2f} s, relógio {self.relogio:.2f} s"
 
 
 # LOTE-LEITURA-HOOK, volta única (docs/propostas/lote-leitura-hook-volta-unica.md, seções 3 a 5): o corpus das classes
@@ -381,7 +415,7 @@ print(json.dumps(saida))
         grandes = [p for p in a_rodar if len(p[1]) > self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         em_lote = [p for p in a_rodar if len(p[1]) <= self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         montados = self.modelos_montados()
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_lote()
         fatias = [em_lote[i::trabalhadores] for i in range(trabalhadores) if em_lote[i::trabalhadores]]
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             for fatia, codigos in zip(fatias, pool.map(lambda f: self.decidir_em_lote(f, montados), fatias)):
