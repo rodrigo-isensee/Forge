@@ -1191,6 +1191,12 @@ def marca_da_inclusao(parecer, achado, ref):
     return f"(incluído {parecer['tipo']} {ref[:7]} {achado['id']} de {caminho_impresso(parecer['rel'])})"
 
 
+def tem_decisao_tecnica(pedido_txt, ident):
+    """AQ1 P5: o `## Histórico` do pedido tem uma linha que abre com `DECISÃO TÉCNICA` e cita o id do achado (`R2`, `A1`) como palavra inteira."""
+    citacao = re.compile(rf"(?<![A-Za-z0-9]){re.escape(ident)}(?![A-Za-z0-9])")
+    return any(e_linha_de_decisao(l, FRASE_TECNICA) and citacao.search(l) for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []))
+
+
 def acrescentar(linhas, novas):
     """`novas` no fim do bloco `linhas` (que guarda o cabeçalho), antes das linhas em branco finais."""
     corpo = list(linhas)
@@ -1302,6 +1308,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     do_registro += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     antigas = [l for l in copiado("Decisões e restrições") if ROTULO_DO_DESTINO not in l]  # as linhas de erro do anterior saem; valem as de agora
+    do_registro += [f"- {PREENCHER}: DECISÃO TÉCNICA para {parecer['tipo']} {ref[:7]} {achado['id']} (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita {achado['id']})"
+                    for parecer, achado in incluidas if not tem_decisao_tecnica(pedido_txt, achado["id"])]
     saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
     bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
@@ -1344,6 +1352,10 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
         for _, decisao in linhas:
             if chave_da_decisao(decisao) not in decisoes:
                 saida.append((f"volta: falta decisão do dono \"{normalizar_espacos(sem_controle(decisao))[:60]}\"", True))
+    for linha in novos.get("Entregar", []):  # AQ1 P5: toda recomendação incluída tem a sua DECISÃO TÉCNICA no Histórico, com ou sem --ref
+        incluida = INCLUIDO.search(linha)
+        if incluida and not tem_decisao_tecnica(pedido_txt, incluida.group(3)):
+            saida.append((f"volta: recomendação {incluida.group(3)} sem DECISÃO TÉCNICA no Histórico", True))
     sha_ref = sha_do_commit(raiz, ref) if ref else None
     if ref and not sha_ref:
         return saida + [(f"volta: --ref {nome_seguro(ref)} não é um commit", True)]

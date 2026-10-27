@@ -4142,7 +4142,42 @@ class VoltaComRecomendacao(unittest.TestCase):
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--incluir", "docs/reviews/p1.md:R1", raiz=self.repo, home=self.tmp / "home")
         self.assertEqual(r.returncode, 2, r.stdout)
 
+    def tecnica(self, *linhas):
+        """Acrescenta ao fim do `## Histórico` do pedido (a última seção do arquivo de teste) as linhas dadas."""
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "".join(f"{l}\n" for l in linhas), encoding="utf-8")
+
+    def test_recomendacao_incluida_sem_decisao_tecnica_reprova_e_o_gerar_pede_a_linha(self):  # AQ1 P5 (E2): falha e sucesso
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        sha = self.head7()
+        self.assertIn(f"- PREENCHER: DECISÃO TÉCNICA para review {sha} R1 (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita R1)", r.stdout)
+        rc, conferencia = self.conferir(self.preenchido(r.stdout))
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", conferencia)
+        self.assertNotIn("volta: ok", conferencia)
+        self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", self.conferir(self.preenchido(r.stdout), ref=None)[1])  # sem --ref também
+        self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review porque cai nas mesmas linhas do A1")
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        self.assertNotIn("DECISÃO TÉCNICA para", r.stdout)
+        rc, conferencia = self.conferir(self.preenchido(r.stdout))
+        self.assertEqual(rc, 0, conferencia)
+        self.assertIn("volta: ok", conferencia)
+        self.assertNotIn("sem DECISÃO TÉCNICA", conferencia)
+
+    def test_decisao_tecnica_de_outro_id_ou_fora_do_historico_nao_cobre(self):
+        mod = carregar_forge_check()
+        base = "## Escopo\n- E1.\n\n## Histórico\n"
+        casos = {"outro id": base + "- DECISÃO TÉCNICA (Jarvis): inclui R2\n",
+                 "id dentro de outro token": base + "- DECISÃO TÉCNICA (Jarvis): inclui R10 e AR1\n",
+                 "só menção": base + "- 2026-10-20: ver DECISÃO TÉCNICA de R1\n",
+                 "fora do Histórico": "## Decisões do usuário\n- DECISÃO TÉCNICA (Jarvis): inclui R1\n\n## Histórico\n- x\n"}
+        for nome, texto in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(mod.tem_decisao_tecnica(texto, "R1"))
+        self.assertTrue(mod.tem_decisao_tecnica(base + "- **DECISÃO TÉCNICA** (Jarvis): inclui A4/R1 e R2\n", "R1"))
+        self.assertTrue(mod.tem_decisao_tecnica(base + "- DECISÃO TÉCNICA (Jarvis): inclui R1.\n", "R1"))
+
     def test_o_brief_com_a_copia_passa_e_a_edicao_reprova(self):  # abuso 6
+        self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review")
         saida = self.gerar("--incluir", "docs/reviews/p1.md:R1").stdout
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
@@ -4918,8 +4953,9 @@ class TextoDoConferenteNoLote(unittest.TestCase):
             with self.subTest(frase):
                 self.assertIn(frase, trecho)
 
-    def test_recomendacao_incluida_precisa_de_decisao_ou_escopo(self):  # M2.5
-        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa de uma decisão registrada", self.agente)
+    def test_recomendacao_incluida_precisa_da_decisao_tecnica_do_historico(self):  # M2.5, AQ1 P5
+        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa da DECISÃO TÉCNICA no Histórico do pedido: "
+                      "o comando confere (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico` reprova) e você copia a linha dele", self.agente)
         self.assertIn("`recomendação ... difere do parecer`", self.agente)
 
     def test_o_comando_do_hook_aceita_o_que_o_texto_manda_rodar(self):
