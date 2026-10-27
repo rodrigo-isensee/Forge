@@ -429,6 +429,12 @@ class NaoEPortao(unittest.TestCase):
         self.assertIn("2026-10-24", doc)
         self.assertIn("substitui", doc)
 
+    def test_docstring_nao_manda_review_e_qa_rodarem_a_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A4
+        doc = ast.get_docstring(ast.parse(FERRAMENTA.read_text(encoding="utf-8"))).replace("\n", " ")
+        self.assertNotIn("Review, QA, o CI do PR", doc)
+        self.assertIn("autor e os revisores rodam só os testes do item", doc)
+        self.assertIn("a suíte inteira fica no pre-push e no CI", doc)
+
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
 

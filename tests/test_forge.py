@@ -296,9 +296,19 @@ class PrePushSoOsAfetados(unittest.TestCase):
     def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("bin/forge-testes", "tests/config.json", ".githooks/", "só acrescenta pareceres", "docs/reviews/"):
+        for esperado in ("diff que toca `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
             with self.subTest(esperado=esperado):
                 self.assertIn(esperado, trecho)
+
+    def test_readme_lista_todos_os_casos_da_suite_inteira_do_so_parecer(self):  # COMENTARIOS-PREPUSH, review A1/A2, QA A1
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
+        for esperado in ("árvore suja", "mais de uma ref", "HEAD diferente do commit enviado", "sem `origin/develop`",
+                         "docs/security/ameacas/", "docs/security/aceites/", "ref nova", "prova ausente"):
+            with self.subTest(esperado=esperado):
+                self.assertIn(esperado, trecho)
+        self.assertNotIn("outro arquivo, modelo `_*`, ref nova ou prova ausente cai na suíte inteira", trecho)
+        self.assertIn("segue a regra acima", trecho)
 
 
 class Skills(unittest.TestCase):
