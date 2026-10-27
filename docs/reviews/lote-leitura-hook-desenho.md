@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: RET-LEITURA-HOOK
+pedido: lote-leitura-hook
 branch: melhoria/lote-leitura-hook
 commit: 335ea5e2975658e3a04e4addfe50301a55f1fc29
 parecer: aprovado
