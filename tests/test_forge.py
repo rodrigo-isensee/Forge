@@ -4294,7 +4294,7 @@ class EtapaDeSegurancaNaEntrega(RepoDeSeguranca):
                 self.assertIn('escopo: confira "docs/security/aceites/p1.md" +5 -0', saida)
                 self.assertNotIn('parecer de seguranca) "docs/security/aceites', saida)
 
-    def test_desde_vale_na_seguranca_e_continua_recusado_no_pr(self):  # abuso 15
+    def test_desde_vale_na_seguranca_e_no_pr(self):  # abuso 15
         c1 = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         (self.repo / "b.txt").write_text("2\n", encoding="utf-8")
         git("add", "-A", cwd=self.repo)
@@ -4304,9 +4304,9 @@ class EtapaDeSegurancaNaEntrega(RepoDeSeguranca):
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"intervalo: {c1}..", saida)
         self.assertNotIn("escopo: --desde", saida)
-        rc, saida, _ = self.entrega("pr", "--desde", c1)
-        self.assertEqual(rc, 1, saida)
-        self.assertIn("escopo: --desde fora da etapa", saida)
+        rc, saida, _ = self.entrega("pr", "--desde", c1)  # C1: vale também no pr
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {c1}..", saida)
 
     def test_gerar_aceita_a_etapa_seguranca(self):
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--etapa", "seguranca", raiz=self.repo, home=self.tmp / "home")
