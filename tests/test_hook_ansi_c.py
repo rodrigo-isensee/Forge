@@ -14,9 +14,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
-from test_forge import RAIZ, ambiente_limpo  # noqa: E402
+from ambiente_git import sem_manutencao  # noqa: E402
 
-HOOK = RAIZ / "hooks" / "conformidade.py"
+RAIZ = Path(__file__).resolve().parent.parent
+HOOKS = RAIZ / "hooks"  # o hook sai de `HOOKS / f"{nome}.py"`: o mapa do bin/forge-testes (fora desta entrega) ainda não lista este módulo
+
+
+def ambiente_limpo():
+    """Sem as variáveis GIT_* e FORGE_* nem `CLAUDE_PROJECT_DIR`, sem config global do git (como o de test_forge)."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
+    return sem_manutencao(env)
+
+
 SEM_PAR = "aspas sem par na leitura do hook"
 LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; _comum.forge_check().GIT_TIMEOUT_S = 120; "
             "_comum.PRAZO_DA_DECISAO_S = 120.0; sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
@@ -41,10 +51,10 @@ class HookAnsiC(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.raiz, ignore_errors=True)
 
-    def conformidade(self, comando):
+    def conformidade(self, comando, nome="conformidade"):
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:node-backend",
                    "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"}
-        return subprocess.run([sys.executable, "-c", LANCADOR, str(RAIZ / "hooks"), str(HOOK)], input=json.dumps(entrada),
+        return subprocess.run([sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{nome}.py")], input=json.dumps(entrada),
                               cwd=self.raiz, env=ambiente_limpo(), capture_output=True, text=True, timeout=120)
 
     def bash(self, comando, arquivos):
