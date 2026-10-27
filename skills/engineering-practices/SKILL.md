@@ -48,6 +48,7 @@ Cada regra do `docs/engineering/praticas.md` do projeto diz quem a decide: "deci
 9. Commits limpos e mensagem clara?
 10. Decisão ou experimento novo traz critério de reversão? Mecanismo novo traz "Por que o existente não basta" (evidência de execução)?
 11. Teste de ausência ("não achei X") cujo alvo mudou é relido: o texto que ele procura ainda existe? Teste que percorre pasta ou lista afirma um mínimo de itens?
+12. Falso de `git` ou `gh` num teste (a função que imita `head_do_pr`, `ls-remote` e afins) confere a mesma regra que o script corrige (nome exato, não prefixo nem substring)? Falso mais frouxo que o script deixa o teste verde com o defeito presente.
 
 Parecer: **aprovado** ou **ajustes necessários** (arquivo:linha · problema · sugestão · severidade: bloqueia / recomendado).
 
