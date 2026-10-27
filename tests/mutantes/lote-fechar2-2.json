@@ -51,6 +51,39 @@
       "testes": [
         "tests.test_fechar_base_andou.Teste.test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr"
       ]
+    },
+    {
+      "id": "Y1",
+      "guarda": "2b: sort que falha antes do comm para (&& antes do comm virado ;)",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" ; comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "Y2",
+      "guarda": "2b: sort da lista da base que falha para (&& depois do sort a virado ;)",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" ; sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "Y4",
+      "guarda": "2b: nenhum && da cadeia dos sort e do comm vale como ;",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" ; sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" ; comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
     }
   ]
 }

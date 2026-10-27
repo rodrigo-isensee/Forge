@@ -14,6 +14,11 @@ COMM_FALSO = r'''#!/usr/bin/env bash
 [ ! -f "$ESTADO/comm_falha" ] || { echo "comm: falha simulada" >&2; exit 1; }
 PATH="${PATH#*:}" exec comm "$@"
 '''
+# sort falso: $ESTADO/sort_falha_em guarda "a" ou "b"; só o sort cujo arquivo de entrada termina nessa letra (lista da base ou da branch) falha
+SORT_FALSO = r'''#!/usr/bin/env bash
+[ ! -f "$ESTADO/sort_falha_em" ] || case "${@: -1}" in */"$(cat "$ESTADO/sort_falha_em")") echo "sort: falha simulada" >&2; exit 2 ;; esac
+PATH="${PATH#*:}" exec sort "$@"
+'''
 GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
 case "$1 $2" in
   "ls-remote origin")
@@ -48,6 +53,8 @@ class Teste(unittest.TestCase):
         (bin_ / "git").chmod(0o755)
         (bin_ / "comm").write_text(COMM_FALSO, encoding="utf-8")
         (bin_ / "comm").chmod(0o755)
+        (bin_ / "sort").write_text(SORT_FALSO, encoding="utf-8")
+        (bin_ / "sort").chmod(0o755)
 
     # ---- N-FECHAR-a, A5: base que andou com arquivo em comum (passo 2b) ----
     def base_anda(self, arquivos, renomear=None, ramo="develop"):
@@ -229,6 +236,21 @@ class Teste(unittest.TestCase):
 
     def test_diff_da_branch_que_falha_sozinho_para_no_passo_2b(self):
         self._diff_que_falha_so_em("origin/melhoria/x", "parou no passo 2b: o diff da branch falhou")
+
+    def _sort_que_falha_so_em(self, lado):
+        self.base_anda({"b": "da base\n"})  # arquivo em comum: a falha do sort não pode virar "sem arquivo em comum"
+        (self.estado / "sort_falha_em").write_text(lado)
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("não consegui cruzar as listas de arquivos", r.stderr)
+        self.assertNotIn("sem arquivo em comum", r.stderr + r.stdout)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_sort_da_lista_da_base_que_falha_para_no_passo_2b(self):
+        self._sort_que_falha_so_em("a")
+
+    def test_sort_da_lista_da_branch_que_falha_para_no_passo_2b(self):
+        self._sort_que_falha_so_em("b")
 
 
 if __name__ == "__main__":
