@@ -1,0 +1,2 @@
+### Alterado
+- Texto de agentes (T2, T4, T5, T6 do ciclo 3 do aq, AQ3-TEXTO): o arquiteto classifica o afrouxamento e marca gatilhos_seguranca no plano; o agile-coach usa as marcas medido, estimado e não medido, separa propor de implementar e lê o git sem escrever; os agentes da stack node-react param sem especificação, citam R-CONFORMIDADE e tomam o contrato do esquema compartilhado, e o pronto sugerido passa a pnpm (projetos novos); o UX só registra a validação com a frase literal do usuário e marca a acessibilidade como lida ou medida
