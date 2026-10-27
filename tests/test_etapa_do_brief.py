@@ -164,6 +164,42 @@ class RegraUnicaDeMarca(Base):
         self.assertEqual(rc, 1)
 
 
+
+class LoteDoBriefG1(Base):
+    """PR-VERDE-LOTE-CHECK (G1): o que o conferente reprovava por leitura, o `forge-check brief` reprova antes, com linha própria."""
+
+    def test_a_etapa_do_cobre_no_fora_do_escopo_sem_marca_reprova(self):
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2"))
+        rc, saida = self.conferir(texto.replace("\n\n## Objetivo", "\nCobre: E1.5\n\n## Objetivo", 1))
+        self.assertIn('corte: sem marca "E1.5" (etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)', saida)
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.conferir(texto.replace("\n\n## Objetivo", "\nCobre: E1.2\n\n## Objetivo", 1), "ok.md")
+        self.assertNotIn("etapa do próprio papel cortada", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_caminho_do_pq_que_nao_existe_nem_e_criado_reprova(self):
+        self.gravar("bin/existe", "x\n")
+        pq = "- PQ-2 (cmd): `bin/existe bin/nao-existe refs/heads/x origin/develop` · espera: rc=0\n"
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Relatório", "\n" + pq + "\n## Relatório")
+        rc, saida = self.conferir(texto)
+        self.assertIn('pq: PQ-2 cita "bin/nao-existe", que não existe nem é criado pelo Entregar (R-PROVA)', saida)
+        self.assertEqual([l for l in saida.splitlines() if l.startswith("pq:")], ['pq: PQ-2 cita "bin/nao-existe", que não existe nem é criado pelo Entregar (R-PROVA)'])
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.conferir(texto.replace("Mesclar (E1.5).", "Mesclar (E1.5) e criar `bin/nao-existe`."), "ok.md")
+        self.assertNotIn("pq:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_no_rev_falta_a_decisao_do_pedido_de_origem_reprova(self):
+        rev = self.gravar("docs/pedidos/exemplo-REV.md", PEDIDO.replace('DECISÃO DO DONO (2026-01-01): "A".', "nenhuma."))
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace('DECISÃO DO DONO (2026-01-01): "A".', "nada.")
+        rc, saida = self.rodar("brief", self.gravar("b.md", sem), "--pedido", rev)
+        self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-01): \\"A\\"." (docs/pedidos/exemplo.md:21)', saida)
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.rodar("brief", self.gravar("ok.md", brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5"))), "--pedido", rev)
+        self.assertIn("fonte: docs/pedidos/exemplo.md (1 decisões)", saida)
+        self.assertEqual(rc, 0, saida)
+
+
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 

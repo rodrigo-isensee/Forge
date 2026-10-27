@@ -3883,11 +3883,12 @@ def conferir_pq(linhas_pq):
     return saida, tipos
 
 
-def conferir_corte(brief_secoes, pedido, destino):
+def conferir_corte(brief_secoes, pedido, destino, cobre=None):
     """Corte de escopo por IDs (C2) e etapas (M16, R-BRIEF): cada `E<n>` do escopo está no Entregar, em `Fora do escopo` pelas
     etapas ou como corte real; cada etapa de `## Etapas` (de qualquer `E<n>`, com ou sem sufixo de letra) está no Entregar ou no
     `Fora do escopo`, sem a marca (continua no pedido) ou com a marca completa (sai do pedido, `R-DECISAO`). Um brief delega uma
-    só etapa: duas ou mais citadas no Entregar reprovam (`etapa: junta delegações`)."""
+    só etapa: duas ou mais citadas no Entregar reprovam (`etapa: junta delegações`). G1: a etapa do `Cobre:` do cabeçalho, do papel do
+    destino, no `Fora do escopo` sem a marca é a própria delegação cortada e reprova."""
     if not pedido["escopo"] and not pedido["etapas"]:
         return [("corte: não verificável (pedido sem IDs)", False)]
     entregar = " ".join(brief_secoes.get("Entregar", []))
@@ -3923,6 +3924,9 @@ def conferir_corte(brief_secoes, pedido, destino):
         papel = pedido["etapas"][etapa][0]
         if papel_destino and nome_do_papel(papel) != papel_destino:
             saida.append((f"etapa: papel errado {etapa} (o pedido a põe em \"{sem_controle(papel)[:40]}\", o destino é \"{sem_controle(papel_destino)[:40]}\") (R-BRIEF)", True))
+    if (cobre in pedido["etapas"] and cobre not in citados and not marca_de(cobre) and any(cobre in i["refs"] for i in itens)
+            and papel_destino and nome_do_papel(pedido["etapas"][cobre][0]) == papel_destino):
+        saida.append((f"corte: sem marca \"{cobre}\" (etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)", True))
     cobertos, cortados, agregadas = set(), set(), set()
     for n in sorted(pedido["escopo"]):
         chave = f"E{n}"
@@ -4130,6 +4134,13 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
         avisos.append((f"decisões: menção fora do início {caminho_impresso(rel)}:{n} (informativo; não cobrada)", False))
     if len(mencoes) > TETO_DE_MENCOES:
         avisos.append((f"decisões: menção fora do início: mais {len(mencoes) - TETO_DE_MENCOES} linhas (informativo; não cobradas)", False))
+    if origem := re.fullmatch(r"(.+)-(?:REV|PR)", Path(proprio).stem):  # G1: o -REV e o -PR cobram as decisões do pedido de origem
+        rel = f"docs/pedidos/{origem.group(1)}.md"
+        texto, erro = ler_registro(raiz, rel) if rel not in vistos else (None, None)
+        if texto is not None:
+            fontes.append((rel, linhas_de_decisao(texto)))
+        elif erro:
+            avisos.append((f"decisões: pedido de origem {nome_seguro(rel)} {erro} (não verificável)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
     return {"fontes": fontes, "adrs": adrs, "avisos": avisos}
 
@@ -4174,7 +4185,7 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     saida += forma + pqs
     if not any(r for _, r in forma + pqs):
         saida.append(("forma: ok", False))
-    saida += conferir_corte(secoes, pedido, destino)
+    saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
     if cobradas is not None:
         saida += conferir_decisoes(cobradas, secoes)
@@ -4278,6 +4289,32 @@ def conferir_citacoes(raiz, texto, secoes, pedido):
     return saida
 
 
+CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)")
+
+
+def caminhos_ausentes_do_pq(raiz, texto, secoes):
+    """G1: caminho entre crases num PQ `arquivo` ou `cmd` que não existe (na raiz, na cópia principal, no `Base-sha` nem em
+    `origin/<Base>`) nem é citado fora do `Pronto quando` (o que a entrega cria: o caminho ou, com duas pastas ou mais, a pasta dele)
+    reprova. Só caminho cuja primeira pasta existe na raiz: `refs/heads/x` e `origin/develop` não são arquivo."""
+    cabecalho = cabecalho_do_brief(texto)
+    refs = [r for r in (grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho),
+                        f"origin/{grupo(CABECALHO_DE_BRIEF_CAMPOS['Base'], cabecalho) or 'develop'}") if r]
+    resto, saida = " ".join(l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas), []
+    for linha in secoes.get("Pronto quando", []):
+        m = PQ.search(linha)
+        if not m or (m.group(2) or "").split(",")[0].strip() not in ("arquivo", "cmd"):
+            continue
+        for rel in dict.fromkeys(c.rstrip(".") for t in re.findall(r"`([^`]+)`", linha[m.end():]) for c in CAMINHO_NO_PQ.findall(t)):
+            topo = rel.split("/")[0]
+            pasta = rel.rpartition("/")[0]
+            if topo in (".", "..") or not (Path(raiz) / topo).is_dir() or rel in resto or ("/" in pasta and f"{pasta}/" in resto) \
+                    or any((p / rel).exists() for p in (Path(raiz), raiz_principal(raiz))) \
+                    or any(not git(raiz, "cat-file", "-e", f"{ref}:{rel}")[0] for ref in refs):
+                continue
+            saida.append((f"pq: PQ-{m.group(1)} cita {nome_seguro(sem_controle(rel))}, que não existe nem é criado pelo Entregar (R-PROVA)", True))
+    return saida
+
+
 def avisos_da_etapa(raiz, texto, pedido_id):
     """M5: com `Etapa:` de qa, pr ou merge e `Branch:` no cabeçalho, uma linha `aviso: etapa:` por parecer que o `forge-check pr` ainda
     cobra (a mesma tabela do `gerar`); só informa, e o conferente confere a etapa com o `forge-check pr`."""
@@ -4310,6 +4347,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
+    linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))
     linhas += estado_do_commit(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
     linhas += linha_do_comando_pr(texto)

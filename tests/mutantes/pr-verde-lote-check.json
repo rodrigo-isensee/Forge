@@ -1,0 +1,36 @@
+{
+  "pedido": "pr-verde-lote-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G1 (a): sem a reprova, a etapa do Cobre cortada sem marca passaria",
+      "arquivo": "bin/forge-check",
+      "de": "(etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)\", True))\n",
+      "para": "(etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)\", False))\n",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_a_etapa_do_cobre_no_fora_do_escopo_sem_marca_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G1 (b): esquecer o PQ cmd deixaria passar o caminho que não existe",
+      "arquivo": "bin/forge-check",
+      "de": "        if not m or (m.group(2) or \"\").split(\",\")[0].strip() not in (\"arquivo\", \"cmd\"):\n",
+      "para": "        if not m or (m.group(2) or \"\").split(\",\")[0].strip() not in (\"arquivo\",):\n",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_caminho_do_pq_que_nao_existe_nem_e_criado_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G1 (c): esquecer o -REV deixaria de cobrar as decisões do pedido de origem",
+      "arquivo": "bin/forge-check",
+      "de": "    if origem := re.fullmatch(r\"(.+)-(?:REV|PR)\", Path(proprio).stem):",
+      "para": "    if origem := re.fullmatch(r\"(.+)-(?:PR)\", Path(proprio).stem):",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_no_rev_falta_a_decisao_do_pedido_de_origem_reprova"
+      ]
+    }
+  ]
+}
