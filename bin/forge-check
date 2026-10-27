@@ -947,7 +947,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
     if dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref):  # E2: só integração na branch
-        arquivos = [n for n in arquivos if n in dos_dois_pais[0]]
+        desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o merge que devolve à base o que a branch pôs (segurança A2)
+        arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por

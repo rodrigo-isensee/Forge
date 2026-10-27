@@ -198,6 +198,42 @@ class Entrega(Repositorio):
                 self.assertIn('"docs/reviews/p1.md"', saida)
                 self.assertIn('confira "cod.py" +1 -1', saida)
 
+    def desfazer_depois_da_conferida(self, forma):
+        """A branch entrega `teste.py` até a conferida; depois a base o devolve (merge) ou a própria branch o apaga (linear)."""
+        c1 = self.commitar({"teste.py": "t\n", "cod.py": "1\n"}, "conferida")
+        self.gravar_pedido([c1])
+        if forma == "linear":
+            git("rm", "-q", "teste.py", cwd=self.repo)
+            git("commit", "-q", "-m", "apaga o teste", cwd=self.repo)
+            return c1
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"so_da_base.txt": "b\n"}, "a base andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-commit", "--no-ff", "develop", cwd=self.repo)
+        git("rm", "-q", "teste.py", cwd=self.repo)
+        git("commit", "-q", "-m", "integra a base e apaga o teste", cwd=self.repo)
+        if forma == "merge_e_commit":
+            self.commitar({"cod.py": "2\n"}, "muda o código")
+        return c1
+
+    def confere_desfeito(self, forma):
+        for etapa in ("codigo", "pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(forma=forma, etapa=etapa):
+                self.setUp()
+                c1 = self.desfazer_depois_da_conferida(forma)
+                saida = self.entrega(desde=c1, etapa=etapa)[1]
+                self.assertIn('escopo: confira "teste.py" +0 -1', saida)
+                self.assertNotIn("sem commit", saida)
+
+    def test_desfeito_em_commit_linear_depois_da_conferida_fica_no_escopo(self):  # segurança A2, forma 1
+        self.confere_desfeito("linear")
+
+    def test_desfeito_pelo_merge_da_base_como_ultimo_commit_fica_no_escopo(self):  # segurança A2, forma 2
+        self.confere_desfeito("merge_ultimo")
+
+    def test_desfeito_pelo_merge_da_base_seguido_de_commit_fica_no_escopo(self):  # segurança A2, forma 3
+        self.confere_desfeito("merge_e_commit")
+
     def test_commit_depois_da_conferida_aparece_no_delta_do_pr(self):  # C1
         self.tres_delegacoes()
         self.gravar_pedido([self.c3])
