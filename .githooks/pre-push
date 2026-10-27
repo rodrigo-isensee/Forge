@@ -233,8 +233,8 @@ so_parecer() {
   done <<< "$delta"
   return 0
 }
-# EST-M8 (decisão do dono, 2026-10-23: A): o push de código roda só os testes afetados pelo mapa do `bin/forge-testes`;
-# a suíte completa fica no CI do PR (a bateria completa roda lá). Os bloqueios de conteúdo (main, homolog, develop,
+# EST-M8 (decisão M8 do dono, 2026-10-24: A, que substitui a de 2026-10-23): o pre-push de `melhoria/*` roda só os testes afetados
+# pelo mapa do `bin/forge-testes`; a bateria completa segue no CI do PR. Os bloqueios de conteúdo (main, homolog, develop,
 # não fast-forward) já valeram acima, antes de qualquer teste. Falha fechada: tudo o que não for um envio simples de
 # uma branch com a ferramenta e a base presentes, o plano dirigido e a árvore limpa roda a suíte inteira, como antes.
 # O dirigido vale só para `refs/heads/melhoria/*` (decisão do dono); outra branch roda a suíte inteira. O Python do plano e da
