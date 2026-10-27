@@ -44,16 +44,30 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             self.skipTest("bash ou env ausente, ou num caminho com espaço")
         base = self._pasta_temporaria()
         vivas = 0
+        com_argv0 = {f: self.env_aceita_argv0(e) for f, e in envs.items()}
         for k, (rotulo, molde, familia) in enumerate(self.FORMAS_DO_LANCADOR):
             alvos = {f: e for f, e in envs.items() if familia in (None, f)}
+            if self.USA_ARGV0.search(molde):  # o GNU anterior ao 9.5 recusa `-a`: nele a forma não é comando
+                alvos = {f: e for f, e in alvos.items() if com_argv0[f]}
             with self.subTest(rotulo=rotulo):
                 if not alvos:
-                    self.skipTest(f"sem o env {familia} nesta máquina")
+                    self.skipTest(f"sem o env {familia} (com `-a`, se a forma o usa) nesta máquina")
                 for f, env_real in alvos.items():
                     self.assertTrue(self.rodou_com_o_env(bash, env_real, molde, base / f"{k}-{f}"),
                                     f"com os hooks desligados, o env {f} ({env_real}) não roda o comando de {molde!r}")
                 vivas += 1
-        self.assertGreaterEqual(vivas, 20)
+        # com um `env` que aceita `-a` (uutils, GNU 9.5 em diante) as formas vivas são 20 ou mais; só com o GNU 9.4
+        # do runner (sem `-a`) sobram os dois controles, as demais formas já foram recusadas pelos dois hooks acima
+        self.assertGreaterEqual(vivas, 20 if any(com_argv0.values()) else 2)
+
+    USA_ARGV0 = re.compile(r"(?<!\S)-[A-Za-z]*a|--ar")
+
+    @staticmethod
+    def env_aceita_argv0(env_real):
+        """Se o `env` roda `-a x true` (a opção `--argv0` entrou no GNU coreutils 9.5; o 9.4 do runner a recusa)."""
+        r = subprocess.run([env_real, "-a", "x", "true"], capture_output=True, text=True, timeout=10,
+                           stdin=subprocess.DEVNULL)
+        return r.returncode == 0
 
     def test_env_nao_le_opcao_depois_do_comando(self):  # item 3 do critério de fim da opção A (sonda do S2)
         """Cada `env` da máquina (GNU e uutils) entrega ao comando, sem ler, a palavra com `-` que vem depois dele
