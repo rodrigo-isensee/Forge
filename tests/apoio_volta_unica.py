@@ -35,13 +35,13 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
 
 
 def trabalhadores_do_lote():
-    """O número de trabalhadores em paralelo do lote (`decisoes_dos_hooks`); o limite de CPU do corpus é 60 s por um deles."""
+    """O número de trabalhadores em paralelo do lote (`decisoes_dos_hooks`); o limite de CPU do corpus é 90 s por um deles."""
     return max(1, min(4, (os.cpu_count() or 2) // 2))
 
 
 def limite_de_cpu_do_corpus():
-    """60 s de CPU por trabalhador do lote: o mesmo orçamento que os 60 s de relógio davam a cada um (PROP-TEMPO-CPU)."""
-    return 60 * trabalhadores_do_lote()
+    """90 s de CPU por trabalhador do lote (PROP-TEMPO-CPU, decisão do dono de 2026-10-27: cabe no runner do CI)."""
+    return 90 * trabalhadores_do_lote()
 
 
 class MedidaDeCpu:

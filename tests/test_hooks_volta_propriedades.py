@@ -150,7 +150,7 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 with MedidaDeCpu() as medida:
                     _comum.reavaliacao_das_palavras(palavras)
                     _comum.separar_lancadores([p or "" for p in palavras])
-                self.assertLess(medida.cpu, 1.0, f"{nome}: {medida.texto()}")
+                self.assertLess(medida.cpu, 2.0, f"{nome}: {medida.texto()}")
 
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks

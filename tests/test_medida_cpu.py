@@ -40,10 +40,10 @@ class MedidaDeCpuDosTestesDeDesempenho(unittest.TestCase):
             pass
         self.assertRegex(medida.texto(), r"^CPU \d+\.\d\d s, relógio \d+\.\d\d s$")
 
-    def test_limite_do_corpus_e_60_s_por_trabalhador(self):
+    def test_limite_do_corpus_e_90_s_por_trabalhador(self):
         for nucleos, trabalhadores in ((1, 1), (2, 1), (4, 2), (8, 4), (64, 4)):
             with self.subTest(nucleos=nucleos), mock.patch("os.cpu_count", return_value=nucleos):
-                self.assertEqual(limite_de_cpu_do_corpus(), 60 * trabalhadores)
+                self.assertEqual(limite_de_cpu_do_corpus(), 90 * trabalhadores)
 
 
 if __name__ == "__main__":

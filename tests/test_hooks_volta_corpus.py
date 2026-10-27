@@ -112,7 +112,7 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             self.assertEqual(self.executar_em_lote(casos), len(casos))
         trabalhadores = trabalhadores_do_lote()
         self.assertLess(medida.cpu, limite_de_cpu_do_corpus(),
-                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 60 s de CPU por trabalhador)")
+                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 90 s de CPU por trabalhador)")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`
