@@ -1,0 +1,66 @@
+{
+  "pedido": "hooks-corpus-rapido",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "HOOKS-CORPUS-RAPIDO: os módulos da volta única rodam na regra hooks/doutor.py",
+      "arquivo": "bin/forge-testes",
+      "de": "    (r\"hooks/doutor\\.py\", (\"test_atualizar\", \"test_hooks\", \"test_catraca\", \"test_sugerir\", \"test_forge\", \"test_doutor\") + VOLTA_UNICA),\n",
+      "para": "    (r\"hooks/doutor\\.py\", (\"test_atualizar\", \"test_hooks\", \"test_catraca\", \"test_sugerir\", \"test_forge\", \"test_doutor\")),\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "HOOKS-CORPUS-RAPIDO: os módulos da volta única rodam na regra larga hooks/",
+      "arquivo": "bin/forge-testes",
+      "de": "                   \"test_agentes_hash_brief\", \"test_agentes_clone\", \"test_textos_dono_f10\") + VOLTA_UNICA),\n",
+      "para": "                   \"test_agentes_hash_brief\", \"test_agentes_clone\", \"test_textos_dono_f10\")),\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "HOOKS-CORPUS-RAPIDO: os módulos da volta única rodam na regra stacks/",
+      "arquivo": "bin/forge-testes",
+      "de": "    (r\"stacks/.*\", CONTEUDO + (\"test_hooks\",) + VOLTA_UNICA),\n",
+      "para": "    (r\"stacks/.*\", CONTEUDO + (\"test_hooks\",)),\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "HOOKS-CORPUS-RAPIDO: os módulos da volta única rodam na regra .claude-plugin/",
+      "arquivo": "bin/forge-testes",
+      "de": "    (r\"(dev/)?\\.claude-plugin/.*\", PUBLICADO + (\"test_hooks\",) + VOLTA_UNICA),\n",
+      "para": "    (r\"(dev/)?\\.claude-plugin/.*\", PUBLICADO + (\"test_hooks\",)),\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "HOOKS-CORPUS-RAPIDO: os módulos da volta única rodam na regra do bin/forge-check (FORGE_CHECK)",
+      "arquivo": "bin/forge-testes",
+      "de": "               \"test_testes_tocados\", \"test_volta_por_delta\", \"test_voltas\") + VOLTA_UNICA\n",
+      "para": "               \"test_testes_tocados\", \"test_volta_por_delta\", \"test_voltas\")\n",
+      "testes": [
+        "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "HOOKS-CORPUS-RAPIDO E1: o driver do lote passa o CRITICO do hook ao executar",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            _comum.executar(hook, modulo.principal, modulo.CRITICO, **argumentos)\n",
+      "para": "            _comum.executar(hook, modulo.principal, None, **argumentos)\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook"
+      ]
+    }
+  ]
+}
