@@ -9,7 +9,7 @@
       "de": "                                    (nome, i + texto[1], dividido + _dividir(texto[0], gasto, f\"{nome} {opcao}\"))))\n",
       "para": "                                    (nome, i + texto[1], dividido + _dividir(texto[0], 0, f\"{nome} {opcao}\"))))\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -19,7 +19,7 @@
       "de": "        except TextoDivididoAberto:  # texto dividido do `env` com aspas abertas, numa leitura só\n",
       "para": "        except ZeroDivisionError:  # texto dividido do `env` com aspas abertas, numa leitura só\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_texto_dividido_aberto_com_mais_de_uma_leitura_recusa"
       ]
     },
     {
@@ -29,7 +29,7 @@
       "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
       "para": "                alvos += [a for a in palavras[tees[0] + 1:][:1] if not a.startswith(\"-\")] if tees else []\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
       ]
     },
     {
@@ -39,7 +39,7 @@
       "de": "                alvos += [a for a in palavras[tees[0] + 1:] if not a.startswith(\"-\")] if tees else []\n",
       "para": "                alvos += [a for a in palavras[tees[0] + 1:]] if tees else []\n",
       "testes": [
-        "tests.test_hooks.CorpusHeredocVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
+        "tests.test_hooks_volta_lancador.LancadorDaVoltaUnica.test_alvos_do_tee_atras_do_texto_dividido_aberto"
       ]
     }
   ]
