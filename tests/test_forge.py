@@ -296,19 +296,25 @@ class PrePushSoOsAfetados(unittest.TestCase):
     def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("diff que toca `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
+        for esperado in ("sem tocar `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
             with self.subTest(esperado=esperado):
                 self.assertIn(esperado, trecho)
 
-    def test_readme_lista_todos_os_casos_da_suite_inteira_do_so_parecer(self):  # COMENTARIOS-PREPUSH, review A1/A2, QA A1
+    def test_readme_so_diz_afetados_para_o_envio_simples_e_o_resto_e_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A1/A5
         readme = (RAIZ / "README.md").read_text(encoding="utf-8")
         trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
-        for esperado in ("árvore suja", "mais de uma ref", "HEAD diferente do commit enviado", "sem `origin/develop`",
-                         "docs/security/ameacas/", "docs/security/aceites/", "ref nova", "prova ausente"):
-            with self.subTest(esperado=esperado):
-                self.assertIn(esperado, trecho)
-        self.assertNotIn("outro arquivo, modelo `_*`, ref nova ou prova ausente cai na suíte inteira", trecho)
-        self.assertIn("segue a regra acima", trecho)
+        frases = re.split(r"\.\s+(?=[A-ZÀ-Ú])", trecho)
+        com_afetados = [f for f in frases if "só os testes afetados" in f]
+        self.assertTrue(com_afetados)
+        for f in com_afetados:
+            for cond in ("uma só ref", "árvore limpa", "HEAD igual ao commit enviado", "`origin/develop`"):
+                with self.subTest(cond=cond):
+                    self.assertIn(cond, f)
+        self.assertIn("Qualquer outro envio roda a suíte inteira", trecho)
+        for proibido in ("árvore suja", "mais de uma ref", "HEAD diferente", "segue a regra acima"):
+            with self.subTest(proibido=proibido):
+                self.assertNotIn(proibido, trecho)
+        self.assertIn("`.githooks/pre-push` (`so_parecer` e `dirigido`)", trecho)
 
 
 class Skills(unittest.TestCase):
