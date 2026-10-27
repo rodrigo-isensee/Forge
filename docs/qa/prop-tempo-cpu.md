@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: prop-tempo-cpu
 branch: melhoria/prop-tempo-cpu
-commit: 650dbf9398a2a151368cd231d0e691a53857ccc0
+commit: f0a5194c1254591e29a9346741bb17618b2e4c61
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,12 +14,9 @@ data: 2026-10-27
 ---
 # QA: prop-tempo-cpu
 
-Parecer sobre o head `650dbf9398a2a151368cd231d0e691a53857ccc0` (base `9620160`), volta 6 (limites 90 s por trabalhador, 120 s e 2,0 s, decisão do dono de 2026-10-27 19:13), em paralelo com review e segurança (ACELERA-RODADA "A", item 4). Sem especificação de UX: as obrigações são as de E1 do pedido e as decisões dele. Substitui o parecer de `fe9dfb2`.
+Parecer sobre o head `f0a5194c1254591e29a9346741bb17618b2e4c61` (base `9620160`), volta 7 (revalidação por delta de `650dbf9`, que só mudou texto em `c3214f1`), volta 6 (limites 90 s por trabalhador, 120 s e 2,0 s, decisão do dono de 2026-10-27 19:13), em paralelo com review e segurança (ACELERA-RODADA "A", item 4). Sem especificação de UX: as obrigações são as de E1 do pedido e as decisões dele. Substitui o parecer de `fe9dfb2`.
 
 ## Achados
-- A1 (recomendado) tests/test_hooks_volta_lancador.py:140 · docstring diz "60 s de CPU" (idem :355); o limite agora é 120 s; texto defasado, sem efeito no comportamento (o review da volta 6 já o trata)
-- A2 (recomendado) tests/test_hooks_volta_propriedades.py:142 · docstring diz "menos de 1 s de CPU"; o limite agora é 2,0 s (o review da volta 6 já o trata)
-- A3 (recomendado) changelog.d/prop-tempo-cpu.md:1 · conferir se o fragmento ainda diz "mesmos limites", que deixou de valer com a decisão do dono (o review da volta 6 já o trata)
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -31,6 +28,11 @@ Parecer sobre o head `650dbf9398a2a151368cd231d0e691a53857ccc0` (base `9620160`)
 | Decisão do dono 19:13: lançador 120 s e T 2,0 s de CPU | test_hooks_volta_lancador (2 propriedades), test_hooks_volta_propriedades.test_t_reconhecedor... | limites 120 e 2,0 aplicados (diff: `medida.cpu`, 120, 120, 2.0) | passou (ver folga) |
 | Mapa FORGE_CHECK e contagem exata 26 | test_testes_tocados.Mapa.test_forge_check_roda_os_modulos_dele | contagem exata | passou |
 | Texto da medida | test_o_texto_diz_cpu_e_relogio | `CPU x.xx s, relógio y.yy s` | passou |
+
+## Revalidação por delta (650dbf9...f0a5194)
+- `git diff 650dbf9...f0a5194` em `tests/` e `changelog.d/`: 3 docstrings (limites 120 s e 2 s) e o fragmento do changelog; comparação das árvores sintáticas sem docstrings das duas fontes: idênticas (nenhum número, asserção ou código mudou). Os 3 achados anteriores (A1 a A3, textos defasados) estão resolvidos por `c3214f1`; o bloco `## Achados` ficou vazio.
+- `python3 -m unittest tests.test_medida_cpu tests.test_changelog`: 51 testes, OK (1 skip já existente).
+- Os números de CPU, folga e mutantes abaixo valem do head `650dbf9`, cujo código é o mesmo.
 
 ## Cenários e resultado real
 - `tests.test_medida_cpu` + `tests.test_testes_tocados`: 86 testes, OK (14,0 s).
