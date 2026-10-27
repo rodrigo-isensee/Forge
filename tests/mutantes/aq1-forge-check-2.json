@@ -51,6 +51,36 @@
       "testes": [
         "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
       ]
+    },
+    {
+      "id": "M14",
+      "guarda": "escape registrar recusa origem fora da lista",
+      "arquivo": "bin/forge-check",
+      "de": "(\"--controle-que-faltou\", controle, CONTROLES_QUE_FALTARAM), (\"--origem\", origem, ORIGENS)):",
+      "para": "(\"--controle-que-faltou\", controle, CONTROLES_QUE_FALTARAM)):",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado.test_aq1_origem_invalida_e_recusada_sem_gravar_e_sem_ecoar_o_valor"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "valor de origem fora da lista conta como nao-classificado",
+      "arquivo": "bin/forge-check",
+      "de": "len(celulas) >= 8 and celulas[7] in ORIGENS else",
+      "para": "len(celulas) >= 8 else",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado.test_aq1_resumo_conta_por_origem_e_le_a_linha_antiga_sem_a_coluna_como_nao_classificado"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o padrao da origem e nao-classificado",
+      "arquivo": "bin/forge-check",
+      "de": "er.add_argument(\"--origem\", default=SEM_ORIGEM,",
+      "para": "er.add_argument(\"--origem\", default=\"spec\",",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado.test_grava_linha_de_formato_fixo_com_cabecalho_e_hora_real"
+      ]
     }
   ]
 }

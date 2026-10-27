@@ -1,0 +1,2 @@
+### Alterado
+- O `forge-check brief` cobra as decisões do pedido de origem (`Depende de:`, um nível) e a DECISÃO TÉCNICA de cada recomendação incluída na volta (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico`); o arquivo de achados recorrentes aceita o tipo `qa` e a classe com espaços; `escape registrar --origem` guarda onde o defeito nasceu e `escape resumo` conta por origem (AQ1-FORGE-CHECK)

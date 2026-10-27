@@ -38,8 +38,9 @@ mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao
 `evidencia=cita` (o texto do PR cita `#N` de PR mesclado antes: prova escrita) ou `evidencia=arquivo` (sem citação, mas mexe em arquivo que outro PR
 mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os `fix` sem nenhuma das duas (`nenhuma`).
 `escape registrar` (M14b) grava em docs/kanban/escapes.md, em formato fixo e com a hora real, o defeito escapado (bug achado depois do parecer
-final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava); `escape resumo`
-(só leitura) conta por gravidade e por controle e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
+final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava; `--origem spec|ux|arquitetura|codigo|teste|brief|nao-classificado`, onde o defeito nasceu,
+padrão `nao-classificado`, na última coluna; a linha antiga sem a coluna é lida como `nao-classificado`); `escape resumo`
+(só leitura) conta por gravidade, por controle e por origem e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
 `afrouxamentos` (M14b; só leitura, sem rede) roda a catraca (`tests/catraca.py`) sobre o diff de cada PR rotulado `afrouxa-regra` (o commit dele na linha da `--ref`
 contra o primeiro pai) e diz `real` (violação de conteúdo: regra piorada), `so-protegido` (só edição de controle protegido, que o rótulo libera sem afrouxar),
 `sem-violacao` (o rótulo não era exigido), `sem-commit` ou `erro-git`; os números vêm de `--prs` ou de `--rotulados` (JSON do `gh pr list`, gerado fora).
@@ -2383,18 +2384,26 @@ def _lista_de_prs(numeros):
 
 
 # ---- M14b: defeito escapado (bug achado depois do parecer final), registrado em docs/kanban/escapes.md ----
-CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota |\n"
-                     "|---|---|---|---|---|---|---|\n")
+CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota | origem |\n"
+                     "|---|---|---|---|---|---|---|---|\n")
 ACHADO_POR = ("uso", "teste", "review", "outro-pedido", "ci")
 GRAVIDADES = ("critico", "alto", "medio", "baixo")
 CONTROLES_QUE_FALTARAM = ("review", "seguranca", "qa", "conferencia", "ci", "nenhum")
+ORIGENS = ("spec", "ux", "arquitetura", "codigo", "teste", "brief", "nao-classificado")  # onde o defeito nasceu (AQ1 T3)
+SEM_ORIGEM = "nao-classificado"
 JANELA_DE_ESCAPES = 30  # dias
 
 
-def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota):
+def origem_do_escape(celulas):
+    """A origem de uma linha de `escapes.md`: a 8.ª coluna; a linha antiga (7 colunas) ou com valor fora de ORIGENS é `nao-classificado`."""
+    return celulas[7] if len(celulas) >= 8 and celulas[7] in ORIGENS else SEM_ORIGEM
+
+
+def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem=SEM_ORIGEM):
     """Registra um defeito escapado em docs/kanban/escapes.md: uma linha de formato fixo com a hora real `AAAA-MM-DD HH:MM`. Só acrescenta;
     cria o arquivo com o cabeçalho se faltar. `parecer_final` é o parecer (caminho em docs/reviews, qa... ou commit) depois do qual o bug
-    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava). Recusa sem gravar; a recusa cita o
+    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava); `origem` é a fase onde o defeito
+    nasceu (`ORIGENS`, padrão `nao-classificado`; a coluna vai depois da `nota`, para a linha antiga seguir válida). Recusa sem gravar; a recusa cita o
     campo, nunca o valor."""
     campos = (("--pedido", pedido), ("--parecer-final", parecer_final), ("--nota", nota))
     for nome, valor in campos:
@@ -2407,7 +2416,7 @@ def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, con
     if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:
         return ["escape: --pedido (letras, números, `.`, `_` e `-`), --parecer-final e --nota não podem ser vazios"]
     for nome, valor, validos in (("--achado-por", achado_por, ACHADO_POR), ("--gravidade", gravidade, GRAVIDADES),
-                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM)):
+                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM), ("--origem", origem, ORIGENS)):
         if valor not in validos:
             return [f"escape: {nome} deve ser um de {', '.join(validos)}"]
     if not (raiz / "KANBAN.md").is_file():
@@ -2423,7 +2432,7 @@ def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, con
             f.seek(-1, 2)
             falta_quebra = f.read(1) != b"\n"
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
-    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} |\n"
+    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} | {origem} |\n"
     with arq.open("a", encoding="utf-8") as f:
         if not existe:
             f.write(CABECALHO_ESCAPES)
@@ -2448,6 +2457,7 @@ def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
                if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == "pronto" and (_hora(c[0]) or agora) >= inicio}
     print("escapes: gravidade: " + " ".join(f"{g}={sum(1 for e in escapes if e[4] == g)}" for g in GRAVIDADES))
     print("escapes: controle: " + " ".join(f"{k}={sum(1 for e in escapes if e[5] == k)}" for k in CONTROLES_QUE_FALTARAM))
+    print("escapes: origem: " + " ".join(f"{o}={sum(1 for e in escapes if origem_do_escape(e) == o)}" for o in ORIGENS))
     taxa = f"{len(escapes) / len(prontos):.2f}" if prontos else "-"
     print(f"escapes: total: escapes={len(escapes)} pedidos_prontos={len(prontos)} taxa={taxa} dias={dias}")
     return 0
@@ -5036,6 +5046,7 @@ def main():
     er.add_argument("--gravidade", required=True, help=", ".join(GRAVIDADES))
     er.add_argument("--controle-que-faltou", required=True, help=f"o controle que deveria tê-lo achado: {', '.join(CONTROLES_QUE_FALTARAM)}")
     er.add_argument("--nota", required=True, help="uma linha: o que escapou")
+    er.add_argument("--origem", default=SEM_ORIGEM, help=f"onde o defeito nasceu: {', '.join(ORIGENS)} (padrão {SEM_ORIGEM})")
     eu = esub.add_parser("resumo", parents=[comum], help="escapes por gravidade e controle e a taxa sobre os pedidos prontos; só leitura")
     eu.add_argument("--dias", type=int, default=JANELA_DE_ESCAPES, help=f"janela em dias (padrão {JANELA_DE_ESCAPES})")
     af = sub.add_parser("afrouxamentos", parents=[comum], help="dos PRs com o rótulo afrouxa-regra, quantos afrouxavam regra de verdade (a catraca sobre o diff de cada um); só leitura (M14b)")
@@ -5154,7 +5165,7 @@ def executar(a, raiz):
     if a.cmd == "escape":
         if a.acao == "resumo":
             return cmd_escape_resumo(raiz, a.dias)
-        linhas = cmd_escape_registrar(raiz, a.pedido, a.parecer_final, a.achado_por, a.gravidade, a.controle_que_faltou, a.nota)
+        linhas = cmd_escape_registrar(raiz, a.pedido, a.parecer_final, a.achado_por, a.gravidade, a.controle_que_faltou, a.nota, a.origem)
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("escape:") else 0
