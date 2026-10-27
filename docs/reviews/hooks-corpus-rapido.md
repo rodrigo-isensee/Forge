@@ -3,19 +3,20 @@ tipo: review
 contrato: 1
 pedido: hooks-corpus-rapido
 branch: melhoria/hooks-corpus-rapido
-commit: 2c14a56245b9dc4060903073c5e4e8227aecd6b3
+commit: 1ead0ed775d77d8bdb15034e8350521fda23434c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-27
 ---
 # Review: hooks-corpus-rapido
 
-Revalidação por delta (head 2c14a56, delta `978d2d6..2c14a56`, abaixo): o A1 bloqueante do parecer anterior (35dd28f) está resolvido. Primeira leitura, escopo `363ceee..978d2d6` (um commit), pedido HOOKS-CORPUS-RAPIDO, E1 a E3; revisão do pedido HOOKS-CORPUS-RAPIDO-REV, E1.1.
+Revalidação por delta (head 1ead0ed; a segunda, abaixo, cobre 2c14a56..1ead0ed; a primeira, delta `978d2d6..2c14a56`, abaixo): o A1 bloqueante do parecer anterior (35dd28f) está resolvido. Primeira leitura, escopo `363ceee..978d2d6` (um commit), pedido HOOKS-CORPUS-RAPIDO, E1 a E3; revisão do pedido HOOKS-CORPUS-RAPIDO-REV, E1.1.
 
 ## Achados
 - A1 (recomendado) docs/hooks.md:95 · o texto ainda cita `tests/test_hooks.py` e a classe `CorpusHeredocVoltaUnica` para as provas (antigo A2; não devolve)
 - A2 (recomendado) tests/apoio_volta_unica.py:297 · `DECIDIDOS` segue gravado e sem leitor (antigo A3; não devolve)
 - A3 (recomendado) tests/test_pesos_teto.py:15 · o teto de 15 min segue copiado à mão do ci.yml (antigo A4; não devolve)
+- A4 (recomendado) tests/test_hooks_volta_lancador.py:70 · no runner (GNU 9.4) só 2 formas vivas até o CI instalar um env com `-a` (cartão CI-ENV-ARGV0, PR seguinte; não devolve)
 
 ## O que foi lido
 - O diff inteiro de `363ceee...978d2d6` (11 arquivos), o pedido HOOKS-CORPUS-RAPIDO e o -REV, e `docs/engineering/achados-recorrentes.md` (PA-7: sem achado registrado; nada a conferir).
@@ -56,3 +57,17 @@ Delta lido: `bin/forge-testes` (5 linhas), `tests/test_testes_tocados.py`, `test
 - Ferramenta: `python3 -m unittest tests.test_testes_tocados tests.test_pesos_teto tests.test_doutor_relogio`: `Ran 103 tests in 16.438s`, `OK`. Suíte completa: pre-push e CI (M8).
 
 **Aprovado.** Sem bloqueante. R-NEUTRO e R-CUSTO preservados.
+
+## Revalidação por delta (2c14a56..1ead0ed), head 1ead0ed
+Delta lido (`forge-check delta`): `tests/test_hooks_volta_lancador.py` (+16 -2) e o fragmento `changelog.d/hooks-corpus-rapido.md` (+1). Já lido, sem mudança: tudo o que está acima (movimento de código, apoio, mapa, pesos, mutantes); os pareceres de segurança e QA são de outros portões.
+
+- Sonda `env_aceita_argv0`: roda `env -a x true` e usa o código de saída; é por env e não presume versão. Correta.
+- Filtro `USA_ARGV0` (`(?<!\S)-[A-Za-z]*a|--ar`): conferi sobre as 27 formas de `FORMAS_DO_LANCADOR` que ele marca exatamente as 23 que usam `-a`, `-ia`, `-ax`, `--argv0` ou `--ar`, e deixa as 4 formas sem `-a` do uutils mais `env {C}` e `env -u x {C}`. Sem falso positivo nem negativo.
+- Forma com `-a` só roda no env que a aceita (`alvos` filtrado por `com_argv0`); sem alvo, vira `skipTest` do subTest, sem fingir que provou.
+- Mínimo: 20 onde algum env aceita `-a`, senão 2 (os dois controles sem `-a` na família `None`). Não afrouxa onde o env aceita: aqui (uutils 0.8.0) o teste exige 20 e passou. A perda de prova no GNU 9.4 do runner está aceita pela decisão do dono 14:32, C, com o cartão CI-ENV-ARGV0 no PR seguinte (recomendação A4 abaixo).
+- As decisões dos hooks para todos os textos seguem asseridas por inteiro: o delta não toca `test_hooks_volta_corpus` nem `_propriedades` nem `apoio_volta_unica.py`; o filtro age só sobre a execução real do lançador.
+- Fragmento do changelog: coerente com a mudança.
+- Teto M14: `git diff --numstat --no-renames origin/develop...HEAD` (contam `bin/`, `hooks/`, `scripts/`, `tests/*.py`): 4279 linhas, código movido; nenhum arquivo de `hooks/` nem de `PROTEGIDOS` no diff, a exceção vale. Corpo do PR: `teto: excedido, 4279 linhas, código movido de tests/test_hooks.py`. PA-7: sem item registrado.
+- Ferramenta: `python3 -m unittest tests.test_hooks_volta_lancador`: `Ran 20 tests in 55.061s`, `OK` (env uutils, 20 formas vivas). Suíte completa: pre-push e CI (M8).
+
+**Aprovado** no head 1ead0ed. Sem bloqueante. R-NEUTRO e R-CUSTO preservados.
