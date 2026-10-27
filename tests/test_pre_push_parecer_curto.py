@@ -130,6 +130,7 @@ class PrePushParecerCurto(unittest.TestCase):
     def test_so_o_dirigido_verde_anota_a_prova_dirigida_e_nunca_a_da_suite_inteira(self):
         codigo_sha = self.codigo_dirigido()
         arvore = self.git("rev-parse", f"{codigo_sha}^{{tree}}")
+        self.assertTrue(self.dirigida.exists(), "o dirigido verde anota a árvore aprovada")
         self.assertIn(arvore, self.dirigida.read_text().split())
         self.assertFalse(self.verde.exists(), "a prova da suíte inteira só nasce da suíte inteira")
 
@@ -171,6 +172,7 @@ class PrePushParecerCurto(unittest.TestCase):
         self.assertEqual(marcas, CURTAS)
         self.assertNotIn("esperando a vez", erro)
         arvore = self.git("rev-parse", "HEAD^{tree}")
+        self.assertTrue(self.verde.exists(), "o parecer anota a árvore mesmo sem a trava")
         self.assertIn(arvore, self.verde.read_text().split(), "o parecer anota a árvore mesmo sem a trava")
 
     def test_envio_de_codigo_continua_esperando_a_trava_e_e_barrado_sem_a_vez(self):
