@@ -19,6 +19,11 @@ SORT_FALSO = r'''#!/usr/bin/env bash
 [ ! -f "$ESTADO/sort_falha_em" ] || case "${@: -1}" in */"$(cat "$ESTADO/sort_falha_em")") echo "sort: falha simulada" >&2; exit 2 ;; esac
 PATH="${PATH#*:}" exec sort "$@"
 '''
+# mktemp falso: $ESTADO/mktemp_falha faz só o `mktemp -d` da pasta temporária do passo 2b falhar (o do log segue o de verdade)
+MKTEMP_FALSO = r'''#!/usr/bin/env bash
+[ ! -f "$ESTADO/mktemp_falha" ] || [ "$*" != "-d" ] || { echo "mktemp: falha simulada" >&2; exit 1; }
+PATH="${PATH#*:}" exec mktemp "$@"
+'''
 GIT_BASE_ANDOU = r'''#!/usr/bin/env bash
 case "$1 $2" in
   "ls-remote origin")
@@ -27,6 +32,10 @@ case "$1 $2" in
     # $ESTADO/ls_ref_falha: sem resposta do servidor para a branch da entrega (passo 2); $ESTADO/ls_ref_lixo: a coluna 1 não é sha
     if [ -f "$ESTADO/ls_ref_falha" ] && [ "$3" = refs/heads/melhoria/x ]; then echo "fatal: unable to access" >&2; exit 128; fi
     if [ -f "$ESTADO/ls_ref_lixo" ] && [ "$3" = refs/heads/melhoria/x ]; then printf '%s\t%s\n' "$(cat "$ESTADO/ls_ref_lixo")" "$3"; exit 0; fi ;;
+  "merge-base --all")
+    # $ESTADO/mb_falha: o merge-base sai com erro mas já imprimiu um ponto de partida (só o rc denuncia); $ESTADO/mb_vazio: rc 0 e nada na saída
+    if [ -f "$ESTADO/mb_falha" ]; then "$(dirname "$0")/git-base" "$@"; echo "fatal: simulado" >&2; exit 128; fi
+    if [ -f "$ESTADO/mb_vazio" ]; then exit 0; fi ;;
   "rev-list --count")
     # $ESTADO/revlist_falha: a contagem de commits da base (passo 2b) falha
     if [ -f "$ESTADO/revlist_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
@@ -58,6 +67,8 @@ class Teste(unittest.TestCase):
         (bin_ / "comm").chmod(0o755)
         (bin_ / "sort").write_text(SORT_FALSO, encoding="utf-8")
         (bin_ / "sort").chmod(0o755)
+        (bin_ / "mktemp").write_text(MKTEMP_FALSO, encoding="utf-8")
+        (bin_ / "mktemp").chmod(0o755)
 
     # ---- N-FECHAR-a, A5: base que andou com arquivo em comum (passo 2b) ----
     def base_anda(self, arquivos, renomear=None, ramo="develop"):
@@ -261,6 +272,64 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("não consegui contar os commits da base", r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+
+    # ---- LOTE-FECHAR2 (volta 6): ramo de falha de cada guarda que o lote reescreveu ou que a QA achou sem teste ----
+    def test_a1_pasta_do_log_que_nao_e_diretorio_e_recusada_com_a_mensagem_propria(self):
+        # o mkdir -p falso diz "ok" para um arquivo comum; só a checagem -d && ! -L pode recusar (sem ela, o erro viria do cd, com outra mensagem)
+        arquivo = self.tmp / "arquivo-no-lugar-da-pasta"
+        arquivo.write_text("x\n")
+        (self.tmp / "bin" / "mkdir").write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+        (self.tmp / "bin" / "mkdir").chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run", FORGE_FECHAR_LOG_DIR=str(arquivo))
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("a pasta do log não é um diretório", r.stderr)
+        self.assertEqual(arquivo.read_text(), "x\n")
+        self.assertEqual(self.chamadas(), [])
+
+    def test_a3_pr_merged_sem_commit_de_merge_vazio_ou_traco_nao_conta_como_sucesso(self):
+        for nome, conteudo in (("merge_commit", ""), ("merge_commit_vazio", "1")):
+            with self.subTest(caso=nome):
+                for f in ("merge_commit", "merge_commit_vazio", "estado", "aberto"):
+                    (self.estado / f).unlink(missing_ok=True)
+                (self.estado / nome).write_text(conteudo)
+                r = self.fechar("p1", "--ref", "melhoria/x")
+                self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+                self.assertIn("consta MERGED sem commit de merge", r.stderr)
+                self.assertNotIn("merge: ", r.stdout)
+                self.assertEqual(self.git("branch", "--list", "melhoria/x"), "melhoria/x")  # a limpeza não chega a rodar
+
+    def test_a4_a_mensagem_da_base_conta_os_commits_no_plural(self):
+        self.base_anda({"outro": "x\n"})
+        self.base_anda({"outro2": "y\n"})
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertIn("a base andou 2 commits sem arquivo em comum com melhoria/x", r.stdout)
+
+    def test_a5_merge_base_que_sai_com_erro_para_mesmo_com_saida_parcial(self):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "mb_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("sem ponto de partida comum", r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_a5_merge_base_sem_nenhum_ponto_de_partida_para_e_nao_segue_com_lista_vazia(self):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "mb_vazio").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("sem ponto de partida comum", r.stderr)
+        self.assertNotIn("o diff da base falhou", r.stderr)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_a5_pasta_temporaria_do_2b_que_nao_nasce_para_com_a_mensagem_propria(self):
+        self.base_anda({"outro": "x\n"})
+        (self.estado / "mktemp_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("não consegui criar a pasta temporária", r.stderr)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
 

@@ -1,0 +1,77 @@
+{
+  "pedido": "lote-fechar2-5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "pasta do log que nao e diretorio e recusada (A1, linha da guarda -d && ! -L)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ -d \"$logdir\" ] && [ ! -L \"$logdir\" ]; }; then die \"a pasta do log não é um diretório (ou virou link simbólico): $logdir\"; fi",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a1_pasta_do_log_que_nao_e_diretorio_e_recusada_com_a_mensagem_propria"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "so a catraca com link valido conta nas execucoes vistas e novas (A2, o continue dos outros checks e do run ?)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ \"$nome_ck\" = catraca ] && [ \"$run_ck\" != \"?\" ]; }; then continue; fi",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_espera_catraca.FecharEsperaCatraca.test_a2_check_de_outro_nome_com_run_novo_nao_faz_a_catraca_velha_virar_skipping",
+        "tests.test_fechar_espera_catraca.FecharEsperaCatraca.test_a2_catraca_com_link_fora_do_padrao_antes_do_rotulo_nao_entra_em_run_antes"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "PR MERGED sem commit de merge (vazio ou -) nao conta como sucesso (A3)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! { [ -n \"$pr_merge\" ] && [ \"$pr_merge\" != \"-\" ]; }; then die \"parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub\"; fi",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a3_pr_merged_sem_commit_de_merge_vazio_ou_traco_nao_conta_como_sucesso"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "a mensagem da base conta os commits no plural (A4)",
+      "arquivo": "bin/forge-fechar",
+      "de": "$([ \"$n\" = 1 ] || echo s)",
+      "para": "",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a4_a_mensagem_da_base_conta_os_commits_no_plural"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "merge-base --all que sai com erro para (A5, linha 521)",
+      "arquivo": "bin/forge-fechar",
+      "de": "mbs=\"$(git merge-base --all \"$base_sha\" \"$remoto_sha\")\" || die \"parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo\"",
+      "para": "mbs=\"$(git merge-base --all \"$base_sha\" \"$remoto_sha\")\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a5_merge_base_que_sai_com_erro_para_mesmo_com_saida_parcial"
+      ]
+    },
+    {
+      "id": "G6",
+      "guarda": "lista de pontos de partida vazia para (A5, linha 522)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -n \"$mbs\" ] || die \"parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo\"",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a5_merge_base_sem_nenhum_ponto_de_partida_para_e_nao_segue_com_lista_vazia"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "pasta temporaria do 2b que nao nasce para (A5, linha 524)",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 2b: não consegui criar a pasta temporária\"",
+      "para": "|| :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_a5_pasta_temporaria_do_2b_que_nao_nasce_para_com_a_mensagem_propria"
+      ]
+    }
+  ]
+}
