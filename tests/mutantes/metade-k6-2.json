@@ -31,6 +31,36 @@
       "testes": [
         "tests.test_suite_reuso.Reuso.test_chamada_a_mao_imprime_reusa_e_ok"
       ]
+    },
+    {
+      "id": "M12",
+      "guarda": "modelo, README e subpasta entram no hash",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": " and not nome.startswith(\"_\") and nome != \"README.md\"",
+      "para": "",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_modelo_readme_e_subpasta_das_pastas_de_parecer_mudam_o_hash"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "skip-worktree e assume-unchanged nao dao hash",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": " or any(m[:1].islower() or m[:1] == b\"S\" for m in marcas.stdout.split(b\"\\0\") if m)",
+      "para": "",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_skip_worktree_e_assume_unchanged_nao_dao_hash"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "carimbo so grava se o hash no fim for o do comeco",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if hash_da_arvore(RAIZ) == hash_arvore:",
+      "para": "    if True:",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_commit_no_meio_da_suite_nao_grava_carimbo"
+      ]
     }
   ]
 }
