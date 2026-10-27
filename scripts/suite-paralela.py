@@ -17,11 +17,18 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
 - Uma suíte por vez (R-TETO, SUITE-FILA-JUSTA): o pre-push chama o script já com a trava e passa o caminho dela em
   FORGE_SUITE_TRAVA; o script confere que a trava está presa e anotada pelo hook (o pid nela). Chamado à mão,
   sem a variável, ele se executa de novo por `.githooks/pre-push --suite`, que pega a mesma trava e a mesma fila.
+- Reuso (K6): ao fechar verde, grava em `$(git rev-parse --git-common-dir)/forge-suite-verde` o hash da árvore
+  testada (`git ls-tree -r HEAD` sem `docs/reviews/`, `docs/qa/`, `docs/devops/`, `docs/security/` e `changelog.d/`)
+  e a versão do Python. Chamado à mão, antes da trava e da fila, com árvore limpa e o mesmo hash e Python, imprime
+  `suite: reusa <hash> de <hora>` e `OK` e sai com 0 sem rodar. Qualquer diferença, árvore suja ou carimbo ausente
+  ou ilegível roda a suíte (falha fechada). FORGE_SUITE_SEM_REUSO=1 força a execução; com CI definido sempre roda.
 - FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações da execução, se tudo passou.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
 import collections
+import datetime
 import fcntl
+import hashlib
 import json
 import os
 import shutil
@@ -43,6 +50,8 @@ CARGA_MAX, PISO_GB, PISO_FRACAO = 0.8, 1.0, 0.15
 SINAIS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 ESPERA_TERMINO_S = 10
 HOOK = RAIZ / ".githooks" / "pre-push"
+FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "changelog.d/")
+CARIMBO = "forge-suite-verde"
 
 
 class Interrompido(Exception):
@@ -213,6 +222,66 @@ def processo(entrada, saida):
     return 0 if resultado.wasSuccessful() else 1
 
 
+# Reuso por árvore (K6) --------------------------------------------------------------------------------------------
+
+def _git(raiz, *args):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    return subprocess.run(["git", *args], cwd=raiz, capture_output=True, env=env)
+
+
+def hash_da_arvore(raiz):
+    """Hash dos objetos do git de HEAD sem os caminhos de parecer e de changelog; None com a árvore suja ou erro."""
+    status = _git(raiz, "status", "--porcelain", "--untracked-files=all")
+    lista = _git(raiz, "ls-tree", "-r", "-z", "HEAD")
+    if status.returncode != 0 or status.stdout.strip() or lista.returncode != 0 or not lista.stdout:
+        return None
+    resumo = hashlib.sha256()
+    for entrada in lista.stdout.split(b"\0"):
+        caminho = entrada.partition(b"\t")[2].decode("utf-8", "surrogateescape")
+        if entrada and not caminho.startswith(FORA_DO_HASH):
+            resumo.update(entrada + b"\0")
+    return resumo.hexdigest()
+
+
+def caminho_do_carimbo(raiz):
+    r = _git(raiz, "rev-parse", "--git-common-dir")
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    return (Path(raiz) / r.stdout.decode().strip()) / CARIMBO
+
+
+def gravar_carimbo(raiz, hash_arvore, python=None):
+    """Grava o carimbo (atomicamente); sem hash ou sem lugar, não grava."""
+    destino = caminho_do_carimbo(raiz)
+    if not hash_arvore or destino is None:
+        return
+    dados = {"hash": hash_arvore, "python": python or sys.version,
+             "hora": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")}
+    try:
+        temporario = destino.with_name(f"{CARIMBO}.{os.getpid()}")
+        temporario.write_text(json.dumps(dados), encoding="utf-8")
+        os.replace(temporario, destino)
+    except OSError:
+        pass
+
+
+def reuso(raiz, environ, python=None):
+    """(hash, hora) se há carimbo verde da mesma árvore e do mesmo Python; None em qualquer outro caso."""
+    if environ.get("CI") or environ.get("FORGE_SUITE_SEM_REUSO") == "1":
+        return None
+    atual = hash_da_arvore(raiz)
+    destino = caminho_do_carimbo(raiz)
+    if atual is None or destino is None:
+        return None
+    try:
+        dados = json.loads(destino.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(dados, dict) or dados.get("hash") != atual or dados.get("python") != (python or sys.version):
+        return None
+    return atual, str(dados.get("hora", "?"))
+
+
 # Orquestrador ---------------------------------------------------------------------------------------------------
 
 def estado_da_arvore():
@@ -373,6 +442,7 @@ def orquestrar():
     print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
           file=sys.stderr, flush=True)
     antes = estado_da_arvore()
+    hash_arvore = hash_da_arvore(RAIZ)
     pasta = Path(tempfile.mkdtemp(prefix="forge-suite-"))
     filhos = []
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
@@ -413,6 +483,7 @@ def orquestrar():
     if os.environ.get("FORGE_SUITE_MEDIR") == "1":
         gravar_pesos(relatorios)
         print(f"suite-paralela: pesos regravados em {PESOS.relative_to(RAIZ)}.", file=sys.stderr)
+    gravar_carimbo(RAIZ, hash_arvore)
     print(f"OK (skipped={pulados})" if pulados else "OK")
     return 0
 
@@ -446,6 +517,12 @@ def main(argv=None):
         print(__doc__.strip().splitlines()[2], file=sys.stderr)
         return 2
     caminho = os.environ.get("FORGE_SUITE_TRAVA")
+    if not caminho:
+        igual = reuso(RAIZ, os.environ)
+        if igual:
+            print(f"suite: reusa {igual[0]} de {igual[1]}")
+            print("OK")
+            return 0
     if not caminho:  # à mão: pela mesma trava e pela mesma fila do pre-push
         if not os.access(HOOK, os.X_OK):
             print(f"suite-paralela: sem {HOOK.relative_to(RAIZ)} para pegar a trava da suíte (R-TETO).", file=sys.stderr)

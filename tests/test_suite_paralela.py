@@ -169,6 +169,31 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("3 processos", saida)
         self.assertEqual(self.rodaram(), ["a", "b", "c"])
 
+    def test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar(self):  # K6
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(len(self.rodaram()), 3)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        linhas = saida.strip().splitlines()
+        self.assertTrue(linhas[0].startswith("suite: reusa "), saida)
+        self.assertEqual(linhas[-1], "OK")
+        self.assertEqual(self.rodaram(), [])
+        self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(len(self.rodaram()), 3)
+
+    def test_vermelho_nao_grava_carimbo(self):  # K6
+        self.modulo("c", modulo_de_teste("c", "self.fail('x')"))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        self.assertNotEqual(self.roda()[0], 0)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        self.assertNotEqual(self.roda()[0], 0)
+        self.assertEqual(len(self.rodaram()), 3)
+
     def test_cada_processo_tem_tmpdir_proprio_nice_e_grupo_proprio(self):
         codigo, saida, erro = self.roda()
         self.assertEqual(codigo, 0, saida + erro)

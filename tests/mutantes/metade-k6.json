@@ -1,0 +1,89 @@
+{
+  "pedido": "metade-k6",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pareceres e changelog fora do hash",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if entrada and not caminho.startswith(FORA_DO_HASH):",
+      "para": "if entrada:",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_caminho_de_parecer_e_changelog_nao_muda_o_hash"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "arquivo de bin/ muda o hash",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "FORA_DO_HASH = (\"docs/reviews/\",",
+      "para": "FORA_DO_HASH = (\"bin/\", \"docs/reviews/\",",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_arquivo_de_codigo_ou_doc_comum_muda_o_hash"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "arvore suja nao reusa",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "or status.stdout.strip() or",
+      "para": "or",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_arvore_suja_roda",
+        "tests.test_suite_reuso.Reuso.test_arquivo_novo_nao_versionado_roda"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "hash ou Python diferente roda",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "dados.get(\"hash\") != atual or dados.get(\"python\") != (python or sys.version):",
+      "para": "False:",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_hash_diferente_roda",
+        "tests.test_suite_reuso.Reuso.test_python_diferente_roda"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "carimbo ilegivel roda",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    except (OSError, ValueError):\n        return None\n    if not isinstance(dados, dict) or",
+      "para": "    except OSError:\n        return None\n    if not isinstance(dados, dict) or",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_carimbo_corrompido_roda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "SEM_REUSO e CI forcam a execucao",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if environ.get(\"CI\") or environ.get(\"FORGE_SUITE_SEM_REUSO\") == \"1\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_sem_reuso_forca_a_execucao",
+        "tests.test_suite_reuso.Reuso.test_ci_nunca_reusa"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "verde grava o carimbo",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    gravar_carimbo(RAIZ, hash_arvore)\n",
+      "para": "",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "reuso consultado antes da trava",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        igual = reuso(RAIZ, os.environ)",
+      "para": "        igual = None",
+      "testes": [
+        "tests.test_suite_reuso.Reuso.test_chamada_a_mao_imprime_reusa_e_ok"
+      ]
+    }
+  ]
+}
