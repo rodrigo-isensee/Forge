@@ -3,36 +3,32 @@ tipo: review
 contrato: 1
 pedido: metade-k6
 branch: melhoria/metade-k6
-commit: 053f4162e17079a796ee77ef71e5d0b80bf3b261
-parecer: reprovado
+commit: 6dda8fdf285d5c5c2387c8ac4594fe1d0299a17d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-27
 ---
 # Review: metade-k6
 
-Lote revisado: `ce1a341..053f416` (pedido METADE-MINUTOS-REV, E1.1; decisão do dono K6 de 2026-10-27).
+Volta 2 (pedido METADE-MINUTOS-REV, E1.1; decisão do dono K6 de 2026-10-27). Revalidação por delta do parecer anterior (`d9639dd`, sobre `053f416`).
 
 ## Achados
-- A1 (bloqueante) tests/test_suite_paralela.py:181 · defeito provado: no GitHub Actions (CI=true por padrão) o reuso é desligado de propósito (scripts/suite-paralela.py:270) e o env do Brinquedo herda CI; com CI=true o teste falha, logo o CI do PR fica vermelho. Tirar CI do self.env no setUp, como test_suite_reuso.py faz.
-- A2 (recomendado) tests/test_suite_paralela.py:184 · a terceira chamada, com FORGE_SUITE_SEM_REUSO=1, não confere o código de saída (deveria ser 0); só a contagem de módulos.
-- A3 (recomendado) scripts/suite-paralela.py:234 · o hash cobre só o que o git versiona; arquivo ignorado pelo .gitignore que algum teste leia não entra. Registrar o limite na docstring ou cobrir com --ignored se algum teste depender disso.
+- A2 (recomendado) scripts/suite-paralela.py:234 · o hash cobre só o que o git versiona; arquivo ignorado pelo .gitignore que algum teste leia não entra. Registrar o limite na docstring ou cobrir com --ignored se algum teste depender disso (era o A3 da volta 1, segue aberto).
+- A3 (recomendado) tests/mutantes/metade-k6-2.json:9 · o `de` do M9 (4 espaços) casa dentro da linha que agora tem 8 (dentro do `if`); a troca deixa o `print("OK")` dentro do `if`. O mutante ainda morre, mas o `de` devia trazer a indentação nova.
+
+## Delta lido
+`bin/forge-check delta --parecer docs/reviews/metade-k6.md` sobre `053f416..6dda8fd`: `scripts/suite-paralela.py` 21-23, 234-239, 241-242, 245-247, 252, 497-498; `tests/mutantes/metade-k6-2.json` 34-63; `tests/mutantes/metade-k6.json` 9, 17, 20; `tests/test_suite_paralela.py` 147, 185-186, 199-214; `tests/test_suite_reuso.py` 111-127. Já lido na volta 1 e fora do delta: o resto do lote `ce1a341..053f416` (conferido sem achado no parecer `d9639dd`). Pareceres de QA e segurança na branch não são revisados aqui.
 
 ## Parecer
-**Reprovado**, por um bloqueante (A1); o resto do lote está correto e dentro do pedido.
+**Aprovado.**
 
-Evidência do A1 (worktree no `053f416`, logs em `$TMPDIR/tech-lead-metade-k6/`):
-- `CI=true python3 -m unittest tests.test_suite_paralela.Brinquedo.test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar` → `FAIL ... line 181 ... AssertionError: False is not true` (a segunda chamada roda a suíte de brinquedo em vez de reusar).
-- `env -u CI python3 -m unittest tests.test_suite_paralela.Brinquedo tests.test_suite_reuso` → `Ran 29 tests ... OK`.
-- `.github/workflows/ci.yml:35,57,235` roda `python3 scripts/suite-paralela.py` no Actions, onde `CI=true`; o `AMBIENTE` de `tests/test_suite_paralela.py:29` tira `GIT_*` e `FORGE_SUITE_*`, mas não `CI`. `tests/test_suite_reuso.py:15` já tira `CI`; o Brinquedo precisa do mesmo (por exemplo `self.env.pop("CI", None)` ao lado do `GITHUB_ACTIONS`).
-
-Conferido sem achado:
-- `hash_da_arvore`: `git status --porcelain --untracked-files=all` vazio é exigido (suja ou com arquivo novo devolve `None`); `ls-tree -r -z HEAD` com modo, tipo, objeto e caminho, então bit de execução entra; os 5 prefixos saem por `startswith` com a barra final (`docs/reviewsx/` conta, coberto no teste); erro do git ou árvore vazia devolve `None`. Ambiente `GIT_*` limpo em `_git`.
-- `gravar_carimbo`: só no fim do caminho verde de `orquestrar`, depois da guarda de completude e da `conferir_arvore`; hash tirado no início, então árvore que muda durante a execução já falha antes; escrita atômica por `os.replace`; carimbo no `git-common-dir`, comum às worktrees (é o que permite ao QA reusar a execução de outro agente, como decidido).
-- `reuso`: antes da trava e da fila, só sem `FORGE_SUITE_TRAVA` (o pre-push nunca reusa); `CI` e `FORGE_SUITE_SEM_REUSO=1` desligam; Python por `sys.version`; JSON ilegível, não-dict, hash ou Python diferentes devolvem `None` (falha fechada). Não há execução parcial que grave carimbo (o `main` recusa argumento além de `--processo`).
-- `docs/regras/R-QA.md:11`: a frase cita a linha `suite: reusa <hash>`, que é o prefixo impresso, e mantém o CI do PR rodando tudo, como na decisão K6.
-- Testes: `tests/test_suite_reuso.py` cobre mesmo hash, sem carimbo, hash diferente, árvore suja, arquivo não versionado, Python diferente, carimbo corrompido (4 formas), `FORGE_SUITE_SEM_REUSO`, `CI`, prefixos fora e dentro do hash, e a chamada à mão de ponta a ponta; `test_vermelho_nao_grava_carimbo` cobre o vermelho.
-- Teto M14: 240 linhas de código e teste (`scripts/` 77, `tests/*.py` 163); mutantes, changelog e `.md` fora. Sem `hooks/` nem caminho de `PROTEGIDOS`.
-- `R-NEUTRO`, `R-CUSTO`: nada específico de projeto nem pago. Fragmento `changelog.d/metade-k6.md` presente.
-- Risco aceito pela decisão do dono: teste que lê pareceres ou `changelog.d/` (neutralidade, `forge-check docs`) pode passar no reuso local e falhar no CI; o CI do PR roda tudo e o pre-push de commit só de parecer passa pelo `forge-check docs`.
+- A1 da volta 1 (bloqueante, CI herdado no Brinquedo): resolvido em `tests/test_suite_paralela.py:147` (`self.env.pop("CI", None)`). Evidência: `CI=true python3 -m unittest tests.test_suite_paralela tests.test_suite_reuso` → `Ran 37 tests ... OK`, rc=0; `env -u CI` igual, rc=0 (logs em `$TMPDIR/tech-lead-metade-k6/`).
+- A2 da volta 1 (recomendado, código de saída da terceira chamada): resolvido em `tests/test_suite_paralela.py:185-186`.
+- `fora_do_hash` (`scripts/suite-paralela.py:234`): a pasta tem de ser igual a um item de `FORA_DO_HASH` (`in` na tupla compara por igualdade), então subpasta, `_modelo.md`, `README.md`, arquivo não `.md` e `docs/reviewsx/` entram no hash; arquivo na raiz dá pasta vazia e entra. Coberto por `test_modelo_readme_e_subpasta_das_pastas_de_parecer_mudam_o_hash` e pelo M12.
+- `ls-files -v -z` (`:245-247`): recusa minúscula (assume-unchanged, inclusive `s`) e `S` (skip-worktree); erro do git devolve `None`. Coberto por `test_skip_worktree_e_assume_unchanged_nao_dao_hash` e pelo M13.
+- Recálculo no fim (`:497-498`): só grava se o hash final for o do começo; com os dois `None`, `gravar_carimbo` já recusa hash vazio (`:267`). O commit no meio passa pela `conferir_arvore` (status limpo antes e depois), por isso a guarda nova é necessária; `test_commit_no_meio_da_suite_nao_grava_carimbo` volta à árvore do começo e prova que não há reuso (M14).
+- Mutantes: `bin/forge-mutante tests/mutantes/metade-k6.json tests/mutantes/metade-k6-2.json` no `6dda8fd` → M1 a M14 `morreu`, rc=0.
+- Teto M14: 287 linhas de código e teste (`scripts/` 89, `tests/*.py` 198); mutantes, changelog e `.md` fora. Sem `hooks/` nem caminho de `PROTEGIDOS`.
+- `R-NEUTRO`, `R-CUSTO`: nada específico de projeto nem pago. Fragmento `changelog.d/metade-k6.md` presente. PA-7: `docs/engineering/achados-recorrentes.md` sem itens.
 
 Segurança: parecer próprio do `security-engineer` (E2.1), não refeito aqui. QA: E3.1.
