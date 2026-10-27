@@ -73,10 +73,10 @@ obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, s
 o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
-`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
+`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale nas quatro primeiras). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
@@ -666,8 +666,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
 
 # --- Escopo da entrega pelo intervalo da delegação (VV-2, M9) ------------------------------------
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
-ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")  # etapas em que `--desde` vale
-ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # o Base-sha é sempre o ponto de partida
+ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")
+ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # sem `--desde`, o Base-sha é o ponto de partida
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
@@ -917,9 +917,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
     valido, origem_da_base = None, None
-    if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:
-        linhas.append(("escopo: --desde fora da etapa", True))
-    elif desde is not None:
+    if desde is not None:  # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
         valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
         if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
             valido = None
@@ -5076,7 +5074,7 @@ def main():
     en.add_argument("--base", required=True, help="branch de integração da entrega (develop, homolog ou main)")
     en.add_argument("--base-sha", required=True, help="sha40 da base gravado na delegação (Base-sha)")
     en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA,
-                    help="etapa conferida; `--desde` só vale em codigo, review e qa (pr e merge olham a branch inteira)")
+                    help="etapa conferida; `--desde` vale em todas as etapas (C1)")
     en.add_argument("--brief", action="append", default=[], help="entregas paralelas conferidas juntas: um brief (em docs/briefs/) por entrega, de mesma Branch, Base, Base-sha e pedido; repita a opção; sem ela, a saída é a de sempre")
     en.add_argument("--desde", help="sha40 da última entrega conferida (linha `conferida <sha40>` do Histórico do pedido); o escopo passa a ser só o que veio depois")
     tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
