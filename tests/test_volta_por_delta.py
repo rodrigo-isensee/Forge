@@ -493,7 +493,7 @@ class PqDeMerge(unittest.TestCase):
     def test_o_pq_preenchido_o_conferente_confere_sozinho(self):
         modulo = carregar_forge_check()
         linhas, _ = modulo.conferir_pq(["- PQ-1 (cmd): `git merge-base --is-ancestor 0123456 origin/develop` · espera: rc=0"])
-        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente · verificador: ok", False)])
+        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente · rótulo do verificador: ok", False)])
         self.assertIn("PREENCHER", modulo.pq_de_merge("develop"))  # o brief reprova até trocar o <mergeCommit>
 
 

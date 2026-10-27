@@ -573,10 +573,10 @@ class VoltaIdentica(unittest.TestCase):
 
 
 class VerificadorOk(unittest.TestCase):
-    def test_pq_do_vocabulario_termina_em_verificador_ok(self):
+    def test_pq_do_vocabulario_termina_em_rotulo_do_verificador_ok(self):
         for pq in ("- PQ-1 (cmd): `git log` · espera: rc=0", "- PQ-2 (cmd, do autor): `pytest` · espera: rc=0"):
             linhas, _ = fc.conferir_pq([pq])
-            self.assertTrue(linhas[-1][0].endswith("verificador: ok"), linhas)
+            self.assertTrue(linhas[-1][0].endswith("· rótulo do verificador: ok"), linhas)
             self.assertFalse(linhas[-1][1])
 
 

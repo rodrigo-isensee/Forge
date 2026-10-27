@@ -28,11 +28,11 @@
     },
     {
       "id": "C4",
-      "guarda": "a linha do PQ termina em verificador: ok",
+      "guarda": "a linha do PQ termina em rótulo do verificador: ok",
       "arquivo": "bin/forge-check",
-      "de": " · verificador: ok\", False))  # C3",
-      "para": "\", False))  # C3",
-      "testes": ["tests.test_etapa_do_brief.VerificadorOk.test_pq_do_vocabulario_termina_em_verificador_ok"]
+      "de": "{verificador}{valido}\", False))",
+      "para": "{verificador}\", False))",
+      "testes": ["tests.test_etapa_do_brief.VerificadorOk.test_pq_do_vocabulario_termina_em_rotulo_do_verificador_ok"]
     }
   ]
 }

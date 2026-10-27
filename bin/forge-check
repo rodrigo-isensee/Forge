@@ -3857,7 +3857,8 @@ def conferir_pq(linhas_pq):
                 verificador = "autor"
             else:
                 tipos.append(CMD_DO_CONFERENTE)
-        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador} · verificador: ok", False))  # C3: o rótulo é do vocabulário do comando
+        valido = " · rótulo do verificador: ok" if verificador in ("conferente", "autor") else ""  # C3: só atesta o vocabulário
+        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}{valido}", False))
     if not vistos:
         saida.append(("forma: sem PQ", True))
     return saida, tipos
