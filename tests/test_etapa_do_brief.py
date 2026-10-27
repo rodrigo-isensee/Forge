@@ -551,7 +551,7 @@ class RecusaDoIdDoPedido(unittest.TestCase):
         self.assertNotIn("uso:", saida)
 
     def test_com_a_branch_do_mesmo_nome_o_argumento_vale(self):
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
         for args in (("init", "-q"), ("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "x"),
                      ("branch", "melhoria/ID-DO-PEDIDO")):
             subprocess.run(["git", "-C", str(self.tmp), *args], check=True, capture_output=True, env=env)
