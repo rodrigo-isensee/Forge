@@ -3201,6 +3201,7 @@ PEDIDO = (FIXTURES_CC / "pedido.md").read_text(encoding="utf-8")
 BRIEF = (FIXTURES_CC / "etapa-outro-papel.md").read_text(encoding="utf-8")
 ID = "pedido-sintetico"
 ARQ = f"docs/briefs/{ID}-dev-exemplo-1.md"
+SUBTITULO_CC = "### Do registro citado {} (todas as linhas DECISÃO DO DONO; contexto, não ampliam o Entregar)"
 DECISAO_R1 = 'DECISÃO DO DONO (2026-01-05): "linha do registro sem o assunto do pedido" (PR #227).'
 DECISAO_R2 = 'DECISÃO DO DONO (2026-01-06): "outra linha do registro".'
 LINHA_TERCEIRO = 'Cita outro registro: DECISÃO DO DONO (2026-01-07): "terceiro" em docs/pedidos/terceiro.md.'
@@ -3541,6 +3542,79 @@ class DecisoesCobradas(Cenario):
         rc, saida = self.linhas()
         self.assertEqual(rc, 1, saida)
         self.assertTrue([l for l in saida if l.startswith('decisões: registro grande demais "docs/pedidos/r.md"')], saida)
+
+    ORIGEM_DONO = 'DECISÃO DO DONO (2026-02-10): "decisão só no pedido de origem".'
+
+    def com_depende_de(self, *ids):
+        """O pedido sintético com `Depende de:` no cabeçalho (antes da primeira seção `## `), sem a linha que cita o registro `r`."""
+        pedido = PEDIDO.replace("\n## Escopo", f"\nDepende de: {', '.join(ids)}\n\n## Escopo", 1)
+        self.assertIn("Depende de:", pedido)
+        self.gravar("docs/pedidos/pedido-sintetico.md", pedido)
+        self.gravar(ARQ, BRIEF)
+
+    def test_depende_de_traz_a_decisao_do_origem_e_a_cobra(self):  # AQ1 P2 (E1): o ramo de falha e o de sucesso
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("origem")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("fonte: docs/pedidos/origem.md (1 decisões)", saida)
+        falta = [l for l in saida if l.startswith("decisões: falta")]
+        self.assertEqual(len(falta), 1, saida)
+        self.assertIn("(docs/pedidos/origem.md:2)", falta[0])
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertTrue([l for l in saida if l.startswith("decisões: ok") and "2 fontes" in l], saida)
+
+    def test_depende_de_nenhum_ou_modelo_nao_traz_fonte(self):
+        for valor in ("nenhum", "<ID>"):
+            with self.subTest(valor=valor):
+                self.com_depende_de(valor)
+                rc, saida = self.linhas()
+                self.assertEqual(rc, 0, saida)
+                self.assertEqual(len([l for l in saida if l.startswith("fonte:")]), 1, saida)
+
+    def test_depende_de_sem_registro_e_informativo_e_nao_reprova(self):
+        self.com_depende_de("nao-existe")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('decisões: dependência sem registro legível "docs/pedidos/nao-existe.md" (informativo)', saida)
+
+    def test_depende_de_si_mesmo_ou_repetido_conta_uma_fonte_so(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("pedido-sintetico", "origem", "origem")
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(sorted(l for l in saida if l.startswith("fonte:")),
+                         ["fonte: docs/pedidos/origem.md (1 decisões)", "fonte: docs/pedidos/pedido-sintetico.md (2 decisões)"])
+
+    def test_depende_de_segue_so_um_nivel(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\nDepende de: neto\n{self.ORIGEM_DONO}\n")
+        self.gravar("docs/pedidos/neto.md", 'DECISÃO DO DONO (2026-02-11): "decisão do neto".\n')
+        self.com_depende_de("origem")
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertFalse([l for l in saida if "neto" in l], saida)
+
+    def test_depende_de_divide_o_teto_de_fontes(self):
+        ids = [f"d{i}" for i in range(21)]
+        for i in ids:
+            self.gravar(f"docs/pedidos/{i}.md", f'DECISÃO DO DONO (2026-04-01): "{i}".\n')
+        self.com_depende_de(*ids)
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue([l for l in saida if l.startswith("decisões: fontes demais")], saida)
+
+    def test_gerar_copia_a_decisao_do_origem_com_o_subtitulo_do_registro(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("origem")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
+        self.assertEqual(rc, 0, saida)
+        texto = "\n".join(saida)
+        self.assertIn(SUBTITULO_CC.format("docs/pedidos/origem.md"), texto)
+        self.assertIn(f"- {self.ORIGEM_DONO}", texto)
 
     def test_fontes_demais_reprova(self):
         citas = []

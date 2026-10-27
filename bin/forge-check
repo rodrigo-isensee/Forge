@@ -1524,15 +1524,10 @@ def id_do_pedido(celula):
     return Path(celula.strip().strip("`").strip()).name.removesuffix(".md")
 
 
-def dependencias_do_pedido(raiz, pedido):
-    """(lista de IDs de `Depende de:`, tem_a_linha) lidos do cabeçalho do pedido (antes da primeira seção `## `).
+def dependencias_do_texto(texto):
+    """(lista de IDs de `Depende de:`, tem_a_linha) lidos do cabeçalho do texto de um pedido (antes da primeira seção `## `).
     `nenhum`, vazio e o texto-modelo (`<ID>...`) valem como lista vazia."""
-    arq = raiz / "docs" / "pedidos" / f"{pedido}.md"
-    try:
-        linhas = arq.read_text(encoding="utf-8").split("\n")
-    except OSError:
-        return [], False
-    for linha in linhas:
+    for linha in texto.split("\n"):
         if linha.startswith("## "):
             break
         m = DEPENDE_DE.match(linha)
@@ -1540,6 +1535,15 @@ def dependencias_do_pedido(raiz, pedido):
             ids = [id_do_pedido(t) for t in m.group(1).split(",") if t.strip()]
             return [i for i in ids if i and i.lower() != "nenhum" and not i.startswith("<")], True
     return [], False
+
+
+def dependencias_do_pedido(raiz, pedido):
+    """(lista de IDs de `Depende de:`, tem_a_linha) do pedido em `docs/pedidos/<pedido>.md` (`dependencias_do_texto`)."""
+    arq = raiz / "docs" / "pedidos" / f"{pedido}.md"
+    try:
+        return dependencias_do_texto(arq.read_text(encoding="utf-8"))
+    except OSError:
+        return [], False
 
 
 def em_ciclo(raiz, pedido):
@@ -4064,7 +4068,7 @@ def ler_registro(raiz, rel):
 
 def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
     """O que o conferente cobra do brief, sem julgamento: todas as linhas `DECISÃO DO DONO` do pedido e de cada registro em
-    `docs/pedidos/` que uma delas cita (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
+    `docs/pedidos/` que uma delas cita ou que o `Depende de:` do pedido nomeia (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
     `{"fontes": [(rel, [(n, linha)])] (a primeira é o pedido), "adrs": [NNNN], "avisos": [(linha de saída, reprova)]}`. Ordem fixa:
     mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2)."""
     proprio = f"docs/pedidos/{caminho_impresso(caminho_pedido.name)}"
@@ -4096,6 +4100,25 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
             elif rel != proprio and not rel.startswith("docs/adr/"):
                 local = f"{caminho_impresso(token)}:{linha_citada}" if linha_citada else caminho_impresso(token)  # `<arquivo>:<linha>` do registro citado (M2.2)
                 avisos.append((f"decisões: fonte fora da regra {nome_seguro(sem_controle(local))} em {proprio}:{n} (não verificável)", False))
+    for dep in dependencias_do_texto(pedido_txt)[0]:  # AQ1 P2: um nível do `Depende de:`, com o mesmo teto de fontes
+        rel = f"docs/pedidos/{dep}.md"
+        if rel == proprio or rel in vistos:
+            continue
+        if not REGISTRO_VALIDO.fullmatch(rel):
+            avisos.append((f"decisões: dependência sem registro legível {nome_seguro(sem_controle(dep))} (informativo)", False))
+            continue
+        vistos.add(rel)
+        if len(vistos) > TETO_DE_FONTES:
+            avisos.append((f"decisões: fontes demais (mais de {TETO_DE_FONTES} registros citados)", True))
+            continue
+        texto, erro = ler_registro(raiz, rel)
+        if erro == "grande":
+            avisos.append((f"decisões: registro grande demais {nome_seguro(rel)} (mais de {TETO_DE_REGISTRO} bytes)", True))
+        elif erro:
+            avisos.append((f"decisões: dependência sem registro legível {nome_seguro(rel)} (informativo)", False))
+        else:
+            fontes.append((rel, linhas_de_decisao(texto)))
+            mencoes += [(rel, n) for n, _ in mencoes_da_frase(texto)]
     for rel, n in mencoes[:TETO_DE_MENCOES]:  # a citação no meio da linha não é decisão e não reprova, mas nunca some (M6.2)
         avisos.append((f"decisões: menção fora do início {caminho_impresso(rel)}:{n} (informativo; não cobrada)", False))
     if len(mencoes) > TETO_DE_MENCOES:
