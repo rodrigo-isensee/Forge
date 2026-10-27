@@ -4934,4 +4934,4 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
 
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
-        self.assertIn("1 processo, pela fila; a suíte completa roda uma vez, no push", self.texto)
+        self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)
