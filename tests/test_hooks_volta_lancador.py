@@ -137,7 +137,7 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         opção modelada, e as do `env` com o corpo colado ao `S` do grupo, depois dele ou na abreviação de
         `--split-string`, também dá 2. A verdade vem da construção, e não de um `env`. Fora das formas só ficam as
         palavras em que o `env` sempre divide o texto (`-S…`, `--split-string…`): nelas o corpo não é o comando de
-        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (60 s de CPU) é do lote inteiro, na `Guarda`."""
+        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
         corpos = self.corpos_sem_marcador()
         for fixo in self.CORPOS_FIXOS + self.CORPOS_DE_LANCADOR_RECUSADO:
             self.assertIn(fixo, corpos, f"o corpo {fixo!r} não dá 2 sozinho no modelo: o oráculo não vale")
@@ -352,7 +352,7 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         """Sem o marcador, toda forma com uma palavra fora da tabela antes do texto dividido que não fecha aspas
         (`textos_do_texto_aberto`) dá 2, qualquer que seja o corpo, e, com corpo inofensivo, pelo motivo do texto que não
         fecha (o oráculo é a construção); o `env -S<F> C` sem palavra fora da tabela segue 0 (`ilegivel`, como na
-        `develop`). A palavra de 1 caractere nunca é amostrada, e o tempo (60 s de CPU) é do lote inteiro, na `Guarda`."""
+        `develop`). A palavra de 1 caractere nunca é amostrada, e o tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
         corpos = list(self.CORPOS_FIXOS + self.CORPOS_INOFENSIVOS)
         textos = self.textos_do_texto_aberto(corpos)
         with MedidaDeCpu() as medida:

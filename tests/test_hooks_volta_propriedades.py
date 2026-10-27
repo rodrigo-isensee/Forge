@@ -139,7 +139,7 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         print(f"\n[T] pior tempo de decisão: {pior:.2f} s", file=sys.stderr)
 
     def test_t_reconhecedor_da_reavaliacao_e_linear(self):  # item 2 do critério de fim do bloco T
-        """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 1 s de CPU (a
+        """`reavaliacao_das_palavras` e `separar_lancadores` sozinhas, com 50 mil palavras, rodam em menos de 2 s de CPU (a
         versão quadrática levava 8,3 s com 10 mil): o limite é do custo, e não da fila da máquina."""
         _comum, _, _ = modulos_dos_hooks()
         casos = {"shell": ["bash"] * 50_000, "shell com opção": ["bash"] * 49_999 + ["-c"], "env": ["env"] * 50_000,
