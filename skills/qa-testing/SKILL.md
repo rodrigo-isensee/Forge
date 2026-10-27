@@ -88,6 +88,8 @@ No Forge, o que decide por regra de código (`bin/`, `hooks/`, `.githooks/`, `te
 - O QA roda `forge-mutante` e cola a saída no parecer. Saída 0 é o inverso do usual: todos os mutantes morreram. Prazo estourado ou erro de carga é "sem veredito", nunca "morreu".
 - Mutante sobrevivente é achado bloqueante do QA até virar teste ou justificativa de mutante equivalente aceita pelo QA.
 
+Bug ou falha de plano cuja classe se repete (já está em `docs/engineering/achados-recorrentes.md` ou volta neste pedido): o `qa-engineer` grava a linha `AR-<n>` nesse arquivo, no formato dele (só classe, ID da regra, contagem e `arquivo:linha`), no mesmo PR do parecer.
+
 ## Relatório de bug (`docs/qa/bugs/<id>-<titulo>.md`)
 ```markdown
 # <id> - <título curto>

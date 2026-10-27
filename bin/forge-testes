@@ -70,7 +70,7 @@ VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hoo
 FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio",
                "test_conferencia_registrar", "test_erros_no_brief", "test_hook_ansi_c",
                "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks",
-               "test_isencoes", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
+               "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).

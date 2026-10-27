@@ -58,9 +58,9 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 26)
+        self.assertEqual(len(modulos), 27)
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
-                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b"):
+                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
 
     def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
