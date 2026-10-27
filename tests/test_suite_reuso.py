@@ -12,9 +12,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 SCRIPT = RAIZ / "scripts" / "suite-paralela.py"
-ENV = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_", "CI"))})
-ENV.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t",
-           GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_SUITE_", "CI"))})
 
 
 def carregar():
@@ -40,7 +38,7 @@ class Reuso(unittest.TestCase):
         self.commitar()
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.repo, env=ENV, check=True, capture_output=True, text=True)
+        return subprocess.run(["git", *args], cwd=self.repo, env=AMBIENTE, check=True, capture_output=True, text=True)
 
     def escrever(self, caminho, texto):
         alvo = self.repo / caminho
@@ -49,7 +47,7 @@ class Reuso(unittest.TestCase):
 
     def commitar(self):
         self.git("add", "-A")
-        self.git("commit", "-q", "-m", "c")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "c")
 
     def carimbar(self):
         self.s.gravar_carimbo(self.repo, self.s.hash_da_arvore(self.repo))
@@ -125,13 +123,13 @@ class Reuso(unittest.TestCase):
         mod = self.s
         mod.gravar_carimbo(self.repo, mod.hash_da_arvore(self.repo))
         r = subprocess.run([sys.executable, str(self.repo / "scripts" / "suite-paralela.py")], cwd=self.repo,
-                           env=ENV, capture_output=True, text=True)
+                           env=AMBIENTE, capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         linhas = r.stdout.strip().splitlines()
         self.assertTrue(linhas[0].startswith("suite: reusa "), linhas)
         self.assertEqual(linhas[-1], "OK")
         r = subprocess.run([sys.executable, str(self.repo / "scripts" / "suite-paralela.py")], cwd=self.repo,
-                           env={**ENV, "FORGE_SUITE_SEM_REUSO": "1"}, capture_output=True, text=True)
+                           env={**AMBIENTE, "FORGE_SUITE_SEM_REUSO": "1"}, capture_output=True, text=True)
         self.assertNotIn("suite: reusa", r.stdout)
         self.assertNotEqual(r.returncode, 0)
 
