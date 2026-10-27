@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: metade-k6
 branch: melhoria/metade-k6
-commit: 053f4162e17079a796ee77ef71e5d0b80bf3b261
+commit: 6dda8fdf285d5c5c2387c8ac4594fe1d0299a17d
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-10-27
 ---
 # QA: metade-k6
 
-K6 do pedido METADE-MINUTOS (METADE-MINUTOS-REV, E3.1): `scripts/suite-paralela.py` reaproveita a execução verde sobre a mesma árvore (hash pelo git, sem pareceres e changelog) e a frase nova de `R-QA`. Parecer em paralelo com review e segurança (ACELERA-RODADA "A", item 4); head testado `053f416`.
+K6 do pedido METADE-MINUTOS (METADE-MINUTOS-REV, E3.1): `scripts/suite-paralela.py` reaproveita a execução verde sobre a mesma árvore (hash pelo git, sem pareceres e changelog) e a frase nova de `R-QA`. Parecer em paralelo com review e segurança (ACELERA-RODADA "A", item 4); revalidação 2 (volta do K6) sobre o head `6dda8fd`, escopo completo: hash sem só os pareceres, carimbo só com o hash igual no fim, recusa de skip-worktree e assume-unchanged, CI fora do ambiente do teste.
 
 ## Achados
 
@@ -23,20 +23,18 @@ K6 do pedido METADE-MINUTOS (METADE-MINUTOS-REV, E3.1): `scripts/suite-paralela.
 |---|---|---|---|
 | Verde grava o carimbo e a 2ª chamada reusa sem rodar | `test_suite_paralela.test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar`, M9 | carimbo ausente | passou, M9 morreu |
 | Vermelho não grava carimbo | `test_vermelho_nao_grava_carimbo`, M10 | suíte vermelha | passou, M10 morreu |
-| Parecer e changelog fora do hash; `bin/` dentro | `test_suite_reuso` (M1, M2) | prefixos de `FORA_DO_HASH` | passou, M1 e M2 morreram |
-| Árvore suja ou arquivo novo não rastreado roda | `test_arvore_suja_roda`, `test_arquivo_novo_nao_versionado_roda` (M3) | status não vazio | passou, M3 morreu |
-| Hash, Python ou carimbo ilegível diferentes rodam | M4, M5, M6 | carimbo corrompido | passou, mortos |
-| `FORGE_SUITE_SEM_REUSO=1` e `CI` forçam a execução | M7, M8 | variáveis de ambiente | passou, mortos |
-| Reuso só à mão, antes da trava e da fila (pre-push intocado) | M11 | `FORGE_SUITE_TRAVA` definida | passou, M11 morreu |
-| Frase de `R-QA` e fragmento de changelog | leitura do diff | n/a | conforme (a regra cita a decisão de 2026-10-27, K6) |
+| Só `*.md` de parecer e changelog saem do hash; `_modelo`, README e subpasta entram (A1 da segurança) | `test_suite_reuso` (M1, M2, M12) | `_modelo.md`, README, subpasta | passou, mortos |
+| Skip-worktree e assume-unchanged não dão hash (A3) | `test_skip_worktree_e_assume_unchanged_nao_dao_hash`, M13 | `ls-files -v` minúscula e `S` | passou, M13 morreu |
+| Commit no meio da suíte não grava carimbo (A2) | `test_commit_no_meio_da_suite_nao_grava_carimbo`, M14 | hash do fim ≠ do começo | passou, M14 morreu |
+| CI fora do ambiente do teste (A1 do review) | `Brinquedo.setUp` e `AMBIENTE`; as duas suítes com e sem `CI=true` | variável `CI` herdada | passou nos dois modos |
+| Árvore suja ou não rastreada, hash, Python, carimbo ilegível, SEM_REUSO, CI e pre-push intocado | `test_suite_reuso`, M3 a M8, M11 | cada guarda | passou, mortos |
+| Frase de `R-QA` e fragmento de changelog | leitura do diff | n/a | conforme (cita a decisão de 2026-10-27, K6) |
 
 ## Cenários e resultado real
-- `python3 -m unittest tests.test_suite_reuso`: Ran 12 tests, OK (0,66 s).
-- `python3 -m unittest tests.test_suite_paralela`: Ran 22 tests, OK (11,5 s).
-- `bin/forge-mutante tests/mutantes/metade-k6.json`: rc=0, M1 a M8 morreram. `bin/forge-mutante tests/mutantes/metade-k6-2.json`: rc=0, M9 a M11 morreram. Conferência da lista contra o diff: cada guarda nova de `suite-paralela.py` (FORA_DO_HASH e seu uso, árvore suja, hash, Python, carimbo ilegível, SEM_REUSO, CI, gravar só no verde, reuso antes da trava) tem um mutante; nenhuma linha de guarda sem mutante.
-- Reprodução à mão no worktree: 1ª chamada (`python3 scripts/suite-paralela.py`) já imprimiu `suite: reusa 464a48a5...fa17c6 de 2026-10-27 14:23:12Z` e `OK`, porque o carimbo do push do autor (mesma árvore, comum a todos os worktrees) existia. A 2ª chamada também reusou: **0,091 s** (contra a suíte completa de minutos).
-- Árvore suja, medida chamando `reuso()` do script (a execução real entraria na suíte completa, que não rodo fora do pre-push): arquivo novo não rastreado, `bin/forge-init` mudado, `CI=1` e `FORGE_SUITE_SEM_REUSO=1` dão `None` (rodariam); árvore limpa de volta dá o mesmo hash. `CI=1` na linha de comando foi para o pre-push e entrou na fila ("outra suíte ... esperando a vez"), isto é, não reusou; interrompi pelo `timeout` que iniciei, sem processo órfão.
-- Vermelho antes do verde: coberto pelos mutantes M1 a M11 (cada teste cai com o mutante), que valem como o vermelho do comportamento novo; `forge-testes --vermelho` não rodado (a suíte completa fica no pre-push, restrição do pedido).
+- `python3 -m unittest tests.test_suite_reuso tests.test_suite_paralela`: sem `CI`, Ran 37 tests, OK (12,4 s); com `CI=true`, Ran 37 tests, OK (12,8 s).
+- `bin/forge-mutante tests/mutantes/metade-k6.json`: M1 a M8 morreram, rc=0. `bin/forge-mutante tests/mutantes/metade-k6-2.json`: M9 a M14 morreram, rc=0. Conferência da lista contra o diff: FORA_DO_HASH (M2), `fora_do_hash` (M1, M12), árvore suja e erro do git (M3), skip-worktree e assume-unchanged (M13), hash, Python, carimbo ilegível, SEM_REUSO, CI (M4 a M8), gravar só no verde (M9, M10), carimbo só com o hash igual no fim (M14), reuso antes da trava (M11); nenhuma linha de guarda sem mutante.
+- À mão, num clone descartável do head (carimbo gravado pelo próprio script sobre a árvore limpa; as chamadas usam `timeout 6` meu): 1ª chamada `suite: reusa 331ac651... de 2026-10-27 15:32:13Z` e `OK`, rc=0, **0,207 s** (a 2ª chamada, que é a medida pedida; a suíte completa leva minutos). Parecer mudado (`docs/qa/metade-k6.md`, commitado): reusa, rc=0. `docs/security/_modelo.md` mudado e commitado: não reusa, entrou na fila do pre-push ("esperando a vez", rc=124 pelo meu `timeout`). Volta ao commit anterior: reusa de novo. Skip-worktree em `scripts/suite-paralela.py` com arquivo editado: não reusa (fila). Assume-unchanged em `bin/forge-init` com arquivo editado: não reusa (fila). Nenhum processo meu ficou vivo.
+- Vermelho antes do verde: os mutantes M1 a M14 derrubam cada teste novo e valem como a prova do comportamento; `forge-testes --vermelho` não rodado (a suíte completa fica no pre-push, restrição do pedido).
 
 ## Observações (não bloqueiam)
-- O carimbo é um só por repositório (`.git` comum): reusa entre worktrees da mesma árvore, o que é a intenção; arquivo ignorado pelo git (`.gitignore`) não entra no hash nem no status, então uma mudança só nele reusaria. Risco baixo, aceito pela decisão K6.
+- O carimbo é um só por repositório (`.git` comum): reusa entre worktrees da mesma árvore, a intenção do K6. Arquivo ignorado pelo git (`.gitignore`) não entra no hash nem no status; uma mudança só nele reusaria. Risco baixo, aceito pela decisão K6.
