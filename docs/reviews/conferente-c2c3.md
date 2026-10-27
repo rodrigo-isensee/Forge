@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: conferente-c2c3
 branch: melhoria/conferente-c2c3
-commit: cbb522765094be22586e61487bd1f54970829453
+commit: 5818e849140c76b535795feec6238af523d3f68b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-27
@@ -53,8 +53,16 @@ Lido só o que `forge-check delta --parecer docs/reviews/conferente-c2c3.md` lis
 - **Correção da segurança A1 (`desfeitos_da_entrega`), lida como código:** em `arquivos_da_entrega`, o arquivo mudado até a conferida e devolvido à base depois volta ao escopo (interseção com `desde..head`, sem repetir nome). Em `cmd_entrega`, a união em `diferem` só amplia o filtro, e o resultado é mais largo, nunca mais estreito. O teste `test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo` cobre as quatro etapas. O parecer de mérito fica com o `security-engineer` (`docs/security/conferente-c2c3.md`).
 - Ferramentas: `python3 -m unittest tests.test_etapa_do_brief tests.test_volta_por_delta tests.test_conferencia_base_dono` deu `Ran 131 tests ... OK`. Teto M14 sobre `ce1a341...cbb5227`: 302 linhas de código e teste (`bin/forge-check` 75, `tests/*.py` 227), abaixo de 400, sem `hooks/` nem `PROTEGIDOS`. PA-7 (`docs/engineering/achados-recorrentes.md`): sem item registrado.
 
+## Revalidação 3 (delta cbb5227..5818e84)
+Lido só o que `forge-check delta --parecer docs/reviews/conferente-c2c3.md` lista: `bin/forge-check`:950-951, `tests/test_volta_por_delta.py`:201-236 e `tests/mutantes/conferente-c1-2.json`. O resto fica como "já lido" nas passadas anteriores.
+
+- **A2 da segurança resolvido.** Em `cmd_entrega`, o filtro `diferem_dos_dois_pais` agora soma `desfeitos_da_entrega(raiz, base_sha, valido)` (só com `--desde` válido): o arquivo que a branch pôs até a conferida e o merge da base devolveu à base continua no escopo. A união só alarga o filtro, nunca o estreita; sem `--desde` o conjunto é vazio e nada muda.
+- **Três caminhos, quatro etapas.** `desfazer_depois_da_conferida` monta as formas linear, merge da base como último commit e merge seguido de commit; `confere_desfeito` roda `codigo`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` e exige `escopo: confira "teste.py" +0 -1` sem `sem commit`.
+- **Mutantes.** `bin/forge-mutante tests/mutantes/conferente-c1-2.json`: F1 morreu (bin/forge-check:504), F2 morreu (:951), F3 morreu (:505). Os três mutam as linhas que cada forma exercita.
+- Ferramentas: `python3 -m unittest tests.test_volta_por_delta tests.test_etapa_do_brief tests.test_conferencia_base_dono` deu `Ran 134 tests ... OK`. Teto M14 sobre `origin/develop...HEAD`: 341 linhas de código e teste, abaixo de 400, sem `hooks/` nem `PROTEGIDOS`. PA-7: sem item registrado.
+
 ## Achados
 - A5 (recomendado) bin/forge-check:627 · sem --ref e com HEAD avulso, ou com --ref <sha>, branch_da_convencao dá None e o id do pedido segue ao rc=1 de "sem parecer", não ao rc=2 do item 5 de agents/conferente.md; não aprova nada errado, só a mensagem de uso não aparece
 
 ## Parecer
-**Aprovado** em cbb5227. A1 a A4 resolvidos e cobertos por teste. A correção da segurança A1 está correta como código. A5 é só recomendação e não devolve a entrega.
+**Aprovado** em 5818e84. A1 a A4 resolvidos e cobertos por teste. As correções da segurança A1 e A2 estão corretas como código, com os três caminhos testados e mutados. A5 é só recomendação e não devolve a entrega.
