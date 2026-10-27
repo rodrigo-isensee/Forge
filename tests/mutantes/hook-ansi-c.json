@@ -55,6 +55,39 @@
       "testes": [
         "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
       ]
+    },
+    {
+      "id": "A6",
+      "guarda": "o leitor não marca `\\$'…'` com `\\'` dentro (o nível aninhado de bash -c, sh -c e eval volta a sair 0)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)\n",
+      "para": "                pass\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_nivel_aninhado_entre_aspas_duplas_sai_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A7",
+      "guarda": "qualquer barra em `\\$'…'` vale como aspa escapada (os controles aninhados com \\n, \\\\ e \\x41 passam a sair 2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if texto[i + 1:i + 2] == \"'\":\n                return True\n",
+      "para": "            if True:\n                return True\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_do_nivel_aninhado_saem_0",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A8",
+      "guarda": "a leitura de `\\$'…'` não pula o caractere escapado (o `\\\\'` do fecho vira aspa escapada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "            i += 2\n        else:\n            i += 1\n    return False\n",
+      "para": "            i += 1\n        else:\n            i += 1\n    return False\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_do_nivel_aninhado_saem_0",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
     }
   ]
 }

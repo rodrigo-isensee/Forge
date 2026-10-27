@@ -4,7 +4,6 @@ O bash lê `$'…'` até o `'` que fecha (`\\'` dentro é aspa literal); o `shle
 sozinho, liberaria `echo $'it\\'s'; cat .env\\'`. O leitor fiel (`palavras_do_texto`) sabe a diferença e `leituras`
 falha fechado nela. Só arquivos de um diretório temporário: nenhum teste lê ou apaga `.env` ou `.git` reais."""
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -14,18 +13,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
-from ambiente_git import sem_manutencao  # noqa: E402
+from test_forge import ambiente_limpo  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
-HOOKS = RAIZ / "hooks"  # o hook sai de `HOOKS / f"{nome}.py"`: o mapa do bin/forge-testes (fora desta entrega) ainda não lista este módulo
-
-
-def ambiente_limpo():
-    """Sem as variáveis GIT_* e FORGE_* nem `CLAUDE_PROJECT_DIR`, sem config global do git (como o de test_forge)."""
-    env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_")) and k != "CLAUDE_PROJECT_DIR"}
-    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull)
-    return sem_manutencao(env)
-
+HOOK = RAIZ / "hooks" / "conformidade.py"
 
 SEM_PAR = "aspas sem par na leitura do hook"
 LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; _comum.forge_check().GIT_TIMEOUT_S = 120; "
@@ -33,6 +24,12 @@ LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; 
 
 CASO_ENV = "echo $'it\\'s'; cat .env\\'"
 CASO_GIT = "echo $'it\\'s'; rm -rf .git \\'"
+# A mesma linha como argumento entre aspas duplas (segurança A1): o shell de fora troca `\$` por `$` e `\\` por `\`, e o
+# de dentro recebe `echo $'it\'s'; cat .env \'`; o hook relê o texto com `\$'…'`, que para ele é aspas simples.
+ANINHADO_ENV = r'''bash -c "echo \$'it\\'s'; cat .env \\'"'''
+ANINHADO_GIT = r'''bash -c "echo \$'it\\'s'; rm -rf .git \\'"'''
+ANINHADO_EVAL = r'''eval "echo \$'it\\'s'; cat .env \\'"'''
+ANINHADO_SH = r'''sh -c "echo \$'it\\'s'; cat .env \\'"'''
 
 
 class HookAnsiC(unittest.TestCase):
@@ -51,10 +48,10 @@ class HookAnsiC(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.raiz, ignore_errors=True)
 
-    def conformidade(self, comando, nome="conformidade"):
+    def conformidade(self, comando):
         entrada = {"tool_name": "Bash", "tool_input": {"command": comando}, "agent_type": "forge:node-backend",
                    "hook_event_name": "PreToolUse", "tool_use_id": "toolu_9"}
-        return subprocess.run([sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{nome}.py")], input=json.dumps(entrada),
+        return subprocess.run([sys.executable, "-c", LANCADOR, str(HOOK.parent), str(HOOK)], input=json.dumps(entrada),
                               cwd=self.raiz, env=ambiente_limpo(), capture_output=True, text=True, timeout=120)
 
     def bash(self, comando, arquivos):
@@ -107,6 +104,29 @@ class HookAnsiC(unittest.TestCase):
         self.assertIn("ler .env", r.stderr)
         self.assertNotIn(SEM_PAR, r.stderr)
 
+    def test_o_bash_roda_o_segundo_comando_no_nivel_aninhado(self):
+        for comando in (ANINHADO_ENV, ANINHADO_EVAL):
+            with self.subTest(comando=comando):
+                r, _ = self.bash(comando, {".env": "SEGREDO-FALSO\n", "'": ""})
+                self.assertEqual(r.stdout, "it's\nSEGREDO-FALSO\n")
+        r, pasta = self.bash(ANINHADO_GIT, {".git": None, "'": ""})
+        self.assertEqual(r.stdout, "it's\n")
+        self.assertFalse((pasta / ".git").exists(), "o shell de dentro separou o `;` e rodou o rm")
+
+    def test_o_nivel_aninhado_entre_aspas_duplas_sai_2(self):
+        for comando in (ANINHADO_ENV, ANINHADO_GIT, ANINHADO_EVAL, ANINHADO_SH):
+            with self.subTest(comando=comando):
+                r = self.conformidade(comando)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn(SEM_PAR, r.stderr)
+
+    def test_controles_do_nivel_aninhado_saem_0(self):
+        for comando in (r'''bash -c "echo \$'a\\nb'"''', r'''bash -c "echo \$'a\\\\'"''',
+                        r'''bash -c "echo \$'a'; echo it\\'s"''', r'''eval "echo \$'a\\x41'"'''):
+            with self.subTest(comando=comando):
+                r = self.conformidade(comando)
+                self.assertEqual((r.returncode, r.stderr), (0, ""))
+
     def test_o_leitor_fiel_marca_so_a_aspa_escapada(self):
         sys.path.insert(0, str(RAIZ / "hooks"))
         import _comum
@@ -115,6 +135,10 @@ class HookAnsiC(unittest.TestCase):
         self.assertFalse(_comum.palavras_do_texto("echo $'a\\nb'").aspa_escapada)
         self.assertFalse(_comum.palavras_do_texto("echo 'it\\'; echo ok").aspa_escapada)
         self.assertFalse(_comum.palavras_do_texto("echo \"$'\\'\"").aspa_escapada)
+        self.assertTrue(_comum.palavras_do_texto(r"echo \$'it\'s'; cat .env \'").aspa_escapada)
+        self.assertFalse(_comum.palavras_do_texto(r"echo \$'a\\'; echo ok").aspa_escapada)
+        self.assertFalse(_comum.palavras_do_texto(r"echo \$'a\nb'").aspa_escapada)
+        self.assertFalse(_comum.palavras_do_texto(r"echo \$'a'; echo it\'s").aspa_escapada)
 
 
 if __name__ == "__main__":

@@ -960,8 +960,9 @@ class DonosDosHeredocs:
 Palavra = collections.namedtuple("Palavra", "valor cru")  # o valor (sem aspas nem escapes) e o texto como escrito
 Redirecao = collections.namedtuple("Redirecao", "prefixo operador alvo")  # alvo: Palavra, ou None (sem alvo)
 ComandoSimples = collections.namedtuple("ComandoSimples", "palavras redirecoes")
-# `aspa_escapada`: algum `$'…'` do texto tem `\'` dentro. O bash o lê até o `'` que fecha; o `shlex` (`fichas`) toma a
-# `\'` por fecho de aspas simples e junta o `;` seguinte à palavra (HOOK-ANSI-C): quem lê com `fichas` falha fechado.
+# `aspa_escapada`: algum `$'…'` do texto (ou `\$'…'`, que o shell de dentro lê como `$'…'`) tem `\'` dentro. O bash
+# o lê até o `'` que fecha; o `shlex` (`fichas`) toma a `\'` por fecho de aspas simples e junta o `;` seguinte à
+# palavra (HOOK-ANSI-C): quem lê com `fichas` falha fechado.
 LeituraDoTexto = collections.namedtuple("LeituraDoTexto", "simples duvida aspa_escapada", defaults=(False,))
 OPERADORES_DE_REDIRECAO = ("<<<", "<<-", "<<", "<>", "<&", ">&", ">>", ">|", "<", ">")
 PREFIXO_DE_REDIRECAO = re.compile(r"\d+|\{[A-Za-z_][A-Za-z0-9_]*\}")
@@ -977,6 +978,21 @@ class _Nivel:
         self.tipo, self.profundidade, self.aspas = tipo, 0, None  # aspas: None | simples | duplas | ansi
         self.palavras, self.redirecoes, self.pendente = [], [], None
         self.valor, self.inicio = None, 0
+
+
+def _ansi_com_aspa_escapada(texto, inicio):
+    """Se o `$'…'` cujo conteúdo começa em `inicio`, lido como o bash lê (`\\` escapa o seguinte), tem `\\'` antes do `'`
+    que fecha. Vale para `\\$'…'`: o hook lê aspas simples, e o shell de dentro de `bash -c "…"` ou `eval "…"` recebe
+    `$'…'` (o de fora troca `\\$` por `$`), então a leitura fiel não sabe onde a palavra termina (HOOK-ANSI-C)."""
+    i, n = inicio, len(texto)
+    while i < n and texto[i] != "'":
+        if texto[i] == "\\":
+            if texto[i + 1:i + 2] == "'":
+                return True
+            i += 2
+        else:
+            i += 1
+    return False
 
 
 @functools.lru_cache(maxsize=256)
@@ -1073,6 +1089,8 @@ def palavras_do_texto(texto):
             continue
         # fora de aspas, no texto de fora ou numa substituição
         if c == "\\":
+            if texto.startswith("$'", i + 1):  # HOOK-ANSI-C: o shell de dentro (`bash -c "…"`, `eval "…"`) lê `$'…'`
+                aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)
             if texto[i + 1:i + 2] != "\n":  # `\` + quebra de linha continua a linha
                 acrescentar(nivel, texto[i + 1:i + 2], i)
             i += 2
