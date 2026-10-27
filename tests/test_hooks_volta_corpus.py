@@ -92,8 +92,7 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertEqual([ast.unparse(k) for k in no_driver.keywords], ["**argumentos"])
         execucao = next(n.value for n in ast.walk(driver) if isinstance(n, ast.Assign)
                         and any(getattr(t, "id", None) == "EXECUCAO" for t in n.targets))
-        argumentos = {ast.literal_eval(k): dict((kw.arg, ast.literal_eval(kw.value)) for kw in v.elts[1].keywords)
-                      for k, v in zip(execucao.keys, execucao.values)}
+        argumentos = {ast.literal_eval(k): ast.literal_eval(v.elts[1]) for k, v in zip(execucao.keys, execucao.values)}
         modulos = {ast.literal_eval(k): v.elts[0].id for k, v in zip(execucao.keys, execucao.values)}
         self.assertEqual(set(argumentos), {"conformidade", "parecer"})
         for hook in argumentos:

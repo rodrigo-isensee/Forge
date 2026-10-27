@@ -51,6 +51,16 @@
       "testes": [
         "tests.test_testes_tocados.Mapa.test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda"
       ]
+    },
+    {
+      "id": "M6",
+      "guarda": "HOOKS-CORPUS-RAPIDO E1: o driver do lote passa o CRITICO do hook ao executar",
+      "arquivo": "tests/apoio_volta_unica.py",
+      "de": "            _comum.executar(hook, modulo.principal, modulo.CRITICO, **argumentos)\n",
+      "para": "            _comum.executar(hook, modulo.principal, None, **argumentos)\n",
+      "testes": [
+        "tests.test_hooks_volta_corpus.CorpusDaVoltaUnica.test_driver_do_lote_chama_o_executar_como_o_main_de_cada_hook"
+      ]
     }
   ]
 }
