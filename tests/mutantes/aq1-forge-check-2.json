@@ -1,0 +1,56 @@
+{
+  "pedido": "aq1-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "o tipo qa e aceito no achado recorrente",
+      "arquivo": "bin/forge-check",
+      "de": "(?:review|seguranca|qa) · (?=",
+      "para": "(?:review|seguranca) · (?=",
+      "testes": [
+        "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a classe tem no maximo 70 caracteres",
+      "arquivo": "bin/forge-check",
+      "de": "(?=[A-Za-z0-9 -]{1,70} · )",
+      "para": "(?=[A-Za-z0-9 -]{1,700} · )",
+      "testes": [
+        "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a classe nao aceita espaco duplo",
+      "arquivo": "bin/forge-check",
+      "de": "(?: [A-Za-z0-9-]+)* · (?:R-",
+      "para": "(?:[ ]+[A-Za-z0-9-]+)* · (?:R-",
+      "testes": [
+        "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a classe comeca com letra minuscula",
+      "arquivo": "bin/forge-check",
+      "de": "[a-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*",
+      "para": "[A-Za-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)*",
+      "testes": [
+        "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "as palavras seguintes da classe so tem letras, digitos e hifen",
+      "arquivo": "bin/forge-check",
+      "de": "(?: [A-Za-z0-9-]+)* · (?:R-",
+      "para": "(?: [^ ]+)* · (?:R-",
+      "testes": [
+        "tests.test_erros_no_brief.AchadosRecorrentes.test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre"
+      ]
+    }
+  ]
+}

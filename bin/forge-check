@@ -2002,7 +2002,7 @@ def lembrar_do_jarvis(raiz, tipo):
 
 ACHADOS_RECORRENTES = "docs/engineering/achados-recorrentes.md"
 LINHA_DE_ACHADOS = f"- {ACHADOS_RECORRENTES} (PA-7): confira cada item antes de entregar"
-ACHADO_RECORRENTE = re.compile(r"- AR-\d+ · (?:review|seguranca) · [a-z][a-z0-9-]{0,40} · (?:R-[A-Z0-9-]+|—) · vezes: \d+ · última: [\w./-]+:\d+")
+ACHADO_RECORRENTE = re.compile(r"- AR-\d+ · (?:review|seguranca|qa) · (?=[A-Za-z0-9 -]{1,70} · )[a-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)* · (?:R-[A-Z0-9-]+|—) · vezes: \d+ · última: [\w./-]+:\d+")
 TETO_DE_ACHADOS = 20
 
 
@@ -2014,7 +2014,7 @@ def problemas_dos_achados(texto):
         if linha.startswith("- AR-"):
             total += 1
             if not ACHADO_RECORRENTE.fullmatch(linha):
-                problemas.append(f"linha {numero} fora do formato `- AR-<n> · review|seguranca · <classe> · <R-ID|—> · vezes: <N> · última: <arquivo>:<linha>`")
+                problemas.append(f"linha {numero} fora do formato `- AR-<n> · review|seguranca|qa · <classe> · <R-ID|—> · vezes: <N> · última: <arquivo>:<linha>`")
     if total > TETO_DE_ACHADOS:
         problemas.append(f"mais de {TETO_DE_ACHADOS} linhas")
     return problemas
