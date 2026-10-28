@@ -1,0 +1,93 @@
+{
+  "pedido": "hook-ansi-c",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1",
+      "guarda": "leituras não falha fechado na aspa escapada do ansi (os dois casos do cartão voltam a sair 0)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                or palavras_do_texto(comando).aspa_escapada  # HOOK-ANSI-C: o `shlex` não fecha `$'…\\'…'` como o bash\n",
+      "para": "",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_os_dois_casos_do_cartao_saem_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_a_aspa_escapada_mais_adiante_na_linha_tambem_falha_fechado"
+      ]
+    },
+    {
+      "id": "A2",
+      "guarda": "o leitor fiel não sinaliza a aspa escapada",
+      "arquivo": "hooks/_comum.py",
+      "de": "    return LeituraDoTexto(tuple(lidos), duvida, aspa_escapada)",
+      "para": "    return LeituraDoTexto(tuple(lidos), duvida, False)",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_os_dois_casos_do_cartao_saem_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A3",
+      "guarda": "qualquer barra no ansi vale como aspa escapada (controle com \\n e \\\\ passa a sair 2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == \"'\"",
+      "para": "aspa_escapada = True",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_a_decisao_de_hoje_nao_muda",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A4",
+      "guarda": "a barra do ansi não pula o caractere seguinte (o `\\\\'` do fecho vira aspa escapada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                nivel.valor.append(texto[i:i + 2])\n                i += 2\n",
+      "para": "                nivel.valor.append(texto[i:i + 2])\n                i += 1\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_barra_barra_antes_do_fecho_nao_e_aspa_escapada",
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_a_decisao_de_hoje_nao_muda"
+      ]
+    },
+    {
+      "id": "A5",
+      "guarda": "a marca vale também fora do ansi (aspas simples com `\\'` dentro passam a ser recusadas)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if nivel.aspas == \"simples\":\n            if c == \"'\":\n                nivel.aspas = None",
+      "para": "        if nivel.aspas == \"simples\":\n            aspa_escapada = aspa_escapada or texto[i - 1:i] == \"\\\\\"\n            if c == \"'\":\n                nivel.aspas = None",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A6",
+      "guarda": "o leitor não marca `\\$'…'` com `\\'` dentro (o nível aninhado de bash -c, sh -c e eval volta a sair 0)",
+      "arquivo": "hooks/_comum.py",
+      "de": "                aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)\n",
+      "para": "                pass\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_nivel_aninhado_entre_aspas_duplas_sai_2",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A7",
+      "guarda": "qualquer barra em `\\$'…'` vale como aspa escapada (os controles aninhados com \\n, \\\\ e \\x41 passam a sair 2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "            if texto[i + 1:i + 2] == \"'\":\n                return True\n",
+      "para": "            if True:\n                return True\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_do_nivel_aninhado_saem_0",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    },
+    {
+      "id": "A8",
+      "guarda": "a leitura de `\\$'…'` não pula o caractere escapado (o `\\\\'` do fecho vira aspa escapada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "            i += 2\n        else:\n            i += 1\n    return False\n",
+      "para": "            i += 1\n        else:\n            i += 1\n    return False\n",
+      "testes": [
+        "tests.test_hook_ansi_c.HookAnsiC.test_controles_do_nivel_aninhado_saem_0",
+        "tests.test_hook_ansi_c.HookAnsiC.test_o_leitor_fiel_marca_so_a_aspa_escapada"
+      ]
+    }
+  ]
+}

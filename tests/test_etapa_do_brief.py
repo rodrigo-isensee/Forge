@@ -164,6 +164,62 @@ class RegraUnicaDeMarca(Base):
         self.assertEqual(rc, 1)
 
 
+
+class LoteDoBriefG1(Base):
+    """PR-VERDE-LOTE-CHECK (G1): o que o conferente reprovava por leitura, o `forge-check brief` reprova antes, com linha própria."""
+
+    def test_a_etapa_do_cobre_no_fora_do_escopo_sem_marca_reprova(self):
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2"))
+        rc, saida = self.conferir(texto.replace("\n\n## Objetivo", "\nCobre: E1.5\n\n## Objetivo", 1))
+        self.assertIn('corte: sem marca "E1.5" (etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)', saida)
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.conferir(texto.replace("\n\n## Objetivo", "\nCobre: E1.2\n\n## Objetivo", 1), "ok.md")
+        self.assertNotIn("etapa do próprio papel cortada", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_a_etapa_do_cobre_de_outro_papel_cortada_nao_reprova(self):  # QA A2: o corte legítimo da etapa de outro papel
+        texto = brief("revisor-exemplo", ["Review (E1.2)."], fora_sem("E1.2"))
+        rc, saida = self.conferir(texto.replace("\n\n## Objetivo", "\nCobre: E1.4\n\n## Objetivo", 1))
+        self.assertNotIn("etapa do próprio papel cortada", saida)
+
+    def test_caminho_do_pq_com_curinga_nao_e_cobrado(self):  # review A1: `ls tests/test_*.py` não é "tests/test_"
+        self.gravar("tests/existe.py", "x\n")
+        pq = "- PQ-2 (cmd): `ls tests/test_*.py tests/dado?.txt tests/[ab].md tests/{a,b}.md` · espera: rc=0\n"
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Relatório", "\n" + pq + "\n## Relatório")
+        rc, saida = self.conferir(texto)
+        self.assertNotIn("pq:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_caminho_do_pq_que_nao_existe_nem_e_criado_reprova(self):
+        self.gravar("bin/existe", "x\n")
+        pq = "- PQ-2 (cmd): `bin/existe bin/nao-existe refs/heads/x origin/develop` · espera: rc=0\n"
+        texto = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Relatório", "\n" + pq + "\n## Relatório")
+        rc, saida = self.conferir(texto)
+        self.assertIn('pq: PQ-2 cita "bin/nao-existe", que não existe nem é criado pelo Entregar (R-PROVA)', saida)
+        self.assertEqual([l for l in saida.splitlines() if l.startswith("pq:")], ['pq: PQ-2 cita "bin/nao-existe", que não existe nem é criado pelo Entregar (R-PROVA)'])
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.conferir(texto.replace("Mesclar (E1.5).", "Mesclar (E1.5) e criar `bin/nao-existe`."), "ok.md")
+        self.assertNotIn("pq:", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_no_rev_falta_a_decisao_do_pedido_de_origem_reprova(self):
+        rev = self.gravar("docs/pedidos/exemplo-REV.md", PEDIDO.replace('DECISÃO DO DONO (2026-01-01): "A".', "nenhuma."))
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace('DECISÃO DO DONO (2026-01-01): "A".', "nada.")
+        rc, saida = self.rodar("brief", self.gravar("b.md", sem), "--pedido", rev)
+        self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-01): \\"A\\"." (docs/pedidos/exemplo.md:21)', saida)
+        self.assertEqual(rc, 1, saida)
+        rc, saida = self.rodar("brief", self.gravar("ok.md", brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5"))), "--pedido", rev)
+        self.assertIn("fonte: docs/pedidos/exemplo.md (1 decisões)", saida)
+        self.assertEqual(rc, 0, saida)
+
+    def test_no_pr_falta_a_decisao_do_pedido_de_origem_reprova(self):  # QA A1: o -PR também cobra a origem (E1)
+        pr = self.gravar("docs/pedidos/exemplo-PR.md", PEDIDO.replace('DECISÃO DO DONO (2026-01-01): "A".', "nenhuma."))
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace('DECISÃO DO DONO (2026-01-01): "A".', "nada.")
+        rc, saida = self.rodar("brief", self.gravar("b.md", sem), "--pedido", pr)
+        self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-01): \\"A\\"." (docs/pedidos/exemplo.md:21)', saida)
+        self.assertEqual(rc, 1, saida)
+
+
 SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
@@ -566,6 +622,20 @@ class RecusaDoIdDoPedido(unittest.TestCase):
         rc, saida = self.pr(self.ID)
         self.assertEqual(rc, 2, saida)
         self.assertIn("uso: use o slug da branch (<slug>), não o id do pedido", saida)
+
+    def test_id_com_brief_da_branch_vira_o_slug_da_linha_branch(self):  # G2
+        briefs = self.tmp / ".forge-contrib" / "docs" / "briefs"
+        briefs.mkdir(parents=True)
+        (briefs / f"{self.ID}-tech-lead-1.md").write_text(f"Pedido: {self.ID}\nBranch: melhoria/outra   Base: develop\n\n## Objetivo\nx\n",
+                                                           encoding="utf-8")
+        rc, saida = self.pr(self.ID)
+        self.assertNotEqual(rc, 2, saida)
+        self.assertIn("sem parecer para o pedido `outra`", saida)
+        (briefs / f"{self.ID}-REV-qa-engineer-1.md").write_text(f"Pedido: {self.ID}-REV\nBranch: melhoria/do-rev\n\n## Objetivo\nx\n",
+                                                               encoding="utf-8")  # QA A4: o glob `<id>-*` pega o -REV; o `Pedido:` o tira
+        self.assertIn("sem parecer para o pedido `outra`", self.pr(self.ID)[1])
+        (briefs / f"{self.ID}-qa-engineer-1.md").write_text(f"Pedido: {self.ID}\nBranch: melhoria/terceira\n\n## Objetivo\nx\n", encoding="utf-8")
+        self.assertEqual(self.pr(self.ID)[0], 2)  # dois slugs: o argumento fica e o `uso:` segue
 
     def test_slug_sem_pedido_com_esse_nome_segue_o_caminho_antigo(self):
         rc, saida = self.pr("meu-slug")

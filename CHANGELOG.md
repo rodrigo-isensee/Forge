@@ -4,6 +4,17 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.5] - 2026-10-28
+### Adicionado
+- forge-mutante --cobertura --base <sha>: a checagem do autor, antes do push, lista a condição Python mudada no diff que nenhum mutante declarado cobre (GUARDA-SEM-MUTANTE, núcleo Python; shell, isentas e o PQ do brief ficam para o PR 2)
+### Alterado
+- A branch de trabalho se atualiza com a develop só na hora do merge (R-FLUXO); os pareceres valem pelo diff da entrega e o forge-check pr confere o merge simulado; o PR de promoção develop → homolog nasce com o merge automático ligado (REL-DEC)
+### Corrigido
+- O leitor dos hooks falha fechado em `$'…'` com `\'` dentro: o `shlex` o junta ao `;` seguinte numa palavra só e o conformidade liberava `echo $'it\'s'; cat .env\'`; o mesmo vale para `\$'…'` no argumento entre aspas duplas de `bash -c`, `sh -c` e `eval`, que o shell de dentro lê como `$'…'` (HOOK-ANSI-C).
+- Testes instáveis de hooks (LOTE-TI): pré-condição do apoio pathlib dos testes de falha fechada, prazo largo do bash do T9b sob carga, amostra da propriedade do lançador com deslocamento variável e semente na falha, e o teto do env -S medido em CPU (2x o p95)
+- forge-check: o brief reprova a etapa do Cobre cortada sem marca, o caminho de PQ que não existe e, no -REV e no -PR, a decisão do dono do pedido de origem; a entrega conta o escopo pelo primeiro pai e tira o que o merge da base trouxe; o pr aceita o id do pedido pela linha Branch: do brief; o parecer reescrito por um portão do -REV sai ok; mudar só o changelog.d/<slug>.md não desatualiza o parecer (PR-VERDE-LOTE-CHECK)
+- O job da Release passa de 10 para 20 minutos de limite: a v0.30.4 cancelou duas vezes aos 10m09s e não foi publicada (RELEASE-TIMEOUT)
+
 ## [0.30.4] - 2026-10-27
 ### Adicionado
 - conferente: o forge-check brief imprime o comando do pr com o slug da branch, o pr recusa o id do pedido, e a volta marca bloco idêntico e verificador ok (CONF-C2C3)

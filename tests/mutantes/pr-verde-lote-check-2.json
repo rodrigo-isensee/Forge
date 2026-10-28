@@ -1,0 +1,86 @@
+{
+  "pedido": "pr-verde-lote-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "QA A1: sem o -PR, o pedido -PR deixaria de cobrar as decisões do pedido de origem (E1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if origem := re.fullmatch(r\"(.+)-(?:REV|PR)\", Path(proprio).stem):",
+      "para": "    if origem := re.fullmatch(r\"(.+)-(?:REV)\", Path(proprio).stem):",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_no_pr_falta_a_decisao_do_pedido_de_origem_reprova"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "QA A2: sem o papel, a etapa do Cobre de outro papel cortada legitimamente reprovaria",
+      "arquivo": "bin/forge-check",
+      "de": "            and papel_destino and nome_do_papel(pedido[\"etapas\"][cobre][0]) == papel_destino):\n",
+      "para": "            and papel_destino):\n",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_a_etapa_do_cobre_de_outro_papel_cortada_nao_reprova"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "QA A3: sem a Branch, o brief do -REV de outra branch isentaria a remoção no parecer",
+      "arquivo": "bin/forge-check",
+      "de": "grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho) == rev and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch\n",
+      "para": "grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho) == rev and True\n",
+      "testes": [
+        "tests.test_forge.EntregasParalelas.test_parecer_reescrito_pelo_portao_do_rev_casa_pelo_commit_e_pelo_papel"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "QA A4: sem o Pedido:, o glob <id>-* pegaria o brief do -REV e trocaria o slug",
+      "arquivo": "bin/forge-check",
+      "de": "            if grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Pedido\"], cabecalho) == pedido and branch.startswith(\"melhoria/\"):\n",
+      "para": "            if branch.startswith(\"melhoria/\"):\n",
+      "testes": [
+        "tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_id_com_brief_da_branch_vira_o_slug_da_linha_branch"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "QA A5: com LIVRES no merge simulado, o fragmento mudado depois do merge da base desatualizaria o parecer no CI",
+      "arquivo": "bin/forge-check",
+      "de": "    div = arquivos_divergentes(raiz, base, commit, ate, livres) if base else None\n",
+      "para": "    div = arquivos_divergentes(raiz, base, commit, ate, LIVRES) if base else None\n",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_com_base_o_merge_simulado_tambem_ignora_o_fragmento"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "segurança A1: sem o que a base mudou e o merge não manteve, o merge -s ours sumiria do escopo",
+      "arquivo": "bin/forge-check",
+      "de": "            proprios = (proprios & da_base) | descartados",
+      "para": "            proprios = (proprios & da_base)",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_merge_que_descarta_a_base_mostra_o_que_ela_desfez"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "segurança A2: por prefixo, changelog.d/<slug>.md.md, .mdx/ e .md~ sairiam do hash",
+      "arquivo": "bin/forge-check",
+      "de": "    return any(nome == x or (x.endswith(\"/\") and nome.startswith(x)) for x in livres)\n",
+      "para": "    return any(nome.startswith(x) for x in livres)\n",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "review A1: sem o lookahead, o caminho com curinga seria cortado no glob e reprovado",
+      "arquivo": "bin/forge-check",
+      "de": "(?:/[\\w.@+-]+)+)(?![\\w.@+/-]*[*?\\[{])\")",
+      "para": "(?:/[\\w.@+-]+)+)\")",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_caminho_do_pq_com_curinga_nao_e_cobrado"
+      ]
+    }
+  ]
+}
