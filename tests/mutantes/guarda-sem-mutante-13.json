@@ -1,0 +1,56 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M83",
+      "guarda": "o corpo de heredoc já passado sai da lista antes da próxima ficha",
+      "arquivo": "bin/forge-mutante",
+      "de": "while corpos and m.start() >= corpos[0][1]:",
+      "para": "while corpos and m.start() >= corpos[0][0]:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M84",
+      "guarda": "o laço lê as fichas até o fim do texto",
+      "arquivo": "bin/forge-mutante",
+      "de": ":= FICHA_SH.search(t, pos",
+      "para": ":= None and FICHA_SH.search(t, pos",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M85",
+      "guarda": "o que não se lê com certeza só volta quando alguém pede",
+      "arquivo": "bin/forge-mutante",
+      "de": "incertas is not None",
+      "para": "incertas is None",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M86",
+      "guarda": "não coberto só de linha dentro de um hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "h[1].start <= b",
+      "para": "h[1].start > b",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M87",
+      "guarda": "a ficha de heredoc pula o corpo",
+      "arquivo": "bin/forge-mutante",
+      "de": "m.lastindex",
+      "para": "not m.lastindex",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    }
+  ]
+}

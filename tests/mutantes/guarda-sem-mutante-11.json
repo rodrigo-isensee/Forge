@@ -6,8 +6,8 @@
       "id": "M72",
       "guarda": "shell usa a extracao de shell",
       "arquivo": "bin/forge-mutante",
-      "de": "if py else condicoes_sh",
-      "para": "if not py else condicoes_sh",
+      "de": "if py else (condicoes_sh(depois",
+      "para": "if not py else (condicoes_sh(depois",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
       ]

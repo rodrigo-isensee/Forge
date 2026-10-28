@@ -7,6 +7,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -507,7 +508,12 @@ class Cobertura(unittest.TestCase):
                  "x\nelif [[ $a == b ]]; then\n": ["elif [[ $a == b ]]"], '[ -n "$a" ] && b\n': ['[ -n "$a" ]', "&& b"],
                  "test -f x || exit 1\n": ["test -f x", "|| exit 1"], "c || true\nd || :\ne || 'true'\nf || \":\"\n": [],
                  'echo "if a && b" # while x || y\n': [], "[ ${#a} -gt 3 ]\n": ["[ ${#a} -gt 3 ]"],
-                 "a=1\necho x --test y mytest z\n": [], "a=$(b)\nb=[x]\n": []}
+                 "a=1\necho x --test y mytest z\n": [], "a=$(b)\nb=[x]\n": [],
+                 'x=${a##*/}; if [ -n "$x" ]; then exit 1; fi\n': ['if [ -n "$x" ]'],  # `#` dentro de `${}` não é comentário
+                 "cmd || true  # sem erro\n": [], "until grep -q pronto log; do sleep 1; done\n": ["until grep -q pronto log"],
+                 "cat <<EOF\nit's fine\nEOF\nif [ -n a ]; then :; fi\necho 'y'\n": ["if [ -n a ]"],  # apóstrofo de heredoc
+                 "echo don\\'t; if [ -n a ]; then :; fi; echo 'z'\n": ["if [ -n a ]"],
+                 "cat <<'E'\n[ -n a ]\nE\necho $((1<<3))\n": []}  # corpo de heredoc entre aspas; `<<3` não é heredoc
         for texto, esperado in casos.items():
             with self.subTest(texto):
                 self.assertEqual([c[0] for c in self.f.condicoes_sh(texto)], esperado)
@@ -525,6 +531,26 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual(r.returncode, 0, r.stdout)
         self.assertIn("coberta · run.sh:2 · tests/mutantes/x.json:M1", r.stdout)
+
+    def test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde(self):
+        casos = {"bash -c 'if [ -n a ]; then exit 1; fi'\n": "run.sh:2", "cat <<FIM\n[ a ]\n": "run.sh:2",
+                 "echo 'abc\n": "run.sh:2", "eval \"[ -n a ] && exit 1\"\n": "run.sh:2"}
+        for texto, linha in casos.items():
+            with self.subTest(texto):
+                self.salvar({"run.sh": "#!/bin/sh\n" + texto})
+                r = self.cobertura()
+                self.assertIn(f"não coberto: {linha}", r.stdout)
+                self.assertNotIn("não coberto: run.sh:1", r.stdout)
+        self.salvar({"run.sh": "#!/bin/sh\ncat <<EOF\nit's\nEOF\nif [ -f /etc/passwd ]; then :; fi\necho 'y'\n"})
+        self.assertIn("sem mutante · run.sh:5 · if [ -f /etc/passwd ]", self.cobertura().stdout)
+
+    def test_shell_de_40_kb_sem_fecho_gasta_pouca_cpu(self):  # p95 de 10 execuções: 0,021 s; limite 2x = 0,05 s (era 9 s)
+        for unidade in ('"\\"', "[[ ", "[ "):
+            texto = unidade * (40000 // len(unidade)) + "\n"
+            for _ in range(2):
+                inicio = time.process_time()  # CPU do processo, não o relógio (PROP-TEMPO-CPU)
+                self.f.condicoes_sh(texto)
+                self.assertLess(time.process_time() - inicio, 0.05, repr(unidade))
 
     MOTIVO = "mensagem de erro sem efeito"
     ISENTA = {"arquivo": "lib.py", "trecho": "x > 100 and y", "motivo": MOTIVO}
