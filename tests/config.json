@@ -412,6 +412,7 @@
       "quem deu o parecer revalida",
       "invalida os pareceres dos arquivos que ela tocou",
       "\\*\\*a promoção `homolog` → `main` é um PR que só o usuário mescla\\*\\*",
+      "Só a `homolog`: a `main` segue só com o merge do usuário",
       "`main` por \\*\\*merge commit\\*\\*, mesclado pelo usuário",
       "não há PR de sincronização",
       "\\*\\*Atualize a branch com a integração só na hora do merge\\*\\*",
