@@ -3,53 +3,47 @@ tipo: review
 contrato: 1
 pedido: hk3-parecer-pasta
 branch: melhoria/hk3-parecer-pasta
-commit: bfd9e70ad2325fd5a04a2104fe041d4346384042
-parecer: reprovado
+commit: 77b539d3fb3e9ebde40af8cf36942298c54d7e10
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-28
 ---
-# Review: o hook parecer resolve a pasta do git como o git e o bash (HK3-PARECER, PR A, E1 e E3)
+# Review: o hook parecer resolve a pasta do git só quando ela é literal (HK3-PARECER, PR A, E1 e E3)
 
-Escopo: rodada 2, revalidação por delta do parecer `7d6c866` (que revisou `212203a`). Delta lido: `212203a39fd4419c45dd797ea0737b7d05001d19..bfd9e70ad2325fd5a04a2104fe041d4346384042` (`96c642f` fix, `f1dc6d0` test, `bfd9e70` test), pela saída de `bin/forge-check delta --parecer docs/reviews/hk3-parecer-pasta.md`: `hooks/parecer.py` +61 -17 (linhas 60, 188-222, 233, 239-240, 248-255, 257, 269, 271, 531-533, 535, 561, 564-565, 572-574, 583), as fixtures novas `tests/hooks/parecer/pasta-*`, `tests/mutantes/hk3-parecer-pasta-{1,2,3}.json` (texto novo) e `-{5..8}.json` (novas). Já lido na rodada 1 e fora do delta: o resto de `hooks/parecer.py`, `bin/forge-testes`, `tests/test_hooks_parecer_pasta.py`, `tests/test_testes_tocados.py`, `changelog.d/hk3-parecer-pasta.md` e a spec 4. Os pareceres de segurança e QA no delta não são deste review.
+Escopo: rodada 3, revalidação por delta do parecer `85537c6` (que revisou `bfd9e70`). Delta lido: `bfd9e70ad2325fd5a04a2104fe041d4346384042..77b539d3fb3e9ebde40af8cf36942298c54d7e10`, pela saída de `bin/forge-check delta --parecer docs/reviews/hk3-parecer-pasta.md`. Os commits de código são `f50a45e` (fix), `a65a98b` (corpus), `c808a9c`, `40eaf8c`, `07fc854` e `77b539d` (mutantes) e `c6cf772` (refactor). Os arquivos lidos são `hooks/parecer.py` +102 -128 (linhas 8-11, 54-68, 131-152, 183-184, 199-275, 509-513, 539-580), `changelog.d/hk3-parecer-pasta.md`, `tests/test_hooks_parecer_pasta.py` (docstring), as fixtures `pasta-*` novas ou renomeadas e `tests/mutantes/hk3-parecer-pasta-{1..13}.json`. Já lido nas rodadas 1 e 2 e fora do delta: o resto de `hooks/parecer.py`, `bin/forge-testes` e `tests/test_testes_tocados.py`. Os pareceres de segurança e QA e a linha AR-1 que entraram no intervalo não são deste review.
 
-Veredito: **reprovado**. A1 a A3 da rodada 1 estão corrigidos e provados. O conserto do A1 do QA (`juntar_crases`) abriu uma regressão provada (A5, bloqueante, classe nova): uma crase sozinha entre apóstrofos ou aspas numa palavra antes do subcomando esconde o merge e o pull que o hook barrava na base.
+Veredito: **aprovado**. O A5 foi corrigido pela raiz: `juntar_crases` e `entre_apostrofos` saíram, e a palavra com expansão antes do subcomando deixa as pastas incertas (`globais`, `hooks/parecer.py:135`). A regra da DECISÃO TÉCNICA de 12:56 está cumprida: pasta só literal (`resolver`, `:238`), `cd` só no nível de cima (`soltos`, `:198`; `COMECA`, `:57`) e `~` só com HOME não mexido. Nenhuma sonda mostrou regressão contra a base.
 
 ## Ferramentas (citadas, não refeitas)
-- `python3 -m unittest tests.test_hooks_parecer_pasta tests.test_testes_tocados`: `Ran 82 tests in 16.757s` / `OK`; 77 fixtures `pasta-*` (mínimo 50).
-- Mutantes: 8 specs `tests/mutantes/hk3-parecer-pasta-{1..8}.json`; não reexecutados aqui (o QA roda o `forge-mutante`).
+- `python3 -m unittest tests.test_hooks_parecer_pasta tests.test_testes_tocados`: `Ran 82 tests in 16.266s` / `OK`. São 118 fixtures `pasta-*` (o mínimo é 50), 15 delas do lado que passa.
+- `bin/forge-testes --listar hooks/parecer.py`: 14 módulos dirigidos. O pre-push do autor rodou 2179 testes, todos OK (histórico do pedido, 14:05), e o CI do PR roda a suíte inteira.
+- Mutantes: 13 specs em `tests/mutantes/hk3-parecer-pasta-*.json`. Saíram o M15 e o M39, de trecho que não existe mais. O autor relata rc 0 nas 13. Não reexecutei aqui, porque o QA roda o `forge-mutante`.
 - `tests/config.json`: fora do diff.
-- Teto M14 (`git diff --numstat --no-renames ff3936a...bfd9e70`): 257 linhas de código e teste (`bin/forge-testes` 5, `hooks/parecer.py` 217, `tests/test_hooks_parecer_pasta.py` 33, `tests/test_testes_tocados.py` 2); corpus, mutantes, `changelog.d/` e `.md` fora; uma classe em `hooks/` (a pasta do git), com corpus próprio. Ok.
-- Achados recorrentes (PA-7): lista vazia; A5 é a primeira ocorrência da classe; sem linha `AR-<n>`.
+- Teto M14 (`git diff --numstat --no-renames ff3936a...77b539d`): 246 linhas de código e teste (`bin/forge-testes` 5, `hooks/parecer.py` 205, `tests/test_hooks_parecer_pasta.py` 34, `tests/test_testes_tocados.py` 2). Corpus, mutantes, `changelog.d/` e `.md` ficam fora. Há uma classe só em `hooks/` (a pasta do git), com corpus próprio. Ok.
+- O fragmento `changelog.d/hk3-parecer-pasta.md` (+1 -1) descreve o comportamento novo. Está conforme a DECISÃO TÉCNICA de 14:09.
+- Achados recorrentes (PA-7): AR-1 (`pasta-do-git-diferente-do-bash`) já está na lista. A6 repete a classe do A8 da segurança, invólucro que esconde o `cd`, então grava a linha AR-2 neste commit.
 
-## Revalidação dos achados da rodada 1
-Sondas da rodada 1 e novas, no formato do corpus, rodadas pela máquina do `tests/test_hooks.py` contra o `hooks/parecer.py` de `bfd9e70` (`$TMPDIR/tech-lead-hk3-parecer-pasta/sonda2/parecer/`; montagem: `{raiz}` = `proj` em `develop`, worktree `home/proj` em `melhoria/x`, `HOME={tmp}/home`).
+## Revalidação
+As sondas estão no formato do corpus, em `$TMPDIR/tech-lead-hk3-parecer-pasta/sonda3/parecer/`, com 40 casos: os das rodadas 1 e 2 mais 17 novos (`d01` a `d17`). Rodaram pela máquina do `tests/test_hooks.py` contra a árvore de `77b539d` e contra a base `ff3936a`. Montagem: `{tmp}/proj` em `develop` e a worktree `{tmp}/home/proj` em `melhoria/x`.
 
-| Achado | Sondas | Resultado em `bfd9e70` |
-|---|---|---|
-| A1 CDPATH por export ou prefixo | s5, s6, `declare -x CDPATH=...` (c6) | rc=2, corrigido (`hooks/parecer.py:240`, `:269`) |
-| A2 GIT_DIR por printf -v, read, mapfile | s7, `mapfile -t GIT_DIR` + `export GIT_DIR` (c8), `export GIT_WORK_TREE=` (c5) | rc=2, corrigido (`hooks/parecer.py:240`, `SENSIVEIS` em `:60`) |
-| A3 HOME reescrito na linha | s1, s2, s3, `read HOME` + `cd` (c7) | rc=2, corrigido (`hooks/parecer.py:193`, `:583`) |
-| A4 gh com pasta desconhecida (recomendado) | sem mudança | segue recomendado (decisão técnica de 2026-10-28 11:49: os recomendados ficam como estão) |
-| Controles do lado que passa | `cd proj` relativo sem CDPATH (c9), `cd <wt> && git pull --rebase ... && git push` (c11), `cd ~/proj && git pull --rebase` (c12) | rc=0, sem regressão |
+| Alvo | Sondas | `77b539d` | Base `ff3936a` |
+|---|---|---|---|
+| A5 crase entre apóstrofos ou aspas antes do subcomando | c1, c2, c4, c13, c15, d10 (`git -c "x.y=\`" pull`) | rc=2 em todas | rc=2 |
+| A5 crase fora da pasta (mensagem de commit e depois merge) | c10, d16 | rc=2 | rc=2 |
+| A1 a A3 da rodada 1 (CDPATH, GIT_DIR, HOME) | s1 a s7, c3, c5 a c8 | rc=2 em todas | várias rc=0 (contornos que a base deixava passar) |
+| `cd` fora do nível de cima | d03 (`cd W && cd R; git merge`), d13 (`(cd W); git merge` com cwd R) | rc=2 | d03 rc=2, d13 rc=0 |
+| Pasta com glob ou chaves | d08 (`cd {tmp}/pro?`), d09 (`cd {tmp}/{proj,}`) | rc=2 | rc=0 |
+| `-C` vazio, `-C` para a raiz, `~/..` | d07, d14, d17 | rc=2 | rc=2 |
+| Lado que passa | c9, c11, c12, d05 (`cd W && git merge`), d06 (`git -C W merge`), d12 (`cd W && git pull --rebase origin melhoria/x && git push ...`) | rc=0 | rc=0 |
+| Invólucro do `cd` | d01 (`! cd R; git merge`), d02 (`time cd R; ...`), d15 (`builtin cd R; ...`) | rc=0 | rc=0 (igual, sem regressão: A6) |
 
-Falsos positivos do lado seguro (aceitos pela decisão técnica de 2026-10-28 11:49): HOME, CDPATH ou desvio do git fixados por atribuição literal solta também ficam desconhecidos (`hooks/parecer.py:233`), então `HOME=/x; cd ~ && git pull` recusa mesmo com o valor conhecido; `entre_apostrofos(comando)` olha a linha inteira (`:535`), então `$W` entre apóstrofos em qualquer comando da linha (numa mensagem de commit, por exemplo) torna `W` desconhecido também no `cd $W` de outro comando; crase, `$( )`, `<( )` e `>( )` em qualquer pasta recusam (`:249`). Todos erram para a recusa; nenhum abre passagem.
-
-## Sonda da regressão (A5)
-- c2 ``git -c 'x.y=`' merge melhoria/x`` (cwd `{raiz}`, HEAD `develop`): `bfd9e70` rc=0; base `ff3936a` rc=2; `212203a` rc=2.
-- c1 ``cd {raiz} && git -c 'x.y=`' merge melhoria/x`` (cwd na worktree): `bfd9e70` rc=0; base rc=2.
-- c4 ``git -c "x.y=\`" merge melhoria/x``: `bfd9e70` rc=0; base rc=2.
-- c13 ``git -c 'x.y=`' pull origin melhoria/x`` (HEAD `develop`): `bfd9e70` rc=0; base rc=2; o controle sem crase (c14) rc=2.
-- c15 ``X='`' git merge melhoria/x``: `bfd9e70` rc=0; base rc=2.
-- Git de verdade (`$TMPDIR/tech-lead-hk3-parecer-pasta/real.sh`): ``git -c 'x.y=`' merge -q melhoria/x`` na `develop` sai rc=0 e o commit de `melhoria/x` entra na `develop`. O gatilho é real.
+A d11 (`cd R && git pull --rebase origin develop`) sai com rc=0 nas duas árvores. É atualização a partir da própria integração, que o hook libera de propósito. A sonda é que esperava errado.
 
 ## Achados
-- A4 (recomendado) hooks/parecer.py:577 · gh pr create, ready e merge com pasta desconhecida (pushd, cd $UNK) são julgados pela pasta da sessão; fora da regra do modelo (só merge e pull), mas o docstring diz que o desconhecido nunca vale pela sessão
-- A5 (bloqueante) hooks/parecer.py:221 · regressão (defeito provado), classe crase sozinha protegida por aspas: juntar_crases conta a crase depois do shlex, sem saber se estava entre apóstrofos ou aspas; git -c 'x.y=`' merge (ou pull) cola o subcomando numa palavra e passa (rc=0, na base rc=2)
+- A4 (recomendado) hooks/parecer.py:551 · gh pr create, ready e merge com pasta desconhecida (pushd, cd fora do nível de cima) são julgados pela pasta da sessão; o merge e o pull recusam, o gh não; sem mudança desde a rodada 1
+- A6 (recomendado) hooks/parecer.py:160 · `! cd`, `time cd`, `builtin cd` e `command cd` mudam a pasta do shell sem o hook ver o `cd` (rc=0, igual na base); mesma classe do A8 da segurança; a correção é tratar o comando com `cd` depois de um invólucro como pasta desconhecida
 
 ## Parecer
-Reprovado por A5. O resto do delta está bom: `SENSIVEIS` concentra num lugar só os nomes que o bash e o git leem sozinhos; o `None` em `variaveis` separa "mexida na linha" de "não fixada" sem o conjunto à parte que sugeri; `com_til` e o `cd` sozinho passam a usar o HOME da linha; e as fixtures novas cobrem cada sonda dos três pareceres.
+Aprovado. O delta simplifica o hook (-26 linhas líquidas em `hooks/parecer.py`): saíram o dicionário de variáveis, `entre_apostrofos`, `juntar_crases` e `efeito_nas_variaveis`, e entraram `mexidas_na_linha`, que devolve só os nomes sensíveis, e `globais`, que é a fonte única das opções globais do git e serve tanto a `analisar` quanto a `pastas_do_git`. Nenhuma referência ao código antigo sobrou. O `resolver` passou a conferir se a pasta existe e segue o link só no `-C` (`fisico`), como o git faz. Os docstrings, a mensagem de recusa e o fragmento de changelog dizem a regra nova.
 
-- A5 · `hooks/parecer.py:213-222` (o `aberta ^=` em `:221`; chamado em `:531-533`) · `juntar_crases` recebe as palavras já sem aspas e trata toda contagem ímpar de crases como crase aberta. Uma crase literal entre apóstrofos, entre aspas com barra (`"\`"`) ou num valor de prefixo (``X='`'``) liga `aberta` e cola todas as palavras seguintes do comando numa só, e `analisar` deixa de ver o `merge` ou o `pull`. Sugestão: decidir a junção no texto cru, onde as aspas ainda existem (como `entre_apostrofos` faz); ou, do lado seguro, analisar as duas leituras (palavras cruas e juntadas) e recusar se qualquer uma barrar; ou tratar o comando com crase ímpar como pasta desconhecida. Fixtures: c1, c2, c4, c13 e c15 acima, no corpus `pasta-barra-*`, e um mutante que solte a guarda nova. Severidade: bloqueia.
-- A4 · sem mudança desde a rodada 1. Severidade: recomendado.
-
-Achado de segurança (A5 é contorno do portão R-REVIEW por regressão): vai como cartão ao `security-engineer`, que dá o parecer próprio em paralelo (E2.1); este review não o refaz.
+O A4 e o A6 são recomendações, não bloqueiam e ficam para cartão próprio (decisão técnica de 2026-10-28 11:49: os recomendados ficam como estão). O A6 vai também como nota ao `security-engineer`, que já o registrou como A8.
