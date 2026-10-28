@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
+    },
+    {
+      "id": "M119",
+      "guarda": "a condicao para no fim das palavras",
+      "arquivo": "hooks/parecer.py",
+      "de": "while k < len(palavras):",
+      "para": "while True:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
     }
   ]
 }
