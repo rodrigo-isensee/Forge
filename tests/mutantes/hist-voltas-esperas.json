@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_medidas_m14b.Esperas"
       ]
+    },
+    {
+      "id": "H8",
+      "guarda": "o id colado depois de letra, dígito, ponto ou hífen passa a casar como citação",
+      "arquivo": "bin/forge-check",
+      "de": "r\"(?<![A-Za-z0-9._-])\" + re.escape(id_)",
+      "para": "re.escape(id_)",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
     }
   ]
 }

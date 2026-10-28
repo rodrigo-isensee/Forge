@@ -144,6 +144,11 @@ class Esperas(Raiz):
         cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-d")
         self.assertEqual(cod, 1, linhas)
 
+    def test_motivo_com_o_id_colado_atras_de_letra_digito_ponto_ou_hifen_nao_casa(self):
+        self.gravar("docs/kanban/historico.md", self.HISTORICO + "| 2026-10-22T15:00:00-03:00 | K-4 | Em andamento | Em andamento | xped-d e 1ped-d e a.ped-d e x-ped-d |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-d")
+        self.assertEqual(cod, 1, linhas)
+
     def test_pedido_sem_cartao_rc_1_e_sem_historico_so_avisa(self):
         cod, linhas, _ = self.rodar("esperas", "--pedido", "nenhum")
         self.assertEqual(cod, 1)
