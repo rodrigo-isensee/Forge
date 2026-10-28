@@ -5,9 +5,10 @@ PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge
 `git pull <remoto> <branch>` na branch de integração: exige parecer aprovado e válido para a branch (validado pelo
 forge-check, ADR 0004); com pipeline, contêiner ou IaC no diff, também o de devops (R-REVIEW); com gatilho de segurança, o
 de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha. A
-pasta do git é a que o bash e o git calculam (`cd`, cada `-C` em ordem, `~` e `$NOME` de atribuição simples da linha); o
-que o hook não resolve (variável desconhecida, pasta inexistente, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa
-o merge e o pull, nunca é julgado pela pasta da sessão (HK3-PARECER, E1 e E3).
+pasta do git é a que o bash e o git calculam (`cd` no nível de cima da linha, cada `-C` em ordem e `~`), só com caminho
+literal; o que o hook não resolve (variável, crase, `$( )`, `cd` em subshell, pipeline, segundo plano ou condicional,
+pasta inexistente, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa o merge e o pull, nunca é julgado pela pasta
+da sessão (HK3-PARECER, E1 e E3).
 A isenção é a regra única do forge-check (`isencoes_da_entrega`, M13): diff só de `.md` comum dispensa o QA e exige o
 review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
 atualização a partir de uma branch de integração e promoção entre branches de integração. O merge de PR (ADR 0008, 4.3) é resolvido sem rede, pela branch: base `main` é `R-MAIN`;
@@ -50,18 +51,21 @@ CRIA_BRANCH = {"-b", "-B", "-c", "-C", "--create", "--force-create", "--orphan"}
 MERGE_SEM_ALVO = {"--abort", "--continue", "--quit", "--skip"}
 GIT_COM_VALOR = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
 # A pasta em que o git roda (HK3-PARECER, E1 e E3): o hook a calcula como o bash e o git. Ela só se resolve com caminho
-# literal (`~` no início da palavra e `$NOME` de uma atribuição simples da própria chamada); o resto é desconhecido, e o
-# merge ou o pull nela recusa, seja qual for a branch da sessão (docs/security/hk3-parecer-ameacas.md).
+# literal (`~` no início da palavra incluído); variável, crase, `$( )` e o resto são desconhecidos, e o merge ou o pull
+# nela recusa, seja qual for a branch da sessão (docs/security/hk3-parecer-ameacas.md). Variável o hook não segue.
 SEGUE = {"", ";", "&&", "\n", "&&\n"}  # liga ao comando seguinte sem pipeline, `||` nem segundo plano
+COMECA = {"", ";", "\n"}  # o comando que vem depois deles roda sempre; depois de `&&` ele pode não rodar
+EXPANSAO = ("$", "`", "<(", ">(")  # o que o bash expande: a palavra deixa de ser caminho literal
+CORPO = {"{", "then", "do", "else"}
+SUBCOMANDOS = {"merge", "pull", "checkout", "switch"}
 ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "elif", "{", "function", "coproc"}
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
                "typeset", "local", "readonly", "unset", "set", "printf"}  # mexem em variável sem `NOME=` na palavra
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
 SENSIVEIS = DESVIOS | {"HOME", "CDPATH"}  # o bash e o git os leem sozinhos: mexidos na linha, a pasta fica desconhecida
-ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)(\+?)=(.*)$", re.S)
-VARIAVEL = re.compile(r"\$(\{)?(\w+)(?(1)\})")  # `$NOME` e `${NOME}`; o grupo 2 é o nome
-Ambiente = collections.namedtuple("Ambiente", "variaveis desviado")  # variaveis: ((nome, valor), ...) ordenado
-SEM_AMBIENTE = Ambiente((), bool(DESVIOS & set(os.environ)))
+ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
+Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
+SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
 
 
@@ -124,6 +128,29 @@ def troca_de_branch(args):
     return "" if pos[0] == "-" else pos[0]
 
 
+def expande(palavra):
+    return any(o in palavra for o in EXPANSAO)
+
+
+def globais(toks):
+    """Das opções globais de `git ...` (sem atribuições): (posição do subcomando, os `-C` em ordem, as pastas são
+    incertas?). Palavra com expansão antes do subcomando pode sumir ou virar várias (`-C $(true) P`, `$(echo -C P)`): as
+    pastas ficam incertas e o subcomando é o primeiro `merge`, `pull`, `checkout` ou `switch` dali em diante."""
+    i, pastas, incertas, achou = 1, [], False, None
+    while i < len(toks) and (toks[i].startswith("-") or expande(toks[i])):
+        valor = (toks[i + 1:] + [""])[0]
+        if expande(toks[i]) or toks[i] in GIT_COM_VALOR and expande(valor):
+            incertas, achou = True, i if achou is None else achou
+        if toks[i] == "-C":
+            pastas.append(valor)
+        incertas |= (toks[i] in ("--git-dir", "--work-tree") or toks[i].startswith(("--git-dir=", "--work-tree="))
+                     or toks[i] == "-c" and valor.lower().startswith("core.worktree"))
+        i += 2 if toks[i] in GIT_COM_VALOR else 1
+    if achou is not None:
+        i = next((j for j in range(achou, len(toks)) if toks[j] in SUBCOMANDOS), len(toks))
+    return i, pastas, incertas
+
+
 def analisar(toks):
     """('cd', dir) | ('pr', None, base, head, rascunho) | ('prmerge', repo, alvo) | ('prready', alvo, desfaz) | ('api', args)
     | ('merge', dir, [(branch, [refs candidatas])]) | ('branch', dir, nome) | None."""
@@ -154,13 +181,8 @@ def analisar(toks):
         return None
     if toks[0] != "git":
         return None
-    i, pasta = 1, None
-    while i < len(toks) and toks[i].startswith("-"):
-        if toks[i] in GIT_COM_VALOR:
-            pasta = toks[i + 1] if toks[i] == "-C" and i + 1 < len(toks) else pasta
-            i += 2
-        else:
-            i += 1
+    i, pastas, _ = globais(toks)
+    pasta = pastas[-1] if pastas else None
     sub, args = (toks[i], toks[i + 1:]) if i < len(toks) else (None, [])
     if sub in ("checkout", "switch"):
         nome = troca_de_branch(args)
@@ -175,125 +197,82 @@ def analisar(toks):
 
 
 def soltos(leitura):
-    """Para cada comando da leitura (com o sinal), se ele roda no shell de fora e sem condição: nada de `( )`, `{ }`,
-    if/for/while, `$( )`, pipeline, `||` nem segundo plano antes ou depois (só `;`, `&&` e quebra de linha)."""
+    """Para cada comando da leitura (com o sinal), se ele roda no shell de fora e sempre: nada de `( )`, `{ }`,
+    if/for/while, `$( )`, pipeline, `||` nem segundo plano antes ou depois, e nenhum `&&` antes dele (só `;` e quebra de
+    linha), que pode pular o comando. Só o `cd` desses comandos muda a pasta dos seguintes."""
     saida, anterior, aberto = [], "", False
     for palavras, _, sub, sinal in leitura:
         aberto = aberto or sinal in ("(", ")") or bool(palavras) and palavras[0] in ABRE
-        saida.append(not sub and not aberto and anterior in SEGUE and sinal in SEGUE)
+        saida.append(not sub and not aberto and anterior in COMECA and sinal in SEGUE)
         anterior = sinal
     return saida
 
 
-def com_til(palavra, variaveis=None):
-    """`~` e `~/...` no início da palavra viram o HOME, como o bash faz antes do comando rodar: o da linha, se ela o fixou;
-    None se a linha o mexeu e o hook não sabe o valor."""
+def sem_chaves(palavras):
+    """Tira a palavra que abre o corpo de um bloco (`then cd P`, `{ cd P`, `do`, `else`): o comando dele é o que vem depois."""
+    k = 0
+    while k < len(palavras) and palavras[k] in CORPO:
+        k += 1
+    return palavras[k:]
+
+
+def com_til(palavra, mexidas=frozenset()):
+    """`~` e `~/...` no início da palavra viram o HOME, como o bash faz antes do comando rodar; None se a linha mexeu no
+    HOME e o hook não sabe o valor."""
     if palavra != "~" and not palavra.startswith("~/"):
         return palavra
-    home = (variaveis or {}).get("HOME", os.path.expanduser("~"))
-    return None if home is None else str(Path(home)) + palavra[1:]
+    return None if "HOME" in mexidas else str(Path(os.path.expanduser("~"))) + palavra[1:]
 
 
-def entre_apostrofos(texto):
-    """Os nomes de `$NOME` e `${NOME}` que o texto traz entre apóstrofos, onde o bash não os substitui."""
-    nomes, aspa, i = set(), "", 0
-    while i < len(texto):
-        c = texto[i]
-        if c == "\\" and aspa != "'":
-            i += 2
-            continue
-        if c in "'\"" and aspa in ("", c):
-            aspa = "" if aspa else c
-        elif aspa == "'" and (m := VARIAVEL.match(texto, i)):
-            nomes.add(m.group(2))
-        i += 1
-    return nomes
-
-
-def juntar_crases(palavras):
-    """A crase sem aspas com espaço dentro (`` `echo P` ``) o `shlex` parte em palavras; o bash a recebe como uma só."""
-    saida, aberta = [], False
-    for p in palavras:
-        if aberta:
-            saida[-1] += " " + p
-        else:
-            saida.append(p)
-        aberta ^= p.count("`") % 2 == 1
-    return saida
-
-
-def efeito_nas_variaveis(palavras, solto):
-    """(fixas, ruins, todas): `NOME=valor` literal, solto e sozinho no comando fixa a variável; qualquer outra forma de
-    mexer numa variável (prefixo de comando, `export`, `+=`, atribuição em subshell, depois de `||`...) a torna
-    desconhecida (`ruins`), e `source`, `eval`, `read`... tornam todas desconhecidas (`todas`)."""
+def mexidas_na_linha(palavras):
+    """Os SENSIVEIS que o comando mexe: por prefixo (`HOME=x cd`), atribuição (`HOME=x`), `export HOME=x` ou nome em
+    `read`, `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida."""
     k = depois_das_atribuicoes(palavras)
-    fixas, ruins = {}, set()
-    for a in palavras[:k]:
-        nome, _, valor = ATRIBUICAO.match(a).groups()
-        if solto and k == len(palavras) and nome not in SENSIVEIS:  # HOME, CDPATH e os desvios: desconhecidos
-            fixas[nome] = valor
-        else:
-            ruins.add(nome)
     comando = palavras[k:]
-    ruins |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
+    nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}
+    nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
     if comando and comando[0] in LE_VARIAVEL | {"export"}:
-        ruins |= SENSIVEIS & {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`, `export CDPATH`
-    return fixas, ruins, bool(comando) and comando[0] in LE_VARIAVEL
+        nomes |= {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`, `export CDPATH`
+    return SENSIVEIS & nomes
 
 
-def resolver(palavra, variaveis, base):
-    """O caminho que a palavra dá a partir de `base`, ou None se o hook não o resolve: variável que a chamada não fixou ou
-    relativo sem base conhecida. Substituição, glob e `~usuário` ficam no texto e dão um caminho que não existe: quem usa
-    o caminho confere que a pasta existe."""
-    palavra = com_til(palavra, variaveis)
-    if palavra is None or any(o in palavra for o in ("`", "$(", "<(", ">(")):
-        return None  # HOME mexido na linha; crase ou `$( )` na pasta: o hook não sabe o que ela imprime
-
-    def valor(m):
-        if variaveis.get(m.group(2)) is None:
-            raise KeyError(m.group(2))  # não fixada, ou mexida na linha (None)
-        return variaveis[m.group(2)]
-    try:
-        palavra = VARIAVEL.sub(valor, palavra)
-    except KeyError:
+def resolver(palavra, mexidas, base, fisico=False):
+    """O caminho que a palavra dá a partir de `base`, ou None se o hook não o resolve: palavra que o bash expande (`$`,
+    crase, `$( )`), HOME mexido na linha, relativo sem base conhecida ou pasta que não existe (confere o caminho como
+    escrito, sem apagar o `nao/..`). `fisico`: o `-C` do git segue o link antes do `..`; o `cd` do bash, não."""
+    palavra = com_til(palavra, mexidas)
+    if palavra is None or expande(palavra) or base is None and not os.path.isabs(palavra):
         return None
-    if base is None and not os.path.isabs(palavra):
+    caminho = os.path.join(base or "", palavra)
+    if not os.path.isdir(caminho):
         return None
-    return Path(os.path.normpath(os.path.join(base or "", palavra)))
+    return Path(os.path.realpath(caminho) if fisico else os.path.normpath(caminho))
 
 
-def depois_do_cd(pasta, args, variaveis):
+def depois_do_cd(pasta, args, mexidas):
     """A pasta depois de `cd <args>`; None se o hook não a resolve ou ela depende do `CDPATH`."""
     if len(args) != 1:
         return None  # com opção (`cd -P x`) ou argumento a mais o hook não resolve (`cd -` vira uma pasta que não existe)
-    cdpath = variaveis["CDPATH"] if "CDPATH" in variaveis else os.environ.get("CDPATH", "")  # None: mexido na linha
-    if not args[0].startswith(("/", "~", "$", "./", "../")) and args[0] not in (".", "..") and (
+    cdpath = None if "CDPATH" in mexidas else os.environ.get("CDPATH", "")  # None: mexido na linha
+    if not args[0].startswith(("/", "~", "./", "../")) and args[0] not in (".", "..") and (
             cdpath is None or cdpath):
         return None  # o `cd` relativo procura no CDPATH
-    return resolver(args[0], variaveis, pasta)
+    return resolver(args[0], mexidas, pasta)
 
 
 def pastas_do_git(palavras):
-    """Os `-C` das opções globais do `git`, em ordem, ou None se a linha desvia o repositório (`--git-dir`,
-    `--work-tree`, `-c core.worktree=`)."""
-    toks, i, pastas = sem_atribuicoes(palavras), 1, []
-    while i < len(toks) and toks[i].startswith("-"):
-        valor = (toks[i + 1:] + [""])[0]
-        if toks[i] == "-C":
-            pastas.append(valor)
-        elif (toks[i] in ("--git-dir", "--work-tree") or toks[i].startswith(("--git-dir=", "--work-tree="))
-              or toks[i] == "-c" and valor.lower().startswith("core.worktree")):
-            return None
-        i += 2 if toks[i] in GIT_COM_VALOR else 1
-    return pastas
+    """Os `-C` das opções globais do `git`, em ordem, ou None se a linha desvia ou deixa incerto o repositório
+    (`--git-dir`, `--work-tree`, `-c core.worktree=`, palavra com expansão antes do subcomando)."""
+    _, pastas, incertas = globais(sem_atribuicoes(palavras))
+    return None if incertas else pastas
 
 
-def pasta_do_git(pasta, pastas, variaveis, desviado):
+def pasta_do_git(pasta, pastas, mexidas, desviado):
     """A pasta em que o git roda: a do `cd` e cada `-C` em ordem, um relativo ao anterior; None se o hook não a resolve."""
     if desviado or pastas is None:
         return None
     for p in pastas:  # o `-C` absoluto também refaz a pasta desconhecida; `-C ""` não muda nada (o `resolver` o devolve)
-        pasta = resolver(p, variaveis, pasta)
+        pasta = resolver(p, mexidas, pasta, fisico=True)
     return pasta if pasta is not None and pasta.is_dir() else None
 
 
@@ -528,11 +507,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                  for dono, corpo in corpos if not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
-        partes = [(analisar(juntada), juntada, efeito_nas_variaveis(juntada, solto))
-                  for (palavras, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
-                  for juntada in [juntar_crases(palavras)]]
+        partes = [(analisar(palavras), palavras, solto)
+                  for (todas, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
+                  for palavras in [sem_chaves(todas)]]
         for pasta, branches, ambiente in estados:
-            for estado in conferir(hook, partes, pasta, branches, ambiente, entre_apostrofos(comando)):
+            for estado in conferir(hook, partes, pasta, branches, ambiente):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items())), estado[2]), estado)
         internos += [(p, True, False) for palavras, _, _, _ in leitura for p in palavras
                      if "$(" in p.replace(OPACO["$"], "")]
@@ -558,21 +537,17 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
-def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, apostrofos=frozenset()):
+def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
     """Os comandos de uma leitura da linha, em ordem (`cd`, atribuição e checkout/switch valem para os seguintes), a
     partir da pasta (None: desconhecida), das branches e do ambiente dados; devolve os estados (pasta, branches,
-    ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, `efeito_nas_variaveis`) de cada comando.
-    `apostrofos`: os nomes que a linha traz entre apóstrofos (o bash não os substitui: ficam desconhecidos)."""
+    ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, solto) de cada comando; só o `cd` solto (`soltos`)
+    muda a pasta dos seguintes, o de subshell, pipeline, segundo plano ou condicional a deixa desconhecida."""
     branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
-    variaveis, desviado = dict(ambiente.variaveis), ambiente.desviado
+    mexidas, desviado = ambiente.mexidas, ambiente.desviado
     estados = [(pasta, dict(branches), ambiente)]
-    for parte, palavras, (fixas, ruins, todas) in partes:
-        if todas:
-            variaveis.clear()
-        variaveis.update(dict.fromkeys(ruins, None))  # None: mexida na linha, valor desconhecido
-        variaveis.update({nome: com_til(valor, variaveis) for nome, valor in fixas.items()})
-        variaveis.update(dict.fromkeys(apostrofos & set(variaveis), None))
-        desviado |= bool(DESVIOS & (set(fixas) | ruins))
+    for parte, palavras, solto in partes:
+        mexidas = mexidas | mexidas_na_linha(palavras)
+        desviado |= bool(DESVIOS & mexidas)
         sem = sem_atribuicoes(palavras)
         raiz_gh = pasta or hook.cwd()  # o `gh` acha o repositório pelo nome da branch: sem pasta resolvida, vale a da sessão
         if sem[:1] in (["pushd"], ["popd"]):
@@ -580,7 +555,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, apostrofos=fr
         elif parte is None:
             pass
         elif parte[0] == "cd":
-            pasta = depois_do_cd(pasta, sem[1:], variaveis) if sem[1:] else resolver("~", variaveis, pasta)
+            pasta = (depois_do_cd(pasta, sem[1:], mexidas) if sem[1:] else resolver("~", mexidas, pasta)) if solto else None
         elif parte[0] == "pr":
             pull_request(hook, raiz_gh, parte[2], parte[3], parte[4])
         elif parte[0] == "prready":
@@ -590,20 +565,20 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, apostrofos=fr
         elif parte[0] == "api":
             merge_por_api(hook, raiz_gh, parte[1])
         elif parte[0] == "branch":
-            onde = pasta_do_git(pasta, pastas_do_git(palavras), variaveis, desviado)
+            onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)
             raiz = raiz_de_estado(onde) if onde else None
             if raiz:
                 branches[raiz.resolve()] = parte[2]
             desviado |= onde is None  # trocou a branch de uma pasta que o hook não sabe qual é
         else:  # merge ou pull
-            onde = pasta_do_git(pasta, pastas_do_git(palavras), variaveis, desviado)
+            onde = pasta_do_git(pasta, pastas_do_git(palavras), mexidas, desviado)
             if onde is None:
-                bloquear("R-REVIEW", "merge ou pull numa pasta que o hook não resolve (variável que a chamada não definiu "
-                                     "com caminho literal, pasta que não existe, pushd, --git-dir, --work-tree ou "
-                                     "GIT_DIR). Corrigir: use `cd <caminho literal>` ou `git -C <caminho literal>`, sem "
-                                     "variável; o push pode ir na mesma chamada")
+                bloquear("R-REVIEW", "merge ou pull numa pasta que o hook não resolve (variável, crase ou $( ) na pasta, "
+                                     "`cd` fora do nível de cima da linha, pasta que não existe, pushd, --git-dir, "
+                                     "--work-tree ou GIT_DIR). Corrigir: use `cd <caminho literal>` ou `git -C <caminho "
+                                     "literal>`, sem variável; o push pode ir na mesma chamada")
             merge(hook, onde, parte[2], branches)
-        estados.append((pasta, dict(branches), Ambiente(tuple(sorted(variaveis.items())), desviado)))
+        estados.append((pasta, dict(branches), Ambiente(mexidas, desviado)))
     return estados
 
 

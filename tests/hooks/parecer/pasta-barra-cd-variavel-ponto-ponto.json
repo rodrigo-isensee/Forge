@@ -1,5 +1,5 @@
 {
-  "descricao": "HK3-PARECER, PR A, volta 1: a pasta do git é a do bash e a do git; a partir de a integração, passa.",
+  "descricao": "HK3-PARECER, PR A, volta 2: cwd na integração: a pasta que o hook não resolve recusa o merge.",
   "arquivos": {
     "src/app.js": "v1\n",
     ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
@@ -19,11 +19,12 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "W={tmp}/home/wtx; echo \"it's\"; cd $W && git pull --rebase origin melhoria/x"
+      "command": "W={tmp}/home/wtx; cd $W/nao/..; git merge melhoria/x"
     },
     "cwd": "{raiz}"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "não resolve"
   }
 }
