@@ -13,4 +13,4 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 
 ## Achados
 - AR-1 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/parecer.py:257
-- AR-2 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 2 · última: hooks/parecer.py:160
+- AR-2 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 3 · última: hooks/parecer.py:224
