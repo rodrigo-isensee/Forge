@@ -1,0 +1,26 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M72",
+      "guarda": "shell usa a extracao de shell",
+      "arquivo": "bin/forge-mutante",
+      "de": "condicoes if py else condicoes_sh",
+      "para": "condicoes_sh if py else condicoes",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
+      ]
+    },
+    {
+      "id": "M73",
+      "guarda": "isenta invalida da mensagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "[] if certa else",
+      "para": "[] if not certa else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    }
+  ]
+}

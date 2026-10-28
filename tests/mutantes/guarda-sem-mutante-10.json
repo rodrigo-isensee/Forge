@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M64",
+      "guarda": "isenta impressa",
+      "arquivo": "bin/forge-mutante",
+      "de": "elif motivo:",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
+      ]
+    },
+    {
+      "id": "M65",
+      "guarda": "isenta so se nenhum mutante cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "None if cobrem else",
+      "para": "None if True else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
+      ]
+    },
+    {
+      "id": "M66",
+      "guarda": "coberta impressa",
+      "arquivo": "bin/forge-mutante",
+      "de": "if cobrem:",
+      "para": "if not cobrem:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "isenta da apagada impressa",
+      "arquivo": "bin/forge-mutante",
+      "de": "(base) · {motivo}\" if motivo else",
+      "para": "(base) · {motivo}\" if False else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "teto de isentas somadas",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(isentas) > MAXIMO_DE_ISENTAS",
+      "para": "len(isentas) > 99",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M69",
+      "guarda": "shell entra na analise",
+      "arquivo": "bin/forge-mutante",
+      "de": "py or eh_shell(arquivo, exemplo)",
+      "para": "py",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "isenta usada nao e solta",
+      "arquivo": "bin/forge-mutante",
+      "de": "if id(i) not in usadas",
+      "para": "if id(i) in usadas",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_libera_a_condicao_sem_mutante_e_a_apagada_e_impressa"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "isenta solta e rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if soltas:",
+      "para": "if not soltas:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+      ]
+    }
+  ]
+}

@@ -6,7 +6,7 @@
       "id": "M33",
       "guarda": "troca que nao muda o ast e mutante de fachada (rc 2)",
       "arquivo": "bin/forge-mutante",
-      "de": "if ast.dump(ast.parse(depois.replace(m[\"de\"], m[\"para\"]))) == ast.dump(ast.parse(depois)):",
+      "de": "if py and ast.dump(ast.parse(depois.replace(m[\"de\"], m[\"para\"]))) == ast.dump(ast.parse(depois)):",
       "para": "if False:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_troca_que_nao_muda_o_ast_e_mutante_de_fachada"
