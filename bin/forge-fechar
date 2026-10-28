@@ -589,6 +589,20 @@ fi
 # lido antes do passo 1 e o forge-check recebe o sha, não o nome da branch; o sha local é relido depois do passo 1 e de novo no passo 2.
 sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 1: a branch local $ref não existe"
 
+# Lock órfão (LOTE-0307-A): um `index.lock` na pasta git da worktree da branch (resto de envio que morreu com a tarefa) trava o avanço da branch
+# sem aviso. Só lê e avisa: nunca apaga o lock (quem apaga é o dono ou o Jarvis, depois de conferir que nenhum git está rodando).
+arvore_lock="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
+if [ -n "$arvore_lock" ]; then
+  pasta_git="$(git -C "$arvore_lock" rev-parse --git-dir 2>/dev/null)" || die "parou antes do passo 1: não consegui ler a pasta git da worktree $arvore_lock"
+  case "$pasta_git" in /*) ;; *) pasta_git="$arvore_lock/$pasta_git" ;; esac
+  if [ -e "$pasta_git/index.lock" ]; then
+    mtime_lock="$(stat -c %Y "$pasta_git/index.lock" 2>/dev/null || stat -f %m "$pasta_git/index.lock" 2>/dev/null || echo "")"
+    idade_lock="desconhecida"
+    [[ "$mtime_lock" =~ ^[0-9]+$ ]] && idade_lock="$(( ($(date +%s) - mtime_lock) / 60 )) min"
+    die "parou antes do passo 1: há um lock do git na worktree de $ref: $pasta_git/index.lock (idade: $idade_lock). Nada foi apagado. Confira que nenhum git está rodando nela e, só então, rode: rm $(printf '%q' "$pasta_git/index.lock")"
+  fi
+fi
+
 passo 1 "pareceres: $check pr $pedido --ref $sha_conferido --base $base"
 "$check" pr "$pedido" --ref "$sha_conferido" --base "$base" || die "parou no passo 1: forge-check pr acusou violação (nada foi aberto nem mesclado)"
 local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null || true)"

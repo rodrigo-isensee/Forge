@@ -2,7 +2,9 @@
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
+import os
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -262,6 +264,32 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("não consegui contar os commits da base", r.stderr)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    # ---- LOTE-0307-A, E1: index.lock na pasta git da worktree da branch ----
+    def worktree_de_x(self):
+        arvore = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/x")
+        return Path(self.git("-C", str(arvore), "rev-parse", "--absolute-git-dir"))
+
+    def test_lock_presente_na_worktree_da_branch_para_com_codigo_1_e_nao_apaga(self):
+        pasta_git = self.worktree_de_x()
+        lock = pasta_git / "index.lock"
+        lock.write_text("")
+        antes = time.time() - 7 * 60
+        os.utime(lock, (antes, antes))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(str(lock), r.stderr)
+        self.assertIn("idade: 7 min", r.stderr)
+        self.assertIn(f"rm {lock}", r.stderr)
+        self.assertTrue(lock.exists())
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_lock_ausente_na_worktree_da_branch_segue(self):
+        self.worktree_de_x()
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.criacoes()), 1)
 
 
 if __name__ == "__main__":

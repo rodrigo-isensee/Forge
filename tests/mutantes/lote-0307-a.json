@@ -1,0 +1,14 @@
+{
+  "pedido": "LOTE-0307-A",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "L1",
+      "guarda": "o index.lock na worktree da branch deixa de parar o fechamento",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -e \"$pasta_git/index.lock\" ]; then",
+      "para": "  if false; then",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_lock_presente_na_worktree_da_branch_para_com_codigo_1_e_nao_apaga"]
+    }
+  ]
+}
