@@ -3,23 +3,30 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: guarda-sem-mutante
 branch: melhoria/guarda-sem-mutante
-commit: 7c86f530cb491355a40f2699215ebd45f3d2c5d4
-parecer: reprovado
+commit: 65a62c9677469556e2939392b61d3097682341cd
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-28
 ---
 # Review de segurança: guarda-sem-mutante (PR 1, `forge-mutante --cobertura`, núcleo Python)
 
-Diff revisado: `991cd092b42c88d86a16912ff8ddc1b72b8da026...7c86f530cb491355a40f2699215ebd45f3d2c5d4` (`bin/forge-mutante`, 6 specs em `tests/mutantes/`, `tests/test_forge_mutante.py`, `agents/qa-engineer.md`, `skills/qa-testing/SKILL.md`, fragmento do changelog). Referências: o modelo de ameaças `docs/security/guarda-sem-mutante-ameacas.md` (T1, T3 a T7) e a ata `docs/alinhamentos/2026-10-28-revisao-desenho-guarda-sem-mutante.md` (decisões 1 a 5 e o plano de PRs, com shell, `isentas` e os tetos restantes de T7 no PR 2). Sondas em clone descartável em `$TMPDIR/security-engineer-guarda-sem-mutante/`; nada escrito no `~/Forge`.
+Diff revisado: `991cd092b42c88d86a16912ff8ddc1b72b8da026...65a62c9677469556e2939392b61d3097682341cd` (revalidação por delta `7c86f53..65a62c9`, `forge-check delta` sobre `bin/forge-mutante` e as specs; a primeira rodada era sobre `7c86f53`, que reprovou por A1 e A2) (`bin/forge-mutante`, 6 specs em `tests/mutantes/`, `tests/test_forge_mutante.py`, `agents/qa-engineer.md`, `skills/qa-testing/SKILL.md`, fragmento do changelog). Referências: o modelo de ameaças `docs/security/guarda-sem-mutante-ameacas.md` (T1, T3 a T7) e a ata `docs/alinhamentos/2026-10-28-revisao-desenho-guarda-sem-mutante.md` (decisões 1 a 5 e o plano de PRs, com shell, `isentas` e os tetos restantes de T7 no PR 2). Sondas em clone descartável em `$TMPDIR/security-engineer-guarda-sem-mutante/`; nada escrito no `~/Forge`.
 
 ## Gatilhos
 `controles do Forge` (`R-SEGURANCA`): a entrega cria uma checagem que decide, por rc, se a condição mudada tem mutante declarado. É um controle que analisa entrada (o diff e as specs), revisado pela matriz de dimensões da família.
 
 ## Achados
-- A1 (bloqueante) bin/forge-mutante:324 · passagem silenciosa: `.gitattributes` com `-diff`, `binary` ou `diff=<driver>` com textconv faz o `git diff -U0` sair sem hunk; a condição nova não cruza linha mudada e o rc é 0 (sondas P1c, P1d, textconv); correção: `--text --no-textconv`
-- A2 (bloqueante) bin/forge-mutante:375 · passagem silenciosa: com `\r` solto (arquivo só com CR, ou `\r` dentro de string tripla), o `ast` numera linhas que o `git diff` não numera; a condição nova cai fora de `linhas` e o rc é 0 (sondas P3b, P3e); correção: rc 2 para `\r` fora de `\r\n`
-- A3 (recomendado) bin/forge-mutante:375 · troca de condições entre si (multiconjunto igual, ex. `a > 1` e `b > 2` trocados de ramo) sai com rc 0 (sonda P2); efeito da decisão 1 da ata; aceitar como risco ou contar condição cuja linha mudou mesmo com contagem igual
-- A4 (recomendado) bin/forge-mutante:433 · nome de arquivo com quebra de linha sai cru na saída e parte a linha (sonda P4); o rc não muda, mas a leitura humana pode ser enganada; imprimir o caminho escapado (`repr` ou `\n` literal)
+- A1 (recomendado) bin/forge-mutante:324 · RESOLVIDO em 65a62c9: `--text --no-textconv` no `git diff -U0`; os quatro atributos (`-diff`, `binary`, `diff=<driver>` com textconv e com `binary=true`) dão rc 1 com `sem mutante`
+- A2 (recomendado) bin/forge-mutante:324 · RESOLVIDO em 65a62c9: `fonte()` dá rc 2 para `\r` fora de `\r\n` (arquivo só com CR e `\r` em string tripla); CRLF legítimo segue rc 1/0 pelo conteúdo
+- A3 (recomendado) bin/forge-mutante:392 · troca de condições entre si (multiconjunto igual) sai com rc 0 (sonda P2); efeito da decisão 1 da ata; aceitar como risco ou contar condição cuja linha mudou
+- A4 (recomendado) bin/forge-mutante:433 · nome de arquivo com quebra de linha sai cru na saída e parte a linha (sonda P4); imprimir o caminho escapado
+- A5 (recomendado) bin/forge-mutante:392 · a condição editada é pareada só pelo hunk, não pela posição do nó (decisão técnica de 09:23): condição apagada e outra nova sem relação no mesmo hunk saem rc 0 com `coberta`, sem a linha `apagada`; ver o detalhe
+
+## Revalidação do delta 7c86f53..65a62c9 (sondas de novo, clone descartável)
+- A1: em `if b == 7:` novo sem mutante, `.gitattributes` com `bin/s.py -diff`, com `binary`, `diff=x` com `diff.x.textconv` e `diff=x` com `diff.x.binary=true`: todos `sem mutante · bin/s.py:5`, rc 1 (antes rc 0). O `mudancas` lê os hunks com `--text --no-textconv`; `ler_no_commit` usa `git show`, sem textconv.
+- A2: arquivo só com CR e `\r` dentro de string tripla: `forge-mutante: bin/s.py: \r fora de \r\n`, rc 2 (antes rc 0). Arquivo CRLF: analisado normalmente (rc 1 para a condição sem mutante). `.py` binário ou fora do UTF-8: rc 2, falha fechada; não-Python binário: `não coberto`. O `splitlines` de `condicoes` é sobre bytes (só `\n` e `\r`), então `\f` e separadores Unicode não deslocam os offsets (sonda com `\x0c`).
+- Condição editada (decisão de 09:23): editar a condição (`a > 100` para `a > 200` no mesmo hunk) exige mutante da nova (sem mutante rc 1); condição apagada sem nova no hunk continua `apagada`, rc 1. Condição nova que não substitui nada em hunk próprio continua exigindo mutante. Resta A5.
+- Regressões: a regex `HUNK` com `-a,b +c,d` e `b` igual a `0` (adição pura) dá faixa vazia na base, certo; `errors="replace"` no `git()` só afeta a leitura de diff; o limite de 1 MiB e o UTF-8 agora valem também para a base.
 
 ## Detalhe dos achados
 **A1, passagem silenciosa por atributo do git (média).** Evidência: `bin/forge-mutante:324-327` roda `git diff -U0 --no-renames --no-color --no-ext-diff` sem `--text`; com o arquivo marcado como binário o corpo é só `Binary files ... differ`, `HUNK.findall` não acha nada, `linhas` fica vazio e `bin/forge-mutante:375` pula toda condição nova. A apagada (por contagem) ainda reprova uma condição editada (sonda P1), mas a condição **adicionada** passa. Sondas, todas com `if b == 7:` novo em `bin/sonda.py` e nenhum mutante:
@@ -36,6 +43,8 @@ Caminho: o autor (ou um projeto que já marca código gerado como `-diff` ou `bi
 
 **A4 (informativa, recomendado).** Sonda P4: `bin/nl\nx.py` sai em duas linhas. O rc segue 1 e o `-z` protege a leitura; só a saída para quem lê pode ser forjada por nome de arquivo (ex. uma linha `coberta · ...` falsa). Correção: escapar o caminho ao imprimir. Dono: `tech-lead`.
 
+**A5 (baixa, recomendado).** Sonda: base com `if a > 100:`; a entrega apaga essa guarda e põe `if bbb == 777:` na mesma linha (hunk único), com mutante para a nova: saída só `coberta · bin/s.py:2 · ...`, rc 0, sem `apagada`. A decisão de 09:23 fala em "mesma posição do nó"; o código (`bin/forge-mutante:392-399`) pareia por hunk, sem comparar o tipo ou a posição do nó, então a guarda removida some quando qualquer condição nova no hunk tem mutante. Caminho: só erro do autor ou entrega deliberada, num hunk contíguo; a linha `coberta` aparece na saída e o review lê o diff. Por isso não bloqueia: é a escolha de refino já decidida, e a dúvida é se ela cobre "sem relação". Correção mínima, se o dono quiser fechar: parear velha e nova só quando o tipo do nó é o mesmo e o hunk traz uma única condição de cada lado, ou imprimir `apagada` também quando a velha foi pareada com uma nova de texto sem prefixo comum. Dono: `tech-lead`.
+
 **Conferido sem achado (sondas e leitura).**
 - T1, mutante de fachada: `de` com menos de 8 caracteres não brancos não cobre (F1); troca fora do nó não cobre (F3); troca em comentário dentro de condição de várias linhas dá rc 2 por `ast.dump` igual (F2); `para` só com espaço não cobre (F7); `de`=`para` já é barrado por `validar_spec`; só specs que o diff adiciona ou edita contam; `testes` inexistente ainda "cobre", o que é o "declarado, não provado" aceito.
 - T3: `return a > b`, `not`, `assert`, guarda de `match`, compreensão e condição em várias linhas entram pelo `ast` (`bin/forge-mutante:76-79`); arquivo `.py` removido e condição apagada saem com rc 1 (P9, P0); `.py` sem parse dá rc 2 (P7); nada é importado nem executado (só `ast.parse`).
@@ -47,6 +56,6 @@ Caminho: o autor (ou um projeto que já marca código gerado como `-diff` ou `bi
 - Segredos: nenhum no diff (leitura manual).
 
 ## Riscos aceitos e ferramentas
-Seguem os riscos aceitos do modelo de ameaças: equivalência semântica e teste fraco (a morte é da rodada `forge-mutante SPEC` e do QA), dado sem condição, a checagem não é portão (nenhum hook nem CI a chama até o PQ do PR 2), e `hooks/` e workflows ficam como `não coberto`. Nenhum risco novo aceito por este parecer.
+Seguem os riscos aceitos do modelo de ameaças: equivalência semântica e teste fraco (a morte é da rodada `forge-mutante SPEC` e do QA), dado sem condição, a checagem não é portão (nenhum hook nem CI a chama até o PQ do PR 2), e `hooks/` e workflows ficam como `não coberto`. Nenhum risco novo aceito por este parecer (A3 e A5 são recomendações; aceitá-las é decisão do dono, por `R-DECISAO`).
 
 Ferramentas: sondas locais com `git` e `python3` 3.14.4; `shellcheck` presente, mas o diff não tem shell. Lacunas no PATH: `gitleaks`, `semgrep`, `zizmor`, `actionlint`, `osv-scanner` (não instalados, `R-CUSTO`). O diff não toca workflow nem dependência.
