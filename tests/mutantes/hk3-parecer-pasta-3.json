@@ -46,7 +46,7 @@
       "id": "M23",
       "guarda": "pushd e popd tornam a pasta desconhecida",
       "arquivo": "hooks/parecer.py",
-      "de": "if sem[:1] in ([\"pushd\"], [\"popd\"]):",
+      "de": "if comando[:1] in ([\"pushd\"], [\"popd\"]) or comando[:1] == [\"cd\"] and len(comando) < len(sem):",
       "para": "if False:",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"

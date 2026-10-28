@@ -6,8 +6,8 @@ PreToolUse (Bash) com `gh pr create`, `gh pr merge`, `gh api .../pulls/<n>/merge
 forge-check, ADR 0004); com pipeline, contêiner ou IaC no diff, também o de devops (R-REVIEW); com gatilho de segurança, o
 de segurança (R-SEGURANCA). A branch atual acompanha `cd`, `git checkout` e `git switch` anteriores na mesma linha. A
 pasta do git é a que o bash e o git calculam (`cd` no nível de cima da linha, cada `-C` em ordem e `~`), só com caminho
-literal; o que o hook não resolve (variável, crase, `$( )`, `cd` em subshell, pipeline, segundo plano ou condicional,
-pasta inexistente, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa o merge e o pull, nunca é julgado pela pasta
+literal; o que o hook não resolve (variável, crase, `$( )`, `cd` em subshell, pipeline, segundo plano, condicional
+(`if cd`, `! cd`) ou bloco, pasta inexistente, `popd`, `pushd`, `--git-dir`, `--work-tree`, `GIT_DIR`) recusa o merge e o pull, nunca é julgado pela pasta
 da sessão (HK3-PARECER, E1 e E3).
 A isenção é a regra única do forge-check (`isencoes_da_entrega`, M13): diff só de `.md` comum dispensa o QA e exige o
 review; `.md` de controle (`agents/`, `skills/`, `stacks/*/agents|skills/`, `stacks/*/seguranca.md` e `pronto.md`, `docs/regras/`, `templates/projeto/`, `CLAUDE.md`) não tem isenção. Libera
@@ -57,6 +57,7 @@ SEGUE = {"", ";", "&&", "\n", "&&\n"}  # liga ao comando seguinte sem pipeline, 
 COMECA = {"", ";", "\n"}  # o comando que vem depois deles roda sempre; depois de `&&` ele pode não rodar
 EXPANSAO = ("$", "`")  # o que o bash expande (`$( )` é `$`): a palavra deixa de ser caminho literal
 CORPO = {"{", "then", "do", "else"}
+CONDICAO = {"if", "elif", "while", "until", "!", "time", "function"}  # abrem a parte; o `cd` depois delas roda
 SUBCOMANDOS = {"merge", "pull", "checkout", "switch"}
 ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "elif", "{", "function", "coproc"}
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
@@ -212,6 +213,15 @@ def sem_chaves(palavras):
     k = 0
     while k < len(palavras) and palavras[k] in CORPO:
         k += 1
+    return palavras[k:]
+
+
+def sem_condicao(palavras):
+    """Tira o que vem antes do comando de uma parte (`if cd P`, `while`, `until`, `elif`, `!`, `time`, `function f {`):
+    o `cd` que sobra roda no shell de cima, mas fora do nível que o hook lê (HK3-03)."""
+    k = 0
+    while k < len(palavras) and palavras[k] in CONDICAO | CORPO:
+        k += 2 if palavras[k] == "function" else 1  # `function NOME`: o nome também sai
     return palavras[k:]
 
 
@@ -549,8 +559,9 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
         desviado |= bool(DESVIOS & mexidas)
         sem = sem_atribuicoes(palavras)
         raiz_gh = pasta or hook.cwd()  # o `gh` acha o repositório pelo nome da branch: sem pasta resolvida, vale a da sessão
-        if sem[:1] in (["pushd"], ["popd"]):
-            pasta = None  # a pilha de pastas o hook não segue
+        comando = sem_condicao(sem)
+        if comando[:1] in (["pushd"], ["popd"]) or comando[:1] == ["cd"] and len(comando) < len(sem):
+            pasta = None  # a pilha o hook não segue; o `cd` de `if`, `while`... roda fora do que ele lê
         elif parte is None:
             pass
         elif parte[0] == "cd":

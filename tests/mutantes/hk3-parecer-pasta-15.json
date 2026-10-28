@@ -1,0 +1,66 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M106",
+      "guarda": "until abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"until\", \"!\"",
+      "para": "\"!\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M107",
+      "guarda": "! abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"!\", \"time\"",
+      "para": "\"time\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M108",
+      "guarda": "time abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"time\", \"function\"}",
+      "para": "\"function\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M109",
+      "guarda": "function abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"time\", \"function\"}",
+      "para": "\"time\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M110",
+      "guarda": "function NOME { tira o nome tambem",
+      "arquivo": "hooks/parecer.py",
+      "de": "k += 2 if palavras[k] == \"function\" else 1",
+      "para": "k += 1",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M111",
+      "guarda": "a condicao tira tambem a palavra do corpo",
+      "arquivo": "hooks/parecer.py",
+      "de": "palavras[k] in CONDICAO | CORPO",
+      "para": "palavras[k] in CONDICAO",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}
