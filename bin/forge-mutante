@@ -2,6 +2,7 @@
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
 Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
+     forge-mutante --cobertura --base SHA [--rev REV]
   SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 8 mutantes
            divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
            {"pedido": "<id>", "executor": "unittest",
@@ -10,6 +11,15 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
   --rev    commit a mutar (padrão HEAD)
   --prazo  por execução de testes, em segundos (padrão 600)
+  --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição Python mudada no diff
+           `merge-base(SHA, REV)..REV` (if, elif, while, ternário, compreensão, assert, guarda de match, and/or,
+           comparação, `not`) que nenhum mutante das specs desse diff cobre, a condição apagada e o arquivo que a
+           checagem não analisa (`não coberto: <arquivo>`; shell e demais tipos até o PR 2). Lê o commit com
+           `git show`, nunca a árvore, e só com `ast.parse`: nada do diff é importado nem executado. Cobrir é ter o
+           trecho `de` do mutante, único no arquivo, com a troca dentro do nó da condição, `de` de 8+ caracteres e
+           troca que muda o `ast`. Saída: 0 = toda condição mudada tem mutante, 1 = alguma sem mutante ou apagada,
+           2 = entrada inválida (base que não é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de
+           300 arquivos ou 1 MiB por arquivo). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
@@ -21,7 +31,8 @@ mutante inválido ou sem veredito. Atenção: o 0 aqui é "provado", o inverso d
 Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 8 mutantes por spec. Sem shell. Uma spec
 inválida barra todas antes de rodar qualquer mutante.
 
-Isto é evidência que o QA cola no parecer. NÃO é portão: nenhum hook, pre-push, CI ou `forge-check` o chama.
+A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
+"declarado, não provado": quem prova que o mutante morre é a rodada (`forge-mutante SPEC`).
 """
 import argparse
 import ast
@@ -37,6 +48,7 @@ import tempfile
 import time
 import unicodedata
 import unittest
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -54,6 +66,17 @@ CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
 EXECUTORES = {"unittest"}
+MAXIMO_DE_ARQUIVOS = 300
+MAXIMO_DO_ARQUIVO = 1 << 20
+SPEC_DO_DIFF = re.compile(r"tests/mutantes/[^/]+\.json")
+FORA_DA_COBERTURA = re.compile(r".*\.md|changelog\.d/.*")
+HUNK = re.compile(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", re.M)
+ROTULO_DA_SPEC = {"D": "removida", "M": "editada"}
+# Onde mora a condição em cada tipo de nó; `not` só conta como condição (o `-x` não).
+TESTES_DO_NO = {ast.If: lambda n: [n.test], ast.While: lambda n: [n.test], ast.IfExp: lambda n: [n.test],
+                ast.Assert: lambda n: [n.test], ast.comprehension: lambda n: n.ifs,
+                ast.match_case: lambda n: list(filter(None, [n.guard])), ast.BoolOp: lambda n: [n],
+                ast.Compare: lambda n: [n], ast.UnaryOp: lambda n: [n] * isinstance(n.op, ast.Not)}
 
 
 def git(*args, cwd=None):
@@ -283,6 +306,133 @@ def mutar(copia, m):
     return linha, None
 
 
+# --- `--cobertura`: condição mudada sem mutante declarado (GUARDA-SEM-MUTANTE) -----------------------------------------
+def ler_no_commit(sha, arquivo):
+    """Texto do arquivo no commit, nunca da árvore. Ilegível, fora do UTF-8 ou com mais de 1 MiB é ValueError."""
+    r = subprocess.run(["git", "show", f"{sha}:{arquivo}"], capture_output=True)
+    if r.returncode or len(r.stdout) > MAXIMO_DO_ARQUIVO:
+        raise ValueError(f"{arquivo}: ilegível em {sha[:12]} ou com mais de {MAXIMO_DO_ARQUIVO} bytes")
+    return r.stdout.decode("utf-8")
+
+
+def mudancas(mb, rev):
+    """{arquivo: (status, linhas novas)} do diff `mb..rev`: `-z`, caminho literal, `-U0`, sem renome e sem `-w`."""
+    nomes = git("--literal-pathspecs", "diff", "--name-status", "-z", "--no-renames", "--no-ext-diff", mb, rev, "--")
+    partes = nomes.split("\0")
+    mudadas = {}
+    for status, arquivo in zip(partes[0::2], partes[1::2]):
+        corpo = git("--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", mb, rev,
+                    "--", arquivo)
+        novas = {n for ini, qtd in HUNK.findall(corpo) for n in range(int(ini), int(ini) + int(qtd or 1))}
+        mudadas[arquivo] = (status, novas)
+    return mudadas
+
+
+def eh_python(arquivo, texto):
+    return arquivo.endswith(".py") or texto.startswith("#!") and "python" in texto.splitlines()[0]
+
+
+def condicoes(texto):
+    """As condições mais externas do código Python: [(unparse, linha inicial, linha final, byte inicial, byte final)]."""
+    inicios = [0]
+    for linha in texto.encode("utf-8").splitlines(keepends=True):
+        inicios.append(inicios[-1] + len(linha))
+    achadas = {}
+    for no in ast.walk(ast.parse(texto)):
+        achadas.update({id(c): c for c in TESTES_DO_NO.get(type(no), lambda n: [])(no)})
+    for c in list(achadas.values()):
+        for dentro in list(ast.walk(c))[1:]:
+            achadas.pop(id(dentro), None)
+    lista = [(ast.unparse(c), c.lineno, c.end_lineno, inicios[c.lineno - 1] + c.col_offset,
+              inicios[c.end_lineno - 1] + c.end_col_offset) for c in achadas.values()]
+    return sorted(lista, key=lambda c: c[3])
+
+
+def casa(m, arquivo, depois, ini, fim):
+    """O mutante `m` cobre a condição que ocupa os bytes [ini, fim] de `arquivo` (texto `depois`)? O `de` único
+    no arquivo, com 8+ caracteres não brancos, e o trecho entre o prefixo e o sufixo comuns de `de` e `para` dentro
+    do nó. A troca que não muda o `ast` é mutante de fachada: ValueError."""
+    de, para = m["de"].encode("utf-8"), m["para"].encode("utf-8")
+    prefixo = len(os.path.commonprefix([de, para]))
+    sufixo = len(os.path.commonprefix([de[prefixo:][::-1], para[prefixo:][::-1]]))
+    dados = depois.encode("utf-8")
+    inicio = dados.find(de)
+    if not (m["arquivo"] == arquivo and len("".join(m["de"].split())) >= 8 and dados.count(de) == 1
+            and ini <= inicio + prefixo and inicio + len(de) - sufixo <= fim):
+        return False
+    if ast.dump(ast.parse(depois.replace(m["de"], m["para"]))) == ast.dump(ast.parse(depois)):
+        raise ValueError(f"{m['id']}: a troca não muda o ast de {arquivo} (mutante equivalente)")
+    return True
+
+
+def analisar(arquivo, linhas, antes, depois, mutantes):
+    """Linhas de saída de um arquivo Python: a condição nova (texto que aparece mais vezes que no merge-base, em
+    linha nova) coberta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base)."""
+    novas, velhas = condicoes(depois), condicoes(antes)
+    de_novas, de_velhas = Counter(c[0] for c in novas), Counter(c[0] for c in velhas)
+    saida = []
+    for texto, ini, fim, de, ate in novas:
+        if de_novas[texto] <= de_velhas[texto] or linhas.isdisjoint(range(ini, fim + 1)):
+            continue
+        cobrem = [f"{espec}:{m['id']}" for espec, m in mutantes if casa(m, arquivo, depois, de, ate)]
+        if cobrem:
+            saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
+        else:
+            saida.append(f"sem mutante · {arquivo}:{ini} · {' '.join(texto.split())[:60]}")
+    apagadas = {c[0]: c[1] for c in reversed(velhas) if de_velhas[c[0]] > de_novas[c[0]]}
+    return saida + [f"apagada · {arquivo}:{linha}(base) · {' '.join(t.split())[:60]}" for t, linha in apagadas.items()]
+
+
+def mutantes_do_diff(mudadas, rev):
+    """Os mutantes das specs que o diff adiciona ou edita (só elas valem) e o aviso de spec removida ou editada."""
+    mutantes, avisos = [], []
+    for arquivo in filter(SPEC_DO_DIFF.fullmatch, sorted(mudadas)):
+        status = mudadas[arquivo][0]
+        if status in ROTULO_DA_SPEC:
+            avisos.append(f"spec {ROTULO_DA_SPEC[status]} · {arquivo}")
+        if status == "D":
+            continue
+        dados = json.loads(ler_no_commit(rev, arquivo))
+        problemas = validar_spec(dados)
+        if problemas:
+            raise ValueError(f"{arquivo}: spec inválida ({'; '.join(problemas)})")
+        mutantes += [(arquivo, m) for m in dados["mutantes"]]
+    return mutantes, avisos
+
+
+def cobertura(base, rev):
+    """Saída 0, 1 ou 2 da checagem do autor (ver o docstring do módulo)."""
+    try:
+        os.chdir(git("rev-parse", "--show-toplevel").strip())
+        sha_base, sha_rev = resolver(base), resolver(rev)
+        if sha_base is None or sha_rev is None:
+            raise ValueError("--base e --rev precisam resolver a um commit")
+        mb = git("merge-base", sha_base, sha_rev).strip()
+        print(f"base={sha_base} mb={mb} rev={sha_rev}")
+        if mb == sha_rev:
+            raise ValueError("o merge-base é o próprio --rev: o diff é vazio (--base HEAD ou ramo sem commit novo)")
+        if git("status", "--porcelain"):
+            print("forge-mutante: aviso: árvore de trabalho suja; vale o commit, não a árvore.", file=sys.stderr)
+        mudadas = mudancas(mb, sha_rev)
+        if len(mudadas) > MAXIMO_DE_ARQUIVOS:
+            raise ValueError(f"o diff muda mais de {MAXIMO_DE_ARQUIVOS} arquivos")
+        mutantes, saida = mutantes_do_diff(mudadas, sha_rev)
+        for arquivo, (status, linhas) in sorted(mudadas.items()):
+            if status == "D" or TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
+                continue
+            depois = ler_no_commit(sha_rev, arquivo)
+            if not eh_python(arquivo, depois):
+                saida.append(f"não coberto: {arquivo}")
+                continue
+            antes = "" if status == "A" else ler_no_commit(mb, arquivo)
+            saida += analisar(arquivo, linhas, antes, depois, mutantes)
+    except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
+        print(f"forge-mutante: {erro}", file=sys.stderr)
+        return 2
+    sys.stdout.writelines(f"{x}\n" for x in saida)
+    return 1 if any(x.startswith(("sem mutante", "apagada")) for x in saida) else 0
+
+
 def anotar(segundos, codigo):
     LOG.parent.mkdir(parents=True, exist_ok=True)
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -351,11 +501,17 @@ def main(argv=None):
     p.add_argument("spec", nargs="*")
     p.add_argument("--rev", default="HEAD")
     p.add_argument("--prazo", type=int, default=PRAZO_PADRAO)
+    p.add_argument("--cobertura", action="store_true", help="condição mudada sem mutante declarado (exige --base)")
+    p.add_argument("--base", help="commit-base do diff da --cobertura (o Base-sha do brief)")
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
     p.add_argument("--registro", help=argparse.SUPPRESS)
     args = p.parse_args(argv)
     if args.executar:
         return executar(args.executar, args.registro)
+    if args.cobertura or args.base:
+        if not (args.cobertura and args.base) or args.spec:
+            p.error("--cobertura e --base vêm juntos e sem SPEC")
+        return cobertura(args.base, args.rev)
     if not args.spec:
         p.error("falta a SPEC")
     if not 0 < args.prazo <= PRAZO_MAXIMO:
