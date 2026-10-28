@@ -1,0 +1,76 @@
+{
+  "pedido": "HIST-VOLTAS-ESPERAS",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H1",
+      "guarda": "o motivo do movimento deixa de casar o cartão com o pedido",
+      "arquivo": "bin/forge-check",
+      "de": "n.casefold() in do_quadro or n.casefold() in citados",
+      "para": "n.casefold() in do_quadro",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    },
+    {
+      "id": "H2",
+      "guarda": "o id colado a letra, dígito, hífen ou ponto passa a casar como citação",
+      "arquivo": "bin/forge-check",
+      "de": "(?![A-Za-z0-9_-])(?!\\.[A-Za-z0-9])",
+      "para": "",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    },
+    {
+      "id": "H3",
+      "guarda": "o --kanban passado deixa de valer e o da raiz volta a ser lido",
+      "arquivo": "bin/forge-check",
+      "de": "arquivos = [Path(kanban)] if kanban else",
+      "para": "arquivos = [Path(kanban)] if False else",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    },
+    {
+      "id": "H4",
+      "guarda": "a saída deixa de listar os cartões casados",
+      "arquivo": "bin/forge-check",
+      "de": "\" \".join(sem_controle(n) for n in escolhidos))",
+      "para": "\"\")",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    },
+    {
+      "id": "H5",
+      "guarda": "a citação deixa de ignorar maiúsculas",
+      "arquivo": "bin/forge-check",
+      "de": "texto, re.IGNORECASE) is not None",
+      "para": "texto) is not None",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    },
+    {
+      "id": "H6",
+      "guarda": "o casamento por motivo quebra quando o chamador não passa os motivos (custo e voltas)",
+      "arquivo": "bin/forge-check",
+      "de": "motivos or {}",
+      "para": "motivos",
+      "testes": [
+        "tests.test_medidas_m14b.CustoCasaOPedidoComOsCartoes"
+      ]
+    },
+    {
+      "id": "H7",
+      "guarda": "o cartão só casa se todos os motivos citam o pedido, em vez de algum",
+      "arquivo": "bin/forge-check",
+      "de": "any(cita_o_pedido(m, id_) for m in ms)",
+      "para": "all(cita_o_pedido(m, id_) for m in ms)",
+      "testes": [
+        "tests.test_medidas_m14b.Esperas"
+      ]
+    }
+  ]
+}
