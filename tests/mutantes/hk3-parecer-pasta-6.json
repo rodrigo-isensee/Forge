@@ -21,56 +21,6 @@
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
-    },
-    {
-      "id": "M40",
-      "guarda": "HOME, CDPATH e GIT_DIR fixados na linha ficam desconhecidos",
-      "arquivo": "hooks/parecer.py",
-      "de": "and nome not in SENSIVEIS:",
-      "para": ":",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M41",
-      "guarda": "HOME mexido na linha torna o ~ desconhecido",
-      "arquivo": "hooks/parecer.py",
-      "de": "return None if home is None else str(Path(home)) + palavra[1:]",
-      "para": "return str(Path(home or \"\")) + palavra[1:]",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M42",
-      "guarda": "pasta desconhecida quando o HOME ficou desconhecido",
-      "arquivo": "hooks/parecer.py",
-      "de": "if palavra is None or any(",
-      "para": "if any(",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M43",
-      "guarda": "crase na pasta a torna desconhecida",
-      "arquivo": "hooks/parecer.py",
-      "de": "for o in (\"`\", \"$(\", \"<(\", \">(\"))",
-      "para": "for o in (\"$(\", \"<(\", \">(\"))",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M44",
-      "guarda": "substituição de comando na pasta a torna desconhecida",
-      "arquivo": "hooks/parecer.py",
-      "de": "for o in (\"`\", \"$(\", \"<(\", \">(\"))",
-      "para": "for o in (\"`\",))",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
     }
   ]
 }

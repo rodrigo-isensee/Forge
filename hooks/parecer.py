@@ -225,14 +225,14 @@ def com_til(palavra, mexidas=frozenset()):
 
 
 def mexidas_na_linha(palavras):
-    """Os SENSIVEIS que o comando mexe: por prefixo (`HOME=x cd`), atribuição (`HOME=x`), `export HOME=x` ou nome em
-    `read`, `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida."""
+    """Os SENSIVEIS que o comando mexe: por prefixo (`HOME=x cd`), atribuição (`HOME=x`, `export HOME=x`) ou nome em `read`,
+    `printf -v`, `declare`, `unset`... A pasta que depende deles fica desconhecida."""
     k = depois_das_atribuicoes(palavras)
     comando = palavras[k:]
     nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}
     nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
-    if comando and comando[0] in LE_VARIAVEL | {"export"}:
-        nomes |= {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`, `export CDPATH`
+    if comando and comando[0] in LE_VARIAVEL:
+        nomes |= {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`
     return SENSIVEIS & nomes
 
 

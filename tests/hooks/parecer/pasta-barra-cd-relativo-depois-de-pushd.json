@@ -19,7 +19,7 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "pushd {tmp}/home/wtx && cd src && git merge melhoria/x"
+      "command": "pushd {tmp}/home/wtx; cd src && git merge melhoria/x"
     },
     "cwd": "{raiz}"
   },

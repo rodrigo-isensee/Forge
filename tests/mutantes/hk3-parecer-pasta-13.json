@@ -1,0 +1,16 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M93",
+      "guarda": "-c core.worktree deixa as pastas incertas",
+      "arquivo": "hooks/parecer.py",
+      "de": "or toks[i] == \"-c\" and valor.lower().startswith(\"core.worktree\"))",
+      "para": "or False)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

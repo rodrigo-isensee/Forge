@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M77",
+      "guarda": "o -C entra na lista de pastas",
+      "arquivo": "hooks/parecer.py",
+      "de": "if toks[i] == \"-C\":\n            pastas.append(valor)",
+      "para": "if False:\n            pastas.append(valor)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M78",
+      "guarda": "o valor das opcoes globais e pulado",
+      "arquivo": "hooks/parecer.py",
+      "de": "i += 2 if toks[i] in GIT_COM_VALOR else 1",
+      "para": "i += 1",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M79",
+      "guarda": "palavra expandida (`cd $W` com pasta de nome `$W`) nao e caminho literal",
+      "arquivo": "hooks/parecer.py",
+      "de": "palavra is None or expande(palavra) or",
+      "para": "palavra is None or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M80",
+      "guarda": "pasta que nao existe nao se resolve, conferida como escrita",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not os.path.isdir(caminho):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M81",
+      "guarda": "o -C segue o link antes do `..`",
+      "arquivo": "hooks/parecer.py",
+      "de": "os.path.realpath(caminho) if fisico else",
+      "para": "os.path.normpath(caminho) if fisico else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M82",
+      "guarda": "HOME mexido na linha torna o ~ desconhecido",
+      "arquivo": "hooks/parecer.py",
+      "de": "return None if \"HOME\" in mexidas else",
+      "para": "return None if False else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M83",
+      "guarda": "CDPATH mexido na linha vale a marca da linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "cdpath = None if \"CDPATH\" in mexidas else",
+      "para": "cdpath = None if False else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M84",
+      "guarda": "atribuicao por prefixo (`HOME=x cd`) mexe na variavel",
+      "arquivo": "hooks/parecer.py",
+      "de": "nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}",
+      "para": "nomes = set()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

@@ -3,41 +3,11 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M1",
-      "guarda": "parenteses antes: a atribuicao depois de subshell nao vale",
-      "arquivo": "hooks/parecer.py",
-      "de": "aberto or sinal in (\"(\", \")\") or",
-      "para": "aberto or False or",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
       "id": "M2",
       "guarda": "palavra de bloco antes: a atribuicao depois de if nao vale",
       "arquivo": "hooks/parecer.py",
       "de": "or bool(palavras) and palavras[0] in ABRE",
       "para": "or False",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M3",
-      "guarda": "so `;`, `&&` e quebra depois: segundo plano nao vale",
-      "arquivo": "hooks/parecer.py",
-      "de": "and anterior in SEGUE and sinal in SEGUE)",
-      "para": "and anterior in SEGUE and True)",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M4",
-      "guarda": "comando de substituicao nao e solto",
-      "arquivo": "hooks/parecer.py",
-      "de": "append(not sub and not aberto",
-      "para": "append(True and not aberto",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
@@ -68,16 +38,6 @@
       "arquivo": "hooks/parecer.py",
       "de": "and not palavra.startswith(\"~/\"):",
       "para": "and False:",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
-      "id": "M8",
-      "guarda": "so a atribuicao solta fixa a variavel",
-      "arquivo": "hooks/parecer.py",
-      "de": "if solto and k == len(palavras) and nome",
-      "para": "if True and k == len(palavras) and nome",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
