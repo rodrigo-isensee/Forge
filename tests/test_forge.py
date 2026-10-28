@@ -4646,6 +4646,37 @@ class EntregasParalelas(RepoDeSeguranca):
         self.assertIn(f"brief: {a} sha256 {hashlib.sha256((self.repo / a).read_bytes()).hexdigest()}", saida)
         self.assertIn("escopo: união de 2 briefs (mesma Branch, Base, Base-sha e pedido)", saida)
 
+    def test_parecer_reescrito_pelo_portao_do_rev_casa_pelo_commit_e_pelo_papel(self):  # G6 (CONF-PARECER-REV)
+        c1 = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        self.revalidar_removendo(f"---\ntipo: revisao-seguranca\ncontrato: 1\npedido: p1\ncommit: {c1}\n---\n")
+        self.pedido.write_text(f"# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- 2026-10-19 16:00: entrega conferida {c1}\n", encoding="utf-8")
+        pasta = self.repo / "docs" / "briefs"
+        pasta.mkdir(parents=True, exist_ok=True)
+        anexo = "anexo com remoção do parecer de seguranca"
+        casos = {"portão de segurança do -REV com o commit": ("security-engineer", c1, None),
+                 "brief do -REV de outro papel (o autor não é o portão)": ("tech-lead", c1, anexo),
+                 "portão de segurança que manda outro commit": ("security-engineer", self.base, anexo)}
+        for nome, (papel, commit, esperado) in casos.items():
+            with self.subTest(nome):
+                for velho in pasta.glob("p1-REV-*.md"):
+                    velho.unlink()
+                (pasta / f"p1-REV-{papel}-1.md").write_text(
+                    f"Agente destino: forge:{papel}\nPedido: p1-REV\nBranch: melhoria/x   Base: develop   Base-sha: {self.base}\n\n"
+                    f"## Entregar\n- Parecer com a linha `commit: {commit}`.\n", encoding="utf-8")
+                _, saida, _ = self.entrega("review", "--desde", c1)
+                if esperado:
+                    self.assertIn(esperado, saida)
+                else:
+                    self.assertIn('escopo: ok (parecer de seguranca) "docs/security/p1.md"', saida)
+
+    def test_uniao_aceita_o_brief_do_rev_da_mesma_branch(self):  # G6
+        a, b = self.brief("p1-tech-lead-1.md"), self.brief("p1-REV-security-engineer-1.md", pedido="p1-REV")
+        rc, saida, _ = self.entrega("review", "--brief", a, "--brief", b)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: união de 2 briefs (mesma Branch, Base, Base-sha e pedido)", saida)
+        c = self.brief("p1-OUTRO-tech-lead-1.md", pedido="p1-OUTRO")
+        self.assertEqual(self.entrega("review", "--brief", a, "--brief", c)[0], 1)
+
     def test_brief_de_outra_branch_base_sha_ou_pedido_reprova_a_uniao(self):  # abuso 20
         ok = self.brief("p1-tech-lead-1.md")
         outro_sha = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()

@@ -880,9 +880,44 @@ def tipo_do_brief(texto):
     return "merge" if "merge-base --is-ancestor" in texto else "desconhecido"
 
 
+PAPEL_DO_BRIEF_DO_PARECER = {"review": "tech-lead", "qa": "qa-engineer", "revisao-devops": "devops-engineer",
+                             "revisao-seguranca": "security-engineer"}
+
+
+def pedido_da_revalidacao(pedido_id):
+    """`<X>-REV` do pedido `<X>` (ou do próprio `<X>-REV`): onde moram os portões da mesma branch (G6)."""
+    return f"{pedido_id.removesuffix('-REV')}-REV"
+
+
+def reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):
+    """G6: True se o parecer `nome` do `head` foi reescrito por um portão do pedido `<X>-REV` desta branch: um brief
+    `docs/briefs/<X>-REV-<papel do parecer>-<n>.md` com `Pedido: <X>-REV`, a mesma `Branch:`, o destino do papel do parecer e o
+    `commit:` que o parecer grava (o portão grava o commit que o brief manda). O casamento é pelo commit e pelo papel, nunca pelo caminho."""
+    cod, texto = git(raiz, "cat-file", "blob", f"{head}:{nome}")
+    commit = str((ler_frontmatter(texto)[0] or {}).get("commit", "")) if not cod else ""
+    rev, papel = pedido_da_revalidacao(pedido_id), PAPEL_DO_BRIEF_DO_PARECER[tipo]
+    if not COMMIT.match(commit):
+        return False
+    for raiz_de_brief in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        pasta = Path(raiz_de_brief) / "docs" / "briefs"
+        for arq in sorted(pasta.iterdir()) if pasta.is_dir() else []:
+            if not (arq.name.startswith(f"{rev}-{papel}-") and arq.name.endswith(".md")):
+                continue
+            try:
+                brief = arq.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            cabecalho = cabecalho_do_brief(brief)
+            if (grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == rev and grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch
+                    and nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho)) == papel
+                    and re.search(rf"\bcommit:\s*`?{re.escape(commit)}\b", brief)):
+                return True
+    return False
+
+
 def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
     """Linhas `(texto, reprova)` da união dos Entregar de entregas paralelas conferidas juntas (E9a, M9.1): cada `--brief` precisa ser um
-    brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida; um só diferente reprova a união. Imprime o
+    brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida (ou do `<pedido>-REV`, G6); um só diferente reprova a união. Imprime o
     sha256 de cada um (o conferente o compara com o `Brief-sha256:` da mensagem: só entra brief aprovado)."""
     linhas, esperado = [], {"Pedido": pedido_id, "Branch": branch, "Base": base, "Base-sha": base_sha}
     for brief in briefs:
@@ -898,6 +933,8 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
         achados = {campo: grupo(expressao, cabecalho) for campo, expressao in CABECALHO_DE_BRIEF_CAMPOS.items()}
         if achados["Pedido"]:
             achados["Pedido"] = re.sub(r"\.md$", "", achados["Pedido"].removeprefix("docs/pedidos/"))
+        if achados["Pedido"] == pedido_da_revalidacao(pedido_id):  # G6: os portões do -REV escrevem na mesma branch
+            achados["Pedido"] = pedido_id
         if achados != esperado:
             linhas.append((f"escopo: união de briefs de entregas diferentes {caminho_impresso(rel)}", True))
         else:
@@ -1005,6 +1042,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         arquivos = [n for n in arquivos if n in diferem]
     contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
+    m = re.search(r"^id:\s*(\S+)", texto, re.M)
+    pedido_id = m.group(1) if m else caminho.stem
     linhas += informativas
     if not arquivos:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
@@ -1017,7 +1056,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             tipo = None
         mostrado = nome_seguro(nome)
         if tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
-            if removidas != "0":  # A6: parecer com autoria não dispensa a regra do anexo "só por acréscimo"
+            if removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
                 papel = PAPEL_DO_PARECER[tipo]
                 linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))
@@ -1026,8 +1065,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
-        m = re.search(r"^id:\s*(\S+)", texto, re.M)
-        linhas = uniao_de_briefs(raiz, m.group(1) if m else caminho.stem, branch, base, base_sha, briefs) + linhas
+        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs) + linhas
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)

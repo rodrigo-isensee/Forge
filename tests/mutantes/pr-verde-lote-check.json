@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_id_com_brief_da_branch_vira_o_slug_da_linha_branch"
       ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G6: trocar o autor do parecer (o papel do brief do -REV) deixaria o brief de outro papel valer pelo portão",
+      "arquivo": "bin/forge-check",
+      "de": "    rev, papel = pedido_da_revalidacao(pedido_id), PAPEL_DO_BRIEF_DO_PARECER[tipo]\n",
+      "para": "    rev, papel = pedido_da_revalidacao(pedido_id), \"tech-lead\"\n",
+      "testes": [
+        "tests.test_forge.EntregasParalelas.test_parecer_reescrito_pelo_portao_do_rev_casa_pelo_commit_e_pelo_papel"
+      ]
     }
   ]
 }
