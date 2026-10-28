@@ -7,6 +7,7 @@ import functools
 import itertools
 import json
 import os
+import random
 import re
 import resource
 import shlex
@@ -802,9 +803,17 @@ print(json.dumps(saida))
         return nome == "env" and (palavra.startswith("-S") or (palavra.startswith("--")
                                                               and palavra[2:].partition("=")[0] == "split-string"))
 
-    def textos_sem_marcador(self, corpos, passo_env=5, passo_outros=29, passo_posicoes=97):
+    @staticmethod
+    def deslocamentos_da_amostra(semente, *passos):
+        """O deslocamento de cada passo da amostra (`0 <= d < passo`), tirado da semente; sem semente, todos 0 (a amostra
+        fixa de sempre). A mesma semente dá os mesmos deslocamentos (PROP-AMOSTRA)."""
+        sorteio = random.Random(semente)
+        return [0 if semente is None else sorteio.randrange(passo) for passo in passos]
+
+    def textos_sem_marcador(self, corpos, passo_env=5, passo_outros=29, passo_posicoes=97, semente=None):
         """[(rótulo, texto)] da propriedade: para cada lançador, as palavras do alfabeto fora da tabela
-        (`alfabeto_de_opcoes`, a do gerador com marcador; `passo_*`: uma em cada tantas) antes de cada corpo fixo, como
+        (`alfabeto_de_opcoes`, a do gerador com marcador; `passo_*`: uma em cada tantas, a partir de um deslocamento que
+        a `semente` sorteia; sem ela, a partir da primeira) antes de cada corpo fixo, como
         `L w C` e `L w X C`, também depois de `NOME=valor` e de uma opção modelada (o `timeout` leva a duração), e algumas
         palavras antes de cada um dos outros corpos. No `env`, mais, com cada grupo de 0 a 2 letras antes do `S`:
         `env -<g>S'C'`, `env -<g>S 'C'` e `env --<prefixo de split-string>='C'`, só com os corpos que ele lê como o shell."""
@@ -812,6 +821,7 @@ print(json.dumps(saida))
         fixos = [c for c in self.CORPOS_FIXOS if c in corpos]
         outros = [c for c in corpos if c not in fixos]
         saida = []
+        desl_env, desl_outros, desl_posicoes = self.deslocamentos_da_amostra(semente, passo_env, passo_outros, passo_posicoes)
 
         def formas(nome, antes, palavra, corpo):
             if self.divide_sempre(nome, palavra):
@@ -826,9 +836,10 @@ print(json.dumps(saida))
             modeladas = sorted(tabela.get("booleanas", ())) or sorted(f"{o} X" for o in tabela.get("com_valor", ()))
             posicoes = ["X=1 "] + ([modeladas[0] + " "] if modeladas else [])
             for k, palavra in enumerate(fora):
-                for corpo in fixos if k % (passo_env if nome == "env" else passo_outros) == 0 else ():
+                passo, desl = (passo_env, desl_env) if nome == "env" else (passo_outros, desl_outros)
+                for corpo in fixos if k % passo == desl else ():
                     formas(nome, "", palavra, corpo)
-                for corpo in fixos if k % passo_posicoes == 0 else ():
+                for corpo in fixos if k % passo_posicoes == desl_posicoes else ():
                     for antes in posicoes:
                         formas(nome, antes, palavra, corpo)
             for palavra in ("-iu", "--un"):

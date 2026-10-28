@@ -5,6 +5,7 @@ tests/apoio_volta_unica.py."""
 from pathlib import Path
 import importlib.util
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -138,11 +139,19 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         `--split-string`, também dá 2. A verdade vem da construção, e não de um `env`. Fora das formas só ficam as
         palavras em que o `env` sempre divide o texto (`-S…`, `--split-string…`): nelas o corpo não é o comando de
         `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
+        semente = int(os.environ.get("FORGE_PROP_SEMENTE") or random.SystemRandom().randrange(2 ** 32))
+        try:  # o deslocamento da amostra muda a cada execução; a falha diz a semente que a repete (PROP-AMOSTRA)
+            self.conferir_propriedade_sem_marcador(semente)
+        except Exception as erro:
+            erro.add_note(f"semente da amostra: {semente}; repita com FORGE_PROP_SEMENTE={semente}")
+            raise
+
+    def conferir_propriedade_sem_marcador(self, semente):
         corpos = self.corpos_sem_marcador()
         for fixo in self.CORPOS_FIXOS + self.CORPOS_DE_LANCADOR_RECUSADO:
             self.assertIn(fixo, corpos, f"o corpo {fixo!r} não dá 2 sozinho no modelo: o oráculo não vale")
         self.assertGreaterEqual(len(corpos), 20)
-        textos = self.textos_sem_marcador(corpos)
+        textos = self.textos_sem_marcador(corpos, semente=semente)
         with MedidaDeCpu() as medida:
             decisoes = self.decidir_na_guarda([texto for _, texto in textos])
         liberadas = [(rotulo, texto) for (rotulo, texto), (codigo, _, _) in zip(textos, decisoes) if codigo != 2]
@@ -151,6 +160,24 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertEqual(nomes, set(modulos_dos_hooks()[0].LANCADORES))
         self.assertGreaterEqual(len(textos), 10_000)
         self.assertLess(medida.cpu, 120, f"a propriedade gastou {medida.texto()} para {len(textos)} formas")
+
+    def test_amostra_da_propriedade_desloca_com_a_semente(self):  # PROP-AMOSTRA
+        """Sem semente a amostra é a de sempre (deslocamento 0); a mesma semente dá a mesma amostra, sementes diferentes
+        dão amostras diferentes, todas dentro do conjunto inteiro das formas."""
+        corpos = list(self.CORPOS_FIXOS)
+        fixa = self.textos_sem_marcador(corpos)
+        self.assertEqual(self.textos_sem_marcador(corpos, semente=None), fixa)
+        self.assertEqual(self.deslocamentos_da_amostra(None, 5, 29, 97), [0, 0, 0])
+        self.assertEqual(self.deslocamentos_da_amostra(7, 5, 29, 97), self.deslocamentos_da_amostra(7, 5, 29, 97))
+        for semente in range(40):
+            for desl, passo in zip(self.deslocamentos_da_amostra(semente, 5, 29, 97), (5, 29, 97)):
+                self.assertTrue(0 <= desl < passo)
+        amostras = {tuple(self.textos_sem_marcador(corpos, semente=s)) for s in range(8)}
+        self.assertGreater(len(amostras), 1, "a semente não muda a amostra")
+        todas = set(self.textos_sem_marcador(corpos, passo_env=1, passo_outros=1, passo_posicoes=1))
+        nas_amostras = set(self.textos_sem_marcador(corpos, semente=0))
+        self.assertLess(len(nas_amostras), len(todas))
+        self.assertLessEqual(nas_amostras, todas)
 
     def test_formas_do_s_do_env_sem_marcador_tem_o_texto_colado_e_separado(self):  # item 1, formas do `env`
         """O gerador da propriedade produz, para o `env`, o corpo colado ao `S` do grupo (`-iS'C'`), depois dele
