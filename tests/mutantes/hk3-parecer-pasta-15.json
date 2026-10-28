@@ -61,6 +61,16 @@
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
+    },
+    {
+      "id": "M112",
+      "guarda": "so function leva o nome junto",
+      "arquivo": "hooks/parecer.py",
+      "de": "k += 2 if palavras[k] == \"function\" else 1",
+      "para": "k += 2 if True else 1",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
     }
   ]
 }
