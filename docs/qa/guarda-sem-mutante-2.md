@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: guarda-sem-mutante-2
 branch: melhoria/guarda-sem-mutante-2
-commit: a1571168d78646e8ccdd0ad3a225dfafc3775ffb
+commit: 6b0c95eadd0ab215de40630d9734318a1c33889a
 parecer: reprovado
 escopo: incremental
 bugs_criticos: 0
@@ -12,44 +12,39 @@ bugs_medios: 1
 bugs_baixos: 0
 data: 2026-10-28
 ---
-# QA: guarda-sem-mutante-2 (PR 2: shell, isentas, tetos de T7, A5 e o PQ no gerar_volta), volta 1
+# QA: guarda-sem-mutante-2 (PR 2: shell, isentas, tetos de T7, A5 e o PQ no gerar_volta), volta 2
 
-Base `ff3936ae4011a95f25c37280fe32e4fa5ced0d95`, head `a1571168d78646e8ccdd0ad3a225dfafc3775ffb` (delta `43a8cc8..a157116`). Controle do Forge (`bin/`): a conferência de mutantes vale. Em paralelo com o review e a segurança. Substitui o parecer da rodada 1 (commit 43a8cc8, aprovado).
+Base `ff3936ae4011a95f25c37280fe32e4fa5ced0d95`, head `6b0c95eadd0ab215de40630d9734318a1c33889a` (delta `a157116..6b0c95e`). Controle do Forge (`bin/`): a conferência de mutantes vale. Em paralelo com o review e a segurança. Substitui o parecer da volta 1 (commit 8ae2bd2, reprovado).
 
 ## Achados
-- A1 (bloqueante) tests/test_forge_mutante.py:553 · teste de tempo instável: o limite de 0,05 s de CPU (p95 isolado 0,021 s) falha sob carga; a spec -12 deu `M82 controle vermelho` e rc 2 numa de 3 rodadas das 13 specs, e 43 de 60 execuções com 4 em paralelo caíram; subir o limite (a regressão quadrática custava 9 s)
+- A1 (bloqueante) bin/forge-mutante:95 · requisito da decisão de 12:01 ("`eval` ou `-c` em qualquer forma"): o texto executado por `-c` ou `eval` ainda sai rc 0, sem `não coberto`, em formas reais do shell; classe `mascara-do-shell-esconde-codigo` ("execução de texto não analisado passa calada", 4ª vez no pedido). Sondas ponta a ponta com `--cobertura` (condição nova `[ -f /etc/x ] && exit 1`, e o `bash` executa cada uma): (a) `bash -c \` + quebra + `  '...'` (continuação de linha) e `bash -c  \` + `-- '...'`; (b) `sh -c -e '...'` e `bash -c -x -- '...'` (outra opção depois do `-c`). `EXECUTA_SH` exige o `-c`/`eval` (com `--` opcional) colado à aspa, na janela de 30 caracteres, sem `\` nem outra opção entre os dois. Correção: tratar como incerta a aspa que vem depois de `-c`/`eval` na mesma instrução (até `;`, `&`, `|` ou quebra sem `\`), com opções e `\`+quebra no meio, e um subcaso de cada em `test_shell_que_nao_se_le_com_certeza...` com o mutante da guarda nova
+- A2 (recomendado) bin/forge-mutante:424 · o corpo de heredoc sem aspas no terminador executa `$(...)` e crase, e a máscara o esconde calada: `cat <<EOF` / `$(if [ -f /etc/x ]; then exit 1; fi)` / `EOF` sai rc 0 só com a condição de fora listada. Não está no docstring nem na decisão de 12:01; declarar no docstring ou tratar `$(`/crase no corpo como incerto
+- A3 (recomendado) tests/test_forge_mutante.py:561 · o limite de 0,1 s do teste de tempo tem folga de 1,3x na máquina do QA: com 4 processos em paralelo (40 medidas por unidade) o p95 de `"\"` foi 0,075 s e o máximo 0,078 s (0,076 com 8 em paralelo); 2x o p95 pedido pela decisão de 12:01 daria 0,15 s. Hoje passa (60 de 60 com 4 laços paralelos de 15), mas uma máquina mais lenta ou o CI pode cruzar 0,1 s; subir para 0,15 s ainda fica longe dos 9 s da versão quadrática
+- A4 (recomendado) bin/forge-mutante:19 · `eval $"..."` (string de locale) e `eval "$(cmd)" '...'` seguem fora do `não coberto`; mesmo remédio do A1
 
-## Critério → teste → resultado
-| Critério | Teste | Fronteira protegida | Resultado |
+## Revalidação dos achados da volta anterior
+| Achado | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| Review A1: `#` dentro de `${a##*/}` não é comentário | sonda `x=${a##*/}; if [ -n "$x" ]; ...` + `test_shell_por_regex...` | `#` precedido de `#`, `%`, `/` | passou (`sem mutante`, rc 1) |
-| Review A2: `cmd \|\| true  # c` não conta | sonda + `test_shell_por_regex...` | lado direito só `true` com comentário | passou (rc 0, sem linha); `cmd \|\| true` idem |
-| Review A3: `until` é condição | sonda `until grep -q pronto log; ...` | palavra-chave nova | passou (`sem mutante`, rc 1) |
-| Segurança A1: apóstrofo em heredoc e `\'` fora de aspas não escondem condição | sondas S1 e S3 | máscara de aspas | passou (`sem mutante`, rc 1 nas duas) |
-| Segurança A1: `bash -c '...'`, `eval '...'`, heredoc sem linha final e aspa solta saem `não coberto: arq:L` | sondas + `test_shell_que_nao_se_le_com_certeza...` | o que o analisador não lê com certeza | passou (linha `não coberto`, rc 0, conforme a decisão de 11:16) |
-| Heredoc legítimo com apóstrofo seguido de condição com mutante; corpo de heredoc com `if you want` não conta | sonda + teste acima | falso positivo | passou (corpo mascarado, rc 0) |
-| Segurança A2 / T7: regex linear | sondas ponta a ponta com `--cobertura`: 40 KB e 1 MB de `"\"`, `[[ `, `[ `, `'`, `<<A `, 100 mil heredocs | linha longa sem fecho | passou (0,2 a 1,1 s, sem catástrofe) |
-| Teste de tempo em CPU (`time.process_time`, PROP-TEMPO-CPU) | `test_shell_de_40_kb_sem_fecho_gasta_pouca_cpu` | 40 KB sem fecho, três unidades | **falhou sob carga** (A1) |
-| Shell coberto (if, elif, while, until, `[ ]`, `[[ ]]`, test, `&&`, `\|\|`) | `Cobertura` + sondas | condição mudada sem mutante rc 1, com mutante rc 0 | passou |
-| Isentas válidas, inválidas, mais de 8, que não cruzam condição (rc 0 e rc 2) | `Cobertura` (M48 a M55) | motivo 19/20, trecho 7/8, 8/9 isentas | passou |
-| Tetos de T7 (4 MiB, 5000 condições, 1 MiB) | spec -9, -11 (M73, M74) e sondas com 400 KB a 1,5 MB | limite e logo acima | passou (rc 2) |
-| A5: editada pareada pela posição do nó | spec -9, -10, `test_condicao_apagada_e_outra_nova...` | par por posição | passou |
-| PQ do `--cobertura` no brief de volta | `tests.test_volta_por_delta` (BriefDeVolta, 2 testes) | numeração `PQ-N` com e sem PQ de merge | passou |
-| Documentação do shell e das isentas | `skills/qa-testing/SKILL.md:88` | n/a | passou |
+| QA A1 (volta 1): teste de tempo instável | `test_shell_de_40_kb_sem_fecho_gasta_pouca_cpu` (limite 0,1 s) | CPU de 40 KB sem fecho, três unidades | passou: 4 laços paralelos de 15 execuções, 60 de 60 (antes 43 de 60 falhavam); ver A3 |
+| Review A1: terminador recuado fecha o heredoc antes do shell | sonda h1 (`  EOF` e `it's` depois) e subcaso no teste | terminador exato no `<<` | passou: `não coberto: run.sh:3` e a condição seguinte sai `sem mutante` (rc 1) |
+| Review A1: `<<-` | sonda h3 e subcaso | `<<-` com tabs e com `EOF` sem tab | passou: `não coberto` até o fim da região, rc 1 pela condição depois |
+| Review A1(b): `<<` dentro de `$(( ))` | sondas h2, h10, h11, h12 | `$((1<<EOF))`, `$(( 1 << 2 ))` com heredoc real depois, `$(( (1) ))` | passou: a condição aparece `sem mutante`, heredoc real mascarado |
+| Review A2: `eval $'...'` e `bash -c -- '...'` | sondas e1, e2, e13 | `$'`, `--` | passou: `não coberto: run.sh:3` |
+| Heredoc legítimo: `<<"E"`, `<<\E`, `<<E >f`, dois heredocs na linha, CRLF | sondas h4 a h9, h13, h6 | forma do terminador | passou (CRLF sai `não coberto`, conservador) |
+| `-c`/`eval` em outras formas | sondas e3 a e9, e11, e12, e20, e22, e24 | `-ec`, `-lc`, `eval  `, `--norc -c`, `--login -c`, `xargs ... sh -c`, aspas duplas | passou (`não coberto`) |
+| `-c`/`eval` com continuação de linha ou outra opção depois | sondas e16, e17, e19, e23 | `\`+quebra, `-c -e`, `-c -x --` | **falhou** (A1) |
 
 ## Execução (real)
-- 13 specs (`bin/forge-mutante tests/mutantes/guarda-sem-mutante*.json`, M1 a M87, 87 mutantes): 1ª rodada rc 2, 86 `morreu` e `M82 · controle vermelho · bin/forge-mutante` (o teste do A1 caiu no commit sem mutação); 2ª e 3ª rodadas rc 0, 87 `morreu`, 0 sobrevivente. Só a spec -12 sozinha: rc 0 duas vezes. Prazo por rodada: 65 s.
-- `bin/forge-mutante --cobertura --base ff3936ae4011a95f25c37280fe32e4fa5ced0d95` sobre o próprio diff: rc 0, 38 linhas (5 `spec editada`, o resto `coberta ... declarado, não provado`), nenhuma `sem mutante`, `apagada` ou `não coberto`. Lista conferida contra o diff: cada condição mudada em `bin/forge-mutante` tem mutante; o diff de `bin/forge-check` é uma linha que não é condição.
-- `python3 -m unittest tests.test_forge_mutante tests.test_volta_por_delta`: `Ran 126 tests ... OK` (42 s, sozinho na máquina). A suíte completa fica com o pre-push.
-- Vermelho, `forge-testes --vermelho ff3936ae4011a95f25c37280fe32e4fa5ced0d95 --modulos test_forge_mutante,test_volta_por_delta` (rc 0): abre com `vermelho: base=ff3936ae4011 head=a1571168d786`; `contagem: não prova (passa na base)=113; prova (API ausente)=3; prova (asserção)=10`. Provam, entre outros, `test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda` (A1 a A3 do review), `test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde` (A1 da segurança), `test_shell_de_40_kb_sem_fecho_gasta_pouca_cpu` (A2 da segurança), `BriefDeVolta.test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade` e o `test_gera_blocos_copiados_decisoes_achados_e_prova`.
-- Teste de tempo em CPU, medido: sozinho, mínimo 0,020 s e máximo 0,028 s para `"\"` (as outras unidades, 0,007 a 0,012 s). Com 4 processos em paralelo (máquina de 12 núcleos), `"\"` chega a 0,053 a 0,059 s, acima do limite de 0,05 s. O teste, em 4 laços paralelos de 15 execuções: 43 falhas em 60 (8, 11, 11 e 13 de 15); sozinho, 3 de 3 passam. O pre-push e o CI rodam módulos em paralelo, então a carga é a de uso real. A guarda é boa (a versão quadrática gastava 9 s); o limite é que está apertado, com margem de 2x sobre o mínimo.
-- Mutação: M82 (`m.start() < len(linha)`) morre no teste de tempo, quando ele passa; o A1 vale para o controle, não para a guarda.
+- 15 specs (`bin/forge-mutante tests/mutantes/guarda-sem-mutante*.json`, M1 a M99): rc 0, 99 `morreu`, 0 sobrevivente, 73 s. (O brief diz 14; a pasta tem 15: a base sem sufixo mais `-2` a `-15`.)
+- `bin/forge-mutante --cobertura --base ff3936ae4011a95f25c37280fe32e4fa5ced0d95` sobre o próprio diff: rc 0, 38 `coberta ... declarado, não provado`, 5 `spec editada`, nenhuma `sem mutante`, `apagada` ou `não coberto`. Lista conferida contra o diff: cada linha de guarda mudada na volta (`prof > 0`, `(0 if quebra else prof)`, `- linha.count("))")`, `tabs if m[0].startswith("<<-")`, `<<-` ou `k == len(achadas)`, `r[j] <= fecha`, `m[0][0] in "'\"$"`, `(?:\s+--)?`, `linha == linha.strip()`, `k < len(achadas)`) tem mutante nas specs -13 a -15 (M83 a M99); o diff de `bin/forge-check` é uma linha que não é condição.
+- `python3 -m unittest tests.test_forge_mutante tests.test_volta_por_delta`: `Ran 126 tests ... OK` (46 s). A suíte completa fica com o pre-push.
+- Teste de tempo em CPU, de novo com 4 processos em paralelo: 40 medidas por unidade; `"\"` max 0,078 s e p95 0,075 s; `[[ ` e `[ ` max 0,020 s. O próprio teste, 4 laços de 15: 15, 15, 15 e 15 passaram. Com 8 em paralelo: p95 0,076 s.
+- Vermelho, `forge-testes --vermelho ff3936ae4011a95f25c37280fe32e4fa5ced0d95 --modulos test_forge_mutante,test_volta_por_delta` (rc 0): abre com `vermelho: base=ff3936ae4011 head=6b0c95eadd0a`; `contagem: não prova (passa na base)=113; prova (API ausente)=3; prova (asserção)=10`. Dos subcasos novos da volta: com o `bin/forge-mutante` de `fc721f1` e os testes do HEAD, `test_shell_por_regex...` falha em `x=$((1<<EOF))` e `test_shell_que_nao_se_le_com_certeza...` falha em cinco subcasos (`cat <<EOF` recuado, `<<-EOF`, `cat <<EOF` sem fecho recuado, `eval $'...'`, `bash -c -- '...'`): 6 falhas, saída `FAILED (failures=6)`.
 - Acessibilidade e E2E: n/a (ferramenta de linha de comando).
 
 ## Recomendações (não devolvem)
-- `case` e `(( ))` isolado seguem fora e declarados no docstring; `until cmd` entra pelo A3 do review. Sem ação.
-- Condição de shell em `bash -c`/`eval` sai `não coberto` com rc 0, como pede a decisão de 11:16; se o dono quiser rc 1, é decisão nova.
-- Achados recorrentes (PA-7): `docs/engineering/achados-recorrentes.md` está vazio e a classe (limite de tempo apertado) não se repete na lista; sem linha `AR`.
+- `case` e `(( ))` isolado seguem fora e declarados no docstring.
+- Achados recorrentes (PA-7): a classe `mascara-do-shell-esconde-codigo` voltou no pedido (review 1f394b7 A1, segurança 53ff539 A1, review fc721f1 A1 e este A1). A linha `AR-1` em `docs/engineering/achados-recorrentes.md` é do review (commit a6f5184); este parecer não grava AR (decisão técnica 2026-10-28 12:52).
 
 ## Casos de abuso e riscos aceitos
-A3 e A4 da segurança do PR 1 ficam como risco aceito (decisão técnica 2026-10-28 10:25). O A4 do PR 2 (motivo da isenta cru na saída) e o A3 do PR 2 (`parecidas`) seguem recomendados. Nada do diff é executado: a checagem lê `git show` e só faz `ast.parse` e regex.
+A3 e A4 da segurança do PR 1 ficam como risco aceito (decisão técnica 2026-10-28 10:25). Nada do diff é executado: a checagem lê `git show` e só faz `ast.parse` e regex. As sondas rodaram em repositórios descartáveis em `$TMPDIR`; nenhum texto das sondas foi executado.
