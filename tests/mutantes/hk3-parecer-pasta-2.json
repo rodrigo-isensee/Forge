@@ -6,8 +6,8 @@
       "id": "M9",
       "guarda": "so a atribuicao sozinha no comando fixa a variavel",
       "arquivo": "hooks/parecer.py",
-      "de": "and k == len(palavras):",
-      "para": "and True:",
+      "de": "and k == len(palavras) and nome",
+      "para": "and True and nome",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
@@ -26,8 +26,8 @@
       "id": "M11",
       "guarda": "read, source e eval tornam todas desconhecidas",
       "arquivo": "hooks/parecer.py",
-      "de": "and comando[0] in LE_VARIAVEL",
-      "para": "and False",
+      "de": "bool(comando) and comando[0] in LE_VARIAVEL",
+      "para": "bool(comando) and False",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
@@ -46,8 +46,8 @@
       "id": "M13",
       "guarda": "cd relativo com CDPATH nao se resolve",
       "arquivo": "hooks/parecer.py",
-      "de": "variaveis.get(\"CDPATH\") or os.environ.get(\"CDPATH\")",
-      "para": "False",
+      "de": "else os.environ.get(\"CDPATH\", \"\")",
+      "para": "else \"\"",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]

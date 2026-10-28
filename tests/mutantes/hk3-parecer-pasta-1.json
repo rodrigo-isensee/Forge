@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "til sozinho vira o HOME",
       "arquivo": "hooks/parecer.py",
-      "de": "if palavra == \"~\" or palavra.startswith(\"~/\")",
-      "para": "if palavra.startswith(\"~/\")",
+      "de": "if palavra != \"~\" and not palavra.startswith(\"~/\"):",
+      "para": "if not palavra.startswith(\"~/\"):",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "til com barra vira o HOME",
       "arquivo": "hooks/parecer.py",
-      "de": "or palavra.startswith(\"~/\") else palavra",
-      "para": "or False else palavra",
+      "de": "and not palavra.startswith(\"~/\"):",
+      "para": "and False:",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
@@ -76,8 +76,8 @@
       "id": "M8",
       "guarda": "so a atribuicao solta fixa a variavel",
       "arquivo": "hooks/parecer.py",
-      "de": "if solto and k == len(palavras):",
-      "para": "if True and k == len(palavras):",
+      "de": "if solto and k == len(palavras) and nome",
+      "para": "if True and k == len(palavras) and nome",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
