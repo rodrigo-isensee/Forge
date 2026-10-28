@@ -1,4 +1,5 @@
-"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; não é portão."""
+"""`bin/forge-testes` (TA-3): teste dirigido na iteração do autor; filtro do pre-push (EST-M8), nunca portão de CI."""
+import ast
 import importlib.machinery
 import importlib.util
 import os
@@ -45,7 +46,7 @@ class Mapa(unittest.TestCase):
 
     def test_caminhos_conhecidos_rodam_so_os_modulos_do_mapa(self):
         casos = {
-            "bin/forge-changelog": ["test_changelog", "test_forge"],
+            "bin/forge-changelog": ["test_changelog", "test_conferir_release", "test_forge"],
             "bin/forge-doutor": ["test_atualizar", "test_doutor", "test_forge"],
             "bin/forge-sugerir": ["test_forge", "test_sugerir"],
             "scripts/ci-local": ["test_ci_local", "test_forge", "test_testes_tocados"],
@@ -57,9 +58,19 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 21)
-        for modulo in ("test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b"):
+        self.assertEqual(len(modulos), 26)
+        for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
+                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu"):
             self.assertIn(modulo, modulos)
+
+    def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
+        volta = {"test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades"}
+        for caminho in ("hooks/doutor.py", "hooks/conformidade.py", "stacks/exemplo/seguranca.md", ".claude-plugin/plugin.json",
+                        "bin/forge-check"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(volta, set(modulos))
 
     def test_hooks_incluem_hooks_e_catraca(self):
         modo, modulos = self.plano("hooks/conformidade.py")
@@ -88,17 +99,12 @@ class Mapa(unittest.TestCase):
         self.assertEqual(modo, "dirigido")
         self.assertIn("test_hooks", modulos)
 
-    def test_modulo_importado_roda_quem_importa(self):
-        modo, modulos = self.plano("tests/test_forge.py")
-        self.assertEqual(modo, "dirigido")
-        self.assertEqual(modulos, ["test_forge", "test_guarda_git", "test_hooks"])
-
-    def test_o_proprio_modulo_de_teste_roda_sozinho(self):
-        self.assertEqual(self.plano("tests/test_sugerir.py"), ("dirigido", ["test_sugerir"]))
-
-    def test_varios_caminhos_unem_os_modulos(self):
-        self.assertEqual(self.plano("bin/forge-sugerir", "tests/test_doutor.py"),
-                         ("dirigido", ["test_doutor", "test_forge", "test_sugerir"]))
+    # M8, opção C (critério de fim, item 3): módulo de teste no diff não tem regra e roda a suíte inteira.
+    def test_modulo_de_teste_no_diff_cai_na_completa_com_o_motivo_sem_mapa(self):
+        for caminho in ("tests/test_fechar.py", "tests/test_sugerir.py",  # importado por 13 `test_fechar_*`; sem importador
+                        "tests/test_modulo_novo_que_nao_existe.py", "tests/test_forge.py"):  # novo ou apagado; varre tests/
+            with self.subTest(caminho):
+                self.assertEqual(self.plano(caminho), ("completo", [f"{caminho} sem mapa"]))
 
     def test_caminho_sem_mapa_cai_na_completa(self):
         for caminho in ("coisa-nova/x.py", ".github/workflows/ci.yml", ".githooks/pre-push", "LICENSE",
@@ -125,24 +131,85 @@ class Mapa(unittest.TestCase):
 
 
 class MapaCobreOQueOsTestesLeem(unittest.TestCase):
-    """Cada `RAIZ / "..."` de um tests/test_*.py que aponta para um arquivo do Forge tem de levar a esse módulo."""
+    """Cada arquivo do Forge que um tests/test_*.py lê ou executa tem de levar a esse módulo (o pre-push filtra por isto).
 
-    CAMINHO = re.compile(r'RAIZ\s*/\s*"([^"]+)"((?:\s*/\s*"[^"]+")*)')
-    # Testes que só montam o próprio projeto de brinquedo e não dependem do conteúdo do Forge ficam de fora
-    # por não citarem RAIZ; os módulos abaixo citam e são conferidos.
+    Formas reconhecidas (ast, não regex): `RAIZ / "a" / "b"`, `RAIZ.joinpath(...)`, uma variável de módulo que guarda
+    um caminho (`HOOKS = RAIZ / "hooks"` ou `...parent.parent / "hooks"`) usada como `HOOKS / "x.py"`, e `ler("...")`.
+    Quando o módulo monta o caminho com uma variável (`RAIZ / rel`), todo literal do módulo que é um arquivo do
+    Forge conta: falha fechada, o mapa tem de ser tão largo quanto o que o teste pode ler."""
+
+    # Este próprio módulo só passa caminhos como texto para `planejar`: não os lê.
+    SO_CITA = {"test_testes_tocados"}
 
     @classmethod
     def setUpClass(cls):
         cls.f = carregar()
 
+    @classmethod
+    def partes(cls, no, vars_):
+        """Caminho relativo à raiz (tupla) de uma expressão de caminho, ou None; "*" marca a parte dada por variável."""
+        if isinstance(no, ast.Constant) and isinstance(no.value, str):
+            return tuple(p for p in no.value.split("/") if p)
+        if isinstance(no, ast.Name):
+            return vars_.get(no.id)
+        if isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div):
+            esq = cls.partes(no.left, vars_)
+            if esq is None:
+                return None
+            direita = cls.partes(no.right, vars_) if isinstance(no.right, ast.Constant) else None
+            return esq + (direita if direita is not None else ("*",))
+        if isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "joinpath":
+            base = cls.partes(no.func.value, vars_)
+            if base is None:
+                return None
+            for arg in no.args:
+                p = cls.partes(arg, vars_) if isinstance(arg, ast.Constant) else None
+                base = base + (p if p is not None else ("*",))
+            return base
+        if isinstance(no, ast.Attribute) and no.attr == "parent":  # Path(__file__).resolve().parent[.parent]
+            dentro = no.value
+            if isinstance(dentro, ast.Attribute) and dentro.attr == "parent":
+                return () if ast.unparse(dentro.value) in ("Path(__file__).resolve()", "Path(__file__)") else None
+            return ("tests",) if ast.unparse(dentro) in ("Path(__file__).resolve()", "Path(__file__)") else None
+        return None
+
+    @classmethod
+    def variaveis(cls, arvore):
+        """Variáveis de módulo que guardam um caminho fixo (tupla relativa à raiz)."""
+        vars_ = {"RAIZ": ()}
+        for no in arvore.body:
+            if isinstance(no, ast.Assign) and len(no.targets) == 1 and isinstance(no.targets[0], ast.Name):
+                p = cls.partes(no.value, vars_)
+                if p is not None and "*" not in p:
+                    vars_.setdefault(no.targets[0].id, p)
+        return vars_
+
     def lidos(self, modulo):
-        texto = (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8")
-        achados = set()
-        for inicio, resto in self.CAMINHO.findall(texto):
-            partes = [inicio] + re.findall(r'"([^"]+)"', resto)
-            caminho = "/".join(partes)
-            if (RAIZ / caminho).is_file():
-                achados.add(caminho)
+        return self.lidos_do_texto(modulo, (RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+
+    def lidos_do_texto(self, modulo, texto):
+        arvore = ast.parse(texto)
+        vars_ = self.variaveis(arvore)
+        achados, dinamico = set(), False
+        for no in ast.walk(arvore):
+            candidato = None
+            if isinstance(no, ast.Call) and isinstance(no.func, ast.Name) and no.func.id == "ler":
+                if no.args and isinstance(no.args[0], ast.Constant) and isinstance(no.args[0].value, str):
+                    candidato = tuple(p for p in no.args[0].value.split("/") if p)
+            elif (isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div)) or isinstance(no, ast.Call):
+                candidato = self.partes(no, vars_)
+            if candidato is None:
+                continue
+            if "*" in candidato:
+                dinamico = True
+                candidato = candidato[:candidato.index("*")]
+            if candidato and (RAIZ / Path(*candidato)).is_file():
+                achados.add("/".join(candidato))
+        if dinamico and modulo not in self.SO_CITA:
+            for no in ast.walk(arvore):
+                if isinstance(no, ast.Constant) and isinstance(no.value, str) and "/" in no.value \
+                        and "\n" not in no.value and (RAIZ / no.value).is_file():
+                    achados.add(no.value)
         return achados
 
     def test_todo_arquivo_lido_por_um_modulo_roda_esse_modulo(self):
@@ -155,6 +222,38 @@ class MapaCobreOQueOsTestesLeem(unittest.TestCase):
                     modo, planejados = self.f.planejar([caminho], RAIZ)
                     self.assertTrue(modo == "completo" or modulo in planejados, f"{caminho} -> {planejados}")
         self.assertGreaterEqual(total, 40)
+
+    def test_a_conferencia_enxerga_as_formas_de_citar_um_caminho(self):  # LOTE-M8-PREPUSH (seg A1)
+        fonte = (
+            "from pathlib import Path\n"
+            "RAIZ = Path(__file__).resolve().parent.parent\n"
+            "HOOKS = Path(__file__).resolve().parent.parent / 'hooks'\n"
+            "def ler(rel):\n    return (RAIZ / rel).read_text()\n"
+            "a = HOOKS / 'agentes.py'\n"
+            "b = ler('hooks/vigia.py')\n"
+            "c = RAIZ.joinpath('bin', 'forge-changelog')\n"
+            "def f(rel):\n    return RAIZ / rel\n"
+            "d = ('docs/regras/R-BRIEF.md',)\n"
+        )
+        self.assertEqual(self.lidos_do_texto("test_x", fonte),
+                         {"hooks/agentes.py", "hooks/vigia.py", "bin/forge-changelog", "docs/regras/R-BRIEF.md"})
+
+    def test_a_familia_dos_testes_que_executam_hooks_e_bin_roda_no_envio_dirigido(self):  # LOTE-M8-PREPUSH (seg A1)
+        for caminho, modulo in (("hooks/agentes.py", "test_agentes_hash_brief"), ("hooks/agentes.py", "test_agentes_clone"),
+                                ("hooks/_comum.py", "test_agentes_hash_brief"), ("hooks/_comum.py", "test_agentes_clone"),
+                                ("hooks/vigia.py", "test_textos_dono_f10"), ("bin/forge-changelog", "test_conferir_release"),
+                                ("agents/jarvis.md", "test_clareza")):
+            with self.subTest(caminho=caminho, modulo=modulo):
+                self.assertIn(modulo, self.f.planejar([caminho], RAIZ)[1])
+
+    def test_manifesto_do_plugin_de_dev_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # FORGE-TESTES-CAMINHOS
+        modo, modulos = self.f.planejar(["dev/.claude-plugin/plugin.json"], RAIZ)
+        self.assertEqual(modo, "dirigido")
+        self.assertEqual(modulos, self.f.planejar([".claude-plugin/plugin.json"], RAIZ)[1])
+
+    def test_conferir_reversao_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):  # REVERSAO-MAPA (A5)
+        self.assertEqual(self.f.planejar(["scripts/conferir-reversao.py"], RAIZ),
+                         ("dirigido", ["test_conferir_reversao", "test_forge", "test_testes_tocados"]))
 
     def test_forge_mutante_tem_regra_no_mapa_e_nao_cai_na_suite_completa(self):
         self.assertEqual(self.f.planejar(["bin/forge-mutante"], RAIZ), ("dirigido", ["test_forge", "test_forge_mutante"]))
@@ -171,8 +270,11 @@ class Execucao(unittest.TestCase):
         (self.dir / "tests").mkdir()
         (self.dir / "tests" / "test_sugerir.py").write_text(
             "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
-        (self.dir / "tests" / "test_outro.py").write_text(
-            "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
+        for modulo in ("test_outro", "test_forge"):
+            (self.dir / "tests" / f"{modulo}.py").write_text(
+                "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n", encoding="utf-8")
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")  # o mapa leva a test_forge e test_sugerir
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "base")
         git(self.dir, "switch", "-q", "-c", "melhoria/x")
@@ -184,20 +286,20 @@ class Execucao(unittest.TestCase):
     def log(self):
         return (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8")
 
-    def test_dirigido_roda_so_o_modulo_tocado_e_anota_o_log(self):
-        (self.dir / "tests" / "test_sugerir.py").write_text(
-            "import unittest\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n# x\n", encoding="utf-8")
+    def test_dirigido_roda_so_os_modulos_do_mapa_e_anota_o_log(self):
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 2\n", encoding="utf-8")
         r = self.rodar()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("dirigido (test_sugerir)", r.stdout)
+        self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout)
+        self.assertNotIn("test_outro", r.stdout)
         linha = self.log().strip().splitlines()[-1]
-        for trecho in ("modo=dirigido", "modulos=test_sugerir", "duracao=", "saida=0", "Z "):
+        for trecho in ("modo=dirigido", "modulos=test_forge,test_sugerir", "duracao=", "saida=0", "Z "):
             self.assertIn(trecho, linha)
 
     def test_arquivo_novo_nao_versionado_conta(self):
         (self.dir / "tests" / "test_novo.py").write_text("x = 1\n", encoding="utf-8")
         r = self.rodar("--listar")
-        self.assertIn("dirigido (test_novo)", r.stdout)
+        self.assertIn("suíte completa (tests/test_novo.py sem mapa)", r.stdout)  # o teste novo leva à completa
 
     def test_sem_mapa_roda_a_completa_e_anota(self):
         (self.dir / "novo.txt").write_text("x\n", encoding="utf-8")
@@ -238,16 +340,58 @@ class Execucao(unittest.TestCase):
         self.assertIn("suíte completa (tests/config.json altera o mapa ou a configuração)", r.stdout)
 
     def test_arquivo_mapeado_renomeado_inclui_os_modulos_do_caminho_antigo(self):
-        (self.dir / "bin").mkdir()
-        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")
-        (self.dir / "tests" / "test_forge.py").write_text("x = 1\n", encoding="utf-8")  # o mapa também o cita
+        (self.dir / "tests" / "test_forge_mutante.py").write_text("x = 1\n", encoding="utf-8")  # o mapa de bin/forge-mutante o cita
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "bin")
         git(self.dir, "switch", "-q", "-c", "melhoria/z")
-        git(self.dir, "mv", "bin/forge-sugerir", "tests/test_novo.py")
+        git(self.dir, "mv", "bin/forge-sugerir", "bin/forge-mutante")
         r = subprocess.run([sys.executable, str(FERRAMENTA), "--base", "melhoria/x", "--listar"], cwd=self.dir,
                            env=AMBIENTE, capture_output=True, text=True)
-        self.assertIn("dirigido (test_forge, test_novo, test_sugerir)", r.stdout)
+        self.assertIn("dirigido (test_forge, test_forge_mutante, test_sugerir)", r.stdout)  # test_sugerir vem do caminho antigo
+
+    # FORGE-TESTES-CAMINHOS: classe "a ferramenta recusa a forma de chamada que os briefs mandam usar". Variantes:
+    # caminho relativo, absoluto, com `..`, a partir de subpasta, vários, fora do repositório, junto de opção
+    # incompatível e caminho começado por `-` (depois de `--`).
+    def rodar_com(self, *args, cwd=None):
+        return subprocess.run([sys.executable, str(FERRAMENTA), *args], cwd=cwd or self.dir, env=AMBIENTE,
+                              capture_output=True, text=True)
+
+    def test_caminhos_dirigem_o_plano_sem_olhar_o_git(self):
+        r = self.rodar_com("--listar", "bin/forge-sugerir", "bin/forge-sugerir")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout)
+        self.assertFalse((self.dir / ".forge").exists())
+
+    def test_caminho_sem_mapa_cai_na_completa_e_o_alterado_no_git_nao_conta(self):
+        (self.dir / "tests" / "test_sugerir.py").write_text("x = 1\n", encoding="utf-8")  # alterado, mas não citado
+        r = self.rodar_com("--listar", "novo.txt")
+        self.assertIn("suíte completa (novo.txt sem mapa)", r.stdout)
+
+    def test_caminho_absoluto_com_ponto_ponto_e_de_subpasta_valem(self):
+        (self.dir / "sub").mkdir()
+        absoluto = str(self.dir / "bin" / "forge-sugerir")
+        for args, cwd in (((absoluto,), None), (("sub/../bin/forge-sugerir",), None),
+                          (("../bin/forge-sugerir",), self.dir / "sub")):
+            with self.subTest(args=args, cwd=cwd):
+                r = self.rodar_com("--listar", *args, cwd=cwd)
+                self.assertIn("dirigido (test_forge, test_sugerir)", r.stdout, r.stdout + r.stderr)
+
+    def test_caminho_fora_do_repositorio_e_recusado(self):
+        r = self.rodar_com("--listar", "../fora.py")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("fora do repositório", r.stderr)
+        self.assertNotIn("dirigido", r.stdout)
+
+    def test_caminhos_nao_combinam_com_completa_nem_com_vermelho(self):
+        for opcao in (("--completa",), ("--vermelho", "HEAD")):  # o `--vermelho` consome o argumento seguinte como base
+            with self.subTest(opcao):
+                r = self.rodar_com(*opcao, "tests/test_sugerir.py")
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("caminhos não combinam", r.stderr)
+
+    def test_caminho_comecado_por_hifen_so_depois_de_dois_hifens(self):
+        r = self.rodar_com("--listar", "--", "-x.py")
+        self.assertIn("suíte completa (-x.py sem mapa)", r.stdout)
 
     def test_nada_alterado_nao_roda(self):
         r = self.rodar()
@@ -256,32 +400,125 @@ class Execucao(unittest.TestCase):
 
 
 class NaoEPortao(unittest.TestCase):
-    """Decisão do dono: "A, desde que para main rode tudo." Nenhum portão chama o script."""
+    """Decisão do dono: "A, desde que para main rode tudo." O CI e os hooks do Claude não chamam o script; o único
+    portão local que o chama é o pre-push (M8, decisões do dono de 2026-10-23 e 2026-10-24: A), que recua para a
+    suíte inteira quando o plano não é dirigido."""
 
     def test_nenhum_portao_cita_o_script(self):
-        alvos = [RAIZ / ".githooks", RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local",
-                 RAIZ / "bin" / "forge-check"]
+        alvos = [RAIZ / ".github", RAIZ / "hooks", RAIZ / "scripts" / "ci-local", RAIZ / "bin" / "forge-check"]
         arquivos = []
         for alvo in alvos:
             # __pycache__ fica de fora: o .pyc guarda o caminho da worktree, que pode se chamar forge-testes-*
             arquivos += [alvo] if alvo.is_file() else [p for p in alvo.rglob("*")
                                                        if p.is_file() and "__pycache__" not in p.parts]
-        self.assertGreaterEqual(len(arquivos), 5)
+        self.assertGreaterEqual(len(arquivos), 4)
         for arquivo in arquivos:
             with self.subTest(str(arquivo.relative_to(RAIZ))):
                 self.assertNotIn("forge-testes", arquivo.read_text(encoding="utf-8", errors="replace"))
 
-    def test_pre_push_roda_a_suite_inteira(self):
+    def test_so_o_pre_push_cita_o_script_em_githooks(self):
+        citam = {p.relative_to(RAIZ).as_posix() for p in (RAIZ / ".githooks").rglob("*")
+                 if p.is_file() and "forge-testes" in p.read_text(encoding="utf-8", errors="replace")}
+        self.assertEqual(citam, {".githooks/pre-push"})
+
+    def test_pre_push_recua_para_a_suite_inteira(self):
         self.assertIn("python3 -m unittest discover -s tests",
                       (RAIZ / ".githooks" / "pre-push").read_text(encoding="utf-8"))
 
     def test_regra_5_cita_o_script_e_a_decisao_do_dono(self):
         texto = (RAIZ / "docs" / "economia-de-tokens.md").read_text(encoding="utf-8")
         self.assertIn("bin/forge-testes", texto)
-        self.assertIn("A, desde que para main rode tudo.", texto)
+        self.assertIn("M8", texto)
+        self.assertIn("2026-10-24", texto)  # a decisão do dono que substitui a de 2026-10-15
+        self.assertNotIn("pre-push, review, QA, CI e o caminho para a main rodam a suíte inteira", texto)
+        self.assertIn("CI de todo PR", texto)
+
+    def test_docstring_cita_a_decisao_m8_de_2026_10_24(self):  # COMENTARIOS-PREPUSH
+        doc = ast.get_docstring(ast.parse(FERRAMENTA.read_text(encoding="utf-8")))
+        self.assertIn("M8", doc)
+        self.assertIn("2026-10-24", doc)
+        self.assertIn("substitui", doc)
+
+    def test_docstring_nao_manda_review_e_qa_rodarem_a_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A4
+        doc = ast.get_docstring(ast.parse(FERRAMENTA.read_text(encoding="utf-8"))).replace("\n", " ")
+        self.assertNotIn("Review, QA, o CI do PR", doc)
+        self.assertIn("autor e os revisores rodam só os testes do item", doc)
+        self.assertIn("a suíte inteira fica no pre-push e no CI", doc)
 
     def test_log_fica_fora_do_git(self):
         self.assertIn("/.forge", (RAIZ / ".gitignore").read_text(encoding="utf-8").splitlines())
+
+
+class MapaCobreImportacaoEVarredura(unittest.TestCase):
+    """M8, opção C: importação entre testes e varredura de pasta (`glob`, `rglob`, `iterdir`) não pedem grafo no mapa,
+    porque módulo de teste no diff roda a suíte inteira."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+        cls.testes = sorted(p.stem for p in (RAIZ / "tests").glob("test_*.py"))
+
+    def importados(self, texto):
+        """Módulos de teste importados por nome (`import`, `from ... import`, `import_module` com literal)."""
+        achados = set()
+        for no in ast.walk(ast.parse(texto)):
+            if isinstance(no, ast.Import):
+                nomes = [a.name for a in no.names]
+            elif isinstance(no, ast.ImportFrom) and not no.level:
+                nomes = [no.module or ""]
+            elif isinstance(no, ast.Call) and getattr(no.func, "attr", "") == "import_module" and no.args \
+                    and isinstance(no.args[0], ast.Constant):
+                nomes = [str(no.args[0].value).split(".")[-1]]
+            else:
+                continue
+            achados.update(n for n in nomes if re.fullmatch(r"test_[a-z0-9_]+", n))
+        return achados
+
+    def varridos(self, texto):
+        """Arquivos do Forge que um `glob`, `rglob` ou `iterdir` sobre caminho conhecido alcança, e a pasta varrida."""
+        arvore = ast.parse(texto)
+        vars_ = MapaCobreOQueOsTestesLeem.variaveis(arvore)
+        achados, pastas = set(), set()
+        for no in ast.walk(arvore):
+            if not (isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute)
+                    and no.func.attr in ("glob", "rglob", "iterdir")):
+                continue
+            base = MapaCobreOQueOsTestesLeem.partes(no.func.value, vars_)
+            if base is None or "*" in base or not (RAIZ / Path(*base)).is_dir():
+                continue
+            pasta = RAIZ / Path(*base)
+            casados = pasta.iterdir() if no.func.attr == "iterdir" else getattr(pasta, no.func.attr)(getattr(no.args[0], "value", "*"))
+            pastas.add("/".join(base))
+            achados.update(c.relative_to(RAIZ).as_posix() for c in casados if c.is_file() and "__pycache__" not in c.parts)
+        return achados, pastas
+
+    def cobre(self, caminho, modulo):
+        modo, planejados = self.f.planejar([caminho], RAIZ)
+        return modo == "completo" or modulo in planejados
+
+    def test_todo_teste_importado_por_outro_leva_quem_importa_a_suite_inteira(self):  # critério C.1
+        arestas = 0
+        for modulo in self.testes:
+            importados = self.importados((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            for importado in sorted(importados & set(self.testes)):
+                arestas += 1
+                with self.subTest(modulo=modulo, importado=importado):
+                    self.assertEqual(self.f.planejar([f"tests/{importado}.py"], RAIZ)[0], "completo")
+        self.assertGreaterEqual(arestas, 31)  # as 31 linhas de `import`/`from` entre testes na varredura da segurança
+
+    def test_toda_varredura_de_pasta_conhecida_leva_o_modulo_a_suite_inteira_ou_ao_plano(self):  # critério C.2
+        total, varrem_tests = 0, set()
+        for modulo in self.testes:
+            achados, pastas = self.varridos((RAIZ / "tests" / f"{modulo}.py").read_text(encoding="utf-8"))
+            if "tests" in pastas:
+                varrem_tests.add(modulo)
+            for caminho in sorted(achados):
+                total += 1
+                with self.subTest(modulo=modulo, caminho=caminho):
+                    self.assertTrue(self.cobre(caminho, modulo))
+        self.assertGreaterEqual(total, 1000)
+        # quem varre `tests/` cai quando um módulo de teste muda: todo módulo de teste dá a suíte inteira (C.1 e `Mapa`)
+        self.assertLessEqual({"test_ambiente_git", "test_testes_tocados", "test_forge"}, varrem_tests)
 
 
 class MapaDoForgeCheck(unittest.TestCase):
@@ -289,9 +526,16 @@ class MapaDoForgeCheck(unittest.TestCase):
 
     CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)')
     IMPORTA = re.compile(r"^\s*(?:from|import)\s+(test_[a-z0-9_]+)\b", re.M)
+    IMPORTA_APOIO = re.compile(r"^\s*(?:from|import)\s+(apoio_[a-z0-9_]+)\b", re.M)
 
     def modulos_que_usam(self):
         textos = {p.stem: p.read_text(encoding="utf-8") for p in (RAIZ / "tests").glob("test_*.py")}
+        apoios = {p.stem: p.read_text(encoding="utf-8") for p in (RAIZ / "tests").glob("apoio_*.py")}
+        # `tests/apoio_*.py` importado por um módulo de teste conta como parte dele: o que o apoio cita ou importa de
+        # `test_*` vale para quem o importa (HOOKS-CORPUS-RAPIDO: os `test_hooks_volta_*` rodam o script pelo apoio).
+        for modulo, texto in textos.items():
+            for apoio in self.IMPORTA_APOIO.findall(texto):
+                textos[modulo] += "\n" + apoios.get(apoio, "")
         usam = {m for m, t in textos.items() if self.CITA.search(t)}
         usam.discard("test_doutor")  # só grava um `bin/forge-check` falso na semente; não executa o real
         usam.add("test_catraca")  # carrega o script por `catraca.forge_check()`, sem citar o caminho
@@ -441,7 +685,42 @@ class Vermelho(unittest.TestCase):
     def corrigir_lib(self):
         self.gravar("lib.py", "def dobro(x):\n    return x * 2\n")
 
-    def test_producao_mudada_e_teste_novo_que_a_cobre_e_prova_por_asserção(self):
+    TRIVIAL = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_ok(self):\n        pass\n"
+
+    def com_modulos_do_mapa(self):
+        """Base do vermelho: `bin/forge-sugerir` (o mapa leva a test_forge e test_sugerir) e test_outro (fora do mapa)."""
+        self.gravar("bin/forge-sugerir", "x = 1\n")
+        for modulo in ("test_forge", "test_sugerir", "test_outro"):
+            self.gravar(f"tests/{modulo}.py", self.TRIVIAL)
+        self.salvar("apoio")
+
+    def modulos_do_vermelho(self, r):
+        linha = next(l for l in r.stdout.splitlines() if l.startswith("vermelho: base="))
+        return linha.split("módulos=")[1].split(" ")[0].split(","), linha
+
+    # M8, opção C (critério de fim, item 4): o `--vermelho` sem `--modulos` não manda módulo de teste ao `planejar`.
+    def test_vermelho_usa_o_modulo_de_teste_do_diff_mais_o_plano_dos_outros_caminhos(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/test_sugerir.py", self.TRIVIAL + "# mudou\n")
+        self.gravar("tests/test_outro.py", self.TRIVIAL + "# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, linha = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("restrito", linha)
+
+    def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
+        self.com_modulos_do_mapa()
+        (self.dir / "tests" / "test_outro.py").unlink()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.salvar("apaga")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("sem veredito", r.stdout)
+
+    def test_producao_mudada_e_teste_novo_que_a_cobre_e_prova_por_asserção(self):  # lib.py sem mapa: todos os módulos
         self.corrigir_lib()
         self.gravar("tests/test_lib.py", self.BASE_TESTE + self.metodo("test_dobro", "self.assertEqual(lib.dobro(2), 4)"))
         self.salvar("corrige")

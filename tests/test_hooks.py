@@ -33,12 +33,15 @@ Formato do fixture:
 """
 import concurrent.futures
 import contextlib
+import functools
 import hashlib
 import io
 import json
 import os
 import re
+import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -101,20 +104,45 @@ def conferir_passo(entrada, r):
 
 # HOOK-COMENTARIO-SHLEX (ADR 0013): o que o bash ignora (ou roda à toa) antes ou depois de uma linha. Cada variante põe
 # um `#` num contexto em que uma leitura errada do comentário esconderia o resto, ou deixa a linha ilegível para o hook.
-PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; echo ${x/ #y/z}; ", "echo $[1 #x]; ",
+# O bash roda a linha depois de cada uma (o T5 confere): o `$[1 #x]` é erro de aritmética, que encerra o `bash -c`, e
+# por isso fica depois de `true ||`, que o bash lê e não avalia.
+PREFIXOS_QUE_O_BASH_IGNORA = ("echo `echo a #b`; ", "echo ${x:- #b}; ", "x=abc; echo ${x/ #y/z}; ", "true || echo $[1 #x]; ",
                               "(true)#'\n", "(( 1 )) # it's\n", "true #'\n", "echo $'it\\'s'; ", "[[ a =~ ( #b) ]]; ",
                               "[[ a == @(a| #b) ]]; ", "echo a\\ #b; ")
 SUFIXOS_QUE_O_BASH_IGNORA = ("; (true)#x", "\n# it's", "; echo $'it\\'s'", "; (true)#'", " # it's ((")
 # Em par: a aspa de um comentário dentro de crase (que o bash fecha na crase) casaria com a do outro lado da linha.
 PARES_QUE_O_BASH_IGNORA = (("x=`#'`; ", " # '"), ('x=`#"`; ', ' # "'), ("echo `# it's`; ", "; echo `# it's`"),
-                           ("echo `true # it's`;\n", "\necho `true # it's`"))
+                           ("echo `true # it's`;\n", "\necho `true # it's`"),
+                           # CRASE-ASPA-HOOK: a aspa sem par no corpo da crase (que o bash fecha na crase) casaria com a
+                           # do outro corpo, e o comando do meio viraria texto entre aspas
+                           ("x=`'`; ", "; y=`'`"), ('x=`"`; ', '; y=`"`'), ("x=`$'`; ", "; y=`$'`"),
+                           ('echo "`\'`"; ', '; echo "`\'`"'), ("x=`'`; ", "; y=`'`\n`"),  # e uma crase sem par adiante
+                           # CRASE-SESSAO-PROJETO: a ação dentro da crase, também entre aspas duplas e com texto em volta
+                           *(CRASE_EM_VOLTA := (("echo `", "`"), ('echo "`', '`"'), ("x=`", "`"), ('echo "x `', '` y"'),
+                                                ('x="`', '`"'))),
+                           # N1: a substituição entre aspas numa atribuição; N2: `$(…)` entre aspas duplas (parecer)
+                           *(SUBSTITUICAO_ENTRE_ASPAS := (
+                               ('x="$(', ')"'), ("x='a'\"$(", ')"'), ('x="$(', ')" true'),
+                               ('echo "$(', ')"'), ('echo "a $(', ') b"'), ('echo "$(true; ', ')"'))),
+                           # HEREDOC-FURO-HOOK: um `<<` que o bash não lê como heredoc (H1-H8) tomava a ação por corpo;
+                           # H9: o corpo de heredoc sem aspas no delimitador expande `$(…)` e crase
+                           *(HEREDOC_FALSO := (("echo '<<X'\n", "\nX"), ('echo "<<X"\n', "\nX"), ("echo \\<<X\n", "\nX"),
+                                               ("ls # <<X\n", "\nX"), ("x=$(date) # <<X\n", "\nX"), ("x=`# <<X`\n", "\nX"),
+                                               ("echo 'a\n<<X'\n", "\nX"), ("echo $((1<<X))\n", "\nX"),
+                                               ("cat <<EOF\n$(", ")\nEOF"), ("cat <<EOF\n`", "`\nEOF"),
+                                               # o corpo já tirado não volta a ser tirado na palavra relida
+                                               ("x=\"$(cat <<'X'\nX\n", "\n)\""))))
 VARIANTES_QUE_O_BASH_IGNORA = (tuple((p, "") for p in PREFIXOS_QUE_O_BASH_IGNORA)
                                + tuple(("", s) for s in SUFIXOS_QUE_O_BASH_IGNORA) + PARES_QUE_O_BASH_IGNORA)
 # T2: uma variante por mecanismo, aplicada a uma fixture de cada família de recusa (o motivo vai ao lado).
-MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("echo $[1 #x]; ", ""),
+MECANISMOS_DO_COMENTARIO = {"${": ("echo ${x:- #b}; ", ""), "crase": ("echo `echo a #b`; ", ""), "$[": ("true || echo $[1 #x]; ", ""),
                             "(true)#'": ("", "; (true)#'"), " # it's ((": ("", " # it's (("),
                             "$'": ("", "; echo $'it\\'s'"), "⏎# it's": ("", "\n# it's"),
-                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1]}
+                            "crase em par": PARES_QUE_O_BASH_IGNORA[0], "crase em par, aspas duplas": PARES_QUE_O_BASH_IGNORA[1],
+                            "aspa na crase": PARES_QUE_O_BASH_IGNORA[4], "dentro de crase": CRASE_EM_VOLTA[0],
+                            "crase entre aspas com texto": CRASE_EM_VOLTA[3], "atribuição com $( entre aspas":
+                            SUBSTITUICAO_ENTRE_ASPAS[0], "$( entre aspas": SUBSTITUICAO_ENTRE_ASPAS[3],
+                            "heredoc entre aspas": HEREDOC_FALSO[0], "heredoc em comentário": HEREDOC_FALSO[3]}
 FAMILIAS_DE_RECUSA = {
     "conformidade/trava-repo-delete-bloqueia": "gh repo delete",
     "conformidade/trava-push-main-bloqueia": "push na main (R-MAIN)",
@@ -131,7 +159,180 @@ FAMILIAS_DE_RECUSA = {
 # develop); o `$'…'` sem `#` não tem leitura antiga, e na crase em par a antiga (a da develop) tira o comando com o
 # comentário que começa na crase.
 FORA_DO_T2 = {("pesado/outra-ativa-bloqueia", "$'"), ("pesado/outra-ativa-bloqueia", "crase em par"),
-              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas")}
+              ("pesado/outra-ativa-bloqueia", "crase em par, aspas duplas"),
+              # CRASE-ASPA-HOOK: a linha com corpo de crase que não se lê é ilegível, e o `pesado` libera a ilegível
+              ("pesado/outra-ativa-bloqueia", "aspa na crase"),
+              # O `pesado` não lê o corpo da crase nem a substituição entre aspas (ADR 0013)
+              ("pesado/outra-ativa-bloqueia", "dentro de crase"), ("pesado/outra-ativa-bloqueia", "crase entre aspas com texto"),
+              ("pesado/outra-ativa-bloqueia", "atribuição com $( entre aspas"), ("pesado/outra-ativa-bloqueia", "$( entre aspas")}
+# FICHAS-CORPUS-BASH (T5): a ação de cada família de recusa, numa linha só, e o hook cuja leitura a confere (o
+# `conformidade` lê todas). Guarda do corpus (`PROIBIDO_NO_ORACULO`): nenhuma palavra começa por `/` (`core.hooksPath h`
+# no lugar de `/tmp/h`).
+ACOES_DO_CORPUS = {
+    "gh repo delete dono/proj --yes": "conformidade",
+    "git push origin main": "conformidade",
+    "git push --no-verify origin feature/x": "conformidade",
+    "rm -rf .githooks": "conformidade",
+    "forge sugerir --fila": "conformidade",
+    "claude plugin install forge@forge": "conformidade",
+    "git config core.hooksPath h": "conformidade",
+    "gh pr merge feature/x --repo rodrigo-isensee/Forge --merge": "parecer",
+    "gh pr create --base develop --title t --body x": "parecer",
+    "docker compose up -d": "pesado",
+}
+# O oráculo roda o bash de verdade (modelo de ameaças do lote, seção 4): com `PATH` numa pasta que não existe, todo
+# comando externo cai em `command_not_found_handle`, que registra o comando expandido no stderr (o stdout é capturado
+# por `$(…)` e pelo corpo de heredoc). O `-r` recusa nome de comando com `/` (mesmo montado), redirecionamento de saída,
+# `exec`, `enable` e mudar `PATH`; o que ele não barra (`kill`, `trap`, `ulimit`, segundo plano...) a guarda recusa no
+# texto, antes de rodar.
+PROLOGO_DO_ORACULO = "command_not_found_handle() { printf 'RODOU %s\\n' \"$*\" >&2; }\n"
+PROIBIDO_NO_ORACULO = re.compile(
+    r"(?:^|[\s;&|()`'\"=<>{}$])\.{0,2}/"  # palavra que começa por / ou ./ (programa por caminho, /dev/tcp, /dev/udp)
+    r"|(?:^|[\s;&|()`'\"{}])(?:kill|trap|ulimit|umask|disown|exec|eval|source|enable|hash|command|builtin|\.)"
+    r"(?=[\s;&|()`'\"]|$)"
+    r"|>|(?<!&)&(?!&)")  # redirecionamento de saída (`>`, `2>`, `&>`) e comando em segundo plano
+
+
+class Ilegivel(Exception):
+    """A composição de teste não lê a linha: o hook a recusa por isso (fora do papel só de leitura)."""
+
+
+def modulos_dos_hooks():
+    if str(HOOKS) not in sys.path:
+        sys.path.insert(0, str(HOOKS))
+    import _comum
+    import conformidade
+    import parecer
+    return _comum, conformidade, parecer
+
+
+def ler_como_o_conformidade(linha, nivel=0, so_substituicoes=False, todas=True):
+    """Composição de teste (desenho do lote, 3.3), sem função nova no hook: o caminho de leitura do `Guarda.bash` e do
+    `segmento`, que devolve (palavras, destinos) de cada comando que o hook confere ou levanta `Ilegivel`. `todas`:
+    False lê só a leitura fiel do nível de fora (a base do T1)."""
+    _comum, conformidade, _ = modulos_dos_hooks()
+    if nivel > conformidade.PROFUNDIDADE:
+        return []  # o hook só dá o R-CONTRIB da linha aninhada que aponta para o Forge, e não lê mais nada
+    try:
+        linha, corpos = _comum.tirar_heredocs(linha)
+    except ValueError:
+        raise Ilegivel(linha) from None
+    linha = re.sub(r"\$\(\s*pwd(\s+-[LP])?\s*\)", "$PWD", linha)
+    lidas = _comum.leituras(linha)
+    if lidas.ilegivel:
+        raise Ilegivel(linha)
+    lidos = []
+    for partes in lidas.partes if todas or nivel else lidas.partes[:1]:
+        for palavras, destinos, sub in partes:
+            if so_substituicoes and not sub:
+                continue
+            lidos.append((palavras, destinos))
+            lidos += ler_dentro_do_comando(palavras, nivel)
+    for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):  # CRASE-SESSAO-PROJETO
+        lidos += ler_como_o_conformidade(corpo, nivel + 1)
+    for dono, corpo in corpos:
+        if re.search(r"\b(bash|sh|zsh|dash)\b", dono):
+            lidos += ler_como_o_conformidade(corpo, nivel + 1)
+    return lidos
+
+
+def ler_dentro_do_comando(palavras, nivel):
+    """O que o `segmento` relê de um comando simples: a palavra com substituição entre aspas e o `bash -c`/`eval`, em cada
+    leitura possível do lançador (`separar_lancadores`: a recusa é a união delas, RET-LEITURA-HOOK-G)."""
+    _, conformidade, _ = modulos_dos_hooks()
+    while palavras and palavras[0] in conformidade.CORPO_DE_LACO:
+        palavras = palavras[1:]
+    atribuicoes = palavras[:len(palavras) - len(conformidade.sem_atribuicoes(palavras))]
+    try:
+        possiveis = conformidade.separar_lancadores(palavras)
+    except ValueError:
+        return []  # texto dividido com aspas abertas, ou palavras demais fora da tabela: o hook só dá o R-CONTRIB para o Forge
+    lidos = []
+    for palavras, lancadas in possiveis:
+        for p in atribuicoes + lancadas + palavras:  # N1: a atribuição também
+            if "`" in p:
+                lidos += ler_como_o_conformidade(p, nivel + 1)
+            elif "$(" in p.replace(conformidade.OPACO["$"], ""):
+                lidos += ler_como_o_conformidade(p, nivel + 1, so_substituicoes=True)
+        prog = Path(palavras[0].lstrip("`")).name if palavras else ""
+        internos = []
+        if prog in conformidade.SHELLS:
+            internos = [palavras[i + 2] for i, a in enumerate(palavras[1:-1]) if re.fullmatch(r"-[a-z]*c[a-z]*", a)]
+        elif prog == "eval":
+            internos = [" ".join(palavras[1:])]
+        for interno in internos:
+            lidos += ler_como_o_conformidade(interno, nivel + 1)
+            if "\\`" in interno:
+                lidos += ler_como_o_conformidade(interno.replace("\\`", "`"), nivel + 1)
+    return lidos
+
+
+def ler_como_o_parecer(linha, nivel=0, so_substituicoes=False):
+    """Composição de teste do `parecer.conferir_linha`: os comandos de cada leitura da linha e, recursivamente, os do
+    corpo de cada crase (P4) e das palavras com `$(…)` entre aspas (N2), ou `Ilegivel`."""
+    _comum, _, _ = modulos_dos_hooks()
+    lidas = _comum.leituras(linha)
+    if lidas.ilegivel or nivel > _comum.PROFUNDIDADE:
+        raise Ilegivel(linha)
+    lidos = [(palavras, destinos) for leitura in lidas.partes for palavras, destinos, sub in leitura
+             if sub or not so_substituicoes]
+    for corpo in _comum.conteudos_de_crase(linha, so_os_fechados=True):
+        lidos += ler_como_o_parecer(corpo, nivel + 1)
+    for p in [p for leitura in lidas.partes for palavras, _, _ in leitura for p in palavras]:
+        if "$(" in p.replace(_comum.OPACO["$"], ""):
+            lidos += ler_como_o_parecer(p, nivel + 1, so_substituicoes=True)
+    return lidos
+
+
+COMPOSICOES = {"conformidade": ler_como_o_conformidade, "parecer": ler_como_o_parecer}
+
+
+def le_a_acao(composicao, variante, acao):
+    """Afirmação 2 do T5: a composição dá ilegível (o hook recusa) ou tem um comando que começa pelas palavras da ação."""
+    try:
+        lidos = composicao(variante)
+    except Ilegivel:
+        return True
+    return any(palavras[:len(acao)] == acao for palavras, _ in lidos)
+
+
+@functools.lru_cache(maxsize=1)
+def bash_do_oraculo():
+    """(caminho absoluto do bash, None) ou (None, motivo): o oráculo precisa do bash 4 ou mais novo
+    (`command_not_found_handle`) e do modo restrito (`-r`)."""
+    caminho = shutil.which("bash")
+    if not caminho:
+        return None, "sem bash no PATH"
+    caminho = os.path.realpath(caminho)
+    r = subprocess.run([caminho, "--norc", "--noprofile", "-r", "-c",
+                        'echo "${BASH_VERSINFO[0]}"; shopt -q restricted_shell && echo restrito'],
+                       capture_output=True, text=True, env={}, stdin=subprocess.DEVNULL, timeout=5)
+    linhas = r.stdout.split()
+    if not linhas or not linhas[0].isdigit() or int(linhas[0]) < 4:
+        return None, f"bash {linhas[:1]} anterior ao 4"
+    if "restrito" not in linhas:
+        return None, "bash sem o modo restrito (-r)"
+    return caminho, None
+
+
+def rodado_pelo_bash(bash, variante):
+    """O que o bash executa da variante, pelo oráculo: os comandos externos, cada um como `nome args` já expandidos.
+    `HOME` e a pasta de trabalho numa pasta temporária nova, ambiente só com `PATH` e `HOME`, stdin vazio, prazo de
+    5 s e o grupo de processos inteiro morto ao terminar."""
+    with tempfile.TemporaryDirectory(prefix="forge-oraculo-") as tmp:
+        env = {"PATH": str(Path(tmp) / "inexistente"), "HOME": tmp}
+        p = subprocess.Popen([bash, "--norc", "--noprofile", "-r", "-c", PROLOGO_DO_ORACULO + variante], cwd=tmp,
+                             env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
+        try:
+            _, erro = p.communicate(timeout=5)
+        finally:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(p.pid, signal.SIGKILL)
+            p.wait()
+    return [linha[len("RODOU "):] for linha in erro.splitlines() if linha.startswith("RODOU ")]
+
+
 # T3: modelos `<construção> #x⏎echo R`. Fora de G, nenhum `#` pode abrir comentário; em G, todo `#` marcado tem de ser
 # comentário também para o bash.
 MODELOS_FORA_DE_G = (
@@ -153,6 +354,7 @@ MODELOS_EM_G = (
     "echo \"it's\" #x\necho R", "git log -1 # don't\necho R",
 )
 _CORPUS = []
+FIXTURE_DE_ORCAMENTO = "crase-aninhada-em-60-pastas-no-verify-bloqueia"  # só o teste de orçamento de tempo a usa
 
 
 def bash_aceita(linha):
@@ -284,29 +486,61 @@ def montar_proc(tmp, proc):
     return pasta
 
 
-def rodar(hook, entrada, cwd, proc=None, extra=None):
+PRAZO_DO_CLAUDE_CODE_S = 10  # `timeout` de hooks/hooks.json: o Claude Code o trata como liberado
+
+
+def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_code=False, producao=False, lento=False):
+    """`como_o_claude_code`: o hook que passa de `PRAZO_DO_CLAUDE_CODE_S` é morto e a ação é liberada (código 0), como
+    o Claude Code faz, e o vigia de prazo é o de produção; sem isso, o teste espera `prazo` s (largo, para a máquina
+    carregada). `producao`: só o vigia de produção. `lento`: o passo lento injetado (`lancador`)."""
     env = ambiente_limpo()
     env.pop("FORGE_GUARDA_ABERTA", None)
     env.pop("FORGE_CARGA_LIVRE", None)
     env.update(extra or {})
     if proc is not None:
         env["FORGE_PROC"] = str(proc)
-    return subprocess.run(lancador(hook), input=json.dumps(entrada), cwd=cwd,
-                          env=env, capture_output=True, text=True, timeout=120)
+    comando = lancador(hook, producao or como_o_claude_code, lento)
+    try:
+        return subprocess.run(comando, input=json.dumps(entrada), cwd=cwd, env=env, capture_output=True,
+                              text=True, timeout=PRAZO_DO_CLAUDE_CODE_S if como_o_claude_code else prazo)
+    except subprocess.TimeoutExpired:
+        if not como_o_claude_code:
+            raise
+        return subprocess.CompletedProcess(comando, 0, "", "")
 
 
 # O git dos hooks tem 5 s (o hook inteiro tem 10 s em hooks.json); com os processos da suíte em paralelo a máquina
 # carregada passa disso e o teste falharia sem o hook ter erro algum. Os testes rodam o hook pelo mesmo script, só com
 # o prazo do git largo: o prazo de produção segue em bin/forge-check e é conferido à parte (test_timeout_de_rede...).
+# O vigia de prazo (3 s, `_comum.PRAZO_DA_DECISAO_S`) segue o mesmo caminho: largo nos testes, de produção só onde o
+# teste mede o prazo (`producao=True`). `lento` injeta num passo da decisão um `sleep` de 60 s, uma vez só (monkeypatch
+# do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
-LANCADOR = ("import runpy, sys; sys.path.insert(0, sys.argv[1]); import _comum; "
-            "_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3]); "
-            "sys.argv = [sys.argv[2]]; runpy.run_path(sys.argv[0], run_name='__main__')")
+PRAZO_DA_DECISAO_NOS_TESTES = 120
+LANCADOR = """
+import runpy, sys, time
+sys.path.insert(0, sys.argv[1])
+import _comum
+_comum.forge_check().GIT_TIMEOUT_S = int(sys.argv[3])
+if sys.argv[4] != "producao":
+    _comum.PRAZO_DA_DECISAO_S = float(sys.argv[4])
+if sys.argv[5] == "lento":
+    campo, chamadas = _comum.Hook.campo, []
+    def lento(self, *chaves):
+        chamadas.append(1)
+        if len(chamadas) == 2:  # a 1.a leitura é a do marcador; a 2.a é a 1.a do hook, depois dele
+            time.sleep(60)
+        return campo(self, *chaves)
+    _comum.Hook.campo = lento
+sys.argv = [sys.argv[2]]
+runpy.run_path(sys.argv[0], run_name="__main__")
+"""
 
 
-def lancador(hook):
+def lancador(hook, producao=False, lento=False):
     """Comando que roda hooks/<hook>.py como o Claude Code o roda, com o prazo do git largo para os testes."""
-    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES)]
+    return [sys.executable, "-c", LANCADOR, str(HOOKS), str(HOOKS / f"{hook}.py"), str(PRAZO_GIT_NOS_TESTES),
+            "producao" if producao else str(PRAZO_DA_DECISAO_NOS_TESTES), "lento" if lento else ""]
 
 
 class Hooks(unittest.TestCase):
@@ -329,10 +563,20 @@ class Hooks(unittest.TestCase):
         verificados = 0
         # Montar e rodar é espera de subprocesso (não segura o GIL); cada fixture tem a sua pasta temporária.
         # As falhas voltam como objeto e viram subTest na thread principal, com o mesmo nome de caso.
+        # O fixture com `executaveis` grava e dá `chmod` num programa que o hook roda: ele é montado antes do pool, na
+        # thread principal, porque o executável gravado enquanto outra thread faz `fork` sai com `ETXTBSY` (o mesmo
+        # defeito do T9b, bug `lote-leitura-hook-1`).
+        montados = {}
+        for nome, f in em_paralelo:
+            if f.dados.get("executaveis"):
+                tmp = self._pasta_temporaria()
+                montados[nome] = (tmp, f.montar(tmp, outro.pid))
         trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
-            futuros = [(nome, pool.submit(self.executar_fixture, f, self._pasta_temporaria(), outro.pid))
-                       for nome, f in em_paralelo]
+            futuros = []
+            for nome, f in em_paralelo:
+                tmp, montado = montados.get(nome, (self._pasta_temporaria(), None))
+                futuros.append((nome, pool.submit(self.executar_fixture, f, tmp, outro.pid, montado)))
             for nome, futuro in futuros:
                 with self.subTest(fixture=nome):
                     verificados += 1
@@ -354,8 +598,9 @@ class Hooks(unittest.TestCase):
     def depende_de_pid_ou_trava(f):
         return f.hook == "pesado" or "{pid_" in json.dumps(f.dados)
 
-    def executar_fixture(self, f, tmp, outro_pid):
-        raiz, entrada = f.montar(tmp, outro_pid)
+    def executar_fixture(self, f, tmp, outro_pid, montado=None):
+        """Monta (ou recebe montado: (raiz, entrada) de `Fixture.montar`) e roda o fixture, conferindo o esperado."""
+        raiz, entrada = montado or f.montar(tmp, outro_pid)
         proc = montar_proc(tmp, f.dados.get("proc"))
         extra = {k: v.replace("{tmp}", str(tmp)) for k, v in f.dados.get("env", {}).items()}
         extra["FORGE_NPROC"] = str((f.dados.get("proc") or {}).get("nproc", 8))
@@ -616,6 +861,45 @@ class Hooks(unittest.TestCase):
         self.rodar_dados(self.dados_da_sessao_do_forge("gh pr edit 70 --add-label afrouxa-regra",
                                                        "#!/bin/sh\nsleep 30\necho outra-pessoa\n", 2))
         self.assertLess(time.monotonic() - inicio, limite - 1, "a decisão sai antes do Claude Code matar o hook")
+
+    def test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento(self):
+        """Segurança A1 do LOTE-LEITURA-HOOK: 60 `cd` e 60 crases aninhadas terminando em push com --no-verify refaziam a
+        conferência 37 630 vezes (10,9 s, acima do timeout do hooks.json, e o Claude Code libera o comando que o hook não
+        decidiu a tempo). O `conformidade` recusa (saída 2) em uma fração do prazo."""
+        limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+                     for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        dados = json.loads((FIXTURES / "conformidade" / f"{FIXTURE_DE_ORCAMENTO}.json")
+                           .read_text(encoding="utf-8"))
+        comando = dados["entrada"]["tool_input"]["command"]
+        self.assertGreaterEqual(comando.count("cd d"), 60, "a linha adversária tem as 60 pastas")
+        self.assertGreaterEqual(comando.count("`echo"), 60, "a linha adversária tem as 60 crases aninhadas")
+        self.assertTrue(comando.endswith("--no-verify origin feature/x`"), "e termina na ação que a base recusava")
+        inicio = time.monotonic()
+        self.rodar_dados(dados)
+        self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+        # A1 do review: o custo de cada conferência cresce com o corpo; 20 `cd` e 19 crases distintas de 5 a 20 KB
+        # (a de 8 KB tem 152 KB e passava de 14 s com o teto só por contagem). A base recusava pela rede da ADR 0011.
+        for pastas, crases, kb in ((20, 19, 5), (20, 19, 8), (15, 25, 20)):
+            corpo = " ".join(f"`echo \\`echo \\\\\\`ls\\\\\\`\\` c{i} {'a' * kb * 1024}`" for i in range(crases))
+            linha = " && ".join(f"cd d{i}" for i in range(pastas)) + f" && {corpo} `git push --no-verify origin feature/x`"
+            with self.subTest(pastas=pastas, crases=crases, kb=kb):
+                self.assertGreater(len(linha), crases * kb * 1024)
+                grande = json.loads(json.dumps(dados))
+                grande["entrada"]["tool_input"]["command"] = linha
+                inicio = time.monotonic()
+                self.rodar_dados(grande)
+                self.assertLess(time.monotonic() - inicio, limite / 2, "a linha grande também sai antes do prazo")
+        # Recomendação do review (volta 3): uma conferência só de 290 mil caracteres levava 4,2 s, perto do timeout com a
+        # máquina carregada; o teto de caracteres fica em cerca de 150 mil, e a linha logo acima dele recusa por ele.
+        _, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual(conformidade.TETO_DE_CARACTERES, 150_000)
+        grande = json.loads(json.dumps(dados))
+        grande["entrada"]["tool_input"]["command"] = ("echo " + "a" * conformidade.TETO_DE_CARACTERES
+                                                      + " && git push --no-verify origin feature/x")
+        grande["esperado"] = {"codigo": 2, "stderr": "linha longa demais"}
+        inicio = time.monotonic()
+        self.rodar_dados(grande)
+        self.assertLess(time.monotonic() - inicio, limite / 2, "a recusa pelo teto sai antes do prazo")
 
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
@@ -1277,22 +1561,218 @@ class Hooks(unittest.TestCase):
                       "x=$(date) # it's\nls", "gh pr merge x; (true)#'",
                       # volta 6: dentro de crase o comentário acaba na crase, e a aspa dele casaria com outra adiante
                       "x=`#'`; gh repo delete dono/proj --yes # '", "echo `# it's`; gh pr merge x --merge; echo `# it's`",
-                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`"):
+                      "echo `true # it's`; gh pr merge x --merge; echo `true # it's`",
+                      # CRASE-ASPA-HOOK: o corpo da crase com aspa sem par, também com uma crase sem par adiante
+                      "x=`'`; gh repo delete d/p --yes; y=`'`", 'x=`"`; gh repo delete d/p --yes; y=`"`',
+                      "x=`$'`; gh repo delete d/p --yes; y=`$'`", "x=`'`; gh pr merge x; y=`'`\n`",
+                      "echo `echo \\`'\\``; gh pr merge x", "x=`date # it's`"):
             with self.subTest(linha=linha):
                 self.assertTrue(_comum.leituras(linha).ilegivel)
-        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim"):
+        for linha in ("x=`date` # nota", "echo `echo a #b`; ls", "echo `# nota`; ls # fim", "x=`date`", 'echo "`it`"',
+                      'git commit -m "fix: `a.py` e `b.py`"', "echo `date +%s`", "`echo", "+%s`"):
             with self.subTest(linha=linha):
                 self.assertFalse(_comum.leituras(linha).ilegivel, "crase com comentário sem aspa: lida inteira")
         lidas = _comum.leituras("docker compose up; (true)#'")
         self.assertTrue(lidas.ilegivel)
         self.assertIn(["docker", "compose", "up"], [p for p, _, _ in lidas.partes[0]], "a antiga fecha e fica")
 
+    def test_heredocs_operador_provado(self):  # HEREDOC-FURO-HOOK
+        """O `tirar_heredocs` só separa o corpo de um `<<` que a varredura prova ser operador; o `<<` em dúvida com linha
+        depois e o corpo que o bash expande (H9) levantam ValueError. Cada linha: o texto e os corpos separados, ou
+        None (ilegível)."""
+        _comum, _, _ = modulos_dos_hooks()
+        L = "gh repo delete d/p --yes"
+        casos = {
+            f"echo '<<X'\n{L}\nX": [],  # H1
+            f"x=$(date) # <<X\n{L}\nX": None,  # H2: `#` que G não prova
+            f"x=`# <<X`\n{L}\nX": None,  # H3: dentro de crase
+            f'echo "<<X"\n{L}\nX': [],  # H4
+            f"echo \\<<X\n{L}\nX": [],  # H5
+            f"ls # <<X\n{L}\nX": [],  # H6: comentário provado
+            f"echo 'a\n<<X'\n{L}\nX": [],  # H7
+            f"echo $((1<<X))\n{L}\nX": None,  # H8
+            f"echo ${{x:-<<X}}\n{L}\nX": None,
+            f"x=$(case a in a) cat <<X;; esac)\n{L}\nX": None,
+            f"cat <<EOF\n$({L})\nEOF": None,  # H9
+            f"cat <<EOF\n`{L}`\nEOF": None,  # H9c
+            f"cat <<'EOF'\n$({L})\nEOF": ["$(" + L + ")"],  # controle negativo: o bash não roda o corpo literal
+            f"cat <<EOF\n\\$(x)\nEOF": ["\\$(x)"],
+            "git commit -F - <<'EOF'\nit's\nEOF": ["it's"],
+            "gh pr create --body \"$(cat <<'EOF'\na \"b\"\nEOF\n)\"": ['a "b"'],
+            "cat <<-'E'\n\tx\n\tE\nls": ["\tx"],
+            "cat <<'A' <<'B'\na\nA\nb\nB\nls": ["a", "b"],
+            "bash <<'X'\ngit push origin main\nX": ["git push origin main"],
+            "cat <<\"E\"OF\nx\nEOF\nls": ["x"],  # delimitador parcialmente entre aspas
+            "cat <<E\\OF\nx\nEOF\nls": ["x"],
+            "cat <<<x\nls": [],
+            "echo $((1<<2))": [],  # dúvida sem linha depois: nada a esconder
+            "cat <<'X'\nsem fim": ["sem fim"],
+            f"cat <<EOF\n\\\\$({L})\nEOF": None,  # R1: `\\\\$(` é uma barra e um `$(` vivo
+            f"cat <<EOF\n$\\\n({L})\nEOF": None,  # R1: `$\\` + quebra junta as linhas
+            f"cat <<EOF\n\\\\`{L}`\nEOF": None,  # R1: a crase depois de uma barra escapada
+            "cat <<EOF\n\\\\\\$(x)\nEOF": ["\\\\\\$(x)"],  # três barras: uma barra e `\\$` escapado
+            f"cat <<X\n X\ncat <<Y\nX\n{L}\nY": [" X\ncat <<Y"],  # R2: ` X` não fecha; o `<<Y` é corpo
+            f"cat <<X\nX \ncat <<Y\nX\n{L}\nY": ["X \ncat <<Y"],
+            f"cat <<-X\n  X\ncat <<Y\nX\n{L}\nY": ["  X\ncat <<Y"],  # `<<-` só tira tab
+            "cat <<-X\n\tcorpo\n\tX\nls": ["\tcorpo"],
+            f"cat <<X\na\\\nX\ncat <<Y\nX\n{L}\nY": ["a\\\nX\ncat <<Y"],  # A2: `a\\` + `X` é `aX`, não fecha
+            "cat <<X\n\\\nX\nls": [""],  # `\\` + `X` é `X`, e fecha
+            "cat <<X\na\\\\\nX\nls": ["a\\\\"],  # `a\\\\`: barra escapada, sem continuação
+            "cat <<'X'\na\\\nX\nls": ["a\\"],  # delimitador entre aspas: o bash não junta
+            "cat <<-X\n\ta\\\n\tX\nX\nls": ["\ta\\\n\tX"],  # com `<<-`, a linha juntada mantém a tab
+        }
+        for linha, esperado in casos.items():
+            with self.subTest(linha=linha):
+                if esperado is None:
+                    with self.assertRaises(ValueError):
+                        _comum.tirar_heredocs(linha)
+                    continue
+                resto, corpos = _comum.tirar_heredocs(linha)
+                self.assertEqual([corpo for _, corpo in corpos], esperado)
+                self.assertNotIn("<<'", resto, "o operador sai com o corpo")
+        resto, [(dono, corpo)] = _comum.tirar_heredocs("bash <<'X'\ngit push origin main\nX\nls")
+        self.assertEqual((resto.split(), corpo), (["bash", "ls"], "git push origin main"))
+        # M2 da volta única: o dono soma os programas do texto fora da lista dos outros (o `ls` da linha seguinte)
+        self.assertEqual(set(dono.split()), {"bash", "ls"})
+
+    def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
+        """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
+        (shell, `source`, `.`, `eval`, laço, lançador, alias de `git -c`) faz dele comando."""
+        _comum, _, _ = modulos_dos_hooks()
+        lidos = ("cat <<'EOF'", "x=$(cat <<'EOF'", "gh pr create --draft --body \"$(cat <<'EOF'",
+                 "gh pr create --draft --body-file - <<'EOF'", "git commit -F - <<'EOF'", "git -C d commit -F - <<EOF",
+                 "cat <<'EOF' > x 2>&1", "cat <<EOF | tee x", "gh issue create -F - <<EOF")
+        executados = ("bash <<'EOF'", "source /dev/stdin <<'EOF'", ". /dev/stdin <<'EOF'", "ksh <<'EOF'",
+                      "eval \"$(cat <<'EOF'", "cat <<'EOF' | sh", "done <<'EOF'", "sudo tee x <<'EOF'",
+                      "git -c alias.x=!sh x <<'EOF'", "gh x <<'EOF'", "/bin/cat <<'EOF'", "xargs -0 <<'EOF'",
+                      "python3 - <<'EOF'", "sort -S 1k --compress-program=sh <<'EOF'",
+                      # M4 da volta única: a atribuição antes do dono muda o programa ou o que ele roda
+                      "GH_REPO=a/b gh issue create -F - <<EOF", "PATH=/tmp/x cat <<'EOF'")
+        for dono in lidos:
+            with self.subTest(dono=dono):
+                self.assertTrue(_comum.corpo_so_lido(dono))
+        for dono in minimo(executados, 10, "donos que rodam o corpo"):
+            with self.subTest(dono=dono):
+                self.assertFalse(_comum.corpo_so_lido(dono))
+        self.assertTrue(_comum.corpo_so_lido("python3 - <<'EOF'", lambda p: p == "python3"), "o `tambem` de quem chama")
+        # A1 de segurança, volta 3: o dono é o comando lógico do operador (`comando_logico`), não só a linha física
+        # dele; quem roda o corpo pode vir antes, por barra, ou depois do fim, por pipe ou barra.
+        L = "gh pr merge feature/x --merge"
+        noutra_linha = {f"cat <<'EOF' |\n{L}\nEOF\nbash": "bash", f"bash \\\n<<'EOF'\n{L}\nEOF": "bash",
+                        f"while read -r l; do eval \"$l\"; done \\\n<<'EOF'\n{L}\nEOF": "eval",
+                        f"cat <<'EOF' | \\\nbash\n{L}\nEOF": "bash", f"cat <<'EOF' &&\n{L}\nEOF\nbash": "bash",
+                        f"eval \"$(\ncat <<'EOF'\n{L}\nEOF\n)\"": "eval", f"eval $(echo; cat <<'EOF'\n{L}\nEOF\n)": "eval",
+                        f"( source /dev/stdin ) <<'EOF'\n{L}\nEOF": "source", f"cat <<'EOF' | {{ read; bash; }}\n{L}\nEOF": "bash",
+                        f"cat > x.sh <<'EOF' && bash x.sh\n{L}\nEOF": "bash",  # como na develop: `bash` no comando lógico
+                        f"read -r x <<'EOF' && eval \"$x\"\n{L}\nEOF": "eval",
+                        # A1 de segurança, volta 4: outro comando da lista fora da lista positiva roda o arquivo gravado
+                        f"cat > x.sh <<'EOF' && chmod +x x.sh && ./x.sh\n{L}\nEOF": "./x.sh",
+                        f"cat > x.sh <<'EOF'; ./x.sh\n{L}\nEOF": "./x.sh", f"cat > x.sh <<'EOF' || ./x.sh\n{L}\nEOF": "./x.sh",
+                        f"cat > Makefile <<'EOF' && make\n{L}\nEOF": "make", f"cat > x.sh <<'EOF' &&\n{L}\nEOF\n./x.sh": "./x.sh",
+                        f"cat > x.sh <<'EOF' && git -c alias.x='!sh x.sh' x\n{L}\nEOF": "git",
+                        # A2 de segurança, volta 4: a linha que fecha a substituição aberta no operador é o mesmo comando
+                        f"x=$(cat <<'EOF'\n{L}\nEOF\n); eval \"$x\"": "eval", f"x=$(cat <<'EOF'\n{L}\nEOF\n) && $x": "$x",
+                        f"x=$(cat <<'EOF' # )\n{L}\nEOF\n); eval \"$x\"": "eval",
+                        f"x=$(cat <<'EOF'; : \")\"\n{L}\nEOF\n); eval \"$x\"": "eval",
+                        # A1 de segurança, volta 5: opção fora da lista fechada, abreviada, global, ou
+                        # atribuição antes, no comando ou num `export` de outro comando do texto
+                        f"x=$(cat <<'EOF'\n{L}\nEOF\n) && git push --receive-pack=\"$x\" . HEAD": "git",
+                        f"cat > x.sh <<'EOF' && git push --rec='sh x.sh' . HEAD\n{L}\nEOF": "git",
+                        f"cat > x.sh <<'EOF' && git --config-env=core.sshCommand=X push ssh://h/r\n{L}\nEOF": "git",
+                        f"cat > .gitconfig <<'EOF' && HOME=. git status\n{L}\nEOF": "git",
+                        f"cat > x.sh <<'EOF' && GIT_SSH=sh git push ssh://x.sh/r HEAD\n{L}\nEOF": "git",
+                        f"export GIT_SSH=sh\ncat > x.sh <<'EOF' && git push ssh://x.sh/r HEAD\n{L}\nEOF": "git",
+                        # A2 do review, volta 5: a linha grava arquivo e o git roda ganchos, filtros e configuração
+                        f"cat > .husky/pre-push <<'EOF' && git push origin feature/x\n{L}\nEOF": "git",
+                        f"cat > .husky/pre-commit <<'EOF' && git commit -m x\n{L}\nEOF": "git",
+                        f"cat >> .husky/pre-commit <<'EOF' && git add -A\n{L}\nEOF": "git",
+                        f"tee .husky/pre-push <<'EOF' && git push origin feature/x\n{L}\nEOF": "git",
+                        f"git apply <<'EOF' && git commit -m x\n{L}\nEOF": "git",
+                        f"( cat > .husky/pre-commit <<'EOF' ) && git commit -m x\n{L}\nEOF": "git",
+                        # M2 da volta única: o programa de outra linha do texto pode rodar o arquivo gravado
+                        f"cat > f <<'EOF'\n{L}\nEOF\nbash f": "bash", f"cat <<'EOF'\n{L}\nEOF\nbash": "bash",
+                        f"cat <<'EOF' \\\\\n{L}\nEOF\nsh": "sh",
+                        # M5 da volta única: `echo` redefinido no texto não é o builtin da lista dos outros
+                        f"echo() {{ ./x.sh; }}\ncat > x.sh <<'EOF'\n{L}\nEOF\necho": "./x.sh",
+                        f"alias echo=./x.sh\ncat > x.sh <<'EOF'\n{L}\nEOF\necho": "alias"}
+        for linha in minimo(list(noutra_linha), 38, "formas em que o corpo vai a quem o roda"):
+            programa = noutra_linha[linha]
+            with self.subTest(linha=linha):
+                [(dono, corpo)] = _comum.tirar_heredocs(linha)[1]
+                self.assertEqual(corpo, L)
+                self.assertIn(programa, dono)
+                self.assertFalse(_comum.corpo_so_lido(dono))
+        separados = (f"git add x && git commit -m \"$(cat <<'EOF'\n{L} it's\nEOF\n)\" && git push origin feature/x",
+                     f"git add -A && git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && git push -u origin feature/x",
+                     f"cd sub && cat > n.md <<'EOF'\n{L}\nEOF", f"mkdir -p d && cd d && x=$(cat <<'EOF'\n{L}\nEOF\n)",
+                     f"cat <<'EOF' 2>/dev/null && git push -u origin feature/x\n{L}\nEOF",
+                     f"cat <<'EOF' 2>&1 && git status --short\n{L}\nEOF",
+                     f"git commit -m \"$(cat <<'EOF'\n{L}\nEOF\n)\" && echo feito", f"true && cat <<'EOF'\n{L}\nEOF")
+        for linha in separados:  # outro comando da lista não lê o corpo (A1 do review: o comum dos projetos)
+            with self.subTest(linha=linha):
+                self.assertTrue(_comum.corpo_so_lido(_comum.tirar_heredocs(linha)[1][0][0]))
+
+    def test_comando_logico_le_os_limites_uma_vez_por_texto(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """O `comando_logico` de cada um dos 2000 heredocs de um texto sai em tempo linear: os limites dos comandos
+        lógicos são lidos uma vez por texto, e não do começo a cada operador (26,9 s com 3000 heredocs no conformidade,
+        acima do timeout de 10 s em que o Claude Code libera a linha)."""
+        _comum, _, _ = modulos_dos_hooks()
+        linhas = [f"cat > f{i} <<'EOF'" for i in range(2000)]
+        texto = "\n".join(linhas)
+        posicoes = [texto.index(linha) for linha in linhas]
+        inicio = time.perf_counter()
+        logicos = [_comum.comando_logico(texto, p) for p in posicoes]
+        self.assertLess(time.perf_counter() - inicio, 1.0, "2000 comandos lógicos do mesmo texto")
+        self.assertEqual(logicos, linhas)
+        self.assertEqual(_comum.comando_logico("a &&\nb\nc", 5), "a &&\nb")
+
+    def test_tirar_heredocs_em_tempo_linear(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """Com 2000 heredocs, um por linha, num pipeline, ligados por `&&` ou na mesma linha, `tirar_heredocs` e a
+        conferência de cada dono (`corpo_so_lido`) saem dentro do orçamento de 3 s do `conformidade`: o dono de cada
+        heredoc sai de índices das leituras (`pipeline_do_operador`) e de limites dos comandos lógicos lidos uma vez por
+        texto, e heredocs do mesmo dono o dividem (antes, 12,4 s um por linha e 30 s no pipeline e com `&&`)."""
+        _comum, _, _ = modulos_dos_hooks()
+        n = 2000
+        formas = {"um por linha": "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
+                  "pipeline": "".join(f"cat <<'E{i}' |\nx\nE{i}\n" for i in range(n)) + "cat\n",
+                  "&&": " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n)),
+                  "mesma linha": "cat " + " ".join(f"<<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n))}
+        for forma, texto in formas.items():
+            with self.subTest(forma=forma):
+                inicio = time.perf_counter()
+                resto, corpos = _comum.tirar_heredocs(texto + "git push origin main")
+                lidos = [_comum.corpo_so_lido(dono) for dono, _ in corpos]
+                self.assertLess(time.perf_counter() - inicio, 3.0, f"{n} heredocs")
+                self.assertEqual(len(corpos), n)
+                self.assertTrue(resto.endswith("git push origin main"))
+                # M2 da volta única: com o texto gravando (`cat > f`), o `git` do texto faz de todo corpo comando
+                self.assertEqual(set(lidos), {forma in ("pipeline", "mesma linha")})
+
+    def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
+        """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
+        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo)."""
+        limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
+                     for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
+        dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
+                           .read_text(encoding="utf-8"))
+        n = 3000
+        for forma, texto in (("um por linha", "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n))),
+                             ("&&", " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n"
+                              + "".join(f"x\nE{i}\n" for i in range(n)))):
+            with self.subTest(forma=forma):
+                caso = json.loads(json.dumps(dados))
+                caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                inicio = time.monotonic()
+                self.rodar_dados(caso)
+                self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""
         if not _CORPUS:
             todas = [f for f in self.fixtures if f.hook in ("conformidade", "parecer", "pesado")
-                     and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"]
+                     and f.dados["esperado"].get("codigo") == 2 and f.dados["entrada"].get("tool_name") == "Bash"
+                     and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
             self.assertLessEqual(len(fora), 8, fora)
@@ -1302,25 +1782,33 @@ class Hooks(unittest.TestCase):
     def test_t1_variantes_que_o_bash_ignora_nao_tiram_comando_da_leitura(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T1, inclusão no leitor: com qualquer variante que o bash ignora, todo comando da leitura fiel da linha continua
         lido (as palavras dele no começo de um comando da variante, os destinos entre os dela), ou a variante é ilegível
-        (e quem confere recusa). Chamadas diretas, sem subprocesso."""
-        sys.path.insert(0, str(HOOKS))
-        import _comum
+        (e quem confere recusa). Pela composição de teste do `conformidade` (heredoc, palavras relidas, `bash -c`), sem
+        subprocesso."""
+        _comum, _, _ = modulos_dos_hooks()
 
-        def fiel(linha):
-            lidas = _comum.leituras(linha)
-            return None if lidas.ilegivel else lidas.partes[0]
+        def lidos(linha, todas=True):
+            try:
+                return ler_como_o_conformidade(linha, todas=todas)
+            except Ilegivel:
+                return None
 
         lidas = 0
         for linha in self.corpus_de_recusas():
-            base = fiel(linha) or []
+            base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
+                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)):
+                    # O hook relê a palavra que o `shlex` já tirou das aspas: a aspa dupla da linha fecha a de fora, e o
+                    # `)` de um padrão de `case` fecha o `$(` (achado do lote, cartão próprio; o T5 cobre as ações)
+                    continue
+                if "`" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
+                    continue  # crase não se aninha sem `\``: em volta de outra, a variante muda o que o bash roda
                 variante = prefixo + linha + sufixo
-                outra = fiel(variante)
+                outra = lidos(variante)
                 lidas += 1
                 if outra is None:
                     continue
-                for palavras, destinos, _ in base:
-                    achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d, _ in outra)
+                for palavras, destinos in base:
+                    achou = any(p[:len(palavras)] == palavras and set(destinos) <= set(d) for p, d in outra)
                     if not achou:
                         self.fail(f"{variante!r}: some {palavras} {destinos}")
         self.assertGreaterEqual(lidas, 500 * len(VARIANTES_QUE_O_BASH_IGNORA))
@@ -1392,6 +1880,60 @@ class Hooks(unittest.TestCase):
         # O alvo do teste de ausência ainda existe: as duas chamadas permitidas estão lá.
         self.assertIn(("_comum.py", "leituras", "comandos"), achadas)
         self.assertIn(("_comum.py", "comandos", "fichas"), achadas)
+
+    def test_t5_guarda_do_corpus_do_oraculo(self):  # FICHAS-CORPUS-BASH (modelo de ameaças do lote, 4.2 e 4.3)
+        """Antes do T5: nenhuma ação nem variante tem o que o oráculo não pode rodar, e a guarda pega cada forma proibida."""
+        proibidas = ("kill -9 -1", "trap 'x' EXIT", "ulimit -n 1", "umask 0", "ls; disown", "exec ls", "eval ls",
+                     "source x", ". x", "enable -n echo", "hash -p x ls", "command -p ls", "builtin cd", "/bin/true",
+                     "./x", "x=/bin/true; $x", "cat </dev/tcp/h/80", "echo a > f", "ls 2>e", "ls &>e", "sleep 1 &",
+                     "echo `kill 1`", "(exec ls)")
+        for linha in proibidas:
+            with self.subTest(proibida=linha):
+                self.assertTrue(PROIBIDO_NO_ORACULO.search(linha), linha)
+        for linha in ("rm -rf .githooks", "gh pr merge a --repo dono/proj", "true && ls || ls", "echo a.b"):
+            with self.subTest(permitida=linha):
+                self.assertIsNone(PROIBIDO_NO_ORACULO.search(linha))
+        for acao in ACOES_DO_CORPUS:
+            for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
+                with self.subTest(variante=prefixo + acao + sufixo):
+                    self.assertIsNone(PROIBIDO_NO_ORACULO.search(prefixo + acao + sufixo))
+        # ADR 0013: o que prova início de palavra está contido no que gera dúvida (a "constante única" do cartão)
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertLessEqual(_comum.SEPARADORES_DE_G, _comum.ANTES_DE_CANDIDATO)
+
+    def test_t5_o_que_o_bash_roda_esta_no_que_o_hook_le(self):  # FICHAS-CORPUS-BASH
+        """T5, oráculo do bash: para cada ação do corpus e cada variante, (1) o bash roda a ação, com todas as palavras
+        (senão a variante está errada); (2) a composição de teste do `conformidade`, e a do `parecer` para as ações
+        dele, dá ilegível ou lê a ação. É a leitura que conta, não a saída do hook: a recusa pela rede da ADR 0011
+        (`construcao_nao_modelada`, só com marcador crítico) não prova que a ação foi lida. O `pesado` não lê a crase
+        (ADR 0013, tabela 2.4) e fica de fora da afirmação 2."""
+        bash, motivo = bash_do_oraculo()
+        if bash is None:
+            if os.environ.get("CI"):
+                self.fail(f"o CI tem bash 5: {motivo}")
+            self.skipTest(motivo)
+        # Controles do oráculo: registra o comando externo, também dentro de `$(…)`, e não o corpo literal de heredoc.
+        self.assertEqual(rodado_pelo_bash(bash, "x=$(gh a 'b c')"), ["gh a b c"])
+        self.assertEqual(rodado_pelo_bash(bash, "cat <<'EOF'\n$(gh a)\nEOF"), ["cat"])
+        casos = [(acao, prefixo + acao + sufixo) for acao in ACOES_DO_CORPUS
+                 for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA]
+        for _, variante in casos:
+            self.assertIsNone(PROIBIDO_NO_ORACULO.search(variante), variante)
+        inicio = time.monotonic()
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+            rodados = list(pool.map(lambda caso: rodado_pelo_bash(bash, caso[1]), casos))
+        duracao = time.monotonic() - inicio
+        for (acao, variante), rodou in zip(casos, rodados):
+            palavras = shlex.split(acao)
+            with self.subTest(variante=variante):
+                self.assertIn(" ".join(palavras), rodou, "o bash não roda a ação: a variante não serve ao corpus")
+                hooks = ["conformidade"] + ([ACOES_DO_CORPUS[acao]] if ACOES_DO_CORPUS[acao] == "parecer" else [])
+                for hook in hooks:
+                    self.assertTrue(le_a_acao(COMPOSICOES[hook], variante, palavras),
+                                    f"o bash roda {acao!r} e a leitura do {hook} não a vê")
+        self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
+        self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
+
 
 
 if __name__ == "__main__":

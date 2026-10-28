@@ -282,6 +282,41 @@ class Agentes(unittest.TestCase):
         self.assertIn("stacks/<stack>/agents/", tabela)
 
 
+class PrePushSoOsAfetados(unittest.TestCase):
+    """M8 (decisão do dono, 2026-10-24): os textos não dizem mais que o pre-push roda a suíte inteira."""
+
+    def test_readme_e_tech_lead_dizem_so_os_afetados(self):
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        self.assertNotIn("o `pre-push` e o CI rodam a suíte inteira", readme)
+        self.assertIn("só os testes afetados", readme)
+        lider = (RAIZ / "agents" / "tech-lead.md").read_text(encoding="utf-8")
+        self.assertNotIn("a suíte completa roda uma vez, no push", lider)
+        self.assertIn("a suíte completa fica no CI do PR", lider)
+
+    def test_readme_cita_os_casos_da_suite_inteira_e_o_caminho_so_de_parecer(self):  # COMENTARIOS-PREPUSH
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
+        for esperado in ("sem tocar `bin/forge-testes`, `tests/config.json` ou `.githooks/`", "só acrescenta pareceres", "docs/reviews/"):
+            with self.subTest(esperado=esperado):
+                self.assertIn(esperado, trecho)
+
+    def test_readme_so_diz_afetados_para_o_envio_simples_e_o_resto_e_suite_inteira(self):  # COMENTARIOS-PREPUSH, review A1/A5
+        readme = (RAIZ / "README.md").read_text(encoding="utf-8")
+        trecho = readme.split("**Suíte do Forge:**", 1)[1].split("\n", 1)[0]
+        frases = re.split(r"\.\s+(?=[A-ZÀ-Ú])", trecho)
+        com_afetados = [f for f in frases if "só os testes afetados" in f]
+        self.assertTrue(com_afetados)
+        for f in com_afetados:
+            for cond in ("uma só ref", "árvore limpa", "HEAD igual ao commit enviado", "`origin/develop`"):
+                with self.subTest(cond=cond):
+                    self.assertIn(cond, f)
+        self.assertIn("Qualquer outro envio roda a suíte inteira", trecho)
+        for proibido in ("árvore suja", "mais de uma ref", "HEAD diferente", "segue a regra acima"):
+            with self.subTest(proibido=proibido):
+                self.assertNotIn(proibido, trecho)
+        self.assertIn("`.githooks/pre-push` (`so_parecer` e `dirigido`)", trecho)
+
+
 class Skills(unittest.TestCase):
     def test_frontmatter_valido(self):
         for p in skills_do_plugin():
@@ -1006,6 +1041,41 @@ class SandboxDoBash(unittest.TestCase):
         versionados_ignorados = subprocess.run(
             ["git", "ls-files", "-ci", "--exclude-standard"], cwd=RAIZ, capture_output=True, text=True, check=True).stdout
         self.assertEqual(versionados_ignorados.strip(), "", "o .gitignore casa com arquivo versionado")
+
+
+VALIDAR_SCRIPT = RAIZ / "scripts" / "validar-plugin.sh"
+# claude falso: imprime a saída de $SAIDA e sai com $RC (uma vez por chamada, a raiz e o dev/)
+CLAUDE_FALSO = '#!/usr/bin/env bash\ncat "$SAIDA"\nexit "${RC:-0}"\n'
+AVISO = "✘ Found 1 problem the plugin directory refuses a submission for:\n\n  README missing (README_MISSING)\n\n✔ Validation passed\n"
+
+
+class ValidarPluginAviso(unittest.TestCase):
+    """VALIDAR-AVISO-X: o aviso do perfil directory não parece falha quando a validação passa."""
+
+    def rodar(self, saida, rc):
+        with tempfile.TemporaryDirectory() as t:
+            t = Path(t)
+            (t / "bin").mkdir()
+            falso = t / "bin" / "claude"
+            falso.write_text(CLAUDE_FALSO)
+            falso.chmod(0o755)
+            (t / "saida").write_text(saida, encoding="utf-8")
+            env = dict(os.environ, PATH=f"{t / 'bin'}:{os.environ['PATH']}", SAIDA=str(t / "saida"), RC=str(rc), TMPDIR=str(t))
+            return subprocess.run(["bash", str(VALIDAR_SCRIPT)], cwd=RAIZ, env=env, capture_output=True, text=True, timeout=120)
+
+    def test_aviso_do_perfil_directory_com_validacao_passando_nao_sai_como_x(self):
+        r = self.rodar(AVISO, 0)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertNotIn("✘", r.stdout + r.stderr)
+        self.assertIn("aviso do perfil directory", r.stdout)
+        self.assertIn("README_MISSING", r.stdout)  # o texto do validador segue inteiro
+        self.assertIn("✔ Validation passed", r.stdout)
+
+    def test_validacao_que_falha_mantem_o_x_e_o_codigo(self):
+        r = self.rodar("✘ Validation failed\n  erro real\n", 1)
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("✘ Validation failed", r.stdout + r.stderr)
+        self.assertNotIn("aviso do perfil directory", r.stdout + r.stderr)
 
 
 class JarvisForgeVigente(unittest.TestCase):
@@ -4224,7 +4294,7 @@ class EtapaDeSegurancaNaEntrega(RepoDeSeguranca):
                 self.assertIn('escopo: confira "docs/security/aceites/p1.md" +5 -0', saida)
                 self.assertNotIn('parecer de seguranca) "docs/security/aceites', saida)
 
-    def test_desde_vale_na_seguranca_e_continua_recusado_no_pr(self):  # abuso 15
+    def test_desde_vale_na_seguranca_e_no_pr(self):  # abuso 15
         c1 = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         (self.repo / "b.txt").write_text("2\n", encoding="utf-8")
         git("add", "-A", cwd=self.repo)
@@ -4234,9 +4304,9 @@ class EtapaDeSegurancaNaEntrega(RepoDeSeguranca):
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"intervalo: {c1}..", saida)
         self.assertNotIn("escopo: --desde", saida)
-        rc, saida, _ = self.entrega("pr", "--desde", c1)
-        self.assertEqual(rc, 1, saida)
-        self.assertIn("escopo: --desde fora da etapa", saida)
+        rc, saida, _ = self.entrega("pr", "--desde", c1)  # C1: vale também no pr
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"intervalo: {c1}..", saida)
 
     def test_gerar_aceita_a_etapa_seguranca(self):
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--etapa", "seguranca", raiz=self.repo, home=self.tmp / "home")
@@ -4887,4 +4957,4 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
 
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
-        self.assertIn("1 processo, pela fila; a suíte completa roda uma vez, no push", self.texto)
+        self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)

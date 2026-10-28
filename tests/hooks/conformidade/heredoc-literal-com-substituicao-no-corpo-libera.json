@@ -1,0 +1,29 @@
+{
+  "descricao": "HEREDOC-FURO-HOOK, excesso: com o delimitador entre aspas o bash não roda o $(…) do corpo, que continua liberando.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat <<'EOF'\n$(gh repo delete dono/proj --yes)\nEOF"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

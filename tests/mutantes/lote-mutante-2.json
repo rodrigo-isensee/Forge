@@ -1,0 +1,47 @@
+{
+  "pedido": "lote-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "parte do id de teste precisa estar na NFKC",
+      "arquivo": "bin/forge-mutante",
+      "de": "p.isidentifier() and unicodedata.normalize(\"NFKC\", p) == p",
+      "para": "p.isidentifier()",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "id de teste que nao e texto e recusado como spec invalida",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if not isinstance(teste, str):\n        return False",
+      "para": "    if False:\n        return False",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_spec_com_testes_que_nao_sao_texto_sai_2_como_spec_invalida",
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem executor em qualquer spec do conjunto exige tests/test_*.py",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(\"executor\"",
+      "para": "if all(\"executor\"",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_sem_executor_e_sem_testes_unittest_sai_2_em_qualquer_spec_do_conjunto"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "sem executor e sem testes unittest sai 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if any(\"executor\" not in dados for _, dados in specs) and",
+      "para": "if False and any(\"executor\" not in dados for _, dados in specs) and",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_sem_executor_e_sem_testes_unittest_sai_2_em_qualquer_spec_do_conjunto"
+      ]
+    }
+  ]
+}

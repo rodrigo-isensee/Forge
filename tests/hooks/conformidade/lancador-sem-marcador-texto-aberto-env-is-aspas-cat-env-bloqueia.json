@@ -1,0 +1,19 @@
+{
+  "descricao": "Sem o marcador crítico, com mais de uma leitura do lançador (uma palavra fora da tabela) e um texto dividido que não fecha aspas, o comando recusa, qualquer que seja o resto (RET-LEITURA-HOOK-H, opção B da proposta caminho-rev14): env -iS'\"' cat .env.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -iS'\"' cat .env"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "texto dividido que não fecha aspas"
+  }
+}

@@ -9,6 +9,7 @@ import os
 import pty
 import select
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -157,8 +158,11 @@ class Base(unittest.TestCase):
             return r.returncode, r.stdout + r.stderr
         mestre, escravo = pty.openpty()
         os.write(mestre, "".join(r + "\n" for r in respostas).encode())
+        # No terminal o Ctrl-C chega ao processo: o SIGINT volta ao padrão mesmo quando quem roda a suíte o ignora (o pre-push a
+        # roda em segundo plano, com `&`, e o bash deixa o SIGINT ignorado para ela e para os filhos dela; FLAKY-CTRLC-TROCA).
         p = subprocess.Popen([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, stdin=escravo,
-                             stdout=escravo, stderr=escravo, close_fds=True)
+                             stdout=escravo, stderr=escravo, close_fds=True,
+                             preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         os.close(escravo)
         saida, fim = b"", time.time() + limite
         ultima_saida = time.time()
@@ -1059,6 +1063,15 @@ class CtrlCNaTroca(Base):
         self.assertEqual(codigo, 1, saida)
         self.assertNotIn("9.9.0", saida)
         self.assertIn("ponto de retorno", saida)
+
+    def test_o_ctrl_c_na_troca_vale_mesmo_com_a_suite_rodando_com_o_sigint_ignorado(self):
+        """FLAKY-CTRLC-TROCA: o pre-push roda a suíte com `&`, e o SIGINT chega ignorado; o teste do Ctrl-C não pode depender disso."""
+        alvo = "tests.test_atualizar.CtrlCNaTroca.test_ctrl_c_na_troca_nao_deixa_ponto_nem_marca_e_o_voltar_nao_fala_de_versao_nunca_instalada"
+        r = subprocess.run([sys.executable, "-c", "import signal, sys, unittest\nsignal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+                            "sys.exit(unittest.main(module=None, argv=['x', sys.argv[1]]))", alvo],
+                           cwd=RAIZ, capture_output=True, text=True, timeout=180)
+        self.assertEqual(r.returncode, 0, r.stderr[-2000:])
+        self.assertIn("Ran 1 test", r.stderr)
 
     def test_o_claude_roda_numa_sessao_propria_para_nao_receber_o_sigint_do_terminal(self):
         r = subprocess.run([sys.executable, "-c", "import sys, os; sys.path.insert(0, sys.argv[1]); import forge_versoes as v\n"

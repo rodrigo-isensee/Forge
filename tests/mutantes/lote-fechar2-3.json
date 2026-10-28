@@ -1,0 +1,27 @@
+{
+  "pedido": "lote-fechar2-3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "2b: contagem de commits da base que falha para, nao segue com a contagem vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 2b: não consegui contar os commits da base\"",
+      "para": "|| :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_contagem_de_commits_da_base_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "2b: a lista de pontos de partida guarda todos os merge-base, nao so o primeiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "mapfile -t lista_mb <<< \"$mbs\"",
+      "para": "mapfile -t lista_mb <<< \"${mbs%%$'\\n'*}\"",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois",
+        "tests.test_fechar_base_andou.Teste.test_varios_pontos_de_partida_entram_todos_na_contagem_da_base"
+      ]
+    }
+  ]
+}

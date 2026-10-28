@@ -233,9 +233,47 @@ so_parecer() {
   done <<< "$delta"
   return 0
 }
+# EST-M8 (decisão do dono, 2026-10-23: A): o push de código roda só os testes afetados pelo mapa do `bin/forge-testes`;
+# a suíte completa fica no CI do PR (a bateria completa roda lá). Os bloqueios de conteúdo (main, homolog, develop,
+# não fast-forward) já valeram acima, antes de qualquer teste. Falha fechada: tudo o que não for um envio simples de
+# uma branch com a ferramenta e a base presentes, o plano dirigido e a árvore limpa roda a suíte inteira, como antes.
+# O dirigido vale só para `refs/heads/melhoria/*` (decisão do dono); outra branch roda a suíte inteira. O Python do plano e da
+# execução roda com `-I` (sem o diretório do script no sys.path nem PYTHON*): um `bin/json.py` da branch não decide o plano.
+# O plano vem do `--listar` (primeira linha "forge-testes: dirigido (...)"); qualquer outra saída ou erro = suíte inteira.
+# A prova de árvore verde (`so_parecer`) vale "a suíte inteira passou": só a suíte inteira anota a prova, e o caminho
+# `so_parecer` a repete porque a árvore remota que ele confere já estava verde (herança da suíte inteira, não prova nova).
+# A base é `refs/remotes/origin/develop`, resolvida uma vez só para um sha: plano e execução leem a mesma base, e a ref
+# curta `origin/develop` poderia ser uma branch local de mesmo nome.
+completa=1
+base_dev=""
+dirigido() {
+  local plano ancora
+  [ "$n_refs" -eq 1 ] || return 1
+  case "$unico_ref" in refs/heads/melhoria/*) ;; *) return 1 ;; esac
+  case "$unico_local" in ''|*[!0-9a-f]*) return 1 ;; esac
+  case "$unico_local" in *[!0]*) ;; *) return 1 ;; esac
+  [ -f bin/forge-testes ] && [ ! -L bin/forge-testes ] || return 1
+  [ "$(git rev-parse HEAD 2>/dev/null)" = "$unico_local" ] || return 1
+  [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] || return 1
+  # Redundante com o plano, que falha fechado: sem a base o `--listar` cai na suíte inteira e este caso devolve 1 do mesmo jeito.
+  base_dev="$(git rev-parse --verify -q 'refs/remotes/origin/develop^{commit}' 2>/dev/null)" || return 1
+  [ -n "$base_dev" ] || return 1
+  # O plano vem do bin/forge-testes da própria branch: quem muda o filtro, o mapa (tests/config.json) ou o hook não pode
+  # se auto-julgar. O hook confere sozinho e, se o diff toca um deles, roda a suíte inteira (decisão do dono, 2026-10-24).
+  ancora="$(git merge-base "$base_dev" HEAD 2>/dev/null)" || return 1
+  [ -n "$ancora" ] || return 1
+  [ -z "$(git -c core.quotepath=false diff --name-only --no-renames "$ancora" HEAD -- bin/forge-testes tests/config.json .githooks/ 2>/dev/null)" ] || return 1
+  plano="$(python3 -I bin/forge-testes --listar --base "$base_dev" 2>/dev/null)" || return 1
+  case "$plano" in "forge-testes: dirigido ("*) return 0 ;; esac
+  return 1
+}
 if so_parecer; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
   suite=(python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q)
+elif dirigido; then
+  completa=0
+  echo "pre-push: rodando só os testes afetados (bin/forge-testes, base origin/develop); a suíte completa roda no CI do PR." >&2
+  suite=(python3 -I bin/forge-testes --base "$base_dev")
 elif [ -f scripts/suite-paralela.py ]; then
   # D4: a suíte inteira dividida em processos, com a guarda de completude contra o discover (R-TETO: uma por vez).
   suite=(env FORGE_SUITE_TRAVA="$trava" python3 scripts/suite-paralela.py)
@@ -262,10 +300,11 @@ rc=0
 wait "$suite_pid" || rc=$?
 trap - TERM INT HUP
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
-# Anota a árvore testada (só se a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree}
-# não mudou durante a suíte, para valer a do commit) como prova do próximo push.
+# Anota a árvore testada (só quando `completa` é 1: a suíte inteira, ou as classes curtas do `so_parecer` sobre árvore
+# remota já verde; a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte, para
+# valer a do commit) como prova do próximo push.
 arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
-if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
+if [ "$completa" = 1 ] && [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
   arvore_testada="$arvore_inicio"
   if [ -n "$arvore_testada" ]; then
     { (umask 077; tail -n 199 "$verde" 2>/dev/null || true; printf '%s\n' "$arvore_testada") > "${verde}.novo" \

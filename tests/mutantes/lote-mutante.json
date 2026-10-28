@@ -1,0 +1,87 @@
+{
+  "pedido": "lote-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "specs de pedidos diferentes sao recusadas",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if len({dados[\"pedido\"] for dados in lista}) > 1:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "id de mutante repetido entre specs e recusado",
+      "arquivo": "bin/forge-mutante",
+      "de": "    repetidos = sorted({i for i in ids if ids.count(i) > 1})",
+      "para": "    repetidos = []",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "teto de 8 continua por spec no conjunto",
+      "arquivo": "bin/forge-mutante",
+      "de": "        problemas += [p if len(lista) == 1 else f\"spec {i}: {p}\" for p in validar_spec(dados)]",
+      "para": "        problemas += []",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_do_pedido_passam_de_oito_sem_subir_o_teto_por_spec",
+        "tests.test_forge_mutante.Execucao.test_segunda_spec_invalida_barra_tudo_antes_de_rodar"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "problema de uma spec barra o conjunto",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if problemas:\n        return problemas\n    if len(",
+      "para": "    if len(",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_do_pedido_passam_de_oito_sem_subir_o_teto_por_spec"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "conjunto vazio de specs e invalido",
+      "arquivo": "bin/forge-mutante",
+      "de": "        return [\"nenhuma spec\"]",
+      "para": "        return []",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "cada parte do id de teste e identificador Python",
+      "arquivo": "bin/forge-mutante",
+      "de": "p.isidentifier() and unicodedata",
+      "para": "unicodedata",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_com_identificador_python_nao_ascii_e_valido"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "id de teste precisa de parte depois de tests",
+      "arquivo": "bin/forge-mutante",
+      "de": "    return (len(partes) > 1 and partes[0]",
+      "para": "    return (partes[0]",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_com_identificador_python_nao_ascii_e_valido"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "raiz do id de teste e tests",
+      "arquivo": "bin/forge-mutante",
+      "de": "partes[0] == \"tests\"",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_id_de_teste_que_nao_e_texto_ou_nao_normalizado_e_invalido"
+      ]
+    }
+  ]
+}

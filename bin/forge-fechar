@@ -22,6 +22,8 @@
 # --dry-run só imprime cada passo (e avisa se o diff toca caminho que a catraca protege); não roda forge-check, git remoto nem gh.
 # Para teste, com FORGE_FECHAR_TESTE=1: FORGE_CHECK, FORGE_GH (substituem os comandos) e FORGE_FECHAR_INTERVALO (segundos entre
 # leituras dos checks). Sem FORGE_FECHAR_TESTE=1 as duas primeiras são ignoradas, com aviso.
+# FORGE_FECHAR_TETO_DELETE (segundos, 1 a 75, padrão 75): limite de cada uma das 3 tentativas do `git push --delete` da limpeza (com `timeout`);
+# estourado ou negado, a limpeza diz que a remota continua viva e sai com código 3. Rodar da raiz com --ref evita o aviso de sair da worktree.
 # FORGE_FECHAR_PAUSA (segundos, padrão 3) é a espera entre as tentativas de leitura repetida.
 # Faixas (recusadas antes do passo 1, com a faixa na mensagem): FORGE_FECHAR_PAUSA 1 a 30; FORGE_FECHAR_INTERVALO 5 a 120 (o piso cai
 # para 0 só com FORGE_FECHAR_TESTE=1); --espera 0 a 7200. Só inteiro decimal, no máximo 3 dígitos (5 em --espera).
@@ -75,7 +77,7 @@ esac
 # número enorme não passar na comparação) e dentro da faixa; compara em base 10 (`08` vale 8). Devolve o valor normalizado em `faixa_valor`.
 faixa() {
   local nome="$1" v="$2" min="$3" max="$4" dig="$5"
-  [[ "$v" =~ ^[0-9]+$ ]] && [ "${#v}" -le "$dig" ] || die "$nome pede um número inteiro de $min a $max segundos (recebi: $v)"
+  if ! { [[ "$v" =~ ^[0-9]+$ ]] && [ "${#v}" -le "$dig" ]; }; then die "$nome pede um número inteiro de $min a $max segundos (recebi: $v)"; fi
   v=$((10#$v))
   { [ "$v" -ge "$min" ] && [ "$v" -le "$max" ]; } || die "$nome fora da faixa: pede de $min a $max segundos (recebi: $v)"
   faixa_valor="$v"
@@ -101,6 +103,9 @@ faixa FORGE_FECHAR_INTERVALO "${FORGE_FECHAR_INTERVALO:-30}" "$piso_intervalo" 1
 intervalo="$faixa_valor"
 faixa FORGE_FECHAR_PAUSA "${FORGE_FECHAR_PAUSA:-3}" "$piso_pausa" 30 3
 pausa="$faixa_valor"
+# FECHAR-DA-RAIZ: teto de cada tentativa do `git push --delete` da limpeza (o pre-push roda nele); o pior caso (3 tentativas no teto, 2 pausas de 30 s no máximo e a conferência da remota, 10 s) fica em até 300 s com o teto de 75 s.
+faixa FORGE_FECHAR_TETO_DELETE "${FORGE_FECHAR_TETO_DELETE:-75}" 1 75 3
+teto_delete="$faixa_valor"
 # ler <comando...>: leitura idempotente; imprime a saída da primeira tentativa que passa (até 3, com pausa); falha se as 3 falham.
 ler() {
   local n=0 saida_ler
@@ -111,6 +116,11 @@ ler() {
     dormir "$pausa"
   done
 }
+# com_teto <segundos> <comando...>: roda o comando com limite de tempo quando há `timeout` (sem ele, roda sem limite); o `exec` do teste fica no processo.
+com_teto() {
+  local t="$1"; shift
+  if command -v timeout >/dev/null 2>&1; then timeout "$t" "$@"; else "$@"; fi
+}
 # repetir <comando...>: operação idempotente que só devolve status (push --delete); até 3 tentativas, com pausa.
 repetir() {
   local n=0
@@ -120,6 +130,15 @@ repetir() {
     [ "$n" -lt 3 ] || return 1
     dormir "$pausa"
   done
+}
+# remoto_exato <branch> [prefixo...]: sha de refs/heads/<branch> no origin (vazio se não existe); falha se a leitura falha. O padrão do
+# `git ls-remote` casa pelo fim do nome (refs/heads/a/refs/heads/<branch> também sai): só vale a linha com a coluna 2 igual ao nome inteiro.
+# O prefixo (com_teto 10) roda na frente do git. A coluna 1 tem de ser um sha hexadecimal (40 ou 64 caracteres); linha que casa o nome com outra
+# coisa na coluna 1 é leitura que falhou (rc 1), nunca um valor que segue para os passos seguintes.
+remoto_exato() {
+  local nome="refs/heads/$1" saida_remota; shift
+  saida_remota="$("$@" git ls-remote origin "$nome")" || return 1
+  printf '%s\n' "$saida_remota" | awk -v r="$nome" '$2 == r { if ((length($1) == 40 || length($1) == 64) && $1 ~ /^[0-9a-f]+$/) print $1; else ruim = 1; exit } END { exit ruim }'
 }
 [ -n "$titulo" ] || titulo="$ref"
 corpo="## Projeto de origem
@@ -155,15 +174,18 @@ else
 fi
 [ ! -L "$logdir" ] || die "a pasta do log é um link simbólico: $logdir; recusada"
 (umask 077; mkdir -p "$logdir") || die "não consegui criar a pasta do log: $logdir"
-[ -d "$logdir" ] && [ ! -L "$logdir" ] || die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"
+if ! { [ -d "$logdir" ] && [ ! -L "$logdir" ]; }; then die "a pasta do log não é um diretório (ou virou link simbólico): $logdir"; fi
 [ -O "$logdir" ] || die "a pasta do log é de outro dono: $logdir; recusada"
 # Caminho absoluto e normalizado (sem `..` nem link no meio): a limpeza do passo 7 troca de diretório e o registrador precisa achar o arquivo depois disso.
 logdir="$(cd "$logdir" && pwd -P)" || die "não consegui resolver a pasta do log: $logdir"
 # Só o modo se corrige: link, outro dono e não diretório já foram recusados acima; pasta do próprio usuário com modo diferente de 700 vira 700, com aviso.
-# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700).
-if [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" != 700 ]; then
-  chmod u=rwx,go=,g-s "$logdir" 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
-  [ "$(stat -c %a "$logdir" 2>/dev/null || stat -f %Lp "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+# O chmod é simbólico porque `chmod 700` mantém o setgid de um diretório (2755 viraria 2700 e o modo seguiria diferente de 700), e `u-s` tira o setuid.
+# Sem janela de corrida (FECHAR-TOCTOU): entra na pasta com `cd -P`, confere o dono do diretório já aberto (`.`) e o chmod age sobre `.`, não sobre o
+# caminho, que podia virar link entre a checagem e o chmod. `$logdir` já é o caminho resolvido (`pwd -P`).
+modo_de() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }
+if [ "$(modo_de "$logdir")" != 700 ]; then
+  (cd -P "$logdir" && [ -O . ] && chmod u=rwx,go=,g-s,u-s .) 2>/dev/null || die "a pasta do log precisa ter modo 700 e não consegui ajustar: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
+  [ "$(modo_de "$logdir")" = 700 ] || die "a pasta do log precisa ter modo 700: $logdir (chmod 700 ou escolha outra em FORGE_FECHAR_LOG_DIR)"
   echo "aviso: a pasta do log não tinha modo 700; ajustei para 700: $logdir" >&2
 fi
 # Retenção: log do próprio usuário com mais de 14 dias, só nesta pasta, sem seguir link.
@@ -312,7 +334,7 @@ estados_da_espera() {
     run_ck="?"
     if [[ "$link_ck" =~ /runs/([0-9]{1,20})/job/[0-9]{1,20} ]]; then run_ck="${BASH_REMATCH[1]}"; fi
     nomes[n]="$nome_ck"; sts[n]="$estado_ck"; runs[n]="$run_ck"; n=$((n + 1))
-    [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ] || continue
+    if ! { [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ]; }; then continue; fi
     if [ "$rotulo_ok" = 0 ]; then
       case "$run_antes" in *" $run_ck "*) ;; *) run_antes="$run_antes$run_ck " ;; esac
     elif [ "$run_antes" != " " ]; then
@@ -437,19 +459,31 @@ git branch -D $(printf '%q' "$ref")"
   fi
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
-  if ! sha_remoto="$(git ls-remote origin "refs/heads/$ref")"; then
+  if ! sha_remoto="$(remoto_exato "$ref")"; then
     echo "aviso: não consegui ler a branch remota $ref." >&2
     rem_st=pendente
   else
-    sha_remoto="$(printf '%s' "$sha_remoto" | awk '{print $1}')"
     if [ -z "$sha_remoto" ]; then
       :
     elif ! sha_confere "$sha_remoto"; then
       echo "aviso: a branch remota $ref ($sha_remoto) tem commit que não foi mesclado; não a apaguei." >&2
       rem_st=pendente
-    elif ! repetir git push origin --delete "refs/heads/$ref"; then
-      echo "aviso: não apaguei a branch remota $ref; apague-a (git push origin --delete $(printf '%q' "$ref"))." >&2
-      rem_st=pendente
+    else
+      echo "registro: apagando a branch remota $ref (até ${teto_delete}s por tentativa, 3 tentativas)"
+      if ! repetir com_teto "$teto_delete" git push origin --delete "refs/heads/$ref"; then
+        # O corte (ou uma resposta perdida) pode vir depois de o servidor já ter apagado a ref: confere antes de dizer que ela continua viva.
+        if sha_depois="$(remoto_exato "$ref" com_teto 10)"; then
+          if [ -z "$sha_depois" ]; then
+            echo "registro: a branch remota $ref já não existe no servidor (o comando falhou ou foi cortado depois de apagá-la)"
+          else
+            echo "aviso: não apaguei a branch remota $ref (a exclusão foi negada, falhou ou passou de ${teto_delete}s); a branch remota continua viva; apague-a (git push origin --delete $(printf '%q' "$ref"))." >&2
+            rem_st=pendente
+          fi
+        else
+          echo "aviso: não consegui conferir a branch remota $ref depois de a exclusão falhar ou passar de ${teto_delete}s; ela pode ou não ter sido apagada; confira (git ls-remote origin $(printf '%q' "refs/heads/$ref"))." >&2
+          rem_st=pendente
+        fi
+      fi
     fi
   fi
   [ "$rem_st" = ok ] || pend_cmds="$pend_cmds
@@ -475,9 +509,9 @@ estado_do_pr() {
 # `--no-renames` e `-z` nos dois lados (renomeio esconderia o arquivo em comum; nome com quebra de linha sai inteiro) e a interseção vem de
 # `sort -z` e `comm -z`. Não faz fetch nem escreve em refs/: só pede `git fetch origin <base>` quando a base local está velha.
 conferir_base() {
-  local srv base_sha mbs mb n comuns f
-  srv="$(git ls-remote origin "refs/heads/$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
-  srv="${srv%%[[:space:]]*}"
+  local srv base_sha mbs mb n f
+  local -a lista_mb
+  srv="$(remoto_exato "$alvo")" || die "parou no passo 2b: não consegui ler a $alvo no servidor (nada foi aberto)"
   [ -n "$srv" ] || die "parou no passo 2b: não consegui ler a $alvo no servidor (resposta vazia; nada foi aberto)"
   base_sha="$(git rev-parse --verify --quiet "$base^{commit}")" || die "parou no passo 2b: a base $base não existe aqui; rode: git fetch origin $alvo"
   [ "$srv" = "$base_sha" ] || die "parou no passo 2b: $base ($base_sha) está atrás da $alvo no servidor ($srv); rode: git fetch origin $alvo, e rode de novo"
@@ -486,20 +520,22 @@ conferir_base() {
   fi
   mbs="$(git merge-base --all "$base_sha" "$remoto_sha")" || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
   [ -n "$mbs" ] || die "parou no passo 2b: sem ponto de partida comum com $base; rode: git fetch origin $alvo"
+  mapfile -t lista_mb <<< "$mbs"  # um sha por linha (pode haver mais de um ponto de partida)
   tmp2b="$(mktemp -d)" || die "parou no passo 2b: não consegui criar a pasta temporária"
   : > "$tmp2b/a"; : > "$tmp2b/b"
-  for mb in $mbs; do
+  for mb in "${lista_mb[@]}"; do
     git diff --no-renames --name-only -z "$mb" "$base_sha" >> "$tmp2b/a" || die "parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo"
     git diff --no-renames --name-only -z "$mb" "$remoto_sha" >> "$tmp2b/b" || die "parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo"
   done
-  sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns" \
-    || die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  if ! { sort -zu "$tmp2b/a" > "$tmp2b/a.s" && sort -zu "$tmp2b/b" > "$tmp2b/b.s" && comm -z -12 "$tmp2b/a.s" "$tmp2b/b.s" > "$tmp2b/comuns"; }; then
+    die "parou no passo 2b: não consegui cruzar as listas de arquivos"
+  fi
   if [ -s "$tmp2b/comuns" ]; then
     echo "arquivos que a $alvo e $ref mudaram depois do ponto de partida:" >&2
     while IFS= read -r -d '' f; do printf '  %q\n' "$f" >&2; done < "$tmp2b/comuns"
     die "parou no passo 2b: a base andou e tocou arquivo que a branch também tocou (nenhum PR foi aberto); atualize a branch (git merge $base), rode a suíte no push e rode de novo"
   fi
-  n="$(git rev-list --count "$base_sha" --not $mbs)" || die "parou no passo 2b: não consegui contar os commits da base"
+  n="$(git rev-list --count "$base_sha" --not "${lista_mb[@]}")" || die "parou no passo 2b: não consegui contar os commits da base"
   echo "a base andou $n commit$([ "$n" = 1 ] || echo s) sem arquivo em comum com $ref; o CI do PR confere o merge."
 }
 
@@ -561,7 +597,7 @@ local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null ||
 passo 2 "head no servidor"
 local_sha="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || die "parou no passo 2: a branch local $ref não existe"
 [ "$local_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local de $ref mudou depois da conferência dos pareceres (conferido $sha_conferido, agora $local_sha); confira e rode de novo"
-remoto_sha="$(git ls-remote origin "refs/heads/$ref" | awk '{print $1}')"
+remoto_sha="$(remoto_exato "$ref")" || die "parou no passo 2: não consegui ler a branch $ref no origin"
 [ -n "$remoto_sha" ] || die "parou no passo 2: $ref não está no origin (git push origin $ref, sem -u)"
 [ "$remoto_sha" = "$sha_conferido" ] || die "parou no passo 2: o head local ($sha_conferido) difere do remoto ($remoto_sha); envie a branch"
 
@@ -711,7 +747,7 @@ if [ "$ja_mesclado" = 0 ]; then
   [ "$pr_estado" = MERGED ] || die "parou no passo 6: o PR não consta como MERGED (estado: ${pr_estado:-desconhecido})"
   [ "$pr_head" = "$remoto_sha" ] || die "parou no passo 6: o PR #$pr_n consta MERGED com o head ${pr_head:-desconhecido}, não o conferido ($remoto_sha); não conto como sucesso"
   [ "$pr_base" = "$alvo" ] || die "parou no passo 6: o PR #$pr_n consta MERGED na base ${pr_base:-desconhecida}, não em $alvo"
-  [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ] || die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"
+  if ! { [ -n "$pr_merge" ] && [ "$pr_merge" != "-" ]; }; then die "parou no passo 6: o PR #$pr_n consta MERGED sem commit de merge; confira no GitHub"; fi
   echo "merge: $pr_merge"
 fi
 

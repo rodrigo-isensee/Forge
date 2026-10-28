@@ -1,0 +1,19 @@
+{
+  "descricao": "Controle da regressão sem marcador: a forma da tabela segue recusada: env -S'cat .env'",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -S'cat .env'"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "ler .env"
+  }
+}

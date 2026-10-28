@@ -1,0 +1,70 @@
+{
+  "pedido": "conferente-c2c3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "o slug do comando do pr perde o prefixo melhoria/",
+      "arquivo": "bin/forge-check",
+      "de": "forge-check pr {branch.removeprefix('melhoria/')} --ref",
+      "para": "forge-check pr {branch} --ref",
+      "testes": ["tests.test_etapa_do_brief.ComandoDoPr.test_etapa_pr_imprime_o_comando_com_o_slug_sem_o_prefixo"]
+    },
+    {
+      "id": "C2",
+      "guarda": "id de pedido existente sem branch e recusado com rc=2",
+      "arquivo": "bin/forge-check",
+      "de": "        print(uso)\n        return 2",
+      "para": "        print(uso)\n        return 1",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_id_de_pedido_existente_sem_branch_sai_rc2_com_uso"]
+    },
+    {
+      "id": "C3",
+      "guarda": "bloco alterado nao e marcado identico",
+      "arquivo": "bin/forge-check",
+      "de": "if nome in novos and nome in antigos and bloco_sem_final(novos[nome]) == bloco_sem_final(antigos[nome])]",
+      "para": "if nome in novos]",
+      "testes": ["tests.test_etapa_do_brief.VoltaIdentica.test_bloco_alterado_nao_e_marcado"]
+    },
+    {
+      "id": "C4",
+      "guarda": "a linha do PQ termina em rótulo do verificador: ok",
+      "arquivo": "bin/forge-check",
+      "de": "{verificador}{valido}\", False))",
+      "para": "{verificador}\", False))",
+      "testes": ["tests.test_etapa_do_brief.VerificadorOk.test_pq_do_vocabulario_termina_em_rotulo_do_verificador_ok"]
+    },
+    {
+      "id": "C5",
+      "guarda": "a linha do comando do pr sai no forge-check brief",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas += linha_do_comando_pr(texto)\n",
+      "para": "    pass\n",
+      "testes": ["tests.test_etapa_do_brief.TabelaDePareceres.test_brief_da_etapa_imprime_o_comando_com_o_slug"]
+    },
+    {
+      "id": "C6",
+      "guarda": "o brief de volta marca os blocos identicos no brief --anterior",
+      "arquivo": "bin/forge-check",
+      "de": "            saida += blocos_identicos(texto, anterior.decode(\"utf-8\", \"replace\"))",
+      "para": "            pass",
+      "testes": ["tests.test_volta_por_delta.BriefDeVolta.test_brief_de_volta_marca_os_blocos_identicos_ao_anterior"]
+    },
+    {
+      "id": "C7",
+      "guarda": "branch homonima so em origin/ vale",
+      "arquivo": "bin/forge-check",
+      "de": " or sha_do_commit(raiz, f\"refs/remotes/origin/melhoria/{pedido}\")",
+      "para": "",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_com_a_branch_do_mesmo_nome_so_em_origin_o_argumento_vale"]
+    },
+    {
+      "id": "C8",
+      "guarda": "o id do pedido so com caracteres de nome",
+      "arquivo": "bin/forge-check",
+      "de": "if not re.fullmatch(r\"[A-Za-z0-9._-]+\", pedido or \"\") or",
+      "para": "if not pedido or",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_argumento_com_barra_nao_sobe_nem_desce_de_pasta"]
+    }
+  ]
+}

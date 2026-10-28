@@ -1,0 +1,70 @@
+{
+  "pedido": "conferente-c1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "o pr volta a recusar o --desde",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde is not None:  # C1: vale em todas as etapas",
+      "para": "    if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:\n        linhas.append((\"escopo: --desde fora da etapa\", True))\n    elif desde is not None:  # C1: vale em todas as etapas",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desde_nas_etapas_de_branch_inteira_le_so_o_delta"]
+    },
+    {
+      "id": "C2",
+      "guarda": "o escopo com --desde passa a ser a branch inteira",
+      "arquivo": "bin/forge-check",
+      "de": "arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)",
+      "para": "arquivos = arquivos_da_entrega(raiz, head, base_sha, None)",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_commit_depois_da_conferida_aparece_no_delta_do_pr"]
+    },
+    {
+      "id": "C3",
+      "guarda": "sem --desde o pr nao le a branch inteira",
+      "arquivo": "bin/forge-check",
+      "de": "    de = valido or base_sha\n",
+      "para": "    de = valido or head\n",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_sem_desde_nas_etapas_de_branch_inteira_le_a_branch_inteira"]
+    },
+    {
+      "id": "C4",
+      "guarda": "o desde do pr deixa de passar pela conferencia do Historico",
+      "arquivo": "bin/forge-check",
+      "de": "if valido is None or desde != valido:",
+      "para": "if False:",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desde_do_pr_segue_a_mesma_conferencia_do_historico"]
+    },
+    {
+      "id": "C5",
+      "guarda": "o merge da base dentro do intervalo entra no escopo do merge",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):",
+      "para": "if False and base_ref and not e_ancestral(raiz, head, base_ref):",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_merge_da_base_dentro_do_intervalo_do_pr_nao_traz_o_que_veio_da_base"]
+    },
+    {
+      "id": "C6",
+      "guarda": "o arquivo desfeito depois da conferida fica no escopo",
+      "arquivo": "bin/forge-check",
+      "de": " + sorted(desfeitos - set(nomes))",
+      "para": "",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo"]
+    },
+    {
+      "id": "C7",
+      "guarda": "nas etapas de merge o desfeito nao sai pelo conteudo da base",
+      "arquivo": "bin/forge-check",
+      "de": "diferem |= desfeitos_da_entrega(raiz, base_sha, valido)",
+      "para": "pass",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo"]
+    },
+    {
+      "id": "C8",
+      "guarda": "fora de melhoria/ o id do pedido nao e recusado",
+      "arquivo": "bin/forge-check",
+      "de": "branch_da_convencao(raiz, ref) is None",
+      "para": "False",
+      "testes": ["tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_fora_da_convencao_melhoria_o_id_do_parecer_vale"]
+    }
+  ]
+}

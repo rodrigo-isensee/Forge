@@ -1,5 +1,5 @@
 {
-  "descricao": "ADR 0011 (item 2): delimitador que o hook lê E e o bash EOF: a linha do push ficava no corpo.",
+  "descricao": "ADR 0011 (item 2): delimitador que o hook lê E e o bash EOF: a linha do push ficava no corpo. Com o HEREDOC-FURO-HOOK o leitor só tira o corpo de heredoc provado, lê o push e a regra específica fala antes da rede da ADR 0011.",
   "arquivos": {
     "src/app.js": "v1\n",
     "docs/pedidos/p1.md": "# p1\n"
@@ -15,6 +15,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "não modela"
+    "stderr": "R-MAIN: push direto para main"
   }
 }
