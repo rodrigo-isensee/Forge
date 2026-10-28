@@ -1430,6 +1430,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
               f"--etapa codigo --desde {bases[-1][0] if bases else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
+    pronto.append(f"- PQ-{proximo + len(pronto)} (cmd, do autor): `bin/forge-mutante --cobertura --base {sha_base}` · espera: rc=0")
     saida += acrescentar(copiado("Pronto quando"), pronto)
     saida += copiado("Relatório")
     return "".join(saida), 0, []

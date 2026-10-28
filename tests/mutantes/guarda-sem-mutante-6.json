@@ -16,8 +16,8 @@
       "id": "M35",
       "guarda": "condicao editada nao sai como apagada",
       "arquivo": "bin/forge-mutante",
-      "de": "falta[c[0]], postas = falta[c[0]] - 1, postas - 1",
-      "para": "falta[c[0]], postas = falta[c[0]], postas - 1",
+      "de": "falta[v[0]] -= 1",
+      "para": "falta[v[0]] -= 0",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
       ]
@@ -36,8 +36,8 @@
       "id": "M37",
       "guarda": "arquivo removido python e analisado e nao python vira nao coberto",
       "arquivo": "bin/forge-mutante",
-      "de": "if not eh_python(arquivo, antes or depois):",
-      "para": "if eh_python(arquivo, antes or depois):",
+      "de": "if not eh_python(arquivo, exemplo):",
+      "para": "if eh_python(arquivo, exemplo):",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]
