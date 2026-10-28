@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "arquivo com mais de 1 MiB e recusado (rc 2)",
       "arquivo": "bin/forge-mutante",
-      "de": "or len(r.stdout) > MAXIMO_DO_ARQUIVO",
-      "para": "or False",
+      "de": "len(dados) > maximo:\n        raise",
+      "para": "len(dados) > maximo * 2:\n        raise",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
       ]
@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "git show que falha vira ValueError e nao texto vazio",
       "arquivo": "bin/forge-mutante",
-      "de": "if r.returncode or len",
-      "para": "if False or len",
+      "de": "if r.returncode:\n        raise ValueError(f\"{arquivo}: ilegível",
+      "para": "if False:\n        raise ValueError(f\"{arquivo}: ilegível",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "hunk sem contagem (`+2`) e uma linha, nao zero",
       "arquivo": "bin/forge-mutante",
-      "de": "int(qtd or 1)",
-      "para": "int(qtd or 0)",
+      "de": "int(d or 1)",
+      "para": "int(d or 0)",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_linha_mudada_sozinha_conta"
       ]
@@ -46,8 +46,8 @@
       "id": "M5",
       "guarda": "arquivo sem extensao so e Python com shebang python",
       "arquivo": "bin/forge-mutante",
-      "de": "arquivo.endswith(\".py\") or texto.startswith(\"#!\")",
-      "para": "arquivo.endswith(\".py\") or True",
+      "de": "or dados.startswith(b\"#!\")",
+      "para": "or True",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
       ]
@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "condicao com a mesma contagem do merge-base nao e nova (reformatar)",
       "arquivo": "bin/forge-mutante",
-      "de": "de_novas[texto] <= de_velhas[texto]",
-      "para": "de_novas[texto] < de_velhas[texto]",
+      "de": "if de_novas[c[0]] > de_velhas[c[0]] and",
+      "para": "if de_novas[c[0]] >= de_velhas[c[0]] and",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
       ]
@@ -66,8 +66,8 @@
       "id": "M7",
       "guarda": "condicao em linha que nao mudou nao e reportada",
       "arquivo": "bin/forge-mutante",
-      "de": "or linhas.isdisjoint(range(ini, fim + 1))",
-      "para": "or False",
+      "de": "and any(toca(c, h[1]) for h in hunks)",
+      "para": "and True",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
       ]

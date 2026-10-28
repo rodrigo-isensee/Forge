@@ -26,8 +26,8 @@
       "id": "M19",
       "guarda": "arquivo removido nao e lido",
       "arquivo": "bin/forge-mutante",
-      "de": "status == \"D\" or TESTE",
-      "para": "False or TESTE",
+      "de": "if TESTE.fullmatch(arquivo) or FORA",
+      "para": "if TESTE.fullmatch(arquivo[1:]) or FORA",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
       ]
@@ -36,8 +36,8 @@
       "id": "M20",
       "guarda": "arquivo de teste fica fora",
       "arquivo": "bin/forge-mutante",
-      "de": "or TESTE.fullmatch(arquivo)",
-      "para": "or False",
+      "de": "if TESTE.fullmatch(arquivo) or",
+      "para": "if False or",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
       ]
@@ -54,10 +54,10 @@
     },
     {
       "id": "M22",
-      "guarda": "o que nao e Python sai como nao coberto",
+      "guarda": "arquivo que nao e python sai como nao coberto",
       "arquivo": "bin/forge-mutante",
-      "de": "if not eh_python(arquivo, depois):",
-      "para": "if False:",
+      "de": "if not eh_python(arquivo, antes or depois):  # binário",
+      "para": "if False:  # binário",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
       ]

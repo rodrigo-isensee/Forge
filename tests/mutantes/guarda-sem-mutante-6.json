@@ -9,27 +9,27 @@
       "de": "if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):",
       "para": "if FORA_DA_COBERTURA.fullmatch(arquivo):",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]
     },
     {
       "id": "M35",
-      "guarda": "arquivo removido que nao e python nao vira nao coberto",
+      "guarda": "condicao editada nao sai como apagada",
       "arquivo": "bin/forge-mutante",
-      "de": "if status != \"D\":",
-      "para": "if True:",
+      "de": "falta[c[0]], postas = falta[c[0]] - 1, postas - 1",
+      "para": "falta[c[0]], postas = falta[c[0]], postas - 1",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
       ]
     },
     {
       "id": "M36",
       "guarda": "arquivo removido le so o merge-base",
       "arquivo": "bin/forge-mutante",
-      "de": "depois = \"\" if status == \"D\" else ler_no_commit(sha_rev, arquivo)",
-      "para": "depois = \"\" if False else ler_no_commit(sha_rev, arquivo)",
+      "de": "depois = b\"\" if status == \"D\" else",
+      "para": "depois = b\"\" if False else",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]
     },
     {
@@ -39,15 +39,15 @@
       "de": "if not eh_python(arquivo, antes or depois):",
       "para": "if eh_python(arquivo, antes or depois):",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]
     },
     {
       "id": "M38",
       "guarda": "spec acima do teto de 64 KiB e recusada",
       "arquivo": "bin/forge-mutante",
-      "de": "if r.returncode or len(r.stdout) > maximo:",
-      "para": "if r.returncode or len(r.stdout) > maximo * 100:",
+      "de": "if len(dados) > maximo:",
+      "para": "if len(dados) > maximo * 100:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_spec_acima_do_teto_de_64_kib_e_entrada_invalida"
       ]
@@ -56,8 +56,8 @@
       "id": "M39",
       "guarda": "a spec do diff e lida com o teto proprio",
       "arquivo": "bin/forge-mutante",
-      "de": "dados = json.loads(ler_no_commit(rev, arquivo, MAXIMO_DA_SPEC))",
-      "para": "dados = json.loads(ler_no_commit(rev, arquivo))",
+      "de": "dados = json.loads(fonte(arquivo, ler_no_commit(rev, arquivo), MAXIMO_DA_SPEC))",
+      "para": "dados = json.loads(fonte(arquivo, ler_no_commit(rev, arquivo)))",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_spec_acima_do_teto_de_64_kib_e_entrada_invalida"
       ]

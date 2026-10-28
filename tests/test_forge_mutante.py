@@ -398,7 +398,7 @@ class Cobertura(unittest.TestCase):
             if texto is None:
                 alvo.unlink()
             else:
-                alvo.write_text(texto, encoding="utf-8")
+                alvo.write_bytes(texto if isinstance(texto, bytes) else texto.encode("utf-8"))
         git(self.dir, "add", "-A")
         git(self.dir, "commit", "-qm", "c")
         if base:
@@ -444,16 +444,45 @@ class Cobertura(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
 
-    def test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta(self):
+    def test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto(self):  # A2 do review
         self.salvar({"lib.py": self.COND, "run.sh": "if true; then :; fi\n"}, base=True)
         self.salvar({"lib.py": None, "run.sh": None})
         r = self.cobertura()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
-        self.assertNotIn("run.sh", r.stdout)
+        self.assertIn("não coberto: run.sh", r.stdout)
         self.salvar({"tests/test_a.py": "if 1 > 0:\n    pass\n"}, base=True)
         self.salvar({"tests/test_a.py": None})
         self.assertEqual(self.cobertura().returncode, 0)
+
+    def test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada(self):  # A2 do QA
+        self.salvar({"lib.py": "if y:\n    pass\n" + self.COND}, base=True)
+        self.salvar({"lib.py": "if y:\n    pass\nx = 1\nif x >= 100:\n    x = 2\n", **self.spec("if x >= 100:", "if x > 9:")})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, ["coberta · lib.py:4 · tests/mutantes/x.json:M1 · "
+                         "declarado, não provado"]))
+        self.salvar({"lib.py": "x = 1\nif x >= 100:\n    x = 2\n"})
+        self.assertEqual(self.cobertura().stdout.splitlines()[2:], ["apagada · lib.py:1(base) · y"])
+
+    def test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2(self):  # A1 do review, A2 da segurança
+        for nome, dados, rc in (("tests/fixtures/a.txt", b"caf\xe9", 0), ("logo.png", b"\x89PNG\0\xff", 0),
+                                ("c.py", b"x = '\xe9'\n", 2), ("d.py", b"x = 1\rif y:\n    pass\n", 2),
+                                ("e.py", b"x = 1\r\nif y:\r\n    pass\r\n", 1)):
+            with self.subTest(nome):
+                self.salvar({nome: dados})
+                r = self.cobertura()
+                git(self.dir, "reset", "-q", "--hard", self.base)
+                self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+                self.assertIn(f"{nome}: " if rc == 2 else "e.py:2" if rc else "", r.stderr + r.stdout)
+
+    def test_atributo_do_git_nao_esconde_o_hunk(self):  # A1 da segurança
+        git(self.dir, "config", "diff.t.textconv", "true")
+        git(self.dir, "config", "diff.b.binary", "true")
+        for atributo in ("-diff", "binary", "diff=t", "diff=b"):
+            with self.subTest(atributo):
+                self.salvar({".gitattributes": f"lib.py {atributo}\n", "lib.py": "x = 1\n"}, base=True)
+                self.salvar({"lib.py": self.COND})
+                self.assertIn("sem mutante · lib.py:2", self.cobertura().stdout)
 
     def test_spec_acima_do_teto_de_64_kib_e_entrada_invalida(self):
         spec = {"pedido": "x", "mutantes": [mutante(de="if x > 100:", para="if x > 1000:")], "pad": "a" * 70000}

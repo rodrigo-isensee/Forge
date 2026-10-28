@@ -16,8 +16,8 @@
       "id": "M10",
       "guarda": "condicao apagada so quando a contagem cai",
       "arquivo": "bin/forge-mutante",
-      "de": "de_velhas[c[0]] > de_novas[c[0]]",
-      "para": "de_velhas[c[0]] >= de_novas[c[0]]",
+      "de": "reversed(velhas) if falta[c[0]]}",
+      "para": "reversed(velhas) if True}",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
       ]
