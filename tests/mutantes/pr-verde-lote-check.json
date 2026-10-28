@@ -36,8 +36,8 @@
       "id": "M4",
       "guarda": "G2: sem o --cc no merge da base, o que a develop trouxe voltaria ao escopo do autor",
       "arquivo": "bin/forge-check",
-      "de": "            proprios &= set(nomes_do_intervalo(raiz, pais[1], commit))\n",
-      "para": "            proprios &= proprios\n",
+      "de": "            proprios = (proprios & da_base) | descartados",
+      "para": "            proprios = proprios | descartados",
       "testes": [
         "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_com_commits_de_parecer_depois_do_merge_o_que_a_base_trouxe_sai_do_escopo"
       ]
