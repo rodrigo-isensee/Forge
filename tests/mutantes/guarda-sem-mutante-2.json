@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "a linha coberta so sai com mutante que cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "if cobrem:",
+      "para": "if True:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "condicao apagada so quando a contagem cai",
+      "arquivo": "bin/forge-mutante",
+      "de": "de_velhas[c[0]] > de_novas[c[0]]",
+      "para": "de_velhas[c[0]] >= de_novas[c[0]]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "spec removida ou editada e listada",
+      "arquivo": "bin/forge-mutante",
+      "de": "if status in ROTULO_DA_SPEC:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_so_a_spec_que_o_diff_adiciona_ou_edita_cobre_e_a_removida_ou_editada_e_listada"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "spec removida nao e lida",
+      "arquivo": "bin/forge-mutante",
+      "de": "if status == \"D\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_so_a_spec_que_o_diff_adiciona_ou_edita_cobre_e_a_removida_ou_editada_e_listada"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "spec invalida e rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if problemas:\n            raise ValueError(f\"{arquivo}: spec",
+      "para": "if False:\n            raise ValueError(f\"{arquivo}: spec",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_so_a_spec_que_o_diff_adiciona_ou_edita_cobre_e_a_removida_ou_editada_e_listada"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "rev que nao resolve e rc 2 com mensagem propria",
+      "arquivo": "bin/forge-mutante",
+      "de": "or sha_rev is None",
+      "para": "or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_base_que_nao_resolve_e_diff_vazio_sao_2_e_a_arvore_suja_so_avisa"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "merge-base igual ao rev (diff vazio) e rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if mb == sha_rev:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_base_que_nao_resolve_e_diff_vazio_sao_2_e_a_arvore_suja_so_avisa"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "arvore suja avisa",
+      "arquivo": "bin/forge-mutante",
+      "de": "if git(\"status\", \"--porcelain\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_base_que_nao_resolve_e_diff_vazio_sao_2_e_a_arvore_suja_so_avisa"
+      ]
+    }
+  ]
+}

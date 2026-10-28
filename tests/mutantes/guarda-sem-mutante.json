@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "arquivo com mais de 1 MiB e recusado (rc 2)",
+      "arquivo": "bin/forge-mutante",
+      "de": "or len(r.stdout) > MAXIMO_DO_ARQUIVO",
+      "para": "or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "git show que falha vira ValueError e nao texto vazio",
+      "arquivo": "bin/forge-mutante",
+      "de": "if r.returncode or len",
+      "para": "if False or len",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "hunk sem contagem (`+2`) e uma linha, nao zero",
+      "arquivo": "bin/forge-mutante",
+      "de": "int(qtd or 1)",
+      "para": "int(qtd or 0)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_linha_mudada_sozinha_conta"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "arquivo .py e analisado como Python",
+      "arquivo": "bin/forge-mutante",
+      "de": "arquivo.endswith(\".py\")",
+      "para": "False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "arquivo sem extensao so e Python com shebang python",
+      "arquivo": "bin/forge-mutante",
+      "de": "arquivo.endswith(\".py\") or texto.startswith(\"#!\")",
+      "para": "arquivo.endswith(\".py\") or True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "condicao com a mesma contagem do merge-base nao e nova (reformatar)",
+      "arquivo": "bin/forge-mutante",
+      "de": "de_novas[texto] <= de_velhas[texto]",
+      "para": "de_novas[texto] < de_velhas[texto]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "condicao em linha que nao mudou nao e reportada",
+      "arquivo": "bin/forge-mutante",
+      "de": "or linhas.isdisjoint(range(ini, fim + 1))",
+      "para": "or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem mutante que case, a condicao sai como sem mutante",
+      "arquivo": "bin/forge-mutante",
+      "de": "if casa(m, arquivo, depois, de, ate)",
+      "para": "if True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0"
+      ]
+    }
+  ]
+}

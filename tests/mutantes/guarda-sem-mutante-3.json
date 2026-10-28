@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "300 arquivos passam e 301 nao (limite exato)",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(mudadas) > MAXIMO_DE_ARQUIVOS",
+      "para": "len(mudadas) >= MAXIMO_DE_ARQUIVOS",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "mais de 300 arquivos e rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if len(mudadas) > MAXIMO_DE_ARQUIVOS:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_limites_e_nomes_de_arquivo_hostis"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "arquivo removido nao e lido",
+      "arquivo": "bin/forge-mutante",
+      "de": "status == \"D\" or TESTE",
+      "para": "False or TESTE",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "arquivo de teste fica fora",
+      "arquivo": "bin/forge-mutante",
+      "de": "or TESTE.fullmatch(arquivo)",
+      "para": "or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "md e changelog.d ficam fora",
+      "arquivo": "bin/forge-mutante",
+      "de": "or FORA_DA_COBERTURA.fullmatch(arquivo)",
+      "para": "or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o que nao e Python sai como nao coberto",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not eh_python(arquivo, depois):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "arquivo novo nao tem versao no merge-base",
+      "arquivo": "bin/forge-mutante",
+      "de": "if status == \"A\" else",
+      "para": "if status == \"Z\" else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "condicao apagada reprova (rc 1)",
+      "arquivo": "bin/forge-mutante",
+      "de": "x.startswith((\"sem mutante\", \"apagada\"))",
+      "para": "x.startswith((\"sem mutante\",))",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_reformatar_nao_conta_e_copiar_ou_apagar_conta"
+      ]
+    }
+  ]
+}
