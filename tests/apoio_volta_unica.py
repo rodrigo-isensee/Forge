@@ -7,6 +7,7 @@ import functools
 import itertools
 import json
 import os
+import random
 import re
 import resource
 import shlex
@@ -491,15 +492,21 @@ print(json.dumps(saida))
                     arquivo.write_text(self.REGISTRADOR.format(bash=bash), encoding="utf-8")
                 arquivo.chmod(0o755)
 
+    PRAZO_DO_BASH_DO_T9B_S = 60  # o texto leva milissegundos; o prazo largo é para a máquina carregada (FLAKY-G1-CARGA)
+
     def rodar_no_bash_do_t9b(self, bash, texto, base):
         """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, sem rede) na pasta que
         `montar_registradores_do_t9b` montou em `base`, sem gravar nada. Devolve os (programa, argumentos) gravados.
         O bash que não consegue rodar um registrador (rc 126 ou "Text file busy" no stderr) é falha do arnês, e não do
         gerador: o teste falha com a causa e o stderr, sem repetir. Nenhum programa real além do bash (R-CUSTO)."""
         registradores, pasta, registro, casa = base / "bin", base / "pasta", base / "registro", base / "casa"
-        r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
-                           env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)}, capture_output=True,
-                           text=True, timeout=10)
+        try:
+            r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
+                               env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)},
+                               capture_output=True, text=True, timeout=self.PRAZO_DO_BASH_DO_T9B_S)
+        except subprocess.TimeoutExpired:  # carga da máquina ou texto que não termina: a causa no nome, sem erro solto
+            raise AssertionError(f"falha do arnês, não do gerador: o bash passou de {self.PRAZO_DO_BASH_DO_T9B_S} s "
+                                 f"(prazo) em {texto!r}") from None
         if r.returncode == 126 or "Text file busy" in r.stderr:
             raise AssertionError(f"falha do arnês, não do gerador: o bash não rodou um registrador (rc {r.returncode}) "
                                  f"em {texto!r}; stderr: {r.stderr.strip()}")
@@ -738,13 +745,13 @@ saida = []
 for texto in dados["textos"]:
     hook = _comum.Hook("conformidade")
     hook.entrada = {**dados["entrada"], "tool_input": {**dados["entrada"]["tool_input"], "command": texto}}
-    erro, codigo, inicio = io.StringIO(), 0, time.perf_counter()
+    erro, codigo, inicio = io.StringIO(), 0, time.process_time()
     with contextlib.redirect_stderr(erro), contextlib.redirect_stdout(io.StringIO()):
         try:
             conformidade.principal(hook)
         except SystemExit as saiu:
             codigo = saiu.code
-    saida.append([codigo, time.perf_counter() - inicio, erro.getvalue()[:300] if dados["motivo"] else ""])
+    saida.append([codigo, time.process_time() - inicio, erro.getvalue()[:300] if dados["motivo"] else ""])
 print(json.dumps(saida))
 """
     CORPOS_FIXOS = ("cat .env", "rm -rf .git")  # `env-cat-bloqueia.json` e o `.git` da raiz (`trava-rm-*-bloqueia.json`)
@@ -757,7 +764,8 @@ print(json.dumps(saida))
     SO_PALAVRAS = re.compile(r"[\w./=:@%+,-]+(?: [\w./=:@%+,-]+)*")  # corpo que o `env -S` divide como o shell o leria
 
     def decidir_na_guarda(self, textos, hooks=HOOKS, motivo=False):
-        """[(código, segundos, stderr)] da `Guarda` do `conformidade` de `hooks`, no mesmo processo (um filho só), sobre o
+        """[(código, segundos de CPU, stderr)] da `Guarda` do `conformidade` de `hooks`, no mesmo processo (um filho só;
+        a CPU da decisão, e não o relógio: a máquina carregada alonga o relógio, PR-VERDE-D3-TEMPO), sobre o
         modelo do corpus e com o ambiente limpo dos testes (`HOME` e `PATH` herdados do teste, sem rede)."""
         raiz, entrada, proc = self.modelos_montados()["conformidade"]
         env = ambiente_limpo()
@@ -796,9 +804,17 @@ print(json.dumps(saida))
         return nome == "env" and (palavra.startswith("-S") or (palavra.startswith("--")
                                                               and palavra[2:].partition("=")[0] == "split-string"))
 
-    def textos_sem_marcador(self, corpos, passo_env=5, passo_outros=29, passo_posicoes=97):
+    @staticmethod
+    def deslocamentos_da_amostra(semente, *passos):
+        """O deslocamento de cada passo da amostra (`0 <= d < passo`), tirado da semente; sem semente, todos 0 (a amostra
+        fixa de sempre). A mesma semente dá os mesmos deslocamentos (PROP-AMOSTRA)."""
+        sorteio = random.Random(semente)
+        return [0 if semente is None else sorteio.randrange(passo) for passo in passos]
+
+    def textos_sem_marcador(self, corpos, passo_env=5, passo_outros=29, passo_posicoes=97, semente=None):
         """[(rótulo, texto)] da propriedade: para cada lançador, as palavras do alfabeto fora da tabela
-        (`alfabeto_de_opcoes`, a do gerador com marcador; `passo_*`: uma em cada tantas) antes de cada corpo fixo, como
+        (`alfabeto_de_opcoes`, a do gerador com marcador; `passo_*`: uma em cada tantas, a partir de um deslocamento que
+        a `semente` sorteia; sem ela, a partir da primeira) antes de cada corpo fixo, como
         `L w C` e `L w X C`, também depois de `NOME=valor` e de uma opção modelada (o `timeout` leva a duração), e algumas
         palavras antes de cada um dos outros corpos. No `env`, mais, com cada grupo de 0 a 2 letras antes do `S`:
         `env -<g>S'C'`, `env -<g>S 'C'` e `env --<prefixo de split-string>='C'`, só com os corpos que ele lê como o shell."""
@@ -806,6 +822,7 @@ print(json.dumps(saida))
         fixos = [c for c in self.CORPOS_FIXOS if c in corpos]
         outros = [c for c in corpos if c not in fixos]
         saida = []
+        desl_env, desl_outros, desl_posicoes = self.deslocamentos_da_amostra(semente, passo_env, passo_outros, passo_posicoes)
 
         def formas(nome, antes, palavra, corpo):
             if self.divide_sempre(nome, palavra):
@@ -820,9 +837,10 @@ print(json.dumps(saida))
             modeladas = sorted(tabela.get("booleanas", ())) or sorted(f"{o} X" for o in tabela.get("com_valor", ()))
             posicoes = ["X=1 "] + ([modeladas[0] + " "] if modeladas else [])
             for k, palavra in enumerate(fora):
-                for corpo in fixos if k % (passo_env if nome == "env" else passo_outros) == 0 else ():
+                passo, desl = (passo_env, desl_env) if nome == "env" else (passo_outros, desl_outros)
+                for corpo in fixos if k % passo == desl else ():
                     formas(nome, "", palavra, corpo)
-                for corpo in fixos if k % passo_posicoes == 0 else ():
+                for corpo in fixos if k % passo_posicoes == desl_posicoes else ():
                     for antes in posicoes:
                         formas(nome, antes, palavra, corpo)
             for palavra in ("-iu", "--un"):
