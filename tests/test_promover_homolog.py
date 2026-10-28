@@ -233,7 +233,7 @@ class Execucao(Promover):
         self.assertNotIn("pr merge", chamadas)
         self.assertNotIn("--force", chamadas)
         sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --merge --match-head-commit {sha}", r.stdout)
+        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
         self.assertIn("check bateria pass run=1 job=2", r.stdout)
 
     def test_pr_ja_aberto_e_reusado(self):
