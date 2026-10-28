@@ -33,6 +33,7 @@ Formato do fixture:
 """
 import concurrent.futures
 import contextlib
+import errno
 import functools
 import hashlib
 import io
@@ -1309,6 +1310,19 @@ class Hooks(unittest.TestCase):
                 r = self.rodar_com_politica(dict(base, escrita_permitida=valor), "ls", "forge-dev:aq")
                 self.assertEqual(r.returncode, 2, r.stderr)
                 self.assertIn("política de conformidade inválida", r.stderr)
+
+    def test_apoio_pathlib_312_faz_o_caminho_longo_demais_levantar(self):
+        """Pré-condição dos testes de falha fechada: com `tests/apoio_pathlib_312` no PYTHONPATH, `Path.exists` levanta o
+        ENAMETOOLONG em toda versão do Python (a 3.14 o engole). Sem isso, os testes de erro interno do hook falhariam
+        com `esperado 2, veio 0` e sem pista; aqui a falha aponta o apoio (HOOKS-FALHA-FECHADA-SANDBOX)."""
+        codigo = ("import pathlib\n"
+                  "try:\n    pathlib.Path('/' + 'a' * 300).exists()\n"
+                  "except OSError as erro:\n    print(erro.errno)\n"
+                  "else:\n    print('engoliu')\n")
+        env = ambiente_limpo()
+        env["PYTHONPATH"] = str(PATHLIB_312)
+        r = subprocess.run([sys.executable, "-c", codigo], env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.stdout.strip(), str(errno.ENAMETOOLONG), r.stderr)
 
     def test_erro_interno_com_lista_de_permissao_falha_fechado(self):
         """ADR 0009, seções 6.6 e 7: erro interno na decisão do papel com `escrita_permitida` barra (o caminho não

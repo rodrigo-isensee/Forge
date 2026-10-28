@@ -663,6 +663,7 @@ class BriefDeVolta(Repositorio):
             self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
+        self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
 
     def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
         rc, saida = self.gerar()
@@ -746,6 +747,7 @@ class BriefDeVolta(Repositorio):
     def test_etapa_de_merge_acrescenta_o_pq_por_ancestralidade(self):  # E5 na volta
         rc, saida = self.gerar("--etapa", "merge-integracao")
         self.assertIn("- PQ-5 (cmd): `git merge-base --is-ancestor <mergeCommit> origin/develop` · espera: rc=0", saida)
+        self.assertIn("- PQ-6 (cmd, do autor): `bin/forge-mutante --cobertura --base ", saida)
 
     def test_o_brief_gerado_e_preenchido_passa_na_conferencia(self):
         pedido = self.pedido.read_text(encoding="utf-8")

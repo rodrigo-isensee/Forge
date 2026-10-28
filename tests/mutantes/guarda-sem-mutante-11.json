@@ -1,0 +1,56 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M73",
+      "guarda": "isenta invalida da mensagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "[] if certa else",
+      "para": "[] if not certa else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "arquivo removido ainda e lido pelo tipo da base",
+      "arquivo": "bin/forge-mutante",
+      "de": "exemplo = antes or depois",
+      "para": "exemplo = antes and depois",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
+      ]
+    },
+    {
+      "id": "M112",
+      "guarda": "o arquivo de shell sai nao coberto pelo nome",
+      "arquivo": "bin/forge-mutante",
+      "de": "saida.append(f\"não coberto: {arquivo}\")\n                continue",
+      "para": "saida.append(f\"coberto: {arquivo}\")\n                continue",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_de_shell_sai_nao_coberto_uma_vez_sem_olhar_a_linha"
+      ]
+    },
+    {
+      "id": "M113",
+      "guarda": "o arquivo de shell nao segue para a analise linha a linha",
+      "arquivo": "bin/forge-mutante",
+      "de": "saida.append(f\"não coberto: {arquivo}\")\n                continue",
+      "para": "saida.append(f\"não coberto: {arquivo}\")\n                pass",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_de_shell_sai_nao_coberto_uma_vez_sem_olhar_a_linha"
+      ]
+    },
+    {
+      "id": "M114",
+      "guarda": "a isenta de arquivo de shell nao cruza condicao e sai rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "if soltas:",
+      "para": "if not soltas:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_para_arquivo_de_shell_e_solta_e_sai_2"
+      ]
+    }
+  ]
+}

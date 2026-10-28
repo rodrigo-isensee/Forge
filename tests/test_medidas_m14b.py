@@ -112,8 +112,42 @@ class Esperas(Raiz):
         self.gravar("KANBAN.md", "# Quadro\n\n| ID | Cartão | Pedido |\n|---|---|---|\n| K-2 | x | ped-a |\n| K-3 | y | ped-a |\n")
         cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-a")
         self.assertEqual(cod, 0)
-        self.assertEqual(linhas[0], "esperas: K-2 outra inicio=2026-10-22T13:00:00-03:00 minutos=20")
+        self.assertEqual(linhas[0], "esperas: pedido \"ped-a\" cartoes: K-2 K-3")
+        self.assertEqual(linhas[1], "esperas: K-2 outra inicio=2026-10-22T13:00:00-03:00 minutos=20")
         self.assertEqual(linhas[-1], "esperas: total: dono=1 minutos_dono=50 credencial=0 minutos_credencial=0 outra=1 minutos_outra=20 abertas=0 cartoes=2")
+
+    def test_pedido_com_dois_cartoes_soma_a_espera_do_dono_e_da_credencial(self):
+        self.gravar("KANBAN.md", "# Quadro\n\n| ID | Cartão | Pedido |\n|---|---|---|\n| K-1 | x | ped-b |\n| K-3 | y | ped-b |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-b")
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas[0], "esperas: pedido \"ped-b\" cartoes: K-1 K-3")
+        self.assertEqual(linhas[-1], "esperas: total: dono=3 minutos_dono=80 credencial=1 minutos_credencial=45 outra=0 minutos_outra=0 abertas=1 cartoes=2")
+
+    def test_kanban_passado_vale_no_lugar_do_da_raiz(self):
+        self.gravar("KANBAN.md", "# Quadro\n\n| ID | Cartão | Pedido |\n|---|---|---|\n| K-1 | x | ped-c |\n")
+        self.gravar("fora/outro-quadro.md", "# Quadro\n\n| ID | Cartão | Pedido |\n|---|---|---|\n| K-2 | x | ped-c |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-c", "--kanban", str(self.tmp / "fora/outro-quadro.md"))
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas[0], "esperas: pedido \"ped-c\" cartoes: K-2")
+
+    def test_motivo_que_cita_o_pedido_casa_o_cartao(self):
+        self.gravar("docs/kanban/historico.md", self.HISTORICO + "| 2026-10-22T15:00:00-03:00 | K-4 | Em andamento | Em andamento | volta 1 do pedido ped-d. |\n"
+                    + "| 2026-10-22T15:30:00-03:00 | K-5 | Em andamento | Aguardando o dono | pedido ped-dx |\n"
+                    + "| 2026-10-22T15:10:00-03:00 | K-4 | Em andamento | Em andamento | outro motivo, sem o id |\n"
+                    + "| 2026-10-22T16:00:00-03:00 | K-6 | Em andamento | Em andamento | PED-D em maiúsculas |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-d")
+        self.assertEqual(cod, 0)
+        self.assertEqual(linhas[0], "esperas: pedido \"ped-d\" cartoes: K-4 K-6")  # ped-dx e ped-d-2 não são o pedido; o ponto final é
+
+    def test_motivo_com_o_id_colado_ao_hifen_ou_ponto_nao_casa(self):
+        self.gravar("docs/kanban/historico.md", self.HISTORICO + "| 2026-10-22T15:00:00-03:00 | K-4 | Em andamento | Em andamento | ped-d-2 e ped-d.md |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-d")
+        self.assertEqual(cod, 1, linhas)
+
+    def test_motivo_com_o_id_colado_atras_de_letra_digito_ponto_ou_hifen_nao_casa(self):
+        self.gravar("docs/kanban/historico.md", self.HISTORICO + "| 2026-10-22T15:00:00-03:00 | K-4 | Em andamento | Em andamento | xped-d e 1ped-d e a.ped-d e x-ped-d |\n")
+        cod, linhas, _ = self.rodar("esperas", "--pedido", "ped-d")
+        self.assertEqual(cod, 1, linhas)
 
     def test_pedido_sem_cartao_rc_1_e_sem_historico_so_avisa(self):
         cod, linhas, _ = self.rodar("esperas", "--pedido", "nenhum")
