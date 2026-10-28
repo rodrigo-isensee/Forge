@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: pr-verde-lote-check
 branch: melhoria/pr-verde-lote-check
-commit: 044ef1d4ae7ce8f7136ef07fd4c0b810e8d91616
+commit: 10c5b7fc05792a515db5c69b9765d35bc540718a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-27
 ---
 # Review de segurança: pr-verde-lote-check
 
-Pedido PR-VERDE-LOTE-CHECK (G1, G2, G6 e D4 do ESTUDO-PR-VERDE), revisado no pedido PR-VERDE-LOTE-CHECK-REV (E2.1), rodada 2 (revalidação por delta). O parecer anterior estava em `26d2260eecbc01712927cfdaa67003df6b0ec107` e foi gravado no commit `cc82b460ce7e1ef5366c9eba4aa32f02c0f88023`. Delta revisto: `26d2260..044ef1d`, com `bin/forge-check`, os testes e os mutantes `M9` a `M16`. Veredito: **aprovado**. Os dois bloqueantes (A1 e A2) estão corrigidos, com teste e mutante, e o A3 caiu junto com o A2. Os A4 e A5 seguem como recomendação, em prosa.
+Pedido PR-VERDE-LOTE-CHECK (G1, G2, G6 e D4 do ESTUDO-PR-VERDE), revisado no pedido PR-VERDE-LOTE-CHECK-REV (E2.1), rodada 3 (revalidação por delta). O parecer anterior estava em `044ef1d4ae7ce8f7136ef07fd4c0b810e8d91616` (gravado em `10e4eefd3ae2d4764cda5c198e7d4fd05fa0783a`). Delta revisto: `044ef1d..10c5b7f`: só dois testes e a spec de mutantes `M17` e `M18` (QA A1 e A2); `bin/forge-check` não muda, então nada altera o veredito anterior. Veredito: **aprovado**. Os dois bloqueantes (A1 e A2) estão corrigidos, com teste e mutante, e o A3 caiu junto com o A2. Os A4 e A5 seguem como recomendação, em prosa.
 
 ## Gatilhos
 - `controles do Forge`: `bin/forge-check`, um arquivo protegido (portões `entrega`, `pr`, `delta` e `brief`).
@@ -45,6 +45,7 @@ Pedido PR-VERDE-LOTE-CHECK (G1, G2, G6 e D4 do ESTUDO-PR-VERDE), revisado no ped
 - **`CAMINHO_NO_PQ` (`:4384`):** o lookahead do curinga só deixa de cobrar um caminho com glob, e o G1 só acrescenta reprovação. O custo é quadrático no tamanho de um trecho entre crases: com 16 mil caracteres adversos, de 0,4 a 1,7 s. A entrada é o brief escrito pelo Jarvis, então não há caminho de ataque realista.
 - **G6:** o caso do brief do `-REV` de outra branch (`tests/test_forge.py:4656-4665`) continua anexando a remoção, e o mutante M11 cobre esse caso.
 - **Testes do item:** 163 testes passam, em `test_portao_diff_proprio`, `test_conferencia_base_dono`, `test_etapa_do_brief` e `test_volta_por_delta`.
+- **Delta 044ef1d..10c5b7f:** os dois testes novos passam (rodados aqui) e as specs M17 e M18 apontam trechos que existem em `bin/forge-check` (`:1151` para o M18); só fortalecem cobertura de guardas que já estavam aprovadas (A2, `livre`), sem tocar controle.
 - **PA-7** (`docs/engineering/achados-recorrentes.md`): a lista está vazia, então não há item a conferir.
 
 ## Riscos aceitos e ferramentas
