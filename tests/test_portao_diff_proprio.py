@@ -105,6 +105,23 @@ class PortaoDiffProprio(unittest.TestCase):
         self.commit("remove")
         self.assertIn("desatualizado: src.txt", self.vale(parecer))
 
+    def test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer(self):  # PR-VERDE-LOTE-CHECK (D4)
+        self.escreve("changelog.d/ramo.md", "- Corrigido: x\n")
+        parecer = self.parecer_no_ramo()
+        self.escreve("docs/reviews/ramo.md", f"---\ntipo: review\ncontrato: 1\npedido: ramo\nbranch: ramo\ncommit: {parecer}\n"
+                                             "parecer: aprovado\nrevisor: forge:tech-lead\ndata: 2026-10-27\n---\n# x\n")
+        self.commit("parecer")
+
+        def desatualizado():
+            return [l for l in fc.cmd_pr(self.dir, "ramo", "HEAD") if "desatualizado" in l]
+
+        self.escreve("changelog.d/ramo.md", "- Corrigido: y\n")
+        self.commit("só o fragmento da branch")
+        self.assertEqual(desatualizado(), [])
+        self.escreve("changelog.d/outra.md", "- Corrigido: z\n")
+        self.commit("fragmento de outra branch")
+        self.assertIn("desatualizado: changelog.d/outra.md mudou", desatualizado()[0])
+
     def test_sem_base_continua_estrito(self):
         parecer = self.parecer_no_ramo()
         self.base_avanca()

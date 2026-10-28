@@ -71,6 +71,16 @@
       "testes": [
         "tests.test_forge.EntregasParalelas.test_parecer_reescrito_pelo_portao_do_rev_casa_pelo_commit_e_pelo_papel"
       ]
+    },
+    {
+      "id": "M8",
+      "guarda": "D4: sem o fragmento da branch nos livres, mudar só o changelog.d/<slug>.md desatualizaria o parecer",
+      "arquivo": "bin/forge-check",
+      "de": "base, LIVRES + (f\"changelog.d/{pedido}.md\",))  # D4\n",
+      "para": "base, LIVRES)  # D4\n",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
+      ]
     }
   ]
 }
