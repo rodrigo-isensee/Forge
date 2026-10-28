@@ -1,0 +1,26 @@
+{
+  "pedido": "pr-verde-lote-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "QA A1: sem a guarda, conflito em arquivo livre (parecer) no merge simulado invalidaria o parecer",
+      "arquivo": "bin/forge-check",
+      "de": "            if livre(nome, ignorar):\n                continue\n",
+      "para": "            if False:\n                continue\n",
+      "testes": [
+        "tests.test_forge.PrAposMergeDaBase.test_conflito_em_arquivo_livre_nao_invalida"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "QA A2: com startswith, KANBAN.md.x sumiria do delta como se fosse o quadro",
+      "arquivo": "bin/forge-check",
+      "de": "if not livre(n, LIVRES)]\n    if not nomes:",
+      "para": "if not any(n.startswith(x) for x in LIVRES)]\n    if not nomes:",
+      "testes": [
+        "tests.test_volta_por_delta.Delta.test_arquivo_de_nome_parecido_com_o_livre_aparece_no_delta"
+      ]
+    }
+  ]
+}

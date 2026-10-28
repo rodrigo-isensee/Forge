@@ -4449,6 +4449,14 @@ class PrAposMergeDaBase(RepoComOrigem):
         self.assertEqual(rc, 1, saida)
         self.assertIn("desatualizado: src/x.txt", saida)
 
+    def test_conflito_em_arquivo_livre_nao_invalida(self):  # QA A1 da volta 1: o arquivo livre da entrega, em conflito, não diverge
+        revisado = self.commitar(self.repo, {"docs/qa/x.md": "da branch\n"}, "entrega com arquivo livre")
+        self.pareceres(revisado)
+        self.develop_anda({"docs/qa/x.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # y.txt força o merge simulado
+        self.assertEqual(self.mescla_a_develop(lambda: git("checkout", "--ours", "docs/qa/x.md", cwd=self.repo)), 1)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida), (0, ""), saida)
+
     def test_a_branch_muda_o_proprio_arquivo_depois_do_parecer(self):  # o teste do dono
         self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
         rc, saida, _ = self.pr("--base", "develop")
