@@ -135,19 +135,18 @@ def expande(palavra):
 def globais(toks):
     """Das opções globais de `git ...` (sem atribuições): (posição do subcomando, os `-C` em ordem, as pastas são
     incertas?). Palavra com expansão antes do subcomando pode sumir ou virar várias (`-C $(true) P`, `$(echo -C P)`): as
-    pastas ficam incertas e o subcomando é o primeiro `merge`, `pull`, `checkout` ou `switch` dali em diante."""
-    i, pastas, incertas, achou = 1, [], False, None
-    while i < len(toks) and (toks[i].startswith("-") or expande(toks[i])):
+    pastas ficam incertas e o subcomando é o primeiro `merge`, `pull`, `checkout` ou `switch`."""
+    i, pastas, incertas = 1, [], False
+    while i < len(toks) and toks[i].startswith("-"):
         valor = (toks[i + 1:] + [""])[0]
-        if expande(toks[i]) or toks[i] in GIT_COM_VALOR and expande(valor):
-            incertas, achou = True, i if achou is None else achou
         if toks[i] == "-C" and i + 1 < len(toks):
             pastas.append(valor)
         incertas |= (toks[i] in ("--git-dir", "--work-tree") or toks[i].startswith(("--git-dir=", "--work-tree="))
                      or toks[i] == "-c" and valor.lower().startswith("core.worktree"))
         i += 2 if toks[i] in GIT_COM_VALOR else 1
-    if achou is not None:
-        i = next((j for j in range(achou, len(toks)) if toks[j] in SUBCOMANDOS), len(toks))
+    sub = next((j for j in range(1, len(toks)) if toks[j] in SUBCOMANDOS), len(toks))
+    if any(map(expande, toks[1:sub])):
+        return sub, pastas, True
     return i, pastas, incertas
 
 
