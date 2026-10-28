@@ -141,7 +141,7 @@ def globais(toks):
         valor = (toks[i + 1:] + [""])[0]
         if expande(toks[i]) or toks[i] in GIT_COM_VALOR and expande(valor):
             incertas, achou = True, i if achou is None else achou
-        if toks[i] == "-C":
+        if toks[i] == "-C" and i + 1 < len(toks):
             pastas.append(valor)
         incertas |= (toks[i] in ("--git-dir", "--work-tree") or toks[i].startswith(("--git-dir=", "--work-tree="))
                      or toks[i] == "-c" and valor.lower().startswith("core.worktree"))
@@ -182,7 +182,7 @@ def analisar(toks):
     if toks[0] != "git":
         return None
     i, pastas, _ = globais(toks)
-    pasta = pastas[-1] if pastas else None
+    pasta = next(reversed(pastas), None)
     sub, args = (toks[i], toks[i + 1:]) if i < len(toks) else (None, [])
     if sub in ("checkout", "switch"):
         nome = troca_de_branch(args)

@@ -4,6 +4,66 @@
   "mutantes": [
     {
       "id": "M93",
+      "guarda": "a mexida na linha vale para os comandos seguintes",
+      "arquivo": "hooks/parecer.py",
+      "de": "mexidas = mexidas | mexidas_na_linha(palavras)",
+      "para": "mexidas = mexidas_na_linha(palavras)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M94",
+      "guarda": "GIT_DIR e afins mexidos na linha desviam o repositorio",
+      "arquivo": "hooks/parecer.py",
+      "de": "desviado |= bool(DESVIOS & mexidas)",
+      "para": "desviado |= False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M95",
+      "guarda": "o cd solto muda a pasta; o que nao e solto a deixa desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "sem[1:], mexidas) if sem[1:] else resolver(\"~\", mexidas, pasta)) if solto else None",
+      "para": "sem[1:], mexidas) if sem[1:] else resolver(\"~\", mexidas, pasta)) if True else None",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M96",
+      "guarda": "cd sozinho vai ao HOME",
+      "arquivo": "hooks/parecer.py",
+      "de": "if sem[1:] else resolver(\"~\", mexidas, pasta)",
+      "para": "if not sem[1:] else resolver(\"~\", mexidas, pasta)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M97",
+      "guarda": "relativo sem base conhecida nao se resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "or base is None and not os.path.isabs(palavra):",
+      "para": "or False and not os.path.isabs(palavra):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M98",
+      "guarda": "--git-dir e --work-tree deixam as pastas incertas",
+      "arquivo": "hooks/parecer.py",
+      "de": "incertas |= (toks[i] in (\"--git-dir\", \"--work-tree\") or",
+      "para": "incertas |= (False or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M99",
       "guarda": "-c core.worktree deixa as pastas incertas",
       "arquivo": "hooks/parecer.py",
       "de": "or toks[i] == \"-c\" and valor.lower().startswith(\"core.worktree\"))",
