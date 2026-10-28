@@ -12,11 +12,11 @@ Passos, em ordem; para no primeiro erro:
   4. PR develop -> homolog: abre se não houver (reusa o aberto; base que não seja a homolog para).
   5. checks: uma leitura de `gh pr checks`; só pass/skipping passam.
   6. rótulo: a Catraca vermelha pede o rótulo `afrouxa-regra` do dono; o script só avisa, nunca o aplica.
-  7. imprime o comando de merge do tech-lead. O script NÃO mescla: o merge segue com o tech-lead e o rótulo, com o dono.
+  7. imprime o comando que liga o merge automático (--auto); com o merge automático desligado no repositório, o comando recusa e o tech-lead mescla com tudo verde. O script NÃO mescla: o rótulo segue com o dono.
 --dry-run: roda só as leituras locais dos passos 1 a 3 (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
 Sem --dry-run, antes do passo 1 roda `git fetch origin` (atualiza as refs remotas; é a única escrita local).
-Código de saída: 0 pronta para o merge (ou dry-run sem problema); 1 parou; 3 preparada, mas checks pendentes ou rótulo do dono
-por vir (rode de novo).
+Código de saída: 0 pronta para o merge automático (checks verdes, pendentes ou ainda sem check; ou dry-run sem problema);
+1 parou (inclui check vermelho); 3 preparada, mas o rótulo do dono por vir (rode de novo).
 Nunca: mescla, aplica rótulo, usa --force ou --no-verify, toca a main. Roda só no repositório do Forge.
 Para teste, com FORGE_PROMOVER_TESTE=1: FORGE_GH substitui o `gh` e FORGE_PROMOVER_PAUSA (segundos) a espera entre leituras
 repetidas; sem a variável, FORGE_GH é ignorada, com aviso.
@@ -210,13 +210,13 @@ def promover(args):
     versao = conferir_versao(ref, base)
     print("[3] versão e CHANGELOG")
     sha = git("rev-parse", ref).stdout.strip()
-    comando_merge = f"gh pr merge develop --merge --match-head-commit {sha}"
+    comando_merge = f"gh pr merge develop --auto --merge --match-head-commit {sha}"
     if args.dry_run:
         gh = comando_gh()
         print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
         print(f"[5] checks: {gh} pr checks <PR> (uma leitura; só pass/skipping passam; pendente sai com 3)")
         print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
-        print(f"[7] imprime o comando do tech-lead ({comando_merge}); o script não mescla")
+        print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
         print("dry-run concluído: nada foi alterado.")
         return 0
     gh = comando_gh()
@@ -239,8 +239,10 @@ def promover(args):
     if not estados:
         if saida.strip() and "no checks reported" not in saida.lower():
             parar(f"não consegui ler os checks: {saida.strip()}")
-        print("nenhum check apareceu ainda; rode de novo daqui a pouco")
-        return 3
+        print("nenhum check apareceu ainda; o merge automático espera os checks.")
+        print(f"head: {sha}")
+        print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
+        return 0
     vermelhos = [(n, e) for n, e in estados if e not in OK and e not in PENDENTES and not (n == CATRACA and e == "fail")]
     if vermelhos:
         parar("check vermelho ou desconhecido: " + ", ".join(f"{n}={e}" for n, e in vermelhos) + "; corrija e rode de novo")
@@ -256,11 +258,13 @@ def promover(args):
         return 3
     print(f"[6] rótulo: a catraca não pede o rótulo {ROTULO}")
     if pendente:
-        print("checks ainda pendentes; rode de novo")
-        return 3
+        print("checks ainda pendentes; o merge automático espera os checks.")
+        print(f"head: {sha}")
+        print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
+        return 0
     print("checks verdes.")
     print(f"head: {sha}")
-    print(f"[7] pronta para o merge do tech-lead; este script não mescla. Comando: {comando_merge}")
+    print(f"[7] pronta para o merge do tech-lead; este script não mescla. Liga o merge automático: {comando_merge} (com ele desligado no repositório, o comando recusa: mescle com tudo verde)")
     return 0
 
 
