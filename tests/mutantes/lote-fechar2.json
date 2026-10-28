@@ -1,0 +1,89 @@
+{
+  "pedido": "lote-fechar2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "LSREMOTE-EXATO: so a linha com a coluna 2 igual a refs/heads/<branch> vale",
+      "arquivo": "bin/forge-fechar",
+      "de": "'$2 == r { if ((length",
+      "para": "'{ if ((length",
+      "testes": [
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_com_o_mesmo_fim_nao_engana_o_passo_2_nem_a_limpeza",
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_da_base_nao_engana_o_passo_2b",
+        "tests.test_fechar.Fechar.test_lsremote_exato_isca_nao_engana_a_conferencia_depois_do_delete_que_falhou"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "LSREMOTE-EXATO: leitura que falha nao vira branch ausente",
+      "arquivo": "bin/forge-fechar",
+      "de": "saida_remota=\"$(\"$@\" git ls-remote origin \"$nome\")\" || return 1",
+      "para": "saida_remota=\"$(\"$@\" git ls-remote origin \"$nome\")\" || :",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_corte_com_a_conferencia_da_remota_falhando_fica_pendente_sem_afirmar_que_esta_viva"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "SHELLCHECK-FECHAR: bin/forge-fechar na lista do shellcheck do CI",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "run: shellcheck bin/forge-init bin/forge-fechar scripts/jarvis",
+      "para": "run: shellcheck bin/forge-init scripts/jarvis",
+      "testes": [
+        "tests.test_fechar.Fechar.test_shellcheck_fechar_esta_na_lista_do_ci"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "2b: a contagem da base exclui todos os pontos de partida, nao so o primeiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "--not \"${lista_mb[@]}\")\"",
+      "para": "--not \"${lista_mb[0]}\")\"",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_varios_pontos_de_partida_entram_todos_na_contagem_da_base"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "2b: falha de sort ou comm ao cruzar as listas para, nao segue como sem arquivo em comum",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo 2b: não consegui cruzar as listas de arquivos\"",
+      "para": ":",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_comm_que_falha_para_no_passo_2b_sem_abrir_pr"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "passo 2: leitura da branch remota que falha para com a mensagem da leitura",
+      "arquivo": "bin/forge-fechar",
+      "de": "|| die \"parou no passo 2: não consegui ler a branch $ref no origin\"",
+      "para": "|| :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_ls_remote_da_branch_que_falha_para_no_passo_2_com_a_mensagem_da_leitura",
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "remoto_exato: a coluna 1 tem 40 ou 64 caracteres",
+      "arquivo": "bin/forge-fechar",
+      "de": "(length($1) == 40 || length($1) == 64) && $1 ~",
+      "para": "$1 ~",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "remoto_exato: a coluna 1 e hexadecimal",
+      "arquivo": "bin/forge-fechar",
+      "de": "$1 ~ /^[0-9a-f]+$/",
+      "para": "length($1) > 0",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_coluna_1_que_nao_e_sha_e_leitura_que_falhou_e_nao_valor"
+      ]
+    }
+  ]
+}

@@ -184,6 +184,44 @@ class Release(Base):
         self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
         self.assertEqual(arq.read_text(encoding="utf-8"), antes)
 
+    def test_versao_aninhada_antes_da_de_topo_com_o_manifesto_ja_na_versao_alvo_falha_sem_gravar_nada(self):
+        # CHANGELOG-D-LINK: o topo já vale 0.2.0; a troca textual editava o campo aninhado e saía com 0
+        antes = '{"extra": {"version": "9"}, "version": "0.2.0"}\n'
+        arq = self._dev_com(antes)
+        self._nada_gravado(forge_changelog(self.dir, "release", "0.2.0", "2026-02-02"), "dev/.claude-plugin/plugin.json")
+        self.assertEqual(arq.read_text(encoding="utf-8"), antes)
+
+    def test_changelog_d_como_link_para_fora_da_raiz_nao_publica_nem_apaga_os_md_externos(self):
+        with tempfile.TemporaryDirectory() as fora:
+            (Path(fora) / "externo.md").write_text("### Corrigido\n- EXTERNO\n", encoding="utf-8")
+            (self.dir / "changelog.d").symlink_to(fora)
+            r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("changelog.d", r.stderr)
+            self.assertTrue((Path(fora) / "externo.md").exists())
+        self.assertEqual((self.dir / "CHANGELOG.md").read_text(encoding="utf-8"), CABECALHO)
+        self.assertEqual((self.dir / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"), '{"version": "0.1.0"}\n')
+
+    def test_fragmento_que_e_link_para_fora_da_raiz_e_recusado_e_o_alvo_fica(self):
+        self._com_fragmento()
+        with tempfile.TemporaryDirectory() as fora:
+            alvo = Path(fora) / "externo.md"
+            alvo.write_text("### Corrigido\n- EXTERNO\n", encoding="utf-8")
+            (self.dir / "changelog.d" / "y.md").symlink_to(alvo)
+            r = forge_changelog(self.dir, "release", "0.2.0", "2026-02-02")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("y.md", r.stderr)
+            self.assertTrue(alvo.exists())
+        self.assertEqual((self.dir / "CHANGELOG.md").read_text(encoding="utf-8"), CABECALHO)
+
+    def test_novo_com_changelog_d_como_link_e_recusado_sem_gravar_fora(self):
+        with tempfile.TemporaryDirectory() as fora:
+            (self.dir / "changelog.d").symlink_to(fora)
+            r = forge_changelog(self.dir, "novo", "Corrigido", "x")
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("changelog.d", r.stderr)
+            self.assertEqual(list(Path(fora).iterdir()), [])
+
     def test_chave_version_repetida_falha_sem_gravar_nada(self):
         antes = '{"version": "0.1.0", "version": "0.1.1"}\n'
         arq = self._dev_com(antes)

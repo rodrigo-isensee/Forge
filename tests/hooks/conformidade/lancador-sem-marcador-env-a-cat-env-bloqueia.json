@@ -1,0 +1,19 @@
+{
+  "descricao": "Sem o marcador crítico, o lançador com opção fora da tabela não esconde a regra da linha (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13): env -a x cat .env",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -a x cat .env"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "ler .env"
+  }
+}

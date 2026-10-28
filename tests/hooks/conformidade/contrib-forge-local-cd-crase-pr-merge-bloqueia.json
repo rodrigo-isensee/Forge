@@ -1,0 +1,32 @@
+{
+  "descricao": "S3: a crase depois do cd para o clone do Forge roda lá; precisa continuar recusada.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "repos": {
+    "home/Forge": {
+      "arquivos": {
+        ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+      },
+      "remotos": {
+        "origin": "https://github.com/rodrigo-isensee/Forge.git"
+      }
+    }
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd {tmp}/home/Forge && x=`gh pr merge 70`"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONTRIB"
+  }
+}

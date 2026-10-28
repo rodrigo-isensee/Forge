@@ -1,0 +1,29 @@
+{
+  "descricao": "A1 de segurança (volta 4): git add, git commit e git push da branch estão na lista positiva dos outros comandos; o apóstrofo da mensagem não recusa.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git add src/app.js && git commit -m \"$(cat <<'EOF'\nfix: it's done\nEOF\n)\" && git push origin feature/x"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -920,42 +920,66 @@ def tem_commit(raiz, sha):
     return not git(raiz, "cat-file", "-e", f"{sha}^{{commit}}")[0]
 
 
-def prova_do_squash(raiz, pull, n, s, m, base, head):
+def ponta_promovida(raiz, base, head):
+    """A ponta da branch promovida. No CI o head é o merge de teste do PR (`refs/pull/<n>/merge`), cujo primeiro pai é a base:
+    a cadeia de primeiro pai dele seria só ele mesmo, e a branch promovida é o segundo pai. Fora disso, o próprio head."""
+    cod, linha = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    pais = linha.split()[1:] if not cod else []
+    cod_b, b = git(raiz, "rev-parse", "--verify", "-q", f"{base}^{{commit}}")
+    return pais[1] if len(pais) == 2 and not cod_b and pais[0] == b.strip() else head
+
+
+def sem(motivos, texto, valor=None):
+    """Anota em `motivos` (se houver) por que a conferência do PR mesclado não liberou e devolve `valor`."""
+    if motivos is not None:
+        motivos.append(texto)
+    return valor
+
+
+def prova_do_squash(raiz, pull, n, s, m, base, head, motivos=None):
     """Substituto da ancestralidade quando o merge M é squash (S nunca é ancestral dele): M tem um pai só e está na cadeia de
-    primeiro pai de base..head; S, o head rotulado, é ancestral do `head.sha` da API, que é o que `refs/pull/<n>/head` traz."""
+    primeiro pai de base..ponta da branch promovida (`ponta_promovida`); S, o head rotulado, é ancestral do `head.sha` da API,
+    que é o que `refs/pull/<n>/head` traz."""
     cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", m)
-    if cod or len(pais.split()) != 2 or m not in git(raiz, "rev-list", "--first-parent", f"{base}..{head}")[1].split():
-        return False
+    ponta = ponta_promovida(raiz, base, head)
+    if cod or len(pais.split()) != 2 or m not in git(raiz, "rev-list", "--first-parent", f"{base}..{ponta}")[1].split():
+        return sem(motivos, f"o merge {m[:12]} não é squash na cadeia de primeiro pai de {base}..{ponta[:12]}", False)
     final = (pull.get("head") or {}).get("sha")
     if not isinstance(final, str) or not SHA_COMPLETO.fullmatch(final):
-        return False
+        return sem(motivos, "a API não deu o `head.sha` do PR", False)
     if not (tem_commit(raiz, s) and tem_commit(raiz, final)):
         if not buscar_cabeca_do_pr(raiz, n):
-            return False
+            return sem(motivos, f"não consegui buscar refs/pull/{n}/head", False)
         cod, trazido = git(raiz, "rev-parse", "--verify", "-q", f"{REF_BUSCADA.format(int(n))}^{{commit}}")
         if cod or trazido.strip() != final or not tem_commit(raiz, s):
-            return False
-    return not git(raiz, "merge-base", "--is-ancestor", s, final)[0]
+            return sem(motivos, f"refs/pull/{n}/head não é o head da API ou não traz o head rotulado {s[:12]}", False)
+    if git(raiz, "merge-base", "--is-ancestor", s, final)[0]:
+        return sem(motivos, f"o head rotulado {s[:12]} não é ancestral do head final do PR", False)
+    return True
 
 
-def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo, base=None, head=None):
+def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo, base=None, head=None, motivos=None):
     """(S, M, squash) do PR `n`: mesclado no `ramo` do próprio repositório (base e head), com `merge_commit_sha` M em base..head,
     último evento do rótulo `labeled` pelo dono (sem app) e S, o head no instante do rótulo (`commit_do_rotulo`), presente
     no git local e ancestral de M. Sem isso, e só se M for squash (`prova_do_squash`), S pode vir de `refs/pull/<n>/head`.
-    Qualquer dúvida devolve None (sem rótulo)."""
+    Qualquer dúvida devolve None (sem rótulo); o motivo vai para `motivos`."""
     try:
         pull = fonte.pull(n)
-        if not isinstance(pull, dict) or not pull.get("merged_at") or pull.get("merge_commit_sha") not in intervalo:
-            return None
+        if not isinstance(pull, dict):
+            return sem(motivos, "a API não devolveu o PR")
+        if not pull.get("merged_at") or pull.get("merge_commit_sha") not in intervalo:
+            return sem(motivos, "não foi mesclado ou o merge não está em base..head")
         if (pull.get("base") or {}).get("ref") != ramo or _repo_de(pull.get("base")) != fonte.repo or _repo_de(pull.get("head")) != fonte.repo:
-            return None
+            return sem(motivos, f"não é PR do próprio repositório para a `{ramo}`")
         eventos = fonte.eventos(n)
-        ultimo = rotulo_do_dono(eventos, dono) if isinstance(eventos, list) else None
+        if not isinstance(eventos, list):
+            return sem(motivos, "a API não devolveu os eventos do PR")
+        ultimo = rotulo_do_dono(eventos, dono)
         if not ultimo or ultimo.get("performed_via_github_app"):
-            return None
+            return sem(motivos, f"o último evento do rótulo `{ROTULO}` não é `labeled` pelo dono")
         execucoes = fonte.execucoes(n, pull)
         if not isinstance(execucoes, list):
-            return None
+            return sem(motivos, "a API não devolveu as execuções do Actions do PR")
         inicio, fim, ramo_pr = instante(pull["created_at"]), instante(pull["merged_at"]), pull["head"]["ref"]
         # O `pull_requests` das execuções de PR fechado vem vazio: valem as da branch dele, do próprio repositório, na vida do PR.
         do_pr = [{**e, "pull_requests": [{"number": n}]} for e in execucoes
@@ -964,35 +988,43 @@ def sha_rotulado_do_mesclado(raiz, fonte, n, ramo, dono, intervalo, base=None, h
         # Apagar ou restaurar a branch depois do merge não muda o que foi mesclado; antes dele, reescrita segue falhando fechado.
         antes_do_merge = [e for e in eventos if not (e.get("event") in REESCRITA and instante(e["created_at"]) > fim)]
         s, m = commit_do_rotulo(antes_do_merge, do_pr, n, dono), pull["merge_commit_sha"]
-    except (KeyError, TypeError, ValueError, AttributeError):
-        return None
+    except (KeyError, TypeError, ValueError, AttributeError) as e:
+        return sem(motivos, f"resposta da API fora do formato ({type(e).__name__})")
     if not s:
-        return None
+        return sem(motivos, "sem o head do instante do rótulo (execução do Actions antes e depois dele, sem reescrita da branch)")
     if tem_commit(raiz, s) and not git(raiz, "merge-base", "--is-ancestor", s, m)[0]:
         return s, m, False
-    if base is None or head is None or not prova_do_squash(raiz, pull, n, s, m, base, head):
+    if base is None or head is None:
+        return sem(motivos, f"o head rotulado {s[:12]} não é ancestral do merge {m[:12]}")
+    if not prova_do_squash(raiz, pull, n, s, m, base, head, motivos):
         return None
     return s, m, True
 
 
-def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono):
+def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos=None):
     """Números dos PRs mesclados que cobrem todas as violações, ou None. Só em promoção e só violações "mudança em <arquivo>":
     cada uma fica coberta se o arquivo tem em `head` o mesmo blob e modo que no head rotulado S de um PR candidato e a mesma
     violação existia em S sobre o merge-base dele com o primeiro pai do merge (o rótulo cobriu aquele arquivo). Sem
-    transitividade: o PR candidato precisa do próprio rótulo do dono."""
+    transitividade: o PR candidato precisa do próprio rótulo do dono. Na promoção, o motivo de não liberar vai para `motivos`."""
     if fonte is None or not dono:
         return None
     arquivos = [arquivo_da_violacao(v) for v in viol]
-    if not arquivos or None in arquivos:
+    if not arquivos:
         return None
     pr = fonte.pr_atual()
-    if not eh_promocao(pr, fonte.repo):
+    if not eh_promocao(pr, fonte.repo):  # sem o PR não se sabe se é promoção: a falha da API já tem o seu aviso
         return None
+    if None in arquivos:
+        return sem(motivos, "há violação que não é \"mudança em <arquivo>\" (só essa o PR mesclado cobre)")
     intervalo, numeros = candidatos_mesclados(raiz, base, head, set(arquivos))
     pendentes, usados = set(arquivos), []
+    if not numeros:
+        sem(motivos, "nenhum commit de base..head que toca esses arquivos cita um PR (#n)")
     for n in numeros:
-        sm = sha_rotulado_do_mesclado(raiz, fonte, n, pr["head"]["ref"], dono, intervalo, base, head)
+        do_pr = []
+        sm = sha_rotulado_do_mesclado(raiz, fonte, n, pr["head"]["ref"], dono, intervalo, base, head, do_pr)
         if not sm:
+            sem(motivos, f"#{n}: {'; '.join(do_pr)}")
             continue
         s, m, squash = sm
         de_s = set(regra_protegidos(raiz, base_efetiva(raiz, f"{m}^1", s), s))  # a mesma violação, texto exato (sem normalizar números)
@@ -1002,18 +1034,25 @@ def liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono):
         if cobertos:
             pendentes -= cobertos
             usados.append(n)
+        else:
+            sem(motivos, f"#{n}: nenhum arquivo pendente igual ao do head rotulado {s[:12]} (blob e modo) com a mesma violação nele")
         if not pendentes:
             return usados
-    return None
+    return sem(motivos, f"sem PR rotulado com o mesmo arquivo (blob e modo) e a mesma violação para: {', '.join(sorted(pendentes))}")
 
 
 def liberado_por_pr_mesclado_ou_none(raiz, base, head, viol, fonte, dono):
-    """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem."""
+    """`liberado_por_pr_mesclado`, mas git que estoura o prazo ou não executa vale como sem rótulo (M5), com mensagem; na promoção
+    que não libera, imprime o motivo de cada PR candidato (antes a conferência voltava calada)."""
+    motivos = []
     try:
-        return liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono)
+        prs = liberado_por_pr_mesclado(raiz, base, head, viol, fonte, dono, motivos)
     except FALHAS_DO_GIT as e:
         aviso(f"o git não terminou ({type(e).__name__})")
         return None
+    if not prs and motivos:
+        aviso(f"a conferência do PR mesclado não liberou ({' | '.join(motivos)})")
+    return prs
 
 
 # --- Outros modos -----------------------------------------------------------------------------------------

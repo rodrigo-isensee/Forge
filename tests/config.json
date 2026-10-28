@@ -173,10 +173,13 @@
       "\"conferente\": \\[\"forge:conferente\"\\]",
       "\"so_leitura\": \\{"
     ],
+    "hooks/_comum.py": [
+      "def conteudos_de_crase"
+    ],
     "hooks/conformidade.py": [
       "def checar_so_leitura",
       "def leitura_valida","REPO_APAGAR", "VISIBILIDADE_PUBLICA", "filter-branch", "filter-repo", "--mirror", "permissionDecision", "def checar_remocao", "SUGESTAO",
-      "def endpoint_normalizado", "def conteudos_de_crase", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
+      "def endpoint_normalizado", "conteudos_de_crase\\(", "GRAPHQL_DE_ROTULO", "TIMEOUT_DA_CONTA", "erro interno ao conferir o rótulo afrouxa-regra",
       "def rotulo_no_argumento", "def rotulos_removidos", "sub == \"clone\""],
     "skills/modo-iniciante/SKILL.md": ["sugestão ao Forge", "pelo site do GitHub", "## Como perguntar", "\\*\\*Afrouxa o processo\\?\\*\\*", "\\*\\*custo de eficiência\\*\\*", "Faltam N perguntas\\.", "decidam vocês", "não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível"],
     "docs/adr/_modelo.md": [

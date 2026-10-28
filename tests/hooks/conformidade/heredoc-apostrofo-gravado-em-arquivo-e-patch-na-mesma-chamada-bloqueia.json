@@ -1,0 +1,30 @@
+{
+  "descricao": "M2 da volta única (F3): o patch na linha seguinte, na mesma chamada, pode rodar o arquivo gravado; o corpo é conferido e o apóstrofo sem par recusa, com o programa na mensagem.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cat > mudanca.diff <<'EOF'\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-it's\n+it is\nEOF\npatch -p1 < mudanca.diff"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: o texto roda `patch`, fora da lista"
+  }
+}

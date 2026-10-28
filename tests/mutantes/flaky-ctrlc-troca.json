@@ -1,0 +1,14 @@
+{
+  "pedido": "FLAKY-CTRLC-TROCA",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "o Ctrl-C na troca do plugin some: o claude() engole o KeyboardInterrupt e a troca segue como falha comum",
+      "arquivo": "bin/forge_versoes.py",
+      "de": "                    interrompido = True",
+      "para": "                    pass",
+      "testes": ["tests.test_atualizar.CtrlCNaTroca"]
+    }
+  ]
+}

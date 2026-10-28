@@ -1,0 +1,30 @@
+{
+  "pedido": "conferente-c1-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "F1",
+      "guarda": "o commit linear que apaga arquivo da entrega some do escopo",
+      "arquivo": "bin/forge-check",
+      "de": "        desfeitos = novos & desfeitos_da_entrega(raiz, b, desde)",
+      "para": "        desfeitos = set()",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desfeito_em_commit_linear_depois_da_conferida_fica_no_escopo"]
+    },
+    {
+      "id": "F2",
+      "guarda": "o merge da base como ultimo commit devolve arquivo da entrega e ele some",
+      "arquivo": "bin/forge-check",
+      "de": "if n in dos_dois_pais[0] or n in desfeitos]",
+      "para": "if n in dos_dois_pais[0]]",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desfeito_pelo_merge_da_base_como_ultimo_commit_fica_no_escopo"]
+    },
+    {
+      "id": "F3",
+      "guarda": "o merge da base seguido de commit perde o arquivo desfeito",
+      "arquivo": "bin/forge-check",
+      "de": "        nomes = [n for n in nomes if n in novos] + sorted(desfeitos - set(nomes))",
+      "para": "        nomes = [n for n in nomes if n in novos]",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desfeito_pelo_merge_da_base_seguido_de_commit_fica_no_escopo"]
+    }
+  ]
+}

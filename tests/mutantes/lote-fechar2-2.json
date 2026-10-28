@@ -1,0 +1,89 @@
+{
+  "pedido": "lote-fechar2-2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "2b: falha do diff da base para, nao segue com a lista da base vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$mb\" \"$base_sha\" >> \"$tmp2b/a\" || die \"parou no passo 2b: o diff da base falhou; rode: git fetch origin $alvo\"",
+      "para": "\"$mb\" \"$base_sha\" >> \"$tmp2b/a\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_diff_da_base_que_falha_sozinho_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "2b: falha do diff da branch para, nao segue com a lista da branch vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"$mb\" \"$remoto_sha\" >> \"$tmp2b/b\" || die \"parou no passo 2b: o diff da branch falhou; rode: git fetch origin $alvo\"",
+      "para": "\"$mb\" \"$remoto_sha\" >> \"$tmp2b/b\" || :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_diff_da_branch_que_falha_sozinho_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "2b: o laco dos diffs cobre todos os pontos de partida, nao so o primeiro",
+      "arquivo": "bin/forge-fechar",
+      "de": "for mb in \"${lista_mb[@]}\"; do",
+      "para": "for mb in \"${lista_mb[0]}\"; do",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "2b: arquivo em comum so segue se a lista de comuns nao esta vazia",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -s \"$tmp2b/comuns\" ]; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "2b: arquivo em comum para com die, nao so lista",
+      "arquivo": "bin/forge-fechar",
+      "de": "die \"parou no passo 2b: a base andou e tocou arquivo que a branch também tocou",
+      "para": ": \"parou no passo 2b: a base andou e tocou arquivo que a branch também tocou",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_c5_base_que_andou_com_arquivo_em_comum_para_antes_do_pr"
+      ]
+    },
+    {
+      "id": "Y1",
+      "guarda": "2b: sort que falha antes do comm para (&& antes do comm virado ;)",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" ; comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "Y2",
+      "guarda": "2b: sort da lista da base que falha para (&& depois do sort a virado ;)",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" ; sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
+    },
+    {
+      "id": "Y4",
+      "guarda": "2b: nenhum && da cadeia dos sort e do comm vale como ;",
+      "arquivo": "bin/forge-fechar",
+      "de": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" && sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" && comm -z -12",
+      "para": "sort -zu \"$tmp2b/a\" > \"$tmp2b/a.s\" ; sort -zu \"$tmp2b/b\" > \"$tmp2b/b.s\" ; comm -z -12",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_base_que_falha_para_no_passo_2b",
+        "tests.test_fechar_base_andou.Teste.test_sort_da_lista_da_branch_que_falha_para_no_passo_2b"
+      ]
+    }
+  ]
+}

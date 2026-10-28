@@ -1,0 +1,35 @@
+{
+  "descricao": "N2, excesso: a substituição entre aspas que não abre PR nem mescla não muda nada: o rascunho continua liberando.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "develop"
+      }
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "x=\"$(date)\"; gh pr create --draft --base develop --title \"t $(date)\" --body x"
+    }
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "descricao": "Acima do teto de palavras fora da tabela (K = 3) o comando recusa, mesmo sem o marcador e sem regra da linha.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "env -a -b -c -d ls"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "opção de lançador que o hook não modela"
+  }
+}

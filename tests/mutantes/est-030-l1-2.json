@@ -1,0 +1,86 @@
+{
+  "pedido": "est-030-l1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "QA A2: o trecho copiado do Fora do escopo contradiz",
+      "arquivo": "bin/forge-check",
+      "de": "        copiados = [f for f in fragmentos_citados(item) if len(f) >= 20 and f in texto]\n",
+      "para": "        copiados = []\n",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "QA A3: o limite de 20 caracteres (um trecho curto não contradiz)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(f) >= 20 and f in texto]",
+      "para": "if len(f) >= 0 and f in texto]",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "QA A3: fronteira do limite (20 exatos contradiz)",
+      "arquivo": "bin/forge-check",
+      "de": "if len(f) >= 20 and f in texto]",
+      "para": "if len(f) > 20 and f in texto]",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "QA A2: o trecho tem de estar no Entregar",
+      "arquivo": "bin/forge-check",
+      "de": "if len(f) >= 20 and f in texto]",
+      "para": "if len(f) >= 20]",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_trecho_copiado_do_fora_do_escopo_contradiz_so_com_20_caracteres_ou_mais_e_se_o_entregar_o_traz"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "QA A4: o id que o pedido não tem não exclui nada",
+      "arquivo": "bin/forge-check",
+      "de": "ids_do_fora(item) & existentes & citados",
+      "para": "ids_do_fora(item) & citados",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_o_id_que_o_pedido_nao_tem_nao_exclui_nada"
+      ]
+    },
+    {
+      "id": "Q6",
+      "guarda": "QA A1: o head local atrás do remoto (ancestral) não reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if remota and (head == remota or e_ancestral(raiz, head, remota)):",
+      "para": "if remota and head == remota:",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_head_local_atras_do_remoto_nao_reprova"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "QA A1: Branch sem commit local não tem o que conferir",
+      "arquivo": "bin/forge-check",
+      "de": "if not head or not (conferido",
+      "para": "if not (conferido",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_branch_sem_commit_local_nao_reprova_nem_quebra"
+      ]
+    },
+    {
+      "id": "Q9",
+      "guarda": "QA A5: a saída malformada do remoto não vira sha",
+      "arquivo": "bin/forge-check",
+      "de": "(sha if SHA40.match(sha) else None)",
+      "para": "sha",
+      "testes": [
+        "tests.test_etapa_do_brief.QuatroDefeitosDoScript.test_a_saida_malformada_do_remoto_nao_vira_sha"
+      ]
+    }
+  ]
+}
