@@ -57,6 +57,7 @@ ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "
 LE_VARIAVEL = {"source", ".", "eval", "read", "mapfile", "readarray", "getopts", "for", "select", "let", "declare",
                "typeset", "local", "readonly", "unset", "set", "printf"}  # mexem em variável sem `NOME=` na palavra
 DESVIOS = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR"}
+SENSIVEIS = DESVIOS | {"HOME", "CDPATH"}  # o bash e o git os leem sozinhos: mexidos na linha, a pasta fica desconhecida
 ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)(\+?)=(.*)$", re.S)
 VARIAVEL = re.compile(r"\$(\{)?(\w+)(?(1)\})")  # `$NOME` e `${NOME}`; o grupo 2 é o nome
 Ambiente = collections.namedtuple("Ambiente", "variaveis desviado")  # variaveis: ((nome, valor), ...) ordenado
@@ -184,9 +185,41 @@ def soltos(leitura):
     return saida
 
 
-def com_til(palavra):
-    """`~` e `~/...` no início da palavra viram o HOME, como o bash faz antes do comando rodar."""
-    return str(Path(os.path.expanduser("~"))) + palavra[1:] if palavra == "~" or palavra.startswith("~/") else palavra
+def com_til(palavra, variaveis=None):
+    """`~` e `~/...` no início da palavra viram o HOME, como o bash faz antes do comando rodar: o da linha, se ela o fixou;
+    None se a linha o mexeu e o hook não sabe o valor."""
+    if palavra != "~" and not palavra.startswith("~/"):
+        return palavra
+    home = (variaveis or {}).get("HOME", os.path.expanduser("~"))
+    return None if home is None else str(Path(home)) + palavra[1:]
+
+
+def entre_apostrofos(texto):
+    """Os nomes de `$NOME` e `${NOME}` que o texto traz entre apóstrofos, onde o bash não os substitui."""
+    nomes, aspa, i = set(), "", 0
+    while i < len(texto):
+        c = texto[i]
+        if c == "\\" and aspa != "'":
+            i += 2
+            continue
+        if c in "'\"" and aspa in ("", c):
+            aspa = "" if aspa else c
+        elif aspa == "'" and (m := VARIAVEL.match(texto, i)):
+            nomes.add(m.group(2))
+        i += 1
+    return nomes
+
+
+def juntar_crases(palavras):
+    """A crase sem aspas com espaço dentro (`` `echo P` ``) o `shlex` parte em palavras; o bash a recebe como uma só."""
+    saida, aberta = [], False
+    for p in palavras:
+        if aberta:
+            saida[-1] += " " + p
+        else:
+            saida.append(p)
+        aberta ^= p.count("`") % 2 == 1
+    return saida
 
 
 def efeito_nas_variaveis(palavras, solto):
@@ -197,13 +230,14 @@ def efeito_nas_variaveis(palavras, solto):
     fixas, ruins = {}, set()
     for a in palavras[:k]:
         nome, _, valor = ATRIBUICAO.match(a).groups()
-        valor = com_til(valor)
-        if solto and k == len(palavras):
+        if solto and k == len(palavras) and nome not in SENSIVEIS:  # HOME, CDPATH e os desvios: desconhecidos
             fixas[nome] = valor
         else:
             ruins.add(nome)
     comando = palavras[k:]
     ruins |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}
+    if comando and comando[0] in LE_VARIAVEL | {"export"}:
+        ruins |= SENSIVEIS & {p.split("=", 1)[0] for p in comando[1:]}  # `read HOME`, `printf -v GIT_DIR`, `export CDPATH`
     return fixas, ruins, bool(comando) and comando[0] in LE_VARIAVEL
 
 
@@ -211,9 +245,16 @@ def resolver(palavra, variaveis, base):
     """O caminho que a palavra dá a partir de `base`, ou None se o hook não o resolve: variável que a chamada não fixou ou
     relativo sem base conhecida. Substituição, glob e `~usuário` ficam no texto e dão um caminho que não existe: quem usa
     o caminho confere que a pasta existe."""
-    palavra = com_til(palavra)
+    palavra = com_til(palavra, variaveis)
+    if palavra is None or any(o in palavra for o in ("`", "$(", "<(", ">(")):
+        return None  # HOME mexido na linha; crase ou `$( )` na pasta: o hook não sabe o que ela imprime
+
+    def valor(m):
+        if variaveis.get(m.group(2)) is None:
+            raise KeyError(m.group(2))  # não fixada, ou mexida na linha (None)
+        return variaveis[m.group(2)]
     try:
-        palavra = VARIAVEL.sub(lambda m: variaveis[m.group(2)], palavra)
+        palavra = VARIAVEL.sub(valor, palavra)
     except KeyError:
         return None
     if base is None and not os.path.isabs(palavra):
@@ -225,8 +266,9 @@ def depois_do_cd(pasta, args, variaveis):
     """A pasta depois de `cd <args>`; None se o hook não a resolve ou ela depende do `CDPATH`."""
     if len(args) != 1:
         return None  # com opção (`cd -P x`) ou argumento a mais o hook não resolve (`cd -` vira uma pasta que não existe)
+    cdpath = variaveis["CDPATH"] if "CDPATH" in variaveis else os.environ.get("CDPATH", "")  # None: mexido na linha
     if not args[0].startswith(("/", "~", "$", "./", "../")) and args[0] not in (".", "..") and (
-            variaveis.get("CDPATH") or os.environ.get("CDPATH")):
+            cdpath is None or cdpath):
         return None  # o `cd` relativo procura no CDPATH
     return resolver(args[0], variaveis, pasta)
 
@@ -486,10 +528,11 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                  for dono, corpo in corpos if not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
-        partes = [(analisar(palavras), palavras, efeito_nas_variaveis(palavras, solto))
-                  for (palavras, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes]
+        partes = [(analisar(juntada), juntada, efeito_nas_variaveis(juntada, solto))
+                  for (palavras, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
+                  for juntada in [juntar_crases(palavras)]]
         for pasta, branches, ambiente in estados:
-            for estado in conferir(hook, partes, pasta, branches, ambiente):
+            for estado in conferir(hook, partes, pasta, branches, ambiente, entre_apostrofos(comando)):
                 vistos.setdefault((estado[0], tuple(sorted(estado[1].items())), estado[2]), estado)
         internos += [(p, True, False) for palavras, _, _, _ in leitura for p in palavras
                      if "$(" in p.replace(OPACO["$"], "")]
@@ -515,19 +558,20 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                                  f"Corrigir: {CONTORNO_DA_GRAMATICA}")
 
 
-def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
+def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE, apostrofos=frozenset()):
     """Os comandos de uma leitura da linha, em ordem (`cd`, atribuição e checkout/switch valem para os seguintes), a
     partir da pasta (None: desconhecida), das branches e do ambiente dados; devolve os estados (pasta, branches,
-    ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, `efeito_nas_variaveis`) de cada comando."""
+    ambiente) por onde a leitura passou. `partes`: (`analisar`, palavras, `efeito_nas_variaveis`) de cada comando.
+    `apostrofos`: os nomes que a linha traz entre apóstrofos (o bash não os substitui: ficam desconhecidos)."""
     branches = dict(branches)  # raiz do projeto -> branch depois de checkout/switch na linha
     variaveis, desviado = dict(ambiente.variaveis), ambiente.desviado
     estados = [(pasta, dict(branches), ambiente)]
     for parte, palavras, (fixas, ruins, todas) in partes:
         if todas:
             variaveis.clear()
-        for nome in ruins:
-            variaveis.pop(nome, None)
-        variaveis.update(fixas)
+        variaveis.update(dict.fromkeys(ruins, None))  # None: mexida na linha, valor desconhecido
+        variaveis.update({nome: com_til(valor, variaveis) for nome, valor in fixas.items()})
+        variaveis.update(dict.fromkeys(apostrofos & set(variaveis), None))
         desviado |= bool(DESVIOS & (set(fixas) | ruins))
         sem = sem_atribuicoes(palavras)
         raiz_gh = pasta or hook.cwd()  # o `gh` acha o repositório pelo nome da branch: sem pasta resolvida, vale a da sessão
@@ -536,7 +580,7 @@ def conferir(hook, partes, pasta, branches, ambiente=SEM_AMBIENTE):
         elif parte is None:
             pass
         elif parte[0] == "cd":
-            pasta = depois_do_cd(pasta, sem[1:], variaveis) if sem[1:] else Path(os.path.expanduser("~"))
+            pasta = depois_do_cd(pasta, sem[1:], variaveis) if sem[1:] else resolver("~", variaveis, pasta)
         elif parte[0] == "pr":
             pull_request(hook, raiz_gh, parte[2], parte[3], parte[4])
         elif parte[0] == "prready":

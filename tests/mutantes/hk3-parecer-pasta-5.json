@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M30",
+      "guarda": "Q1: o ~ do valor de uma atribuição vira o HOME",
+      "arquivo": "hooks/parecer.py",
+      "de": "com_til(valor, variaveis) for nome, valor in fixas.items()",
+      "para": "valor for nome, valor in fixas.items()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "Q2: variável de atribuição que não é solta fica desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "ruins.add(nome)",
+      "para": "pass",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "Q3: --git-dir= e --work-tree= na forma com igual desviam o repositório",
+      "arquivo": "hooks/parecer.py",
+      "de": "or toks[i].startswith((\"--git-dir=\", \"--work-tree=\"))",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "Q4: a variável mexida na linha fica desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "variaveis.update(dict.fromkeys(ruins, None))",
+      "para": "variaveis.update({})",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "Q5: a atribuição solta fixa a variável para os comandos seguintes",
+      "arquivo": "hooks/parecer.py",
+      "de": "variaveis.update({nome: com_til(valor, variaveis) for nome, valor in fixas.items()})",
+      "para": "variaveis.update({})",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "Q6: GIT_DIR e afins por atribuição ou export desviam o repositório",
+      "arquivo": "hooks/parecer.py",
+      "de": "desviado |= bool(DESVIOS & (set(fixas) | ruins))",
+      "para": "desviado |= False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "nome entre apóstrofos fica desconhecido (o bash não o substitui)",
+      "arquivo": "hooks/parecer.py",
+      "de": "apostrofos & set(variaveis)",
+      "para": "set()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "crase sem aspas com espaço é uma palavra só",
+      "arquivo": "hooks/parecer.py",
+      "de": "aberta ^= p.count(\"`\") % 2 == 1",
+      "para": "aberta = False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}
