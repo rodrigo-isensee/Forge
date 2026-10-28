@@ -284,8 +284,8 @@ class Entrega(Repositorio):
         rc, saida = self.entrega(desde=c1, base_sha=novo_base)
         self.assertEqual(rc, 0, saida)
         self.assertEqual(saida.splitlines(), [f"intervalo: {c1}..{c3}", 'escopo: confira "c.txt" +1 -0'])
-        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # Base-sha não regravado: o que a base trouxe aparece (falso positivo)
-        self.assertIn('confira "so_da_base.txt"', saida)
+        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # G2: com o Base-sha antigo, o merge pelo primeiro pai tira o que a base trouxe
+        self.assertNotIn('confira "so_da_base.txt"', saida)
 
     def test_intervalo_vazio(self):  # A2
         self.tres_delegacoes()

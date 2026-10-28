@@ -603,6 +603,17 @@ class RecusaDoIdDoPedido(unittest.TestCase):
         self.assertEqual(rc, 2, saida)
         self.assertIn("uso: use o slug da branch (<slug>), não o id do pedido", saida)
 
+    def test_id_com_brief_da_branch_vira_o_slug_da_linha_branch(self):  # G2
+        briefs = self.tmp / ".forge-contrib" / "docs" / "briefs"
+        briefs.mkdir(parents=True)
+        (briefs / f"{self.ID}-tech-lead-1.md").write_text(f"Pedido: {self.ID}\nBranch: melhoria/outra   Base: develop\n\n## Objetivo\nx\n",
+                                                           encoding="utf-8")
+        rc, saida = self.pr(self.ID)
+        self.assertNotEqual(rc, 2, saida)
+        self.assertIn("sem parecer para o pedido `outra`", saida)
+        (briefs / f"{self.ID}-qa-engineer-1.md").write_text(f"Pedido: {self.ID}\nBranch: melhoria/terceira\n\n## Objetivo\nx\n", encoding="utf-8")
+        self.assertEqual(self.pr(self.ID)[0], 2)  # dois slugs: o argumento fica e o `uso:` segue
+
     def test_slug_sem_pedido_com_esse_nome_segue_o_caminho_antigo(self):
         rc, saida = self.pr("meu-slug")
         self.assertNotEqual(rc, 2, saida)

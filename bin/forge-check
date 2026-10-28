@@ -642,6 +642,28 @@ def uso_do_pr(raiz, pedido, ref=None):
     return f"uso: use o slug da branch (<slug>), não o id do pedido ({pedido})"
 
 
+def pedido_do_pr(raiz, pedido, ref=None):
+    """G2: o id de pedido que o `uso_do_pr` recusa vira o slug da linha `Branch: melhoria/<slug>` dos briefs dele (cabeçalho com
+    `Pedido: <id>`), se for um só; senão o argumento, e o `uso:` segue."""
+    if uso_do_pr(raiz, pedido, ref) is None:
+        return pedido
+    slugs = set()
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for arq in sorted((Path(base) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+            try:
+                cabecalho = cabecalho_do_brief(arq.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) or ""
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch.startswith("melhoria/"):
+                slugs.add(branch.removeprefix("melhoria/"))
+    if len(slugs) != 1:
+        return pedido
+    slug = slugs.pop()
+    print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (linha Branch: do brief)", file=sys.stderr)
+    return slug
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
@@ -909,6 +931,26 @@ def diferem_dos_dois_pais(raiz, de, head, base_ref):
     return comuns, contagens
 
 
+def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
+    """G2: arquivos do autor quando o caminho do primeiro pai de `de..head` tem um merge da base, com commits de parecer ou de trabalho
+    antes ou depois: cada commit conta o que mudou contra o primeiro pai; o merge cujo outro pai é ancestral da base conta só o que difere
+    dos dois pais (o `--cc`, a resolução). Merge de outra coisa conta tudo (falha fechada). None sem merge da base (o escopo de hoje)."""
+    cod, saida = git(raiz, "rev-list", "--first-parent", "--parents", f"{de}..{head}")
+    if cod or not base_ref:
+        return None
+    nomes, integrou = set(), False
+    for linha in saida.splitlines():
+        commit, *pais = linha.split()
+        if not pais:
+            return None
+        proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
+        if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
+            integrou = True
+            proprios &= set(nomes_do_intervalo(raiz, pais[1], commit))
+        nomes |= proprios
+    return nomes if integrou else None
+
+
 def maior_contagem(a, b):
     """O maior de dois números do `--numstat`; o `-` do binário prevalece."""
     return "-" if "-" in (a, b) else str(max(int(a), int(b)))
@@ -950,6 +992,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o merge que devolve à base o que a branch pôs (segurança A2)
         arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
+    elif (primeiro_pai := escopo_pelo_primeiro_pai(raiz, de, head, base_ref)) is not None:  # G2: o merge entre outros commits
+        desfeitos, antes = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set(), len(arquivos)
+        arquivos = [n for n in arquivos if n in primeiro_pai or n in desfeitos]
+        informativas += [("escopo: integração da base (o que difere dos dois pais)", False)] if len(arquivos) < antes else []
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
@@ -5263,6 +5309,8 @@ def executar(a, raiz):
     if pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
+    if a.cmd == "pr":
+        a.pedido = pedido_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))
     if a.cmd == "pr" and (uso := uso_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))):
         print(uso)
         return 2

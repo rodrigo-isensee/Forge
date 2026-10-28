@@ -4516,7 +4516,7 @@ class PrAposMergeDaBase(RepoComOrigem):
             rc, saida = rodar(etapa)
             self.assertIn('"src/x.txt"', saida)
             self.assertNotIn('"src/y.txt"', saida, saida)  # veio da develop, igual ao conteúdo dela
-        self.assertIn('"src/y.txt"', rodar("pr")[1])  # fora da etapa de merge, a regra é a de sempre
+        self.assertNotIn('"src/y.txt"', rodar("pr")[1])  # G2: em toda etapa, o merge da base conta só o que difere dos dois pais
         self.commitar(self.repo, {"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\ny9 um byte a mais\n"}, "mexe no que a develop trouxe")
         self.assertIn('escopo: confira "src/y.txt"', rodar("merge-integracao")[1])
 

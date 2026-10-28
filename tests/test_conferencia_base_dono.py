@@ -122,13 +122,14 @@ class IntegracaoNaBranch(Repositorio):
         for fora in ("d.txt", "a.txt"):
             self.assertNotIn(fora, saida)
 
-    def test_com_commit_proprio_depois_da_integracao_a_conferencia_e_a_de_hoje(self):
+    def test_com_commit_proprio_depois_da_integracao_so_o_commit_proprio_e_do_autor(self):  # G2: pelo primeiro pai
         self.integrar()
         c = self.commitar({"z.txt": "z\n"}, "depois da integração")
         self.gravar_pedido([self.c1])
         rc, saida = self.entrega(desde=self.c1)
         self.assertEqual(rc, 0, saida)
-        self.assertNotIn("integração da base", saida)
+        self.assertIn("escopo: integração da base (o que difere dos dois pais)", saida)
+        self.assertNotIn('"d.txt"', saida)
         self.assertIn('confira "z.txt"', saida)
         self.assertIn(f"intervalo: {self.c1}..{c}", saida)
 
@@ -147,7 +148,7 @@ class IntegracaoNaBranch(Repositorio):
         git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
         self.gravar_pedido([self.c1])
         rc, saida = self.entrega(desde=self.c1, etapa="review")
-        self.assertNotIn("integração da base", saida)
+        self.assertNotIn('"e.txt"', saida)
         self.assertIn('confira "s.txt"', saida)
 
     def test_os_numeros_da_integracao_sao_contra_os_dois_pais(self):
@@ -156,6 +157,29 @@ class IntegracaoNaBranch(Repositorio):
         rc, saida = self.entrega(desde=self.c1)
         self.assertEqual(rc, 0, saida)
         self.assertIn('escopo: confira "f.txt" +1 -4', saida)  # o maior: contra o pai da develop (4 linhas -> 1); contra o da branch seria -1
+
+    def test_com_commits_de_parecer_depois_do_merge_o_que_a_base_trouxe_sai_do_escopo(self):  # G2 (FLAKY-CTRLC-TROCA, 20:25)
+        self.integrar()
+        self.commitar({"docs/reviews/p1.md": "parecer\n"}, "parecer de review")
+        self.commitar({"docs/qa/p1.md": "parecer\n"}, "parecer de QA")
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("escopo: integração da base (o que difere dos dois pais)", saida)
+        self.assertIn('confira "docs/reviews/p1.md"', saida)
+        self.assertNotIn('"d.txt"', saida)
+
+    def test_merge_de_outra_branch_conta_tudo(self):  # G2: só o merge da base sai; o de outra coisa é do autor (falha fechada)
+        self.c1 = self.commitar({"a.txt": "1\n"}, "trabalho da branch")
+        git("switch", "-q", "-c", "lateral", "develop", cwd=self.repo)
+        self.commitar({"l.txt": "l\n"}, "outra branch")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "lateral", cwd=self.repo)
+        self.commitar({"docs/reviews/p1.md": "parecer\n"}, "parecer")
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.c1)
+        self.assertIn('confira "l.txt"', saida)
+        self.assertNotIn("integração da base", saida)
 
     def test_a_pendente_diz_quando_a_entrega_e_so_a_integracao(self):
         self.integrar()
