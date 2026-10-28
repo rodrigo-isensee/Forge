@@ -321,6 +321,25 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertLess(max(cpu), 0.015, f"o teto K gastou {max(cpu) * 1000:.1f} ms de CPU numa decisão (limite 15 ms)")
         self.assertLess(sum(cpu) / 20, 0.010, f"o teto K gastou {sum(cpu) / 20 * 1000:.1f} ms de CPU por decisão (limite 10 ms)")
 
+    def test_medida_temporaria_do_teto(self):  # TEMPORÁRIO: sai por revert
+        _comum, _, _ = modulos_dos_hooks()
+        k = _comum.TETO_FORA_DA_TABELA
+        texto = " ".join(["env", "-Z"] * k + ["env"] * (50 - k) + ["ls"])
+        maximos, medias = [], []
+        for _ in range(10):
+            cpu = [s for _, s, _ in self.decidir_na_guarda([texto] * 20)]
+            maximos.append(max(cpu) * 1000)
+            medias.append(sum(cpu) / 20 * 1000)
+
+        def p95(v):
+            v = sorted(v)
+            return v[min(len(v) - 1, int(0.95 * len(v) + 0.999999) - 1)]
+
+        linha = f"TETO-LANCADOR p95-max={p95(maximos):.2f} p95-media={p95(medias):.2f} python={sys.version.split()[0]}"
+        print(linha, file=sys.stderr)
+        if os.environ.get("CI"):  # só no runner: o log da suíte só mostra teste que falha
+            self.fail(linha)
+
     def test_guarda_mede_cpu_e_nao_relogio(self):  # PR-VERDE-D3-TEMPO
         """O tempo que `decidir_na_guarda` devolve é `process_time` (CPU da decisão): a fila da máquina não o alonga."""
         self.assertIn("time.process_time()", self.DRIVER_DA_GUARDA)
