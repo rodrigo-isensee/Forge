@@ -16,3 +16,6 @@ rc=0 só na forma com crase sem aspas; as outras três formas dão rc=2. O git r
 
 ## Evidência
 Sonda própria em `$TMPDIR/qa-engineer-hk3-parecer-pasta/s` (script `sonda.sh` do QA): a forma com crase sem aspas deu `rc=0`; `$( )`, crase entre aspas e `cd` com crase deram `rc=2 R-REVIEW: merge ou pull numa pasta que o hook não resolve`.
+
+## Estado
+Fechado em bfd9e70ad2325fd5a04a2104fe041d4346384042: `juntar_crases` e a guarda de substituição em `resolver` (`hooks/parecer.py:213,249`); fixtures `pasta-barra-dash-c-com-crase-sem-aspas`, `-e-pull` e `pasta-barra-dash-c-com-crase-e-ponto-ponto` no corpus (77 fixtures `pasta-*`, todas verdes); reaberto em forma vizinha como HK3-02.
