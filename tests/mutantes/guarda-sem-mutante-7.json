@@ -66,8 +66,8 @@
       "id": "M46",
       "guarda": "so pareia a velha quando entra condicao nova no hunk",
       "arquivo": "bin/forge-mutante",
-      "de": "[c for c in mudadas if toca(c, novo)]",
-      "para": "[c for c in mudadas]",
+      "de": "if toca(c, novo)]",
+      "para": "if True]",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_condicao_apagada_e_outra_nova_sem_relacao_no_mesmo_hunk_sai_apagada_e_a_editada_nao"
       ]

@@ -6,8 +6,8 @@
       "id": "M72",
       "guarda": "shell usa a extracao de shell",
       "arquivo": "bin/forge-mutante",
-      "de": "condicoes if py else condicoes_sh",
-      "para": "condicoes_sh if py else condicoes",
+      "de": "if py else condicoes_sh",
+      "para": "if not py else condicoes_sh",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
       ]
@@ -20,6 +20,16 @@
       "para": "[] if not certa else",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "arquivo removido ainda e lido pelo tipo da base",
+      "arquivo": "bin/forge-mutante",
+      "de": "exemplo = antes or depois",
+      "para": "exemplo = antes and depois",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]
     }
   ]

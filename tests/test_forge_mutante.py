@@ -446,12 +446,14 @@ class Cobertura(unittest.TestCase):
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
 
     def test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto(self):  # A2 do review
-        self.salvar({"lib.py": self.COND, "Makefile": "all:\n\ttrue\n"}, base=True)
-        self.salvar({"lib.py": None, "Makefile": None})
+        self.salvar({"lib.py": self.COND, "Makefile": "all:\n\ttrue\n",
+                     "bin/run": "#!/bin/sh\nif [ -f x ]; then :; fi\n"}, base=True)
+        self.salvar({"lib.py": None, "Makefile": None, "bin/run": None})
         r = self.cobertura()
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
         self.assertIn("não coberto: Makefile", r.stdout)
+        self.assertIn("apagada · bin/run:2(base) · if [ -f x ]", r.stdout)
         self.salvar({"tests/test_a.py": "if 1 > 0:\n    pass\n"}, base=True)
         self.salvar({"tests/test_a.py": None})
         self.assertEqual(self.cobertura().returncode, 0)
