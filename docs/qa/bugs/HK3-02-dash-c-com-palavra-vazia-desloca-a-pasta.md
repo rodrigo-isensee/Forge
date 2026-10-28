@@ -16,3 +16,6 @@ rc=0 nas 7 formas. `analisar` (`hooks/parecer.py:158-164`) consome o `-C` mais u
 
 ## Evidência
 Sondas próprias em `$TMPDIR/qa-engineer-hk3-parecer-pasta/p2/` (`probe.sh` monta a entrada do hook; `.qa-hk3-lista4.sh` do QA lista os comandos): as 7 formas saíram `rc=0`; `git -C $(echo) merge melhoria/x` saiu `rc=2 R-REVIEW: merge ou pull numa pasta que o hook não resolve`. Não há fixture no corpus para a forma (as 3 fixtures `pasta-barra-dash-c-com-crase-sem-aspas*` e `-com-substituicao-e-ponto-ponto` só cobrem a pasta que o hook lê como `-C`). Conserto sugerido: palavra com substituição ou variável não resolvida nas opções globais, antes do subcomando, torna a pasta desconhecida e o merge/pull da linha recusa, mesmo que o subcomando não apareça.
+
+## Estado
+Fechado em 77b539d3fb3e9ebde40af8cf36942298c54d7e10: a palavra com expansão antes do subcomando deixa as pastas incertas (`globais`, `hooks/parecer.py:135-150`) e a pasta desconhecida recusa; fixtures `pasta-barra-dash-c-com-variavel-vazia`, `-e-chaves`, `-com-substituicao-de-echo`, `-de-true`, `-com-crase-vazia`, `pasta-barra-substituicao-traz-o-dash-c` e `-vazia-antes-do-dash-c` no corpus (118 fixtures `pasta-*`, todas verdes); as 7 formas da sonda dão rc=2.
