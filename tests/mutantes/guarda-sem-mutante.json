@@ -76,7 +76,7 @@
       "id": "M8",
       "guarda": "sem mutante que case, a condicao sai como sem mutante",
       "arquivo": "bin/forge-mutante",
-      "de": "if casa(m, arquivo, depois, de, ate, py)",
+      "de": "if casa(m, arquivo, depois, de, ate)",
       "para": "if True",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0"

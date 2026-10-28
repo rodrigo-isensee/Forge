@@ -36,8 +36,8 @@
       "id": "M37",
       "guarda": "arquivo removido python e analisado e nao python vira nao coberto",
       "arquivo": "bin/forge-mutante",
-      "de": "if not (py or eh_shell(arquivo, exemplo)):",
-      "para": "if (py or eh_shell(arquivo, exemplo)):",
+      "de": "if not eh_python(arquivo, exemplo):",
+      "para": "if eh_python(arquivo, exemplo):",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto"
       ]

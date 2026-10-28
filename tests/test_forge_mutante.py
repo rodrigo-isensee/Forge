@@ -7,7 +7,6 @@ import os
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -454,7 +453,7 @@ class Cobertura(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
         self.assertIn("não coberto: Makefile", r.stdout)
-        self.assertIn("apagada · bin/run:2(base) · if [ -f x ]", r.stdout)
+        self.assertIn("não coberto: bin/run", r.stdout)
         self.salvar({"tests/test_a.py": "if 1 > 0:\n    pass\n"}, base=True)
         self.salvar({"tests/test_a.py": None})
         self.assertEqual(self.cobertura().returncode, 0)
@@ -503,74 +502,25 @@ class Cobertura(unittest.TestCase):
         r = self.cobertura()
         self.assertEqual((r.returncode, len(r.stdout.splitlines())), (0, 2), r.stdout)
 
-    def test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda(self):
-        casos = {"if [ -f x ]; then\n  :\nfi\n": ["if [ -f x ]"], "while read l; do\n  :\ndone\n": ["while read l"],
-                 "x\nelif [[ $a == b ]]; then\n": ["elif [[ $a == b ]]"], '[ -n "$a" ] && b\n': ['[ -n "$a" ]', "&& b"],
-                 "test -f x || exit 1\n": ["test -f x", "|| exit 1"], "c || true\nd || :\ne || 'true'\nf || \":\"\n": [],
-                 'echo "if a && b" # while x || y\n': [], "[ ${#a} -gt 3 ]\n": ["[ ${#a} -gt 3 ]"],
-                 "a=1\necho x --test y mytest z\n": [], "a=$(b)\nb=[x]\n": [],
-                 'x=${a##*/}; if [ -n "$x" ]; then exit 1; fi\n': ['if [ -n "$x" ]'],  # `#` dentro de `${}` não é comentário
-                 "cmd || true  # sem erro\n": [], "until grep -q pronto log; do sleep 1; done\n": ["until grep -q pronto log"],
-                 "cat <<EOF\nit's fine\nEOF\nif [ -n a ]; then :; fi\necho 'y'\n": ["if [ -n a ]"],  # apóstrofo de heredoc
-                 "echo don\\'t; if [ -n a ]; then :; fi; echo 'z'\n": ["if [ -n a ]"],
-                 "cat <<'E'\n[ -n a ]\nE\necho $((1<<3))\n": [],
-                 "x=$((1<<EOF))\nif [ -n a ]; then :; fi\nEOF\n": [],  # `<<` em `$(( ))`: região incerta, não analisada
-                 "x=$((1+2)); cat <<E\n[ -n a ]\nE\n": [], "echo $((1 + '2'\ncat <<E\n[ -n a ]\nE\n": [], "cat <<-E\n\t[ -n a ]\n\tE\n": [],  # corpo de heredoc entre aspas; `<<3` não é heredoc
-                 "x \\\nif [ -n a ]; then :; fi\n": [], "x=$((1 +\n2)); if [ -n a ]; then :; fi\n": [],  # região que o corte não fecha
-                 "x=$((1 +\n2))\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"], "x=$[1 +\n2]; if [ -n a ]; then :; fi\n": [], 'cat <<"$f"\nif [ -n a ]; then :; fi\n': [],
-                 "x=$((1<<3))\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"], "eval $x; if [ -n a ]; then :; fi\n": [],
-                 "bash -c a; if [ -n a ]; then :; fi\n": [], "cat <<<$a\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"]}  # `<<<` não abre região
-        for texto, esperado in casos.items():
-            with self.subTest(texto):
-                self.assertEqual([c[0] for c in self.f.condicoes_sh(texto)], esperado)
-        incertas = set()
-        self.f.condicoes_sh("a \\\nb\nc\nd \\\n", incertas)
-        self.assertEqual(incertas, {(1, 2), (4, 5)}, "um trecho por região corrida")
-        self.assertEqual(self.f.condicoes_sh("é=1\n\n[ é ]\n")[0][1:], (3, 3, 6, 12), "linhas e bytes")
-        for nome, dados, sh in (("a.sh", b"", 1), ("b.bash", b"", 1), ("c", b"#!/bin/sh\n", 1), ("d", b"#!/usr/bin/env bash\n", 1),
-                                ("e", b"#!/bin/zsh\n", 0), ("f", b"# sh\n", 0), ("g", b"x\n#!/bin/sh\n", 0),
-                                ("h", b"echo '#!/bin/sh'\n", 0)):
-            self.assertEqual(self.f.eh_shell(nome, dados), bool(sh), nome)
-
-    def test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0(self):
-        self.salvar({"run.sh": "#!/bin/sh\nif [ -f /etc/passwd ]; then :; fi\n"})
-        self.assertIn("sem mutante · run.sh:2 · if [ -f /etc/passwd ]", self.cobertura().stdout)
-        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [mutante(
-            de="if [ -f /etc/passwd ]", para="if [ -d /etc/passwd ]", arquivo="run.sh")]})})
-        r = self.cobertura()
-        self.assertEqual(r.returncode, 0, r.stdout)
-        self.assertIn("coberta · run.sh:2 · tests/mutantes/x.json:M1", r.stdout)
-
-    def test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde(self):
-        casos = {"bash -c 'if [ -n a ]; then exit 1; fi'\n": "run.sh:2", "cat <<FIM\n[ a ]\n": "run.sh:2",
-                 "echo 'abc\n": "run.sh:2", "eval \"[ -n a ] && exit 1\"\n": "run.sh:2",
-                 "cat <<EOF\nx\n  EOF\nit's\nEOF\nif [ -f /etc/x ]; then exit 1; fi\n": "run.sh:2",  # terminador recuado
-                 "cat <<-EOF\nx\nEOF\n": "run.sh:2", "cat <<EOF\n  EOF\n": "run.sh:2",
-                 "eval $'[ -f /etc/x ] && exit 1'\n": "run.sh:2", "bash -c -- '[ -f /etc/x ] && exit 1'\n": "run.sh:2",
-                 "sh -lc \"[ -f /etc/x ] && exit 1\"\n": "run.sh:2",
-                 "x=$((1 +\n1<<EOF))\nif [ -f /etc/x ]; then exit 1; fi\nEOF\n": "run.sh:2",  # aritmética multilinha
-                 "x=$[1 +\n1<<EOF]\nif [ -f /etc/x ]; then exit 1; fi\nEOF\n": "run.sh:2",
-                 "eval $\"[ -f /etc/x ] && exit 1\"\n": "run.sh:2", "bash -c \\\n  '[ -f /etc/x ] && exit 1'\n": "run.sh:2",
-                 "eval \"true;\"'[ -f /etc/x ] && exit 1'\n": "run.sh:2", "bash -c -e \"[ -f /etc/x ] && exit 1\"\n": "run.sh:2",
-                 "cat <<EOF\n$(if [ -f /etc/x ]; then exit 1; fi)\nEOF\n": "run.sh:2"}
-        for texto, linha in casos.items():
-            with self.subTest(texto):
-                self.salvar({"run.sh": "#!/bin/sh\n" + texto})
+    def test_arquivo_de_shell_sai_nao_coberto_uma_vez_sem_olhar_a_linha(self):
+        casos = {"run.sh": "#!/bin/sh\nif [ -f /etc/x ]; then exit 1; fi\n",
+                 ".githooks/pre-x": "#!/bin/sh\nif [ -f /etc/x ]; then exit 1; fi\nif [ -n a ]; then :; fi\n",
+                 "bin/run": "#!/usr/bin/env bash\ncat <<EOF\nit's\n  EOF\nit's\nEOF\nif [ -f /etc/x ]; then exit 1; fi\n",
+                 "sonda.sh": "#!/bin/sh\nbash -c 'echo a\n'\nif [ -f /etc/x ]; then exit 1; fi\nx=$[1]; cat <<\"$f\"\n"}
+        for nome, texto in casos.items():
+            with self.subTest(nome):
+                self.salvar({nome: texto})
                 r = self.cobertura()
-                self.assertIn(f"não coberto: {linha}", r.stdout)
-                self.assertNotIn("não coberto: run.sh:1", r.stdout)
-        self.salvar({"run.sh": "#!/bin/sh\ncat <<EOF\nx\n  EOF\nit's\nEOF\nif [ -f /etc/x ]; then exit 1; fi\n"})
-        self.assertIn("sem mutante · run.sh:7 · if [ -f /etc/x ]", self.cobertura().stdout)  # o terminador recuado já fecha o corpo; o resto volta a ser lido
-        self.salvar({"run.sh": "#!/bin/sh\ncat <<EOF\nit's\nEOF\nif [ -f /etc/passwd ]; then :; fi\necho 'y'\n"})
-        self.assertIn("sem mutante · run.sh:5 · if [ -f /etc/passwd ]", self.cobertura().stdout)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertEqual(r.stdout.splitlines()[1:], [f"não coberto: {nome}"])
+                self.salvar({nome: None})
 
-    def test_shell_de_40_kb_sem_fecho_gasta_pouca_cpu(self):  # p95 de 10 execuções com 4 processos em paralelo: 0,05 s; limite 2x = 0,1 s (era 9 s)
-        for unidade in ('"\\"', "[[ ", "[ "):
-            texto = unidade * (40000 // len(unidade)) + "\n"
-            for _ in range(2):
-                inicio = time.process_time()  # CPU do processo, não o relógio (PROP-TEMPO-CPU)
-                self.f.condicoes_sh(texto)
-                self.assertLess(time.process_time() - inicio, 0.1, repr(unidade))
+    def test_isenta_para_arquivo_de_shell_e_solta_e_sai_2(self):
+        self.salvar({"run.sh": "#!/bin/sh\nif [ -f /etc/x ]; then exit 1; fi\n",
+                     **self.isentas([{"arquivo": "run.sh", "trecho": "[ -f /etc/x ]", "motivo": self.MOTIVO}])})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("isenta que não cruza", r.stderr)
 
     MOTIVO = "mensagem de erro sem efeito"
     ISENTA = {"arquivo": "lib.py", "trecho": "x > 100 and y", "motivo": MOTIVO}
@@ -712,7 +662,7 @@ class Cobertura(unittest.TestCase):
         self.salvar({"lib.py": None})
         r = self.cobertura()
         self.assertEqual(r.stdout.splitlines()[1:], ["não coberto: .github/workflows/ci.yml", "sem mutante · novo.py:1 · z",
-                         "sem mutante · run.sh:2 · if [ -f x ]", "sem mutante · tools/ferramenta:2 · y", "não coberto: tools/notas"])
+                         "não coberto: run.sh", "sem mutante · tools/ferramenta:2 · y", "não coberto: tools/notas"])
         self.assertEqual(r.returncode, 1)
 
     def test_limites_e_nomes_de_arquivo_hostis(self):

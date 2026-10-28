@@ -56,8 +56,8 @@
       "id": "M22",
       "guarda": "arquivo que nao e python sai como nao coberto",
       "arquivo": "bin/forge-mutante",
-      "de": "if not (py or eh_shell(arquivo, exemplo)):  # binário ",
-      "para": "if False:  # binário ",
+      "de": "if not eh_python(arquivo, exemplo):",
+      "para": "if False:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora"
       ]

@@ -3,16 +3,6 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M56",
-      "guarda": "shell nao passa pelo ast.dump",
-      "arquivo": "bin/forge-mutante",
-      "de": "if py and ast.dump(",
-      "para": "if True and ast.dump(",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
-      ]
-    },
-    {
       "id": "M57",
       "guarda": "trecho da isenta unico no arquivo",
       "arquivo": "bin/forge-mutante",

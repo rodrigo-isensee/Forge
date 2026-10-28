@@ -51,36 +51,6 @@
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_tetos_do_diff_e_das_condicoes_dizem_qual_e_sao_2"
       ]
-    },
-    {
-      "id": "M53",
-      "guarda": "shell por extensao .bash",
-      "arquivo": "bin/forge-mutante",
-      "de": "arquivo.endswith((\".sh\", \".bash\"))",
-      "para": "arquivo.endswith((\".sh\",))",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
-      ]
-    },
-    {
-      "id": "M54",
-      "guarda": "shebang so na primeira linha, no inicio",
-      "arquivo": "bin/forge-mutante",
-      "de": "SHEBANG_SH.match(",
-      "para": "SHEBANG_SH.search(",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
-      ]
-    },
-    {
-      "id": "M55",
-      "guarda": "o ou que nao guarda fica fora",
-      "arquivo": "bin/forge-mutante",
-      "de": "m[0].startswith(\"||\")",
-      "para": "m[0].startswith(\"&&\")",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
-      ]
     }
   ]
 }

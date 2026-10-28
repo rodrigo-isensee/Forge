@@ -13,11 +13,9 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
   --prazo  por execução de testes, em segundos (padrão 600)
   --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição mudada no diff `merge-base(SHA, REV)..REV`
            que nenhum mutante das specs desse diff cobre, a condição apagada e o arquivo que a checagem não analisa
-           (`não coberto: <arquivo>`; tudo o que não é Python nem shell). Python: if, elif, while, ternário, compreensão,
-           assert, guarda de match, and/or, comparação, `not`, pelo `ast.parse`. Shell (`.sh`, `.bash`, shebang `sh` ou
-           `bash`): `if`, `elif`, `while`, `until`, `[[ ]]`, `[ ]`, `test`, `&&` e `||` (este fora se o lado direito, sem o comentário,
-           é só `true` ou `:`), por regex depois de mascarar aspas e comentário; linha com `<<`, `eval`, `-c`, `$((`, `$[` ou terminada em `\\`, a região que ela abre (heredoc, continuação, aritmética
-           multilinha) e a aspa solta saem `não coberto: <arquivo>:<linha>`, sem análise; `case` e `(( ))` ficam fora. Nada do diff é importado nem executado; lê o commit
+           (`não coberto: <arquivo>`, uma vez por arquivo: shell, binário e tudo o que não é Python). Python: if, elif, while,
+           ternário, compreensão, assert, guarda de match, and/or, comparação, `not`, pelo `ast.parse`. Shell não se analisa, nem linha
+           a linha: o arquivo sai `não coberto`; `case`, `(( ))` e o resto do shell também. Nada do diff é importado nem executado; lê o commit
            com `git show`, nunca a árvore. Cobrir é ter o trecho `de` do mutante, único no arquivo, com a troca dentro
            do nó da condição, `de` de 8+ caracteres e, em Python, troca que muda o `ast`. A condição editada (a velha
            sai e uma nova com nome ou número em comum entra no mesmo hunk, na mesma posição) é coberta pelo mutante da
@@ -44,7 +42,6 @@ A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook,
 """
 import argparse
 import ast
-import bisect
 import hashlib
 import json
 import os
@@ -85,20 +82,6 @@ SPEC_DO_DIFF = re.compile(r"tests/mutantes/[^/]+\.json")
 FORA_DA_COBERTURA = re.compile(r".*\.md|changelog\.d/.*")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 ROTULO_DA_SPEC = {"D": "removida", "M": "editada"}
-SHEBANG_SH = re.compile(rb"#!.*\b(?:ba)?sh\b")
-# Shell por regex, depois de tirar as linhas incertas (abaixo) e mascarar aspas e comentário: o comando de `if`/`elif`/`while`/`until`, `[[ ]]`,
-# `[ ]`, `test` e o `&&`/`||` com o seu lado direito. O que o `finditer` acha primeiro é o nó mais externo.
-# Tudo é linear no tamanho do texto: `\\.` come o escape fora das aspas, o par de aspas é consumido pelo `finditer` e o `[[`
-# ou `[ ` sem fecho na linha é apagado antes (`sem_fecho`), para o `[^\n]*?` não varrer a linha a cada abertura.
-FICHA_SH = re.compile(r"""\\.|\$'(?:\\.|[^'\\])*'|'[^']*'|"(?:\\.|[^"\\])*"|(?<![^\s;&|()<>])#[^\n]*|['"]""", re.S)
-# Corte grosso (decisão do dono, 2026-10-28): a linha com `<<`, `eval`, `-c`, `$((` ou `$[`, ou que termina em `\`, não se
-# analisa: sai `não coberto`, e a região que o varredor não fecha com certeza (corpo de heredoc, continuação, aritmética
-# multilinha) também. `HEREDOC_SH` acha as palavras de fecho da linha; o `<<<` e o `<<` de deslocamento não abrem heredoc.
-LINHA_INCERTA_SH = re.compile(r"<<|\beval|(?<![\w-])-\w*c|\$\(\(|\$\[|\\\s*$")
-HEREDOC_SH = re.compile(r"(?<!<)<<(?!<)-?[ \t]*['\"\\]?([A-Za-z_][\w.-]*)")
-SEM_PALAVRA_SH = re.compile(r"(?<!<)<<(?!<)")
-CONDICAO_SH = re.compile(r"(?<![\w$.-])(?:if|elif|while|until)\s+[^;\n]+|\[\[[^\n]*?\]\]|(?<![\w$\[])\[\s[^\n]*?\s\]"
-                         r"|(?<![\w$./-])test\s+[^;&|\n]+|(?:&&|\|\|)[^;&|\n]*")
 # Onde mora a condição em cada tipo de nó; `not` só conta como condição (o `-x` não).
 TESTES_DO_NO = {ast.If: lambda n: [n.test], ast.While: lambda n: [n.test], ast.IfExp: lambda n: [n.test],
                 ast.Assert: lambda n: [n.test], ast.comprehension: lambda n: n.ifs,
@@ -390,82 +373,6 @@ def eh_python(arquivo, dados):
     return arquivo.endswith(".py") or dados.startswith(b"#!") and b"python" in dados.split(b"\n", 1)[0]
 
 
-def eh_shell(arquivo, dados):
-    return arquivo.endswith((".sh", ".bash")) or bool(SHEBANG_SH.match(dados.split(b"\n", 1)[0]))
-
-
-def linhas_incertas_sh(linhas):
-    """Índices (de 0) das linhas de shell que a checagem não analisa: a que casa `LINHA_INCERTA_SH` e a região que ela abre
-    (corpo de heredoc até a palavra de fecho ou o fim, continuação com `\\`, aritmética até fechar)."""
-    fora, pendentes, continua, prof = set(), [], False, 0
-    for i, linha in enumerate(linhas):
-        if pendentes:
-            fora.add(i)
-            if linha.strip() == pendentes[0]:
-                pendentes.pop(0)
-            continue
-        if continua or prof or LINHA_INCERTA_SH.search(linha):
-            fora.add(i)
-        continua = linha.rstrip().endswith("\\")
-        resto = linha if prof else linha[min((j for j in (linha.find("$(("), linha.find("$[")) if j >= 0), default=len(linha)):]
-        prof = max(0, prof + resto.count("((") - resto.count("))") + resto.count("$[") - resto.count("]"))
-        palavras = [m[1] for m in HEREDOC_SH.finditer(linha)]
-        sobra = len(SEM_PALAVRA_SH.findall(linha)) > len(palavras) and "((" not in linha and "$[" not in linha
-        pendentes += palavras + ["\0"] * sobra  # `<<` sem palavra de fecho que se leia: o resto do arquivo é incerto
-    return fora
-
-
-def mascarar_sh(t, quebras):
-    """(`t` com aspas e comentário trocados por `_`, {(linha, linha) da aspa solta}). Um laço, sem retrocesso."""
-    cobrir, incertas, pos = [], set(), 0
-    while (m := FICHA_SH.search(t, pos)):
-        pos = m.end()
-        if m[0] in ("'", '"'):
-            incertas.add((bisect.bisect_left(quebras, m.start()) + 1,) * 2)
-        else:
-            cobrir.append((m.start(), m.end()))
-    saida = bytearray(t, "latin-1")
-    for ini, fim in cobrir:
-        saida[ini:fim] = re.sub(rb"[^\n]", b"_", bytes(saida[ini:fim]))
-    return saida.decode("latin-1"), incertas
-
-
-def sem_fecho(linha):
-    """Apaga o `[[` ou `[ ` sem fecho depois dele na linha (sem ele a regex varreria a linha até o fim a cada abertura)."""
-    duplo, simples = linha.rfind("]]"), max((m.start() for m in re.finditer(r"\s\]", linha)), default=-1)
-    return re.sub(r"\[(?=[\[\s])", lambda m: m[0] if m.start() < (duplo if linha[m.end()] == "[" else simples) else "_", linha)
-
-
-def condicoes_sh(texto, incertas=None):
-    """As condições do shell, como `condicoes`: o `||` cujo lado direito (sem o comentário) é só `true` ou `:` não conta (guarda
-    que não guarda). Os offsets são de bytes: a regex roda sobre os bytes lidos como latin-1, um caractere por byte. `incertas`,
-    se dado, recebe o que `mascarar_sh` não leu com certeza."""
-    dados = texto.encode("utf-8")
-    quebras = [m.start() for m in re.finditer(b"\n", dados)]
-    linhas = dados.decode("latin-1").split("\n")
-    fora = linhas_incertas_sh(linhas)
-    texto_lido = "\n".join(re.sub(r"[^\n]", "_", x) if i in fora else x for i, x in enumerate(linhas))
-    mascarado, duvidas = mascarar_sh(texto_lido, quebras)
-    trechos = []  # uma entrada por trecho corrido de linhas: [primeira, última]
-    for i in sorted(fora):
-        if trechos and trechos[-1][1] == i:
-            trechos[-1][1] = i + 1
-        else:
-            trechos.append([i + 1, i + 1])
-    duvidas |= {tuple(t) for t in trechos}
-    mascarado = "\n".join(map(sem_fecho, mascarado.split("\n")))
-    if incertas is not None:
-        incertas |= duvidas
-    lista = []
-    for m in CONDICAO_SH.finditer(mascarado):
-        original = dados[m.start():m.end()].decode("utf-8", "replace")
-        if m[0].startswith("||") and re.sub(r"(?:^|\s)#.*", "", original[2:]).strip().strip("'\")} ") in ("true", ":"):
-            continue
-        lista.append((" ".join(original.split()), bisect.bisect_left(quebras, m.start()) + 1,
-                      bisect.bisect_left(quebras, m.end()) + 1, m.start(), m.end()))
-    return lista
-
-
 def condicoes(texto):
     """As condições mais externas do código Python: [(unparse, linha inicial, linha final, byte inicial, byte final)]."""
     inicios = [0]
@@ -482,7 +389,7 @@ def condicoes(texto):
     return sorted(lista, key=lambda c: c[3])
 
 
-def casa(m, arquivo, depois, ini, fim, py=True):
+def casa(m, arquivo, depois, ini, fim):
     """O mutante `m` cobre a condição que ocupa os bytes [ini, fim] de `arquivo` (texto `depois`)? O `de` único
     no arquivo, com 8+ caracteres não brancos, e o trecho entre o prefixo e o sufixo comuns de `de` e `para` dentro
     do nó. Em Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
@@ -494,7 +401,7 @@ def casa(m, arquivo, depois, ini, fim, py=True):
     if not (m["arquivo"] == arquivo and len("".join(m["de"].split())) >= 8 and dados.count(de) == 1
             and ini <= inicio + prefixo and inicio + len(de) - sufixo <= fim):
         return False
-    if py and ast.dump(ast.parse(depois.replace(m["de"], m["para"]))) == ast.dump(ast.parse(depois)):
+    if ast.dump(ast.parse(depois.replace(m["de"], m["para"]))) == ast.dump(ast.parse(depois)):
         raise ValueError(f"{m['id']}: a troca não muda o ast de {arquivo} (mutante equivalente)")
     return True
 
@@ -521,13 +428,12 @@ def parecidas(velha, nova):
     return bool(set(re.findall(r"\w+", velha)) & set(re.findall(r"\w+", nova)))
 
 
-def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas, py=True):
+def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
     """Linhas de saída de um arquivo: a condição nova (texto que aparece mais vezes que no merge-base, em linha nova)
     coberta, isenta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base) isenta ou não. A
     editada (a velha sai num hunk em que entra uma nova, na mesma posição do nó e com nome ou número em comum) é coberta
     pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada."""
-    incertas = set()
-    novas, velhas = (condicoes(depois), condicoes(antes)) if py else (condicoes_sh(depois, incertas), condicoes_sh(antes))
+    novas, velhas = condicoes(depois), condicoes(antes)
     if max(len(novas), len(velhas)) > MAXIMO_DE_CONDICOES:
         raise ValueError(f"{arquivo}: mais de {MAXIMO_DE_CONDICOES} condições")
     de_novas, de_velhas = Counter(c[0] for c in novas), Counter(c[0] for c in velhas)
@@ -538,7 +444,7 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas, py=True):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
     for texto, ini, fim, de, ate in mudadas:
-        cobrem = [f"{espec}:{m['id']}" for espec, m in mutantes if casa(m, arquivo, depois, de, ate, py)]
+        cobrem = [f"{espec}:{m['id']}" for espec, m in mutantes if casa(m, arquivo, depois, de, ate)]
         motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate)
         if cobrem:
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
@@ -550,7 +456,7 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas, py=True):
         motivo = isenta(isentas, usadas, arquivo, antes, de, ate)
         saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
                      f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
-    return saida + [f"não coberto: {arquivo}:{a}" for a, b in sorted(incertas) if any(a < h[1].stop and h[1].start <= b for h in hunks)]
+    return saida
 
 
 def mutantes_do_diff(mudadas, rev):
@@ -598,11 +504,10 @@ def cobertura(base, rev):
             depois = b"" if status == "D" else ler_no_commit(sha_rev, arquivo)
             antes = b"" if status == "A" else ler_no_commit(mb, arquivo)
             exemplo = antes or depois
-            py = eh_python(arquivo, exemplo)
-            if not (py or eh_shell(arquivo, exemplo)):  # binário ou fora do UTF-8 também: só não coberto
+            if not eh_python(arquivo, exemplo):  # shell, binário e fora do UTF-8: só não coberto, por arquivo
                 saida.append(f"não coberto: {arquivo}")
                 continue
-            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes, isentas, usadas, py)
+            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes, isentas, usadas)
         soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
         if soltas:
             raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")

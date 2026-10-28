@@ -53,16 +53,6 @@
       ]
     },
     {
-      "id": "M69",
-      "guarda": "shell entra na analise",
-      "arquivo": "bin/forge-mutante",
-      "de": "py or eh_shell(arquivo, exemplo)",
-      "para": "py",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_condicao_de_shell_nova_sem_mutante_sai_1_e_com_mutante_sai_0"
-      ]
-    },
-    {
       "id": "M70",
       "guarda": "isenta usada nao e solta",
       "arquivo": "bin/forge-mutante",
