@@ -1,0 +1,66 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M34",
+      "guarda": "arquivo de teste removido nao conta",
+      "arquivo": "bin/forge-mutante",
+      "de": "if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):",
+      "para": "if FORA_DA_COBERTURA.fullmatch(arquivo):",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "arquivo removido que nao e python nao vira nao coberto",
+      "arquivo": "bin/forge-mutante",
+      "de": "if status != \"D\":",
+      "para": "if True:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "arquivo removido le so o merge-base",
+      "arquivo": "bin/forge-mutante",
+      "de": "depois = \"\" if status == \"D\" else ler_no_commit(sha_rev, arquivo)",
+      "para": "depois = \"\" if False else ler_no_commit(sha_rev, arquivo)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "arquivo removido python e analisado e nao python vira nao coberto",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not eh_python(arquivo, antes or depois):",
+      "para": "if eh_python(arquivo, antes or depois):",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "spec acima do teto de 64 KiB e recusada",
+      "arquivo": "bin/forge-mutante",
+      "de": "if r.returncode or len(r.stdout) > maximo:",
+      "para": "if r.returncode or len(r.stdout) > maximo * 100:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_spec_acima_do_teto_de_64_kib_e_entrada_invalida"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "a spec do diff e lida com o teto proprio",
+      "arquivo": "bin/forge-mutante",
+      "de": "dados = json.loads(ler_no_commit(rev, arquivo, MAXIMO_DA_SPEC))",
+      "para": "dados = json.loads(ler_no_commit(rev, arquivo))",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_spec_acima_do_teto_de_64_kib_e_entrada_invalida"
+      ]
+    }
+  ]
+}

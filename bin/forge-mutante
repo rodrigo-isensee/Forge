@@ -19,7 +19,7 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            trecho `de` do mutante, único no arquivo, com a troca dentro do nó da condição, `de` de 8+ caracteres e
            troca que muda o `ast`. Saída: 0 = toda condição mudada tem mutante, 1 = alguma sem mutante ou apagada,
            2 = entrada inválida (base que não é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de
-           300 arquivos ou 1 MiB por arquivo). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
+           300 arquivos, 1 MiB por arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
@@ -307,11 +307,11 @@ def mutar(copia, m):
 
 
 # --- `--cobertura`: condição mudada sem mutante declarado (GUARDA-SEM-MUTANTE) -----------------------------------------
-def ler_no_commit(sha, arquivo):
-    """Texto do arquivo no commit, nunca da árvore. Ilegível, fora do UTF-8 ou com mais de 1 MiB é ValueError."""
+def ler_no_commit(sha, arquivo, maximo=MAXIMO_DO_ARQUIVO):
+    """Texto do arquivo no commit, nunca da árvore. Ilegível, fora do UTF-8 ou acima de `maximo` é ValueError."""
     r = subprocess.run(["git", "show", f"{sha}:{arquivo}"], capture_output=True)
-    if r.returncode or len(r.stdout) > MAXIMO_DO_ARQUIVO:
-        raise ValueError(f"{arquivo}: ilegível em {sha[:12]} ou com mais de {MAXIMO_DO_ARQUIVO} bytes")
+    if r.returncode or len(r.stdout) > maximo:
+        raise ValueError(f"{arquivo}: ilegível em {sha[:12]} ou com mais de {maximo} bytes")
     return r.stdout.decode("utf-8")
 
 
@@ -392,7 +392,7 @@ def mutantes_do_diff(mudadas, rev):
             avisos.append(f"spec {ROTULO_DA_SPEC[status]} · {arquivo}")
         if status == "D":
             continue
-        dados = json.loads(ler_no_commit(rev, arquivo))
+        dados = json.loads(ler_no_commit(rev, arquivo, MAXIMO_DA_SPEC))
         problemas = validar_spec(dados)
         if problemas:
             raise ValueError(f"{arquivo}: spec inválida ({'; '.join(problemas)})")
@@ -418,13 +418,14 @@ def cobertura(base, rev):
             raise ValueError(f"o diff muda mais de {MAXIMO_DE_ARQUIVOS} arquivos")
         mutantes, saida = mutantes_do_diff(mudadas, sha_rev)
         for arquivo, (status, linhas) in sorted(mudadas.items()):
-            if status == "D" or TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
+            if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
                 continue
-            depois = ler_no_commit(sha_rev, arquivo)
-            if not eh_python(arquivo, depois):
-                saida.append(f"não coberto: {arquivo}")
-                continue
+            depois = "" if status == "D" else ler_no_commit(sha_rev, arquivo)
             antes = "" if status == "A" else ler_no_commit(mb, arquivo)
+            if not eh_python(arquivo, antes or depois):
+                if status != "D":  # arquivo removido que não é Python não traz condição para apagar
+                    saida.append(f"não coberto: {arquivo}")
+                continue
             saida += analisar(arquivo, linhas, antes, depois, mutantes)
     except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)

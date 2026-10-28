@@ -444,6 +444,24 @@ class Cobertura(unittest.TestCase):
         self.assertEqual(r.returncode, 1)
         self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
 
+    def test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_conta(self):
+        self.salvar({"lib.py": self.COND, "run.sh": "if true; then :; fi\n"}, base=True)
+        self.salvar({"lib.py": None, "run.sh": None})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
+        self.assertNotIn("run.sh", r.stdout)
+        self.salvar({"tests/test_a.py": "if 1 > 0:\n    pass\n"}, base=True)
+        self.salvar({"tests/test_a.py": None})
+        self.assertEqual(self.cobertura().returncode, 0)
+
+    def test_spec_acima_do_teto_de_64_kib_e_entrada_invalida(self):
+        spec = {"pedido": "x", "mutantes": [mutante(de="if x > 100:", para="if x > 1000:")], "pad": "a" * 70000}
+        self.salvar({"lib.py": self.COND, "tests/mutantes/x.json": json.dumps(spec)})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("com mais de 65536 bytes", r.stderr)
+
     def test_cada_tipo_de_condicao_conta_pelo_no_mais_externo(self):
         casos = {"if a > 1:\n    pass\nelif b:\n    pass\n": ["a > 1", "b"], "while x < 3:\n    pass\n": ["x < 3"],
                  "y = 1 if c else 2\n": ["c"], "z = [i for i in r if i % 2]\n": ["i % 2"], "assert a == b\n": ["a == b"],
