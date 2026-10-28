@@ -66,8 +66,8 @@
       "id": "M105",
       "guarda": "while abre a condicao",
       "arquivo": "hooks/parecer.py",
-      "de": "\"while\", \"until\"",
-      "para": "\"until\"",
+      "de": "\"while\", \"until\", \"!\"",
+      "para": "\"until\", \"!\"",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
