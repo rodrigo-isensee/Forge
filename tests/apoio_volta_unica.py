@@ -745,13 +745,13 @@ saida = []
 for texto in dados["textos"]:
     hook = _comum.Hook("conformidade")
     hook.entrada = {**dados["entrada"], "tool_input": {**dados["entrada"]["tool_input"], "command": texto}}
-    erro, codigo, inicio = io.StringIO(), 0, time.perf_counter()
+    erro, codigo, inicio = io.StringIO(), 0, time.process_time()
     with contextlib.redirect_stderr(erro), contextlib.redirect_stdout(io.StringIO()):
         try:
             conformidade.principal(hook)
         except SystemExit as saiu:
             codigo = saiu.code
-    saida.append([codigo, time.perf_counter() - inicio, erro.getvalue()[:300] if dados["motivo"] else ""])
+    saida.append([codigo, time.process_time() - inicio, erro.getvalue()[:300] if dados["motivo"] else ""])
 print(json.dumps(saida))
 """
     CORPOS_FIXOS = ("cat .env", "rm -rf .git")  # `env-cat-bloqueia.json` e o `.git` da raiz (`trava-rm-*-bloqueia.json`)
@@ -764,7 +764,8 @@ print(json.dumps(saida))
     SO_PALAVRAS = re.compile(r"[\w./=:@%+,-]+(?: [\w./=:@%+,-]+)*")  # corpo que o `env -S` divide como o shell o leria
 
     def decidir_na_guarda(self, textos, hooks=HOOKS, motivo=False):
-        """[(código, segundos, stderr)] da `Guarda` do `conformidade` de `hooks`, no mesmo processo (um filho só), sobre o
+        """[(código, segundos de CPU, stderr)] da `Guarda` do `conformidade` de `hooks`, no mesmo processo (um filho só;
+        a CPU da decisão, e não o relógio: a máquina carregada alonga o relógio, PR-VERDE-D3-TEMPO), sobre o
         modelo do corpus e com o ambiente limpo dos testes (`HOME` e `PATH` herdados do teste, sem rede)."""
         raiz, entrada, proc = self.modelos_montados()["conformidade"]
         env = ambiente_limpo()

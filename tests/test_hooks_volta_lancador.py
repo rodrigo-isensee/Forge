@@ -138,7 +138,10 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         opção modelada, e as do `env` com o corpo colado ao `S` do grupo, depois dele ou na abreviação de
         `--split-string`, também dá 2. A verdade vem da construção, e não de um `env`. Fora das formas só ficam as
         palavras em que o `env` sempre divide o texto (`-S…`, `--split-string…`): nelas o corpo não é o comando de
-        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (120 s de CPU) é do lote inteiro, na `Guarda`."""
+        `L w X C`, e o `-S` por extenso tem os controles do item 2. O tempo (120 s de CPU) é do lote inteiro, na `Guarda`:
+        o limite é o da decisão do dono de 2026-10-27 19:13, e o p95 de 10 execuções medido no sandbox em 2026-10-28
+        (sementes 1 a 10) é 42,3 s de CPU, de 19,6 a 42,3 s conforme a máquina: o limite vale 2,8x o p95, acima dos 2x da
+        regra única (PR-VERDE-D3-TEMPO), porque o runner do CI foi medido em 62 s de relógio com o limite antigo."""
         semente = int(os.environ.get("FORGE_PROP_SEMENTE") or random.SystemRandom().randrange(2 ** 32))
         try:  # o deslocamento da amostra muda a cada execução; a falha diz a semente que a repete (PROP-AMOSTRA)
             self.conferir_propriedade_sem_marcador(semente)
@@ -297,9 +300,11 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertGreaterEqual(vistas, 3 * len(envs))
 
     def test_tempo_do_teto_das_leituras_do_lancador(self):  # item 4 do critério de fim da opção A (caminho-rev13)
-        """Com `K` palavras fora da tabela e 50 lançadores encadeados, o `conformidade` decide em menos de 0,5 s na
-        `Guarda` (o vigia de produção é 3 s) e libera (o corpo `ls` não tem regra); com `K + 1`, recusa pelo teto. `K` é
-        3: no máximo 27 leituras, e a medida do lote está no `--numstat` e no relatório do pedido."""
+        """Com `K` palavras fora da tabela e 50 lançadores encadeados, o `conformidade` decide na `Guarda` e libera (o corpo
+        `ls` não tem regra); com `K + 1`, recusa pelo teto. `K` é 3: no máximo 27 leituras. O tempo é de CPU (a `Guarda` mede
+        `process_time`, e não o relógio) e o limite é o da regra única de tempo (PR-VERDE-D3-TEMPO, decisão do dono de
+        2026-10-27 20:13): 2x o p95 de 10 execuções, medido no sandbox dos agentes em 2026-10-28, de 20 decisões cada: o
+        maior tempo p95 6,9 ms (limite 15 ms) e o tempo médio p95 4,9 ms (limite 10 ms)."""
         _comum, _, _ = modulos_dos_hooks()
         k = _comum.TETO_FORA_DA_TABELA
         self.assertEqual(k, 3)
@@ -312,8 +317,14 @@ class LancadorDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertEqual(acima, 2)
         self.assertIn("opção de lançador que o hook não modela", motivo_acima)
         medida = self.decidir_na_guarda([linha(k)] * 20)
-        self.assertLess(max(segundos for _, segundos, _ in medida), 0.5, "o teto K não decide em 0,5 s")
-        self.assertLess(sum(segundos for _, segundos, _ in medida) / 20, 0.05)
+        cpu = [segundos for _, segundos, _ in medida]
+        self.assertLess(max(cpu), 0.015, f"o teto K gastou {max(cpu) * 1000:.1f} ms de CPU numa decisão (limite 15 ms)")
+        self.assertLess(sum(cpu) / 20, 0.010, f"o teto K gastou {sum(cpu) / 20 * 1000:.1f} ms de CPU por decisão (limite 10 ms)")
+
+    def test_guarda_mede_cpu_e_nao_relogio(self):  # PR-VERDE-D3-TEMPO
+        """O tempo que `decidir_na_guarda` devolve é `process_time` (CPU da decisão): a fila da máquina não o alonga."""
+        self.assertIn("time.process_time()", self.DRIVER_DA_GUARDA)
+        self.assertNotIn("perf_counter", self.DRIVER_DA_GUARDA)
 
     def test_estado_da_leitura_a_mais_nao_segue_adiante(self):  # item 5 do critério de fim da opção A, teste de unidade
         """Depois de `env -Z X cd /tmp/y; rm -rf .forge`, a pasta que segue é a da leitura sem valor (o `X` é o comando, e
