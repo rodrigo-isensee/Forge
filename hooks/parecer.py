@@ -55,7 +55,7 @@ GIT_COM_VALOR = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-
 # nela recusa, seja qual for a branch da sessão (docs/security/hk3-parecer-ameacas.md). Variável o hook não segue.
 SEGUE = {"", ";", "&&", "\n", "&&\n"}  # liga ao comando seguinte sem pipeline, `||` nem segundo plano
 COMECA = {"", ";", "\n"}  # o comando que vem depois deles roda sempre; depois de `&&` ele pode não rodar
-EXPANSAO = ("$", "`", "<(", ">(")  # o que o bash expande: a palavra deixa de ser caminho literal
+EXPANSAO = ("$", "`")  # o que o bash expande (`$( )` é `$`): a palavra deixa de ser caminho literal
 CORPO = {"{", "then", "do", "else"}
 SUBCOMANDOS = {"merge", "pull", "checkout", "switch"}
 ABRE = {"if", "while", "until", "for", "case", "select", "then", "do", "else", "elif", "{", "function", "coproc"}
@@ -273,7 +273,7 @@ def pasta_do_git(pasta, pastas, mexidas, desviado):
         return None
     for p in pastas:  # o `-C` absoluto também refaz a pasta desconhecida; `-C ""` não muda nada (o `resolver` o devolve)
         pasta = resolver(p, mexidas, pasta, fisico=True)
-    return pasta if pasta is not None and pasta.is_dir() else None
+    return pasta
 
 
 def existe(raiz, ref):
