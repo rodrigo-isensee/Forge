@@ -3,20 +3,20 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: guarda-sem-mutante-2
 branch: melhoria/guarda-sem-mutante-2
-commit: a1571168d78646e8ccdd0ad3a225dfafc3775ffb
+commit: 6b0c95eadd0ab215de40630d9734318a1c33889a
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-28
 ---
-# Review de segurança: guarda-sem-mutante-2 (volta 1: A1 e A2 fechados) (PR 2: shell, isentas, tetos de T7, A5 e o PQ no gerar_volta)
+# Review de segurança: guarda-sem-mutante-2 (volta 2: heredoc, eval e -c fechados) (PR 2: shell, isentas, tetos de T7, A5 e o PQ no gerar_volta)
 
-Diff revisado: `ff3936ae4011a95f25c37280fe32e4fa5ced0d95...a1571168d78646e8ccdd0ad3a225dfafc3775ffb` (revalidação por delta `43a8cc83559f3e49abffa08447b4bfaf4a04ae6c..a1571168d78646e8ccdd0ad3a225dfafc3775ffb`: `bin/forge-mutante`, `tests/test_forge_mutante.py`, spec `-11`, `-12` e `-13`) (`bin/forge-mutante`, `bin/forge-check`, specs `-8` a `-11` e as reescritas, `tests/`, `skills/qa-testing/SKILL.md`, fragmento do changelog). Referências: o modelo de ameaças `guarda-sem-mutante-ameacas.md` (T2 e T7), a ata `2026-10-28-revisao-desenho-guarda-sem-mutante.md` (decisões 1, 2, 4 e 5) e o parecer do PR 1 (`guarda-sem-mutante.md`, A5; A3 e A4 aceitos como risco pela decisão técnica de 10:25). Sondas em repositório descartável em `$TMPDIR/security-engineer-guarda-sem-mutante-2/`; nada escrito no `~/Forge`. `docs/engineering/achados-recorrentes.md` (PA-7) não tem linha ainda: nada a conferir.
+Diff revisado: `ff3936ae4011a95f25c37280fe32e4fa5ced0d95...6b0c95eadd0ab215de40630d9734318a1c33889a` (revalidação por delta `a1571168d78646e8ccdd0ad3a225dfafc3775ffb..6b0c95eadd0ab215de40630d9734318a1c33889a`: `bin/forge-mutante`, `tests/test_forge_mutante.py`, specs `-13`, `-14` e `-15`) (`bin/forge-mutante`, `bin/forge-check`, specs `-8` a `-11` e as reescritas, `tests/`, `skills/qa-testing/SKILL.md`, fragmento do changelog). Referências: o modelo de ameaças `guarda-sem-mutante-ameacas.md` (T2 e T7), a ata `2026-10-28-revisao-desenho-guarda-sem-mutante.md` (decisões 1, 2, 4 e 5) e o parecer do PR 1 (`guarda-sem-mutante.md`, A5; A3 e A4 aceitos como risco pela decisão técnica de 10:25). Sondas em repositório descartável em `$TMPDIR/security-engineer-guarda-sem-mutante-2/`; nada escrito no `~/Forge`. `docs/engineering/achados-recorrentes.md` (PA-7) não tem linha ainda: nada a conferir.
 
 ## Gatilhos
 `controles do Forge` (`R-SEGURANCA`): a checagem decide por rc se a condição mudada tem mutante; o PR amplia a entrada analisada (shell por regex) e cria a válvula `isentas`. Controle que analisa entrada: matriz de dimensões do analisador (mecanismo, posição, linha física e lógica, tamanho, tipo de mudança, ambiente).
 
 ## Achados
-- A1 (recomendado) bin/forge-mutante:394 · fechado para heredoc, `\'` e `bash -c`/`eval` com aspas; restam `-c $'...'`, `trap`, `ssh` e `$(...)` em heredoc, rc 0 sem aviso: listar como `não coberto`
+- A1 (recomendado) bin/forge-mutante:394 · heredoc (terminador indentado, `<<-`, `<<` em `$(( ))`), `eval`/`-c` em qualquer forma (`$'..'`, `--`, `-lc`, `-ec`) fechados como `não coberto`; restam `trap '...'`, `ssh h '...'` e `$(...)` em heredoc sem aspas, rc 0 sem aviso: listar como `não coberto`
 - A2 (recomendado) bin/forge-mutante:93 · fechado: 40 KB de `"\"`, `[[ `, `[ `, `'`, `<<E`, `\` e `$'\'` em 0,006 a 0,04 s de CPU e 1 MiB em 0,1 a 1,3 s (crescimento linear, antes 9-10 s em 40 KB)
 - A3 (recomendado) bin/forge-mutante:455 · sem mudança: um só token em comum trata a condição como editada; aceito como risco pela decisão técnica de 10:25
 - A4 (recomendado) bin/forge-mutante:482 · sem mudança: o `motivo` da isenta vai cru à saída; aceito como risco pela decisão técnica de 10:25
@@ -43,7 +43,10 @@ Diff revisado: `ff3936ae4011a95f25c37280fe32e4fa5ced0d95...a1571168d78646e8ccdd0
 
 **Contorno da checagem por shell não reconhecido.** Heredoc, `\'` e `bash -c` no A1 (bloqueante). Conferido sem achado: CRLF no shell (rc 1, sonda S5), `||` com lado direito `true` ou `:` (não conta, por desenho), `#` em `$#` e `${#x}` (não vira comentário), shebang `sh` ou `bash` por regex de byte, comentário com apóstrofo (a máscara de comentário vence), arquivo sem extensão nem shebang, `dash`, `zsh`, `ksh` e `.yml` (`não coberto`).
 
-## Revalidação por delta (a1571168)
+## Revalidação por delta (6b0c95eb, volta 2)
+Li o delta inteiro (`mascarar_sh`, `EXECUTA_SH`, testes e specs `-14` e `-15`); não toca controle além do `forge-mutante`. Sem bloqueante. A máscara de aspas e a regex linear, aprovadas na volta 1, não foram reabertas. Sondas sobre `condicoes_sh` no commit: heredoc com apóstrofo, `<<-` com tab (sai `não coberto` 1-3), terminador indentado, `<<` dentro de `$(( ))` (não abre heredoc, a condição aparece), dois heredocs na linha, tag com aspas e `<<<` seguem seguros; `bash -c $'..'`, `eval -- '..'`, `bash --norc -c`, `bash -ec`, `-lc`, `su -c`, `env X=1 bash -c`, `xargs ... sh -c` e `-c` com aspas atravessando linha saem `não coberto`. Não coberto restante, só por erro do autor: `trap '...'`, `eval "$cmd"` e `sh -c "$x"` sem literal (a condição fora aparece), registrados no A1 (recomendado). Linearidade: `((`, `))`, `<<E`, `<<-E`, terminador recuado e `-c` repetidos, 40 KB em 0,004 a 0,03 s de CPU e 160 KB em 0,015 a 0,11 s (4x o texto, 4x o tempo). Os 26 testes de `Cobertura` passam. PA-7: o arquivo segue sem linhas; este parecer não acrescenta linha.
+
+## Revalidação anterior (a1571168)
 Li o delta inteiro (`mascarar_sh`, `sem_fecho`, `condicoes_sh`, `analisar`, testes e specs `-11` a `-13`); o delta não toca controle além do próprio `forge-mutante`. **A1 (bloqueante, fechado).** `mascarar_sh` é um laço de `FICHA_SH.search` que consome `\.`, heredoc (`<<[-]PALAVRA`, corpo até a linha da palavra), `$'..'`, aspas e comentário numa passada; aspa solta, heredoc sem linha final e aspa de `-c`/`eval` com condição dentro entram em `incertas` e saem `não coberto: arq:linha` quando a linha cai num hunk. Sondas sobre `condicoes_sh` no commit: S1 (apóstrofo em heredoc) e S3 (`\'`) devolvem a condição; S2, `sh -c "[ ] && ..."`, `xargs sh -c`, `bash -lc` saem `incertas`; `<<-` com tab, `<<EOF >x`, `\\"` antes de aspa, `\` no fim de linha, `'#'`, `a#b` e `"it's"` seguem certos; `EOF ` com espaço fecha o heredoc cedo (mostra mais condição, falha segura). Os 26 testes de `Cobertura` passam. **A2 (bloqueante, fechado).** Tempos de CPU em `condicoes_sh` com `process_time`: tabela no achado A2; o teste novo trava 40 KB em 0,05 s por CPU. Restos do A1 rebaixados a recomendação: `-c $'...'`, `trap '...'`, `ssh h '...'` e `$(...)` em heredoc sem aspas saem rc 0 sem aviso, só por erro do autor (a decisão de 11:16 pede `-c` e `eval` com aspas), e o review lê o diff. PA-7: `docs/engineering/achados-recorrentes.md` segue sem linhas (`<!-- nenhum ainda -->`), nada a conferir; este parecer não acrescenta linha (o A1 e o A2 já tinham uma ocorrência cada em parecer só; a repetição de classe fica para o próximo).
 
 ## Riscos aceitos e ferramentas
