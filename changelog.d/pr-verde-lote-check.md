@@ -1,2 +1,0 @@
-### Corrigido
-- forge-check: o brief reprova a etapa do Cobre cortada sem marca, o caminho de PQ que não existe e, no -REV e no -PR, a decisão do dono do pedido de origem; a entrega conta o escopo pelo primeiro pai e tira o que o merge da base trouxe; o pr aceita o id do pedido pela linha Branch: do brief; o parecer reescrito por um portão do -REV sai ok; mudar só o changelog.d/<slug>.md não desatualiza o parecer (PR-VERDE-LOTE-CHECK)
