@@ -217,11 +217,17 @@ def sem_chaves(palavras):
 
 
 def sem_condicao(palavras):
-    """Tira o que vem antes do comando de uma parte (`if cd P`, `while`, `until`, `elif`, `!`, `time`, `function f {`):
-    o `cd` que sobra roda no shell de cima, mas fora do nível que o hook lê (HK3-03)."""
-    k = 0
-    while k < len(palavras) and palavras[k] in CONDICAO | CORPO:
-        k += 2 if palavras[k] == "function" else 1  # `function NOME`: o nome também sai
+    """Tira o que vem antes do comando de uma parte (`if cd P`, `while`, `until`, `elif`, `!`, `time -p`, `function f {`,
+    atribuição `A=1`), em qualquer ordem: o `cd` que sobra roda no shell de cima, mas fora do nível que o hook lê (HK3-03)."""
+    k, no_time = 0, False
+    while k < len(palavras):
+        no_time = no_time or palavras[k] == "time"
+        if palavras[k] in CONDICAO | CORPO:
+            k += 2 if palavras[k] == "function" else 1  # `function NOME`: o nome também sai
+        elif ATRIBUICAO.match(palavras[k]) or no_time and palavras[k] in ("-p", "--"):
+            k += 1  # `if A=1 cd P`, `time -p cd P`: atribuição e opção do `time` também saem
+        else:
+            break
     return palavras[k:]
 
 
