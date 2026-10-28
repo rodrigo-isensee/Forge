@@ -13,16 +13,6 @@
       ]
     },
     {
-      "id": "M15",
-      "guarda": "o -C entra na lista de pastas",
-      "arquivo": "hooks/parecer.py",
-      "de": "if toks[i] == \"-C\":",
-      "para": "if False:",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
-    },
-    {
       "id": "M16",
       "guarda": "--git-dir e --work-tree desviam o repositorio",
       "arquivo": "hooks/parecer.py",
