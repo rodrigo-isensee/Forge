@@ -106,11 +106,7 @@ class PortaoDiffProprio(unittest.TestCase):
         self.assertIn("desatualizado: src.txt", self.vale(parecer))
 
     def test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer(self):  # PR-VERDE-LOTE-CHECK (D4)
-        self.escreve("changelog.d/ramo.md", "- Corrigido: x\n")
-        parecer = self.parecer_no_ramo()
-        self.escreve("docs/reviews/ramo.md", f"---\ntipo: review\ncontrato: 1\npedido: ramo\nbranch: ramo\ncommit: {parecer}\n"
-                                             "parecer: aprovado\nrevisor: forge:tech-lead\ndata: 2026-10-27\n---\n# x\n")
-        self.commit("parecer")
+        self.parecer_com_fragmento()
 
         def desatualizado():
             return [l for l in fc.cmd_pr(self.dir, "ramo", "HEAD") if "desatualizado" in l]
@@ -121,6 +117,38 @@ class PortaoDiffProprio(unittest.TestCase):
         self.escreve("changelog.d/outra.md", "- Corrigido: z\n")
         self.commit("fragmento de outra branch")
         self.assertIn("desatualizado: changelog.d/outra.md mudou", desatualizado()[0])
+
+    def parecer_com_fragmento(self):
+        self.escreve("changelog.d/ramo.md", "- Corrigido: x\n")
+        parecer = self.parecer_no_ramo()
+        self.escreve("docs/reviews/ramo.md", f"---\ntipo: review\ncontrato: 1\npedido: ramo\nbranch: ramo\ncommit: {parecer}\n"
+                                             "parecer: aprovado\nrevisor: forge:tech-lead\ndata: 2026-10-27\n---\n# x\n")
+        self.commit("parecer")
+
+    def test_d4_so_o_caminho_exato_do_fragmento_sai_do_hash(self):  # segurança A2: nunca por prefixo
+        self.parecer_com_fragmento()
+        for nome in ("changelog.d/ramo.md.md", "changelog.d/ramo.mdx/codigo.py", "changelog.d/ramo.md~"):
+            with self.subTest(nome):
+                self.escreve(nome, "x\n")
+                self.commit(f"acrescenta {nome}")
+                motivos = [l for l in fc.cmd_pr(self.dir, "ramo", "HEAD") if "desatualizado" in l]
+                self.assertIn(f"desatualizado: {nome} mudou", motivos[0] if motivos else "")
+                self.git("rm", "-q", "-r", nome.split("/")[0] + "/" + nome.split("/")[1])
+                self.commit(f"tira {nome}")
+
+    def test_d4_com_base_o_merge_simulado_tambem_ignora_o_fragmento(self):  # QA A5: o caso do CI (`pr --base`)
+        self.parecer_com_fragmento()
+        self.base_avanca()
+        r = subprocess.run(["git", "-C", str(self.dir), "-c", "user.name=t", "-c", "user.email=t@t",
+                            "merge", "--no-edit", "develop"], capture_output=True, text=True, env=sem_manutencao())
+        self.assertNotEqual(r.returncode, 0)  # conflito só no changelog
+        self.escreve("CHANGELOG.md", self.CHANGELOG_DOS_DOIS)
+        self.escreve("changelog.d/ramo.md", "- Corrigido: y\n")
+        self.commit("merge da base e o fragmento muda")
+        self.assertEqual([l for l in fc.cmd_pr(self.dir, "ramo", "HEAD", "develop") if "desatualizado" in l], [])
+        self.escreve("src.txt", (self.dir / "src.txt").read_text().replace("linha 3\n", "linha 3 mudada\n"))
+        self.commit("código muda")
+        self.assertIn("desatualizado: src.txt mudou", "\n".join(fc.cmd_pr(self.dir, "ramo", "HEAD", "develop")))
 
     def test_sem_base_continua_estrito(self):
         parecer = self.parecer_no_ramo()

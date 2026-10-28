@@ -169,6 +169,20 @@ class IntegracaoNaBranch(Repositorio):
         self.assertIn('confira "docs/reviews/p1.md"', saida)
         self.assertNotIn('"d.txt"', saida)
 
+    def test_merge_que_descarta_a_base_mostra_o_que_ela_desfez(self):  # segurança A1: `-s ours` não some do escopo
+        self.commitar({"a.txt": "1\n"}, "trabalho da branch")
+        git("switch", "-q", "develop", cwd=self.repo)
+        d1 = self.commitar({"src/app.txt": "v2 corrigido\n", "d.txt": "d\n"}, "develop corrige")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "-s", "ours", "--no-edit", "develop", cwd=self.repo)
+        self.commitar({"docs/reviews/p1.md": "parecer\n"}, "parecer")
+        self.gravar_pedido()
+        for etapa in ("codigo", "review", "pr"):
+            with self.subTest(etapa):
+                rc, saida = self.entrega(etapa=etapa, base_sha=d1)
+                self.assertIn('confira "src/app.txt"', saida)
+                self.assertIn('confira "d.txt"', saida)
+
     def test_merge_de_outra_branch_conta_tudo(self):  # G2: só o merge da base sai; o de outra coisa é do autor (falha fechada)
         self.c1 = self.commitar({"a.txt": "1\n"}, "trabalho da branch")
         git("switch", "-q", "-c", "lateral", "develop", cwd=self.repo)

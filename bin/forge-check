@@ -385,6 +385,11 @@ def trechos_do_arquivo(raiz, de, para, nome):
     return linhas or None
 
 
+def livre(nome, livres):
+    """True se `nome` está em `livres`: a entrada com `/` no fim é pasta (prefixo); a sem, o caminho exato (D4, segurança A2)."""
+    return any(nome == x or (x.endswith("/") and nome.startswith(x)) for x in livres)
+
+
 def arquivos_divergentes(raiz, base, a, b, ignorar):
     """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
     de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
@@ -409,14 +414,13 @@ def arquivos_divergentes(raiz, base, a, b, ignorar):
             if not campo:
                 break
             conflitos.append(campo.decode("utf-8", "surrogateescape"))
-        fora = [f":(exclude){p.rstrip('/')}" for p in ignorar]
         cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
-                         arvore, b, "--", ".", *fora, bruto=True)
+                         arvore, b, "--", bruto=True)
         if cod:
             return None
-        divergem = set(nomes_z(saida))
+        divergem = {n for n in nomes_z(saida) if not livre(n, ignorar)}
         for nome in conflitos:
-            if nome.startswith(tuple(ignorar)):
+            if livre(nome, ignorar):
                 continue
             if nome != "CHANGELOG.md":
                 divergem.add(nome)
@@ -449,7 +453,7 @@ def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES):
     cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", commit, ate, bruto=True)
     if cod:
         return f"não foi possível comparar com {ate}"
-    fora = [f for f in nomes_z(saida) if not f.startswith(livres)]
+    fora = [f for f in nomes_z(saida) if not livre(f, livres)]
     if not fora:
         return None
     div = arquivos_divergentes(raiz, base, commit, ate, livres) if base else None
@@ -984,7 +988,10 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
         proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
         if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
             integrou = True
-            proprios &= set(nomes_do_intervalo(raiz, pais[1], commit))
+            da_base = set(nomes_do_intervalo(raiz, pais[1], commit))
+            cod, mb = git(raiz, "merge-base", pais[0], pais[1])
+            descartados = set(nomes_do_intervalo(raiz, mb, pais[1])) & da_base if not cod and mb else da_base
+            proprios = (proprios & da_base) | descartados  # o que a base mudou e o merge não manteve (-s ours) é do autor
         nomes |= proprios
     return nomes if integrou else None
 
@@ -1141,7 +1148,7 @@ def cmd_delta(raiz, refs, parecer):
         print(f"delta: {inicio[:7]} não é ancestral de {fim[:7]}")
         return 2
     print(f"intervalo: {inicio}..{fim}")
-    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not n.startswith(LIVRES)]
+    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not livre(n, LIVRES)]
     if not nomes:
         print("delta: nenhum")
         return 0
@@ -4374,7 +4381,7 @@ def conferir_citacoes(raiz, texto, secoes, pedido):
     return saida
 
 
-CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)")
+CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)(?![\w.@+/-]*[*?\[{])")  # com curinga não é cobrado
 
 
 def caminhos_ausentes_do_pq(raiz, texto, secoes):

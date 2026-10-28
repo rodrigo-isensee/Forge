@@ -4653,15 +4653,16 @@ class EntregasParalelas(RepoDeSeguranca):
         pasta = self.repo / "docs" / "briefs"
         pasta.mkdir(parents=True, exist_ok=True)
         anexo = "anexo com remoção do parecer de seguranca"
-        casos = {"portão de segurança do -REV com o commit": ("security-engineer", c1, None),
-                 "brief do -REV de outro papel (o autor não é o portão)": ("tech-lead", c1, anexo),
-                 "portão de segurança que manda outro commit": ("security-engineer", self.base, anexo)}
-        for nome, (papel, commit, esperado) in casos.items():
+        casos = {"portão de segurança do -REV com o commit": ("security-engineer", c1, None, "melhoria/x"),
+                 "brief do -REV de outro papel (o autor não é o portão)": ("tech-lead", c1, anexo, "melhoria/x"),
+                 "portão de segurança que manda outro commit": ("security-engineer", self.base, anexo, "melhoria/x"),
+                 "portão de segurança do -REV de outra branch (QA A3)": ("security-engineer", c1, anexo, "melhoria/outra")}
+        for nome, (papel, commit, esperado, ramo) in casos.items():
             with self.subTest(nome):
                 for velho in pasta.glob("p1-REV-*.md"):
                     velho.unlink()
                 (pasta / f"p1-REV-{papel}-1.md").write_text(
-                    f"Agente destino: forge:{papel}\nPedido: p1-REV\nBranch: melhoria/x   Base: develop   Base-sha: {self.base}\n\n"
+                    f"Agente destino: forge:{papel}\nPedido: p1-REV\nBranch: {ramo}   Base: develop   Base-sha: {self.base}\n\n"
                     f"## Entregar\n- Parecer com a linha `commit: {commit}`.\n", encoding="utf-8")
                 _, saida, _ = self.entrega("review", "--desde", c1)
                 if esperado:
