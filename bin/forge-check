@@ -17,7 +17,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
-     forge-check esperas [--pedido ID]
+     forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
      forge-check escape resumo [--dias N]
@@ -33,7 +33,7 @@ reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário
 uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
-mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido`.
+mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido` (e pelo motivo do movimento que cita o pedido), lista os casados e aceita `--kanban`.
 `corrigidos` (M14b; só leitura, sem rede) lê a linha de PRs da `--ref` (padrão `origin/develop`) e lista os PRs `fix` que corrigem PR já mesclado:
 `evidencia=cita` (o texto do PR cita `#N` de PR mesclado antes: prova escrita) ou `evidencia=arquivo` (sem citação, mas mexe em arquivo que outro PR
 mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os `fix` sem nenhuma das duas (`nenhuma`).
@@ -1439,6 +1439,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
               f"--etapa codigo --desde {bases[-1][0] if bases else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
+    pronto.append(f"- PQ-{proximo + len(pronto)} (cmd, do autor): `bin/forge-mutante --cobertura --base {sha_base}` · espera: rc=0")
     saida += acrescentar(copiado("Pronto quando"), pronto)
     saida += copiado("Relatório")
     return "".join(saida), 0, []
@@ -2391,9 +2392,9 @@ def esperas_do_cartao(movimentos):
     return esperas
 
 
-def cmd_esperas(raiz, pedido=None):
+def cmd_esperas(raiz, pedido=None, kanban=None):
     """Imprime as esperas por cartão (`esperas: <cartão> <tipo> inicio=<ISO> minutos=<n|aberta>`) e o total por tipo. Só lê
-    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`). rc 1 se o pedido não tem cartão."""
+    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`, com o motivo do movimento também) e a lista deles. rc 1 se o pedido não tem cartão."""
     por_cartao, nomes = {}, {}
     for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md"):
         hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
@@ -2404,10 +2405,12 @@ def cmd_esperas(raiz, pedido=None):
         print("esperas: aviso: docs/kanban/historico.md ausente ou sem movimento com hora", file=sys.stderr)
     escolhidos = sorted(nomes.values(), key=str.casefold)
     if pedido:
-        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos)
+        motivos = {n: [m[3] for m in ms] for n, ms in por_cartao.items()}
+        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos, kanban, motivos)
         if not escolhidos:
-            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
             return 1
+        print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} cartoes: " + " ".join(sem_controle(n) for n in escolhidos))
     soma = {t: [0, 0.0] for t in TIPOS_DE_ESPERA}
     abertas = 0
     for nome in escolhidos:
@@ -3414,23 +3417,32 @@ def pedido_existente(raiz, id_):
     return any((Path(pasta) / "docs" / "pedidos" / f"{id_}.md").is_file() for pasta in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF))
 
 
-def cartoes_do_quadro(raiz):
-    """[(ID do cartão, pedido)] das linhas de tabela do KANBAN.md (colunas `ID` e `Pedido`), na raiz e na cópia principal; só leitura."""
+def cartoes_do_quadro(raiz, kanban=None):
+    """[(ID do cartão, pedido)] das linhas de tabela do KANBAN.md (colunas `ID` e `Pedido`), na raiz e na cópia principal, ou só do
+    arquivo `kanban` quando dado; só leitura."""
     pares = []
-    for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz))):
-        for c in _ler_tabela(pasta / "KANBAN.md"):
+    arquivos = [Path(kanban)] if kanban else [pasta / "KANBAN.md" for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz)))]
+    for arquivo in arquivos:
+        for c in _ler_tabela(arquivo):
             if len(c) >= 3 and c[0] and c[0] != "ID" and not set(c[0]) <= set("-: "):
                 pares.append((c[0], c[2]))
     return pares
 
 
-def cartoes_do_pedido(raiz, id_, nomes):
+def cita_o_pedido(texto, id_):
+    """True se `texto` traz o id do pedido como palavra inteira (sem letra, dígito, `_` ou `-` colado; ponto final de frase não cola)."""
+    return re.search(r"(?<![A-Za-z0-9._-])" + re.escape(id_) + r"(?![A-Za-z0-9_-])(?!\.[A-Za-z0-9])", texto, re.IGNORECASE) is not None
+
+
+def cartoes_do_pedido(raiz, id_, nomes, kanban=None, motivos=None):
     """Dos `nomes` de cartão do histórico, os que são do pedido `id_` (M14b: o `--pedido` não casava, porque o cartão do histórico
     não leva o id do pedido). Casa: o mesmo nome; a família por prefixo até um `-` (cartão `X` e pedido `X-PR`, ou o inverso); ou
-    o cartão cuja coluna `Pedido` do KANBAN.md é este pedido. Sem caractere de controle: sai impresso."""
+    o cartão cuja coluna `Pedido` do KANBAN.md (`kanban`, se dado) é este pedido; e, com `motivos` ({nome em minúscula: [motivo]}), o
+    cartão cujo motivo de movimento cita o pedido. Sem caractere de controle: sai impresso."""
     alvo = id_.casefold()
-    do_quadro = {i.casefold() for i, p in cartoes_do_quadro(raiz) if p.casefold() == alvo}
-    achados = {n for n in nomes if n.casefold() == alvo or n.casefold() in do_quadro
+    do_quadro = {i.casefold() for i, p in cartoes_do_quadro(raiz, kanban) if p.casefold() == alvo}
+    citados = {n for n, ms in (motivos or {}).items() if any(cita_o_pedido(m, id_) for m in ms)}
+    achados = {n for n in nomes if n.casefold() == alvo or n.casefold() in do_quadro or n.casefold() in citados
                or alvo.startswith(n.casefold() + "-") or n.casefold().startswith(alvo + "-")}
     return sorted(achados, key=str.casefold)
 
@@ -5214,7 +5226,8 @@ def main():
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
-    es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+    es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
+    es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
@@ -5353,7 +5366,7 @@ def executar(a, raiz):
     if a.cmd == "afrouxamentos":
         return cmd_afrouxamentos(raiz, a.ref, a.prs, a.rotulados)
     if a.cmd == "esperas":
-        return cmd_esperas(raiz, a.pedido)
+        return cmd_esperas(raiz, a.pedido, a.kanban)
     if a.cmd == "corrigidos":
         return cmd_corrigidos(raiz, a.ref, a.dias)
     if a.cmd == "fila":

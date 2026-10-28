@@ -66,20 +66,20 @@
       "id": "M46",
       "guarda": "so pareia a velha quando entra condicao nova no hunk",
       "arquivo": "bin/forge-mutante",
-      "de": "if postas and falta[c[0]] and",
-      "para": "if falta[c[0]] and",
+      "de": "if toca(c, novo)]",
+      "para": "if True]",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
+        "tests.test_forge_mutante.Cobertura.test_condicao_apagada_e_outra_nova_sem_relacao_no_mesmo_hunk_sai_apagada_e_a_editada_nao"
       ]
     },
     {
       "id": "M47",
       "guarda": "so pareia a velha do proprio hunk",
       "arquivo": "bin/forge-mutante",
-      "de": "and toca(c, velho):",
-      "para": "and True:",
+      "de": "and toca(c, velho)]",
+      "para": "and True]",
       "testes": [
-        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
+        "tests.test_forge_mutante.Cobertura.test_condicao_apagada_e_outra_nova_sem_relacao_no_mesmo_hunk_sai_apagada_e_a_editada_nao"
       ]
     }
   ]

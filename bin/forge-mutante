@@ -11,15 +11,21 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
   --rev    commit a mutar (padrão HEAD)
   --prazo  por execução de testes, em segundos (padrão 600)
-  --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição Python mudada no diff
-           `merge-base(SHA, REV)..REV` (if, elif, while, ternário, compreensão, assert, guarda de match, and/or,
-           comparação, `not`) que nenhum mutante das specs desse diff cobre, a condição apagada e o arquivo que a
-           checagem não analisa (`não coberto: <arquivo>`; shell e demais tipos até o PR 2). Lê o commit com
-           `git show`, nunca a árvore, e só com `ast.parse`: nada do diff é importado nem executado. Cobrir é ter o
-           trecho `de` do mutante, único no arquivo, com a troca dentro do nó da condição, `de` de 8+ caracteres e
-           troca que muda o `ast`. Saída: 0 = toda condição mudada tem mutante, 1 = alguma sem mutante ou apagada,
-           2 = entrada inválida (base que não é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de
-           300 arquivos, 1 MiB por arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
+  --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição mudada no diff `merge-base(SHA, REV)..REV`
+           que nenhum mutante das specs desse diff cobre, a condição apagada e o arquivo que a checagem não analisa
+           (`não coberto: <arquivo>`, uma vez por arquivo: shell, binário e tudo o que não é Python). Python: if, elif, while,
+           ternário, compreensão, assert, guarda de match, and/or, comparação, `not`, pelo `ast.parse`. Shell não se analisa, nem linha
+           a linha: o arquivo sai `não coberto`; `case`, `(( ))` e o resto do shell também. Nada do diff é importado nem executado; lê o commit
+           com `git show`, nunca a árvore. Cobrir é ter o trecho `de` do mutante, único no arquivo, com a troca dentro
+           do nó da condição, `de` de 8+ caracteres e, em Python, troca que muda o `ast`. A condição editada (a velha
+           sai e uma nova com nome ou número em comum entra no mesmo hunk, na mesma posição) é coberta pelo mutante da
+           nova; a nova sem relação deixa a velha como `apagada`. `isentas` na spec do diff (até 8 somadas):
+           [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
+           condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
+           listada ou cujo trecho não casa uma vez é rc 2. Saída: 0 = toda condição mudada tem mutante ou isenta, 1 =
+           alguma sem mutante ou apagada, 2 = entrada inválida (base que não é commit, diff vazio, spec inválida,
+           arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB de diff, 5000 condições num arquivo
+           ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
@@ -63,11 +69,15 @@ MAXIMO_DO_TRECHO = 4000
 TESTE = re.compile(r"tests/(test_[a-z0-9_]+\.py|config\.json|(fixtures|hooks|transcricoes|migracoes|mutantes)/.+)")
 ID_DE_MUTANTE = re.compile(r"[A-Za-z0-9_-]{1,32}")
 CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
-CHAVES_DA_SPEC = {"pedido", "executor", "mutantes"}
+CHAVES_DA_SPEC = {"pedido", "executor", "mutantes", "isentas"}
+CHAVES_DA_ISENTA = {"arquivo", "trecho", "motivo"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
 EXECUTORES = {"unittest"}
 MAXIMO_DE_ARQUIVOS = 300
 MAXIMO_DO_ARQUIVO = 1 << 20
+MAXIMO_DO_DIFF = 4 << 20
+MAXIMO_DE_CONDICOES = 5000
+MAXIMO_DE_ISENTAS = 8
 SPEC_DO_DIFF = re.compile(r"tests/mutantes/[^/]+\.json")
 FORA_DA_COBERTURA = re.compile(r".*\.md|changelog\.d/.*")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
@@ -202,6 +212,7 @@ def validar_spec(dados):
         problemas.append("pedido vazio ou que não é texto")
     if dados.get("executor", "unittest") not in EXECUTORES:
         problemas.append(f"sem leitor de veredito para o executor {dados['executor']!r}")
+    problemas += validar_isentas(dados.get("isentas", []))
     mutantes = dados["mutantes"]
     if not isinstance(mutantes, list) or not 1 <= len(mutantes) <= MAXIMO_DE_MUTANTES:
         return problemas + [f"de 1 a {MAXIMO_DE_MUTANTES} mutantes"]
@@ -227,6 +238,19 @@ def validar_spec(dados):
         testes = m["testes"]
         if not isinstance(testes, list) or not testes or not all(id_de_teste_valido(t) for t in testes):
             problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
+    return problemas
+
+
+def validar_isentas(lista):
+    """Problemas das `isentas` da spec: `arquivo` + `trecho` exato (8+ caracteres não brancos) + `motivo` (20+ caracteres)."""
+    if not isinstance(lista, list) or len(lista) > MAXIMO_DE_ISENTAS:
+        return [f"isentas é uma lista de até {MAXIMO_DE_ISENTAS}"]
+    problemas = []
+    for n, i in enumerate(lista, 1):
+        certa = (isinstance(i, dict) and set(i) == CHAVES_DA_ISENTA and all(isinstance(v, str) for v in i.values())
+                 and len("".join(i["trecho"].split())) >= 8 and len(i["trecho"]) <= MAXIMO_DO_TRECHO
+                 and len(i["motivo"].strip()) >= 20 and not validar_caminho(i["arquivo"]))
+        problemas += [] if certa else [f"isenta {n}: arquivo, trecho (8+ não brancos) e motivo (20+ caracteres)"]
     return problemas
 
 
@@ -333,10 +357,13 @@ def mudancas(mb, rev):
     sem renome, sem `-w` e com `--text --no-textconv` (atributo `-diff`, `binary` ou textconv não esconde o hunk)."""
     nomes = git("--literal-pathspecs", "diff", "--name-status", "-z", "--no-renames", "--no-ext-diff", mb, rev, "--")
     partes = nomes.split("\0")
-    mudadas = {}
+    mudadas, tamanho = {}, 0
     for status, arquivo in zip(partes[0::2], partes[1::2]):
         corpo = git("--literal-pathspecs", "diff", "-U0", "--no-renames", "--no-color", "--no-ext-diff", "--text",
                     "--no-textconv", mb, rev, "--", arquivo)
+        tamanho += len(corpo)
+        if tamanho > MAXIMO_DO_DIFF:
+            raise ValueError(f"o diff passa de {MAXIMO_DO_DIFF} bytes")
         mudadas[arquivo] = (status, [(range(int(a), int(a) + int(b or 1)), range(int(c), int(c) + int(d or 1)))
                                      for a, b, c, d in HUNK.findall(corpo)])
     return mudadas
@@ -365,7 +392,7 @@ def condicoes(texto):
 def casa(m, arquivo, depois, ini, fim):
     """O mutante `m` cobre a condição que ocupa os bytes [ini, fim] de `arquivo` (texto `depois`)? O `de` único
     no arquivo, com 8+ caracteres não brancos, e o trecho entre o prefixo e o sufixo comuns de `de` e `para` dentro
-    do nó. A troca que não muda o `ast` é mutante de fachada: ValueError."""
+    do nó. Em Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
     de, para = m["de"].encode("utf-8"), m["para"].encode("utf-8")
     prefixo = len(os.path.commonprefix([de, para]))
     sufixo = len(os.path.commonprefix([de[prefixo:][::-1], para[prefixo:][::-1]]))
@@ -383,32 +410,59 @@ def toca(condicao, linhas):
     return any(n in linhas for n in range(condicao[1], condicao[2] + 1))
 
 
-def analisar(arquivo, hunks, antes, depois, mutantes):
-    """Linhas de saída de um arquivo Python: a condição nova (texto que aparece mais vezes que no merge-base, em
-    linha nova) coberta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base). A editada (a
-    velha sai num hunk em que entra uma nova, pareadas pela ordem no hunk) é coberta pelo mutante da nova."""
+def isenta(isentas, usadas, arquivo, texto, ini, fim):
+    """Motivo da isenção que cruza a condição [ini, fim] do `texto` (trecho único no arquivo e dentro do nó), ou None;
+    marca a isenção como usada: a que não cruza nenhuma condição listada é rc 2."""
+    dados = texto.encode("utf-8")
+    for i in isentas:
+        trecho = i["trecho"].encode("utf-8")
+        onde = dados.find(trecho)
+        if i["arquivo"] == arquivo and dados.count(trecho) == 1 and ini <= onde and onde + len(trecho) <= fim:
+            usadas.add(id(i))
+            return i["motivo"]
+    return None
+
+
+def parecidas(velha, nova):
+    """A condição editada guarda ao menos um nome ou número da velha; sem nenhum em comum é outra condição."""
+    return bool(set(re.findall(r"\w+", velha)) & set(re.findall(r"\w+", nova)))
+
+
+def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
+    """Linhas de saída de um arquivo: a condição nova (texto que aparece mais vezes que no merge-base, em linha nova)
+    coberta, isenta ou sem mutante, e a apagada (texto que aparece menos vezes que no merge-base) isenta ou não. A
+    editada (a velha sai num hunk em que entra uma nova, na mesma posição do nó e com nome ou número em comum) é coberta
+    pelo mutante da nova; a nova sem relação com a velha deixa a velha apagada."""
     novas, velhas = condicoes(depois), condicoes(antes)
+    if max(len(novas), len(velhas)) > MAXIMO_DE_CONDICOES:
+        raise ValueError(f"{arquivo}: mais de {MAXIMO_DE_CONDICOES} condições")
     de_novas, de_velhas = Counter(c[0] for c in novas), Counter(c[0] for c in velhas)
     mudadas = [c for c in novas if de_novas[c[0]] > de_velhas[c[0]] and any(toca(c, h[1]) for h in hunks)]
     falta, saida = de_velhas - de_novas, []
     for velho, novo in hunks:
-        postas = sum(toca(c, novo) for c in mudadas)
-        for c in velhas:
-            if postas and falta[c[0]] and toca(c, velho):
-                falta[c[0]], postas = falta[c[0]] - 1, postas - 1
+        for v, n in zip([c for c in velhas if falta[c[0]] and toca(c, velho)], [c for c in mudadas if toca(c, novo)]):
+            if falta[v[0]] and parecidas(v[0], n[0]):
+                falta[v[0]] -= 1
     for texto, ini, fim, de, ate in mudadas:
         cobrem = [f"{espec}:{m['id']}" for espec, m in mutantes if casa(m, arquivo, depois, de, ate)]
+        motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate)
         if cobrem:
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
+        elif motivo:
+            saida.append(f"isenta · {arquivo}:{ini} · {motivo}")
         else:
             saida.append(f"sem mutante · {arquivo}:{ini} · {' '.join(texto.split())[:60]}")
-    apagadas = {c[0]: c[1] for c in reversed(velhas) if falta[c[0]]}
-    return saida + [f"apagada · {arquivo}:{linha}(base) · {' '.join(t.split())[:60]}" for t, linha in apagadas.items()]
+    for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
+        motivo = isenta(isentas, usadas, arquivo, antes, de, ate)
+        saida.append(f"isenta · {arquivo}:{ini}(base) · {motivo}" if motivo else
+                     f"apagada · {arquivo}:{ini}(base) · {' '.join(texto.split())[:60]}")
+    return saida
 
 
 def mutantes_do_diff(mudadas, rev):
-    """Os mutantes das specs que o diff adiciona ou edita (só elas valem) e o aviso de spec removida ou editada."""
-    mutantes, avisos = [], []
+    """Os mutantes e as isentas das specs que o diff adiciona ou edita (só elas valem, até 8 isentas somadas) e o aviso
+    de spec removida ou editada."""
+    mutantes, isentas, avisos = [], [], []
     for arquivo in filter(SPEC_DO_DIFF.fullmatch, sorted(mudadas)):
         status = mudadas[arquivo][0]
         if status in ROTULO_DA_SPEC:
@@ -420,7 +474,10 @@ def mutantes_do_diff(mudadas, rev):
         if problemas:
             raise ValueError(f"{arquivo}: spec inválida ({'; '.join(problemas)})")
         mutantes += [(arquivo, m) for m in dados["mutantes"]]
-    return mutantes, avisos
+        isentas += [{**i, "spec": arquivo} for i in dados.get("isentas", [])]
+    if len(isentas) > MAXIMO_DE_ISENTAS:
+        raise ValueError(f"mais de {MAXIMO_DE_ISENTAS} isentas somadas nas specs do diff")
+    return mutantes, isentas, avisos
 
 
 def cobertura(base, rev):
@@ -439,16 +496,21 @@ def cobertura(base, rev):
         mudadas = mudancas(mb, sha_rev)
         if len(mudadas) > MAXIMO_DE_ARQUIVOS:
             raise ValueError(f"o diff muda mais de {MAXIMO_DE_ARQUIVOS} arquivos")
-        mutantes, saida = mutantes_do_diff(mudadas, sha_rev)
+        mutantes, isentas, saida = mutantes_do_diff(mudadas, sha_rev)
+        usadas = set()
         for arquivo, (status, hunks) in sorted(mudadas.items()):
             if TESTE.fullmatch(arquivo) or FORA_DA_COBERTURA.fullmatch(arquivo):
                 continue
             depois = b"" if status == "D" else ler_no_commit(sha_rev, arquivo)
             antes = b"" if status == "A" else ler_no_commit(mb, arquivo)
-            if not eh_python(arquivo, antes or depois):  # binário ou fora do UTF-8 também: só não coberto
+            exemplo = antes or depois
+            if not eh_python(arquivo, exemplo):  # shell, binário e fora do UTF-8: só não coberto, por arquivo
                 saida.append(f"não coberto: {arquivo}")
                 continue
-            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes)
+            saida += analisar(arquivo, hunks, fonte(arquivo, antes), fonte(arquivo, depois), mutantes, isentas, usadas)
+        soltas = [f"{i['spec']}: {i['arquivo']}" for i in isentas if id(i) not in usadas]
+        if soltas:
+            raise ValueError(f"isenta que não cruza condição listada ou cujo trecho não casa uma vez: {'; '.join(soltas)}")
     except (RuntimeError, ValueError, OSError, SyntaxError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2

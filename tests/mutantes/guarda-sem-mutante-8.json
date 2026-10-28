@@ -1,0 +1,56 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M48",
+      "guarda": "isentas e lista de ate 8",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(lista) > MAXIMO_DE_ISENTAS:",
+      "para": "len(lista) > 99:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M49",
+      "guarda": "motivo de 20 caracteres",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(i[\"motivo\"].strip()) >= 20",
+      "para": "len(i[\"motivo\"].strip()) >= 2",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M50",
+      "guarda": "trecho de 8 nao brancos",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(\"\".join(i[\"trecho\"].split())) >= 8",
+      "para": "len(\"\".join(i[\"trecho\"].split())) >= 2",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "arquivo da isenta e caminho valido",
+      "arquivo": "bin/forge-mutante",
+      "de": "and not validar_caminho(i[\"arquivo\"]))",
+      "para": "and True)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_invalida_e_mais_de_oito_somadas_sao_2"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "teto do diff",
+      "arquivo": "bin/forge-mutante",
+      "de": "if tamanho > MAXIMO_DO_DIFF:",
+      "para": "if tamanho > 99 * MAXIMO_DO_DIFF:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_tetos_do_diff_e_das_condicoes_dizem_qual_e_sao_2"
+      ]
+    }
+  ]
+}
