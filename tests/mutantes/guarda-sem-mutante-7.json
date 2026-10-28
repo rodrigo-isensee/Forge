@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M40",
+      "guarda": "cr solto no python e entrada invalida",
+      "arquivo": "bin/forge-mutante",
+      "de": "if \"\\r\" in texto.replace(\"\\r\\n\", \"\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "diff com byte fora do utf-8 nao derruba a checagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "text=True, errors=\"replace\")",
+      "para": "text=True)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "atributo -diff ou binary nao esconde o hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"--no-ext-diff\", \"--text\",",
+      "para": "\"--no-ext-diff\",",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_atributo_do_git_nao_esconde_o_hunk"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "textconv nao esconde o hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"--no-textconv\", mb, rev",
+      "para": "mb, rev",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_atributo_do_git_nao_esconde_o_hunk"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "linha da base do hunk sem contagem conta uma",
+      "arquivo": "bin/forge-mutante",
+      "de": "int(b or 1)",
+      "para": "int(b or 0)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "condicao conta quando cruza linha do hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "any(n in linhas for",
+      "para": "any(n not in linhas for",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "so pareia a velha quando entra condicao nova no hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "if postas and falta[c[0]] and",
+      "para": "if falta[c[0]] and",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
+      ]
+    },
+    {
+      "id": "M47",
+      "guarda": "so pareia a velha do proprio hunk",
+      "arquivo": "bin/forge-mutante",
+      "de": "and toca(c, velho):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada"
+      ]
+    }
+  ]
+}
