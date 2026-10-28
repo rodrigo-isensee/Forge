@@ -491,15 +491,21 @@ print(json.dumps(saida))
                     arquivo.write_text(self.REGISTRADOR.format(bash=bash), encoding="utf-8")
                 arquivo.chmod(0o755)
 
+    PRAZO_DO_BASH_DO_T9B_S = 60  # o texto leva milissegundos; o prazo largo é para a máquina carregada (FLAKY-G1-CARGA)
+
     def rodar_no_bash_do_t9b(self, bash, texto, base):
         """Roda o texto como no T9 (`env -i bash --noprofile --norc -c`, sem rede) na pasta que
         `montar_registradores_do_t9b` montou em `base`, sem gravar nada. Devolve os (programa, argumentos) gravados.
         O bash que não consegue rodar um registrador (rc 126 ou "Text file busy" no stderr) é falha do arnês, e não do
         gerador: o teste falha com a causa e o stderr, sem repetir. Nenhum programa real além do bash (R-CUSTO)."""
         registradores, pasta, registro, casa = base / "bin", base / "pasta", base / "registro", base / "casa"
-        r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
-                           env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)}, capture_output=True,
-                           text=True, timeout=10)
+        try:
+            r = subprocess.run([bash, "--noprofile", "--norc", "-c", texto], cwd=pasta, stdin=subprocess.DEVNULL,
+                               env={"PATH": str(registradores), "REG": str(registro), "HOME": str(casa)},
+                               capture_output=True, text=True, timeout=self.PRAZO_DO_BASH_DO_T9B_S)
+        except subprocess.TimeoutExpired:  # carga da máquina ou texto que não termina: a causa no nome, sem erro solto
+            raise AssertionError(f"falha do arnês, não do gerador: o bash passou de {self.PRAZO_DO_BASH_DO_T9B_S} s "
+                                 f"(prazo) em {texto!r}") from None
         if r.returncode == 126 or "Text file busy" in r.stderr:
             raise AssertionError(f"falha do arnês, não do gerador: o bash não rodou um registrador (rc {r.returncode}) "
                                  f"em {texto!r}; stderr: {r.stderr.strip()}")

@@ -407,6 +407,19 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         with self.assertRaisesRegex(AssertionError, r"falha do arnês, não do gerador: .*rc 126.*stderr: .*git"):
             self.rodar_no_bash_do_t9b(bash, texto, base)
 
+    def test_t9b_bash_que_passa_do_prazo_e_falha_do_arnes(self):  # FLAKY-G1-CARGA
+        """O bash que passa do prazo (carga da máquina) faz o oráculo falhar com "falha do arnês" e o prazo, e não com
+        um `TimeoutExpired` solto. Só o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria() / "t"
+        texto = "while :; do :; done"
+        self.montar_registradores_do_t9b(bash, texto, base)
+        with mock.patch.object(self, "PRAZO_DO_BASH_DO_T9B_S", 0.5):
+            with self.assertRaisesRegex(AssertionError, r"falha do arnês, não do gerador: o bash passou de 0.5 s \(prazo\)"):
+                self.rodar_no_bash_do_t9b(bash, texto, base)
+
     def test_g1_esta_na_classe(self):  # item 3 do critério de fim da opção B (proposta caminho-rev9): o oráculo do oráculo
         """Com os hooks desligados, o bash roda a sentinela em cada texto de G1 de prefixo nativo: G1 só tem reavaliação
         de verdade, e um gerador que não a produz fica vermelho. Roda como o T9b (`rodar_no_bash_do_t9b`: `env -i`,
