@@ -12,4 +12,4 @@ Uma linha por achado recorrente, no máximo 20; só classe, ID da regra, contage
 O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review) e o `security-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
 
 ## Achados
-<!-- nenhum ainda -->
+- AR-1 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/parecer.py:257
