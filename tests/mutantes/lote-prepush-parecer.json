@@ -33,18 +33,8 @@
       ]
     },
     {
-      "id": "M5",
-      "guarda": "o envio curto não espera a fila nem a trava",
-      "arquivo": ".githooks/pre-push",
-      "de": "if [ \"$curta\" = 0 ]; then\n  # Abre uma vez",
-      "para": "if true; then\n  # Abre uma vez",
-      "testes": [
-        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_so_de_parecer_nao_espera_a_trava_da_suite_alheia"
-      ]
-    },
-    {
       "id": "M6",
-      "guarda": "o envio pesado continua esperando a trava",
+      "guarda": "o envio pesado continua esperando a trava. Equivalente à parte do `--suite`: o hook zera a entrada (`exec </dev/null`), então `n_refs` é 0 e `so_parecer` já devolve 1 no modo `--suite`; tirar `modo_suite -eq 0` da condição não muda o comportamento e não tem teste que o mate",
       "arquivo": ".githooks/pre-push",
       "de": "if [ \"$modo_suite\" -eq 0 ] && so_parecer; then curta=1; fi\n",
       "para": "curta=1\n",
@@ -53,33 +43,43 @@
       ]
     },
     {
-      "id": "M7",
-      "guarda": "o envio curto anota a árvore sem a trava",
+      "id": "M10",
+      "guarda": "a anotação por acréscimo não segue prova que é link",
       "arquivo": ".githooks/pre-push",
-      "de": "  if [ \"$curta\" = 1 ]; then anotar \"$verde\" acrescentar\n",
-      "para": "  if [ \"$curta\" = 1 ]; then :\n",
+      "de": "[ -n \"$arvore_inicio\" ] && [ ! -L \"$1\" ] || return 0",
+      "para": "[ -n \"$arvore_inicio\" ] || return 0",
       "testes": [
-        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_so_de_parecer_nao_espera_a_trava_da_suite_alheia"
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_prova_da_suite_que_e_link_nao_e_seguida_ao_anotar_o_envio_curto"
       ]
     },
     {
-      "id": "M8",
-      "guarda": "o envio atrás do remoto manda fazer o pull --rebase",
+      "id": "M11",
+      "guarda": "a prova da suíte inteira vale para o envio curto",
       "arquivo": ".githooks/pre-push",
-      "de": "rode 'git pull --rebase' e envie de novo, reescrever",
-      "para": "faça rebase e envie de novo, reescrever",
+      "de": "tem_prova \"$verde\" \"$arvore_remota\" || tem_prova \"$dirigida\" \"$arvore_remota\" || return 1",
+      "para": "tem_prova \"$dirigida\" \"$arvore_remota\" || return 1",
       "testes": [
-        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_atras_do_remoto_falha_na_hora_mandando_fazer_o_pull_rebase"
+        "tests.test_pre_push_parecer.PrePushSoParecer.test_so_parecer_roda_so_as_classes_curtas"
       ]
     },
     {
-      "id": "M9",
-      "guarda": "o remoto que andou e não está aqui manda fazer o pull --rebase",
+      "id": "M12",
+      "guarda": "quem esperou a vez recaptura a árvore do início",
       "arquivo": ".githooks/pre-push",
-      "de": "rode 'git pull --rebase' (traz o remoto) e envie de novo.",
-      "para": "rode 'git fetch' e tente de novo.",
+      "de": "prova é a do início da suíte.\n  arvore_inicio=\"$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)\"\n",
+      "para": "prova é a do início da suíte.\n",
       "testes": [
-        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_remoto_que_andou_e_nao_esta_aqui_manda_fazer_o_pull_rebase"
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_quem_esperou_a_vez_anota_a_arvore_do_inicio_da_suite"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a árvore que mudou durante a suíte não vira prova",
+      "arquivo": ".githooks/pre-push",
+      "de": " && [ \"$arvore_fim\" = \"$arvore_inicio\" ]",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_parecer.PrePushSoParecer.test_commit_no_meio_da_suite_nao_grava_prova"
       ]
     }
   ]

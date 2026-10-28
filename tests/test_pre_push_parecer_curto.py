@@ -206,6 +206,48 @@ class PrePushParecerCurto(unittest.TestCase):
         self.assertIn("git pull --rebase", erro)
         self.assertNotEqual(codigo_sha, "1" * 40)
 
+    # A1 do QA: a anotação do envio curto, por acréscimo, não segue uma prova da suíte que seja link.
+    def test_prova_da_suite_que_e_link_nao_e_seguida_ao_anotar_o_envio_curto(self):
+        codigo_sha = self.codigo_dirigido()
+        alvo = self.run_dir / "alvo"
+        alvo.write_text("")
+        self.verde.symlink_to(alvo)
+        rc, marcas, erro = self.roda(self.parecer(), codigo_sha)
+        self.assertEqual(rc, 0, erro)
+        self.assertEqual(marcas, CURTAS, "a prova dirigida vale; o link da suíte inteira não")
+        self.assertEqual(alvo.read_text(), "", "o acréscimo não pode escrever no destino do link")
+        self.assertTrue(self.verde.is_symlink())
+
+    # A2 do QA (:243): quem esperou a vez anota a árvore do início da suíte, não a de antes da espera.
+    def test_quem_esperou_a_vez_anota_a_arvore_do_inicio_da_suite(self):
+        self.trava.touch()
+        segurador = subprocess.Popen(["flock", str(self.trava), "sleep", "60"], start_new_session=True)
+        self.addCleanup(segurador.wait)
+        self.addCleanup(os.killpg, segurador.pid, 15)
+        for _ in range(100):
+            if subprocess.run(["flock", "-n", str(self.trava), "true"]).returncode != 0:
+                break
+            time.sleep(0.05)
+        primeiro = self.commit("codigo", bin__forge_sugerir="x = 3\n")
+        log = Path(self._tmp.name) / "espera.log"
+        with open(log, "w") as saida:
+            hook = subprocess.Popen([str(HOOK), "origin", "u"], cwd=self.repo, env=self.env, stdin=subprocess.PIPE,
+                                    stdout=subprocess.DEVNULL, stderr=saida, text=True)
+            self.addCleanup(hook.wait)
+            hook.stdin.write(f"refs/heads/x {primeiro} refs/heads/melhoria/x {ZERO}\n")
+            hook.stdin.close()
+            for _ in range(200):
+                if "esperando a vez" in log.read_text():
+                    break
+                time.sleep(0.05)
+            self.assertIn("esperando a vez", log.read_text())
+            segundo = self.commit("codigo 2", bin__forge_sugerir="x = 4\n")
+            os.killpg(segurador.pid, 15)
+            self.assertEqual(hook.wait(timeout=100), 0, log.read_text())
+        arvore = self.git("rev-parse", f"{segundo}^{{tree}}")
+        provas = [p.read_text().split() for p in (self.verde, self.dirigida) if p.exists()]
+        self.assertTrue(any(arvore in p for p in provas), "a árvore que a suíte testou deve ser a anotada")
+
 
 if __name__ == "__main__":
     unittest.main()
