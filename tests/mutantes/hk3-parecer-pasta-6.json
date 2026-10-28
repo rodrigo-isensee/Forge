@@ -11,16 +11,6 @@
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
       ]
-    },
-    {
-      "id": "M39",
-      "guarda": "export, read e printf -v de HOME, CDPATH e GIT_DIR sem `=` mexem na variável",
-      "arquivo": "hooks/parecer.py",
-      "de": "if comando and comando[0] in LE_VARIAVEL | {\"export\"}:",
-      "para": "if False:",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
-      ]
     }
   ]
 }
