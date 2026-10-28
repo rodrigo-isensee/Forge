@@ -3607,6 +3607,22 @@ class DecisoesCobradas(Cenario):
         self.assertEqual(rc, 1, saida)
         self.assertTrue([l for l in saida if l.startswith("decisões: fontes demais")], saida)
 
+    def test_depende_de_registro_grande_demais_reprova(self):  # AQ1 P2 (E1): o ramo "grande" da dependência não vira informativo
+        self.gravar("docs/pedidos/origem.md", 'DECISÃO DO DONO (2026-01-05): "x".\n' + "a" * (1024 * 1024 + 1))
+        self.com_depende_de("origem")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue([l for l in saida if l.startswith('decisões: registro grande demais "docs/pedidos/origem.md"')], saida)
+
+    def test_depende_de_com_nome_invalido_e_informativo_e_nao_gasta_o_teto(self):  # AQ1 P2 (E1): nome fora do padrão não conta como fonte
+        ids = [f"d{i}" for i in range(20)]
+        for i in ids:
+            self.gravar(f"docs/pedidos/{i}.md", f'DECISÃO DO DONO (2026-04-01): "{i}".\n')
+        self.com_depende_de(*ids, "inv@lido")
+        rc, saida = self.linhas()
+        self.assertFalse([l for l in saida if l.startswith("decisões: fontes demais")], saida)
+        self.assertEqual(len([l for l in saida if "dependência sem registro legível" in l]), 1, saida)
+
     def test_gerar_copia_a_decisao_do_origem_com_o_subtitulo_do_registro(self):
         self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
         self.com_depende_de("origem")

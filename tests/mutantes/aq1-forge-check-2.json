@@ -67,7 +67,7 @@
       "guarda": "valor de origem fora da lista conta como nao-classificado",
       "arquivo": "bin/forge-check",
       "de": "len(celulas) >= 8 and celulas[7] in ORIGENS else",
-      "para": "len(celulas) >= 8 else",
+      "para": "len(celulas) >= 8 and True else",
       "testes": [
         "tests.test_medidas_m14b.DefeitoEscapado.test_aq1_resumo_conta_por_origem_e_le_a_linha_antiga_sem_a_coluna_como_nao_classificado"
       ]

@@ -56,8 +56,8 @@
       "id": "M6",
       "guarda": "a DECISAO TECNICA precisa citar o id do achado",
       "arquivo": "bin/forge-check",
-      "de": "e_linha_de_decisao(l, FRASE_TECNICA) and citacao.search(l) for l in",
-      "para": "e_linha_de_decisao(l, FRASE_TECNICA) for l in",
+      "de": "FRASE_TECNICA) and citacao.search(l) for l in",
+      "para": "FRASE_TECNICA) and True for l in",
       "testes": [
         "tests.test_forge.VoltaComRecomendacao.test_decisao_tecnica_de_outro_id_ou_fora_do_historico_nao_cobre"
       ]
