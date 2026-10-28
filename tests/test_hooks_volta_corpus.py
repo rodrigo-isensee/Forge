@@ -16,7 +16,6 @@ import subprocess
 import sys
 import tempfile
 import threading
-import time
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -27,6 +26,7 @@ from apoio_volta_unica import (  # noqa: E402
     FIXTURES,
     HOOKS,
     IDS_DA_VOLTA_UNICA,
+    MedidaDeCpu,
     MINIMO_POR_CLASSE,
     NAO_PROMETE,
     RAIZ,
@@ -34,6 +34,8 @@ from apoio_volta_unica import (  # noqa: E402
     corpus_da_volta_unica,
     modulos_dos_hooks,
     rodar,
+    limite_de_cpu_do_corpus,
+    trabalhadores_do_lote,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
@@ -105,10 +107,12 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         self.assertIn('os.chdir(dados["raizes"][hook])', self.DRIVER_DOS_HOOKS)  # a pasta de cada hook, não a do conformidade
 
     def test_corpus_nos_dois_hooks(self):
-        inicio = time.monotonic()
-        casos = self.fixtures_do_corpus()
-        self.assertEqual(self.executar_em_lote(casos), len(casos))
-        self.assertLess(time.monotonic() - inicio, 60, "o corpus roda em paralelo, como os fixtures")
+        with MedidaDeCpu() as medida:
+            casos = self.fixtures_do_corpus()
+            self.assertEqual(self.executar_em_lote(casos), len(casos))
+        trabalhadores = trabalhadores_do_lote()
+        self.assertLess(medida.cpu, limite_de_cpu_do_corpus(),
+                        f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 90 s de CPU por trabalhador)")
 
     def test_oraculo_das_redirecoes(self):  # T6
         """Para cada redireção das classes R e N e cada prefixo (P0 a P4), o bash roda `<P>cat <redireção> <<'EOF'⏎x⏎EOF`
@@ -402,6 +406,19 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         (base / "bin" / "git").chmod(0o644)  # o bash acha o registrador e não consegue rodá-lo: rc 126
         with self.assertRaisesRegex(AssertionError, r"falha do arnês, não do gerador: .*rc 126.*stderr: .*git"):
             self.rodar_no_bash_do_t9b(bash, texto, base)
+
+    def test_t9b_bash_que_passa_do_prazo_e_falha_do_arnes(self):  # FLAKY-G1-CARGA
+        """O bash que passa do prazo (carga da máquina) faz o oráculo falhar com "falha do arnês" e o prazo, e não com
+        um `TimeoutExpired` solto. Só o bash (R-CUSTO)."""
+        bash = shutil.which("bash")
+        if not bash or " " in bash:
+            self.skipTest("bash ausente ou num caminho com espaço")
+        base = self._pasta_temporaria() / "t"
+        texto = "while :; do :; done"
+        self.montar_registradores_do_t9b(bash, texto, base)
+        with mock.patch.object(self, "PRAZO_DO_BASH_DO_T9B_S", 0.5):
+            with self.assertRaisesRegex(AssertionError, r"falha do arnês, não do gerador: o bash passou de 0.5 s \(prazo\)"):
+                self.rodar_no_bash_do_t9b(bash, texto, base)
 
     def test_g1_esta_na_classe(self):  # item 3 do critério de fim da opção B (proposta caminho-rev9): o oráculo do oráculo
         """Com os hooks desligados, o bash roda a sentinela em cada texto de G1 de prefixo nativo: G1 só tem reavaliação

@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "so --cobertura ou so --base e recusado com a mensagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "if args.cobertura or args.base:",
+      "para": "if args.cobertura:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_cobertura_e_base_vem_juntos_e_sem_spec"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "--cobertura sem --base e recusado",
+      "arquivo": "bin/forge-mutante",
+      "de": "not (args.cobertura and args.base) or args.spec",
+      "para": "not (args.cobertura or args.base) or args.spec",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_cobertura_e_base_vem_juntos_e_sem_spec"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "SPEC junto de --cobertura e recusada",
+      "arquivo": "bin/forge-mutante",
+      "de": "args.base) or args.spec",
+      "para": "args.base) or False",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_cobertura_e_base_vem_juntos_e_sem_spec"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o mutante de outro arquivo nao cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "(m[\"arquivo\"] == arquivo and",
+      "para": "(True and",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "de com menos de 8 caracteres nao brancos nao cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"\".join(m[\"de\"].split())) >= 8",
+      "para": "\"\".join(m[\"de\"].split())) >= 7",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "de que aparece duas vezes nao cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "dados.count(de) == 1",
+      "para": "dados.count(de) >= 1",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "troca antes do no nao cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "and ini <= inicio + prefixo",
+      "para": "and True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "troca depois do no nao cobre",
+      "arquivo": "bin/forge-mutante",
+      "de": "inicio + len(de) - sufixo <= fim",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    }
+  ]
+}

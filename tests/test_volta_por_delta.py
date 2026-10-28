@@ -284,8 +284,8 @@ class Entrega(Repositorio):
         rc, saida = self.entrega(desde=c1, base_sha=novo_base)
         self.assertEqual(rc, 0, saida)
         self.assertEqual(saida.splitlines(), [f"intervalo: {c1}..{c3}", 'escopo: confira "c.txt" +1 -0'])
-        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # Base-sha não regravado: o que a base trouxe aparece (falso positivo)
-        self.assertIn('confira "so_da_base.txt"', saida)
+        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # G2: com o Base-sha antigo, o merge pelo primeiro pai tira o que a base trouxe
+        self.assertNotIn('confira "so_da_base.txt"', saida)
 
     def test_intervalo_vazio(self):  # A2
         self.tres_delegacoes()
@@ -454,6 +454,11 @@ class Delta(Repositorio):
                             "docs/security/s.md": "s\n"}, "só pareceres")
         rc, saida = self.delta(self.c2)
         self.assertEqual((rc, saida.splitlines()), (0, [f"intervalo: {self.c2}..{c3}", "delta: nenhum"]))
+
+    def test_arquivo_de_nome_parecido_com_o_livre_aparece_no_delta(self):  # QA A2 da volta 1: KANBAN.md.x não é o KANBAN.md
+        c3 = self.commitar({"KANBAN.md.x": "k\n", "KANBAN.md": "k\n"}, "quase livre")
+        rc, saida = self.delta(self.c2)
+        self.assertEqual((rc, saida.splitlines()[:3]), (0, [f"intervalo: {self.c2}..{c3}", 'delta: "KANBAN.md.x" +1 -0', 'delta: "KANBAN.md.x":1-1']))
 
     def test_commit_inexistente_e_sem_parentesco_dao_rc_2(self):  # B5
         self.assertEqual(self.delta(SHA_FALSO)[0], 2)

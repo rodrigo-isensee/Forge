@@ -144,6 +144,7 @@ class Brinquedo(unittest.TestCase):
         self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
                         XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
+        self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
         self.env.pop("GITHUB_STEP_SUMMARY", None)
 
@@ -168,6 +169,48 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("Ran 3 tests", saida)
         self.assertIn("3 processos", saida)
         self.assertEqual(self.rodaram(), ["a", "b", "c"])
+
+    def test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar(self):  # K6
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(len(self.rodaram()), 3)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        linhas = saida.strip().splitlines()
+        self.assertTrue(linhas[0].startswith("suite: reusa "), saida)
+        self.assertEqual(linhas[-1], "OK")
+        self.assertEqual(self.rodaram(), [])
+        codigo, saida, erro = self.roda(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(len(self.rodaram()), 3)
+
+    def test_vermelho_nao_grava_carimbo(self):  # K6
+        self.modulo("c", modulo_de_teste("c", "self.fail('x')"))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        self.assertNotEqual(self.roda()[0], 0)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        self.assertNotEqual(self.roda()[0], 0)
+        self.assertEqual(len(self.rodaram()), 3)
+
+    def test_commit_no_meio_da_suite_nao_grava_carimbo(self):  # A2 da segurança
+        corpo = ("import subprocess; open('novo.txt', 'w').write('x'); "
+                 "[subprocess.run(c, check=True) for c in (['git', 'add', 'novo.txt'], "
+                 "['git', '-c', 'user.email=t@example.com', '-c', 'user.name=t', 'commit', '-q', '-m', 'meio'])]")
+        self.modulo("c", modulo_de_teste("c", corpo))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        for marca in self.marcas.iterdir():
+            marca.unlink()
+        self.git("reset", "-q", "--hard", "HEAD~1")  # volta à árvore que a suíte começou testando
+        codigo, saida, erro = self.roda()
+        self.assertNotIn("suite: reusa", saida)  # sem carimbo da árvore antiga, que não foi a testada inteira
+        self.assertEqual(len(self.rodaram()), 3)
 
     def test_cada_processo_tem_tmpdir_proprio_nice_e_grupo_proprio(self):
         codigo, saida, erro = self.roda()

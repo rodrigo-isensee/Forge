@@ -68,9 +68,9 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 # pelo apoio `tests/apoio_volta_unica.py` (`test_doutor_relogio` o copia pelo apoio `tests/apoio_versao_defasada.py`).
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
 FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio",
-               "test_conferencia_registrar", "test_erros_no_brief",
+               "test_conferencia_registrar", "test_erros_no_brief", "test_hook_ansi_c",
                "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks",
-               "test_isencoes", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
+               "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
                "test_testes_tocados", "test_volta_por_delta", "test_voltas") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
@@ -98,7 +98,7 @@ MAPA = [
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO) e o hash do brief (R-BRIEF) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
-                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10") + VOLTA_UNICA),
+                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c") + VOLTA_UNICA),
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
