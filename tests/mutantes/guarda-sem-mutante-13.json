@@ -46,8 +46,8 @@
       "id": "M87",
       "guarda": "a ficha de heredoc pula o corpo",
       "arquivo": "bin/forge-mutante",
-      "de": "m.lastindex",
-      "para": "not m.lastindex",
+      "de": "if m.lastindex:",
+      "para": "if not m.lastindex:",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
       ]

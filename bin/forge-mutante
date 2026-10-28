@@ -92,7 +92,7 @@ SHEBANG_SH = re.compile(rb"#!.*\b(?:ba)?sh\b")
 # ou `[ ` sem fecho na linha é apagado antes (`sem_fecho`), para o `[^\n]*?` não varrer a linha a cada abertura.
 FICHA_SH = re.compile(r"""\\.|<<(?!<)-?[ \t]*['"\\]?([A-Za-z_][\w.-]*)['"]?"""
                       r"""|\$'(?:\\.|[^'\\])*'|'[^']*'|"(?:\\.|[^"\\])*"|(?<![^\s;&|()<>])#[^\n]*|['"]""", re.S)
-EXECUTA_SH = re.compile(r"(?:\s-\w*c|\beval)\s*$")
+EXECUTA_SH = re.compile(r"(?:\s-\w*c|\beval)(?:\s+--)?\s*$")
 COM_CONDICAO_SH = re.compile(r"\b(?:if|elif|while|until|test)\b|\[|&&|\|\|")
 CONDICAO_SH = re.compile(r"(?<![\w$.-])(?:if|elif|while|until)\s+[^;\n]+|\[\[[^\n]*?\]\]|(?<![\w$\[])\[\s[^\n]*?\s\]"
                          r"|(?<![\w$./-])test\s+[^;&|\n]+|(?:&&|\|\|)[^;&|\n]*")
@@ -394,11 +394,13 @@ def eh_shell(arquivo, dados):
 def mascarar_sh(t, quebras):
     """(`t` com aspas, comentário e corpo de heredoc trocados por `_`, {(linha inicial, final) que não se lê com certeza}):
     heredoc sem a linha final, aspa solta e texto passado a `-c`/`eval` com condição dentro. Um laço, sem retrocesso."""
-    onde, quebras = {}, [*quebras, len(t)]  # a última linha acaba no fim do texto
-    for i, linha in enumerate(t.split("\n")):
-        onde.setdefault(linha.strip(), []).append(i)
+    onde, recuadas, tabs, quebras = {}, {}, {}, [*quebras, len(t)]  # a última linha acaba no fim do texto
+    linhas = t.split("\n")
+    for i, linha in enumerate(linhas):  # o terminador é a linha exata; `recuadas` guarda a que só parece (`  EOF`)
+        (onde if linha == linha.strip() else recuadas).setdefault(linha.strip(), []).append(i)
+        tabs.setdefault(linha.lstrip("\t"), []).append(i)
     n = lambda p: bisect.bisect_left(quebras, p)  # noqa: E731  (linha de 0 a N de um offset)
-    cobrir, corpos, incertas, pos, livre = [], [], set(), 0, 0
+    cobrir, corpos, incertas, pos, livre, visto, prof = [], [], set(), 0, 0, 0, 0
     while (m := FICHA_SH.search(t, pos)):
         while corpos and m.start() >= corpos[0][1]:
             corpos.pop(0)
@@ -406,11 +408,20 @@ def mascarar_sh(t, quebras):
             pos = corpos[0][1]
             continue
         pos, ini = m.end(), m.start()
+        _, quebra, linha = t[visto:ini].rpartition("\n")  # `((` aberto na linha: o `<<` é deslocamento, não heredoc
+        prof = max(0, (0 if quebra else prof) + linha.count("((") - linha.count("))"))
+        visto = pos
+        if m.lastindex and prof > 0:
+            continue
         if m.lastindex:
-            achadas = onde.get(m[1], [])
+            achadas = (tabs if m[0].startswith("<<-") else onde).get(m[1], [])
             k = bisect.bisect_right(achadas, n(pos))
+            fecha = achadas[k] if k < len(achadas) else len(linhas) - 1
+            r = recuadas.get(m[1], [])
+            j = bisect.bisect_right(r, n(pos))
+            if m[0].startswith("<<-") or k == len(achadas) or j < len(r) and r[j] <= fecha:
+                incertas.add((n(ini) + 1, fecha + 1))  # `<<-`, terminador recuado ou sem fecho: não se lê com certeza
             if k == len(achadas):
-                incertas.add((n(ini) + 1, n(ini) + 1))
                 continue
             livre = max(livre, quebras[n(pos)] + 1)
             fim = quebras[achadas[k]]
@@ -420,7 +431,7 @@ def mascarar_sh(t, quebras):
         elif m[0] in ("'", '"'):
             incertas.add((n(ini) + 1, n(ini) + 1))
         else:
-            if m[0][0] in "'\"" and EXECUTA_SH.search(t[max(0, ini - 30):ini]) and COM_CONDICAO_SH.search(m[0]):
+            if m[0][0] in "'\"$" and EXECUTA_SH.search(t[max(0, ini - 30):ini]) and COM_CONDICAO_SH.search(m[0]):
                 incertas.add((n(ini) + 1, n(m.end()) + 1))
             cobrir.append((ini, m.end()))
     saida = bytearray(t, "latin-1")

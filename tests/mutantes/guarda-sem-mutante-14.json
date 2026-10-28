@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M88",
+      "guarda": "o `<<` aberto em `$(( ))` não é heredoc",
+      "arquivo": "bin/forge-mutante",
+      "de": "if m.lastindex and prof > 0:",
+      "para": "if m.lastindex and prof < 0:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M89",
+      "guarda": "a profundidade de `((` zera na quebra de linha",
+      "arquivo": "bin/forge-mutante",
+      "de": "(0 if quebra else prof)",
+      "para": "(prof)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M90",
+      "guarda": "`))` fecha a aritmética",
+      "arquivo": "bin/forge-mutante",
+      "de": "- linha.count(\"))\"))",
+      "para": "+ linha.count(\"))\"))",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M91",
+      "guarda": "`<<-` nunca se lê com certeza",
+      "arquivo": "bin/forge-mutante",
+      "de": "if m[0].startswith(\"<<-\") or k == len(achadas)",
+      "para": "if k == len(achadas)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M92",
+      "guarda": "terminador recuado antes do fecho é incerto",
+      "arquivo": "bin/forge-mutante",
+      "de": "j < len(r) and r[j] <= fecha",
+      "para": "j < len(r) and r[j] > fecha",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M93",
+      "guarda": "`<<-` fecha com a linha sem os tabs",
+      "arquivo": "bin/forge-mutante",
+      "de": "(tabs if m[0].startswith(\"<<-\") else onde)",
+      "para": "(onde)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M94",
+      "guarda": "`--` depois de `-c` ou `eval` não esconde a execução",
+      "arquivo": "bin/forge-mutante",
+      "de": "(?:\\s+--)?\\s*$",
+      "para": "\\s*$",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M95",
+      "guarda": "`$'...'` também é texto executado",
+      "arquivo": "bin/forge-mutante",
+      "de": "m[0][0] in \"'\\\"$\"",
+      "para": "m[0][0] in \"'\\\"\"",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    }
+  ]
+}

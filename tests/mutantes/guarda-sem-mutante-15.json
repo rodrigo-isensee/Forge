@@ -1,0 +1,46 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M96",
+      "guarda": "o terminador é a linha exata; a recuada só parece",
+      "arquivo": "bin/forge-mutante",
+      "de": "linha == linha.strip()",
+      "para": "linha != linha.strip()",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M97",
+      "guarda": "a quebra de linha zera a profundidade de `((`",
+      "arquivo": "bin/forge-mutante",
+      "de": "0 if quebra else prof",
+      "para": "0 if not quebra else prof",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M98",
+      "guarda": "`<<-` procura o terminador sem os tabs",
+      "arquivo": "bin/forge-mutante",
+      "de": "(tabs if m[0].startswith(\"<<-\") else onde)",
+      "para": "(tabs if not m[0].startswith(\"<<-\") else onde)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M99",
+      "guarda": "o fecho do heredoc existe só se há linha depois",
+      "arquivo": "bin/forge-mutante",
+      "de": "if k < len(achadas)",
+      "para": "if k <= len(achadas)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    }
+  ]
+}
