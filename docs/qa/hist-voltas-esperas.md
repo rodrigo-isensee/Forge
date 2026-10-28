@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: hist-voltas-esperas
 branch: melhoria/hist-voltas-esperas
-commit: 27f86b680d95cf26083be9515bfdef20c47048ef
-parecer: reprovado
-escopo: completo
+commit: d623eaf3234393d585d3212b0364a9da9f5f2be9
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,10 +14,10 @@ data: 2026-10-28
 ---
 # QA: hist-voltas-esperas
 
-Base a83de9e24908195fef0c92ebfcb1603518b58390, head 27f86b680d95. Pedido de controle (`bin/forge-check`): vale a prova de mutação declarada, conferida contra o diff.
+Base a83de9e24908195fef0c92ebfcb1603518b58390, head d623eaf3234393d585d3212b0364a9da9f5f2be9 (revalidação da volta 1; o parecer anterior, 3a58a35, reprovou sobre 27f86b6). Pedido de controle (`bin/forge-check`): vale a prova de mutação declarada, conferida contra o diff.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:3407 · linha de guarda mudada sem mutante: `(?<![A-Za-z0-9._-])` em `cita_o_pedido` (id colado depois de letra, dígito, ponto ou hífen). Mutante Q1 (remover o lookbehind) sobrevive à `tests.test_medidas_m14b.Esperas`; falta teste com o id colado atrás (ex.: `xped-d`) e o mutante H8 na spec.
+- A1 (recomendado) bin/forge-check:3407 · fechado na volta 1: teste do id colado atrás e mutante H8, morto
 - A2 (recomendado) bin/forge-check:5184 · `--kanban` sem `--pedido` é aceito e ignorado em silêncio (o uso diz `--pedido ID [--kanban ARQUIVO]`); o `--help` já avisa "com --pedido", mas não há erro.
 - A3 (recomendado) agents/jarvis.md:46 · E2 (registrar volta e espera como movimento) é só texto; nenhum teste o guarda além do `test_o_movimento_do_jarvis_alimenta_as_esperas`, que não lê o jarvis.md.
 
@@ -26,7 +26,7 @@ Escopo E1 a E3 do pedido (o pedido não traz CA-n em EARS; cada item de escopo �
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
 | E1 casar pelo motivo do movimento | Esperas.test_motivo_que_cita_o_pedido_casa_o_cartao (H1, H5, H7) | id colado (`ped-dx`), maiúsculas, ponto final | passou |
-| E1 id colado a hífen ou ponto não casa | Esperas.test_motivo_com_o_id_colado_ao_hifen_ou_ponto_nao_casa (H2) | `ped-d-2`, `ped-d.md`; id colado ATRÁS não coberto | passou, com lacuna (A1) |
+| E1 id colado a hífen ou ponto não casa | Esperas.test_motivo_com_o_id_colado_ao_hifen_ou_ponto_nao_casa (H2) | `ped-d-2`, `ped-d.md`; id colado ATRÁS não coberto | passou; lacuna fechada na volta 1 por test_motivo_com_o_id_colado_atras_de_letra_digito_ponto_ou_hifen_nao_casa (H8) |
 | E1 `--kanban` vale no lugar do da raiz | Esperas.test_kanban_passado_vale_no_lugar_do_da_raiz (H3) | quadro da raiz com outro cartão | passou |
 | E1 lista dos cartões casados e soma dono/credencial | Esperas.test_pedido_com_dois_cartoes_soma_... e test_pedido_filtra_... (H4) | dois cartões, espera aberta | passou |
 | E1 custo/voltas não quebram sem motivos | CustoCasaOPedidoComOsCartoes (H6) | `motivos=None` | passou |
@@ -44,5 +44,11 @@ Escopo E1 a E3 do pedido (o pedido não traz CA-n em EARS; cada item de escopo �
 - Suíte completa: não rodada por mim (brief: só os testes do item; o autor registra 2186 testes OK no pre-push).
 - Acessibilidade e E2E de interface: não se aplicam (CLI, sem interface).
 
-## Revalidação
-Fechar A1 com teste do id colado atrás (`xped-d` e `1ped-d` não casam) e o mutante Q1 na spec; revalidar por delta (`forge-check delta`), com `H1` a `H8` mortos.
+## Revalidação (volta 1, d623eaf)
+Delta 27f86b6..d623eaf (`forge-check delta`): só `tests/mutantes/hist-voltas-esperas.json` (+H8) e `tests/test_medidas_m14b.py` (+1 teste); `bin/` e `agents/` intactos.
+- `python3 -m unittest tests.test_medidas_m14b`: 34 testes, OK.
+- `bin/forge-mutante tests/mutantes/hist-voltas-esperas.json`, rc=0: H1 a H8 todos `morreu` (H8 em bin/forge-check:3407, equivale ao meu Q1 e cobre o lookbehind, a única guarda sem mutante).
+- Vermelho: `forge-testes --vermelho a83de9e2… --modulos test_medidas_m14b`, rc=0, `vermelho: base=a83de9e24908 head=d623eaf32343`; `não prova (passa na base)=30; prova (asserção)=4`. O teste novo é negativo e passa na base; a prova dele é o mutante H8.
+- `scripts/validar-plugin.sh`: Validation passed.
+- Suíte completa: não rodada por mim (brief: só os testes do item).
+- A2 e A3 seguem recomendados, sem devolver.
