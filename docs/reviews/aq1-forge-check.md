@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: aq1-forge-check
 branch: melhoria/aq1-forge-check
-commit: 7ae7606228d7723ea4ec95919856ec919f65cbf9
+commit: 3bb7aea754d47291d1b3697234fedf790e1bdf4c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-28
@@ -31,6 +31,15 @@ Veredito sobre `7ae7606`: **APROVADO**. Os quatro itens fazem o que o escopo ped
 - **`7ae7606`.** M6 e M15 ajustados à cobertura nova da develop; M17 a M20 cobrem nome inválido, registro grande, registro ausente e contagem por origem, e os dois testes novos matam M17 e M18.
 - Fragmento `changelog.d/aq1-forge-check.md`, sem tocar o `CHANGELOG.md`. Commits em Conventional Commits em português, um por item. Nada específico de projeto (`R-NEUTRO`), nada pago (`R-CUSTO`); o lote só acrescenta cobrança, nada afrouxa.
 - Observação sem achado: `docs/engineering/achados-recorrentes.md:10` e `:12` ainda dizem `review|seguranca` e não listam o QA como quem escreve, embora o regex e as linhas AR-1 e AR-2 já tragam `qa`. Essa parte é o E2 do AQ1-TEXTO (`AQ1-TEXTO.md:10`), fora deste lote; o texto e o dado ficam desalinhados até ele entrar.
+
+## Revalidação por delta (head `3bb7aea`)
+Delta `7ae7606..3bb7aea`: `forge-check delta --parecer docs/reviews/aq1-forge-check.md` (rc=0) lista o intervalo inteiro, quase todo conteúdo da develop (#354, #351, #356, #357). Lido: os dois merges com `git show --remerge-diff` (`e507b4c` com a develop `b3791ed`, `c6fd70f` com a `f232e06`), o ajuste `3bb7aea` e o patch do lote contra a base nova (`f232e06...3bb7aea`) comparado ao anterior (`a83de9e...7ae7606`). Já lido, sem mudança: `bin/forge-check`, `agents/conferente.md`, `tests/test_forge.py`, `tests/test_medidas_m14b.py` e `docs/melhoria-continua.md` (linhas +/- iguais nos dois patches) e o código da develop, que tem pareceres próprios.
+- `e507b4c`, `agents/jarvis.md:65`: a resolução é a linha da develop (com o aviso do brief que manda escrever parecer) mais as duas inserções do lote; o word-diff contra a `f232e06` mostra só as frases do lote, iguais às de antes.
+- `c6fd70f`, `docs/engineering/achados-recorrentes.md`: as AR-1 a AR-5 do lote ficam e a AR-1 da develop vira AR-6, com o resto da linha igual; nada no repositório cita esse AR pelo número; `forge-check docs` rc=0.
+- `3bb7aea`, `tests/test_erros_no_brief.py:541`: a lista esperada ganha o sexto tipo, `review`; o teste segue conferindo que as linhas passam no `problemas_dos_achados`.
+- `gerar_volta` (`bin/forge-check:1433-1442`): o PQ da `--cobertura` da develop e o PREENCHER da P5 ficam em trechos separados e os dois existem no head.
+- Ferramentas no head `3bb7aea`: os mesmos filtros de teste, mais `-k volta`: `Ran 24 tests` / `OK`; `tests.test_erros_no_brief tests.test_medidas_m14b`: `Ran 79 tests` / `OK`; `tests.test_volta_por_delta`: `Ran 62 tests` / `OK`; `bin/forge-mutante` nos três JSON: rc=0, 20 `morreu`; `bin/forge-check docs`: rc=0. Teto M14 contra a `f232e06`: 292 linhas, o mesmo de antes.
+- Veredito sobre `3bb7aea`: **APROVADO**. Nenhuma regressão do que o parecer em `38279a7` aprovou; A1 a A3 continuam recomendados e não foram mexidos.
 
 ## Achados
 - A1 (recomendado) bin/forge-check:1318 · tem_decisao_tecnica casa só o id: uma DECISÃO TÉCNICA que cita o A1 do review cobre também o A1 da segurança na mesma volta (sonda: True); exigir o tipo junto do id, na forma que o PREENCHER já pede
