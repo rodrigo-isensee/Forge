@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M9",
+      "guarda": "so a atribuicao sozinha no comando fixa a variavel",
+      "arquivo": "hooks/parecer.py",
+      "de": "and k == len(palavras):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "export e demais palavras NOME=valor tornam a variavel desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "for m in map(ATRIBUICAO.match, comando) if m}",
+      "para": "for m in map(ATRIBUICAO.match, comando) if False}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "read, source e eval tornam todas desconhecidas",
+      "arquivo": "hooks/parecer.py",
+      "de": "and comando[0] in LE_VARIAVEL",
+      "para": "and False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "relativo sem base conhecida nao se resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "if base is None and not os.path.isabs(palavra):",
+      "para": "if False and not os.path.isabs(palavra):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "cd relativo com CDPATH nao se resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "variaveis.get(\"CDPATH\") or os.environ.get(\"CDPATH\")",
+      "para": "False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "as opcoes globais do git acabam no subcomando",
+      "arquivo": "hooks/parecer.py",
+      "de": "and toks[i].startswith(\"-\"):\n        valor",
+      "para": "and True:\n        valor",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o -C entra na lista de pastas",
+      "arquivo": "hooks/parecer.py",
+      "de": "if toks[i] == \"-C\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "--git-dir e --work-tree desviam o repositorio",
+      "arquivo": "hooks/parecer.py",
+      "de": "toks[i] in (\"--git-dir\", \"--work-tree\") or",
+      "para": "False or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "parenteses antes: a atribuicao depois de subshell nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "aberto or sinal in (\"(\", \")\") or",
+      "para": "aberto or False or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "palavra de bloco antes: a atribuicao depois de if nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "or bool(palavras) and palavras[0] in ABRE",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so `;`, `&&` e quebra depois: segundo plano nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "and anterior in SEGUE and sinal in SEGUE)",
+      "para": "and anterior in SEGUE and True)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "comando de substituicao nao e solto",
+      "arquivo": "hooks/parecer.py",
+      "de": "append(not sub and not aberto",
+      "para": "append(True and not aberto",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "depois de bloco aberto nada e solto",
+      "arquivo": "hooks/parecer.py",
+      "de": "not sub and not aberto and anterior",
+      "para": "not sub and True and anterior",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "til sozinho vira o HOME",
+      "arquivo": "hooks/parecer.py",
+      "de": "if palavra == \"~\" or palavra.startswith(\"~/\")",
+      "para": "if palavra.startswith(\"~/\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "til com barra vira o HOME",
+      "arquivo": "hooks/parecer.py",
+      "de": "or palavra.startswith(\"~/\") else palavra",
+      "para": "or False else palavra",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so a atribuicao solta fixa a variavel",
+      "arquivo": "hooks/parecer.py",
+      "de": "if solto and k == len(palavras):",
+      "para": "if True and k == len(palavras):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}
