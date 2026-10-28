@@ -166,16 +166,107 @@ class Entrega(Repositorio):
         rc, saida = self.entrega(desde=c1, base_sha=novo_base)
         self.assertEqual(rc, 0, saida)
 
-    def test_desde_nas_etapas_de_branch_inteira_reprova(self):  # A3
+    def test_desde_nas_etapas_de_branch_inteira_le_so_o_delta(self):  # C1
         self.tres_delegacoes()
         self.gravar_pedido([self.c2])
         for etapa in ("pr", "merge-integracao", "pedido-de-merge-ao-dono"):
             with self.subTest(etapa):
                 rc, saida = self.entrega(desde=self.c2, etapa=etapa)
-                self.assertEqual(rc, 1, saida)
-                self.assertIn("escopo: --desde fora da etapa", saida)
+                self.assertEqual(rc, 0, saida)
+                self.assertEqual(saida.splitlines(), [f"intervalo: {self.c2}..{self.c3}", 'escopo: confira "c.txt" +1 -0'])
+
+    def test_sem_desde_nas_etapas_de_branch_inteira_le_a_branch_inteira(self):  # C1
+        self.tres_delegacoes()
+        self.gravar_pedido([self.c2])
+        for etapa in ("pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(etapa):
+                saida = self.entrega(etapa=etapa)[1]
                 self.assertEqual(saida.splitlines()[0], f"intervalo: {self.base}..{self.c3}")
-                self.assertIn('confira "tests/config.json"', saida)
+                for nome in ("a.txt", "b.txt", "c.txt", "tests/config.json"):
+                    self.assertIn(f'confira "{nome}"', saida)
+
+    def test_arquivo_acrescentado_antes_da_conferida_e_apagado_depois_fica_no_escopo(self):  # segurança A1
+        c1 = self.commitar({"teste.py": "t\n", "cod.py": "1\n", "docs/reviews/p1.md": "# parecer\n"}, "conferida")
+        self.gravar_pedido([c1])
+        git("rm", "-q", "teste.py", "docs/reviews/p1.md", cwd=self.repo)
+        git("commit", "-q", "-m", "apaga o teste e o parecer", cwd=self.repo)
+        self.commitar({"cod.py": "2\n"}, "muda o código")
+        for etapa in ("codigo", "pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(etapa):
+                saida = self.entrega(desde=c1, etapa=etapa)[1]
+                self.assertIn('confira "teste.py" +0 -1', saida)
+                self.assertIn('"docs/reviews/p1.md"', saida)
+                self.assertIn('confira "cod.py" +1 -1', saida)
+
+    def desfazer_depois_da_conferida(self, forma):
+        """A branch entrega `teste.py` até a conferida; depois a base o devolve (merge) ou a própria branch o apaga (linear)."""
+        c1 = self.commitar({"teste.py": "t\n", "cod.py": "1\n"}, "conferida")
+        self.gravar_pedido([c1])
+        if forma == "linear":
+            git("rm", "-q", "teste.py", cwd=self.repo)
+            git("commit", "-q", "-m", "apaga o teste", cwd=self.repo)
+            return c1
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"so_da_base.txt": "b\n"}, "a base andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-commit", "--no-ff", "develop", cwd=self.repo)
+        git("rm", "-q", "teste.py", cwd=self.repo)
+        git("commit", "-q", "-m", "integra a base e apaga o teste", cwd=self.repo)
+        if forma == "merge_e_commit":
+            self.commitar({"cod.py": "2\n"}, "muda o código")
+        return c1
+
+    def confere_desfeito(self, forma):
+        for etapa in ("codigo", "pr", "merge-integracao", "pedido-de-merge-ao-dono"):
+            with self.subTest(forma=forma, etapa=etapa):
+                self.setUp()
+                c1 = self.desfazer_depois_da_conferida(forma)
+                saida = self.entrega(desde=c1, etapa=etapa)[1]
+                self.assertIn('escopo: confira "teste.py" +0 -1', saida)
+                self.assertNotIn("sem commit", saida)
+
+    def test_desfeito_em_commit_linear_depois_da_conferida_fica_no_escopo(self):  # segurança A2, forma 1
+        self.confere_desfeito("linear")
+
+    def test_desfeito_pelo_merge_da_base_como_ultimo_commit_fica_no_escopo(self):  # segurança A2, forma 2
+        self.confere_desfeito("merge_ultimo")
+
+    def test_desfeito_pelo_merge_da_base_seguido_de_commit_fica_no_escopo(self):  # segurança A2, forma 3
+        self.confere_desfeito("merge_e_commit")
+
+    def test_commit_depois_da_conferida_aparece_no_delta_do_pr(self):  # C1
+        self.tres_delegacoes()
+        self.gravar_pedido([self.c3])
+        c4 = self.commitar({"d.txt": "4\n", "tests/config.json": "{\"x\": 1}\n"}, "entrou depois da conferida")
+        saida = self.entrega(desde=self.c3, etapa="pr")[1]
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c3}..{c4}", 'escopo: confira "d.txt" +1 -0',
+                                              'escopo: confira "tests/config.json" +1 -1'])
+
+    def test_merge_da_base_dentro_do_intervalo_do_pr_nao_traz_o_que_veio_da_base(self):  # C1
+        self.tres_delegacoes()
+        self.gravar_pedido([self.c3])
+        git("switch", "-q", "develop", cwd=self.repo)
+        novo_base = self.commitar({"so_da_base.txt": "b\n"}, "a base andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-edit", "develop", cwd=self.repo)
+        c5 = self.commitar({"e.txt": "5\n"}, "depois do merge")
+        saida = self.entrega(desde=self.c3, etapa="pr", base_sha=novo_base)[1]
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c3}..{c5}", 'escopo: confira "e.txt" +1 -0'])
+        for etapa in ("merge-integracao", "pedido-de-merge-ao-dono"):  # Base-sha antigo: o conteúdo da base tira o que ela trouxe
+            with self.subTest(etapa):
+                saida = self.entrega(desde=self.c3, etapa=etapa)[1]
+                self.assertIn('confira "e.txt"', saida)
+                self.assertNotIn("so_da_base.txt", saida)
+
+    def test_desde_do_pr_segue_a_mesma_conferencia_do_historico(self):  # C1
+        self.tres_delegacoes()
+        self.gravar_pedido([self.c2])
+        for etapa in ("pr", "merge-integracao"):
+            with self.subTest(etapa):
+                rc, saida = self.entrega(desde=self.c1, etapa=etapa)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn("escopo: --desde sem conferência anterior", saida)
+                self.assertEqual(saida.splitlines()[0], f"intervalo: {self.base}..{self.c3}")
         for etapa in ("codigo", "review", "qa"):
             with self.subTest(etapa):
                 self.assertEqual(self.entrega(desde=self.c2, etapa=etapa)[0], 0)
@@ -193,8 +284,8 @@ class Entrega(Repositorio):
         rc, saida = self.entrega(desde=c1, base_sha=novo_base)
         self.assertEqual(rc, 0, saida)
         self.assertEqual(saida.splitlines(), [f"intervalo: {c1}..{c3}", 'escopo: confira "c.txt" +1 -0'])
-        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # Base-sha não regravado: o que a base trouxe aparece (falso positivo)
-        self.assertIn('confira "so_da_base.txt"', saida)
+        rc, saida = self.entrega(desde=c1, base_sha=self.base)  # G2: com o Base-sha antigo, o merge pelo primeiro pai tira o que a base trouxe
+        self.assertNotIn('confira "so_da_base.txt"', saida)
 
     def test_intervalo_vazio(self):  # A2
         self.tres_delegacoes()
@@ -364,6 +455,11 @@ class Delta(Repositorio):
         rc, saida = self.delta(self.c2)
         self.assertEqual((rc, saida.splitlines()), (0, [f"intervalo: {self.c2}..{c3}", "delta: nenhum"]))
 
+    def test_arquivo_de_nome_parecido_com_o_livre_aparece_no_delta(self):  # QA A2 da volta 1: KANBAN.md.x não é o KANBAN.md
+        c3 = self.commitar({"KANBAN.md.x": "k\n", "KANBAN.md": "k\n"}, "quase livre")
+        rc, saida = self.delta(self.c2)
+        self.assertEqual((rc, saida.splitlines()[:3]), (0, [f"intervalo: {self.c2}..{c3}", 'delta: "KANBAN.md.x" +1 -0', 'delta: "KANBAN.md.x":1-1']))
+
     def test_commit_inexistente_e_sem_parentesco_dao_rc_2(self):  # B5
         self.assertEqual(self.delta(SHA_FALSO)[0], 2)
         rc, saida = self.delta(self.c2, self.c1)
@@ -425,7 +521,8 @@ class BriefAnterior(unittest.TestCase):
         rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(rc, 0, saida)
         self.assertIn(f"anterior: {len(self.texto.encode())} bytes sha256 {sha}", saida)
-        self.assertTrue(saida.endswith("delta: nenhum\nresultado: aprovado\n"), saida)
+        self.assertIn("delta: nenhum\n", saida)
+        self.assertTrue(saida.endswith("resultado: aprovado\n"), saida)
         novo = self.texto.replace("- NÃO tocar: hooks/.", "- NÃO tocar: hooks/.\n- Nova restrição.").replace("- Recurso A no módulo de exemplo, em um commit (E1, E1.1).\n", "")
         rc, saida = self.brief(novo, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         linhas = [l for l in saida.splitlines() if l.startswith("delta:")]
@@ -438,8 +535,12 @@ class BriefAnterior(unittest.TestCase):
         com = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
         self.assertEqual(com[0], sem[0])
         linhas_sem = sem[1].splitlines()
-        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:"))], linhas_sem)
+        self.assertEqual([l for l in com[1].splitlines() if not l.startswith(("anterior:", "delta:", "volta: bloco"))], linhas_sem)
         self.assertFalse(any(l.startswith(("anterior:", "delta:")) for l in linhas_sem))
+
+    def test_brief_sem_volta_de_nao_marca_bloco_identico(self):  # C3, review A4: o bloco só é exigido no brief de volta
+        rc, saida = self.brief(self.texto, "--anterior", "docs/briefs/p-dev-exemplo-1.md")
+        self.assertNotIn("volta: bloco", saida)
 
     def test_anterior_fora_de_docs_briefs_ou_da_raiz_rc_2(self):  # B3
         (self.tmp / "docs" / "outro.md").write_text("x\n", encoding="utf-8")
@@ -492,7 +593,7 @@ class PqDeMerge(unittest.TestCase):
     def test_o_pq_preenchido_o_conferente_confere_sozinho(self):
         modulo = carregar_forge_check()
         linhas, _ = modulo.conferir_pq(["- PQ-1 (cmd): `git merge-base --is-ancestor 0123456 origin/develop` · espera: rc=0"])
-        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente", False)])
+        self.assertEqual(linhas, [("PQ-1: cmd · espera ok · verificador: conferente · rótulo do verificador: ok", False)])
         self.assertIn("PREENCHER", modulo.pq_de_merge("develop"))  # o brief reprova até trocar o <mergeCommit>
 
 
@@ -562,6 +663,12 @@ class BriefDeVolta(Repositorio):
             self.assertIn(decisao, saida.split("## Decisões e restrições")[1])
         self.assertIn(f"- PQ-4 (cmd, do autor): `forge-check entrega pedido-sintetico --branch melhoria/x --base develop --base-sha {self.base} --etapa codigo --desde PREENCHER` · espera: rc=0", saida)
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
+
+    def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
+        rc, saida = self.gerar()
+        rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
+        for nome in ("Objetivo", "Fora do escopo", "Relatório"):
+            self.assertIn(f'volta: bloco "{nome}" idêntico ao anterior (exigido)\n', conferencia)
 
     def test_decisao_do_dono_nova_do_pedido_entra_na_volta(self):  # C2
         self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "- DECISÃO DO DONO (2026-02-01): \"B\" para a volta.\n", encoding="utf-8")
@@ -730,7 +837,7 @@ class TextoDosAgentes(unittest.TestCase):
     def test_conferente_usa_entrega_desde_e_imprime_a_conferida(self):
         t = self.texto("conferente")
         for trecho in ("forge-check entrega <Pedido> --branch <b> --base <Base> --base-sha <Base-sha> --etapa <etapa> --desde",
-                       "nunca use `--desde`", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
+                       "use também o `Desde:` da mensagem", "`conferida: <sha40 do head da branch>`", "--anterior", "só o Jarvis"):
             self.assertIn(trecho, t)
 
     def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4

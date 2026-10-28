@@ -1,0 +1,86 @@
+{
+  "pedido": "pr-verde-lote-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "G1 (a): sem a reprova, a etapa do Cobre cortada sem marca passaria",
+      "arquivo": "bin/forge-check",
+      "de": "(etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)\", True))\n",
+      "para": "(etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)\", False))\n",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_a_etapa_do_cobre_no_fora_do_escopo_sem_marca_reprova"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "G1 (b): esquecer o PQ cmd deixaria passar o caminho que não existe",
+      "arquivo": "bin/forge-check",
+      "de": "        if not m or (m.group(2) or \"\").split(\",\")[0].strip() not in (\"arquivo\", \"cmd\"):\n",
+      "para": "        if not m or (m.group(2) or \"\").split(\",\")[0].strip() not in (\"arquivo\",):\n",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_caminho_do_pq_que_nao_existe_nem_e_criado_reprova"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "G1 (c): esquecer o -REV deixaria de cobrar as decisões do pedido de origem",
+      "arquivo": "bin/forge-check",
+      "de": "    if origem := re.fullmatch(r\"(.+)-(?:REV|PR)\", Path(proprio).stem):",
+      "para": "    if origem := re.fullmatch(r\"(.+)-(?:PR)\", Path(proprio).stem):",
+      "testes": [
+        "tests.test_etapa_do_brief.LoteDoBriefG1.test_no_rev_falta_a_decisao_do_pedido_de_origem_reprova"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "G2: sem o --cc no merge da base, o que a develop trouxe voltaria ao escopo do autor",
+      "arquivo": "bin/forge-check",
+      "de": "            proprios = (proprios & da_base) | descartados",
+      "para": "            proprios = proprios | descartados",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_com_commits_de_parecer_depois_do_merge_o_que_a_base_trouxe_sai_do_escopo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "G2: tratar merge de outra branch como da base esconderia o que ele trouxe",
+      "arquivo": "bin/forge-check",
+      "de": "        if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):\n",
+      "para": "        if len(pais) == 2:\n",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_merge_de_outra_branch_conta_tudo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "G2: com dois slugs nos briefs, escolher um trocaria o pedido sem aviso",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(slugs) != 1:\n        return pedido\n",
+      "para": "    if len(slugs) < 1:\n        return pedido\n",
+      "testes": [
+        "tests.test_etapa_do_brief.RecusaDoIdDoPedido.test_id_com_brief_da_branch_vira_o_slug_da_linha_branch"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "G6: trocar o autor do parecer (o papel do brief do -REV) deixaria o brief de outro papel valer pelo portão",
+      "arquivo": "bin/forge-check",
+      "de": "    rev, papel = pedido_da_revalidacao(pedido_id), PAPEL_DO_BRIEF_DO_PARECER[tipo]\n",
+      "para": "    rev, papel = pedido_da_revalidacao(pedido_id), \"tech-lead\"\n",
+      "testes": [
+        "tests.test_forge.EntregasParalelas.test_parecer_reescrito_pelo_portao_do_rev_casa_pelo_commit_e_pelo_papel"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "D4: sem o fragmento da branch nos livres, mudar só o changelog.d/<slug>.md desatualizaria o parecer",
+      "arquivo": "bin/forge-check",
+      "de": "base, LIVRES + (f\"changelog.d/{pedido}.md\",))  # D4\n",
+      "para": "base, LIVRES)  # D4\n",
+      "testes": [
+        "tests.test_portao_diff_proprio.PortaoDiffProprio.test_d4_so_o_fragmento_do_changelog_da_branch_nao_desatualiza_o_parecer"
+      ]
+    }
+  ]
+}

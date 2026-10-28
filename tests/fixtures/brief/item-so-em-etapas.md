@@ -22,7 +22,7 @@ Entregar o recurso A (exemplo sintético).
 
 ## Pronto quando
 - PQ-1 (sha): `git log -1 --format=%h` da branch · espera: o hash do commit entregue.
-- PQ-2 (cmd): `grep -c recurso docs/a.md` · espera: contém 'recurso'
+- PQ-2 (cmd): `grep -c recurso docs/pedidos/pedido-sintetico.md` · espera: contém 'recurso'
 - PQ-3 (push): `git ls-remote origin refs/heads/melhoria/a` igual ao head local.
 
 ## Relatório

@@ -373,5 +373,222 @@ class TextoQueMandaUsarAFerramenta(unittest.TestCase):
         self.assertEqual(mutante_, passo5 - 1, "a linha do forge-mutante vem depois do fim do passo 4")
 
 
+class Cobertura(unittest.TestCase):
+    """`--cobertura --base`: a condição Python mudada no diff sem mutante declarado (GUARDA-SEM-MUTANTE)."""
+    COND = "x = 1\nif x > 100:\n    x = 2\n"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        git(self.dir, "init", "-q", "-b", "develop")
+        self.salvar({"lib.py": "x = 1\n"}, base=True)
+
+    def cabeca(self):
+        return git(self.dir, "rev-parse", "HEAD").strip()
+
+    def salvar(self, arquivos, base=False):
+        for nome, texto in arquivos.items():
+            alvo = self.dir / nome
+            alvo.parent.mkdir(parents=True, exist_ok=True)
+            if texto is None:
+                alvo.unlink()
+            else:
+                alvo.write_bytes(texto if isinstance(texto, bytes) else texto.encode("utf-8"))
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "c")
+        if base:
+            self.base = self.cabeca()
+
+    def rodar(self, *args):
+        return subprocess.run([sys.executable, str(FERRAMENTA), *args], cwd=self.dir, env=AMBIENTE,
+                              capture_output=True, text=True)
+
+    def cobertura(self, *args):
+        return self.rodar("--cobertura", "--base", self.base, *args)
+
+    def spec(self, de, para, nome="x", arquivo="lib.py"):
+        mutantes = [mutante(de=de, para=para, arquivo=arquivo)]
+        return {f"tests/mutantes/{nome}.json": json.dumps({"pedido": "x", "mutantes": mutantes})}
+
+    def test_condicao_nova_sem_mutante_sai_1_e_com_mutante_declarado_sai_0(self):
+        self.salvar({"lib.py": self.COND, **self.spec("if x > 100:", "if x > 1000:", arquivo="outro.py")})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[0]), (1, f"base={self.base} mb={self.base} rev={self.cabeca()}"))
+        self.assertIn("sem mutante · lib.py:2 · x > 100", r.stdout)
+        self.salvar(self.spec("if x > 100:", "if x > 1000:"))
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("coberta · lib.py:2 · tests/mutantes/x.json:M1 · declarado, não provado", r.stdout)
+
+    def test_linha_mudada_sozinha_conta(self):  # o hunk `@@ -1,0 +2 @@` não traz a contagem
+        self.salvar({"lib.py": "x = 1\nif x > 100: x = 2\n"})
+        self.assertEqual(self.cobertura().returncode, 1)
+
+    def test_reformatar_nao_conta_e_copiar_ou_apagar_conta(self):  # multiconjunto
+        self.salvar({"lib.py": self.COND}, base=True)
+        self.salvar({"lib.py": "x = 1\nif (x  >  100):\n    x = 2\n"})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, len(r.stdout.splitlines())), (0, 1), r.stdout)
+        self.salvar({"lib.py": self.COND + "if x > 100:\n    x = 3\n"})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("sem mutante · lib.py:4", r.stdout)
+        self.assertNotIn("lib.py:2", r.stdout)
+        self.salvar({"lib.py": "x = 1\n"})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
+
+    def test_arquivo_python_removido_sai_como_apagada_e_o_que_nao_e_python_nao_coberto(self):  # A2 do review
+        self.salvar({"lib.py": self.COND, "run.sh": "if true; then :; fi\n"}, base=True)
+        self.salvar({"lib.py": None, "run.sh": None})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("apagada · lib.py:2(base) · x > 100", r.stdout)
+        self.assertIn("não coberto: run.sh", r.stdout)
+        self.salvar({"tests/test_a.py": "if 1 > 0:\n    pass\n"}, base=True)
+        self.salvar({"tests/test_a.py": None})
+        self.assertEqual(self.cobertura().returncode, 0)
+
+    def test_condicao_editada_e_coberta_pela_nova_e_so_a_tirada_sem_troca_e_apagada(self):  # A2 do QA
+        self.salvar({"lib.py": "if y:\n    pass\n" + self.COND}, base=True)
+        self.salvar({"lib.py": "if y:\n    pass\nx = 1\nif x >= 100:\n    x = 2\n", **self.spec("if x >= 100:", "if x > 9:")})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (0, ["coberta · lib.py:4 · tests/mutantes/x.json:M1 · "
+                         "declarado, não provado"]))
+        self.salvar({"lib.py": "x = 1\nif x >= 100:\n    x = 2\n"})
+        self.assertEqual(self.cobertura().stdout.splitlines()[2:], ["apagada · lib.py:1(base) · y"])
+
+    def test_binario_e_fora_do_utf8_so_param_no_python_e_o_cr_solto_e_2(self):  # A1 do review, A2 da segurança
+        for nome, dados, rc in (("tests/fixtures/a.txt", b"caf\xe9", 0), ("logo.png", b"\x89PNG\0\xff", 0),
+                                ("c.py", b"x = '\xe9'\n", 2), ("d.py", b"x = 1\rif y:\n    pass\n", 2),
+                                ("e.py", b"x = 1\r\nif y:\r\n    pass\r\n", 1)):
+            with self.subTest(nome):
+                self.salvar({nome: dados})
+                r = self.cobertura()
+                git(self.dir, "reset", "-q", "--hard", self.base)
+                self.assertEqual(r.returncode, rc, r.stdout + r.stderr)
+                self.assertIn(f"{nome}: " if rc == 2 else "e.py:2" if rc else "", r.stderr + r.stdout)
+
+    def test_atributo_do_git_nao_esconde_o_hunk(self):  # A1 da segurança
+        git(self.dir, "config", "diff.t.textconv", "true")
+        git(self.dir, "config", "diff.b.binary", "true")
+        for atributo in ("-diff", "binary", "diff=t", "diff=b"):
+            with self.subTest(atributo):
+                self.salvar({".gitattributes": f"lib.py {atributo}\n", "lib.py": "x = 1\n"}, base=True)
+                self.salvar({"lib.py": self.COND})
+                self.assertIn("sem mutante · lib.py:2", self.cobertura().stdout)
+
+    def test_spec_acima_do_teto_de_64_kib_e_entrada_invalida(self):
+        spec = {"pedido": "x", "mutantes": [mutante(de="if x > 100:", para="if x > 1000:")], "pad": "a" * 70000}
+        self.salvar({"lib.py": self.COND, "tests/mutantes/x.json": json.dumps(spec)})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("com mais de 65536 bytes", r.stderr)
+
+    def test_cada_tipo_de_condicao_conta_pelo_no_mais_externo(self):
+        casos = {"if a > 1:\n    pass\nelif b:\n    pass\n": ["a > 1", "b"], "while x < 3:\n    pass\n": ["x < 3"],
+                 "y = 1 if c else 2\n": ["c"], "z = [i for i in r if i % 2]\n": ["i % 2"], "assert a == b\n": ["a == b"],
+                 "match x:\n    case 1 if x > 5:\n        pass\n": ["x > 5"], "def f():\n    return a > b\n": ["a > b"],
+                 "k = not p\n": ["not p"], "if a and b > 1:\n    pass\n": ["a and b > 1"], "k = -p + 1\n": []}
+        for texto, esperado in casos.items():
+            with self.subTest(texto):
+                self.assertEqual([c[0] for c in self.f.condicoes(texto)], esperado)
+
+    def casa(self, de, para, texto, arquivo="lib.py"):
+        ini, fim = self.f.condicoes(texto)[0][3:]
+        return self.f.casa(mutante(de=de, para=para, arquivo=arquivo), "lib.py", texto, ini, fim)
+
+    def test_casamento_pelo_intervalo_do_no_e_as_travas_do_de(self):
+        texto = "k = 1\nif x > 1000:\n    pass\n"
+        self.assertTrue(self.casa("\nif x > 1000:", "\nif x > 2000:", texto))
+        self.assertFalse(self.casa("\nif x > 100", "\nif x > 200", texto), "o de tem 7 caracteres não brancos")
+        self.assertFalse(self.casa("k = 1\nif x > 1000", "k = 2\nif x > 1000", texto), "a troca fica antes do nó")
+        self.assertFalse(self.casa("if x > 1000:\n    pass", "if x > 1000:\n    fail", texto), "a troca fica depois do nó")
+        self.assertFalse(self.casa("if x > 1000:", "if x > 2000:", texto, arquivo="outro.py"))
+        repetido = "if x > 1000:\n    pass  # if x > 1000:\n"
+        self.assertFalse(self.casa("if x > 1000:", "if x > 2000:", repetido), "o de aparece duas vezes")
+        self.assertTrue(self.casa("t = x > 1000", "t = x > 2000", 's = "éé"; t = x > 1000\n'), "deslocamento em bytes")
+
+    def test_troca_que_nao_muda_o_ast_e_mutante_de_fachada(self):
+        with self.assertRaises(ValueError):
+            self.casa("\nif x > 1000:", "\nif (x > 1000):", "k = 1\nif x > 1000:\n    pass\n")
+
+    def test_so_a_spec_que_o_diff_adiciona_ou_edita_cobre_e_a_removida_ou_editada_e_listada(self):
+        self.salvar(self.spec("if x > 100:", "if x > 1000:"), base=True)
+        self.salvar({"lib.py": self.COND})
+        self.assertEqual(self.cobertura().returncode, 1, "a spec que já estava na base não cobre")
+        self.salvar(self.spec("if x > 100:", "if x > 2000:"))
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("spec editada · tests/mutantes/x.json", r.stdout)
+        self.salvar({"tests/mutantes/x.json": None})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("spec removida · tests/mutantes/x.json", r.stdout)
+        self.salvar({"tests/mutantes/y.json": json.dumps({"pedido": "x", "mutantes": []})})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("spec inválida", r.stderr)
+
+    def test_base_que_nao_resolve_e_diff_vazio_sao_2_e_a_arvore_suja_so_avisa(self):
+        self.salvar({"lib.py": self.COND})
+        for args in (("--base", "nao-existe"), ("--base", self.base, "--rev=-x")):
+            r = self.rodar("--cobertura", *args)
+            self.assertEqual(r.returncode, 2)
+            self.assertIn("precisam resolver", r.stderr)
+        r = self.rodar("--cobertura", "--base", "HEAD")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("diff é vazio", r.stderr)
+        (self.dir / "lib.py").write_text("x = 1\nwhile y:\n    pass\n", encoding="utf-8")
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("x > 100", r.stdout)
+        self.assertNotIn("while", r.stdout)
+        self.assertIn("árvore de trabalho suja", r.stderr)
+
+    def test_nao_coberto_aparece_e_teste_doc_e_arquivo_removido_ficam_fora(self):
+        self.salvar({"run.sh": "#!/bin/sh\nif [ -f x ]; then :; fi\n", ".github/workflows/ci.yml": "on: push\n",
+                     "tools/notas": "python = 1\nif x:\n    pass\n", "tools/ferramenta": "#!/usr/bin/env python3\nif y:\n    pass\n",
+                     "docs/a.md": "# t\n", "changelog.d/x.md": "t\n", "tests/test_x.py": "if x:\n    pass\n",
+                     "novo.py": "if z:\n    pass\n"})
+        self.salvar({"lib.py": None})
+        r = self.cobertura()
+        self.assertEqual(r.stdout.splitlines()[1:], ["não coberto: .github/workflows/ci.yml", "sem mutante · novo.py:1 · z",
+                         "não coberto: run.sh", "sem mutante · tools/ferramenta:2 · y", "não coberto: tools/notas"])
+        self.assertEqual(r.returncode, 1)
+
+    def test_limites_e_nomes_de_arquivo_hostis(self):
+        for nome, texto in {"a.py": "if :\n", "b.py": "x = 1\n" * 200000}.items():
+            with self.subTest(nome):
+                self.salvar({nome: texto})
+                self.assertEqual(self.cobertura().returncode, 2)
+                git(self.dir, "reset", "-q", "--hard", self.base)
+        self.salvar({f"f{i}.txt": "" for i in range(300)})
+        self.assertEqual(self.cobertura().returncode, 0)
+        self.salvar({"mais.txt": ""})
+        self.assertEqual(self.cobertura().returncode, 2)
+        git(self.dir, "reset", "-q", "--hard", self.base)
+        self.salvar({"-x.py": "if y:\n    pass\n", "a b.py": "if z:\n    pass\n"})
+        r = self.cobertura()
+        self.assertEqual((r.returncode, r.stdout.splitlines()[1:]), (1, ["sem mutante · -x.py:1 · y", "sem mutante · a b.py:1 · z"]))
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.dir)
+        with self.assertRaises(ValueError):
+            self.f.ler_no_commit(self.base, "nao_existe.py")
+
+    def test_cobertura_e_base_vem_juntos_e_sem_spec(self):
+        for args in (("--cobertura",), ("--base", self.base), ("--cobertura", "--base", self.base, "spec.json")):
+            with self.subTest(args):
+                r = self.rodar(*args)
+                self.assertEqual(r.returncode, 2)
+                self.assertIn("vêm juntos", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

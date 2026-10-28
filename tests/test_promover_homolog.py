@@ -233,7 +233,7 @@ class Execucao(Promover):
         self.assertNotIn("pr merge", chamadas)
         self.assertNotIn("--force", chamadas)
         sha = self.git("rev-parse", "origin/develop")
-        self.assertIn(f"{MERGE} develop --merge --match-head-commit {sha}", r.stdout)
+        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
         self.assertIn("check bateria pass run=1 job=2", r.stdout)
 
     def test_pr_ja_aberto_e_reusado(self):
@@ -257,12 +257,14 @@ class Execucao(Promover):
         self.assertEqual(r.returncode, 1)
         self.assertEqual(self.gh_chamadas(), [])
 
-    def test_check_pendente_sai_3_sem_merge(self):
+    def test_check_pendente_imprime_o_merge_automatico_sem_mesclar(self):
         self.pronta()
         (self.estado / "checks").write_text("bateria\tpending\t0\turl\n")
         r = self.roda()
-        self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
-        self.assertNotIn(MERGE, r.stdout)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        sha = self.git("rev-parse", "origin/develop")
+        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+        self.assertNotIn("pr merge", "\n".join(self.gh_chamadas()))
 
     def test_check_vermelho_para(self):
         self.pronta()
@@ -280,10 +282,13 @@ class Execucao(Promover):
         self.assertNotIn(MERGE, r.stdout)
         self.assertNotIn("pr edit", "\n".join(self.gh_chamadas()))  # nunca aplica o rótulo
 
-    def test_sem_checks_ainda_conta_como_pendente(self):
+    def test_sem_checks_ainda_imprime_o_merge_automatico(self):
         self.pronta()
         (self.estado / "checks").write_text("")
-        self.assertEqual(self.roda().returncode, 3)
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        sha = self.git("rev-parse", "origin/develop")
+        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
 
     def test_fetch_traz_a_develop_nova_do_remoto(self):
         self.pronta()

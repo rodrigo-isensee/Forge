@@ -960,7 +960,10 @@ class DonosDosHeredocs:
 Palavra = collections.namedtuple("Palavra", "valor cru")  # o valor (sem aspas nem escapes) e o texto como escrito
 Redirecao = collections.namedtuple("Redirecao", "prefixo operador alvo")  # alvo: Palavra, ou None (sem alvo)
 ComandoSimples = collections.namedtuple("ComandoSimples", "palavras redirecoes")
-LeituraDoTexto = collections.namedtuple("LeituraDoTexto", "simples duvida")
+# `aspa_escapada`: algum `$'…'` do texto (ou `\$'…'`, que o shell de dentro lê como `$'…'`) tem `\'` dentro. O bash
+# o lê até o `'` que fecha; o `shlex` (`fichas`) toma a `\'` por fecho de aspas simples e junta o `;` seguinte à
+# palavra (HOOK-ANSI-C): quem lê com `fichas` falha fechado.
+LeituraDoTexto = collections.namedtuple("LeituraDoTexto", "simples duvida aspa_escapada", defaults=(False,))
 OPERADORES_DE_REDIRECAO = ("<<<", "<<-", "<<", "<>", "<&", ">&", ">>", ">|", "<", ">")
 PREFIXO_DE_REDIRECAO = re.compile(r"\d+|\{[A-Za-z_][A-Za-z0-9_]*\}")
 SEPARADORES_DO_LEITOR = frozenset(";&|\n()")
@@ -977,6 +980,21 @@ class _Nivel:
         self.valor, self.inicio = None, 0
 
 
+def _ansi_com_aspa_escapada(texto, inicio):
+    """Se o `$'…'` cujo conteúdo começa em `inicio`, lido como o bash lê (`\\` escapa o seguinte), tem `\\'` antes do `'`
+    que fecha. Vale para `\\$'…'`: o hook lê aspas simples, e o shell de dentro de `bash -c "…"` ou `eval "…"` recebe
+    `$'…'` (o de fora troca `\\$` por `$`), então a leitura fiel não sabe onde a palavra termina (HOOK-ANSI-C)."""
+    i, n = inicio, len(texto)
+    while i < n and texto[i] != "'":
+        if texto[i] == "\\":
+            if texto[i + 1:i + 2] == "'":
+                return True
+            i += 2
+        else:
+            i += 1
+    return False
+
+
 @functools.lru_cache(maxsize=256)
 def palavras_do_texto(texto):
     """Os comandos simples de `texto` (a linha sem os corpos de heredoc), de todos os níveis de substituição, com as
@@ -989,6 +1007,7 @@ def palavras_do_texto(texto):
     `&`, `{fd}`) e o alvo, que é a palavra seguinte (colada ou não): `2>&1 x` tem o alvo `1` e deixa `x` como palavra."""
     provados = comentarios(texto)
     lidos, pilha, i, n, duvida = [], [_Nivel("fora")], 0, len(texto), False
+    aspa_escapada = False
 
     def fechar_palavra(nivel, fim):
         if nivel.valor is None:
@@ -1037,6 +1056,7 @@ def palavras_do_texto(texto):
             continue
         if nivel.aspas == "ansi":
             if c == "\\":
+                aspa_escapada = aspa_escapada or texto[i + 1:i + 2] == "'"
                 nivel.valor.append(texto[i:i + 2])
                 i += 2
             else:
@@ -1069,6 +1089,8 @@ def palavras_do_texto(texto):
             continue
         # fora de aspas, no texto de fora ou numa substituição
         if c == "\\":
+            if texto.startswith("$'", i + 1):  # HOOK-ANSI-C: o shell de dentro (`bash -c "…"`, `eval "…"`) lê `$'…'`
+                aspa_escapada = aspa_escapada or _ansi_com_aspa_escapada(texto, i + 3)
             if texto[i + 1:i + 2] != "\n":  # `\` + quebra de linha continua a linha
                 acrescentar(nivel, texto[i + 1:i + 2], i)
             i += 2
@@ -1129,7 +1151,7 @@ def palavras_do_texto(texto):
     for nivel in reversed(pilha):
         fechar_comando(nivel, n)
     duvida = duvida or len(pilha) > 1 or pilha[0].aspas is not None
-    return LeituraDoTexto(tuple(lidos), duvida)
+    return LeituraDoTexto(tuple(lidos), duvida, aspa_escapada)
 
 
 DESCRITOR = re.compile(r"\d+-?|-")  # o alvo de `>&` e `<&` que copia ou fecha um descritor
@@ -1709,6 +1731,7 @@ def leituras(comando, com_sinal=False):
 
     try:
         fiel = (None if comentario_ambiguo(comando) or not corpos_se_leem(comando, 1)
+                or palavras_do_texto(comando).aspa_escapada  # HOOK-ANSI-C: o `shlex` não fecha `$'…\'…'` como o bash
                 else list(comandos(comando, com_sinal=com_sinal)))
     except ValueError:
         fiel = None

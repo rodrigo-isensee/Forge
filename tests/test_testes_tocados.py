@@ -58,9 +58,19 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 21)
-        for modulo in ("test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b"):
+        self.assertEqual(len(modulos), 27)
+        for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
+                       "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
+
+    def test_modulos_da_volta_unica_rodam_onde_o_test_hooks_roda(self):  # HOOKS-CORPUS-RAPIDO
+        volta = {"test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades"}
+        for caminho in ("hooks/doutor.py", "hooks/conformidade.py", "stacks/exemplo/seguranca.md", ".claude-plugin/plugin.json",
+                        "bin/forge-check"):
+            with self.subTest(caminho):
+                modo, modulos = self.plano(caminho)
+                self.assertEqual(modo, "dirigido")
+                self.assertLessEqual(volta, set(modulos))
 
     def test_hooks_incluem_hooks_e_catraca(self):
         modo, modulos = self.plano("hooks/conformidade.py")
@@ -516,9 +526,16 @@ class MapaDoForgeCheck(unittest.TestCase):
 
     CITA = re.compile(r'bin/forge-check|"bin"\s*[,/]\s*"forge-check"|joinpath\("bin",\s*"forge-check"\)')
     IMPORTA = re.compile(r"^\s*(?:from|import)\s+(test_[a-z0-9_]+)\b", re.M)
+    IMPORTA_APOIO = re.compile(r"^\s*(?:from|import)\s+(apoio_[a-z0-9_]+)\b", re.M)
 
     def modulos_que_usam(self):
         textos = {p.stem: p.read_text(encoding="utf-8") for p in (RAIZ / "tests").glob("test_*.py")}
+        apoios = {p.stem: p.read_text(encoding="utf-8") for p in (RAIZ / "tests").glob("apoio_*.py")}
+        # `tests/apoio_*.py` importado por um módulo de teste conta como parte dele: o que o apoio cita ou importa de
+        # `test_*` vale para quem o importa (HOOKS-CORPUS-RAPIDO: os `test_hooks_volta_*` rodam o script pelo apoio).
+        for modulo, texto in textos.items():
+            for apoio in self.IMPORTA_APOIO.findall(texto):
+                textos[modulo] += "\n" + apoios.get(apoio, "")
         usam = {m for m, t in textos.items() if self.CITA.search(t)}
         usam.discard("test_doutor")  # só grava um `bin/forge-check` falso na semente; não executa o real
         usam.add("test_catraca")  # carrega o script por `catraca.forge_check()`, sem citar o caminho

@@ -74,10 +74,10 @@ obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, s
 o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
-`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele reprova sempre (`escopo: --desde fora da etapa`). Intervalo vazio:
+`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
-`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale nas quatro primeiras). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
+`entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
 `delta` (VV-2, M12; só leitura, nunca reprova) imprime `delta: <arquivo> +a -r` e `delta: <arquivo>:<ini>-<fim>` (lado novo
 de cada trecho de `git diff -U0`) do que mudou entre o commit (ou o `commit:` do parecer de `--parecer`) e o fim (padrão HEAD),
 fora de docs/reviews, qa, devops, security e do quadro; `delta: nenhum` sem mudança. rc 2 se o commit não existe ou não é
@@ -386,6 +386,11 @@ def trechos_do_arquivo(raiz, de, para, nome):
     return linhas or None
 
 
+def livre(nome, livres):
+    """True se `nome` está em `livres`: a entrada com `/` no fim é pasta (prefixo); a sem, o caminho exato (D4, segurança A2)."""
+    return any(nome == x or (x.endswith("/") and nome.startswith(x)) for x in livres)
+
+
 def arquivos_divergentes(raiz, base, a, b, ignorar):
     """Arquivos (fora de `ignorar`) em que `b` não é o parecer de `a` aplicado sobre a base. Simula o merge do patch
     de `a` (sobre o seu merge-base com a base) em cima do merge-base de `b` com a base (`git merge-tree`) e compara a
@@ -410,14 +415,13 @@ def arquivos_divergentes(raiz, base, a, b, ignorar):
             if not campo:
                 break
             conflitos.append(campo.decode("utf-8", "surrogateescape"))
-        fora = [f":(exclude){p.rstrip('/')}" for p in ignorar]
         cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
-                         arvore, b, "--", ".", *fora, bruto=True)
+                         arvore, b, "--", bruto=True)
         if cod:
             return None
-        divergem = set(nomes_z(saida))
+        divergem = {n for n in nomes_z(saida) if not livre(n, ignorar)}
         for nome in conflitos:
-            if nome.startswith(tuple(ignorar)):
+            if livre(nome, ignorar):
                 continue
             if nome != "CHANGELOG.md":
                 divergem.add(nome)
@@ -437,22 +441,23 @@ def mesmo_diff(raiz, base, a, b, ignorar):
     return arquivos_divergentes(raiz, base, a, b, ignorar) == []
 
 
-def commit_vale(raiz, commit, ate="HEAD", base=None):
+def commit_vale(raiz, commit, ate="HEAD", base=None, livres=LIVRES):
     """None se o parecer vale para `ate` (padrão: o HEAD); senão o motivo.
 
     Com `base`, também vale se `ate`, fora de LIVRES, for o patch do `commit` aplicado sobre a base nova (merge
     simulado, ver `arquivos_divergentes`): merge da base depois do parecer não o invalida, mudar de lugar uma linha
-    da branch sim (ADR 0004, item 3). Com `base`, o motivo cita o arquivo que diverge."""
+    da branch sim (ADR 0004, item 3). Com `base`, o motivo cita o arquivo que diverge. `livres` (padrão LIVRES) é o que muda sem
+    desatualizar o parecer; o `cmd_pr` soma o fragmento `changelog.d/<slug>.md` (D4, como o FORA_DO_HASH da suíte)."""
     cod, _ = git(raiz, "rev-parse", "--verify", "--quiet", f"{commit}^{{commit}}")
     if cod:
         return "commit não existe no repositório"
     cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", commit, ate, bruto=True)
     if cod:
         return f"não foi possível comparar com {ate}"
-    fora = [f for f in nomes_z(saida) if not f.startswith(LIVRES)]
+    fora = [f for f in nomes_z(saida) if not livre(f, livres)]
     if not fora:
         return None
-    div = arquivos_divergentes(raiz, base, commit, ate, LIVRES) if base else None
+    div = arquivos_divergentes(raiz, base, commit, ate, livres) if base else None
     if div == []:
         return None
     alvo = div[0] if div else fora[0]
@@ -490,7 +495,8 @@ def arquivos_da_entrega(raiz, ref=None, base=None, desde=None):
     """Arquivos que a entrega muda sobre a base (merge-base); [] se a base não existe (sem como saber).
     `--no-renames`: renomear lista também o nome antigo (como removido), e o gatilho não escapa pelo nome novo.
     Com `desde` (um sha já conferido, VV-2), só o que mudou depois dele: a interseção com `desde..ref` tira o que entrou
-    por merge da base (com o Base-sha regravado depois do merge); sem `desde`, a branch inteira, como sempre."""
+    por merge da base (com o Base-sha regravado depois do merge); sem `desde`, a branch inteira, como sempre. Soma o que a branch já
+    tinha mudado até `desde` (base...desde) e um commit posterior devolveu ao estado da base, como um teste apagado (`desfeitos_da_entrega`)."""
     b = base_da_entrega(raiz, base)
     if not b:
         return []
@@ -501,8 +507,15 @@ def arquivos_da_entrega(raiz, ref=None, base=None, desde=None):
     nomes = nomes_z(saida)
     if desde:
         novos = set(nomes_do_intervalo(raiz, desde, ref or "HEAD"))
-        nomes = [n for n in nomes if n in novos]
+        desfeitos = novos & desfeitos_da_entrega(raiz, b, desde)
+        nomes = [n for n in nomes if n in novos] + sorted(desfeitos - set(nomes))
     return nomes
+
+
+def desfeitos_da_entrega(raiz, base, desde):
+    """Arquivos que a branch já tinha mudado sobre a base até `desde` (base...desde). Se um commit posterior os devolve ao estado da
+    base, saem do diff `base...head` e continuam sendo da entrega (revisão de segurança A1)."""
+    return set(nomes_do_intervalo(raiz, base, desde, tres_pontos=True))
 
 
 def gatilhos(raiz, pedido, ref=None, base=None):
@@ -615,6 +628,48 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     return cmd_pr(raiz, pedido, ref, resolvida)
 
 
+def branch_da_convencao(raiz, ref=None):
+    """Slug da branch `melhoria/<slug>` conferida (a `--ref`, sem `origin/`, ou a atual); None fora da convenção do Forge."""
+    nome = (ref or "").removeprefix("refs/remotes/").removeprefix("origin/") if ref else git(raiz, "symbolic-ref", "--short", "-q", "HEAD")[1]
+    return nome.removeprefix("melhoria/") if nome.startswith("melhoria/") else None
+
+
+def uso_do_pr(raiz, pedido, ref=None):
+    """C2: `uso: ...` quando, numa branch `melhoria/<slug>`, o argumento do `forge-check pr` é o id de um pedido existente (em qualquer
+    raiz de pedidos), não há branch `melhoria/<argumento>` e nenhum parecer da ref leva `pedido: <argumento>`; senão None.
+    Fora da convenção `melhoria/`, o `pedido:` do parecer é o argumento e nada é recusado."""
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", pedido or "") or branch_da_convencao(raiz, ref) is None \
+            or sha_do_commit(raiz, f"refs/heads/melhoria/{pedido}") or sha_do_commit(raiz, f"refs/remotes/origin/melhoria/{pedido}"):
+        return None
+    if not any((Path(p) / "docs" / "pedidos" / f"{pedido}.md").is_file() for p in (raiz_principal(raiz), raiz, *RAIZES_DE_BRIEF)):
+        return None
+    if any((validar_documento(rel, texto)[0] or {}).get("pedido") == pedido for rel, texto in documentos(Path(raiz), None, ref)):
+        return None
+    return f"uso: use o slug da branch (<slug>), não o id do pedido ({pedido})"
+
+
+def pedido_do_pr(raiz, pedido, ref=None):
+    """G2: o id de pedido que o `uso_do_pr` recusa vira o slug da linha `Branch: melhoria/<slug>` dos briefs dele (cabeçalho com
+    `Pedido: <id>`), se for um só; senão o argumento, e o `uso:` segue."""
+    if uso_do_pr(raiz, pedido, ref) is None:
+        return pedido
+    slugs = set()
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for arq in sorted((Path(base) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+            try:
+                cabecalho = cabecalho_do_brief(arq.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) or ""
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch.startswith("melhoria/"):
+                slugs.add(branch.removeprefix("melhoria/"))
+    if len(slugs) != 1:
+        return pedido
+    slug = slugs.pop()
+    print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (linha Branch: do brief)", file=sys.stderr)
+    return slug
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
@@ -649,7 +704,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
         elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
             saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base)
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, LIVRES + (f"changelog.d/{pedido}.md",))  # D4
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida
@@ -657,8 +712,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
 
 # --- Escopo da entrega pelo intervalo da delegação (VV-2, M9) ------------------------------------
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
-ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")  # etapas em que `--desde` vale
-ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # o Base-sha é sempre o ponto de partida
+ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")
+ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # sem `--desde`, o Base-sha é o ponto de partida
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
@@ -831,9 +886,44 @@ def tipo_do_brief(texto):
     return "merge" if "merge-base --is-ancestor" in texto else "desconhecido"
 
 
+PAPEL_DO_BRIEF_DO_PARECER = {"review": "tech-lead", "qa": "qa-engineer", "revisao-devops": "devops-engineer",
+                             "revisao-seguranca": "security-engineer"}
+
+
+def pedido_da_revalidacao(pedido_id):
+    """`<X>-REV` do pedido `<X>` (ou do próprio `<X>-REV`): onde moram os portões da mesma branch (G6)."""
+    return f"{pedido_id.removesuffix('-REV')}-REV"
+
+
+def reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):
+    """G6: True se o parecer `nome` do `head` foi reescrito por um portão do pedido `<X>-REV` desta branch: um brief
+    `docs/briefs/<X>-REV-<papel do parecer>-<n>.md` com `Pedido: <X>-REV`, a mesma `Branch:`, o destino do papel do parecer e o
+    `commit:` que o parecer grava (o portão grava o commit que o brief manda). O casamento é pelo commit e pelo papel, nunca pelo caminho."""
+    cod, texto = git(raiz, "cat-file", "blob", f"{head}:{nome}")
+    commit = str((ler_frontmatter(texto)[0] or {}).get("commit", "")) if not cod else ""
+    rev, papel = pedido_da_revalidacao(pedido_id), PAPEL_DO_BRIEF_DO_PARECER[tipo]
+    if not COMMIT.match(commit):
+        return False
+    for raiz_de_brief in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        pasta = Path(raiz_de_brief) / "docs" / "briefs"
+        for arq in sorted(pasta.iterdir()) if pasta.is_dir() else []:
+            if not (arq.name.startswith(f"{rev}-{papel}-") and arq.name.endswith(".md")):
+                continue
+            try:
+                brief = arq.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            cabecalho = cabecalho_do_brief(brief)
+            if (grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == rev and grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch
+                    and nome_do_papel(grupo(r"^\s*Agente destino:\s*(\S+)", cabecalho)) == papel
+                    and re.search(rf"\bcommit:\s*`?{re.escape(commit)}\b", brief)):
+                return True
+    return False
+
+
 def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
     """Linhas `(texto, reprova)` da união dos Entregar de entregas paralelas conferidas juntas (E9a, M9.1): cada `--brief` precisa ser um
-    brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida; um só diferente reprova a união. Imprime o
+    brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida (ou do `<pedido>-REV`, G6); um só diferente reprova a união. Imprime o
     sha256 de cada um (o conferente o compara com o `Brief-sha256:` da mensagem: só entra brief aprovado)."""
     linhas, esperado = [], {"Pedido": pedido_id, "Branch": branch, "Base": base, "Base-sha": base_sha}
     for brief in briefs:
@@ -849,6 +939,8 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
         achados = {campo: grupo(expressao, cabecalho) for campo, expressao in CABECALHO_DE_BRIEF_CAMPOS.items()}
         if achados["Pedido"]:
             achados["Pedido"] = re.sub(r"\.md$", "", achados["Pedido"].removeprefix("docs/pedidos/"))
+        if achados["Pedido"] == pedido_da_revalidacao(pedido_id):  # G6: os portões do -REV escrevem na mesma branch
+            achados["Pedido"] = pedido_id
         if achados != esperado:
             linhas.append((f"escopo: união de briefs de entregas diferentes {caminho_impresso(rel)}", True))
         else:
@@ -882,6 +974,29 @@ def diferem_dos_dois_pais(raiz, de, head, base_ref):
     return comuns, contagens
 
 
+def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
+    """G2: arquivos do autor quando o caminho do primeiro pai de `de..head` tem um merge da base, com commits de parecer ou de trabalho
+    antes ou depois: cada commit conta o que mudou contra o primeiro pai; o merge cujo outro pai é ancestral da base conta só o que difere
+    dos dois pais (o `--cc`, a resolução). Merge de outra coisa conta tudo (falha fechada). None sem merge da base (o escopo de hoje)."""
+    cod, saida = git(raiz, "rev-list", "--first-parent", "--parents", f"{de}..{head}")
+    if cod or not base_ref:
+        return None
+    nomes, integrou = set(), False
+    for linha in saida.splitlines():
+        commit, *pais = linha.split()
+        if not pais:
+            return None
+        proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
+        if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
+            integrou = True
+            da_base = set(nomes_do_intervalo(raiz, pais[1], commit))
+            cod, mb = git(raiz, "merge-base", pais[0], pais[1])
+            descartados = set(nomes_do_intervalo(raiz, mb, pais[1])) & da_base if not cod and mb else da_base
+            proprios = (proprios & da_base) | descartados  # o que a base mudou e o merge não manteve (-s ours) é do autor
+        nomes |= proprios
+    return nomes if integrou else None
+
+
 def maior_contagem(a, b):
     """O maior de dois números do `--numstat`; o `-` do binário prevalece."""
     return "-" if "-" in (a, b) else str(max(int(a), int(b)))
@@ -908,9 +1023,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
     valido, origem_da_base = None, None
-    if desde is not None and etapa in ETAPAS_DE_BRANCH_INTEIRA:
-        linhas.append(("escopo: --desde fora da etapa", True))
-    elif desde is not None:
+    if desde is not None:  # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
         valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
         if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
             valido = None
@@ -922,15 +1035,24 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
     if dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref):  # E2: só integração na branch
-        arquivos = [n for n in arquivos if n in dos_dois_pais[0]]
+        desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o merge que devolve à base o que a branch pôs (segurança A2)
+        arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
+    elif (primeiro_pai := escopo_pelo_primeiro_pai(raiz, de, head, base_ref)) is not None:  # G2: o merge entre outros commits
+        desfeitos, antes = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set(), len(arquivos)
+        arquivos = [n for n in arquivos if n in primeiro_pai or n in desfeitos]
+        informativas += [("escopo: integração da base (o que difere dos dois pais)", False)] if len(arquivos) < antes else []
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
         diferem = set(nomes_do_intervalo(raiz, base_ref, head))
+        if valido:  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
+            diferem |= desfeitos_da_entrega(raiz, base_sha, valido)
         arquivos = [n for n in arquivos if n in diferem]
     contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
+    m = re.search(r"^id:\s*(\S+)", texto, re.M)
+    pedido_id = m.group(1) if m else caminho.stem
     linhas += informativas
     if not arquivos:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
@@ -943,7 +1065,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             tipo = None
         mostrado = nome_seguro(nome)
         if tipo and not com_controle(nome) and autoria_do_parecer(raiz, registros, head, nome, tipo):
-            if removidas != "0":  # A6: parecer com autoria não dispensa a regra do anexo "só por acréscimo"
+            if removidas != "0" and not reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):  # A6; G6: o portão do -REV reescreve
                 papel = PAPEL_DO_PARECER[tipo]
                 linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas} (anexo com remoção do parecer de {papel}: "
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))
@@ -952,8 +1074,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
-        m = re.search(r"^id:\s*(\S+)", texto, re.M)
-        linhas = uniao_de_briefs(raiz, m.group(1) if m else caminho.stem, branch, base, base_sha, briefs) + linhas
+        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs) + linhas
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)
@@ -1028,7 +1149,7 @@ def cmd_delta(raiz, refs, parecer):
         print(f"delta: {inicio[:7]} não é ancestral de {fim[:7]}")
         return 2
     print(f"intervalo: {inicio}..{fim}")
-    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not n.startswith(LIVRES)]
+    nomes = [n for n in nomes_do_intervalo(raiz, inicio, fim) if not livre(n, LIVRES)]
     if not nomes:
         print("delta: nenhum")
         return 0
@@ -3873,17 +3994,19 @@ def conferir_pq(linhas_pq):
                 verificador = "autor"
             else:
                 tipos.append(CMD_DO_CONFERENTE)
-        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}", False))
+        valido = " · rótulo do verificador: ok" if verificador in ("conferente", "autor") else ""  # C3: só atesta o vocabulário
+        saida.append((f"PQ-{n}: {tipo} · espera {espera} · verificador: {verificador}{valido}", False))
     if not vistos:
         saida.append(("forma: sem PQ", True))
     return saida, tipos
 
 
-def conferir_corte(brief_secoes, pedido, destino):
+def conferir_corte(brief_secoes, pedido, destino, cobre=None):
     """Corte de escopo por IDs (C2) e etapas (M16, R-BRIEF): cada `E<n>` do escopo está no Entregar, em `Fora do escopo` pelas
     etapas ou como corte real; cada etapa de `## Etapas` (de qualquer `E<n>`, com ou sem sufixo de letra) está no Entregar ou no
     `Fora do escopo`, sem a marca (continua no pedido) ou com a marca completa (sai do pedido, `R-DECISAO`). Um brief delega uma
-    só etapa: duas ou mais citadas no Entregar reprovam (`etapa: junta delegações`)."""
+    só etapa: duas ou mais citadas no Entregar reprovam (`etapa: junta delegações`). G1: a etapa do `Cobre:` do cabeçalho, do papel do
+    destino, no `Fora do escopo` sem a marca é a própria delegação cortada e reprova."""
     if not pedido["escopo"] and not pedido["etapas"]:
         return [("corte: não verificável (pedido sem IDs)", False)]
     entregar = " ".join(brief_secoes.get("Entregar", []))
@@ -3919,6 +4042,9 @@ def conferir_corte(brief_secoes, pedido, destino):
         papel = pedido["etapas"][etapa][0]
         if papel_destino and nome_do_papel(papel) != papel_destino:
             saida.append((f"etapa: papel errado {etapa} (o pedido a põe em \"{sem_controle(papel)[:40]}\", o destino é \"{sem_controle(papel_destino)[:40]}\") (R-BRIEF)", True))
+    if (cobre in pedido["etapas"] and cobre not in citados and not marca_de(cobre) and any(cobre in i["refs"] for i in itens)
+            and papel_destino and nome_do_papel(pedido["etapas"][cobre][0]) == papel_destino):
+        saida.append((f"corte: sem marca \"{cobre}\" (etapa do próprio papel cortada: o cabeçalho a delega em Cobre) (R-BRIEF)", True))
     cobertos, cortados, agregadas = set(), set(), set()
     for n in sorted(pedido["escopo"]):
         chave = f"E{n}"
@@ -4145,6 +4271,13 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
         avisos.append((f"decisões: menção fora do início {caminho_impresso(rel)}:{n} (informativo; não cobrada)", False))
     if len(mencoes) > TETO_DE_MENCOES:
         avisos.append((f"decisões: menção fora do início: mais {len(mencoes) - TETO_DE_MENCOES} linhas (informativo; não cobradas)", False))
+    if origem := re.fullmatch(r"(.+)-(?:REV|PR)", Path(proprio).stem):  # G1: o -REV e o -PR cobram as decisões do pedido de origem
+        rel = f"docs/pedidos/{origem.group(1)}.md"
+        texto, erro = ler_registro(raiz, rel) if rel not in vistos else (None, None)
+        if texto is not None:
+            fontes.append((rel, linhas_de_decisao(texto)))
+        elif erro:
+            avisos.append((f"decisões: pedido de origem {nome_seguro(rel)} {erro} (não verificável)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
     return {"fontes": fontes, "adrs": adrs, "avisos": avisos}
 
@@ -4189,7 +4322,7 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     saida += forma + pqs
     if not any(r for _, r in forma + pqs):
         saida.append(("forma: ok", False))
-    saida += conferir_corte(secoes, pedido, destino)
+    saida += conferir_corte(secoes, pedido, destino, grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(texto)))
     saida += conferir_pedido_contraditorio(secoes, pedido)
     if cobradas is not None:
         saida += conferir_decisoes(cobradas, secoes)
@@ -4202,7 +4335,16 @@ def conferir_brief(texto, pedido_txt, destino=None, nome_do_arquivo="", pedido_i
     if anterior is not None:  # M12: só informa (nunca reprova); a rodada de confirmação lê estas linhas
         saida.append((f"anterior: {len(anterior)} bytes sha256 {hashlib.sha256(anterior).hexdigest()}", False))
         saida += [(linha, False) for linha in delta_de_brief(texto, anterior.decode("utf-8", "replace"))]
+        if re.search(r"^Volta-de:", texto, re.M):  # só o brief de volta copia os blocos do anterior (exigido)
+            saida += blocos_identicos(texto, anterior.decode("utf-8", "replace"))
     return saida
+
+
+def blocos_identicos(texto, anterior):
+    """C3: uma linha `volta:` por bloco de `SECOES_COPIADAS` igual byte a byte ao do anterior; o conferente a copia e não relê o bloco."""
+    novos, antigos = blocos_literais(texto), blocos_literais(anterior)
+    return [(f'volta: bloco "{nome}" idêntico ao anterior (exigido)', False) for nome in SECOES_COPIADAS
+            if nome in novos and nome in antigos and bloco_sem_final(novos[nome]) == bloco_sem_final(antigos[nome])]
 
 
 FONTE_DE_CITACAO = re.compile(r"[\"“]([^\"”]+)[\"”]\s*\((R-[A-Z][A-Z0-9-]*|[^\s()\"“”]+?:\d+(?:-\d+)?)\)")
@@ -4284,6 +4426,32 @@ def conferir_citacoes(raiz, texto, secoes, pedido):
     return saida
 
 
+CAMINHO_NO_PQ = re.compile(r"(?<![\w./~$-])([\w.-]+(?:/[\w.@+-]+)+)(?![\w.@+/-]*[*?\[{])")  # com curinga não é cobrado
+
+
+def caminhos_ausentes_do_pq(raiz, texto, secoes):
+    """G1: caminho entre crases num PQ `arquivo` ou `cmd` que não existe (na raiz, na cópia principal, no `Base-sha` nem em
+    `origin/<Base>`) nem é citado fora do `Pronto quando` (o que a entrega cria: o caminho ou, com duas pastas ou mais, a pasta dele)
+    reprova. Só caminho cuja primeira pasta existe na raiz: `refs/heads/x` e `origin/develop` não são arquivo."""
+    cabecalho = cabecalho_do_brief(texto)
+    refs = [r for r in (grupo(CABECALHO_DE_BRIEF_CAMPOS["Base-sha"], cabecalho),
+                        f"origin/{grupo(CABECALHO_DE_BRIEF_CAMPOS['Base'], cabecalho) or 'develop'}") if r]
+    resto, saida = " ".join(l for nome, linhas in secoes.items() if nome != "Pronto quando" for l in linhas), []
+    for linha in secoes.get("Pronto quando", []):
+        m = PQ.search(linha)
+        if not m or (m.group(2) or "").split(",")[0].strip() not in ("arquivo", "cmd"):
+            continue
+        for rel in dict.fromkeys(c.rstrip(".") for t in re.findall(r"`([^`]+)`", linha[m.end():]) for c in CAMINHO_NO_PQ.findall(t)):
+            topo = rel.split("/")[0]
+            pasta = rel.rpartition("/")[0]
+            if topo in (".", "..") or not (Path(raiz) / topo).is_dir() or rel in resto or ("/" in pasta and f"{pasta}/" in resto) \
+                    or any((p / rel).exists() for p in (Path(raiz), raiz_principal(raiz))) \
+                    or any(not git(raiz, "cat-file", "-e", f"{ref}:{rel}")[0] for ref in refs):
+                continue
+            saida.append((f"pq: PQ-{m.group(1)} cita {nome_seguro(sem_controle(rel))}, que não existe nem é criado pelo Entregar (R-PROVA)", True))
+    return saida
+
+
 def avisos_da_etapa(raiz, texto, pedido_id):
     """M5: com `Etapa:` de qa, pr ou merge e `Branch:` no cabeçalho, uma linha `aviso: etapa:` por parecer que o `forge-check pr` ainda
     cobra (a mesma tabela do `gerar`); só informa, e o conferente confere a etapa com o `forge-check pr`."""
@@ -4297,6 +4465,17 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
+def linha_do_comando_pr(texto):
+    """C2: nas etapas de branch inteira, o `forge-check pr` pronto com o slug da branch do cabeçalho (sem `melhoria/`), para o conferente copiar."""
+    cabecalho = cabecalho_do_brief(texto)
+    branch, base = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho) for c in ("Branch", "Base"))
+    if grupo(ETAPA_DO_CABECALHO, cabecalho) not in ETAPAS_DE_BRANCH_INTEIRA or not (branch and base):
+        return []
+    if not branch.startswith("melhoria/") or not all(re.fullmatch(r"[A-Za-z0-9._/-]+", v) for v in (branch, base)):
+        return []  # fora da convenção o slug não existe: o argumento é o `pedido:` do parecer, que o brief não conhece
+    return [(f"etapa: comando forge-check pr {branch.removeprefix('melhoria/')} --ref origin/{branch} --base {base}", False)]
+
+
 def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, caminho, bytes_anterior, ref, pareceres):
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
@@ -4305,8 +4484,10 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
+    linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))
     linhas += estado_do_commit(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
+    linhas += linha_do_comando_pr(texto)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
         linhas += conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, pareceres, cobradas)
@@ -5091,7 +5272,7 @@ def main():
     en.add_argument("--base", required=True, help="branch de integração da entrega (develop, homolog ou main)")
     en.add_argument("--base-sha", required=True, help="sha40 da base gravado na delegação (Base-sha)")
     en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA,
-                    help="etapa conferida; `--desde` só vale em codigo, review e qa (pr e merge olham a branch inteira)")
+                    help="etapa conferida; `--desde` vale em todas as etapas (C1)")
     en.add_argument("--brief", action="append", default=[], help="entregas paralelas conferidas juntas: um brief (em docs/briefs/) por entrega, de mesma Branch, Base, Base-sha e pedido; repita a opção; sem ela, a saída é a de sempre")
     en.add_argument("--desde", help="sha40 da última entrega conferida (linha `conferida <sha40>` do Histórico do pedido); o escopo passa a ser só o que veio depois")
     tr = sub.add_parser("transcricao", help="anonimiza e verifica sessões gravadas (ADR 0007)")
@@ -5220,6 +5401,11 @@ def executar(a, raiz):
     if pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
+    if a.cmd == "pr":
+        a.pedido = pedido_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))
+    if a.cmd == "pr" and (uso := uso_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))):
+        print(uso)
+        return 2
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
     for v in violacoes:
