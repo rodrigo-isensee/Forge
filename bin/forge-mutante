@@ -16,8 +16,8 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            (`não coberto: <arquivo>`; tudo o que não é Python nem shell). Python: if, elif, while, ternário, compreensão,
            assert, guarda de match, and/or, comparação, `not`, pelo `ast.parse`. Shell (`.sh`, `.bash`, shebang `sh` ou
            `bash`): `if`, `elif`, `while`, `until`, `[[ ]]`, `[ ]`, `test`, `&&` e `||` (este fora se o lado direito, sem o comentário,
-           é só `true` ou `:`), por regex depois de mascarar aspas, comentário e corpo de heredoc; heredoc sem linha final, aspa solta e
-           texto de `-c`/`eval` com condição saem `não coberto: <arquivo>:<linha>`; `case` e `(( ))` ficam fora. Nada do diff é importado nem executado; lê o commit
+           é só `true` ou `:`), por regex depois de mascarar aspas e comentário; linha com `<<`, `eval`, `-c`, `$((`, `$[` ou terminada em `\\`, a região que ela abre (heredoc, continuação, aritmética
+           multilinha) e a aspa solta saem `não coberto: <arquivo>:<linha>`, sem análise; `case` e `(( ))` ficam fora. Nada do diff é importado nem executado; lê o commit
            com `git show`, nunca a árvore. Cobrir é ter o trecho `de` do mutante, único no arquivo, com a troca dentro
            do nó da condição, `de` de 8+ caracteres e, em Python, troca que muda o `ast`. A condição editada (a velha
            sai e uma nova com nome ou número em comum entra no mesmo hunk, na mesma posição) é coberta pelo mutante da
@@ -86,14 +86,17 @@ FORA_DA_COBERTURA = re.compile(r".*\.md|changelog\.d/.*")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", re.M)
 ROTULO_DA_SPEC = {"D": "removida", "M": "editada"}
 SHEBANG_SH = re.compile(rb"#!.*\b(?:ba)?sh\b")
-# Shell por regex, depois de mascarar aspas, comentário e corpo de heredoc: o comando de `if`/`elif`/`while`/`until`, `[[ ]]`,
+# Shell por regex, depois de tirar as linhas incertas (abaixo) e mascarar aspas e comentário: o comando de `if`/`elif`/`while`/`until`, `[[ ]]`,
 # `[ ]`, `test` e o `&&`/`||` com o seu lado direito. O que o `finditer` acha primeiro é o nó mais externo.
 # Tudo é linear no tamanho do texto: `\\.` come o escape fora das aspas, o par de aspas é consumido pelo `finditer` e o `[[`
 # ou `[ ` sem fecho na linha é apagado antes (`sem_fecho`), para o `[^\n]*?` não varrer a linha a cada abertura.
-FICHA_SH = re.compile(r"""\\.|<<(?!<)-?[ \t]*['"\\]?([A-Za-z_][\w.-]*)['"]?"""
-                      r"""|\$'(?:\\.|[^'\\])*'|'[^']*'|"(?:\\.|[^"\\])*"|(?<![^\s;&|()<>])#[^\n]*|['"]""", re.S)
-EXECUTA_SH = re.compile(r"(?:\s-\w*c|\beval)(?:\s+--)?\s*$")
-COM_CONDICAO_SH = re.compile(r"\b(?:if|elif|while|until|test)\b|\[|&&|\|\|")
+FICHA_SH = re.compile(r"""\\.|\$'(?:\\.|[^'\\])*'|'[^']*'|"(?:\\.|[^"\\])*"|(?<![^\s;&|()<>])#[^\n]*|['"]""", re.S)
+# Corte grosso (decisão do dono, 2026-10-28): a linha com `<<`, `eval`, `-c`, `$((` ou `$[`, ou que termina em `\`, não se
+# analisa: sai `não coberto`, e a região que o varredor não fecha com certeza (corpo de heredoc, continuação, aritmética
+# multilinha) também. `HEREDOC_SH` acha as palavras de fecho da linha; o `<<<` e o `<<` de deslocamento não abrem heredoc.
+LINHA_INCERTA_SH = re.compile(r"<<|\beval|(?<![\w-])-\w*c|\$\(\(|\$\[|\\\s*$")
+HEREDOC_SH = re.compile(r"(?<!<)<<(?!<)-?[ \t]*['\"\\]?([A-Za-z_][\w.-]*)")
+SEM_PALAVRA_SH = re.compile(r"(?<!<)<<(?!<)")
 CONDICAO_SH = re.compile(r"(?<![\w$.-])(?:if|elif|while|until)\s+[^;\n]+|\[\[[^\n]*?\]\]|(?<![\w$\[])\[\s[^\n]*?\s\]"
                          r"|(?<![\w$./-])test\s+[^;&|\n]+|(?:&&|\|\|)[^;&|\n]*")
 # Onde mora a condição em cada tipo de nó; `not` só conta como condição (o `-x` não).
@@ -391,49 +394,36 @@ def eh_shell(arquivo, dados):
     return arquivo.endswith((".sh", ".bash")) or bool(SHEBANG_SH.match(dados.split(b"\n", 1)[0]))
 
 
+def linhas_incertas_sh(linhas):
+    """Índices (de 0) das linhas de shell que a checagem não analisa: a que casa `LINHA_INCERTA_SH` e a região que ela abre
+    (corpo de heredoc até a palavra de fecho ou o fim, continuação com `\\`, aritmética até fechar)."""
+    fora, pendentes, continua, prof = set(), [], False, 0
+    for i, linha in enumerate(linhas):
+        if pendentes:
+            fora.add(i)
+            if linha.strip() == pendentes[0]:
+                pendentes.pop(0)
+            continue
+        if continua or prof or LINHA_INCERTA_SH.search(linha):
+            fora.add(i)
+        continua = linha.rstrip().endswith("\\")
+        resto = linha if prof else linha[min((j for j in (linha.find("$(("), linha.find("$[")) if j >= 0), default=len(linha)):]
+        prof = max(0, prof + resto.count("((") - resto.count("))") + resto.count("$[") - resto.count("]"))
+        palavras = [m[1] for m in HEREDOC_SH.finditer(linha)]
+        sobra = len(SEM_PALAVRA_SH.findall(linha)) > len(palavras) and "((" not in linha and "$[" not in linha
+        pendentes += palavras + ["\0"] * sobra  # `<<` sem palavra de fecho que se leia: o resto do arquivo é incerto
+    return fora
+
+
 def mascarar_sh(t, quebras):
-    """(`t` com aspas, comentário e corpo de heredoc trocados por `_`, {(linha inicial, final) que não se lê com certeza}):
-    heredoc sem a linha final, aspa solta e texto passado a `-c`/`eval` com condição dentro. Um laço, sem retrocesso."""
-    onde, recuadas, tabs, quebras = {}, {}, {}, [*quebras, len(t)]  # a última linha acaba no fim do texto
-    linhas = t.split("\n")
-    for i, linha in enumerate(linhas):  # o terminador é a linha exata; `recuadas` guarda a que só parece (`  EOF`)
-        (onde if linha == linha.strip() else recuadas).setdefault(linha.strip(), []).append(i)
-        tabs.setdefault(linha.lstrip("\t"), []).append(i)
-    n = lambda p: bisect.bisect_left(quebras, p)  # noqa: E731  (linha de 0 a N de um offset)
-    cobrir, corpos, incertas, pos, livre, visto, prof = [], [], set(), 0, 0, 0, 0
+    """(`t` com aspas e comentário trocados por `_`, {(linha, linha) da aspa solta}). Um laço, sem retrocesso."""
+    cobrir, incertas, pos = [], set(), 0
     while (m := FICHA_SH.search(t, pos)):
-        while corpos and m.start() >= corpos[0][1]:
-            corpos.pop(0)
-        if corpos and m.start() >= corpos[0][0]:
-            pos = corpos[0][1]
-            continue
-        pos, ini = m.end(), m.start()
-        _, quebra, linha = t[visto:ini].rpartition("\n")  # `((` aberto na linha: o `<<` é deslocamento, não heredoc
-        prof = max(0, (0 if quebra else prof) + linha.count("((") - linha.count("))"))
-        visto = pos
-        if m.lastindex and prof > 0:
-            continue
-        if m.lastindex:
-            achadas = (tabs if m[0].startswith("<<-") else onde).get(m[1], [])
-            k = bisect.bisect_right(achadas, n(pos))
-            fecha = achadas[k] if k < len(achadas) else len(linhas) - 1
-            r = recuadas.get(m[1], [])
-            j = bisect.bisect_right(r, n(pos))
-            if m[0].startswith("<<-") or k == len(achadas) or j < len(r) and r[j] <= fecha:
-                incertas.add((n(ini) + 1, fecha + 1))  # `<<-`, terminador recuado ou sem fecho: não se lê com certeza
-            if k == len(achadas):
-                continue
-            livre = max(livre, quebras[n(pos)] + 1)
-            fim = quebras[achadas[k]]
-            corpos.append((livre, fim))
-            cobrir.append((livre, fim))
-            livre = fim + 1
-        elif m[0] in ("'", '"'):
-            incertas.add((n(ini) + 1, n(ini) + 1))
+        pos = m.end()
+        if m[0] in ("'", '"'):
+            incertas.add((bisect.bisect_left(quebras, m.start()) + 1,) * 2)
         else:
-            if m[0][0] in "'\"$" and EXECUTA_SH.search(t[max(0, ini - 30):ini]) and COM_CONDICAO_SH.search(m[0]):
-                incertas.add((n(ini) + 1, n(m.end()) + 1))
-            cobrir.append((ini, m.end()))
+            cobrir.append((m.start(), m.end()))
     saida = bytearray(t, "latin-1")
     for ini, fim in cobrir:
         saida[ini:fim] = re.sub(rb"[^\n]", b"_", bytes(saida[ini:fim]))
@@ -452,7 +442,17 @@ def condicoes_sh(texto, incertas=None):
     se dado, recebe o que `mascarar_sh` não leu com certeza."""
     dados = texto.encode("utf-8")
     quebras = [m.start() for m in re.finditer(b"\n", dados)]
-    mascarado, duvidas = mascarar_sh(dados.decode("latin-1"), quebras)
+    linhas = dados.decode("latin-1").split("\n")
+    fora = linhas_incertas_sh(linhas)
+    texto_lido = "\n".join(re.sub(r"[^\n]", "_", x) if i in fora else x for i, x in enumerate(linhas))
+    mascarado, duvidas = mascarar_sh(texto_lido, quebras)
+    trechos = []  # uma entrada por trecho corrido de linhas: [primeira, última]
+    for i in sorted(fora):
+        if trechos and trechos[-1][1] == i:
+            trechos[-1][1] = i + 1
+        else:
+            trechos.append([i + 1, i + 1])
+    duvidas |= {tuple(t) for t in trechos}
     mascarado = "\n".join(map(sem_fecho, mascarado.split("\n")))
     if incertas is not None:
         incertas |= duvidas

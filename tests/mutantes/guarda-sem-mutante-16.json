@@ -1,0 +1,86 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M100",
+      "guarda": "o corpo do heredoc fecha na palavra de fecho",
+      "arquivo": "bin/forge-mutante",
+      "de": "if linha.strip() == pendentes[0]:",
+      "para": "if linha.strip() == '\\0':",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M101",
+      "guarda": "a aritmética multilinha continua incerta até fechar",
+      "arquivo": "bin/forge-mutante",
+      "de": "continua or prof or LINHA_INCERTA_SH",
+      "para": "continua or LINHA_INCERTA_SH",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M102",
+      "guarda": "a linha seguinte a `\\` é incerta",
+      "arquivo": "bin/forge-mutante",
+      "de": "continua = linha.rstrip()",
+      "para": "continua = False and linha.rstrip()",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M103",
+      "guarda": "`$[` multilinha conta como aberta",
+      "arquivo": "bin/forge-mutante",
+      "de": "+ resto.count(\"$[\")",
+      "para": "+ 0",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M104",
+      "guarda": "`<<` sem palavra de fecho deixa o resto incerto",
+      "arquivo": "bin/forge-mutante",
+      "de": "[\"\\0\"] * sobra",
+      "para": "[\"\\0\"] * 0",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M105",
+      "guarda": "`<<` de deslocamento não deixa o resto incerto",
+      "arquivo": "bin/forge-mutante",
+      "de": "and \"((\" not in linha ",
+      "para": "",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M106",
+      "guarda": "`eval` sem `-c` é incerto",
+      "arquivo": "bin/forge-mutante",
+      "de": "<<|\\beval|",
+      "para": "<<|",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
+      ]
+    },
+    {
+      "id": "M107",
+      "guarda": "uma entrada por trecho corrido",
+      "arquivo": "bin/forge-mutante",
+      "de": "trechos[-1][1] == i",
+      "para": "trechos[-1][1] == -1",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    }
+  ]
+}

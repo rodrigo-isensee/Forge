@@ -3,16 +3,6 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M83",
-      "guarda": "o corpo de heredoc já passado sai da lista antes da próxima ficha",
-      "arquivo": "bin/forge-mutante",
-      "de": "while corpos and m.start() >= corpos[0][1]:",
-      "para": "while corpos and m.start() >= corpos[0][0]:",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
-      ]
-    },
-    {
       "id": "M84",
       "guarda": "o laço lê as fichas até o fim do texto",
       "arquivo": "bin/forge-mutante",
@@ -40,16 +30,6 @@
       "para": "h[1].start > b",
       "testes": [
         "tests.test_forge_mutante.Cobertura.test_shell_que_nao_se_le_com_certeza_sai_nao_coberto_e_o_heredoc_com_apostrofo_nao_esconde"
-      ]
-    },
-    {
-      "id": "M87",
-      "guarda": "a ficha de heredoc pula o corpo",
-      "arquivo": "bin/forge-mutante",
-      "de": "if m.lastindex:",
-      "para": "if not m.lastindex:",
-      "testes": [
-        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
       ]
     }
   ]

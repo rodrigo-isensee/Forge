@@ -514,11 +514,18 @@ class Cobertura(unittest.TestCase):
                  "cat <<EOF\nit's fine\nEOF\nif [ -n a ]; then :; fi\necho 'y'\n": ["if [ -n a ]"],  # apóstrofo de heredoc
                  "echo don\\'t; if [ -n a ]; then :; fi; echo 'z'\n": ["if [ -n a ]"],
                  "cat <<'E'\n[ -n a ]\nE\necho $((1<<3))\n": [],
-                 "x=$((1<<EOF))\nif [ -n a ]; then :; fi\nEOF\n": ["if [ -n a ]"],  # `<<` em `$(( ))` não abre heredoc
-                 "x=$((1+2)); cat <<E\n[ -n a ]\nE\n": [], "echo $((1 + '2'\ncat <<E\n[ -n a ]\nE\n": [], "cat <<-E\n\t[ -n a ]\n\tE\n": []}  # corpo de heredoc entre aspas; `<<3` não é heredoc
+                 "x=$((1<<EOF))\nif [ -n a ]; then :; fi\nEOF\n": [],  # `<<` em `$(( ))`: região incerta, não analisada
+                 "x=$((1+2)); cat <<E\n[ -n a ]\nE\n": [], "echo $((1 + '2'\ncat <<E\n[ -n a ]\nE\n": [], "cat <<-E\n\t[ -n a ]\n\tE\n": [],  # corpo de heredoc entre aspas; `<<3` não é heredoc
+                 "x \\\nif [ -n a ]; then :; fi\n": [], "x=$((1 +\n2)); if [ -n a ]; then :; fi\n": [],  # região que o corte não fecha
+                 "x=$((1 +\n2))\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"], "x=$[1 +\n2]; if [ -n a ]; then :; fi\n": [], 'cat <<"$f"\nif [ -n a ]; then :; fi\n': [],
+                 "x=$((1<<3))\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"], "eval $x; if [ -n a ]; then :; fi\n": [],
+                 "bash -c a; if [ -n a ]; then :; fi\n": [], "cat <<<$a\nif [ -n a ]; then :; fi\n": ["if [ -n a ]"]}  # `<<<` não abre região
         for texto, esperado in casos.items():
             with self.subTest(texto):
                 self.assertEqual([c[0] for c in self.f.condicoes_sh(texto)], esperado)
+        incertas = set()
+        self.f.condicoes_sh("a \\\nb\nc\nd \\\n", incertas)
+        self.assertEqual(incertas, {(1, 2), (4, 5)}, "um trecho por região corrida")
         self.assertEqual(self.f.condicoes_sh("é=1\n\n[ é ]\n")[0][1:], (3, 3, 6, 12), "linhas e bytes")
         for nome, dados, sh in (("a.sh", b"", 1), ("b.bash", b"", 1), ("c", b"#!/bin/sh\n", 1), ("d", b"#!/usr/bin/env bash\n", 1),
                                 ("e", b"#!/bin/zsh\n", 0), ("f", b"# sh\n", 0), ("g", b"x\n#!/bin/sh\n", 0),
@@ -540,7 +547,12 @@ class Cobertura(unittest.TestCase):
                  "cat <<EOF\nx\n  EOF\nit's\nEOF\nif [ -f /etc/x ]; then exit 1; fi\n": "run.sh:2",  # terminador recuado
                  "cat <<-EOF\nx\nEOF\n": "run.sh:2", "cat <<EOF\n  EOF\n": "run.sh:2",
                  "eval $'[ -f /etc/x ] && exit 1'\n": "run.sh:2", "bash -c -- '[ -f /etc/x ] && exit 1'\n": "run.sh:2",
-                 "sh -lc \"[ -f /etc/x ] && exit 1\"\n": "run.sh:2"}
+                 "sh -lc \"[ -f /etc/x ] && exit 1\"\n": "run.sh:2",
+                 "x=$((1 +\n1<<EOF))\nif [ -f /etc/x ]; then exit 1; fi\nEOF\n": "run.sh:2",  # aritmética multilinha
+                 "x=$[1 +\n1<<EOF]\nif [ -f /etc/x ]; then exit 1; fi\nEOF\n": "run.sh:2",
+                 "eval $\"[ -f /etc/x ] && exit 1\"\n": "run.sh:2", "bash -c \\\n  '[ -f /etc/x ] && exit 1'\n": "run.sh:2",
+                 "eval \"true;\"'[ -f /etc/x ] && exit 1'\n": "run.sh:2", "bash -c -e \"[ -f /etc/x ] && exit 1\"\n": "run.sh:2",
+                 "cat <<EOF\n$(if [ -f /etc/x ]; then exit 1; fi)\nEOF\n": "run.sh:2"}
         for texto, linha in casos.items():
             with self.subTest(texto):
                 self.salvar({"run.sh": "#!/bin/sh\n" + texto})
@@ -548,7 +560,7 @@ class Cobertura(unittest.TestCase):
                 self.assertIn(f"não coberto: {linha}", r.stdout)
                 self.assertNotIn("não coberto: run.sh:1", r.stdout)
         self.salvar({"run.sh": "#!/bin/sh\ncat <<EOF\nx\n  EOF\nit's\nEOF\nif [ -f /etc/x ]; then exit 1; fi\n"})
-        self.assertIn("sem mutante · run.sh:7 · if [ -f /etc/x ]", self.cobertura().stdout)  # fecha no `EOF` exato
+        self.assertIn("sem mutante · run.sh:7 · if [ -f /etc/x ]", self.cobertura().stdout)  # o terminador recuado já fecha o corpo; o resto volta a ser lido
         self.salvar({"run.sh": "#!/bin/sh\ncat <<EOF\nit's\nEOF\nif [ -f /etc/passwd ]; then :; fi\necho 'y'\n"})
         self.assertIn("sem mutante · run.sh:5 · if [ -f /etc/passwd ]", self.cobertura().stdout)
 

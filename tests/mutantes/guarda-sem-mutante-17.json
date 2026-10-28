@@ -1,0 +1,46 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M108",
+      "guarda": "o corpo do heredoc não é lido como código",
+      "arquivo": "bin/forge-mutante",
+      "de": "if pendentes:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M109",
+      "guarda": "a aritmética aberta lê a linha inteira até fechar",
+      "arquivo": "bin/forge-mutante",
+      "de": "linha if prof else",
+      "para": "linha if False else",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M110",
+      "guarda": "só `$((`/`$[` achados abrem a contagem",
+      "arquivo": "bin/forge-mutante",
+      "de": "linha.find(\"$[\")) if j >= 0",
+      "para": "linha.find(\"$[\")) if j >= -1",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    },
+    {
+      "id": "M111",
+      "guarda": "a linha incerta é apagada antes da análise",
+      "arquivo": "bin/forge-mutante",
+      "de": "if i in fora else x",
+      "para": "if False else x",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_shell_por_regex_com_aspas_comentario_e_o_ou_que_nao_guarda"
+      ]
+    }
+  ]
+}
