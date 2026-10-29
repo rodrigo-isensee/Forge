@@ -1,0 +1,56 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "-c core.worktree desvia o repositorio",
+      "arquivo": "hooks/parecer.py",
+      "de": "or toks[i] == \"-c\" and valor.lower().startswith(\"core.worktree\")",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "o valor das opcoes globais e pulado",
+      "arquivo": "hooks/parecer.py",
+      "de": "i += 2 if toks[i] in GIT_COM_VALOR else 1",
+      "para": "i += 2 if False else 1",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "GIT_DIR no ambiente desvia o repositorio",
+      "arquivo": "hooks/parecer.py",
+      "de": "if desviado or pastas is None:",
+      "para": "if pastas is None:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "sem pasta resolvida o gh vale a pasta da sessao",
+      "arquivo": "hooks/parecer.py",
+      "de": "raiz_gh = pasta or hook.cwd()",
+      "para": "raiz_gh = pasta",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "pushd e popd tornam a pasta desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "if comando[:1] in ([\"pushd\"], [\"popd\"]) or comando[:1] == [\"cd\"] and len(comando) < len(sem):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

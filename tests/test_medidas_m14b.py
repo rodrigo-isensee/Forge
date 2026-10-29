@@ -1,6 +1,8 @@
 """MEDIR-M14B: as medidas que dão a linha de base do processo antes de qualquer afrouxamento (esperas, PR `fix` que corrige PR
 mesclado, defeito escapado, rótulo `afrouxa-regra` que era afrouxamento real) e o casamento do `--pedido` do custo com os cartões."""
 import datetime
+import importlib.machinery
+import importlib.util
 import json
 import os
 import re
@@ -12,6 +14,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
 from test_voltas import Raiz  # noqa: E402
+
+
+def carregar_forge_check_m14b():
+    carregador = importlib.machinery.SourceFileLoader("forge_check_m14b", str(Path(__file__).resolve().parent.parent / "bin" / "forge-check"))
+    modulo = importlib.util.module_from_spec(importlib.util.spec_from_loader(carregador.name, carregador))
+    carregador.exec_module(modulo)
+    return modulo
+
 
 CABECALHO_HISTORICO = "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
 
@@ -274,9 +284,9 @@ class DefeitoEscapado(Raiz):
         cod, saida, _ = self.rodar(*ESCAPE)
         self.assertEqual(cod, 0)
         linhas = self.arquivo().splitlines()
-        self.assertEqual(linhas[0], "| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota |")
-        self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|")
-        self.assertRegex(linhas[2], r"^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| ped-1 \| docs/qa/ped-1\.md \| uso \| alto \| qa \| quebra ao abrir o painel \|$")
+        self.assertEqual(linhas[0], "| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota | origem |")
+        self.assertEqual(linhas[1], "|---|---|---|---|---|---|---|---|")
+        self.assertRegex(linhas[2], r"^\| \d{4}-\d{2}-\d{2} \d{2}:\d{2} \| ped-1 \| docs/qa/ped-1\.md \| uso \| alto \| qa \| quebra ao abrir o painel \| nao-classificado \|$")
         self.assertEqual(saida, [linhas[2]])
         self.rodar(*self.com(pedido="ped-2"))
         self.assertEqual(len(self.arquivo().splitlines()), 4)  # só acrescenta
@@ -319,7 +329,44 @@ class DefeitoEscapado(Raiz):
         self.assertEqual(cod, 0)
         self.assertEqual(saida, ["escapes: gravidade: critico=1 alto=1 medio=0 baixo=0",
                                  "escapes: controle: review=0 seguranca=0 qa=1 conferencia=0 ci=0 nenhum=1",
+                                 "escapes: origem: spec=0 ux=0 arquitetura=0 codigo=0 teste=0 brief=0 nao-classificado=2",
                                  "escapes: total: escapes=2 pedidos_prontos=2 taxa=1.00 dias=30"])
+
+    def test_aq1_origem_gravada_na_ultima_coluna_e_o_padrao_e_nao_classificado(self):  # AQ1 T3 (E4): sucesso
+        cod, saida, _ = self.rodar(*ESCAPE, "--origem", "codigo")
+        self.assertEqual(cod, 0)
+        self.assertRegex(saida[0], r"\| quebra ao abrir o painel \| codigo \|$")
+        for origem in ("spec", "ux", "arquitetura", "teste", "brief", "nao-classificado"):
+            with self.subTest(origem):
+                self.assertEqual(self.rodar(*ESCAPE, "--origem", origem)[0], 0)
+                self.assertTrue(self.arquivo().splitlines()[-1].endswith(f"| {origem} |"))
+
+    def test_aq1_origem_invalida_e_recusada_sem_gravar_e_sem_ecoar_o_valor(self):  # AQ1 T3 (E4): falha
+        for valor in ("design", "Codigo", "", "codigo|x", "spec\nux"):
+            with self.subTest(valor):
+                cod, saida, _ = self.rodar(*ESCAPE, "--origem", valor)
+                self.assertEqual(cod, 1)
+                self.assertEqual(len(saida), 1, saida)
+                self.assertIn("escape: --origem deve ser um de spec, ux, arquitetura, codigo, teste, brief, nao-classificado", saida[0])
+                self.assertNotIn("design", saida[0])
+        self.assertFalse((self.tmp / "docs/kanban/escapes.md").exists())
+
+    def test_aq1_resumo_conta_por_origem_e_le_a_linha_antiga_sem_a_coluna_como_nao_classificado(self):
+        self.rodar(*ESCAPE, "--origem", "spec")
+        self.rodar(*self.com(pedido="ped-2"), "--origem", "codigo")
+        self.rodar(*self.com(pedido="ped-3"), "--origem", "codigo")
+        hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
+        antiga = f"| {hora} | velho | docs/qa/v.md | uso | baixo | review | linha de antes da coluna |\n"  # 7 colunas, dentro da janela
+        invalida = f"| {hora} | torto | docs/qa/t.md | uso | baixo | review | origem fora da lista | inventada |\n"
+        (self.tmp / "docs/kanban/escapes.md").write_text(self.arquivo() + antiga + invalida, encoding="utf-8")
+        cod, saida, _ = self.rodar("escape", "resumo")
+        self.assertEqual(cod, 0)
+        self.assertIn("escapes: origem: spec=1 ux=0 arquitetura=0 codigo=2 teste=0 brief=0 nao-classificado=2", saida)
+        self.assertEqual(saida[-1], "escapes: total: escapes=5 pedidos_prontos=0 taxa=- dias=30")
+        mod = carregar_forge_check_m14b()
+        self.assertEqual(mod.origem_do_escape(antiga.strip().strip("|").split("|")), "nao-classificado")
+        self.assertEqual(mod.origem_do_escape(["a"] * 7), "nao-classificado")
+        self.assertEqual(mod.origem_do_escape(["a"] * 7 + ["brief"]), "brief")
 
     def test_resumo_sem_arquivo_nem_historico_zera_e_a_taxa_e_traco(self):
         cod, saida, _ = self.rodar("escape", "resumo", "--dias", "7")

@@ -1,0 +1,56 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "o checkout na pasta resolvida muda a branch da linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "raiz = raiz_de_estado(onde) if onde else None",
+      "para": "raiz = raiz_de_estado(onde) if False else None",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "checkout em pasta desconhecida desvia o resto da linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "desviado |= onde is None",
+      "para": "desviado |= False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "merge em pasta desconhecida recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "if onde is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "pasta desconhecida com caminho absoluto se refaz",
+      "arquivo": "hooks/parecer.py",
+      "de": "os.path.join(base or \"\", palavra)",
+      "para": "os.path.join(base, palavra)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "cd com argumento a mais nao se resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "if len(args) != 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

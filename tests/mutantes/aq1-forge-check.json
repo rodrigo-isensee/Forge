@@ -1,0 +1,86 @@
+{
+  "pedido": "aq1-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "decisoes_cobradas segue o Depende de do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "    for dep in dependencias_do_texto(pedido_txt)[0]:",
+      "para": "    for dep in []:",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_traz_a_decisao_do_origem_e_a_cobra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a dependencia divide o teto de fontes",
+      "arquivo": "bin/forge-check",
+      "de": "        vistos.add(rel)\n        if len(vistos) > TETO_DE_FONTES:",
+      "para": "        vistos.add(rel)\n        if False:",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_divide_o_teto_de_fontes"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "dependencia sem registro e informativa, nao reprova",
+      "arquivo": "bin/forge-check",
+      "de": "legível {nome_seguro(rel)} (informativo)\", False))",
+      "para": "legível {nome_seguro(rel)} (informativo)\", True))",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_sem_registro_e_informativo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "dependencia do proprio pedido ou repetida nao vira fonte duas vezes",
+      "arquivo": "bin/forge-check",
+      "de": "        if rel == proprio or rel in vistos:",
+      "para": "        if rel in vistos:",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_si_mesmo_ou_repetido_conta_uma_fonte_so"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "volta reprova recomendacao incluida sem DECISAO TECNICA",
+      "arquivo": "bin/forge-check",
+      "de": "        if incluida and not tem_decisao_tecnica(pedido_txt, incluida.group(3)):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_recomendacao_incluida_sem_decisao_tecnica_reprova_e_o_gerar_pede_a_linha"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a DECISAO TECNICA precisa citar o id do achado",
+      "arquivo": "bin/forge-check",
+      "de": "FRASE_TECNICA) and citacao.search(l) for l in",
+      "para": "FRASE_TECNICA) and True for l in",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_decisao_tecnica_de_outro_id_ou_fora_do_historico_nao_cobre"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a DECISAO TECNICA vale so no Historico do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "secoes_por(pedido_txt, CABECALHO_PEDIDO).get(\"Histórico\", []))",
+      "para": "pedido_txt.split(\"\\n\"))",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_decisao_tecnica_de_outro_id_ou_fora_do_historico_nao_cobre"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o gerar so pede a DECISAO TECNICA que falta",
+      "arquivo": "bin/forge-check",
+      "de": "for parecer, achado in incluidas if not tem_decisao_tecnica(pedido_txt, achado[\"id\"])]",
+      "para": "for parecer, achado in incluidas if True]",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_recomendacao_incluida_sem_decisao_tecnica_reprova_e_o_gerar_pede_a_linha"
+      ]
+    }
+  ]
+}

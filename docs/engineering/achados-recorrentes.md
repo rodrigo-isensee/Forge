@@ -12,4 +12,11 @@ Uma linha por achado recorrente, no máximo 20; só classe, ID da regra, contage
 O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Quem escreve: o `tech-lead` (review) e o `security-engineer`, no mesmo PR do parecer. Sai a linha sem ocorrência em 90 dias.
 
 ## Achados
-- AR-1 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
+- AR-1 · qa · lista de mutantes incompleta · R-QA · vezes: 6 · última: tests/mutantes/lote-fechar2.json:1
+- AR-2 · qa · ramo de falha de guarda sem teste de comportamento · R-QA · vezes: 2 · última: bin/forge-fechar:177
+- AR-3 · seguranca · lista negativa em trava de ambiente · R-SEGURANCA · vezes: 3 · última: tests/test_ci_local.py:36
+- AR-4 · review · teste herda o ambiente do CI · R-REVIEW · vezes: 2 · última: tests/test_suite_paralela.py:181
+- AR-5 · seguranca · python sem -I em caminho que decide · R-SEGURANCA · vezes: 2 · última: .githooks/pre-push:264
+- AR-6 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
+- AR-7 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/parecer.py:257
+- AR-8 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 3 · última: hooks/parecer.py:224
