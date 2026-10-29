@@ -1,0 +1,38 @@
+{
+  "pedido": "pn1-desde-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o Base-sha como Desde deixa de valer e a entrega sem conferida volta a travar",
+      "arquivo": "bin/forge-check",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head):",
+      "para": "if False:",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_sem_conferida_o_base_sha_vale_como_a_branch_inteira"]
+    },
+    {
+      "id": "M2",
+      "guarda": "qualquer --desde sem conferida passa a valer como a branch inteira",
+      "arquivo": "bin/forge-check",
+      "de": "desde == base_sha and",
+      "para": "True and",
+      "testes": ["tests.test_conferencia_base_dono.BaseDoDono.test_sem_a_linha_do_dono_o_comportamento_e_o_de_hoje"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o Base-sha vale como Desde mesmo com conferida no Historico",
+      "arquivo": "bin/forge-check",
+      "de": "all(o != \"conferida\" for _, o in bases_do_pedido(texto))",
+      "para": "True",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a branch que nao nasce do Base-sha passa a aceitar o Base-sha como Desde",
+      "arquivo": "bin/forge-check",
+      "de": "and e_ancestral(raiz, base_sha, head))",
+      "para": "and True)",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_branch_que_nao_nasce_do_base_sha_segue_recusada"]
+    }
+  ]
+}
