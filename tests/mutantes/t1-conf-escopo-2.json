@@ -1,0 +1,69 @@
+{
+  "pedido": "t1-conf-escopo",
+  "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "ler_frontmatter(texto)[0] or {\"tipo\": None}",
+      "motivo": "defesa de frontmatter ilegivel: vira {} e o valido da False porque o tipo nao confere, que M23 cobre"
+    }
+  ],
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "com --desde o delta da etapa merge-integracao segue lido como sempre, sem a checagem dos pareceres",
+      "arquivo": "bin/forge-check",
+      "de": "etapa == \"merge-integracao\" and valido is None",
+      "para": "etapa == \"merge-integracao\"",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desde_nas_etapas_de_branch_inteira_le_so_o_delta"]
+    },
+    {
+      "id": "M18",
+      "guarda": "o aceite do usuario nunca e ok na merge-integracao",
+      "arquivo": "bin/forge-check",
+      "de": "revisados and not violacoes and not nome.startswith(ACEITES_DO_USUARIO)",
+      "para": "revisados and not violacoes",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_aceite_e_config_nunca_sao_anexo_nem_com_pareceres_aprovados"]
+    },
+    {
+      "id": "M19",
+      "guarda": "tests/config.json nunca e ok na merge-integracao",
+      "arquivo": "bin/forge-check",
+      "de": "nome != \"tests/config.json\":  # E1",
+      "para": "True:  # E1",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_aceite_e_config_nunca_sao_anexo_nem_com_pareceres_aprovados"]
+    },
+    {
+      "id": "M20",
+      "guarda": "dois pedidos nos reviews do mergeCommit nao escolhem um: reprova",
+      "arquivo": "bin/forge-check",
+      "de": "len(pedidos) == 1",
+      "para": "len(pedidos) >= 1",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_dois_pedidos_nos_reviews_do_squash_reprovam"]
+    },
+    {
+      "id": "M21",
+      "guarda": "o parecer trazido por merge precisa de parecer valido",
+      "arquivo": "bin/forge-check",
+      "de": "fm.get(\"parecer\") in (\"aprovado\", \"reprovado\")",
+      "para": "True",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_trazido_por_merge_so_vale_com_tipo_parecer_e_branch_do_pedido"]
+    },
+    {
+      "id": "M22",
+      "guarda": "o parecer trazido por merge precisa da branch do pedido",
+      "arquivo": "bin/forge-check",
+      "de": "fm.get(\"branch\") == f\"melhoria/{slug}\"",
+      "para": "True",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_trazido_por_merge_so_vale_com_tipo_parecer_e_branch_do_pedido"]
+    },
+    {
+      "id": "M23",
+      "guarda": "o parecer trazido por merge precisa do tipo da pasta",
+      "arquivo": "bin/forge-check",
+      "de": "fm.get(\"tipo\") == tipo and fm.get(\"parecer\")",
+      "para": "fm.get(\"parecer\")",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_trazido_por_merge_so_vale_com_tipo_parecer_e_branch_do_pedido"]
+    }
+  ]
+}
