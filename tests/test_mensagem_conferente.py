@@ -10,6 +10,8 @@ from test_forge import ARQ, ID, Cenario  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 SHA_A, SHA_B, BASE_SHA = "a" * 40, "b" * 40, "c" * 40
+SEM_WORKTREE = "--entrega exige --worktree <pasta absoluta existente> e não aceita --anterior, --ref nem --parecer"
+SEM_CABECALHO = "--entrega exige `Etapa:`, `Branch:`, `Base:` e `Base-sha:` (40 hex) no cabeçalho do brief"
 CABECALHO = f"Etapa: codigo   Cobre: E1.1\nBranch: melhoria/x   Base: develop   Base-sha: {BASE_SHA}\n"
 
 
@@ -52,13 +54,47 @@ class MensagemPelaEtapaDoBrief(Cenario):
         self.assertEqual(rc, 0, saida)
         self.assertNotIn("Desde:", saida.decode())
 
-    def test_entrega_recusa_worktree_ausente_relativa_ou_inexistente_e_brief_sem_branch(self):
-        valida = ("--worktree", str(self.pasta))
-        for extra in ((), ("--worktree", "."), ("--worktree", str(self.pasta / "nao-existe")), (*valida, "--ref", "melhoria/x")):
+    def test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono(self):
+        dono = f"- 2026-10-29 11:00: base do delta fixada pelo dono {SHA_B}\n"
+        decisao = "DECISÃO DO DONO (2026-10-29): \"fixar a base\".\n"
+        conferida = f"- 2026-10-29 07:36: entrega conferida {SHA_A}\n"
+        casos = {"dono depois da conferida": (decisao + conferida + dono, SHA_B), "so a do dono": (decisao + dono, SHA_B),
+                 "conferida depois do dono": (decisao + dono + conferida, SHA_A)}
+        for nome, (historico, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida = self.entrega("--worktree", str(self.pasta), pedido_extra=historico)
+                self.assertEqual(rc, 0, saida)
+                self.assertIn(f"Desde: {esperado}", saida.decode().splitlines())
+
+    def recusa(self, motivo, *extra):
+        rc, saida = self.entrega(*extra)
+        self.assertEqual(rc, 2, saida)
+        self.assertEqual(saida.decode().strip(), f"brief mensagem: {motivo}")
+
+    def test_entrega_sem_worktree_e_recusada(self):
+        self.recusa(SEM_WORKTREE)
+
+    def test_entrega_com_worktree_relativo_e_recusada(self):
+        self.recusa(SEM_WORKTREE, "--worktree", ".")
+
+    def test_entrega_com_worktree_inexistente_e_recusada(self):
+        self.recusa(SEM_WORKTREE, "--worktree", str(self.pasta / "nao-existe"))
+
+    def test_entrega_com_ref_anterior_ou_parecer_e_recusada(self):
+        for extra in (("--ref", "melhoria/x"), ("--anterior", ARQ), ("--parecer", "docs/reviews/x.md")):
             with self.subTest(extra=extra):
-                self.assertEqual(self.entrega(*extra)[0], 2)
-        self.gravar(ARQ, self.completo.replace("Branch: melhoria/x   ", ""))
-        self.assertEqual(self.entrega(*valida)[0], 2)
+                self.recusa(SEM_WORKTREE, "--worktree", str(self.pasta), *extra)
+
+    def test_entrega_com_controle_no_worktree_e_recusada_sem_imprimir_o_valor(self):
+        rc, saida = self.entrega("--worktree", str(self.pasta) + "\x01")
+        self.assertEqual(rc, 2, saida)
+        self.assertEqual(saida.decode().strip(), "brief mensagem: o campo --worktree tem o caractere de controle ou de formato U+0001")
+
+    def test_brief_sem_etapa_branch_base_ou_base_sha_recusa_a_entrega(self):
+        for faltando in ("Etapa: codigo   ", "Branch: melhoria/x   ", "Base: develop   ", f"   Base-sha: {BASE_SHA}"):
+            with self.subTest(faltando=faltando):
+                self.gravar(ARQ, self.completo.replace(faltando, "", 1))
+                self.recusa(SEM_CABECALHO, "--worktree", str(self.pasta))
 
 
 if __name__ == "__main__":

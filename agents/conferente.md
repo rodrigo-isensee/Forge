@@ -66,9 +66,14 @@ Qualquer campo diferente de `ok` (menos `não verificável` e `corte: etapa (ok)
 **Entrada** (a saída de `forge-check brief mensagem --entrega`, que o Jarvis envia inteira; o relatório do autor **não** vem, e você não o pede):
 ```
 modo: entrega
-Pedido: <id>            Agente conferido: forge:<nome>
-Arquivo: docs/briefs/<pedido>-<destino>-<n>.md
-Worktree: <caminho>     Branch: <b>   Base: <develop|homolog|main>   Base-sha: <sha de git rev-parse da base, gravado pelo Jarvis>   Desde: <sha40 da última `conferida` do Histórico, gravado pelo Jarvis; ausente na primeira conferência>
+Pedido: <id>
+Agente conferido: forge:<nome>
+Arquivo: <caminho absoluto do brief em docs/briefs/<pedido>-<destino>-<n>.md>
+Worktree: <caminho absoluto>
+Branch: <b>
+Base: <develop|homolog|main>
+Base-sha: <sha de git rev-parse da base, lido do cabeçalho do brief>
+Desde: <sha40 da linha mais recente do Histórico (`conferida` ou base fixada pelo dono), lido pelo comando; ausente na primeira conferência>
 Brief-sha256: <o hash completo da linha `arquivo:` do modo brief aprovado>
 Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>
 Objetivo / Entregar / Fora do escopo / Decisões e restrições / Pronto quando (PQ-n): <cópia literal do brief aprovado>
