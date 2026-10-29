@@ -5038,10 +5038,23 @@ class TetoPorPr(unittest.TestCase):
     def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("400 linhas alteradas de código e teste",
+            for frase in ("linhas alteradas de código e teste",
                           "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+    def test_teto_de_150_linhas_tambem_no_jarvis(self):
+        texto = (RAIZ / "agents/jarvis.md").read_text(encoding="utf-8")
+        self.assertIn("150 linhas alteradas de código e teste", texto)
+        self.assertNotIn("400 linhas", texto)
+
+    def test_teto_de_150_linhas_e_um_comportamento_por_pr_no_tech_lead_e_na_skill(self):
+        for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            with self.subTest(arquivo=caminho):
+                self.assertIn("até 150 linhas alteradas de código e teste", texto)
+                self.assertNotIn("400 linhas", texto)
+                self.assertIn("um comportamento só", texto)
 
     def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
@@ -5059,6 +5072,25 @@ class TetoPorPr(unittest.TestCase):
             with self.subTest(frase=frase):
                 self.assertIn(frase, texto)
         self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
+
+    def test_a_skill_de_qa_divide_a_spec_no_mesmo_limite_que_a_ferramenta(self):
+        texto = (RAIZ / "skills/qa-testing/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("3 a 16 mutantes", texto)
+        self.assertIn("Pedido com mais de 16 mutantes divide", texto)
+        self.assertNotIn("mais de 8 mutantes", texto)
+
+
+class VerificadoresDoAutor(unittest.TestCase):
+    """VEL-P1P10, E3: o autor roda a mutação no diff, o shellcheck e a suíte do item antes do push."""
+
+    def test_o_tech_lead_e_os_agentes_de_stack_listam_os_verificadores(self):
+        for caminho in ("agents/tech-lead.md", "stacks/node-react/agents/node-backend.md",
+                        "stacks/node-react/agents/react-frontend.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in ("a mutação só no diff com a spec", "`shellcheck` no shell tocado", "a suíte do item"):
+                with self.subTest(arquivo=caminho, frase=frase):
+                    self.assertIn(frase, texto)
+            self.assertIn("Antes do push", texto)
 
 
 class BloqueanteSoComDefeitoProvado(unittest.TestCase):

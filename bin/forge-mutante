@@ -3,12 +3,14 @@
 
 Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
      forge-mutante --cobertura --base SHA [--rev REV]
-  SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 8 mutantes
+  SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 16 mutantes
            divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
            {"pedido": "<id>", "executor": "unittest",
             "mutantes": [{"id": "M1", "guarda": "<o que a linha protege>", "arquivo": "<caminho relativo>",
                           "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
+           Mutante equivalente declarado: no lugar de `testes`, o campo `equivalente` com a justificativa (20+
+           caracteres; sem ela a spec é recusada). Não roda nem dá rc 1; sai `equivalente: <id> · <justificativa>`.
   --rev    commit a mutar (padrão HEAD)
   --prazo  por execução de testes, em segundos (padrão 600)
   --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição mudada no diff `merge-base(SHA, REV)..REV`
@@ -34,7 +36,7 @@ quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem ve
 
 Saída: 0 = todos morreram; 1 = algum sobreviveu e nenhum é inválido; 2 = spec inválida, controle vermelho,
 mutante inválido ou sem veredito. Atenção: o 0 aqui é "provado", o inverso do costume das ferramentas de mutação.
-Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 8 mutantes por spec. Sem shell. Uma spec
+Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec
 inválida barra todas antes de rodar qualquer mutante.
 
 A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
@@ -61,7 +63,7 @@ from pathlib import Path
 LOG = Path(".forge/run/testes.log")
 PRAZO_PADRAO = 600
 PRAZO_MAXIMO = 3600
-MAXIMO_DE_MUTANTES = 8
+MAXIMO_DE_MUTANTES = 16  # o pedido de 2 a 3 itens num lote: 21 dos 23 pedidos com spec cabem em um arquivo
 MAXIMO_DA_SPEC = 65536
 MAXIMO_DO_TRECHO = 4000
 # Arquivo de teste ou dado de teste não se muta (mutar o teste "mata" qualquer mutante). Mesma lista do
@@ -72,6 +74,7 @@ CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes", "isentas"}
 CHAVES_DA_ISENTA = {"arquivo", "trecho", "motivo"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
+CHAVES_DO_EQUIVALENTE = (CHAVES_DO_MUTANTE - {"testes"}) | {"equivalente"}  # a justificativa vai no campo
 EXECUTORES = {"unittest"}
 MAXIMO_DE_ARQUIVOS = 300
 MAXIMO_DO_ARQUIVO = 1 << 20
@@ -219,8 +222,9 @@ def validar_spec(dados):
     vistos = set()
     for i, m in enumerate(mutantes, 1):
         nome = f"mutante {i}"
-        if not isinstance(m, dict) or set(m) != CHAVES_DO_MUTANTE:
-            problemas.append(f"{nome}: precisa das chaves {', '.join(sorted(CHAVES_DO_MUTANTE))}")
+        chaves = CHAVES_DO_EQUIVALENTE if isinstance(m, dict) and "equivalente" in m else CHAVES_DO_MUTANTE
+        if not isinstance(m, dict) or set(m) != chaves:
+            problemas.append(f"{nome}: precisa das chaves {', '.join(sorted(chaves))}")
             continue
         if not isinstance(m["id"], str) or not ID_DE_MUTANTE.fullmatch(m["id"]) or m["id"] in vistos:
             problemas.append(f"{nome}: id fora de [A-Za-z0-9_-]{{1,32}} ou repetido")
@@ -235,7 +239,11 @@ def validar_spec(dados):
         if m["de"] == m["para"]:
             problemas.append(f"{nome}: para igual ao de")
         problemas += [f"{nome}: {p}" for p in validar_caminho(m["arquivo"])]
-        testes = m["testes"]
+        if "equivalente" in m:
+            if not isinstance(m["equivalente"], str) or len(m["equivalente"].strip()) < 20:
+                problemas.append(f"{nome}: equivalente exige a justificativa (texto de 20+ caracteres)")
+            continue
+        testes = m.get("testes")
         if not isinstance(testes, list) or not testes or not all(id_de_teste_valido(t) for t in testes):
             problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
     return problemas
@@ -252,6 +260,17 @@ def validar_isentas(lista):
                  and len(i["motivo"].strip()) >= 20 and not validar_caminho(i["arquivo"]))
         problemas += [] if certa else [f"isenta {n}: arquivo, trecho (8+ não brancos) e motivo (20+ caracteres)"]
     return problemas
+
+
+def linha_do_equivalente(sha, m):
+    """O equivalente declarado não roda: só confere que o `de` existe uma vez no arquivo do commit. (linha, válido)."""
+    try:
+        n = ler_no_commit(sha, m["arquivo"]).decode("utf-8").count(m["de"])
+    except ValueError:  # ilegível ou fora do UTF-8
+        n = 0
+    if n != 1:
+        return f"{m['id']} · inválido · {m['arquivo']} · o trecho aparece {n} vezes no arquivo (precisa de exatamente uma)", False
+    return f"equivalente: {m['id']} · {' '.join(m['equivalente'].split())}", True
 
 
 def id_de_teste_valido(teste):
@@ -537,6 +556,11 @@ def principal(specs, sha, prazo):
     inicio = time.monotonic()
     try:
         for m in (m for _, dados in specs for m in dados["mutantes"]):
+            if "equivalente" in m:
+                linha, valido = linha_do_equivalente(sha, m)
+                linhas.append(linha)
+                codigo = codigo if valido else 2
+                continue
             copia = trabalho / m["id"]
             montar_copia(raiz, copia, sha)
             chave = tuple(m["testes"])
