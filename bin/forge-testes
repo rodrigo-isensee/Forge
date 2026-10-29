@@ -71,7 +71,7 @@ FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao
                "test_conf_escopo", "test_conferencia_registrar", "test_erros_no_brief", "test_hook_ansi_c",
                "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_volta_por_delta", "test_voltas") + VOLTA_UNICA
+               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
 LEITORES_DE_TEXTO = ("test_citacao", "test_clareza", "test_dependabot_modelo", "test_erros_no_brief",
@@ -99,7 +99,7 @@ MAPA = [
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
     (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
                    "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta") + VOLTA_UNICA),
+                   "test_hooks_parecer_pasta", "test_esperar_estado") + VOLTA_UNICA),
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
@@ -110,6 +110,7 @@ MAPA = [
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta",)),
+    (r"skills/esperar-estado/.*|agents/tech-lead\.md", CONTEUDO + ("test_esperar_estado",)),
     (r"(agents|skills|docs)/.*", CONTEUDO),
     (r"README\.md", ("test_forge",)),
     (r"CONTRIBUTING\.md", ("test_forge", "test_changelog")),
