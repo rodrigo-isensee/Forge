@@ -1,0 +1,30 @@
+{
+  "descricao": "HK3-PARECER, PR A, volta 3: o cd em posição que o hook não lê, o popd e a troca de branch em outra pasta (HK3-03).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "! cd {raiz}; git merge melhoria/x"
+    },
+    "cwd": "{tmp}/home/wtx"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não resolve"
+  }
+}

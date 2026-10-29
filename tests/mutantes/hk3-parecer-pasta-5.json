@@ -1,0 +1,16 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M32",
+      "guarda": "Q3: --git-dir= e --work-tree= na forma com igual desviam o repositório",
+      "arquivo": "hooks/parecer.py",
+      "de": "or toks[i].startswith((\"--git-dir=\", \"--work-tree=\"))",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

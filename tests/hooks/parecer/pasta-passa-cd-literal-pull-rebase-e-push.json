@@ -1,0 +1,29 @@
+{
+  "descricao": "HK3-PARECER, PR A (E1 e E3): a pasta do git é a do bash e a do git; a partir de a integração, passa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd {tmp}/home/wtx && git pull --rebase origin melhoria/x && git push origin HEAD:refs/heads/melhoria/x"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

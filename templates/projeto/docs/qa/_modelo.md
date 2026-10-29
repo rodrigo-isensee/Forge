@@ -20,6 +20,8 @@ Formato do bloco `## Achados` (lido por máquina em `forge-check brief gerar --v
 
 Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou segurança com gatilho; o resto é `recomendado` e não devolve. Promover recomendação a bloqueante exige `critério mudou:` com o motivo no achado.
 
+Avisos (o pre-push e o `forge-check docs` barram): cite o ID da regra, sem copiar a frase dela; cada achado em até 300 caracteres.
+
 ## Achados
 
 ## Critério → teste → resultado

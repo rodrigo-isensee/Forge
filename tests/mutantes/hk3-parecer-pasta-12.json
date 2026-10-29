@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M85",
+      "guarda": "pasta que nao existe nao se resolve, conferida como escrita",
+      "arquivo": "hooks/parecer.py",
+      "de": "if not os.path.isdir(caminho):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M86",
+      "guarda": "o -C segue o link antes do `..`",
+      "arquivo": "hooks/parecer.py",
+      "de": "os.path.realpath(caminho) if fisico else",
+      "para": "os.path.normpath(caminho) if fisico else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M87",
+      "guarda": "HOME mexido na linha torna o ~ desconhecido",
+      "arquivo": "hooks/parecer.py",
+      "de": "return None if \"HOME\" in mexidas else",
+      "para": "return None if False else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M88",
+      "guarda": "CDPATH mexido na linha vale a marca da linha",
+      "arquivo": "hooks/parecer.py",
+      "de": "cdpath = None if \"CDPATH\" in mexidas else",
+      "para": "cdpath = None if False else",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M89",
+      "guarda": "atribuicao por prefixo (`HOME=x cd`) mexe na variavel",
+      "arquivo": "hooks/parecer.py",
+      "de": "nomes = {ATRIBUICAO.match(a).group(1) for a in palavras[:k]}",
+      "para": "nomes = set()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M90",
+      "guarda": "export e declare com NOME=valor mexem na variavel",
+      "arquivo": "hooks/parecer.py",
+      "de": "nomes |= {m.group(1) for m in map(ATRIBUICAO.match, comando) if m}",
+      "para": "nomes |= set()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M91",
+      "guarda": "read, printf -v, declare, unset... mexem na variavel pelo nome",
+      "arquivo": "hooks/parecer.py",
+      "de": "if comando and comando[0] in LE_VARIAVEL:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M92",
+      "guarda": "a mexida na linha vale para os comandos seguintes",
+      "arquivo": "hooks/parecer.py",
+      "de": "mexidas = mexidas | mexidas_na_linha(palavras)",
+      "para": "mexidas = mexidas_na_linha(palavras)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

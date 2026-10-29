@@ -1,0 +1,76 @@
+{
+  "pedido": "guarda-sem-mutante",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M57",
+      "guarda": "trecho da isenta unico no arquivo",
+      "arquivo": "bin/forge-mutante",
+      "de": "dados.count(trecho) == 1",
+      "para": "dados.count(trecho) >= 1",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+      ]
+    },
+    {
+      "id": "M58",
+      "guarda": "trecho da isenta comeca dentro do no",
+      "arquivo": "bin/forge-mutante",
+      "de": "ini <= onde and",
+      "para": "True and",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+      ]
+    },
+    {
+      "id": "M59",
+      "guarda": "trecho da isenta termina dentro do no",
+      "arquivo": "bin/forge-mutante",
+      "de": "onde + len(trecho) <= fim",
+      "para": "True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+      ]
+    },
+    {
+      "id": "M60",
+      "guarda": "isenta do arquivo da condicao",
+      "arquivo": "bin/forge-mutante",
+      "de": "i[\"arquivo\"] == arquivo and",
+      "para": "True and",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_isenta_que_nao_cruza_condicao_listada_ou_nao_casa_uma_vez_e_2"
+      ]
+    },
+    {
+      "id": "M61",
+      "guarda": "teto de condicoes pelo maior lado",
+      "arquivo": "bin/forge-mutante",
+      "de": "max(len(novas), len(velhas))",
+      "para": "min(len(novas), len(velhas))",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_tetos_do_diff_e_das_condicoes_dizem_qual_e_sao_2"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "velha do hunk so se ficou faltando",
+      "arquivo": "bin/forge-mutante",
+      "de": "if falta[c[0]] and toca(c, velho)",
+      "para": "if toca(c, velho)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_so_reformatada_no_hunk_nao_toma_o_lugar_da_editada"
+      ]
+    },
+    {
+      "id": "M63",
+      "guarda": "velha e nova pareadas precisam de relacao",
+      "arquivo": "bin/forge-mutante",
+      "de": "and parecidas(v[0], n[0])",
+      "para": "and True",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_apagada_e_outra_nova_sem_relacao_no_mesmo_hunk_sai_apagada_e_a_editada_nao"
+      ]
+    }
+  ]
+}
