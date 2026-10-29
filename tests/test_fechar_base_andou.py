@@ -2,7 +2,10 @@
 
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
+import os
+import shutil
 import sys
+import time
 import unittest
 from pathlib import Path
 
@@ -262,6 +265,53 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("não consegui contar os commits da base", r.stderr)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    # ---- LOTE-0307-A, E1: index.lock na pasta git da worktree da branch ----
+    def worktree_de_x(self):
+        arvore = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/x")
+        return Path(self.git("-C", str(arvore), "rev-parse", "--absolute-git-dir"))
+
+    def test_lock_presente_na_worktree_da_branch_para_com_codigo_1_e_nao_apaga(self):
+        pasta_git = self.worktree_de_x()
+        lock = pasta_git / "index.lock"
+        lock.write_text("")
+        antes = time.time() - 7 * 60
+        os.utime(lock, (antes, antes))
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(str(lock), r.stderr)
+        self.assertIn("idade: 7 min", r.stderr)
+        self.assertIn(f"rm {lock}", r.stderr)
+        self.assertTrue(lock.exists())
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_lock_ausente_na_worktree_da_branch_segue(self):
+        self.worktree_de_x()
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertEqual(len(self.criacoes()), 1)
+
+    def test_lock_na_worktree_principal_com_o_fechamento_rodando_em_outra_arvore_para(self):
+        # git-dir relativo (".git") só se completa com a pasta da worktree da branch; o cwd do script é outra árvore
+        self.git("switch", "-q", "melhoria/x")
+        outra = self.tmp / "wt-develop"
+        self.git("worktree", "add", "-q", str(outra), "develop")
+        lock = self.proj / ".git" / "index.lock"
+        lock.write_text("")
+        r = base.subprocess.run(["bash", str(base.SCRIPT), "p1", "--ref", "melhoria/x"], cwd=outra, env=self.env,
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(str(lock), r.stderr)
+        self.assertTrue(lock.exists())
+
+    def test_worktree_da_branch_com_a_pasta_apagada_nao_para_no_lock(self):
+        arvore = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/x")
+        shutil.rmtree(arvore)  # registro órfão: o passo 7 trata com prune
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotIn("pasta git", r.stderr)
+        self.assertNotIn("lock do git", r.stderr)
 
 
 if __name__ == "__main__":
