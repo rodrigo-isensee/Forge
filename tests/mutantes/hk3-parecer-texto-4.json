@@ -18,9 +18,7 @@
       "arquivo": "hooks/parecer.py",
       "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
       "para": "if \"$\" in linha or linha.count(\"<<\") != len(achados):",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
-      ]
+      "equivalente": "a barra na linha de comando: as tres condicoes da linha cobrem as mesmas formas (<<$'EOF', <<\\, <<EOF\\, <<<) e a SO_CAT sobre o texto que o hook corta recusa o resto; tirar uma so deixa as outras recusando, nenhum caso muda de veredito"
     },
     {
       "id": "V3",
@@ -28,9 +26,7 @@
       "arquivo": "hooks/parecer.py",
       "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
       "para": "if \"\\\\\" in linha or linha.count(\"<<\") != len(achados):",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
-      ]
+      "equivalente": "o cifrao na linha de comando: as tres condicoes da linha cobrem as mesmas formas (<<$'EOF', <<\\, <<EOF\\, <<<) e a SO_CAT sobre o texto que o hook corta recusa o resto; tirar uma so deixa as outras recusando, nenhum caso muda de veredito"
     },
     {
       "id": "V4",
@@ -38,9 +34,7 @@
       "arquivo": "hooks/parecer.py",
       "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
       "para": "if \"\\\\\" in linha or \"$\" in linha:",
-      "testes": [
-        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
-      ]
+      "equivalente": "a contagem de << contra os heredocs simples: as tres condicoes da linha cobrem as mesmas formas (<<$'EOF', <<\\, <<EOF\\, <<<) e a SO_CAT sobre o texto que o hook corta recusa o resto; tirar uma so deixa as outras recusando, nenhum caso muda de veredito"
     },
     {
       "id": "V5",

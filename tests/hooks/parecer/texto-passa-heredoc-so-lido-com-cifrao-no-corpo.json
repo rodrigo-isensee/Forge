@@ -19,7 +19,7 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "cat <<'EOF'\necho $HOME\ngit merge origin/develop\nEOF"
+      "command": "cat <<'EOF'\ngit merge origin/develop\necho $HOME\nEOF"
     },
     "cwd": "{raiz}"
   },
