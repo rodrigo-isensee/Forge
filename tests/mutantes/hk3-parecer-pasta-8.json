@@ -1,0 +1,16 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M60",
+      "guarda": "cd sozinho vai ao HOME",
+      "arquivo": "hooks/parecer.py",
+      "de": "if sem[1:] else resolver",
+      "para": "if not sem[1:] else resolver",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

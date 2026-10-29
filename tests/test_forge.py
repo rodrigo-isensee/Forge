@@ -3201,6 +3201,7 @@ PEDIDO = (FIXTURES_CC / "pedido.md").read_text(encoding="utf-8")
 BRIEF = (FIXTURES_CC / "etapa-outro-papel.md").read_text(encoding="utf-8")
 ID = "pedido-sintetico"
 ARQ = f"docs/briefs/{ID}-dev-exemplo-1.md"
+SUBTITULO_CC = "### Do registro citado {} (todas as linhas DECISÃO DO DONO; contexto, não ampliam o Entregar)"
 DECISAO_R1 = 'DECISÃO DO DONO (2026-01-05): "linha do registro sem o assunto do pedido" (PR #227).'
 DECISAO_R2 = 'DECISÃO DO DONO (2026-01-06): "outra linha do registro".'
 LINHA_TERCEIRO = 'Cita outro registro: DECISÃO DO DONO (2026-01-07): "terceiro" em docs/pedidos/terceiro.md.'
@@ -3541,6 +3542,95 @@ class DecisoesCobradas(Cenario):
         rc, saida = self.linhas()
         self.assertEqual(rc, 1, saida)
         self.assertTrue([l for l in saida if l.startswith('decisões: registro grande demais "docs/pedidos/r.md"')], saida)
+
+    ORIGEM_DONO = 'DECISÃO DO DONO (2026-02-10): "decisão só no pedido de origem".'
+
+    def com_depende_de(self, *ids):
+        """O pedido sintético com `Depende de:` no cabeçalho (antes da primeira seção `## `), sem a linha que cita o registro `r`."""
+        pedido = PEDIDO.replace("\n## Escopo", f"\nDepende de: {', '.join(ids)}\n\n## Escopo", 1)
+        self.assertIn("Depende de:", pedido)
+        self.gravar("docs/pedidos/pedido-sintetico.md", pedido)
+        self.gravar(ARQ, BRIEF)
+
+    def test_depende_de_traz_a_decisao_do_origem_e_a_cobra(self):  # AQ1 P2 (E1): o ramo de falha e o de sucesso
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("origem")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("fonte: docs/pedidos/origem.md (1 decisões)", saida)
+        falta = [l for l in saida if l.startswith("decisões: falta")]
+        self.assertEqual(len(falta), 1, saida)
+        self.assertIn("(docs/pedidos/origem.md:2)", falta[0])
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertTrue([l for l in saida if l.startswith("decisões: ok") and "2 fontes" in l], saida)
+
+    def test_depende_de_nenhum_ou_modelo_nao_traz_fonte(self):
+        for valor in ("nenhum", "<ID>"):
+            with self.subTest(valor=valor):
+                self.com_depende_de(valor)
+                rc, saida = self.linhas()
+                self.assertEqual(rc, 0, saida)
+                self.assertEqual(len([l for l in saida if l.startswith("fonte:")]), 1, saida)
+
+    def test_depende_de_sem_registro_e_informativo_e_nao_reprova(self):
+        self.com_depende_de("nao-existe")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('decisões: dependência sem registro legível "docs/pedidos/nao-existe.md" (informativo)', saida)
+
+    def test_depende_de_si_mesmo_ou_repetido_conta_uma_fonte_so(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("pedido-sintetico", "origem", "origem")
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(sorted(l for l in saida if l.startswith("fonte:")),
+                         ["fonte: docs/pedidos/origem.md (1 decisões)", "fonte: docs/pedidos/pedido-sintetico.md (2 decisões)"])
+
+    def test_depende_de_segue_so_um_nivel(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\nDepende de: neto\n{self.ORIGEM_DONO}\n")
+        self.gravar("docs/pedidos/neto.md", 'DECISÃO DO DONO (2026-02-11): "decisão do neto".\n')
+        self.com_depende_de("origem")
+        self.gravar(ARQ, com_decisoes(self.ORIGEM_DONO))
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 0, saida)
+        self.assertFalse([l for l in saida if "neto" in l], saida)
+
+    def test_depende_de_divide_o_teto_de_fontes(self):
+        ids = [f"d{i}" for i in range(21)]
+        for i in ids:
+            self.gravar(f"docs/pedidos/{i}.md", f'DECISÃO DO DONO (2026-04-01): "{i}".\n')
+        self.com_depende_de(*ids)
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue([l for l in saida if l.startswith("decisões: fontes demais")], saida)
+
+    def test_depende_de_registro_grande_demais_reprova(self):  # AQ1 P2 (E1): o ramo "grande" da dependência não vira informativo
+        self.gravar("docs/pedidos/origem.md", 'DECISÃO DO DONO (2026-01-05): "x".\n' + "a" * (1024 * 1024 + 1))
+        self.com_depende_de("origem")
+        rc, saida = self.linhas()
+        self.assertEqual(rc, 1, saida)
+        self.assertTrue([l for l in saida if l.startswith('decisões: registro grande demais "docs/pedidos/origem.md"')], saida)
+
+    def test_depende_de_com_nome_invalido_e_informativo_e_nao_gasta_o_teto(self):  # AQ1 P2 (E1): nome fora do padrão não conta como fonte
+        ids = [f"d{i}" for i in range(20)]
+        for i in ids:
+            self.gravar(f"docs/pedidos/{i}.md", f'DECISÃO DO DONO (2026-04-01): "{i}".\n')
+        self.com_depende_de(*ids, "inv@lido")
+        rc, saida = self.linhas()
+        self.assertFalse([l for l in saida if l.startswith("decisões: fontes demais")], saida)
+        self.assertEqual(len([l for l in saida if "dependência sem registro legível" in l]), 1, saida)
+
+    def test_gerar_copia_a_decisao_do_origem_com_o_subtitulo_do_registro(self):
+        self.gravar("docs/pedidos/origem.md", f"# origem\n{self.ORIGEM_DONO}\n")
+        self.com_depende_de("origem")
+        rc, saida, _ = self.rodar("brief", "gerar", "--pedido", ID, "--destino", "forge:dev-exemplo", "--branch", "melhoria/a", "--cobre", "E1.1")
+        self.assertEqual(rc, 0, saida)
+        texto = "\n".join(saida)
+        self.assertIn(SUBTITULO_CC.format("docs/pedidos/origem.md"), texto)
+        self.assertIn(f"- {self.ORIGEM_DONO}", texto)
 
     def test_fontes_demais_reprova(self):
         citas = []
@@ -4068,7 +4158,42 @@ class VoltaComRecomendacao(unittest.TestCase):
         r = rodar_fc("brief", "gerar", "--pedido", str(self.pedido), "--incluir", "docs/reviews/p1.md:R1", raiz=self.repo, home=self.tmp / "home")
         self.assertEqual(r.returncode, 2, r.stdout)
 
+    def tecnica(self, *linhas):
+        """Acrescenta ao fim do `## Histórico` do pedido (a última seção do arquivo de teste) as linhas dadas."""
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + "".join(f"{l}\n" for l in linhas), encoding="utf-8")
+
+    def test_recomendacao_incluida_sem_decisao_tecnica_reprova_e_o_gerar_pede_a_linha(self):  # AQ1 P5 (E2): falha e sucesso
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        sha = self.head7()
+        self.assertIn(f"- PREENCHER: DECISÃO TÉCNICA para review {sha} R1 (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita R1)", r.stdout)
+        rc, conferencia = self.conferir(self.preenchido(r.stdout))
+        self.assertEqual(rc, 1, conferencia)
+        self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", conferencia)
+        self.assertNotIn("volta: ok", conferencia)
+        self.assertIn("volta: recomendação R1 sem DECISÃO TÉCNICA no Histórico", self.conferir(self.preenchido(r.stdout), ref=None)[1])  # sem --ref também
+        self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review porque cai nas mesmas linhas do A1")
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        self.assertNotIn("DECISÃO TÉCNICA para", r.stdout)
+        rc, conferencia = self.conferir(self.preenchido(r.stdout))
+        self.assertEqual(rc, 0, conferencia)
+        self.assertIn("volta: ok", conferencia)
+        self.assertNotIn("sem DECISÃO TÉCNICA", conferencia)
+
+    def test_decisao_tecnica_de_outro_id_ou_fora_do_historico_nao_cobre(self):
+        mod = carregar_forge_check()
+        base = "## Escopo\n- E1.\n\n## Histórico\n"
+        casos = {"outro id": base + "- DECISÃO TÉCNICA (Jarvis): inclui R2\n",
+                 "id dentro de outro token": base + "- DECISÃO TÉCNICA (Jarvis): inclui R10 e AR1\n",
+                 "só menção": base + "- 2026-10-20: ver DECISÃO TÉCNICA de R1\n",
+                 "fora do Histórico": "## Decisões do usuário\n- DECISÃO TÉCNICA (Jarvis): inclui R1\n\n## Histórico\n- x\n"}
+        for nome, texto in casos.items():
+            with self.subTest(nome):
+                self.assertFalse(mod.tem_decisao_tecnica(texto, "R1"))
+        self.assertTrue(mod.tem_decisao_tecnica(base + "- **DECISÃO TÉCNICA** (Jarvis): inclui A4/R1 e R2\n", "R1"))
+        self.assertTrue(mod.tem_decisao_tecnica(base + "- DECISÃO TÉCNICA (Jarvis): inclui R1.\n", "R1"))
+
     def test_o_brief_com_a_copia_passa_e_a_edicao_reprova(self):  # abuso 6
+        self.tecnica("- DECISÃO TÉCNICA 2026-10-20 (Jarvis): inclui R1 do review")
         saida = self.gerar("--incluir", "docs/reviews/p1.md:R1").stdout
         texto = self.preenchido(saida)
         rc, conferencia = self.conferir(texto)
@@ -4884,8 +5009,9 @@ class TextoDoConferenteNoLote(unittest.TestCase):
             with self.subTest(frase):
                 self.assertIn(frase, trecho)
 
-    def test_recomendacao_incluida_precisa_de_decisao_ou_escopo(self):  # M2.5
-        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa de uma decisão registrada", self.agente)
+    def test_recomendacao_incluida_precisa_da_decisao_tecnica_do_historico(self):  # M2.5, AQ1 P5
+        self.assertIn("A recomendação incluída (`(incluído <tipo> <sha> R<n> de <parecer>)`) também precisa da DECISÃO TÉCNICA no Histórico do pedido: "
+                      "o comando confere (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico` reprova) e você copia a linha dele", self.agente)
         self.assertIn("`recomendação ... difere do parecer`", self.agente)
 
     def test_o_comando_do_hook_aceita_o_que_o_texto_manda_rodar(self):

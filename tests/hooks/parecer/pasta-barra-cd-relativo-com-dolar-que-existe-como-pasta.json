@@ -1,0 +1,29 @@
+{
+  "descricao": "HK3-PARECER, PR A, volta 2: existe uma pasta chamada `$W`, mas o bash expande o `$W` antes do cd.",
+  "arquivos": {
+    "$W/x.txt": "x\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd $W && git merge melhoria/x"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "não resolve"
+  }
+}

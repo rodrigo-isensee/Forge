@@ -1,0 +1,46 @@
+{
+  "pedido": "lote-prepush-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M5",
+      "guarda": "o envio curto não espera a fila nem a trava",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$curta\" = 0 ]; then\n  # Abre uma vez",
+      "para": "if true; then\n  # Abre uma vez",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_so_de_parecer_nao_espera_a_trava_da_suite_alheia"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o envio curto anota a árvore sem a trava",
+      "arquivo": ".githooks/pre-push",
+      "de": "  if [ \"$curta\" = 1 ]; then anotar \"$verde\" acrescentar\n",
+      "para": "  if [ \"$curta\" = 1 ]; then :\n",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_so_de_parecer_nao_espera_a_trava_da_suite_alheia"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o envio atrás do remoto manda fazer o pull --rebase",
+      "arquivo": ".githooks/pre-push",
+      "de": "rode 'git pull --rebase' e envie de novo, reescrever",
+      "para": "faça rebase e envie de novo, reescrever",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_atras_do_remoto_falha_na_hora_mandando_fazer_o_pull_rebase"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o remoto que andou e não está aqui manda fazer o pull --rebase",
+      "arquivo": ".githooks/pre-push",
+      "de": "rode 'git pull --rebase' (traz o remoto) e envie de novo.",
+      "para": "rode 'git fetch' e tente de novo.",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_remoto_que_andou_e_nao_esta_aqui_manda_fazer_o_pull_rebase"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "pedido": "lote-prepush-parecer",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M2",
+      "guarda": "o so_parecer aceita a prova dirigida",
+      "arquivo": ".githooks/pre-push",
+      "de": " || tem_prova \"$dirigida\" \"$arvore_remota\"",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_primeiro_parecer_depois_do_envio_dirigido_roda_so_as_classes_curtas"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "prova que é link não vale",
+      "arquivo": ".githooks/pre-push",
+      "de": "  [ -f \"$1\" ] && [ ! -L \"$1\" ] && [ -O \"$1\" ] && grep",
+      "para": "  [ -f \"$1\" ] && [ -O \"$1\" ] && grep",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_prova_dirigida_que_e_link_e_ignorada"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só o dirigido verde anota a prova dirigida, nunca a da suíte inteira",
+      "arquivo": ".githooks/pre-push",
+      "de": "  else anotar \"$dirigida\" aparar; fi\n",
+      "para": "  else anotar \"$verde\" aparar; fi\n",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_so_o_dirigido_verde_anota_a_prova_dirigida_e_nunca_a_da_suite_inteira"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o envio pesado continua esperando a trava. Equivalente à parte do `--suite`: o hook zera a entrada (`exec </dev/null`), então `n_refs` é 0 e `so_parecer` já devolve 1 no modo `--suite`; tirar `modo_suite -eq 0` da condição não muda o comportamento e não tem teste que o mate",
+      "arquivo": ".githooks/pre-push",
+      "de": "if [ \"$modo_suite\" -eq 0 ] && so_parecer; then curta=1; fi\n",
+      "para": "curta=1\n",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_envio_de_codigo_continua_esperando_a_trava_e_e_barrado_sem_a_vez"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a anotação por acréscimo não segue prova que é link",
+      "arquivo": ".githooks/pre-push",
+      "de": "[ -n \"$arvore_inicio\" ] && [ ! -L \"$1\" ] || return 0",
+      "para": "[ -n \"$arvore_inicio\" ] || return 0",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_prova_da_suite_que_e_link_nao_e_seguida_ao_anotar_o_envio_curto"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a prova da suíte inteira vale para o envio curto",
+      "arquivo": ".githooks/pre-push",
+      "de": "tem_prova \"$verde\" \"$arvore_remota\" || tem_prova \"$dirigida\" \"$arvore_remota\" || return 1",
+      "para": "tem_prova \"$dirigida\" \"$arvore_remota\" || return 1",
+      "testes": [
+        "tests.test_pre_push_parecer.PrePushSoParecer.test_so_parecer_roda_so_as_classes_curtas"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "quem esperou a vez recaptura a árvore do início",
+      "arquivo": ".githooks/pre-push",
+      "de": "prova é a do início da suíte.\n  arvore_inicio=\"$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)\"\n",
+      "para": "prova é a do início da suíte.\n",
+      "testes": [
+        "tests.test_pre_push_parecer_curto.PrePushParecerCurto.test_quem_esperou_a_vez_anota_a_arvore_do_inicio_da_suite"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a árvore que mudou durante a suíte não vira prova",
+      "arquivo": ".githooks/pre-push",
+      "de": " && [ \"$arvore_fim\" = \"$arvore_inicio\" ]",
+      "para": "",
+      "testes": [
+        "tests.test_pre_push_parecer.PrePushSoParecer.test_commit_no_meio_da_suite_nao_grava_prova"
+      ]
+    }
+  ]
+}
