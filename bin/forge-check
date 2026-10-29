@@ -4638,6 +4638,10 @@ def cmd_brief_mensagem(raiz, a):
     destino, motivo = destino_da_mensagem(texto, a.destino)
     if motivo:
         return recusar(motivo)
+    etapa_do_brief = grupo(ETAPA_DO_CABECALHO, cabecalho_do_brief(texto))  # T6: a etapa é a do brief; o --etapa só pode repeti-la
+    if etapa_do_brief and a.etapa is not None and a.etapa != etapa_do_brief:
+        return recusar(f"--etapa difere da `Etapa:` do brief; a etapa do brief é {etapa_do_brief}")
+    etapa = etapa_do_brief or etapa
     bytes_anterior, rel_anterior = None, None
     if a.anterior:
         if a.ref is None and re.search(r"^Volta-de:", texto, re.M):
@@ -5215,7 +5219,7 @@ def main():
     br.add_argument("--ref", help="branch ou commit da entrega, de onde se leem os pareceres (obrigatório em `gerar --volta`)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
-    br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: texto de uma linha (ex.: E1.1)")
+    br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: a `Etapa:` do brief vale e o --etapa só pode repeti-la; sem `Etapa:` no brief, texto de uma linha (ex.: E1.1)")
     br.add_argument("--citar", action="append", metavar="R-ID:n|arquivo:n[-m]", help="só em `gerar`: imprime a linha literal da regra ou do arquivo (na raiz ou em ~/.forge-contrib) no bloco ## Citações, com a fonte; repita a opção (P3)")
     br.add_argument("--retomada", help="só em `gerar`: arquivo (na raiz ou em ~/.forge-contrib) cujas linhas DECISÃO DO DONO que citam o pedido e faltam nele saem como aviso `decisao:` no stderr (P4)")
     br.add_argument("--gravar", action="store_true", help="só em `gerar`: grava em docs/briefs/<pedido>-<papel>-<n>.md (n = maior + 1, nunca sobrescreve; P6) e imprime `brief gravado: <caminho> <bytes> sha256 <hash>`")
