@@ -1,0 +1,151 @@
+{
+  "pedido": "t1-conf-escopo",
+  "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "ler_frontmatter(texto)[0] or {}",
+      "motivo": "defesa de frontmatter ilegivel: vira {} e cai no guarda `not pedido`, que um mutante cobre"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "cod or cod_m",
+      "motivo": "falha do git (rc diferente de 0) falha fechada: sem merge listado, nada vira anexo implicito"
+    }
+  ],
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o pedido do mergeCommit vem dos pareceres que o commit traz (so com pai)",
+      "arquivo": "bin/forge-check",
+      "de": "nomes_do_intervalo(raiz, pai, head) if pai else []",
+      "para": "nomes_do_intervalo(raiz, pai, head) if not pai else []",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
+    },
+    {
+      "id": "M2",
+      "guarda": "o pedido do mergeCommit e o do parecer de review",
+      "arquivo": "bin/forge-check",
+      "de": "nome.startswith(\"docs/reviews/\") and not cod",
+      "para": "nome.startswith(\"docs/qa/\") and not cod",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem pedido nao ha parecer: recusa com o texto proprio",
+      "arquivo": "bin/forge-check",
+      "de": "if not pedido:",
+      "para": "if pedido:",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_merge_commit_sem_parecer_reprova"]
+    },
+    {
+      "id": "M4",
+      "guarda": "o mergeCommit confere o pr sobre o primeiro pai, a branch viva sobre a base",
+      "arquivo": "bin/forge-check",
+      "de": "return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli",
+      "para": "return cmd_pr(raiz, pedido, head, pai) if not pai else pr_da_cli",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash",
+                 "tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora"]
+    },
+    {
+      "id": "M5",
+      "guarda": "o merge so conta se o primeiro pai nao tem o parecer e o segundo tem os mesmos bytes",
+      "arquivo": "bin/forge-check",
+      "de": "git(raiz, \"rev-parse\", f\"{pai2}:{nome}\") == (0, blob)",
+      "para": "git(raiz, \"rev-parse\", f\"{pai2}:{nome}\") != (0, blob)",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_da_propria_branch_so_vale_trazido_por_merge"]
+    },
+    {
+      "id": "M6",
+      "guarda": "anexo com remocao nao e anexo implicito",
+      "arquivo": "bin/forge-check",
+      "de": "removidas != \"0\" or not slug",
+      "para": "not slug",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_anexo_com_remocao_continua_confira"]
+    },
+    {
+      "id": "M7",
+      "guarda": "so o fragmento do changelog da propria branch e anexo",
+      "arquivo": "bin/forge-check",
+      "de": "nome == f\"changelog.d/{slug}.md\"",
+      "para": "nome == f\"changelog.d/{slug}.mdx\"",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_fragmento_do_changelog_da_propria_branch"]
+    },
+    {
+      "id": "M8",
+      "guarda": "o parecer trazido por merge e do mesmo pedido da branch",
+      "arquivo": "bin/forge-check",
+      "de": "== slug and trazido_por_merge",
+      "para": "!= slug and trazido_por_merge",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_da_propria_branch_so_vale_trazido_por_merge"]
+    },
+    {
+      "id": "M9",
+      "guarda": "parecer editado depois do merge nao e anexo implicito",
+      "arquivo": "bin/forge-check",
+      "de": "== slug and trazido_por_merge(raiz, de, head, nome)",
+      "para": "== slug and True",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_da_propria_branch_so_vale_trazido_por_merge"]
+    },
+    {
+      "id": "M10",
+      "guarda": "so o commit ja na base, com um pai, e a integracao",
+      "arquivo": "bin/forge-check",
+      "de": "and e_ancestral(raiz, head, base_ref) and len(pais) == 1",
+      "para": "and not e_ancestral(raiz, head, base_ref) and len(pais) == 1",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora",
+                 "tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
+    },
+    {
+      "id": "M11",
+      "guarda": "o escopo do mergeCommit e o que ele traz sobre o pai",
+      "arquivo": "bin/forge-check",
+      "de": "if integrado:",
+      "para": "if not integrado:",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
+    },
+    {
+      "id": "M12",
+      "guarda": "o pai so vai ao confere dos pareceres quando e integracao",
+      "arquivo": "bin/forge-check",
+      "de": "de if integrado else None",
+      "para": "de if not integrado else None",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash",
+                 "tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora"]
+    },
+    {
+      "id": "M13",
+      "guarda": "os pareceres so sao conferidos na etapa merge-integracao",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa == \"merge-integracao\" else []",
+      "para": "if etapa != \"merge-integracao\" else []",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando"]
+    },
+    {
+      "id": "M14",
+      "guarda": "sem parecer aprovado no head reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if violacoes:",
+      "para": "if not violacoes:",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando",
+                 "tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora"]
+    },
+    {
+      "id": "M15",
+      "guarda": "com os pareceres aprovados a branch inteira sai ok; sem eles segue confira",
+      "arquivo": "bin/forge-check",
+      "de": "etapa == \"merge-integracao\" and not violacoes",
+      "para": "etapa == \"merge-integracao\" and violacoes",
+      "testes": ["tests.test_conf_escopo.MergeIntegracao.test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando",
+                 "tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora"]
+    },
+    {
+      "id": "M16",
+      "guarda": "o anexo implicito so vale quando a funcao o reconhece",
+      "arquivo": "bin/forge-check",
+      "de": "elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):",
+      "para": "elif not (rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas)):",
+      "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_fragmento_do_changelog_da_propria_branch"]
+    }
+  ]
+}

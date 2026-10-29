@@ -28,6 +28,7 @@ class MergeIntegracao(Repositorio):
 
     def squash(self):
         git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"outro.txt": "o\n"}, "outro PR já na develop")  # o primeiro pai do squash não é o Base-sha
         git("merge", "-q", "--squash", "melhoria/x", cwd=self.repo)
         git("commit", "-q", "-m", "squash", cwd=self.repo)
         git("branch", "-q", "-D", "melhoria/x", cwd=self.repo)  # o forge-fechar apagou a ref
@@ -86,3 +87,11 @@ class AnexosImplicitos(Repositorio):
         self.commitar({"docs/qa/x.md": qa + "\nedição própria\n"}, "o autor edita depois do merge")
         self.assertIn('escopo: confira "docs/qa/x.md"', self.saida())
 
+
+    def test_anexo_com_remocao_continua_confira(self):
+        base = self.commitar({"changelog.d/x.md": "- a\n- b\n"}, "o fragmento já existe na base")
+        git("branch", "-f", "develop", base, cwd=self.repo)
+        self.commitar({"changelog.d/x.md": "- a\n"}, "remove uma linha")
+        self.gravar_pedido()
+        rc, saida = self.entrega(base_sha=base)
+        self.assertEqual((rc, 'escopo: confira "changelog.d/x.md" +0 -1' in saida), (0, True), saida)
