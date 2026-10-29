@@ -15,7 +15,7 @@ Objetivo: a cada entrega o time (arquitetura, UX, back, front, QA, tech lead, Ja
 | Tokens por agente por entrega | `forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>` (o `--pedido` casa os cartões do histórico com o pedido: cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do `KANBAN.md`), lido das transcrições locais: inclui a sessão principal do Jarvis e as compactações; sem transcrição, `subagent_tokens` do relatório, anotado à mão | Jarvis roda no fim do pedido |
 | Retrabalho de delegação | `relancamentos` do mesmo comando: agente relançado com o mesmo tipo e prompt (hash), por pedido | agile-coach |
 | Rodadas de review e de QA | contar `docs/reviews/*-rN.md` e `docs/qa/` da entrega | agile-coach |
-| Bugs por entrega e onde nasceram | pareceres por severidade; origem = fase (spec, arquitetura, código, teste, UX) | agile-coach |
+| Bugs por entrega e onde nasceram | `forge-check escape registrar --origem` e, nos pareceres, a fase de origem de cada achado bloqueante | agile-coach |
 | Tempo de ciclo | `historico.md` (valores brutos até 20 itens) | agile-coach |
 | Execuções do pronto por entrega (meta ≤ 2: só testes e tipos do pacote durante o desenvolvimento, o pronto completo uma vez antes do commit final) | contar as execuções do comando de pronto nas saídas de ferramenta do autor (`forge-check transcricao`) ou no relatório | tech-lead |
 | Falhas de CI por entrega | `gh run list --json conclusion` filtrado pela branch | tech-lead |
