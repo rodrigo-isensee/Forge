@@ -36,8 +36,8 @@
       "id": "T4",
       "guarda": "o nome e de shell",
       "arquivo": "hooks/parecer.py",
-      "de": "isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO",
-      "para": "isinstance(p, str)",
+      "de": "enumerate(palavras) if isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO",
+      "para": "enumerate(palavras) if isinstance(p, str)",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
       ]
@@ -126,7 +126,7 @@
       "id": "T13",
       "guarda": "o D so recusa fora da chamada so de cat",
       "arquivo": "hooks/parecer.py",
-      "de": "and not SO_CAT.fullmatch(comando):",
+      "de": "and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):",
       "para": ":",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
