@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: hk3-parecer-texto
 branch: melhoria/hk3-parecer-texto
-commit: cf6bf0adc637685b8f4773e5f9ea2f59c373cbf1
+commit: c6e6a6b671ad3d475382f5557a5bb7ae29295f79
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
