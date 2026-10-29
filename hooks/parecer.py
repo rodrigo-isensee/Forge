@@ -173,8 +173,7 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
     `isencoes_da_entrega`): só o QA, em diff só de `.md` fora dos de controle; o review vale sempre. `dica` abre o motivo."""
     fc = forge_check()
     guarda_de_versao(fc, raiz)
-    sha_base = git(raiz, "rev-parse", "--verify", "--quiet", f"{base}^{{commit}}")[1] if base else ""
-    base = sha_base or None  # o sha: `HEAD` ou um nome local não viram `origin/<nome>` na resolução da base
+    base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)  # a mesma base do `forge-check pr` (K-164)
     pedidos = fc.pedidos_da_branch(raiz, branch, ref)
     if not pedidos:
         so_review = "qa" in fc.isencoes_da_entrega(raiz, ref, base)
@@ -183,7 +182,7 @@ def verificar(hook, raiz, branch, ref, base, dica=""):
                                 "faça o code review e o QA (R-QA) antes do PR ou do merge (devops e segurança, "
                                 "quando há gatilho, ficam em docs/devops/ e docs/security/)."))
     for pedido in pedidos:
-        violacoes = fc.cmd_pr(raiz, pedido, ref)  # modo estrito, sem base: o merge da base depois do parecer o invalida
+        violacoes = fc.cmd_pr(raiz, pedido, ref, base)  # a mesma base do `forge-check pr`: merge puro da base não invalida; base fora do fluxo, estrito
         if violacoes:
             rid, texto = separar_regra(violacoes[0], "R-REVIEW")
             extra = f" (e mais {len(violacoes) - 1})" if len(violacoes) > 1 else ""
@@ -247,7 +246,7 @@ def merge(hook, pasta, alvos, branches):
             continue
         ref = next((r for r in candidatas if existe(raiz, r)), None)
         if ref:  # base: a branch de integração (o HEAD ainda não trocou se o checkout veio na mesma linha)
-            verificar(hook, raiz, branch, ref, atual if chave in branches else "HEAD")
+            verificar(hook, raiz, branch, ref, atual)
 
 
 def slug_do_forge():

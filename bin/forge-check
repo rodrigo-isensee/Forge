@@ -601,6 +601,24 @@ def parecer_commitado(raiz, rel):
     return not cod and salvo == (raiz / rel).read_bytes()
 
 
+def base_do_delta(raiz, base, ref=None):
+    """A base do delta de "parecer desatualizado", a mesma no `forge-check pr` e no hook `parecer` (K-164): `(ref resolvida, aviso)`.
+    `base` é uma das BASES_DO_FLUXO (ou `origin/<essa>`); vale lida de `refs/remotes/origin/<base>` (a local só sem remoto) e, com o head
+    já contido nela, não há merge a simular: `(None, aviso)` e o parecer vale só pelo diff literal. Base fora do fluxo ou inexistente:
+    `(None, None)`, modo estrito (nada se afrouxa)."""
+    nome = (base or "").removeprefix("origin/")
+    if nome not in BASES_DO_FLUXO:
+        return None, None
+    remota, local = f"refs/remotes/origin/{nome}", f"refs/heads/{nome}"
+    resolvida = remota if sha_do_commit(raiz, remota) else local if sha_do_commit(raiz, local) else None
+    head = sha_do_commit(raiz, ref or "HEAD")
+    if resolvida and head and e_ancestral(raiz, head, sha_do_commit(raiz, resolvida)):
+        nome_curto = resolvida.removeprefix("refs/remotes/").removeprefix("refs/heads/")
+        return None, (f"pr: aviso: o head {head[:7]} já contido em {nome_curto} (a base contém a branch); "
+                      "o parecer vale só pelo diff literal, sem o merge simulado da base")
+    return resolvida, None
+
+
 def pr_da_cli(raiz, pedido, ref=None, base=None):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
@@ -614,13 +632,9 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
-    remota, local = f"refs/remotes/origin/{nome}", f"refs/heads/{nome}"
-    resolvida = remota if sha_do_commit(raiz, remota) else local if sha_do_commit(raiz, local) else None
-    head = sha_do_commit(raiz, ref or "HEAD")
-    if resolvida and head and e_ancestral(raiz, head, sha_do_commit(raiz, resolvida)):
-        print(f"pr: aviso: o head {head[:7]} já contido em {resolvida.removeprefix('refs/remotes/').removeprefix('refs/heads/')} (a base contém a branch); "
-              "o parecer vale só pelo diff literal, sem o merge simulado da base", file=sys.stderr)
-        resolvida = None
+    resolvida, aviso = base_do_delta(raiz, nome, ref)
+    if aviso:
+        print(aviso, file=sys.stderr)
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
@@ -1162,7 +1176,7 @@ def cmd_delta(raiz, refs, parecer):
 
 
 # --- Brief de volta gerado dos pareceres (VV-2, M7) --------------------------------------------
-ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
+ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+(?:-\d+)?) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
 ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
@@ -1180,7 +1194,7 @@ def grupo(expressao, texto):
 
 def achados_do_parecer(texto):
     """Lê o bloco `## Achados` de um parecer: (achados, erros, tem_bloco). Cada achado é
-    `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>` numa linha só, sem caractere de controle e com teto de tamanho
+    `- A<n> (bloqueante|recomendado) <arquivo>:<linha>[-<linha>] · <texto>` numa linha só, sem caractere de controle e com teto de tamanho
     (C4); linha do bloco fora do formato ou id repetido é erro, para o achado não sumir em silêncio (C3)."""
     achados, erros, dentro, tem = [], [], False, False
     for linha in texto.splitlines():
@@ -1194,6 +1208,8 @@ def achados_do_parecer(texto):
         m = ACHADO.match(linha)
         if com_controle(linha) or not m:
             erros.append(f"linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle): {nome_seguro(linha[:80])}")
+        elif "-" in m.group(4) and int(m.group(4).split("-")[0]) > int(m.group(4).split("-")[1]):
+            erros.append(f"achado {m.group(1)} com intervalo de linhas invertido ({m.group(4)})")
         elif len(m.group(5)) > TETO_DO_ACHADO:
             erros.append(f"achado {m.group(1)} com mais de {TETO_DO_ACHADO} caracteres")
         elif any(a["id"] == m.group(1) for a in achados):

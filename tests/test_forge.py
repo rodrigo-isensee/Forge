@@ -4062,6 +4062,21 @@ class VoltaComRecomendacao(unittest.TestCase):
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertNotIn("## Entregar", r.stdout)
 
+    def test_achado_com_intervalo_de_linhas_e_aceito_e_copiado_inteiro(self):  # K-164
+        self.parecer("## Achados\n- A1 (bloqueante) src/app.txt:3-5 · x\n- R1 (recomendado) a.py:10-12 · ordem das funções\n")
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("[a.py:10-12]", r.stdout)
+        self.assertIn("[src/app.txt:3-5]", r.stdout)
+
+    def test_intervalo_malformado_ou_invertido_e_recusado(self):  # K-164
+        for intervalo in ("9-3", "3-", "-3", "3-5-7", "3--5", "a-b"):
+            with self.subTest(intervalo):
+                self.parecer(f"## Achados\n- A1 (bloqueante) src/app.txt:3 · x\n- R1 (recomendado) a.py:{intervalo} · ordem\n")
+                r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertNotIn("## Entregar", r.stdout)
+
     def test_incluir_so_vale_em_gerar_volta(self):
         r = rodar_fc("brief", "docs/briefs/x.md", "--pedido", "p", "--incluir", "docs/reviews/p1.md:R1", raiz=self.repo, home=self.tmp / "home")
         self.assertEqual(r.returncode, 2, r.stdout)
