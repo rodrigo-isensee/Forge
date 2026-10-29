@@ -112,13 +112,13 @@ while read -r _ local_sha remote_ref remote_sha; do
     case "$remote_sha" in *[!0]*)
       ref_nome="${remote_ref#refs/heads/}"; ref_nome="${ref_nome#refs/tags/}"
       if ! git cat-file -e "$remote_sha" 2>/dev/null; then
-        echo "pre-push: o commit atual de ${ref_nome} no remoto não existe aqui, então não dá para saber se o envio é fast-forward; rode 'git fetch' e tente de novo." >&2
+        echo "pre-push: o commit atual de ${ref_nome} no remoto não existe aqui, então não dá para saber se o envio é fast-forward; rode 'git pull --rebase' (traz o remoto) e envie de novo." >&2
         exit 1
       fi
       if ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
         case "$remote_ref" in
           refs/tags/*) echo "pre-push: R-VERIFY: mover a tag ${ref_nome} para outro commit (histórico reescrito) bloqueado; reescrever histórico é decisão do usuário." >&2 ;;
-          *) echo "pre-push: R-VERIFY: envio não fast-forward para ${ref_nome} (histórico reescrito) bloqueado; faça rebase sobre a remota e envie normalmente, reescrever histórico é decisão do usuário." >&2 ;;
+          *) echo "pre-push: R-VERIFY: envio não fast-forward para ${ref_nome} (histórico reescrito) bloqueado; rode 'git pull --rebase' e envie de novo, reescrever histórico é decisão do usuário." >&2 ;;
         esac
         exit 1
       fi ;;
@@ -157,45 +157,6 @@ if [ -L "$trava" ]; then
   echo "pre-push: ${trava} é link simbólico ou não é do próprio usuário; recusado. Apague-o e tente de novo." >&2
   exit 1
 fi
-# Abre uma vez (sem truncar) e confere o arquivo aberto; o pid vai pelo mesmo descritor.
-exec 9>>"$trava" || { echo "pre-push: não consegui abrir a trava ${trava}." >&2; exit 1; }
-trava_confere || exit 1
-limite_ns=$(( $(date +%s%N) + espera * 1000000000 ))
-avisou=0
-avisar() {
-  [ "$avisou" = 1 ] && return 0
-  avisou=1
-  echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
-}
-barrar() {
-  fila_sair
-  echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
-  exit 1
-}
-fila="${trava%.lock}.fila"
-if fila_entrar; then
-  while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
-    avisar
-    [ "$(date +%s%N)" -lt "$limite_ns" ] || barrar
-    sleep 0.2
-  done
-fi
-if ! flock -n 9; then
-  avisar
-  resta_ns=$(( limite_ns - $(date +%s%N) ))
-  [ "$resta_ns" -gt 0 ] || resta_ns=0
-  flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
-fi
-fila_sair
-: > /proc/self/fd/9
-printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
-# No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
-if [ "$modo_suite" = 1 ]; then
-  if [ -f scripts/suite-paralela.py ]; then
-    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
-  fi
-  exec python3 -m unittest discover -s tests -q
-fi
 # Push que só acrescenta pareceres sobre código que já passou na suíte roda só as classes de teste que leem
 # pareceres (as que varrem ou conferem os pareceres; o gate do CI usa um subconjunto próprio); o CI repete tudo. A prova é a árvore verde: depois de cada suíte
 # verde com a árvore de trabalho limpa, a árvore testada é anotada ao lado da trava, fora do git. Falha fechada:
@@ -207,6 +168,14 @@ fi
 arvore_inicio="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
 [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && inicio_limpo=1 || inicio_limpo=0
 verde="${trava%.lock}.verde"
+# PREPUSH-PRIMEIRO-PARECER: o envio dirigido de `melhoria/*` (decisão M8) não roda a suíte inteira e por isso não anotava
+# nada; o primeiro parecer depois do código achava a prova ausente e rodava tudo. A árvore que o dirigido aprovou vai
+# para este segundo arquivo e vale para o `so_parecer` como a árvore verde: o código dela passou no que o pre-push
+# exige de um push de código, e o CI repete tudo. A prova de árvore verde da suíte inteira segue só no `.verde`.
+dirigida="${trava%.lock}.dirigida"
+tem_prova() {
+  [ -f "$1" ] && [ ! -L "$1" ] && [ -O "$1" ] && grep -qxF -- "$2" "$1"
+}
 so_parecer() {
   local arvore_remota delta arquivo
   [ "$n_refs" -eq 1 ] || return 1
@@ -215,12 +184,11 @@ so_parecer() {
   case "$unico_local" in *[!0]*) ;; *) return 1 ;; esac
   case "$unico_remoto" in ''|*[!0-9a-f]*) return 1 ;; esac
   case "$unico_remoto" in *[!0]*) ;; *) return 1 ;; esac
-  [ -f "$verde" ] && [ ! -L "$verde" ] && [ -O "$verde" ] || return 1
   [ "$(git rev-parse HEAD 2>/dev/null)" = "$unico_local" ] || return 1
   [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] || return 1
   arvore_remota="$(git rev-parse --verify -q "${unico_remoto}^{tree}" 2>/dev/null)" || return 1
   [ -n "$arvore_remota" ] || return 1
-  grep -qxF -- "$arvore_remota" "$verde" || return 1
+  tem_prova "$verde" "$arvore_remota" || tem_prova "$dirigida" "$arvore_remota" || return 1
   # Apagar ou renomear (o rename aparece como D mais A, por --no-renames) não é "só acrescentar".
   [ -z "$(git -c core.quotepath=false diff --diff-filter=D --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" ] || return 1
   delta="$(git -c core.quotepath=false diff --name-only --no-renames "$unico_remoto" "$unico_local" 2>/dev/null)" || return 1
@@ -233,8 +201,57 @@ so_parecer() {
   done <<< "$delta"
   return 0
 }
-# EST-M8 (decisão do dono, 2026-10-23: A): o push de código roda só os testes afetados pelo mapa do `bin/forge-testes`;
-# a suíte completa fica no CI do PR (a bateria completa roda lá). Os bloqueios de conteúdo (main, homolog, develop,
+curta=0
+if [ "$modo_suite" -eq 0 ] && so_parecer; then curta=1; fi
+# PREPUSH-PRIMEIRO-PARECER, PARECER-PUSH-CORRIDA: o envio curto (só parecer) é decidido antes da fila e não espera a
+# suíte alheia: as classes que ele roda são leves e a anotação da prova é um acréscimo atômico (abaixo). A suíte inteira
+# e a dirigida, que são pesadas, esperam a vez como sempre (R-TETO).
+if [ "$curta" = 0 ]; then
+  # Abre uma vez (sem truncar) e confere o arquivo aberto; o pid vai pelo mesmo descritor.
+  exec 9>>"$trava" || { echo "pre-push: não consegui abrir a trava ${trava}." >&2; exit 1; }
+  trava_confere || exit 1
+  limite_ns=$(( $(date +%s%N) + espera * 1000000000 ))
+  avisou=0
+  avisar() {
+    [ "$avisou" = 1 ] && return 0
+    avisou=1
+    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+  }
+  barrar() {
+    fila_sair
+    echo "pre-push: a vez não chegou em ${espera} s; a suíte não rodou e o envio foi barrado. Veja '.githooks/pre-push --status' e tente de novo." >&2
+    exit 1
+  }
+  fila="${trava%.lock}.fila"
+  if fila_entrar; then
+    while [ "$(fila_vivas limpar | head -n 1)" != "$senha" ]; do
+      avisar
+      [ "$(date +%s%N)" -lt "$limite_ns" ] || barrar
+      sleep 0.2
+    done
+  fi
+  if ! flock -n 9; then
+    avisar
+    resta_ns=$(( limite_ns - $(date +%s%N) ))
+    [ "$resta_ns" -gt 0 ] || resta_ns=0
+    flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
+  fi
+  fila_sair
+  : > /proc/self/fd/9
+  printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
+  # Quem esperou a vez recaptura o início: a árvore pode ter mudado durante a espera, e a prova é a do início da suíte.
+  arvore_inicio="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
+  [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && inicio_limpo=1 || inicio_limpo=0
+fi
+# No modo --suite a suíte toma o lugar do hook (exec) e herda a trava: morre a suíte, solta a trava.
+if [ "$modo_suite" = 1 ]; then
+  if [ -f scripts/suite-paralela.py ]; then
+    FORGE_SUITE_TRAVA="$trava" exec python3 scripts/suite-paralela.py
+  fi
+  exec python3 -m unittest discover -s tests -q
+fi
+# EST-M8 (decisão M8 do dono, 2026-10-24: A, que substitui a de 2026-10-23): o pre-push de `melhoria/*` roda só os testes afetados
+# pelo mapa do `bin/forge-testes`; a bateria completa segue no CI do PR. Os bloqueios de conteúdo (main, homolog, develop,
 # não fast-forward) já valeram acima, antes de qualquer teste. Falha fechada: tudo o que não for um envio simples de
 # uma branch com a ferramenta e a base presentes, o plano dirigido e a árvore limpa roda a suíte inteira, como antes.
 # O dirigido vale só para `refs/heads/melhoria/*` (decisão do dono); outra branch roda a suíte inteira. O Python do plano e da
@@ -267,7 +284,7 @@ dirigido() {
   case "$plano" in "forge-testes: dirigido ("*) return 0 ;; esac
   return 1
 }
-if so_parecer; then
+if [ "$curta" = 1 ]; then
   echo "pre-push: o envio só acrescenta pareceres sobre código já testado; rodando só as classes que leem pareceres (o CI repete tudo)." >&2
   suite=(python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -q)
 elif dirigido; then
@@ -300,15 +317,22 @@ rc=0
 wait "$suite_pid" || rc=$?
 trap - TERM INT HUP
 [ "$rc" -eq 0 ] || { echo "pre-push: testes do Forge falharam." >&2; exit 1; }
-# Anota a árvore testada (só quando `completa` é 1: a suíte inteira, ou as classes curtas do `so_parecer` sobre árvore
-# remota já verde; a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte, para
-# valer a do commit) como prova do próximo push.
-arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
-if [ "$completa" = 1 ] && [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && [ ! -L "$verde" ]; then
-  arvore_testada="$arvore_inicio"
-  if [ -n "$arvore_testada" ]; then
-    { (umask 077; tail -n 199 "$verde" 2>/dev/null || true; printf '%s\n' "$arvore_testada") > "${verde}.novo" \
-      && mv -f "${verde}.novo" "$verde"; } 2>/dev/null || true
+# Anota a árvore testada (a árvore de trabalho estava limpa no início e no fim e o HEAD^{tree} não mudou durante a suíte,
+# para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
+# sobre árvore remota já provada, também em `.verde`, por acréscimo sem a trava; o dirigido, em `.dirigida`.
+anotar() {
+  [ -n "$arvore_inicio" ] && [ ! -L "$1" ] || return 0
+  if [ "$2" = acrescentar ]; then
+    { (umask 077; printf '%s\n' "$arvore_inicio" >> "$1"); } 2>/dev/null || true
+  else
+    { (umask 077; tail -n 199 "$1" 2>/dev/null || true; printf '%s\n' "$arvore_inicio") > "${1}.novo" \
+      && mv -f "${1}.novo" "$1"; } 2>/dev/null || true
   fi
+}
+arvore_fim="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
+if [ "$inicio_limpo" = 1 ] && [ "$arvore_fim" = "$arvore_inicio" ] && [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ]; then
+  if [ "$curta" = 1 ]; then anotar "$verde" acrescentar
+  elif [ "$completa" = 1 ]; then anotar "$verde" aparar
+  else anotar "$dirigida" aparar; fi
 fi
 exit 0

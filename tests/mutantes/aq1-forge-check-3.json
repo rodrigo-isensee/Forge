@@ -1,0 +1,46 @@
+{
+  "pedido": "aq1-forge-check",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "dependencia com nome fora do padrao nao conta como fonte",
+      "arquivo": "bin/forge-check",
+      "de": "        if not REGISTRO_VALIDO.fullmatch(rel):\n            avisos.append((f\"decisões: dependência",
+      "para": "        if False:\n            avisos.append((f\"decisões: dependência",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_com_nome_invalido_e_informativo_e_nao_gasta_o_teto"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "dependencia com registro grande demais reprova",
+      "arquivo": "bin/forge-check",
+      "de": "\n        if erro == \"grande\":",
+      "para": "\n        if False:",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_registro_grande_demais_reprova"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "dependencia sem registro legivel e tratada antes de ler as decisoes",
+      "arquivo": "bin/forge-check",
+      "de": "        elif erro:\n            avisos.append((f\"decisões: dependência",
+      "para": "        elif False:\n            avisos.append((f\"decisões: dependência",
+      "testes": [
+        "tests.test_forge.DecisoesCobradas.test_depende_de_sem_registro_e_informativo_e_nao_reprova"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "o resumo conta cada escape na sua origem",
+      "arquivo": "bin/forge-check",
+      "de": "origem_do_escape(e) == o)}\" for o in ORIGENS))",
+      "para": "origem_do_escape(e) != o)}\" for o in ORIGENS))",
+      "testes": [
+        "tests.test_medidas_m14b.DefeitoEscapado.test_aq1_resumo_conta_por_origem_e_le_a_linha_antiga_sem_a_coluna_como_nao_classificado"
+      ]
+    }
+  ]
+}
