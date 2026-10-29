@@ -58,3 +58,31 @@ class MergeIntegracao(Repositorio):
     def test_merge_commit_sem_parecer_reprova(self):
         rc, saida = self.entrega(etapa="merge-integracao", branch=self.squash())
         self.assertEqual((rc, SEM_PARECER in saida, "review: sem parecer do pedido na entrega" in saida), (1, True, True), saida)
+
+class AnexosImplicitos(Repositorio):
+    """E2: o que o conferente já aceita por regra sai `escopo: ok (anexo implícito: ...)`, só por acréscimo; o resto continua `confira`."""
+
+    def saida(self):
+        self.gravar_pedido()
+        rc, saida = self.entrega()
+        self.assertEqual(rc, 0, saida)
+        return saida
+
+    def test_fragmento_do_changelog_da_propria_branch(self):
+        self.commitar({"changelog.d/x.md": "- x\n", "changelog.d/y.md": "- y\n", "src/app.txt": "v2\n"}, "trabalho")
+        saida = self.saida()
+        self.assertIn('escopo: ok (anexo implícito: fragmento do changelog) "changelog.d/x.md"', saida)
+        self.assertIn('escopo: confira "changelog.d/y.md"', saida)  # fragmento de outra branch
+        self.assertIn('escopo: confira "src/app.txt"', saida)  # arquivo de código não nomeado continua fora
+
+    def test_parecer_da_propria_branch_so_vale_trazido_por_merge(self):
+        qa = PARECER.format(t="qa", c="0" * 40, p="aprovado", extra="escopo: completo\n", achados="")
+        self.commitar({"notas.md": "a\n"}, "trabalho")
+        git("switch", "-q", "-c", "portao", self.base, cwd=self.repo)
+        self.commitar({"docs/qa/x.md": qa}, "parecer do portão")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-ff", "-m", "traz o parecer", "portao", cwd=self.repo)
+        self.assertIn('escopo: ok (anexo implícito: parecer da própria branch trazido por merge) "docs/qa/x.md"', self.saida())
+        self.commitar({"docs/qa/x.md": qa + "\nedição própria\n"}, "o autor edita depois do merge")
+        self.assertIn('escopo: confira "docs/qa/x.md"', self.saida())
+

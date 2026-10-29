@@ -1014,6 +1014,29 @@ def pareceres_da_integracao(raiz, branch, head, base, pai=None):
     return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}")
 
 
+def trazido_por_merge(raiz, de, head, nome):
+    """E2: `nome` entrou na branch por um merge: o primeiro pai não o tem e o segundo o tem com os mesmos bytes do head."""
+    cod, blob = git(raiz, "rev-parse", f"{head}:{nome}")
+    cod_m, merges = git(raiz, "rev-list", "--first-parent", "--merges", "--parents", f"{de}..{head}")
+    for linha in ([] if cod or cod_m else merges.splitlines()):
+        _, pai1, pai2, *_ = linha.split()
+        if git(raiz, "cat-file", "-e", f"{pai1}:{nome}")[0] and git(raiz, "rev-parse", f"{pai2}:{nome}") == (0, blob):
+            return True
+    return False
+
+
+def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
+    """E2: o rótulo do anexo implícito de `nome` (o que o conferente já aceitava por regra), só por acréscimo; None se não é anexo."""
+    if removidas != "0" or not slug:
+        return None
+    if nome == f"changelog.d/{slug}.md":
+        return "fragmento do changelog"
+    cod, texto = git(raiz, "show", f"{head}:{nome}")
+    if tipo and not cod and (ler_frontmatter(texto)[0] or {}).get("pedido") == slug and trazido_por_merge(raiz, de, head, nome):
+        return "parecer da própria branch trazido por merge"
+    return None
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     caminho = caminho_do_pedido(raiz, pedido)
@@ -1068,6 +1091,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     violacoes = pareceres_da_integracao(raiz, branch, head, base, de if integrado else None) if etapa == "merge-integracao" else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
         linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
+    slug = branch_da_convencao(raiz, branch)
     contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
     m = re.search(r"^id:\s*(\S+)", texto, re.M)
@@ -1092,6 +1116,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
                 linhas.append((f"escopo: ok (parecer de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
         elif etapa == "merge-integracao" and not violacoes:  # E1: a branch inteira, com os três pareceres aprovados no head
             linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
+        elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
+            linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
