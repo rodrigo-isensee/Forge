@@ -1,2 +1,0 @@
-### Corrigido
-- Pre-push: o primeiro parecer depois do código de uma melhoria não roda mais a suíte inteira (o envio dirigido anota a árvore aprovada) e o envio só de parecer não espera a fila da suíte; o envio atrás do remoto falha na hora mandando fazer git pull --rebase; comentários do pre-push e do forge-fechar alinhados (LOTE-PREPUSH-PARECER, PREPUSH-PRIMEIRO-PARECER, PARECER-PUSH-CORRIDA, COMENT-RESTO)
