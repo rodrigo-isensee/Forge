@@ -99,6 +99,24 @@
       "de": "SED_LE = re.compile(r\"(?<![^\\s;&|(])sed -n (",
       "para": "SED_LE = re.compile(r\"sed -n (",
       "equivalente": "a ancora so impede xsed virar xcat, e SO_CAT e so_le_ou_espera exigem cat no inicio da palavra: xcat nunca passa, com ou sem a ancora; nenhum caso muda de veredito"
+    },
+    {
+      "id": "V11",
+      "guarda": "o corpo do heredoc nao e linha de comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if pendentes:\n            if linha.endswith",
+      "para": "        if False:\n            if linha.endswith",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V12",
+      "guarda": "o terminador sem aspa",
+      "arquivo": "hooks/parecer.py",
+      "de": "m.group(2) or m.group(3) or m.group(4)",
+      "para": "m.group(2) or m.group(3)",
+      "equivalente": "o terminador sem aspa que some so faz a leitura seguir o corpo ate o fim, e a linha de comando que ela deixaria de ver o SO_CAT sobre o texto que o hook corta (a mesma palavra, sem aspa) ja recusa"
     }
   ]
 }
