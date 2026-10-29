@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: aq1-forge-check
 branch: melhoria/aq1-forge-check
-commit: 7ae7606228d7723ea4ec95919856ec919f65cbf9
+commit: 3bb7aea754d47291d1b3697234fedf790e1bdf4c
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,10 +14,11 @@ data: 2026-10-28
 ---
 # QA: aq1-forge-check
 
-Sem UX nem API; as obrigações são E1 a E4 do pedido `AQ1-FORGE-CHECK` (P4 e a parte do `agile-coach` ficam fora, por decisão). Head `7ae7606` sobre a base `a83de9e` (develop); não escrevi o diff. Rodado em `~/.forge-contrib/wt/wt-qa-aq1-forge-check`, com o parecer em paralelo ao review e à segurança (decisão ACELERA-RODADA).
+Sem UX nem API; as obrigações são E1 a E4 do pedido `AQ1-FORGE-CHECK` (P4 e a parte do `agile-coach` ficam fora, por decisão). Revalidação por delta sobre o head `3bb7aea` (base `f232e06`, develop, com os dois merges da develop e o ajuste do teste das linhas AR de 5 para 6); parecer anterior sobre `7ae7606`. Não escrevi o diff. Rodado em `~/.forge-contrib/wt/wt-qa-aq1-forge-check`, com o parecer em paralelo ao review e à segurança (decisão ACELERA-RODADA).
 
 ## Achados
-- A1 (recomendado) tests/test_medidas_m14b.py:320 · o teste `test_aq1_resumo_conta_por_origem...` na base dá erro (FileNotFoundError em `escapes.md`, porque `--origem` não existe), não asserção; o `forge-testes --vermelho` classifica "sem veredito" e sai 2; afirmar `escapes.md` existente (ou checar o rc de cada `registrar`) antes de lê-lo vira "prova (asserção)". Não bloqueia: 15 testes provam e o mutante M20 mata o comportamento.
+- A2 (recomendado) docs/engineering/achados-recorrentes.md:11 · o formato do cabeçalho diz `review|seguranca` e "quem escreve" só cita review e segurança, mas o regex aceita `qa` e o arquivo traz AR-1 e AR-2 do tipo `qa`; alinhar o texto do formato ao regex. Sem efeito em comportamento.
+- A1 (recomendado) tests/test_medidas_m14b.py:320 · o teste de resumo por origem dá erro (FileNotFoundError em `escapes.md`), não asserção, na base: o vermelho sai 2; afirmar o rc de cada `registrar` antes de ler o arquivo vira prova. Não bloqueia: M20 mata o comportamento.
 
 ## Critério → teste → resultado
 | Obrigação | Teste | Fronteira protegida | Resultado |
@@ -39,3 +40,12 @@ Sem UX nem API; as obrigações são E1 a E4 do pedido `AQ1-FORGE-CHECK` (P4 e a
 
 ## Riscos
 - `escapes.md` em uso ganha a coluna só nas linhas novas; o cabeçalho antigo (7 colunas) não é reescrito, e o resumo lê linha de 7 colunas como `nao-classificado` (provado no teste de resumo).
+
+## Revalidação por delta (head `3bb7aea`)
+- Delta dos merges: `git diff 7ae7606..3bb7aea` traz o trabalho da develop; o que é do lote sobre a `f232e06` é `bin/forge-check`, os textos de `agents/` e `docs/melhoria-continua.md`, as três specs `aq1-forge-check*.json`, os três módulos de teste e `docs/engineering/achados-recorrentes.md`. O único ajuste do lote depois do merge é `tests/test_erros_no_brief.py` (`test_aq1_o_arquivo_do_forge_traz_as_linhas_ar_da_proposta` passa a esperar seis linhas, a AR-6 veio da develop); a ordem de tipos esperada (`qa, qa, seguranca, review, seguranca, review`) bate com o arquivo.
+- Módulos (`bin/forge-testes --listar bin/forge-check` lista 27; a suíte inteira roda no pre-push): `python3 -m unittest tests.test_erros_no_brief tests.test_forge tests.test_medidas_m14b`: `Ran 525 tests in 194.370s`, `OK`.
+- Mutantes: `bin/forge-mutante tests/mutantes/aq1-forge-check.json tests/mutantes/aq1-forge-check-2.json tests/mutantes/aq1-forge-check-3.json` (rev `3bb7aea754d4`): M1 a M20 `morreu`, rc=0.
+- Cobertura: `bin/forge-mutante --cobertura --base f232e06dbac425fd79e28e61a56bf8e17f781993`: rc=0, dez linhas `coberta` (1319 M6, 1434 M8, 1480 M5, 2523 M15, 2584 M20, 4265 M4, 4267 M17, 4271 M2, 4275 M18, 4277 M19), nenhuma sem mutante; conferi contra o diff: as guardas do lote (regex dos achados, `tem_decisao_tecnica`, `--origem`, `Depende de:`) têm mutante; o que mudou em `esperas` e no PQ de cobertura do `gerar --volta` veio da develop.
+- Vermelho: `bin/forge-testes --vermelho f232e06dbac425fd79e28e61a56bf8e17f781993 --modulos test_erros_no_brief,test_forge,test_medidas_m14b`; saída abre com `vermelho: base=f232e06dbac4 head=3bb7aea754d4` e `revertidos à base: agents/conferente.md, agents/jarvis.md, bin/forge-check, changelog.d/aq1-forge-check.md, docs/engineering/achados-recorrentes.md, docs/melhoria-continua.md, ...`; 16 testes `prova (asserção)` ou `prova (API ausente)`, nenhum `H=falha`, um `sem veredito` (o do A1, `FileNotFoundError` em `escapes.md`), rc=2. O rc 2 é o do A1 recomendado, já avaliado: 15 testes provam e M20 mata o comportamento.
+- `scripts/validar-plugin.sh`: `Validation passed`.
+- Lista de PA-7 (`docs/engineering/achados-recorrentes.md`) conferida: nenhuma das classes AR-1 a AR-6 reaparece no delta (mutantes completos, ramo de falha com teste, sem lista negativa de ambiente, sem `python` sem `-I`).
