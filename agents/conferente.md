@@ -97,7 +97,6 @@ etapa: em ordem
 veredito: não cumpriu
 ```
 Com `veredito: cumpriu` nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu, nenhum `escopo:` nem `pendente:` reprovado), acrescente depois do veredito a linha `conferida: <sha40 do head da branch>` (`git rev-parse <b>`), que o Jarvis grava no Histórico do pedido e abre o `--desde` da volta seguinte; com qualquer outro veredito, não a escreva. Toda linha cita o comando e a saída copiada. Sem comando rodado, a linha é `não verificável`. O veredito é `cumpriu` só se todo `PQ-n` cumpriu, o escopo está ok, não há `pendente:` e a etapa está em ordem; linha `do autor` não reprova.
-
 ## Tabela de etapas (pré-condição no estado real)
 | Etapa (ato) | Pré-condição | Comando |
 |---|---|---|
