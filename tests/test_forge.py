@@ -4943,6 +4943,19 @@ class TetoPorPr(unittest.TestCase):
         self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
 
 
+class VerificadoresDoAutor(unittest.TestCase):
+    """VEL-P1P10, E3: o autor roda a mutação no diff, o shellcheck e a suíte do item antes do push."""
+
+    def test_o_tech_lead_e_os_agentes_de_stack_listam_os_verificadores(self):
+        for caminho in ("agents/tech-lead.md", "stacks/node-react/agents/node-backend.md",
+                        "stacks/node-react/agents/react-frontend.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            for frase in ("a mutação só no diff com a spec", "`shellcheck` no shell tocado", "a suíte do item"):
+                with self.subTest(arquivo=caminho, frase=frase):
+                    self.assertIn(frase, texto)
+            self.assertIn("Antes do push", texto)
+
+
 class BloqueanteSoComDefeitoProvado(unittest.TestCase):
     """EST-030-L5, M3: a regra do que bloqueia um parecer está nas regras, nos quatro agentes de parecer e nos cinco modelos."""
 
