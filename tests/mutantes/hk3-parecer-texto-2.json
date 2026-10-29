@@ -1,0 +1,146 @@
+{
+  "pedido": "hk3-parecer-texto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T16",
+      "guarda": "merge-base nao conta como merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "MERGE = r\"merge(?!-base\\b)\"",
+      "para": "MERGE = r\"merge\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T17",
+      "guarda": "o sed so vale sem opcao depois dos arquivos",
+      "arquivo": "hooks/parecer.py",
+      "de": "(?=[ \\t]*(?:[;&|)\\n]|$))\")",
+      "para": "\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T18",
+      "guarda": "o arquivo do sed nao comeca por traco",
+      "arquivo": "hooks/parecer.py",
+      "de": "+[\\w./~@:+%,][\\w",
+      "para": "+[\\w./~@:+%,-][\\w",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T19",
+      "guarda": "as aspas do sed fecham em par",
+      "arquivo": "hooks/parecer.py",
+      "de": "p\\1((?: +",
+      "para": "p((?: +",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T20",
+      "guarda": "a faixa do sed",
+      "arquivo": "hooks/parecer.py",
+      "de": "\\d+(?:,\\d+)?p",
+      "para": "\\d+p",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T21",
+      "guarda": "o texto do sed e so numero",
+      "arquivo": "hooks/parecer.py",
+      "de": "sed -n (['\\\"]?)\\d+",
+      "para": "sed -n (['\\\"]?)\\w+",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T22",
+      "guarda": "grep le",
+      "arquivo": "hooks/parecer.py",
+      "de": "LE_O_TEXTO = {\"grep\", \"cat\"}",
+      "para": "LE_O_TEXTO = {\"cat\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T23",
+      "guarda": "cat le",
+      "arquivo": "hooks/parecer.py",
+      "de": "LE_O_TEXTO = {\"grep\", \"cat\"}",
+      "para": "LE_O_TEXTO = {\"grep\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T24",
+      "guarda": "sleep espera",
+      "arquivo": "hooks/parecer.py",
+      "de": "SO_ESPERA = {\"sleep\", \"echo\", \"\"}",
+      "para": "SO_ESPERA = {\"echo\", \"\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T25",
+      "guarda": "echo espera",
+      "arquivo": "hooks/parecer.py",
+      "de": "SO_ESPERA = {\"sleep\", \"echo\", \"\"}",
+      "para": "SO_ESPERA = {\"sleep\", \"\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T26",
+      "guarda": "comando so de controle vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "SO_ESPERA = {\"sleep\", \"echo\", \"\"}",
+      "para": "SO_ESPERA = {\"sleep\", \"echo\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T27",
+      "guarda": "substituicao ` no texto do sh -c",
+      "arquivo": "hooks/parecer.py",
+      "de": "(\"`\", \"$(\")",
+      "para": "(\"$(\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T28",
+      "guarda": "substituicao $( no texto do sh -c",
+      "arquivo": "hooks/parecer.py",
+      "de": "(\"`\", \"$(\")",
+      "para": "(\"`\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T29",
+      "guarda": "o programa e o primeiro que nao e de controle",
+      "arquivo": "hooks/parecer.py",
+      "de": "next((p for p in palavras if p not in CONTROLE), \"\")",
+      "para": "palavras[0]",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    }
+  ]
+}

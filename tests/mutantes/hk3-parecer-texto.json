@@ -1,0 +1,156 @@
+{
+  "pedido": "hk3-parecer-texto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T1",
+      "guarda": "o texto ilegivel do sh -c nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "return not lidas.ilegivel and all(",
+      "para": "return all(",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T2",
+      "guarda": "todo comando do texto",
+      "arquivo": "hooks/parecer.py",
+      "de": "and all(next(",
+      "para": "and any(next(",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T3",
+      "guarda": "o comando sem reavaliacao segue",
+      "arquivo": "hooks/parecer.py",
+      "de": "if achada is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T4",
+      "guarda": "o nome e de shell",
+      "arquivo": "hooks/parecer.py",
+      "de": "isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO",
+      "para": "isinstance(p, str)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T5",
+      "guarda": "a reavaliacao e a do shell",
+      "arquivo": "hooks/parecer.py",
+      "de": "and achada == f\"{Path(p).name} -c\"), len(palavras))",
+      "para": "), len(palavras))",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T6",
+      "guarda": "o sh -c leva texto",
+      "arquivo": "hooks/parecer.py",
+      "de": "if (len(resto) < 2 or not all(",
+      "para": "if (not all(",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T7",
+      "guarda": "o texto do sh -c e palavra lida",
+      "arquivo": "hooks/parecer.py",
+      "de": "or not all(isinstance(p, str) for p in resto)",
+      "para": "",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T8",
+      "guarda": "o -c vem logo depois do shell",
+      "arquivo": "hooks/parecer.py",
+      "de": "or not OPCAO_DE_REAVALIACAO.fullmatch(resto[0])",
+      "para": "",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T9",
+      "guarda": "o texto do sh -c so le ou espera",
+      "arquivo": "hooks/parecer.py",
+      "de": "or not so_le_ou_espera(resto[1])",
+      "para": "",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T10",
+      "guarda": "sh -c de texto com heredoc na chamada",
+      "arquivo": "hooks/parecer.py",
+      "de": "if achada and (corpos or not e_shell_c_de_texto(comando)):",
+      "para": "if achada and (not e_shell_c_de_texto(comando)):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T11",
+      "guarda": "sh -c sempre recusado",
+      "arquivo": "hooks/parecer.py",
+      "de": "if achada and (corpos or not e_shell_c_de_texto(comando)):",
+      "para": "if achada and (corpos or True):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T12",
+      "guarda": "sh -c nunca recusado",
+      "arquivo": "hooks/parecer.py",
+      "de": "if achada and (corpos or not e_shell_c_de_texto(comando)):",
+      "para": "if achada and (corpos or False):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T13",
+      "guarda": "o D so recusa fora da chamada so de cat",
+      "arquivo": "hooks/parecer.py",
+      "de": "and not SO_CAT.fullmatch(comando):",
+      "para": ":",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T14",
+      "guarda": "so cat",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"(?:[ \\t]*cat(?:",
+      "para": "r\"(?:[ \\t]*\\w+(?:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T15",
+      "guarda": "so palavra sem metacaractere",
+      "arquivo": "hooks/parecer.py",
+      "de": "[ \\t]*[\\w./~@:+%,-]+)*[ \\t]*(?:\\n|$))+",
+      "para": "[ \\t]*[^ \\t\\n]+)*[ \\t]*(?:\\n|$))+",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    }
+  ]
+}

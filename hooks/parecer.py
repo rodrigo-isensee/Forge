@@ -25,14 +25,26 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 
-from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, PLUGIN, PROFUNDIDADE, bloquear,
+from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
+                    PROFUNDIDADE, SHELLS_DA_REAVALIACAO, bloquear,
                     contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
-                    raiz_de_estado, reavaliacao, sem_atribuicoes, separar_regra, tirar_heredocs)
+                    palavras_do_texto, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
+                    separar_regra, tirar_heredocs)
 
-PREFILTRO = re.compile(r"\bgh\b.*\bpr\b.*\b(create|merge|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b(merge|pull)\b", re.S)
-CRITICO = re.compile(r"\bpr\b.*\b(create|merge|ready)\b|\bapi\b|\b(merge|pull)\b", re.S)
+MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
+PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
+CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
+# A palavra crítica só no texto (HK3-PARECER, E2). `sed -n <N,Mp> <arquivos>` só imprime: vale `cat <arquivos>` (só números,
+# sem metacaractere: a troca não muda o que o bash lê). `sh -c` cujo texto só usa estes programas não roda merge, pull nem gh pr.
+SED_LE = re.compile(r"sed -n (['\"]?)\d+(?:,\d+)?p\1((?: +[\w./~@:+%,][\w./~@:+%,=-]*)*)(?=[ \t]*(?:[;&|)\n]|$))")
+# Chamada só de `cat` (sem aspa, `$`, `#`, `;`, `&`, `|` nem parêntese: nada que mude como o bash lê as linhas): os corpos de
+# heredoc dela são texto, e a gramática positiva do D (a rede contra o que o leitor não vê) não tem o que recusar.
+SO_CAT = re.compile(r"(?:[ \t]*cat(?:[ \t]+>{0,2}[ \t]*[\w./~@:+%,-]+)*[ \t]*(?:\n|$))+")
+LE_O_TEXTO = {"grep", "cat"}
+SO_ESPERA = {"sleep", "echo", ""}
+CONTROLE = {"if", "elif", "while", "until", "!", "then", "do", "else", "fi", "done"}
 CREATE_COM_VALOR = {"-a", "--assignee", "-B", "--base", "-b", "--body", "-F", "--body-file", "-H", "--head", "-l",
                     "--label", "-m", "--milestone", "-p", "--project", "-r", "--reviewer", "-t", "--title", "-T",
                     "--template", "-R", "--repo", "--recover"}
@@ -68,6 +80,33 @@ ATRIBUICAO = re.compile(r"^([A-Za-z_]\w*)\+?=")
 Ambiente = collections.namedtuple("Ambiente", "mexidas desviado")  # mexidas: os SENSIVEIS que a linha mexeu (frozenset)
 SEM_AMBIENTE = Ambiente(frozenset(), bool(DESVIOS & set(os.environ)))
 BASES = ("develop", "origin/develop", "main", "origin/main", "master", "origin/master")
+
+
+def so_le_ou_espera(script):
+    """O texto de um `sh -c` só tem comandos de `LE_O_TEXTO` e `SO_ESPERA` (laços e condições incluídos) e nenhuma
+    substituição: a palavra crítica nele é argumento, não comando (o heredoc, o D o recusa)."""
+    if any(m in script for m in ("`", "$(")):
+        return False
+    lidas = leituras(script, com_sinal=True)
+    return not lidas.ilegivel and all(next((p for p in palavras if p not in CONTROLE), "") in LE_O_TEXTO | SO_ESPERA
+                                      for leitura in lidas.partes for palavras, *_ in leitura)
+
+
+def e_shell_c_de_texto(texto):
+    """Toda reavaliação do texto é `<shell> -c <script>` (o `-c` logo depois do shell, e ele a primeira reavaliação do
+    comando) e o script só lê ou espera."""
+    for simples in palavras_do_texto(texto).simples:
+        palavras = [reduzida(p.cru) for p in simples.palavras]
+        achada = reavaliacao_das_palavras(palavras)
+        if achada is None:
+            continue
+        i = next((k for k, p in enumerate(palavras) if isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO
+                  and achada == f"{Path(p).name} -c"), len(palavras))
+        resto = palavras[i + 1:i + 3]  # a opção e o script
+        if (len(resto) < 2 or not all(isinstance(p, str) for p in resto)
+                or not OPCAO_DE_REAVALIACAO.fullmatch(resto[0]) or not so_le_ou_espera(resto[1])):
+            return False
+    return True
 
 
 def opcao(args, longa, curta):
@@ -474,7 +513,7 @@ def principal(hook):
     comando = hook.campo("tool_input", "command")
     if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
         return
-    conferir_linha(hook, comando, [(hook.cwd(), {}, SEM_AMBIENTE)])
+    conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 
 
 def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corpo_de_heredoc=False, reavaliacoes=None):
@@ -504,7 +543,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # opção B da revalidação 9: sobre a palavra que o bash recebe, em qualquer posição. A palavra `"$(…)"` não: o texto
     # dela é o do `shlex`, e o nível de fora já leu as substituições dela como escritas
     achada = None if so_substituicoes else reavaliacao(comando)
-    if achada:
+    if achada and (corpos or not e_shell_c_de_texto(comando)):
         reavaliacoes.append(achada)
     if lidas.ilegivel and isinstance(corpo_de_heredoc, str):  # M2: só o programa do texto o roda
         bloquear("R-REVIEW", f"o texto roda `{corpo_de_heredoc}`, fora da lista dos que não rodam o arquivo gravado, e "
@@ -545,7 +584,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não
-    if nivel == 0 and CRITICO.search(original):
+    if nivel == 0 and CRITICO.search(original) and not SO_CAT.fullmatch(comando):
         sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "
