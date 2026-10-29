@@ -13,3 +13,4 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 
 ## Achados
 - AR-1 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
+- AR-2 · review · limite-antigo-no-texto · R-REVIEW · vezes: 2 · última: skills/qa-testing/SKILL.md:85
