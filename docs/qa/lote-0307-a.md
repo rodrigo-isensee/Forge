@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: lote-0307-a
 branch: melhoria/lote-0307-a
-commit: 05fd5c560c4d3c2ab22e7ecbc3fbcd71993e2c5b
+commit: 683ddcf9db41143858ddb0b633041ff47bd3fa15
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-10-29
 ---
 # QA: lote-0307-a
 
-Lote: guarda do `index.lock` órfão no `bin/forge-fechar` (E1) e frase do bloco `## Achados` nos modelos de parecer (E2). Sem especificação de UX: as obrigações são E1 a E3 do pedido LOTE-0307-A. Sem interface, sem acessibilidade aplicável. Volta 1 (delta 38f3f71..05fd5c5): o A1 do QA anterior, os mutantes L2 e L3 e a worktree apagada.
+Revalidação sobre 683ddcf (merge da develop a55ec03, release 0.30.6): o código e os testes do lote não mudaram desde 05fd5c5; os arquivos novos vêm da develop. Lote: guarda do `index.lock` órfão no `bin/forge-fechar` (E1) e frase do bloco `## Achados` nos modelos de parecer (E2). Sem especificação de UX: as obrigações são E1 a E3 do pedido LOTE-0307-A. Sem interface, sem acessibilidade aplicável. Volta 1 (delta 38f3f71..05fd5c5): o A1 do QA anterior, os mutantes L2 e L3 e a worktree apagada.
 
 ## Achados
 
@@ -29,15 +29,16 @@ Lote: guarda do `index.lock` órfão no `bin/forge-fechar` (E1) e frase do bloco
 | E3 mutantes e fragmento | forge-mutante, leitura | n/a | L1 a L3 morreram; fragmento presente |
 
 ## Cenários e resultado real
-- `python3 -m unittest tests.test_fechar_base_andou`: 24 testes, OK (suíte completa fica para o pre-push, corte 1 da decisão do dono).
-- `bin/forge-mutante tests/mutantes/lote-0307-a.json`, rc=0:
+- `python3 -m unittest tests.test_fechar_base_andou` sobre 683ddcf: 24 testes, OK (suíte completa fica para o pre-push, corte 1 da decisão do dono).
+- `bin/forge-mutante tests/mutantes/lote-0307-a.json` sobre 683ddcf, rc=0:
   - `L1 · morreu · bin/forge-fechar:598`
   - `L2 · morreu · bin/forge-fechar:597`
   - `L3 · morreu · bin/forge-fechar:595`
-- Conferência da lista contra o diff: as três linhas de guarda mudadas (`-d` na 595, `case` na 597, `-e` na 598) têm um mutante cada; nenhuma sem mutante.
-- `bin/forge-mutante --cobertura --base 3b94791a...`: `não coberto: bin/forge-fechar` (shell, sai assim por definição; a conferência acima foi feita por leitura).
-- Vermelho: `forge-testes --vermelho 3b94791a... --modulos test_fechar_base_andou`, rc=0: `contagem: não prova (passa na base)=22; prova (asserção)=2`. Os testes do lock presente e do git-dir relativo falham na base e passam no head. O da pasta apagada passa na base por construção (guarda de regressão da guarda nova; quem o prova é o L3).
-- Itens de PA-7 conferidos: sem teste redundante, sem skip, cada teste nomeia a obrigação e o mutante que o quebra.
+- Conferência da lista contra o diff (`a55ec03...683ddcf`): as três linhas de guarda mudadas (`-d` na 595, `case` na 597, `-e` na 598) têm um mutante cada.
+- `bin/forge-mutante --cobertura --base a55ec03...`: `não coberto: bin/forge-fechar` (shell, por definição; conferência feita por leitura).
+- Vermelho: verificado na rodada anterior (`prova (asserção)=2`: lock presente e git-dir relativo); os testes e o código do lote são idênticos no head.
+- `scripts/validar-plugin.sh`: Validation passed.
+- PA-7 conferido: sem teste redundante, sem skip, cada teste nomeia a obrigação e o mutante que o quebra.
 
 ## Parecer
-Aprovado sobre 05fd5c5. O A1 do parecer anterior está resolvido (teste e mutante L2). Os achados do review e da segurança são dos outros portões e não entram aqui.
+Aprovado sobre 683ddcf, sem achados. Os achados do review e da segurança são dos outros portões.
