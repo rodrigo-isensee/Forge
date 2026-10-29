@@ -72,8 +72,8 @@ class MergeIntegracao(Repositorio):
                     self.assertIn(f'escopo: confira "{arquivo}"', saida)
 
     def test_dois_pedidos_nos_reviews_do_squash_reprovam(self):
-        outro = review(self.codigo)["docs/reviews/x.md"].replace("pedido: x", "pedido: a")
-        self.commitar({**review(self.codigo), "docs/reviews/a.md": outro}, "dois reviews")
+        outro = review(self.codigo)["docs/reviews/x.md"].replace("pedido: x", "pedido: z")
+        self.commitar({**review(self.codigo), "docs/reviews/z.md": outro}, "dois reviews")
         rc, saida = self.entrega(etapa="merge-integracao", branch=self.squash())
         self.assertEqual((rc, SEM_PARECER in saida), (1, True), saida)
 

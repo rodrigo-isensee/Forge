@@ -1,6 +1,13 @@
 {
   "pedido": "t1-conf-escopo",
   "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "ler_frontmatter(texto)[0] or {\"tipo\": None}",
+      "motivo": "defesa de frontmatter ilegivel: vira {} e o valido da False porque o tipo nao confere, que M23 cobre"
+    }
+  ],
   "mutantes": [
     {
       "id": "M17",
@@ -30,8 +37,8 @@
       "id": "M20",
       "guarda": "dois pedidos nos reviews do mergeCommit nao escolhem um: reprova",
       "arquivo": "bin/forge-check",
-      "de": "pedidos.pop() if len(pedidos) == 1 else None",
-      "para": "sorted(pedidos)[-1] if pedidos else None",
+      "de": "len(pedidos) == 1",
+      "para": "len(pedidos) >= 1",
       "testes": ["tests.test_conf_escopo.MergeIntegracao.test_dois_pedidos_nos_reviews_do_squash_reprovam"]
     },
     {
