@@ -592,7 +592,7 @@ sha_conferido="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/nul
 # Lock órfão (LOTE-0307-A): um `index.lock` na pasta git da worktree da branch (resto de envio que morreu com a tarefa) trava o avanço da branch
 # sem aviso. Só lê e avisa: nunca apaga o lock (quem apaga é o dono ou o Jarvis, depois de conferir que nenhum git está rodando).
 arvore_lock="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
-if [ -n "$arvore_lock" ]; then
+if [ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]; then  # pasta já apagada (registro órfão): o passo 7 trata com prune
   pasta_git="$(git -C "$arvore_lock" rev-parse --git-dir 2>/dev/null)" || die "parou antes do passo 1: não consegui ler a pasta git da worktree $arvore_lock"
   case "$pasta_git" in /*) ;; *) pasta_git="$arvore_lock/$pasta_git" ;; esac
   if [ -e "$pasta_git/index.lock" ]; then

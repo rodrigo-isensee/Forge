@@ -3,6 +3,7 @@
 Reaproveita o ambiente de `test_fechar.Fechar` (repositório temporário, `gh` e `forge-check` falsos) sem herdar os testes dele.
 """
 import os
+import shutil
 import sys
 import time
 import unittest
@@ -290,6 +291,27 @@ class Teste(unittest.TestCase):
         r = self.fechar("p1", "--ref", "melhoria/x")
         self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
         self.assertEqual(len(self.criacoes()), 1)
+
+    def test_lock_na_worktree_principal_com_o_fechamento_rodando_em_outra_arvore_para(self):
+        # git-dir relativo (".git") só se completa com a pasta da worktree da branch; o cwd do script é outra árvore
+        self.git("switch", "-q", "melhoria/x")
+        outra = self.tmp / "wt-develop"
+        self.git("worktree", "add", "-q", str(outra), "develop")
+        lock = self.proj / ".git" / "index.lock"
+        lock.write_text("")
+        r = base.subprocess.run(["bash", str(base.SCRIPT), "p1", "--ref", "melhoria/x"], cwd=outra, env=self.env,
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn(str(lock), r.stderr)
+        self.assertTrue(lock.exists())
+
+    def test_worktree_da_branch_com_a_pasta_apagada_nao_para_no_lock(self):
+        arvore = self.tmp / "wt-x"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/x")
+        shutil.rmtree(arvore)  # registro órfão: o passo 7 trata com prune
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertNotIn("pasta git", r.stderr)
+        self.assertNotIn("lock do git", r.stderr)
 
 
 if __name__ == "__main__":
