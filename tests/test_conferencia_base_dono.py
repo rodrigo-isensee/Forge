@@ -303,5 +303,38 @@ class VoltaComABaseDoDono(Repositorio):
         self.assertIn("base: fixada pelo dono (linha do Histórico)", saida)
 
 
+class DesdeNoBaseSha(Repositorio):
+    """P-N1: sem `conferida` no Histórico, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
+
+    BASE_DO_BRIEF = "base: Base-sha do brief (sem conferida no Histórico)"
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"a.txt": "1\n"}, "1a")
+
+    def test_sem_conferida_o_base_sha_vale_como_a_branch_inteira(self):
+        self.gravar_pedido()
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.base}..{self.c1}", self.BASE_DO_BRIEF, 'escopo: confira "a.txt" +1 -0'])
+
+    def test_com_conferida_no_historico_o_base_sha_segue_recusado(self):
+        self.gravar_pedido([self.c1])
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+        self.assertNotIn(self.BASE_DO_BRIEF, saida)
+
+    def test_branch_que_nao_nasce_do_base_sha_segue_recusada(self):
+        git("switch", "-q", "develop", cwd=self.repo)
+        d1 = self.commitar({"d.txt": "d\n"}, "develop andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido()
+        rc, saida = self.entrega(desde=d1, base_sha=d1)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+        self.assertNotIn(self.BASE_DO_BRIEF, saida)
+
+
 if __name__ == "__main__":
     unittest.main()
