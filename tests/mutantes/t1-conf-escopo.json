@@ -6,11 +6,6 @@
       "arquivo": "bin/forge-check",
       "trecho": "ler_frontmatter(texto)[0] or {\"pedido\": None}",
       "motivo": "defesa de frontmatter ilegivel: vira {} e cai no guarda `not pedido`, que um mutante cobre"
-    },
-    {
-      "arquivo": "bin/forge-check",
-      "trecho": "cod or cod_m",
-      "motivo": "falha do git (rc diferente de 0) falha fechada: sem merge listado, nada vira anexo implicito"
     }
   ],
   "mutantes": [
