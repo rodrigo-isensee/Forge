@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: hk3-parecer-texto
 branch: melhoria/hk3-parecer-texto
-commit: 7b2a225fb476be9c09c3b1a2b41792b7fcaec6ad
+commit: cf6bf0adc637685b8f4773e5f9ea2f59c373cbf1
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
@@ -11,52 +11,74 @@ data: 2026-10-29
 # Review: o hook parecer não recusa a chamada em que merge, pull ou gh pr só aparece no texto (HK3-PARECER, PR B, E2)
 
 ## Escopo
-Primeira rodada do PR B: o diff `d14a713...7b2a225`, com os commits `1046a5d` e `7b2a225`. Os arquivos são:
-- `hooks/parecer.py`, com +47 e -8 linhas;
-- `tests/test_hooks_parecer_pasta.py`, com +9 linhas;
-- 57 fixtures `texto-*` em `tests/hooks/parecer/`;
-- as três specs `tests/mutantes/hk3-parecer-texto{,-2,-3}.json`;
-- uma linha em `docs/hooks.md`;
-- o fragmento `changelog.d/hk3-parecer-texto.md`.
+Revalidação por delta (volta 1) do parecer `a85dcfa`, sobre o head `cf6bf0a`.
 
-## Requisitos (decisões de 2026-10-28 10:40 e de 2026-10-29 10:39, 12:06, 12:12 e 12:34)
-- **merge-base.** `MERGE = r"merge(?!-base\b)"` tira o `git merge-base` do `PREFILTRO` e do `CRITICO`. Fixtures que cobrem: `texto-passa-merge-base-*` e `texto-barra-merge-base-e-merge`.
-- **Heredoc isento só quando a chamada inteira é de cat.** O `SO_CAT.fullmatch` roda sobre a linha sem os corpos. Ele aceita só linhas `cat [>|>>] <arquivo>…`, sem aspa, `$`, `#`, `;`, `&`, `|` nem parêntese, e só ele tira a gramática positiva D. O `corpo_so_lido` e o M3 ficam como estavam.
-- **`sed -n <N[,M]>p <arquivos>` vira `cat`.** A troca vale só com números, sem opção depois dos arquivos e com um terminador logo depois. Ela tira o par de aspas em volta de `Np`, e esse par é idêntico e cerca um texto sem caractere especial, então tirá-lo não muda o estado das aspas do resto da linha. Fixtures que cobrem: `sed-i`, `sed-com-comando-e`, `sed-com-e-colado`, `opcao-depois`, `opcao-no-lugar-do-arquivo` e `metacaractere`.
-- **sh -c só de leitores e espera.** O `e_shell_c_de_texto` percorre os mesmos comandos simples e chama a mesma `reavaliacao_das_palavras` que a `reavaliacao`. Com isso, toda reavaliação da linha tem de ser `<shell> -c <script literal>` cujo script só usa `grep`, `cat`, `sleep` e `echo`, com laços e condições, sem crase nem `$(`. O `eval`, o `env -S`, o lançador com opção e o `$'…'` continuam devolvendo `False`.
-- **O M3 continua valendo para python3, git, gh e forge-check.** Fixtures que cobrem: `texto-barra-heredoc-gravado-roda-{python3,git,gh,forge-check,sh}`.
-- **Pull em heredoc e pull ou gh pr em eval seguem barrados.** Esse era o mérito parcial da conferência das 12:12. Fixtures que cobrem: `texto-barra-heredoc-bash-executa-pull`, `texto-barra-eval-executa-{pull,gh-pr,merge}`.
-- **Corpus.** O PR traz 57 fixtures novas, 44 `texto-barra` e 13 `texto-passa`; o glob `texto-*` do teste também pega a `texto-no-corpo-do-pr-nao-confunde`, que já existia. O teste novo exige pelo menos 30 fixtures e pelo menos 10 do lado que passa, o que cumpre o item 11 do checklist (o mínimo de itens).
-- **Specs.** As três specs somam 39 mutantes (T1 a T39). Elas cobrem cada guarda nova: a leitura ilegível, o `all`, o índice do shell, as quatro condições do `resto`, `corpos or`, `SO_CAT`, `MERGE`, as partes do `SED_LE` e cada item de `LE_O_TEXTO`, `SO_ESPERA` e `CONTROLE`. Não refiz a mutação: ela é do autor (V2), e a entrega `7b2a225` foi conferida às 12:26.
+**Delta lido:** `7b2a225..cf6bf0a`. Nele estão:
+- os commits da volta `0c48474`, `2a2cc43`, `f3705f6` e `9663747`:
+  - `hooks/parecer.py`, com +26 e -3 linhas;
+  - 10 fixtures `texto-*` novas;
+  - a spec nova `tests/mutantes/hk3-parecer-texto-4.json` (V1 a V12);
+  - T4 e T13 reapontados na spec `hk3-parecer-texto.json`;
+  - a linha de `docs/hooks.md`;
+- o merge da `develop` `f3f63f9` (T6T3-MENSAGEM, #367). Ele não muda `hooks/`, `docs/hooks.md` nem `tests/hooks/`: `git diff --stat 9663747 cf6bf0a -- hooks/ docs/hooks.md tests/hooks/` sai vazio, e o `f3f63f9` já está na `origin/develop`.
+
+**Já lido** no parecer `a85dcfa`: o resto do diff `d14a713...7b2a225`, isto é, `MERGE`, `SO_CAT`, `so_le_ou_espera`, as 57 fixtures da primeira entrega e as specs `-2` e `-3`. Nada mudou nesse trecho.
+
+## Requisitos da volta (decisões de 2026-10-29 12:34 e 13:44; review a85dcfa A1; segurança 7b2a225 A1 e A3)
+- **A1 do review, sh -c com shell que lê o stdin ou com `BASH_ENV=`.** Resolvido. O `e_shell_c_de_texto` devolve `False` em dois casos:
+  - com `BASH_ENV=` no texto (`hooks/parecer.py:117`);
+  - com qualquer palavra de shell que não seja a reavaliação `-c` (`:123`).
+
+  Nas sondas, `sh -c 'echo git merge …' | sh`, `| dash`, `| zsh`, `| bash -s` e `BASH_ENV=e.sh bash -c 'sleep 1'` passaram a recusar (rc 2), como a base. Fixtures que cobrem: `texto-barra-sh-c-com-bash-env` e `texto-barra-sh-c-com-texto-enviado-a-shell-por-pipe`. Mutantes: V7 e V8. O que sobra está no A2, que é recomendado.
+- **Isenção do cat só com o corte que o bash também faz (`heredocs_simples`, `:97`).** Esse era o A1 de segurança, e está resolvido. Todo `<<` tem de ser `HEREDOC_SIMPLES`, e as linhas de comando não podem ter `\` nem `$`. A fila de terminadores segue a ordem do bash, e o `<<-` tira só tabulação.
+
+  Nas sondas, todas as formas do A1 de segurança recusam: `<<$'EOF'`, `<<$"EOF"`, `<<$'E\x4fF'`, `<<EOF\` com quebra de linha, `<<\` com quebra de linha, `<<-EOF` com `\` no corpo e `<<<`. Também recusam a continuação depois do delimitador (`cat <<EOF \` seguido de `; git merge`), `cat \` com `<<EOF` na linha seguinte, as misturas `<<A <<$'B'` e `<<'A' <<B\`, e `<< EOF`, `3<<EOF`, `<<1` e `<<ÉOF`, todos seguidos de um merge real.
+
+  Seguem passando, e o bash confirma que é só texto: `cat <<EOF`/`<<"EOF"`/`<<'EOF'` com o merge no corpo, `<<A <<B` com os terminadores em ordem trocada, o terminador `EOF\r` e `<<- EOF` com espaço antes do terminador.
+
+  Fixtures: sete `texto-barra-heredoc-*` novas e `texto-passa-heredoc-so-lido-com-cifrao-no-corpo`. Mutantes: V1, V5, V6 e V11.
+- **`SED_LE` ancorado no início da palavra (`:41`).** Esse era o A3 de segurança, e está resolvido. `xsed -n 1p f` e `/x/sed -n 1p f` não viram mais `cat`. O `sed -n 1p f` seguido de `cat <<'EOF'` continua passando.
+- **docs/hooks.md, limitação [B].** A linha registra três coisas:
+  - a forma nova da isenção do cat;
+  - o `sem shell que leia o stdin nem BASH_ENV=` do `sh -c`;
+  - a limitação de `env`/`nice`/`timeout`/`xargs` antes do merge (A2 de segurança) e do `echo … | sh`, iguais à base.
+- **Spec `-4` e os equivalentes declarados V2, V3, V4, V10 e V12.** A justificativa de cada um é que as outras condições, ou o `SO_CAT` sobre o texto já cortado, recusam o mesmo caso. Não refiz a mutação, que é do autor (V2). Conferi a afirmação por sonda: apliquei cada `de`→`para` numa cópia de `hooks/` e rodei 19 comandos (as formas do A1 de segurança, continuações, mistura de delimitadores, `xsed`, `$` na linha e os casos que passam). Nenhum mudou de veredito contra o original (`casos que diferem: 0`). V2, V3 e V4 são camadas redundantes de propósito, e a spec diz isso.
 
 ## Ferramentas (citadas, não refeitas)
-- **Teto M14.** `git diff --numstat --no-renames origin/develop...HEAD` dá 64 linhas de código e teste: `hooks/parecer.py` 47+8 e `tests/test_hooks_parecer_pasta.py` 9. Fixtures, specs, `.md` e o fragmento ficam fora da conta. É um comportamento só, uma classe em `hooks/`, com corpus próprio.
-- **Item do teste.** `python3 -m unittest tests.test_hooks_parecer_pasta` deu `Ran 2 tests ... OK`, rodado com a carga de 1 minuto em 3,27.
-- **Caminho pessoal.** O padrão `/home/<nome>/` do `scripts/verificar-contribuicao.sh:22` não aparece no diff. As fixtures usam `home/wtx` relativo, o caso do CI do PR #360.
-- **Changelog.** O fragmento `changelog.d/hk3-parecer-texto.md` está presente. O `CHANGELOG.md` não foi tocado.
+- **Teto M14.** `git diff --numstat --no-renames origin/develop...cf6bf0a` dá 87 linhas de código e teste: `hooks/parecer.py` 70+8 e `tests/test_hooks_parecer_pasta.py` 9. Fica abaixo de 150. É um comportamento só, uma classe em `hooks/`, com corpus próprio. Os arquivos do T6T3 vieram pelo merge e já estão na `develop`.
+- **Item do teste.** `python3 -m unittest tests.test_hooks_parecer_pasta` deu `Ran 2 tests in 7.335s OK`, com a carga de 1 minuto em 2,67. O corpus `texto-*` tem 68 fixtures, 14 delas de passa.
+- **Changelog.** O fragmento `changelog.d/hk3-parecer-texto.md` segue presente. O `CHANGELOG.md` não foi tocado.
 
-## Sondas (o hook da base `d14a713` contra o da branch, repositório temporário na `develop` com `melhoria/x`)
-**Continuam barrados nos dois:**
-- `git merge` direto;
-- o `<<-` com o delimitador tabulado seguido de merge;
-- `( sh -c 'sleep 1' ); bash -c 'git merge …'`;
-- `PS4='$(git merge …)' bash -xc`, `x='$(…)' bash -c 'echo ${x@P}'` e o índice aritmético `${a[x]}`, com prefixo, `export` e `env`;
-- os delimitadores `E"O"F`, `\EOF` e `''`;
-- o `sed -n 1p` sem arquivo seguido de merge;
-- `bash <<'EOF'` com `sed` e merge;
-- o heredoc gravado seguido de `sed -n 1p f | sh`, de `sh f`, de `bash --rcfile f -ic` ou de `sh -c 'cat f'`.
+## Sondas
+Comparei o hook da base `d14a713` com o de `cf6bf0a` num repositório temporário na `develop`, com `melhoria/x`. Cada forma que roda o merge foi conferida no bash real, com `echo` no lugar do merge.
 
-**Passam agora, e o bash confirma que é só texto:** `cat <<'EOF'` com merge no corpo, ` EOF` com espaço antes, dois heredocs na mesma linha, `cat 3<<'EOF'`, o CRLF e a espera `timeout 900 sh -c 'until grep …'` com `merge-base`.
+Passam agora, onde a base recusava, e o bash executa o arquivo que o `sh -c` ou o `printf` gravou:
+- `BASH_ENV+=e.sh bash -c 'sleep 1'`;
+- `printf -v BASH_ENV e.sh; export BASH_ENV; bash -c …`;
+- `export BASH_ENV+=e.sh; bash -c …`;
+- `sh -c 'echo git merge …' > f; . ./f`, e o mesmo com `source f`.
 
-**Passam agora, mas a base recusava:** `sh -c 'echo git merge …' | sh` e `BASH_ENV=e.sh bash -c 'sleep 1'` depois de `printf … > e.sh`. Os dois rodam o merge. São a mesma classe de `echo 'git merge …' | sh` e de `printf … > e.sh; sh e.sh`, e essas formas já passam na base (rc 0 nas duas). Não abrem uma capacidade nova contra a base, por isso o achado fica como recomendado (A1). Pela limitação [B] do ADR 0009, o hook barra em regra e não garante.
+O hook recusa `read`, `mapfile` e `declare -x BASH_ENV=`.
+
+As cinco formas acima são a classe do A1 da rodada anterior. A base já deixa passar, com rc 0, as formas equivalentes sem o `sh -c`: `echo git merge … > f; . ./f`, `printf … > e.sh; sh e.sh`, `echo … | sh` e `BASH_ENV+=e.sh bash e.sh`. Por isso não há capacidade nova contra a base, e o achado fica como recomendado (A2), com o mesmo critério do A1.
+
+A decisão de 13:44 pede `BASH_ENV=`, e o código cumpre o texto dela. Pela limitação [B] do ADR 0009, o hook barra em regra e não garante.
 
 ## Achados
-- A1 (recomendado) hooks/parecer.py:95 · `sh -c 'echo git merge …' | sh` e `BASH_ENV=f bash -c 'sleep 1'` passam onde a base recusava. A base já deixa passar `echo … | sh` e `printf … > f; sh f`, então não há capacidade nova. Sugestão: pôr "texto enviado por pipe a um shell" na limitação [B] de docs/hooks.md, ou não isentar o `sh -c` cuja linha tem um shell que lê o stdin.
+- A2 (recomendado) hooks/parecer.py:117 · `BASH_ENV+=`, `printf -v BASH_ENV` + `export` e `export BASH_ENV+=` escapam do teste `"BASH_ENV=" in texto`. `. ./f` e `source f` depois de `sh -c '…' > f` não contam como shell (`:123`, `SHELLS_DA_REAVALIACAO`). As cinco formas rodam o merge e passam onde a base recusava. A base já deixa passar a forma sem o `sh -c`, então não há capacidade nova. Sugestão: tirar a isenção quando `BASH_ENV` aparece como palavra (`\bBASH_ENV\b`) e quando há `.` ou `source` na linha. Outra saída é registrar `source` e `+=` na limitação [B] de docs/hooks.md. Classe AR-10.
+
+## AR (PA-7)
+Conferi cada linha do `docs/engineering/achados-recorrentes.md`:
+- AR-3 (lista negativa) não se aplica: as listas da isenção são positivas.
+- AR-5 (python sem -I) não se aplica: não há python novo em caminho que decide.
+- AR-6 (máscara do shell) não se aplica ao delta.
+- AR-7 (`pasta-do-git-diferente-do-bash`) se repete no A1 de segurança de `7b2a225`, em que o hook cortava o terminador do heredoc diferente do bash. Atualizei a linha para vezes 3, última `hooks/parecer.py:587`.
+- AR-10 (`texto-isento-executado-por-outro-caminho`) é linha nova. O texto que a isenção dá por inofensivo chega a um shell por outro caminho (pipe, `BASH_ENV`, `source`). É a classe do A1 de `a85dcfa`, que volta no A2 deste pedido.
 
 ## Parecer
-**Aprovado.** O PR B faz o que o E2 pede, dentro do limite que as decisões de 12:06 e 12:34 fixaram:
-- a palavra crítica deixa de contar no `merge-base`, no corpo de heredoc numa chamada só de `cat` (com o `sed -n` numérico) e no `sh -c` que só lê ou espera;
-- executar merge, pull ou gh pr em heredoc rodado por um shell, em `sh -c` com outro comando e em `eval` continua barrado;
-- o M3 continua valendo para python3, git, gh e forge-check.
+**Aprovado.** A volta resolve o A1 do review e os achados A1 e A3 de segurança:
+- a isenção do cat só vale quando o hook e o bash cortam o corpo no mesmo ponto;
+- o `sh -c` deixa de ser isento com um shell que lê o stdin ou com `BASH_ENV=`;
+- o `sed -n` só vira `cat` no início de uma palavra.
 
-O código é curto e reaproveita os leitores existentes (`palavras_do_texto`, `reavaliacao_das_palavras`, `leituras`), então a isenção e a recusa leem a linha do mesmo jeito. As regras R-NEUTRO, R-CUSTO, R-VERIFY e M14 estão cumpridas. O único achado é recomendado (A1) e não devolve a entrega. Nenhuma classe se repetiu neste pedido, por isso não gravei linha AR. Segurança e QA rodam em paralelo, cada um com o seu parecer.
+O merge da `develop` não toca `hooks/`. As regras R-NEUTRO, R-CUSTO, R-VERIFY e M14 estão cumpridas. O único achado é recomendado (A2), sem capacidade nova contra a base, e não devolve a entrega. Segurança e QA rodam em paralelo, cada um com o seu parecer.
