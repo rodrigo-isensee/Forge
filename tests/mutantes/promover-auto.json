@@ -1,0 +1,68 @@
+{
+  "pedido": "promover-auto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so contam os checks do evento pull_request",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "or c.get(\"event\") != \"pull_request\":",
+      "para": "or False:",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_so_checks_do_push_nao_sao_verdes_e_o_merge_sai_com_auto",
+        "tests.test_promover_homolog.Execucao.test_check_do_push_nao_decide_o_vermelho_nem_o_verde"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o merge impresso leva sempre --auto",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "merge develop --auto --merge",
+      "para": "merge develop --merge",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_so_checks_do_push_nao_sao_verdes_e_o_merge_sai_com_auto",
+        "tests.test_promover_homolog.Execucao.test_abre_o_pr_para_a_homolog_le_os_checks_e_imprime_o_merge_sem_executar"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a leitura pede o JSON com o evento",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "\"--json\", \"name,bucket,event,link\", tentativas=1",
+      "para": "tentativas=1",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_le_os_checks_em_json_com_o_evento"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "JSON que nao e lista para",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if not isinstance(todos, list):",
+      "para": "if todos is None:",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_saida_que_nao_e_lista_json_para"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "saida que nao e JSON para",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if estados is None and saida.strip()",
+      "para": "if False and saida.strip()",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_saida_que_nao_e_lista_json_para"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem check reportado nao para",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "\"no checks reported\" not in",
+      "para": "\"no checks reported!\" not in",
+      "testes": [
+        "tests.test_promover_homolog.Execucao.test_saida_que_nao_e_lista_json_para"
+      ]
+    }
+  ]
+}
