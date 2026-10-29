@@ -35,7 +35,7 @@ Cada modo tem vocabulário próprio e não se mistura: `corte:` existe só no br
 - Sem rede (`gh` falha): o item é `não verificável`, nunca `não cumpriu`.
 
 ## Modo `brief` (`R-BRIEF`): antes da delegação
-**Entrada** (o Jarvis monta; o brief vai literal, exatamente como será enviado):
+**Entrada** (a saída de `forge-check brief mensagem`, que o Jarvis envia inteira; a `Etapa:` é a da linha `Etapa:` do brief):
 ```
 modo: brief
 Pedido: docs/pedidos/<id>.md     Agente destino: forge:<nome>   Etapa: <etapa>
@@ -63,7 +63,7 @@ veredito-brief: aprovado
 Qualquer campo diferente de `ok` (menos `não verificável` e `corte: etapa (ok)`, que aparecem mas não reprovam; `tardio:` antes do campo conta como o campo) dá `veredito-brief: reprovado`; `etapa: junta delegações` reprova.
 
 ## Modo `entrega` (`R-PROVA`): depois do relatório, antes do review
-**Entrada** (o Jarvis monta; o relatório do autor **não** vem, e você não o pede):
+**Entrada** (a saída de `forge-check brief mensagem --entrega`, que o Jarvis envia inteira; o relatório do autor **não** vem, e você não o pede):
 ```
 modo: entrega
 Pedido: <id>            Agente conferido: forge:<nome>
