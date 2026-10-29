@@ -20,9 +20,9 @@
     },
     {
       "id": "M3",
-      "guarda": "o Base-sha vale como Desde mesmo com conferida no Historico",
+      "guarda": "o Base-sha vale como Desde mesmo com a ultima conferida ancestral do head",
       "arquivo": "bin/forge-check",
-      "de": "all(o != \"conferida\" for _, o in bases_do_pedido(texto))",
+      "de": "not (conferidas and e_ancestral(raiz, conferidas[-1], head))",
       "para": "True",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
     },
@@ -33,6 +33,22 @@
       "de": "and e_ancestral(raiz, base_sha, head))",
       "para": "and True)",
       "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_branch_que_nao_nasce_do_base_sha_segue_recusada"]
+    },
+    {
+      "id": "M5",
+      "guarda": "decide a primeira conferida do Historico, nao a ultima, e a branch nova depois do squash volta a travar",
+      "arquivo": "bin/forge-check",
+      "de": "e_ancestral(raiz, conferidas[-1], head)",
+      "para": "e_ancestral(raiz, conferidas[0], head)",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
+    },
+    {
+      "id": "M6",
+      "guarda": "a linha da base fixada pelo dono passa a contar como conferida",
+      "arquivo": "bin/forge-check",
+      "de": "for c, o in bases_do_pedido(texto) if o == \"conferida\"]",
+      "para": "for c, o in bases_do_pedido(texto) if True]",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
     }
   ]
 }
