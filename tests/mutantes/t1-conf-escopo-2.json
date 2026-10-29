@@ -1,0 +1,14 @@
+{
+  "pedido": "t1-conf-escopo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M17",
+      "guarda": "com --desde o delta da etapa merge-integracao segue lido como sempre, sem a checagem dos pareceres",
+      "arquivo": "bin/forge-check",
+      "de": "etapa == \"merge-integracao\" and valido is None",
+      "para": "etapa == \"merge-integracao\"",
+      "testes": ["tests.test_volta_por_delta.Entrega.test_desde_nas_etapas_de_branch_inteira_le_so_o_delta"]
+    }
+  ]
+}

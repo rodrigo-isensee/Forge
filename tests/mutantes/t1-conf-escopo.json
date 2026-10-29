@@ -51,8 +51,8 @@
       "id": "M5",
       "guarda": "o merge so conta se o primeiro pai nao tem o parecer e o segundo tem os mesmos bytes",
       "arquivo": "bin/forge-check",
-      "de": "git(raiz, \"rev-parse\", f\"{pai2}:{nome}\") == (0, blob)",
-      "para": "git(raiz, \"rev-parse\", f\"{pai2}:{nome}\") != (0, blob)",
+      "de": "git(raiz, \"rev-parse\", f\"{pais[2]}:{nome}\") == (0, blob)",
+      "para": "git(raiz, \"rev-parse\", f\"{pais[2]}:{nome}\") != (0, blob)",
       "testes": ["tests.test_conf_escopo.AnexosImplicitos.test_parecer_da_propria_branch_so_vale_trazido_por_merge"]
     },
     {
@@ -117,8 +117,8 @@
       "id": "M13",
       "guarda": "os pareceres so sao conferidos na etapa merge-integracao",
       "arquivo": "bin/forge-check",
-      "de": "if etapa == \"merge-integracao\" else []",
-      "para": "if etapa != \"merge-integracao\" else []",
+      "de": "if revisados else []",
+      "para": "if not revisados else []",
       "testes": ["tests.test_conf_escopo.MergeIntegracao.test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando"]
     },
     {
@@ -134,8 +134,8 @@
       "id": "M15",
       "guarda": "com os pareceres aprovados a branch inteira sai ok; sem eles segue confira",
       "arquivo": "bin/forge-check",
-      "de": "etapa == \"merge-integracao\" and not violacoes",
-      "para": "etapa == \"merge-integracao\" and violacoes",
+      "de": "revisados and not violacoes",
+      "para": "revisados and violacoes",
       "testes": ["tests.test_conf_escopo.MergeIntegracao.test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando",
                  "tests.test_conf_escopo.MergeIntegracao.test_branch_com_parecer_aprovado_no_head_nao_marca_arquivo_fora"]
     },

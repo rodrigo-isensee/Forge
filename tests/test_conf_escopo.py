@@ -14,8 +14,7 @@ SEM_PARECER = "escopo: merge-integracao sem os pareceres aprovados no head"
 
 
 def review(commit, parecer="aprovado"):
-    return {"docs/reviews/x.md": PARECER.format(t="review", c=commit, p=parecer, extra="revisor: forge:tech-lead\n",
-                                                achados=ACHADO if parecer == "reprovado" else "")}
+    return {"docs/reviews/x.md": PARECER.format(t="review", c=commit, p=parecer, extra="revisor: forge:tech-lead\n", achados=ACHADO * (parecer == "reprovado"))}
 
 
 class MergeIntegracao(Repositorio):
