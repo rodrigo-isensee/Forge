@@ -304,9 +304,9 @@ class VoltaComABaseDoDono(Repositorio):
 
 
 class DesdeNoBaseSha(Repositorio):
-    """P-N1: sem `conferida` no Histórico, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
+    """P-N1: sem `conferida` na branch, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
 
-    BASE_DO_BRIEF = "base: Base-sha do brief (sem conferida no Histórico)"
+    BASE_DO_BRIEF = "base: Base-sha do brief (sem conferida na branch)"
 
     def setUp(self):
         super().setUp()
@@ -320,10 +320,25 @@ class DesdeNoBaseSha(Repositorio):
 
     def test_com_conferida_no_historico_o_base_sha_segue_recusado(self):
         self.gravar_pedido([self.c1])
+        c2 = self.commitar({"b.txt": "2\n"}, "2a")
         rc, saida = self.entrega(desde=self.base)
         self.assertEqual(rc, 1, saida)
         self.assertIn("escopo: --desde sem conferência anterior", saida)
         self.assertNotIn(self.BASE_DO_BRIEF, saida)
+        rc, saida = self.entrega(desde=self.c1)  # a conferida ancestral do head segue sendo o Desde
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c1}..{c2}", 'escopo: confira "b.txt" +1 -0'])
+
+    def test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha(self):
+        git("switch", "-q", "--no-track", "-c", "melhoria/velha", self.base, cwd=self.repo)
+        velha = self.commitar({"v.txt": "v\n"}, "branch anterior, integrada por squash")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido([self.c1, velha])  # vale a última: a de antes do squash, fora do head
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.base}..{self.c1}", self.BASE_DO_BRIEF, 'escopo: confira "a.txt" +1 -0'])
+        self.gravar_pedido([velha], extra=linha_do_dono(self.c1))  # só a linha `conferida` decide; a do dono não conta
+        self.assertEqual(self.entrega(desde=self.base)[0], 0)
 
     def test_branch_que_nao_nasce_do_base_sha_segue_recusada(self):
         git("switch", "-q", "develop", cwd=self.repo)
