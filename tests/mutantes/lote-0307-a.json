@@ -1,0 +1,36 @@
+{
+  "pedido": "LOTE-0307-A",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "L1",
+      "guarda": "o index.lock na worktree da branch deixa de parar o fechamento",
+      "arquivo": "bin/forge-fechar",
+      "de": "  if [ -e \"$pasta_git/index.lock\" ]; then",
+      "para": "  if false; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_lock_presente_na_worktree_da_branch_para_com_codigo_1_e_nao_apaga"
+      ]
+    },
+    {
+      "id": "L2",
+      "guarda": "o git-dir relativo deixa de ser completado com a pasta da worktree da branch",
+      "arquivo": "bin/forge-fechar",
+      "de": "  case \"$pasta_git\" in /*) ;; *) pasta_git=\"$arvore_lock/$pasta_git\" ;; esac",
+      "para": "  :",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_lock_na_worktree_principal_com_o_fechamento_rodando_em_outra_arvore_para"
+      ]
+    },
+    {
+      "id": "L3",
+      "guarda": "a worktree da branch com a pasta apagada volta a parar o fechamento",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$arvore_lock\" ] && [ -d \"$arvore_lock\" ]; then",
+      "para": "if [ -n \"$arvore_lock\" ]; then",
+      "testes": [
+        "tests.test_fechar_base_andou.Teste.test_worktree_da_branch_com_a_pasta_apagada_nao_para_no_lock"
+      ]
+    }
+  ]
+}
