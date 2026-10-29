@@ -13,16 +13,16 @@
       "id": "M1",
       "guarda": "o pedido do mergeCommit vem dos pareceres que o commit traz (so com pai)",
       "arquivo": "bin/forge-check",
-      "de": "nomes_do_intervalo(raiz, pai, head) if pai else []",
-      "para": "nomes_do_intervalo(raiz, pai, head) if not pai else []",
+      "de": "    if pai:\n        reviews",
+      "para": "    if pai and not pai:\n        reviews",
       "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
     },
     {
       "id": "M2",
       "guarda": "o pedido do mergeCommit e o do parecer de review",
       "arquivo": "bin/forge-check",
-      "de": "nome.startswith(\"docs/reviews/\") and not cod",
-      "para": "nome.startswith(\"docs/qa/\") and not cod",
+      "de": "n.startswith(\"docs/reviews/\")",
+      "para": "n.startswith(\"docs/qa/\")",
       "testes": ["tests.test_conf_escopo.MergeIntegracao.test_ref_apagada_le_o_merge_commit_do_squash"]
     },
     {
