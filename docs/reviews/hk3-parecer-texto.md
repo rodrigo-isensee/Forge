@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: hk3-parecer-texto
 branch: melhoria/hk3-parecer-texto
-commit: cf6bf0adc637685b8f4773e5f9ea2f59c373cbf1
+commit: c6e6a6b671ad3d475382f5557a5bb7ae29295f79
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
@@ -11,6 +11,8 @@ data: 2026-10-29
 # Review: o hook parecer não recusa a chamada em que merge, pull ou gh pr só aparece no texto (HK3-PARECER, PR B, E2)
 
 ## Escopo
+**Revalidação por delta `cf6bf0a..c6e6a6b` (HK3-PARECER-REV, decisão técnica de 2026-10-29 15:26).** O `forge-check delta --parecer` lista só `docs/engineering/achados-recorrentes.md` (+2 -1, linhas 21 e 24). Fora de `docs/reviews/`, `docs/security/` e `docs/qa/`, o delta muda só as linhas AR que este parecer gravou no `8ba72fd`: a AR-7 (vezes 3, última `hooks/parecer.py:587`) e a AR-10 nova (`hooks/parecer.py:117`). O código, as fixtures e as specs não mudam. O veredito e o achado ficam como estão; o `commit:` passa para `c6e6a6b`. Já lido: todo o resto, nos pareceres `a85dcfa` e `8ba72fd`.
+
 Revalidação por delta (volta 1) do parecer `a85dcfa`, sobre o head `cf6bf0a`.
 
 **Delta lido:** `7b2a225..cf6bf0a`. Nele estão:
