@@ -4,6 +4,19 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.6] - 2026-10-29
+### Adicionado
+- forge-mutante --cobertura lista o arquivo de shell como `não coberto` (uma vez por arquivo, sem análise de linha), aceita isentas na spec (até 8, trecho exato e motivo), tem tetos de diff e de condições, pareia a condição editada pela posição no hunk, e o brief de volta traz o PQ cmd do autor com a checagem (GUARDA-SEM-MUTANTE, PR 2)
+### Alterado
+- O `forge-check brief` cobra as decisões do pedido de origem (`Depende de:`, um nível) e a DECISÃO TÉCNICA de cada recomendação incluída na volta (`volta: recomendação <id> sem DECISÃO TÉCNICA no Histórico`); o arquivo de achados recorrentes aceita o tipo `qa` e a classe com espaços; `escape registrar --origem` guarda onde o defeito nasceu e `escape resumo` conta por origem (AQ1-FORGE-CHECK)
+- forge-check esperas --pedido casa também os cartões cujo motivo de movimento cita o pedido, aceita --kanban e lista os cartões casados; o Jarvis registra a volta ao autor e a espera pelo dono como movimento (HIST-VOLTAS-ESPERAS)
+- Os modelos de parecer e o brief de parecer avisam que cada achado tem até 300 caracteres e que se cita o ID da regra, sem copiar a frase dela (PARECER-AVISOS)
+### Corrigido
+- teste de tempo do teto das leituras do lançador: limites de 2x o p95 medido no runner do CI (24,5 ms e 20,8 ms), não no sandbox (FLAKY-TETO-LANCADOR)
+- As três fixtures de pasta do corpus do hook parecer usam nome neutro, para o verificador de contribuição não as ler como caminho pessoal (HK3-FIXTURES).
+- o hook parecer resolve a pasta do git só quando ela é literal (cd no nível de cima da linha, -C repetido, ~): o pull --rebase de parecer e o git -C de outra worktree deixam de ser recusados; variável, crase, $( ), cd em subshell, pipeline, segundo plano, condicional (`if cd`, `while cd`, `! cd`, `time cd`, `function f { cd`) ou depois de `&&`, pushd, popd, --git-dir e GIT_DIR deixam a pasta desconhecida, e o merge ou o pull nela é recusado em vez de julgado pelo cwd; o git -C seguido de palavra que a expansão esvazia também recusa (HK3-PARECER)
+- Pre-push: o primeiro parecer depois do código de uma melhoria não roda mais a suíte inteira (o envio dirigido anota a árvore aprovada) e o envio só de parecer não espera a fila da suíte; o envio atrás do remoto falha na hora mandando fazer git pull --rebase; comentários do pre-push e do forge-fechar alinhados (LOTE-PREPUSH-PARECER, PREPUSH-PRIMEIRO-PARECER, PARECER-PUSH-CORRIDA, COMENT-RESTO)
+
 ## [0.30.5] - 2026-10-28
 ### Adicionado
 - forge-mutante --cobertura --base <sha>: a checagem do autor, antes do push, lista a condição Python mudada no diff que nenhum mutante declarado cobre (GUARDA-SEM-MUTANTE, núcleo Python; shell, isentas e o PQ do brief ficam para o PR 2)

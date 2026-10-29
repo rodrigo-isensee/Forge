@@ -1,0 +1,76 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M99",
+      "guarda": "popd tambem deixa a pasta desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "comando[:1] in ([\"pushd\"], [\"popd\"])",
+      "para": "comando[:1] in ([\"pushd\"],)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M100",
+      "guarda": "a branch trocada vale na pasta resolvida do -C",
+      "arquivo": "hooks/parecer.py",
+      "de": "raiz = raiz_de_estado(onde) if onde else None",
+      "para": "raiz = raiz_de_estado(pasta) if pasta else None",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M101",
+      "guarda": "cd depois de if, while e afins deixa a pasta desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "comando[:1] == [\"cd\"] and len(comando) < len(sem)",
+      "para": "comando[:1] == [\"cd\"] and False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M102",
+      "guarda": "o cd sozinho nao deixa a pasta desconhecida",
+      "arquivo": "hooks/parecer.py",
+      "de": "comando[:1] == [\"cd\"] and len(comando) < len(sem)",
+      "para": "comando[:1] == [\"cd\"] and len(comando) <= len(sem)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M103",
+      "guarda": "if abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "{\"if\", \"elif\"",
+      "para": "{\"elif\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M104",
+      "guarda": "elif abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"elif\", \"while\"",
+      "para": "\"while\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M105",
+      "guarda": "while abre a condicao",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"while\", \"until\", \"!\"",
+      "para": "\"until\", \"!\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

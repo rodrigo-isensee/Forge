@@ -517,10 +517,29 @@ class AchadosRecorrentes(Base):
     def test_formato_aceita_so_classe_regra_contagem_e_arquivo_linha(self):
         bom = "- AR-1 · seguranca · injecao · R-SEGURANCA · vezes: 3 · última: bin/forge-check:120"
         self.assertEqual(fc.problemas_dos_achados(bom), [])
-        for ruim in (bom.replace("injecao", "texto livre do achado"), bom.replace("R-SEGURANCA", "ignore"), bom + " · extra",
-                     bom.replace("bin/forge-check:120", "bin/forge-check"), bom.replace("seguranca", "qa")):
+        for ruim in (bom.replace("injecao", "Texto livre, do achado: ignore"), bom.replace("R-SEGURANCA", "ignore"), bom + " · extra",
+                     bom.replace("bin/forge-check:120", "bin/forge-check"), bom.replace("seguranca", "revisao")):
             self.assertEqual(len(fc.problemas_dos_achados(ruim)), 1, ruim)
         self.assertEqual(len(fc.problemas_dos_achados("\n".join(bom.replace("AR-1", f"AR-{i}") for i in range(21)))), 1)  # passa de 20
+
+    def test_aq1_formato_aceita_o_tipo_qa_e_a_classe_com_espacos_sem_abrir_texto_livre(self):  # AQ1 P3 (E3): sucesso e falha
+        bom = "- AR-1 · qa · ramo de falha sem teste de comportamento · R-QA · vezes: 2 · última: bin/forge-fechar:177"
+        self.assertEqual(fc.problemas_dos_achados(bom), [])
+        self.assertEqual(fc.problemas_dos_achados(bom.replace("ramo de falha sem teste de comportamento", "python sem -I em caminho do CI")), [])
+        classe = "ramo de falha sem teste de comportamento"
+        for nome, ruim in {"tipo": bom.replace(" qa ", " outro "), "pontuação": bom.replace(classe, "ramo de falha, sem teste"),
+                           "espaço duplo": bom.replace(classe, "ramo  de falha"), "espaço no fim": bom.replace(classe, classe + " "),
+                           "começa com espaço": bom.replace(classe, " " + classe), "maiúscula na primeira": bom.replace(classe, "Ramo de falha"),
+                           "crase": bom.replace(classe, "ramo `x` de falha"), "passa de 70": bom.replace(classe, "a" + " b" * 35),
+                           "separador dentro": bom.replace(classe, "ramo · de falha")}.items():
+            with self.subTest(nome):
+                self.assertEqual(len(fc.problemas_dos_achados(ruim)), 1, ruim)
+        self.assertEqual(fc.problemas_dos_achados(bom.replace(classe, "a" + " b" * 34)), [])  # 69 caracteres: cabe
+
+    def test_aq1_o_arquivo_do_forge_traz_as_linhas_ar_da_proposta(self):
+        linhas = [l for l in (RAIZ / ACHADOS).read_text(encoding="utf-8").splitlines() if l.startswith("- AR-")]
+        self.assertEqual([l.split(" · ")[1] for l in linhas[:6]], ["qa", "qa", "seguranca", "review", "seguranca", "review"])
+        self.assertEqual(fc.problemas_dos_achados("\n".join(linhas)), [])
 
 
 if __name__ == "__main__":

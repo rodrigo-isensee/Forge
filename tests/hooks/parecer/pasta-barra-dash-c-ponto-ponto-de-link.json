@@ -1,0 +1,33 @@
+{
+  "descricao": "HK3-PARECER, PR A, volta 2: o -C do git segue o link antes do `..`: a pasta é a da integração, não a da worktree.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "ctx/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "git -C {tmp}/ctx/wtx/lnk/.. merge melhoria/x"
+    },
+    "cwd": "{tmp}/ctx/wtx"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "nenhum parecer"
+  },
+  "links": {
+    "lnk": "{raiz}/src"
+  }
+}

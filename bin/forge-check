@@ -17,7 +17,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
-     forge-check esperas [--pedido ID]
+     forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
      forge-check escape resumo [--dias N]
@@ -33,13 +33,14 @@ reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário
 uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
-mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido`.
+mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido` (e pelo motivo do movimento que cita o pedido), lista os casados e aceita `--kanban`.
 `corrigidos` (M14b; só leitura, sem rede) lê a linha de PRs da `--ref` (padrão `origin/develop`) e lista os PRs `fix` que corrigem PR já mesclado:
 `evidencia=cita` (o texto do PR cita `#N` de PR mesclado antes: prova escrita) ou `evidencia=arquivo` (sem citação, mas mexe em arquivo que outro PR
 mesclou até `--dias` antes: indício), com `cita=` e `toca=`; o resumo traz os `fix` sem nenhuma das duas (`nenhuma`).
 `escape registrar` (M14b) grava em docs/kanban/escapes.md, em formato fixo e com a hora real, o defeito escapado (bug achado depois do parecer
-final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava); `escape resumo`
-(só leitura) conta por gravidade e por controle e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
+final: `--achado-por uso|teste|review|outro-pedido|ci`, `--gravidade`, `--controle-que-faltou`, ou `nenhum` se nenhum controle o alcançava; `--origem spec|ux|arquitetura|codigo|teste|brief|nao-classificado`, onde o defeito nasceu,
+padrão `nao-classificado`, na última coluna; a linha antiga sem a coluna é lida como `nao-classificado`); `escape resumo`
+(só leitura) conta por gravidade, por controle e por origem e dá a taxa sobre os pedidos que chegaram a "Pronto" no histórico, na janela de `--dias`.
 `afrouxamentos` (M14b; só leitura, sem rede) roda a catraca (`tests/catraca.py`) sobre o diff de cada PR rotulado `afrouxa-regra` (o commit dele na linha da `--ref`
 contra o primeiro pai) e diz `real` (violação de conteúdo: regra piorada), `so-protegido` (só edição de controle protegido, que o rótulo libera sem afrouxar),
 `sem-violacao` (o rótulo não era exigido), `sem-commit` ou `erro-git`; os números vêm de `--prs` ou de `--rotulados` (JSON do `gh pr list`, gerado fora).
@@ -1312,6 +1313,12 @@ def marca_da_inclusao(parecer, achado, ref):
     return f"(incluído {parecer['tipo']} {ref[:7]} {achado['id']} de {caminho_impresso(parecer['rel'])})"
 
 
+def tem_decisao_tecnica(pedido_txt, ident):
+    """AQ1 P5: o `## Histórico` do pedido tem uma linha que abre com `DECISÃO TÉCNICA` e cita o id do achado (`R2`, `A1`) como palavra inteira."""
+    citacao = re.compile(rf"(?<![A-Za-z0-9]){re.escape(ident)}(?![A-Za-z0-9])")
+    return any(e_linha_de_decisao(l, FRASE_TECNICA) and citacao.search(l) for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []))
+
+
 def acrescentar(linhas, novas):
     """`novas` no fim do bloco `linhas` (que guarda o cabeçalho), antes das linhas em branco finais."""
     corpo = list(linhas)
@@ -1423,6 +1430,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     do_registro += [f"- {PREENCHER}: {linha}" for linha, reprova in cobradas["avisos"] if reprova]
     erros, _ = erros_do_destino(raiz, destino)  # o aviso do registro já saiu em `lembrar_do_jarvis`
     antigas = [l for l in copiado("Decisões e restrições") if ROTULO_DO_DESTINO not in l]  # as linhas de erro do anterior saem; valem as de agora
+    do_registro += [f"- {PREENCHER}: DECISÃO TÉCNICA para {parecer['tipo']} {ref[:7]} {achado['id']} (linha do `## Histórico` do pedido que abre com DECISÃO TÉCNICA e cita {achado['id']})"
+                    for parecer, achado in incluidas if not tem_decisao_tecnica(pedido_txt, achado["id"])]
     saida += acrescentar(antigas, [f"- {d}" for d in novas if normalizar_espacos(d) not in texto_decisoes] + do_registro + erros)
     bases = bases_do_pedido(pedido_txt)  # a `conferida` e a base do dono, como o `entrega`
     proximo = max([int(x) for x in re.findall(r"\bPQ-(\d+)", "".join(blocos.get("Pronto quando", [])))] or [0]) + 1
@@ -1430,6 +1439,7 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
               f"--etapa codigo --desde {bases[-1][0] if bases else PREENCHER}` · espera: rc=0"]
     if a.etapa in ETAPAS_DE_MERGE:
         pronto.append(pq_de_merge(a.base).replace("PQ-N", f"PQ-{proximo + 1}"))
+    pronto.append(f"- PQ-{proximo + len(pronto)} (cmd, do autor): `bin/forge-mutante --cobertura --base {sha_base}` · espera: rc=0")
     saida += acrescentar(copiado("Pronto quando"), pronto)
     saida += copiado("Relatório")
     return "".join(saida), 0, []
@@ -1465,6 +1475,10 @@ def conferir_volta(raiz, texto, pedido_txt, pedido_id, ref, arquivos, cobradas=N
         for _, decisao in linhas:
             if chave_da_decisao(decisao) not in decisoes:
                 saida.append((f"volta: falta decisão do dono \"{normalizar_espacos(sem_controle(decisao))[:60]}\"", True))
+    for linha in novos.get("Entregar", []):  # AQ1 P5: toda recomendação incluída tem a sua DECISÃO TÉCNICA no Histórico, com ou sem --ref
+        incluida = INCLUIDO.search(linha)
+        if incluida and not tem_decisao_tecnica(pedido_txt, incluida.group(3)):
+            saida.append((f"volta: recomendação {incluida.group(3)} sem DECISÃO TÉCNICA no Histórico", True))
     sha_ref = sha_do_commit(raiz, ref) if ref else None
     if ref and not sha_ref:
         return saida + [(f"volta: --ref {nome_seguro(ref)} não é um commit", True)]
@@ -1645,15 +1659,10 @@ def id_do_pedido(celula):
     return Path(celula.strip().strip("`").strip()).name.removesuffix(".md")
 
 
-def dependencias_do_pedido(raiz, pedido):
-    """(lista de IDs de `Depende de:`, tem_a_linha) lidos do cabeçalho do pedido (antes da primeira seção `## `).
+def dependencias_do_texto(texto):
+    """(lista de IDs de `Depende de:`, tem_a_linha) lidos do cabeçalho do texto de um pedido (antes da primeira seção `## `).
     `nenhum`, vazio e o texto-modelo (`<ID>...`) valem como lista vazia."""
-    arq = raiz / "docs" / "pedidos" / f"{pedido}.md"
-    try:
-        linhas = arq.read_text(encoding="utf-8").split("\n")
-    except OSError:
-        return [], False
-    for linha in linhas:
+    for linha in texto.split("\n"):
         if linha.startswith("## "):
             break
         m = DEPENDE_DE.match(linha)
@@ -1661,6 +1670,15 @@ def dependencias_do_pedido(raiz, pedido):
             ids = [id_do_pedido(t) for t in m.group(1).split(",") if t.strip()]
             return [i for i in ids if i and i.lower() != "nenhum" and not i.startswith("<")], True
     return [], False
+
+
+def dependencias_do_pedido(raiz, pedido):
+    """(lista de IDs de `Depende de:`, tem_a_linha) do pedido em `docs/pedidos/<pedido>.md` (`dependencias_do_texto`)."""
+    arq = raiz / "docs" / "pedidos" / f"{pedido}.md"
+    try:
+        return dependencias_do_texto(arq.read_text(encoding="utf-8"))
+    except OSError:
+        return [], False
 
 
 def em_ciclo(raiz, pedido):
@@ -2107,7 +2125,7 @@ def lembrar_do_jarvis(raiz, tipo):
 
 ACHADOS_RECORRENTES = "docs/engineering/achados-recorrentes.md"
 LINHA_DE_ACHADOS = f"- {ACHADOS_RECORRENTES} (PA-7): confira cada item antes de entregar"
-ACHADO_RECORRENTE = re.compile(r"- AR-\d+ · (?:review|seguranca) · [a-z][a-z0-9-]{0,40} · (?:R-[A-Z0-9-]+|—) · vezes: \d+ · última: [\w./-]+:\d+")
+ACHADO_RECORRENTE = re.compile(r"- AR-\d+ · (?:review|seguranca|qa) · (?=[A-Za-z0-9 -]{1,70} · )[a-z][A-Za-z0-9-]*(?: [A-Za-z0-9-]+)* · (?:R-[A-Z0-9-]+|—) · vezes: \d+ · última: [\w./-]+:\d+")
 TETO_DE_ACHADOS = 20
 
 
@@ -2119,7 +2137,7 @@ def problemas_dos_achados(texto):
         if linha.startswith("- AR-"):
             total += 1
             if not ACHADO_RECORRENTE.fullmatch(linha):
-                problemas.append(f"linha {numero} fora do formato `- AR-<n> · review|seguranca · <classe> · <R-ID|—> · vezes: <N> · última: <arquivo>:<linha>`")
+                problemas.append(f"linha {numero} fora do formato `- AR-<n> · review|seguranca|qa · <classe> · <R-ID|—> · vezes: <N> · última: <arquivo>:<linha>`")
     if total > TETO_DE_ACHADOS:
         problemas.append(f"mais de {TETO_DE_ACHADOS} linhas")
     return problemas
@@ -2374,9 +2392,9 @@ def esperas_do_cartao(movimentos):
     return esperas
 
 
-def cmd_esperas(raiz, pedido=None):
+def cmd_esperas(raiz, pedido=None, kanban=None):
     """Imprime as esperas por cartão (`esperas: <cartão> <tipo> inicio=<ISO> minutos=<n|aberta>`) e o total por tipo. Só lê
-    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`). rc 1 se o pedido não tem cartão."""
+    docs/kanban/historico.md. Com `--pedido`, só os cartões do pedido (o casamento de `cartoes_do_pedido`, com o motivo do movimento também) e a lista deles. rc 1 se o pedido não tem cartão."""
     por_cartao, nomes = {}, {}
     for c in _ler_tabela(raiz / "docs" / "kanban" / "historico.md"):
         hora = _hora(c[0]) if len(c) >= 5 and ISO8601.match(c[0]) else None
@@ -2387,10 +2405,12 @@ def cmd_esperas(raiz, pedido=None):
         print("esperas: aviso: docs/kanban/historico.md ausente ou sem movimento com hora", file=sys.stderr)
     escolhidos = sorted(nomes.values(), key=str.casefold)
     if pedido:
-        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos)
+        motivos = {n: [m[3] for m in ms] for n, ms in por_cartao.items()}
+        escolhidos = cartoes_do_pedido(raiz, pedido, escolhidos, kanban, motivos)
         if not escolhidos:
-            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+            print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} sem cartão no histórico (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
             return 1
+        print(f"esperas: pedido {nome_seguro(sem_controle(pedido))} cartoes: " + " ".join(sem_controle(n) for n in escolhidos))
     soma = {t: [0, 0.0] for t in TIPOS_DE_ESPERA}
     abertas = 0
     for nome in escolhidos:
@@ -2488,18 +2508,26 @@ def _lista_de_prs(numeros):
 
 
 # ---- M14b: defeito escapado (bug achado depois do parecer final), registrado em docs/kanban/escapes.md ----
-CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota |\n"
-                     "|---|---|---|---|---|---|---|\n")
+CABECALHO_ESCAPES = ("| data-hora | pedido | parecer-final | achado-por | gravidade | controle-que-faltou | nota | origem |\n"
+                     "|---|---|---|---|---|---|---|---|\n")
 ACHADO_POR = ("uso", "teste", "review", "outro-pedido", "ci")
 GRAVIDADES = ("critico", "alto", "medio", "baixo")
 CONTROLES_QUE_FALTARAM = ("review", "seguranca", "qa", "conferencia", "ci", "nenhum")
+ORIGENS = ("spec", "ux", "arquitetura", "codigo", "teste", "brief", "nao-classificado")  # onde o defeito nasceu (AQ1 T3)
+SEM_ORIGEM = "nao-classificado"
 JANELA_DE_ESCAPES = 30  # dias
 
 
-def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota):
+def origem_do_escape(celulas):
+    """A origem de uma linha de `escapes.md`: a 8.ª coluna; a linha antiga (7 colunas) ou com valor fora de ORIGENS é `nao-classificado`."""
+    return celulas[7] if len(celulas) >= 8 and celulas[7] in ORIGENS else SEM_ORIGEM
+
+
+def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, controle, nota, origem=SEM_ORIGEM):
     """Registra um defeito escapado em docs/kanban/escapes.md: uma linha de formato fixo com a hora real `AAAA-MM-DD HH:MM`. Só acrescenta;
     cria o arquivo com o cabeçalho se faltar. `parecer_final` é o parecer (caminho em docs/reviews, qa... ou commit) depois do qual o bug
-    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava). Recusa sem gravar; a recusa cita o
+    apareceu; `controle` é o que deveria tê-lo achado (`nenhum` se nenhum controle existente alcançava); `origem` é a fase onde o defeito
+    nasceu (`ORIGENS`, padrão `nao-classificado`; a coluna vai depois da `nota`, para a linha antiga seguir válida). Recusa sem gravar; a recusa cita o
     campo, nunca o valor."""
     campos = (("--pedido", pedido), ("--parecer-final", parecer_final), ("--nota", nota))
     for nome, valor in campos:
@@ -2512,7 +2540,7 @@ def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, con
     if not ID_DE_PEDIDO.fullmatch(pedido) or not parecer_final or not nota:
         return ["escape: --pedido (letras, números, `.`, `_` e `-`), --parecer-final e --nota não podem ser vazios"]
     for nome, valor, validos in (("--achado-por", achado_por, ACHADO_POR), ("--gravidade", gravidade, GRAVIDADES),
-                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM)):
+                                 ("--controle-que-faltou", controle, CONTROLES_QUE_FALTARAM), ("--origem", origem, ORIGENS)):
         if valor not in validos:
             return [f"escape: {nome} deve ser um de {', '.join(validos)}"]
     if not (raiz / "KANBAN.md").is_file():
@@ -2528,7 +2556,7 @@ def cmd_escape_registrar(raiz, pedido, parecer_final, achado_por, gravidade, con
             f.seek(-1, 2)
             falta_quebra = f.read(1) != b"\n"
     hora = datetime.datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
-    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} |\n"
+    linha = f"| {hora} | {pedido} | {parecer_final} | {achado_por} | {gravidade} | {controle} | {nota} | {origem} |\n"
     with arq.open("a", encoding="utf-8") as f:
         if not existe:
             f.write(CABECALHO_ESCAPES)
@@ -2553,6 +2581,7 @@ def cmd_escape_resumo(raiz, dias=JANELA_DE_ESCAPES, agora=None):
                if len(c) >= 5 and ISO8601.match(c[0]) and _sem_acento(c[3]) == "pronto" and (_hora(c[0]) or agora) >= inicio}
     print("escapes: gravidade: " + " ".join(f"{g}={sum(1 for e in escapes if e[4] == g)}" for g in GRAVIDADES))
     print("escapes: controle: " + " ".join(f"{k}={sum(1 for e in escapes if e[5] == k)}" for k in CONTROLES_QUE_FALTARAM))
+    print("escapes: origem: " + " ".join(f"{o}={sum(1 for e in escapes if origem_do_escape(e) == o)}" for o in ORIGENS))
     taxa = f"{len(escapes) / len(prontos):.2f}" if prontos else "-"
     print(f"escapes: total: escapes={len(escapes)} pedidos_prontos={len(prontos)} taxa={taxa} dias={dias}")
     return 0
@@ -3388,23 +3417,32 @@ def pedido_existente(raiz, id_):
     return any((Path(pasta) / "docs" / "pedidos" / f"{id_}.md").is_file() for pasta in (raiz, raiz_principal(raiz), *RAIZES_DE_BRIEF))
 
 
-def cartoes_do_quadro(raiz):
-    """[(ID do cartão, pedido)] das linhas de tabela do KANBAN.md (colunas `ID` e `Pedido`), na raiz e na cópia principal; só leitura."""
+def cartoes_do_quadro(raiz, kanban=None):
+    """[(ID do cartão, pedido)] das linhas de tabela do KANBAN.md (colunas `ID` e `Pedido`), na raiz e na cópia principal, ou só do
+    arquivo `kanban` quando dado; só leitura."""
     pares = []
-    for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz))):
-        for c in _ler_tabela(pasta / "KANBAN.md"):
+    arquivos = [Path(kanban)] if kanban else [pasta / "KANBAN.md" for pasta in dict.fromkeys((Path(raiz), raiz_principal(raiz)))]
+    for arquivo in arquivos:
+        for c in _ler_tabela(arquivo):
             if len(c) >= 3 and c[0] and c[0] != "ID" and not set(c[0]) <= set("-: "):
                 pares.append((c[0], c[2]))
     return pares
 
 
-def cartoes_do_pedido(raiz, id_, nomes):
+def cita_o_pedido(texto, id_):
+    """True se `texto` traz o id do pedido como palavra inteira (sem letra, dígito, `_` ou `-` colado; ponto final de frase não cola)."""
+    return re.search(r"(?<![A-Za-z0-9._-])" + re.escape(id_) + r"(?![A-Za-z0-9_-])(?!\.[A-Za-z0-9])", texto, re.IGNORECASE) is not None
+
+
+def cartoes_do_pedido(raiz, id_, nomes, kanban=None, motivos=None):
     """Dos `nomes` de cartão do histórico, os que são do pedido `id_` (M14b: o `--pedido` não casava, porque o cartão do histórico
     não leva o id do pedido). Casa: o mesmo nome; a família por prefixo até um `-` (cartão `X` e pedido `X-PR`, ou o inverso); ou
-    o cartão cuja coluna `Pedido` do KANBAN.md é este pedido. Sem caractere de controle: sai impresso."""
+    o cartão cuja coluna `Pedido` do KANBAN.md (`kanban`, se dado) é este pedido; e, com `motivos` ({nome em minúscula: [motivo]}), o
+    cartão cujo motivo de movimento cita o pedido. Sem caractere de controle: sai impresso."""
     alvo = id_.casefold()
-    do_quadro = {i.casefold() for i, p in cartoes_do_quadro(raiz) if p.casefold() == alvo}
-    achados = {n for n in nomes if n.casefold() == alvo or n.casefold() in do_quadro
+    do_quadro = {i.casefold() for i, p in cartoes_do_quadro(raiz, kanban) if p.casefold() == alvo}
+    citados = {n for n, ms in (motivos or {}).items() if any(cita_o_pedido(m, id_) for m in ms)}
+    achados = {n for n in nomes if n.casefold() == alvo or n.casefold() in do_quadro or n.casefold() in citados
                or alvo.startswith(n.casefold() + "-") or n.casefold().startswith(alvo + "-")}
     return sorted(achados, key=str.casefold)
 
@@ -4190,7 +4228,7 @@ def ler_registro(raiz, rel):
 
 def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
     """O que o conferente cobra do brief, sem julgamento: todas as linhas `DECISÃO DO DONO` do pedido e de cada registro em
-    `docs/pedidos/` que uma delas cita (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
+    `docs/pedidos/` que uma delas cita ou que o `Depende de:` do pedido nomeia (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
     `{"fontes": [(rel, [(n, linha)])] (a primeira é o pedido), "adrs": [NNNN], "avisos": [(linha de saída, reprova)]}`. Ordem fixa:
     mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2)."""
     proprio = f"docs/pedidos/{caminho_impresso(caminho_pedido.name)}"
@@ -4222,6 +4260,25 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
             elif rel != proprio and not rel.startswith("docs/adr/"):
                 local = f"{caminho_impresso(token)}:{linha_citada}" if linha_citada else caminho_impresso(token)  # `<arquivo>:<linha>` do registro citado (M2.2)
                 avisos.append((f"decisões: fonte fora da regra {nome_seguro(sem_controle(local))} em {proprio}:{n} (não verificável)", False))
+    for dep in dependencias_do_texto(pedido_txt)[0]:  # AQ1 P2: um nível do `Depende de:`, com o mesmo teto de fontes
+        rel = f"docs/pedidos/{dep}.md"
+        if rel == proprio or rel in vistos:
+            continue
+        if not REGISTRO_VALIDO.fullmatch(rel):
+            avisos.append((f"decisões: dependência sem registro legível {nome_seguro(sem_controle(dep))} (informativo)", False))
+            continue
+        vistos.add(rel)
+        if len(vistos) > TETO_DE_FONTES:
+            avisos.append((f"decisões: fontes demais (mais de {TETO_DE_FONTES} registros citados)", True))
+            continue
+        texto, erro = ler_registro(raiz, rel)
+        if erro == "grande":
+            avisos.append((f"decisões: registro grande demais {nome_seguro(rel)} (mais de {TETO_DE_REGISTRO} bytes)", True))
+        elif erro:
+            avisos.append((f"decisões: dependência sem registro legível {nome_seguro(rel)} (informativo)", False))
+        else:
+            fontes.append((rel, linhas_de_decisao(texto)))
+            mencoes += [(rel, n) for n, _ in mencoes_da_frase(texto)]
     for rel, n in mencoes[:TETO_DE_MENCOES]:  # a citação no meio da linha não é decisão e não reprova, mas nunca some (M6.2)
         avisos.append((f"decisões: menção fora do início {caminho_impresso(rel)}:{n} (informativo; não cobrada)", False))
     if len(mencoes) > TETO_DE_MENCOES:
@@ -5169,7 +5226,8 @@ def main():
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
-    es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
+    es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
+    es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
     co = sub.add_parser("corrigidos", parents=[comum], help="PRs `fix` que corrigem PR já mesclado, lidos do histórico do git; só leitura (M14b)")
     co.add_argument("--ref", help="branch ou commit onde ler a linha de PRs (padrão: origin/develop, develop ou HEAD)")
     co.add_argument("--dias", type=int, default=DIAS_DO_CORRIGIDO, help=f"janela, em dias, do indício por arquivo em comum (padrão {DIAS_DO_CORRIGIDO})")
@@ -5182,6 +5240,7 @@ def main():
     er.add_argument("--gravidade", required=True, help=", ".join(GRAVIDADES))
     er.add_argument("--controle-que-faltou", required=True, help=f"o controle que deveria tê-lo achado: {', '.join(CONTROLES_QUE_FALTARAM)}")
     er.add_argument("--nota", required=True, help="uma linha: o que escapou")
+    er.add_argument("--origem", default=SEM_ORIGEM, help=f"onde o defeito nasceu: {', '.join(ORIGENS)} (padrão {SEM_ORIGEM})")
     eu = esub.add_parser("resumo", parents=[comum], help="escapes por gravidade e controle e a taxa sobre os pedidos prontos; só leitura")
     eu.add_argument("--dias", type=int, default=JANELA_DE_ESCAPES, help=f"janela em dias (padrão {JANELA_DE_ESCAPES})")
     af = sub.add_parser("afrouxamentos", parents=[comum], help="dos PRs com o rótulo afrouxa-regra, quantos afrouxavam regra de verdade (a catraca sobre o diff de cada um); só leitura (M14b)")
@@ -5300,14 +5359,14 @@ def executar(a, raiz):
     if a.cmd == "escape":
         if a.acao == "resumo":
             return cmd_escape_resumo(raiz, a.dias)
-        linhas = cmd_escape_registrar(raiz, a.pedido, a.parecer_final, a.achado_por, a.gravidade, a.controle_que_faltou, a.nota)
+        linhas = cmd_escape_registrar(raiz, a.pedido, a.parecer_final, a.achado_por, a.gravidade, a.controle_que_faltou, a.nota, a.origem)
         for linha in linhas:
             print(linha)
         return 1 if linhas[0].startswith("escape:") else 0
     if a.cmd == "afrouxamentos":
         return cmd_afrouxamentos(raiz, a.ref, a.prs, a.rotulados)
     if a.cmd == "esperas":
-        return cmd_esperas(raiz, a.pedido)
+        return cmd_esperas(raiz, a.pedido, a.kanban)
     if a.cmd == "corrigidos":
         return cmd_corrigidos(raiz, a.ref, a.dias)
     if a.cmd == "fila":

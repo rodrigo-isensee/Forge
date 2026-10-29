@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M69",
+      "guarda": "crase na palavra a torna expandida",
+      "arquivo": "hooks/parecer.py",
+      "de": "EXPANSAO = (\"$\", \"`\")",
+      "para": "EXPANSAO = (\"$\",)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M70",
+      "guarda": "o dolar (variavel, $( )) na palavra a torna expandida",
+      "arquivo": "hooks/parecer.py",
+      "de": "EXPANSAO = (\"$\", \"`\")",
+      "para": "EXPANSAO = (\"`\",)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M71",
+      "guarda": "as opcoes globais acabam na primeira palavra que nao e opcao",
+      "arquivo": "hooks/parecer.py",
+      "de": "and toks[i].startswith(\"-\"):",
+      "para": "and True:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M72",
+      "guarda": "palavra expandida antes do subcomando deixa as pastas incertas",
+      "arquivo": "hooks/parecer.py",
+      "de": "if any(map(expande, toks[1:sub])):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M73",
+      "guarda": "a incerteza vale ao devolver o subcomando achado",
+      "arquivo": "hooks/parecer.py",
+      "de": "return sub, pastas, True",
+      "para": "return sub, pastas, False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M74",
+      "guarda": "o subcomando e o primeiro merge, pull, checkout ou switch",
+      "arquivo": "hooks/parecer.py",
+      "de": "toks[j] in SUBCOMANDOS",
+      "para": "toks[j] in ()",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M75",
+      "guarda": "merge e subcomando achado depois da expansao",
+      "arquivo": "hooks/parecer.py",
+      "de": "SUBCOMANDOS = {\"merge\", \"pull\", \"checkout\", \"switch\"}",
+      "para": "SUBCOMANDOS = {\"pull\", \"checkout\", \"switch\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M76",
+      "guarda": "pull e subcomando achado depois da expansao",
+      "arquivo": "hooks/parecer.py",
+      "de": "SUBCOMANDOS = {\"merge\", \"pull\", \"checkout\", \"switch\"}",
+      "para": "SUBCOMANDOS = {\"merge\", \"checkout\", \"switch\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

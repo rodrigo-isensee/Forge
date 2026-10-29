@@ -1,0 +1,16 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M38",
+      "guarda": "CDPATH mexido na linha torna o cd relativo desconhecido",
+      "arquivo": "hooks/parecer.py",
+      "de": "cdpath is None or cdpath",
+      "para": "cdpath",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

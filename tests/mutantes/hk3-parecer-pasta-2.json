@@ -1,0 +1,26 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "cd relativo com CDPATH nao se resolve",
+      "arquivo": "hooks/parecer.py",
+      "de": "else os.environ.get(\"CDPATH\", \"\")",
+      "para": "else \"\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "--git-dir e --work-tree desviam o repositorio",
+      "arquivo": "hooks/parecer.py",
+      "de": "toks[i] in (\"--git-dir\", \"--work-tree\") or",
+      "para": "False or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

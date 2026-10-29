@@ -1,0 +1,76 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M113",
+      "guarda": "a atribuicao depois da palavra de condicao sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "ATRIBUICAO.match(palavras[k]) or no_time and",
+      "para": "no_time and",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M114",
+      "guarda": "o -p do time sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "(\"-p\", \"--\")",
+      "para": "(\"--\",)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M115",
+      "guarda": "o -- do time sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "(\"-p\", \"--\")",
+      "para": "(\"-p\",)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M116",
+      "guarda": "a opcao so sai depois do time",
+      "arquivo": "hooks/parecer.py",
+      "de": "no_time and palavras[k] in",
+      "para": "palavras[k] in",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M117",
+      "guarda": "o time vale para as opcoes seguintes",
+      "arquivo": "hooks/parecer.py",
+      "de": "no_time = no_time or palavras[k] == \"time\"",
+      "para": "no_time = palavras[k] == \"time\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M118",
+      "guarda": "o time liga a opcao",
+      "arquivo": "hooks/parecer.py",
+      "de": "no_time = no_time or palavras[k] == \"time\"",
+      "para": "no_time = False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M119",
+      "guarda": "a condicao para no fim das palavras",
+      "arquivo": "hooks/parecer.py",
+      "de": "while k < len(palavras):",
+      "para": "while True:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}
