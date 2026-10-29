@@ -58,6 +58,25 @@ class MergeIntegracao(Repositorio):
     def test_merge_commit_sem_parecer_reprova(self):
         rc, saida = self.entrega(etapa="merge-integracao", branch=self.squash())
         self.assertEqual((rc, SEM_PARECER in saida, "review: sem parecer do pedido na entrega" in saida), (1, True, True), saida)
+    def test_aceite_e_config_nunca_sao_anexo_nem_com_pareceres_aprovados(self):
+        protegidos = self.commitar({"docs/security/aceites/x.md": "a\n", "tests/config.json": "{}\n"}, "aceite e config")
+        pareceres = {**review(protegidos), "docs/qa/x.md": PARECER.format(t="qa", c=protegidos, p="aprovado", extra="escopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\n", achados=""),
+                     "docs/security/x.md": PARECER.format(t="revisao-seguranca", c=protegidos, p="aprovado", extra="revisor: forge:security-engineer\n", achados="")}
+        self.commitar(pareceres, "pareceres")
+        for nome, viva in {"ref viva": True, "mergeCommit": False}.items():
+            with self.subTest(nome):
+                rc, saida = self.entrega(etapa="merge-integracao", **({} if viva else {"branch": self.squash()}))
+                self.assertNotIn(SEM_PARECER, saida)
+                self.assertIn(OK_INTEGRACAO, saida)  # o arquivo do trabalho segue ok
+                for arquivo in ("docs/security/aceites/x.md", "tests/config.json"):
+                    self.assertIn(f'escopo: confira "{arquivo}"', saida)
+
+    def test_dois_pedidos_nos_reviews_do_squash_reprovam(self):
+        outro = review(self.codigo)["docs/reviews/x.md"].replace("pedido: x", "pedido: a")
+        self.commitar({**review(self.codigo), "docs/reviews/a.md": outro}, "dois reviews")
+        rc, saida = self.entrega(etapa="merge-integracao", branch=self.squash())
+        self.assertEqual((rc, SEM_PARECER in saida), (1, True), saida)
+
 
 class AnexosImplicitos(Repositorio):
     """E2: o que o conferente já aceita por regra sai `escopo: ok (anexo implícito: ...)`, só por acréscimo; o resto continua `confira`."""
@@ -86,6 +105,19 @@ class AnexosImplicitos(Repositorio):
         self.commitar({"docs/qa/x.md": qa + "\nedição própria\n"}, "o autor edita depois do merge")
         self.assertIn('escopo: confira "docs/qa/x.md"', self.saida())
 
+    def test_parecer_trazido_por_merge_so_vale_com_tipo_parecer_e_branch_do_pedido(self):
+        qa = PARECER.format(t="qa", c="0" * 40, p="aprovado", extra="escopo: completo\n", achados="")
+        for nome, texto in {"parecer qualquer": qa.replace("parecer: aprovado", "parecer: talvez"), "outra branch": qa.replace("melhoria/x", "melhoria/y"),
+                            "tipo trocado": qa.replace("tipo: qa", "tipo: review")}.items():
+            with self.subTest(nome):
+                lateral = "p" + nome.split()[0]
+                git("switch", "-q", "-c", lateral, self.base, cwd=self.repo)
+                self.commitar({"docs/qa/x.md": texto}, "parecer lateral")
+                git("switch", "-q", "melhoria/x", cwd=self.repo)
+                git("merge", "-q", "--no-ff", "-m", "traz", lateral, cwd=self.repo)
+                saida = self.saida()
+                git("reset", "-q", "--hard", "HEAD^", cwd=self.repo)
+                self.assertIn('escopo: confira "docs/qa/x.md"', saida)
 
     def test_anexo_com_remocao_continua_confira(self):
         base = self.commitar({"changelog.d/x.md": "- a\n- b\n"}, "o fragmento já existe na base")

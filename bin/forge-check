@@ -1010,9 +1010,10 @@ def pareceres_da_integracao(raiz, branch, head, base, pai=None):
     """E1: violações do `forge-check pr` (review, QA e segurança do diff) sobre o head da integração; [] = pareceres aprovados no head. Com `pai`
     (o mergeCommit do squash, a ref já apagada pelo `forge-fechar`), o diff é `pai..head` e o pedido é o do parecer de review que o commit traz."""
     pedido = branch_da_convencao(raiz, branch)
-    for nome in (nomes_do_intervalo(raiz, pai, head) if pai else []):
-        cod, texto = git(raiz, "show", f"{head}:{nome}")
-        pedido = pedido_do_parecer(texto) if nome.startswith("docs/reviews/") and not cod else pedido
+    if pai:
+        reviews = [n for n in nomes_do_intervalo(raiz, pai, head) if n.startswith("docs/reviews/")]
+        pedidos = {pedido_do_parecer(git(raiz, "show", f"{head}:{n}")[1]) for n in reviews}
+        pedido = pedidos.pop() if len(pedidos) == 1 else None  # A2: dois pedidos nos reviews do commit não escolhem um pelo nome
     if not pedido:
         return ["docs/reviews: review: sem parecer do pedido na entrega (R-REVIEW)"]
     return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}")
@@ -1033,7 +1034,9 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     if nome == f"changelog.d/{slug}.md":
         return "fragmento do changelog"
     cod, texto = git(raiz, "show", f"{head}:{nome}")
-    if tipo and not cod and pedido_do_parecer(texto) == slug and trazido_por_merge(raiz, de, head, nome):
+    fm = ler_frontmatter(texto)[0] or {}
+    valido = fm.get("tipo") == tipo and fm.get("parecer") in ("aprovado", "reprovado") and fm.get("branch") == f"melhoria/{slug}"  # A3
+    if tipo and not cod and valido and fm.get("pedido") == slug and trazido_por_merge(raiz, de, head, nome):
         return "parecer da própria branch trazido por merge"
     return None
 
@@ -1116,7 +1119,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))
             else:
                 linhas.append((f"escopo: ok (parecer de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
-        elif revisados and not violacoes:  # E1: a branch inteira, com os três pareceres aprovados no head
+        elif revisados and not violacoes and not nome.startswith(ACEITES_DO_USUARIO) and nome != "tests/config.json":  # E1: a branch inteira, com os pareceres aprovados no head; A1: o aceite e o config nunca são anexo
             linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
         elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
             linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
