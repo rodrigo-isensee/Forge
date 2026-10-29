@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: lote-0307-a
 branch: melhoria/lote-0307-a
-commit: 05fd5c560c4d3c2ab22e7ecbc3fbcd71993e2c5b
+commit: 683ddcf9db41143858ddb0b633041ff47bd3fa15
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
@@ -49,3 +49,7 @@ O teste do L2 roda o fechamento com o cwd numa outra worktree (`wt-develop`) e o
 **Ferramenta.** Não refiz o shellcheck nem a suíte completa: ficam com o pre-push e o CI do PR (decisão de 2026-10-24).
 
 **Fora do review.** A segurança é do E2.1 e o QA é do E3.1. Não gravei linha AR: nenhuma classe se repetiu neste pedido.
+
+## Revalidação do merge da develop (volta 2)
+
+Head novo 683ddcf (merge da develop a55ec03, release 0.30.6, sem conflito). Delta lido: `git diff cbd4ab3..683ddcf`, que traz o que a develop andou. Em `bin/forge-fechar` só há uma linha de comentário no `limpar_entrega` (PREPUSH-DELETE); o passo 0 da guarda do index.lock (`bin/forge-fechar:592-605`) continua intacto e antes do passo 1, e `git diff 05fd5c5 683ddcf -- bin/forge-fechar` mostra só essa linha. `tests/test_fechar_base_andou.py` não mudou desde 05fd5c5 e passou de novo (24 testes, OK). O resto do delta (hooks, pre-push, forge-check, pareceres e corpus da develop) é da develop e já foi revisado lá; fica como "já lido". Teto M14 do lote segue em 64 linhas (`bin/forge-fechar` +14, `tests/test_fechar_base_andou.py` +50). Sem regressão do que o parecer anterior aprovou; A1 e A2 seguem recomendados e não devolvem. Sem linha AR.
