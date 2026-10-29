@@ -85,10 +85,27 @@ class ValidacaoDaSpec(unittest.TestCase):
             with self.subTest(spec):
                 self.assertTrue(self.f.validar_spec(spec))
 
-    def test_de_um_a_oito_mutantes(self):
+    def test_de_um_a_dezesseis_mutantes(self):  # VEL-P1P10: o teto por spec sobe de 8 para 16
         self.assertTrue(self.problemas())
-        self.assertEqual(self.problemas(*[mutante(f"M{i}") for i in range(1, 9)]), [])
-        self.assertTrue(self.problemas(*[mutante(f"M{i}") for i in range(1, 10)]))
+        self.assertEqual(self.problemas(*[mutante(f"M{i}") for i in range(1, 17)]), [])
+        self.assertTrue(self.problemas(*[mutante(f"M{i}") for i in range(1, 18)]))
+
+    def equivalente(self, justificativa="o ramo morto nunca roda neste commit", ident="E1"):
+        m = {k: v for k, v in mutante(ident, de="return 0", para="return 1").items() if k != "testes"}
+        return {**m, "equivalente": justificativa}
+
+    def test_equivalente_declarado_com_justificativa_e_valido_sem_testes(self):  # VEL-P1P10
+        self.assertEqual(self.problemas(self.equivalente()), [])
+        self.assertEqual(self.problemas(mutante(), self.equivalente()), [])
+
+    def test_equivalente_sem_justificativa_ou_com_testes_e_invalido(self):  # VEL-P1P10
+        for justificativa in ("", "curta demais", " " * 30, None, 7):
+            with self.subTest(repr(justificativa)):
+                self.assertTrue(self.problemas(self.equivalente(justificativa)))
+        self.assertTrue(self.problemas({**self.equivalente(), "testes": ["tests.test_lib.T.test_borda"]}))
+        semchave = self.equivalente()
+        del semchave["equivalente"]
+        self.assertTrue(self.problemas(semchave))
 
     def test_arquivo_fora_do_padrao_e_invalido(self):  # CA-13
         for arquivo in ("/etc/x", "../fora.py", "a/../../b.py", "./lib.py", "a//b.py", "-lib.py", "a b.py", "a;b",
@@ -143,8 +160,8 @@ class ValidacaoDaSpec(unittest.TestCase):
         oito = {"pedido": "x", "mutantes": [mutante(f"A{i}") for i in range(1, 9)]}
         mais = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 7)]}
         self.assertEqual(self.f.validar_specs([oito, mais]), [])
-        nove = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 10)]}
-        self.assertTrue(self.f.validar_specs([oito, nove]), "o teto de 8 continua por spec")
+        dezessete = {"pedido": "x", "mutantes": [mutante(f"B{i}") for i in range(1, 18)]}
+        self.assertTrue(self.f.validar_specs([oito, dezessete]), "o teto de 16 continua por spec")
 
     def test_varias_specs_com_pedido_diferente_ou_id_repetido_sao_invalidas(self):  # MUTANTE-TETO
         a = {"pedido": "x", "mutantes": [mutante("M1")]}
@@ -252,8 +269,30 @@ class Execucao(unittest.TestCase):
                 self.assertIn("link simbólico", r.stdout)
                 self.assertEqual(hashlib.sha256(alvo.read_bytes()).hexdigest(), hash_antes)
 
-    def test_mais_de_oito_mutantes_sai_2(self):
-        r = self.rodar(self.spec(*[mutante(f"M{i}") for i in range(1, 10)]))
+    def equivalente(self, **troca):
+        return {"id": "E1", "guarda": "limite", "arquivo": "lib.py", "de": "return 0", "para": "return 1",
+                "equivalente": "o retorno padrão não muda o resultado observável", **troca}
+
+    def test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria(self):  # VEL-P1P10
+        r = self.rodar(self.spec(mutante(), self.equivalente()))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("equivalente: E1 · o retorno padrão não muda o resultado observável\n", r.stdout)
+        self.assertNotIn("E1 · sobreviveu", r.stdout)
+
+    def test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2(self):  # VEL-P1P10
+        for de in ("return 9", "return"):
+            with self.subTest(de):
+                r = self.rodar(self.spec(self.equivalente(de=de)))
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("E1 · inválido", r.stdout)
+
+    def test_equivalente_sem_justificativa_barra_a_spec_antes_de_rodar(self):  # VEL-P1P10
+        r = self.rodar(self.spec(mutante(), self.equivalente(equivalente="curta")))
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("nada foi executado", r.stderr)
+
+    def test_mais_de_dezesseis_mutantes_sai_2(self):
+        r = self.rodar(self.spec(*[mutante(f"M{i}") for i in range(1, 18)]))
         self.assertEqual(r.returncode, 2)
         self.assertIn("nada foi executado", r.stderr)
 
@@ -269,7 +308,7 @@ class Execucao(unittest.TestCase):
 
     def test_segunda_spec_invalida_barra_tudo_antes_de_rodar(self):  # MUTANTE-TETO
         a = self.spec(mutante("M1"), nome="x-1.json")
-        b = self.spec(*[mutante(f"B{i}") for i in range(1, 10)], nome="x-2.json")
+        b = self.spec(*[mutante(f"B{i}") for i in range(1, 18)], nome="x-2.json")
         r = self.rodar(a, b)
         self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
         self.assertIn("nada foi executado", r.stderr)
