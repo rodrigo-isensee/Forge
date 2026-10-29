@@ -10,7 +10,7 @@
   },
   "git": [
     {
-      "worktree": "home/wtx",
+      "worktree": "ctx/wtx",
       "branch": "melhoria/x"
     }
   ],
@@ -19,7 +19,7 @@
     "tool_name": "Bash",
     "tool_use_id": "toolu_9",
     "tool_input": {
-      "command": "git -C {tmp}/home/wtx/nao/.. merge melhoria/x"
+      "command": "git -C {tmp}/ctx/wtx/nao/.. merge melhoria/x"
     },
     "cwd": "{raiz}"
   },
