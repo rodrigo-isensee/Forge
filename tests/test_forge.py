@@ -4917,6 +4917,11 @@ class TetoPorPr(unittest.TestCase):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
 
+    def test_teto_de_150_linhas_tambem_no_jarvis(self):
+        texto = (RAIZ / "agents/jarvis.md").read_text(encoding="utf-8")
+        self.assertIn("150 linhas alteradas de código e teste", texto)
+        self.assertNotIn("400 linhas", texto)
+
     def test_teto_de_150_linhas_e_um_comportamento_por_pr_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
