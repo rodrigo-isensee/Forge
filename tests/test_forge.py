@@ -4912,10 +4912,18 @@ class TetoPorPr(unittest.TestCase):
     def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
             texto = (RAIZ / caminho).read_text(encoding="utf-8")
-            for frase in ("400 linhas alteradas de código e teste",
+            for frase in ("linhas alteradas de código e teste",
                           "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
+
+    def test_teto_de_150_linhas_e_um_comportamento_por_pr_no_tech_lead_e_na_skill(self):
+        for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
+            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            with self.subTest(arquivo=caminho):
+                self.assertIn("até 150 linhas alteradas de código e teste", texto)
+                self.assertNotIn("400 linhas", texto)
+                self.assertIn("um comportamento só", texto)
 
     def test_conta_e_excecao_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
