@@ -4947,6 +4947,12 @@ class TetoPorPr(unittest.TestCase):
                 self.assertIn(frase, texto)
         self.assertNotIn("requisito da regra, `R-REVIEW`", texto)
 
+    def test_a_skill_de_qa_divide_a_spec_no_mesmo_limite_que_a_ferramenta(self):
+        texto = (RAIZ / "skills/qa-testing/SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("3 a 16 mutantes", texto)
+        self.assertIn("Pedido com mais de 16 mutantes divide", texto)
+        self.assertNotIn("mais de 8 mutantes", texto)
+
 
 class VerificadoresDoAutor(unittest.TestCase):
     """VEL-P1P10, E3: o autor roda a mutação no diff, o shellcheck e a suíte do item antes do push."""
