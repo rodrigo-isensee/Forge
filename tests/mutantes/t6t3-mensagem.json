@@ -1,0 +1,168 @@
+{
+  "pedido": "t6t3-mensagem",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o --etapa diferente da etapa do brief e recusado",
+      "arquivo": "bin/forge-check",
+      "de": "a.etapa != etapa_do_brief:",
+      "para": "a.etapa == etapa_do_brief:",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_etapa_diferente_da_do_brief_e_recusada_com_a_etapa_certa",
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_a_etapa_sai_da_linha_etapa_do_brief"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "sem --etapa o brief com Etapa: nao e recusado",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa_do_brief and a.etapa is not None and",
+      "para": "if etapa_do_brief and",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_a_etapa_sai_da_linha_etapa_do_brief"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a recusa so vale quando o brief tem Etapa:",
+      "arquivo": "bin/forge-check",
+      "de": "if etapa_do_brief and a.etapa",
+      "para": "if etapa_do_brief or a.etapa",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_a_etapa_sai_da_linha_etapa_do_brief"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a etapa da mensagem e a do brief",
+      "arquivo": "bin/forge-check",
+      "de": "etapa = etapa_do_brief or etapa",
+      "para": "etapa = etapa",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_a_etapa_sai_da_linha_etapa_do_brief"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "--entrega escolhe a mensagem de entrega",
+      "arquivo": "bin/forge-check",
+      "de": "    if a.entrega:",
+      "para": "    if not a.entrega:",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_traz_tudo_do_arquivo_e_o_desde_da_ultima_conferida"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "a entrega exige Branch no brief",
+      "arquivo": "bin/forge-check",
+      "de": "etapa and branch and base and base_sha",
+      "para": "etapa and base and base_sha",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_brief_sem_etapa_branch_base_ou_base_sha_recusa_a_entrega"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o worktree tem de ser absoluto",
+      "arquivo": "bin/forge-check",
+      "de": "os.path.isabs(a.worktree) and ",
+      "para": "",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_com_worktree_relativo_e_recusada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o worktree tem de existir",
+      "arquivo": "bin/forge-check",
+      "de": "and os.path.isdir(a.worktree))",
+      "para": "and True)",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_com_worktree_inexistente_e_recusada"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a entrega nao aceita --anterior, --ref nem --parecer",
+      "arquivo": "bin/forge-check",
+      "de": " or a.anterior or a.ref or a.parecer:",
+      "para": ":",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_com_ref_anterior_ou_parecer_e_recusada"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o Desde vem so das linhas conferida (a base do dono tambem vale)",
+      "arquivo": "bin/forge-check",
+      "de": "bases = bases_do_pedido(caminho_pedido.read_text(encoding=\"utf-8\"))",
+      "para": "bases = [b for b in bases_do_pedido(caminho_pedido.read_text(encoding=\"utf-8\")) if b[1] == \"conferida\"]",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem conferida a linha Desde nao sai",
+      "arquivo": "bin/forge-check",
+      "de": "if bases else []",
+      "para": "if not bases else []",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_traz_tudo_do_arquivo_e_o_desde_da_ultima_conferida",
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_sem_conferida_no_historico_a_linha_desde_nao_sai"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a entrega exige Etapa no brief",
+      "arquivo": "bin/forge-check",
+      "de": "etapa and branch and base and base_sha",
+      "para": "branch and base and base_sha",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_brief_sem_etapa_branch_base_ou_base_sha_recusa_a_entrega"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a entrega exige Base no brief",
+      "arquivo": "bin/forge-check",
+      "de": "etapa and branch and base and base_sha",
+      "para": "etapa and branch and base_sha",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_brief_sem_etapa_branch_base_ou_base_sha_recusa_a_entrega"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a entrega exige Base-sha no brief",
+      "arquivo": "bin/forge-check",
+      "de": "etapa and branch and base and base_sha",
+      "para": "etapa and branch and base",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_brief_sem_etapa_branch_base_ou_base_sha_recusa_a_entrega"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o --worktree passa pela recusa de controle",
+      "arquivo": "bin/forge-check",
+      "de": "(\"--anterior\", a.anterior), (\"--worktree\", a.worktree)]",
+      "para": "(\"--anterior\", a.anterior)]",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_entrega_com_controle_no_worktree_e_recusada_sem_imprimir_o_valor"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "o Desde e a ultima linha, nao a primeira",
+      "arquivo": "bin/forge-check",
+      "de": "f\"Desde: {bases[-1][0]}\"",
+      "para": "f\"Desde: {bases[0][0]}\"",
+      "testes": [
+        "tests.test_mensagem_conferente.MensagemPelaEtapaDoBrief.test_desde_e_a_linha_mais_recente_entre_conferida_e_base_do_dono"
+      ]
+    }
+  ]
+}
