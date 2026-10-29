@@ -1,0 +1,29 @@
+{
+  "descricao": "HK3-PARECER, PR B (E2): pull na worktree de trabalho e a espera sem sh -c que rode merge.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cd {tmp}/home/wtx && git pull --rebase origin melhoria/x && git push origin HEAD:refs/heads/melhoria/x; timeout 900 sh -c 'until grep -q \"^rc=\" push.log; do sleep 5; done'"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

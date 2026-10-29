@@ -1,0 +1,30 @@
+{
+  "descricao": "HK3-PARECER, PR B (E2): sed -n com o comando e do sed roda o texto.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "cat > p.md <<'EOF'\nparecer: git merge origin/develop e gh pr merge b\nEOF\nsed -n '1e git merge' p.md"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "heredoc gravado"
+  }
+}

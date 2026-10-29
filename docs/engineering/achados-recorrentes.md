@@ -18,6 +18,7 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 - AR-4 · review · teste herda o ambiente do CI · R-REVIEW · vezes: 2 · última: tests/test_suite_paralela.py:181
 - AR-5 · seguranca · python sem -I em caminho que decide · R-SEGURANCA · vezes: 2 · última: .githooks/pre-push:264
 - AR-6 · review · mascara-do-shell-esconde-codigo · R-REVIEW · vezes: 5 · última: bin/forge-mutante:404
-- AR-7 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 2 · última: hooks/parecer.py:257
+- AR-7 · seguranca · pasta-do-git-diferente-do-bash · R-REVIEW · vezes: 3 · última: hooks/parecer.py:587
 - AR-8 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 3 · última: hooks/parecer.py:224
 - AR-9 · review · limite-antigo-no-texto · R-REVIEW · vezes: 2 · última: skills/qa-testing/SKILL.md:85
+- AR-10 · review · texto-isento-executado-por-outro-caminho · R-REVIEW · vezes: 2 · última: hooks/parecer.py:117

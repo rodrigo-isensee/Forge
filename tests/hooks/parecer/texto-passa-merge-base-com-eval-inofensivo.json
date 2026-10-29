@@ -1,0 +1,29 @@
+{
+  "descricao": "HK3-PARECER, PR B (E2): merge-base não é merge: o eval sem palavra crítica passa.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home"
+  },
+  "git": [
+    {
+      "worktree": "home/wtx",
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "git merge-base origin/develop HEAD; eval 'echo ok'"
+    },
+    "cwd": "{raiz}"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
