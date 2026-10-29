@@ -38,10 +38,12 @@ PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\ba
 CRITICO = re.compile(rf"\bpr\b.*\b(create|{MERGE}|ready)\b|\bapi\b|\b({MERGE}|pull)\b", re.S)
 # A palavra crítica só no texto (HK3-PARECER, E2). `sed -n <N,Mp> <arquivos>` só imprime: vale `cat <arquivos>` (só números,
 # sem metacaractere: a troca não muda o que o bash lê). `sh -c` cujo texto só usa estes programas não roda merge, pull nem gh pr.
-SED_LE = re.compile(r"sed -n (['\"]?)\d+(?:,\d+)?p\1((?: +[\w./~@:+%,][\w./~@:+%,=-]*)*)(?=[ \t]*(?:[;&|)\n]|$))")
+SED_LE = re.compile(r"(?<![^\s;&|(])sed -n (['\"]?)\d+(?:,\d+)?p\1((?: +[\w./~@:+%,][\w./~@:+%,=-]*)*)(?=[ \t]*(?:[;&|)\n]|$))")
 # Chamada só de `cat` (sem aspa, `$`, `#`, `;`, `&`, `|` nem parêntese: nada que mude como o bash lê as linhas): os corpos de
 # heredoc dela são texto, e a gramática positiva do D (a rede contra o que o leitor não vê) não tem o que recusar.
 SO_CAT = re.compile(r"(?:[ \t]*cat(?:[ \t]+>{0,2}[ \t]*[\w./~@:+%,-]+)*[ \t]*(?:\n|$))+")
+# `<<`/`<<-` seguido de `'PALAVRA'`, `"PALAVRA"` ou `PALAVRA` (só \w): o bash e o hook cortam o corpo no mesmo ponto.
+HEREDOC_SIMPLES = re.compile(r"(?<!<)<<(-?)[ \t]*(?:'(\w+)'|\"(\w+)\"|(\w+))(?=[ \t]|$)")
 LE_O_TEXTO = {"grep", "cat"}
 SO_ESPERA = {"sleep", "echo", ""}
 CONTROLE = {"if", "elif", "while", "until", "!", "then", "do", "else", "fi", "done"}
@@ -92,13 +94,34 @@ def so_le_ou_espera(script):
                                       for leitura in lidas.partes for palavras, *_ in leitura)
 
 
+def heredocs_simples(texto):
+    """Todo `<<` da chamada é de `HEREDOC_SIMPLES` e as linhas de comando, fora dos corpos, não têm `\\` nem `$`: o corpo
+    acaba onde o hook o corta (`<<$'EOF'`, `<<\\`, `<<EOF\\` e afins voltam à rede D)."""
+    pendentes = []  # (terminador, com `-`) dos heredocs já abertos, na ordem do bash
+    for linha in texto.split("\n"):
+        if pendentes:
+            if linha.endswith("\\"):
+                return False
+            pendentes = pendentes[1:] if (linha.lstrip("\t") if pendentes[0][1] else linha) == pendentes[0][0] else pendentes
+            continue
+        achados = [(m.group(2) or m.group(3) or m.group(4), bool(m.group(1))) for m in HEREDOC_SIMPLES.finditer(linha)]
+        if "\\" in linha or "$" in linha or linha.count("<<") != len(achados):
+            return False
+        pendentes = achados
+    return True
+
+
 def e_shell_c_de_texto(texto):
     """Toda reavaliação do texto é `<shell> -c <script>` (o `-c` logo depois do shell, e ele a primeira reavaliação do
-    comando) e o script só lê ou espera."""
+    comando) e o script só lê ou espera. Fora disso: shell sem `-c` (lê o stdin, `echo … | sh`) ou `BASH_ENV=` na linha."""
+    if "BASH_ENV=" in texto:
+        return False
     for simples in palavras_do_texto(texto).simples:
         palavras = [reduzida(p.cru) for p in simples.palavras]
         achada = reavaliacao_das_palavras(palavras)
         if achada is None:
+            if any(isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO for p in palavras):
+                return False
             continue
         i = next((k for k, p in enumerate(palavras) if isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO
                   and achada == f"{Path(p).name} -c"), len(palavras))
@@ -584,7 +607,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     # ADR 0011, item 2 (opções D e A), depois das regras da linha e do corpo: sobre o texto do nível 0, com o `<<` que o
     # bash pode formar nele ou num nível de cima (`bash -c`, `eval`, `$(…)`; `tem_heredoc_no_texto`), haja heredoc
     # provado ou não
-    if nivel == 0 and CRITICO.search(original) and not SO_CAT.fullmatch(comando):
+    if nivel == 0 and CRITICO.search(original) and not (SO_CAT.fullmatch(comando) and heredocs_simples(original)):
         sinal = fora_da_gramatica_com_heredoc(original)
         if sinal is not None:
             bloquear("R-REVIEW", f"`{sinal}` na chamada com heredoc e gh pr, gh api, merge ou pull: o hook não modela. "

@@ -1,0 +1,104 @@
+{
+  "pedido": "hk3-parecer-texto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "V1",
+      "guarda": "a isencao do heredoc exige o corte simples",
+      "arquivo": "hooks/parecer.py",
+      "de": "not (SO_CAT.fullmatch(comando) and heredocs_simples(original))",
+      "para": "not SO_CAT.fullmatch(comando)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V2",
+      "guarda": "barra na linha de comando tira a isencao",
+      "arquivo": "hooks/parecer.py",
+      "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
+      "para": "if \"$\" in linha or linha.count(\"<<\") != len(achados):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V3",
+      "guarda": "cifrao na linha de comando tira a isencao",
+      "arquivo": "hooks/parecer.py",
+      "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
+      "para": "if \"\\\\\" in linha or linha.count(\"<<\") != len(achados):",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V4",
+      "guarda": "todo << tem de ser de heredoc simples",
+      "arquivo": "hooks/parecer.py",
+      "de": "if \"\\\\\" in linha or \"$\" in linha or linha.count(\"<<\") != len(achados):",
+      "para": "if \"\\\\\" in linha or \"$\" in linha:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V5",
+      "guarda": "barra no fim da linha do corpo tira a isencao",
+      "arquivo": "hooks/parecer.py",
+      "de": "if linha.endswith(\"\\\\\"):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V6",
+      "guarda": "so o terminador fecha o corpo",
+      "arquivo": "hooks/parecer.py",
+      "de": "pendentes = pendentes[1:] if (linha.lstrip",
+      "para": "pendentes = pendentes[1:] if True or (linha.lstrip",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V7",
+      "guarda": "BASH_ENV na linha tira a isencao do sh -c",
+      "arquivo": "hooks/parecer.py",
+      "de": "if \"BASH_ENV=\" in texto:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V8",
+      "guarda": "shell sem -c na linha tira a isencao do sh -c",
+      "arquivo": "hooks/parecer.py",
+      "de": "if any(isinstance(p, str) and Path(p).name in SHELLS_DA_REAVALIACAO for p in palavras):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V9",
+      "guarda": "a troca do sed -n por cat vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "conferir_linha(hook, SED_LE.sub(r\"cat\\2\", comando),",
+      "para": "conferir_linha(hook, comando,",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "V10",
+      "guarda": "o sed -n comeca uma palavra",
+      "arquivo": "hooks/parecer.py",
+      "de": "SED_LE = re.compile(r\"(?<![^\\s;&|(])sed -n (",
+      "para": "SED_LE = re.compile(r\"sed -n (",
+      "equivalente": "a ancora so impede xsed virar xcat, e SO_CAT e so_le_ou_espera exigem cat no inicio da palavra: xcat nunca passa, com ou sem a ancora; nenhum caso muda de veredito"
+    }
+  ]
+}
