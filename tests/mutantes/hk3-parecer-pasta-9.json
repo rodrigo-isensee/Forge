@@ -1,0 +1,86 @@
+{
+  "pedido": "hk3-parecer-pasta",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M61",
+      "guarda": "depois de && o cd pode nao rodar: nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "anterior in COMECA and",
+      "para": "anterior in SEGUE and",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M62",
+      "guarda": "o cd que comeca a linha vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "COMECA = {\"\", \";\", \"\\n\"}",
+      "para": "COMECA = {\";\", \"\\n\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M63",
+      "guarda": "o cd depois de `;` vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "COMECA = {\"\", \";\", \"\\n\"}",
+      "para": "COMECA = {\"\", \"\\n\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M64",
+      "guarda": "o cd depois de quebra de linha vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "COMECA = {\"\", \";\", \"\\n\"}",
+      "para": "COMECA = {\"\", \";\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M65",
+      "guarda": "cd em pipeline, segundo plano ou antes de || nao vale",
+      "arquivo": "hooks/parecer.py",
+      "de": "and sinal in SEGUE)",
+      "para": "and True)",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M66",
+      "guarda": "subshell de varios comandos nao e solto",
+      "arquivo": "hooks/parecer.py",
+      "de": "aberto or sinal in (\"(\", \")\") or",
+      "para": "aberto or False or",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M67",
+      "guarda": "substituicao de varios comandos nao e solta",
+      "arquivo": "hooks/parecer.py",
+      "de": "append(not sub and not aberto",
+      "para": "append(True and not aberto",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M68",
+      "guarda": "o cd depois de then, do, else e { e visto",
+      "arquivo": "hooks/parecer.py",
+      "de": "palavras[k] in CORPO",
+      "para": "False",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_pasta_passa_e_barra"
+      ]
+    }
+  ]
+}

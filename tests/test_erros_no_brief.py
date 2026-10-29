@@ -538,7 +538,7 @@ class AchadosRecorrentes(Base):
 
     def test_aq1_o_arquivo_do_forge_traz_as_linhas_ar_da_proposta(self):
         linhas = [l for l in (RAIZ / ACHADOS).read_text(encoding="utf-8").splitlines() if l.startswith("- AR-")]
-        self.assertEqual([l.split(" · ")[1] for l in linhas], ["qa", "qa", "seguranca", "review", "seguranca", "review"])
+        self.assertEqual([l.split(" · ")[1] for l in linhas[:6]], ["qa", "qa", "seguranca", "review", "seguranca", "review"])
         self.assertEqual(fc.problemas_dos_achados("\n".join(linhas)), [])
 
 

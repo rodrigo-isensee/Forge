@@ -1,0 +1,2 @@
+### Corrigido
+- o hook parecer resolve a pasta do git só quando ela é literal (cd no nível de cima da linha, -C repetido, ~): o pull --rebase de parecer e o git -C de outra worktree deixam de ser recusados; variável, crase, $( ), cd em subshell, pipeline, segundo plano, condicional (`if cd`, `while cd`, `! cd`, `time cd`, `function f { cd`) ou depois de `&&`, pushd, popd, --git-dir e GIT_DIR deixam a pasta desconhecida, e o merge ou o pull nela é recusado em vez de julgado pelo cwd; o git -C seguido de palavra que a expansão esvazia também recusa (HK3-PARECER)
