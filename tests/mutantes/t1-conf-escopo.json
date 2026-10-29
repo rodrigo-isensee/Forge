@@ -4,7 +4,7 @@
   "isentas": [
     {
       "arquivo": "bin/forge-check",
-      "trecho": "ler_frontmatter(texto)[0] or {}",
+      "trecho": "ler_frontmatter(texto)[0] or {\"pedido\": None}",
       "motivo": "defesa de frontmatter ilegivel: vira {} e cai no guarda `not pedido`, que um mutante cobre"
     },
     {

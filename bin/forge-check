@@ -1002,13 +1002,17 @@ def maior_contagem(a, b):
     return "-" if "-" in (a, b) else str(max(int(a), int(b)))
 
 
+def pedido_do_parecer(texto):
+    return (ler_frontmatter(texto)[0] or {"pedido": None}).get("pedido")
+
+
 def pareceres_da_integracao(raiz, branch, head, base, pai=None):
     """E1: violações do `forge-check pr` (review, QA e segurança do diff) sobre o head da integração; [] = pareceres aprovados no head. Com `pai`
     (o mergeCommit do squash, a ref já apagada pelo `forge-fechar`), o diff é `pai..head` e o pedido é o do parecer de review que o commit traz."""
     pedido = branch_da_convencao(raiz, branch)
     for nome in (nomes_do_intervalo(raiz, pai, head) if pai else []):
         cod, texto = git(raiz, "show", f"{head}:{nome}")
-        pedido = (ler_frontmatter(texto)[0] or {}).get("pedido") if nome.startswith("docs/reviews/") and not cod else pedido
+        pedido = pedido_do_parecer(texto) if nome.startswith("docs/reviews/") and not cod else pedido
     if not pedido:
         return ["docs/reviews: review: sem parecer do pedido na entrega (R-REVIEW)"]
     return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}")
@@ -1032,7 +1036,7 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     if nome == f"changelog.d/{slug}.md":
         return "fragmento do changelog"
     cod, texto = git(raiz, "show", f"{head}:{nome}")
-    if tipo and not cod and (ler_frontmatter(texto)[0] or {}).get("pedido") == slug and trazido_por_merge(raiz, de, head, nome):
+    if tipo and not cod and pedido_do_parecer(texto) == slug and trazido_por_merge(raiz, de, head, nome):
         return "parecer da própria branch trazido por merge"
     return None
 
