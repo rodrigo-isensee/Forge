@@ -3,36 +3,49 @@ tipo: review
 contrato: 1
 pedido: lote-0307-a
 branch: melhoria/lote-0307-a
-commit: 38f3f7194f36fd0e9b0dd1e0e01bf4c7280e4c19
-parecer: reprovado
+commit: 05fd5c560c4d3c2ab22e7ecbc3fbcd71993e2c5b
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-28
+data: 2026-10-29
 ---
 # Review: lote-0307-a
 
-Pedido LOTE-0307-A-REV, etapa E1.1 (`R-REVIEW`). Diff lido: `3b94791...38f3f71` (9 arquivos, +63 -4). Teto M14: 42 linhas de código e teste (`bin/forge-fechar` +14, `tests/test_fechar_base_andou.py` +28; `tests/mutantes/` e `.md` ficam fora), abaixo de 400; nada em `hooks/` nem em `PROTEGIDOS`.
+Pedido LOTE-0307-A-REV, etapa E1.1 (`R-REVIEW`), volta 1. Revalidei por delta sobre o meu parecer anterior (234be01, head 38f3f71). Teto M14 da branch inteira (`3b94791...05fd5c5`): 64 linhas de código e teste (`bin/forge-fechar` +14, `tests/test_fechar_base_andou.py` +50). Ficam fora `tests/mutantes/`, os pareceres, o fragmento e os `.md`. O total fica abaixo de 400, e o lote não mexe em `hooks/` nem em `PROTEGIDOS`.
 
 ## Achados
-- A1 (bloqueante) bin/forge-fechar:596 · regressão: worktree da branch com o diretório já apagado (registro órfão, caso que o passo 7 trata com prune) agora para antes do passo 1 com "não consegui ler a pasta git"; na base o fechamento segue até o fim. Pular o diretório ausente e cobrir com teste.
-- A2 (recomendado) bin/forge-fechar:544 · o --dry-run não imprime o passo 0 da guarda do index.lock, que o docs/fechamento-integrador.md já lista; acrescente a linha para o dry-run descrever o caminho real inteiro.
+- A1 (recomendado) tests/test_fechar_base_andou.py:314 · o teste da pasta apagada só confere que as mensagens não aparecem. Ele não confere rc=0 nem o PR criado, que o A1 anterior pedia. Acrescente `assertEqual(r.returncode, 0)` e `len(self.criacoes()) == 1`, como no teste do lock ausente.
+- A2 (recomendado) bin/forge-fechar:543 · continua da volta anterior: o --dry-run ainda não imprime o passo 0 da guarda do index.lock, que o docs/fechamento-integrador.md lista.
 
 ## Parecer
-Reprovado por A1, defeito de comportamento provado.
+Aprovado. O A1 bloqueante da volta anterior foi corrigido. Os dois achados acima são recomendações e não devolvem a entrega.
 
-**A1, a prova.** Usei uma sonda em `$TMPDIR/tech-lead-lote-0307-a/sonda_prunable.py`, montada sobre o ambiente de `tests/test_fechar_base_andou.py`: a branch `melhoria/x` tem uma worktree e o diretório dela é apagado com `rmtree`, sem prune. Com o `bin/forge-fechar` do head 38f3f71, o script sai com rc=1 e escreve `parou antes do passo 1: não consegui ler a pasta git da worktree .../wt-x`. Com o `bin/forge-fechar` da base 3b94791, o mesmo cenário sai com rc=0: o fechamento vai até o fim e o passo 7 limpa a branch remota. O `git worktree list --porcelain` continua listando a worktree (marcada `prunable`), então o `git -C "$arvore_lock" rev-parse --git-dir` falha e cai no `die`. O passo 7 já trata esse caso ("prune se o diretório já sumiu", linhas 404 a 411), então ele acontece de verdade. Sugestão: na linha 595, `[ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]`. Um diretório ausente não tem `index.lock` que trave o avanço. Também falta um teste do diretório ausente, que deve seguir com rc=0.
+**O delta lido** (`forge-check delta --parecer docs/reviews/lote-0307-a.md`, intervalo `38f3f71..05fd5c5`):
+- `bin/forge-fechar:595`
+- `templates/projeto/docs/security/_modelo.md:27`, com a mesma linha no `docs/security/_modelo.md:27` da raiz
+- `tests/mutantes/lote-0307-a.json:11-33`
+- `tests/test_fechar_base_andou.py:6` e `:295-315`
 
-**O que está certo:**
-- A guarda nova é o passo 0. Ela roda antes do passo 1 e só no caminho real: fica depois do `exit 0` do `--dry-run` e do `exit` do `--limpar`.
-- Ela só lê e avisa. Nunca apaga o lock. Imprime o caminho, a idade em minutos e o comando `rm` com `printf %q`.
-- O caminho relativo de `--git-dir` (worktree principal) é resolvido contra a worktree.
-- O `stat` tem fallback entre GNU e BSD, e a idade vira `desconhecida` quando ele falha.
-- `set -euo pipefail` está ligado, então a falha do `git worktree list` não fica escondida pelo `awk` (AR-1, `mascara-do-shell-esconde-codigo`, conferido: não se repete aqui).
-- O `awk` compara o nome exato da branch (`$2==b`), não um prefixo.
-- O texto dos três modelos (reviews, qa e security em `templates/projeto/docs/`) e do `docs/security/_modelo.md` da raiz ficou igual e coerente com o `forge-check docs`: ele só recusa parecer `reprovado` sem `bloqueante` (bin/forge-check:1211) e aceita aprovado com `recomendado`. A raiz igual ao template é exigida pelo teste de igualdade, conforme a DECISÃO TÉCNICA de 21:34.
-- `docs/fechamento-integrador.md` documenta o passo 0, e o fragmento `changelog.d/lote-0307-a.md` está presente.
+O resto do diff ficou como "já lido" no parecer 234be01, sem mudança.
 
-**Testes do item.** `python3 -m unittest tests.test_fechar_base_andou` passou: 22 testes, OK. O teste do lock presente confere rc=1, o caminho, `idade: 7 min`, o `rm <caminho>`, o lock ainda existindo e nenhuma criação nem merge de PR. O teste do lock ausente confere rc=0 e um PR criado. O mutante L1 (`if false`) é morto pelo teste do lock presente, conforme o histórico do pedido. Os falsos de `git` só interceptam `ls-remote`, `rev-list` e `diff`; o `worktree list` vai ao git real (checklist item 12, sem afrouxamento).
+**A1 anterior, corrigido.** A linha 595 agora é `[ -n "$arvore_lock" ] && [ -d "$arvore_lock" ]`, a guarda que eu tinha sugerido. O comentário aponta o prune do passo 7. O teste novo `test_worktree_da_branch_com_a_pasta_apagada_nao_para_no_lock` apaga a worktree com `rmtree` sem prune, que é o mesmo cenário da minha sonda. Numa cópia em `$TMPDIR`, acrescentei ao teste as asserções de rc=0 e de um PR criado, e ele passou. Então o comportamento está certo, e o A1 acima pede só que o teste do repositório confira isso.
+
+**Mutantes.** Rodei os três de `tests/mutantes/lote-0307-a.json` numa cópia em `$TMPDIR`, trocando `de` por `para` e rodando os testes listados:
+- L1 (`if false`): morto.
+- L2 (sem completar o git-dir relativo): morto. Esse mutante fecha o A1 do QA.
+- L3 (sem a guarda `[ -d ]`): morto. Ele morre porque, sem a guarda, o stderr traz "pasta git".
+
+O teste do L2 roda o fechamento com o cwd numa outra worktree (`wt-develop`) e o lock em `.git/index.lock` da principal, então o `.git` relativo só acha o lock se for completado com `$arvore_lock`. A mudança no L1 é só de formatação.
+
+**Modelos de segurança.** A linha 27, na raiz e no template, ficou igual nos dois e coerente com os modelos de reviews e de qa: o parecer aprovado leva as recomendações em prosa ou como linhas `(recomendado)` no bloco. O `forge-check docs` só recusa parecer `reprovado` sem `bloqueante`. O mérito é do `security-engineer` (E2.1).
+
+**Sem regressão** do que o parecer 234be01 aprovou:
+- A guarda continua sendo o passo 0, só no caminho real.
+- Ela só lê e avisa, nunca apaga o lock, e usa `printf %q` no comando sugerido.
+- O `awk` compara o nome exato da branch.
+- O `set -euo pipefail` continua ligado. O AR-1 (`mascara-do-shell-esconde-codigo`) foi conferido e não se repete aqui.
+
+**Testes do item.** `python3 -m unittest tests.test_fechar_base_andou` passou: 24 testes, OK.
 
 **Ferramenta.** Não refiz o shellcheck nem a suíte completa: ficam com o pre-push e o CI do PR (decisão de 2026-10-24).
 
-**Fora do review.** Segurança é do `security-engineer` (E2.1, em paralelo) e QA é do `qa-engineer` (E3.1). Não gravei linha AR: a classe do A1 não se repetiu neste pedido nem está em `docs/engineering/achados-recorrentes.md`.
+**Fora do review.** A segurança é do E2.1 e o QA é do E3.1. Não gravei linha AR: nenhuma classe se repetiu neste pedido.
