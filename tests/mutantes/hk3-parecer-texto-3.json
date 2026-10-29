@@ -1,0 +1,106 @@
+{
+  "pedido": "hk3-parecer-texto",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "T30",
+      "guarda": "a palavra de controle if sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T31",
+      "guarda": "a palavra de controle elif sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T32",
+      "guarda": "a palavra de controle while sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T33",
+      "guarda": "a palavra de controle until sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T34",
+      "guarda": "a palavra de controle ! sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T35",
+      "guarda": "a palavra de controle then sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"do\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T36",
+      "guarda": "a palavra de controle do sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"else\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T37",
+      "guarda": "a palavra de controle else sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"fi\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T38",
+      "guarda": "a palavra de controle fi sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"done\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "T39",
+      "guarda": "a palavra de controle done sai",
+      "arquivo": "hooks/parecer.py",
+      "de": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\", \"done\"}",
+      "para": "CONTROLE = {\"if\", \"elif\", \"while\", \"until\", \"!\", \"then\", \"do\", \"else\", \"fi\"}",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    }
+  ]
+}

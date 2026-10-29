@@ -1,0 +1,128 @@
+{
+  "pedido": "vel-p1p10",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o limite por spec e 16 (nao menos)",
+      "arquivo": "bin/forge-mutante",
+      "de": "MAXIMO_DE_MUTANTES = 16",
+      "para": "MAXIMO_DE_MUTANTES = 8",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_de_um_a_dezesseis_mutantes"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o limite por spec e 16 (nao mais)",
+      "arquivo": "bin/forge-mutante",
+      "de": "MAXIMO_DE_MUTANTES = 16",
+      "para": "MAXIMO_DE_MUTANTES = 17",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_de_um_a_dezesseis_mutantes",
+        "tests.test_forge_mutante.Execucao.test_mais_de_dezesseis_mutantes_sai_2"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "equivalente exige justificativa de 20+ caracteres",
+      "arquivo": "bin/forge-mutante",
+      "de": "len(m[\"equivalente\"].strip()) < 20",
+      "para": "len(m[\"equivalente\"].strip()) < 2",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_sem_justificativa_ou_com_testes_e_invalido"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o equivalente declarado nao exige testes",
+      "arquivo": "bin/forge-mutante",
+      "de": "isinstance(m, dict) and \"equivalente\" in m else CHAVES_DO_MUTANTE",
+      "para": "isinstance(m, dict) and \"equivalente_\" in m else CHAVES_DO_MUTANTE",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_declarado_com_justificativa_e_valido_sem_testes"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "trecho do equivalente que nao aparece uma vez so e invalido",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if n != 1:\n        return f",
+      "para": "    if n < 1:\n        return f",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "equivalente invalido da rc 2",
+      "arquivo": "bin/forge-mutante",
+      "de": "codigo = codigo if valido else 2\n",
+      "para": "codigo = codigo if True else 2\n",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_o_trecho_ausente_ou_repetido_sai_2"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o equivalente nao roda (nao vira controle nem mutante)",
+      "arquivo": "bin/forge-mutante",
+      "de": "codigo = codigo if valido else 2\n                continue",
+      "para": "codigo = codigo if valido else 2",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a linha do equivalente tem o rotulo proprio",
+      "arquivo": "bin/forge-mutante",
+      "de": "f\"equivalente: {m['id']} ·",
+      "para": "f\"eq: {m['id']} ·",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "a justificativa sai na linha",
+      "arquivo": "bin/forge-mutante",
+      "de": "' '.join(m['equivalente'].split())",
+      "para": "m['id']",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a validacao trata o equivalente a parte",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if \"equivalente\" in m:\n            if not",
+      "para": "        if \"equivalente\" in {}:\n            if not",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_declarado_com_justificativa_e_valido_sem_testes"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a rodada separa o equivalente antes de montar a copia",
+      "arquivo": "bin/forge-mutante",
+      "de": "            if \"equivalente\" in m:\n                linha,",
+      "para": "            if \"equivalente\" in {}:\n                linha,",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_declarado_nao_roda_nao_da_rc_1_e_sai_na_linha_propria"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a spec com chave fora do conjunto e recusada",
+      "arquivo": "bin/forge-mutante",
+      "de": "or set(m) != chaves:",
+      "para": "or set(m) == chaves:",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_spec_valida",
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_sem_justificativa_ou_com_testes_e_invalido"
+      ]
+    }
+  ]
+}

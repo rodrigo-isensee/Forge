@@ -29,6 +29,15 @@ class PastaDoGit(unittest.TestCase):
         casos = [(f"parecer/{f.caminho.stem}", f) for f in fixtures]
         self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
 
+    def test_corpus_texto_passa_e_barra(self):
+        """HK3-PARECER, PR B (E2): a palavra crítica só no texto (heredoc lido, argumento de leitor, merge-base, sh -c que só
+        lê ou espera) passa; executar merge, pull ou gh pr em heredoc, sh -c ou eval segue barrado (`texto-*`)."""
+        fixtures = minimo([Fixture(p) for p in sorted((FIXTURES / "parecer").glob("texto-*.json"))], 30, "fixtures texto-*")
+        passam = [f for f in fixtures if f.dados["esperado"]["codigo"] == 0]
+        self.assertTrue(10 <= len(passam) < len(fixtures), "o corpus tem os dois lados: o que passa e o que barra")
+        casos = [(f"parecer/{f.caminho.stem}", f) for f in fixtures]
+        self.assertEqual(self.executar_em_lote(casos), len(fixtures), "toda fixture é verificada")
+
 
 if __name__ == "__main__":
     unittest.main()

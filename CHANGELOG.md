@@ -4,6 +4,15 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.30.7] - 2026-10-29
+### Alterado
+- O `forge-check brief mensagem` lê a etapa da linha `Etapa:` do brief (o `--etapa` diferente dela é recusado) e, com `--entrega --worktree`, gera a mensagem do modo entrega ao conferente (T6T3-MENSAGEM, E1 e E2).
+- entrega menor e verificadores do autor: teto por PR de 400 para 150 linhas e um comportamento por PR; forge-mutante aceita mutante equivalente declarado (campo equivalente, com justificativa) e até 16 mutantes por spec; o autor roda mutação no diff, shellcheck e a suíte do item antes do push (VEL-P1P10)
+### Corrigido
+- O hook parecer deixa de recusar a chamada em que merge, pull ou gh pr só aparece no texto: corpo de heredoc numa chamada só de cat (com sed -n numérico, lido como cat), merge-base e sh -c cujo texto só lê ou espera; executar merge, pull ou gh pr em heredoc, sh -c ou eval segue barrado (HK3-PARECER, E2).
+- O bin/forge-fechar para com aviso (caminho, idade e comando rm) quando um index.lock órfão trava a worktree da branch, sem apagá-lo, e os modelos de parecer deixam de dizer que aprovado tem o bloco de achados vazio (LOTE-0307-A).
+- A conferência de entrega deixa de reprovar sem mérito a etapa merge-integracao (escopo da branch com os pareceres aprovados no head, mergeCommit da ref apagada) e o fragmento do changelog e o parecer da própria branch trazido por merge (anexo implícito só por acréscimo) (T1-CONF-ESCOPO)
+
 ## [0.30.6] - 2026-10-29
 ### Adicionado
 - forge-mutante --cobertura lista o arquivo de shell como `não coberto` (uma vez por arquivo, sem análise de linha), aceita isentas na spec (até 8, trecho exato e motivo), tem tetos de diff e de condições, pareia a condição editada pela posição no hunk, e o brief de volta traz o PQ cmd do autor com a checagem (GUARDA-SEM-MUTANTE, PR 2)

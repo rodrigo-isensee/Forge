@@ -9,7 +9,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check transcricao decisoes [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
-     forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>]
+     forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
      forge-check brief gerar --pedido <arquivo ou id> --volta <brief aprovado> --ref <branch da entrega> [--parecer <arquivo>...] [--incluir <parecer>:R<n>...] [--base develop] [--etapa E]
      forge-check entrega <pedido> --branch B --base develop|homolog|main --base-sha SHA --etapa E [--desde SHA] [--brief <brief>]...
      forge-check delta <commit> [<fim>] | --parecer <arquivo> [<fim>]
@@ -1002,6 +1002,45 @@ def maior_contagem(a, b):
     return "-" if "-" in (a, b) else str(max(int(a), int(b)))
 
 
+def pedido_do_parecer(texto):
+    return (ler_frontmatter(texto)[0] or {"pedido": None}).get("pedido")
+
+
+def pareceres_da_integracao(raiz, branch, head, base, pai=None):
+    """E1: violações do `forge-check pr` (review, QA e segurança do diff) sobre o head da integração; [] = pareceres aprovados no head. Com `pai`
+    (o mergeCommit do squash, a ref já apagada pelo `forge-fechar`), o diff é `pai..head` e o pedido é o do parecer de review que o commit traz."""
+    pedido = branch_da_convencao(raiz, branch)
+    if pai:
+        reviews = [n for n in nomes_do_intervalo(raiz, pai, head) if n.startswith("docs/reviews/")]
+        pedidos = {pedido_do_parecer(git(raiz, "show", f"{head}:{n}")[1]) for n in reviews}
+        pedido = min(pedidos) if len(pedidos) == 1 else None  # A2: dois pedidos nos reviews do commit não escolhem um pelo nome
+    if not pedido:
+        return ["docs/reviews: review: sem parecer do pedido na entrega (R-REVIEW)"]
+    return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}")
+
+
+def trazido_por_merge(raiz, de, head, nome):
+    """E2: `nome` entrou na branch por um merge: o primeiro pai não o tem e o segundo o tem com os mesmos bytes do head."""
+    cod, blob = git(raiz, "rev-parse", f"{head}:{nome}")
+    cod_m, merges = git(raiz, "rev-list", "--first-parent", "--merges", "--parents", f"{de}..{head}")
+    return not (cod or cod_m) and any(git(raiz, "cat-file", "-e", f"{pais[1]}:{nome}")[0] and git(raiz, "rev-parse", f"{pais[2]}:{nome}") == (0, blob)
+                                      for pais in map(str.split, merges.splitlines()))  # pais = [merge, primeiro pai, segundo pai]
+
+
+def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
+    """E2: o rótulo do anexo implícito de `nome` (o que o conferente já aceitava por regra), só por acréscimo; None se não é anexo."""
+    if removidas != "0" or not slug:
+        return None
+    if nome == f"changelog.d/{slug}.md":
+        return "fragmento do changelog"
+    cod, texto = git(raiz, "show", f"{head}:{nome}")
+    fm = ler_frontmatter(texto)[0] or {"tipo": None}
+    valido = fm.get("tipo") == tipo and fm.get("parecer") in ("aprovado", "reprovado") and fm.get("branch") == f"melhoria/{slug}"  # A3
+    if tipo and not cod and valido and fm.get("pedido") == slug and trazido_por_merge(raiz, de, head, nome):
+        return "parecer da própria branch trazido por merge"
+    return None
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     caminho = caminho_do_pedido(raiz, pedido)
@@ -1049,6 +1088,15 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         if valido:  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
             diferem |= desfeitos_da_entrega(raiz, base_sha, valido)
         arquivos = [n for n in arquivos if n in diferem]
+    pais = git(raiz, "rev-list", "--parents", "-n", "1", head)[1].split()[1:]
+    integrado = etapa == "merge-integracao" and bool(base_ref) and e_ancestral(raiz, head, base_ref) and len(pais) == 1
+    if integrado:  # E1: a ref já foi apagada (squash): o head é o mergeCommit e o escopo é só o que ele traz
+        de, arquivos = pais[0], nomes_do_intervalo(raiz, pais[0], head)
+    revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
+    violacoes = pareceres_da_integracao(raiz, branch, head, base, de if integrado else None) if revisados else []
+    if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
+        linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
+    slug = branch_da_convencao(raiz, branch)
     contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
     registros = autorias(raiz)
     m = re.search(r"^id:\s*(\S+)", texto, re.M)
@@ -1071,6 +1119,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
                                f"reprova se fora do \"Entregar\" da entrega do {papel})", False))
             else:
                 linhas.append((f"escopo: ok (parecer de {PAPEL_DO_PARECER[tipo]}) {mostrado}", False))
+        elif revisados and not violacoes and not nome.startswith(ACEITES_DO_USUARIO) and nome != "tests/config.json":  # E1: a branch inteira, com os pareceres aprovados no head; A1: o aceite e o config nunca são anexo
+            linhas.append((f"escopo: ok (merge-integracao: branch com os pareceres aprovados no head) {mostrado}", False))
+        elif rotulo := anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
+            linhas.append((f"escopo: ok (anexo implícito: {rotulo}) {mostrado}", False))
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
@@ -4597,6 +4649,30 @@ def destino_da_mensagem(texto, passado):
     return do_brief[0], None
 
 
+def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recusar):
+    """E2 (T6): a mensagem do modo entrega, toda do arquivo do brief e do pedido: Branch, Base e Base-sha do cabeçalho do brief,
+    `Desde:` da linha mais recente do `## Histórico` (`conferida` ou base fixada pelo dono, como o `entrega`; ausente se não há),
+    `--worktree` absoluto. Não reconfere o brief (o conferente o confere na entrega); rc 0 imprimiu, 2 recusado."""
+    branch, base, base_sha = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho_do_brief(texto)) for c in ("Branch", "Base", "Base-sha"))
+    if not (etapa and branch and base and base_sha):
+        return recusar("--entrega exige `Etapa:`, `Branch:`, `Base:` e `Base-sha:` (40 hex) no cabeçalho do brief")
+    if not (a.worktree and os.path.isabs(a.worktree) and os.path.isdir(a.worktree)) or a.anterior or a.ref or a.parecer:
+        return recusar("--entrega exige --worktree <pasta absoluta existente> e não aceita --anterior, --ref nem --parecer")
+    caminho_pedido = caminho_do_pedido(raiz, a.pedido)
+    try:
+        bases = bases_do_pedido(caminho_pedido.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError):
+        return recusar(f"não consegui ler o pedido {nome_seguro(sem_controle(a.pedido))}")
+    linhas = ["modo: entrega", f"Pedido: {caminho_impresso(caminho_pedido.stem)}", f"Agente conferido: {destino}",
+              f"Arquivo: {caminho_impresso(arquivo)}", f"Worktree: {a.worktree}", f"Branch: {branch}", f"Base: {base}", f"Base-sha: {base_sha}"]
+    linhas += [f"Desde: {bases[-1][0]}"] if bases else []
+    linhas += [f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", f"Etapa: {etapa}"]
+    sys.stdout.flush()
+    sys.stdout.buffer.write("\n".join(linhas).encode("utf-8") + b"\n<<<BRIEF\n" + conteudo + b"\nBRIEF>>>\n")
+    sys.stdout.buffer.flush()
+    return 0
+
+
 def cmd_brief_mensagem(raiz, a):
     """A mensagem ao conferente (E3): só imprime, e só se o brief passa no `forge-check brief`. O brief vem só de `docs/briefs/`
     (`caminho_de_brief`, sem o atalho do cwd), é lido uma vez e o mesmo buffer é conferido, medido, hasheado e impresso (T1.1, M1.1 a M1.7).
@@ -4608,7 +4684,7 @@ def cmd_brief_mensagem(raiz, a):
     if not a.arquivo:
         return recusar("--arquivo <brief em docs/briefs/> é obrigatório")
     campos = [("--pedido", a.pedido), ("--destino", a.destino), ("--ref", a.ref), ("--etapa", a.etapa), ("--arquivo", a.arquivo),
-              ("--anterior", a.anterior)] + [(f"--parecer {i}", valor) for i, valor in enumerate(a.parecer or (), 1)]
+              ("--anterior", a.anterior), ("--worktree", a.worktree)] + [(f"--parecer {i}", valor) for i, valor in enumerate(a.parecer or (), 1)]
     for nome, valor in campos:
         motivo = recusa_do_campo(valor, nome)
         if motivo:
@@ -4638,6 +4714,12 @@ def cmd_brief_mensagem(raiz, a):
     destino, motivo = destino_da_mensagem(texto, a.destino)
     if motivo:
         return recusar(motivo)
+    etapa_do_brief = grupo(ETAPA_DO_CABECALHO, cabecalho_do_brief(texto))  # T6: a etapa é a do brief; o --etapa só pode repeti-la
+    if etapa_do_brief and a.etapa is not None and a.etapa != etapa_do_brief:
+        return recusar(f"--etapa difere da `Etapa:` do brief; a etapa do brief é {etapa_do_brief}")
+    etapa = etapa_do_brief or etapa
+    if a.entrega:
+        return mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa_do_brief, arquivo, recusar)
     bytes_anterior, rel_anterior = None, None
     if a.anterior:
         if a.ref is None and re.search(r"^Volta-de:", texto, re.M):
@@ -5212,10 +5294,12 @@ def main():
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")
     br.add_argument("--incluir", nargs="+", metavar="PARECER:R<n>", help="só em `gerar --volta`: copia, literal e com a origem, a recomendação `R<n>` (ou `A<n>` recomendado) do bloco ## Achados do parecer (lido da --ref) para o Entregar da volta")
+    br.add_argument("--entrega", action="store_true", help="só em `mensagem`: a mensagem do modo entrega (pede --worktree; Branch, Base, Base-sha e Etapa vêm do brief, Desde da última `conferida` do Histórico do pedido)")
+    br.add_argument("--worktree", help="só em `mensagem --entrega`: a pasta absoluta da worktree da entrega")
     br.add_argument("--ref", help="branch ou commit da entrega, de onde se leem os pareceres (obrigatório em `gerar --volta`)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")
     br.add_argument("--base", default="develop", help="só em `gerar`: branch de integração da base (padrão develop)")
-    br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: texto de uma linha (ex.: E1.1)")
+    br.add_argument("--etapa", help="em `gerar`: etapa da delegação (codigo, review, qa, pr, merge-integracao, pedido-de-merge-ao-dono; os dois de merge acrescentam o PQ `git merge-base --is-ancestor <mergeCommit> origin/<base>`); em `mensagem`: a `Etapa:` do brief vale e o --etapa só pode repeti-la; sem `Etapa:` no brief, texto de uma linha (ex.: E1.1)")
     br.add_argument("--citar", action="append", metavar="R-ID:n|arquivo:n[-m]", help="só em `gerar`: imprime a linha literal da regra ou do arquivo (na raiz ou em ~/.forge-contrib) no bloco ## Citações, com a fonte; repita a opção (P3)")
     br.add_argument("--retomada", help="só em `gerar`: arquivo (na raiz ou em ~/.forge-contrib) cujas linhas DECISÃO DO DONO que citam o pedido e faltam nele saem como aviso `decisao:` no stderr (P4)")
     br.add_argument("--gravar", action="store_true", help="só em `gerar`: grava em docs/briefs/<pedido>-<papel>-<n>.md (n = maior + 1, nunca sobrescreve; P6) e imprime `brief gravado: <caminho> <bytes> sha256 <hash>`")
