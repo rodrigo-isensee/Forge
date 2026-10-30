@@ -2,8 +2,9 @@ name: CI
 
 # Pull request: bateria completa (job "bateria"), em um job só porque o GitHub cobra cada job por minuto cheio (~10 jobs
 # de 10 s custavam 10 min). Push na develop: só a checagem rápida (o PR já validou o mesmo conteúdo, R-FLUXO). Push na
-# homolog e na main: a bateria completa de novo. Commit de PR que só muda docs/reviews/ ou docs/qa/ pula os passos pesados
-# (gate por passo, nunca paths-ignore: ele deixaria o check exigido pendente).
+# homolog e na main: a bateria completa de novo. Commit de PR que só muda docs/reviews/, docs/qa/, docs/security/,
+# docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/), com a bateria verde no commit anterior,
+# pula os passos pesados (gate por passo, nunca paths-ignore: ele deixaria o check exigido pendente).
 on:
   pull_request:
     types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)
@@ -102,7 +103,9 @@ jobs:
           # Só PR com base develop; a promoção para a homolog roda a bateria completa (R-FLUXO).
           if [ "$EVENTO" = pull_request ] && [ "$BASE_REF" = develop ] && [ "$ACAO" = synchronize ] && [ -n "$ANTES" ] && git cat-file -e "$ANTES^{commit}" 2>/dev/null; then
             mudados=$(git diff --name-only --no-renames "$ANTES" "$HEAD_SHA" 2>/dev/null || echo "?")
-            if [ -n "$mudados" ] && ! printf '%s\n' "$mudados" | grep -qvE '^docs/(reviews|qa)/'; then
+            # Modelo (nome começando em "_") e docs/security/{ameacas,aceites}/ não são parecer: rodam tudo, como no pre-push.
+            if [ -n "$mudados" ] && ! printf '%s\n' "$mudados" | grep -qvE '^docs/(reviews|qa|security|devops|ux)/' \
+              && ! printf '%s\n' "$mudados" | grep -qE '/_[^/]*$|^docs/security/(ameacas|aceites)/'; then
               # Só o check mais recente "bateria" do app github-actions conta, e precisa ser success.
               verdes=$(gh api "repos/$REPO/commits/$ANTES/check-runs?per_page=100" --jq '[.check_runs[] | select(.name == "bateria" and .app.slug == "github-actions")] | sort_by(.started_at) | last | if . != null and .conclusion == "success" then 1 else 0 end' 2>/dev/null || echo 0)
               if [ "$verdes" -gt 0 ]; then
@@ -114,7 +117,7 @@ jobs:
           echo "passos pesados: $pesada" >> "$GITHUB_STEP_SUMMARY"
       - name: Testes que leem pareceres (commit só de parecer)
         if: ${{ !cancelled() && steps.gate.outputs.pesada != 'true' }}
-        run: python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao -v
+        run: python3 -m unittest tests.test_forge.Neutralidade tests.test_forge.Referencias tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -v
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: steps.gate.outputs.pesada == 'true'
         with:

@@ -8,9 +8,11 @@ import io
 import json
 import re
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import textwrap
 import time
 import unittest
 from unittest import mock
@@ -2578,7 +2580,7 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name != 'push' || github.ref != 'refs/heads/develop'", ci)  # bateria fora do push na develop
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
-        self.assertIn("docs/(reviews|qa)/", ci)
+        self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""
@@ -2592,8 +2594,8 @@ class Workflows(unittest.TestCase):
         self.assertIn("sort_by(.started_at) | last", ci)
         leve = re.search(r"(?m)^      - name: Testes que leem pareceres.*?\n        run: (.*)$", ci, re.S)
         self.assertIsNotNone(leve, "commit só de parecer ainda roda os testes que leem docs/reviews e docs/qa")
-        for classe in ("Neutralidade", "Referencias", "AntiDuplicacao"):
-            self.assertIn("tests.test_forge." + classe, leve.group(1).splitlines()[0])
+        for classe in ("Neutralidade", "Referencias", "AntiDuplicacao", "NeutralidadeDoNucleo"):  # a última varre docs/security e docs/devops
+            self.assertIn("tests.test_forge." + classe + " ", leve.group(1).splitlines()[0] + " ")
         self.assertIn("steps.gate.outputs.pesada != 'true'", ci)
 
     def test_checkout_sem_credencial_e_sem_pull_request_target(self):
@@ -2615,6 +2617,75 @@ class Workflows(unittest.TestCase):
 
     def test_dependabot_vai_para_a_develop(self):
         self.assertIn("target-branch: develop", (self.RAIZ / "dependabot.yml").read_text(encoding="utf-8"))
+
+
+class GateDoCi(unittest.TestCase):
+    """VEL-P6-GATE: o passo Gate do ci.yml executado de verdade (bash -e, como o GitHub), num repositório temporário,
+    com um gh falso que só dá a bateria verde para o commit anterior exato."""
+
+    def setUp(self):
+        ci = (Workflows.RAIZ / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        bloco = re.search(r"(?m)^        id: gate\n.*?^        run: \|\n((?:          [^\n]*\n|\n)+)", ci, re.S)
+        self.assertIsNotNone(bloco, "passo Gate do ci.yml não achado")
+        self.script = textwrap.dedent(bloco.group(1))
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "bin").mkdir()
+        gh = self.tmp / "bin" / "gh"
+        gh.write_text('#!/bin/sh\n[ "$1 $2" = "api repos/o/r/commits/$ANTES/check-runs?per_page=100" ] && [ -n "$VERDE" ]'
+                      ' && { echo 1; exit 0; }\necho 0\n', encoding="utf-8")
+        gh.chmod(0o755)
+        self.repo = self.tmp / "r"
+        self.env = sem_manutencao({"PATH": f"{self.tmp / 'bin'}:/usr/bin:/bin", "HOME": str(self.tmp),
+                                   "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "LC_ALL": "C"})
+        self.repo.mkdir()
+        self.git("init", "-q")
+        self.versao = 0
+        self.commit(["README.md"])
+
+    def git(self, *args):
+        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.repo,
+                              env=self.env, check=True, capture_output=True, text=True, timeout=30).stdout.strip()
+
+    def commit(self, arquivos):
+        self.versao += 1
+        for rel in arquivos:
+            (self.repo / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.repo / rel).write_text(f"{rel} {self.versao}\n", encoding="utf-8")
+            self.git("add", "--", rel)
+        self.git("commit", "-qm", "c")
+        return self.git("rev-parse", "HEAD")
+
+    def pesada(self, arquivos, verde=True):
+        antes = self.git("rev-parse", "HEAD")
+        depois = self.commit(arquivos)
+        saida = self.tmp / "saida"
+        env = dict(self.env, EVENTO="pull_request", BASE_REF="develop", ACAO="synchronize", ANTES=antes, HEAD_SHA=depois,
+                   REPO="o/r", GITHUB_OUTPUT=str(saida), GITHUB_STEP_SUMMARY=os.devnull, **({"VERDE": "1"} if verde else {}))
+        subprocess.run(["bash", "--noprofile", "--norc", "-e", "-c", self.script], cwd=self.repo, env=env, check=True,
+                       capture_output=True, text=True, timeout=30)
+        return saida.read_text(encoding="utf-8").splitlines()[-1]
+
+    def test_so_parecer_de_seguranca_devops_ou_ux_com_bateria_verde_pula(self):
+        for pasta in ("reviews", "qa", "security", "devops", "ux"):
+            with self.subTest(pasta=pasta):
+                self.assertEqual(self.pesada([f"docs/{pasta}/p1.md"]), "pesada=false")
+
+    def test_parecer_misturado_com_codigo_nao_pula(self):
+        for outro in ("bin/forge-check", "docs/regras/R-X.md", "docs/uxx/p1.md", "vendor/docs/ux/p1.md"):
+            with self.subTest(outro=outro):
+                self.assertEqual(self.pesada(["docs/security/p1.md", outro]), "pesada=true")
+
+    def test_sem_bateria_verde_no_commit_anterior_nao_pula(self):
+        for pasta in ("security", "devops", "ux"):
+            with self.subTest(pasta=pasta):
+                self.assertEqual(self.pesada([f"docs/{pasta}/p1.md"], verde=False), "pesada=true")
+
+    def test_modelo_e_ameacas_e_aceites_nao_sao_parecer(self):
+        for rel in ("docs/security/_modelo.md", "docs/ux/_modelo.md", "docs/reviews/_modelo.md",
+                    "docs/security/ameacas/p1.md", "docs/security/aceites/p1.md"):
+            with self.subTest(rel=rel):
+                self.assertEqual(self.pesada([rel]), "pesada=true")
 
 
 class FormaCompiladaDosControles(Base):
