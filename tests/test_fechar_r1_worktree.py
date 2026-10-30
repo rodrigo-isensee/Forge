@@ -91,6 +91,22 @@ class SemMerge(unittest.TestCase):
         self.assertIn("git push origin --delete refs/heads/melhoria/x", pendentes)  # a remota é o head mesclado: fica
         self.assertTrue(wt.exists())
 
+    def test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto(self):  # AB-C1-7 (C1-2, remota)
+        wt = self.com_worktree()
+        (self.estado / "head").write_text(self.git("rev-parse", "melhoria/x"))  # o PR segue com o head mesclado; a remota anda depois
+        falso = self.tmp / "gh"
+        falso.rename(self.tmp / "gh-base")
+        # o commit chega à remota durante o merge: depois do passo 2, que conferiu local == remoto
+        falso.write_text(f'#!/usr/bin/env bash\n[ "$1 $2" = "pr merge" ] && git -C "{wt}" commit -q --allow-empty -m "feat: depois do passo 2" && git -C "{wt}" push -q origin melhoria/x\n'
+                         f'exec "{self.tmp / "gh-base"}" "$@"\n')
+        falso.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        pendentes = self.pendentes(r)
+        sha_remoto = self.git("ls-remote", "origin", "refs/heads/melhoria/x").split()[0]
+        self.assertIn(f"git log --oneline origin/develop..{sha_remoto}", pendentes)
+        self.sem_comando_que_apaga("\n".join(pendentes) + r.stderr)
+
     def test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura(self):  # AB-C1-5
         ref = "melhoria/a$b"
         self.git("switch", "-q", "-c", ref, "develop")
