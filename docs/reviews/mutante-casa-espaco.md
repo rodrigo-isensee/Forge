@@ -3,33 +3,33 @@ tipo: review
 contrato: 1
 pedido: mutante-casa-espaco
 branch: melhoria/mutante-casa-espaco
-commit: 16beca149f3b033fc6c8149d1717d727c2e45af4
-parecer: reprovado
+commit: 572c025c8c6e5078f1f78127b4f864a3b6b42b6e
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-30
 ---
 # Review: mutante-casa-espaco
 
-Pedido MUTANTE-CASA-ESPACO (FM1, PR 1), etapa E1.1 do MUTANTE-CASA-ESPACO-REV. Diff `042e5d8...16beca1` (c512d28, c17afb2, 16beca1).
+Pedido MUTANTE-CASA-ESPACO (FM1, PR 1), etapa E1.1 do MUTANTE-CASA-ESPACO-REV, rodada 2. Revalidação por delta sobre o parecer 490ff93 (que valia para 16beca1); head revisado 572c025.
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/mutante-casa-espaco.json:63 · C4 declarado equivalente, mas o próprio teste novo o mata: com `len(para)` fora, `test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam` dá erro (SyntaxError em vez de False). Trocar `equivalente` por `testes` com esse teste.
-- A2 (recomendado) bin/forge-mutante:415 · "basta uma posição dentro do nó" pode ser lido como um byte só; o código exige o trecho inteiro dentro do nó em algum alinhamento possível. Sugestão: "basta um alinhamento com o trecho inteiro dentro do nó".
 
-## O que foi conferido
-- **Função `casa` (bin/forge-mutante:411-430).** Com `de = A+X+B` e `para = A+Y+B`, o máximo de bytes comuns é `comum = min(p+s, len(de), len(para))`; os alinhamentos válidos são `k` (tamanho de `A`) em `[comum-s, p]`, e o trecho mudado ocupa `[inicio+k, inicio+k+len(de)-comum)`. `primeira`/`ultima` intersectam esse intervalo de `k` com o do nó; a conta está certa. Sem sobreposição (`p+s <= min`), `comum-s = p` e a condição se reduz exatamente à antiga (`ini <= inicio+p` e `inicio+len(de)-s <= fim`), e o sufixo medido no `de` inteiro é igual ao medido depois do prefixo; logo o mutante comum que já casava não muda (o teste `test_casamento_pelo_intervalo_do_no_e_as_travas_do_de` segue verde).
-- **Portão não afrouxa (DECISÃO TÉCNICA 2026-10-30 03:10).** Cada `k` aceito é uma decomposição real da troca, com o trecho inteiro dentro do nó; a mudança só alarga a escolha do alinhamento, não o tamanho do trecho. O que desliza para fora (`else yyyy` → `else yyyyy`) e o que remove mais que o nó (`aa e` → `e`) seguem `False` no teste novo; as travas de `de` único, 8+ não brancos e arquivo seguem antes do `ast`. O desvio do mecanismo em relação ao E1 do pedido é aceito: o objetivo do E1 é cumprido.
-- **C4 (A1).** Rodei o C4 aplicado à mão numa worktree descartável: `FAILED (errors=1)`, `SyntaxError` de `k = q if else aa`. A própria justificativa admite a diferença (SyntaxError no lugar de False); no `--cobertura` isso vira rc 2 em vez da saída normal. Não é equivalente; é um mutante que o teste já mata e que a spec deixa de provar. Classe: equivalente declarado que o teste mata (requisito do E2: guardas novas com o vermelho antes do verde). Sem linha AR nesta rodada (DECISÃO TÉCNICA 2026-10-29 15:28 do T1-CONF-ESCOPO-REV); a classe fica registrada aqui.
-- **Teste novo.** Cobre o ternário (inserção no fim do nó `f()`), o fim do nó numa compreensão (caso M6/M15), o deslize para fora e a remoção maior que o nó. Determinístico, sem I/O.
-- **Teto M14.** `git diff --numstat --no-renames 042e5d8...16beca1`: `bin/forge-mutante` 8+3, `tests/test_forge_mutante.py` 8+0 = 19 de 150; spec, fragmento e `.md` ficam fora. Um comportamento só.
-- **Changelog.** Fragmento `changelog.d/mutante-casa-espaco.md` presente; versão não mexida.
-- **Neutralidade, custo, regras.** Nada de projeto, nada pago, `hooks/`, `tests/config.json` e `PROTEGIDOS` intocados.
+## Revalidação por delta (rodada 2)
+- **Delta lido** (`forge-check delta --parecer docs/reviews/mutante-casa-espaco.md`, intervalo 16beca1..572c025; conferido também `git diff 9829a70..572c025`, só o commit 572c025): `bin/forge-mutante`:415-416, `tests/mutantes/mutante-casa-espaco.json`:63-65, `tests/test_forge_mutante.py`:667-671.
+- **Já lido** (rodada 1, sem mudança): a lógica de `casa` (bin/forge-mutante:411-430), o portão que não afrouxa, os outros três asserts do teste novo, C1-C3, C5, C6, o fragmento de changelog.
+- **A1 resolvido.** O C4 passa de `equivalente` a `testes` com `test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam`; `bin/forge-mutante tests/mutantes/mutante-casa-espaco.json` (rev 572c025c8c6e) dá `C4 · morreu · bin/forge-mutante:420`, rc 0. Classe da rodada 1 (equivalente declarado que o teste mata) registrada aqui, sem linha AR nesta rodada (DECISÃO TÉCNICA 2026-10-29 15:28 do T1-CONF-ESCOPO-REV).
+- **A2 resolvido.** A docstring diz "basta um alinhamento em que o trecho mudado inteiro fique dentro do nó", que é o que o código faz.
+- **4º assert (tests/test_forge_mutante.py:667-671).** Mudança só de teste: o `SyntaxError` vira `self.fail` com mensagem, e o `assertFalse` segue sobre o mesmo caso. O comportamento verificado continua: `casa` devolve False sem aplicar a troca fora do nó; com o C4 aplicado, o teste falha (agora como falha, não erro), e é isso que mata o C4.
+- **Teto M14.** `git diff --numstat --no-renames 042e5d8...572c025`: `bin/forge-mutante` 8+3, `tests/test_forge_mutante.py` 12+0 = 23 de 150; spec em `tests/mutantes/`, fragmento e `.md` ficam fora. Um comportamento só.
 
-## Saída das ferramentas (citada)
+## O que foi conferido (rodada 1, sobre 16beca1)
+- **Função `casa`, portão, teste novo, changelog, neutralidade, custo:** ver parecer 490ff93; nada disso mudou no delta.
+
+## Saída das ferramentas (citada, rev 572c025)
 - `python3 -m unittest tests.test_forge_mutante`: 68 testes, OK.
-- `bin/forge-mutante tests/mutantes/mutante-casa-espaco.json` (rev 16beca149f3b): C1, C2, C3, C5 e C6 morreram; C4 saiu como equivalente declarado; rc 0.
+- `bin/forge-mutante tests/mutantes/mutante-casa-espaco.json`: C1, C2, C3, C4, C5 e C6 morreram; rc 0.
 - `bin/forge-mutante --cobertura --base 042e5d8f73fc659615a4313c7213a661dfc32ce0`: a condição de bin/forge-mutante:425 coberta por C5; rc 0.
 - shellcheck: sem shell no diff.
 
 ## Parecer
-Reprovado por A1 só: a lógica do `casa` está correta e o portão não afrouxa. A volta é trocar, na spec, o campo `equivalente` do C4 por `testes` com `tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam` e rodar o `forge-mutante` de novo (o C4 deve sair `morreu`). A2 não devolve.
+Aprovado. Os dois achados da rodada 1 foram resolvidos no delta; nada novo.
