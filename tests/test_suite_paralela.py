@@ -377,6 +377,12 @@ class Brinquedo(unittest.TestCase):
         for texto in ("::", "falso", "/etc", "ghp_", "AAAA"):
             self.assertNotIn(texto, resumo)
 
+    def test_sem_github_step_summary_nada_e_escrito(self):
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertNotIn("resumo indisponível", erro)
+        self.assertFalse((self.repo.parent / "resumo.md").exists())
+
     def test_divisao_nao_depende_da_execucao_anterior(self):  # AB-7, C-12
         divisoes = []
         for demora in ("0", "0.5"):
