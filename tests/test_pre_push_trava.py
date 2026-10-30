@@ -257,6 +257,17 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(self.subpasta().stat().st_mode & 0o777, 0o700)
         self.assertTrue((self.subpasta() / f"forge-suite-{os.getuid()}.lock").exists())
 
+    def test_texto_da_trava_traz_o_namespace_depois_do_pid(self):  # C5, C-16, C-17
+        self.suite(SUITE_LENTA)
+        primeira = self.hook()
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0), "o status não viu a suíte")
+        _, saida, _ = self.roda("--status")
+        self.assertIn("ns ", saida)
+        self.assertRegex(self.trava.read_text(), r"^pid [0-9]+ ns [0-9?]+ desde ")  # "pid N" segue nos dois primeiros campos
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(primeira.wait(timeout=60), 0)
+
     def test_status_nao_cria_subpasta_nem_trava(self):
         codigo, saida, _ = self.roda("--status", env=self.env_recuo())
         self.assertEqual((codigo, saida.strip()), (1, "nenhuma suíte do Forge rodando"))
