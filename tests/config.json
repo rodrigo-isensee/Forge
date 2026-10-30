@@ -104,7 +104,10 @@
   "invariantes": {
     "skills/kanban-scrum/SKILL.md": [
       "forge-check movimento",
-      "Sem credencial"
+      "Sem credencial",
+      "\\*\\*Aguardando o dono\\*\\* \\(topo do quadro\\)",
+      "decisão ou ação do usuário vai para \"Aguardando o dono\"",
+      "aguardando o dono: N \\(o mais antigo desde"
     ],
     "agents/conferente.md": [
       "origin/<Base>",
