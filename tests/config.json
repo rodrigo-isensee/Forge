@@ -439,7 +439,10 @@
       "`worktree: <nome>`",
       "não faz o review do próprio cartão",
       "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
-      "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
+      "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*",
+      "ou em \"Aguardando o dono\" ocupa vaga na coluna de onde saiu",
+      "`origem:` nunca é \"Validação do usuário\" nem \"Aguardando sua validação\"",
+      "Bloqueado\" e \"Aguardando o dono\" sem limite próprio"
     ],
     ".githooks/pre-push": [
       "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
