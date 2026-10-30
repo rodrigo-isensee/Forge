@@ -3,39 +3,29 @@ tipo: review
 contrato: 1
 pedido: pn3-pr-contra-main
 branch: melhoria/pn3-pr-contra-main
-commit: 34e3c1b5849fe59cfce45ae5560766381539d3d7
-parecer: reprovado
+commit: 4b3bf3298a5bf02f26327b04bb4e9683a4cc963d
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
 ---
 # Review: pn3-pr-contra-main
 
-Diff revisado: `31257c14...34e3c1b` (d916037 script, docs e testes; a7d328e spec de mutantes; 34e3c1b fragmento). Teto M14: 79 linhas de código e teste (`scripts/promover-homolog.py` 24+3, `tests/test_promover_homolog.py` 45+7), um comportamento; dentro do teto. Testes do item: `python3 -m unittest tests.test_promover_homolog`, 32 testes, OK.
+Revalidação por delta da volta 1 (158998c correção, 4b3bf32 mutantes) sobre o parecer anterior (ccf72bb, reprovado, head 34e3c1b). Teto M14 na branch inteira (`git diff --numstat --no-renames 31257c14...4b3bf32`): 126 linhas de código e teste (`scripts/promover-homolog.py` 31+3, `tests/test_promover_homolog.py` 85+7; a spec em `tests/mutantes/` fica fora), um comportamento; dentro do teto.
+
+## Delta lido
+`forge-check delta --parecer docs/reviews/pn3-pr-contra-main.md` (intervalo `34e3c1b..4b3bf32`): `docs/promocao-integrador.md:14`; `scripts/promover-homolog.py:12-13, 41, 156-158, 160-164`; `tests/mutantes/pn3-pr-contra-main.json:9-10, 46-87`; `tests/test_promover_homolog.py:5-6, 14-15, 393-428`. Todo o resto do diff ficou como "já lido" no parecer ccf72bb (ordem antes do `gh`, dry-run, slug, citação da saída, ramo sem versão nova).
 
 ## Achados
-- A1 (bloqueante) scripts/promover-homolog.py:154 · para em todo "sem parecer" do forge-check, inclusive devops e segurança: com --base main os gatilhos leem a leva inteira e exigem revisao-devops/seguranca de release-<v>, que a release não produz; as promoções reais da 0.30.4 e 0.30.5 parariam (classe: guarda com alcance maior que o requisito)
-- A2 (recomendado) scripts/promover-homolog.py:147 · o slug fixo release-<versão> segue a R-FLUXO, mas a 0.30.4 saiu como release-0.30.4b; a parada diz "sem parecer" sem lembrar a convenção; uma linha na mensagem (a branch tem de ser melhoria/release-<versão>) evita a caça
 
-## Conferência das escolhas relatadas (decisão técnica 22:37)
-- Só com versão nova: `promover()` chama `conferir_contra_main` quando a versão da ref difere da da base (linha 233); `conferir_versao` já parou antes se ela for menor, então "difere" equivale a "maior". Sem versão nova imprime que não roda. Confere.
-- Antes de qualquer `gh`: a conferência roda no passo 3, antes de `comando_gh()` e de `pr_aberto` (linhas 241 e 248); os testes de parada afirmam `gh_chamadas() == []`. Confere.
-- No dry-run: roda (só leitura de refs locais); `docs/promocao-integrador.md` e a docstring dizem isso. Confere.
-- Slug `release-<versão>`: coerente com a `R-FLUXO` (trava de release, só a `melhoria/release-<versão>` entra); ver A2.
-- Parada citando a saída: cita stdout e stderr do forge-check, indentados. Confere. `python -I` no forge-check (classe AR-5 evitada).
-- `docs/promocao-integrador.md`: atualizado no passo 3 e no `--dry-run`; o texto promete parar por parecer "de review ou de QA", e o código para também por devops e segurança: a divergência é o A1.
+## Revalidação dos achados anteriores
+- A1 (bloqueante, resolvido) · `scripts/promover-homolog.py:156-158`: a parada agora exige rc diferente de 0 e ao menos uma linha de stdout fora de `docs/devops`/`docs/security` (`PARECERES_DA_LEVA`, linha 41), ou stdout vazio. Conferi no `cmd_pr` do `bin/forge-check` que cada linha de stdout é um problema e que a linha de devops e segurança começa por `docs/devops`/`docs/security` (a pasta, no "sem parecer", ou o caminho do parecer); avisos vão para o stderr. Os casos da #352 (0.30.5) e da #343 (0.30.4), cuja saída eram só as linhas `docs/devops: revisao-devops` e `docs/security: revisao-seguranca`, deixam de parar; linha de review ou QA, junto ou sozinha, segue parando. Regressão: `test_devops_e_seguranca_da_leva_nao_param_a_release` (commit em `.github/workflows/ci.yml` na leva, rc 0 e a linha "não conta" impressa). As linhas ignoradas são impressas, não descartadas em silêncio.
+- A2 (recomendado, resolvido) · `scripts/promover-homolog.py:160-161`: a mensagem de parada diz `a branch da release é melhoria/<pedido>, R-FLUXO`; `test_queda_sem_veredito_para` afirma `melhoria/release-0.2.0`.
+- A1 do QA (ramo `except`, falha fechada): `ContraMainFalha` cobre prazo estourado, `forge-check` ausente e queda sem stdout; o veredito é do QA.
+- `docs/promocao-integrador.md` passo 3 e a docstring dizem que devops e segurança não contam e por quê; batem com o código.
 
-## Evidência do A1 (execução, sem rede)
-Clone descartável em `$TMPDIR` com `origin/main`, `origin/homolog` e `origin/develop` postos no estado de cada promoção real, rodando o `promover-homolog.py --dry-run` desta branch:
-- Promoção #363 (0.30.6) e #371 (0.30.7): passam ("pareceres de release-0.30.x valem contra a main").
-- Promoção #352 (0.30.5): para com `docs/devops: revisao-devops: sem parecer para o pedido release-0.30.5` e `docs/security: revisao-seguranca: sem parecer ... (.github/workflows/release.yml)`; review e QA da release estavam válidos.
-- Promoção #343 (0.30.4): mesmo com o slug real (`forge-check pr release-0.30.4b --ref origin/develop --base main`), rc 1 por `revisao-devops` e `revisao-seguranca` (`.github/workflows/ci.yml`).
-
-Causa: o `cmd_pr` calcula os gatilhos de devops e segurança sobre `main...develop`, que reúne todos os PRs da leva; os pareceres de devops e segurança desses PRs existem nos pedidos deles, não no `release-<versão>`. O pedido E1 manda parar por "parecer desatualizado ou faltando" da release; o documento da própria entrega restringe a review e QA. Duas de cinco promoções reais da 0.30 parariam sem defeito, e a única saída seria fabricar pareceres de devops e segurança para a release.
-
-Sugestão (decisão do autor; `bin/forge-check` está fora do escopo): considerar só as linhas de `docs/reviews` e `docs/qa` da saída para a parada, ou chamar a conferência só para os tipos review e QA; e um teste de regressão com um commit em `.github/` na leva que hoje para e depois passa.
-
-## Achado do QA
-O A1 do QA (ramo `except` da linha 152 sem teste nem mutante, classe AR-2) já está no parecer de QA; não o repito aqui, e a volta única o leva junto.
+## Ferramentas (citadas, não refeitas à mão)
+- `python3 -m unittest tests.test_promover_homolog`: `Ran 36 tests ... OK`.
+- `bin/forge-mutante tests/mutantes/pn3-pr-contra-main.json` (rev 4b3bf3298a5b): M1 a M8 `morreu`; M7 (filtro trocado por `or`) e M8 (filtro largo, `docs/`) cobrem os dois lados do A1, M5 e M6 a falha fechada.
 
 ## Parecer
-Reprovado pelo A1 (defeito de comportamento provado em execução sobre o histórico real). O resto da entrega confere com o E1: ordem antes do `gh`, dry-run, slug, citação da saída e documentação. Sem linha AR nova nesta rodada (decisão técnica 15:28 do T1-CONF-ESCOPO-REV); classe do A1: guarda com alcance maior que o requisito (falso bloqueio).
+Aprovado. O delta resolve o A1 e o A2 sem ampliar o escopo; nenhum achado novo. Sem linha AR nesta rodada (decisão técnica 15:28 do T1-CONF-ESCOPO-REV); classe do A1 anterior: guarda com alcance maior que o requisito (falso bloqueio).
