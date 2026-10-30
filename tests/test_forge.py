@@ -5151,7 +5151,10 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
 
     def test_push_de_codigo_em_segundo_plano(self):
         self.assertIn("o `git push` de código roda com o `run_in_background` da ferramenta", self.texto)
-        self.assertIn("espera a notificação do fim, sem mexer na worktree até lá", self.texto)
+        # BG-MORRE-TURNO: o segundo plano morre com o turno do subagente; a espera é pelo `rc=` do log, no mesmo turno.
+        self.assertIn("no mesmo turno, espera em primeiro plano pelo `rc=` do log, como a skill `esperar-estado` manda", self.texto)
+        self.assertIn("nunca encerra o turno com o envio pendente; sem mexer na worktree até lá", self.texto)
+        self.assertNotIn("espera a notificação do fim", self.texto)
 
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
