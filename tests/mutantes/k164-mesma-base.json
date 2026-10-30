@@ -1,0 +1,36 @@
+{
+  "pedido": "k164-mesma-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o hook lê a mesma base do forge-check pr: o merge puro da base libera",
+      "arquivo": "hooks/parecer.py",
+      "de": "fc.cmd_pr(raiz, pedido, ref, base)",
+      "para": "fc.cmd_pr(raiz, pedido, ref)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o hook usa base_do_delta (merge puro da base libera)",
+      "arquivo": "hooks/parecer.py",
+      "de": "base, _ = fc.base_do_delta(raiz, base, ref) if base else (None, None)",
+      "para": "base = None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a mudança do autor depois do merge da base segue bloqueando (a base lida é a remota/local do fluxo)",
+      "arquivo": "bin/forge-check",
+      "de": "    return resolvida, None\n",
+      "para": "    return None, None\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    }
+  ]
+}
