@@ -74,6 +74,17 @@
       "testes": [
         "tests.test_promover_homolog.ContraMain.test_devops_e_seguranca_da_leva_nao_param_a_release"
       ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so devops e seguranca saem da parada; review e QA da release seguem parando",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if linha.startswith(PARECERES_DA_LEVA)]",
+      "para": "if linha.startswith(\"docs/\")]",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_faltando_para"
+      ]
     }
   ]
 }
