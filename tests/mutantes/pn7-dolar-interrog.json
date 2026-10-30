@@ -23,16 +23,6 @@
       ]
     },
     {
-      "id": "D3",
-      "guarda": "o $( nao separa o comando do $?",
-      "arquivo": "hooks/_comum.py",
-      "de": "            limites.append(i + 1)\n",
-      "para": "",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
       "id": "D4",
       "guarda": "os separadores nao separam o comando do $?",
       "arquivo": "hooks/_comum.py",
@@ -116,8 +106,8 @@
       "id": "D12",
       "guarda": "a gramatica nao confere o comando do $?",
       "arquivo": "hooks/_comum.py",
-      "de": "return solto and not codigo_de_saida_vale(",
-      "para": "return False and not codigo_de_saida_vale(",
+      "de": "return solto and (PALAVRA_K3 in resto or not",
+      "para": "return False and (PALAVRA_K3 in resto or not",
       "testes": [
         "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
       ]
@@ -160,6 +150,37 @@
       "para": "    if False:\n        return",
       "testes": [
         "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
+      ]
+    },
+    {
+      "id": "D17",
+      "guarda": "a construcao aceita o $? fora de aspas com substituicao de comando",
+      "arquivo": "hooks/_comum.py",
+      "de": "if soltos and SUBSTITUICAO.search(linha):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
+      ]
+    },
+    {
+      "id": "D18",
+      "guarda": "a substituicao de comando so conta com $(",
+      "arquivo": "hooks/_comum.py",
+      "de": "re.compile(r\"\\$\\(|[<>]\\(|`\")",
+      "para": "re.compile(r\"\\$\\(\")",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
+      ]
+    },
+    {
+      "id": "D19",
+      "guarda": "a gramatica aceita o $? fora de aspas com a palavra K3",
+      "arquivo": "hooks/_comum.py",
+      "de": "(PALAVRA_K3 in resto or not",
+      "para": "(False or not",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
       ]
     }
   ]

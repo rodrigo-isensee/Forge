@@ -1960,7 +1960,8 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
            'read -r I""FS < f; ', ". ./ifs.sh; ", "declare $(printf I)FS=0; ")
     LUGARES = ("echo {}", "printf %s {}", "echo {}; git push origin melhoria/x", "git push origin {}",
                "{} push origin main", "echo {} | sh", "echo {} > f", "printf -v {} x", "printf {} x", "x={}",
-               "echo $(git push origin {})", "git push origin {}; echo ok")
+               "echo $(git push origin {})", "git push origin {}; echo ok", "git push origin $(true) echo {}",
+               "git push origin $((0)) echo {}")
 
     def test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs(self):
         _comum, _, parecer = modulos_dos_hooks()
@@ -1970,7 +1971,8 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
             if aspas == "simples" and "'" in token:
                 continue  # `$'r'` não se escreve entre aspas simples
             comando = lugar.format(molde.format(posicao.format(token)))
-            passa = aspas == "simples" or token == "$?" and (aspas == "duplas" or lugar in self.LUGARES[:3])
+            solto_vale = lugar in self.LUGARES[:3] and "$(" not in ifs  # com substituição, o `$?` solto recusa
+            passa = aspas == "simples" or token == "$?" and (aspas == "duplas" or solto_vale)
             with self.subTest(comando=comando, ifs=ifs):
                 vistos += 1
                 linha = f"{ifs}git commit -F - <<'EOF'\nx\nEOF\n{comando}"
@@ -1980,6 +1982,21 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
                 self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa and da_gramatica, resto)
                 self.assertFalse(parecer.heredocs_simples(f"cat <<'EOF'\nx\nEOF\n{ifs}{comando}"))
         self.assertGreaterEqual(vistos, 5000)
+
+    def test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas(self):
+        """Com `$(…)`, `$((…))`, `<(…)` ou `>(…)` em qualquer ponto do texto, o `$?` fora de aspas recusa (o `(` e o `)`
+        não marcam o comando simples do bash: `IFS=0; git push origin $(true) echo x$?main` empurra a `main`)."""
+        _comum, _, _ = modulos_dos_hooks()
+        for antes in ("git push origin $(true) echo x", "echo $(true); echo ", "echo $((0)); echo ", "cat <(true); echo ",
+                      "tee >(cat) < f; echo ", "IFS=0; git push origin $(true) echo x"):
+            for depois, passa in (("$?main", False), ('"$?"main', True)):
+                with self.subTest(linha=antes + depois):
+                    self.assertEqual(_comum.construcao_nao_modelada(antes + depois) is None, passa)
+        self.assertIsNone(_comum.construcao_nao_modelada("git push origin x; echo rc=$?"))
+        k3 = f"git commit -m {_comum.PALAVRA_K3}\necho "
+        self.assertIsInstance(_comum.simples_da_gramatica(k3 + '"rc=$?"'), list)
+        self.assertIsInstance(_comum.simples_da_gramatica(k3 + "rc=$?"), str)
+        self.assertIsInstance(_comum.simples_da_gramatica("git commit -m x\necho rc=$?"), list)
 
     def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):
         """O motivo da regra de posição: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
