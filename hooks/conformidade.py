@@ -130,6 +130,7 @@ CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequ
                              r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
+ROTULO_COM_VALOR = ("--add-label", "--label", "-l", "--remove-label")  # a opção que acaba a linha leva o valor do xargs
 # Mutações do GraphQL que aplicam, criam ou renomeiam rótulo: o ID não traz o nome, então toda ocorrência conta
 GRAPHQL_DE_ROTULO = re.compile(r"addLabelsToLabelable|labelIds|createLabel|updateLabel", re.I)
 CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.I)  # falha fechado pelo texto
@@ -366,6 +367,11 @@ def sed_no_lugar(args):
 def sem_lancadores(palavras):
     """O comando atrás dos lançadores, em cada leitura possível (`separar_lancadores`)."""
     return [comando for comando, _ in separar_lancadores(palavras)]
+
+
+def atras_do_xargs(escritas, palavras):
+    """A5: o `xargs` está entre os lançadores antes do comando `palavras`: os argumentos dele vêm da entrada padrão."""
+    return "xargs" in {Path(p).name for p in escritas[: max(0, len(escritas) - len(palavras))]}
 
 
 def exporta(palavras):
@@ -981,7 +987,7 @@ class Guarda:
         elif prog == "git":
             self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
-            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"), atras_do_xargs(originais, palavras))
         elif prog == "claude":
             self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
@@ -1415,7 +1421,7 @@ class Guarda:
                 saida.append(a.split("=", 1)[1])
         return [r.strip().lower() for v in saida for r in v.split(",")]
 
-    def aplica_afrouxa_regra(self, palavras, pasta):
+    def aplica_afrouxa_regra(self, palavras, pasta, por_xargs=False):
         """True se o comando `gh` aplica (ou pode aplicar) ou tira o rótulo `afrouxa-regra` (`--remove-label` como o `DELETE`), `gh label clone`, ou cria ou renomeia um rótulo com
         esse nome: `gh pr|issue edit|create` com o rótulo, `gh label create|edit` que o cita, `gh api` em
         `issues/<n>[/labels]` ou `labels[/<nome>]` com o nome no texto e a mutação GraphQL de rótulo (o ID do rótulo
@@ -1424,7 +1430,12 @@ class Guarda:
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         if grupo in ("pr", "issue") and sub in ("edit", "create"):
-            return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
+            pedidos = self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
+            # A5: o valor que o hook não vê (variável, substituição, opção sem valor, entrada do xargs) pode ser o rótulo
+            return (ROTULO_PROTEGIDO in pedidos or any(re.search(r"[`$]", r) for r in pedidos)
+                    or palavras[-1] in ROTULO_COM_VALOR or por_xargs and bool(pedidos))
+        if grupo == "alias" and sub in ("set", "import"):  # o alias do gh que cita o rótulo aplica sem que o hook o veja
+            return any(CITA_ROTULO.search(a) for a in palavras[3:])
         if grupo == "label" and sub == "clone":  # cria ou sobrescreve rótulos de outro repositório, sem citar o nome
             return True
         if grupo == "label" and sub in ("create", "edit"):
@@ -1434,6 +1445,8 @@ class Guarda:
         args = palavras[2:]
         endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
         textos, ilegivel = self.textos_da_api(args, pasta)
+        textos = [re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m[1], 16)), t) for t in textos]  # A5: escape JSON
+        ilegivel = ilegivel or any(r"\u" in t for t in textos)  # o que não decodifica conta como ilegível
         junto = urllib.parse.unquote(" ".join(textos)).lower()
         if endpoint.lower() == "graphql":
             return ilegivel or any("mutation" in t and GRAPHQL_DE_ROTULO.search(t) for t in textos)
@@ -1460,13 +1473,16 @@ class Guarda:
             for palavras, _, _ in (parte for partes in lidas.partes for parte in partes):  # ADR 0013: as duas leituras
                 while palavras and palavras[0] in CORPO_DE_LACO:
                     palavras = palavras[1:]
-                for palavras in sem_lancadores(palavras):  # a recusa é a união das leituras possíveis do lançador
+                escritas = palavras
+                for palavras in sem_lancadores(escritas):  # a recusa é a união das leituras possíveis do lançador
                     for p in palavras:
                         if "$(" in p.replace(OPACO["$"], ""):
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
-                        self.gh_rotulo(palavras, pasta)
+                        self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                    elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
+                        self.exigir_dono()
                     elif prog in SHELLS:
                         for i, a in enumerate(palavras[1:]):
                             if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
@@ -1487,10 +1503,10 @@ class Guarda:
         if "\\`" in texto:
             self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
 
-    def gh_rotulo(self, palavras, pasta):
+    def gh_rotulo(self, palavras, pasta, por_xargs=False):
         """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
         ou erro ao ler a conta ou o dono, barra. Os outros rótulos e comandos não mudam."""
-        if not self.aplica_afrouxa_regra(palavras, pasta):
+        if not self.aplica_afrouxa_regra(palavras, pasta, por_xargs):
             return
         self.exigir_dono()
 
@@ -1614,11 +1630,11 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"claude {' '.join(pos[:3])} altera a instalação do Forge",
                         f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
 
-    def gh(self, palavras, parte, pasta, repo_env=None):
+    def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False):
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if self.sessao_forge:
-            self.gh_rotulo(palavras, pasta)
+            self.gh_rotulo(palavras, pasta, por_xargs)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):

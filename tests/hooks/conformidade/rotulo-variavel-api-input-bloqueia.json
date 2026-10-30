@@ -1,0 +1,30 @@
+{
+  "descricao": "FURO-HOOK-A, A5: o corpo do gh api vem de arquivo que cita o rótulo.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}",
+    "corpo.json": "{\"labels\": [\"afrouxa-regra\"]}\n"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X POST repos/o/r/issues/1/labels --input corpo.json"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "só o dono do Forge aplica ou delega o rótulo afrouxa-regra"
+  }
+}
