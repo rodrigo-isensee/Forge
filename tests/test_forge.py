@@ -4397,9 +4397,9 @@ class RepoDeSeguranca(unittest.TestCase):
         (self.repo / ".forge" / "run").mkdir(parents=True)
         (self.repo / ".forge" / "run" / "autoria.jsonl").write_text("".join(json.dumps(r) + "\n" for r in registros), encoding="utf-8")
 
-    def entrega(self, etapa, *extra):
+    def entrega(self, etapa, *extra, cwd=None):
         r = rodar_fc("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", etapa, *extra,
-                     raiz=self.repo, home=self.tmp / "home")
+                     raiz=self.repo, home=self.tmp / "home", cwd=cwd)
         return r.returncode, r.stdout, r.stderr
 
 
@@ -4810,6 +4810,43 @@ class EntregasParalelas(RepoDeSeguranca):
         self.assertIn("escopo: união de 2 briefs (mesma Branch, Base, Base-sha e pedido)", saida)
         c = self.brief("p1-OUTRO-tech-lead-1.md", pedido="p1-OUTRO")
         self.assertEqual(self.entrega("review", "--brief", a, "--brief", c)[0], 1)
+
+    def test_pedido_do_brief_por_caminho_vale_so_pelo_realpath_do_pedido_conferido(self):  # C1 (C-1 a C-6; A1 a A8)
+        outro, ln = self.tmp / "outro", self.tmp / "ln"
+        outro.mkdir()
+        ln.mkdir()
+        (outro / "p1.md").write_text("x\n", encoding="utf-8")
+        (self.tmp / "p2.md").write_text("x\n", encoding="utf-8")
+        (self.tmp / "p1-REV.md").write_text("x\n", encoding="utf-8")
+        (ln / "p1.md").symlink_to(self.pedido)
+        (ln / "p2.md").symlink_to(self.tmp / "p2.md")
+        ok, outro_sha = self.brief("p1-tech-lead-1.md"), git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        casos = {"absoluto": (str(self.pedido), {}, 0), "link para o próprio pedido": (str(ln / "p1.md"), {}, 0),
+                 "-REV na pasta do pedido": (str(self.tmp / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
+                 "link para outro pedido": (str(ln / "p2.md"), {}, 1), "-REV noutra pasta": (str(outro / "p1-REV.md"), {}, 1),
+                 "~usuario": ("~outro/p1.md", {}, 1), "byte NUL": (f"{self.tmp}/a\x00b/p1.md", {}, 1), "caminho certo, outro Base-sha": (str(self.pedido), {"base_sha": outro_sha}, 1)}
+        for nome, (valor, campos, rc_esperado) in casos.items():
+            with self.subTest(nome):
+                (self.repo / "docs" / "briefs" / "p1-x-1.md").write_text(self.cabecalho(**campos).replace("docs/pedidos/p1.md", valor), encoding="utf-8")
+                rc, saida, erro = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-x-1.md")
+                self.assertEqual(rc, rc_esperado, saida)
+                self.assertNotIn("Traceback", erro)
+
+    def test_pedido_do_brief_com_til_e_relativo_so_valem_na_forma_certa(self):  # A4, A9
+        (self.tmp / "home").mkdir()
+        self.pedido = self.tmp / "home" / "p1.md"
+        self.pedido.write_text("# Pedido p1\n", encoding="utf-8")
+        ok = self.brief("p1-tech-lead-1.md")
+        for valor, rc_esperado in (("~/p1.md", 0), (f"~/{self.tmp}/home/p1.md", 0), ("./p1.md", 1), ("../home/p1.md", 1), ("~/outro/p1.md", 1)):
+            with self.subTest(valor):
+                (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("docs/pedidos/p1.md", valor), encoding="utf-8")
+                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.tmp / "home")
+                self.assertEqual(rc, rc_esperado, saida)
+
+    def test_til_de_outro_usuario_nunca_expande(self):  # A5: base de contas trocada por um dublê
+        mod = carregar_forge_check()
+        with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.tmp))):
+            self.assertFalse(mod.mesmo_pedido("~outro/p1.md", "x", self.pedido))
 
     def test_brief_de_outra_branch_base_sha_ou_pedido_reprova_a_uniao(self):  # abuso 20
         ok = self.brief("p1-tech-lead-1.md")
