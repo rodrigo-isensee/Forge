@@ -518,6 +518,23 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+def trabalhadores_do_pool(nucleos):
+    """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
+    núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
+    if not isinstance(nucleos, int) or isinstance(nucleos, bool) or nucleos < 1:
+        return 2
+    return min(4, max(2, nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -572,7 +589,7 @@ class Hooks(unittest.TestCase):
             if f.dados.get("executaveis"):
                 tmp = self._pasta_temporaria()
                 montados[nome] = (tmp, f.montar(tmp, outro.pid))
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             futuros = []
             for nome, f in em_paralelo:
