@@ -57,7 +57,7 @@ class PrePushSoParecer(unittest.TestCase):
         self.git("init", "-q")
         self.git("config", "user.email", "t@example.com")
         self.git("config", "user.name", "t")
-        self.env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
+        self.env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="20")
         (self.repo / "tests" / "test_forge.py").write_text(SUITE)
         (self.repo / ".gitignore").write_text("rodou-*\n__pycache__/\n")
         self.codigo = self.commit("codigo")

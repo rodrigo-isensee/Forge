@@ -76,10 +76,12 @@ class PrePushTrava(unittest.TestCase):
         base = Path(self._tmp.name)
         self.run_dir = base / "run"
         self.run_dir.mkdir()
+        self.home = base / "home"  # C-13: o hook não enxerga o ~/.forge-contrib real
+        self.home.mkdir()
         self.repo = base / "repo"
         (self.repo / "tests").mkdir(parents=True)
         subprocess.run(["git", "init", "-q", str(self.repo)], check=True, env=AMBIENTE)
-        self.env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
+        self.env = dict(AMBIENTE, XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(self.home), FORGE_TRAVA_ESPERA="20")
         self.trava = self.run_dir / f"forge-suite-{os.getuid()}.lock"
         self.filhos = []
         self.addCleanup(self._mata_filhos)
@@ -479,6 +481,120 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda()
         self.assertEqual(codigo, 0, erro)
         self.assertEqual((self.repo / "fd9").read_text(), "False")
+
+    def comum(self):
+        pasta = self.home / ".forge-contrib"
+        pasta.mkdir(exist_ok=True)
+        return pasta
+
+    def lado(self, nome, escrita=True, home=None):
+        xdg, tmp = Path(self._tmp.name) / f"xdg-{nome}", Path(self._tmp.name) / f"tmp-{nome}"
+        xdg.mkdir()
+        tmp.mkdir()
+        if not escrita:
+            xdg.chmod(0o555)
+            self.addCleanup(xdg.chmod, 0o755)
+        return dict(self.env, XDG_RUNTIME_DIR=str(xdg), TMPDIR=str(tmp), HOME=str(home or self.home)), xdg, tmp
+
+    def test_dentro_e_fora_do_sandbox_usam_a_mesma_trava(self):  # C-9, T-C4a
+        if os.geteuid() == 0:
+            self.skipTest("root escreve em pasta sem permissão")
+        self.suite(SUITE_LENTA)
+        comum = self.comum()
+        a, _, _ = self.lado("a")
+        b, _, _ = self.lado("b", escrita=False)
+        self.assertEqual(self.roda("--status", env=b)[0], 1)
+        primeira = self.hook(env=a)
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(lambda: self.roda("--status", env=b)[0] == 0), "o outro lado não viu a suíte")
+        self.assertTrue((comum / f"forge-{os.getuid()}" / f"forge-suite-{os.getuid()}.lock").exists())
+        codigo, _, erro = self.roda(env=b, FORGE_TRAVA_ESPERA="1")
+        self.assertEqual(codigo, 1)
+        self.assertIn("a vez não chegou", erro)
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(primeira.wait(timeout=60), 0)
+
+    def test_pasta_comum_presente_e_recusada_nao_recua(self):  # C-9, C-10, T-C4b, T-C4c
+        self.suite(SUITE_RAPIDA)
+
+        def sub_link(comum):
+            (comum.parent / "alvo").mkdir()
+            (comum / f"forge-{os.getuid()}").symlink_to(comum.parent / "alvo")
+
+        def sub_arquivo(comum):
+            (comum / f"forge-{os.getuid()}").write_text("ocupado")
+
+        def comum_sem_escrita(comum):
+            comum.chmod(0o555)
+            self.addCleanup(comum.chmod, 0o755)
+
+        def comum_arquivo(comum):
+            comum.rmdir()
+            comum.write_text("arquivo")
+
+        for nome, prepara in (("subpasta link", sub_link), ("subpasta arquivo", sub_arquivo),
+                              ("comum sem escrita", comum_sem_escrita), ("comum arquivo", comum_arquivo)):
+            with self.subTest(nome):
+                if nome == "comum sem escrita" and os.geteuid() == 0:
+                    self.skipTest("root escreve em pasta sem permissão")
+                home = Path(self._tmp.name) / f"home-{nome.replace(' ', '-')}"
+                comum = home / ".forge-contrib"
+                comum.mkdir(parents=True)
+                lado, xdg, tmp = self.lado(nome.replace(" ", "-"), home=home)
+                prepara(comum)
+                for args in ((), ("--suite",)):
+                    codigo, _, erro = self.roda(*args, env=lado)
+                    self.assertEqual(codigo, 1, erro)
+                    self.assertFalse((self.repo / "rodou").exists(), "a suíte rodou sem a trava comum")
+                    self.assertEqual(list(xdg.iterdir()) + list(tmp.iterdir()), [], "recuou para outra pasta")
+                codigo, saida, _ = self.roda("--status", env=lado)
+                self.assertIn(codigo, (1, 2), saida)  # o 2 exato é do item PRE-PUSH-STATUS-RC (C2); o par com a subpasta frouxa, do C1
+                self.assertNotIn("nenhuma suíte", saida)
+
+    def test_status_com_pasta_comum_e_sem_subpasta_nao_cria_nada(self):  # C-11, T-C4e
+        comum = self.comum()
+        lado, xdg, tmp = self.lado("a")
+        codigo, saida, _ = self.roda("--status", env=lado)
+        self.assertEqual((codigo, saida.strip()), (1, "nenhuma suíte do Forge rodando"))
+        self.assertEqual(list(comum.iterdir()) + list(xdg.iterdir()) + list(tmp.iterdir()), [])
+
+    def test_prova_de_um_lado_nao_dispensa_a_suite_no_outro(self):  # Q-S1 = B, C-12, T-C4g
+        self.comum()
+        a, _, _ = self.lado("a")
+        b, _, _ = self.lado("b")
+        (self.repo / ".gitignore").write_text("rodou\n__pycache__/\n")
+        self.suite(SUITE_RAPIDA)
+        def git(*args):
+            return subprocess.run(["git", "-c", "user.email=t@example.com", "-c", "user.name=t", *args], cwd=self.repo,
+                                  env=AMBIENTE, check=True, capture_output=True, text=True).stdout.strip()
+
+        git("add", "-A")
+        git("commit", "-q", "-m", "codigo")
+        codigo_sha = git("rev-parse", "HEAD")
+        codigo, _, erro = self.roda("origin", "u", entrada=self.refs("melhoria/x", local=codigo_sha), env=a)
+        self.assertEqual(codigo, 0, erro)
+        self.assertTrue(list(Path(a["XDG_RUNTIME_DIR"]).glob("*.verde")), "o lado A não anotou a prova")
+        (self.repo / "rodou").unlink()
+        (self.repo / "docs" / "reviews").mkdir(parents=True)
+        (self.repo / "docs" / "reviews" / "p.md").write_text("parecer\n")
+        git("add", "-A")
+        git("commit", "-q", "-m", "parecer")
+        parecer_sha = git("rev-parse", "HEAD")
+        entrada = self.refs("melhoria/x", local=parecer_sha, remoto=codigo_sha)
+        codigo, _, erro = self.roda("origin", "u", entrada=entrada, env=b)
+        self.assertEqual(codigo, 0, erro)
+        self.assertTrue((self.repo / "rodou").exists(), "o lado B aceitou a prova do lado A e pulou a suíte")
+
+
+class TodoTesteDoHookUsaHomeTemporario(unittest.TestCase):
+    def test_todo_modulo_que_executa_o_hook_define_home(self):  # C-13, T-C4f
+        import re
+        executam = [p for p in sorted((RAIZ / "tests").glob("test_*.py"))
+                    if re.search(r"\[str\((?:HOOK|hook)\)", p.read_text(encoding="utf-8"))]
+        self.assertGreaterEqual(len(executam), 5, [p.name for p in executam])
+        for p in executam:
+            with self.subTest(p.name):
+                self.assertRegex(p.read_text(encoding="utf-8"), r"\bHOME\s*=\s*str\(", f"{p.name} roda o hook sem HOME temporário")
 
 
 if __name__ == "__main__":
