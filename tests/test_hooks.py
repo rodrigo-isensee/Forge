@@ -1950,5 +1950,33 @@ class Hooks(unittest.TestCase):
 
 
 
+class PoolDosFixtures(unittest.TestCase):
+    """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
+
+    def test_pool_por_nucleos_e_limites(self):  # AB-8
+        for nucleos, esperado in ((1, 2), (2, 2), (4, 4), (16, 4), (None, 2), (0, 2), (-3, 2), ("x", 2)):
+            with self.subTest(nucleos=nucleos):
+                self.assertEqual(trabalhadores_do_pool(nucleos), esperado)
+
+    def test_pool_le_a_afinidade_e_ignora_o_forge_nproc(self):  # AB-8
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "64"}):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1, 2, 3, 4, 5}):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 4)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=8):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)  # sem leitura, o piso
+
+    def test_pool_uma_fonte_so(self):  # C-1: nenhum módulo de teste refaz a conta `cpu_count // 2` do pool
+        copias = []
+        for arquivo in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"cpu_count\(\) or 2\) // 2", linha):
+                    copias.append(f"{arquivo.name}:{n}")
+        self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
+
+
 if __name__ == "__main__":
     unittest.main()
