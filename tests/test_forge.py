@@ -2180,6 +2180,16 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
                 self.assertNotIn(ap.FRASE, r.stdout)
                 self.assertNotIn("a conferência não vale", r.stdout)
 
+    def test_base_com_prefixo_origin_e_conferida_como_a_sem_prefixo(self):  # C4 (FC-VERSAO-BASE-AVISO)
+        self.assertNotIn("versão não conferida", self.check(self.igual, "pr", "p", "--base", "origin/develop").stderr)
+        r = self.check(self.antiga_sem_objeto, "pr", "p", "--base", "origin/develop")
+        self.assertIn(ap.FRASE_NO_FORGE, r.stderr)
+        self.assertNotIn("versão não conferida", r.stderr)
+        for torto in ("origin/origin/develop", "../x", "-c", "develop..main"):  # só um prefixo cai; o resto segue "não conferida", sem traceback
+            with self.subTest(torto):
+                r = self.check(self.igual, "pr", "p", "--base", torto)
+                self.assertNotIn("Traceback", r.stderr)
+
     def test_o_aviso_nao_muda_o_codigo_de_saida(self):
         for nome, args in self.comandos().items():
             with self.subTest(nome):

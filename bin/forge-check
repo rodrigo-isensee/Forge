@@ -5280,7 +5280,7 @@ def base_do_repositorio(raiz, a):
     (padrão develop). None se não der para saber."""
     if a.cmd == "entrega":
         return a.base_sha if SHA40.match(a.base_sha or "") else None
-    nome = getattr(a, "base", None) or "develop"
+    nome = (getattr(a, "base", None) or "develop").removeprefix("origin/")  # um prefixo só, como o `pr` (C-15)
     return sha_do_commit(raiz, f"refs/remotes/origin/{nome}")
 
 
