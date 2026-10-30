@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: worktree-orfas
 branch: melhoria/worktree-orfas
-commit: e590cc1b62e4488e2ad0ae99ab9b70cb0580b418
+commit: ecb20794664e3eedb0e4b61261ab1d55bad5d85d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-30
 ---
 # Code review: a lista do prune vai só ao log do forge-fechar (WORKTREE-ORFAS, F1)
 
-Escopo: pedido WORKTREE-ORFAS-REV, E1.1 (`R-REVIEW`). Rodada 2 (revalidação por delta, abaixo); o texto da rodada 1 segue valendo para o que não mudou. Li o diff inteiro, `git diff 31257c14c8d245d66e7806edb7cd65e22b3aeb04...398791ade119ef41e35c5b7d5b279190122a656e`: são 4 commits, de `13a8c35` a `398791a`, em 5 arquivos. O QA (E3.1) roda em paralelo, em `docs/qa/`, e não o refaço. O pedido não tem parecer de segurança: a decisão técnica de 2026-10-29 23:29 registra que não há gatilho, porque é só saída de terminal do script de fechamento.
+Escopo: pedido WORKTREE-ORFAS-REV, E1.1 (`R-REVIEW`). Rodada 3 (revalidação por delta do merge, abaixo; a rodada 2 também); o texto da rodada 1 segue valendo para o que não mudou. Li o diff inteiro, `git diff 31257c14c8d245d66e7806edb7cd65e22b3aeb04...398791ade119ef41e35c5b7d5b279190122a656e`: são 4 commits, de `13a8c35` a `398791a`, em 5 arquivos. O QA (E3.1) roda em paralelo, em `docs/qa/`, e não o refaço. O pedido não tem parecer de segurança: a decisão técnica de 2026-10-29 23:29 registra que não há gatilho, porque é só saída de terminal do script de fechamento.
 
 ## Achados
 - A1 (recomendado) bin/forge-fechar:415 · com saída vazia do prune, o here-string entrega uma linha vazia e o log ganha um registro `[prune] ` sem texto; sugestão: `[ -z "$prune_saida" ] ||` antes do laço
@@ -25,8 +25,17 @@ Escopo: pedido WORKTREE-ORFAS-REV, E1.1 (`R-REVIEW`). Rodada 2 (revalidação po
 - **Commit:** `e590cc1` em Conventional Commits, em português, só teste e spec.
 - **Achados A1 e A2 da rodada 1:** não tratados no delta; seguem como recomendação, sem devolver.
 
+## Revalidação por delta (rodada 3, head `ecb2079`)
+- **O que é o delta:** `ecb2079` é merge de `origin/develop` (`3bd1d84`) sobre `167ec0d`, sem mudança própria do autor (DECISÃO TÉCNICA 2026-10-30 01:31, conflito de caminho com o #378 no passo 2b do `forge-fechar`). `forge-check delta --parecer docs/reviews/worktree-orfas.md` listou o intervalo `e590cc1..ecb2079` com 23 arquivos, todos vindos da `develop` (`bin/forge-check`, `scripts/promover-homolog.py`, `skills/esperar-estado/SKILL.md`, testes e pareceres dos pedidos PN3, PN5 e PN6), já revisados nos PRs deles; não os relio. Do delta, li só `docs/fechamento-integrador.md`, o arquivo que o F1 e o #378 tocam.
+- **Trecho mesclado de `docs/fechamento-integrador.md`:** a linha 28 é a do #378 (segundo plano com log terminado em `rc=` e espera no mesmo turno, skill `esperar-estado`) e a linha 46 é a do F1 (`LC_ALL=C`, marca `[prune]`, só a contagem na tela, aviso quando o prune falha). As duas vêm intactas, em seções diferentes (corte do passo 7 e registro órfão), e não se contradizem: nenhuma fala da saída da outra. `git diff 167ec0d ecb2079 -- docs/fechamento-integrador.md` dá só a linha 28; `git diff 3bd1d84 ecb2079 -- docs/fechamento-integrador.md` dá só a linha 46.
+- **Patch do F1 igual ao revisado:** `git diff 3bd1d84 ecb2079` e `git diff 31257c1 167ec0d`, comparados sem as linhas `index` e os cabeçalhos `@@`, são idênticos, e o `--numstat` bate arquivo a arquivo. Contra `origin/develop` (`bd8f2f1`, que contém o `3bd1d84`), `git diff --numstat --no-renames origin/develop...ecb2079` lista só os 7 arquivos do F1 (`bin/forge-fechar` 22+10, `tests/test_fechar_orfao.py` 38+0, a spec, o fragmento, os dois pareceres e o `.md`).
+- **Ferramentas no head:** `python3 -m unittest tests.test_fechar_orfao` dá `Ran 18 tests … OK`; `shellcheck bin/forge-fechar` sai com rc 0.
+- **Teto M14:** o mesmo da rodada 2, 70 linhas (22+10 e 38+0), abaixo de 150; um comportamento só.
+- **Já lido, sem mudança:** `bin/forge-fechar`, `tests/test_fechar_orfao.py`, `tests/mutantes/worktree-orfas.json`, `changelog.d/worktree-orfas.md` e a linha 46 do `.md`.
+- **Classe:** nenhuma classe de achado nova nesta rodada; sem linha AR nova (DECISÃO TÉCNICA 2026-10-29 15:28, T1-CONF-ESCOPO-REV). A1 e A2 seguem recomendação.
+
 ## Parecer
-**Aprovado** no head `e590cc1` (rodada 2; na rodada 1, no `398791a`). A entrega faz o que o E1 e o E2 pedem: a lista do `git worktree prune -v` deixa de ir para a tela, e a linha `limpeza: …` continua sendo a última do passo 7. Os dois achados são recomendações e não devolvem a entrega.
+**Aprovado** no head `ecb2079` (rodada 3; na rodada 2, no `e590cc1`; na rodada 1, no `398791a`). A entrega faz o que o E1 e o E2 pedem: a lista do `git worktree prune -v` deixa de ir para a tela, e a linha `limpeza: …` continua sendo a última do passo 7. Os dois achados são recomendações e não devolvem a entrega.
 
 - **A1:** o problema é só cosmético no log. A contagem não muda, porque `grep -c` sobre o texto vazio dá 0, e a tela também não muda.
 - **A2:** nos executores do GitHub o `LC_ALL` vem vazio, então hoje o M4 morre. É a classe AR-4 (`teste herda o ambiente do CI`). Pela decisão técnica de 2026-10-29 15:28 (T1-CONF-ESCOPO-REV), nesta rodada fica só a citação da classe, sem linha AR nova nem contagem nova.
