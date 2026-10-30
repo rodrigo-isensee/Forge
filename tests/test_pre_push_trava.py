@@ -295,6 +295,51 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("não é uma pasta do próprio usuário", erro)
         self.assertFalse((self.repo / "rodou").exists())
 
+    def recuo_com_subpasta(self, nome, modo):
+        """Ambiente de recuo (TMPDIR próprio e vazio) com a subpasta forge-<uid> já criada e com o modo pedido."""
+        tmp = Path(self._tmp.name) / f"recuo-{nome}"
+        sub = tmp / f"forge-{os.getuid()}"
+        sub.mkdir(parents=True, mode=0o700)
+        os.chmod(sub, modo)  # depois do mkdir, por causa do umask
+        return dict(self.env_recuo(), TMPDIR=str(tmp)), sub
+
+    def test_subpasta_gravavel_por_grupo_ou_outros_e_recusada(self):  # TRAVA-MODO-SUBPASTA, C-1
+        self.suite(SUITE_RAPIDA)
+        for modo in (0o777, 0o770, 0o702, 0o1777):
+            with self.subTest(modo=oct(modo)):
+                env, sub = self.recuo_com_subpasta(oct(modo), modo)
+                codigo, _, erro = self.roda(env=env)
+                self.assertEqual(codigo, 1, erro)
+                self.assertIn("recusada", erro)
+                self.assertFalse((self.repo / "rodou").exists())
+                self.assertEqual(list(sub.iterdir()), [], "o hook escreveu na subpasta recusada")
+                _, saida, erro = self.roda("--status", env=env)
+                self.assertIn("recusada", erro)
+                self.assertNotIn("nenhuma suíte", saida)
+
+    def test_subpasta_sem_escrita_de_grupo_ou_outros_segue_aceita(self):  # contraprova de TRAVA-MODO-SUBPASTA
+        self.suite(SUITE_RAPIDA)
+        for modo in (0o700, 0o750, 0o755):
+            with self.subTest(modo=oct(modo)):
+                env, _ = self.recuo_com_subpasta(oct(modo), modo)
+                codigo, _, erro = self.roda(env=env)
+                self.assertEqual(codigo, 0, erro)
+                self.assertTrue((self.repo / "rodou").exists())
+                (self.repo / "rodou").unlink()
+
+    def test_conferencia_do_modo_que_falha_recusa(self):  # C-2: erro ao ler o modo é recusa, nunca aceite
+        self.suite(SUITE_RAPIDA)
+        falso = Path(self._tmp.name) / "falso"
+        falso.mkdir()
+        (falso / "find").write_text("#!/bin/sh\nexit 1\n")
+        (falso / "find").chmod(0o755)
+        env, _ = self.recuo_com_subpasta("find-falso", 0o700)
+        env["PATH"] = f"{falso}:{env['PATH']}"
+        codigo, _, erro = self.roda(env=env)
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("recusada", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+
     # SUITE-FILA-JUSTA: ordem de chegada pela fila de vezes ao lado da trava.
     def fila(self):
         return self.run_dir / f"forge-suite-{os.getuid()}.fila"

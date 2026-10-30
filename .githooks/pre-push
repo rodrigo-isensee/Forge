@@ -6,8 +6,13 @@
 # usuário esperam a vez por uma trava de arquivo (flock), fora do repositório. O kernel solta a trava quando
 # o processo morre, então não existe trava órfã. `--status` diz se há suíte rodando (saída 0) ou não (1).
 # Pasta da trava: XDG_RUNTIME_DIR (privada do usuário) ou, no recuo para $TMPDIR e /tmp (que podem ser
-# compartilhados), a subpasta forge-<uid>, criada com modo 700 e conferida (do próprio usuário, não é link).
+# compartilhados), a subpasta forge-<uid>, criada com modo 700 e conferida (do próprio usuário, não é link, sem escrita
+# de grupo nem de outros).
 # Se a subpasta não puder ser criada ou conferida, falha fechado: não há recuo para outra pasta.
+# Falha fechada: só aceita quando o find roda e confirma a pasta sem escrita de grupo nem de outros; erro ou saída vazia = recusa.
+modo_sem_escrita_alheia() {
+  [ "$(find "$1" -maxdepth 0 ! -perm /022 -print 2>/dev/null)" = "$1" ]
+}
 # $1 = criar: cria a subpasta se faltar; vazio (--status): só confere, sem criar nada.
 trava_arquivo() {
   local d sub uid
@@ -29,6 +34,10 @@ trava_arquivo() {
       fi
       if [ -L "$sub" ] || [ ! -d "$sub" ] || [ ! -O "$sub" ]; then
         echo "pre-push: ${sub} não é uma pasta do próprio usuário (ou é link, ou não pôde ser criada); recusada. Apague-a e tente de novo." >&2
+        return 1
+      fi
+      if ! modo_sem_escrita_alheia "$sub"; then
+        echo "pre-push: ${sub} tem escrita de grupo ou de outros (ou o modo não pôde ser lido); recusada. Corrija com chmod 700 ou apague-a e tente de novo." >&2
         return 1
       fi
       printf '%s/forge-suite-%s.lock\n' "$sub" "$uid"
