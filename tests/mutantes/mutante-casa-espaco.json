@@ -1,0 +1,66 @@
+{
+  "pedido": "MUTANTE-CASA-ESPACO",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1",
+      "guarda": "com prefixo e sufixo sobrepostos o trecho desliza ate o inicio do sufixo",
+      "arquivo": "bin/forge-mutante",
+      "de": "primeira = max(comum - sufixo, ini - inicio)",
+      "para": "primeira = max(prefixo, ini - inicio)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
+      ]
+    },
+    {
+      "id": "C2",
+      "guarda": "o trecho nao comeca antes do no",
+      "arquivo": "bin/forge-mutante",
+      "de": "primeira = max(comum - sufixo, ini - inicio)",
+      "para": "primeira = comum - sufixo",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de"
+      ]
+    },
+    {
+      "id": "C3",
+      "guarda": "o trecho nao comeca depois do fim do prefixo comum",
+      "arquivo": "bin/forge-mutante",
+      "de": "ultima = min(prefixo, fim - inicio - (len(de) - comum))",
+      "para": "ultima = fim - inicio - (len(de) - comum)",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de",
+        "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
+      ]
+    },
+    {
+      "id": "C5",
+      "guarda": "o casa exige alguma posicao do trecho dentro do no",
+      "arquivo": "bin/forge-mutante",
+      "de": "and primeira <= ultima):",
+      "para": "and True):",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_casamento_pelo_intervalo_do_no_e_as_travas_do_de",
+        "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
+      ]
+    },
+    {
+      "id": "C6",
+      "guarda": "o sufixo comum se mede no de inteiro, nao so depois do prefixo",
+      "arquivo": "bin/forge-mutante",
+      "de": "commonprefix([de[::-1], para[::-1]])",
+      "para": "commonprefix([de[prefixo:][::-1], para[prefixo:][::-1]])",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
+      ]
+    },
+    {
+      "id": "C4",
+      "guarda": "a remocao sobreposta mede o trecho pelo para menor",
+      "arquivo": "bin/forge-mutante",
+      "de": "comum = min(prefixo + sufixo, len(de), len(para))",
+      "para": "comum = min(prefixo + sufixo, len(de))",
+      "equivalente": "sem o len(para) a remocao sobreposta so difere quando o trecho removido passa do no e o resto do trecho cabe nele; na busca exaustiva em seis textos com remocoes e trocas curtas nenhum para que da Python valido separa as duas contas: o caso que separa vira SyntaxError no ast.parse do casa, nao False"
+    }
+  ]
+}
