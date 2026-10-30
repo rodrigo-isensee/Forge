@@ -4330,11 +4330,31 @@ def ler_registro(raiz, rel):
     return None, "ausente"
 
 
-def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
+HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
+
+
+def hora_da_aprovacao(raiz, brief):
+    """P-N4: a hora `AAAA-MM-DD HH:MM` da última linha `aprovado` do brief (modo `brief`) em docs/kanban/conferencias.md, ou None.
+    Hora fora do formato não vale: sem aprovação válida, o brief segue cobrado contra todas as decisões."""
+    nome = brief.removesuffix(".md").casefold()
+    horas = [c[0] for c in _ler_tabela(Path(raiz) / "docs" / "kanban" / "conferencias.md")
+             if len(c) >= 6 and c[2].removesuffix(".md").casefold() == nome and c[3].casefold() == "brief" and _aprovou(c[5])
+             and HORA_DO_REGISTRO.fullmatch(c[0])]
+    return horas[-1] if horas else None
+
+
+def decisao_posterior(linha, aprovacao):
+    """True se a linha `DECISÃO DO DONO` traz data e hora posteriores à aprovação; sem hora ou sem aprovação, False (segue cobrada)."""
+    m = HORA_DA_DECISAO.search(linha)
+    return bool(m and aprovacao and f"{m[1]} {m[2]}" > aprovacao)
+
+
+def decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief=None):
     """O que o conferente cobra do brief, sem julgamento: todas as linhas `DECISÃO DO DONO` do pedido e de cada registro em
     `docs/pedidos/` que uma delas cita ou que o `Depende de:` do pedido nomeia (um nível), mais toda `ADR NNNN` citada no pedido. Devolve
     `{"fontes": [(rel, [(n, linha)])] (a primeira é o pedido), "adrs": [NNNN], "avisos": [(linha de saída, reprova)]}`. Ordem fixa:
-    mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2)."""
+    mesma entrada, mesma saída. Referência a outro `.md` numa linha de decisão sai `não verificável`, nunca some (M2.2). Com `brief`, a
+    chave `aprovacao` traz a hora da última aprovação dele (`hora_da_aprovacao`, P-N4)."""
     proprio = f"docs/pedidos/{caminho_impresso(caminho_pedido.name)}"
     do_pedido = linhas_de_decisao(pedido_txt)
     fontes, avisos, vistos = [(proprio, do_pedido)], [], set()
@@ -4395,19 +4415,25 @@ def decisoes_cobradas(raiz, caminho_pedido, pedido_txt):
         elif erro:
             avisos.append((f"decisões: pedido de origem {nome_seguro(rel)} {erro} (não verificável)", False))
     adrs = list(dict.fromkeys(a or b for a, b in ADR_CITADA.findall(pedido_txt)))
-    return {"fontes": fontes, "adrs": adrs, "avisos": avisos}
+    return {"fontes": fontes, "adrs": adrs, "avisos": avisos, "aprovacao": hora_da_aprovacao(raiz, brief) if brief else None}
 
 
 def conferir_decisoes(cobradas, secoes):
     """Linhas `fonte:` e `decisões:` do `brief` (lista de (linha, reprova)): cada linha cobrada e cada ADR precisa estar em
-    `Decisões e restrições`. Só presença: a contradição literal é do conferente (M2.3)."""
+    `Decisões e restrições`. Só presença: a contradição literal é do conferente (M2.3). Brief aprovado: a decisão com data e hora
+    posteriores à aprovação que falta sai como aviso, não reprova (P-N4)."""
     presentes = chave_da_decisao(" ".join(secoes.get("Decisões e restrições", [])))
     saida = [(f"fonte: {caminho_impresso(rel)} ({len(linhas)} decisões)", False) for rel, linhas in cobradas["fontes"]]
     saida += cobradas["avisos"]
     faltas = []
     for rel, linhas in cobradas["fontes"]:
         for n, linha in linhas:
-            if chave_da_decisao(linha) not in presentes:
+            if chave_da_decisao(linha) in presentes:
+                continue
+            if decisao_posterior(linha, cobradas.get("aprovacao")):
+                saida.append((f"decisões: decisão posterior à aprovação {cobradas['aprovacao']}: {nome_seguro(chave_da_decisao(linha)[:60])} "
+                              f"({caminho_impresso(rel)}:{n})", False))
+            else:
                 faltas.append((f"decisões: falta {nome_seguro(chave_da_decisao(linha)[:60])} ({caminho_impresso(rel)}:{n})", True))
     for adr in cobradas["adrs"]:
         if not re.search(rf"\bADR[ -]?{adr}\b|\bdocs/adr/{adr}-", presentes):
@@ -4596,7 +4622,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
-    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
+    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief.name)
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
