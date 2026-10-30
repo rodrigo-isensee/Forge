@@ -3,18 +3,31 @@ tipo: review
 contrato: 1
 pedido: pn5-espera-envio
 branch: melhoria/pn5-espera-envio
-commit: 8a7ad60d238af4a894901f28b96dd909bb910af6
+commit: 07fd724471aa59537e7d4bc030bc8740e9949c94
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
 ---
 # Review: pn5-espera-envio
 
-Code review (`R-REVIEW`) do B1-2 da P-N5 (pedido PN5-ESPERA-ENVIO-REV, E1.1), volta 1: revalidação por delta do parecer anterior (a20d657, reprovado no head bb8a670 por A1). Head revisado 8a7ad60.
+Code review (`R-REVIEW`) do B1-2 da P-N5 (pedido PN5-ESPERA-ENVIO-REV, E1.1), volta 2: revalidação por delta do parecer anterior (9bf2d8e, aprovado no head 8a7ad60). Head revisado 07fd724. A volta 1 (8a7ad60) e a original (a20d657, reprovado por A1) seguem abaixo como histórico.
 
 ## Achados
 
 ## Parecer
+**Volta 2 (head 07fd724): aprovado.** Sem achado novo.
+
+**Delta lido** (`bin/forge-check delta --parecer docs/reviews/pn5-espera-envio.md`, intervalo `8a7ad60..07fd724`, só o commit 07fd724): `tests/test_esperar_estado.py:169`, `LOG` passa de `/home/u/.forge-tmp/envio.log` a `/tmp/forge-tmp/envio.log`. O teste continua provando o mesmo: `com_log` (linha 53-55) só troca `<log>` pela string, e o hook recebe a linha como texto, sem criar nem ler o arquivo; o caminho segue literal e absoluto, sem `$TMPDIR`, que é o que a regra 4 da skill exige. `scripts/verificar-contribuicao.sh origin/develop`: rc=0 ("nenhum segredo nem caminho pessoal no diff contra origin/develop"); `grep /home/u tests/test_esperar_estado.py` vazio.
+
+**Já lido (não relido):** todo o resto do diff `cfc2734...07fd724`, aprovado no parecer 9bf2d8e e intocado pelo delta.
+
+**Classe:** caminho pessoal em teste (`R-NEUTRO`, achado pela ferramenta `verificar-contribuicao.sh`, não pelo review); sem linha AR nova nesta rodada (decisão técnica 2026-10-29 15:28 do T1-CONF-ESCOPO-REV).
+
+**Ferramentas (citadas, não refeitas):** `python3 -m unittest tests.test_esperar_estado` no head 07fd724: 13 testes, OK.
+
+**Teto M14:** `git diff --numstat --no-renames origin/develop...HEAD`: `tests/test_esperar_estado.py` (63) e `tests/test_forge.py` (5), 68 linhas, igual à volta 1; dentro do teto.
+
+### Volta 1 (head 8a7ad60)
 **Aprovado.** O A1 da volta anterior está resolvido; o delta não trouxe achado novo.
 
 **Delta lido** (`bin/forge-check delta --parecer docs/reviews/pn5-espera-envio.md`, intervalo `bb8a670..8a7ad60`, só o commit 8a7ad60):
