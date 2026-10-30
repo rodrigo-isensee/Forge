@@ -34,10 +34,10 @@
     },
     {
       "id": "M4",
-      "guarda": "o intervalo malformado (3-) segue recusado",
+      "guarda": "mais de um hífen (3-5-7) segue recusado",
       "arquivo": "bin/forge-check",
       "de": "(\\d+(?:-\\d+)?) · (.+?)",
-      "para": "(\\d+(?:-\\d*)?) · (.+?)",
+      "para": "(\\d+(?:-\\d+)*) · (.+?)",
       "testes": [
         "tests.test_forge.VoltaComRecomendacao.test_intervalo_malformado_ou_invertido_e_recusado"
       ]
