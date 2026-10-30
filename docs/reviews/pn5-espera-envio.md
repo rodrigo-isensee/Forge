@@ -3,40 +3,34 @@ tipo: review
 contrato: 1
 pedido: pn5-espera-envio
 branch: melhoria/pn5-espera-envio
-commit: bb8a670fa24f0d64acfc641d8f3a6288cc30734f
-parecer: reprovado
+commit: 8a7ad60d238af4a894901f28b96dd909bb910af6
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-29
 ---
 # Review: pn5-espera-envio
 
-Code review (`R-REVIEW`) do B1-2 da P-N5 (pedido PN5-ESPERA-ENVIO-REV, E1.1), diff `cfc2734...bb8a670` (3 commits: e58e1d7, 82d6bfd, bb8a670). Desenho: lote B1, seção 2, regra 4, de `docs/planos/2026-10-29-desenho-h1-b1.md`.
+Code review (`R-REVIEW`) do B1-2 da P-N5 (pedido PN5-ESPERA-ENVIO-REV, E1.1), volta 1: revalidação por delta do parecer anterior (a20d657, reprovado no head bb8a670 por A1). Head revisado 8a7ad60.
 
 ## Achados
-- A1 (bloqueante) skills/esperar-estado/SKILL.md:38 · requisito e defeito provado: a regra 4 pede log de caminho literal; a linha usa "$TMPDIR/envio.log" e, com git push no lugar de <envio>, a conformidade recusa em projeto (rc 2). Use caminho literal no lançamento e no laço e teste a linha trocada pelos hooks
 
 ## Parecer
-**Reprovado**, por um bloqueante (A1); o resto do diff está correto.
+**Aprovado.** O A1 da volta anterior está resolvido; o delta não trouxe achado novo.
 
-**A1, evidência de execução.** Sonda em `$TMPDIR/tech-lead-pn5-espera-envio/sonda_hooks.py`, sobre a fixture `BlocosPassamPelosHooks` do próprio módulo, rodando a saída de `lancamento().replace("<envio>", "git push origin melhoria/x")` pelos hooks `parecer` e `conformidade`, papel `forge:tech-lead`, nos dois ambientes do teste:
-- `conformidade/projeto` (branch `feature/x`): código 2, `R-CONFORMIDADE: $TMPDIR com ação crítica: o hook não modela. Corrigir: branch literal, um comando por linha, sem # entre linhas, $, crase, chaves nem case`.
-- Os outros três casos (parecer nos dois ambientes, conformidade no clone do Forge): código 0.
-- A mesma linha com caminho literal (`/home/u/.forge-tmp/envio.log` no lugar de `"$TMPDIR/envio.log"`): os quatro casos saem 0.
-- `bin/forge-fechar ... --espera 900` no lugar de `<envio>`, com `$TMPDIR`: os quatro casos saem 0 (o fechamento-integrador não é afetado; o defeito é o envio em projeto, que é o uso do tech-lead, linha 21 do agente).
+**Delta lido** (`bin/forge-check delta --parecer docs/reviews/pn5-espera-envio.md`, intervalo `bb8a670..8a7ad60`, só o commit 8a7ad60):
+- `skills/esperar-estado/SKILL.md:36,38,40,43`: o lançamento e o laço do log usam o marcador `<log>`, trocado pelo caminho absoluto escrito por extenso; o aviso da linha 36 diz por que (sem `$TMPDIR` nem `$?`, que a `conformidade` recusa ao lado do envio) e bate com a regra 4 (linha 14, "log de caminho literal"). A contradição apontada no A1 sumiu.
+- `tests/test_esperar_estado.py:53-57,108-114`: `com_log` troca `<log>` como o agente faz; `LacoDoLog` deixa de depender de `TMPDIR` no ambiente e roda o lançamento e o laço com o caminho literal (rc 0, rc 1 e teto seguem cobertos).
+- `tests/test_esperar_estado.py:169-183`: `BlocosPassamPelosHooks` passa a rodar, além dos blocos, a linha de lançamento com `git push origin <branch do ambiente>` e `<log>` literal, pelos hooks `parecer` e `conformidade`, nos dois ambientes (clone do Forge e projeto); a contagem de casos sobe para `4 * (len(BLOCOS) + 1)`. É o teste que falha antes e passa depois pedido no A1.
+- `tests/mutantes/pn5-espera-envio.json:17,36-43`: M2 acompanha o texto novo; M5 volta o `$TMPDIR` ao lançamento e aponta `BlocosPassamPelosHooks`.
 
-O padrão da skill chega a todo projeto pelo plugin, e o envio do tech-lead em projeto é o caso principal da regra 4. Hoje o agente que copiar a linha é barrado. A regra 4 da própria skill (linha 14) já diz "log de caminho literal"; a linha 38 contradiz. Correção sugerida: no lançamento e no laço (linha 43), um caminho literal com marcador de troca (por exemplo, `<log>`, trocado pelo caminho absoluto da tarefa) e, em `LacoDoLog`, a linha de lançamento trocada (`<envio>` por `git push origin feature/x` e `<log>` por caminho literal) também passa por `BlocosPassamPelosHooks` nos dois ambientes; esse é o teste que falha antes e passa depois. Classe: a mesma do AR-10 (texto conferido numa forma, executado por outro caminho: o teste de hooks roda o modelo com `<envio>` e o bloco do laço, nunca a linha com o envio de verdade); sem linha AR nova nesta rodada (decisão técnica 2026-10-29 15:28 do T1-CONF-ESCOPO-REV).
+**Já lido (não relido):** o resto do diff `cfc2734...8a7ad60` (regra 4 da skill, laço do PR, `agents/tech-lead.md:21`, `docs/fechamento-integrador.md:28`, `EsperaDoPushEVerificadores`, M1, M3, M4, fragmento), aprovado como correto no parecer a20d657 e intocado pelo delta.
 
-**O que está correto (lido, não volta):**
-- Regra 4 da skill (linha 14): lança com `run_in_background`, log que termina com `rc=`, espera no mesmo turno pelo laço da regra 2, nunca encerra o turno com processo pendente; segue o desenho.
-- Laço do log (linha 43): 17 voltas de 30 s (540 s), sai no primeiro `rc=`, `fim=teto` com código 1; sem `sh -c`, `timeout`, `--watch` nem `run_in_background` (asserção de `TextoDaSkill`); sem palavra de marcador.
-- Linha de lançamento com `<envio>` e o teste que a troca por um `git` falso (`tests/test_esperar_estado.py:97-122`): rc 0 sai na hora sem dormir, rc 1 sai e mostra, sem linha sai no teto depois de 17 voltas; `git` e `sleep` falsos, sem rede.
-- `agents/tech-lead.md:21`: texto do desenho, mantém só leitura e worktree intocada durante a espera.
-- `docs/fechamento-integrador.md:28`: cita a skill e o `rc=`, mantém a leitura de `log:` e `fim: código <n>`.
-- `EsperaDoPushEVerificadores` (`tests/test_forge.py:5152-5157`): exige o texto novo e a ausência do antigo; a frase antiga não estava nos `invariantes` (sem rótulo). Nenhum outro texto do repositório traz "espere a notificação" (grep).
-- Spec de mutantes `tests/mutantes/pn5-espera-envio.json` (M1 a M4) cobre saída na hora, `rc=1`, teto e a frase do tech-lead.
+**A1, evidência de execução.** M5 aplicado à mão numa cópia do head (`$TMPDIR/tech-lead-pn5-espera-envio/m5`): `BlocosPassamPelosHooks` falha com `2 != 0 : R-CONFORMIDADE: $TMPDIR com ação crítica: o hook não modela`, o mesmo código 2 provado na volta anterior; sem o mutante, passa. O mutante morre pelo teste certo.
 
-**Ferramentas (citadas, não refeitas):** `python3 -m unittest tests.test_esperar_estado tests.test_forge.EsperaDoPushEVerificadores` no HEAD revisado: 15 testes, OK. Mutação: entrega do autor, spec 4/4 (histórico do pedido).
+**Classe:** a do AR-10 (texto conferido numa forma, executado por outro caminho), agora coberta pelo teste que roda a linha com o envio de verdade; sem linha AR nova nesta rodada (decisão técnica 2026-10-29 15:28 do T1-CONF-ESCOPO-REV).
 
-**Teto M14:** `git diff --numstat --no-renames cfc2734...HEAD`: contam `tests/test_esperar_estado.py` (48) e `tests/test_forge.py` (5), 53 linhas; sem `hooks/` nem `PROTEGIDOS`; um comportamento (espera do envio pelo `rc=` do log). Dentro do teto.
+**Ferramentas (citadas, não refeitas):** `python3 -m unittest tests.test_esperar_estado tests.test_forge.EsperaDoPushEVerificadores` no head 8a7ad60: 15 testes, OK. Mutação da spec completa: entrega do autor.
 
-**Regras:** `R-NEUTRO` sem termo de projeto; `R-CUSTO` sem nada pago; fragmento `changelog.d/pn5-espera-envio.md` presente. Sem ADR (desenho, seção 6, com critério de reversão).
+**Teto M14:** `git diff --numstat --no-renames cfc2734...HEAD`: contam `tests/test_esperar_estado.py` (63) e `tests/test_forge.py` (5), 68 linhas; sem `hooks/` nem `PROTEGIDOS`; um comportamento. Dentro do teto.
+
+**Regras:** `R-NEUTRO` sem termo de projeto (o caminho do teste é genérico); `R-CUSTO` sem nada pago; fragmento `changelog.d/pn5-espera-envio.md` presente.
