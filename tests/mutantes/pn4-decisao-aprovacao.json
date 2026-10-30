@@ -1,0 +1,158 @@
+{
+  "pedido": "pn4-decisao-aprovacao",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "so a linha de modo brief vale como aprovacao",
+      "arquivo": "bin/forge-check",
+      "de": "and c[3].casefold() == \"brief\" and _aprovou",
+      "para": "and True and _aprovou",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "so resultado aprovado vale como aprovacao",
+      "arquivo": "bin/forge-check",
+      "de": "and _aprovou(c[5])",
+      "para": "and True",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "so a linha do proprio brief vale",
+      "arquivo": "bin/forge-check",
+      "de": "c[2].removesuffix(\".md\").casefold() == nome",
+      "para": "True",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "hora da aprovacao fora do formato nao vale",
+      "arquivo": "bin/forge-check",
+      "de": "and HORA_DO_REGISTRO.fullmatch(c[0]) and",
+      "para": "and",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "vale a ultima aprovacao do brief",
+      "arquivo": "bin/forge-check",
+      "de": "return horas[-1] if horas",
+      "para": "return horas[0] if horas",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_vale_a_ultima_aprovacao"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "hora igual a da aprovacao segue cobrada",
+      "arquivo": "bin/forge-check",
+      "de": "{m[2]}\" > aprovacao",
+      "para": "{m[2]}\" >= aprovacao",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_hora_igual_a_da_aprovacao_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "decisao sem hora segue cobrada",
+      "arquivo": "bin/forge-check",
+      "de": "[ T](\\d{{2}}:\\d{{2}})\\b",
+      "para": "[ T]?(\\d{{2}}:\\d{{2}})?\\b",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_decisao_sem_hora_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "decisao posterior sai como aviso, nao reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if decisao_posterior(linha, cobradas.get(\"aprovacao\")):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "sem aprovacao cobra tudo",
+      "arquivo": "bin/forge-check",
+      "de": "if decisao_posterior(linha, cobradas.get(\"aprovacao\")):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_sem_aprovacao_cobra_tudo",
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_anterior_faltando_reprova"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o brief conferido leva o nome dele a aprovacao",
+      "arquivo": "bin/forge-check",
+      "de": "pedido_txt, brief)",
+      "para": "pedido_txt, None)",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem linha de aprovacao nao ha hora",
+      "arquivo": "bin/forge-check",
+      "de": "return horas[-1] if horas else None",
+      "para": "return horas[-1] if True else None",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_sem_aprovacao_cobra_tudo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a hora da aprovacao so se le com o brief",
+      "arquivo": "bin/forge-check",
+      "de": "hora_da_aprovacao(raiz, brief) if brief else None",
+      "para": "hora_da_aprovacao(raiz, brief) if not brief else None",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "decisao presente no brief nao vira falta nem aviso",
+      "arquivo": "bin/forge-check",
+      "de": "if chave_da_decisao(linha) in presentes:",
+      "para": "if chave_da_decisao(linha) not in presentes:",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa",
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_anterior_faltando_reprova"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "aprovacao anterior ao mtime do brief nao vale",
+      "arquivo": "bin/forge-check",
+      "de": "and HORA_DO_REGISTRO.fullmatch(c[0]) and c[0] >= escrita]",
+      "para": "and HORA_DO_REGISTRO.fullmatch(c[0])]",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "aprovacao no mesmo minuto da escrita do brief vale",
+      "arquivo": "bin/forge-check",
+      "de": "c[0] >= escrita]",
+      "para": "c[0] > escrita]",
+      "testes": [
+        "tests.test_decisao_aprovacao.DecisaoPosteriorAprovacao.test_aprovado_com_decisao_posterior_avisa_e_passa"
+      ]
+    }
+  ]
+}
