@@ -74,7 +74,9 @@ obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, s
 o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
 branch) que é ancestral do head e não é ancestral do Base-sha, e se nenhum commit da entrega mexeu em `docs/pedidos/`; senão
 reprova (`escopo: --desde sem conferência anterior`, `--desde gravado na própria entrega`) e volta ao Base-sha, e nas etapas
-`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Intervalo vazio:
+`pr`, `merge-integracao` e `pedido-de-merge-ao-dono` ele vale igual (C1; sem `--desde`, a branch inteira). Sem linha `conferida` no
+`## Histórico` ou com a última fora do head (branch nova depois de um squash), o `--desde` igual ao Base-sha, ancestral do head,
+vale como a branch inteira (`base: Base-sha do brief`, P-N1; `brief mensagem --entrega` emite esse `Desde:`). Intervalo vazio:
 `pendente:` na etapa `codigo`, `escopo: sem commit (nada a conferir)` nas outras. Parecer do papel certo e com autoria:
 `escopo: ok (parecer de <papel>)`; o resto: `escopo: confira "<arquivo>" +a -r`, para a leitura contra o Entregar.
 `entrega --etapa` aceita `codigo`, `review`, `seguranca`, `qa`, `pr`, `merge-integracao` e `pedido-de-merge-ao-dono` (`--desde` vale em todas). `docs/security/aceites/` (do usuário) nunca sai `escopo: ok (parecer ...)`. Um parecer com autoria e linhas removidas sai `escopo: confira ... (anexo com remoção do parecer de <papel>: ...)`. Nas etapas de merge, o que o merge da base trouxe sai do escopo por conteúdo (o arquivo igual ao da `origin/<base>`). `--brief <brief>` (uma vez por entrega paralela) junta os Entregar só de briefs da mesma Branch, Base, Base-sha e pedido (`brief: <arquivo> sha256 <64>`; um diferente reprova com `escopo: união de briefs de entregas diferentes`).
@@ -829,6 +831,21 @@ def desde_valido(raiz, texto, head, base_sha):
     return candidatas[-1] if candidatas else (None, None)
 
 
+def base_sha_como_desde(raiz, texto, base_sha, head):
+    """P-N1: o Base-sha do brief vale como Desde com a branch nascida dele (ancestral do head) e sem conferida na branch: o
+    `## Histórico` sem linha `conferida` ou com a última fora do head (branch nova depois de um squash). A última `conferida`
+    ancestral do head segue sendo o Desde; a branch que não nasce do Base-sha segue recusada (R-PROVA). Regra única do
+    `entrega` (`desde_e_a_base`) e da mensagem de entrega (`mensagem_de_entrega`)."""
+    conferidas = [c for c, o in bases_do_pedido(texto) if o == "conferida"]
+    return (not (conferidas and e_ancestral(raiz, conferidas[-1], head))
+            and e_ancestral(raiz, base_sha, head))
+
+
+def desde_e_a_base(raiz, texto, desde, base_sha, head):
+    """O `--desde` do `entrega` é o Base-sha do brief e ele vale como Desde (`base_sha_como_desde`)."""
+    return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head)
+
+
 def pedido_na_entrega(raiz, desde, head, base_ref):
     """True se algum commit da entrega (depois do `--desde`, fora da base) mexe em `docs/pedidos/` (A1)."""
     extra = ["--not", base_ref] if base_ref else []
@@ -1062,7 +1079,9 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
     valido, origem_da_base = None, None
-    if desde is not None:  # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
+    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
+        linhas.append(("base: Base-sha do brief (sem conferida na branch)", False))
+    elif desde is not None:  # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
         valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
         if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
             valido = None
@@ -4651,7 +4670,8 @@ def destino_da_mensagem(texto, passado):
 
 def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recusar):
     """E2 (T6): a mensagem do modo entrega, toda do arquivo do brief e do pedido: Branch, Base e Base-sha do cabeçalho do brief,
-    `Desde:` da linha mais recente do `## Histórico` (`conferida` ou base fixada pelo dono, como o `entrega`; ausente se não há),
+    `Desde:` da linha mais recente do `## Histórico` (`conferida` ou base fixada pelo dono, como o `entrega`; ausente se não há;
+    o Base-sha na branch nova depois de um squash, `base_sha_como_desde`),
     `--worktree` absoluto. Não reconfere o brief (o conferente o confere na entrega); rc 0 imprimiu, 2 recusado."""
     branch, base, base_sha = (grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho_do_brief(texto)) for c in ("Branch", "Base", "Base-sha"))
     if not (etapa and branch and base and base_sha):
@@ -4660,12 +4680,16 @@ def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recus
         return recusar("--entrega exige --worktree <pasta absoluta existente> e não aceita --anterior, --ref nem --parecer")
     caminho_pedido = caminho_do_pedido(raiz, a.pedido)
     try:
-        bases = bases_do_pedido(caminho_pedido.read_text(encoding="utf-8"))
+        texto_do_pedido = caminho_pedido.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return recusar(f"não consegui ler o pedido {nome_seguro(sem_controle(a.pedido))}")
+    bases = bases_do_pedido(texto_do_pedido)
+    # P-N1: com conferida no Histórico, mas fora do head da worktree (branch nova depois de um squash), o Desde é o Base-sha
+    squash = (any(o == "conferida" for _, o in bases)
+              and base_sha_como_desde(a.worktree, texto_do_pedido, base_sha, "HEAD"))
     linhas = ["modo: entrega", f"Pedido: {caminho_impresso(caminho_pedido.stem)}", f"Agente conferido: {destino}",
               f"Arquivo: {caminho_impresso(arquivo)}", f"Worktree: {a.worktree}", f"Branch: {branch}", f"Base: {base}", f"Base-sha: {base_sha}"]
-    linhas += [f"Desde: {bases[-1][0]}"] if bases else []
+    linhas += [f"Desde: {base_sha if squash else bases[-1][0]}"] if bases else []
     linhas += [f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", f"Etapa: {etapa}"]
     sys.stdout.flush()
     sys.stdout.buffer.write("\n".join(linhas).encode("utf-8") + b"\n<<<BRIEF\n" + conteudo + b"\nBRIEF>>>\n")
@@ -5294,7 +5318,7 @@ def main():
     br.add_argument("--volta", help="só em `gerar`: brief aprovado da rodada anterior (em docs/briefs/); gera o brief da volta: blocos copiados, Entregar dos achados bloqueantes dos pareceres (exige --ref)")
     br.add_argument("--parecer", nargs="+", help="pareceres (docs/reviews, qa, devops, security; lidos da --ref) de que `gerar --volta` e a conferência de um brief com `Volta-de:` tiram os achados; padrão: o mais recente de cada tipo do pedido que não aprovou")
     br.add_argument("--incluir", nargs="+", metavar="PARECER:R<n>", help="só em `gerar --volta`: copia, literal e com a origem, a recomendação `R<n>` (ou `A<n>` recomendado) do bloco ## Achados do parecer (lido da --ref) para o Entregar da volta")
-    br.add_argument("--entrega", action="store_true", help="só em `mensagem`: a mensagem do modo entrega (pede --worktree; Branch, Base, Base-sha e Etapa vêm do brief, Desde da última `conferida` do Histórico do pedido)")
+    br.add_argument("--entrega", action="store_true", help="só em `mensagem`: a mensagem do modo entrega (pede --worktree; Branch, Base, Base-sha e Etapa vêm do brief, Desde da última `conferida` do Histórico do pedido ou, com ela fora do head da worktree, o Base-sha)")
     br.add_argument("--worktree", help="só em `mensagem --entrega`: a pasta absoluta da worktree da entrega")
     br.add_argument("--ref", help="branch ou commit da entrega, de onde se leem os pareceres (obrigatório em `gerar --volta`)")
     br.add_argument("--branch", help="só em `gerar`: branch da delegação")

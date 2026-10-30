@@ -1,0 +1,86 @@
+{
+  "pedido": "pn1-desde-base",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o Base-sha como Desde deixa de valer e a entrega sem conferida volta a travar",
+      "arquivo": "bin/forge-check",
+      "de": "if desde_e_a_base(raiz, texto, desde, base_sha, head):",
+      "para": "if False:",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_sem_conferida_o_base_sha_vale_como_a_branch_inteira"]
+    },
+    {
+      "id": "M2",
+      "guarda": "qualquer --desde sem conferida passa a valer como a branch inteira",
+      "arquivo": "bin/forge-check",
+      "de": "desde == base_sha and",
+      "para": "True and",
+      "testes": ["tests.test_conferencia_base_dono.BaseDoDono.test_sem_a_linha_do_dono_o_comportamento_e_o_de_hoje"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o Base-sha vale como Desde mesmo com a ultima conferida ancestral do head",
+      "arquivo": "bin/forge-check",
+      "de": "not (conferidas and e_ancestral(raiz, conferidas[-1], head))",
+      "para": "True",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a branch que nao nasce do Base-sha passa a aceitar o Base-sha como Desde",
+      "arquivo": "bin/forge-check",
+      "de": "and e_ancestral(raiz, base_sha, head))",
+      "para": "and True)",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_branch_que_nao_nasce_do_base_sha_segue_recusada"]
+    },
+    {
+      "id": "M5",
+      "guarda": "decide a primeira conferida do Historico, nao a ultima, e a branch nova depois do squash volta a travar",
+      "arquivo": "bin/forge-check",
+      "de": "e_ancestral(raiz, conferidas[-1], head)",
+      "para": "e_ancestral(raiz, conferidas[0], head)",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
+    },
+    {
+      "id": "M6",
+      "guarda": "a linha da base fixada pelo dono passa a contar como conferida",
+      "arquivo": "bin/forge-check",
+      "de": "for c, o in bases_do_pedido(texto) if o == \"conferida\"]",
+      "para": "for c, o in bases_do_pedido(texto) if True]",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"]
+    },
+    {
+      "id": "M7",
+      "guarda": "sem conferida no Historico a mensagem passa a emitir o Base-sha no lugar da base fixada pelo dono",
+      "arquivo": "bin/forge-check",
+      "de": "squash = (any(o == \"conferida\" for _, o in bases)",
+      "para": "squash = (True",
+      "testes": ["tests.test_mensagem_conferente.DesdeNaBranchNova.test_sem_conferida_fica_o_comportamento_de_hoje"]
+    },
+    {
+      "id": "M8",
+      "guarda": "a mensagem volta a emitir a conferida fora do head e a conferencia da branch nova trava",
+      "arquivo": "bin/forge-check",
+      "de": "base_sha if squash else",
+      "para": "base_sha if False else",
+      "testes": ["tests.test_mensagem_conferente.DesdeNaBranchNova.test_conferida_fora_do_head_da_o_base_sha"]
+    },
+    {
+      "id": "M9",
+      "guarda": "a mensagem le a ancestralidade na raiz, nao na worktree da entrega",
+      "arquivo": "bin/forge-check",
+      "de": "base_sha_como_desde(a.worktree,",
+      "para": "base_sha_como_desde(raiz,",
+      "testes": ["tests.test_mensagem_conferente.DesdeNaBranchNova.test_conferida_fora_do_head_da_o_base_sha"]
+    },
+    {
+      "id": "M10",
+      "guarda": "o entrega aceita o Base-sha como Desde mesmo com a ultima conferida ancestral do head",
+      "arquivo": "bin/forge-check",
+      "de": "and base_sha_como_desde(raiz, texto, base_sha, head)",
+      "para": "and True",
+      "testes": ["tests.test_conferencia_base_dono.DesdeNoBaseSha.test_com_conferida_no_historico_o_base_sha_segue_recusado"]
+    }
+  ]
+}
