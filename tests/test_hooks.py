@@ -1953,7 +1953,8 @@ class Hooks(unittest.TestCase):
 
 class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
     """O `$?` é construção modelada só entre aspas duplas: `$?` × posição na palavra × aspas × lugar × `IFS` posto de
-    qualquer jeito. Entre aspas duplas passa sempre; fora de aspas recusa em todo lugar, como todo outro `$`."""
+    qualquer jeito. Entre aspas duplas passa sempre; fora de aspas, o `$?` é recusado, como todo outro `$`, nos lugares
+    da propriedade, que o hook lê por terem marcador crítico; sem marcador crítico o hook lê como na base."""
     TOKENS = ("$?", "${?}", "$#", "$@", "$1", "$x", "$'r'", '$"r"', "$$?", "$?$x")
     POSICOES = ("{}", "rc={}", "a{}b", "{}x")
     ASPAS = {"fora": "{}", "duplas": '"{}"', "simples": "'{}'"}
@@ -1986,7 +1987,8 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
 
     def test_codigo_fora_de_aspas_recusa_em_todo_lugar(self):
         """Fora de aspas o `$?` recusa também como argumento de `echo` (DECISÃO DO DONO 2026-10-30, "A"): a fronteira do
-        comando simples não é plana no bash (`$(…)`, extglob `@(x)`, `>&`), e só as aspas duplas impedem a divisão."""
+        comando simples não é plana no bash (`$(…)`, extglob `@(x)`, `>&`), e só as aspas duplas impedem a divisão. Vale
+        no domínio de `construcao_nao_modelada`, que o hook só roda com marcador crítico; sem ele lê como na base."""
         _comum, _, _ = modulos_dos_hooks()
         for antes in ("", "git push origin x; ", "git push origin $(true) ", "shopt -s extglob nullglob\ngit push @(x)",
                       "git push origin >& ", "git push origin >| ", "IFS=0; git push origin <& "):

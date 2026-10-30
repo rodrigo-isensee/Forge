@@ -1428,7 +1428,8 @@ def corpo_so_lido(dono, tambem=nenhum):
 def construcao_nao_modelada(linha):
     """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
     simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,
-    `${`, `$X`, `$@`, `$1`, `$?`...; só o `$?` entre aspas duplas passa, emenda H1-1), `\\` seguido de quebra de linha;
+    `${`, `$X`, `$@`, `$1`, `$?`...; só o `$?` entre aspas duplas passa, emenda H1-1; isso vale no domínio desta
+    função, que só roda com marcador crítico: sem ele o hook lê o `$?` como na base), `\\` seguido de quebra de linha;
     fora de aspas, chaves e `case`; e todo `<<` que não seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas
     ou escapado numa linha com várias linhas). As aspas
     são lidas em sequência, e `$(` abre um contexto novo de aspas, como no bash; `\\` escapa o caractere seguinte fora
@@ -1553,7 +1554,8 @@ def legivel(palavra):
 def simples_da_gramatica(resto):
     """Os comandos simples do resto (listas de palavras cruas), ou o primeiro sinal fora da gramática (str). Aspas
     como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`, menos o `$?`
-    (o código de saída, ADR 0011, emenda H1-1); fora de aspas, o `$?` segue recusado."""
+    (o código de saída, ADR 0011, emenda H1-1); fora de aspas, o `$?` é recusado. Isso vale no domínio desta função,
+    que só roda com marcador crítico; sem ele o hook lê o `$?` como na base."""
     simples, palavras, palavra, i, n = [], [], "", 0, len(resto)
 
     def fechar():
