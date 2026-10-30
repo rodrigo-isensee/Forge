@@ -324,7 +324,8 @@ secao_da_branch() {
   done <<<"$nomes"
 }
 # estados_da_espera: só com --esperar-rotulo; troca `estados` (lido de `saida`) pelo que a espera do rótulo considera, linha a linha da `catraca`.
-# Antes do rótulo, a catraca `fail` é o pedido dele: pendente, e o número da execução entra em `run_antes` (as execuções vistas antes do rótulo).
+# Antes do rótulo, a catraca `fail` é o pedido dele: pendente, e o número da execução entra em `run_cand` (candidatas); o laço do passo 4 as passa para
+# `run_antes` (as execuções vistas antes do rótulo, as velhas) só se uma leitura do rótulo posterior aos checks ainda o vê ausente, e as descarta se presente.
 # Depois do rótulo: só a linha cuja execução está em `run_antes`, e só em `fail` ou `cancel`, conta como pendente (é a velha, cancelada pela
 # concorrência do workflow quando a execução do evento do rótulo começa). A velha só deixa de contar quando a execução nova está na leitura em
 # `pass` ou ainda pendente; a nova decide. Execução nova que não é `pass` nem pendente PARA na hora: `fail` (a Catraca reprovou), `cancel` e
@@ -341,7 +342,7 @@ estados_da_espera() {
     nomes[n]="$nome_ck"; sts[n]="$estado_ck"; runs[n]="$run_ck"; n=$((n + 1))
     if ! { [ "$nome_ck" = catraca ] && [ "$run_ck" != "?" ]; }; then continue; fi
     if [ "$rotulo_ok" = 0 ]; then
-      case "$run_antes" in *" $run_ck "*) ;; *) run_antes="$run_antes$run_ck " ;; esac
+      case "$run_cand" in *" $run_ck "*) ;; *) run_cand="$run_cand$run_ck " ;; esac
     elif [ "$run_antes" != " " ]; then
       case "$run_antes" in
         *" $run_ck "*) ;;
@@ -693,7 +694,7 @@ fi
 if [ "$ja_mesclado" = 0 ]; then
   inicio=$SECONDS
   apos_rotulo=0
-  run_antes=" " velha_pendente=""
+  run_antes=" " run_cand=" " velha_pendente=""
   ultimo_resumo=""
   msg_rotulo="parou no passo 5: o PR pede o rótulo afrouxa-regra (no título ou em item marcado) e o dono ainda não o aplicou; o script nunca aplica rótulo"
   while :; do  # com --esperar-rotulo o laço repete os passos 4 e 5; sem a opção roda uma vez só
@@ -714,6 +715,17 @@ if [ "$ja_mesclado" = 0 ]; then
     estados="$(printf '%s\n' "$saida" | awk -F'\t' 'NF>=2 {print $2}')"
     # Só com --esperar-rotulo: a catraca vermelha é o pedido do rótulo, ou a execução velha logo depois dele (ver estados_da_espera).
     [ "$esperar" = 0 ] || estados_da_espera
+    # Uma leitura do rótulo logo depois da leitura dos checks (só enquanto ele está ausente e há candidatas): rótulo ainda ausente promove as
+    # candidatas a "velhas" (`run_antes`); rótulo presente as descarta (a execução veio do evento do rótulo, não é velha). Leitura que falha conta
+    # como ausente (o lado de antes: no máximo atrasa); falha de leitura nunca descarta. A lista é zerada a cada decisão e só esta leitura a consulta.
+    if [ "$esperar" = 1 ] && [ "$rotulo_ok" = 0 ] && [ "$run_cand" != " " ]; then
+      if ! ler "$gh" pr view "$pr_n" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then
+        for c_cand in $run_cand; do
+          case "$run_antes" in *" $c_cand "*) ;; *) run_antes="$run_antes$c_cand " ;; esac
+        done
+      fi
+      run_cand=" "
+    fi
     if [ -z "$estados" ]; then
       # PR recém-aberto: o GitHub ainda não registrou os checks ("no checks reported"); espera, como um check pendente.
       if [ -z "$saida" ] || printf '%s' "$saida" | grep -qi 'no checks reported'; then
