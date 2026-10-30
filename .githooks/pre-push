@@ -94,6 +94,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   if flock -n 9; then flock -u 9; echo "nenhuma suíte do Forge rodando"; exit 1; fi
   fila="${trava%.lock}.fila"
   na_fila=0
+  echo "para rodar esperando a vez (atômico): .githooks/pre-push --suite"
   if [ -d "$fila" ] && [ ! -L "$fila" ] && [ -O "$fila" ]; then na_fila="$(fila_vivas | wc -l)"; fi
   echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true)); ${na_fila} na fila"
   exit 0

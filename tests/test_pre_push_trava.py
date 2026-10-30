@@ -178,6 +178,7 @@ class PrePushTrava(unittest.TestCase):
         self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0), "o status não viu a suíte")
         _, saida, _ = self.roda("--status")
         self.assertIn("suíte do Forge rodando", saida)
+        self.assertIn("pre-push --suite", saida)  # SUITE-INICIO-ATOMICO: a dica do caminho que espera a vez
         (self.repo / "liberar").write_text("")
         self.assertEqual(primeira.wait(timeout=60), 0)
         codigo, _, _ = self.roda("--status")
