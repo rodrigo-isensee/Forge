@@ -268,7 +268,10 @@ if [ "$curta" = 0 ]; then
   fi
   fila_sair
   : > /proc/self/fd/9
-  printf 'pid %s desde %s\n' "$$" "$(date +%H:%M:%S)" >&9
+  # C5: o pid sozinho não diz de que namespace vem (o do sandbox tem pids próprios); o inode vem depois dos dois primeiros
+  # campos "pid N", que scripts/suite-paralela.py confere. Leitura que falha grava "?": é só informação.
+  ns="$(readlink /proc/self/ns/pid 2>/dev/null || true)"; ns="${ns//[!0-9]/}"
+  printf 'pid %s ns %s desde %s\n' "$$" "${ns:-?}" "$(date +%H:%M:%S)" >&9
   # Quem esperou a vez recaptura o início: a árvore pode ter mudado durante a espera, e a prova é a do início da suíte.
   arvore_inicio="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
   [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && inicio_limpo=1 || inicio_limpo=0
