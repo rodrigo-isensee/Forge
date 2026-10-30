@@ -411,14 +411,19 @@ def condicoes(texto):
 def casa(m, arquivo, depois, ini, fim):
     """O mutante `m` cobre a condição que ocupa os bytes [ini, fim] de `arquivo` (texto `depois`)? O `de` único
     no arquivo, com 8+ caracteres não brancos, e o trecho entre o prefixo e o sufixo comuns de `de` e `para` dentro
-    do nó. Em Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
+    do nó. Prefixo e sufixo sobrepostos (o espaço junto da condição está nos dois) deixam o trecho deslizar entre o
+    início do sufixo e o fim do prefixo; basta um alinhamento em que o trecho mudado inteiro fique dentro do nó. Em
+    Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
     de, para = m["de"].encode("utf-8"), m["para"].encode("utf-8")
     prefixo = len(os.path.commonprefix([de, para]))
-    sufixo = len(os.path.commonprefix([de[prefixo:][::-1], para[prefixo:][::-1]]))
+    sufixo = len(os.path.commonprefix([de[::-1], para[::-1]]))
+    comum = min(prefixo + sufixo, len(de), len(para))
     dados = depois.encode("utf-8")
     inicio = dados.find(de)
+    primeira = max(comum - sufixo, ini - inicio)
+    ultima = min(prefixo, fim - inicio - (len(de) - comum))
     if not (m["arquivo"] == arquivo and len("".join(m["de"].split())) >= 8 and dados.count(de) == 1
-            and ini <= inicio + prefixo and inicio + len(de) - sufixo <= fim):
+            and primeira <= ultima):
         return False
     if ast.dump(ast.parse(depois.replace(m["de"], m["para"]))) == ast.dump(ast.parse(depois)):
         raise ValueError(f"{m['id']}: a troca não muda o ast de {arquivo} (mutante equivalente)")
