@@ -779,11 +779,29 @@ def raiz_principal(raiz):
     return Path(raiz)
 
 
+def arquivo_existe(caminho):
+    """`is_file` que trata nome longo demais ou com NUL como "não achou" (C-11)."""
+    try:
+        return Path(caminho).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def caminho_do_pedido(raiz, pedido):
     """Arquivo do pedido: o caminho dado, `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e,
     por último, de cada raiz de brief (só em `docs/pedidos/`, `realpath`: travessia e link para fora não valem)."""
-    if Path(pedido).is_file():
-        return Path(pedido)
+    caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
+    dado = Path(pedido)
+    if pedido.startswith("~/"):  # só o `~/` do começo, pelo HOME; nunca `~usuario` (C-10)
+        dado = Path.home() / pedido[2:]
+    if arquivo_existe(dado) or (caminhoso and dado.is_absolute()):
+        return dado
+    if caminhoso:
+        for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+            achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
+            if achado is not None and arquivo_existe(achado):
+                return achado
+        return dado
     for pasta in (raiz_principal(raiz), Path(raiz)):
         if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
             return pasta / "docs" / "pedidos" / f"{pedido}.md"

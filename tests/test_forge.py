@@ -4873,6 +4873,53 @@ class EntregasParalelas(RepoDeSeguranca):
         self.assertNotIn("união", saida)
 
 
+class CaminhoDoPedido(unittest.TestCase):
+    """C2 (FC-PEDIDO-CAMINHO-DUPLO): argumento com cara de caminho nunca ganha `docs/pedidos/` nem `.md`; a raiz só vale em `docs/pedidos/` (C-8)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-cam-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.home, self.repo, self.fora = self.tmp / "home", self.tmp / "repo", self.tmp / "fora"
+        for pasta in (self.home / "r" / "docs" / "pedidos", self.repo / "docs" / "pedidos", self.fora):
+            pasta.mkdir(parents=True)
+        for arq in (self.home / "r" / "docs" / "pedidos" / "p.md", self.repo / "docs" / "pedidos" / "p.md", self.repo / "README.md", self.repo / "solto.md", self.fora / "x.md"):
+            arq.write_text("# x\n", encoding="utf-8")
+        self.mod = carregar_forge_check()
+        for parte in (mock.patch.object(self.mod, "RAIZES_DE_BRIEF", ()), mock.patch.dict(os.environ, {"HOME": str(self.home)})):
+            parte.start()
+            self.addCleanup(parte.stop)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.fora)
+
+    def acha(self, pedido):
+        return self.mod.caminho_do_pedido(self.repo, pedido)
+
+    def test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo(self):
+        self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
+        self.assertEqual(self.acha("docs/pedidos/p.md"), self.repo / "docs" / "pedidos" / "p.md")
+        self.assertEqual(self.acha("p"), self.repo / "docs" / "pedidos" / "p.md")  # o id segue como sempre
+
+    def test_caminho_que_nao_existe_volta_como_foi_dado(self):
+        for dado in (str(self.tmp / "nada" / "x.md"), "~/nada/x.md"):
+            with self.subTest(dado):
+                achado = str(self.acha(dado))
+                self.assertNotIn(".md.md", achado)
+                self.assertNotIn("docs/pedidos/docs/pedidos", achado)
+
+    def test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande(self):  # B1 a B4
+        (self.repo / "docs" / "pedidos" / "ln.md").symlink_to(self.fora / "x.md")
+        with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.home))):
+            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md"):
+                with self.subTest(dado):
+                    self.assertEqual(self.acha(dado), Path(dado))
+
+    def test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2(self):  # B5
+        r = rodar_fc("entrega", f"{self.tmp}/nada\nescopo: ok.md", "--branch", "x", "--base", "develop", "--base-sha", "0" * 40, "--etapa", "codigo",
+                     raiz=self.repo, home=self.home)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)
+
+
 class CustoPorPedido(Raiz):
     """E8 (CUSTO-POR-PEDIDO): `transcricao custo` lê as pastas da raiz e das worktrees (não a do cwd), separa por janela e por pedido
     existente, e nunca sai texto de prompt nem caminho (M8.1 a M8.3, abuso 19)."""
