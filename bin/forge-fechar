@@ -822,7 +822,13 @@ if [ "$sem_limpar" = 1 ]; then
     [ -z "$arvore_sl" ] || printf 'git worktree remove %q\n' "$arvore_sl"
     ! git rev-parse --verify -q "refs/heads/$ref" >/dev/null || printf 'git branch -D %q\n' "$ref"
   fi
-  printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  # A remota também é relida (C1-2): só o sha mesclado (ou a remota já sem a ref) imprime o comando que apaga; commit não mesclado vira leitura e leitura que falha, só um aviso (sem comando).
+  sha_rsl=""
+  if sha_rsl="$(remoto_exato "$ref")" && { [ -z "$sha_rsl" ] || sha_confere "$sha_rsl"; }; then
+    printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  elif [ -n "$sha_rsl" ]; then printf '%s\n' "$(leitura_sem_merge "$sha_rsl")"
+  else printf '# não consegui ler a branch remota; confira o servidor antes de apagar\n'
+  fi
   echo "Entrega $pedido fechada em $alvo; limpeza pulada por --sem-limpar (código 3): rode o --limpar acima (confere o sha antes de apagar) ou os comandos soltos."
   exit 3
 fi
