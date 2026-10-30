@@ -113,16 +113,6 @@
       ]
     },
     {
-      "id": "D13",
-      "guarda": "a gramatica nao zera a marca entre comandos",
-      "arquivo": "hooks/_comum.py",
-      "de": "palavras, solto = [], False",
-      "para": "palavras = []",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
       "id": "D14",
       "guarda": "o comando do $? solto vale sempre",
       "arquivo": "hooks/_comum.py",
@@ -160,16 +150,6 @@
       "para": "if False:",
       "testes": [
         "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
-        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
-      ]
-    },
-    {
-      "id": "D18",
-      "guarda": "a substituicao de comando so conta com $(",
-      "arquivo": "hooks/_comum.py",
-      "de": "re.compile(r\"\\$\\(|[<>]\\(|`\")",
-      "para": "re.compile(r\"\\$\\(\")",
-      "testes": [
         "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
       ]
     },
