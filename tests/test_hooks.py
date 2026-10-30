@@ -1973,7 +1973,7 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
                 resto = f"git commit -F - {_comum.OPERADOR_K}\n{ifs}echo {palavra}"
                 self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa, resto)
                 comando = f"cat <<'EOF'\nx\nEOF\n{ifs}echo {palavra}"
-                self.assertEqual(parecer.heredocs_simples(comando), token == "$?", comando)
+                self.assertEqual(parecer.heredocs_simples(comando), token == "$?" and not ifs, comando)
         self.assertGreaterEqual(vistos, 200)
 
     def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):

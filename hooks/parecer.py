@@ -96,8 +96,8 @@ def so_le_ou_espera(script):
 
 def heredocs_simples(texto):
     """Todo `<<` da chamada é de `HEREDOC_SIMPLES` e as linhas de comando, fora dos corpos, não têm `\\` nem `$` (fora o
-    `$?`, ADR 0011, emenda H1-1): o corpo acaba onde o hook o corta (`<<$'EOF'`, `<<\\`, `<<EOF\\` e afins voltam à
-    rede D)."""
+    `$?` sem `IFS` no texto, ADR 0011, emenda H1-1): o corpo acaba onde o hook o corta (`<<$'EOF'`, `<<\\`,
+    `<<EOF\\` e afins voltam à rede D)."""
     pendentes = []  # (terminador, com `-`) dos heredocs já abertos, na ordem do bash
     for linha in texto.split("\n"):
         if pendentes:
@@ -106,7 +106,8 @@ def heredocs_simples(texto):
             pendentes = pendentes[1:] if (linha.lstrip("\t") if pendentes[0][1] else linha) == pendentes[0][0] else pendentes
             continue
         achados = [(m.group(2) or m.group(3) or m.group(4), bool(m.group(1))) for m in HEREDOC_SIMPLES.finditer(linha)]
-        if "\\" in linha or "$" in linha.replace("$?", "") or linha.count("<<") != len(achados):
+        comando = linha if "IFS" in texto else linha.replace("$?", "")  # o `IFS` com dígito dividiria a palavra
+        if "\\" in linha or "$" in comando or linha.count("<<") != len(achados):
             return False
         pendentes = achados
     return True

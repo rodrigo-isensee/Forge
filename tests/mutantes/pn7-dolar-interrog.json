@@ -78,16 +78,24 @@
       "id": "D10",
       "guarda": "heredocs_simples volta a recusar o $?",
       "arquivo": "hooks/parecer.py",
-      "de": "\"$\" in linha.replace(\"$?\", \"\") or",
-      "para": "\"$\" in linha or",
+      "de": "comando = linha if \"IFS\" in texto else linha.replace(\"$?\", \"\")",
+      "para": "comando = linha",
       "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
     },
     {
       "id": "D11",
       "guarda": "heredocs_simples aceita outro $ nas linhas de comando",
       "arquivo": "hooks/parecer.py",
-      "de": "\"$\" in linha.replace(\"$?\", \"\") or",
-      "para": "\"$\" in linha.replace(\"$\", \"\") or",
+      "de": "comando = linha if \"IFS\" in texto else linha.replace(\"$?\", \"\")",
+      "para": "comando = linha if \"IFS\" in texto else linha.replace(\"$\", \"\")",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D12",
+      "guarda": "heredocs_simples aceita o $? com IFS no texto",
+      "arquivo": "hooks/parecer.py",
+      "de": "comando = linha if \"IFS\" in texto else linha.replace(\"$?\", \"\")",
+      "para": "comando = linha.replace(\"$?\", \"\")",
       "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
     }
   ]
