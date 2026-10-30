@@ -556,7 +556,13 @@
       "Retira do escopo original",
       "Fora do escopo",
       "corte: sem marca",
-      "na entrega, `pendente:`"
+      "na entrega, `pendente:`",
+      "Complemento: painel \"Aguardando o dono\"",
+      "origem: <coluna>; ação: <o que o usuário faz>; comando:",
+      "ao fim de cada lote",
+      "`comando: —` com `decisão: <pedido>`",
+      "um comando, um efeito",
+      "evidência no motivo"
     ],
     "docs/regras/R-PROVA.md": [
       "fora da lista de comandos do conferente",
