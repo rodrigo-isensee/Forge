@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "a base do dono no Base-sha deixa de valer pelo desde_e_a_base e o gerar recusa o que o entrega aceita",
       "arquivo": "bin/forge-check",
-      "de": "if desde_e_a_base(raiz, pedido_txt, desde, base_sha, ref) or",
-      "para": "if False or",
+      "de": "    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo",
+      "para": "    if False:  # P-N1: o intervalo",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_do_dono_no_base_sha_passa_como_no_entrega"
       ]
@@ -16,8 +16,8 @@
       "id": "M2",
       "guarda": "qualquer base do Historico passa e o gerar volta a propor o Desde que o entrega recusa",
       "arquivo": "bin/forge-check",
-      "de": "desde_valido(raiz, pedido_txt, ref, base_sha)[0] == desde:",
-      "para": "True:",
+      "de": "[2:]\n    if not reprova:\n        return None",
+      "para": "[2:]\n    if True:\n        return None",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_que_o_entrega_recusa_para_o_gerar_sem_brief"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "a comparacao com o desde_valido se inverte e a base do dono valida passa a ser recusada",
       "arquivo": "bin/forge-check",
-      "de": "[0] == desde:",
-      "para": "[0] != desde:",
+      "de": "if valido is None or desde != valido:  # só o sha40",
+      "para": "if valido is None or desde == valido:  # só o sha40",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_a_pq_da_volta_traz_a_base_do_dono_como_desde"
       ]
@@ -56,7 +56,7 @@
       "id": "M6",
       "guarda": "o gerar --volta ignora a recusa e imprime o brief com o Desde recusado",
       "arquivo": "bin/forge-check",
-      "de": "if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base):",
+      "de": "if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base, a.base):",
       "para": "if False:",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_que_o_entrega_recusa_para_o_gerar_sem_brief"
@@ -70,6 +70,46 @@
       "para": "if origem != 'dono' else 'conferida'",
       "testes": [
         "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_que_o_entrega_recusa_para_o_gerar_sem_brief"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a regra unica perde a guarda pedido_na_entrega e o gerar propoe o Desde gravado na propria entrega",
+      "arquivo": "bin/forge-check",
+      "de": "    if pedido_na_entrega(raiz, valido, head, base_ref):\n        return None, origem,",
+      "para": "    if False:\n        return None, origem,",
+      "testes": [
+        "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_gravada_na_propria_entrega_recusa_como_no_entrega"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o Desde gravado na propria entrega deixa de reprovar e o gerar segue com ele",
+      "arquivo": "bin/forge-check",
+      "de": "\"escopo: --desde gravado na própria entrega\", True",
+      "para": "\"escopo: --desde gravado na própria entrega\", False",
+      "testes": [
+        "tests.test_conferencia_base_dono.VoltaComABaseDoDono.test_base_gravada_na_propria_entrega_recusa_como_no_entrega"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o entrega deixa de gravar a linha do veredito e aceita o Desde gravado na propria entrega",
+      "arquivo": "bin/forge-check",
+      "de": "    if linha_do_desde:\n        linhas.append((linha_do_desde, reprova))",
+      "para": "    if False:\n        linhas.append((linha_do_desde, reprova))",
+      "testes": [
+        "tests.test_conferencia_base_dono.BaseDoDono.test_a_base_do_dono_nao_vale_gravada_na_propria_entrega"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "sem --desde a regra unica passa a reprovar a entrega por falta de conferencia anterior",
+      "arquivo": "bin/forge-check",
+      "de": "    if desde is None:\n        return None, None, None, False",
+      "para": "    if False:\n        return None, None, None, False",
+      "testes": [
+        "tests.test_conferencia_base_dono.PedidoForaDoClone.test_a_opcao_vale_antes_do_subcomando"
       ]
     }
   ]

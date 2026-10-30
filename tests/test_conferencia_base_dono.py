@@ -327,6 +327,15 @@ class VoltaComABaseDoDono(Repositorio):
         self.assertIn(f"--etapa codigo --desde {self.base}` · espera: rc=0", saida)
         self.assertEqual(self.entrega_fora(self.base), 0)
 
+    def test_base_gravada_na_propria_entrega_recusa_como_no_entrega(self):  # P-N6: a guarda `pedido_na_entrega` (A1)
+        self.commitar({"docs/pedidos/outro.md": "x\n"}, "mexe em docs/pedidos/ depois da base do dono")
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"recusado: a base de Desde {self.c1[:7]} (fixada pelo dono", saida)
+        self.assertIn("(escopo: --desde gravado na própria entrega)", saida)
+        self.assertNotIn("## Entregar", saida)
+        self.assertEqual(self.entrega_fora(self.c1), 1)  # a mesma regra do entrega
+
 
 class DesdeNoBaseSha(Repositorio):
     """P-N1: sem `conferida` na branch, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
