@@ -272,9 +272,10 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("não é uma pasta do próprio usuário", erro)
         self.assertEqual(list(alvo.iterdir()), [])
         self.assertFalse((self.repo / "rodou").exists())
-        codigo, _, erro = self.roda("--status", env=self.env_recuo())
-        self.assertEqual(codigo, 1)
+        codigo, saida, erro = self.roda("--status", env=self.env_recuo())
+        self.assertEqual(codigo, 2)
         self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertNotIn("nenhuma suíte", saida)
 
     def test_trava_link_dentro_da_subpasta_e_recusada(self):
         self.suite(SUITE_RAPIDA)
@@ -285,6 +286,45 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("link simbólico", erro)
         self.assertFalse((self.run_dir / "alvo").exists())
         self.assertFalse((self.repo / "rodou").exists())
+
+    def test_status_com_erro_sai_com_2(self):  # PRE-PUSH-STATUS-RC, C-4, C-6, C-7
+        """rc 2 = não consegui conferir; 0 = rodando e 1 = nenhuma ficam como estão. O push segue com rc 1."""
+        lock = f"forge-suite-{os.getuid()}.lock"
+
+        def subpasta_link(sub):
+            (sub.parent / "alvo").mkdir()
+            sub.symlink_to(sub.parent / "alvo")
+
+        def trava_link(sub):
+            sub.mkdir(mode=0o700)
+            (sub / lock).symlink_to(sub.parent / "alvo-trava")
+
+        def trava_sem_leitura(sub):
+            sub.mkdir(mode=0o700)
+            (sub / lock).write_text("")
+            os.chmod(sub / lock, 0)
+
+        def subpasta_frouxa(sub):
+            sub.mkdir(mode=0o700)
+            os.chmod(sub, 0o777)
+
+        for nome, prepara in (("subpasta link", subpasta_link), ("trava link", trava_link),
+                              ("trava sem leitura", trava_sem_leitura), ("subpasta frouxa", subpasta_frouxa)):
+            with self.subTest(nome):
+                if nome == "trava sem leitura" and os.geteuid() == 0:
+                    self.skipTest("root lê arquivo sem permissão")
+                tmp = Path(self._tmp.name) / f"erro-{nome.replace(' ', '-')}"
+                tmp.mkdir()
+                prepara(tmp / f"forge-{os.getuid()}")
+                env = dict(self.env_recuo(), TMPDIR=str(tmp))
+                codigo, saida, erro = self.roda("--status", env=env)
+                self.assertEqual(codigo, 2, (saida, erro))
+                self.assertNotIn("nenhuma suíte", saida)
+                self.assertIn("pre-push --suite", erro)  # C-7: aponta o caminho que espera a vez ou falha fechado
+                self.suite(SUITE_RAPIDA)
+                codigo, _, _ = self.roda(env=env)
+                self.assertEqual(codigo, 1, "o push segue com rc 1 no mesmo erro")
+                self.assertFalse((self.repo / "rodou").exists())
 
     def test_subpasta_que_nao_da_para_criar_falha_fechado(self):
         # um arquivo comum com o nome da subpasta impede o mkdir: o hook não pula a suíte nem recua
