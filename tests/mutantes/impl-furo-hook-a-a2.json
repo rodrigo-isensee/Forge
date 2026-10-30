@@ -1,0 +1,46 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A-A2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A2-m1",
+      "guarda": "atras do xargs o merge recusa sempre",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"xargs\" in {Path(p).name for p in antes}",
+      "para": "\"xargs_\" in {Path(p).name for p in antes}",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A2-m2",
+      "guarda": "o find com -exec na chamada com o marcador recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "nome == \"find\" and EXEC_DO_FIND & set(comando)",
+      "para": "nome == \"find\" and False",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A2-m3",
+      "guarda": "o lancador fora da tabela recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "if nome in OUTROS_LANCADORES or nome",
+      "para": "if False or nome",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A2-m4",
+      "guarda": "o merge atras do timeout e conferido contra o parecer",
+      "arquivo": "hooks/parecer.py",
+      "de": "    analise = analisar(palavras[: len(palavras) - len(sem)] + lancadas + comando)",
+      "para": "    analise = analisar(sem)",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A2-m5",
+      "guarda": "o cd atras de lancador nao muda a pasta do merge",
+      "arquivo": "hooks/parecer.py",
+      "de": "return None if antes and analise and analise[0] == \"cd\" else analise",
+      "para": "return None if False else analise",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    }
+  ]
+}
