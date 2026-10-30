@@ -166,7 +166,7 @@ class BlocosPassamPelosHooks(unittest.TestCase):
         "projeto": {"git": [{"branch": "feature/x"}]},
     }
 
-    LOG = "/home/u/.forge-tmp/envio.log"
+    LOG = "/tmp/forge-tmp/envio.log"
 
     def test_blocos_saem_0_no_parecer_e_na_conformidade(self):
         """Os blocos e a linha de lançamento com o envio de verdade (`git` na branch do ambiente), com `<log>` literal."""
