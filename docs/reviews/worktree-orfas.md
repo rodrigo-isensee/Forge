@@ -3,21 +3,30 @@ tipo: review
 contrato: 1
 pedido: worktree-orfas
 branch: melhoria/worktree-orfas
-commit: 398791ade119ef41e35c5b7d5b279190122a656e
+commit: e590cc1b62e4488e2ad0ae99ab9b70cb0580b418
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-30
 ---
 # Code review: a lista do prune vai só ao log do forge-fechar (WORKTREE-ORFAS, F1)
 
-Escopo: pedido WORKTREE-ORFAS-REV, E1.1 (`R-REVIEW`). Rodada 1. Li o diff inteiro, `git diff 31257c14c8d245d66e7806edb7cd65e22b3aeb04...398791ade119ef41e35c5b7d5b279190122a656e`: são 4 commits, de `13a8c35` a `398791a`, em 5 arquivos. O QA (E3.1) roda em paralelo, em `docs/qa/`, e não o refaço. O pedido não tem parecer de segurança: a decisão técnica de 2026-10-29 23:29 registra que não há gatilho, porque é só saída de terminal do script de fechamento.
+Escopo: pedido WORKTREE-ORFAS-REV, E1.1 (`R-REVIEW`). Rodada 2 (revalidação por delta, abaixo); o texto da rodada 1 segue valendo para o que não mudou. Li o diff inteiro, `git diff 31257c14c8d245d66e7806edb7cd65e22b3aeb04...398791ade119ef41e35c5b7d5b279190122a656e`: são 4 commits, de `13a8c35` a `398791a`, em 5 arquivos. O QA (E3.1) roda em paralelo, em `docs/qa/`, e não o refaço. O pedido não tem parecer de segurança: a decisão técnica de 2026-10-29 23:29 registra que não há gatilho, porque é só saída de terminal do script de fechamento.
 
 ## Achados
 - A1 (recomendado) bin/forge-fechar:415 · com saída vazia do prune, o here-string entrega uma linha vazia e o log ganha um registro `[prune] ` sem texto; sugestão: `[ -z "$prune_saida" ] ||` antes do laço
 - A2 (recomendado) tests/test_fechar_orfao.py:99 · o teste passa só `LANG` e herda `LC_ALL` do ambiente; com `LC_ALL=C` no executor, o falso já escreve `Removing` e o mutante M4 sobrevive (classe AR-4, teste herda o ambiente do CI); sugestão: passar também `LC_ALL="pt_BR.UTF-8"`
 
+## Revalidação por delta (rodada 2, head `e590cc1`)
+- **Delta lido:** `forge-check delta --parecer docs/reviews/worktree-orfas.md` listou o intervalo `398791a..e590cc1` com só `tests/mutantes/worktree-orfas.json:55-64` (+10) e `tests/test_fechar_orfao.py:110-123` (+14). O `049ab3d` é o parecer do QA, fora do meu escopo. Já lido na rodada 1 e sem mudança: `bin/forge-fechar`, `docs/fechamento-integrador.md`, o fragmento e os outros testes.
+- **Teste novo (`test_worktree_ocupada_com_o_diretorio_presente_nao_roda_o_prune`):** com `wt_busy=persiste` o `worktree remove` falha e o diretório fica; com `prune_muitos=5` o falso teria o que podar. O teste exige código 3, nenhuma chamada `git worktree prune` (`marcas` é por prefixo, então pega também o `-v`), nenhum `prune tirou` na tela, nenhum `[prune]` no log, o diretório de pé, `limpeza: remota=ok worktree=pendente branch=pendente` e o `git worktree remove` entre os comandos pendentes. Prova a guarda `[ ! -d "$arvore" ]` (`bin/forge-fechar:412`), que era o A1 do QA (classe AR-1, lista de mutantes incompleta, e AR-2, ramo de guarda sem teste; só citadas, sem linha AR nova, pela decisão técnica de 2026-10-29 15:28, T1-CONF-ESCOPO-REV).
+- **Vermelho com o mutante:** troquei a guarda por `if true` na worktree de review e o teste deu FAIL (`Lists differ: [24] != []`, o prune rodou); arquivo restaurado, `git status` limpo. Com o head, `python3 -m unittest tests.test_fechar_orfao` dá `Ran 18 tests … OK`.
+- **Mutante Q1 na spec:** o `de` (`if [ ! -d "$arvore" ]`) aparece uma vez só no `bin/forge-fechar`, então a troca é inequívoca; aponta o teste novo. A mutação completa é do QA e não a refiz.
+- **Teto M14:** `git diff --numstat --no-renames 31257c1...e590cc1` dá `bin/forge-fechar` 22+10 e `tests/test_fechar_orfao.py` 38+0, 70 linhas, abaixo de 150; a spec, os pareceres, o fragmento e o `.md` ficam fora. Um comportamento só.
+- **Commit:** `e590cc1` em Conventional Commits, em português, só teste e spec.
+- **Achados A1 e A2 da rodada 1:** não tratados no delta; seguem como recomendação, sem devolver.
+
 ## Parecer
-**Aprovado** no head `398791a`. A entrega faz o que o E1 e o E2 pedem: a lista do `git worktree prune -v` deixa de ir para a tela, e a linha `limpeza: …` continua sendo a última do passo 7. Os dois achados são recomendações e não devolvem a entrega.
+**Aprovado** no head `e590cc1` (rodada 2; na rodada 1, no `398791a`). A entrega faz o que o E1 e o E2 pedem: a lista do `git worktree prune -v` deixa de ir para a tela, e a linha `limpeza: …` continua sendo a última do passo 7. Os dois achados são recomendações e não devolvem a entrega.
 
 - **A1:** o problema é só cosmético no log. A contagem não muda, porque `grep -c` sobre o texto vazio dá 0, e a tela também não muda.
 - **A2:** nos executores do GitHub o `LC_ALL` vem vazio, então hoje o M4 morre. É a classe AR-4 (`teste herda o ambiente do CI`). Pela decisão técnica de 2026-10-29 15:28 (T1-CONF-ESCOPO-REV), nesta rodada fica só a citação da classe, sem linha AR nova nem contagem nova.
