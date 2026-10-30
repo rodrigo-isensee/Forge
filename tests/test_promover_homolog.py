@@ -2,6 +2,8 @@
 
 Repositório temporário com remoto local; `gh` é falso (FORGE_GH, só vale com FORGE_PROMOVER_TESTE=1) e registra cada chamada.
 """
+import importlib.util
+import io
 import json
 import os
 import shutil
@@ -9,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -29,6 +33,8 @@ exit 64
 '''
 
 PARECER = "---\ntipo: review\ncontrato: 1\npedido: {p}\nbranch: melhoria/{p}\ncommit: abc\nparecer: {v}\nrevisor: x\ndata: 2026-10-22\n---\n# R\n"
+QA = ("---\ntipo: qa\ncontrato: 1\npedido: {p}\nbranch: melhoria/{p}\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+      "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-22\n---\n# Q\n")
 CHANGELOG = "# Changelog\n\n## [Não publicado]\n{np}\n## [{v}] - 2026-10-22\n- x\n"
 MERGE = "gh pr " + "merge"  # montado: o texto do comando não aparece solto no arquivo
 
@@ -64,7 +70,7 @@ class Promover(unittest.TestCase):
         self.git("commit", "-q", "-m", "chore: base")
         self.git("branch", "-M", "develop")
         self.git("push", "-q", "origin", "develop")
-        self.git("push", "-q", "origin", "develop:homolog")
+        self.git("push", "-q", "origin", "develop:homolog", "develop:main")
         self.git("fetch", "-q", "origin")
         (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass")))
 
@@ -91,10 +97,17 @@ class Promover(unittest.TestCase):
         self.git("fetch", "-q", "origin")
 
     def pronta(self, **extra):
-        """Develop à frente da homolog, com release 0.2.0, parecer aprovado e changelog fechado."""
+        """Develop à frente da homolog, com release 0.2.0, parecer aprovado e changelog fechado; os pareceres da release
+        (review e QA de release-0.2.0) valem sobre o commit da release (P-N3)."""
+        self.release(**extra)
+        self.avancar(docs__reviews__d5b_md=PARECER.format(p="d5b", v="aprovado"))
+
+    def release(self, **extra):
         self.escrever(".claude-plugin/plugin.json", json.dumps({"name": "forge", "version": "0.2.0"}))
-        self.avancar(CHANGELOG_md=CHANGELOG.format(np="", v="0.2.0") + "\n## [0.1.0] - 2026-10-21\n- y\n",
-                     docs__reviews__d5b_md=PARECER.format(p="d5b", v="aprovado"), **extra)
+        self.avancar(CHANGELOG_md=CHANGELOG.format(np="", v="0.2.0") + "\n## [0.1.0] - 2026-10-21\n- y\n", **extra)
+        sha = self.git("rev-parse", "HEAD")
+        self.escrever("docs/reviews/release-0.2.0.md", PARECER.format(p="release-0.2.0", v="aprovado").replace("abc", sha))
+        self.escrever("docs/qa/release-0.2.0.md", QA.format(p="release-0.2.0", c=sha))
 
     def roda(self, *args, env=None):
         return subprocess.run([sys.executable, str(SCRIPT), *args], cwd=self.proj, env={**self.env, **(env or {})},
@@ -198,6 +211,7 @@ class Versao(Promover):
         r = self.roda("--dry-run")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("não é release", r.stdout)
+        self.assertIn("não roda contra a main", r.stdout)
 
     def test_versao_menor_que_a_da_homolog_para(self):
         self.escrever(".claude-plugin/plugin.json", json.dumps({"name": "forge", "version": "0.0.9"}))
@@ -339,13 +353,77 @@ class Execucao(Promover):
         self.pronta()
         outro = self.tmp / "outro"
         self.git("clone", "-q", "-b", "develop", str(self.remoto), str(outro), cwd=self.tmp)
-        (outro / "z").write_text("1\n")
-        self.git("add", "z", cwd=outro)
-        self.git("commit", "-q", "-m", "feat: z", cwd=outro)
+        (outro / "docs" / "reviews" / "z.md").write_text(PARECER.format(p="z", v="aprovado"))  # só parecer: a release vale
+        self.git("add", "docs", cwd=outro)
+        self.git("commit", "-q", "-m", "docs: z", cwd=outro)
         self.git("push", "-q", "origin", "develop", cwd=outro)
         r = self.roda()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn(self.git("rev-parse", "origin/develop"), r.stdout)
+
+
+class ContraMain(Promover):
+    """P-N3: na release, o forge-check pr do pedido release-<versão> roda contra a main antes de abrir o PR."""
+
+    def test_release_valendo_contra_a_main_passa_e_diz_o_comando(self):
+        self.pronta()
+        r = self.roda("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("forge-check pr release-0.2.0 --ref origin/develop --base main", r.stdout)
+        self.assertIn("valem contra a main", r.stdout)
+
+    def test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr(self):
+        self.pronta()
+        self.avancar(codigo_py="x = 1\n")  # código depois do parecer da release
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("docs/reviews/release-0.2.0.md", r.stderr)
+        self.assertIn("desatualizado", r.stderr)
+        self.assertEqual(self.gh_chamadas(), [])
+
+    def test_parecer_da_release_faltando_para(self):
+        self.escrever(".claude-plugin/plugin.json", json.dumps({"name": "forge", "version": "0.2.0"}))
+        self.avancar(CHANGELOG_md=CHANGELOG.format(np="", v="0.2.0"))
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("sem parecer para o pedido `release-0.2.0`", r.stderr)
+        self.assertEqual(self.gh_chamadas(), [])
+
+
+    def test_devops_e_seguranca_da_leva_nao_param_a_release(self):
+        self.pronta(**{".github/workflows/ci.yml": "on: push\n"})  # gatilho de devops e de segurança na leva
+        r = self.roda("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("não conta (devops e segurança", r.stdout)
+        self.assertIn("docs/devops: revisao-devops: sem parecer", r.stdout)
+
+
+class ContraMainFalha(unittest.TestCase):
+    """P-N3: forge-check que não roda, estoura o prazo ou cai sem veredito para a promoção (falha fechada)."""
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("promover_homolog", SCRIPT)
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+
+    def para(self, efeito):
+        erro = io.StringIO()
+        with mock.patch.object(self.mod.subprocess, "run", side_effect=[efeito]), redirect_stdout(io.StringIO()), \
+                redirect_stderr(erro), self.assertRaises(SystemExit) as saida:
+            self.mod.conferir_contra_main("origin/develop", "0.2.0")
+        self.assertEqual(saida.exception.code, 1)
+        return erro.getvalue()
+
+    def test_prazo_estourado_para(self):
+        self.assertIn("contra a main não rodou", self.para(subprocess.TimeoutExpired("forge-check", 300)))
+
+    def test_forge_check_ausente_para(self):
+        self.assertIn("contra a main não rodou", self.para(FileNotFoundError("forge-check")))
+
+    def test_queda_sem_veredito_para(self):
+        caiu = subprocess.CompletedProcess([], 1, stdout="", stderr="Traceback: erro\n")
+        self.assertIn("Traceback: erro", self.para(caiu))
+        self.assertIn("melhoria/release-0.2.0", self.para(caiu))
 
 
 class Executavel(unittest.TestCase):
