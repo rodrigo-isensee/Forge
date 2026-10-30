@@ -50,7 +50,7 @@ cada `E<n>` do `## Escopo` do pedido está no `Entregar` (citação `(E<n>)`), e
 (`corte: etapa (ok)`, sem marca) ou como corte real com a marca completa (`corte: real (marca completa)`; sem ela,
 `corte: sem marca`). Uma linha por campo, `arquivo:` com tamanho e sha256 completo, e a última, `resultado: aprovado|reprovado`
 (saída 0 ou 1; 2 se o arquivo ou o pedido não abre). O que não reconhece sai `não verificável`, nunca reprovado.
-`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, antes do conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin` ou à frente dele, nas etapas que não são `codigo`). `brief gerar` monta os blocos fixos (decisões
+`--destino` também confere o caminho `docs/briefs/<pedido>-<destino>-<n>.md`. Também reprova, antes do conferente (M1): `etapa: papel errado` (o Entregar cita etapa de outro papel), `contradição:` (o Entregar manda o que o `Fora do escopo` do pedido exclui) e `commit:` (head local da branch ausente de `origin` ou à frente dele, nas etapas que não são `codigo`). Só avisa (P-N2): `aviso: etapa: branch nova <branch> sem etapa de code review no pedido` quando a `Branch:` ainda não está em `origin` (`git ls-remote`; sem rede, nada) e o `## Etapas` do pedido não tem `(tech-lead): code review`. `brief gerar` monta os blocos fixos (decisões
 do pedido copiadas literalmente, etapas de outro papel, marca de corte, formato das provas, Base-sha com `--branch`); o que
 o Jarvis decide fica em `PREENCHER`, e o `brief` reprova enquanto restar um. `gerar --etapa merge-integracao|pedido-de-merge-ao-dono`
 acrescenta o PQ de merge por ancestralidade, `git merge-base --is-ancestor <mergeCommit> origin/<base>` com `espera: rc=0` (S-18).
@@ -4608,6 +4608,24 @@ def avisos_da_etapa(raiz, texto, pedido_id):
     return [(f"aviso: etapa: {sem_controle(l)}", False) for l in pareceres_da_etapa(raiz, pedido_id, etapa, branch, base or "develop")]
 
 
+ETAPA_DE_CODE_REVIEW = re.compile(r":\s*code review\b", re.I)
+
+
+def aviso_de_review_proprio(raiz, texto, pedido):
+    """P-N2 parte 1: `Branch:` ainda ausente de `origin` (`git ls-remote`) num pedido sem etapa `(tech-lead): code review` vira uma
+    linha `aviso: etapa:` no planejamento, porque o PR dessa branch vai pedir review próprio (R-REVIEW). Só informa; sem rede, nada."""
+    branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho_do_brief(texto))
+    if not branch:
+        return []
+    if any(papel == "tech-lead" and ETAPA_DE_CODE_REVIEW.search(t) for papel, t in pedido["etapas"].values()):
+        return []
+    remota, conferido = remoto_da_branch(raiz, branch)
+    if not conferido or remota:
+        return []
+    return [(f"aviso: etapa: branch nova {caminho_impresso(branch)} sem etapa de code review no pedido; "
+             "o PR dela vai pedir review próprio (R-REVIEW)", False)]
+
+
 def linha_do_comando_pr(texto):
     """C2: nas etapas de branch inteira, o `forge-check pr` pronto com o slug da branch do cabeçalho (sem `melhoria/`), para o conferente copiar."""
     cabecalho = cabecalho_do_brief(texto)
@@ -4630,6 +4648,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     linhas += caminhos_ausentes_do_pq(raiz, texto, secoes_por(texto, CABECALHO_BRIEF))
     linhas += estado_do_commit(raiz, texto)
     linhas += avisos_da_etapa(raiz, texto, pedido_id)
+    linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))
     linhas += linha_do_comando_pr(texto)
     linhas += conferir_citacoes(raiz, texto, secoes_por(texto, CABECALHO_BRIEF), ler_pedido_brief(pedido_txt))
     if re.search(r"^Volta-de:", texto, re.M):  # brief de volta (M7): o anterior, os blocos copiados e os achados dos pareceres
