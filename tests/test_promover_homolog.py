@@ -2,6 +2,8 @@
 
 Repositório temporário com remoto local; `gh` é falso (FORGE_GH, só vale com FORGE_PROMOVER_TESTE=1) e registra cada chamada.
 """
+import importlib.util
+import io
 import json
 import os
 import shutil
@@ -9,6 +11,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
@@ -384,6 +388,42 @@ class ContraMain(Promover):
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("sem parecer para o pedido `release-0.2.0`", r.stderr)
         self.assertEqual(self.gh_chamadas(), [])
+
+
+    def test_devops_e_seguranca_da_leva_nao_param_a_release(self):
+        self.pronta(**{".github/workflows/ci.yml": "on: push\n"})  # gatilho de devops e de segurança na leva
+        r = self.roda("--dry-run")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("não conta (devops e segurança", r.stdout)
+        self.assertIn("docs/devops: revisao-devops: sem parecer", r.stdout)
+
+
+class ContraMainFalha(unittest.TestCase):
+    """P-N3: forge-check que não roda, estoura o prazo ou cai sem veredito para a promoção (falha fechada)."""
+
+    def setUp(self):
+        spec = importlib.util.spec_from_file_location("promover_homolog", SCRIPT)
+        self.mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.mod)
+
+    def para(self, efeito):
+        erro = io.StringIO()
+        with mock.patch.object(self.mod.subprocess, "run", side_effect=[efeito]), redirect_stdout(io.StringIO()), \
+                redirect_stderr(erro), self.assertRaises(SystemExit) as saida:
+            self.mod.conferir_contra_main("origin/develop", "0.2.0")
+        self.assertEqual(saida.exception.code, 1)
+        return erro.getvalue()
+
+    def test_prazo_estourado_para(self):
+        self.assertIn("contra a main não rodou", self.para(subprocess.TimeoutExpired("forge-check", 300)))
+
+    def test_forge_check_ausente_para(self):
+        self.assertIn("contra a main não rodou", self.para(FileNotFoundError("forge-check")))
+
+    def test_queda_sem_veredito_para(self):
+        caiu = subprocess.CompletedProcess([], 1, stdout="", stderr="Traceback: erro\n")
+        self.assertIn("Traceback: erro", self.para(caiu))
+        self.assertIn("melhoria/release-0.2.0", self.para(caiu))
 
 
 class Executavel(unittest.TestCase):

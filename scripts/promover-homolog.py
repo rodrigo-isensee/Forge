@@ -9,7 +9,8 @@ Passos, em ordem; para no primeiro erro:
   3. versão e CHANGELOG (lidos da ref): versão nova é maior que a da homolog; `## [<versão>]` existe; `[Não publicado]`
      vazio; sem fragmento em changelog.d/. Sem versão nova a promoção não é release e o CHANGELOG não é conferido
      (a mesma regra do CI, scripts/conferir-release.py --so-se-versao-mudou). Na release, `bin/forge-check pr
-     release-<versão> --ref <ref> --base main`: parecer da release desatualizado ou faltando contra a main para (P-N3).
+     release-<versão> --ref <ref> --base main`: parecer de review ou QA da release desatualizado
+     ou faltando contra a main para; devops e segurança, que o forge-check pede pela leva inteira, não contam (P-N3).
   4. PR develop -> homolog: abre se não houver (reusa o aberto; base que não seja a homolog para).
   5. checks: uma leitura de `gh pr checks --json`; só contam os do evento pull_request (os do push da develop, no
      mesmo sha, não são a bateria do PR); só pass/skipping passam.
@@ -37,6 +38,7 @@ CATRACA = "catraca"
 ROTULO = "afrouxa-regra"
 PENDENTES = {"pending", "queued", "in_progress"}
 FORGE_CHECK = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
+PARECERES_DA_LEVA = ("docs/devops", "docs/security")  # com --base main, os gatilhos leem a leva inteira (P-N3)
 OK = {"pass", "skipping"}
 
 
@@ -151,10 +153,15 @@ def conferir_contra_main(ref, versao):
         r = subprocess.run(comando, capture_output=True, text=True, timeout=300)
     except (subprocess.TimeoutExpired, OSError) as e:
         parar(f"forge-check pr {pedido} contra a main não rodou: {e}")
-    if r.returncode:
+    linhas = r.stdout.splitlines()
+    da_leva = [linha for linha in linhas if linha.startswith(PARECERES_DA_LEVA)]
+    if r.returncode and (len(da_leva) < len(linhas) or not linhas):
         citado = (r.stdout + r.stderr).strip().replace("\n", "\n  ")
-        parar(f"forge-check pr {pedido} contra a main: parecer desatualizado ou faltando; peça novo parecer antes de promover:\n  {citado}")
-    print(f"forge-check pr: pareceres de {pedido} valem contra a main")
+        parar(f"forge-check pr {pedido} contra a main: parecer desatualizado ou faltando; peça novo parecer antes de promover "
+              f"(a branch da release é melhoria/{pedido}, R-FLUXO):\n  {citado}")
+    for linha in da_leva:
+        print(f"forge-check pr: não conta (devops e segurança são dos PRs da leva, não da release): {linha}")
+    print(f"forge-check pr: pareceres de review e QA de {pedido} valem contra a main")
 
 
 def comando_gh():
