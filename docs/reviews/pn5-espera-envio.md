@@ -17,7 +17,7 @@ Code review (`R-REVIEW`) do B1-2 da P-N5 (pedido PN5-ESPERA-ENVIO-REV, E1.1), vo
 ## Parecer
 **Volta 2 (head 07fd724): aprovado.** Sem achado novo.
 
-**Delta lido** (`bin/forge-check delta --parecer docs/reviews/pn5-espera-envio.md`, intervalo `8a7ad60..07fd724`, só o commit 07fd724): `tests/test_esperar_estado.py:169`, `LOG` passa de `/home/u/.forge-tmp/envio.log` a `/tmp/forge-tmp/envio.log`. O teste continua provando o mesmo: `com_log` (linha 53-55) só troca `<log>` pela string, e o hook recebe a linha como texto, sem criar nem ler o arquivo; o caminho segue literal e absoluto, sem `$TMPDIR`, que é o que a regra 4 da skill exige. `scripts/verificar-contribuicao.sh origin/develop`: rc=0 ("nenhum segredo nem caminho pessoal no diff contra origin/develop"); `grep /home/u tests/test_esperar_estado.py` vazio.
+**Delta lido** (`bin/forge-check delta --parecer docs/reviews/pn5-espera-envio.md`, intervalo `8a7ad60..07fd724`, só o commit 07fd724): `tests/test_esperar_estado.py:169`, `LOG` passa de um caminho sob o home do usuário a `/tmp/forge-tmp/envio.log`. O teste continua provando o mesmo: `com_log` (linha 53-55) só troca `<log>` pela string, e o hook recebe a linha como texto, sem criar nem ler o arquivo; o caminho segue literal e absoluto, sem `$TMPDIR`, que é o que a regra 4 da skill exige. `scripts/verificar-contribuicao.sh origin/develop`: rc=0 ("nenhum segredo nem caminho pessoal no diff contra origin/develop"); busca pelo caminho sob o home do usuário em `tests/test_esperar_estado.py` vazia.
 
 **Já lido (não relido):** todo o resto do diff `cfc2734...07fd724`, aprovado no parecer 9bf2d8e e intocado pelo delta.
 
