@@ -14,10 +14,20 @@ modo_sem_escrita_alheia() {
   [ "$(find "$1" -maxdepth 0 ! -perm /022 -print 2>/dev/null)" = "$1" ]
 }
 # $1 = criar: cria a subpasta se faltar; vazio (--status): só confere, sem criar nada.
+# TRAVA-SANDBOX: com $HOME/.forge-contrib presente (`-e` ou `-L`; é a pasta que o sandbox do Bash libera para escrita,
+# ADR 0009) a trava e a fila ficam ali, dentro e fora do sandbox, para as duas suítes se enxergarem. Presente, ela é a
+# única candidata: sem escrita ou subpasta recusada falha fechado, sem recuo. Ausente (ou HOME vazio) vale a ordem de
+# sempre. $2 = legado: ignora a pasta comum; é onde ficam as provas (.verde e .dirigida), na pasta de cada lado (Q-S1 = B).
 trava_arquivo() {
-  local d sub uid
+  local d sub uid comum candidatos
   uid="$(id -u)"
-  for d in "${XDG_RUNTIME_DIR:-}" "${TMPDIR:-}" /tmp; do
+  comum="${HOME:-}/.forge-contrib"
+  if [ -z "${2:-}" ] && [ -n "${HOME:-}" ] && { [ -e "$comum" ] || [ -L "$comum" ]; }; then
+    candidatos=("$comum")
+  else
+    candidatos=("${XDG_RUNTIME_DIR:-}" "${TMPDIR:-}" /tmp)
+  fi
+  for d in "${candidatos[@]}"; do
     if [ -n "$d" ] && [ -d "$d" ] && [ -w "$d" ]; then
       d="${d%/}"
       if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ "$d" = "${XDG_RUNTIME_DIR%/}" ]; then
@@ -44,8 +54,13 @@ trava_arquivo() {
       return 0
     fi
   done
-  echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2
+  echo "pre-push: sem pasta gravável para a trava da suíte (${candidatos[*]})." >&2
   return 1
+}
+# O texto da trava é de outro processo, às vezes de dentro do sandbox: sai com no máximo 200 bytes e só com caracteres
+# imprimíveis, para uma sequência de escape gravada nela não chegar ao terminal de quem lê (C-14).
+texto_da_trava() {
+  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
 }
 # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
 trava_confere() {
@@ -110,7 +125,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   na_fila=0
   echo "para rodar esperando a vez (atômico): .githooks/pre-push --suite"
   if [ -d "$fila" ] && [ ! -L "$fila" ] && [ -O "$fila" ]; then na_fila="$(fila_vivas | wc -l)"; fi
-  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true)); ${na_fila} na fila"
+  echo "suíte do Forge rodando ($(texto_da_trava)); ${na_fila} na fila"
   exit 0
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
@@ -182,12 +197,12 @@ fi
 # curto porque varre docs/security e docs/devops. A árvore anotada é a do início da suíte, não a do fim.
 arvore_inicio="$(git rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null || true)"
 [ -z "$(git status --porcelain --untracked-files=all 2>/dev/null)" ] && inicio_limpo=1 || inicio_limpo=0
-verde="${trava%.lock}.verde"
+# As provas ficam na pasta de cada lado, não na da trava comum (Q-S1 = B); sem pasta de provas, nenhuma prova vale nem se anota.
+if base_provas="$(trava_arquivo criar legado)"; then verde="${base_provas%.lock}.verde"; dirigida="${base_provas%.lock}.dirigida"; else verde=""; dirigida=""; fi
 # PREPUSH-PRIMEIRO-PARECER: o envio dirigido de `melhoria/*` (decisão M8) não roda a suíte inteira e por isso não anotava
 # nada; o primeiro parecer depois do código achava a prova ausente e rodava tudo. A árvore que o dirigido aprovou vai
 # para este segundo arquivo e vale para o `so_parecer` como a árvore verde: o código dela passou no que o pre-push
 # exige de um push de código, e o CI repete tudo. A prova de árvore verde da suíte inteira segue só no `.verde`.
-dirigida="${trava%.lock}.dirigida"
 tem_prova() {
   [ -f "$1" ] && [ ! -L "$1" ] && [ -O "$1" ] && grep -qxF -- "$2" "$1"
 }
@@ -230,7 +245,7 @@ if [ "$curta" = 0 ]; then
   avisar() {
     [ "$avisou" = 1 ] && return 0
     avisou=1
-    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(texto_da_trava)); esperando a vez por até ${espera} s (R-TETO)." >&2
   }
   barrar() {
     fila_sair
@@ -336,7 +351,7 @@ trap - TERM INT HUP
 # para valer a do commit) como prova do próximo push: a suíte inteira, em `.verde`; as classes curtas do `so_parecer`,
 # sobre árvore remota já provada, também em `.verde`, por acréscimo sem a trava; o dirigido, em `.dirigida`.
 anotar() {
-  [ -n "$arvore_inicio" ] && [ ! -L "$1" ] || return 0
+  [ -n "$1" ] && [ -n "$arvore_inicio" ] && [ ! -L "$1" ] || return 0
   if [ "$2" = acrescentar ]; then
     { (umask 077; printf '%s\n' "$arvore_inicio" >> "$1"); } 2>/dev/null || true
   else

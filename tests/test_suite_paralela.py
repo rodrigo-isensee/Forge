@@ -133,6 +133,8 @@ class Brinquedo(unittest.TestCase):
         shutil.copy(RAIZ / ".githooks" / "pre-push", self.repo / ".githooks" / "pre-push")
         self.run_dir = base / "run"
         self.run_dir.mkdir()
+        self.home = base / "home"  # C-13: o hook não enxerga o ~/.forge-contrib real
+        self.home.mkdir()
         for apoio in ("guarda_git.py", "ambiente_git.py"):
             shutil.copy(RAIZ / "tests" / apoio, self.repo / "tests" / apoio)
         (self.repo / ".gitignore").write_text("__pycache__/\n")
@@ -142,7 +144,7 @@ class Brinquedo(unittest.TestCase):
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
         self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
-                        XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
+                        XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(self.home), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
