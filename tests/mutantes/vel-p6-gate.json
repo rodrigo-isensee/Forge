@@ -1,0 +1,78 @@
+{
+  "pedido": "vel-p6-gate",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "commit so de docs/security pula os passos pesados",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "(reviews|qa|security|devops|ux)/'",
+      "para": "(reviews|qa|devops|ux)/'",
+      "testes": ["tests.test_catraca.GateDoCi.test_so_parecer_de_seguranca_devops_ou_ux_com_bateria_verde_pula"]
+    },
+    {
+      "id": "M2",
+      "guarda": "commit so de docs/devops pula os passos pesados",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "(reviews|qa|security|devops|ux)/'",
+      "para": "(reviews|qa|security|ux)/'",
+      "testes": ["tests.test_catraca.GateDoCi.test_so_parecer_de_seguranca_devops_ou_ux_com_bateria_verde_pula"]
+    },
+    {
+      "id": "M3",
+      "guarda": "commit so de docs/ux pula os passos pesados",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "(reviews|qa|security|devops|ux)/'",
+      "para": "(reviews|qa|security|devops)/'",
+      "testes": ["tests.test_catraca.GateDoCi.test_so_parecer_de_seguranca_devops_ou_ux_com_bateria_verde_pula"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a lista de pastas de parecer e ancorada no inicio do caminho",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "grep -qvE '^docs/(reviews",
+      "para": "grep -qvE 'docs/(reviews",
+      "testes": ["tests.test_catraca.GateDoCi.test_parecer_misturado_com_codigo_nao_pula"]
+    },
+    {
+      "id": "M5",
+      "guarda": "modelo de nome _* roda a bateria inteira",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "grep -qE '/_[^/]*$|^docs/security/",
+      "para": "grep -qE '^docs/security/",
+      "testes": ["tests.test_catraca.GateDoCi.test_modelo_e_ameacas_e_aceites_nao_sao_parecer"]
+    },
+    {
+      "id": "M6",
+      "guarda": "docs/security/aceites roda a bateria inteira",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "(ameacas|aceites)/'",
+      "para": "(ameacas)/'",
+      "testes": ["tests.test_catraca.GateDoCi.test_modelo_e_ameacas_e_aceites_nao_sao_parecer"]
+    },
+    {
+      "id": "M7",
+      "guarda": "docs/security/ameacas roda a bateria inteira",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "(ameacas|aceites)/'",
+      "para": "(aceites)/'",
+      "testes": ["tests.test_catraca.GateDoCi.test_modelo_e_ameacas_e_aceites_nao_sao_parecer"]
+    },
+    {
+      "id": "M8",
+      "guarda": "sem a bateria verde no commit anterior nao pula",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "if [ \"$verdes\" -gt 0 ]; then",
+      "para": "if [ \"$verdes\" -ge 0 ]; then",
+      "testes": ["tests.test_catraca.GateDoCi.test_sem_bateria_verde_no_commit_anterior_nao_pula"]
+    },
+    {
+      "id": "M9",
+      "guarda": "o caminho leve roda NeutralidadeDoNucleo, que varre docs/security e docs/devops",
+      "arquivo": ".github/workflows/ci.yml",
+      "de": "tests.test_forge.AntiDuplicacao tests.test_forge.NeutralidadeDoNucleo -v",
+      "para": "tests.test_forge.AntiDuplicacao -v",
+      "testes": ["tests.test_catraca.Workflows.test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde"]
+    }
+  ]
+}
