@@ -664,7 +664,11 @@ class Cobertura(unittest.TestCase):
         texto = "k = any(p and q(l) for l in r)\n"
         self.assertTrue(self.casa("p and q(l) for l in", "p and q(l) and False for l in", texto), "fim do nó")
         self.assertFalse(self.casa("else yyyy", "else yyyyy", "k = 1 if a > b else yyyy\n"), "desliza fora do nó")
-        self.assertFalse(self.casa("k = q if aa e", "k = q if e", "k = q if aa else aa\n"), "remove mais que o nó")
+        try:
+            removido = self.casa("k = q if aa e", "k = q if e", "k = q if aa else aa\n")
+        except SyntaxError as erro:
+            self.fail(f"remove mais que o nó: o casa aplicou a troca fora do nó ({erro})")
+        self.assertFalse(removido, "remove mais que o nó")
 
     def test_troca_que_nao_muda_o_ast_e_mutante_de_fachada(self):
         with self.assertRaises(ValueError):

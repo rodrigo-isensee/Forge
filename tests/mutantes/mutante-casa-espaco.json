@@ -60,7 +60,9 @@
       "arquivo": "bin/forge-mutante",
       "de": "comum = min(prefixo + sufixo, len(de), len(para))",
       "para": "comum = min(prefixo + sufixo, len(de))",
-      "equivalente": "sem o len(para) a remocao sobreposta so difere quando o trecho removido passa do no e o resto do trecho cabe nele; na busca exaustiva em seis textos com remocoes e trocas curtas nenhum para que da Python valido separa as duas contas: o caso que separa vira SyntaxError no ast.parse do casa, nao False"
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam"
+      ]
     }
   ]
 }
