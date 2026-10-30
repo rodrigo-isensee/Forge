@@ -1953,6 +1953,20 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
+    def test_a4_todo_subcomando_do_forge_check_que_grava_esta_classificado(self):  # FURO-HOOK-A, A4 FC-SUBCOMANDO-HOOK
+        """O subparser cuja ajuda diz que grava ("grava", "acrescenta", "anota") está em `FORGE_CHECK_ESCRITAS` ou na lista dos
+        que gravam em caminho livre: o subcomando novo que grava fica vermelho até ser classificado. O nome do subcomando vale
+        por inteiro (o prefixo é recusado); se passasse a aceitar prefixo, a tabela teria de casar por prefixo."""
+        _, conformidade, _ = modulos_dos_hooks()
+        programa = RAIZ / "bin" / "forge-check"
+        gravam = re.findall(r'add_parser\("(\w+)"[^\n]*?help="[^"]*\b(?:grava|acrescenta|anota)\b', programa.read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(gravam), 4, gravam)
+        for nome in gravam:
+            with self.subTest(subcomando=nome):
+                self.assertIn(nome, {*conformidade.FORGE_CHECK_ESCRITAS, *conformidade.FORGE_CHECK_EM_CAMINHO_LIVRE})
+        r = subprocess.run([sys.executable, "-I", str(programa), "anot", "--help"], capture_output=True, text=True, timeout=60)
+        self.assertEqual((r.returncode, "invalid choice" in r.stderr), (2, True), r.stderr)
+
 
 
 if __name__ == "__main__":

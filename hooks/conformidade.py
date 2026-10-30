@@ -66,6 +66,19 @@ def interprete(programa):
     return bool(INTERPRETES.match(programa)) or programa in AWKS
 
 
+def args_do_forge_check(prog, args):
+    """A4: os argumentos do `forge-check`, se o comando simples o roda (direto, por caminho, por interpretador ou com o nome
+    do programa opaco: `$(command -v forge-check)`, que só conta com a forma do `anotar` ou do `--gravar`); senão None."""
+    if prog == "forge-check":
+        return args
+    if INTERPRETES.match(prog):
+        livres = [i for i, a in enumerate(args) if not a.startswith("-")]
+        return args[livres[0] + 1:] if livres and Path(args[livres[0]]).name == "forge-check" else None
+    opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
+                                           or any(abreviacao_de(a, ("--gravar",)) for a in args))
+    return args if opaco else None
+
+
 # Opções longas do sed e do gawk: o getopt_long do GNU aceita qualquer prefixo não ambíguo (`--expr`, `--i`, `--inc`).
 SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help", "in-place", "line-length", "null-data",
               "zero-terminated", "posix", "quiet", "regexp-extended", "sandbox", "separate", "silent", "unbuffered", "version")
@@ -250,6 +263,10 @@ FORMATO_ASSINATURA = re.compile(r"%[-+ ]?G")
 FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 # Nomes que ainda não existem casam só por inteiro: `--destino` do `forge-check brief` é prefixo de `--destino-arquivo`.
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
+# FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
+# decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs"}
+FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
@@ -916,6 +933,9 @@ class Guarda:
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
             self.atualizacao(palavras)
         no_lugar = bool(PERL_OU_RUBY.match(prog)) and edita_no_lugar(args)
+        argumentos_do_forge_check = args_do_forge_check(prog, args)
+        if argumentos_do_forge_check is not None:
+            self.forge_check_grava(argumentos_do_forge_check, pasta)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -973,6 +993,27 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
+
+    def forge_check_grava(self, args, pasta):
+        """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
+        em `docs/pedidos/`, o `brief --gravar` em `docs/briefs/`, a saída do `transcricao anonimizar`), a partir da pasta da
+        sessão e de `~/.forge-contrib`, as duas raízes que o `forge-check` aceita. `--raiz` e `--raiz-pedidos`, antes ou depois
+        do subcomando, só saem do caminho para achar o subcomando: a política não depende do nome do pedido nem da raiz."""
+        livres, pular = [], False
+        for a in args:
+            if pular:
+                pular = False
+            elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
+                pular = "=" not in a  # o valor vem na palavra seguinte
+            elif not a.startswith("-"):
+                livres.append(a)
+        sub = next(iter(livres), "")
+        if sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+            destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
+        else:
+            destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
+        for destino in destinos:
+            self.checar_escrita(destino, pasta)
 
     def checar_so_leitura(self, palavras, atribuicoes):
         """Papel só de leitura (`so_leitura`): lista branca de comandos, depois da gramática (`gramatica_de_leitura`, que já
