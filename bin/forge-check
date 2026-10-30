@@ -1398,6 +1398,21 @@ def acrescentar(linhas, novas):
     return corpo + [n + "\n" for n in novas] + ["\n"]
 
 
+def recusa_do_desde(raiz, pedido_txt, ref, base_sha):
+    """P-N6: o motivo de o `gerar --volta` não propor como `--desde` a última base do `## Histórico` (`conferida` ou a do dono),
+    pela mesma regra do `entrega` (`desde_e_a_base` e `desde_valido`), para a recusa não virar pergunta ao dono; None se ela vale."""
+    bases = bases_do_pedido(pedido_txt)
+    if not bases:
+        return None
+    desde, origem = bases[-1]
+    if desde_e_a_base(raiz, pedido_txt, desde, base_sha, ref) or desde_valido(raiz, pedido_txt, ref, base_sha)[0] == desde:
+        return None
+    return (f"brief gerar --volta: recusado: a base de Desde {desde[:7]} ({'fixada pelo dono' if origem == 'dono' else 'conferida'}, "
+            f"a última do ## Histórico) não passa no `forge-check entrega` com a ref {ref[:7]} e o Base-sha {base_sha[:7]}: ela precisa ser "
+            "commit da branch (ancestral da ref, fora do Base-sha) e, a do dono, diferente da ref; grave no ## Histórico a linha "
+            "`conferida <sha40>` da entrega que o Jarvis conferiu (ou peça ao dono a base certa) e gere de novo; nada gerado (P-N6)")
+
+
 def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     """Brief da volta (M7): blocos do brief aprovado copiados byte a byte, Entregar dos achados bloqueantes dos pareceres, decisões
     do dono do pedido e a prova `forge-check entrega --desde`. Devolve (texto ou None, rc, mensagens)."""
@@ -1446,6 +1461,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
         sha_base = sha_anterior  # P5: o Base-sha do brief anterior vale enquanto for ancestral da entrega
     else:
         sha_base = base_sha_real(raiz, a.base, branch) or sha_anterior or PREENCHER
+    if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base):
+        return None, 1, [recusa]
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
     saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 

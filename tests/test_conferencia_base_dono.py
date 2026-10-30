@@ -302,6 +302,31 @@ class VoltaComABaseDoDono(Repositorio):
         self.assertEqual(rc, 0, saida)
         self.assertIn("base: fixada pelo dono (linha do Histórico)", saida)
 
+    def historico(self, sha):
+        texto = self.pedido.read_text(encoding="utf-8").split("\n## Histórico\n")[0]
+        self.pedido.write_text(texto + f"\n## Histórico\n- 2026-10-23 15:56: base do delta fixada pelo dono {sha}\n", encoding="utf-8")
+
+    def entrega_fora(self, desde):
+        return self.check("entrega", "pedido-sintetico", "--raiz-pedidos", self.fora, "--branch", "melhoria/x", "--base",
+                          "develop", "--base-sha", self.base, "--etapa", "codigo", "--desde", desde)[0]
+
+    def test_base_que_o_entrega_recusa_para_o_gerar_sem_brief(self):  # P-N6: a recusa sai na hora, com o motivo
+        ref = self.head("melhoria/x")
+        self.historico(ref)  # a base do dono igual à ref zeraria o delta
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"recusado: a base de Desde {ref[:7]} (fixada pelo dono", saida)
+        self.assertIn("nada gerado (P-N6)", saida)
+        self.assertNotIn("## Entregar", saida)
+        self.assertEqual(self.entrega_fora(ref), 1)  # a mesma regra do entrega
+
+    def test_base_do_dono_no_base_sha_passa_como_no_entrega(self):  # P-N6: o Base-sha vale pelo `desde_e_a_base`
+        self.historico(self.base)
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--etapa codigo --desde {self.base}` · espera: rc=0", saida)
+        self.assertEqual(self.entrega_fora(self.base), 0)
+
 
 class DesdeNoBaseSha(Repositorio):
     """P-N1: sem `conferida` na branch, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
