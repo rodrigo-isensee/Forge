@@ -1,17 +1,18 @@
 """Testes da catraca (tests/catraca.py) em repositório git temporário: cada regra com um caso que passa e um que barra."""
 import contextlib
 import copy
+import datetime
 import hashlib
 import http.client
 import importlib.util
 import io
+import itertools
 import json
 import re
 import os
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -35,6 +36,20 @@ CONFIG = {
 }
 HOOKS = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python3", "args": ["a.py"]},
                                                                   {"type": "command", "command": "python3", "args": ["b.py"]}]}]}}
+_RELOGIO_DAS_FIXTURES = itertools.count()  # só cresce: cada chamada de `ambiente_de_git` vale um segundo a mais
+
+
+def ambiente_de_git():
+    """Ambiente de todo `git` que cria commit nas fixtures. Ordem: tira o `GIT_*` herdado (um hook exporta `GIT_DIR`, que
+    levaria o commit ao repositório real), deixa a manutenção desligada e só então fixa as datas: a data inicial é fixa
+    e o contador sobe um segundo por chamada, então o mesmo conteúdo não repete o SHA (b8) e a ordem do `git log` fica
+    a cronológica, sem depender do relógio."""
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    data = datetime.datetime(2025, 6, 1, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=next(_RELOGIO_DAS_FIXTURES))
+    env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = data.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return env
+
+
 SHA_TRECHO = hashlib.sha256(b"trecho1").hexdigest()
 
 
@@ -44,6 +59,34 @@ def hash_(forma, tipo="trecho", n=None):
 
 
 TESTE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n    def test_b(self): pass\n"
+
+
+class AmbienteDeGitDasFixtures(unittest.TestCase):
+    """FIXTURE-DATA-GIT: toda fixture que cria commit usa datas fixas e crescentes, nunca o relógio nem o `GIT_*` herdado."""
+
+    def test_traz_as_duas_datas_iguais_e_crescentes(self):
+        a, b = ambiente_de_git(), ambiente_de_git()
+        self.assertEqual(a["GIT_AUTHOR_DATE"], a["GIT_COMMITTER_DATE"])
+        self.assertEqual(b["GIT_AUTHOR_DATE"], b["GIT_COMMITTER_DATE"])
+        self.assertLess(a["GIT_AUTHOR_DATE"], b["GIT_AUTHOR_DATE"])  # ISO 8601 em UTC: a ordem de texto é a cronológica
+        self.assertTrue(a["GIT_AUTHOR_DATE"].startswith("2025-"))
+
+    def test_nao_devolve_o_git_herdado_do_processo(self):
+        herdado = {"GIT_DIR": "/nao/existe", "GIT_WORK_TREE": "/nao/existe", "GIT_INDEX_FILE": "/nao/existe", "GIT_AUTHOR_DATE": "1 +0000"}
+        with mock.patch.dict(os.environ, herdado):
+            env = ambiente_de_git()
+        for chave in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            self.assertNotIn(chave, env)
+        self.assertNotEqual(env["GIT_AUTHOR_DATE"], "1 +0000")
+        self.assertEqual(env["GIT_CONFIG_COUNT"], "3")  # a manutenção segue desligada
+
+    def test_commit_da_fixture_nao_depende_do_relogio(self):
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve("a.txt", "a\n")
+        repo.commit()
+        data = repo.git("log", "-1", "--format=%aI").strip()
+        self.assertTrue(data.startswith("2025-"), data)
 
 
 class Repo:
@@ -68,7 +111,7 @@ class Repo:
         self.git("checkout", "-q", "-b", "pr")
 
     def git(self, *args):
-        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+        env = ambiente_de_git()
         return subprocess.run(["git", "-C", str(self.dir), *args], check=True, capture_output=True, text=True, env=env).stdout
 
     def escreve(self, rel, texto):
@@ -2063,12 +2106,12 @@ class RotuloDePrMesclado(Base):
 
 
 def _g(pasta, *args):
-    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    env = ambiente_de_git()
     return subprocess.run(["git", "-C", str(pasta), *args], check=True, capture_output=True, text=True, env=env).stdout
 
 
 def _tem(pasta, sha):
-    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    env = ambiente_de_git()
     return subprocess.run(["git", "-C", str(pasta), "cat-file", "-e", f"{sha}^{{commit}}"], capture_output=True, env=env).returncode == 0
 
 
@@ -2341,9 +2384,11 @@ class RotuloDePrSquash(Base):
                 self.pede()
 
     # --- a prova do squash só vale para squash --------------------------------------------------------------
+    def test_dois_squash_do_mesmo_conteudo_sem_espera_dao_shas_diferentes(self):
+        self.assertNotEqual(self.squash(ROTULADO), self.m)
+
     def test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede(self):
         self.repo.git("checkout", "-q", "-b", "lateral", "base")
-        time.sleep(1.2)  # o M do pull não pode coincidir com o do setUp (mesmo conteúdo e segundo dariam o mesmo hash)
         m = self.pull["merge_commit_sha"] = self.squash(ROTULADO)  # M do pull, na `develop`
         self.assertNotEqual(m, self.m)
         self.repo.git("branch", "-f", "lateral", m)
