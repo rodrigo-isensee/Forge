@@ -385,6 +385,25 @@ class Fechar(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stderr)
         self.assertIn("não consegui conferir", r.stdout)
 
+    def test_dry_run_descreve_o_sha_e_o_numero_do_pr_que_os_passos_usam(self):
+        sha = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn(f"pr p1 --ref {sha} --base", r.stdout)
+        self.assertIn("gh pr checks <número do PR", r.stdout)
+        self.assertIn("gh pr view <número do PR", r.stdout)
+        self.assertNotIn("pr checks melhoria/x", r.stdout)
+        self.assertNotIn("pr view melhoria/x", r.stdout)
+        self.assertNotIn("--ref melhoria/x --base", r.stdout)
+        self.assertIn("gh pr merge melhoria/x", r.stdout)  # o passo 6 roda por nome
+        self.assertEqual(self.chamadas(), [])
+
+    def test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido(self):
+        r = self.fechar("p1", "--ref", "melhoria/inexistente", "--dry-run")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertIn("--ref <sha não lido: a branch local não existe> --base", r.stdout)
+        self.assertNotIn("--ref melhoria/inexistente --base", r.stdout)
+
     def test_lista_de_controles_vem_da_catraca_e_nao_e_copiada_no_script(self):
         codigo = SCRIPT.read_text()
         self.assertIn("catraca.py", codigo)
