@@ -3,38 +3,37 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: pn1-desde-base
 branch: melhoria/pn1-desde-base
-commit: ee49b7ef07337f4abf940b5da94036fbba641028
+commit: 23a66bb075998d91fd4ca94642ad9f32d0ec6180
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-29
 ---
 # Review de segurança: pn1-desde-base
 
-Escopo: `git diff 99315cfb42c6852c7d7959cd6dca8161e2bd5c08...ee49b7ef07337f4abf940b5da94036fbba641028` (P-N1: o `forge-check entrega` aceita o Base-sha do brief como Desde quando a branch nasce dele e não há conferida ancestral do head; texto de `agents/conferente.md`).
+Escopo: `git diff 99315cfb42c6852c7d7959cd6dca8161e2bd5c08...23a66bb075998d91fd4ca94642ad9f32d0ec6180`. Revalidação por delta do parecer `123bafd` (head anterior `ee49b7e`): `forge-check delta` sobre `4749f3e..23a66bb` lista só `bin/forge-check` (`base_sha_como_desde`, `desde_e_a_base`, `mensagem_de_entrega`, ajuda e docstring), `tests/mutantes/pn1-desde-base.json` (M7 a M10) e `tests/test_mensagem_conferente.py` (`DesdeNaBranchNova`). Volta 1: a mensagem de entrega emite o Base-sha em `Desde:` quando a última conferida está fora do head da worktree.
 
 ## Gatilhos
-Controle do Forge (`R-SEGURANCA`): `bin/forge-check entrega` decide o intervalo que o conferente lê (`R-PROVA`), e `agents/conferente.md` instrui a conferência.
+Controle do Forge (`R-SEGURANCA`): `bin/forge-check entrega` decide o intervalo que o conferente lê (`R-PROVA`), e `brief mensagem --entrega` gera o `Desde:` que o conferente usa.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:839 · conferida antiga ancestral do Base-sha (branch anterior integrada por merge, não por squash) segue recusando o Desde igual ao Base-sha; lado seguro, só usabilidade, fora da P-N1
+- A1 (recomendado) bin/forge-check:840 · conferida antiga ancestral do Base-sha (branch anterior integrada por merge, não por squash) segue recusando o Desde igual ao Base-sha; lado seguro, só usabilidade, fora da P-N1 (mantido de 123bafd)
+- A2 (recomendado) bin/forge-check:4688 · com conferida fora do head e base fixada pelo dono mais recente no Histórico, a mensagem emite o Base-sha e não a base do dono; confere a branch inteira (mais, nunca menos); lado seguro, fidelidade à decisão do dono
 
 ## Detalhe dos achados
-**Invariante central (verificada):** no ramo novo (`bin/forge-check:1076`) `valido` fica `None`, e daí em diante o cálculo é idêntico ao da chamada sem `--desde`: `de = base_sha`, `arquivos_da_entrega(..., None)`, contagens com três pontos, `revisados` da `merge-integracao` como na branch inteira. A única diferença de saída é a linha informativa `base: Base-sha do brief (sem conferida na branch)`, que não reprova nem aprova nada. O Desde pelo Base-sha, portanto, nunca confere menos do que a primeira conferência: o intervalo Base-sha..head cobre todo o trabalho novo da branch.
+**Refatoração (`bin/forge-check:834-846`):** `base_sha_como_desde` é a condição antiga sem o `desde == base_sha`, que passou para `desde_e_a_base`; a conjunção é a mesma (última conferida não ancestral do head e Base-sha ancestral do head). O `cmd_entrega` (`bin/forge-check:1082`) chama `desde_e_a_base` como antes; a invariante do parecer anterior (ramo novo com `valido = None`, intervalo idêntico ao da chamada sem `--desde`) não mudou. M10 guarda a ancestralidade da conferida no `entrega`.
 
-**Casos de borda (todos no lado seguro):**
-- Branch que não nasce do Base-sha: `e_ancestral(base_sha, head)` falso (`bin/forge-check:839-840`) cai no ramo antigo e sai `escopo: --desde sem conferência anterior` (rc 1); além disso a linha `escopo: Base-sha fora da branch` já reprova. Coberto por `test_branch_que_nao_nasce_do_base_sha_segue_recusada` e pelo mutante M4.
-- Base-sha forjado ou inexistente: barrado antes, em `sha_do_commit(base_sha) != base_sha` (rc 2). Sonda com sha de zeros: `entrega: ref ilegível ...`, rc 2. Base-sha que existe mas não é ancestral de `origin/<Base>`: o ramo novo não confere isso, mas a linha `escopo: Base-sha fora da branch` (reprova) é gravada antes e independe dele.
-- Conferida ancestral do head: o ramo novo não vale (mutante M3) e o Desde segue sendo a conferida. Sonda no pedido real (conferida `ee49b7e` = head) com `--desde` igual ao Base-sha: `escopo: --desde sem conferência anterior`, rc 1.
-- Conferida antiga ancestral do Base-sha: também é ancestral do head, então o ramo novo não vale, e `desde_valido` a exclui; resultado `--desde sem conferência anterior` (rc 1). Lado seguro (A1).
-- Linha `base do delta fixada pelo dono`: não conta como conferida no ramo novo (mutante M6); com ela no Histórico e Desde igual ao Base-sha, o intervalo é a branch inteira, que contém o delta fixado: confere mais, nunca menos. Pedir o Desde fixado continua passando por `desde_valido`, sem mudança.
-- Conferida com sha que não existe ou fora do head (reescrita da branch, squash): o ramo novo vale e o intervalo é a branch inteira. Um autor que reescreva a história para tirar a conferida do head só consegue ser conferido por inteiro.
-- A checagem `--desde gravado na própria entrega` (`pedido_na_entrega`) não roda no ramo novo, e não precisa: ela protege o encurtamento do intervalo, que aqui não existe; o pedido segue lido da cópia principal.
+**Mensagem (`bin/forge-check:4686-4692`):** o `Desde:` é só um insumo; o portão continua sendo o `forge-check entrega` sobre a branch real (`--branch`), que reconfere tudo com o seu próprio head, e o conferente (`agents/conferente.md:85`) confere o `Desde:` contra o Histórico e a ancestralidade na branch. Uma mensagem errada, portanto, só pode levar a recusa ou a intervalo maior, nunca a conferir menos. Sondas (cenário de `DesdeNaBranchNova`, em `$TMPDIR`):
+- Worktree com HEAD de outra branch (destacado no Base-sha, conferida da branch real fora desse HEAD): a mensagem emite o Base-sha; no `entrega`, a conferida é ancestral do head da branch real, `desde_e_a_base` é falso e sai `escopo: --desde sem conferência anterior` (rc 1, a recusa de hoje; `test_com_conferida_no_historico_o_base_sha_segue_recusado`). Lado seguro.
+- `--worktree` que não é repositório: `git merge-base` falha, `e_ancestral(base_sha, HEAD)` é falso e a mensagem cai na conferida antiga (comportamento de hoje). Lado seguro.
+- Base-sha fora do HEAD da worktree: `squash` falso, conferida antiga. Lado seguro.
+- Sem conferida no Histórico: `squash` falso (M7); a base fixada pelo dono segue emitida.
+- Entradas do git: o Base-sha passa pela expressão de 40 hex (`bin/forge-check:868`) e as conferidas pela `CONFERIDA` (sha40); sem injeção de opção. `--worktree` exige caminho absoluto existente; o `git()` tira as variáveis `GIT_*` e tem limite de tempo; quem a passa é o Jarvis.
 
-**Texto de `agents/conferente.md:85`:** a exceção só autoriza rodar com o Desde igual ao Base-sha e copiar a linha `base:`; a leitura de todos os `escopo: confira` continua obrigatória e o próprio comando recusa o Base-sha quando a última conferida está no head. Não dispensa conferência.
+**A1, detalhe.** Evidência: `bin/forge-check:840` (condição mantida na refatoração). Caminho de ataque: nenhum (a falha é recusar). Severidade: informativa. Correção mínima, se o dono quiser o caso: tratar como "sem conferida na branch" também a última conferida ancestral do Base-sha. Esforço: P. Dono: `tech-lead`. Não devolve.
 
-**A1, detalhe.** Evidência: `bin/forge-check:839`. Caminho de ataque: nenhum (a falha é recusar, não aceitar). Severidade: informativa. Correção mínima, se o dono quiser o caso: tratar como "sem conferida na branch" também a última conferida ancestral do Base-sha (o intervalo continua o da branch inteira). Esforço: P. Dono: `tech-lead`. Não devolve.
+**A2, detalhe.** Evidência: `bin/forge-check:4688` (`squash` olha só as linhas `conferida`) e `bin/forge-check:4692`. Sonda: Histórico com `DECISÃO DO DONO`, conferida da branch anterior fora do head e depois `base do delta fixada pelo dono <c1>`: sai `Desde: <Base-sha>`, não `<c1>`; o conferente aplica a exceção do squash e o `entrega` confere a branch inteira. Caminho de ataque: nenhum (o intervalo cresce). Severidade: informativa. Correção mínima: `squash` só quando a linha mais recente (`bases[-1]`) é `conferida` (`bases[-1][1] == "conferida"`), com o teste do caso. Esforço: P. Dono: `tech-lead`. Não devolve.
 
-**PA-7 (`docs/engineering/achados-recorrentes.md`):** AR-3 (sem lista negativa nova), AR-5 (sem python novo em caminho de hook), AR-7 e AR-8 (sem git com pasta implícita nova: `e_ancestral` recebe `raiz`) não se aplicam; AR-1 conferido: os seis mutantes da spec cobrem as quatro condições de `desde_e_a_base` e a escolha da última conferida.
+**PA-7 (`docs/engineering/achados-recorrentes.md`):** AR-1 conferido (M7 a M10 cobrem a condição `squash`, a escolha do Base-sha, a pasta do git e a guarda do `entrega`); AR-2: o ramo de falha (worktree que não é repositório) não tem teste próprio, mas cai no comportamento antigo (sonda acima), assunto do QA; AR-3 e AR-5 não se aplicam (sem lista negativa nem python novo em hook); AR-7 conferido: o git da mensagem roda com `-C <--worktree>` explícito, e M9 guarda a pasta; AR-8 a AR-10 não se aplicam (texto de ajuda e docstring atualizados; `agents/conferente.md` já descrevia a exceção).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, `python3 -m unittest tests.test_conferencia_base_dono` (28 testes, OK) e duas sondas do `forge-check entrega` no head. `gitleaks` e `semgrep` não estão no PATH (lacuna registrada; o diff não traz credencial nem configuração).
+Nenhum risco aceito. Ferramentas: leitura do diff e do delta (`forge-check delta`), `python3 -m unittest tests.test_mensagem_conferente tests.test_conferencia_base_dono` (42 testes, OK) e três sondas da mensagem. `gitleaks` e `semgrep` não estão no PATH (lacuna registrada; o diff não traz credencial nem configuração).
