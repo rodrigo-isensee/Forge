@@ -17,6 +17,11 @@ if [ "$1 $2" = "worktree prune" ] && [ -f "$ESTADO/prune_nega" ]; then
   echo "git $*" >> "$REGISTRO"
   echo "error: cannot prune: operation not permitted" >&2; exit 1
 fi
+if [ "$1 $2" = "worktree prune" ] && [ -f "$ESTADO/prune_muitos" ]; then
+  # centenas de registros órfãos (WORKTREE-ORFAS); o git traduz a mensagem fora do LC_ALL=C
+  msg=Removendo; [ "${LC_ALL:-}" != C ] || msg=Removing
+  for i in $(seq "$(cat "$ESTADO/prune_muitos")"); do echo "$msg worktrees/orfa-$i: gitdir file points to non-existent location" >&2; done
+fi
 if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_trava" ]; then
   echo "git $*" >> "$REGISTRO"
   exec sleep 30
@@ -67,6 +72,9 @@ class Teste(unittest.TestCase):
         self.assertFalse(any(l.startswith("git worktree remove") for l in pendentes), pendentes)
         self.assertIn("registro órfão", r.stderr)
         self.assertIn("repositório todo", r.stderr)
+        self.assertIn("registro: prune tirou 0 registro(s) de worktree órfã", r.stdout)
+        self.assertIn("aviso: o prune saiu com código 1; a saída dele está no log", r.stderr)
+        self.assertNotIn("cannot prune", r.stderr)
         self.assertFalse(wt.exists())
         self.assertEqual(len(self.marcas("git branch -D")), 0)  # a branch local espera o registro sumir
         self.assertTrue(self.log_de(r).read_text().splitlines()[-1].endswith(" fim: código 3"))
@@ -82,6 +90,22 @@ class Teste(unittest.TestCase):
         self.assertEqual(len(self.marcas("git worktree prune -v")), 1)
         self.assertIn("Removing worktrees/wt-outra", self.log_de(r).read_text())
         self.assertEqual(self.git("branch", "--list", "melhoria/outra"), "melhoria/outra")  # só o registro some
+
+    # ---- WORKTREE-ORFAS: a lista do prune vai só ao log; a tela recebe a contagem e a linha `limpeza:` fecha o passo 7 ----
+    def test_prune_com_centenas_de_orfas_conta_na_tela_e_a_lista_fica_so_no_log(self):
+        self.com_worktree()
+        (self.estado / "wt_busy").write_text("apaga")
+        (self.estado / "prune_muitos").write_text("300")
+        r = self.fechar("p1", "--ref", "melhoria/x", LANG="pt_BR.UTF-8")
+        self.assertEqual(r.returncode, 0, r.stderr + r.stdout)
+        self.assertNotIn("orfa-", r.stdout + r.stderr)
+        linhas = r.stdout.splitlines()
+        i = linhas.index("limpeza: remota=ok worktree=ok branch=ok")
+        self.assertEqual(linhas[i + 1:], ["Entrega p1 fechada em develop.", "fim: código 0"])
+        self.assertIn("registro: prune tirou 301 registro(s) de worktree órfã", linhas[:i])
+        log = self.log_de(r).read_text()
+        self.assertEqual(log.count("[prune] Removing worktrees/orfa-"), 300)
+        self.assertIn("[prune] Removing worktrees/wt-x", log)
 
     def argumentos_da_linha(self, linha):
         """Roda a linha impressa com `git` trocado por um eco dos argumentos, como faria quem a cola no shell."""

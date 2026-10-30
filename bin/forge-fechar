@@ -208,18 +208,23 @@ mascarar() {
 # registrar <fd>: repassa cada linha à tela (fd 1 ou 2) e grava a versão mascarada no log (stderr com prefixo [err]); uma escrita por linha,
 # sob flock quando existe, para duas fileiras não partirem a linha uma da outra. A ordem entre stdout e stderr no mesmo segundo não é garantida.
 registrar() {
-  local linha marca="" saida
+  local linha marca=""
   trap '' TERM INT HUP
   [ "$1" = 2 ] && marca="[err] "
   while IFS= read -r linha || [ -n "$linha" ]; do
     printf '%s\n' "$linha" >&"$1"
-    saida="$(date -u +%Y-%m-%dT%H:%M:%SZ) $marca$(printf '%s' "$linha" | mascarar)"
-    if command -v flock >/dev/null 2>&1; then
-      { flock 9; printf '%s\n' "$saida" >&9; } 9>>"$log"
-    else
-      printf '%s\n' "$saida" >> "$log"
-    fi
+    gravar_linha "$marca" "$linha"
   done
+}
+# gravar_linha <marca> <linha>: grava a linha mascarada, com data e marca, só no log (sem tela).
+gravar_linha() {
+  local saida
+  saida="$(date -u +%Y-%m-%dT%H:%M:%SZ) $1$(printf '%s' "$2" | mascarar)"
+  if command -v flock >/dev/null 2>&1; then
+    { flock 9; printf '%s\n' "$saida" >&9; } 9>>"$log"
+  else
+    printf '%s\n' "$saida" >> "$log"
+  fi
 }
 exec > >(registrar 1)
 pid_out=$!
@@ -402,8 +407,15 @@ limpar_entrega() {
       arv_st=pendente
     elif ! git worktree remove "$arvore"; then
       # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório
-      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai ao log). No sandbox o prune pode ser negado.
-      [ -d "$arvore" ] || git worktree prune -v || true
+      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai só ao log e a tela recebe a contagem, para centenas de registros
+      # órfãos não enterrarem a linha `limpeza:`; WORKTREE-ORFAS). LC_ALL=C: a contagem lê o "Removing" sem tradução. No sandbox o prune pode ser negado.
+      if [ ! -d "$arvore" ]; then
+        local prune_saida prune_rc=0 prune_linha
+        prune_saida="$(LC_ALL=C git worktree prune -v 2>&1)" || prune_rc=$?
+        while IFS= read -r prune_linha; do gravar_linha "[prune] " "$prune_linha"; done <<< "$prune_saida"
+        echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
+        [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
+      fi
       if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && substr($0,10)==w {f=1} END {exit !f}'; then
         if [ -d "$arvore" ]; then
           echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2
