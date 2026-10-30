@@ -38,6 +38,10 @@ trava_arquivo() {
   echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2
   return 1
 }
+# Texto da trava (de outro processo): até 200 bytes, só imprimíveis, para um escape gravado nela não chegar ao terminal (C-14).
+texto_da_trava() {
+  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
+}
 # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
 trava_confere() {
   if [ -L "$trava" ] || [ ! -O /proc/self/fd/9 ]; then
@@ -95,7 +99,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   fila="${trava%.lock}.fila"
   na_fila=0
   if [ -d "$fila" ] && [ ! -L "$fila" ] && [ -O "$fila" ]; then na_fila="$(fila_vivas | wc -l)"; fi
-  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true)); ${na_fila} na fila"
+  echo "suíte do Forge rodando ($(texto_da_trava)); ${na_fila} na fila"
   exit 0
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
@@ -215,7 +219,7 @@ if [ "$curta" = 0 ]; then
   avisar() {
     [ "$avisou" = 1 ] && return 0
     avisou=1
-    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(texto_da_trava)); esperando a vez por até ${espera} s (R-TETO)." >&2
   }
   barrar() {
     fila_sair
