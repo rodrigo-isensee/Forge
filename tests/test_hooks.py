@@ -37,6 +37,7 @@ import errno
 import functools
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -1948,6 +1949,38 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
+
+class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
+    """O `$?` é construção modelada: `$?` × posição na palavra × aspas × `IFS` na chamada. Entre aspas duplas passa
+    sempre; fora de aspas, só sem `IFS` no texto; todo outro `$` segue recusado, nas mesmas posições e aspas."""
+    TOKENS = ("$?", "${?}", "$#", "$@", "$1", "$x", "$'r'", '$"r"', "$$?", "$?$x")
+    POSICOES = ("{}", "rc={}", "a{}b", "{}x")
+    ASPAS = {"fora": "{}", "duplas": '"{}"', "simples": "'{}'"}
+
+    def test_dolar_interrogacao_por_posicao_aspas_e_ifs(self):
+        _comum, _, parecer = modulos_dos_hooks()
+        vistos = 0
+        for token, posicao, (aspas, molde), ifs in itertools.product(self.TOKENS, self.POSICOES, self.ASPAS.items(),
+                                                                      ("", "IFS=0; ")):
+            if aspas == "simples" and "'" in token:
+                continue  # `$'r'` não se escreve entre aspas simples
+            palavra = molde.format(posicao.format(token))
+            passa = aspas == "simples" or token == "$?" and (aspas == "duplas" or not ifs)
+            with self.subTest(palavra=palavra, ifs=ifs):
+                vistos += 1
+                linha = f"{ifs}git push origin melhoria/x; echo {palavra}"
+                self.assertEqual(_comum.construcao_nao_modelada(linha) is None, passa, linha)
+                resto = f"git commit -F - {_comum.OPERADOR_K}\n{ifs}echo {palavra}"
+                self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa, resto)
+                comando = f"cat <<'EOF'\nx\nEOF\n{ifs}echo {palavra}"
+                self.assertEqual(parecer.heredocs_simples(comando), token == "$?", comando)
+        self.assertGreaterEqual(vistos, 200)
+
+    def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):
+        """O motivo da guarda do `IFS`: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
+        saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
+                               capture_output=True, text=True, check=False).stdout
+        self.assertEqual(saida, "<x><main><x1main>")
 
 
 if __name__ == "__main__":
