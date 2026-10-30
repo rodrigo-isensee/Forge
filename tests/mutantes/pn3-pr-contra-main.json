@@ -1,0 +1,48 @@
+{
+  "pedido": "pn3-pr-contra-main",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-check pr vermelho contra a main para antes de abrir o PR",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "    if r.returncode:\n        citado",
+      "para": "    if False:\n        citado",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_faltando_para"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a conferencia contra a main roda so na release",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if versao != versao_de(base):",
+      "para": "if versao == versao_de(base):",
+      "testes": [
+        "tests.test_promover_homolog.Versao.test_sem_versao_nova_nao_e_release_e_nao_confere_changelog",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a base da conferencia e a main",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "\"--base\", \"main\"]",
+      "para": "\"--base\", \"homolog\"]",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_release_valendo_contra_a_main_passa_e_diz_o_comando"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o pedido conferido e o da release da versao nova",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "pedido = f\"release-{versao}\"",
+      "para": "pedido = f\"release-{versao}x\"",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_release_valendo_contra_a_main_passa_e_diz_o_comando"
+      ]
+    }
+  ]
+}
