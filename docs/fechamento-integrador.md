@@ -25,7 +25,7 @@ O teto do Bash do agente (600 s) manda `TERM` ao script. `TERM`, `INT` e `HUP` s
 
 Como rodar sem o corte:
 - Com `--espera` de até 540 s, em primeiro plano: cabe sob o teto de 600 s.
-- Com `--espera` acima de 540 s, em segundo plano (`run_in_background` do Bash): espere a notificação de término, leia a linha `log:` (a primeira da saída) e confira `fim: código <n>` no arquivo.
+- Com `--espera` acima de 540 s, em segundo plano (`run_in_background` do Bash), gravando a saída num log que termina com a linha `rc=`: no mesmo turno, espere em primeiro plano pelo `rc=` desse log, como manda a skill `esperar-estado` (nunca encerre o turno com o fechamento pendente), leia a linha `log:` (a primeira da saída) e confira `fim: código <n>` no arquivo.
 - Nunca `pkill -f` para parar o script: casa com qualquer processo cuja linha de comando traga o texto e pode matar o que não é do fechamento. Pare só o processo que você iniciou, pelo pid, com `kill <pid>` (`TERM`, que grava o `fim:`).
 - Log sem `fim:`, ou com `fim: código` 143, 130, 129 ou 1, não é sucesso: confira o PR no GitHub (aberto, `MERGED` ou fechado) e rode `bin/forge-fechar <pedido> --ref <branch> --limpar` para terminar a limpeza do que já foi mesclado; não repita o merge à mão.
 

@@ -38,6 +38,23 @@ def laco():
     return blocos[0]
 
 
+def laco_do_log():
+    blocos = [b for b in BLOCOS if "'^rc='" in b]
+    assert len(blocos) == 1, "a skill tem um laço do log só"
+    return blocos[0]
+
+
+def lancamento():
+    linhas = re.findall(r"(?m)^`(<envio> > .*)`$", SKILL.read_text(encoding="utf-8"))
+    assert len(linhas) == 1, "a skill tem uma linha de lançamento só"
+    return linhas[0]
+
+
+def com_log(texto, caminho):
+    """Troca o marcador `<log>` da skill pelo caminho literal do log, como o agente faz."""
+    return texto.replace("<log>", str(caminho))
+
+
 class LacoDoPr(unittest.TestCase):
     def rodar(self, estados, checks=8, falha=False):
         pasta = pasta_com_gh(GH)
@@ -79,6 +96,43 @@ class LacoDoPr(unittest.TestCase):
         self.assertEqual((r.stdout, r.returncode, vistas), ("fim=erro\n", 0, 0))
 
 
+class LacoDoLog(unittest.TestCase):
+    """BG-MORRE-TURNO: a linha de lançamento da skill, com `git` falso, grava `rc=` no log; o laço sai nele ou no teto."""
+
+    def rodar(self, codigo_do_git=None):
+        pasta = pasta_com_gh()
+        (pasta / "git").write_text(f"#!/bin/sh\necho 'git falso'\nexit {codigo_do_git}\n", encoding="utf-8")
+        (pasta / "sleep").write_text('#!/bin/sh\necho s >> "$(dirname "$0")/sonos"\n', encoding="utf-8")
+        for nome in ("git", "sleep"):
+            (pasta / nome).chmod(0o755)
+        env = dict(os.environ, PATH=f"{pasta}{os.pathsep}{os.environ.get('PATH', '')}")
+        log = pasta / "envio.log"
+        if codigo_do_git is not None:
+            envio = com_log(lancamento().replace("<envio>", "git push origin melhoria/x"), log)
+            subprocess.run(["bash", "--norc", "--noprofile", "-c", envio], env=env, timeout=60)
+        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", com_log(laco_do_log(), log)], env=env,
+                           capture_output=True, text=True, timeout=60)
+        sonos = pasta / "sonos"
+        return r, len(sonos.read_text(encoding="utf-8").splitlines()) if sonos.exists() else 0
+
+    def test_envio_que_passa_sai_na_hora(self):
+        r, sonos = self.rodar(0)
+        self.assertEqual((r.stdout, r.returncode, sonos), ("fim=rc=0\n", 0, 0))
+
+    def test_envio_que_falha_sai_e_mostra_rc_1(self):
+        r, sonos = self.rodar(1)
+        self.assertEqual((r.stdout, r.returncode, sonos), ("fim=rc=1\n", 0, 0))
+
+    def test_log_sem_rc_sai_no_teto_depois_de_17_voltas(self):
+        r, sonos = self.rodar()
+        self.assertEqual((r.stdout, r.returncode, sonos), ("fim=teto\n", 1, 17))
+
+    def test_laco_do_log_dentro_do_teto(self):
+        voltas = int(re.search(r"seq 1 (\d+)", laco_do_log()).group(1))
+        intervalo = int(re.search(r"sleep (\d+)", laco_do_log()).group(1))
+        self.assertLessEqual(voltas * intervalo, 540)
+
+
 class TextoDaSkill(unittest.TestCase):
     def test_frontmatter_e_tech_lead_carrega(self):
         texto = SKILL.read_text(encoding="utf-8")
@@ -112,16 +166,21 @@ class BlocosPassamPelosHooks(unittest.TestCase):
         "projeto": {"git": [{"branch": "feature/x"}]},
     }
 
+    LOG = "/tmp/forge-tmp/envio.log"
+
     def test_blocos_saem_0_no_parecer_e_na_conformidade(self):
+        """Os blocos e a linha de lançamento com o envio de verdade (`git` na branch do ambiente), com `<log>` literal."""
         casos = []
         for hook in ("parecer", "conformidade"):
             for nome, ambiente in self.AMBIENTES.items():
-                for i, bloco in enumerate(BLOCOS):
+                envio = lancamento().replace("<envio>", f"git push origin {ambiente['git'][0]['branch']}")
+                for i, bloco in enumerate([*BLOCOS, envio]):
+                    bloco = com_log(bloco, self.LOG)
                     entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_9",
                                "agent_type": "forge:tech-lead", "tool_input": {"command": bloco.strip()}}
                     dados = dict(ambiente, env={"HOME": "{tmp}/home"}, entrada=entrada, esperado={"codigo": 0})
                     casos.append((f"{hook}/{nome}-{i}", Fixture(Path(hook) / f"esperar-{nome}-{i}.json", dados)))
-        self.assertEqual(len(casos), 4 * len(BLOCOS))
+        self.assertEqual(len(casos), 4 * (len(BLOCOS) + 1))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
 
 

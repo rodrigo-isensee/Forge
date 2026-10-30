@@ -846,6 +846,27 @@ def desde_e_a_base(raiz, texto, desde, base_sha, head):
     return desde == base_sha and base_sha_como_desde(raiz, texto, base_sha, head)
 
 
+def ref_da_base(raiz, base):
+    """O sha da branch de integração `base`: a remota (`origin/<base>`) ou, sem ela, a local."""
+    return sha_do_commit(raiz, f"refs/remotes/origin/{base}") or sha_do_commit(raiz, f"refs/heads/{base}")
+
+
+def veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref):
+    """Regra única do Desde aceito, do `entrega` e do `brief gerar --volta` (P-N6): (valido, origem, linha, reprova). O Base-sha
+    que vale como Desde (`desde_e_a_base`) dá a linha `base:` e valido None; o `--desde` fora do `desde_valido` ou gravado na própria
+    entrega (`pedido_na_entrega`, A1) reprova; sem `--desde`, nada a dizer."""
+    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
+        return None, None, "base: Base-sha do brief (sem conferida na branch)", False
+    if desde is None:
+        return None, None, None, False
+    valido, origem = desde_valido(raiz, texto, head, base_sha)
+    if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
+        return None, origem, "escopo: --desde sem conferência anterior", True
+    if pedido_na_entrega(raiz, valido, head, base_ref):
+        return None, origem, "escopo: --desde gravado na própria entrega", True
+    return valido, origem, None, False
+
+
 def pedido_na_entrega(raiz, desde, head, base_ref):
     """True se algum commit da entrega (depois do `--desde`, fora da base) mexe em `docs/pedidos/` (A1)."""
     extra = ["--not", base_ref] if base_ref else []
@@ -1075,20 +1096,13 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     linhas = []  # (linha, reprova)
     if base not in BASES_DO_FLUXO or base == branch:
         linhas.append(("escopo: base fora do fluxo", True))
-    base_ref = sha_do_commit(raiz, f"refs/remotes/origin/{base}") or sha_do_commit(raiz, f"refs/heads/{base}")
+    base_ref = ref_da_base(raiz, base)
     if not (e_ancestral(raiz, base_sha, head) and base_ref and e_ancestral(raiz, base_sha, base_ref)):
         linhas.append(("escopo: Base-sha fora da branch", True))
-    valido, origem_da_base = None, None
-    if desde_e_a_base(raiz, texto, desde, base_sha, head):  # P-N1: o intervalo é o do Base-sha, como sem `--desde`
-        linhas.append(("base: Base-sha do brief (sem conferida na branch)", False))
-    elif desde is not None:  # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
-        valido, origem_da_base = desde_valido(raiz, texto, head, base_sha)
-        if valido is None or desde != valido:  # só o sha40, igual ao da linha `conferida`
-            valido = None
-            linhas.append(("escopo: --desde sem conferência anterior", True))
-        elif pedido_na_entrega(raiz, valido, head, base_ref):
-            valido = None
-            linhas.append(("escopo: --desde gravado na própria entrega", True))
+    # C1: vale em todas as etapas; as checagens de ato (PR, checks, merge) não passam por aqui
+    valido, origem_da_base, linha_do_desde, reprova = veredito_do_desde(raiz, texto, desde, base_sha, head, base_ref)
+    if linha_do_desde:
+        linhas.append((linha_do_desde, reprova))
     de = valido or base_sha
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
@@ -1398,6 +1412,23 @@ def acrescentar(linhas, novas):
     return corpo + [n + "\n" for n in novas] + ["\n"]
 
 
+def recusa_do_desde(raiz, pedido_txt, ref, base_sha, base):
+    """P-N6: o motivo de o `gerar --volta` não propor como `--desde` a última base do `## Histórico` (`conferida` ou a do dono),
+    pela regra única do `entrega` (`veredito_do_desde`), para a recusa não virar pergunta ao dono; None se ela vale."""
+    bases = bases_do_pedido(pedido_txt)
+    if not bases:
+        return None
+    desde, origem = bases[-1]
+    linha, reprova = veredito_do_desde(raiz, pedido_txt, desde, base_sha, ref, ref_da_base(raiz, base))[2:]
+    if not reprova:
+        return None
+    return (f"brief gerar --volta: recusado: a base de Desde {desde[:7]} ({'fixada pelo dono' if origem == 'dono' else 'conferida'}, "
+            f"a última do ## Histórico) não passa no `forge-check entrega` com a ref {ref[:7]} e o Base-sha {base_sha[:7]} ({linha}): "
+            "ela precisa ser commit da branch (ancestral da ref, fora do Base-sha), sem commit em docs/pedidos/ depois dela e, a do "
+            "dono, diferente da ref; grave no ## Histórico a linha `conferida <sha40>` da entrega que o Jarvis conferiu (ou peça ao "
+            "dono a base certa) e gere de novo; nada gerado (P-N6)")
+
+
 def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     """Brief da volta (M7): blocos do brief aprovado copiados byte a byte, Entregar dos achados bloqueantes dos pareceres, decisões
     do dono do pedido e a prova `forge-check entrega --desde`. Devolve (texto ou None, rc, mensagens)."""
@@ -1446,6 +1477,8 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
         sha_base = sha_anterior  # P5: o Base-sha do brief anterior vale enquanto for ancestral da entrega
     else:
         sha_base = base_sha_real(raiz, a.base, branch) or sha_anterior or PREENCHER
+    if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base, a.base):
+        return None, 1, [recusa]
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
     saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 
