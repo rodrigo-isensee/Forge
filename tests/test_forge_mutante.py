@@ -658,6 +658,14 @@ class Cobertura(unittest.TestCase):
         self.assertFalse(self.casa("if x > 1000:", "if x > 2000:", repetido), "o de aparece duas vezes")
         self.assertTrue(self.casa("t = x > 1000", "t = x > 2000", 's = "éé"; t = x > 1000\n'), "deslocamento em bytes")
 
+    def test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam(self):
+        """MUTANTE-CASA-ESPACO: o prefixo comum engole o espaço junto da condição e o sufixo comum começa nele."""
+        self.assertTrue(self.casa("x if f() else y", "x if f() and False else y", "k = x if f() else y\n"), "ternário")
+        texto = "k = any(p and q(l) for l in r)\n"
+        self.assertTrue(self.casa("p and q(l) for l in", "p and q(l) and False for l in", texto), "fim do nó")
+        self.assertFalse(self.casa("else yyyy", "else yyyyy", "k = 1 if a > b else yyyy\n"), "desliza fora do nó")
+        self.assertFalse(self.casa("k = q if aa e", "k = q if e", "k = q if aa else aa\n"), "remove mais que o nó")
+
     def test_troca_que_nao_muda_o_ast_e_mutante_de_fachada(self):
         with self.assertRaises(ValueError):
             self.casa("\nif x > 1000:", "\nif (x > 1000):", "k = 1\nif x > 1000:\n    pass\n")
