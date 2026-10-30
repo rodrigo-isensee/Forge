@@ -1,10 +1,11 @@
 """P-N4 (PN4-DECISAO-APROVACAO): o brief aprovado é comparado com as decisões do dono que valiam na hora da aprovação (a última linha
-`aprovado` dele em docs/kanban/conferencias.md); a decisão posterior que falta sai como aviso. Biblioteca padrão, sem rede."""
+`aprovado` dele em conferencias.md, não anterior ao mtime do brief); a decisão posterior que falta sai como aviso. Sem rede."""
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -57,6 +58,7 @@ class DecisaoPosteriorAprovacao(unittest.TestCase):
         if linhas:
             self.gravar("docs/kanban/conferencias.md", CABECALHO + "".join(linhas))
         arq = self.gravar("docs/briefs/exemplo-dev-exemplo-1.md", brief(*decisoes))
+        os.utime(arq, (t := time.mktime(time.strptime("2026-01-01 10:00:30", "%Y-%m-%d %H:%M:%S")), t))  # escrito às 10:00 (A1)
         env = {k: v for k, v in os.environ.items() if not k.startswith(("GIT_", "FORGE_"))}
         env["HOME"] = str(self.tmp / "home")
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "brief", str(arq), "--pedido", str(self.pedido)],
@@ -93,9 +95,9 @@ class DecisaoPosteriorAprovacao(unittest.TestCase):
         self.assertIn('decisões: falta "DECISÃO DO DONO (2026-01-02)', saida)
         self.assertEqual(rc, 1, saida)
 
-    def test_reprovacao_outro_brief_outro_modo_ou_hora_torta_nao_valem_como_aprovacao(self):
+    def test_reprovacao_outro_brief_outro_modo_hora_torta_ou_retrodatada_nao_valem_como_aprovacao(self):
         for falsa in (linha("2026-01-01 10:00", "reprovado"), linha("2026-01-01 10:00", nome="exemplo-dev-exemplo-2"),
-                      linha("2026-01-01 10:00", "cumpriu", modo="entrega"), linha("2026")):
+                      linha("2026-01-01 10:00", "cumpriu", modo="entrega"), linha("2026-01-01 10:5"), linha("2026-01-01 09:59")):
             with self.subTest(falsa=falsa):
                 self.assertCobrada(*self.conferir(falsa))
 

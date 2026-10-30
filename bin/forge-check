@@ -4335,11 +4335,12 @@ HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}
 
 def hora_da_aprovacao(raiz, brief):
     """P-N4: a hora `AAAA-MM-DD HH:MM` da última linha `aprovado` do brief (modo `brief`) em docs/kanban/conferencias.md, ou None.
-    Hora fora do formato não vale: sem aprovação válida, o brief segue cobrado contra todas as decisões."""
-    nome = brief.removesuffix(".md").casefold()
+    Hora fora do formato ou anterior ao mtime do brief (no minuto, fuso local; A1 da segurança) não vale: segue cobrado contra tudo."""
+    nome = Path(brief).name.removesuffix(".md").casefold()
+    escrita = datetime.datetime.fromtimestamp(Path(brief).stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
     horas = [c[0] for c in _ler_tabela(Path(raiz) / "docs" / "kanban" / "conferencias.md")
              if len(c) >= 6 and c[2].removesuffix(".md").casefold() == nome and c[3].casefold() == "brief" and _aprovou(c[5])
-             and HORA_DO_REGISTRO.fullmatch(c[0])]
+             and HORA_DO_REGISTRO.fullmatch(c[0]) and c[0] >= escrita]
     return horas[-1] if horas else None
 
 
@@ -4622,7 +4623,7 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     """(id do pedido, linhas) do `forge-check brief`: forma, corte, decisões cobradas, origem e, com `Volta-de:`, as linhas `volta:`."""
     m = re.search(r"^id:\s*(\S+)", pedido_txt, re.M)
     pedido_id = m.group(1) if m else caminho_pedido.stem
-    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief.name)
+    cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt, brief)
     linhas = conferir_brief(texto, pedido_txt, destino, brief.name, pedido_id, conteudo, caminho if destino else None, bytes_anterior, cobradas)
     linhas += [(o, False) for o in (linha_de_origem(caminho_pedido), linha_de_origem(brief)) if o]
     linhas += aviso_de_base_sha(raiz, texto)
