@@ -50,6 +50,11 @@ def lancamento():
     return linhas[0]
 
 
+def com_log(texto, caminho):
+    """Troca o marcador `<log>` da skill pelo caminho literal do log, como o agente faz."""
+    return texto.replace("<log>", str(caminho))
+
+
 class LacoDoPr(unittest.TestCase):
     def rodar(self, estados, checks=8, falha=False):
         pasta = pasta_com_gh(GH)
@@ -100,12 +105,13 @@ class LacoDoLog(unittest.TestCase):
         (pasta / "sleep").write_text('#!/bin/sh\necho s >> "$(dirname "$0")/sonos"\n', encoding="utf-8")
         for nome in ("git", "sleep"):
             (pasta / nome).chmod(0o755)
-        env = dict(os.environ, PATH=f"{pasta}{os.pathsep}{os.environ.get('PATH', '')}", TMPDIR=str(pasta))
+        env = dict(os.environ, PATH=f"{pasta}{os.pathsep}{os.environ.get('PATH', '')}")
+        log = pasta / "envio.log"
         if codigo_do_git is not None:
-            envio = lancamento().replace("<envio>", "git push origin melhoria/x")
+            envio = com_log(lancamento().replace("<envio>", "git push origin melhoria/x"), log)
             subprocess.run(["bash", "--norc", "--noprofile", "-c", envio], env=env, timeout=60)
-        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", laco_do_log()], env=env, capture_output=True,
-                           text=True, timeout=60)
+        r = subprocess.run(["bash", "--norc", "--noprofile", "-c", com_log(laco_do_log(), log)], env=env,
+                           capture_output=True, text=True, timeout=60)
         sonos = pasta / "sonos"
         return r, len(sonos.read_text(encoding="utf-8").splitlines()) if sonos.exists() else 0
 
@@ -160,16 +166,21 @@ class BlocosPassamPelosHooks(unittest.TestCase):
         "projeto": {"git": [{"branch": "feature/x"}]},
     }
 
+    LOG = "/home/u/.forge-tmp/envio.log"
+
     def test_blocos_saem_0_no_parecer_e_na_conformidade(self):
+        """Os blocos e a linha de lançamento com o envio de verdade (`git` na branch do ambiente), com `<log>` literal."""
         casos = []
         for hook in ("parecer", "conformidade"):
             for nome, ambiente in self.AMBIENTES.items():
-                for i, bloco in enumerate(BLOCOS):
+                envio = lancamento().replace("<envio>", f"git push origin {ambiente['git'][0]['branch']}")
+                for i, bloco in enumerate([*BLOCOS, envio]):
+                    bloco = com_log(bloco, self.LOG)
                     entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "toolu_9",
                                "agent_type": "forge:tech-lead", "tool_input": {"command": bloco.strip()}}
                     dados = dict(ambiente, env={"HOME": "{tmp}/home"}, entrada=entrada, esperado={"codigo": 0})
                     casos.append((f"{hook}/{nome}-{i}", Fixture(Path(hook) / f"esperar-{nome}-{i}.json", dados)))
-        self.assertEqual(len(casos), 4 * len(BLOCOS))
+        self.assertEqual(len(casos), 4 * (len(BLOCOS) + 1))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
 
 

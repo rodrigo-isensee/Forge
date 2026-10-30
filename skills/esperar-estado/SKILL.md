@@ -33,14 +33,14 @@ n=123; fim=""; for i in $(seq 1 17); do e=$(gh pr view "$n" --json state --jq .s
 No sandbox, se o `gh` reclamar do cache, rode o laço com `XDG_CACHE_HOME` apontando para uma pasta gravável (por exemplo, `$TMPDIR`).
 
 ## O envio longo
-Lance com o `run_in_background` da ferramenta, trocando `<envio>` pelo comando e `envio.log` por um nome próprio da tarefa (sem `$?`, que a `conformidade` recusa ao lado do envio):
+Lance com o `run_in_background` da ferramenta, trocando `<envio>` pelo comando e `<log>` pelo caminho absoluto, escrito por extenso, de um log próprio da tarefa (sem `$TMPDIR` nem `$?`, que a `conformidade` recusa ao lado do envio):
 
-`<envio> > "$TMPDIR/envio.log" 2>&1 && echo rc=0 >> "$TMPDIR/envio.log" || echo rc=1 >> "$TMPDIR/envio.log"`
+`<envio> > <log> 2>&1 && echo rc=0 >> <log> || echo rc=1 >> <log>`
 
-No mesmo turno, em primeiro plano, espere pelo log, com o mesmo caminho:
+No mesmo turno, em primeiro plano, espere pelo log, trocando `<log>` pelo mesmo caminho:
 
 ```bash
-log="$TMPDIR/envio.log"; fim=""; for i in $(seq 1 17); do fim=$(grep -m 1 '^rc=' "$log" 2>/dev/null) && break; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
+log=<log>; fim=""; for i in $(seq 1 17); do fim=$(grep -m 1 '^rc=' "$log" 2>/dev/null) && break; sleep 30; done; echo "fim=${fim:-teto}"; [ -n "$fim" ]
 ```
 
 `fim=rc=0` é sucesso; `fim=rc=1` é falha: leia o log e relate. `fim=teto` (código 1) quer dizer o comando ainda rodando: repita a mesma chamada, sem encerrar o turno. Vale para qualquer comando de mais de 540 s, como o `bin/forge-fechar` com `--espera` acima de 540 s: lance-o no lugar de `<envio>` e, com `fim=rc=1`, leia no log a linha `fim: código <n>` dele (3 é integrado com limpeza pendente).

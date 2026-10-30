@@ -14,7 +14,7 @@
       "id": "M2",
       "guarda": "o lançamento grava rc=1 no log quando o envio falha; sem ela, o laço só sai no teto",
       "arquivo": "skills/esperar-estado/SKILL.md",
-      "de": " || echo rc=1 >> \"$TMPDIR/envio.log\"",
+      "de": " || echo rc=1 >> <log>",
       "para": "",
       "testes": ["tests.test_esperar_estado.LacoDoLog"]
     },
@@ -33,6 +33,14 @@
       "de": ", e nunca encerra o turno com o envio pendente; sem mexer",
       "para": "; sem mexer",
       "testes": ["tests.test_forge.EsperaDoPushEVerificadores"]
+    },
+    {
+      "id": "M5",
+      "guarda": "o lançamento grava num log de caminho literal: com $TMPDIR ao lado do envio, a conformidade recusa em projeto (review A1)",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "`<envio> > <log> 2>&1",
+      "para": "`<envio> > \"$TMPDIR/envio.log\" 2>&1",
+      "testes": ["tests.test_esperar_estado.BlocosPassamPelosHooks"]
     }
   ]
 }
