@@ -54,6 +54,7 @@ ESPERA_TERMINO_S = 10
 HOOK = RAIZ / ".githooks" / "pre-push"
 FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "changelog.d/")
 CARIMBO = "forge-suite-verde"
+LIMITE_SEM_DURACAO = 20  # o resumo do CI é curto (N-CI, C-11)
 
 
 class Interrompido(Exception):
@@ -410,16 +411,37 @@ def resumir(partes, filhos, relatorios, duracoes, pasta):
     return erros, linhas
 
 
-def publicar_no_ci(linhas, total, segundos, n):
+def lista_curta(nomes, limite):
+    return ", ".join(nomes[:limite]) + (f" e mais {len(nomes) - limite}" if len(nomes) > limite else "")
+
+
+def montar_resumo(veredito, linhas, partes, relatorios, total, segundos):
+    """O texto do resumo do passo: só nomes de unidade e números; reprovada, não vale para o orçamento (N-CI, C-7, C-9)."""
+    nomes = {m for parte in partes for m in parte}
+    texto = [f"### Suíte do Forge: {veredito}: {total} testes em {segundos:.1f} s ({len(partes)} processos)", ""]
+    texto += [f"- {linha}" for linha in linhas]
+    medidas = {k for rel in relatorios if rel and isinstance(rel.get("duracoes"), dict)
+               for k, v in rel["duracoes"].items() if isinstance(v, (int, float)) and v >= 0}
+    sem_duracao = sorted(nomes - medidas)
+    if sem_duracao:
+        texto.append(f"- sem duração: {lista_curta(sem_duracao, LIMITE_SEM_DURACAO)}")
+    if veredito.startswith("FAILED"):
+        texto.append("- execução reprovada: não vale para o orçamento")
+    return "\n".join(texto) + "\n"
+
+
+def publicar_no_ci(*dados):
+    """Acrescenta o resumo ao passo do CI. Roda depois do veredito impresso: qualquer erro daqui vira a linha
+    `resumo indisponível` e não muda o código de saída (N-CI, C-6)."""
     destino = os.environ.get("GITHUB_STEP_SUMMARY")
     if not destino:
         return
     try:
+        texto = montar_resumo(*dados)
         with open(destino, "a", encoding="utf-8") as f:
-            f.write(f"### Suíte do Forge: {total} testes em {segundos:.1f} s ({n} processos)\n\n")
-            f.write("".join(f"- {linha}\n" for linha in linhas))
-    except OSError:
-        pass
+            f.write(texto)
+    except Exception as e:  # noqa: BLE001 - o resumo é informativo; o veredito já saiu
+        print(f"suite-paralela: resumo indisponível ({type(e).__name__})", file=sys.stderr)
 
 
 def gravar_pesos(relatorios):
@@ -480,7 +502,6 @@ def orquestrar():
     segundos = time.monotonic() - inicio
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
     print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos)\n")
-    publicar_no_ci(linhas, rodados, segundos, len(partes))
     falhas = sum(rel["falhas"] for rel in relatorios if rel)
     erros_t = sum(rel["erros"] for rel in relatorios if rel)
     pulados = sum(rel["pulados"] for rel in relatorios if rel)
@@ -489,15 +510,22 @@ def orquestrar():
             print(f"suite-paralela: {erro}", file=sys.stderr)
         detalhes = [f"failures={falhas}"] * bool(falhas) + [f"errors={erros_t}"] * bool(erros_t) \
             + [f"skipped={pulados}"] * bool(pulados) + ["guarda=" + str(len(erros))] * bool(erros)
-        print(f"FAILED ({', '.join(detalhes)})")
-        return 1
+        veredito, codigo = f"FAILED ({', '.join(detalhes)})", 1
+    else:
+        veredito, codigo = fechar_verde(relatorios, hash_arvore, pulados), 0
+    print(veredito)
+    publicar_no_ci(veredito, linhas, partes, relatorios, rodados, segundos)
+    return codigo
+
+
+def fechar_verde(relatorios, hash_arvore, pulados):
+    """O que só vale depois do veredito verde (pesos regravados, carimbo K6); devolve a linha do veredito."""
     if os.environ.get("FORGE_SUITE_MEDIR") == "1":
         gravar_pesos(relatorios)
         print(f"suite-paralela: pesos regravados em {PESOS.relative_to(RAIZ)}.", file=sys.stderr)
     if hash_da_arvore(RAIZ) == hash_arvore:  # commit no meio da suíte: o carimbo seria de outra árvore
         gravar_carimbo(RAIZ, hash_arvore)
-    print(f"OK (skipped={pulados})" if pulados else "OK")
-    return 0
+    return f"OK (skipped={pulados})" if pulados else "OK"
 
 
 def conferir_trava(caminho, donos):
