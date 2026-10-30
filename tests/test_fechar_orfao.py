@@ -107,6 +107,20 @@ class Teste(unittest.TestCase):
         self.assertEqual(log.count("[prune] Removing worktrees/orfa-"), 300)
         self.assertIn("[prune] Removing worktrees/wt-x", log)
 
+    def test_worktree_ocupada_com_o_diretorio_presente_nao_roda_o_prune(self):
+        # QA A1: a guarda `[ ! -d "$arvore" ]` impede o prune do repositório todo quando o remove falhou com o diretório de pé
+        wt = self.com_worktree()
+        (self.estado / "wt_busy").write_text("persiste")
+        (self.estado / "prune_muitos").write_text("5")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertEqual(self.marcas("git worktree prune"), [])
+        self.assertNotIn("prune tirou", r.stdout)
+        self.assertNotIn("[prune]", self.log_de(r).read_text())
+        self.assertTrue(wt.exists())
+        self.assertEqual(self.resumo(r), ["limpeza: remota=ok worktree=pendente branch=pendente"])
+        self.assertIn(f"git worktree remove {wt}", r.stdout.split("pendente, rode:\n")[1].splitlines())
+
     def argumentos_da_linha(self, linha):
         """Roda a linha impressa com `git` trocado por um eco dos argumentos, como faria quem a cola no shell."""
         r = subprocess.run(["bash", "-c", 'git() { printf "%s\\n" "$@"; }\n' + linha], capture_output=True, text=True,

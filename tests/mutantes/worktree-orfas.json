@@ -52,6 +52,16 @@
       "testes": [
         "tests.test_fechar_orfao.Teste.test_c3_prune_negado_com_diretorio_ausente_imprime_prune_e_nao_remove"
       ]
+    },
+    {
+      "id": "Q1",
+      "guarda": "passo 7: o prune so roda com o diretorio da worktree ausente (remove que falhou com o diretorio de pe nao poda o repositorio)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ ! -d \"$arvore\" ]",
+      "para": "if true",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_worktree_ocupada_com_o_diretorio_presente_nao_roda_o_prune"
+      ]
     }
   ]
 }
