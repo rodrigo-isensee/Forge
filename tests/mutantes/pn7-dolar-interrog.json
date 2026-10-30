@@ -4,163 +4,46 @@
   "mutantes": [
     {
       "id": "D1",
-      "guarda": "a construcao volta a recusar todo $?",
+      "guarda": "a construcao volta a recusar o $? entre aspas duplas",
       "arquivo": "hooks/_comum.py",
-      "de": "elif c == \"$\" and seguinte == \"?\":",
+      "de": "elif c == \"$\" and seguinte == \"?\" and contexto[0] == \"duplas\":",
       "para": "elif False:",
       "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
       ]
     },
     {
       "id": "D2",
-      "guarda": "a construcao nao confere o $? fora de aspas",
+      "guarda": "a construcao aceita o $? fora de aspas",
       "arquivo": "hooks/_comum.py",
-      "de": "if contexto[0] != \"duplas\":\n                soltos.append",
-      "para": "if False:\n                soltos.append",
+      "de": "elif c == \"$\" and seguinte == \"?\" and contexto[0] == \"duplas\":",
+      "para": "elif c == \"$\" and seguinte == \"?\":",
       "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
+      ]
+    },
+    {
+      "id": "D3",
+      "guarda": "a gramatica volta a recusar o $? entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "resto[i + 1:fim].replace(\"$?\", \"\")",
+      "para": "resto[i + 1:fim]",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
       ]
     },
     {
       "id": "D4",
-      "guarda": "os separadores nao separam o comando do $?",
+      "guarda": "a gramatica aceita todo $ entre aspas duplas",
       "arquivo": "hooks/_comum.py",
-      "de": "if c in \";&|\\n()\":\n                limites.append(i)",
-      "para": "if False:\n                limites.append(i)",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D5",
-      "guarda": "o $? solto nao e conferido no fim",
-      "arquivo": "hooks/_comum.py",
-      "de": "if codigo_de_saida_solto(linha, inicio + 1,",
-      "para": "if False and codigo_de_saida_solto(linha, inicio + 1,",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D6",
-      "guarda": "o $? vale fora de echo e printf",
-      "arquivo": "hooks/_comum.py",
-      "de": "palavras[0] not in (\"echo\", \"printf\")",
-      "para": "palavras[0] not in (\"echo\", \"printf\", \"git\", \"x$?\")",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D7",
-      "guarda": "o printf aceita opcao antes do formato",
-      "arquivo": "hooks/_comum.py",
-      "de": "and not palavras[1].startswith(\"-\") and",
-      "para": "and",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D8",
-      "guarda": "o printf aceita o $? no formato",
-      "arquivo": "hooks/_comum.py",
-      "de": "and \"$?\" not in palavras[1]",
-      "para": "",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D9",
-      "guarda": "o $? vale com redirecao",
-      "arquivo": "hooks/_comum.py",
-      "de": "if \"<\" in trecho or \">\" in trecho or",
-      "para": "if",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D10",
-      "guarda": "o $? vale com pipe para o seguinte",
-      "arquivo": "hooks/_comum.py",
-      "de": " or linha[fim:fim + 1] == \"|\" and linha[fim + 1:fim + 2] != \"|\":",
-      "para": ":",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D11",
-      "guarda": "a gramatica volta a recusar o $? fora de aspas",
-      "arquivo": "hooks/_comum.py",
-      "de": "if resto.startswith(\"$?\", i):  #",
-      "para": "if False:  #",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D12",
-      "guarda": "a gramatica nao confere o comando do $?",
-      "arquivo": "hooks/_comum.py",
-      "de": "return solto and (PALAVRA_K3 in resto or not",
-      "para": "return False and (PALAVRA_K3 in resto or not",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D14",
-      "guarda": "o comando do $? solto vale sempre",
-      "arquivo": "hooks/_comum.py",
-      "de": "return not codigo_de_saida_vale(shlex.split(trecho))",
-      "para": "return False",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D15",
-      "guarda": "a gramatica nao recusa o $? solto antes de um separador",
-      "arquivo": "hooks/_comum.py",
-      "de": "            if fora_do_echo():\n                return",
-      "para": "            if False:\n                return",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D16",
-      "guarda": "a gramatica nao recusa o $? solto no ultimo comando",
-      "arquivo": "hooks/_comum.py",
-      "de": "    if fora_do_echo():\n        return",
-      "para": "    if False:\n        return",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs"
-      ]
-    },
-    {
-      "id": "D17",
-      "guarda": "a construcao aceita o $? fora de aspas com substituicao de comando",
-      "arquivo": "hooks/_comum.py",
-      "de": "if soltos and SUBSTITUICAO.search(linha):",
-      "para": "if False:",
+      "de": "resto[i + 1:fim].replace(\"$?\", \"\")",
+      "para": "resto[i + 1:fim].replace(\"$\", \"\")",
       "testes": [
         "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
-        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
-      ]
-    },
-    {
-      "id": "D19",
-      "guarda": "a gramatica aceita o $? fora de aspas com a palavra K3",
-      "arquivo": "hooks/_comum.py",
-      "de": "(PALAVRA_K3 in resto or not",
-      "para": "(False or not",
-      "testes": [
-        "tests.test_hooks.CodigoDeSaida.test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas"
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
       ]
     }
   ]

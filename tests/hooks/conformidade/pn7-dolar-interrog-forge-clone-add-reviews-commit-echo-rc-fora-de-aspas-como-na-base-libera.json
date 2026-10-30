@@ -1,9 +1,10 @@
 {
-  "descricao": "PN7-DOLAR-INTERROG (H1-1, ADR 0011): o $? passa (projeto).",
+  "descricao": "PN7-DOLAR-INTERROG (H1-1, ADR 0011): o $? fora de aspas, sem marcador crítico que este hook leia, passa como na base 31257c1 (forge-clone).",
   "arquivos": {
     "src/app.js": "v1\n",
-    "docs/pedidos/p1.md": "# p1\n"
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
   },
+  "forge": false,
   "git": [
     {
       "branch": "feature/x"

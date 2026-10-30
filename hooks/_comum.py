@@ -1425,41 +1425,16 @@ def corpo_so_lido(dono, tambem=nenhum):
                                    for programa, argumentos, atribuicoes in programas)
 
 
-def codigo_de_saida_vale(palavras):
-    """ADR 0011, emenda H1-1: o comando simples (palavras como o programa as recebe) em que o `$?` fora de aspas vale:
-    argumento de `echo`, ou de `printf` depois do formato e sem opção. Um `IFS` com dígito, escrito de qualquer jeito
-    (`I"FS"=0`, `printf -v I\\FS`, `read`, `source`), divide a palavra; dividida, ela só muda o que se imprime."""
-    if not palavras or palavras[0] not in ("echo", "printf"):
-        return False
-    return palavras[0] == "echo" or len(palavras) > 1 and not palavras[1].startswith("-") and "$?" not in palavras[1]
-
-
-SUBSTITUICAO = re.compile(r"\$\(|[<>]\(|`")  # `$(…)`, `$((…))`, crase, `<(…)` e `>(…)`, em qualquer ponto do texto
-
-
-def codigo_de_saida_solto(linha, inicio, fim):
-    """O comando simples `linha[inicio:fim]`, com um `$?` fora de aspas, não vale: fora de `echo` ou `printf`
-    (`codigo_de_saida_vale`), com redireção ou ligado por `|` ao seguinte (`echo git push x$?main | sh`)."""
-    trecho = linha[inicio:fim]
-    if "<" in trecho or ">" in trecho or linha[fim:fim + 1] == "|" and linha[fim + 1:fim + 2] != "|":
-        return True
-    try:
-        return not codigo_de_saida_vale(shlex.split(trecho))
-    except ValueError:
-        return True
-
-
 def construcao_nao_modelada(linha):
     """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
     simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,
-    `${`, `$X`, `$@`, `$1`...; o `$?` passa entre aspas duplas e, fora delas, só como argumento de `echo` ou `printf`,
-    `codigo_de_saida_solto`, num texto sem `SUBSTITUICAO`), `\\` seguido de quebra de linha; fora de aspas, chaves e `case`; e todo `<<` que não seja
-    heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas ou escapado numa linha com várias linhas). As aspas
+    `${`, `$X`, `$@`, `$1`, `$?`...; só o `$?` entre aspas duplas passa, emenda H1-1), `\\` seguido de quebra de linha;
+    fora de aspas, chaves e `case`; e todo `<<` que não seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas
+    ou escapado numa linha com várias linhas). As aspas
     são lidas em sequência, e `$(` abre um contexto novo de aspas, como no bash; `\\` escapa o caractere seguinte fora
     de aspas e, entre duplas, `$`, crase, `"` e `\\`."""
     pilha = [["fora", 0]]  # contexto: fora | subst (com a profundidade de parênteses) | simples | duplas
     esqueleto, pendentes, modelados, i, n = [], [], set(), 0, len(linha)
-    limites, soltos = [-1], []  # separadores fora de aspas; (último separador, posição) de cada `$?` fora de aspas
     provados = comentarios(linha)  # o mesmo conjunto que o leitor usa, sobre a mesma linha
     while i < n:
         c, seguinte = linha[i], linha[i + 1:i + 2]
@@ -1478,11 +1453,8 @@ def construcao_nao_modelada(linha):
                 i += 1  # o caractere seguinte é literal
         elif c == "`":
             return "crase"
-        elif c == "$" and seguinte == "?":
-            if contexto[0] != "duplas":
-                soltos.append((limites[-1], i))
-            esqueleto.append("_")  # o código de saída, um decimal de 0 a 255 (ADR 0011, emenda H1-1)
-            i += 1
+        elif c == "$" and seguinte == "?" and contexto[0] == "duplas":
+            pass  # `"$?"`: um decimal de 0 a 255 numa palavra que o bash não divide (ADR 0011, emenda H1-1)
         elif c == "$":
             if seguinte != "(":
                 nome = re.match(r"\w+", linha[i + 1:])  # o nome inteiro da variável, não só a primeira letra
@@ -1523,12 +1495,9 @@ def construcao_nao_modelada(linha):
                 return "heredoc"
             modelados.update(range(i + 1, fim))
             pendentes, i = [], fim
-            limites.append(fim - 1)
             esqueleto.append("\n")
             continue
         else:
-            if c in ";&|\n()":
-                limites.append(i)
             if contexto[0] == "subst" and c == "(":
                 contexto[1] += 1
             elif contexto[0] == "subst" and c == ")":
@@ -1545,11 +1514,6 @@ def construcao_nao_modelada(linha):
     # modelados e dos corpos deles é não modelado, também entre aspas ou depois de `\\`.
     if "\n" in linha and any(m.start() not in modelados for m in re.finditer("<<", linha)):
         return "heredoc"
-    if soltos and SUBSTITUICAO.search(linha):  # a fronteira do comando simples não é plana com `$(…)` (emenda H1-1)
-        return "$? com substituição de comando"
-    for inicio, posicao in soltos:
-        if codigo_de_saida_solto(linha, inicio + 1, min((x for x in limites if x > posicao), default=n)):
-            return "$? fora de echo ou printf"
     return "case" if CASE.search("".join(esqueleto)) else None
 
 
@@ -1588,19 +1552,15 @@ def legivel(palavra):
 
 def simples_da_gramatica(resto):
     """Os comandos simples do resto (listas de palavras cruas), ou o primeiro sinal fora da gramática (str). Aspas
-    como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`. O `$?` (o
-    código de saída) vale entre duplas e, fora de aspas, só como argumento de `echo` ou de `printf` depois do formato
-    (`codigo_de_saida_vale`) e sem a palavra K3 (substituição de comando) no resto (ADR 0011, emenda H1-1)."""
-    simples, palavras, palavra, solto, i, n = [], [], "", False, 0, len(resto)
+    como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`, menos o `$?`
+    (o código de saída, ADR 0011, emenda H1-1); fora de aspas, o `$?` segue recusado."""
+    simples, palavras, palavra, i, n = [], [], "", 0, len(resto)
 
     def fechar():
         nonlocal palavra
         if palavra:
             palavras.append(palavra)
         palavra = ""
-
-    def fora_do_echo():  # o `$?` fora de aspas no comando simples, fora do `echo` ou do `printf`, ou com K3 no resto
-        return solto and (PALAVRA_K3 in resto or not codigo_de_saida_vale([sem_aspas(p) for p in palavras]))
 
     while i < n:
         c = resto[i]
@@ -1614,16 +1574,11 @@ def simples_da_gramatica(resto):
                 return nome_do_sinal(ruim)
             palavra, i = palavra + resto[i:fim + 1], fim + 1
             continue
-        if resto.startswith("$?", i):  # fora de aspas, só no `echo` ou no `printf` (`codigo_de_saida_vale`)
-            palavra, solto, i = palavra + "$?", True, i + 2
-            continue
         if resto.startswith("&&", i) or c in ";\n":
             fechar()
-            if fora_do_echo():
-                return "$? fora de echo ou printf"
             if palavras:
                 simples.append(palavras)
-            palavras, solto = [], False
+            palavras = []
             i += 2 if c == "&" else 1
             continue
         if c in " \t":
@@ -1634,8 +1589,6 @@ def simples_da_gramatica(resto):
             return nome_do_sinal(c)
         i += 1
     fechar()
-    if fora_do_echo():
-        return "$? fora de echo ou printf"
     if palavras:
         simples.append(palavras)
     return simples

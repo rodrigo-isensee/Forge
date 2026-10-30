@@ -1790,7 +1790,8 @@ class Hooks(unittest.TestCase):
                      and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
-            self.assertLessEqual(len(fora), 8, fora)
+            # 10: as duas sondas de extglob do PN7-DOLAR-INTERROG; o `bash -n` não roda o `shopt -s extglob` da 1ª linha
+            self.assertLessEqual(len(fora), 10, fora)
             _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
         return minimo(_CORPUS, 500, "linhas de recusa de Bash")
 
@@ -1951,8 +1952,8 @@ class Hooks(unittest.TestCase):
 
 
 class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
-    """O `$?` é construção modelada: `$?` × posição na palavra × aspas × lugar × `IFS` posto de qualquer jeito. Entre
-    aspas duplas passa sempre; fora de aspas, só como argumento de `echo` ou `printf`; todo outro `$` segue recusado."""
+    """O `$?` é construção modelada só entre aspas duplas: `$?` × posição na palavra × aspas × lugar × `IFS` posto de
+    qualquer jeito. Entre aspas duplas passa sempre; fora de aspas recusa em todo lugar, como todo outro `$`."""
     TOKENS = ("$?", "${?}", "$#", "$@", "$1", "$x", "$'r'", '$"r"', "$$?", "$?$x")
     POSICOES = ("{}", "rc={}", "a{}b", "{}x")
     ASPAS = {"fora": "{}", "duplas": '"{}"', "simples": "'{}'"}
@@ -1961,7 +1962,8 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
     LUGARES = ("echo {}", "printf %s {}", "echo {}; git push origin melhoria/x", "git push origin {}",
                "{} push origin main", "echo {} | sh", "echo {} > f", "printf -v {} x", "printf {} x", "x={}",
                "echo $(git push origin {})", "git push origin {}; echo ok", "git push origin $(true) echo {}",
-               "git push origin $((0)) echo {}")
+               "git push origin $((0)) echo {}", "git push origin @(x)echo {}", "git push origin >& echo {}",
+               "git push origin 2>& echo {}", "git push origin <& echo {}", "git push origin >| echo {}")
 
     def test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs(self):
         _comum, _, parecer = modulos_dos_hooks()
@@ -1971,35 +1973,33 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
             if aspas == "simples" and "'" in token:
                 continue  # `$'r'` não se escreve entre aspas simples
             comando = lugar.format(molde.format(posicao.format(token)))
-            solto_vale = lugar in self.LUGARES[:3] and "$(" not in ifs  # com substituição, o `$?` solto recusa
-            passa = aspas == "simples" or token == "$?" and (aspas == "duplas" or solto_vale)
+            passa = aspas == "simples" or token == "$?" and aspas == "duplas"
             with self.subTest(comando=comando, ifs=ifs):
                 vistos += 1
                 linha = f"{ifs}git commit -F - <<'EOF'\nx\nEOF\n{comando}"
                 self.assertEqual(_comum.construcao_nao_modelada(linha) is None, passa, linha)
                 resto = f"{ifs}git commit -F - {_comum.OPERADOR_K}\n{comando}"
-                da_gramatica = not any(s in resto for s in ("\\", "<", ">", "|", "$("))
+                da_gramatica = not any(s in resto for s in ("\\", "<", ">", "|", "("))
                 self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa and da_gramatica, resto)
                 self.assertFalse(parecer.heredocs_simples(f"cat <<'EOF'\nx\nEOF\n{ifs}{comando}"))
         self.assertGreaterEqual(vistos, 5000)
 
-    def test_substituicao_de_comando_recusa_o_codigo_fora_de_aspas(self):
-        """Com `$(…)`, `$((…))`, `<(…)` ou `>(…)` em qualquer ponto do texto, o `$?` fora de aspas recusa (o `(` e o `)`
-        não marcam o comando simples do bash: `IFS=0; git push origin $(true) echo x$?main` empurra a `main`)."""
+    def test_codigo_fora_de_aspas_recusa_em_todo_lugar(self):
+        """Fora de aspas o `$?` recusa também como argumento de `echo` (DECISÃO DO DONO 2026-10-30, "A"): a fronteira do
+        comando simples não é plana no bash (`$(…)`, extglob `@(x)`, `>&`), e só as aspas duplas impedem a divisão."""
         _comum, _, _ = modulos_dos_hooks()
-        for antes in ("git push origin $(true) echo x", "echo $(true); echo ", "echo $((0)); echo ", "cat <(true); echo ",
-                      "tee >(cat) < f; echo ", "IFS=0; git push origin $(true) echo x"):
-            for depois, passa in (("$?main", False), ('"$?"main', True)):
+        for antes in ("", "git push origin x; ", "git push origin $(true) ", "shopt -s extglob nullglob\ngit push @(x)",
+                      "git push origin >& ", "git push origin >| ", "IFS=0; git push origin <& "):
+            for depois, passa in (("echo rc=$?", False), ('echo "rc=$?"', True), ("echo rc=\"$?\"", True)):
                 with self.subTest(linha=antes + depois):
                     self.assertEqual(_comum.construcao_nao_modelada(antes + depois) is None, passa)
-        self.assertIsNone(_comum.construcao_nao_modelada("git push origin x; echo rc=$?"))
         k3 = f"git commit -m {_comum.PALAVRA_K3}\necho "
         self.assertIsInstance(_comum.simples_da_gramatica(k3 + '"rc=$?"'), list)
-        self.assertIsInstance(_comum.simples_da_gramatica(k3 + "rc=$?"), str)
-        self.assertIsInstance(_comum.simples_da_gramatica("git commit -m x\necho rc=$?"), list)
+        self.assertIsInstance(_comum.simples_da_gramatica("git commit -m x\necho rc=$?"), str)
+        self.assertIsInstance(_comum.simples_da_gramatica('git commit -m x\necho "$$?"'), str)
 
     def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):
-        """O motivo da regra de posição: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
+        """O motivo de valer só entre aspas: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
         saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
                                capture_output=True, text=True, check=False).stdout
         self.assertEqual(saida, "<x><main><x1main>")

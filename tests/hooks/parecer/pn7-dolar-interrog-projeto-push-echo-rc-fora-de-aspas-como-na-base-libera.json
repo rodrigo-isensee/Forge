@@ -1,10 +1,9 @@
 {
-  "descricao": "PN7-DOLAR-INTERROG (H1-1, ADR 0011): o $? passa (forge-clone).",
+  "descricao": "PN7-DOLAR-INTERROG (H1-1, ADR 0011): o $? fora de aspas, sem marcador crítico que este hook leia, passa como na base 31257c1 (projeto).",
   "arquivos": {
     "src/app.js": "v1\n",
-    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+    "docs/pedidos/p1.md": "# p1\n"
   },
-  "forge": false,
   "git": [
     {
       "branch": "feature/x"
@@ -24,7 +23,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "git add docs/reviews/x.md && git commit -m x; echo rc=$?"
+      "command": "git push origin melhoria/x; echo rc=$?"
     },
     "agent_type": "forge:tech-lead",
     "hook_event_name": "PreToolUse",
