@@ -518,6 +518,23 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+def trabalhadores_do_pool(nucleos):
+    """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
+    núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
+    if not isinstance(nucleos, int) or isinstance(nucleos, bool) or nucleos < 1:
+        return 2
+    return min(4, max(2, nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -572,7 +589,7 @@ class Hooks(unittest.TestCase):
             if f.dados.get("executaveis"):
                 tmp = self._pasta_temporaria()
                 montados[nome] = (tmp, f.montar(tmp, outro.pid))
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             futuros = []
             for nome, f in em_paralelo:
@@ -1948,6 +1965,34 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
+
+
+class PoolDosFixtures(unittest.TestCase):
+    """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
+
+    def test_pool_por_nucleos_e_limites(self):  # AB-8
+        for nucleos, esperado in ((1, 2), (2, 2), (4, 4), (16, 4), (None, 2), (0, 2), (-3, 2), ("x", 2)):
+            with self.subTest(nucleos=nucleos):
+                self.assertEqual(trabalhadores_do_pool(nucleos), esperado)
+
+    def test_pool_le_a_afinidade_e_ignora_o_forge_nproc(self):  # AB-8
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "64"}):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1, 2, 3, 4, 5}):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 4)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=8):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)  # sem leitura, o piso
+
+    def test_pool_uma_fonte_so(self):  # C-1: nenhum módulo de teste refaz a conta `cpu_count // 2` do pool
+        copias = []
+        for arquivo in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"cpu_count\(\) or 2\) // 2", linha):
+                    copias.append(f"{arquivo.name}:{n}")
+        self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
 
 
 if __name__ == "__main__":
