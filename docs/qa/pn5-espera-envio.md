@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: pn5-espera-envio
 branch: melhoria/pn5-espera-envio
-commit: 8a7ad60d238af4a894901f28b96dd909bb910af6
+commit: 07fd724471aa59537e7d4bc030bc8740e9949c94
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -44,3 +44,10 @@ Escopo (pedido PN5-ESPERA-ENVIO, E1 e E2): regra 4 e seção "O envio longo" da 
 - `bin/forge-mutante --cobertura --base cfc2734e8b1ebf196ec42eba086d80d48348f50f`, rc=0: só a linha `base=… rev=8a7ad60…`, sem condição Python sem mutante.
 - PA-7: lista com mínimo (`4 * (len(BLOCOS) + 1)` e blocos achados), sem `skip`, sem espera fixa (`sleep` falso).
 - A1 anterior (fechamento-integrador sem teste) segue recomendado, sem devolução.
+
+## Revalidação (volta 2, delta 9bf2d8e..07fd724)
+- Delta: `tests/test_esperar_estado.py:169`, o `LOG` do teste passa de caminho pessoal para `/tmp/forge-tmp/envio.log`; sem mudança de comportamento nem de regra, sem linha de guarda nova.
+- Suíte: `python3 -m unittest tests.test_esperar_estado` sobre 07fd724: 13 testes, OK.
+- Mutação: `bin/forge-mutante tests/mutantes/pn5-espera-envio.json`, rc=0: M1 a M5 morreram (SKILL.md:43, SKILL.md:38, SKILL.md:43, tech-lead.md:21, SKILL.md:38).
+- `scripts/verificar-contribuicao.sh origin/develop`: rc=0, "ok: nenhum segredo nem caminho pessoal no diff contra origin/develop".
+- PA-7: sem `skip`, sem espera fixa, lista com mínimo, sem caminho pessoal; o A1 segue recomendado, sem devolução.
