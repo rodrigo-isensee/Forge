@@ -1,0 +1,106 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A-A3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A3-m1",
+      "guarda": "a opcao curta -X recusa o merge na integracao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                if letra in \"sX\":",
+      "para": "                if letra in \"s\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m2",
+      "guarda": "o --no-commit recusa o merge na integracao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"--squash\", \"--no-commit\")",
+      "para": "\"--squash\",)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m3",
+      "guarda": "o pull.twohead por configuracao recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "|pull\\.(twohead|octopus)|",
+      "para": "|pull\\.octopus|",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m4",
+      "guarda": "a configuracao do merge por -c recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if palavras[i] == \"-c\" and i + 1 < len(palavras) and CONFIG_DO_MERGE.match(palavras[i + 1]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m5",
+      "guarda": "o valor com tracos depois do -- conta como valor da configuracao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if \"--\" in args:  # depois do `--`",
+      "para": "        if False:  # depois do `--`",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m6",
+      "guarda": "a opcao de merge recusa na integracao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "                achada = opcao_de_merge_que_muda_o_resultado(args)",
+      "para": "                achada = None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m7",
+      "guarda": "a opcao longa do merge e lida como longa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if a.startswith(\"--\"):\n            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
+      "para": "if False:\n            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A3-m8",
+      "guarda": "a abreviacao da opcao longa do merge recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
+      "para": "if False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A3-m9",
+      "guarda": "o grupo curto do merge e lido letra a letra",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif a.startswith(\"-\"):\n            for letra in a[1:]:",
+      "para": "elif False:\n            for letra in a[1:]:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A3-m10",
+      "guarda": "o resto do grupo curto depois de -m, -F ou -S e valor, nao opcao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if letra in \"mFS\":  # o resto",
+      "para": "if False:  # o resto",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A3-m11",
+      "guarda": "a opcao de merge achada recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if achada:  # A3",
+      "para": "if False:  # A3",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    }
+  ]
+}
