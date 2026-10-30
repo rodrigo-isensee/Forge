@@ -1,0 +1,94 @@
+{
+  "pedido": "pn7-dolar-interrog",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D1",
+      "guarda": "a construcao volta a recusar todo $?",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and (contexto[0] == \"duplas\" or \"IFS\" not in linha):",
+      "para": "elif False:",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D2",
+      "guarda": "a construcao aceita o $? fora de aspas com IFS na linha",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and (contexto[0] == \"duplas\" or \"IFS\" not in linha):",
+      "para": "elif c == \"$\" and seguinte == \"?\" and (contexto[0] == \"duplas\" or True):",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D3",
+      "guarda": "a construcao recusa o $? entre aspas duplas com IFS na linha",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and (contexto[0] == \"duplas\" or \"IFS\" not in linha):",
+      "para": "elif c == \"$\" and seguinte == \"?\" and (\"IFS\" not in linha):",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D4",
+      "guarda": "a construcao aceita outro $ alem do $?",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and (contexto[0] == \"duplas\" or \"IFS\" not in linha):",
+      "para": "elif c == \"$\" and seguinte != \"(\" and (contexto[0] == \"duplas\" or \"IFS\" not in linha):",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D5",
+      "guarda": "a gramatica volta a recusar o $? entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "for x in resto[i + 1:fim].replace(\"$?\", \"\") if x in proibidos",
+      "para": "for x in resto[i + 1:fim] if x in proibidos",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D6",
+      "guarda": "a gramatica aceita todo $ entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "for x in resto[i + 1:fim].replace(\"$?\", \"\") if x in proibidos",
+      "para": "for x in resto[i + 1:fim].replace(\"$\", \"\") if x in proibidos",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D7",
+      "guarda": "a gramatica volta a recusar o $? fora de aspas",
+      "arquivo": "hooks/_comum.py",
+      "de": "if resto.startswith(\"$?\", i) and \"IFS\" not in resto:",
+      "para": "if False:",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D8",
+      "guarda": "a gramatica aceita o $? fora de aspas com IFS no texto",
+      "arquivo": "hooks/_comum.py",
+      "de": "if resto.startswith(\"$?\", i) and \"IFS\" not in resto:",
+      "para": "if resto.startswith(\"$?\", i):",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D9",
+      "guarda": "a gramatica aceita outro $ fora de aspas",
+      "arquivo": "hooks/_comum.py",
+      "de": "if resto.startswith(\"$?\", i) and \"IFS\" not in resto:",
+      "para": "if resto.startswith(\"$\", i) and \"IFS\" not in resto:",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D10",
+      "guarda": "heredocs_simples volta a recusar o $?",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"$\" in linha.replace(\"$?\", \"\") or",
+      "para": "\"$\" in linha or",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    },
+    {
+      "id": "D11",
+      "guarda": "heredocs_simples aceita outro $ nas linhas de comando",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"$\" in linha.replace(\"$?\", \"\") or",
+      "para": "\"$\" in linha.replace(\"$\", \"\") or",
+      "testes": ["tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_e_ifs"]
+    }
+  ]
+}
