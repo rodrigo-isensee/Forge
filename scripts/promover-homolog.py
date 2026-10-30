@@ -10,7 +10,8 @@ Passos, em ordem; para no primeiro erro:
      vazio; sem fragmento em changelog.d/. Sem versão nova a promoção não é release e o CHANGELOG não é conferido
      (a mesma regra do CI, scripts/conferir-release.py --so-se-versao-mudou).
   4. PR develop -> homolog: abre se não houver (reusa o aberto; base que não seja a homolog para).
-  5. checks: uma leitura de `gh pr checks`; só pass/skipping passam.
+  5. checks: uma leitura de `gh pr checks --json`; só contam os do evento pull_request (os do push da develop, no
+     mesmo sha, não são a bateria do PR); só pass/skipping passam.
   6. rótulo: a Catraca vermelha pede o rótulo `afrouxa-regra` do dono; o script só avisa, nunca o aplica.
   7. imprime o comando que liga o merge automático (--auto); com o merge automático desligado no repositório, o comando recusa e o tech-lead mescla com tudo verde. O script NÃO mescla: o rótulo segue com o dono.
 --dry-run: roda só as leituras locais dos passos 1 a 3 (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
@@ -182,18 +183,22 @@ def corpo_do_pr(versao, ref, base):
 
 
 def ler_checks(gh, numero):
-    cod, saida = ler(gh, "pr", "checks", numero, tentativas=1)
+    """Só os checks do evento pull_request do PR: os do push da develop (mesmo sha) não são a bateria do PR."""
+    cod, saida = ler(gh, "pr", "checks", numero, "--json", "name,bucket,event,link", tentativas=1)
+    try:
+        todos = json.loads(saida)
+    except ValueError:
+        todos = None
+    if not isinstance(todos, list):
+        return None, [], saida
     estados, linhas = [], []
-    for linha in saida.splitlines():
-        campos = linha.split("\t")
-        if len(campos) < 2:
+    for c in todos:
+        if not isinstance(c, dict) or c.get("event") != "pull_request":
             continue
-        run = job = "?"
-        m = re.search(r"/runs/(\d+)/job/(\d+)", campos[3] if len(campos) > 3 else "")
-        if m:
-            run, job = m.groups()
-        estados.append((campos[0], campos[1]))
-        linhas.append(f"check {campos[0]} {campos[1]} run={run} job={job}")
+        m = re.search(r"/runs/(\d+)/job/(\d+)", str(c.get("link", "")))
+        run, job = m.groups() if m else ("?", "?")
+        estados.append((c.get("name"), c.get("bucket")))
+        linhas.append(f"check {c.get('name')} {c.get('bucket')} run={run} job={job}")
     return estados, linhas, saida
 
 
@@ -214,7 +219,7 @@ def promover(args):
     if args.dry_run:
         gh = comando_gh()
         print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
-        print(f"[5] checks: {gh} pr checks <PR> (uma leitura; só pass/skipping passam; pendente sai com 3)")
+        print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com 0)")
         print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
         print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
         print("dry-run concluído: nada foi alterado.")
@@ -236,10 +241,10 @@ def promover(args):
     estados, linhas, saida = ler_checks(gh, numero)
     print("[5] checks")
     print("\n".join(linhas))
+    if estados is None and saida.strip() and "no checks reported" not in saida.lower():
+        parar(f"não consegui ler os checks: {saida.strip()}")
     if not estados:
-        if saida.strip() and "no checks reported" not in saida.lower():
-            parar(f"não consegui ler os checks: {saida.strip()}")
-        print("nenhum check apareceu ainda; o merge automático espera os checks.")
+        print("nenhum check do evento pull_request apareceu ainda; o merge automático espera os checks.")
         print(f"head: {sha}")
         print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
         return 0

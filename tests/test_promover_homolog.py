@@ -33,6 +33,12 @@ CHANGELOG = "# Changelog\n\n## [Não publicado]\n{np}\n## [{v}] - 2026-10-22\n- 
 MERGE = "gh pr " + "merge"  # montado: o texto do comando não aparece solto no arquivo
 
 
+def checks(*itens, evento="pull_request"):
+    """Saída de `gh pr checks --json name,bucket,event,link`: itens (nome, bucket) ou (nome, bucket, evento)."""
+    return json.dumps([{"name": i[0], "bucket": i[1], "event": i[2] if len(i) > 2 else evento,
+                        "link": f"https://x/runs/1/job/{n}"} for n, i in enumerate(itens, 2)])
+
+
 class Promover(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="promover-"))
@@ -60,7 +66,7 @@ class Promover(unittest.TestCase):
         self.git("push", "-q", "origin", "develop")
         self.git("push", "-q", "origin", "develop:homolog")
         self.git("fetch", "-q", "origin")
-        (self.estado / "checks").write_text("bateria\tpass\t1m\thttps://x/runs/1/job/2\ncatraca\tpass\t1s\thttps://x/runs/1/job/3\n")
+        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass")))
 
     def tearDown(self):
         shutil.rmtree(self.tmp)
@@ -259,7 +265,7 @@ class Execucao(Promover):
 
     def test_check_pendente_imprime_o_merge_automatico_sem_mesclar(self):
         self.pronta()
-        (self.estado / "checks").write_text("bateria\tpending\t0\turl\n")
+        (self.estado / "checks").write_text(checks(("bateria", "pending")))
         r = self.roda()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         sha = self.git("rev-parse", "origin/develop")
@@ -268,14 +274,14 @@ class Execucao(Promover):
 
     def test_check_vermelho_para(self):
         self.pronta()
-        (self.estado / "checks").write_text("bateria\tfail\t1m\turl\n")
+        (self.estado / "checks").write_text(checks(("bateria", "fail")))
         r = self.roda()
         self.assertEqual(r.returncode, 1)
         self.assertNotIn(MERGE, r.stdout)
 
     def test_catraca_vermelha_sem_rotulo_aguarda_o_dono(self):
         self.pronta()
-        (self.estado / "checks").write_text("bateria\tpass\t1m\turl\ncatraca\tfail\t1s\turl\n")
+        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "fail")))
         r = self.roda()
         self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
         self.assertIn("afrouxa-regra", r.stdout)
@@ -289,6 +295,45 @@ class Execucao(Promover):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         sha = self.git("rev-parse", "origin/develop")
         self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+
+    def test_le_os_checks_em_json_com_o_evento(self):
+        self.pronta()
+        self.roda()
+        self.assertIn("pr checks 9 --json name,bucket,event,link", "\n".join(self.gh_chamadas()))
+
+    def test_so_checks_do_push_nao_sao_verdes_e_o_merge_sai_com_auto(self):
+        self.pronta()  # PROMOVER-SEM-AUTO (#371): logo após abrir o PR, só os checks do push da develop existem
+        (self.estado / "checks").write_text(checks(("bateria", "pass"), ("catraca", "pass"), evento="push"))
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("checks verdes", r.stdout)
+        self.assertIn("nenhum check do evento pull_request", r.stdout)
+        sha = self.git("rev-parse", "origin/develop")
+        self.assertIn(f"{MERGE} develop --auto --merge --match-head-commit {sha}", r.stdout)
+
+    def test_check_do_push_nao_decide_o_vermelho_nem_o_verde(self):
+        self.pronta()
+        (self.estado / "checks").write_text(checks(("bateria", "fail", "push"), ("bateria", "pass")))
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("checks verdes", r.stdout)
+        (self.estado / "checks").write_text(checks(("bateria", "pass", "push"), ("bateria", "fail")))
+        r = self.roda()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertNotIn(MERGE, r.stdout)
+
+    def test_saida_que_nao_e_lista_json_para(self):
+        self.pronta()
+        for saida in ("bateria\tpass\t1m\turl\n", '{"name": "bateria"}'):
+            (self.estado / "checks").write_text(saida)
+            r = self.roda()
+            self.assertEqual(r.returncode, 1, saida)
+            self.assertIn("não consegui ler os checks", r.stderr)
+            self.assertNotIn(MERGE, r.stdout)
+        (self.estado / "checks").write_text("no checks reported on the 'develop' branch\n")
+        r = self.roda()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("--auto", r.stdout)
 
     def test_fetch_traz_a_develop_nova_do_remoto(self):
         self.pronta()
