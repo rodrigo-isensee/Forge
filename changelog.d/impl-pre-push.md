@@ -1,0 +1,2 @@
+### Corrigido
+- pre-push: confere o modo da subpasta da trava (recusa escrita de grupo ou de outros, e erro na leitura do modo é recusa), o erro do --status sai com 2, o --status aponta o --suite, a trava e a fila ficam em $HOME/.forge-contrib dentro e fora do sandbox sem recuo (as provas ficam onde estavam), o texto da trava sai limitado e imprimível e traz o namespace depois do pid; as worktrees abertas só usam a trava comum depois de trazer o hook novo.
