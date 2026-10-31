@@ -2,8 +2,8 @@
 tipo: review
 contrato: 1
 pedido: release-0.30.8
-branch: melhoria/release-0.30.8
-commit: 57baeb676fede745474850105479ca726ca30a5a
+branch: melhoria/release-0.30.8-fecha
+commit: 9f4cc095249ec158b49e520d9a13a42b336bc60f
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
@@ -29,3 +29,9 @@ Aprovado. Nenhum defeito provado, requisito descumprido nem achado de segurança
 - **Ferramentas citadas, não refeitas:** `python3 -m unittest tests.test_changelog` OK (46 testes); `bin/forge-check docs` rc 0. O pre-push desta branch rodou a suíte inteira em 4 processos (2330 testes): duas tentativas caíram por um teste de tempo fora do diff cada (A2), ambos verdes isolados; a terceira passou. O review não reexecutou mutação nem shellcheck: estão nos QA de cada PR e no CI.
 - **Neutralidade e custo:** nenhum termo de projeto ou de stack nos textos novos de agentes, skills e modelos; nada novo consome serviço pago (`R-NEUTRO`, `R-CUSTO`).
 - **Devops:** a leva não toca `.github/`, contêiner nem IaC; sem parecer de devops. Segurança e QA da leva têm parecer próprio, em paralelo (`R-SEGURANCA`, `R-QA`).
+
+## Revalidação no head 9f4cc09 (volta por delta)
+- **Delta lido:** `forge-check delta --parecer docs/reviews/release-0.30.8.md` listou o intervalo `57baeb6..9f4cc09` e só `CHANGELOG.md` +1 (linha 24, `pareceres de review, segurança e QA da leva da 0.30.8`, na seção `[0.30.8]`); li essa linha. Do fragmento `changelog.d/release-0.30.8.md` (PR #399, duas linhas removidas), li o diff: a linha movida é a mesma do CHANGELOG, e `changelog.d/` fica ausente.
+- **Já lido:** todo o código da leva (parecer anterior); os pareceres de segurança e QA em `docs/` não são do meu escopo. Nenhum arquivo de código, teste ou hook mudou entre os dois commits.
+- **M14:** `git diff --numstat --no-renames origin/develop...HEAD` dá `1 0 CHANGELOG.md` e `0 2 changelog.d/release-0.30.8.md`; nenhum arquivo de código ou teste, 0 linhas contáveis, um só comportamento (fechar o fragmento no CHANGELOG). A branch cumpre a M14.
+- **Achados A1 a A5:** inalterados, seguem recomendados; o parecer continua aprovado.
