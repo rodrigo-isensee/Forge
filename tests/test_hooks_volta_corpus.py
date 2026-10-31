@@ -35,7 +35,9 @@ from apoio_volta_unica import (  # noqa: E402
     modulos_dos_hooks,
     rodar,
     limite_de_cpu_do_corpus,
-    trabalhadores_do_lote,
+    nucleos_do_processo,
+    trabalhadores_do_limite_de_cpu,
+    trabalhadores_do_pool,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
@@ -70,7 +72,7 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
             entrada["tool_input"]["command"] = texto
             return rodar(hook, entrada, raiz, proc, {"FORGE_NPROC": "8"}).returncode
 
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             reais = list(pool.map(pelo_hook, pedidos))
         no_lote = self.decidir_em_lote(pedidos, montados)
@@ -110,7 +112,7 @@ class CorpusDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         with MedidaDeCpu() as medida:
             casos = self.fixtures_do_corpus()
             self.assertEqual(self.executar_em_lote(casos), len(casos))
-        trabalhadores = trabalhadores_do_lote()
+        trabalhadores = trabalhadores_do_limite_de_cpu()
         self.assertLess(medida.cpu, limite_de_cpu_do_corpus(),
                         f"o corpus gastou {medida.texto()}, com {trabalhadores} trabalhadores (limite: 90 s de CPU por trabalhador)")
 
