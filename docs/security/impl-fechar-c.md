@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-fechar-c
 branch: melhoria/impl-fechar-c-c4
-commit: 15fbea0a8d0f1b2a1bd7a83b43b6817fd7ba2be4
+commit: 0ffbc737bc1227d11134b5214f85b56d85c021dd
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
@@ -20,8 +20,6 @@ Diff lido: `234dbe0..15fbea0` (bin/forge-fechar, tests/test_fechar_corrida_rotul
 `R-SEGURANCA`: controles do Forge (a espera do rótulo do dono antes do merge).
 
 ## Achados
-- A1 (recomendado) tests/test_fechar_corrida_rotulo.py:64 · O teste do AB-C4-4 faz falhar toda leitura do rótulo, não só a posterior: o rótulo nunca é visto e o teste passa com qualquer regra. Um mutante medido (leitura que falha descarta) passa os 20 testes. Dono: qa-engineer.
-- A2 (recomendado) tests/test_fechar_corrida_rotulo.py:72 · Sem teste para AB-C4-5 (descartada em skipping com velha) e AB-C4-7 (rótulo retirado durante a espera); o código os cobre por leitura, mas nenhuma asserção os prende. Dono: qa-engineer.
 
 ## Detalhe dos achados
 Conferência dos controles:
@@ -42,3 +40,10 @@ Nenhum dos dois devolve: o código está correto por leitura e o portão do merg
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura do diff e do script, testes da suíte e um mutante em cópia descartável. Faltaram no PATH: `shellcheck`, `gitleaks` e `semgrep` (lacuna).
+
+## Revalidação (volta por delta)
+`forge-check delta` de `15fbea0..0ffbc73`: `tests/test_fechar_corrida_rotulo.py` (+32, linhas 34-45 e 84-103) e `tests/mutantes/impl-fechar-c-c4.json` (+113). Delta lido inteiro. Nenhum arquivo de `bin/`, `hooks/`, `.githooks/` nem controle do Forge mudou; `bin/forge-fechar` é o mesmo do parecer anterior ("já lido").
+- A1 e A2 do parecer anterior (recomendados) foram atendidos: o teste novo do AB-C4-4 falha só a leitura posterior do rótulo (a spec mapeia o mutante C4-2 a ele) e o do AB-C4-7 cobre o rótulo retirado na espera; ambos afirmam que não há merge. Os dois itens saem dos achados.
+- Rodado aqui: `test_fechar_corrida_rotulo` e `test_fechar_espera_catraca`, 22 testes OK.
+- A spec de mutantes só declara trocas em cópia; não executa nada no projeto.
+Sem achado novo; o veredito se mantém.
