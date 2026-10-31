@@ -1,5 +1,5 @@
 {
-  "descricao": "set com --append antes da chave do merge: git config set --append pull.twohead ours",
+  "descricao": "FURO-HOOK-A, A3: set com --append antes da chave do merge: git config set --append pull.twohead ours",
   "arquivos": {
     "src/app.js": "v1\n"
   },

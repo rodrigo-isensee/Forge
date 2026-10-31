@@ -1,5 +1,5 @@
 {
-  "descricao": "set com --all antes da chave do merge: git config set --all branch.develop.mergeoptions --squash",
+  "descricao": "FURO-HOOK-A, A3: set com --all antes da chave do merge: git config set --all branch.develop.mergeoptions --squash",
   "arquivos": {
     "src/app.js": "v1\n"
   },

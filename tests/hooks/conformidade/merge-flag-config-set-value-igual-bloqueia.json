@@ -1,5 +1,5 @@
 {
-  "descricao": "set com --value=x antes de chave protegida: git config set --value=x core.editor vi",
+  "descricao": "FURO-HOOK-A, A3: set com --value=x antes de chave protegida: git config set --value=x core.editor vi",
   "arquivos": {
     "src/app.js": "v1\n"
   },
