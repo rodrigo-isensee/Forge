@@ -1,0 +1,19 @@
+{
+  "descricao": "set com --value=x antes de chave protegida: git config set --value=x core.editor vi",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config set --value=x core.editor vi"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

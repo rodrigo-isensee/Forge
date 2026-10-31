@@ -1,0 +1,19 @@
+{
+  "descricao": "set com --comment=x antes da chave do merge: git config set --comment=x pull.octopus ours",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config set --comment=x pull.octopus ours"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}

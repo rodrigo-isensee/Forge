@@ -1,0 +1,19 @@
+{
+  "descricao": "set com --all antes da chave do merge: git config set --all branch.develop.mergeoptions --squash",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config set --all branch.develop.mergeoptions --squash"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
