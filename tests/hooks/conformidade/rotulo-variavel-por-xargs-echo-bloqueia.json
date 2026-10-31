@@ -1,0 +1,29 @@
+{
+  "descricao": "FURO-HOOK-A, A5 volta 1: a entrada do xargs traz a opção e o rótulo (echo).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "bin/gh": "#!/bin/sh\necho outra-pessoa\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}"
+  },
+  "executaveis": [
+    "bin/gh"
+  ],
+  "forge": false,
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj",
+    "PATH": "{tmp}/proj/bin:/usr/bin:/bin"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo --add-label afrouxa-regra | xargs gh pr edit 1"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "só o dono do Forge aplica ou delega o rótulo afrouxa-regra"
+  }
+}
