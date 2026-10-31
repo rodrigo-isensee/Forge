@@ -63,6 +63,16 @@ PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
+def _cpu_dos_filhos():
+    """Segundos de CPU (usuário + sistema) dos filhos já encerrados; None onde não há `resource`."""
+    try:
+        import resource
+    except ImportError:
+        return None
+    r = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return r.ru_utime + r.ru_stime
+
+
 def pid_morto():
     p = subprocess.Popen([sys.executable, "-c", ""])
     p.wait()
@@ -1796,9 +1806,20 @@ class Hooks(unittest.TestCase):
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(dados))
                 caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                tmp = self._pasta_temporaria()
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(caso), encoding="utf-8")
+                fixture = Fixture(arquivo)
+                montado = fixture.montar(tmp, os.getpid())  # a montagem (git init, commit...) fica fora da janela medida
+                cpu_antes = _cpu_dos_filhos()
                 inicio = time.monotonic()
-                self.rodar_dados(caso)
-                self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
+                parede = time.monotonic() - inicio
+                cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
+                self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                if cpu is not None:  # sem `resource` (Windows) só vale a parede
+                    self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
 
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
