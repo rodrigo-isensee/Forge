@@ -129,6 +129,7 @@ CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--lis
                   "--show-names", "--name-only", "--help", "-h"}
 CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section", "--remove-section", "-e",
                   "--edit"}
+CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
 CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
@@ -1254,10 +1255,11 @@ class Guarda:
                 pulo = False
             elif a in CONFIG_COM_VALOR:
                 pulo = True
-            elif not a.startswith("-"):
+            elif a == "--":  # depois do `--` tudo é chave ou valor, mesmo com `-` na frente (`mergeoptions -- --squash`)
+                chaves += args[args.index("--") + 1:]
+                break
+            elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
-        if "--" in args:  # depois do `--` tudo é chave ou valor, mesmo com `-` na frente (`mergeoptions -- --squash`)
-            chaves += args[args.index("--") + 1:]
         grava = len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
         if grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0]):
             self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório",
