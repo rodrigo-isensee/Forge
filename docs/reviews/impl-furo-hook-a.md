@@ -2,31 +2,47 @@
 tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a1
-commit: e30cbd10157b4e595b11f892bf5f51abd081df6d
+branch: melhoria/impl-furo-hook-a-a2
+commit: 7b5f5aa36d90f6368325dfd53d514ebafa545040
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a1 (A1 TESTE-MATRIZ-CRITICO)
+# Review: impl-furo-hook-a, branch a2 (A2 PARECER-LANCADOR)
 
-Escopo: `234dbe0..e30cbd1` (base 234dbe0fb90b005450d7c2eb59e6241ea9779155), commits `88d7d67` (teste e spec de mutantes) e `e30cbd1` (fragmento). Revisor em instância diferente do autor (D-ETAPAS-INST = A).
+Escopo: `234dbe0..6ef09ba` (base 234dbe0fb90b005450d7c2eb59e6241ea9779155), commits `57f9a27` (teste das fixtures do lote), `ed4e092` (correção), `026c03f` (spec de mutantes) e `6ef09ba` (fragmento). Revisor em instância diferente do autor (D-ETAPAS-INST = A).
 
 ## Item entregue
-E1, item A1 TESTE-MATRIZ-CRITICO do pedido, pelo desenho `docs/propostas/lotes-1030/furo-hook.md` §2.4: o T6 `test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante` cruza as ações do corpus sem o marcador `CRITICO` do conformidade, e mais o merge reprovado do parecer, com `VARIANTES_QUE_O_BASH_IGNORA`. Ele roda pelo hook real (`executar_em_lote`) e exige saída 2 sem o texto da rede (`stderr_sem`, chave nova do fixture, documentada na docstring do módulo). As asserções estruturais do desenho estão lá: pelo menos 2 ações sem marcador, e `MECANISMOS_DO_COMENTARIO` contido nas variantes. Os mutantes m1 (laço da crase) e m2 (`atribuicoes +`) estão em `tests/mutantes/impl-furo-hook-a.json`, como manda §2.4(c).
+E2, item A2 PARECER-LANCADOR do pedido, pelo desenho §2.6. Em `conferir_linha`, o `hooks/parecer.py` passa a ler cada comando por `analise_do_comando`, que usa `separar_lancadores`, a mesma fonte do conformidade. Dentro da função:
+- o `cd` de lançador não muda a pasta;
+- atrás do `xargs`, merge e pull recusam;
+- `find` com `-exec`, `-execdir`, `-ok` ou `-okdir` recusa, e os lançadores fora da tabela (`OUTROS_LANCADORES`) também;
+- `LancadorDemais` e `TextoDivididoAberto` recusam com R-REVIEW.
+
+As 9 fixtures do lote cobrem `timeout`, `env`, `xargs`, `find -exec`, `flock`, o encadeado `nice timeout env`, o `nice` sem parecer e o `cd` de lançador. A contraprova `timeout` com parecer aprovado libera. Na `heredoc-volta-unica.json`, o CO5 (`time`) agora recusa no parecer, e isso é endurecimento coerente com o item. O `docs/hooks.md` foi atualizado.
 
 ## M14
-Linhas que contam (`git diff --numstat --no-renames 234dbe0 e30cbd1`): só `tests/test_hooks.py`, com 26+1 = 27. A spec de `tests/mutantes/` e o `changelog.d/` ficam fora. São 27 linhas, abaixo do teto de 150, e não há mudança em `hooks/` nem em `PROTEGIDOS`. Há um comportamento só, o teste T6: cumpre.
+Linhas que contam: `hooks/parecer.py` 32+3 e `tests/test_hooks.py` 5, num total de 40. Ficam fora as fixtures de `tests/hooks/` e `tests/fixtures/`, a spec de `tests/mutantes/`, o `.md` e o `changelog.d/`. São 40 linhas, abaixo de 150. Há uma classe só em `hooks/` (o parecer lê atrás do lançador), com corpus próprio, e nenhum caminho de `PROTEGIDOS`. Cumpre.
 
 ## Conferido
-- Rodado no HEAD revisado: `python3 -m unittest tests.test_hooks.Hooks.test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante` deu `Ran 1 test in 17.458s` e `OK`. A máquina estava com carga 15.
-- Não refiz a mutação: o histórico do pedido registra que os 5 mutantes do lote morreram na E1.1.
-- O teste não tira caso da matriz nem cria lista de pendentes, então nada afrouxa (§2.4 d). R-NEUTRO e R-CUSTO: nada a apontar.
-- Não há `docs/engineering/praticas.md` no Forge, então não há regra de ferramenta a citar. Não houve shell tocado, e o shellcheck não se aplica.
-- Commits em Conventional Commits, em português, com os trailers.
+- Sondas pelo hook real no HEAD revisado, com o fixture `parecer/forge-clone-pr-merge-timeout-reprovado-bloqueia.json` como modelo e o merge reprovado. Todas saíram 2:
+  - `timeout --foo 60`, `env -u X`, `sudo -u x`, `command`, `nohup`, `stdbuf -oL`, `exec`, `builtin` e `setsid`;
+  - `find . -execdir … \;`, `env -S '…'`, `xargs -a f` e `env A=1 nice -n 5`.
+- `$(echo gh pr merge …)` sai 0, com ou sem `timeout` na frente. É o nome calculado da classe N-HOOK1, que já existia na base e fica fora do A2.
+- O `time` antes do merge sai 2, pelo CO5 atualizado.
+- R-NEUTRO e R-CUSTO: nada a apontar. Não há shell tocado. O Forge não tem `docs/engineering/praticas.md`.
+- Não refiz a mutação: o histórico do pedido registra os mutantes mortos na E1.1.
+
+## Revalidação (head 7b5f5aa)
+Desde o parecer em `6ef09ba`, a branch trouxe a develop duas vezes (`412abf7`, `7b5f5aa`); nenhum commit de código do autor. O `forge-check delta` listou o intervalo inteiro, quase todo da develop (0.30.8); li só o que é da branch, pela diferença contra a base `6b77146` (`git diff 6b77146...HEAD`).
+- Delta lido: `hooks/parecer.py` (35 linhas), `tests/test_hooks.py` (5) e `docs/hooks.md` (a resolução do merge). Código e teste são idênticos aos do parecer anterior.
+- `docs/hooks.md`: a linha "Palavra crítica só no texto" ficou com o texto da branch (lançadores lidos pela `separar_lancadores`, `xargs` e `find -exec` recusam) e a linha nova da develop (código de saída) segue intacta, sem perda de nenhuma das duas. A linha [B] também reflete a branch.
+- Já lido, não relido: o restante do delta (CHANGELOG, `bin/`, `tests/` e corpus da develop), que não é da branch.
+- M14 na base nova: 32+3 em `hooks/parecer.py` e 5 em `tests/test_hooks.py`, 40 linhas; uma classe em `hooks/`. Cumpre.
 
 ## Achados
-- A1 (recomendado) tests/test_hooks.py:1850 · o desenho §2.4(d) pede que o autor meça o tempo do T6 e o registre no PR; registre a medida no corpo do PR (aqui foram 17,5 s com carga 15).
+- A1 (recomendado) hooks/parecer.py:264 · OUTROS_LANCADORES repete os 6 nomes de LANCADORES_RECUSADOS do conformidade.py:59 e acrescenta outros 6; uma lista só em _comum.py evita que os dois hooks divirjam quando um nome novo entrar.
+- A2 (recomendado) hooks/parecer.py:274 · lê só a 1.ª leitura de separar_lancadores, e o desenho §2.6 pede a união de todas; a docstring explica (opção fora da tabela já recusa no nível 0) e a sonda `timeout --foo 60 gh pr merge` saiu 2; fixe isso numa fixture do lote.
 
 ## Parecer
-Aprovado. A branch entrega o A1 como o desenho pede e cumpre a M14. A recomendação não devolve.
+Aprovado, também em 7b5f5aa. A branch entrega o A2 e cumpre a M14. As recomendações não devolvem.
