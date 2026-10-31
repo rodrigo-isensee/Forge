@@ -4921,6 +4921,13 @@ class CaminhoDoPedido(unittest.TestCase):
                 with self.subTest(dado):
                     self.assertEqual(self.acha(dado), Path(dado))
 
+    def test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem(self):  # A1 do QA
+        brief = self.tmp / "brief"
+        (brief / "docs" / "pedidos").mkdir(parents=True)
+        (brief / "docs" / "pedidos" / "so2.md").write_text("# x\n", encoding="utf-8")
+        with mock.patch.object(self.mod, "RAIZES_DE_BRIEF", (brief,)):
+            self.assertEqual(self.acha("docs/pedidos/so2.md"), brief / "docs" / "pedidos" / "so2.md")
+
     def test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2(self):  # B5
         r = rodar_fc("entrega", f"{self.tmp}/nada\nescopo: ok.md", "--branch", "x", "--base", "develop", "--base-sha", "0" * 40, "--etapa", "codigo",
                      raiz=self.repo, home=self.home)
