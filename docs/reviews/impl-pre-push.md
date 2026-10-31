@@ -2,35 +2,34 @@
 tipo: review
 contrato: 1
 pedido: impl-pre-push
-branch: melhoria/impl-pre-push-c1
-commit: 6eae448bca62cf03caaac800e3ddd10c17cf449c
+branch: melhoria/impl-pre-push-c2
+commit: f4fadff46d8859d27b7010c00bdca643aef41cc9
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-pre-push, branch c1 (TRAVA-MODO-SUBPASTA)
+# Review: impl-pre-push, branch c2 (PRE-PUSH-STATUS-RC)
 
-Diff lido: `234dbe0..6eae448` (2 commits: `a7968c1` hook e teste, `6eae448` fragmento).
+Diff lido: `234dbe0..f4fadff` (2 commits: `0a21a1a` hook e teste, `f4fadff` fragmento).
 
 ## O que entrega
-Item E1 do pedido, o C1 do desenho (`docs/propostas/lotes-1030/pre-push.md`) com os controles C-1 e C-2 do modelo (`docs/security/ameacas/pre-push.md`): a subpasta `forge-<uid>` do recuo é recusada se tiver qualquer bit de escrita de grupo ou de outros (`/022`, com ou sem sticky). A conferência é falha fechada: `modo_sem_escrita_alheia` só aceita quando o `find` roda e imprime a própria pasta; erro ou saída vazia é recusa, como o C-2 exige (a forma proibida pelo modelo não foi usada). Push, `--suite` e `--status` passam por `trava_arquivo`, logo valem os três.
+Item E2 do pedido, o C2 do desenho (`docs/propostas/lotes-1030/pre-push.md`) com os controles C-4 a C-7 do modelo (`docs/security/ameacas/pre-push.md`): no bloco `--status`, todo erro de conferência (subpasta recusada, trava link, trava ilegível, `trava_confere`) sai por `status_erro`, com rc 2 e a mensagem que manda não rodar a suíte à mão e aponta `.githooks/pre-push --suite` (C-7). 0 = rodando e 1 = nenhuma ficam iguais (C-5); a falha do `flock` segue lida como rodando. O caminho do push não muda e segue com rc 1 (C-4). A dica do `--status` com suíte rodando (C3) está na c3, não aqui.
 
 ## M14 (decisão M14, agents/tech-lead.md:19)
-- Linhas contadas (`git diff --numstat --no-renames 234dbe0 6eae448`): `.githooks/pre-push` 11, `tests/test_pre_push_trava.py` 45; total 56, abaixo de 150. O fragmento `changelog.d/` fica fora.
-- Um comportamento só (a recusa da subpasta frouxa). Toca `.githooks/` (PROTEGIDOS) sem precisar de exceção de teto. Cumpre.
+- Linhas contadas (`git diff --numstat --no-renames 234dbe0 f4fadff`): `.githooks/pre-push` 15, `tests/test_pre_push_trava.py` 40; total 55, abaixo de 150. O fragmento `changelog.d/` fica fora.
+- Um comportamento só (o rc 2 do erro do `--status`, com a mensagem dele). Toca `.githooks/` (PROTEGIDOS) sem precisar de exceção de teto. Cumpre.
 
 ## Regras de ferramenta
-- Suíte: a branch está no `origin` com o head revisado, logo o pre-push passou no envio do autor; rodei ainda `python3 -m unittest tests.test_pre_push_trava` na worktree: `Ran 32 tests ... OK`.
+- Suíte: a branch está no `origin` com o head revisado, logo o pre-push passou no envio do autor; rodei ainda `python3 -m unittest tests.test_pre_push_trava` na worktree: `Ran 30 tests ... OK`.
 - shellcheck: não instalado nesta máquina (`shellcheck: command not found`); fica para o passo do CI. Pendência, não review manual.
 - Mutação: sem `tests/mutantes/impl-pre-push*.json` na branch. Pendência do autor (V2).
 
 ## Leitura
-- Testes cobrem os casos de abuso 1, 2 e 3 do modelo: 0o777, 0o770, 0o702 e 0o1777 recusados no push (rc 1, suíte não roda, nada escrito na subpasta) e no `--status` (sem "nenhuma suíte"); contraprova com 0o700, 0o750 e 0o755 aceitos; `find` falso que falha sem saída recusa.
-- O falso de `find` (checklist 12) é mais estrito que o real (sai 1 sem imprimir), exatamente o caso que o C-2 manda recusar.
-- Escopo do C1 só (condição, mensagem com o `chmod 700`, comentário); revertido sozinho, volta a aceitar. R-NEUTRO e R-CUSTO preservados; nenhum invariante tocado.
+- A troca de `tests/test_pre_push_trava.py:276` é exatamente a que o C-6 pede: `assertEqual(codigo, 2)`, a asserção da mensagem de `:277` mantida e a negativa `assertNotIn("nenhuma suíte", saida)` acrescentada; a do push (`:271`) segue 1. Distingue mais e não aceita mais.
+- O teste novo cobre os casos de abuso 4 e 5 do modelo: subpasta link, trava link e trava sem leitura dão rc 2 no `--status`, sem "nenhuma suíte", com a dica do `--suite`, e rc 1 no push, sem suíte.
+- Escopo do C2 só (bloco `--status`, comentário da linha 7, teste); revertido sozinho, volta o rc 1 no erro. R-NEUTRO e R-CUSTO preservados; nenhum invariante tocado.
 
 ## Achados
-- A1 (recomendado) tests/test_pre_push_trava.py:316 · O --status com subpasta frouxa não confere o rc; o caso de abuso 2 do modelo pede rc 2, que vem com a c2. Depois do merge das duas, acrescentar assertEqual(codigo, 2) aqui.
 
 ## Parecer
-Aprovado. Entrega o C1 do E1 como desenhado e como o modelo de ameaças pede, dentro da M14. A recomendação A1 não devolve.
+Aprovado. Entrega o C2 do E2 como desenhado e como o modelo de ameaças pede, dentro da M14. Sem achados.
