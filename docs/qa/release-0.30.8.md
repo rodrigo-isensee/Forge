@@ -2,8 +2,8 @@
 tipo: qa
 contrato: 1
 pedido: release-0.30.8
-branch: melhoria/release-0.30.8
-commit: 57baeb676fede745474850105479ca726ca30a5a
+branch: melhoria/release-0.30.8-fecha
+commit: 9f4cc095249ec158b49e520d9a13a42b336bc60f
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -37,3 +37,12 @@ Código testado: 57baeb6 (HEAD da branch, da71897, difere só pelo parecer de re
 - Estabilidade: a suíte passou na primeira rodada, sem falha de tempo; as duas quedas de teste de tempo vistas no pre-push do review (A2 dele) não se repetiram aqui.
 - Sem rede útil: o sandbox nega as sondas externas do validador, sem efeito no resultado. Nada de `gh` consultado; os testes de CI ficam para o PR.
 - Bugs novos: nenhum; `docs/qa/bugs/` não ganha arquivo.
+
+## Revalidação pelo delta (head 9f4cc09, branch melhoria/release-0.30.8-fecha)
+Parecer anterior sobre 57baeb6. Entre ele e 9f4cc09 entraram o fragmento `changelog.d/release-0.30.8.md` (1f76c6e, PR #399) e o fechamento (9f4cc09: fragmento apagado e a linha dele na seção [0.30.8] do CHANGELOG). Nenhum arquivo de `bin/`, `hooks/`, `.githooks/`, `scripts/` ou `tests/` mudou, então a conclusão do parecer anterior se mantém.
+- `forge-check delta --parecer docs/qa/release-0.30.8.md` (rc 0): intervalo 57baeb6..7e6ff4d, única linha listada `CHANGELOG.md:24` (+1). Lido: a linha acrescentada em [0.30.8], texto igual ao do fragmento apagado (`git diff 19407f6 HEAD -- CHANGELOG.md changelog.d`). Já lido, sem releitura: o restante da leva, aceito do parecer anterior.
+- Suíte inteira sobre o head (`PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -q`): 2330 testes, 948 s, `OK (skipped=27)`, rc 0.
+- `scripts/validar-plugin.sh`: `Validation passed`.
+- Mutantes (101) e cobertura: não refeitos; o delta não toca código, e a rodada anterior vale (mesmo código de 57baeb6).
+- Teto por PR (M14): contra origin/develop, o diff da branch tem 0 linhas de código ou teste (só CHANGELOG, fragmento e pareceres, todos fora da contagem). A branch cumpre a M14.
+- Achados A1 e A2 seguem recomendados, sem mudança; nenhum bug novo.
