@@ -36,4 +36,4 @@ Sondas: cada uma monta a fixture pelo `Fixture`/`rodar` da própria worktree e r
 Dimensão nova para a matriz do modelo (§8, Mecanismo): **expansão do shell sem marcador ou fora do projeto** (chaves e glob). Ela aparece também nas branches a3, a4 e a5.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
