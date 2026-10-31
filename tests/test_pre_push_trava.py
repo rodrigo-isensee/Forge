@@ -480,6 +480,23 @@ class PrePushTrava(unittest.TestCase):
         self.assertEqual(codigo, 0, erro)
         self.assertEqual((self.repo / "fd9").read_text(), "False")
 
+    def test_texto_da_trava_sai_limitado_e_sem_controle(self):  # C-14, T-C4h
+        self.suite(SUITE_LENTA)
+        primeira = self.hook()
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0))
+        self.trava.write_bytes(b"\x1b]0;x\x07\x1b[2J" + b"A" * (1 << 20))
+        _, saida, _ = self.roda("--status")
+        self.assertNotIn("\x1b", saida)
+        self.assertNotIn("\x07", saida)
+        self.assertLessEqual(len(saida), 200 + 120, "o texto da trava saiu sem limite")
+        _, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
+        self.assertIn("esperando a vez", erro)
+        self.assertNotIn("\x1b", erro)
+        self.assertLessEqual(len(erro), 200 + 400)
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(primeira.wait(timeout=60), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

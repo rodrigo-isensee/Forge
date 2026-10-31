@@ -1,0 +1,46 @@
+{
+  "pedido": "k164-intervalo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o achado aceita intervalo a-b",
+      "arquivo": "bin/forge-check",
+      "de": "(\\d+(?:-\\d+)?) · (.+?)",
+      "para": "(\\d+) · (.+?)",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_achado_com_intervalo_de_linhas_e_aceito_e_copiado_inteiro"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "intervalo invertido é recusado",
+      "arquivo": "bin/forge-check",
+      "de": "elif \"-\" in m.group(4) and int(",
+      "para": "elif False and int(",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_intervalo_malformado_ou_invertido_e_recusado"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a ordem do intervalo: início maior que o fim recusa",
+      "arquivo": "bin/forge-check",
+      "de": "split(\"-\")[0]) > int(",
+      "para": "split(\"-\")[0]) < int(",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_achado_com_intervalo_de_linhas_e_aceito_e_copiado_inteiro"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "mais de um hífen (3-5-7) segue recusado",
+      "arquivo": "bin/forge-check",
+      "de": "(\\d+(?:-\\d+)?) · (.+?)",
+      "para": "(\\d+(?:-\\d+)*) · (.+?)",
+      "testes": [
+        "tests.test_forge.VoltaComRecomendacao.test_intervalo_malformado_ou_invertido_e_recusado"
+      ]
+    }
+  ]
+}
