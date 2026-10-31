@@ -1262,7 +1262,7 @@ def cmd_delta(raiz, refs, parecer):
 
 
 # --- Brief de volta gerado dos pareceres (VV-2, M7) --------------------------------------------
-ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
+ACHADO = re.compile(r"^- ([AR]\d+) \((bloqueante|recomendado)\) (\S+?):(\d+(?:-\d+)?) · (.+?)\s*$")  # `R<n>`: a recomendação do parecer, mesma gramática e teto
 ID_DE_ACHADO = re.compile(r"[AR]\d+")
 INCLUIDO = re.compile(r"\(incluído (\S+) ([0-9a-f]{7,40}) ([AR]\d+) de (\S+)\) (.+?)\s*$")  # marca da recomendação copiada no Entregar
 CABECALHO_ACHADOS = re.compile(r"^##\s+Achados\s*$")
@@ -1280,7 +1280,7 @@ def grupo(expressao, texto):
 
 def achados_do_parecer(texto):
     """Lê o bloco `## Achados` de um parecer: (achados, erros, tem_bloco). Cada achado é
-    `- A<n> (bloqueante|recomendado) <arquivo>:<linha> · <texto>` numa linha só, sem caractere de controle e com teto de tamanho
+    `- A<n> (bloqueante|recomendado) <arquivo>:<linha>[-<linha>] · <texto>` numa linha só, sem caractere de controle e com teto de tamanho
     (C4); linha do bloco fora do formato ou id repetido é erro, para o achado não sumir em silêncio (C3)."""
     achados, erros, dentro, tem = [], [], False, False
     for linha in texto.splitlines():
@@ -1294,6 +1294,8 @@ def achados_do_parecer(texto):
         m = ACHADO.match(linha)
         if com_controle(linha) or not m:
             erros.append(f"linha do bloco ## Achados fora do formato (uma linha, sem caractere de controle): {nome_seguro(linha[:80])}")
+        elif "-" in m.group(4) and int(m.group(4).split("-")[0]) > int(m.group(4).split("-")[1]):
+            erros.append(f"achado {m.group(1)} com intervalo de linhas invertido ({m.group(4)})")
         elif len(m.group(5)) > TETO_DO_ACHADO:
             erros.append(f"achado {m.group(1)} com mais de {TETO_DO_ACHADO} caracteres")
         elif any(a["id"] == m.group(1) for a in achados):
