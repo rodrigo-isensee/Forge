@@ -37,6 +37,7 @@ import errno
 import functools
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -518,6 +519,23 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+def trabalhadores_do_pool(nucleos):
+    """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
+    núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
+    if not isinstance(nucleos, int) or isinstance(nucleos, bool) or nucleos < 1:
+        return 2
+    return min(4, max(2, nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -572,7 +590,7 @@ class Hooks(unittest.TestCase):
             if f.dados.get("executaveis"):
                 tmp = self._pasta_temporaria()
                 montados[nome] = (tmp, f.montar(tmp, outro.pid))
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             futuros = []
             for nome, f in em_paralelo:
@@ -1789,7 +1807,8 @@ class Hooks(unittest.TestCase):
                      and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
-            self.assertLessEqual(len(fora), 8, fora)
+            # 10: as duas sondas de extglob do PN7-DOLAR-INTERROG; o `bash -n` não roda o `shopt -s extglob` da 1ª linha
+            self.assertLessEqual(len(fora), 10, fora)
             _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
         return minimo(_CORPUS, 500, "linhas de recusa de Bash")
 
@@ -1948,6 +1967,89 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
+
+class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
+    """O `$?` é construção modelada só entre aspas duplas: `$?` × posição na palavra × aspas × lugar × `IFS` posto de
+    qualquer jeito. Entre aspas duplas passa sempre; fora de aspas, o `$?` é recusado, como todo outro `$`, nos lugares
+    da propriedade, que o hook lê por terem marcador crítico; sem marcador crítico o hook lê como na base."""
+    TOKENS = ("$?", "${?}", "$#", "$@", "$1", "$x", "$'r'", '$"r"', "$$?", "$?$x")
+    POSICOES = ("{}", "rc={}", "a{}b", "{}x")
+    ASPAS = {"fora": "{}", "duplas": '"{}"', "simples": "'{}'"}
+    IFS = ("", "IFS=0; ", 'export I"FS"=0; ', "declare I'FS'=0; ", "export I\\FS=0; ", "printf -v IF\\S %s 0; ",
+           'read -r I""FS < f; ', ". ./ifs.sh; ", "declare $(printf I)FS=0; ")
+    LUGARES = ("echo {}", "printf %s {}", "echo {}; git push origin melhoria/x", "git push origin {}",
+               "{} push origin main", "echo {} | sh", "echo {} > f", "printf -v {} x", "printf {} x", "x={}",
+               "echo $(git push origin {})", "git push origin {}; echo ok", "git push origin $(true) echo {}",
+               "git push origin $((0)) echo {}", "git push origin @(x)echo {}", "git push origin >& echo {}",
+               "git push origin 2>& echo {}", "git push origin <& echo {}", "git push origin >| echo {}")
+
+    def test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs(self):
+        _comum, _, parecer = modulos_dos_hooks()
+        vistos = 0
+        for token, posicao, (aspas, molde), ifs, lugar in itertools.product(
+                self.TOKENS, self.POSICOES, self.ASPAS.items(), self.IFS, self.LUGARES):
+            if aspas == "simples" and "'" in token:
+                continue  # `$'r'` não se escreve entre aspas simples
+            comando = lugar.format(molde.format(posicao.format(token)))
+            passa = aspas == "simples" or token == "$?" and aspas == "duplas"
+            with self.subTest(comando=comando, ifs=ifs):
+                vistos += 1
+                linha = f"{ifs}git commit -F - <<'EOF'\nx\nEOF\n{comando}"
+                self.assertEqual(_comum.construcao_nao_modelada(linha) is None, passa, linha)
+                resto = f"{ifs}git commit -F - {_comum.OPERADOR_K}\n{comando}"
+                da_gramatica = not any(s in resto for s in ("\\", "<", ">", "|", "("))
+                self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa and da_gramatica, resto)
+                self.assertFalse(parecer.heredocs_simples(f"cat <<'EOF'\nx\nEOF\n{ifs}{comando}"))
+        self.assertGreaterEqual(vistos, 5000)
+
+    def test_codigo_fora_de_aspas_recusa_em_todo_lugar(self):
+        """Fora de aspas o `$?` recusa também como argumento de `echo` (DECISÃO DO DONO 2026-10-30, "A"): a fronteira do
+        comando simples não é plana no bash (`$(…)`, extglob `@(x)`, `>&`), e só as aspas duplas impedem a divisão. Vale
+        no domínio de `construcao_nao_modelada`, que o hook só roda com marcador crítico; sem ele lê como na base."""
+        _comum, _, _ = modulos_dos_hooks()
+        for antes in ("", "git push origin x; ", "git push origin $(true) ", "shopt -s extglob nullglob\ngit push @(x)",
+                      "git push origin >& ", "git push origin >| ", "IFS=0; git push origin <& "):
+            for depois, passa in (("echo rc=$?", False), ('echo "rc=$?"', True), ("echo rc=\"$?\"", True)):
+                with self.subTest(linha=antes + depois):
+                    self.assertEqual(_comum.construcao_nao_modelada(antes + depois) is None, passa)
+        k3 = f"git commit -m {_comum.PALAVRA_K3}\necho "
+        self.assertIsInstance(_comum.simples_da_gramatica(k3 + '"rc=$?"'), list)
+        self.assertIsInstance(_comum.simples_da_gramatica("git commit -m x\necho rc=$?"), str)
+        self.assertIsInstance(_comum.simples_da_gramatica('git commit -m x\necho "$$?"'), str)
+
+    def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):
+        """O motivo de valer só entre aspas: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
+        saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
+                               capture_output=True, text=True, check=False).stdout
+        self.assertEqual(saida, "<x><main><x1main>")
+
+
+class PoolDosFixtures(unittest.TestCase):
+    """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
+
+    def test_pool_por_nucleos_e_limites(self):  # AB-8
+        for nucleos, esperado in ((1, 2), (2, 2), (4, 4), (16, 4), (None, 2), (0, 2), (-3, 2), ("x", 2)):
+            with self.subTest(nucleos=nucleos):
+                self.assertEqual(trabalhadores_do_pool(nucleos), esperado)
+
+    def test_pool_le_a_afinidade_e_ignora_o_forge_nproc(self):  # AB-8
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "64"}):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1, 2, 3, 4, 5}):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 4)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=8):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)  # sem leitura, o piso
+
+    def test_pool_uma_fonte_so(self):  # C-1: nenhum módulo de teste refaz a conta `cpu_count // 2` do pool
+        copias = []
+        for arquivo in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"cpu_count\(\) or 2\) // 2", linha):
+                    copias.append(f"{arquivo.name}:{n}")
+        self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
 
 
 if __name__ == "__main__":
