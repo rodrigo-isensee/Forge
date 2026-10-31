@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-fechar-c
 branch: melhoria/impl-fechar-c-c1
-commit: f38de40811c8b2b8bde7c24104acb6db4ab4c02c
+commit: 84e1c56df1fe5a99088875961a51172b33d0dbb1
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
@@ -33,3 +33,9 @@ Sem caminho de ataque novo: a mudança só troca linhas impressas que apagam por
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Ferramentas: leitura do diff e do script, testes da suíte. Faltaram no PATH: `shellcheck`, `gitleaks` e `semgrep` (lacuna; o CI roda o shellcheck).
+
+## Revalidação (volta por delta)
+`forge-check delta` de `f38de40..84e1c56`: `tests/test_fechar_r1_worktree.py` (+17, linhas 110-126) e `tests/mutantes/impl-fechar-c-c1.json` (+125, spec de mutantes). Delta lido inteiro. Nenhum arquivo de `bin/`, `hooks/`, `.githooks/` nem controle do Forge mudou; o código revisado (`bin/forge-fechar`) é idêntico ao do parecer anterior ("já lido").
+- O teste novo (AB-C1-8) faz a leitura da remota falhar depois do merge e afirma que o `--sem-limpar` imprime só o aviso e nunca `git push origin --delete`: prende a falha fechada do C1-2. Rodado aqui: `test_fechar_r1_worktree`, 8 testes OK.
+- A spec de mutantes só declara trocas em cópia, com os testes que as matam; não executa nada no projeto.
+Sem achado novo; o veredito se mantém. O PR segue precisando da linha de exceção do teto no corpo.
