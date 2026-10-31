@@ -2,8 +2,8 @@
 tipo: revisao-seguranca
 contrato: 1
 pedido: release-0.30.8
-branch: melhoria/release-0.30.8
-commit: 57baeb676fede745474850105479ca726ca30a5a
+branch: melhoria/release-0.30.8-fecha
+commit: 9f4cc095249ec158b49e520d9a13a42b336bc60f
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
@@ -37,6 +37,9 @@ Sem bloqueante. O que foi conferido:
 - **Afrouxamentos.** O único que afrouxa controle de segurança é o #384 (P-N7). A entrada dele no CHANGELOG diz "afrouxa, rótulo afrouxa-regra" e cita a emenda H1-1 da ADR 0011. Os demais PRs rotulados mexem em caminho protegido, e o parecer de cada um os julgou.
 - **Versão e CHANGELOG.** `.claude-plugin/plugin.json` e `dev/.claude-plugin/plugin.json` em 0.30.8; seção `[0.30.8] - 2026-10-31` com 21 entradas e `[Não publicado]` vazio (a contagem fragmento a fragmento está no review da leva). Nenhuma entrada traz segredo nem caminho de máquina.
 - **Custo e neutralidade.** Nenhum script novo chama serviço pago. O `promover-homolog.py` só chama `gh` e o `forge-check` local (`R-CUSTO`).
+
+## Revalidação no head 9f4cc09 (E1.8)
+`forge-check delta --parecer` sobre o parecer anterior (57baeb6) listou um único trecho: `CHANGELOG.md:24`, a linha de pareceres da leva (RELEASE-0.30.8) em `[0.30.8]`, que veio do fragmento `changelog.d/release-0.30.8.md` (PR #399, 1f76c6e), apagado no fechamento 9f4cc09. Li essa linha e o diff `19407f6..9f4cc09`: dois arquivos, só documentação, sem código, hook, `bin/`, `.githooks/` nem workflow; nenhum controle do Forge muda (o gatilho `controles do Forge` não incide no delta). A linha não traz segredo nem caminho de máquina e não afrouxa nada. Fora do delta, reli só que o código da leva é o mesmo: `git diff 57baeb6 9f4cc09` toca apenas `CHANGELOG.md`, o fragmento e os pareceres. A1 a A3 seguem abertos e recomendados; a seção `[0.30.8]` passa a ter 22 entradas. M14 (`agents/tech-lead.md:19`): a branch cumpre; o parecer de segurança agora cita o commit de código final 9f4cc09. O commit 7e6ff4d, posterior, só mexe em `docs/reviews/release-0.30.8.md`.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Revisão estática por `git diff`, `git show`, leitura do código final e `bin/forge-check pr release-0.30.8 --ref HEAD --base main`. Sem `gitleaks`, `shellcheck`, `actionlint`, `zizmor`, `semgrep` nem `osv-scanner` no PATH local (lacuna; as checagens de segredo e de shell rodam no CI). A leva não toca `.github/`, contêiner, IaC nem manifesto de dependência.
