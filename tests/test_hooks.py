@@ -27,7 +27,7 @@ Formato do fixture:
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
-              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               sem_caminho ([caminho]: não existem; {tmp} vale)
 """
@@ -636,6 +636,8 @@ class Hooks(unittest.TestCase):
             self.assertLessEqual(len(linha), 200)
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
+            for trecho in esperado.get("stderr_sem", []):
+                self.assertNotIn(trecho, linha)
         run = raiz / ".forge" / "run"
         if esperado.get("sem_run"):
             self.assertFalse(run.exists(), ".forge/run/ não deveria ser criado")
@@ -1846,6 +1848,29 @@ class Hooks(unittest.TestCase):
                 casos.append((f"{nome} + {mecanismo}", f))
         self.assertEqual(len(casos), len(FAMILIAS_DE_RECUSA) * len(MECANISMOS_DO_COMENTARIO) - len(FORA_DO_T2))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
+
+    def test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante(self):  # FURO-HOOK-A, A1 TESTE-MATRIZ-CRITICO
+        """T6, pelo hook real: a ação sem marcador `CRITICO` (que a rede da ADR 0011 não recusa) com cada variante que o
+        bash ignora sai 2 sem o motivo da rede ("o hook não modela", `nao_modelada`): a recusa vem da leitura, que viu a ação
+        ou a deu por ilegível. O `parecer` entra com o merge reprovado, que a rede dele também cobriria. Nenhum caso sai da
+        matriz: uma lista de pendentes afrouxaria o controle e precisa do dono."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual(set(MECANISMOS_DO_COMENTARIO.values()), set(VARIANTES_QUE_O_BASH_IGNORA))
+        por_comando = {f.dados["entrada"]["tool_input"].get("command"): f for f in self.fixtures
+                       if f"{f.hook}/{f.caminho.stem}" in FAMILIAS_DE_RECUSA}
+        sem_marcador = [a for a, hook in ACOES_DO_CORPUS.items() if hook == "conformidade" and not conformidade.CRITICO.search(a)]
+        self.assertGreaterEqual(len(sem_marcador), 2, sem_marcador)
+        merge = "gh pr merge feature/x --repo rodrigo-isensee/Forge --merge"
+        acoes = [(a, por_comando[a]) for a in sem_marcador + [merge]]
+        casos = []
+        for acao, modelo in acoes:
+            for i, (prefixo, sufixo) in enumerate(VARIANTES_QUE_O_BASH_IGNORA):
+                f = Fixture(modelo.caminho)
+                f.dados["entrada"]["tool_input"]["command"] = prefixo + acao + sufixo
+                rede = "com ação crítica: o hook não modela" if modelo.hook == "conformidade" else "o hook não modela"
+                f.dados["esperado"] = {"codigo": 2, "stderr": "R-", "stderr_sem": [rede]}  # `R-` vale: ilegível também recusa
+                casos.append((f"{modelo.hook}/{modelo.caminho.stem} + variante {i}", f))
+        self.assertEqual(self.executar_em_lote(casos), len(acoes) * len(VARIANTES_QUE_O_BASH_IGNORA))
 
     def test_t3_todo_comentario_marcado_e_comentario_para_o_bash(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T3, oráculo do bash para a gramática G: em cada posição que `comentarios` marca, troca o texto do comentário
