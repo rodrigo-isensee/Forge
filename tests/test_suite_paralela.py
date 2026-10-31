@@ -18,6 +18,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
@@ -162,6 +163,36 @@ class Brinquedo(unittest.TestCase):
     def rodaram(self):
         return sorted(p.name.rsplit("-", 1)[0] for p in self.marcas.iterdir())
 
+    def script_do_brinquedo(self):
+        return carregar(self.repo / "scripts" / "suite-paralela.py", "suite_paralela_brinquedo")
+
+    def orquestrar_no_processo(self, script, **ambiente):
+        """`script.orquestrar()` neste processo, sem o `GITHUB_STEP_SUMMARY` nem o `GITHUB_ACTIONS` do runner, para o
+        brinquedo não escrever no resumo real do CI (N-CI, C-10); `ambiente` vale depois da limpeza."""
+        saida, erro, cwd = io.StringIO(), io.StringIO(), os.getcwd()
+        self.addCleanup(os.chdir, cwd)
+        antes, modulos_antes = dict(os.environ), set(sys.modules)
+        for chave in ("GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS"):
+            os.environ.pop(chave, None)
+        os.environ.update(MARCAS=str(self.marcas), FORGE_SUITE_PROCS="2", **ambiente)
+        try:
+            with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
+                codigo = script.orquestrar()
+        finally:
+            os.environ.clear()
+            os.environ.update(antes)
+            for nome in set(sys.modules) - modulos_antes:  # os test_a... do brinquedo não ficam para a próxima execução
+                if nome.startswith("test_"):
+                    del sys.modules[nome]
+        return codigo, saida.getvalue(), erro.getvalue()
+
+    def resumo_do_ci(self, **extra):
+        """(código, saída, erro, texto do resumo) de uma execução com `GITHUB_STEP_SUMMARY` num arquivo do teste."""
+        arquivo = self.repo.parent / "resumo.md"
+        arquivo.unlink(missing_ok=True)
+        codigo, saida, erro = self.roda(GITHUB_STEP_SUMMARY=str(arquivo), **extra)
+        return codigo, saida, erro, (arquivo.read_text(encoding="utf-8") if arquivo.exists() else "")
+
     def test_tudo_verde_roda_cada_modulo_uma_vez(self):
         codigo, saida, erro = self.roda()
         self.assertEqual(codigo, 0, saida + erro)
@@ -235,24 +266,65 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("Ran 4 tests", saida)
 
     def test_guarda_reprova_quando_um_modulo_some(self):  # AB-2
-        script = carregar(self.repo / "scripts" / "suite-paralela.py", "suite_paralela_brinquedo")
+        script = self.script_do_brinquedo()
         original = script.modulos
         script.modulos = lambda: [m for m in original() if m != "test_b"]
-        saida, erro, cwd = io.StringIO(), io.StringIO(), os.getcwd()
-        self.addCleanup(os.chdir, cwd)
-        antes = dict(os.environ)
-        os.environ.update(MARCAS=str(self.marcas), FORGE_SUITE_PROCS="2")
-        try:
-            with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
-                codigo = script.orquestrar()
-        finally:
-            os.environ.clear()
-            os.environ.update(antes)
-        self.assertEqual(codigo, 1, saida.getvalue() + erro.getvalue())
-        self.assertIn("ausente", erro.getvalue())
-        self.assertIn("test_b.T.test_b", erro.getvalue())
-        self.assertTrue(saida.getvalue().strip().splitlines()[-1].startswith("FAILED"))
+        codigo, saida, erro = self.orquestrar_no_processo(script)
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("ausente", erro)
+        self.assertIn("test_b.T.test_b", erro)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
         self.assertNotIn("b", self.rodaram())
+
+    def test_resumo_comeca_pelo_veredito(self):  # AB-3, C-7
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertRegex(resumo.splitlines()[0], r"^### Suíte do Forge: OK\b")
+        self.modulo("b", modulo_de_teste("b", 'self.fail("de propósito")'))
+        codigo, saida, erro, resumo = self.resumo_do_ci(FORGE_SUITE_SEM_REUSO="1")
+        self.assertEqual(codigo, 1)
+        self.assertRegex(resumo.splitlines()[0], r"^### Suíte do Forge: FAILED \(failures=1")
+        self.assertIn("execução reprovada: não vale para o orçamento", resumo)
+        for linha in ("unidades mais lentas", "soma das unidades", "maior unidade", "desequilíbrio"):
+            self.assertNotIn(linha, resumo)  # C-7: a medida da c2 só existe no resumo verde
+
+    def test_resumo_com_processo_morto_nao_quebra_o_veredito(self):  # AB-1, C-8
+        self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertIn("morto pelo sinal 9", erro)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
+        self.assertNotIn("resumo indisponível", erro)
+        self.assertIn("- sem duração: test_b\n", resumo)
+
+    def test_resumo_nao_muda_o_veredito(self):  # AB-2, C-6
+        for corpo in ("self.assertTrue(True)", 'self.fail("de propósito")'):
+            self.modulo("b", modulo_de_teste("b", corpo))
+            referencia = self.roda(FORGE_SUITE_SEM_REUSO="1")
+            pasta = self.repo.parent / "pasta"
+            pasta.mkdir(exist_ok=True)
+            com_erro_de_escrita = self.roda(FORGE_SUITE_SEM_REUSO="1", GITHUB_STEP_SUMMARY=str(pasta))
+            self.assertEqual(com_erro_de_escrita[0], referencia[0])
+            self.assertEqual(com_erro_de_escrita[1].strip().splitlines()[-1], referencia[1].strip().splitlines()[-1])
+            self.assertIn("resumo indisponível", com_erro_de_escrita[2])
+            script = self.script_do_brinquedo()
+            script.montar_resumo = lambda *args: 1 / 0
+            arquivo = self.repo.parent / "resumo.md"
+            codigo, saida, erro = self.orquestrar_no_processo(script, GITHUB_STEP_SUMMARY=str(arquivo),
+                                                              FORGE_SUITE_SEM_REUSO="1")
+            self.assertEqual(codigo, referencia[0], saida + erro)
+            self.assertEqual(saida.strip().splitlines()[-1], referencia[1].strip().splitlines()[-1])
+            self.assertIn("resumo indisponível", erro)
+            self.assertFalse(arquivo.exists())
+
+    def test_orquestrar_no_processo_nao_escreve_no_resumo_real(self):  # AB-5, C-10
+        sentinela = self.repo.parent / "sentinela.md"
+        with mock.patch.dict(os.environ, {"GITHUB_STEP_SUMMARY": str(sentinela), "GITHUB_ACTIONS": "true"}):
+            codigo, saida, erro = self.orquestrar_no_processo(self.script_do_brinquedo())
+            self.assertEqual(codigo, 0, saida + erro)
+            self.assertEqual(os.environ["GITHUB_STEP_SUMMARY"], str(sentinela))  # o ambiente do teste volta como estava
+        self.assertFalse(sentinela.exists())
+        self.assertNotIn("::group::", saida)
 
     def test_um_processo_vermelho_reprova(self):  # AB-3
         self.modulo("b", modulo_de_teste("b", 'self.fail("de propósito")'))
@@ -318,6 +390,72 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 1, saida + erro)
         self.assertIn("não é do processo que chamou", erro)
         self.assertEqual(self.rodaram(), [])
+
+    # N-CI, item 55 d: a medida no resumo do CI (C-9, C-11, C-12); nada disso muda o veredito, a divisão nem o carimbo.
+
+    def test_resumo_do_ci_traz_as_unidades_mais_lentas(self):
+        self.modulo("b", modulo_de_teste("b", "time.sleep(0.6)", "import time\n"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        lentas = resumo.split("unidades mais lentas", 1)[1].splitlines()
+        self.assertRegex(lentas[1], r"^- test_b: \d+\.\d s$")
+
+    def test_resumo_do_ci_traz_soma_maior_unidade_e_desequilibrio(self):
+        self.modulo("b", modulo_de_teste("b", "time.sleep(0.6)", "import time\n"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertRegex(resumo, r"- soma das unidades: \d+\.\d s; soma ÷ 3 processos: \d+\.\d s")
+        self.assertRegex(resumo, r"- maior unidade: test_b \(\d+\.\d s\)")
+        self.assertRegex(resumo, r"- desequilíbrio: \d+\.\d s \(\d+% da média dos processos\)")
+
+    def test_resumo_do_ci_lista_os_modulos_sem_peso(self):
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_a": 1.0}\n')
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("- sem peso em tests/pesos-d4.json: test_b, test_c\n", resumo)
+
+    def test_resumo_limita_as_unidades_sem_peso(self):  # AB-6, C-11
+        for i in range(27):
+            self.modulo(f"n{i:02d}", modulo_de_teste(f"n{i:02d}"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        (sem_peso,) = [linha for linha in resumo.splitlines() if linha.startswith("- sem peso")]
+        self.assertTrue(sem_peso.endswith(" e mais 10"), sem_peso)
+        self.assertEqual(sem_peso.count("test_"), 20, sem_peso)
+        lentas = resumo.split("unidades mais lentas", 1)[1].split("\n- soma", 1)[0]
+        self.assertEqual(lentas.count("\n- test_"), 10)
+
+    def test_grupo_do_ci_traz_as_unidades_do_processo(self):
+        codigo, saida, erro = self.roda(GITHUB_ACTIONS="true")
+        self.assertEqual(codigo, 0, saida + erro)
+        grupos = [linha for linha in saida.splitlines() if linha.startswith("::group::")]
+        self.assertEqual(len(grupos), 3)
+        self.assertEqual(sorted(g.split(" (")[1] for g in grupos), ["test_a)", "test_b)", "test_c)"])
+        self.assertTrue(all(g.startswith("::group::processo ") for g in grupos), grupos)
+
+    def test_resumo_so_leva_nomes_e_numeros(self):  # AB-4, C-9
+        corpo = ('print("::error::falso\\n::stop-commands::x\\n/etc/passwd\\nghp_" + "A" * 36); '
+                 'import sys; print("::warning::falso", file=sys.stderr)')
+        self.modulo("b", modulo_de_teste("b", corpo))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        for texto in ("::", "falso", "/etc", "ghp_", "AAAA"):
+            self.assertNotIn(texto, resumo)
+
+    def test_sem_github_step_summary_nada_e_escrito(self):
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertNotIn("resumo indisponível", erro)
+        self.assertFalse((self.repo.parent / "resumo.md").exists())
+
+    def test_divisao_nao_depende_da_execucao_anterior(self):  # AB-7, C-12
+        divisoes = []
+        for demora in ("0", "0.5"):
+            self.modulo("a", modulo_de_teste("a", "time.sleep(float(os.environ['DORME']))", "import time\n"))
+            codigo, saida, erro = self.roda(DORME=demora, FORGE_SUITE_SEM_REUSO="1")
+            self.assertEqual(codigo, 0, saida + erro)
+            divisoes.append(sorted(linha.split("(", 1)[1] for linha in saida.splitlines() if linha.startswith("--- processo")))
+        self.assertEqual(divisoes[0], divisoes[1])
 
     def test_parar_o_pre_push_encerra_os_processos_da_suite(self):  # PREPUSH-PKILL-ALHEIO, AB-6
         self.modulo("b", MARCA + '''

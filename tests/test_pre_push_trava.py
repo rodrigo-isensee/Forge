@@ -178,6 +178,7 @@ class PrePushTrava(unittest.TestCase):
         self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0), "o status não viu a suíte")
         _, saida, _ = self.roda("--status")
         self.assertIn("suíte do Forge rodando", saida)
+        self.assertIn("pre-push --suite", saida)  # SUITE-INICIO-ATOMICO: a dica do caminho que espera a vez
         (self.repo / "liberar").write_text("")
         self.assertEqual(primeira.wait(timeout=60), 0)
         codigo, _, _ = self.roda("--status")
@@ -272,9 +273,10 @@ class PrePushTrava(unittest.TestCase):
         self.assertIn("não é uma pasta do próprio usuário", erro)
         self.assertEqual(list(alvo.iterdir()), [])
         self.assertFalse((self.repo / "rodou").exists())
-        codigo, _, erro = self.roda("--status", env=self.env_recuo())
-        self.assertEqual(codigo, 1)
+        codigo, saida, erro = self.roda("--status", env=self.env_recuo())
+        self.assertEqual(codigo, 2)
         self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertNotIn("nenhuma suíte", saida)
 
     def test_trava_link_dentro_da_subpasta_e_recusada(self):
         self.suite(SUITE_RAPIDA)
@@ -286,6 +288,41 @@ class PrePushTrava(unittest.TestCase):
         self.assertFalse((self.run_dir / "alvo").exists())
         self.assertFalse((self.repo / "rodou").exists())
 
+    def test_status_com_erro_sai_com_2(self):  # PRE-PUSH-STATUS-RC, C-4, C-6, C-7
+        """rc 2 = não consegui conferir; 0 = rodando e 1 = nenhuma ficam como estão. O push segue com rc 1."""
+        lock = f"forge-suite-{os.getuid()}.lock"
+
+        def subpasta_link(sub):
+            (sub.parent / "alvo").mkdir()
+            sub.symlink_to(sub.parent / "alvo")
+
+        def trava_link(sub):
+            sub.mkdir(mode=0o700)
+            (sub / lock).symlink_to(sub.parent / "alvo-trava")
+
+        def trava_sem_leitura(sub):
+            sub.mkdir(mode=0o700)
+            (sub / lock).write_text("")
+            os.chmod(sub / lock, 0)
+
+        for nome, prepara in (("subpasta link", subpasta_link), ("trava link", trava_link),
+                              ("trava sem leitura", trava_sem_leitura)):
+            with self.subTest(nome):
+                if nome == "trava sem leitura" and os.geteuid() == 0:
+                    self.skipTest("root lê arquivo sem permissão")
+                tmp = Path(self._tmp.name) / f"erro-{nome.replace(' ', '-')}"
+                tmp.mkdir()
+                prepara(tmp / f"forge-{os.getuid()}")
+                env = dict(self.env_recuo(), TMPDIR=str(tmp))
+                codigo, saida, erro = self.roda("--status", env=env)
+                self.assertEqual(codigo, 2, (saida, erro))
+                self.assertNotIn("nenhuma suíte", saida)
+                self.assertIn("pre-push --suite", erro)  # C-7: aponta o caminho que espera a vez ou falha fechado
+                self.suite(SUITE_RAPIDA)
+                codigo, _, _ = self.roda(env=env)
+                self.assertEqual(codigo, 1, "o push segue com rc 1 no mesmo erro")
+                self.assertFalse((self.repo / "rodou").exists())
+
     def test_subpasta_que_nao_da_para_criar_falha_fechado(self):
         # um arquivo comum com o nome da subpasta impede o mkdir: o hook não pula a suíte nem recua
         self.suite(SUITE_RAPIDA)
@@ -293,6 +330,51 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda(env=self.env_recuo())
         self.assertEqual(codigo, 1)
         self.assertIn("não é uma pasta do próprio usuário", erro)
+        self.assertFalse((self.repo / "rodou").exists())
+
+    def recuo_com_subpasta(self, nome, modo):
+        """Ambiente de recuo (TMPDIR próprio e vazio) com a subpasta forge-<uid> já criada e com o modo pedido."""
+        tmp = Path(self._tmp.name) / f"recuo-{nome}"
+        sub = tmp / f"forge-{os.getuid()}"
+        sub.mkdir(parents=True, mode=0o700)
+        os.chmod(sub, modo)  # depois do mkdir, por causa do umask
+        return dict(self.env_recuo(), TMPDIR=str(tmp)), sub
+
+    def test_subpasta_gravavel_por_grupo_ou_outros_e_recusada(self):  # TRAVA-MODO-SUBPASTA, C-1
+        self.suite(SUITE_RAPIDA)
+        for modo in (0o777, 0o770, 0o702, 0o1777):
+            with self.subTest(modo=oct(modo)):
+                env, sub = self.recuo_com_subpasta(oct(modo), modo)
+                codigo, _, erro = self.roda(env=env)
+                self.assertEqual(codigo, 1, erro)
+                self.assertIn("recusada", erro)
+                self.assertFalse((self.repo / "rodou").exists())
+                self.assertEqual(list(sub.iterdir()), [], "o hook escreveu na subpasta recusada")
+                _, saida, erro = self.roda("--status", env=env)
+                self.assertIn("recusada", erro)
+                self.assertNotIn("nenhuma suíte", saida)
+
+    def test_subpasta_sem_escrita_de_grupo_ou_outros_segue_aceita(self):  # contraprova de TRAVA-MODO-SUBPASTA
+        self.suite(SUITE_RAPIDA)
+        for modo in (0o700, 0o750, 0o755):
+            with self.subTest(modo=oct(modo)):
+                env, _ = self.recuo_com_subpasta(oct(modo), modo)
+                codigo, _, erro = self.roda(env=env)
+                self.assertEqual(codigo, 0, erro)
+                self.assertTrue((self.repo / "rodou").exists())
+                (self.repo / "rodou").unlink()
+
+    def test_conferencia_do_modo_que_falha_recusa(self):  # C-2: erro ao ler o modo é recusa, nunca aceite
+        self.suite(SUITE_RAPIDA)
+        falso = Path(self._tmp.name) / "falso"
+        falso.mkdir()
+        (falso / "find").write_text("#!/bin/sh\nexit 1\n")
+        (falso / "find").chmod(0o755)
+        env, _ = self.recuo_com_subpasta("find-falso", 0o700)
+        env["PATH"] = f"{falso}:{env['PATH']}"
+        codigo, _, erro = self.roda(env=env)
+        self.assertEqual(codigo, 1, erro)
+        self.assertIn("recusada", erro)
         self.assertFalse((self.repo / "rodou").exists())
 
     # SUITE-FILA-JUSTA: ordem de chegada pela fila de vezes ao lado da trava.
@@ -479,6 +561,23 @@ class PrePushTrava(unittest.TestCase):
         codigo, _, erro = self.roda()
         self.assertEqual(codigo, 0, erro)
         self.assertEqual((self.repo / "fd9").read_text(), "False")
+
+    def test_texto_da_trava_sai_limitado_e_sem_controle(self):  # C-14, T-C4h
+        self.suite(SUITE_LENTA)
+        primeira = self.hook()
+        self.filhos.append(primeira)
+        self.assertTrue(self.espera_ate(lambda: self.roda("--status")[0] == 0))
+        self.trava.write_bytes(b"\x1b]0;x\x07\x1b[2J" + b"A" * (1 << 20))
+        _, saida, _ = self.roda("--status")
+        self.assertNotIn("\x1b", saida)
+        self.assertNotIn("\x07", saida)
+        self.assertLessEqual(len(saida), 200 + 120, "o texto da trava saiu sem limite")
+        _, _, erro = self.roda(FORGE_TRAVA_ESPERA="1")
+        self.assertIn("esperando a vez", erro)
+        self.assertNotIn("\x1b", erro)
+        self.assertLessEqual(len(erro), 200 + 400)
+        (self.repo / "liberar").write_text("")
+        self.assertEqual(primeira.wait(timeout=60), 0)
 
 
 if __name__ == "__main__":

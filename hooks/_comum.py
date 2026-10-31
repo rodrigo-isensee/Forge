@@ -1428,8 +1428,10 @@ def corpo_so_lido(dono, tambem=nenhum):
 def construcao_nao_modelada(linha):
     """ADR 0011, item 2: a primeira construção da lista fechada que o analisador não modela, ou None. Fora de aspas
     simples: `#` com outra linha depois (em qualquer posição da palavra), crase, `$` que não abra `$(` (`$'`, `$"`,
-    `${`, `$X`, `$@`, `$1`...), `\\` seguido de quebra de linha; fora de aspas, chaves e `case`; e todo `<<` que não
-    seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas ou escapado numa linha com várias linhas). As aspas
+    `${`, `$X`, `$@`, `$1`, `$?`...; só o `$?` entre aspas duplas passa, emenda H1-1; isso vale no domínio desta
+    função, que só roda com marcador crítico: sem ele o hook lê o `$?` como na base), `\\` seguido de quebra de linha;
+    fora de aspas, chaves e `case`; e todo `<<` que não seja heredoc de `HEREDOC_MODELADO` (inclusive `<<` entre aspas
+    ou escapado numa linha com várias linhas). As aspas
     são lidas em sequência, e `$(` abre um contexto novo de aspas, como no bash; `\\` escapa o caractere seguinte fora
     de aspas e, entre duplas, `$`, crase, `"` e `\\`."""
     pilha = [["fora", 0]]  # contexto: fora | subst (com a profundidade de parênteses) | simples | duplas
@@ -1452,6 +1454,8 @@ def construcao_nao_modelada(linha):
                 i += 1  # o caractere seguinte é literal
         elif c == "`":
             return "crase"
+        elif c == "$" and seguinte == "?" and contexto[0] == "duplas":
+            pass  # `"$?"`: um decimal de 0 a 255 numa palavra que o bash não divide (ADR 0011, emenda H1-1)
         elif c == "$":
             if seguinte != "(":
                 nome = re.match(r"\w+", linha[i + 1:])  # o nome inteiro da variável, não só a primeira letra
@@ -1549,7 +1553,9 @@ def legivel(palavra):
 
 def simples_da_gramatica(resto):
     """Os comandos simples do resto (listas de palavras cruas), ou o primeiro sinal fora da gramática (str). Aspas
-    como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`."""
+    como no item 1: entre simples, tudo menos controle; entre duplas, também sem `$`, crase, `\\` e `!`, menos o `$?`
+    (o código de saída, ADR 0011, emenda H1-1); fora de aspas, o `$?` é recusado. Isso vale no domínio desta função,
+    que só roda com marcador crítico; sem ele o hook lê o `$?` como na base."""
     simples, palavras, palavra, i, n = [], [], "", 0, len(resto)
 
     def fechar():
@@ -1565,7 +1571,7 @@ def simples_da_gramatica(resto):
             if fim < 0:
                 return f"{c} sem fechar"
             proibidos = DUPLAS_RECUSA if c == '"' else ()
-            ruim = next((x for x in resto[i + 1:fim] if x in proibidos or controle(x)), None)
+            ruim = next((x for x in resto[i + 1:fim].replace("$?", "") if x in proibidos or controle(x)), None)
             if ruim is not None:
                 return nome_do_sinal(ruim)
             palavra, i = palavra + resto[i:fim + 1], fim + 1

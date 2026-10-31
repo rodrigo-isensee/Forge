@@ -376,15 +376,24 @@ estados_da_espera() {
   done
 }
 
+# leitura_sem_merge <rev>: as linhas que a pendência por commit sem merge imprime no lugar de `worktree remove`, `branch -D` e `push --delete`: um
+# comentário e uma leitura (`git log`), cada argumento escapado com `printf '%q'`. Só lê; a ref entra por nome completo (uma tag de mesmo nome não responde
+# no lugar da branch) e a remota, pelo sha lido do servidor (a referência de rastreio pode estar velha).
+leitura_sem_merge() {
+  printf '# confira; só apague depois de decidir\ngit log --oneline %q..%q' "$base" "$1"
+}
+
 # limpar_entrega: a limpeza do passo 7 e do --limpar, só depois da prova de merge (merged_heads). Cada parte é "se existe", então repete sem efeito
 # colateral. Ordem: worktree, branch local, e por último a remota (o pre-push reconhece o push só de remoção, não roda suíte nem espera a fila da trava; PREPUSH-DELETE). Nunca força: worktree suja e branch com commit
 # novo ficam pendentes. Resumo sempre gravado; define `pendencia` (0 ou 1) e deixa a decisão do código de saída a quem chama.
 limpar_entrega() {
-  local arv_st=ok br_st=ok rem_st=ok arvore atual sha_local sha_remoto pend_cmds=""
+  local arv_st=ok br_st=ok rem_st=ok arvore atual sha_local sha_remoto pend_cmds="" sem_merge=0 leitura_dada=0 rem_leitura=""
   pendencia=0
   # O sha da branch local é conferido ANTES de mexer na worktree: `git worktree remove` apaga os arquivos ignorados (ambiente local) de uma worktree
   # limpa, e uma branch com commit novo (nome reaproveitado depois de um PR antigo mesclado) não pode perdê-los.
   sha_local="$(git rev-parse --verify -q "refs/heads/$ref" || true)"
+  # sem_merge: a branch local tem commit que não foi mesclado. Então a pendência dela imprime leitura (leitura_sem_merge), nunca comando que apaga.
+  if [ -n "$sha_local" ] && ! sha_confere "$sha_local"; then sem_merge=1; fi
   atual="$(pwd -P)"
   # O caminho é a linha inteira depois de "worktree " (pode ter espaço); o nome da branch não tem.
   arvore="$(git worktree list --porcelain | awk -v b="refs/heads/$ref" '$1=="worktree"{w=substr($0,10)} $1=="branch" && $2==b {print w}')"
@@ -396,7 +405,11 @@ limpar_entrega() {
       if [ -n "$principal" ] && [ -d "$principal" ] && [ "$(cd "$principal" && pwd -P)" != "$atual" ] && cd "$principal"; then
         echo "registro: saí da worktree de $ref para a principal: $principal"
       else
-        echo "aviso: você está na worktree de $ref e não achei outra para sair; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
+        if [ "$sem_merge" = 1 ]; then
+          echo "aviso: você está na worktree de $ref e não achei outra para sair; a branch local $ref ($sha_local) tem commit que não foi mesclado: saia dela e confira (git log) antes de apagar qualquer coisa." >&2
+        else
+          echo "aviso: você está na worktree de $ref e não achei outra para sair; saia dela e rode: git worktree remove $(printf '%q' "$arvore") && git branch -D $(printf '%q' "$ref")" >&2
+        fi
         arv_st=pendente
       fi
     fi
@@ -429,6 +442,10 @@ limpar_entrega() {
     if [ "$arv_st" != ok ]; then
       if [ "$orfao" = 1 ]; then pend_cmds="$pend_cmds
 git worktree prune"
+      elif [ "$sem_merge" = 1 ]; then
+        pend_cmds="$pend_cmds
+$(leitura_sem_merge "refs/heads/$ref")"
+        leitura_dada=1
       else pend_cmds="$pend_cmds
 git worktree remove $(printf '%q' "$arvore")"
       fi
@@ -466,8 +483,14 @@ git config --local --list" ;;
         esac
       fi
     fi
-    [ "$br_st" = ok ] || pend_cmds="$pend_cmds
+    if [ "$br_st" = ok ]; then
+      :
+    elif [ "$sem_merge" = 1 ]; then
+      if [ "$leitura_dada" = 0 ]; then pend_cmds="$pend_cmds
+$(leitura_sem_merge "refs/heads/$ref")"; fi
+    else pend_cmds="$pend_cmds
 git branch -D $(printf '%q' "$ref")"
+    fi
   fi
   # O campo do config vai no fim do estado da branch, a última coisa da linha `limpeza:` (só existe quando o passo acima o definiu).
   [ -z "${cfg_campo:-}" ] || br_st="$br_st$cfg_campo"
@@ -480,6 +503,7 @@ git branch -D $(printf '%q' "$ref")"
     elif ! sha_confere "$sha_remoto"; then
       echo "aviso: a branch remota $ref ($sha_remoto) tem commit que não foi mesclado; não a apaguei." >&2
       rem_st=pendente
+      rem_leitura="$(leitura_sem_merge "$sha_remoto")"  # a remota decide pelo sha dela, não pelo da local (C1-1)
     else
       echo "registro: apagando a branch remota $ref (até ${teto_delete}s por tentativa, 3 tentativas)"
       if ! repetir com_teto "$teto_delete" git push origin --delete "refs/heads/$ref"; then
@@ -498,8 +522,13 @@ git branch -D $(printf '%q' "$ref")"
       fi
     fi
   fi
-  [ "$rem_st" = ok ] || pend_cmds="$pend_cmds
+  if [ "$rem_st" = ok ]; then
+    :
+  elif [ -n "$rem_leitura" ]; then pend_cmds="$pend_cmds
+$rem_leitura"
+  else pend_cmds="$pend_cmds
 git push origin --delete $(printf '%q' "refs/heads/$ref")"
+  fi
   echo "limpeza: remota=$rem_st worktree=$arv_st branch=$br_st"
   if [ -n "$pend_cmds" ]; then
     pendencia=1
@@ -785,9 +814,21 @@ if [ "$sem_limpar" = 1 ]; then
   printf 'pendente, rode:\n'
   # O --limpar vem primeiro porque confere o sha antes de apagar (R-VERIFY); os comandos soltos abaixo não conferem nada. O `branch -D` só entra se a branch local existe.
   printf 'forge-fechar %q --ref %q --limpar\n' "$pedido" "$ref"
-  [ -z "$arvore_sl" ] || printf 'git worktree remove %q\n' "$arvore_sl"
-  ! git rev-parse --verify -q "refs/heads/$ref" >/dev/null || printf 'git branch -D %q\n' "$ref"
-  printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  # O sha local é relido aqui (ele pode andar durante a espera): com commit que não foi mesclado, a linha é de leitura, não a que apaga (C1-2).
+  sha_sl="$(git rev-parse --verify -q "refs/heads/$ref" || true)"
+  if [ -n "$sha_sl" ] && ! sha_confere "$sha_sl"; then
+    printf '%s\n' "$(leitura_sem_merge "refs/heads/$ref")"
+  else
+    [ -z "$arvore_sl" ] || printf 'git worktree remove %q\n' "$arvore_sl"
+    ! git rev-parse --verify -q "refs/heads/$ref" >/dev/null || printf 'git branch -D %q\n' "$ref"
+  fi
+  # A remota também é relida (C1-2): só o sha mesclado (ou a remota já sem a ref) imprime o comando que apaga; commit não mesclado vira leitura e leitura que falha, só um aviso (sem comando).
+  sha_rsl=""
+  if sha_rsl="$(remoto_exato "$ref")" && { [ -z "$sha_rsl" ] || sha_confere "$sha_rsl"; }; then
+    printf 'git push origin --delete %q\n' "refs/heads/$ref"
+  elif [ -n "$sha_rsl" ]; then printf '%s\n' "$(leitura_sem_merge "$sha_rsl")"
+  else printf '# não consegui ler a branch remota; confira o servidor antes de apagar\n'
+  fi
   echo "Entrega $pedido fechada em $alvo; limpeza pulada por --sem-limpar (código 3): rode o --limpar acima (confere o sha antes de apagar) ou os comandos soltos."
   exit 3
 fi
