@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a5
-commit: dc3762cd5d9caf6f339d76864cb9196a26ae3ae1
-parecer: reprovado
+commit: caae6a663ca509a07ea3ff0e015fa316dd2fc7f0
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
@@ -39,8 +39,22 @@ Também conferido:
 - R-NEUTRO e R-CUSTO: nada a apontar. Não há shell tocado. O Forge não tem `docs/engineering/praticas.md`.
 - Commits em Conventional Commits, com os trailers.
 
+## Revalidação (volta 1, 2026-10-31)
+Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `dc3762cd5d9caf6f339d76864cb9196a26ae3ae1..caae6a663ca509a07ea3ff0e015fa316dd2fc7f0`. O delta lido:
+- `hooks/conformidade.py:1367`, +1 -1: `por_xargs and bool(pedidos)` passou a `por_xargs`;
+- as fixtures novas `rotulo-variavel-por-xargs-echo-bloqueia.json`, `-printf-` e `-cat-` (1-29 cada), com `codigo` 2 e conta que não é a do dono. São as três sondas do A1 da rodada anterior.
+
+O resto ficou como "já lido": a revisão de `dc3762c` acima.
+
+`python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no HEAD `caae6a6`: `Ran 1 test`, `OK`.
+
+Sondas pelo hook real no HEAD `caae6a6`, com o mesmo modelo de antes:
+- saem 2: `echo --add-label afrouxa-regra | xargs gh pr edit 1`, `printf "%s\n" 1 --add-label afrouxa-regra | xargs gh pr edit`, `cat r.txt | xargs gh pr edit 1`, `echo 1 | xargs gh issue edit` e `echo x | xargs -I{} gh pr create --title {}`;
+- saem 0, como devem: `echo 1 | xargs gh pr view` e `gh pr edit 1 --title x`.
+
+A M14 segue cumprida: `hooks/conformidade.py` continua com 25+9 linhas, e o total da branch, com 39.
+
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1367 · `por_xargs and bool(pedidos)` deixa passar `echo --add-label afrouxa-regra | xargs gh pr edit 1` (sai 0 no hook real); o desenho §2.7(b) conta todo gh pr|issue edit|create atrás de xargs; troque por `por_xargs` e ponha essa sonda como fixture.
 
 ## Parecer
-Reprovado. A branch entrega o A5 e cumpre a M14, mas o A1 é furo provado no controle do rótulo (R-CONTRIB) e um requisito do desenho que não foi cumprido. Volta ao autor. Na revalidação, o escopo é o delta (`forge-check delta`).
+Aprovado no HEAD `caae6a6`. O achado A1 da rodada anterior (`dc3762c`, reprovada), em `hooks/conformidade.py:1367`, está resolvido. Agora todo `gh pr|issue edit|create` atrás de `xargs` exige o dono, como pede o desenho §2.7(b), e a correção tem fixture. O delta não traz achado novo.
