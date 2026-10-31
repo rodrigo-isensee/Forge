@@ -16,8 +16,8 @@
       "id": "A4-m2",
       "guarda": "o forge-check por interpretador passa pela politica de caminhos",
       "arquivo": "hooks/conformidade.py",
-      "de": "Path(args[livres[0]]).name == \"forge-check\"",
-      "para": "Path(args[livres[0]]).name == \"forge-check_\"",
+      "de": "Path(a).name == \"forge-check\"",
+      "para": "Path(a).name == \"forge-check_\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]
@@ -56,17 +56,21 @@
       "id": "A4-m6",
       "guarda": "o forge-check por interpretador entra na conferencia",
       "arquivo": "hooks/conformidade.py",
-      "de": "INTERPRETES.match(prog):\n        livres",
-      "para": "False:\n        livres",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "de": "    if INTERPRETES.match(prog):\n        # a opção",
+      "para": "    if False:\n        # a opção",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m7",
-      "guarda": "o primeiro argumento sem opcao do interpretador e o programa",
+      "guarda": "a palavra forge-check do interpretador e achada entre os argumentos",
       "arquivo": "hooks/conformidade.py",
-      "de": "enumerate(args) if not a.startswith(\"-\")]",
-      "para": "enumerate(args) if a.startswith(\"-\")]",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "de": "for i, a in enumerate(args) if Path(a).name",
+      "para": "for i, a in enumerate(args) if not Path(a).name",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m8",
@@ -74,7 +78,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "return args if opaco else None",
       "para": "return args if False else None",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m9",
@@ -82,7 +88,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if argumentos_do_forge_check is not None:",
       "para": "if argumentos_do_forge_check is None:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m10",
@@ -90,7 +98,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if pular:\n                pular = False",
       "para": "if False:\n                pular = False",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m11",
@@ -98,7 +108,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "elif abreviacao_de(a, (\"--raiz\", \"--raiz-pedidos\")):",
       "para": "elif False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m12",
@@ -106,7 +118,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "pular = \"=\" not in a",
       "para": "pular = True",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A4-m13",
@@ -114,7 +128,19 @@
       "arquivo": "hooks/conformidade.py",
       "de": "elif not a.startswith(\"-\"):\n                livres.append(a)",
       "para": "elif False:\n                livres.append(a)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m14",
+      "guarda": "interpretador sem forge-check na linha nao e lido como forge-check",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if achados else None",
+      "para": "if achados else args",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     }
   ]
 }
