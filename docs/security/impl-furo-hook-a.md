@@ -3,45 +3,67 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a3
-commit: 24a8b873167daa35edfeb9445505ca818034535f
+commit: 1804a4345abfec159ef2990019d7060792265858
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-10-31
 ---
-# Review de segurança: impl-furo-hook-a, branch a3
+# Review de segurança: impl-furo-hook-a, branch a3 (revalidação da volta 2)
 
-Etapa E1.3 do pedido `impl-furo-hook-a` (brief `impl-furo-hook-a-security-engineer-2`). Diff lido: `234dbe0..24a8b87`, incluindo a volta 1 (`a0d1dfd`, `f793398`). Modelo de ameaças: `~/.forge-contrib/docs/security/ameacas/furo-hook.md`, §4.3. Não sou o autor.
+Etapa E1.3 do pedido `impl-furo-hook-a` (brief `impl-furo-hook-a-security-engineer-3`). Revalidação pelo delta do parecer anterior (`24a8b87`, reprovado com A1 e A2 bloqueantes). Modelo de ameaças: `~/.forge-contrib/docs/security/ameacas/furo-hook.md`, §4.3. Não sou o autor.
+
+## Delta lido
+`forge-check delta --parecer docs/security/impl-furo-hook-a.md` listou `24a8b87..1804a43`:
+- `hooks/conformidade.py` +12 -5, nas linhas 1250 e 1263-1273 (`git_config`).
+- Três fixtures novas: `merge-flag-config-set-driver-bloqueia.json`, `merge-flag-config-set-mergeoptions-bloqueia.json` e `merge-flag-config-worktree-mergeoptions-bloqueia.json`.
+
+Como o delta toca um controle do Forge (o hook `conformidade`), reli `git_config` inteira (`hooks/conformidade.py:1247-1273`) e as constantes que ela usa (`:125-133`), não só as linhas mudadas.
 
 ## Item entregue e M14
-- **Item:** E3, A3 HOOK-MERGE-FLAGS: flags do merge na integração, chaves de configuração do merge em `CONFIG_PROTEGIDA` e `git -c`.
-- **M14 (decisão M14, `agents/tech-lead.md:19` na develop):** contam `hooks/conformidade.py` (32+2) e `tests/test_hooks.py` (5): 39 linhas, abaixo de 150. As fixtures de `tests/hooks/`, `tests/mutantes/`, `docs/hooks.md`, `changelog.d/` e os pareceres ficam fora. Uma classe de comportamento em `hooks/` (merge na integração que muda o resultado revisado, pela linha ou pela configuração), com corpus próprio (24 fixtures `merge-flag-*`). **Cumpre.**
+- **Item:** E3, A3 HOOK-MERGE-FLAGS.
+- **M14 (`agents/tech-lead.md:19` na develop):** contam `hooks/conformidade.py` (44+7) e `tests/test_hooks.py` (5): 56 linhas, abaixo de 150. Uma classe de comportamento em `hooks/` (merge na integração que muda o resultado revisado), com corpus próprio. **Cumpre.**
 
 ## Gatilhos
 R-SEGURANCA, controles do Forge: o hook `conformidade`, nos portões R-REVIEW e R-CONFORMIDADE.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1250 · `git config --worktree branch.develop.mergeoptions --squash` (e pull.twohead, pull.octopus, merge.<d>.driver) sai 0, e o Corrigir da :1266 manda usar --worktree; o merge sem flag vira squash ou no-commit. --worktree não isenta CONFIG_DO_MERGE.
-- A2 (bloqueante) hooks/conformidade.py:1261 · `git config set <chave> <valor>` (git 2.46 ou mais novo; aqui é o 2.55) sai 0 para toda chave protegida: as do merge, alias.*, core.*, user.*. Com `set` ou `unset` como 1.ª palavra livre, a chave é a palavra livre seguinte.
-- A3 (recomendado) hooks/conformidade.py:1250 · `GIT_EDITOR=<script> git config -e|--edit|edit` grava qualquer chave sem recusa; chaves do bash fora da linha crítica também saem 0 (`git config {branch.develop.mergeoptions,--squash}`, `git {-c,pull.twohead=ours} pull`). Cartão.
+- A1 (bloqueante) hooks/conformidade.py:1261 · A2 anterior, corrigido em parte: após `set` ou `unset`, toda opção vira chave. `git config set --all branch.develop.mergeoptions --squash`, `set --append pull.twohead ours`, `set --comment=x pull.octopus ours` e `set --value=x core.editor vi` saem 0.
+- A2 (recomendado) hooks/conformidade.py:1267 · anterior à branch: `git config remove-section core` e `--remove-section core` saem 0 e apagam o core.hooksPath (o pre-push deixa de rodar); a seção sem ponto não casa CONFIG_PROTEGIDA. Cartão novo ao dono, como o N1.
+- A3 (recomendado) hooks/conformidade.py:1250 · segue do parecer anterior: `GIT_EDITOR=<script> git config -e|--edit|edit` e as chaves do bash fora da linha crítica gravam sem recusa. Cartão.
 
 ## Detalhe dos achados
-Sondas: cada uma monta a fixture `merge-flag-s-ours-bloqueia` (tech-lead na develop) pelo `Fixture`/`rodar` da própria worktree e roda o hook real. A sintaxe do git foi conferida num repositório descartável em `$TMPDIR`. Nada rodou contra repositório real, rede ou produção.
+Sondas: cada uma monta a fixture `merge-flag-config-set-mergeoptions-bloqueia` pelo `Fixture`/`rodar` da própria worktree, troca só o comando e roda o hook real com o papel tech-lead. A sintaxe do git foi conferida num repositório descartável em `$TMPDIR` (git 2.55.0). Nada rodou contra repositório real, rede ou produção.
 
-**O que a branch fecha (saem 2):** `-s ours`, `-sours`, `--strategy ours`, `--strategy=ours`, `--strat=ours`, `-X theirs`, `-Xtheirs`, `-nX ours`, `-vs ours`, `--strategy-option=theirs`, `--squash` (também depois da branch e `--squash=yes`), `--squ`, `--no-commit` (também seguido de `--commit`), `--no-comm`, `-m msg -s ours`, `-mx -sours`, `git -C . merge -s ours`, `timeout 5 git merge -s ours` e `env git merge --squash`. Também fecha `pull --squash`, `pull --no-commit`, `pull -Xours`, `git -c pull.twohead=ours pull`, `git config` das quatro chaves (`--local`, `--file .git/config`, `--add`, com maiúsculas, com `--` e com o valor começado por traço) e as formas com chaves do bash na linha do merge (a rede da ADR 0011). O corpus de legítimos sai 0: `git merge --no-ff -m x feature/x`, `git config branch.feature/x.merge refs/heads/develop`, `git config --get …` e `git config --list`. As fixtures do lote passam: `test_fixtures_do_lote_furo_hook_a` deu `OK` no HEAD revisado.
+**O que a volta 2 fecha (saem 2):**
+- **A1 anterior (`--worktree`), corrigido.** `git config --worktree` com `branch.develop.mergeoptions`, `pull.twohead`, `pull.octopus` e `merge.nos.driver`, também com `--add`, `--replace-all` e `--`, e `git config set --worktree branch.develop.mergeoptions --squash`. A recusa dessas chaves não sugere mais `--worktree`. Contraprova `git config --worktree core.sparseCheckout true` sai 0, e `git config set --worktree core.editor vi` também (isenção anterior, fora das chaves do merge, vai com o N1).
+- **A2 anterior (`set`/`unset`), na forma simples.** `git config set` com `branch.develop.mergeoptions`, `pull.twohead`, `merge.nos.driver`, `alias.p` e `core.editor`; `set --local …`; `set --type bool core.bare true`; `unset core.bare`. O corpus de legítimos sai 0: `git config get branch.develop.mergeoptions`, `git config list`, `git config --get core.editor`, `git config set branch.feature/x.merge refs/heads/develop` e `git config branch.feature/x.merge refs/heads/develop`.
 
-**A1, bloqueante (requisito C-A3-3 do modelo, segurança com gatilho).** Evidência: `hooks/conformidade.py:1250` sai de `git_config` sem conferir nada quando há `--worktree` nos argumentos. As sondas `git config --worktree branch.develop.mergeoptions --squash`, `git config --worktree pull.twohead ours` e `git config --worktree merge.nos.driver true` saem 0. No git, `--worktree` sem `extensions.worktreeConfig` grava no `.git/config` comum (conferido: a chave foi para `.git/config`, sem `config.worktree`). Com a extensão, grava na configuração da própria worktree, que vale para o merge feito nela. Nos dois casos o merge da develop muda. Caminho, por erro e sem intenção: o tech-lead tenta `git merge --squash` e é recusado; tenta `git config branch.develop.mergeoptions --squash` e a recusa da `:1266` responde "use --worktree"; segue a dica e o `git merge melhoria/x` sem flag passa pelo A3 e pelo `parecer`, fazendo squash (perde o vínculo com a branch revisada) ou no-commit (o conteúdo muda antes do commit). Severidade alta: anula o controle que a branch entrega, e a mensagem do próprio hook leva ao furo. Correção mínima: em `git_config`, o `--worktree` só isenta quando a chave não casa `CONFIG_DO_MERGE`, ou seja, as quatro chaves `branch.<b>.mergeoptions`, `pull.twohead`, `pull.octopus` e `merge.<driver>.driver` recusam também com `--worktree`. A recusa dessas chaves não sugere `--worktree` no Corrigir. Fixtures `-bloqueia` com as três sondas e contraprova `git config --worktree core.sparseCheckout true` · 0 (o estado de hoje). Esforço P. Dono: tech-lead. É o A2 do review restrito às chaves do merge. O review o deixou como recomendado porque a isenção é anterior à branch; aqui ele bloqueia porque, para estas chaves, é requisito do item. Para `alias.*` e `core.*` com `--worktree`, a isenção anterior continua e vai com o N1, item novo ao dono.
+**A1, bloqueante (requisito C-A3-3 do modelo, segurança com gatilho; é o A2 anterior, corrigido em parte).** Evidência: em `hooks/conformidade.py:1261`, a palavra `set` entra em `chaves` como se fosse a chave; com `chaves` não vazia, toda palavra com traço seguinte conta como chave ou valor. A `:1263-1265` tira só o `set`, e a 1.ª chave passa a ser a opção. Sondas com saída 0, todas da sintaxe aceita pelo git real (as quatro primeiras gravaram a chave no `.git/config` do repositório descartável):
+- `git config set --all branch.develop.mergeoptions --squash`
+- `git config set --append pull.twohead ours`
+- `git config set --comment=x pull.octopus ours`
+- `git config set --value=x core.editor vi`
+- `git config set --comment x pull.twohead ours`
+- `git config set --type=bool core.bare true`
+- `git config set --fixed-value core.editor vi`
+- `git config unset --all alias.p`
 
-**A2, bloqueante (requisito C-A3-3, segurança com gatilho).** Evidência: o laço de `hooks/conformidade.py:1253-1262` toma a 1.ª palavra sem traço como chave. Na sintaxe de subcomando do `git config` (git 2.46 ou mais novo; o desta máquina é o 2.55.0), essa palavra é `set` ou `unset`, que não casa `CONFIG_PROTEGIDA`. Sondas com saída 0: `git config set branch.develop.mergeoptions --squash`, `git config set pull.twohead ours`, `git config set merge.nos.driver true`, `git config set --local branch.develop.mergeoptions --squash`, `git config set alias.p push`, `git config set core.editor vi` e `git config unset core.bare`. Na base `234dbe0`, `git config set alias.p push` também sai 0: a falha é anterior, mas anula as chaves novas desta branch na forma que a documentação atual do git usa primeiro. Caminho: um agente usa a sintaxe nova por hábito (sem intenção) e grava a estratégia do merge da develop. Severidade alta, pelo mesmo efeito do A1. Correção mínima: em `git_config`, se a 1.ª palavra livre for um subcomando do `git config`, ela não é a chave. A lista inteira: escrita `set`, `unset`, `rename-section`, `remove-section`, `edit`; leitura `get`, `list`. Em `set` e `unset`, a chave é a palavra livre seguinte. As opções do subcomando não são chave: `--local`, `--global`, `--system`, `--worktree` (com a regra do A1), `--all`, `--append`, `--file`, `--blob`, `--type`, `--default`, `--value`, `--comment`. Destas, `--file`, `--blob`, `--type`, `--default`, `--value` e `--comment` levam valor quando o valor vem separado. `rename-section`, `remove-section` e `edit` contam como escrita, como as formas `--rename-section`, `--remove-section` e `-e` de `CONFIG_ESCRITA`. Fixtures `-bloqueia` com as sete sondas e contraprovas `git config get branch.develop.mergeoptions` · 0, `git config list` · 0 e `git config set branch.feature/x.merge refs/heads/develop` · 0. Esforço P. Dono: tech-lead.
+Caminho: o mesmo do A2 anterior, sem intenção: um agente usa a sintaxe de subcomando com uma opção comum (`--all` para trocar todos os valores, `--comment` para registrar o motivo) e grava a estratégia do merge da develop; o merge sem flag passa pelo A3 e pelo `parecer` e vira squash ou no-commit. Severidade alta, pelo mesmo efeito. A correção mínima do parecer anterior já trazia a lista destas opções.
 
-**A3, recomendado.** Evidência:
-- `GIT_EDITOR=./ed.sh git config -e`, `--edit` e `edit` saem 0. `-e` está em `CONFIG_ESCRITA`, mas sem chave na linha a recusa da `:1264` não dispara, e o editor grava qualquer chave.
-- `git config {branch.develop.mergeoptions,--squash}` e `git {-c,pull.twohead=ours} pull . feature/x` saem 0, porque a linha não tem marcador `CRITICO` e a rede de chaves da ADR 0011 não roda.
+Correção mínima: o `set`/`unset` é reconhecido como subcomando **antes** de entrar em `chaves`, e as palavras com traço que vêm depois dele e antes da chave são opções, não chave (a mesma regra da forma antiga). As opções do subcomando, a lista inteira:
+- de escopo: `--local`, `--global`, `--system`, `--worktree`;
+- sem valor: `--all`, `--append`, `--fixed-value`;
+- com valor, junto (`--x=v`) ou separado (`--x v`): `--file`, `--blob`, `--type`, `--default`, `--value`, `--comment`.
 
-Caminho: só deliberado, por injeção, que escreve um editor ou monta a linha com chaves. É a mesma classe de limite do N6 e do [B] de `docs/hooks.md`. Severidade média. Correção mínima (cartão): `git config` com `-e`, `--edit` ou `edit` recusa para todo papel, e a linha com `git config` ou `git -c` entra no marcador `CRITICO`, para a rede das chaves valer. Esforço P. Dono: tech-lead.
+Destas, `--value` e `--comment` faltam em `CONFIG_COM_VALOR` (`:133`) para a forma separada; `-f` já está lá.
 
-**Cartões do review (pergunta do brief):** o A2 do review (`--worktree`) **bloqueia**, restrito às chaves do merge (A1 acima). O A3 do review (valores com cara de opção, como `git config user.name --global`) **não bloqueia**: grava valores literais (`--global`, `--local`) sem efeito no merge nem na identidade útil. Fica como cartão de limpeza, sem caminho de ataque.
+Fixtures `-bloqueia`: `set --all branch.develop.mergeoptions --squash`, `set --append pull.twohead ours`, `set --comment=x pull.octopus ours` e `set --value=x core.editor vi`. Contraprovas · 0: `set --all branch.feature/x.merge refs/heads/develop` e `set --comment x branch.feature/x.merge refs/heads/develop`. Esforço P. Dono: tech-lead.
 
-Dimensão nova para a matriz do modelo (§8): **Posição, subcomando do `git config`** (`set`/`unset`) e **escopo por worktree** das chaves do merge; **Mecanismo, expansão do shell fora da linha crítica** (chaves), que aparece também nas branches a2, a4 e a5.
+**A2, recomendado (anterior à branch, fora das chaves do merge).** Evidência: `hooks/conformidade.py:1267` casa a 1.ª chave com `CONFIG_PROTEGIDA`, e as alternativas da regex pedem o ponto (`core\.`, `user\.`, `alias\.`). Um nome de seção sem ponto (`core`) não casa. `git config remove-section core` e `git config --remove-section core` saem 0. No git real, depois de `remove-section core`, `git config --get core.hooksPath` volta vazio: o pre-push do repositório deixa de rodar (R-VERIFY). A guarda de `core.hooksPath` em `:1089` procura o nome da chave na linha e não vê a seção. `remove-section pull` e `rename-section pull x` saem 0, sem efeito no merge (tiram a configuração, não a põem). Na base `234dbe0` a regex e a forma `--remove-section` são as mesmas. Caminho: só deliberado. Ninguém apaga a seção `core` por engano, e ela leva junto `repositoryformatversion` e `bare`. Severidade média. Correção mínima (cartão novo ao dono, junto do N1): `remove-section` e `rename-section`, nas duas formas, recusam quando o nome da seção (ou o novo nome) é `core`, `user`, `alias`, `include*`, `commit`, `pull`, `merge.<d>` ou `branch.<b>`. Esforço P. Dono: tech-lead.
+
+**A3, recomendado.** O A3 do parecer anterior segue igual: o delta não tocou `-e`/`--edit`/`edit` nem o marcador `CRITICO`. Cartão, dono tech-lead.
+
+Dimensão nova para a matriz do modelo (§8): **Posição, opção do subcomando antes da chave** (`set --all`, `set --comment=`) e **Mecanismo, seção inteira** (`remove-section`, `rename-section`), além das já registradas.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, um repositório descartável para a sintaxe do `git config` e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: `forge-check delta`, leitura do delta e de `git_config` inteira, sondas locais pelo harness de fixtures e um repositório descartável para a sintaxe do `git config`. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o delta não traz segredo, dependência nem workflow).
