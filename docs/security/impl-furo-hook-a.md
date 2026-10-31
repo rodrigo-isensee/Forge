@@ -45,4 +45,4 @@ Fixtures `-bloqueia` com as sondas acima e contraprova `gh pr edit 1 --add-label
 Dimensão nova para a matriz do modelo (§8, Mecanismo): **expansão de chaves e glob do bash** em linha sem a rede da ADR 0011 (fora do projeto ou sem marcador). Ela aparece também nas branches a2, a3 e a4. Proponho um cartão único para as quatro.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, `printf` local para a expansão e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, `printf` local para a expansão e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
