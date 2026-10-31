@@ -22,8 +22,8 @@
       "id": "A5-m3",
       "guarda": "o rotulo atras do xargs exige o dono",
       "arquivo": "hooks/conformidade.py",
-      "de": "or por_xargs and bool(pedidos)",
-      "para": "or False",
+      "de": "or palavras[-1] in ROTULO_COM_VALOR or por_xargs)",
+      "para": "or palavras[-1] in ROTULO_COM_VALOR or False)",
       "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
     },
     {
