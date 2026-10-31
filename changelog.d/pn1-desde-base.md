@@ -1,2 +1,0 @@
-### Alterado
-- forge-check entrega: o --desde igual ao Base-sha do brief, ancestral do head, vale como a branch inteira quando o Histórico do pedido não tem linha conferida ou quando a última conferida não é ancestral do head (branch nova depois de um squash; linha base: Base-sha do brief); com a última conferida ancestral do head, ela segue sendo o Desde, e a branch que não nasce do Base-sha segue recusada (PN1-DESDE-BASE, P-N1).

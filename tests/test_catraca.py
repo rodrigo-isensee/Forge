@@ -1,17 +1,19 @@
 """Testes da catraca (tests/catraca.py) em repositório git temporário: cada regra com um caso que passa e um que barra."""
+import ast
 import contextlib
 import copy
+import datetime
 import hashlib
 import http.client
 import importlib.util
 import io
+import itertools
 import json
 import re
 import os
 import subprocess
 import sys
 import tempfile
-import time
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -35,6 +37,20 @@ CONFIG = {
 }
 HOOKS = {"hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "python3", "args": ["a.py"]},
                                                                   {"type": "command", "command": "python3", "args": ["b.py"]}]}]}}
+_RELOGIO_DAS_FIXTURES = itertools.count()  # só cresce: cada chamada de `ambiente_de_git` vale um segundo a mais
+
+
+def ambiente_de_git():
+    """Ambiente de todo `git` que cria commit nas fixtures. Ordem: tira o `GIT_*` herdado (um hook exporta `GIT_DIR`, que
+    levaria o commit ao repositório real), deixa a manutenção desligada e só então fixa as datas: a data inicial é fixa
+    e o contador sobe um segundo por chamada, então o mesmo conteúdo não repete o SHA (b8) e a ordem do `git log` fica
+    a cronológica, sem depender do relógio."""
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    data = datetime.datetime(2025, 6, 1, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=next(_RELOGIO_DAS_FIXTURES))
+    env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = data.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return env
+
+
 SHA_TRECHO = hashlib.sha256(b"trecho1").hexdigest()
 
 
@@ -44,6 +60,34 @@ def hash_(forma, tipo="trecho", n=None):
 
 
 TESTE = "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n    def test_b(self): pass\n"
+
+
+class AmbienteDeGitDasFixtures(unittest.TestCase):
+    """FIXTURE-DATA-GIT: toda fixture que cria commit usa datas fixas e crescentes, nunca o relógio nem o `GIT_*` herdado."""
+
+    def test_traz_as_duas_datas_iguais_e_crescentes(self):
+        a, b = ambiente_de_git(), ambiente_de_git()
+        self.assertEqual(a["GIT_AUTHOR_DATE"], a["GIT_COMMITTER_DATE"])
+        self.assertEqual(b["GIT_AUTHOR_DATE"], b["GIT_COMMITTER_DATE"])
+        self.assertLess(a["GIT_AUTHOR_DATE"], b["GIT_AUTHOR_DATE"])  # ISO 8601 em UTC: a ordem de texto é a cronológica
+        self.assertTrue(a["GIT_AUTHOR_DATE"].startswith("2025-"))
+
+    def test_nao_devolve_o_git_herdado_do_processo(self):
+        herdado = {"GIT_DIR": "/nao/existe", "GIT_WORK_TREE": "/nao/existe", "GIT_INDEX_FILE": "/nao/existe", "GIT_AUTHOR_DATE": "1 +0000"}
+        with mock.patch.dict(os.environ, herdado):
+            env = ambiente_de_git()
+        for chave in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
+            self.assertNotIn(chave, env)
+        self.assertNotEqual(env["GIT_AUTHOR_DATE"], "1 +0000")
+        self.assertEqual(env["GIT_CONFIG_COUNT"], "3")  # a manutenção segue desligada
+
+    def test_commit_da_fixture_nao_depende_do_relogio(self):
+        repo = Repo()
+        self.addCleanup(repo.fecha)
+        repo.escreve("a.txt", "a\n")
+        repo.commit()
+        data = repo.git("log", "-1", "--format=%aI").strip()
+        self.assertTrue(data.startswith("2025-"), data)
 
 
 class Repo:
@@ -68,7 +112,7 @@ class Repo:
         self.git("checkout", "-q", "-b", "pr")
 
     def git(self, *args):
-        env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+        env = ambiente_de_git()
         return subprocess.run(["git", "-C", str(self.dir), *args], check=True, capture_output=True, text=True, env=env).stdout
 
     def escreve(self, rel, texto):
@@ -1852,6 +1896,29 @@ def corrida(sha, quando, ramo="develop", repo=REPO_GH, evento="pull_request"):
             "head_repository": {"full_name": repo}}
 
 
+# Uma linha por forma de violação de chave (tests/catraca.py, `regras_de_config` e `regra_termos_proibidos`):
+# (forma, ajuste da base, mudança do head sobre ela, texto da regra).
+CHAVES_DO_CONFIG = (
+    ("invariante removido", None, lambda c: c.update(invariantes={}), "invariante removido de docs/regra.md"),
+    ("termos_proibidos_hash removido", lambda c: c.update(termos_proibidos_hash=[hash_("Forma1")]),
+     lambda c: c.update(termos_proibidos_hash=[]), "removido ou alterado em termos_proibidos_hash"),
+    ("termos_proibidos sem cobertura", None, lambda c: c.update(termos_proibidos=[]), "sem cobertura em termos_proibidos_hash"),
+    ("neutralidade: termo removido", None, lambda c: c["neutralidade_nucleo"].update(termos=[]), "termo de neutralidade removido"),
+    ("neutralidade: pasta removida", None, lambda c: c["neutralidade_nucleo"].update(pastas=[]), "pasta saiu da checagem de neutralidade"),
+    ("neutralidade: pasta ignorada", None, lambda c: c["neutralidade_nucleo"].update(ignorar=["docs"]), "nova pasta ignorada pela neutralidade"),
+    ("neutralidade: exceção nova", None, lambda c: c["neutralidade_nucleo"].update(excecoes={"agents/a.md": ["x"]}),
+     "exceção nova de neutralidade"),
+    ("anti-duplicação: exceção nova", None, lambda c: c["anti_duplicacao"].update(excecoes=["trecho"]), "exceção nova de anti-duplicação"),
+    ("anti-duplicação: palavras removido", None, lambda c: c["anti_duplicacao"].pop("palavras"), "anti_duplicacao.palavras removido"),
+    ("anti-duplicação: palavras subiu", None, lambda c: c["anti_duplicacao"].update(palavras=13), "anti-duplicação exige mais palavras iguais"),
+    ("anti-duplicação: pasta removida", None, lambda c: c["anti_duplicacao"].update(pastas=[]), "pasta saiu da anti-duplicação"),
+    ("limite_linhas removido", None, lambda c: c.update(limite_linhas={}), "limite_linhas.agente removido"),
+    ("limite_linhas subiu", None, lambda c: c["limite_linhas"].update(agente=20), "limite_linhas.agente subiu de 10 para 20"),
+    ("dono trocado", None, lambda c: c.update(dono="outro"), "a chave `dono` mudou"),
+    ("custo_permitido novo", None, lambda c: c.update(custo_permitido={"scripts/x.sh": ["y"]}), "permissão nova de custo em scripts/x.sh"),
+)
+
+
 class RotuloDePrMesclado(Base):
     """S-16: na promoção, a violação "mudança em <arquivo>" fica coberta pelo rótulo do dono já posto num PR mesclado
     em base..head, se o arquivo tem o mesmo blob e modo do head rotulado; tudo o mais pede o rótulo (A1-A14 da segurança)."""
@@ -2010,10 +2077,54 @@ class RotuloDePrMesclado(Base):
         self.assertIn("R-CUSTO:", r.stdout)
 
     def test_violacao_sem_arquivo_continua_pedindo(self):
-        """Decisão do dono (alcance A): chaves do tests/config.json e contagem de testes seguem pedindo o rótulo."""
+        """Decisão do dono (alcance A): a contagem de testes segue pedindo o rótulo (as chaves do config: o teste abaixo)."""
         self.depois_do_merge("tests/test_x.py", "import unittest\nclass T(unittest.TestCase):\n    def test_a(self): pass\n")
         r = self.pede()
         self.assertIn("testes `test_*` caíram", r.stdout)
+
+    def refaz_o_pr_10_com_config(self, na_base, no_head):
+        """Refaz o PR #10 (rotulado e mesclado) com o `tests/config.json` alterado pelo head: `na_base` ajusta a base (a `main`),
+        `no_head` a mudança que o PR traz. O arquivo de regra e o workflow seguem mudados no PR, como no `setUp`."""
+        r, cfg = self.repo, copy.deepcopy(CONFIG)
+        r.git("checkout", "-q", "-B", "base2", "base")
+        if na_base:
+            na_base(cfg)
+            r.escreve("tests/config.json", json.dumps(cfg))
+            r.git("add", "-A")
+            r.git("commit", "-q", "-m", "base com a chave")
+        r.git("branch", "-f", "main", "base2")
+        r.git("checkout", "-q", "-B", "fonte", "base2")
+        no_head(cfg)
+        r.escreve("tests/config.json", json.dumps(cfg))
+        r.escreve(".github/workflows/ci.yml", "name: CI\non: push\n")
+        r.escreve("tests/catraca.py", "x = 'mudou no PR 10'\n")
+        r.commit()
+        self.s = r.git("rev-parse", "HEAD").strip()
+        r.git("checkout", "-q", "-B", "homolog", "base2")
+        r.git("merge", "-q", "--no-ff", "-m", "Merge pull request #10 from o/develop", "fonte")
+        self.pull["merge_commit_sha"] = self.m = r.git("rev-parse", "HEAD").strip()
+        self.execs = [corrida(self.s, "2026-01-02T09:00:00Z"), corrida(self.s, "2026-01-02T10:00:03Z")]
+
+    def test_rotulo_de_pr_mesclado_nao_cobre_nenhuma_chave_do_config(self):
+        """S16-TESTE-CHAVES: a mudança de chave dentro do PR #10 rotulado e mesclado, junto da "mudança em <arquivo>" que ele
+        cobre, segue pedindo o rótulo: só a violação que nomeia arquivo é liberada pelo PR mesclado. As 15 formas de violação
+        de `regras_de_config` e `regra_termos_proibidos`; a guarda de completude está no teste seguinte."""
+        for forma, na_base, no_head, texto in CHAVES_DO_CONFIG:
+            with self.subTest(forma=forma):
+                self.refaz_o_pr_10_com_config(na_base, no_head)
+                r = self.pede()
+                self.assertIn(texto, r.stdout)
+                self.assertNotIn("liberada(s)", r.stdout)
+
+    def test_toda_forma_de_violacao_de_chave_tem_um_caso(self):
+        """Guarda de completude: cada chamada a `msg(` de `regras_de_config` e de `regra_termos_proibidos` é uma forma de violação
+        de chave. Regra nova sem caso em CHAVES_DO_CONFIG deixa este teste vermelho."""
+        arvore = ast.parse((AQUI / "catraca.py").read_text(encoding="utf-8"))
+        formas = sum(1 for f in ast.walk(arvore) if isinstance(f, ast.FunctionDef) and f.name in ("regras_de_config", "regra_termos_proibidos")
+                     for c in ast.walk(f) if isinstance(c, ast.Call) and getattr(c.func, "id", None) == "msg")
+        self.assertGreaterEqual(formas, 15)
+        self.assertEqual(formas, len(CHAVES_DO_CONFIG))
+        self.assertEqual(len({c[0] for c in CHAVES_DO_CONFIG}), len(CHAVES_DO_CONFIG), "forma repetida na tabela")
 
     def test_a13_pr_de_melhoria_para_a_develop_pede(self):
         for pr in ({"head": lado("melhoria/x"), "base": lado("develop")}, {"head": lado("homolog", "fork/r"), "base": lado("main")}):
@@ -2063,12 +2174,12 @@ class RotuloDePrMesclado(Base):
 
 
 def _g(pasta, *args):
-    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    env = ambiente_de_git()
     return subprocess.run(["git", "-C", str(pasta), *args], check=True, capture_output=True, text=True, env=env).stdout
 
 
 def _tem(pasta, sha):
-    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
+    env = ambiente_de_git()
     return subprocess.run(["git", "-C", str(pasta), "cat-file", "-e", f"{sha}^{{commit}}"], capture_output=True, env=env).returncode == 0
 
 
@@ -2341,9 +2452,11 @@ class RotuloDePrSquash(Base):
                 self.pede()
 
     # --- a prova do squash só vale para squash --------------------------------------------------------------
+    def test_dois_squash_do_mesmo_conteudo_sem_espera_dao_shas_diferentes(self):
+        self.assertNotEqual(self.squash(ROTULADO), self.m)
+
     def test_b8_merge_fora_da_cadeia_de_primeiro_pai_pede(self):
         self.repo.git("checkout", "-q", "-b", "lateral", "base")
-        time.sleep(1.2)  # o M do pull não pode coincidir com o do setUp (mesmo conteúdo e segundo dariam o mesmo hash)
         m = self.pull["merge_commit_sha"] = self.squash(ROTULADO)  # M do pull, na `develop`
         self.assertNotEqual(m, self.m)
         self.repo.git("branch", "-f", "lateral", m)
