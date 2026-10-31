@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from test_forge import ARQ, ID, Cenario  # noqa: E402
+from test_forge import ARQ, ID, Cenario, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 SHA_A, SHA_B, BASE_SHA = "a" * 40, "b" * 40, "c" * 40
@@ -95,6 +95,46 @@ class MensagemPelaEtapaDoBrief(Cenario):
             with self.subTest(faltando=faltando):
                 self.gravar(ARQ, self.completo.replace(faltando, "", 1))
                 self.recusa(SEM_CABECALHO, "--worktree", str(self.pasta))
+
+
+class DesdeNaBranchNova(Cenario):
+    """P-N1: a worktree é um repositório; com a última conferida fora do head e o Base-sha ancestral dele, o `Desde:` é o Base-sha."""
+
+    entrega = MensagemPelaEtapaDoBrief.entrega
+
+    def setUp(self):
+        super().setUp()
+        self.pasta = self.tmp / "wt"
+        self.pasta.mkdir()
+        git("init", "-q", "-b", "develop", cwd=self.pasta)
+        self.base = self.commitar("base")
+        git("switch", "-q", "-c", "melhoria/velha", cwd=self.pasta)
+        self.velha = self.commitar("branch anterior, integrada por squash")
+        git("switch", "-q", "--no-track", "-c", "melhoria/x", self.base, cwd=self.pasta)
+        self.c1 = self.commitar("branch nova")
+        self.gravar(ARQ, self.completo.replace("Agente destino: forge:dev-exemplo\n",
+                                               "Agente destino: forge:dev-exemplo\n" + CABECALHO.replace(BASE_SHA, self.base), 1))
+
+    def commitar(self, mensagem):
+        git("-c", "user.name=Teste", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", mensagem, cwd=self.pasta)
+        return git("rev-parse", "HEAD", cwd=self.pasta).stdout.strip()
+
+    def desde(self, historico):
+        rc, saida = self.entrega("--worktree", str(self.pasta), pedido_extra=historico)
+        self.assertEqual(rc, 0, saida)
+        return [linha for linha in saida.decode().splitlines() if linha.startswith("Desde:")]
+
+    def test_conferida_fora_do_head_da_o_base_sha(self):
+        self.assertEqual(self.desde(f"- 2026-10-29 07:36: entrega conferida {self.velha}\n"), [f"Desde: {self.base}"])
+
+    def test_conferida_ancestral_do_head_segue_sendo_o_desde(self):
+        historico = f"- 2026-10-29 07:36: entrega conferida {self.velha}\n- 2026-10-29 10:08: entrega conferida {self.c1}\n"
+        self.assertEqual(self.desde(historico), [f"Desde: {self.c1}"])
+
+    def test_sem_conferida_fica_o_comportamento_de_hoje(self):
+        self.assertEqual(self.desde("- 2026-10-29 07:36: aberto\n"), [])
+        dono = f"DECISÃO DO DONO (2026-10-29): \"fixar a base\".\n- 2026-10-29 11:00: base do delta fixada pelo dono {self.c1}\n"
+        self.assertEqual(self.desde(dono), [f"Desde: {self.c1}"])
 
 
 if __name__ == "__main__":

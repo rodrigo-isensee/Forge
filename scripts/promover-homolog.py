@@ -8,12 +8,15 @@ Passos, em ordem; para no primeiro erro:
   2. pareceres: cada parecer de docs/{reviews,qa,security,devops}/ que a promoção traz (lido da ref) é `parecer: aprovado`.
   3. versão e CHANGELOG (lidos da ref): versão nova é maior que a da homolog; `## [<versão>]` existe; `[Não publicado]`
      vazio; sem fragmento em changelog.d/. Sem versão nova a promoção não é release e o CHANGELOG não é conferido
-     (a mesma regra do CI, scripts/conferir-release.py --so-se-versao-mudou).
+     (a mesma regra do CI, scripts/conferir-release.py --so-se-versao-mudou). Na release, `bin/forge-check pr
+     release-<versão> --ref <ref> --base main`: parecer de review ou QA da release desatualizado
+     ou faltando contra a main para; devops e segurança, que o forge-check pede pela leva inteira, não contam (P-N3).
   4. PR develop -> homolog: abre se não houver (reusa o aberto; base que não seja a homolog para).
-  5. checks: uma leitura de `gh pr checks`; só pass/skipping passam.
+  5. checks: uma leitura de `gh pr checks --json`; só contam os do evento pull_request (os do push da develop, no
+     mesmo sha, não são a bateria do PR); só pass/skipping passam.
   6. rótulo: a Catraca vermelha pede o rótulo `afrouxa-regra` do dono; o script só avisa, nunca o aplica.
   7. imprime o comando que liga o merge automático (--auto); com o merge automático desligado no repositório, o comando recusa e o tech-lead mescla com tudo verde. O script NÃO mescla: o rótulo segue com o dono.
---dry-run: roda só as leituras locais dos passos 1 a 3 (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
+--dry-run: roda só as leituras locais dos passos 1 a 3, o forge-check pr inclusive (nenhum fetch, nenhum gh, nenhum PR, nenhuma escrita) e descreve 4 a 7.
 Sem --dry-run, antes do passo 1 roda `git fetch origin` (atualiza as refs remotas; é a única escrita local).
 Código de saída: 0 pronta para o merge automático (checks verdes, pendentes ou ainda sem check; ou dry-run sem problema);
 1 parou (inclui check vermelho); 3 preparada, mas o rótulo do dono por vir (rode de novo).
@@ -34,6 +37,8 @@ PASTAS_DE_PARECER = ("docs/reviews", "docs/qa", "docs/security", "docs/devops")
 CATRACA = "catraca"
 ROTULO = "afrouxa-regra"
 PENDENTES = {"pending", "queued", "in_progress"}
+FORGE_CHECK = Path(__file__).resolve().parent.parent / "bin" / "forge-check"
+PARECERES_DA_LEVA = ("docs/devops", "docs/security")  # com --base main, os gatilhos leem a leva inteira (P-N3)
 OK = {"pass", "skipping"}
 
 
@@ -139,6 +144,26 @@ def conferir_versao(ref, base):
     return atual
 
 
+def conferir_contra_main(ref, versao):
+    """P-N3: o parecer da release vale contra a main antes de a versão entrar na homolog (forge-check pr, lido da ref)."""
+    pedido = f"release-{versao}"
+    comando = [sys.executable, "-I", str(FORGE_CHECK), "pr", pedido, "--ref", ref, "--base", "main"]
+    print(" ".join(["forge-check", *comando[3:]]))
+    try:
+        r = subprocess.run(comando, capture_output=True, text=True, timeout=300)
+    except (subprocess.TimeoutExpired, OSError) as e:
+        parar(f"forge-check pr {pedido} contra a main não rodou: {e}")
+    linhas = r.stdout.splitlines()
+    da_leva = [linha for linha in linhas if linha.startswith(PARECERES_DA_LEVA)]
+    if r.returncode and (len(da_leva) < len(linhas) or not linhas):
+        citado = (r.stdout + r.stderr).strip().replace("\n", "\n  ")
+        parar(f"forge-check pr {pedido} contra a main: parecer desatualizado ou faltando; peça novo parecer antes de promover "
+              f"(a branch da release é melhoria/{pedido}, R-FLUXO):\n  {citado}")
+    for linha in da_leva:
+        print(f"forge-check pr: não conta (devops e segurança são dos PRs da leva, não da release): {linha}")
+    print(f"forge-check pr: pareceres de review e QA de {pedido} valem contra a main")
+
+
 def comando_gh():
     if os.environ.get("FORGE_PROMOVER_TESTE") == "1":
         return os.environ.get("FORGE_GH", "gh")
@@ -182,18 +207,22 @@ def corpo_do_pr(versao, ref, base):
 
 
 def ler_checks(gh, numero):
-    cod, saida = ler(gh, "pr", "checks", numero, tentativas=1)
+    """Só os checks do evento pull_request do PR: os do push da develop (mesmo sha) não são a bateria do PR."""
+    cod, saida = ler(gh, "pr", "checks", numero, "--json", "name,bucket,event,link", tentativas=1)
+    try:
+        todos = json.loads(saida)
+    except ValueError:
+        todos = None
+    if not isinstance(todos, list):
+        return None, [], saida
     estados, linhas = [], []
-    for linha in saida.splitlines():
-        campos = linha.split("\t")
-        if len(campos) < 2:
+    for c in todos:
+        if not isinstance(c, dict) or c.get("event") != "pull_request":
             continue
-        run = job = "?"
-        m = re.search(r"/runs/(\d+)/job/(\d+)", campos[3] if len(campos) > 3 else "")
-        if m:
-            run, job = m.groups()
-        estados.append((campos[0], campos[1]))
-        linhas.append(f"check {campos[0]} {campos[1]} run={run} job={job}")
+        m = re.search(r"/runs/(\d+)/job/(\d+)", str(c.get("link", "")))
+        run, job = m.groups() if m else ("?", "?")
+        estados.append((c.get("name"), c.get("bucket")))
+        linhas.append(f"check {c.get('name')} {c.get('bucket')} run={run} job={job}")
     return estados, linhas, saida
 
 
@@ -208,13 +237,17 @@ def promover(args):
     conferir_pareceres(ref, base)
     print("[2] pareceres na ref")
     versao = conferir_versao(ref, base)
-    print("[3] versão e CHANGELOG")
+    if versao != versao_de(base):
+        conferir_contra_main(ref, versao)
+    else:
+        print("forge-check pr: sem versão nova, sem pedido de release; não roda contra a main")
+    print("[3] versão, CHANGELOG e forge-check pr contra a main")
     sha = git("rev-parse", ref).stdout.strip()
     comando_merge = f"gh pr merge develop --auto --merge --match-head-commit {sha}"
     if args.dry_run:
         gh = comando_gh()
         print(f"[4] {gh} pr create --base homolog --head develop (só se não houver PR aberto; PR com base que não seja homolog para)")
-        print(f"[5] checks: {gh} pr checks <PR> (uma leitura; só pass/skipping passam; pendente sai com 3)")
+        print(f"[5] checks: {gh} pr checks <PR> --json (uma leitura; só os do evento pull_request; só pass/skipping passam; pendente sai com 0)")
         print(f"[6] rótulo: catraca vermelha pede o rótulo {ROTULO} do dono; o script nunca o aplica")
         print(f"[7] imprime o comando do tech-lead que liga o merge automático ({comando_merge}); com ele desligado no repositório, mescla com tudo verde; o script não mescla")
         print("dry-run concluído: nada foi alterado.")
@@ -236,10 +269,10 @@ def promover(args):
     estados, linhas, saida = ler_checks(gh, numero)
     print("[5] checks")
     print("\n".join(linhas))
+    if estados is None and saida.strip() and "no checks reported" not in saida.lower():
+        parar(f"não consegui ler os checks: {saida.strip()}")
     if not estados:
-        if saida.strip() and "no checks reported" not in saida.lower():
-            parar(f"não consegui ler os checks: {saida.strip()}")
-        print("nenhum check apareceu ainda; o merge automático espera os checks.")
+        print("nenhum check do evento pull_request apareceu ainda; o merge automático espera os checks.")
         print(f"head: {sha}")
         print(f"[7] liga o merge automático (o tech-lead não espera os checks): {comando_merge}")
         return 0

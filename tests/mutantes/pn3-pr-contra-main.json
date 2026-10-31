@@ -1,0 +1,90 @@
+{
+  "pedido": "pn3-pr-contra-main",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "forge-check pr vermelho contra a main para antes de abrir o PR",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "(len(da_leva) < len(linhas) or not linhas)",
+      "para": "(False or not linhas)",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_faltando_para"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a conferencia contra a main roda so na release",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if versao != versao_de(base):",
+      "para": "if versao == versao_de(base):",
+      "testes": [
+        "tests.test_promover_homolog.Versao.test_sem_versao_nova_nao_e_release_e_nao_confere_changelog",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a base da conferencia e a main",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "\"--base\", \"main\"]",
+      "para": "\"--base\", \"homolog\"]",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_release_valendo_contra_a_main_passa_e_diz_o_comando"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o pedido conferido e o da release da versao nova",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "pedido = f\"release-{versao}\"",
+      "para": "pedido = f\"release-{versao}x\"",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_release_valendo_contra_a_main_passa_e_diz_o_comando"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "forge-check que nao roda ou estoura o prazo para (falha fechada)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "        parar(f\"forge-check pr {pedido} contra a main não rodou: {e}\")",
+      "para": "        return",
+      "testes": [
+        "tests.test_promover_homolog.ContraMainFalha.test_prazo_estourado_para",
+        "tests.test_promover_homolog.ContraMainFalha.test_forge_check_ausente_para"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "forge-check que cai sem veredito na saida para (falha fechada)",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": " or not linhas)",
+      "para": ")",
+      "testes": [
+        "tests.test_promover_homolog.ContraMainFalha.test_queda_sem_veredito_para"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "devops e seguranca da leva inteira nao param a release",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if r.returncode and (len(da_leva)",
+      "para": "if r.returncode or (len(da_leva)",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_devops_e_seguranca_da_leva_nao_param_a_release"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "so devops e seguranca saem da parada; review e QA da release seguem parando",
+      "arquivo": "scripts/promover-homolog.py",
+      "de": "if linha.startswith(PARECERES_DA_LEVA)]",
+      "para": "if linha.startswith(\"docs/\")]",
+      "testes": [
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_desatualizado_para_antes_de_abrir_o_pr",
+        "tests.test_promover_homolog.ContraMain.test_parecer_da_release_faltando_para"
+      ]
+    }
+  ]
+}

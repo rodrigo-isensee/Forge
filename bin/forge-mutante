@@ -9,8 +9,10 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
             "mutantes": [{"id": "M1", "guarda": "<o que a linha protege>", "arquivo": "<caminho relativo>",
                           "de": "<trecho exato>", "para": "<troca>", "testes": ["tests.<módulo>.<Classe>.<teste>"]}]}
            `executor` é opcional: o leitor de veredito da stack (hoje só `unittest`).
-           Mutante equivalente declarado: no lugar de `testes`, o campo `equivalente` com a justificativa (20+
-           caracteres; sem ela a spec é recusada). Não roda nem dá rc 1; sai `equivalente: <id> · <justificativa>`.
+           Mutante equivalente declarado: o campo `equivalente` com a justificativa (20+ caracteres; sem ela a spec é
+           recusada). Sem `testes`, não roda nem dá rc 1; sai `equivalente: <id> · <justificativa>`. Com `testes`, roda
+           como os outros: os testes passarem confirma (`<id> · equivalente`); o mutante morto por eles é inválido
+           (rc 2: o equivalente declarado é falso). A spec só de equivalentes sem `testes` não prova nada: rc 2.
   --rev    commit a mutar (padrão HEAD)
   --prazo  por execução de testes, em segundos (padrão 600)
   --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição mudada no diff `merge-base(SHA, REV)..REV`
@@ -24,20 +26,22 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            nova; a nova sem relação deixa a velha como `apagada`. `isentas` na spec do diff (até 8 somadas):
            [{"arquivo", "trecho" exato com 8+ não brancos e dentro do nó, "motivo" de 20+ caracteres}] libera a
            condição sem mutante ou apagada que cruzam, impressa `isenta · arq:L · motivo`; isenta que não cruza condição
-           listada ou cujo trecho não casa uma vez é rc 2. Saída: 0 = toda condição mudada tem mutante ou isenta, 1 =
-           alguma sem mutante ou apagada, 2 = entrada inválida (base que não é commit, diff vazio, spec inválida,
-           arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB de diff, 5000 condições num arquivo
-           ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
+           listada ou cujo trecho não casa uma vez é rc 2. O mutante declarado equivalente não prova a condição: coberta
+           só por ele sai `só equivalente · arq:L · <spec>:<id> · …`. Saída: 0 = toda condição mudada tem mutante com
+           teste ou isenta, 1 = alguma sem mutante, só com equivalente ou apagada, 2 = entrada inválida (base que não
+           é commit, diff vazio, spec inválida, arquivo que não faz parse, mais de 300 arquivos, 1 MiB por arquivo, 4 MiB
+           de diff, 5000 condições num arquivo ou spec com mais de 64 KiB). A primeira linha é `base= mb= rev=`, para bater com o Base-sha do brief.
 
 Para cada mutante, uma cópia nova do commit em $TMPDIR (clone local com `.git` próprio). O controle (os testes
 declarados, sem a troca) tem de passar. Aí o `de` tem de aparecer uma vez só no arquivo, a troca é aplicada e os
 testes rodam: falha por asserção = morreu; tudo passa = sobreviveu. Erro de carga, teste que não rodou, sintaxe
 quebrada, estouro de prazo ou sinal não são "morreu": são inválido ou sem veredito (saída 2).
 
-Saída: 0 = todos morreram; 1 = algum sobreviveu e nenhum é inválido; 2 = spec inválida, controle vermelho,
-mutante inválido ou sem veredito. Atenção: o 0 aqui é "provado", o inverso do costume das ferramentas de mutação.
-Nunca escreve na árvore de trabalho nem muta arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec
-inválida barra todas antes de rodar qualquer mutante.
+Saída: 0 = todos morreram (ou são equivalentes declarados) e algum teste rodou; 1 = algum sobreviveu e nenhum é
+inválido; 2 = spec inválida, controle vermelho, mutante inválido, sem veredito ou nenhum teste rodou. Atenção: o 0
+aqui é "provado", o inverso do costume das ferramentas de mutação. Nunca escreve na árvore de trabalho nem muta
+arquivo de teste. Só até 16 mutantes por spec. Sem shell. Uma spec inválida barra todas antes de rodar qualquer
+mutante.
 
 A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook, pre-push nem CI chama. Cobertura é
 "declarado, não provado": quem prova que o mutante morre é a rodada (`forge-mutante SPEC`).
@@ -74,7 +78,7 @@ CAMINHO = re.compile(r"[A-Za-z0-9_@+.][A-Za-z0-9_@+./-]*")
 CHAVES_DA_SPEC = {"pedido", "executor", "mutantes", "isentas"}
 CHAVES_DA_ISENTA = {"arquivo", "trecho", "motivo"}
 CHAVES_DO_MUTANTE = {"id", "guarda", "arquivo", "de", "para", "testes"}
-CHAVES_DO_EQUIVALENTE = (CHAVES_DO_MUTANTE - {"testes"}) | {"equivalente"}  # a justificativa vai no campo
+CHAVES_DO_EQUIVALENTE = CHAVES_DO_MUTANTE | {"equivalente"}  # a justificativa vai no campo; `testes` é opcional
 EXECUTORES = {"unittest"}
 MAXIMO_DE_ARQUIVOS = 300
 MAXIMO_DO_ARQUIVO = 1 << 20
@@ -223,7 +227,8 @@ def validar_spec(dados):
     for i, m in enumerate(mutantes, 1):
         nome = f"mutante {i}"
         chaves = CHAVES_DO_EQUIVALENTE if isinstance(m, dict) and "equivalente" in m else CHAVES_DO_MUTANTE
-        if not isinstance(m, dict) or set(m) != chaves:
+        obrigatorias = chaves - {"testes"} if "equivalente" in chaves else chaves
+        if not isinstance(m, dict) or not obrigatorias <= set(m) <= chaves:
             problemas.append(f"{nome}: precisa das chaves {', '.join(sorted(chaves))}")
             continue
         if not isinstance(m["id"], str) or not ID_DE_MUTANTE.fullmatch(m["id"]) or m["id"] in vistos:
@@ -242,7 +247,8 @@ def validar_spec(dados):
         if "equivalente" in m:
             if not isinstance(m["equivalente"], str) or len(m["equivalente"].strip()) < 20:
                 problemas.append(f"{nome}: equivalente exige a justificativa (texto de 20+ caracteres)")
-            continue
+            if "testes" not in m:
+                continue
         testes = m.get("testes")
         if not isinstance(testes, list) or not testes or not all(id_de_teste_valido(t) for t in testes):
             problemas.append(f"{nome}: testes é uma lista de ids tests.<módulo>[.<Classe>[.<teste>]]")
@@ -411,14 +417,19 @@ def condicoes(texto):
 def casa(m, arquivo, depois, ini, fim):
     """O mutante `m` cobre a condição que ocupa os bytes [ini, fim] de `arquivo` (texto `depois`)? O `de` único
     no arquivo, com 8+ caracteres não brancos, e o trecho entre o prefixo e o sufixo comuns de `de` e `para` dentro
-    do nó. Em Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
+    do nó. Prefixo e sufixo sobrepostos (o espaço junto da condição está nos dois) deixam o trecho deslizar entre o
+    início do sufixo e o fim do prefixo; basta um alinhamento em que o trecho mudado inteiro fique dentro do nó. Em
+    Python, a troca que não muda o `ast` é mutante de fachada: ValueError."""
     de, para = m["de"].encode("utf-8"), m["para"].encode("utf-8")
     prefixo = len(os.path.commonprefix([de, para]))
-    sufixo = len(os.path.commonprefix([de[prefixo:][::-1], para[prefixo:][::-1]]))
+    sufixo = len(os.path.commonprefix([de[::-1], para[::-1]]))
+    comum = min(prefixo + sufixo, len(de), len(para))
     dados = depois.encode("utf-8")
     inicio = dados.find(de)
+    primeira = max(comum - sufixo, ini - inicio)
+    ultima = min(prefixo, fim - inicio - (len(de) - comum))
     if not (m["arquivo"] == arquivo and len("".join(m["de"].split())) >= 8 and dados.count(de) == 1
-            and ini <= inicio + prefixo and inicio + len(de) - sufixo <= fim):
+            and primeira <= ultima):
         return False
     if ast.dump(ast.parse(depois.replace(m["de"], m["para"]))) == ast.dump(ast.parse(depois)):
         raise ValueError(f"{m['id']}: a troca não muda o ast de {arquivo} (mutante equivalente)")
@@ -463,12 +474,16 @@ def analisar(arquivo, hunks, antes, depois, mutantes, isentas, usadas):
             if falta[v[0]] and parecidas(v[0], n[0]):
                 falta[v[0]] -= 1
     for texto, ini, fim, de, ate in mudadas:
-        cobrem = [f"{espec}:{m['id']}" for espec, m in mutantes if casa(m, arquivo, depois, de, ate)]
+        casados = [(f"{espec}:{m['id']}", "equivalente" in m) for espec, m in mutantes
+                   if casa(m, arquivo, depois, de, ate)]
+        cobrem = [nome for nome, equivalente in casados if not equivalente]
         motivo = None if cobrem else isenta(isentas, usadas, arquivo, depois, de, ate)
         if cobrem:
             saida.append(f"coberta · {arquivo}:{ini} · {', '.join(cobrem)} · declarado, não provado")
         elif motivo:
             saida.append(f"isenta · {arquivo}:{ini} · {motivo}")
+        elif casados:  # o equivalente declarado não é prova: a condição segue sem mutante com teste
+            saida.append(f"só equivalente · {arquivo}:{ini} · {', '.join(n for n, _ in casados)} · não provado")
         else:
             saida.append(f"sem mutante · {arquivo}:{ini} · {' '.join(texto.split())[:60]}")
     for texto, ini, fim, de, ate in {c[0]: c for c in reversed(velhas) if falta[c[0]]}.values():
@@ -534,7 +549,7 @@ def cobertura(base, rev):
         print(f"forge-mutante: {erro}", file=sys.stderr)
         return 2
     sys.stdout.writelines(f"{x}\n" for x in saida)
-    return 1 if any(x.startswith(("sem mutante", "apagada")) for x in saida) else 0
+    return 1 if any(x.startswith(("sem mutante", "só equivalente", "apagada")) for x in saida) else 0
 
 
 def anotar(segundos, codigo):
@@ -552,11 +567,11 @@ def principal(specs, sha, prazo):
     print(f"forge-mutante: pedido={specs[0][1]['pedido']} rev={sha[:12]} {hashes}")
     anterior = signal.signal(signal.SIGTERM, lambda numero, quadro: sys.exit(143))  # o `finally` apaga as cópias
     trabalho = Path(tempfile.mkdtemp(prefix="forge-mutante-"))
-    controles, linhas, codigo = {}, [], 0
+    controles, linhas, codigo, rodou = {}, [], 0, False
     inicio = time.monotonic()
     try:
         for m in (m for _, dados in specs for m in dados["mutantes"]):
-            if "equivalente" in m:
+            if "equivalente" in m and "testes" not in m:
                 linha, valido = linha_do_equivalente(sha, m)
                 linhas.append(linha)
                 codigo = codigo if valido else 2
@@ -585,6 +600,10 @@ def principal(specs, sha, prazo):
                 codigo = 2
                 continue
             classe, motivo = veredito(m["testes"], registro)
+            rodou = True
+            if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
+                classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
+                    "inválido", "declarado equivalente, mas os testes listados o matam")
             linhas.append(f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else ""))
             if classe == "inválido":
                 codigo = 2
@@ -598,6 +617,9 @@ def principal(specs, sha, prazo):
         signal.signal(signal.SIGTERM, anterior)
         shutil.rmtree(trabalho, ignore_errors=True)
     print("\n".join(linhas))
+    if not rodou and codigo == 0:
+        print("forge-mutante: nenhum teste rodou (spec só de equivalentes sem `testes`); nada provado.", file=sys.stderr)
+        codigo = 2
     if depois != antes:
         print("forge-mutante: a árvore de trabalho mudou durante a rodada; resultado descartado.", file=sys.stderr)
         return 2

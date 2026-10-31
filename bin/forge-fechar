@@ -29,7 +29,7 @@
 # para 0 só com FORGE_FECHAR_TESTE=1); --espera 0 a 7200. Só inteiro decimal, no máximo 3 dígitos (5 em --espera).
 # Log: depois das checagens iniciais, a primeira linha da saída é "log: <caminho>"; todo o resto (stdout e stderr, igual à tela) vai também
 # para esse arquivo (modo 600, criado com mktemp), uma linha por registro, com hora UTC, stderr marcado [err] e segredo mascarado; a última
-# linha é "fim: código <n>". Pasta por usuário (sem link, do próprio dono; modo diferente de 700 é ajustado para 700, com aviso): FORGE_FECHAR_LOG_DIR, senão
+# linha é "fim: código <n>". A lista do prune do passo 7 vai só ao log (marca [prune]); a tela recebe a contagem. Pasta por usuário (sem link, do próprio dono; modo diferente de 700 é ajustado para 700, com aviso): FORGE_FECHAR_LOG_DIR, senão
 # $XDG_RUNTIME_DIR/forge-fechar-logs, senão ${TMPDIR:-/tmp}/forge-fechar-logs-<uid>. Log com mais de 14 dias é apagado. Vale também
 # para --dry-run. Serve para quando o comando é cortado pelo teto de tempo.
 set -euo pipefail
@@ -208,18 +208,23 @@ mascarar() {
 # registrar <fd>: repassa cada linha à tela (fd 1 ou 2) e grava a versão mascarada no log (stderr com prefixo [err]); uma escrita por linha,
 # sob flock quando existe, para duas fileiras não partirem a linha uma da outra. A ordem entre stdout e stderr no mesmo segundo não é garantida.
 registrar() {
-  local linha marca="" saida
+  local linha marca=""
   trap '' TERM INT HUP
   [ "$1" = 2 ] && marca="[err] "
   while IFS= read -r linha || [ -n "$linha" ]; do
     printf '%s\n' "$linha" >&"$1"
-    saida="$(date -u +%Y-%m-%dT%H:%M:%SZ) $marca$(printf '%s' "$linha" | mascarar)"
-    if command -v flock >/dev/null 2>&1; then
-      { flock 9; printf '%s\n' "$saida" >&9; } 9>>"$log"
-    else
-      printf '%s\n' "$saida" >> "$log"
-    fi
+    gravar_linha "$marca" "$linha"
   done
+}
+# gravar_linha <marca> <linha>: grava a linha mascarada, com data e marca, só no log (sem tela).
+gravar_linha() {
+  local saida
+  saida="$(date -u +%Y-%m-%dT%H:%M:%SZ) $1$(printf '%s' "$2" | mascarar)"
+  if command -v flock >/dev/null 2>&1; then
+    { flock 9; printf '%s\n' "$saida" >&9; } 9>>"$log"
+  else
+    printf '%s\n' "$saida" >> "$log"
+  fi
 }
 exec > >(registrar 1)
 pid_out=$!
@@ -402,8 +407,15 @@ limpar_entrega() {
       arv_st=pendente
     elif ! git worktree remove "$arvore"; then
       # "Device or resource busy": o diretório pode já ter sumido com o registro administrativo para trás; prune só tira entrada de diretório
-      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai ao log). No sandbox o prune pode ser negado.
-      [ -d "$arvore" ] || git worktree prune -v || true
+      # ausente (de todas as worktrees do repositório, por isso -v: a lista vai só ao log e a tela recebe a contagem, para centenas de registros
+      # órfãos não enterrarem a linha `limpeza:`; WORKTREE-ORFAS). LC_ALL=C: a contagem lê o "Removing" sem tradução. No sandbox o prune pode ser negado.
+      if [ ! -d "$arvore" ]; then
+        local prune_saida prune_rc=0 prune_linha
+        prune_saida="$(LC_ALL=C git worktree prune -v 2>&1)" || prune_rc=$?
+        while IFS= read -r prune_linha; do gravar_linha "[prune] " "$prune_linha"; done <<< "$prune_saida"
+        echo "registro: prune tirou $(grep -c '^Removing ' <<< "$prune_saida") registro(s) de worktree órfã"
+        [ "$prune_rc" = 0 ] || echo "aviso: o prune saiu com código $prune_rc; a saída dele está no log: $log" >&2
+      fi
       if git worktree list --porcelain | awk -v w="$arvore" '$1=="worktree" && substr($0,10)==w {f=1} END {exit !f}'; then
         if [ -d "$arvore" ]; then
           echo "aviso: não removi a worktree $arvore (suja ou ocupada); se o diretório persistir com a worktree limpa, rode o comando fora do sandbox." >&2

@@ -1,0 +1,46 @@
+{
+  "pedido": "PN5-ESPERA-ENVIO",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o laço do log sai na hora quando o log já tem a linha rc=, sem gastar as voltas do teto",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "2>/dev/null) && break; sleep 30",
+      "para": "2>/dev/null); sleep 30",
+      "testes": ["tests.test_esperar_estado.LacoDoLog"]
+    },
+    {
+      "id": "M2",
+      "guarda": "o lançamento grava rc=1 no log quando o envio falha; sem ela, o laço só sai no teto",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": " || echo rc=1 >> <log>",
+      "para": "",
+      "testes": ["tests.test_esperar_estado.LacoDoLog"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o laço do log tem 17 voltas de 30 s (540 s), abaixo do teto de 600 s do Bash",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "seq 1 17); do fim=$(grep",
+      "para": "seq 1 18); do fim=$(grep",
+      "testes": ["tests.test_esperar_estado.LacoDoLog"]
+    },
+    {
+      "id": "M4",
+      "guarda": "o tech-lead nunca encerra o turno com o envio pendente (BG-MORRE-TURNO)",
+      "arquivo": "agents/tech-lead.md",
+      "de": ", e nunca encerra o turno com o envio pendente; sem mexer",
+      "para": "; sem mexer",
+      "testes": ["tests.test_forge.EsperaDoPushEVerificadores"]
+    },
+    {
+      "id": "M5",
+      "guarda": "o lançamento grava num log de caminho literal: com $TMPDIR ao lado do envio, a conformidade recusa em projeto (review A1)",
+      "arquivo": "skills/esperar-estado/SKILL.md",
+      "de": "`<envio> > <log> 2>&1",
+      "para": "`<envio> > \"$TMPDIR/envio.log\" 2>&1",
+      "testes": ["tests.test_esperar_estado.BlocosPassamPelosHooks"]
+    }
+  ]
+}

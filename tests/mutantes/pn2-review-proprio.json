@@ -1,0 +1,76 @@
+{
+  "pedido": "pn2-review-proprio",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "sem Branch: no cabecalho nao ha aviso",
+      "arquivo": "bin/forge-check",
+      "de": "(texto))\n    if not branch:\n        return []\n    if any(papel",
+      "para": "(texto))\n    if False:\n        return []\n    if any(papel",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_brief_sem_branch_nao_avisa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "pedido com etapa (tech-lead): code review nao avisa",
+      "arquivo": "bin/forge-check",
+      "de": "papel == \"tech-lead\" and ETAPA_DE_CODE_REVIEW",
+      "para": "False and ETAPA_DE_CODE_REVIEW",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_pedido_com_etapa_de_code_review_nao_avisa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "sem rede (ls-remote falha) nada se imprime",
+      "arquivo": "bin/forge-check",
+      "de": "if not conferido or remota:",
+      "para": "if remota:",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_branch_nova_sem_etapa_de_review_avisa_e_o_rc_nao_muda"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "branch ja no remoto nao avisa",
+      "arquivo": "bin/forge-check",
+      "de": "if not conferido or remota:",
+      "para": "if not conferido:",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_branch_ja_no_remoto_nao_avisa"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o aviso nao reprova (rc inalterado)",
+      "arquivo": "bin/forge-check",
+      "de": "\"o PR dela vai pedir review próprio (R-REVIEW)\", False)",
+      "para": "\"o PR dela vai pedir review próprio (R-REVIEW)\", True)",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_branch_nova_sem_etapa_de_review_avisa_e_o_rc_nao_muda"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o aviso entra na saida do forge-check brief",
+      "arquivo": "bin/forge-check",
+      "de": "    linhas += aviso_de_review_proprio(raiz, texto, ler_pedido_brief(pedido_txt))\n",
+      "para": "",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_branch_nova_sem_etapa_de_review_avisa_e_o_rc_nao_muda"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "so a etapa de code review do tech-lead conta (outro papel avisa)",
+      "arquivo": "bin/forge-check",
+      "de": "any(papel == \"tech-lead\" and ETAPA_DE_CODE_REVIEW",
+      "para": "any(ETAPA_DE_CODE_REVIEW",
+      "testes": [
+        "tests.test_etapa_do_brief.ReviewProprio.test_pedido_com_etapa_de_code_review_nao_avisa"
+      ]
+    }
+  ]
+}

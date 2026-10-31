@@ -6,7 +6,7 @@ description: Práticas de Kanban e Scrum do time - estrutura do quadro KANBAN.md
 # Kanban e Scrum do time
 
 ## Quadro (`KANBAN.md`, na raiz)
-Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`).
+Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromisso**. Limites de cada coluna e política de puxar: `R-WIP` 1 cartão por agente e limites de coluna (`${CLAUDE_PLUGIN_ROOT}/docs/regras/R-WIP.md`). Antes do Upstream, no topo, fica a coluna **Aguardando o dono** (topo do quadro): entra o cartão cuja próxima ação é do usuário (`R-DECISAO` painel "Aguardando o dono"; vaga: `R-WIP`).
 
 **Upstream — descoberta (Design Thinking, conduzido pelo `ux-designer`)**
 
@@ -29,14 +29,14 @@ Visível no GitHub e no editor. Duas partes, separadas pelo **ponto de compromis
 | **QA** | Code review aprovado |
 | **Aguardando sua validação** | QA aprovado, branch enviada, PR pronto para o usuário |
 | **Pronto** | Usuário validou e fez o merge na `main` |
-| **Bloqueado** | Dependência externa ou decisão pendente (registrar motivo e coluna de origem) |
+| **Bloqueado** | Dependência externa (decisão ou ação do usuário vai para "Aguardando o dono"; registrar motivo e coluna de origem) |
 
 Políticas:
 - Puxar, não empurrar; terminar antes de começar (`R-WIP`).
 - Nenhuma coluna é pulada no downstream (`R-REVIEW` code review antes do QA; `R-QA` portão de QA).
 - "Pronto" só com o merge do usuário (`R-MAIN` a main é do usuário).
 - **"Pronto: não reproduz"** (bug sem código, nada a mesclar): o cartão só entra em "Pronto" com a prova no lugar do merge, anotada no cartão ou no parecer: passos tentados, ambiente e versão (sistema, runtime, commit ou release) e a saída copiada da ferramenta. O usuário valida a prova; sem ela o cartão fica em "Aguardando sua validação". Medida: cartões em "Pronto" fora da política = 0.
-- Bloqueio: o cartão vai para "Bloqueado" com a coluna de origem anotada e volta para ela.
+- Bloqueio e espera do dono: o cartão vai para "Bloqueado" ou para "Aguardando o dono" com a coluna de origem anotada e volta para ela.
 - Cartão devolvido no code review ou no QA volta para "Em andamento" e conta como retrabalho.
 
 ## Formato do cartão
@@ -51,7 +51,7 @@ Uma linha de tabela por cartão, em cada coluna:
 - ID sequencial `K-NNN`, nunca reutilizado.
 - Responsável é um agente (ou "usuário" quando depende de você).
 - Tamanho: um cartão cabe em até uma fase do pedido; se for maior, quebrar.
-- No topo do quadro: data/hora da última atualização e um resumo (WIP por coluna × limite, itens bloqueados, item mais antigo em andamento).
+- No topo do quadro: data/hora da última atualização e um resumo (WIP por coluna × limite, itens bloqueados, aguardando o dono: N (o mais antigo desde ...), item mais antigo em andamento).
 
 ## Histórico (`docs/kanban/historico.md`)
 Append-only, uma linha por movimento — é a fonte das métricas:

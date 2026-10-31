@@ -98,11 +98,14 @@ class ValidacaoDaSpec(unittest.TestCase):
         self.assertEqual(self.problemas(self.equivalente()), [])
         self.assertEqual(self.problemas(mutante(), self.equivalente()), [])
 
-    def test_equivalente_sem_justificativa_ou_com_testes_e_invalido(self):  # VEL-P1P10
+    def test_equivalente_sem_justificativa_ou_com_testes_mal_formados_e_invalido(self):  # COBERTURA-EQUIVALENTE
         for justificativa in ("", "curta demais", " " * 30, None, 7):
             with self.subTest(repr(justificativa)):
                 self.assertTrue(self.problemas(self.equivalente(justificativa)))
-        self.assertTrue(self.problemas({**self.equivalente(), "testes": ["tests.test_lib.T.test_borda"]}))
+        self.assertEqual(self.problemas({**self.equivalente(), "testes": ["tests.test_lib.T.test_borda"]}), [])
+        for testes in ([], ["lib"], "tests.test_lib"):
+            with self.subTest(testes):
+                self.assertTrue(self.problemas({**self.equivalente(), "testes": testes}))
         semchave = self.equivalente()
         del semchave["equivalente"]
         self.assertTrue(self.problemas(semchave))
@@ -286,6 +289,19 @@ class Execucao(unittest.TestCase):
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertIn("E1 · inválido", r.stdout)
 
+    def test_spec_so_de_equivalentes_sem_testes_nao_sai_0(self):  # COBERTURA-EQUIVALENTE (b)
+        r = self.rodar(self.spec(self.equivalente()))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("nenhum teste rodou", r.stderr)
+
+    def test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido(self):  # COBERTURA-EQUIVALENTE (c)
+        r = self.rodar(self.spec(mutante(), self.equivalente(testes=["tests.test_lib.T.test_baixo"])))
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("E1 · inválido · lib.py:4 · declarado equivalente, mas os testes listados o matam", r.stdout)
+        r = self.rodar(self.spec(self.equivalente(testes=["tests.test_lib.T.test_borda"])))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("E1 · equivalente · lib.py:4\n", r.stdout)
+
     def test_equivalente_sem_justificativa_barra_a_spec_antes_de_rodar(self):  # VEL-P1P10
         r = self.rodar(self.spec(mutante(), self.equivalente(equivalente="curta")))
         self.assertEqual(r.returncode, 2)
@@ -461,6 +477,21 @@ class Cobertura(unittest.TestCase):
         self.assertEqual((r.returncode, r.stdout.splitlines()[0]), (1, f"base={self.base} mb={self.base} rev={self.cabeca()}"))
         self.assertIn("sem mutante · lib.py:2 · x > 100", r.stdout)
         self.salvar(self.spec("if x > 100:", "if x > 1000:"))
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("coberta · lib.py:2 · tests/mutantes/x.json:M1 · declarado, não provado", r.stdout)
+
+    def test_condicao_coberta_so_por_equivalente_sai_em_linha_propria_e_1(self):  # COBERTURA-EQUIVALENTE (a)
+        equivalente = {k: v for k, v in mutante("E1", de="if x > 100:", para="if x > 1000:").items() if k != "testes"}
+        equivalente["equivalente"] = "o limite maior não muda nada observável aqui"
+        spec = {"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [equivalente]})}
+        self.salvar({"lib.py": self.COND, **spec})
+        r = self.cobertura()
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("só equivalente · lib.py:2 · tests/mutantes/x.json:E1 · não provado", r.stdout)
+        self.assertNotIn("coberta", r.stdout)
+        comum = mutante(de="if x > 100:", para="if x > 1000:")
+        self.salvar({"tests/mutantes/x.json": json.dumps({"pedido": "x", "mutantes": [equivalente, comum]})})
         r = self.cobertura()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("coberta · lib.py:2 · tests/mutantes/x.json:M1 · declarado, não provado", r.stdout)
@@ -657,6 +688,18 @@ class Cobertura(unittest.TestCase):
         repetido = "if x > 1000:\n    pass  # if x > 1000:\n"
         self.assertFalse(self.casa("if x > 1000:", "if x > 2000:", repetido), "o de aparece duas vezes")
         self.assertTrue(self.casa("t = x > 1000", "t = x > 2000", 's = "éé"; t = x > 1000\n'), "deslocamento em bytes")
+
+    def test_de_e_para_que_dividem_o_espaco_junto_da_condicao_casam(self):
+        """MUTANTE-CASA-ESPACO: o prefixo comum engole o espaço junto da condição e o sufixo comum começa nele."""
+        self.assertTrue(self.casa("x if f() else y", "x if f() and False else y", "k = x if f() else y\n"), "ternário")
+        texto = "k = any(p and q(l) for l in r)\n"
+        self.assertTrue(self.casa("p and q(l) for l in", "p and q(l) and False for l in", texto), "fim do nó")
+        self.assertFalse(self.casa("else yyyy", "else yyyyy", "k = 1 if a > b else yyyy\n"), "desliza fora do nó")
+        try:
+            removido = self.casa("k = q if aa e", "k = q if e", "k = q if aa else aa\n")
+        except SyntaxError as erro:
+            self.fail(f"remove mais que o nó: o casa aplicou a troca fora do nó ({erro})")
+        self.assertFalse(removido, "remove mais que o nó")
 
     def test_troca_que_nao_muda_o_ast_e_mutante_de_fachada(self):
         with self.assertRaises(ValueError):
