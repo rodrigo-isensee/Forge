@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a4
-commit: ddf8bf3fec75f5759d41799da2cab1d4aff7423a
+commit: 10192e5f4a04d2ff63dae52af40066b58970eb6e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK), revalidação 1
+# Review: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK), revalidação 2
 
 Escopo: revalidação por delta do parecer anterior (`e74f5cc`, reprovado sobre `6a15c2a`). Commits novos: `4b67f82` (fixtures das sondas do A1, vermelhas antes da correção) e `ddf8bf3` (correção). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
 
@@ -18,6 +18,9 @@ Saída de `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` (interv
 - `tests/hooks/conformidade/fc-anotar-por-interpretador-opcao-w-dev-bloqueia.json` e `fc-anotar-por-interpretador-opcao-x-dev-bloqueia.json`, +20 cada (inteiros).
 
 Já lido, sem mudança desde o parecer anterior: o resto de `234dbe0..6a15c2a` (`forge_check_grava`, o ramo do nome opaco, as 20 fixtures, o teste estrutural, a spec de mutantes, `docs/hooks.md` e o fragmento).
+
+## Revalidação 2 (head 10192e5)
+`forge-check delta --parecer` sobre o intervalo `ddf8bf3..10192e5` lista só: a fixture `fc-anotar-por-interpretador-sem-forge-check-dev-libera.json` (+19, inteira, contraprova: `python3 anotar ...` sem forge-check sai 0) e `tests/mutantes/impl-furo-hook-a-a4.json` (spec: trechos `de`/`para` realinhados à correção do A1 e o mutante `A4-m14`). Lidos os dois; o JSON da spec é válido. `git diff ddf8bf3 HEAD -- hooks bin tests/test_hooks.py` vazio: código de produção sem mudança (o `10192e5` e o `c83dd9d` só trazem pareceres de QA e segurança, já fora do delta). `tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no head: `Ran 1 test`, `OK`. M14: 61 linhas de código e teste, cumpre. Já lido: o resto de `234dbe0..ddf8bf3`, como acima.
 
 ## Item entregue
 E4 do pedido, item A4 FC-SUBCOMANDO-HOOK (desenho §2.3), sem mudança de escopo na volta.
