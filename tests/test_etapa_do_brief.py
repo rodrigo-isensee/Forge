@@ -576,6 +576,45 @@ class QuatroDefeitosDoScript(Repo):
             fc.git = real
 
 
+
+class ReviewProprio(Repo):
+    """P-N2 parte 1 (PN2-REVIEW-PROPRIO): a `Branch:` ainda ausente de `origin` num pedido sem `(tech-lead): code review` ganha o
+    aviso no planejamento; o rc não muda. Remoto de fixture (repositório nu local), sem rede."""
+    AVISO = ("aviso: etapa: branch nova melhoria/nova sem etapa de code review no pedido; "
+             "o PR dela vai pedir review próprio (R-REVIEW)")
+    CABECALHO = QuatroDefeitosDoScript.CABECALHO
+    com_remoto = QuatroDefeitosDoScript.com_remoto
+
+    def texto(self, branch="melhoria/nova"):
+        cab = self.CABECALHO.replace("review", "codigo").replace("melhoria/x", branch)
+        return brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5")).replace("\n\n## Objetivo", cab, 1)
+
+    def test_branch_nova_sem_etapa_de_review_avisa_e_o_rc_nao_muda(self):
+        rc_sem_rede, saida = self.conferir(self.texto())
+        self.assertNotIn("branch nova", saida, "sem origin o ls-remote falha: nada se imprime")
+        self.com_remoto()
+        rc, saida = self.conferir(self.texto())
+        self.assertIn(self.AVISO, saida)
+        self.assertEqual((rc, rc_sem_rede), (0, 0), saida)
+
+    def test_pedido_com_etapa_de_code_review_nao_avisa(self):
+        self.com_remoto()
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("(revisor-exemplo): review do", "(revisor-exemplo): code review do"))
+        self.assertIn(self.AVISO, self.conferir(self.texto())[1], "code review de outro papel não é a etapa do tech-lead")
+        self.gravar("docs/pedidos/exemplo.md", PEDIDO.replace("(revisor-exemplo): review do", "(tech-lead): code review do"))
+        self.assertNotIn("branch nova", self.conferir(self.texto())[1])
+
+    def test_branch_ja_no_remoto_nao_avisa(self):
+        self.com_remoto()
+        self.assertNotIn("branch nova", self.conferir(self.texto("melhoria/x"))[1])
+
+    def test_brief_sem_branch_nao_avisa(self):
+        self.com_remoto()
+        sem = brief("revisor-exemplo", ["Mesclar (E1.5)."], fora_sem("E1.5"))
+        self.assertNotIn("Branch:", sem)
+        self.assertNotIn("branch nova", self.conferir(sem)[1])
+
+
 def cabecalho_c2(etapa, branch="melhoria/meu-slug", base="develop"):
     return f"Agente destino: forge:revisor\nPedido: x\nBranch: {branch}   Base: {base}   Base-sha: {'a' * 40}\nEtapa: {etapa}\n\n## Objetivo\nX.\n"
 

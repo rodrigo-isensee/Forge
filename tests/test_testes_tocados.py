@@ -58,7 +58,7 @@ class Mapa(unittest.TestCase):
     def test_forge_check_roda_os_modulos_dele(self):
         modo, modulos = self.plano("bin/forge-check")
         self.assertEqual(modo, "dirigido")
-        self.assertEqual(len(modulos), 30)
+        self.assertEqual(len(modulos), 32)
         for modulo in ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades",
                        "test_doutor_relogio", "test_erros_no_brief", "test_conferencia_base_dono", "test_anotar", "test_isencoes", "test_citacao", "test_medidas_m14b", "test_medida_cpu", "test_hook_ansi_c"):
             self.assertIn(modulo, modulos)
@@ -709,6 +709,48 @@ class Vermelho(unittest.TestCase):
         modulos, linha = self.modulos_do_vermelho(r)
         self.assertEqual(modulos, ["test_forge", "test_outro", "test_sugerir"], r.stdout + r.stderr)
         self.assertNotIn("restrito", linha)
+
+    # VERMELHO-FILTRO: os dados de teste do diff (a spec de mutantes de todo item) não levam à suíte completa.
+    def test_vermelho_com_spec_e_fixture_no_diff_roda_so_o_plano_do_mapa(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/mutantes/x.json", "{}\n")
+        self.gravar("tests/fixtures/y.txt", "y\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_sugerir"], r.stdout + r.stderr)
+        self.assertNotIn("o mapa não sabe", r.stdout)
+
+    def test_vermelho_com_caminho_sem_mapa_avisa_e_roda_a_suite_completa(self):
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.gravar("tests/mutantes/x.json", "{}\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_lib", "test_outro", "test_sugerir"], r.stdout + r.stderr)
+        self.assertIn("vermelho: o mapa não sabe (lib.py sem mapa); suíte completa.", r.stdout)
+
+    def test_vermelho_com_config_no_diff_segue_na_suite_completa(self):
+        self.com_modulos_do_mapa()
+        self.gravar("bin/forge-sugerir", "x = 2\n")
+        self.gravar("tests/config.json", "{}\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1")
+        modulos, _ = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_forge", "test_lib", "test_outro", "test_sugerir"], r.stdout + r.stderr)
+        self.assertIn("tests/config.json altera o mapa", r.stdout)
+
+    def test_vermelho_com_modulos_ignora_o_mapa_e_nao_avisa(self):
+        self.com_modulos_do_mapa()
+        self.gravar("lib.py", "def dobro(x):\n    return x\n# mudou\n")
+        self.salvar("muda")
+        r = self.rodar("--vermelho", "HEAD~1", "--modulos", "test_outro")
+        modulos, linha = self.modulos_do_vermelho(r)
+        self.assertEqual(modulos, ["test_outro"], r.stdout + r.stderr)
+        self.assertIn("(restrito por --modulos)", linha)
+        self.assertNotIn("o mapa não sabe", r.stdout)
 
     def test_vermelho_com_modulo_de_teste_apagado_no_diff_nao_o_roda(self):
         self.com_modulos_do_mapa()

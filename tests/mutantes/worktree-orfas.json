@@ -1,0 +1,67 @@
+{
+  "pedido": "worktree-orfas",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "passo 7: o stderr do prune (a lista -v) e capturado, nao vai a tela",
+      "arquivo": "bin/forge-fechar",
+      "de": "prune_saida=\"$(LC_ALL=C git worktree prune -v 2>&1)\"",
+      "para": "prune_saida=\"$(LC_ALL=C git worktree prune -v)\"",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_prune_com_centenas_de_orfas_conta_na_tela_e_a_lista_fica_so_no_log"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "passo 7: a saida do prune e gravada no log",
+      "arquivo": "bin/forge-fechar",
+      "de": "do gravar_linha \"[prune] \" \"$prune_linha\"; done",
+      "para": "do :; done",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_prune_com_centenas_de_orfas_conta_na_tela_e_a_lista_fica_so_no_log",
+        "tests.test_fechar_orfao.Teste.test_c3_prune_automatico_lista_no_log_o_que_removeu"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "passo 7: a contagem so conta as linhas Removing, nao as de erro",
+      "arquivo": "bin/forge-fechar",
+      "de": "grep -c '^Removing '",
+      "para": "grep -c ''",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_c3_prune_negado_com_diretorio_ausente_imprime_prune_e_nao_remove"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "passo 7: o prune roda com LC_ALL=C para a contagem ler o Removing sem traducao",
+      "arquivo": "bin/forge-fechar",
+      "de": "prune_saida=\"$(LC_ALL=C git worktree prune -v 2>&1)\"",
+      "para": "prune_saida=\"$(git worktree prune -v 2>&1)\"",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_prune_com_centenas_de_orfas_conta_na_tela_e_a_lista_fica_so_no_log"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "passo 7: prune que falha avisa na tela com o codigo e o log",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$prune_rc\" = 0 ] || echo",
+      "para": "true || echo",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_c3_prune_negado_com_diretorio_ausente_imprime_prune_e_nao_remove"
+      ]
+    },
+    {
+      "id": "Q1",
+      "guarda": "passo 7: o prune so roda com o diretorio da worktree ausente (remove que falhou com o diretorio de pe nao poda o repositorio)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ ! -d \"$arvore\" ]",
+      "para": "if true",
+      "testes": [
+        "tests.test_fechar_orfao.Teste.test_worktree_ocupada_com_o_diretorio_presente_nao_roda_o_prune"
+      ]
+    }
+  ]
+}

@@ -302,6 +302,88 @@ class VoltaComABaseDoDono(Repositorio):
         self.assertEqual(rc, 0, saida)
         self.assertIn("base: fixada pelo dono (linha do Histórico)", saida)
 
+    def historico(self, sha):
+        texto = self.pedido.read_text(encoding="utf-8").split("\n## Histórico\n")[0]
+        self.pedido.write_text(texto + f"\n## Histórico\n- 2026-10-23 15:56: base do delta fixada pelo dono {sha}\n", encoding="utf-8")
+
+    def entrega_fora(self, desde):
+        return self.check("entrega", "pedido-sintetico", "--raiz-pedidos", self.fora, "--branch", "melhoria/x", "--base",
+                          "develop", "--base-sha", self.base, "--etapa", "codigo", "--desde", desde)[0]
+
+    def test_base_que_o_entrega_recusa_para_o_gerar_sem_brief(self):  # P-N6: a recusa sai na hora, com o motivo
+        ref = self.head("melhoria/x")
+        self.historico(ref)  # a base do dono igual à ref zeraria o delta
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"recusado: a base de Desde {ref[:7]} (fixada pelo dono", saida)
+        self.assertIn("nada gerado (P-N6)", saida)
+        self.assertNotIn("## Entregar", saida)
+        self.assertEqual(self.entrega_fora(ref), 1)  # a mesma regra do entrega
+
+    def test_base_do_dono_no_base_sha_passa_como_no_entrega(self):  # P-N6: o Base-sha vale pelo `desde_e_a_base`
+        self.historico(self.base)
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--etapa codigo --desde {self.base}` · espera: rc=0", saida)
+        self.assertEqual(self.entrega_fora(self.base), 0)
+
+    def test_base_gravada_na_propria_entrega_recusa_como_no_entrega(self):  # P-N6: a guarda `pedido_na_entrega` (A1)
+        self.commitar({"docs/pedidos/outro.md": "x\n"}, "mexe em docs/pedidos/ depois da base do dono")
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"recusado: a base de Desde {self.c1[:7]} (fixada pelo dono", saida)
+        self.assertIn("(escopo: --desde gravado na própria entrega)", saida)
+        self.assertNotIn("## Entregar", saida)
+        self.assertEqual(self.entrega_fora(self.c1), 1)  # a mesma regra do entrega
+
+
+class DesdeNoBaseSha(Repositorio):
+    """P-N1: sem `conferida` na branch, o Base-sha do brief vale como `--desde` se a branch nasce dele."""
+
+    BASE_DO_BRIEF = "base: Base-sha do brief (sem conferida na branch)"
+
+    def setUp(self):
+        super().setUp()
+        self.c1 = self.commitar({"a.txt": "1\n"}, "1a")
+
+    def test_sem_conferida_o_base_sha_vale_como_a_branch_inteira(self):
+        self.gravar_pedido()
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.base}..{self.c1}", self.BASE_DO_BRIEF, 'escopo: confira "a.txt" +1 -0'])
+
+    def test_com_conferida_no_historico_o_base_sha_segue_recusado(self):
+        self.gravar_pedido([self.c1])
+        c2 = self.commitar({"b.txt": "2\n"}, "2a")
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+        self.assertNotIn(self.BASE_DO_BRIEF, saida)
+        rc, saida = self.entrega(desde=self.c1)  # a conferida ancestral do head segue sendo o Desde
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.c1}..{c2}", 'escopo: confira "b.txt" +1 -0'])
+
+    def test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha(self):
+        git("switch", "-q", "--no-track", "-c", "melhoria/velha", self.base, cwd=self.repo)
+        velha = self.commitar({"v.txt": "v\n"}, "branch anterior, integrada por squash")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido([self.c1, velha])  # vale a última: a de antes do squash, fora do head
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.splitlines(), [f"intervalo: {self.base}..{self.c1}", self.BASE_DO_BRIEF, 'escopo: confira "a.txt" +1 -0'])
+        self.gravar_pedido([velha], extra=linha_do_dono(self.c1))  # só a linha `conferida` decide; a do dono não conta
+        self.assertEqual(self.entrega(desde=self.base)[0], 0)
+
+    def test_branch_que_nao_nasce_do_base_sha_segue_recusada(self):
+        git("switch", "-q", "develop", cwd=self.repo)
+        d1 = self.commitar({"d.txt": "d\n"}, "develop andou")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido()
+        rc, saida = self.entrega(desde=d1, base_sha=d1)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+        self.assertNotIn(self.BASE_DO_BRIEF, saida)
+
 
 if __name__ == "__main__":
     unittest.main()
