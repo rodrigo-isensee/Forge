@@ -130,7 +130,7 @@ CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--lis
 CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section", "--remove-section", "-e",
                   "--edit"}
 CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
-CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
+CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment", "--value"}
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
@@ -1249,10 +1249,12 @@ class Guarda:
         worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
         if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
-        chaves, pulo = [], False
+        chaves, pulo, subcomando = [], False, False
         for a in args:
             if pulo:
                 pulo = False
+            elif not chaves and not subcomando and a in ("set", "unset"):  # git 2.46: `git config set <chave> <valor>` grava
+                subcomando = True  # as opções dele (`--all`, `--append`, `--comment`) vêm antes da chave e não contam
             elif a in CONFIG_COM_VALOR:
                 pulo = True
             elif a == "--":  # depois do `--` tudo é chave ou valor, mesmo com `-` na frente (`mergeoptions -- --squash`)
@@ -1260,9 +1262,6 @@ class Guarda:
                 break
             elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
-        subcomando = chaves[:1] in (["set"], ["unset"])  # git 2.46: `git config set <chave> <valor>` grava
-        if subcomando:
-            chaves = chaves[1:]
         grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
         if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
             return
