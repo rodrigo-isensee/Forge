@@ -2,27 +2,27 @@
 tipo: review
 contrato: 1
 pedido: impl-catraca-2
-branch: melhoria/impl-catraca-2-c1
-commit: 5e8ec33b3e54a8187441c5c73c48f90fc10bf2e2
+branch: melhoria/impl-catraca-2-c2
+commit: 886b70ab3fed3a4463a05de914e89776efa16ebd
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-30
 ---
-# Review: impl-catraca-2 (branch c1)
+# Review: impl-catraca-2 (branch c2)
 
 ## Achados
 
 ## Parecer
-Aprovado. A branch entrega o item E1 do pedido (FIXTURE-DATA-GIT, C1 do desenho `docs/propostas/lotes-1030/catraca-2.md`). Diff lido: `234dbe0..5e8ec33`, dois commits (`7f6feab` teste, `5e8ec33` fragmento).
+Aprovado. A branch entrega o item E2 do pedido (S16-TESTE-CHAVES, C2 do desenho com as correções do modelo de ameaças). Diff lido: `234dbe0..886b70a`, dois commits (`87e7fc6` teste, `886b70a` fragmento).
 
-M14 (`agents/tech-lead.md:19`): 55 linhas contadas (`git diff --numstat --no-renames 234dbe0 5e8ec33`: `tests/test_catraca.py` 50+5; o fragmento `changelog.d/` fica fora), abaixo de 150. Um comportamento só (ambiente de git das fixtures com datas fixas). Não toca `hooks/` nem `PROTEGIDOS`.
+M14 (`agents/tech-lead.md:19`): 70 linhas contadas (`git diff --numstat --no-renames 234dbe0 886b70a`: `tests/test_catraca.py` 69+1; o fragmento `changelog.d/` fica fora), abaixo de 150. Um comportamento só (o rótulo de PR mesclado não cobre violação de chave do config). Não toca `hooks/` nem `PROTEGIDOS`.
 
-Conferido contra o modelo de ameaças (`docs/security/ameacas/catraca-2.md`, 3.1):
-- C1-1: `ambiente_de_git` (`tests/test_catraca.py:42-50`) filtra o `GIT_*` herdado, passa por `sem_manutencao` e só depois fixa as datas.
-- C1-2: as duas datas recebem o mesmo valor, data fixa mais contador do módulo (`itertools.count`, `:39`); não há variante sem contador.
-- C1-3: `Repo.git`, `_g` e `_tem` usam a função; o `ls-files` do repositório real (`:2720-2721`) fica com o ambiente antigo, como o modelo prevê.
-- C1-4: a espera de 1,2 s e o `import time` saem; nenhuma asserção do b8 sai (`assertNotEqual(m, self.m)` segue).
-- C1-5: data base 2025-06-01, longe dos instantes simulados de 2026-01-02.
-- Testes novos: T1-1 e T1-3 em `AmbienteDeGitDasFixtures` (`:64-89`), T1-2 em `test_dois_squash_do_mesmo_conteudo_sem_espera_dao_shas_diferentes`.
+Conferido contra o modelo de ameaças (`docs/security/ameacas/catraca-2.md`, 3.2):
+- C2-1: a tabela `CHAVES_DO_CONFIG` (`tests/test_catraca.py:1858-1876`) tem as 15 formas, cada uma com o texto da regra; o caso de `termos_proibidos_hash` ajusta a base com uma entrada, como o modelo exige.
+- C2-2: `test_toda_forma_de_violacao_de_chave_tem_um_caso` (`:2076`) conta as chamadas a `msg(` em `regras_de_config` e `regra_termos_proibidos` pela árvore de sintaxe e exige igualdade com a tabela, mais um piso de 15 e nomes sem repetição.
+- C2-3: `refaz_o_pr_10_com_config` (`:2042`) mantém no PR #10 a mudança em `tests/catraca.py` e no workflow, e o `pede()` confere rc 1 e "mudança em".
+- C2-4: rodei a mutação "filtrar o `None` de `arquivos`" no lugar da guarda (`tests/catraca.py:1017-1018`), numa cópia em `$TMPDIR`: 14 das 15 formas caem por rc 0 com "liberada(s) pelo rótulo", não por traceback. A que segue verde é `custo_permitido novo` (`:1875`), porque a violação de custo nunca chega ao caminho do PR mesclado (o `custo` vem antes); o subteste continua útil como guarda desse outro controle. Não é defeito.
+- C2-5: a docstring do teste antigo passa a dizer só o que ele cobre, sem perder asserção.
+- C2-6 (recomendado no modelo, não exigido pelo pedido): não há caso de chave na classe do squash. Fica como recomendação para uma próxima mexida; não devolve.
 
-Regras ferramenta: rodei `python3 -m unittest tests.test_catraca tests.test_ambiente_git` no head revisado: 280 testes, OK (a leitura estática aceita a função nova como ponto único). A suíte completa fica com o CI do PR e o pre-push. Segurança: parecer próprio do `security-engineer` (E1.3), não refeito aqui.
+Regras ferramenta: rodei `python3 -m unittest tests.test_catraca.RotuloDePrMesclado tests.test_ambiente_git` no head revisado: 40 testes, OK. A suíte completa fica com o CI do PR e o pre-push. Segurança: parecer próprio do `security-engineer` (E1.3), não refeito aqui.

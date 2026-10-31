@@ -2,36 +2,34 @@
 tipo: revisao-seguranca
 contrato: 1
 pedido: impl-catraca-2
-branch: melhoria/impl-catraca-2-c1
-commit: c91d05568756b9fb3db8a6f32f79742ed353f339
+branch: melhoria/impl-catraca-2-c2
+commit: 41e3d2f6fe1849962709fdddce3ef9a713df5251
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
 ---
-# Review de segurança: impl-catraca-2 (branch c1)
+# Review de segurança: impl-catraca-2 (branch c2)
 
 ## Gatilhos
-R-SEGURANCA, gatilho de controles do Forge: a mudança está nos testes da catraca (`tests/test_catraca.py`), que guardam um controle protegido. O controle em si (`tests/catraca.py`) não muda.
+R-SEGURANCA, gatilho de controles do Forge: a mudança está nos testes da catraca (`tests/test_catraca.py`), que guardam o caminho do rótulo de PR mesclado. O controle em si (`tests/catraca.py`) não muda.
 
-Item entregue: E1 do pedido (FIXTURE-DATA-GIT, C1 do desenho e seção 3.1 do modelo de ameaças `docs/security/ameacas/catraca-2.md`). Diff lido: `234dbe0..c91d055`, commits `7f6feab` (teste), `5e8ec33` (fragmento) e `c91d055` (parecer do review).
+Item entregue: E2 do pedido (S16-TESTE-CHAVES, C2 do desenho com as correções da seção 3.2 do modelo de ameaças `docs/security/ameacas/catraca-2.md`). Diff lido: `234dbe0..41e3d2f`, commits `87e7fc6` (teste), `886b70a` (fragmento) e `41e3d2f` (parecer do review).
 
-M14 (`agents/tech-lead.md:19`): cumpre. `git diff --numstat --no-renames 234dbe0 c91d055` conta 55 linhas de teste (`tests/test_catraca.py`, 50+5); o fragmento de `changelog.d/` e o parecer `.md` ficam fora. Abaixo de 150, um comportamento só (ambiente de git das fixtures com datas fixas e crescentes), sem arquivo de `hooks/`, `.githooks/`, `bin/`, `.github/` nem de `PROTEGIDOS`.
+M14 (`agents/tech-lead.md:19`): cumpre. `git diff --numstat --no-renames 234dbe0 41e3d2f` conta 70 linhas de teste (`tests/test_catraca.py`, 69+1); o fragmento de `changelog.d/` e o parecer `.md` ficam fora. Abaixo de 150, um comportamento só (o rótulo de PR mesclado não cobre violação de chave do config), sem arquivo de `hooks/`, `.githooks/`, `bin/`, `.github/` nem de `PROTEGIDOS`.
 
 ## Achados
+- A1 (recomendado) tests/test_catraca.py:2081 · a guarda de completude conta só chamadas ao nome simples `msg`; uma regra nova que emita a violação por apelido ou atributo escaparia. Hoje são 15 e batem com a tabela.
+- A2 (recomendado) tests/test_catraca.py:2147 · C2-6 do modelo segue aberto: nenhum caso de chave do config na classe do squash. A guarda roda antes do squash, então não há caminho de ataque hoje; o caso custa pouco.
 
 ## Detalhe dos achados
-Sem achado. Conferido contra o modelo de ameaças, 3.1:
-- C1-1: `ambiente_de_git` (`tests/test_catraca.py:42-50`) filtra o `GIT_*` herdado, passa por `sem_manutencao` e só depois fixa as datas. Nenhum `GIT_*` herdado volta ao ambiente; o risco que o filtro cobre (um `GIT_DIR` exportado por hook levar o commit da fixture ao repositório real) segue fechado.
-- C1-2: as duas datas recebem o mesmo valor, data fixa mais contador do módulo que só cresce.
-- C1-3: `Repo.git`, `_g` e `_tem` usam a função; o `ls-files` do repositório real (`:2720-2721`) mantém o ambiente antigo e não cria commit.
-- C1-4: a espera e o `import time` saem; nenhuma asserção do b8 sai.
-- C1-5: data base 2025-06-01, longe dos instantes simulados de 2026-01-02.
+Conferido contra o modelo de ameaças, 3.2:
+- C2-1: a tabela `CHAVES_DO_CONFIG` (`tests/test_catraca.py:1858-1876`) traz as 15 formas, cada uma com o texto da regra; a de `termos_proibidos_hash` ajusta a base com uma entrada.
+- C2-2: a guarda (`:2076-2084`) conta as chamadas a `msg(` em `regras_de_config` e `regra_termos_proibidos` pela árvore de sintaxe, exige igualdade com a tabela, piso de 15 e nomes sem repetição.
+- C2-3: `refaz_o_pr_10_com_config` mantém no PR #10 a mudança em `tests/catraca.py` e no workflow, então a prova não é vazia.
+- C2-4: refiz a mutação "filtrar o `None` de `arquivos`" no lugar da guarda (`tests/catraca.py:1017-1018`) numa cópia em `$TMPDIR`: 14 das 15 formas caem por falha de asserção (não por erro). A que segue verde é `custo_permitido novo`, porque a violação de custo é barrada antes do caminho do PR mesclado; o subteste fica como guarda desse outro controle.
+- C2-5: a docstring do teste antigo passa a dizer só o que ele cobre; nenhuma asserção sai.
 
-Provas de vermelho, refeitas por mim numa cópia em `$TMPDIR` (o código da branch não mudou):
-- mutação sem filtro de `GIT_*`: cai `test_nao_devolve_o_git_herdado_do_processo` (T1-3);
-- mutação sem contador (data fixa só): caem `test_traz_as_duas_datas_iguais_e_crescentes`, `test_dois_squash_do_mesmo_conteudo_sem_espera_dao_shas_diferentes`, o b8 e mais dois que dependem dele (5 falhas).
-
-Sem caminho de ataque novo: a mudança é só de teste, roda em repositório temporário e não afrouxa nenhuma asserção (a contagem de testes sobe).
+A1 e A2: severidade informativa, sem caminho de ataque realista hoje (quem acrescenta regra à catraca passa por review e pelo rótulo do dono, porque `tests/catraca.py` é protegido). Correção mínima de A1: na mesma guarda, falhar se `regras_de_config` ou `regra_termos_proibidos` chamarem função que não esteja numa lista fechada; de A2: um subteste de chave em `RotuloDePrSquash`. Esforço P; dono: tech-lead, numa próxima mexida.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Rodei `python3 -m unittest tests.test_catraca` no head revisado (265 testes, OK) e `tests.test_ambiente_git` (15, OK). `gitleaks` e `semgrep` não estão no PATH: lacuna registrada; o diff é só de teste e não traz credencial nem configuração.
+Nenhum risco aceito. Rodei `python3 -m unittest tests.test_catraca` no head revisado (263 testes, OK) e `tests.test_ambiente_git` (15, OK). `gitleaks` e `semgrep` não estão no PATH: lacuna registrada; o diff é só de teste e não traz credencial nem configuração.
