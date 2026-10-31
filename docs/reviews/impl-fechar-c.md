@@ -2,33 +2,28 @@
 tipo: review
 contrato: 1
 pedido: impl-fechar-c
-branch: melhoria/impl-fechar-c-c1
-commit: 84e1c56df1fe5a99088875961a51172b33d0dbb1
+branch: melhoria/impl-fechar-c-c2
+commit: 84bc6772ee38a0a49fe090ec25d05d6d31936647
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-fechar-c (branch c1)
+# Review: impl-fechar-c (branch c2)
 
-Etapa E1.2, revisor de outra instância (D-ETAPAS-INST = A). Diff lido: `234dbe0..ee73f7d` (4 commits: correção do C1, teste vermelho do C1-2, correção do C1-2, fragmento).
+Etapa E1.2, revisor de outra instância (D-ETAPAS-INST = A). Diff lido: `234dbe0..84bc677` (2 commits: teste e fragmento).
 
 ## Item entregue
-E1 do pedido, FECHAR-R1-WORKTREE com o C1-2 do modelo de ameaças: pendência por commit sem merge imprime leitura (`git log --oneline <base>..<ref>`, argumentos com `printf '%q'`) e não o comando que apaga, em `limpar_entrega` (worktree, branch local, aviso de quem está na worktree sem outra para sair, remota pelo sha lido do servidor) e no bloco do `--sem-limpar` (local e remota relidas ali). Bate com o desenho (`fechar-c.md` §2 E1, (b) 1 a 3). Com sha mesclado o comando continua (teste AB-C1-6).
+E2 do pedido, FECHAR-B-REC-REVIEW item 1: o preparo de `Fechar` registra a remoção da sua pasta `fechar-*` como limpeza do próprio teste (`addCleanup` com `ignore_errors`), o que cobre os dois laços que chamam o preparo dentro do subteste e qualquer laço futuro; o módulo novo `tests/test_fechar_tmp.py` roda esses dois testes num processo filho com `TMPDIR` próprio e confere que não sobra `fechar-*`. Bate com o desenho (`fechar-c.md` §2 E2, item 1).
 
 ## M14 (R-REVIEW, agents/tech-lead.md:19)
-- Um comportamento só: a troca do comando que apaga pela leitura, quando há commit sem merge. O C1-2 é o mesmo comportamento no segundo caminho que imprime a pendência; separá-lo deixaria o `docs/fechamento-integrador.md` contraditório entre dois PRs (o motivo da volta da rodada 3 da conferência).
-- Teto: 209 linhas contadas depois da volta do QA (`bin/forge-fechar` 48+7, `tests/test_fechar_r1_worktree.py` 154+0, dos quais 17 do delta; fora o `.md` e o fragmento). Passa de 150 (eram 192 na primeira leitura). O PR não mexe em `hooks/` nem em caminho de `PROTEGIDOS` (`tests/catraca.py:43-45`; `bin/forge-fechar` não está na lista), então a exceção cabe. **Exceção aceita neste review**, com a condição do A1: o corpo do PR leva a linha `teto: excedido, 209 linhas, um comportamento em dois caminhos (limpar_entrega e --sem-limpar), 154 delas de teste` (pelo `--muda` do `forge-fechar`). Sem a linha no corpo, vale o bloqueante da M14.
+Um comportamento (limpeza das pastas temporárias dos testes). 34 linhas (`tests/test_fechar.py` 1, `tests/test_fechar_tmp.py` 33), abaixo de 150. Cumpre.
 
 ## Checklist
-1. Faz o pedido, nem mais nem menos: sim. 2. Regras: nada apaga a mais nem confere a menos (R-VERIFY, aperta); R-CUSTO e R-NEUTRO sem efeito. 3. Legível: a função `leitura_sem_merge` evita repetir o texto em três lugares; `leitura_dada` impede a linha duplicada entre worktree e branch. 4. Erros: leitura da remota que falha no `--sem-limpar` imprime só aviso, sem comando (falha fechada). 5. Segurança: nada novo além do que o modelo de ameaças cobre (C1-2); a E1.3 julga. 7. Testes: 7 casos (worktree com commit novo, worktree principal, remota sem merge, as duas variantes do `--sem-limpar`, ref com caractere do shell, regressão do sha mesclado). 9. Commits: Conventional Commits, o vermelho do C1-2 separado. 12. O `gh` falso é o da suíte; o `ls-remote` é o real contra o origin temporário (nome exato pelo `remoto_exato`).
+1. Nem mais nem menos: só teste, nenhuma asserção sai. 3. Legível. 7. Se um dos nomes em `LACOS` mudar, o filho sai com código diferente de 0 e o teste fica vermelho (não passa calado). 9. Commits limpos. 11. A pasta lida é própria e criada vazia; a lista vazia é o resultado certo, e o código 0 do filho prova que os testes rodaram.
 
-Ferramentas: módulos `tests/test_fechar*.py` rodados na worktree, sem bytecode: `Ran 209 tests in 109.582s` / `OK (skipped=1)`. `bin/forge-testes --listar` dá suíte completa (`bin/forge-fechar sem mapa`), então os módulos novos são alcançados. Shellcheck: não instalado aqui; fica com o CI (o `forge-fechar` está na lista dele), pendência registrada, não revisão manual.
+Ferramentas: módulos `tests/test_fechar*.py` rodados na worktree, sem bytecode: `Ran 203 tests in 109.461s` / `OK (skipped=1)`. `bin/forge-testes --listar` dá suíte completa (`tests/test_fechar.py sem mapa`).
 
 ## Achados
-- A1 (recomendado) tests/test_fechar_r1_worktree.py:1 · PR acima do teto da M14 (209 linhas); exceção aceita neste review só com a linha teto: excedido, 209 linhas, <motivo> no corpo do PR, pelo --muda do forge-fechar na E1.5; sem ela, o achado vira bloqueante pela M14.
-
-## Revalidação (delta)
-`forge-check delta --parecer` sobre o parecer anterior (`ee73f7d..84e1c56`) listou dois arquivos, ambos lidos: `tests/test_fechar_r1_worktree.py:110-126` (+17, teste AB-C1-8 da falha fechada da leitura da remota no `--sem-limpar`: o `ls-remote` falso falha depois do merge, o teste exige a linha de aviso, o código de saída 3 e nenhum `git push origin --delete`; confere com o A1 do QA) e `tests/mutantes/impl-fechar-c-c1.json:1-125` (spec de mutantes, só dado de teste; o mutante C1-1 lista o novo teste entre os que o matam). Nenhuma linha de `bin/` mudou. Já lido e mantido: o código de `bin/forge-fechar`, o fragmento e `tests/test_fechar_r1_worktree.py` fora das linhas 110-126.
 
 ## Parecer
-Aprovado. Correção mínima, falha fechada, coberta por teste vermelho antes do verde; a exceção ao teto vale com a linha no corpo do PR (A1).
+Aprovado. Sem ajuste.
