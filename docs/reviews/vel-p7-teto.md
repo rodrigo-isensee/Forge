@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: vel-p7-teto
 branch: melhoria/vel-p7-teto
-commit: ae10c85731aacab165aea36f10335e889a89721e
+commit: c0bfa3e8377c686a86627723dbdc4a8e4a2f335d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-30
@@ -28,6 +28,11 @@ Diff lido: `234dbe0...ae10c85` (c44f4d5 e ae10c85), 2 arquivos: `agents/jarvis.m
 - Ferramentas: `python3 -m unittest tests.test_forge tests.test_changelog tests.test_textos_dono_f7 tests.test_textos_dono_f10` no head revisado: `Ran 501 tests`, `OK (skipped=1)`. A suíte inteira fica com o CI do PR. Sem `docs/engineering/praticas.md` no Forge: sem regra "leitura" ou "ferramenta" extra.
 - Commits: Conventional Commits em português, um por item (texto e fragmento).
 - Achados recorrentes (PA-7): nenhuma classe de `docs/engineering/achados-recorrentes.md` se repete; a classe de A1 e A2 é "referência ou limite sem fonte versionada", sem linha AR nesta rodada (DECISÃO TÉCNICA 2026-10-29 15:28 do T1-CONF-ESCOPO-REV).
+
+## Revalidação (head c0bfa3e, merge da develop)
+- `forge-check delta` sobre ae10c85..c0bfa3e: o delta é o merge de `origin/develop` (c0bfa3e); lido só `agents/jarvis.md:46` na linha do portão. Já lido (conteúdo da develop, fora do diff da branch): `hooks/_comum.py`, `tests/config.json`, `docs/regras/R-DECISAO.md`, `R-WIP.md`, `docs/hooks.md`, ADR 0011, `skills/kanban-scrum`, `templates/projeto/KANBAN.md`, corpus `pn7-*`.
+- A frase do portão (53 min, 1.ª rodada, parado e relançado, conferir se o anterior ainda roda) convive no mesmo parágrafo com o texto novo da develop (`bin/forge-check sobreposicao`, serialização de pares): sem conflito nem duplicação, o texto antigo e o novo literais. `wc -l agents/jarvis.md` = 109, dentro do limite 110.
+- M14 (`agents/tech-lead.md:19`): `git diff --numstat --no-renames origin/develop...HEAD` dá 1+1 em `agents/jarvis.md`, 2+0 no fragmento e pareceres; 0 de 150 linhas de código e teste, um comportamento só. A branch cumpre a M14.
 
 ## Parecer
 Aprovado. A mudança cumpre o E1 na mesma linha, com o número conferido na linha de base e o texto antigo preservado; A1 e A2 são recomendações que não devolvem.
