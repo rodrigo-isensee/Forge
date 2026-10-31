@@ -107,6 +107,23 @@ class SemMerge(unittest.TestCase):
         self.assertIn(f"git log --oneline origin/develop..{sha_remoto}", pendentes)
         self.sem_comando_que_apaga("\n".join(pendentes) + r.stderr)
 
+    def test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar(self):  # AB-C1-8 (C1-2, falha fechada)
+        (self.estado / "head").write_text(self.git("rev-parse", "melhoria/x"))  # o `gh` falso não recorre ao ls-remote para o head do PR
+        falso = self.tmp / "gh"
+        falso.rename(self.tmp / "gh-base")
+        # depois do merge a leitura da remota (`ls-remote`) passa a falhar: o passo 7 não pode imprimir o comando que apaga a remota
+        falso.write_text(f'#!/usr/bin/env bash\n[ "$1 $2" = "pr merge" ] && touch "$ESTADO/ls_deve_falhar"\nexec "{self.tmp / "gh-base"}" "$@"\n')
+        falso.chmod(0o755)
+        git = self.tmp / "bin" / "git"
+        git.rename(self.tmp / "bin" / "git-base")
+        git.write_text('#!/usr/bin/env bash\n[ "$1" = ls-remote ] && [ -f "$ESTADO/ls_deve_falhar" ] && { echo "fatal: unable to access remote" >&2; exit 128; }\n'
+                       'exec "$(dirname "$0")/git-base" "$@"\n')
+        git.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/x", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        self.assertIn("# não consegui ler a branch remota; confira o servidor antes de apagar", self.pendentes(r))
+        self.assertNotIn("git push origin --delete", r.stdout + r.stderr)
+
     def test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura(self):  # AB-C1-5
         ref = "melhoria/a$b"
         self.git("switch", "-q", "-c", ref, "develop")
