@@ -285,7 +285,8 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 1)
         self.assertRegex(resumo.splitlines()[0], r"^### Suíte do Forge: FAILED \(failures=1")
         self.assertIn("execução reprovada: não vale para o orçamento", resumo)
-        self.assertNotIn("maior unidade", resumo)
+        for linha in ("unidades mais lentas", "soma das unidades", "maior unidade", "desequilíbrio"):
+            self.assertNotIn(linha, resumo)  # C-7: a medida da c2 só existe no resumo verde
 
     def test_resumo_com_processo_morto_nao_quebra_o_veredito(self):  # AB-1, C-8
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
