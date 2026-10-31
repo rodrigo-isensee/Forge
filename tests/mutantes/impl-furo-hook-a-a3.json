@@ -68,7 +68,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if a.startswith(\"--\"):\n            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
       "para": "if False:\n            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A3-m8",
@@ -76,7 +78,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):",
       "para": "if False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A3-m9",
@@ -84,7 +88,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "elif a.startswith(\"-\"):\n            for letra in a[1:]:",
       "para": "elif False:\n            for letra in a[1:]:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A3-m10",
@@ -92,7 +98,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if letra in \"mFS\":  # o resto",
       "para": "if False:  # o resto",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     },
     {
       "id": "A3-m11",
@@ -100,7 +108,59 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if achada:  # A3",
       "para": "if False:  # A3",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m12",
+      "guarda": "o subcomando set/unset do git 2.46 e reconhecido antes da chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif not chaves and not subcomando and a in (\"set\", \"unset\"):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m13",
+      "guarda": "a leitura de git config segue livre",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if any(a in CONFIG_LEITURA or a.startswith((\"--get\", \"--show-\")) for a in args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m14",
+      "guarda": "depois da chave, a palavra com traco e valor, nao opcao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or (chaves and a not in CONFIG_ESCOPO):",
+      "para": "):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m15",
+      "guarda": "o subcomando set/unset grava mesmo com so a chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "grava = subcomando or len(chaves) > 1",
+      "para": "grava = len(chaves) > 1",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m16",
+      "guarda": "chave protegida gravada recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):",
+      "para": "if True:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
     }
   ]
 }

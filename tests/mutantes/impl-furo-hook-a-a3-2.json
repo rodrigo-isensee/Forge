@@ -1,0 +1,46 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A-A3",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A3-m17",
+      "guarda": "a chave do merge vale em toda worktree",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if \"--worktree\" in args and not do_merge:",
+      "para": "if \"--worktree\" in args:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m18",
+      "guarda": "a dica da chave do merge nao manda para --worktree",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"deixe ao usuário (R-DECISAO)\" if do_merge else",
+      "para": "\"deixe ao usuário (R-DECISAO)\" if False else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m19",
+      "guarda": "--comment leva valor, que nao e chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "CONFIG_COM_VALOR = {\"-f\", \"--file\", \"--blob\", \"--type\", \"--default\", \"--comment\", \"--value\"}",
+      "para": "CONFIG_COM_VALOR = {\"-f\", \"--file\", \"--blob\", \"--type\", \"--default\", \"--value\"}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A3-m20",
+      "guarda": "--value leva valor, que nao e chave",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\"--default\", \"--comment\", \"--value\"}",
+      "para": "\"--default\", \"--comment\"}",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    }
+  ]
+}
