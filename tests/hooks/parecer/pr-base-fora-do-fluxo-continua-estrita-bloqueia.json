@@ -1,0 +1,98 @@
+{
+  "descricao": "K-164: base escolhida pelo autor fora de develop, homolog e main (aqui uma branch copiada da develop): não afrouxa; fica o modo estrito e o merge da develop depois do parecer bloqueia.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    },
+    {
+      "arquivos": {
+        "docs/reviews/p1-1.md": [
+          "---",
+          "tipo: review",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "revisor: forge:tech-lead",
+          "data: 2026-10-12",
+          "---",
+          "# Review"
+        ],
+        "docs/qa/p1.md": [
+          "---",
+          "tipo: qa",
+          "contrato: 1",
+          "pedido: p1",
+          "branch: feature/x",
+          "commit: {HEAD}",
+          "parecer: aprovado",
+          "escopo: completo",
+          "bugs_criticos: 0",
+          "bugs_altos: 0",
+          "bugs_medios: 0",
+          "bugs_baixos: 0",
+          "data: 2026-10-12",
+          "---",
+          "# QA"
+        ]
+      },
+      "commit": "docs: pareceres"
+    },
+    {
+      "checkout": "develop"
+    },
+    {
+      "arquivos": {
+        "src/outro.js": "de outro pedido\n"
+      },
+      "commit": "feat: outro pedido na develop"
+    },
+    {
+      "checkout": "feature/x"
+    },
+    {
+      "config": {
+        "branch.feature/x.gh-merge-base": "feature/y"
+      }
+    }
+  ],
+  "passos": [
+    {
+      "git": [
+        "merge",
+        "-q",
+        "--no-edit",
+        "develop"
+      ]
+    },
+    {
+      "git": [
+        "branch",
+        "feature/y",
+        "develop"
+      ]
+    }
+  ],
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_use_id": "toolu_9",
+    "tool_input": {
+      "command": "gh pr create --base feature/y --title 'feat: app' --body 'x'"
+    }
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-REVIEW"
+  }
+}
