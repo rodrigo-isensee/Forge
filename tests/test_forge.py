@@ -4570,6 +4570,24 @@ class RepoComOrigem(unittest.TestCase):
         return r.returncode, r.stdout, r.stderr
 
 
+class FalhaDoGitNoE4(RepoDeSeguranca):
+    """C3 (FC-E4-FALHA-ABERTA): o git que falha no diff da base não vira "nada a conferir" com rc 0; reprova e deixa tudo à vista."""
+
+    def test_diff_da_base_que_falha_reprova_e_lista_os_arquivos(self):
+        fc = carregar_forge_check()
+        head = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        intervalo = f"{fc.ref_da_base(self.repo, 'develop')}..{head}"
+        real = fc.git
+        falho = lambda raiz, *args, **kw: (128, b"") if "--name-only" in args and intervalo in args else real(raiz, *args, **kw)
+        for etapa in ("pedido-de-merge-ao-dono", "merge-integracao"):
+            with self.subTest(etapa), mock.patch.object(fc, "git", falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+                rc = fc.cmd_entrega(self.repo, str(self.pedido), "melhoria/x", "develop", self.base, etapa, None)
+            self.assertEqual(rc, 1, saida.getvalue())
+            self.assertIn("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", saida.getvalue())
+            self.assertIn('"src/app.txt"', saida.getvalue())
+            self.assertNotIn("sem commit (nada a conferir)", saida.getvalue())
+
+
 class PrAposMergeDaBase(RepoComOrigem):
     """E4 (CONF-MERGE-ESCOPO): o merge da develop depois do parecer não o invalida, por CONTEÚDO e lendo `origin/<base>`; nenhum byte
     do commit de merge escapa; `--base` só aceita as bases do fluxo; os gatilhos de segurança seguem o diff da branch (abusos 7 a 13)."""

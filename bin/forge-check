@@ -766,11 +766,12 @@ def com_controle(nome):
     return any(e_controle(c) for c in nome)
 
 
-def nomes_do_intervalo(raiz, de, ate, tres_pontos=False):
-    """Arquivos que mudam em `de`..`ate` (`de`...`ate` com `tres_pontos`), por `-z`, sem renome, sem programa externo (B1, B4)."""
+def nomes_do_intervalo(raiz, de, ate, tres_pontos=False, estrito=False):
+    """Arquivos que mudam em `de`..`ate` (`de`...`ate` com `tres_pontos`), por `-z`, sem renome, sem programa externo (B1, B4).
+    Com `estrito`, a falha do git devolve None em vez de lista vazia (falha fechada, C-12)."""
     rev = f"{de}...{ate}" if tres_pontos else f"{de}..{ate}"
     cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", rev, "--", bruto=True)
-    return [] if cod else nomes_z(saida)
+    return (None if estrito else []) if cod else nomes_z(saida)
 
 
 def contagens_do_intervalo(raiz, de, ate, tres_pontos=False):
@@ -1131,10 +1132,14 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
         # E4: o merge da base trouxe arquivos já revisados no PR de origem; só o que ainda difere da base atual é da entrega. Por
         # CONTEÚDO (o que o head tem, byte a byte, contra o que a base tem), nunca por nome: um byte a mais no commit de merge aparece.
-        diferem = set(nomes_do_intervalo(raiz, base_ref, head))
-        if valido:  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
-            diferem |= desfeitos_da_entrega(raiz, base_sha, valido)
-        arquivos = [n for n in arquivos if n in diferem]
+        nomes_da_base = nomes_do_intervalo(raiz, base_ref, head, estrito=True)
+        if nomes_da_base is None:  # C3: o git falhou; nada se filtra e a etapa reprova, com ou sem arquivo (C-13)
+            linhas.append(("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", True))
+        else:
+            diferem = set(nomes_da_base)
+            if valido:  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
+                diferem |= desfeitos_da_entrega(raiz, base_sha, valido)
+            arquivos = [n for n in arquivos if n in diferem]
     pais = git(raiz, "rev-list", "--parents", "-n", "1", head)[1].split()[1:]
     integrado = etapa == "merge-integracao" and bool(base_ref) and e_ancestral(raiz, head, base_ref) and len(pais) == 1
     if integrado:  # E1: a ref já foi apagada (squash): o head é o mergeCommit e o escopo é só o que ele traz
