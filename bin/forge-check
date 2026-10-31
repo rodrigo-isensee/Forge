@@ -779,11 +779,29 @@ def raiz_principal(raiz):
     return Path(raiz)
 
 
+def arquivo_existe(caminho):
+    """`is_file` que trata nome longo demais ou com NUL como "não achou" (C-11)."""
+    try:
+        return Path(caminho).is_file()
+    except (OSError, ValueError):
+        return False
+
+
 def caminho_do_pedido(raiz, pedido):
     """Arquivo do pedido: o caminho dado, `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e,
     por último, de cada raiz de brief (só em `docs/pedidos/`, `realpath`: travessia e link para fora não valem)."""
-    if Path(pedido).is_file():
-        return Path(pedido)
+    caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
+    dado = Path(pedido)
+    if pedido.startswith("~/"):  # só o `~/` do começo, pelo HOME; nunca `~usuario` (C-10)
+        dado = Path.home() / pedido[2:]
+    if arquivo_existe(dado) or (caminhoso and dado.is_absolute()):
+        return dado
+    if caminhoso:
+        for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+            achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
+            if achado is not None and arquivo_existe(achado):
+                return achado
+        return dado
     for pasta in (raiz_principal(raiz), Path(raiz)):
         if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
             return pasta / "docs" / "pedidos" / f"{pedido}.md"
@@ -959,7 +977,21 @@ def reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):
     return False
 
 
-def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
+def mesmo_pedido(valor, pedido_id, arquivo):
+    """O `Pedido:` do brief é o pedido `pedido_id`? Por texto (o id, ou `docs/pedidos/<id>.md`) ou, só se absoluto ou `~/`, por
+    caminho cujo `realpath` é o do `arquivo` (C-1 a C-6). Só o `~/` do começo expande (nunca `~usuario`); erro de caminho reprova."""
+    if not valor:  # A1 (C-4): brief sem a linha `Pedido:` não é deste pedido
+        return False
+    if re.sub(r"\.md$", "", valor.removeprefix("docs/pedidos/")) == pedido_id:
+        return True
+    try:
+        caminho = Path.home() / valor[2:] if valor.startswith("~/") else Path(valor)
+        return bool(arquivo) and caminho.is_absolute() and os.path.realpath(caminho) == os.path.realpath(arquivo)
+    except (OSError, ValueError, RuntimeError):
+        return False
+
+
+def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho=None):
     """Linhas `(texto, reprova)` da união dos Entregar de entregas paralelas conferidas juntas (E9a, M9.1): cada `--brief` precisa ser um
     brief de `docs/briefs/` da MESMA Branch, Base, Base-sha e pedido da entrega conferida (ou do `<pedido>-REV`, G6); um só diferente reprova a união. Imprime o
     sha256 de cada um (o conferente o compara com o `Brief-sha256:` da mensagem: só entra brief aprovado)."""
@@ -975,9 +1007,9 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs):
             linhas.append((f"escopo: brief {nome_seguro(sem_controle(brief))} ilegível ou fora de docs/briefs/", True))
             continue
         achados = {campo: grupo(expressao, cabecalho) for campo, expressao in CABECALHO_DE_BRIEF_CAMPOS.items()}
-        if achados["Pedido"]:
-            achados["Pedido"] = re.sub(r"\.md$", "", achados["Pedido"].removeprefix("docs/pedidos/"))
-        if achados["Pedido"] == pedido_da_revalidacao(pedido_id):  # G6: os portões do -REV escrevem na mesma branch
+        rev = pedido_da_revalidacao(pedido_id)  # G6: os portões do -REV escrevem na mesma branch (pasta do pedido resolvido, C-5)
+        if mesmo_pedido(achados["Pedido"], pedido_id, caminho or "") or mesmo_pedido(
+                achados["Pedido"], rev, Path(os.path.realpath(caminho)).parent / f"{rev}.md" if caminho else ""):
             achados["Pedido"] = pedido_id
         if achados != esperado:
             linhas.append((f"escopo: união de briefs de entregas diferentes {caminho_impresso(rel)}", True))
@@ -1159,7 +1191,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         else:
             linhas.append((f"escopo: confira {mostrado} +{acrescidas} -{removidas}", False))
     if briefs:
-        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs) + linhas
+        linhas = uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho) + linhas
     print(f"intervalo: {de}..{head}")
     for linha, _ in linhas:
         print(linha)
