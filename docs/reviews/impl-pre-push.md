@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: impl-pre-push
 branch: melhoria/impl-pre-push-c5
-commit: 7404c2673564e67949e8caf88aa2612d89530a05
-parecer: reprovado
+commit: 7cb63e2fe16ff8b45e2c4181007274aafa05a415
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
@@ -29,8 +29,17 @@ E4 do pedido (C5 do desenho, C-16 do modelo): a trava grava `pid N ns <inode> de
 - shellcheck: ausente nesta máquina; fica para o CI. Pendência, não review manual.
 - Mutação: sem `tests/mutantes/impl-pre-push*.json`. Pendência V2 do autor.
 
+## Delta lido (volta 2)
+`forge-check delta --parecer docs/reviews/impl-pre-push.md`: intervalo `7404c26..7cb63e2`; só `changelog.d/impl-pre-push-c5.md:2` (+1 -1). Lido: o fragmento agora diz só "o texto da trava traz o namespace depois do pid", sem o C-14. Já lido (não relido): `8c7d7e9`, `7404c26`, `.githooks/pre-push` e `tests/test_pre_push_trava.py`.
+
+## M14 (agents/tech-lead.md:19)
+Cumpre: 16 linhas de código e teste (5 em `.githooks/pre-push`, 11 em `tests/test_pre_push_trava.py`), um comportamento.
+
+## Regras de ferramenta
+Sem mudança de código no delta: suíte pelo pre-push do autor e CI do PR; shellcheck ausente nesta máquina (CI); mutação sem spec (pendência V2 do autor).
+
 ## Achados
-- A1 (bloqueante) changelog.d/impl-pre-push-c5.md:2 · Com o revert, o fragmento descreve um comportamento que a c5 não tem mais (200 bytes e só imprimíveis, C-14, agora na c6 com fragmento próprio): a release publicaria o C-14 duas vezes. Deixar só o namespace depois do pid.
+- A1 (recomendado) changelog.d/impl-pre-push-c5.md:2 · A1 da volta 1 resolvido: o fragmento descreve só o namespace.
 
 ## Parecer
-Reprovado só pelo A1, achado novo que nasce do delta (o revert tornou falso o fragmento já lido): o código está certo. Na revalidação, o delta esperado é só a linha 2 do fragmento.
+Aprovado. O código estava certo desde a volta 1 e o fragmento agora bate com ele.
