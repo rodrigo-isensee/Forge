@@ -2,26 +2,23 @@
 tipo: revisao-devops
 contrato: 1
 pedido: impl-n-ci
-branch: melhoria/impl-n-ci-c2
-commit: 60986081fb7ac6e64b18c66d5e6f6d569814bd5b
+branch: melhoria/impl-n-ci-c3
+commit: 44617ead4fee4eab8193b8e07cda121e45f5cf2b
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-31
 ---
-# Review de devops: impl-n-ci (c2)
+# Review de devops: impl-n-ci (c3, sobre a develop com a c2)
 
 ## Parecer
-Aprovado. Esta branch entrega a parte "medida no resumo" do E2 (item 55 d): duração por unidade (dez mais lentas), soma, maior unidade, desequilíbrio, módulos sem peso (lista limitada a 20) e os módulos no título de cada `::group::` do CI, em `scripts/suite-paralela.py`. O resumo só leva nomes de módulo (filtrados pelo conjunto de `partes`) e números; o teste `test_resumo_so_leva_nomes_e_numeros` prova que `::`, caminho e padrão de segredo da saída dos testes não chegam ao arquivo. Sem `GITHUB_STEP_SUMMARY` nada é escrito. A medida só informa: não muda divisão, veredito nem carimbo (a divisão é testada independente da execução anterior).
+Aprovado. Diff lido: `c162bcb` a `44617ea` (o que a c3 acrescenta à develop, que já tem a c2 pelo PR #408). A branch entrega a parte "veredito protegido" do item E2 (item 55 d, C-6 a C-8): o veredito (`OK` ou `FAILED`) é impresso (`scripts/suite-paralela.py:535`) antes de o resumo ser montado e gravado, e o código de saída é decidido antes (1 em `FAILED`, 0 em `OK`, sem mudança). Qualquer exceção em `montar_resumo` ou na escrita vira `resumo indisponível` no stderr (`:461`, captura ampla comentada: o resumo é informativo e o veredito já saiu). O que só vale depois do verde (pesos regravados, carimbo) foi para `fechar_verde` (`:540`), na mesma ordem; execução reprovada recebe "não vale para o orçamento" e não leva as linhas de medida da c2; módulo sem duração é listado (limite 20). O merge da c2 resolveu o conflito do A1 do parecer anterior: as linhas de medida da c2 ficaram sob a regra C-7.
 
-M14 (`agents/tech-lead.md:19`): cumpre. 117 linhas de código e teste (`suite-paralela.py` 44, `test_suite_paralela.py` 73; teto 400, e dentro do teto de 150 do plano do pedido); sem `hooks/`, sem `.github/`, sem arquivo de `PROTEGIDOS`. Uma classe de comportamento (a medida), commits separados de teste, código e teste de ausência.
+M14 (`agents/tech-lead.md:19`): cumpre. Contagem sobre a develop: 41 linhas em `scripts/suite-paralela.py` (28 + 13) e 95 em `tests/test_suite_paralela.py` (80 + 15), total 136, dentro do teto de 150. Sem `hooks/`, `.github/` nem `PROTEGIDOS`; um comportamento só (veredito antes do resumo e resumo que não derruba o veredito); teste de cada comportamento no mesmo diff (veredito primeiro, processo morto, resumo que falha sem mudar o código, ambiente do teste que não escreve no resumo real do CI).
 
-Pipeline: nenhum workflow mudou; o script já roda no CI e o passo lê a variável `GITHUB_STEP_SUMMARY` que o runner já fornece. Sem minuto novo nem recurso pago. Ferramentas: `actionlint` e `shellcheck` fora do PATH, sem workflow nem shell no diff; lacuna registrada. Li o diff inteiro de `234dbe0` a `6098608`.
-
-Ressalva de ordem: aqui `publicar_no_ci` ainda roda antes do veredito (`scripts/suite-paralela.py:515`) e só captura `OSError`; um erro de outro tipo ao montar o resumo derrubaria a execução. Isso é o que a branch c3 corrige (C-6). Por isso c2 não deve chegar à `develop` sem c3.
+Pipeline: nenhum workflow mudou; sem minuto novo de CI nem recurso pago (`R-CUSTO`). A captura ampla não é `continue-on-error` nem check desligado: o veredito já foi impresso e o código de saída não depende do resumo (`R-VERIFY`). Nada escreve na `main` (`R-MAIN`). Ferramentas: `actionlint` e `shellcheck` fora do PATH, sem workflow nem shell no diff; lacuna registrada.
 
 ## Achados
-- A1 (recomendado) scripts/suite-paralela.py:515 · o resumo é publicado antes do veredito e só trata OSError; sozinha, c2 deixa um erro do resumo mudar o resultado da suíte. Mesclar c3 junto ou logo depois (o `tech-lead` ordena); não devolve c2.
-- A2 (recomendado) scripts/suite-paralela.py:445 · c2 e c3 saem da mesma base `234dbe0` e editam as mesmas funções; `git merge-tree` dá conflito em `scripts/suite-paralela.py` e `tests/test_suite_paralela.py`. A segunda a entrar precisa de rebase sobre a primeira.
+- A1 (recomendado) scripts/suite-paralela.py:461 · `except Exception` também engole erro de programação em `montar_resumo`; o aviso traz só o tipo. Se o resumo sumir do CI sem causa visível, incluir a mensagem curta no stderr. Não devolve.
 
 ## Custo e rollback
-Sem minuto novo de CI nem recurso pago (`R-CUSTO`). Volta: reverter os commits da branch; o resumo antigo (total e linhas por processo) volta.
+Sem minuto novo de CI nem recurso pago. Volta: reverter o merge da branch na develop; o resumo volta a ser publicado antes do veredito.
