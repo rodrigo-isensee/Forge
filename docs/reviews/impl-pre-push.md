@@ -2,34 +2,44 @@
 tipo: review
 contrato: 1
 pedido: impl-pre-push
-branch: melhoria/impl-pre-push-c3
-commit: e945d099c2c7b783e3e72b115e0f14c7065f192c
+branch: melhoria/impl-pre-push-c5
+commit: 7cb63e2fe16ff8b45e2c4181007274aafa05a415
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-pre-push, branch c3 (SUITE-INICIO-ATOMICO)
+# Review: impl-pre-push, branch c5 (namespace no texto da trava), revalidação da volta 1
 
-Diff lido: `234dbe0..e945d09` (2 commits: `5a89d72` hook e teste, `e945d09` fragmento).
+Diff da branch: `234dbe0..7404c26` (`8c7d7e9` namespace no texto, C5; `81f0400` C-14; `31d4cf6` fragmento; `1972519` parecer anterior; `7404c26` revert do `81f0400`).
+
+## Delta lido (volta 1)
+`forge-check delta --parecer docs/reviews/impl-pre-push.md`: intervalo `31d4cf6..7404c26`; `.githooks/pre-push` +2 -6 (`:40`, `:98`, `:218`) e `tests/test_pre_push_trava.py` +0 -17 (`:493`). Lido: o `7404c26` é o revert exato do `81f0400` (some `texto_da_trava`, as duas chamadas voltam a `cat "$trava"` e some o teste do C-14). O C-14 foi para a c6, com review próprio.
+
+Já lido na rodada anterior (não relido): `8c7d7e9` (namespace em `.githooks/pre-push:241-244`, teste em `tests/test_pre_push_trava.py:260`), correto.
 
 ## O que entrega
-Item E2 do pedido, a parte C3 do desenho (`docs/propostas/lotes-1030/pre-push.md`, E2b): com a suíte rodando, o `--status` acrescenta a linha que aponta o caminho atômico `.githooks/pre-push --suite`. Só texto, sem mecanismo novo; o rc do `--status` não muda. O teste `test_status_acompanha_a_trava` passa a exigir a dica (vermelho antes, como o desenho pede).
+E4 do pedido (C5 do desenho, C-16 do modelo): a trava grava `pid N ns <inode> desde HH:MM:SS`, mantendo `pid N` nos dois primeiros campos.
 
-## M14 (decisão M14, agents/tech-lead.md:19)
-- Linhas contadas (`git diff --numstat --no-renames 234dbe0 e945d09`): `.githooks/pre-push` 1, `tests/test_pre_push_trava.py` 1; total 2, abaixo de 150. O fragmento `changelog.d/` fica fora.
-- Um comportamento só (a dica do `--suite`). Toca `.githooks/` e não usa exceção de teto. Cumpre.
+## M14 (agents/tech-lead.md:19)
+- Linhas contadas (`git diff --numstat --no-renames 234dbe0 7404c26`, sem parecer e fragmento): `.githooks/pre-push` 5, `tests/test_pre_push_trava.py` 11; total 16, abaixo de 150.
+- Comportamentos: um (namespace no texto gravado). A1 da rodada anterior resolvido. Cumpre.
 
 ## Regras de ferramenta
-- Suíte: a branch está no `origin` com o head revisado, logo o pre-push (suíte inteira, porque o diff toca `.githooks/`) passou no envio do autor; o CI do PR repete.
-- shellcheck: não disponível nesta máquina; fica para o job do CI (`tests/test_pre_push_shellcheck.py` e o passo do CI). Pendência, não review manual.
-- Mutação: não há `tests/mutantes/impl-pre-push*.json` na branch. Pendência do autor (V2); a mudança é uma linha de texto, sem condição para mutar.
+- Suíte: o `origin` tem o head revisado (`git ls-remote`: `7404c26`), então o pre-push rodou no envio do autor; o CI do PR repete.
+- shellcheck: ausente nesta máquina; fica para o CI. Pendência, não review manual.
+- Mutação: sem `tests/mutantes/impl-pre-push*.json`. Pendência V2 do autor.
 
-## Leitura
-- Escopo exato do C3 (linha `:97` e o teste); revertido sozinho, some só a dica. R-NEUTRO e R-CUSTO preservados; nenhum invariante tocado.
-- A dica sai antes da linha de estado; leitores atuais usam `assertIn` e o rc, então nada quebra.
+## Delta lido (volta 2)
+`forge-check delta --parecer docs/reviews/impl-pre-push.md`: intervalo `7404c26..7cb63e2`; só `changelog.d/impl-pre-push-c5.md:2` (+1 -1). Lido: o fragmento agora diz só "o texto da trava traz o namespace depois do pid", sem o C-14. Já lido (não relido): `8c7d7e9`, `7404c26`, `.githooks/pre-push` e `tests/test_pre_push_trava.py`.
+
+## M14 (agents/tech-lead.md:19)
+Cumpre: 16 linhas de código e teste (5 em `.githooks/pre-push`, 11 em `tests/test_pre_push_trava.py`), um comportamento.
+
+## Regras de ferramenta
+Sem mudança de código no delta: suíte pelo pre-push do autor e CI do PR; shellcheck ausente nesta máquina (CI); mutação sem spec (pendência V2 do autor).
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:97 · A dica sai antes de "suíte do Forge rodando"; pôr depois da linha de estado mantém o estado como primeira linha para quem lê só a primeira (head -1). Não quebra leitor atual.
+- A1 (recomendado) changelog.d/impl-pre-push-c5.md:2 · A1 da volta 1 resolvido: o fragmento descreve só o namespace.
 
 ## Parecer
-Aprovado. Entrega o C3 do E2 como desenhado, dentro da M14. A recomendação A1 não devolve.
+Aprovado. O código estava certo desde a volta 1 e o fragmento agora bate com ele.
