@@ -27,7 +27,7 @@ Formato do fixture:
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
-              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               sem_caminho ([caminho]: não existem; {tmp} vale)
 """
@@ -519,6 +519,23 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+def trabalhadores_do_pool(nucleos):
+    """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
+    núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
+    if not isinstance(nucleos, int) or isinstance(nucleos, bool) or nucleos < 1:
+        return 2
+    return min(4, max(2, nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -573,7 +590,7 @@ class Hooks(unittest.TestCase):
             if f.dados.get("executaveis"):
                 tmp = self._pasta_temporaria()
                 montados[nome] = (tmp, f.montar(tmp, outro.pid))
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             futuros = []
             for nome, f in em_paralelo:
@@ -636,6 +653,8 @@ class Hooks(unittest.TestCase):
             self.assertLessEqual(len(linha), 200)
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
+            for trecho in esperado.get("stderr_sem", []):
+                self.assertNotIn(trecho, linha)
         run = raiz / ".forge" / "run"
         if esperado.get("sem_run"):
             self.assertFalse(run.exists(), ".forge/run/ não deveria ser criado")
@@ -1847,6 +1866,29 @@ class Hooks(unittest.TestCase):
         self.assertEqual(len(casos), len(FAMILIAS_DE_RECUSA) * len(MECANISMOS_DO_COMENTARIO) - len(FORA_DO_T2))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
 
+    def test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante(self):  # FURO-HOOK-A, A1 TESTE-MATRIZ-CRITICO
+        """T6, pelo hook real: a ação sem marcador `CRITICO` (que a rede da ADR 0011 não recusa) com cada variante que o
+        bash ignora sai 2 sem o motivo da rede ("o hook não modela", `nao_modelada`): a recusa vem da leitura, que viu a ação
+        ou a deu por ilegível. O `parecer` entra com o merge reprovado, que a rede dele também cobriria. Nenhum caso sai da
+        matriz: uma lista de pendentes afrouxaria o controle e precisa do dono."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual(set(MECANISMOS_DO_COMENTARIO.values()), set(VARIANTES_QUE_O_BASH_IGNORA))
+        por_comando = {f.dados["entrada"]["tool_input"].get("command"): f for f in self.fixtures
+                       if f"{f.hook}/{f.caminho.stem}" in FAMILIAS_DE_RECUSA}
+        sem_marcador = [a for a, hook in ACOES_DO_CORPUS.items() if hook == "conformidade" and not conformidade.CRITICO.search(a)]
+        self.assertGreaterEqual(len(sem_marcador), 2, sem_marcador)
+        merge = "gh pr merge feature/x --repo rodrigo-isensee/Forge --merge"
+        acoes = [(a, por_comando[a]) for a in sem_marcador + [merge]]
+        casos = []
+        for acao, modelo in acoes:
+            for i, (prefixo, sufixo) in enumerate(VARIANTES_QUE_O_BASH_IGNORA):
+                f = Fixture(modelo.caminho)
+                f.dados["entrada"]["tool_input"]["command"] = prefixo + acao + sufixo
+                rede = "com ação crítica: o hook não modela" if modelo.hook == "conformidade" else "o hook não modela"
+                f.dados["esperado"] = {"codigo": 2, "stderr": "R-", "stderr_sem": [rede]}  # `R-` vale: ilegível também recusa
+                casos.append((f"{modelo.hook}/{modelo.caminho.stem} + variante {i}", f))
+        self.assertEqual(self.executar_em_lote(casos), len(acoes) * len(VARIANTES_QUE_O_BASH_IGNORA))
+
     def test_t3_todo_comentario_marcado_e_comentario_para_o_bash(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T3, oráculo do bash para a gramática G: em cada posição que `comentarios` marca, troca o texto do comentário
         por aspas e crase sem par; se o bash não lesse ali um comentário, a linha deixaria de ser aceita (`bash -n`).
@@ -2010,6 +2052,34 @@ class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda 
         saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
                                capture_output=True, text=True, check=False).stdout
         self.assertEqual(saida, "<x><main><x1main>")
+
+
+class PoolDosFixtures(unittest.TestCase):
+    """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
+
+    def test_pool_por_nucleos_e_limites(self):  # AB-8
+        for nucleos, esperado in ((1, 2), (2, 2), (4, 4), (16, 4), (None, 2), (0, 2), (-3, 2), ("x", 2)):
+            with self.subTest(nucleos=nucleos):
+                self.assertEqual(trabalhadores_do_pool(nucleos), esperado)
+
+    def test_pool_le_a_afinidade_e_ignora_o_forge_nproc(self):  # AB-8
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "64"}):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1, 2, 3, 4, 5}):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 4)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=8):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)  # sem leitura, o piso
+
+    def test_pool_uma_fonte_so(self):  # C-1: nenhum módulo de teste refaz a conta `cpu_count // 2` do pool
+        copias = []
+        for arquivo in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"cpu_count\(\) or 2\) // 2", linha):
+                    copias.append(f"{arquivo.name}:{n}")
+        self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
 
 
 if __name__ == "__main__":
