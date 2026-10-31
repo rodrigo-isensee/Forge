@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: impl-pre-push
 branch: melhoria/impl-pre-push-c4
-commit: ddb7768b06e3dd2e3a75a70dad96d830ceefc411
+commit: 79880e375470b3efd45c68b8acab815afa3912d7
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
@@ -11,6 +11,15 @@ data: 2026-10-31
 # Review: impl-pre-push, branch c4 (TRAVA-SANDBOX, trava comum)
 
 Diff lido na primeira rodada: `234dbe0..aff0ec2` (2 commits: `a515d73` hook e testes, `aff0ec2` fragmento).
+
+## Revalidação no head 79880e3 (merge da develop 08da90c, delta lido)
+`forge-check delta --parecer` (intervalo `ddb7768..79880e3`) lista o que a develop trouxe (C1, C2, C5, C-14, `bin/`, docs, versão). Li só a resolução do merge em `.githooks/pre-push` e `tests/test_pre_push_trava.py` (`git diff 23716c4 79880e3` e `git show --cc 79880e3`):
+- O patch próprio da branch não mudou: as linhas `+`/`-` de `git diff 234dbe0 ddb7768` e de `git diff 08da90c 79880e3` em `.githooks/`, `tests/` e `bin/` são idênticas (`diff` rc 0).
+- Hook: as funções da develop (`modo_sem_escrita_alheia`, `texto_da_trava`, `status_erro`, campo `ns` da trava) entram sem tocar o candidato único da pasta comum; a conferência de modo do C1 passa a valer também para `~/.forge-contrib/forge-<uid>` (criada com 700), o que reforça o C-10.
+- Teste: o conflito juntou o teste C-14 da develop (`:578`) e os do C4 (`:595` em diante); os da develop usam `HOME` temporário sem `.forge-contrib` e seguem na trava de `XDG_RUNTIME_DIR`. Resolução correta.
+- O A1 da rodada anterior fica resolvido: o C-14 chegou pela develop e está neste head.
+- M14 no head (`git diff --numstat --no-renames origin/develop...HEAD`, código e teste): 20 + 122 + 4 x 2 = 150; no teto, um comportamento. Cumpre.
+- Já lido, sem mudança: o restante do hook e dos testes do C4 e o fragmento; o resto do delta é código da develop, revisado nos PRs de origem.
 
 ## Revalidação no head ddb7768 (delta lido)
 `forge-check delta --parecer` (intervalo `aff0ec2..ddb7768`): só `tests/test_pre_push_trava.py` (+5 -1, linhas 535-538 e 540), o subcaso "comum link pendente" do C-9 (A1 do QA). Li só isso: o subcaso troca a pasta comum por link para destino inexistente e entra no mesmo laço de subtestes; correto. O hook não mudou. Já lido, sem mudança: hook, demais testes e fragmento (parecer anterior); o resto do delta são pareceres de segurança e QA, fora do código.
@@ -40,9 +49,10 @@ Item E3 do pedido, C4 do desenho com os controles C-9 a C-13 e C-15 do modelo (`
 - R-NEUTRO, R-CUSTO e invariantes preservados. Gatilho R-SEGURANCA (pasta e permissões da trava, fronteira do sandbox, ADR 0009): o parecer de segurança é do `security-engineer` (E1.3), não refeito aqui.
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:17 · O C-14 (texto da trava limitado e imprimível) não está aqui, e sim na c5. Com a trava comum, texto gravado no sandbox chega ao terminal de fora: integrar a c4 só depois ou junto do PR que traz o C-14. Para o integrador (E1.5) e o security-engineer.
+- A1 (recomendado) .githooks/pre-push:59 · Resolvido no head 79880e3: o C-14 (texto da trava limitado e imprimível) chegou pela develop em `texto_da_trava`; a ordem de integração pedida já está cumprida.
 - A2 (recomendado) .githooks/pre-push:179 · Se a pasta das provas for recusada, `trava_arquivo criar legado` imprime "recusada. Apague-a" e o push segue; a mensagem sugere falha. Calar o stderr nessa chamada ou dizer que só a prova foi ignorada.
-- A3 (recomendado) .githooks/pre-push:18 · Spec de mutação ausente para a condição da pasta comum e o guarda novo de `anotar`; pendência V2 do autor.
+- A3 (recomendado) .githooks/pre-push:23 · Spec de mutação ausente para a condição da pasta comum e o guarda novo de `anotar`; pendência V2 do autor.
+- A4 (recomendado) tests/test_pre_push_trava.py:665 · Com o C2 já na develop, `assertIn(codigo, (1, 2))` pode virar `assertEqual(codigo, 2)`; mudar aqui estoura o teto de 150, então fica para PR próprio.
 
 ## Parecer
-Aprovado, mantido no head ddb7768. Entrega o C4 do E3 com os controles do modelo e cumpre a M14 (150 linhas no head, um comportamento). A1 é condição de ordem de integração, não defeito da branch; A2 e A3 não devolvem.
+Aprovado, mantido no head 79880e3 (o merge da develop não mudou o patch da branch). Entrega o C4 do E3 com os controles do modelo e cumpre a M14 (150 linhas no head, um comportamento). A1 está resolvido pela develop; A2, A3 e A4 não devolvem.
