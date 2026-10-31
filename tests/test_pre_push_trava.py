@@ -532,8 +532,12 @@ class PrePushTrava(unittest.TestCase):
             comum.rmdir()
             comum.write_text("arquivo")
 
+        def comum_link_pendente(comum):
+            comum.rmdir()
+            comum.symlink_to(comum.parent / "inexistente")
+
         for nome, prepara in (("subpasta link", sub_link), ("subpasta arquivo", sub_arquivo),
-                              ("comum sem escrita", comum_sem_escrita), ("comum arquivo", comum_arquivo)):
+                              ("comum sem escrita", comum_sem_escrita), ("comum arquivo", comum_arquivo), ("comum link pendente", comum_link_pendente)):
             with self.subTest(nome):
                 if nome == "comum sem escrita" and os.geteuid() == 0:
                     self.skipTest("root escreve em pasta sem permissão")
