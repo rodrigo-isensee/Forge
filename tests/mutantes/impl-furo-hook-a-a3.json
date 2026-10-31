@@ -46,8 +46,8 @@
       "id": "A3-m5",
       "guarda": "o valor com tracos depois do -- conta como valor da configuracao",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if \"--\" in args:  # depois do `--`",
-      "para": "        if False:  # depois do `--`",
+      "de": "            elif a == \"--\":  # depois do `--`",
+      "para": "            elif False:  # depois do `--`",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]
