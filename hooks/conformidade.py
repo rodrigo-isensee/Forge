@@ -1364,7 +1364,7 @@ class Guarda:
             pedidos = self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
             # A5: o valor que o hook não vê (variável, substituição, opção sem valor, entrada do xargs) pode ser o rótulo
             return (ROTULO_PROTEGIDO in pedidos or any(re.search(r"[`$]", r) for r in pedidos)
-                    or palavras[-1] in ROTULO_COM_VALOR or por_xargs and bool(pedidos))
+                    or palavras[-1] in ROTULO_COM_VALOR or por_xargs)
         if grupo == "alias" and sub in ("set", "import"):  # o alias do gh que cita o rótulo aplica sem que o hook o veja
             return any(CITA_ROTULO.search(a) for a in palavras[3:])
         if grupo == "label" and sub == "clone":  # cria ou sobrescreve rótulos de outro repositório, sem citar o nome
