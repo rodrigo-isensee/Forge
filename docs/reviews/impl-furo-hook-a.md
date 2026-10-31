@@ -3,49 +3,43 @@ tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a4
-commit: 6a15c2a8098a51dc8568c34c669f06c60b5feb0f
-parecer: reprovado
+commit: ddf8bf3fec75f5759d41799da2cab1d4aff7423a
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK)
+# Review: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK), revalidação 1
 
-Escopo: `234dbe0..6a15c2a` (base 234dbe0fb90b005450d7c2eb59e6241ea9779155). Commits: `38d218a` (teste das fixtures do lote), `9c658a6` (correção, com as fixtures, o teste estrutural e a spec de mutantes) e `6a15c2a` (fragmento). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
+Escopo: revalidação por delta do parecer anterior (`e74f5cc`, reprovado sobre `6a15c2a`). Commits novos: `4b67f82` (fixtures das sondas do A1, vermelhas antes da correção) e `ddf8bf3` (correção). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
+
+## Delta lido
+Saída de `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` (intervalo `6a15c2a..ddf8bf3`):
+- `hooks/conformidade.py` +3 -2, linhas 75-77 (ramo do interpretador em `args_do_forge_check`);
+- `tests/hooks/conformidade/fc-anotar-por-interpretador-opcao-w-dev-bloqueia.json` e `fc-anotar-por-interpretador-opcao-x-dev-bloqueia.json`, +20 cada (inteiros).
+
+Já lido, sem mudança desde o parecer anterior: o resto de `234dbe0..6a15c2a` (`forge_check_grava`, o ramo do nome opaco, as 20 fixtures, o teste estrutural, a spec de mutantes, `docs/hooks.md` e o fragmento).
 
 ## Item entregue
-E4 do pedido, item A4 FC-SUBCOMANDO-HOOK, pelo desenho §2.3. A entrega tem quatro partes:
-- `args_do_forge_check` acha o `forge-check` em todo papel: direto, por caminho, por interpretador, atrás de lançador e com nome opaco na forma do `anotar` ou do `--gravar`.
-- `forge_check_grava` passa pela política de caminhos o destino do `anotar` (`docs/pedidos/`), do `brief --gravar` (`docs/briefs/`) e da saída do `transcricao anonimizar`, a partir da pasta da sessão e de `~/.forge-contrib`.
-- O teste estrutural exige que todo subcomando cuja ajuda diz que grava esteja em `FORGE_CHECK_ESCRITAS` ou em `FORGE_CHECK_EM_CAMINHO_LIVRE`.
-- O `docs/hooks.md` foi atualizado. São 20 fixtures (5 contraprovas) e a spec de mutantes.
+E4 do pedido, item A4 FC-SUBCOMANDO-HOOK (desenho §2.3), sem mudança de escopo na volta.
 
 ## M14
-Linhas que contam: `hooks/conformidade.py` 41 e `tests/test_hooks.py` 19, num total de 60. Ficam fora as fixtures, a spec, o `.md` e o `changelog.d/`. O total fica abaixo de 150. Há uma classe em `hooks/` (o que o `forge-check` grava passa pela política de caminhos), com corpus próprio, e nenhum caminho de `PROTEGIDOS`. Cumpre.
+`git diff --numstat --no-renames 234dbe0..ddf8bf3`: `hooks/conformidade.py` 42 e `tests/test_hooks.py` 19, total 61, abaixo de 150. Fixtures, spec, `.md` e `changelog.d/` ficam fora. Uma classe em `hooks/` (o que o `forge-check` grava passa pela política de caminhos), com corpus próprio; nenhum caminho de `PROTEGIDOS`. Cumpre.
 
 ## Conferido
-`python3 -m unittest` de `test_fixtures_do_lote_furo_hook_a` e `test_a4_todo_subcomando_do_forge_check_que_grava_esta_classificado` no HEAD revisado: `Ran 2 tests`, `OK`.
+`python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no `ddf8bf3`: `Ran 1 test`, `OK`.
 
-Sondas pelo hook real no HEAD revisado, com `conformidade/fc-anotar-dev-bloqueia.json` como modelo (papel `forge:node-backend`):
-- saem 2:
-  - `cd src &&` antes do `anotar`, `--raiz ..` e `cd /tmp && --raiz "$OLDPWD"`;
-  - `bash -c "forge-check anotar ..."`, `timeout 60` antes e `xargs forge-check anotar ... < /dev/null`;
-  - `python3 -I bin/forge-check anotar` e `transcricao anonimizar a.jsonl docs/pedidos/p1.md`.
-- saem 0, como devem: `forge-check pr p1` e `forge-check docs`.
-- saem **0**, e não deviam:
-  - `python3 -X utf8 bin/forge-check anotar --pedido p1 --tipo decisao --literal sim` e o mesmo com `-W ignore` (achado A1);
-  - `F=forge-check; $F anotar --pedido p1 --t decisao --literal sim` (achado A2);
-  - `find . -maxdepth 0 -exec forge-check anotar ... \;` e `echo anotar | xargs forge-check` (achado A3).
+A1 anterior, pelo hook real no `ddf8bf3` (modelo: `fc-anotar-por-interpretador-opcao-x-dev-bloqueia.json`, papel `forge:node-backend`): saem 2 `python3 -X utf8 bin/forge-check anotar ...`, `python3 -W ignore ...`, `python3 -u -X dev -W ignore ./bin/forge-check anotar ...`, `python3 -Xutf8 ...`, `env python3 -X utf8 ...` e `python3 -I ...`. Saem 0, como devem: `python3 -X utf8 bin/forge-check pr p1` e `... docs`. A1 fechado.
 
-No `forge-check` real, `python3 -X utf8 bin/forge-check anotar ...` e `anotar ... --t decisao` passam do argparse e chegam à busca do pedido. Com um pedido existente, gravariam. Em `args_do_forge_check`, o script do interpretador é tomado como a primeira palavra sem `-`, e o valor de `-X` ou de `-W` ocupa esse lugar. O interpretador é um dos caminhos que o desenho §2.3(a) lista como furo.
+A correção procura a palavra cujo nome é `forge-check` entre os argumentos do interpretador. Um `forge-check` que apareça como argumento de outro script (`python3 x.py bin/forge-check anotar`) passa a ser lido como o `forge-check`: falha fechada, sem furo novo.
 
-Também conferido:
-- R-NEUTRO e R-CUSTO: nada a apontar. Não há shell tocado. O Forge não tem `docs/engineering/praticas.md`, então não há regra de leitura nem de ferramenta a citar.
-- Commits em Conventional Commits, com os trailers.
+Também conferido: R-NEUTRO e R-CUSTO sem nada a apontar; não há shell tocado; o Forge não tem `docs/engineering/praticas.md`, então não há regra de leitura nem de ferramenta a citar; commits em Conventional Commits, com os trailers, e o teste vermelho veio antes da correção.
+
+## Achado anterior fechado
+O A1 do parecer anterior (hooks/conformidade.py:75, opção do interpretador com valor) está fechado e sai do bloco: as duas sondas saem 2 no `ddf8bf3`, com fixture cada. A2 e A3 seguem sem mudança e não devolvem.
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:75 · `python3 -X utf8 bin/forge-check anotar ...` (e `-W ignore`) sai 0 para o dev: o valor da opção do interpretador vira o script e o forge-check some. Procure entre os argumentos a palavra cujo nome é forge-check, sem exigir a 1.ª sem `-`, e ponha a sonda como fixture.
-- A2 (recomendado) hooks/conformidade.py:77 · com nome opaco, `--t decisao` sai 0: o argparse aceita prefixo de uma letra e `abreviacao_de` exige mais de 3 caracteres; conte `anotar` sozinho, ou qualquer prefixo de `--tipo`, como a forma do anotar.
+- A2 (recomendado) hooks/conformidade.py:78 · com nome opaco, `--t decisao` sai 0: o argparse aceita prefixo de uma letra e `abreviacao_de` exige mais de 3 caracteres; conte `anotar` sozinho, ou qualquer prefixo de `--tipo`, como a forma do anotar.
 - A3 (recomendado) docs/hooks.md:41 · o texto diz que vale atrás de lançador, mas `find -exec forge-check anotar` e `xargs forge-check` com o subcomando na entrada saem 0; restrinja o texto aos lançadores lidos e leve a classe ao security-engineer, como cartão.
 
 ## Parecer
-Reprovado. A branch entrega o A4 e cumpre a M14. O A1, porém, é furo provado num dos caminhos que o desenho manda fechar (o interpretador), e por ele o dev forja a decisão do dono (R-DECISAO). Volta ao autor. A2 e A3 não devolvem. Na revalidação, o escopo é o delta (`forge-check delta`).
+Aprovado. O A1 está fechado, com fixtures vermelhas antes da correção, e a branch segue entregando o A4 dentro da M14. A2 e A3 ficam como recomendação, que não devolve.
