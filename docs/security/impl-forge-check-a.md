@@ -3,8 +3,8 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-forge-check-a
 branch: melhoria/impl-forge-check-a-a1
-commit: 0ba0a57a138dab4390afb9362047ee69da4f4506
-parecer: reprovado
+commit: 2aac6769fc3d502e6cee0aceb0a7b6ee464a8303
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-30
 ---
@@ -19,15 +19,15 @@ Diff lido: `234dbe0..0ba0a57` (1844275 C1, d4eea24 C2, 0ba0a57 fragmento), contr
 ## Gatilhos
 Controles do Forge (`R-SEGURANCA`): `bin/forge-check` é o portão de escopo do conferente, e a união de briefs decide o que entra no escopo conferido.
 
+## Revalidação (head 2aac676)
+Parecer anterior sobre 0ba0a57 (reprovado, A1). `forge-check delta --parecer` listou `bin/forge-check:983-984` (+2) e `tests/test_forge.py:4846-4853` (+8); li só isso. O resto do código ficou como já lido; o 2aac676 em si só acrescenta o review do tech-lead (docs).
+- A1 resolvido: `bin/forge-check:983-984` devolve falso para `Pedido:` ausente ou vazio antes do `removeprefix`, cumprindo o C-4; `uniao_de_briefs` segue com a reprovação de escopo e a linha de veredito (rc 1, sem pilha de erro). Teste novo `tests/test_forge.py:4846-4853` confere rc 1, sem `Traceback` e a linha `escopo:`. `EntregasParalelas` e `CaminhoDoPedido`: 16 testes, OK, na worktree.
+- Nenhum achado novo no delta (2 linhas de guarda, sem shell, caminho nem entrada nova).
+- M14 (agents/tech-lead.md:19): `bin/forge-check` 39+7 e `tests/test_forge.py` 94+2 desde a base, 142 linhas, abaixo de 150; um comportamento. Cumpre.
+- A recomendação do laço do id puro em `caminho_do_pedido` (`is_file` direto) segue como recomendação, não devolve.
+
 ## Achados
-- A1 (bloqueante) bin/forge-check:983 · C-4 do modelo não cumprido: mesmo_pedido usa valor.removeprefix fora do try; brief sem a linha Pedido: faz a exceção sair de uniao_de_briefs (bin/forge-check:1009) e a conferência termina sem linha de veredito. Guarde valor vazio (return False) e teste o caso.
-
-## Detalhe dos achados
-**A1.** Evidência: `bin/forge-check:980-989` (`mesmo_pedido`; o try só começa em `:985`), chamado em `:1009` com `achados["Pedido"]`, que é None quando o cabeçalho do brief não tem `Pedido:`. Na base 234dbe0 o `if achados["Pedido"]:` deixava o None seguir até `achados != esperado` e a união reprovava com a linha de escopo; agora a chamada levanta erro de atributo (reproduzido em processo: `mesmo_pedido(None, "p1", "/x/p1.md")` levanta). O modelo exige no C-4 que nenhuma exceção saia de `uniao_de_briefs` fora do try da leitura. Caminho de ataque: o autor de um brief (texto não confiável para o conferente) omite ou desloca a linha `Pedido:`; o conferente recebe rc 1 com a pilha de erro e nenhuma linha `escopo:`. A falha é fechada (rc diferente de 0), então o ganho do atacante é só negar a conferência e quebrar o contrato de saída lido por máquina; severidade baixa, mas é controle obrigatório do modelo com gatilho, por isso bloqueante (requisito). Mesmo achado do code review (A1 de `docs/reviews/impl-forge-check-a.md`), um cartão só. Correção mínima: `if not valor: return False` no começo de `mesmo_pedido`, e o caso "sem Pedido" na tabela de `test_pedido_do_brief_por_caminho_vale_so_pelo_realpath_do_pedido_conferido` com rc 1 e sem pilha de erro no stderr. Esforço P. Dono: tech-lead (autor da E1.1).
-
-**Conferido e cumprido** (nada a corrigir): C-1 (igualdade de string do realpath dos dois lados, `:987`); C-2 (só absoluto ou `~/`, por `is_absolute` depois da expansão); C-3 e C-10 (só o prefixo `~/` pelo `HOME`, `:986` e `:795-796`; o teste com a base de contas trocada cobre `~usuario`); C-4 para NUL e erro de sistema (o try de `:985-989`; caso NUL no teste); C-5 (o `-REV` pela pasta do pedido resolvido, `:1010`); C-6 (regra de texto sobre o valor inteiro, `:983`); C-7 (a reprovação não ecoa o valor); C-8 (`dentro_da_raiz` com `docs/pedidos` nas raízes, `:800-803`; testes B1, B2, B4); C-9 (cwd e absoluto como antes); C-11 (`arquivo_existe` captura erro de sistema e de valor, `:782-787`). Casos A1 a A9 e B1 a B5 estão nos testes; `EntregasParalelas` e `CaminhoDoPedido` rodados na worktree, 15 testes, OK.
-
-**Recomendação (não devolve):** o laço do id puro em `caminho_do_pedido` (`:805-807`, inalterado desde a base) ainda usa `is_file` direto; um id de mais de 255 bytes levanta erro de sistema antes da leitura. Vem só do argumento da linha de comando de quem roda o conferente, sem ganho para terceiro e com falha fechada; trocar por `arquivo_existe` no mesmo cartão da volta é barato. Riscos R-1 a R-4 do modelo seguem fora deste lote (cartões FC-ENTREGA-GIT-FALHA-ABERTA e FC-PEDIDO-FORA-DAS-RAIZES).
+- Nenhum achado bloqueante. A1 do parecer anterior (bin/forge-check:983) está resolvido no head 2aac676.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Revisão estática por leitura do diff e reprodução em processo. Ferramentas ausentes no PATH (lacuna, nada instalado): gitleaks, semgrep, osv-scanner, zizmor, actionlint, shellcheck. O diff não tem shell, workflow, dependência nem segredo.
