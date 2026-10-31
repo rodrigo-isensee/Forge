@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a5
-commit: caae6a663ca509a07ea3ff0e015fa316dd2fc7f0
+commit: 4f0f35c23913f59e111a56b91838dd3d3990029d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
@@ -54,7 +54,15 @@ Sondas pelo hook real no HEAD `caae6a6`, com o mesmo modelo de antes:
 
 A M14 segue cumprida: `hooks/conformidade.py` continua com 25+9 linhas, e o total da branch, com 39.
 
+## Revalidação (volta 2, 2026-10-31)
+Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `caae6a663ca509a07ea3ff0e015fa316dd2fc7f0..4f0f35c23913f59e111a56b91838dd3d3990029d`. O delta lido:
+- `tests/mutantes/impl-furo-hook-a-a5.json:25-26`, +2 -2: o mutante A5-m3 passou a mirar a linha `hooks/conformidade.py:1367` como ela está (`or palavras[-1] in ROTULO_COM_VALOR or por_xargs)` para `... or False)`). O trecho `de` existe na linha 1367 do HEAD, e o teste apontado é o das fixtures do lote.
+
+O resto ficou como "já lido": o código de produção, as fixtures e o review anterior. Os pareceres de QA e de segurança que entraram no intervalo não são código e não foram relidos aqui. Nenhum arquivo de produção mudou desde `caae6a6`.
+
+M14: cumprida. Contam `hooks/conformidade.py` 25+9 e `tests/test_hooks.py` 5, total de 39 linhas, abaixo de 150, com uma classe em `hooks/` e nenhum caminho de `PROTEGIDOS`.
+
 ## Achados
 
 ## Parecer
-Aprovado no HEAD `caae6a6`. O achado A1 da rodada anterior (`dc3762c`, reprovada), em `hooks/conformidade.py:1367`, está resolvido. Agora todo `gh pr|issue edit|create` atrás de `xargs` exige o dono, como pede o desenho §2.7(b), e a correção tem fixture. O delta não traz achado novo.
+Aprovado no HEAD `4f0f35c`. O achado A1 da rodada anterior (`dc3762c`, reprovada), em `hooks/conformidade.py:1367`, está resolvido. Agora todo `gh pr|issue edit|create` atrás de `xargs` exige o dono, como pede o desenho §2.7(b), e a correção tem fixture. O delta não traz achado novo.
