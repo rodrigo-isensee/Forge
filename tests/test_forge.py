@@ -2202,6 +2202,16 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
                 self.assertNotIn(ap.FRASE, r.stdout)
                 self.assertNotIn("a conferência não vale", r.stdout)
 
+    def test_base_com_prefixo_origin_e_conferida_como_a_sem_prefixo(self):  # C4 (FC-VERSAO-BASE-AVISO)
+        self.assertNotIn("versão não conferida", self.check(self.igual, "pr", "p", "--base", "origin/develop").stderr)
+        r = self.check(self.antiga_sem_objeto, "pr", "p", "--base", "origin/develop")
+        self.assertIn(ap.FRASE_NO_FORGE, r.stderr)
+        self.assertNotIn("versão não conferida", r.stderr)
+        for torto in ("origin/origin/develop", "../x", "-c", "develop..main"):  # só um prefixo cai; o resto segue "não conferida", sem traceback
+            with self.subTest(torto):
+                r = self.check(self.igual, "pr", "p", "--base", torto)
+                self.assertNotIn("Traceback", r.stderr)
+
     def test_o_aviso_nao_muda_o_codigo_de_saida(self):
         for nome, args in self.comandos().items():
             with self.subTest(nome):
@@ -4174,6 +4184,21 @@ class VoltaComRecomendacao(unittest.TestCase):
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertNotIn("## Entregar", r.stdout)
 
+    def test_achado_com_intervalo_de_linhas_e_aceito_e_copiado_inteiro(self):  # K-164
+        self.parecer("## Achados\n- A1 (bloqueante) src/app.txt:3-5 · x\n- R1 (recomendado) a.py:10-12 · ordem das funções\n")
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("[a.py:10-12]", r.stdout)
+        self.assertIn("[src/app.txt:3-5]", r.stdout)
+
+    def test_intervalo_malformado_ou_invertido_e_recusado(self):  # K-164
+        for intervalo in ("9-3", "3-", "-3", "3-5-7", "3--5", "a-b"):
+            with self.subTest(intervalo):
+                self.parecer(f"## Achados\n- A1 (bloqueante) src/app.txt:3 · x\n- R1 (recomendado) a.py:{intervalo} · ordem\n")
+                r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertNotIn("## Entregar", r.stdout)
+
     def test_incluir_so_vale_em_gerar_volta(self):
         r = rodar_fc("brief", "docs/briefs/x.md", "--pedido", "p", "--incluir", "docs/reviews/p1.md:R1", raiz=self.repo, home=self.tmp / "home")
         self.assertEqual(r.returncode, 2, r.stdout)
@@ -4553,6 +4578,24 @@ class RepoComOrigem(unittest.TestCase):
     def pr(self, *extra, ref="melhoria/x"):
         r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home)
         return r.returncode, r.stdout, r.stderr
+
+
+class FalhaDoGitNoE4(RepoDeSeguranca):
+    """C3 (FC-E4-FALHA-ABERTA): o git que falha no diff da base não vira "nada a conferir" com rc 0; reprova e deixa tudo à vista."""
+
+    def test_diff_da_base_que_falha_reprova_e_lista_os_arquivos(self):
+        fc = carregar_forge_check()
+        head = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        intervalo = f"{fc.ref_da_base(self.repo, 'develop')}..{head}"
+        real = fc.git
+        falho = lambda raiz, *args, **kw: (128, b"") if "--name-only" in args and intervalo in args else real(raiz, *args, **kw)
+        for etapa in ("pedido-de-merge-ao-dono", "merge-integracao"):
+            with self.subTest(etapa), mock.patch.object(fc, "git", falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+                rc = fc.cmd_entrega(self.repo, str(self.pedido), "melhoria/x", "develop", self.base, etapa, None)
+            self.assertEqual(rc, 1, saida.getvalue())
+            self.assertIn("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", saida.getvalue())
+            self.assertIn('"src/app.txt"', saida.getvalue())
+            self.assertNotIn("sem commit (nada a conferir)", saida.getvalue())
 
 
 class PrAposMergeDaBase(RepoComOrigem):
