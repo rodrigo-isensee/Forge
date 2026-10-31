@@ -33,4 +33,4 @@ Sem achado. Conferência contra os controles do modelo (§4.1):
 Sem superfície nova: a branch não muda código de hook. O C-A1-5 (tempo do T6 no corpo do PR) é do autor e do PR, fora deste parecer.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff e execução local do teste. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff e execução local do teste. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
