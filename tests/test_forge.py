@@ -4843,6 +4843,14 @@ class EntregasParalelas(RepoDeSeguranca):
                 rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.tmp / "home")
                 self.assertEqual(rc, rc_esperado, saida)
 
+    def test_brief_sem_a_linha_pedido_reprova_com_linha_limpa(self):  # A1 (C-4): sem exceção, com veredito
+        ok = self.brief("p1-tech-lead-1.md")
+        (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("Pedido: docs/pedidos/p1.md\n", ""), encoding="utf-8")
+        rc, saida, erro = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md")
+        self.assertEqual(rc, 1, saida + erro)
+        self.assertNotIn("Traceback", erro)
+        self.assertIn("escopo: união de briefs de entregas diferentes docs/briefs/p1-y-1.md", saida)
+
     def test_til_de_outro_usuario_nunca_expande(self):  # A5: base de contas trocada por um dublê
         mod = carregar_forge_check()
         with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.tmp))):
