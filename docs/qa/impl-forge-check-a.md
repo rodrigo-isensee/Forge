@@ -3,24 +3,25 @@ tipo: qa
 contrato: 1
 pedido: impl-forge-check-a
 branch: melhoria/impl-forge-check-a-a1
-commit: 7f5a1f85ed83e0b21503f387acc8a0753b13a6e6
-parecer: reprovado
+commit: 104ec9e812e41c8fac700374beab1750fa91ffe8
+parecer: aprovado
 revisor: qa-engineer
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-10-30
+data: 2026-10-31
 ---
 # QA: impl-forge-check-a (branch a1: E1 e E2)
 
-Reprovado só pela prova de mutação (`R-QA`): o diff muda guardas de `bin/forge-check` sem spec de mutantes do autor, e a spec que o QA escreveu deixou sobreviventes que provam lacuna de teste. Comportamento, vermelho e M14 estão certos.
+Aprovado no head 104ec9e. Os dois bloqueantes do parecer anterior (7f5a1f8) estão fechados: A1 pelo teste do pedido relativo só na 2ª raiz (b6187cd), A2 pela spec de mutantes do autor (9921391, db6c9de, d591bcc). A3 (recomendado) virou o M9 da spec e morre.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:802 · mutante M13 sobrevive: tirar `arquivo_existe(achado)` do laço das raízes não derruba teste; falta teste de pedido relativo que só existe na 2ª raiz (a 1ª não o tem).
-- A2 (bloqueante) tests/mutantes/impl-forge-check-a.json:1 · o diff muda 10 condições Python de bin/forge-check sem mutante declarado (`forge-mutante --cobertura` lista as 10); o autor declara a spec, um mutante por guarda (M14 de lote de controle).
-- A3 (recomendado) bin/forge-check:989 · mutante M15 sobrevive: `bool(arquivo)` sem teste direto de `mesmo_pedido` com arquivo vazio e Pedido igual ao cwd; só atinge chamada sem `caminho`, que o CLI não faz.
+- A1 (recomendado) bin/forge-check:988 · `forge-mutante --cobertura` lista `valor.startswith('~/')` como "sem mutante", mas o M8 da spec muta exatamente essa linha e morre; falha da heurística da ferramenta, não da spec.
+
+## Delta lido (revalidação)
+`forge-check delta`: intervalo 7f5a1f8..104ec9e; só `tests/mutantes/impl-forge-check-a.json` (+146) e `tests/test_forge.py` (+8: linhas 4909 e 4925-4931). `bin/forge-check` não mudou no delta. Li os dois; o diff inteiro de `bin/forge-check` contra a base segue o já avaliado.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -33,11 +34,12 @@ Reprovado só pela prova de mutação (`R-QA`): o diff muda guardas de `bin/forg
 | E3, E4 | fora desta branch (a2, a3) | n/a | n/a |
 
 ## Execução real
-- `python3 -m unittest tests.test_forge.EntregasParalelas tests.test_forge.CaminhoDoPedido`: Ran 16, OK no head. Suíte inteira não rodada aqui (o pre-push e o CI a rodam, M8).
-- Vermelho, manual: `bin/forge-testes --vermelho 234dbe0` passou do prazo de 10 min sem veredito (rc 124, vale como "sem veredito", não como vermelho). Em cópia do head com `bin/forge-check` da base, os 8 testes novos: `FAILED (failures=12, errors=1)`, incluindo `AttributeError: module 'forge_check_teste' has no attribute 'mesmo_pedido'`; no head, `OK`. O teste do brief sem `Pedido:` passa também na base: ele guarda a regressão do commit intermediário, não a base.
-- M14: bin/forge-check +39 -7 e tests +94 -2 (142 linhas pelo numstat, teto 150; um comportamento só, caminho do Pedido; sem hooks): cumpre.
-- Mutação (spec do QA, 15 mutantes em cópia, `forge-mutante`): morreram M1 a M9, M14 e M11 (re-rodado com o teste C1 certo; a primeira lista o deixava de fora por erro meu). Sobrevivem M13 e M15 (A1, A3). Equivalentes, justificados: M10 (`caminhoso and is_absolute` no retorno cedo: o laço seguinte devolve `dado` igual para caminho absoluto) e M12 (`ValueError` de `arquivo_existe`: argv não carrega NUL; o NUL do brief passa por `mesmo_pedido`, coberto).
-- Casos de abuso do modelo de ameaças da branch: cobertos pelos testes acima (travessia, link, `~usuario`, NUL, homônimo, quebra de linha).
+- `python3 -m unittest tests.test_forge.EntregasParalelas tests.test_forge.CaminhoDoPedido`: Ran 17, OK no head. `scripts/validar-plugin.sh`: Validation passed. Suíte inteira não rodada aqui (pre-push e CI, M8).
+- Vermelho: mantido do parecer anterior (testes novos falham com `bin/forge-check` da base: `FAILED (failures=12, errors=1)`, `AttributeError ... 'mesmo_pedido'`; no head, OK). Os dois testes novos desta volta (cwd vence, 2ª raiz) matam M3 e M5 na rodada abaixo.
+- Mutação, `bin/forge-mutante tests/mutantes/impl-forge-check-a.json`, rc=0: M1 a M10 todos `morreu` (linhas 793, 795, 797, 799, 802, 983, 985, 988, 989, 1011); sem equivalente declarado.
+- `forge-mutante --cobertura --base 234dbe0`: rc 0, cobre as condições do diff; única linha "sem mutante" é a 988, coberta pelo M8 (ver A1).
+- M14: bin/forge-check +39 -7 e tests +94 -2 na entrega original; o delta desta volta só soma teste e spec de mutantes (+154 linhas fora do corte de produção). Um comportamento só, sem hooks: cumpre.
+- Casos de abuso do modelo de ameaças: cobertos pelos testes da tabela (travessia, link, `~usuario`, NUL, homônimo, quebra de linha).
 
 ## Veredito
-Reprovado por A1 e A2; a correção é teste e spec do autor, sem mudar código de produção. Revalidação por delta sobre esses dois pontos.
+Aprovado. Nenhum bloqueante aberto; bugs zero.
