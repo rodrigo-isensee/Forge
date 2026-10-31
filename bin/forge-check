@@ -604,6 +604,24 @@ def parecer_commitado(raiz, rel):
     return not cod and salvo == (raiz / rel).read_bytes()
 
 
+def base_do_delta(raiz, base, ref=None):
+    """A base do delta de "parecer desatualizado", a mesma no `forge-check pr` e no hook `parecer` (K-164): `(ref resolvida, aviso)`.
+    `base` é uma das BASES_DO_FLUXO (ou `origin/<essa>`); vale lida de `refs/remotes/origin/<base>` (a local só sem remoto) e, com o head
+    já contido nela, não há merge a simular: `(None, aviso)` e o parecer vale só pelo diff literal. Base fora do fluxo ou inexistente:
+    `(None, None)`, modo estrito (nada se afrouxa)."""
+    nome = (base or "").removeprefix("origin/")
+    if nome not in BASES_DO_FLUXO:
+        return None, None
+    remota, local = f"refs/remotes/origin/{nome}", f"refs/heads/{nome}"
+    resolvida = remota if sha_do_commit(raiz, remota) else local if sha_do_commit(raiz, local) else None
+    head = sha_do_commit(raiz, ref or "HEAD")
+    if resolvida and head and e_ancestral(raiz, head, sha_do_commit(raiz, resolvida)):
+        nome_curto = resolvida.removeprefix("refs/remotes/").removeprefix("refs/heads/")
+        return None, (f"pr: aviso: o head {head[:7]} já contido em {nome_curto} (a base contém a branch); "
+                      "o parecer vale só pelo diff literal, sem o merge simulado da base")
+    return resolvida, None
+
+
 def pr_da_cli(raiz, pedido, ref=None, base=None):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
@@ -617,13 +635,9 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
-    remota, local = f"refs/remotes/origin/{nome}", f"refs/heads/{nome}"
-    resolvida = remota if sha_do_commit(raiz, remota) else local if sha_do_commit(raiz, local) else None
-    head = sha_do_commit(raiz, ref or "HEAD")
-    if resolvida and head and e_ancestral(raiz, head, sha_do_commit(raiz, resolvida)):
-        print(f"pr: aviso: o head {head[:7]} já contido em {resolvida.removeprefix('refs/remotes/').removeprefix('refs/heads/')} (a base contém a branch); "
-              "o parecer vale só pelo diff literal, sem o merge simulado da base", file=sys.stderr)
-        resolvida = None
+    resolvida, aviso = base_do_delta(raiz, nome, ref)
+    if aviso:
+        print(aviso, file=sys.stderr)
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
