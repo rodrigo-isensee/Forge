@@ -1,0 +1,46 @@
+{
+  "pedido": "vermelho-filtro",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o --vermelho sem --modulos tira os dados de teste do plano (a spec de mutantes nao leva a suite completa)",
+      "arquivo": "bin/forge-testes",
+      "de": "if not TESTE_DO_DIFF.fullmatch(c) or c in ALTERA_O_MAPA], raiz)",
+      "para": "if not MODULO_DE_TESTE.fullmatch(c) or c in ALTERA_O_MAPA], raiz)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_spec_e_fixture_no_diff_roda_so_o_plano_do_mapa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "tests/config.json segue ao planejar e leva a suite completa",
+      "arquivo": "bin/forge-testes",
+      "de": "if not TESTE_DO_DIFF.fullmatch(c) or c in ALTERA_O_MAPA], raiz)",
+      "para": "if not TESTE_DO_DIFF.fullmatch(c)], raiz)",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_config_no_diff_segue_na_suite_completa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o plano completo do --vermelho diz o motivo numa linha",
+      "arquivo": "bin/forge-testes",
+      "de": "print(f\"vermelho: o mapa não sabe ({'; '.join(plano)}); suíte completa.\")",
+      "para": "pass",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_caminho_sem_mapa_avisa_e_roda_a_suite_completa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a linha de aviso so sai quando o plano e completo",
+      "arquivo": "bin/forge-testes",
+      "de": "        if modo == \"completo\":\n            print(f\"vermelho: o mapa",
+      "para": "        if True:\n            print(f\"vermelho: o mapa",
+      "testes": [
+        "tests.test_testes_tocados.Vermelho.test_vermelho_com_spec_e_fixture_no_diff_roda_so_o_plano_do_mapa"
+      ]
+    }
+  ]
+}
