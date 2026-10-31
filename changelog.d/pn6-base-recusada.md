@@ -1,2 +1,0 @@
-### Alterado
-- forge-check brief gerar --volta: antes de propor o --desde da última base do ## Histórico (conferida ou a fixada pelo dono), confere com a mesma regra do forge-check entrega, agora numa função única chamada pelos dois (desde_e_a_base, desde_valido e a guarda do --desde gravado na própria entrega); se ela não passaria, recusa com rc 1, o motivo e o que fazer, sem gerar o brief (PN6-BASE-RECUSADA, P-N6).
