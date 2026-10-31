@@ -44,4 +44,4 @@ Caminho: só deliberado, por injeção, que escreve um editor ou monta a linha c
 Dimensão nova para a matriz do modelo (§8): **Posição, subcomando do `git config`** (`set`/`unset`) e **escopo por worktree** das chaves do merge; **Mecanismo, expansão do shell fora da linha crítica** (chaves), que aparece também nas branches a2, a4 e a5.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, um repositório descartável para a sintaxe do `git config` e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, um repositório descartável para a sintaxe do `git config` e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
