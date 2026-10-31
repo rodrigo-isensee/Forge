@@ -72,8 +72,9 @@ def args_do_forge_check(prog, args):
     if prog == "forge-check":
         return args
     if INTERPRETES.match(prog):
-        livres = [i for i, a in enumerate(args) if not a.startswith("-")]
-        return args[livres[0] + 1:] if livres and Path(args[livres[0]]).name == "forge-check" else None
+        # a opção do interpretador pode levar valor (`-X utf8`, `-W ignore`): procura a palavra, não a 1.ª sem `-`
+        achados = [i for i, a in enumerate(args) if Path(a).name == "forge-check"]
+        return args[achados[0] + 1:] if achados else None
     opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
                                            or any(abreviacao_de(a, ("--gravar",)) for a in args))
     return args if opaco else None
