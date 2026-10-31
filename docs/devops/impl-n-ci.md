@@ -2,23 +2,26 @@
 tipo: revisao-devops
 contrato: 1
 pedido: impl-n-ci
-branch: melhoria/impl-n-ci-c1
-commit: 655ae8c8a6f56ac44c78e241ee570dcebbd39222
+branch: melhoria/impl-n-ci-c2
+commit: 60986081fb7ac6e64b18c66d5e6f6d569814bd5b
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-10-31
 ---
-# Review de devops: impl-n-ci (c1)
+# Review de devops: impl-n-ci (c2)
 
 ## Parecer
-Aprovado. Esta branch entrega os itens E1 (pool de threads por subprocesso, numa fonte só) e E3 (pesos regravados em `tests/pesos-d4.json`, 79 módulos, JSON válido) do pedido. O limite de CPU do corpus fica separado do pool (`trabalhadores_do_limite_de_cpu`), então subir o pool não o afrouxa (C-3); o mutante M4 de `tests/mutantes/prop-tempo-cpu.json` foi atualizado para o novo nome e continua apontando para o mesmo trecho.
+Aprovado. Esta branch entrega a parte "medida no resumo" do E2 (item 55 d): duração por unidade (dez mais lentas), soma, maior unidade, desequilíbrio, módulos sem peso (lista limitada a 20) e os módulos no título de cada `::group::` do CI, em `scripts/suite-paralela.py`. O resumo só leva nomes de módulo (filtrados pelo conjunto de `partes`) e números; o teste `test_resumo_so_leva_nomes_e_numeros` prova que `::`, caminho e padrão de segredo da saída dos testes não chegam ao arquivo. Sem `GITHUB_STEP_SUMMARY` nada é escrito. A medida só informa: não muda divisão, veredito nem carimbo (a divisão é testada independente da execução anterior).
 
-M14 (`agents/tech-lead.md:19`): cumpre. Linhas de código e teste contadas pela regra do Forge: 70 (`apoio_volta_unica.py` 15, `test_hooks.py` 47, `test_hooks_volta_corpus.py` 8; o mutante de `tests/mutantes/` fica fora); o teto é 400. Não toca `hooks/`, `.github/`, `.githooks/` nem `tests/catraca.py`, então não há classe de comportamento em `hooks/` a contar. `pesos-d4.json` e o fragmento de changelog ficam fora da conta. Um item de comportamento, um commit que se reverte sozinho (três commits: teste, código, pesos).
+M14 (`agents/tech-lead.md:19`): cumpre. 117 linhas de código e teste (`suite-paralela.py` 44, `test_suite_paralela.py` 73; teto 400, e dentro do teto de 150 do plano do pedido); sem `hooks/`, sem `.github/`, sem arquivo de `PROTEGIDOS`. Uma classe de comportamento (a medida), commits separados de teste, código e teste de ausência.
 
-Pipeline: nenhum workflow mudou, nenhuma ação, permissão, cache ou gatilho. O dimensionamento do pool lê a afinidade do processo e ignora `FORGE_NPROC`, e o piso de 2 e o teto de 4 limitam as threads (que esperam subprocesso e não usam CPU). Ferramentas: `actionlint` e `shellcheck` não estão no PATH e não se aplicam (sem workflow nem script de shell no diff); lacuna registrada. Li o diff inteiro de `234dbe0` a `655ae8c`.
+Pipeline: nenhum workflow mudou; o script já roda no CI e o passo lê a variável `GITHUB_STEP_SUMMARY` que o runner já fornece. Sem minuto novo nem recurso pago. Ferramentas: `actionlint` e `shellcheck` fora do PATH, sem workflow nem shell no diff; lacuna registrada. Li o diff inteiro de `234dbe0` a `6098608`.
+
+Ressalva de ordem: aqui `publicar_no_ci` ainda roda antes do veredito (`scripts/suite-paralela.py:515`) e só captura `OSError`; um erro de outro tipo ao montar o resumo derrubaria a execução. Isso é o que a branch c3 corrige (C-6). Por isso c2 não deve chegar à `develop` sem c3.
 
 ## Achados
-- A1 (recomendado) tests/test_hooks.py:521 · `def nucleos_do_processo` fica colada ao bloco de constantes, sem as duas linhas em branco entre definições; só estilo, não devolve.
+- A1 (recomendado) scripts/suite-paralela.py:515 · o resumo é publicado antes do veredito e só trata OSError; sozinha, c2 deixa um erro do resumo mudar o resultado da suíte. Mesclar c3 junto ou logo depois (o `tech-lead` ordena); não devolve c2.
+- A2 (recomendado) scripts/suite-paralela.py:445 · c2 e c3 saem da mesma base `234dbe0` e editam as mesmas funções; `git merge-tree` dá conflito em `scripts/suite-paralela.py` e `tests/test_suite_paralela.py`. A segunda a entrar precisa de rebase sobre a primeira.
 
 ## Custo e rollback
-Sem minuto novo de CI nem recurso pago (`R-CUSTO`); o pool passa a ter até 4 threads em máquina de 4 núcleos ou mais, mas cada thread só espera um subprocesso e o limite de CPU não muda. Volta: reverter os três commits (cada um se reverte sozinho); os pesos antigos voltam com o revert do commit de pesos.
+Sem minuto novo de CI nem recurso pago (`R-CUSTO`). Volta: reverter os commits da branch; o resumo antigo (total e linhas por processo) volta.

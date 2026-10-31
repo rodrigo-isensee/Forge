@@ -162,6 +162,13 @@ class Brinquedo(unittest.TestCase):
     def rodaram(self):
         return sorted(p.name.rsplit("-", 1)[0] for p in self.marcas.iterdir())
 
+    def resumo_do_ci(self, **extra):
+        """(código, saída, erro, texto do resumo) de uma execução com `GITHUB_STEP_SUMMARY` num arquivo do teste."""
+        arquivo = self.repo.parent / "resumo.md"
+        arquivo.unlink(missing_ok=True)
+        codigo, saida, erro = self.roda(GITHUB_STEP_SUMMARY=str(arquivo), **extra)
+        return codigo, saida, erro, (arquivo.read_text(encoding="utf-8") if arquivo.exists() else "")
+
     def test_tudo_verde_roda_cada_modulo_uma_vez(self):
         codigo, saida, erro = self.roda()
         self.assertEqual(codigo, 0, saida + erro)
@@ -318,6 +325,72 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 1, saida + erro)
         self.assertIn("não é do processo que chamou", erro)
         self.assertEqual(self.rodaram(), [])
+
+    # N-CI, item 55 d: a medida no resumo do CI (C-9, C-11, C-12); nada disso muda o veredito, a divisão nem o carimbo.
+
+    def test_resumo_do_ci_traz_as_unidades_mais_lentas(self):
+        self.modulo("b", modulo_de_teste("b", "time.sleep(0.6)", "import time\n"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        lentas = resumo.split("unidades mais lentas", 1)[1].splitlines()
+        self.assertRegex(lentas[1], r"^- test_b: \d+\.\d s$")
+
+    def test_resumo_do_ci_traz_soma_maior_unidade_e_desequilibrio(self):
+        self.modulo("b", modulo_de_teste("b", "time.sleep(0.6)", "import time\n"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertRegex(resumo, r"- soma das unidades: \d+\.\d s; soma ÷ 3 processos: \d+\.\d s")
+        self.assertRegex(resumo, r"- maior unidade: test_b \(\d+\.\d s\)")
+        self.assertRegex(resumo, r"- desequilíbrio: \d+\.\d s \(\d+% da média dos processos\)")
+
+    def test_resumo_do_ci_lista_os_modulos_sem_peso(self):
+        (self.repo / "tests" / "pesos-d4.json").write_text('{"test_a": 1.0}\n')
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertIn("- sem peso em tests/pesos-d4.json: test_b, test_c\n", resumo)
+
+    def test_resumo_limita_as_unidades_sem_peso(self):  # AB-6, C-11
+        for i in range(27):
+            self.modulo(f"n{i:02d}", modulo_de_teste(f"n{i:02d}"))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        (sem_peso,) = [linha for linha in resumo.splitlines() if linha.startswith("- sem peso")]
+        self.assertTrue(sem_peso.endswith(" e mais 10"), sem_peso)
+        self.assertEqual(sem_peso.count("test_"), 20, sem_peso)
+        lentas = resumo.split("unidades mais lentas", 1)[1].split("\n- soma", 1)[0]
+        self.assertEqual(lentas.count("\n- test_"), 10)
+
+    def test_grupo_do_ci_traz_as_unidades_do_processo(self):
+        codigo, saida, erro = self.roda(GITHUB_ACTIONS="true")
+        self.assertEqual(codigo, 0, saida + erro)
+        grupos = [linha for linha in saida.splitlines() if linha.startswith("::group::")]
+        self.assertEqual(len(grupos), 3)
+        self.assertEqual(sorted(g.split(" (")[1] for g in grupos), ["test_a)", "test_b)", "test_c)"])
+        self.assertTrue(all(g.startswith("::group::processo ") for g in grupos), grupos)
+
+    def test_resumo_so_leva_nomes_e_numeros(self):  # AB-4, C-9
+        corpo = ('print("::error::falso\\n::stop-commands::x\\n/etc/passwd\\nghp_" + "A" * 36); '
+                 'import sys; print("::warning::falso", file=sys.stderr)')
+        self.modulo("b", modulo_de_teste("b", corpo))
+        codigo, saida, erro, resumo = self.resumo_do_ci()
+        self.assertEqual(codigo, 0, saida + erro)
+        for texto in ("::", "falso", "/etc", "ghp_", "AAAA"):
+            self.assertNotIn(texto, resumo)
+
+    def test_sem_github_step_summary_nada_e_escrito(self):
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertNotIn("resumo indisponível", erro)
+        self.assertFalse((self.repo.parent / "resumo.md").exists())
+
+    def test_divisao_nao_depende_da_execucao_anterior(self):  # AB-7, C-12
+        divisoes = []
+        for demora in ("0", "0.5"):
+            self.modulo("a", modulo_de_teste("a", "time.sleep(float(os.environ['DORME']))", "import time\n"))
+            codigo, saida, erro = self.roda(DORME=demora, FORGE_SUITE_SEM_REUSO="1")
+            self.assertEqual(codigo, 0, saida + erro)
+            divisoes.append(sorted(linha.split("(", 1)[1] for linha in saida.splitlines() if linha.startswith("--- processo")))
+        self.assertEqual(divisoes[0], divisoes[1])
 
     def test_parar_o_pre_push_encerra_os_processos_da_suite(self):  # PREPUSH-PKILL-ALHEIO, AB-6
         self.modulo("b", MARCA + '''
