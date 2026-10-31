@@ -1,0 +1,117 @@
+{
+  "pedido": "COBERTURA-EQUIVALENTE",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "Q1",
+      "guarda": "a condicao coberta so por equivalente sai na linha propria",
+      "arquivo": "bin/forge-mutante",
+      "de": "        elif casados:  # o equivalente",
+      "para": "        elif False:  # o equivalente",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_coberta_so_por_equivalente_sai_em_linha_propria_e_1"
+      ]
+    },
+    {
+      "id": "Q2",
+      "guarda": "so equivalente conta como nao provado no codigo de saida",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"sem mutante\", \"só equivalente\", \"apagada\"",
+      "para": "\"sem mutante\", \"apagada\"",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_coberta_so_por_equivalente_sai_em_linha_propria_e_1"
+      ]
+    },
+    {
+      "id": "Q3",
+      "guarda": "o equivalente nao entra na lista de coberta",
+      "arquivo": "bin/forge-mutante",
+      "de": "for nome, equivalente in casados if not equivalente]",
+      "para": "for nome, equivalente in casados if equivalente]",
+      "testes": [
+        "tests.test_forge_mutante.Cobertura.test_condicao_coberta_so_por_equivalente_sai_em_linha_propria_e_1"
+      ]
+    },
+    {
+      "id": "Q4",
+      "guarda": "a spec so de equivalentes sem testes nao sai 0",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if not rodou and codigo == 0:",
+      "para": "    if False and codigo == 0:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_spec_so_de_equivalentes_sem_testes_nao_sai_0"
+      ]
+    },
+    {
+      "id": "Q5",
+      "guarda": "o mutante que rodou teste marca a rodada",
+      "arquivo": "bin/forge-mutante",
+      "de": "            rodou = True\n",
+      "para": "            rodou = False\n",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido"
+      ]
+    },
+    {
+      "id": "Q6",
+      "guarda": "o equivalente com testes roda como os outros",
+      "arquivo": "bin/forge-mutante",
+      "de": "if \"equivalente\" in m and \"testes\" not in m:",
+      "para": "if \"equivalente\" in m:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido"
+      ]
+    },
+    {
+      "id": "Q7",
+      "guarda": "o equivalente que os testes matam e invalido",
+      "arquivo": "bin/forge-mutante",
+      "de": "if \"equivalente\" in m and classe != \"inválido\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido"
+      ]
+    },
+    {
+      "id": "Q8",
+      "guarda": "o equivalente confirmado so quando os testes passam",
+      "arquivo": "bin/forge-mutante",
+      "de": "(\"equivalente\", \"\") if classe == \"sobreviveu\" else",
+      "para": "(\"equivalente\", \"\") if classe != \"inválido\" else",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_equivalente_com_testes_roda_e_o_que_eles_matam_e_invalido"
+      ]
+    },
+    {
+      "id": "Q9",
+      "guarda": "o equivalente sem testes segue valido na spec",
+      "arquivo": "bin/forge-mutante",
+      "de": "\"equivalente\" in chaves else chaves",
+      "para": "\"equivalente\" not in chaves else chaves",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_declarado_com_justificativa_e_valido_sem_testes"
+      ]
+    },
+    {
+      "id": "Q10",
+      "guarda": "o equivalente com testes tem os testes validados",
+      "arquivo": "bin/forge-mutante",
+      "de": "            if \"testes\" not in m:\n                continue\n",
+      "para": "            if \"testes\" in m:\n                continue\n",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_declarado_com_justificativa_e_valido_sem_testes",
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_sem_justificativa_ou_com_testes_mal_formados_e_invalido"
+      ]
+    },
+    {
+      "id": "Q11",
+      "guarda": "o equivalente sem testes nao exige o campo testes",
+      "arquivo": "bin/forge-mutante",
+      "de": "obrigatorias <= set(m) <= chaves:",
+      "para": "obrigatorias <= set(m) == chaves:",
+      "testes": [
+        "tests.test_forge_mutante.ValidacaoDaSpec.test_equivalente_declarado_com_justificativa_e_valido_sem_testes"
+      ]
+    }
+  ]
+}

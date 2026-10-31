@@ -1,7 +1,13 @@
 # Quadro Kanban
 
 > Atualizado em: — · Mantido pelo Jarvis; políticas do `agile-coach` (skill `kanban-scrum` do Forge); limites: `R-WIP`.
-> WIP: Empatizar 0/2 · Idear 0/2 · Pronto para fazer 0/5 · Em andamento 0 (1 por agente) · Code review 0/2 · QA 0/2 · Aguardando validação 0/2 · Bloqueados: 0
+> WIP: Empatizar 0/2 · Idear 0/2 · Pronto para fazer 0/5 · Em andamento 0 (1 por agente) · Code review 0/2 · QA 0/2 · Aguardando validação 0/2 · Aguardando o dono: 0 · Bloqueados: 0
+
+## Aguardando o dono
+| ID | Cartão | Pedido | Responsável | Entrou | Na coluna desde | Obs. |
+|---|---|---|---|---|---|---|
+
+> Topo fixo; ordem por "Na coluna desde"; Obs. `origem: ...; ação: ...; comando: ...; destrava: ...` (`R-DECISAO`).
 
 # Upstream — descoberta (Design Thinking)
 

@@ -1740,6 +1740,28 @@ class ForgeCheck(unittest.TestCase):
         self.assertEqual(subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz",
                                          str(RAIZ / "templates/projeto"), "kanban"], capture_output=True, text=True).returncode, 0)
 
+    def test_kanban_painel_do_dono_no_topo(self):
+        modelo = (RAIZ / "templates/projeto/KANBAN.md").read_text(encoding="utf-8")
+        titulos = re.findall(r"(?m)^##? .*$", modelo)
+        self.assertEqual(titulos[1], "## Aguardando o dono")
+        self.assertEqual(titulos[2], "# Upstream — descoberta (Design Thinking)")
+        painel = modelo.split("## Aguardando o dono")[1].split("# Upstream")[0]
+        self.assertEqual(len(re.findall(r"(?m)^\| ", painel)), 1, "o painel sai vazio: só o cabeçalho, sem cartão de exemplo")
+
+    def test_kanban_painel_com_cartao_valido(self):
+        obs = "origem: Em andamento; ação: decidir; comando: —; destrava: K1"
+        self.kanban("## Aguardando o dono\n{cab}| C1 | a | p1 | usuário | d | d | " + obs + " |\n"
+                    "## Em andamento (WIP 1 por agente)\n{cab}| C2 | b | p1 | forge:node-backend | d | d | |\n")
+        self.assertEqual(self.check("kanban"), (0, ""))
+
+    def test_kanban_painel_barra_pipe_no_comando_e_id_repetido(self):
+        obs = "origem: QA; ação: rodar; comando: a | sh; destrava: K1"
+        self.kanban("## Aguardando o dono\n{cab}| C1 | a | p1 | usuário | d | d | " + obs + " |\n")
+        self.assertIn("colunas", self.check("kanban")[1])
+        self.kanban("## Aguardando o dono\n{cab}| C1 | a | p1 | usuário | d | d | |\n"
+                    "## QA (WIP 2)\n{cab}| C1 | a | p1 | forge:qa-engineer | d | d | |\n")
+        self.assertIn("repetido", self.check("kanban")[1])
+
     def test_kanban_valido(self):
         self.kanban("## QA (WIP 2)\n{cab}| C1 | a | p1 | forge:qa-engineer | d | d | |\n| C2 | b | p1 | usuário | d | d | |\n"
                     "## Em andamento (WIP 1 por agente)\n{cab}| C3 | c | p1 | forge:node-backend | d | d | |\n")
@@ -4152,6 +4174,21 @@ class VoltaComRecomendacao(unittest.TestCase):
                 self.assertEqual(r.returncode, 1, r.stdout)
                 self.assertNotIn("## Entregar", r.stdout)
 
+    def test_achado_com_intervalo_de_linhas_e_aceito_e_copiado_inteiro(self):  # K-164
+        self.parecer("## Achados\n- A1 (bloqueante) src/app.txt:3-5 · x\n- R1 (recomendado) a.py:10-12 · ordem das funções\n")
+        r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+        self.assertEqual(r.returncode, 0, r.stdout)
+        self.assertIn("[a.py:10-12]", r.stdout)
+        self.assertIn("[src/app.txt:3-5]", r.stdout)
+
+    def test_intervalo_malformado_ou_invertido_e_recusado(self):  # K-164
+        for intervalo in ("9-3", "3-", "-3", "3-5-7", "3--5", "a-b"):
+            with self.subTest(intervalo):
+                self.parecer(f"## Achados\n- A1 (bloqueante) src/app.txt:3 · x\n- R1 (recomendado) a.py:{intervalo} · ordem\n")
+                r = self.gerar("--incluir", "docs/reviews/p1.md:R1")
+                self.assertEqual(r.returncode, 1, r.stdout)
+                self.assertNotIn("## Entregar", r.stdout)
+
     def test_incluir_so_vale_em_gerar_volta(self):
         r = rodar_fc("brief", "docs/briefs/x.md", "--pedido", "p", "--incluir", "docs/reviews/p1.md:R1", raiz=self.repo, home=self.tmp / "home")
         self.assertEqual(r.returncode, 2, r.stdout)
@@ -5151,7 +5188,10 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
 
     def test_push_de_codigo_em_segundo_plano(self):
         self.assertIn("o `git push` de código roda com o `run_in_background` da ferramenta", self.texto)
-        self.assertIn("espera a notificação do fim, sem mexer na worktree até lá", self.texto)
+        # BG-MORRE-TURNO: o segundo plano morre com o turno do subagente; a espera é pelo `rc=` do log, no mesmo turno.
+        self.assertIn("no mesmo turno, espera em primeiro plano pelo `rc=` do log, como a skill `esperar-estado` manda", self.texto)
+        self.assertIn("nunca encerra o turno com o envio pendente; sem mexer na worktree até lá", self.texto)
+        self.assertNotIn("espera a notificação do fim", self.texto)
 
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
