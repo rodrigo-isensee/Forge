@@ -3,12 +3,12 @@ tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
 branch: melhoria/impl-furo-hook-a-a3
-commit: f732639d904cea5b959e809467952843a8658a41
+commit: 351040ddb778ebba181230484f8272264df899e4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a3 (A3 HOOK-MERGE-FLAGS), revalidação 3
+# Review: impl-furo-hook-a, branch a3 (A3 HOOK-MERGE-FLAGS), revalidação 4
 
 Escopo: revalidação por delta do parecer anterior (`6a0b80d`, reprovado sobre `1804a43`), depois da volta 3 pelo A1 (`git config set` com opção antes da chave e `--comment` na forma antiga). Commits novos: `8158b0f` (cinco fixtures) e `f732639` (correção). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
 
@@ -18,6 +18,17 @@ Saída de `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` (interv
 - `tests/hooks/conformidade/merge-flag-config-comment-valor-bloqueia.json`, `-set-all-`, `-set-append-`, `-set-comment-igual-` e `-set-value-igual-bloqueia.json`, +19 cada (inteiros).
 
 Já lido, sem mudança desde o parecer anterior: o resto de `234dbe0..1804a43` (ramo do merge, `CONFIG_DO_MERGE`, `CONFIG_ESCOPO`, a saída por `--worktree`, as fixtures anteriores, a spec de mutantes, `tests/test_hooks.py`, `docs/hooks.md` e o fragmento). Os commits de parecer (`f21d6d8`, `ca26af5`) não são código.
+
+## Revalidação 4 (head 351040d)
+Escopo: delta `f732639..351040d`, depois do review anterior (`bb78ecd`, aprovado sobre `f732639`). Entraram `dbea044`, `221f8e5`, `044bf31` e `336c43f` (fixtures e mutantes, só `tests/`) e `351040d` (parecer de QA). Instância diferente da do autor (D-ETAPAS-INST = A).
+
+Delta lido (`forge-check delta --parecer docs/reviews/impl-furo-hook-a.md`): cinco fixtures `merge-flag-config-*` com a descrição ajustada (+1 -1 cada), cinco fixtures novas (`depois-dos-tracos-opcao-vira-valor`, `dica-da-chave-do-merge`, `get-com-valor-libera`, `set-value-separado`, `unset-so-a-chave`, todas com a descrição aberta por `FURO-HOOK-A`), `tests/mutantes/impl-furo-hook-a-a3-2.json` (nova, 46 linhas) e `tests/mutantes/impl-furo-hook-a-a3.json` (+67 -7). Já lido, sem mudança: `hooks/conformidade.py`, `tests/test_hooks.py`, `docs/hooks.md` e o fragmento (`git diff --stat f732639 HEAD -- hooks bin` vazio); os pareceres de QA e de segurança não são código.
+
+Achados anteriores: A3 e A4 resolvidos. As descrições das fixtures abrem com `FURO-HOOK-A`, e `bin/forge-mutante --cobertura --base 234dbe0` sai 0 (rc lido em comando próprio): todas as linhas `coberta`, nenhuma "sem mutante" nem inválida. A1 e A2 seguem como cartões ao security-engineer, sem mudança de código.
+
+M14: `git diff --numstat --no-renames origin/develop...HEAD` em código e teste (`hooks/conformidade.py` 45+9, `tests/test_hooks.py` 5) soma 59, abaixo de 150; fixtures, specs, `.md` e fragmento ficam fora; uma classe em `hooks/` com corpus próprio; nenhum caminho de `PROTEGIDOS`. Cumpre.
+
+Parecer deste delta: aprovado; a mudança é só de teste e não enfraquece nenhuma fixture anterior.
 
 ## Item entregue
 E3 do pedido, item A3 HOOK-MERGE-FLAGS (desenho §2.1), sem mudança de escopo na volta.
@@ -40,8 +51,8 @@ Também conferido: R-NEUTRO e R-CUSTO sem nada a apontar; não há shell tocado;
 ## Achados
 - A1 (recomendado) hooks/conformidade.py:1269 · sem mudança: fora das chaves do merge, `--worktree` ainda libera o `git config` (`core.*`, `user.*`), e sem `extensions.worktreeConfig` o git grava no `.git/config` comum; classe anterior, cartão ao security-engineer.
 - A2 (recomendado) hooks/conformidade.py:132 · sem mudança: depois da chave o git grava `--local`, `--global`, `--system` e `--worktree` como valor; `git config user.name --global` sai 0. Sem efeito no merge; cartão ao security-engineer.
-- A3 (recomendado) tests/hooks/conformidade/merge-flag-config-set-all-bloqueia.json:2 · as 5 fixtures novas não abrem a descrição com `FURO-HOOK-A`, então `test_fixtures_do_lote_furo_hook_a` (o teste da spec de mutantes) não as roda; só `test_fixtures` as vê.
-- A4 (recomendado) tests/mutantes/impl-furo-hook-a-a3.json:46 · `forge-mutante --cobertura` sai 1: `A3-m5` inválido e `git_config` (:1250 a :1271) sem mutante; atualize a spec antes do QA, como na a4 e na a5.
+- A3 (recomendado) tests/hooks/conformidade/merge-flag-config-set-all-bloqueia.json:2 · resolvido na revalidação 4: as fixtures abrem a descrição com `FURO-HOOK-A`.
+- A4 (recomendado) tests/mutantes/impl-furo-hook-a-a3.json:46 · resolvido na revalidação 4: `forge-mutante --cobertura` sai 0.
 
 ## Parecer
 Aprovado. A volta 3 fecha o A1 anterior: o `set`/`unset` é reconhecido antes de qualquer chave, as opções dele não viram chave, e `--comment`/`--value` passam a levar valor também na forma antiga; as sondas do review e da segurança saem 2 e as leituras seguem livres. A1 e A2 seguem como cartões; A3 e A4 não devolvem, mas o A4 deve chegar ao QA resolvido.
