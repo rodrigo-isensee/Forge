@@ -2,34 +2,34 @@
 tipo: review
 contrato: 1
 pedido: impl-pre-push
-branch: melhoria/impl-pre-push-c6
-commit: 113635c491fb1b880b16cf9714ae8fb20b076166
+branch: melhoria/impl-pre-push-c3
+commit: e945d099c2c7b783e3e72b115e0f14c7065f192c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-pre-push, branch c6 (texto da trava limitado e imprimível)
+# Review: impl-pre-push, branch c3 (SUITE-INICIO-ATOMICO)
 
-Diff lido: `234dbe0..113635c` (`ee86b7f` C-14; `113635c` fragmento).
+Diff lido: `234dbe0..e945d09` (2 commits: `5a89d72` hook e teste, `e945d09` fragmento).
 
 ## O que entrega
-Parte do E3 do pedido (TRAVA-SANDBOX, C-14 do modelo, T-C4h): `texto_da_trava` (`.githooks/pre-push:42`) lê no máximo 200 bytes da trava e tira o que não é imprimível (`LC_ALL=C tr -cd '[:print:]'`: escape, BEL e bytes não ASCII), usado no `--status` (`:102`) e no aviso de espera (`:222`). Teste `test_texto_da_trava_sai_limitado_e_sem_controle` (`tests/test_pre_push_trava.py:483`) grava escape, BEL e 1 MiB na trava e confere as duas saídas. É o mesmo código revisado na c5 (`81f0400`), agora sozinho, como pediu o A1 do parecer da c5.
+Item E2 do pedido, a parte C3 do desenho (`docs/propostas/lotes-1030/pre-push.md`, E2b): com a suíte rodando, o `--status` acrescenta a linha que aponta o caminho atômico `.githooks/pre-push --suite`. Só texto, sem mecanismo novo; o rc do `--status` não muda. O teste `test_status_acompanha_a_trava` passa a exigir a dica (vermelho antes, como o desenho pede).
 
-## M14 (agents/tech-lead.md:19)
-- Linhas contadas (`git diff --numstat --no-renames 234dbe0 113635c`, sem fragmento): `.githooks/pre-push` 8, `tests/test_pre_push_trava.py` 17; total 25, abaixo de 150.
-- Comportamentos: um (o que o hook exibe do texto lido da trava). Cumpre.
+## M14 (decisão M14, agents/tech-lead.md:19)
+- Linhas contadas (`git diff --numstat --no-renames 234dbe0 e945d09`): `.githooks/pre-push` 1, `tests/test_pre_push_trava.py` 1; total 2, abaixo de 150. O fragmento `changelog.d/` fica fora.
+- Um comportamento só (a dica do `--suite`). Toca `.githooks/` e não usa exceção de teto. Cumpre.
 
 ## Regras de ferramenta
-- Suíte: o `origin` tem o head revisado (`git ls-remote`: `113635c`), então o pre-push rodou no envio do autor; o CI do PR repete.
-- shellcheck: ausente nesta máquina; fica para o CI. Pendência, não review manual.
-- Mutação: sem `tests/mutantes/impl-pre-push*.json`. Pendência V2 do autor.
+- Suíte: a branch está no `origin` com o head revisado, logo o pre-push (suíte inteira, porque o diff toca `.githooks/`) passou no envio do autor; o CI do PR repete.
+- shellcheck: não disponível nesta máquina; fica para o job do CI (`tests/test_pre_push_shellcheck.py` e o passo do CI). Pendência, não review manual.
+- Mutação: não há `tests/mutantes/impl-pre-push*.json` na branch. Pendência do autor (V2); a mudança é uma linha de texto, sem condição para mutar.
 
 ## Leitura
-- R-NEUTRO, R-CUSTO e invariantes preservados; fragmento próprio em `changelog.d/impl-pre-push-c6.md`.
-- Gatilho R-SEGURANCA (controle do Forge): parecer do `security-engineer` (E1.3), não refeito aqui.
+- Escopo exato do C3 (linha `:97` e o teste); revertido sozinho, some só a dica. R-NEUTRO e R-CUSTO preservados; nenhum invariante tocado.
+- A dica sai antes da linha de estado; leitores atuais usam `assertIn` e o rc, então nada quebra.
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:42 · Ordem de integração: esta branch entra na develop antes ou junto da c4 (trava comum), senão o texto gravado no sandbox chega ao terminal de fora sem filtro (A2 do parecer da c5, mantido aqui).
+- A1 (recomendado) .githooks/pre-push:97 · A dica sai antes de "suíte do Forge rodando"; pôr depois da linha de estado mantém o estado como primeira linha para quem lê só a primeira (head -1). Não quebra leitor atual.
 
 ## Parecer
-Aprovado.
+Aprovado. Entrega o C3 do E2 como desenhado, dentro da M14. A recomendação A1 não devolve.

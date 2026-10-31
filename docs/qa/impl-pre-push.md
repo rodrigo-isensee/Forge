@@ -2,8 +2,8 @@
 tipo: qa
 contrato: 1
 pedido: impl-pre-push
-branch: melhoria/impl-pre-push-c6
-commit: 7ecec3f08e1c71be8650a4a577d8899c1c2ec437
+branch: melhoria/impl-pre-push-c3
+commit: 8f173bb278d0b1f2a31e2f325c1f7047b3c9b53e
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -13,35 +13,43 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-31
 ---
-# QA: impl-pre-push (c6)
+# QA: impl-pre-push, branch c3
 
-Item entregue: o C-14 do E3 (texto da trava limitado e imprimível), nada mais. Diff da base 234dbe0 ao head 7ecec3f: `.githooks/pre-push` (+6/-2), `tests/test_pre_push_trava.py` (+17), fragmento de changelog e os pareceres de review e segurança.
+Diff lido: `234dbe0..8f173bb` (código e testes; os pareceres de review e segurança da worktree ficam fora).
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:43 · a c6 precisa entrar antes ou junto da c4 (condição já registrada no review e na segurança); o QA não a promove, a ordem é do fechamento.
+- A1 (recomendado) tests/mutantes/impl-pre-push.json:1 · o autor não declarou a spec de mutantes (pedido de controle em .githooks/); o QA escreveu a lista (1 mutante, a linha única) e ele morreu; declarar a spec no próximo pedido de controle.
 
-## Conformidade com a M14 (agents/tech-lead.md:19)
-- Linhas de código e teste: 25 (6+2 em `.githooks/pre-push`, 17 em `tests/test_pre_push_trava.py`), abaixo do teto de 150.
-- Um comportamento só (saída da trava de outro processo), sem arquivo de `hooks/` nem `PROTEGIDOS`. Cumpre.
+## O que a branch entrega e a M14
+- Item do pedido: E2, parte da dica do --suite (SUITE-INICIO-ATOMICO; C3 do desenho)
+- Linhas de código e teste (decisão M14, `git diff --numstat --no-renames`): 2 (hook 1, teste 1). Um comportamento só. Toca `.githooks/`, que é protegido e não admite exceção de teto; está abaixo do teto. Cumpre a M14.
+- Escopo conferido contra o pedido: nenhum item de outra branch entrou no diff.
 
 ## Critério → teste → resultado
-O pedido não traz `CA-n` para o C-14; a obrigação é o item C-14 do modelo de ameaças (E3).
-
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| C-14 `--status` sem escape nem excesso | `test_texto_da_trava_sai_limitado_e_sem_controle` | trava com 1 MiB e ESC/BEL; saída até 320 caracteres | passou |
-| C-14 aviso de espera sem escape nem excesso | o mesmo teste (via `FORGE_TRAVA_ESPERA=1`) | stderr até 600 caracteres, sem ESC | passou |
-| Sem regressão no restante do hook | `tests.test_pre_push_trava` (30 testes) | n/a | passou |
+| E2 / C3: o --status com suíte rodando imprime a dica do .githooks/pre-push --suite | test_status_acompanha_a_trava (assertIn 'pre-push --suite' na saída com a trava tomada) | saída do status rodando; rc 0 e linha de estado mantidos | passou (vermelho na base; mutante C3-M1 morto) |
 
-## Execução real
-- `python3 -m unittest tests.test_pre_push_trava`: 30 testes, OK.
-- Vermelho antes do verde, `forge-testes --vermelho 234dbe0fb90b005450d7c2eb59e6241ea9779155 --modulos test_pre_push_trava`, rc=0:
-  `vermelho: base=234dbe0fb90b head=7ecec3f08e1c módulos=test_pre_push_trava (restrito por --modulos)`
-  `revertidos à base: .githooks/pre-push, changelog.d/impl-pre-push-c6.md, docs/reviews/impl-pre-push.md, docs/security/impl-pre-push.md`
-  `...test_texto_da_trava_sai_limitado_e_sem_controle · H=ok · B=falha · prova (asserção)`
-  `contagem: não prova (passa na base)=29; prova (asserção)=1`
-- Mutação, 4 mutantes (um por linha de guarda mudada: limite de 200 bytes, filtro de imprimíveis, uso no `--status`, uso no aviso de espera), spec fora da árvore, `forge-mutante`:
-  `M1 · morreu · .githooks/pre-push:43`, `M2 · morreu · .githooks/pre-push:43`, `M3 · morreu · .githooks/pre-push:102`, `M4 · morreu · .githooks/pre-push:222`. Nenhum sobrevivente; a lista cobre as 4 linhas de guarda do diff.
-- Suíte completa e `validar-plugin.sh`: rodam no pre-push do envio, que só passa com tudo verde.
+## Cenários e resultado real
+Ambiente: worktree da branch no head acima, 16 CPUs, shellcheck ausente nesta máquina (fica para o CI); `bash -n .githooks/pre-push` sem erro.
 
-Bugs: nenhum.
+Vermelho antes do verde (`bin/forge-testes --vermelho 234dbe0fb90b005450d7c2eb59e6241ea9779155 --modulos ...`):
+```
+vermelho: base=234dbe0fb90b head=8f173bb278d0 módulos=test_pre_push_trava (restrito por --modulos)
+revertidos à base: .githooks/pre-push, changelog.d/impl-pre-push-c3.md, docs/reviews/impl-pre-push.md, docs/security/impl-pre-push.md
+mantidos no HEAD: tests/test_pre_push_trava.py
+tests.test_pre_push_trava.PrePushTrava.test_status_acompanha_a_trava · H=ok · B=falha · prova (asserção)
+contagem: não prova (passa na base)=28; prova (asserção)=1
+rc=0
+```
+
+
+Mutantes (R-QA; a spec é do QA, em arquivo fora da árvore, um mutante por linha de guarda mudada; o autor não declarou `tests/mutantes/impl-pre-push.json`):
+```
+forge-mutante: pedido=impl-pre-push rev=8f173bb278d0 spec=8d03a72ffbede2e7e20055311c7ad8e131444f68f9e3814554f432dcb0958ff0
+C3-M1 · morreu · .githooks/pre-push:97
+rc=0
+```
+
+## Veredito
+Aprovado: todo critério tem teste, o vermelho prova os testes novos e nenhum mutante sobrevive sem justificativa aceita.
