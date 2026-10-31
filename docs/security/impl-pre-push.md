@@ -3,16 +3,19 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: impl-pre-push
 branch: melhoria/impl-pre-push-c4
-commit: 9cdd920168b53c72365a26bdd2348261ee7db2bd
+commit: ddb7768b06e3dd2e3a75a70dad96d830ceefc411
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
 ---
 # Review de segurança: impl-pre-push (branch c4)
 
-Diff revisado: `234dbe0..9cdd920` (código em `a515d73`, fragmento em `aff0ec2`, parecer do code review em `9cdd920`). Análise estática contra o modelo de ameaças `docs/security/ameacas/pre-push.md` (controles C-9 a C-13 e C-15, casos de abuso 7 a 11; Q-S1 = B).
+Diff revisado: `234dbe0..ddb7768` (primeira revisão em `9cdd920`) (código em `a515d73`, fragmento em `aff0ec2`, parecer do code review em `9cdd920`). Análise estática contra o modelo de ameaças `docs/security/ameacas/pre-push.md` (controles C-9 a C-13 e C-15, casos de abuso 7 a 11; Q-S1 = B).
 
 Aprovado **com a condição de ordem** já registrada no A1 do code review: a c4 só entra na develop junto com a c6 (C-14) ou depois dela. Ver A1 abaixo.
+
+## Revalidação no head ddb7768 (volta por delta)
+`forge-check delta --parecer` listou `tests/test_pre_push_trava.py` +5 -1, trechos 535-538 e 540 (commit `14b155b`, subcaso "comum link pendente" do C-9, A1 do QA). Li esses trechos e a volta do QA: só teste, nenhum código de produção nem controle mudou; o caso exerce o `-L` de `.githooks/pre-push:18-19` já conferido (link quebrado dá rc 1 sem recuo) e fecha o abuso 7 para o link pendente. Sem novo caminho de ataque. A ordem do A1 está cumprida: a c6 (C-14) já entrou na develop (3c35fcd, PR 397). Linhas de A2 e A3 deslocadas pelo delta (555 e 601). Parecer segue aprovado.
 
 ## Gatilhos
 `R-SEGURANCA`: controle do Forge (`.githooks/pre-push`), pasta da trava e fronteira do sandbox (ADR 0009).
@@ -32,8 +35,8 @@ Aprovado **com a condição de ordem** já registrada no A1 do code review: a c4
 
 ## Achados
 - A1 (recomendado) .githooks/pre-push:106 · Sem o C-14, o texto da trava gravado de dentro do sandbox é impresso sem filtro no terminal de fora (:106, :226). A c4 só entra na develop junto com a c6 ou depois dela (ordem do A1 do code review). Dono: tech-lead.
-- A2 (recomendado) tests/test_pre_push_trava.py:551 · O assertIn(codigo, (1, 2)) só cabe enquanto a c2 não está na base, e falta o subteste de modo 0o777 da T-C4b (C1). Juntas c1, c2 e c4: fixar rc 2 e acrescentar o subteste. Dono: tech-lead.
-- A3 (recomendado) tests/test_pre_push_trava.py:597 · O teste do C-13 aceita HOME= em qualquer ponto do módulo e só reconhece a forma [str(HOOK). Endurecer: exigir HOME no dict passado ao processo do hook. Dono: tech-lead.
+- A2 (recomendado) tests/test_pre_push_trava.py:555 · O assertIn(codigo, (1, 2)) só cabe enquanto a c2 não está na base, e falta o subteste de modo 0o777 da T-C4b (C1). Juntas c1, c2 e c4: fixar rc 2 e acrescentar o subteste. Dono: tech-lead.
+- A3 (recomendado) tests/test_pre_push_trava.py:601 · O teste do C-13 aceita HOME= em qualquer ponto do módulo e só reconhece a forma [str(HOOK). Endurecer: exigir HOME no dict passado ao processo do hook. Dono: tech-lead.
 
 ## Detalhe dos achados
 - A1: evidência `.githooks/pre-push:106` e `:226` (`cat "$trava"` sem filtro). Caminho: um comando de dentro do sandbox grava sequência de escape na trava comum; o `--status` ou o aviso de espera de fora a imprime no terminal do dono (A5 do modelo). Severidade baixa. Correção mínima: a c6 (C-14: até 200 bytes, sem caracteres de controle) entra antes ou com a c4; nenhuma mudança nesta branch. Esforço P. Dono `tech-lead` (integração). Se a ordem não puder ser mantida, a c4 volta à segurança antes do merge.
