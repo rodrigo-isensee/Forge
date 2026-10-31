@@ -46,4 +46,4 @@ Caminho: só deliberado. A sessão, por injeção, escolhe uma forma que esconde
 Dimensão nova para a matriz do modelo (§8, Mecanismo): **programa por glob, por chaves, pela entrada padrão ou copiado com outro nome**. A expansão do shell aparece também nas branches a2, a3 e a5.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, execução das fixtures do lote e do teste estrutural. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor`, `actionlint` e `bandit` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, execução das fixtures do lote e do teste estrutural. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
