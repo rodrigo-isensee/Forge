@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: impl-pre-push
 branch: melhoria/impl-pre-push-c4
-commit: 14b155bb3e1d8ade8a15200679101bd8c0f2a624
+commit: 79880e375470b3efd45c68b8acab815afa3912d7
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: incremental
@@ -20,7 +20,14 @@ Diff lido: `234dbe0..d34b6c7` mais o delta até 14b155b (código e testes; os pa
 ## Achados
 - A1 (recomendado) tests/test_pre_push_trava.py:535 · resolvido no head 14b155b: o subcaso "comum link pendente" prova o -L do C-9 e o mutante C4-M4 morre. Sem achado aberto.
 
-## Revalidação no head 14b155b (delta lido)
+## Revalidação no head 79880e3 (merge da develop 08da90c)
+Delta lido: o merge 79880e3 sobre 23716c4, só `.githooks/pre-push` e `tests/test_pre_push_trava.py` (o resto do intervalo vem da develop e não é da branch). O diff da branch contra a base (`08da90c..79880e3`) no hook: 14 linhas a mais e 6 a menos; o teste C-14 da develop (`test_texto_da_trava_sai_limitado_e_sem_controle`) e os do C4 convivem no módulo.
+- Suíte dos cinco módulos do hook no head: `Ran 126 tests ... OK`; `bash -n .githooks/pre-push` sem erro.
+- Mutante C4-M4 (`[ -L "$comum" ]` removido, cópia do head em `$TMPDIR`): o módulo cai (`FAILED (failures=1)`), morreu.
+- Linhas do diff contra a base (`--numstat --no-renames`): hook 20, testes 126 mais 4 de uma linha em outros módulos, total 150, no teto da M14. Um comportamento só.
+- O commit posterior 12d0633 só mexe em `docs/reviews/`.
+
+## Revalidação anterior no head 14b155b (delta lido)
 `forge-check delta --parecer` (intervalo `d34b6c7..14b155b`): só `tests/test_pre_push_trava.py` (+5 -1, linhas 535-538 e 540), o subcaso do link pendente. Li só isso.
 - Suíte dos cinco módulos do hook no head: `Ran 108 tests ... OK`.
 - Mutante C4-M4 (spec do QA fora da árvore, `[ -L "$comum" ]` removido), no head: `C4-M4 · morreu · .githooks/pre-push:18`, rc=0.
@@ -94,4 +101,4 @@ rc=0
 - C4-M7 (texto da mensagem sem pasta): cosmético; aceito.
 
 ## Veredito
-Aprovado no head 14b155b. O bloqueante A1 foi resolvido pelo subcaso do link pendente; nenhum bug aberto; a branch cumpre a M14 (150 linhas, um comportamento). A condição do parecer de segurança (c6 antes ou junto, C-14) segue valendo para a ordem de entrada.
+Aprovado no head 79880e3 (revalidado; a conclusão do head 14b155b segue). O bloqueante A1 foi resolvido pelo subcaso do link pendente; nenhum bug aberto; a branch cumpre a M14 (150 linhas, um comportamento). A condição do parecer de segurança (c6 antes ou junto, C-14) segue valendo para a ordem de entrada.
