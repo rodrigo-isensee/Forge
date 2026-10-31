@@ -42,8 +42,7 @@
         "tests.test_forge.CaminhoDoPedido.test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande",
         "tests.test_forge.CaminhoDoPedido.test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem",
         "tests.test_forge.CaminhoDoPedido.test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2"
-      ],
-      "equivalente": "o retorno cedo: sem ele o laço das raízes devolve o mesmo dado para caminho absoluto, e para relativo que existe só aqui nenhuma raiz o tem; o veredito de caminho_do_pedido não muda"
+      ]
     },
     {
       "id": "M4",
