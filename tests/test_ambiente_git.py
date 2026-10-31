@@ -27,8 +27,10 @@ METODOS_DE_PREPARO = {"setUp", "setUpClass", "__init__"}
 REPOSITORIO_REAL = {"RAIZ", "str(RAIZ)"}
 # Exceção por arquivo, explícita: fora da leitura estática, com o motivo.
 EXCECOES = {
-    "catraca.py": "controle protegido (R-SEGURANCA): não se mexe nele por este pedido; só lê o repositório (git show, "
-                  "git diff), sem criar nem fazer commit, então não dispara a manutenção",
+    "catraca.py": "controle protegido (R-SEGURANCA): não se mexe nele por este pedido; lê o repositório, sem commit; grava "
+                  "objetos com `merge-tree --write-tree` (pelo forge-check, no rótulo por conteúdo) e, na promoção com squash, "
+                  "faz `fetch` para refs/catraca/pull/<n> com maintenance.auto=false e gc.auto=0 na própria chamada; nenhum "
+                  "dos dois dispara a manutenção",
 }
 
 
@@ -273,6 +275,28 @@ class LeituraEstatica(unittest.TestCase):
         for nome in EXCECOES:  # a exceção existe e chama git de fato; senão, sai da lista
             self.assertIn('["git"', (AQUI / nome).read_text(encoding="utf-8"), nome)
             self.assertNotIn(nome, lidos)
+
+    def test_motivo_da_excecao_cita_o_que_o_arquivo_escreve(self):
+        """CATRACA-ISENCAO-AMBIENTE: o motivo de cada exceção diz o que o fonte grava; quem faz `fetch` não "só lê"."""
+        for nome, motivo in EXCECOES.items():
+            fonte = (AQUI / nome).read_text(encoding="utf-8")
+            with self.subTest(arquivo=nome):
+                if '"fetch"' in fonte:
+                    self.assertIn("fetch", motivo)
+                    self.assertNotIn("só lê", motivo)
+                if '"merge-tree"' in fonte or "forge-check" in fonte:  # o rótulo por conteúdo chama o `mesmo_diff` do forge-check
+                    self.assertIn("merge-tree --write-tree", motivo)
+        self.assertIn("fetch", EXCECOES["catraca.py"])  # a exceção existe e é a da catraca: o fetch dela é o que se descreve
+
+    def test_todo_fetch_da_catraca_leva_a_manutencao_desligada_na_propria_chamada(self):
+        """A razão da isenção: o `fetch` sem `-c` dispara `maintenance run --auto --detach`. Por chamada, e não por linha."""
+        arvore = ast.parse((AQUI / "catraca.py").read_text(encoding="utf-8"))
+        fetches = [c for c in ast.walk(arvore) if isinstance(c, ast.Call) and any(isinstance(a, ast.Constant) and a.value == "fetch" for a in c.args)]
+        self.assertGreaterEqual(len(fetches), 1, "a leitura deveria achar o fetch da catraca")
+        for chamada in fetches:
+            constantes = {a.value for a in chamada.args if isinstance(a, ast.Constant)}
+            with self.subTest(linha=chamada.lineno):
+                self.assertLessEqual({"maintenance.auto=false", "gc.auto=0"}, constantes)
 
     def test_todo_repositorio_bare_recebe_a_configuracao_no_remoto(self):
         com_bare = 0

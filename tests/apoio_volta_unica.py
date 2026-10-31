@@ -31,18 +31,21 @@ from test_hooks import (  # noqa: E402,F401  (os módulos test_hooks_volta_* imp
     PRAZO_GIT_NOS_TESTES,
     modulos_dos_hooks,
     montar_proc,
+    nucleos_do_processo,
     rodar,
-    texto)
+    texto,
+    trabalhadores_do_pool)
 
 
-def trabalhadores_do_lote():
-    """O número de trabalhadores em paralelo do lote (`decisoes_dos_hooks`); o limite de CPU do corpus é 90 s por um deles."""
+def trabalhadores_do_limite_de_cpu():
+    """O divisor do limite de CPU do corpus: `max(1, min(4, nproc // 2))`, a conta de antes do pool por subprocesso. Fica
+    separada do pool (`trabalhadores_do_pool`): subir o pool não afrouxa o limite (N-CI, C-3)."""
     return max(1, min(4, (os.cpu_count() or 2) // 2))
 
 
 def limite_de_cpu_do_corpus():
     """90 s de CPU por trabalhador do lote (PROP-TEMPO-CPU, decisão do dono de 2026-10-27: cabe no runner do CI)."""
-    return 90 * trabalhadores_do_lote()
+    return 90 * trabalhadores_do_limite_de_cpu()
 
 
 class MedidaDeCpu:
@@ -416,7 +419,7 @@ print(json.dumps(saida))
         grandes = [p for p in a_rodar if len(p[1]) > self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         em_lote = [p for p in a_rodar if len(p[1]) <= self.TEXTO_DO_PRAZO_DO_CLAUDE_CODE]
         montados = self.modelos_montados()
-        trabalhadores = trabalhadores_do_lote()
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         fatias = [em_lote[i::trabalhadores] for i in range(trabalhadores) if em_lote[i::trabalhadores]]
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             for fatia, codigos in zip(fatias, pool.map(lambda f: self.decidir_em_lote(f, montados), fatias)):
@@ -524,7 +527,7 @@ print(json.dumps(saida))
         itens = list(itens)
         for texto, base in itens:
             self.montar_registradores_do_t9b(bash, texto, base)
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(4, (os.cpu_count() or 2) // 2))) as pool:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores_do_pool(nucleos_do_processo())) as pool:
             return list(pool.map(lambda item: self.rodar_no_bash_do_t9b(bash, *item), itens))
 
     def textos_do_t9b(self, base):
