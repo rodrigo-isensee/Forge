@@ -136,8 +136,8 @@
       "id": "A3-m14",
       "guarda": "depois da chave, a palavra com traco e valor, nao opcao",
       "arquivo": "hooks/conformidade.py",
-      "de": "or (chaves and a not in CONFIG_ESCOPO):",
-      "para": "):",
+      "de": "elif not a.startswith(\"-\") or (chaves and a not in CONFIG_ESCOPO):",
+      "para": "elif not a.startswith(\"-\"):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
       ]

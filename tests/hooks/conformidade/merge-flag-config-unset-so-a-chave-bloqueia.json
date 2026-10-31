@@ -1,0 +1,19 @@
+{
+  "descricao": "FURO-HOOK-A, A3: unset so com a chave do merge grava: git config unset branch.develop.mergeoptions",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config unset branch.develop.mergeoptions"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE"
+  }
+}
