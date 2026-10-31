@@ -104,7 +104,10 @@
   "invariantes": {
     "skills/kanban-scrum/SKILL.md": [
       "forge-check movimento",
-      "Sem credencial"
+      "Sem credencial",
+      "\\*\\*Aguardando o dono\\*\\* \\(topo do quadro\\)",
+      "decisão ou ação do usuário vai para \"Aguardando o dono\"",
+      "aguardando o dono: N \\(o mais antigo desde"
     ],
     "agents/conferente.md": [
       "origin/<Base>",
@@ -272,7 +275,8 @@
       "toca sempre o máximo de itens ao mesmo tempo",
       "vale para o Forge e para todos os projetos que o usam",
       "\\*\\*Lote por arquivo:\\*\\*",
-      "Na abertura de cada pedido, confira com o time se ele cabe num lote"
+      "Na abertura de cada pedido, confira com o time se ele cabe num lote",
+      "`R-DECISAO` painel \"Aguardando o dono\""
     ],
     "templates/projeto/docs/pedidos/_modelo.md": [
       "## Fora do escopo",
@@ -439,7 +443,10 @@
       "`worktree: <nome>`",
       "não faz o review do próprio cartão",
       "\\*\\*Gargalo ganha ajuda\\.\\*\\*",
-      "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*"
+      "\\*\\*1 cartão em \"Em andamento\" por agente\\.\\*\\*",
+      "ou em \"Aguardando o dono\" ocupa vaga na coluna de onde saiu",
+      "`origem:` nunca é \"Validação do usuário\" nem \"Aguardando sua validação\"",
+      "Bloqueado\" e \"Aguardando o dono\" sem limite próprio"
     ],
     ".githooks/pre-push": [
       "refs/heads/main\\|refs/heads/homolog\\|refs/heads/develop"
@@ -556,7 +563,13 @@
       "Retira do escopo original",
       "Fora do escopo",
       "corte: sem marca",
-      "na entrega, `pendente:`"
+      "na entrega, `pendente:`",
+      "Complemento: painel \"Aguardando o dono\"",
+      "origem: <coluna>; ação: <o que o usuário faz>; comando:",
+      "ao fim de cada lote",
+      "`comando: —` com `decisão: <pedido>`",
+      "um comando, um efeito",
+      "evidência no motivo"
     ],
     "docs/regras/R-PROVA.md": [
       "fora da lista de comandos do conferente",

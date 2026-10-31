@@ -24,6 +24,8 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
   e a versão do Python. Chamado à mão, antes da trava e da fila, com árvore limpa e o mesmo hash e Python, imprime
   `suite: reusa <hash> de <hora>` e `OK` e sai com 0 sem rodar. Qualquer diferença, árvore suja ou carimbo ausente
   ou ilegível roda a suíte (falha fechada). FORGE_SUITE_SEM_REUSO=1 força a execução; com CI definido sempre roda.
+- No CI (`GITHUB_STEP_SUMMARY`), o resumo do passo traz as unidades mais lentas, a soma, a maior unidade, o desequilíbrio
+  e os módulos sem peso (só informa: nunca reprova, nem muda a divisão). O título de cada `::group::` traz os módulos.
 - FORGE_SUITE_MEDIR=1 regrava `tests/pesos-d4.json` com as durações da execução, se tudo passou.
 A última linha é `OK` (ou `OK (skipped=N)`) ou `FAILED (...)`, como no `unittest`.
 """
@@ -54,6 +56,7 @@ ESPERA_TERMINO_S = 10
 HOOK = RAIZ / ".githooks" / "pre-push"
 FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "changelog.d/")
 CARIMBO = "forge-suite-verde"
+LIMITE_LENTAS, LIMITE_SEM_PESO = 10, 20  # o resumo do CI é curto (N-CI, C-11)
 
 
 class Interrompido(Exception):
@@ -389,7 +392,7 @@ def resumir(partes, filhos, relatorios, duracoes, pasta):
     no_ci = os.environ.get("GITHUB_ACTIONS") == "true"
     for i in ordem:
         if no_ci:
-            print(f"::group::processo {i + 1}", flush=True)
+            print(f"::group::processo {i + 1} ({', '.join(partes[i])})", flush=True)
         else:
             print(f"--- processo {i + 1} ({', '.join(partes[i])}) ---", flush=True)
         print((pasta / f"p{i + 1}.log").read_text(encoding="utf-8", errors="replace").rstrip(), flush=True)
@@ -410,14 +413,42 @@ def resumir(partes, filhos, relatorios, duracoes, pasta):
     return erros, linhas
 
 
-def publicar_no_ci(linhas, total, segundos, n):
+def lista_curta(nomes, limite):
+    return ", ".join(nomes[:limite]) + (f" e mais {len(nomes) - limite}" if len(nomes) > limite else "")
+
+
+def montar_resumo(linhas, partes, relatorios, duracoes, pesos, total, segundos):
+    """O texto do resumo do passo (Markdown): só informação, nunca portão (N-CI, C-9 a C-12). Leva só nomes de unidade
+    (os módulos de `partes`) e números; nada da saída dos testes."""
+    n = len(partes)
+    nomes = {m for parte in partes for m in parte}
+    texto = [f"### Suíte do Forge: {total} testes em {segundos:.1f} s ({n} processos)", ""]
+    texto += [f"- {linha}" for linha in linhas]
+    unidades = {k: float(v) for rel in relatorios if rel and isinstance(rel.get("duracoes"), dict)
+                for k, v in rel["duracoes"].items() if k in nomes and isinstance(v, (int, float)) and v >= 0}
+    media = sum(duracoes) / n
+    desequilibrio = max(duracoes) - media
+    lentas = sorted(unidades.items(), key=lambda par: (-par[1], par[0]))
+    texto += ["", f"#### Dez unidades mais lentas (de {len(unidades)})"]
+    texto += [f"- {nome}: {seg:.1f} s" for nome, seg in lentas[:LIMITE_LENTAS]]
+    soma = sum(unidades.values())
+    texto.append(f"- soma das unidades: {soma:.1f} s; soma ÷ {n} processos: {soma / n:.1f} s")
+    if lentas:
+        texto.append(f"- maior unidade: {lentas[0][0]} ({lentas[0][1]:.1f} s)")
+    texto.append(f"- desequilíbrio: {desequilibrio:.1f} s ({desequilibrio / (media or 1) * 100:.0f}% da média dos processos)")
+    sem_peso = sorted(nomes - set(pesos))
+    if sem_peso:
+        texto.append(f"- sem peso em {PESOS.relative_to(RAIZ)}: {lista_curta(sem_peso, LIMITE_SEM_PESO)}")
+    return "\n".join(texto) + "\n"
+
+
+def publicar_no_ci(*dados):
     destino = os.environ.get("GITHUB_STEP_SUMMARY")
     if not destino:
         return
     try:
         with open(destino, "a", encoding="utf-8") as f:
-            f.write(f"### Suíte do Forge: {total} testes em {segundos:.1f} s ({n} processos)\n\n")
-            f.write("".join(f"- {linha}\n" for linha in linhas))
+            f.write(montar_resumo(*dados))
     except OSError:
         pass
 
@@ -444,7 +475,8 @@ def orquestrar():
     esperado = ids(descobrir())
     total = sum(esperado.values())
     nomes = modulos()
-    partes = repartir(nomes, ler_pesos(), min(n, max(1, len(nomes))))
+    pesos = ler_pesos()
+    partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
     if erros or not nomes:
         print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
@@ -480,7 +512,7 @@ def orquestrar():
     segundos = time.monotonic() - inicio
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
     print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos)\n")
-    publicar_no_ci(linhas, rodados, segundos, len(partes))
+    publicar_no_ci(linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
     falhas = sum(rel["falhas"] for rel in relatorios if rel)
     erros_t = sum(rel["erros"] for rel in relatorios if rel)
     pulados = sum(rel["pulados"] for rel in relatorios if rel)

@@ -6,8 +6,13 @@
 # usuário esperam a vez por uma trava de arquivo (flock), fora do repositório. O kernel solta a trava quando
 # o processo morre, então não existe trava órfã. `--status` diz se há suíte rodando (saída 0) ou não (1); saída 2 = não consegui conferir.
 # Pasta da trava: XDG_RUNTIME_DIR (privada do usuário) ou, no recuo para $TMPDIR e /tmp (que podem ser
-# compartilhados), a subpasta forge-<uid>, criada com modo 700 e conferida (do próprio usuário, não é link).
+# compartilhados), a subpasta forge-<uid>, criada com modo 700 e conferida (do próprio usuário, não é link, sem escrita
+# de grupo nem de outros).
 # Se a subpasta não puder ser criada ou conferida, falha fechado: não há recuo para outra pasta.
+# Falha fechada: só aceita quando o find roda e confirma a pasta sem escrita de grupo nem de outros; erro ou saída vazia = recusa.
+modo_sem_escrita_alheia() {
+  [ "$(find "$1" -maxdepth 0 ! -perm /022 -print 2>/dev/null)" = "$1" ]
+}
 # $1 = criar: cria a subpasta se faltar; vazio (--status): só confere, sem criar nada.
 trava_arquivo() {
   local d sub uid
@@ -31,12 +36,20 @@ trava_arquivo() {
         echo "pre-push: ${sub} não é uma pasta do próprio usuário (ou é link, ou não pôde ser criada); recusada. Apague-a e tente de novo." >&2
         return 1
       fi
+      if ! modo_sem_escrita_alheia "$sub"; then
+        echo "pre-push: ${sub} tem escrita de grupo ou de outros (ou o modo não pôde ser lido); recusada. Corrija com chmod 700 ou apague-a e tente de novo." >&2
+        return 1
+      fi
       printf '%s/forge-suite-%s.lock\n' "$sub" "$uid"
       return 0
     fi
   done
   echo "pre-push: sem pasta gravável para a trava da suíte (XDG_RUNTIME_DIR, TMPDIR, /tmp)." >&2
   return 1
+}
+# Texto da trava (de outro processo): até 200 bytes, só imprimíveis, para um escape gravado nela não chegar ao terminal (C-14).
+texto_da_trava() {
+  head -c 200 -- "$trava" 2>/dev/null | LC_ALL=C tr -cd '[:print:]' || true
 }
 # Confere o arquivo já aberto no descritor 9 (não o caminho): do próprio usuário e não é link no caminho.
 trava_confere() {
@@ -100,7 +113,7 @@ if [ "$#" -eq 1 ] && [ "$1" = "--status" ]; then
   fila="${trava%.lock}.fila"
   na_fila=0
   if [ -d "$fila" ] && [ ! -L "$fila" ] && [ -O "$fila" ]; then na_fila="$(fila_vivas | wc -l)"; fi
-  echo "suíte do Forge rodando ($(cat "$trava" 2>/dev/null || true)); ${na_fila} na fila"
+  echo "suíte do Forge rodando ($(texto_da_trava)); ${na_fila} na fila"
   exit 0
 fi
 # Modo --suite (só à mão, com exatamente esse argumento, como o --status): a suíte inteira com a mesma trava e a
@@ -220,7 +233,7 @@ if [ "$curta" = 0 ]; then
   avisar() {
     [ "$avisou" = 1 ] && return 0
     avisou=1
-    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(cat "$trava" 2>/dev/null || true)); esperando a vez por até ${espera} s (R-TETO)." >&2
+    echo "pre-push: outra suíte do Forge está rodando ou na fila antes desta ($(texto_da_trava)); esperando a vez por até ${espera} s (R-TETO)." >&2
   }
   barrar() {
     fila_sair
