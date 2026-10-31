@@ -3,17 +3,27 @@ tipo: review
 contrato: 1
 pedido: k164-mesma-base
 branch: melhoria/k164-mesma-base
-commit: 18721bc3e8128b23d2362a1da8e51d989932367c
-parecer: reprovado
+commit: 84f20d3430e30bb79602a0809194c026e0561e87
+parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-10-30
+data: 2026-10-31
 ---
 # Review: k164-mesma-base
+
+## Revalidação (volta 1, head 84f20d3)
+- `forge-check delta --parecer docs/reviews/k164-mesma-base.md` (rc=0): intervalo `18721bc..84f20d3`; delta lido: `tests/hooks/parecer/pr-base-fora-do-fluxo-continua-estrita-bloqueia.json:1-98` (novo) e `tests/mutantes/k164-mesma-base.json:34-43` (M4). Já lido na rodada anterior: todo o resto da branch, sem mudança de código (`bin/`, `hooks/` iguais ao `18721bc`).
+- A fixture abre o PR com `--base feature/y`, uma cópia da develop feita depois do merge puro dela na `feature/x` com pareceres no commit anterior; espera código 2 e `R-REVIEW`. Com a guarda trocada por `if False`, a base `feature/y` contém o merge e o parecer passaria a valer: a fixture é o que prende o requisito.
+- `bin/forge-mutante tests/mutantes/k164-mesma-base.json` (rodado neste review, rev 84f20d3), rc=0: `M1 · morreu · hooks/parecer.py:383`, `M2 · morreu · hooks/parecer.py:374`, `M3 · morreu · bin/forge-check:622`, `M4 · morreu · bin/forge-check:613`.
+- `bin/forge-mutante --cobertura --base 8c07b44...`: `coberta · bin/forge-check:613 · tests/mutantes/k164-mesma-base.json:M4`; seguem sem mutante as linhas 612 e 639 e as apagadas de `hooks/parecer.py` (já avaliadas: A2 recomendado; as demais sem efeito de afrouxar).
+- M14 no head: 35 linhas de código contadas (`bin/forge-check` 21+7, `hooks/parecer.py` 3+4); a fixture nova e a spec ficam fora. Cumpre; um comportamento, uma classe em `hooks/` com corpus próprio (agora 3 fixtures).
+- Veredito da revalidação: A1 resolvido, sem mudança de lógica; A2 e A3 seguem recomendados e não devolvem. Aprovado.
+
+## Rodada 1 (head 18721bc)
 
 Escopo revisado: `git diff 8c07b44..18721bc` (4 commits: fixtures antes do código, correção, spec de mutação, fragmento), item E1 do pedido. O E2 (intervalo de linhas a-b) está na branch `melhoria/k164-intervalo`, fora daqui.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:613 · o requisito E1 "base fora do fluxo volta ao modo estrito" não tem teste no hook: trocar a condição por False sobrevive à tests.test_hooks (55 OK). Falta fixture de PR com base fora do fluxo e merge puro dela depois do parecer, bloqueando, e mutante na spec.
+- A1 (bloqueante) bin/forge-check:613 · resolvido no 84f20d3 (fixture pr-base-fora-do-fluxo-continua-estrita-bloqueia e mutante M4, que morre). Era: a guarda da base fora do fluxo (modo estrito, requisito E1) sem teste; trocá-la por False sobrevivia à tests.test_hooks.
 - A2 (recomendado) hooks/parecer.py:447 · o caminho git merge na integração passou a usar a base do fluxo, mas nenhuma fixture o cobre: voltar ao "HEAD" anterior sobrevive à tests.test_hooks. Sugestão: fixture de merge puro da develop seguido de git merge feature/x na develop, liberando.
 - A3 (recomendado) tests/mutantes/k164-mesma-base.json:27 · a guarda do M3 descreve a fixture que bloqueia, mas o mutante (retorno None) é morto pela que libera; ajuste o texto para "a base resolvida chega ao cmd_pr".
 
