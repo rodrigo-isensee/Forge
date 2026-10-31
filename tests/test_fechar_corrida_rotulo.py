@@ -31,6 +31,18 @@ class CorridaDoRotulo(unittest.TestCase):
         (self.estado / "rotulo_na_leitura").write_text(f"{rotulo_na_leitura}\n")
         (self.estado / "texto").write_text(base.Fechar.ITEM_MARCADO)
 
+    def rotulo_lido(self, quando):
+        """O rótulo em cada leitura dele: n ausente, s presente, f falha (a última se repete). O invólucro responde só `--json labels`; o resto vai ao `gh` falso."""
+        falso = self.tmp / "gh"
+        falso.rename(self.tmp / "gh-base")
+        (self.estado / "rotulo_quando").write_text(quando)
+        falso.write_text('#!/usr/bin/env bash\ncase "$*" in *"--json labels"*)\n'
+                         '  n=$(( $(cat "$ESTADO/rotulo_lidas" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$ESTADO/rotulo_lidas"\n'
+                         '  set -- $(cat "$ESTADO/rotulo_quando"); [ "$n" -le "$#" ] || n=$#; eval "r=\\${$n}"\n'
+                         '  case "$r" in f) exit 1 ;; s) echo afrouxa-regra ;; esac; exit 0 ;;\nesac\n'
+                         f'exec "{self.tmp / "gh-base"}" "$@"\n')
+        falso.chmod(0o755)
+
     def espera_rotulo(self, espera_s="3"):
         return self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", espera_s)
 
@@ -67,6 +79,26 @@ class CorridaDoRotulo(unittest.TestCase):
         r = self.espera_rotulo("2")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("o dono ainda não o aplicou", r.stderr)
+        self.assertTrue(self.sem_merge())
+
+    def test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla(self):  # AB-C4-4 (C4-2)
+        # a execução 1 é vista sem o rótulo; só a leitura posterior falha (conta como ausente: a promove a velha); na volta 2 o rótulo está presente
+        self.seq(99, [self.cat("fail", 1)])
+        self.rotulo_lido("n f f f s")
+        r = self.espera_rotulo()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("só a execução velha da Catraca (run 1)", r.stderr)
+        self.assertTrue(self.sem_merge())
+
+    def test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha(self):  # AB-C4-7 (C4-3)
+        # volta 1: rótulo ausente e depois presente (a execução 1 é descartada); volta 2: retirado, a execução 2 passa; volta 3: presente e a 1 reprova
+        pendente = "bateria\tpending\t1m\turl"
+        self.seq(99, [self.cat("fail", 1)], [pendente, self.cat("pass", 2)], [pendente, self.cat("fail", 1)])
+        self.rotulo_lido("n s n n s")
+        r = self.espera_rotulo()
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("a Catraca do rótulo reprovou (run 1)", r.stderr)
+        self.assertNotIn("só a execução velha", r.stderr)
         self.assertTrue(self.sem_merge())
 
     def test_a_leitura_nova_so_le(self):  # C4-5
