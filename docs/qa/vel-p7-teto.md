@@ -11,6 +11,7 @@ bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-30
+revisor: forge:qa-engineer
 ---
 # QA: vel-p7-teto
 
