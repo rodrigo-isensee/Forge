@@ -1247,7 +1247,7 @@ class Guarda:
     def git_config(self, args):
         """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
         worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
-        if "--worktree" in args or any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
+        if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
         chaves, pulo = [], False
         for a in args:
@@ -1260,10 +1260,17 @@ class Guarda:
                 break
             elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
-        grava = len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
-        if grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0]):
-            self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório",
-                        "use --worktree ou deixe ao usuário (R-DECISAO)")
+        subcomando = chaves[:1] in (["set"], ["unset"])  # git 2.46: `git config set <chave> <valor>` grava
+        if subcomando:
+            chaves = chaves[1:]
+        grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
+        if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
+            return
+        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
+        if "--worktree" in args and not do_merge:  # as chaves do merge valem em toda worktree
+            return
+        dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
+        self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
 
     def git_push(self, args, pasta, ramos):
         refs = []
