@@ -980,6 +980,8 @@ def reescrito_por_portao(raiz, pedido_id, branch, head, nome, tipo):
 def mesmo_pedido(valor, pedido_id, arquivo):
     """O `Pedido:` do brief é o pedido `pedido_id`? Por texto (o id, ou `docs/pedidos/<id>.md`) ou, só se absoluto ou `~/`, por
     caminho cujo `realpath` é o do `arquivo` (C-1 a C-6). Só o `~/` do começo expande (nunca `~usuario`); erro de caminho reprova."""
+    if not valor:  # A1 (C-4): brief sem a linha `Pedido:` não é deste pedido
+        return False
     if re.sub(r"\.md$", "", valor.removeprefix("docs/pedidos/")) == pedido_id:
         return True
     try:
