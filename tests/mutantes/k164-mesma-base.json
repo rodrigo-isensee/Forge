@@ -31,6 +31,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures"
       ]
+    },
+    {
+      "id": "M4",
+      "guarda": "base fora de develop, homolog e main fica em modo estrito (a guarda da base_do_delta)",
+      "arquivo": "bin/forge-check",
+      "de": "    if nome not in BASES_DO_FLUXO:\n        return None, None\n    remota",
+      "para": "    if False:\n        return None, None\n    remota",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
     }
   ]
 }
