@@ -4906,6 +4906,7 @@ class CaminhoDoPedido(unittest.TestCase):
         self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("docs/pedidos/p.md"), self.repo / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("p"), self.repo / "docs" / "pedidos" / "p.md")  # o id segue como sempre
+        os.chdir(self.home / "r"); self.assertEqual(self.acha("docs/pedidos/p.md"), Path("docs/pedidos/p.md"))  # existe no cwd e na raiz: o cwd vence (M3)
 
     def test_caminho_que_nao_existe_volta_como_foi_dado(self):
         for dado in (str(self.tmp / "nada" / "x.md"), "~/nada/x.md"):
