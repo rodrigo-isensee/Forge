@@ -2,34 +2,35 @@
 tipo: review
 contrato: 1
 pedido: impl-pre-push
-branch: melhoria/impl-pre-push-c6
-commit: 113635c491fb1b880b16cf9714ae8fb20b076166
+branch: melhoria/impl-pre-push-c1
+commit: 6eae448bca62cf03caaac800e3ddd10c17cf449c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-pre-push, branch c6 (texto da trava limitado e imprimível)
+# Review: impl-pre-push, branch c1 (TRAVA-MODO-SUBPASTA)
 
-Diff lido: `234dbe0..113635c` (`ee86b7f` C-14; `113635c` fragmento).
+Diff lido: `234dbe0..6eae448` (2 commits: `a7968c1` hook e teste, `6eae448` fragmento).
 
 ## O que entrega
-Parte do E3 do pedido (TRAVA-SANDBOX, C-14 do modelo, T-C4h): `texto_da_trava` (`.githooks/pre-push:42`) lê no máximo 200 bytes da trava e tira o que não é imprimível (`LC_ALL=C tr -cd '[:print:]'`: escape, BEL e bytes não ASCII), usado no `--status` (`:102`) e no aviso de espera (`:222`). Teste `test_texto_da_trava_sai_limitado_e_sem_controle` (`tests/test_pre_push_trava.py:483`) grava escape, BEL e 1 MiB na trava e confere as duas saídas. É o mesmo código revisado na c5 (`81f0400`), agora sozinho, como pediu o A1 do parecer da c5.
+Item E1 do pedido, o C1 do desenho (`docs/propostas/lotes-1030/pre-push.md`) com os controles C-1 e C-2 do modelo (`docs/security/ameacas/pre-push.md`): a subpasta `forge-<uid>` do recuo é recusada se tiver qualquer bit de escrita de grupo ou de outros (`/022`, com ou sem sticky). A conferência é falha fechada: `modo_sem_escrita_alheia` só aceita quando o `find` roda e imprime a própria pasta; erro ou saída vazia é recusa, como o C-2 exige (a forma proibida pelo modelo não foi usada). Push, `--suite` e `--status` passam por `trava_arquivo`, logo valem os três.
 
-## M14 (agents/tech-lead.md:19)
-- Linhas contadas (`git diff --numstat --no-renames 234dbe0 113635c`, sem fragmento): `.githooks/pre-push` 8, `tests/test_pre_push_trava.py` 17; total 25, abaixo de 150.
-- Comportamentos: um (o que o hook exibe do texto lido da trava). Cumpre.
+## M14 (decisão M14, agents/tech-lead.md:19)
+- Linhas contadas (`git diff --numstat --no-renames 234dbe0 6eae448`): `.githooks/pre-push` 11, `tests/test_pre_push_trava.py` 45; total 56, abaixo de 150. O fragmento `changelog.d/` fica fora.
+- Um comportamento só (a recusa da subpasta frouxa). Toca `.githooks/` (PROTEGIDOS) sem precisar de exceção de teto. Cumpre.
 
 ## Regras de ferramenta
-- Suíte: o `origin` tem o head revisado (`git ls-remote`: `113635c`), então o pre-push rodou no envio do autor; o CI do PR repete.
-- shellcheck: ausente nesta máquina; fica para o CI. Pendência, não review manual.
-- Mutação: sem `tests/mutantes/impl-pre-push*.json`. Pendência V2 do autor.
+- Suíte: a branch está no `origin` com o head revisado, logo o pre-push passou no envio do autor; rodei ainda `python3 -m unittest tests.test_pre_push_trava` na worktree: `Ran 32 tests ... OK`.
+- shellcheck: não instalado nesta máquina (`shellcheck: command not found`); fica para o passo do CI. Pendência, não review manual.
+- Mutação: sem `tests/mutantes/impl-pre-push*.json` na branch. Pendência do autor (V2).
 
 ## Leitura
-- R-NEUTRO, R-CUSTO e invariantes preservados; fragmento próprio em `changelog.d/impl-pre-push-c6.md`.
-- Gatilho R-SEGURANCA (controle do Forge): parecer do `security-engineer` (E1.3), não refeito aqui.
+- Testes cobrem os casos de abuso 1, 2 e 3 do modelo: 0o777, 0o770, 0o702 e 0o1777 recusados no push (rc 1, suíte não roda, nada escrito na subpasta) e no `--status` (sem "nenhuma suíte"); contraprova com 0o700, 0o750 e 0o755 aceitos; `find` falso que falha sem saída recusa.
+- O falso de `find` (checklist 12) é mais estrito que o real (sai 1 sem imprimir), exatamente o caso que o C-2 manda recusar.
+- Escopo do C1 só (condição, mensagem com o `chmod 700`, comentário); revertido sozinho, volta a aceitar. R-NEUTRO e R-CUSTO preservados; nenhum invariante tocado.
 
 ## Achados
-- A1 (recomendado) .githooks/pre-push:42 · Ordem de integração: esta branch entra na develop antes ou junto da c4 (trava comum), senão o texto gravado no sandbox chega ao terminal de fora sem filtro (A2 do parecer da c5, mantido aqui).
+- A1 (recomendado) tests/test_pre_push_trava.py:316 · O --status com subpasta frouxa não confere o rc; o caso de abuso 2 do modelo pede rc 2, que vem com a c2. Depois do merge das duas, acrescentar assertEqual(codigo, 2) aqui.
 
 ## Parecer
-Aprovado.
+Aprovado. Entrega o C1 do E1 como desenhado e como o modelo de ameaças pede, dentro da M14. A recomendação A1 não devolve.
