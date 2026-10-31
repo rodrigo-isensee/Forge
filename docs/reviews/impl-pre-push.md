@@ -3,14 +3,19 @@ tipo: review
 contrato: 1
 pedido: impl-pre-push
 branch: melhoria/impl-pre-push-c4
-commit: aff0ec2b236750ab757b826d033bf11d91b484d8
+commit: ddb7768b06e3dd2e3a75a70dad96d830ceefc411
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
 # Review: impl-pre-push, branch c4 (TRAVA-SANDBOX, trava comum)
 
-Diff lido: `234dbe0..aff0ec2` (2 commits: `a515d73` hook e testes, `aff0ec2` fragmento).
+Diff lido na primeira rodada: `234dbe0..aff0ec2` (2 commits: `a515d73` hook e testes, `aff0ec2` fragmento).
+
+## Revalidação no head ddb7768 (delta lido)
+`forge-check delta --parecer` (intervalo `aff0ec2..ddb7768`): só `tests/test_pre_push_trava.py` (+5 -1, linhas 535-538 e 540), o subcaso "comum link pendente" do C-9 (A1 do QA). Li só isso: o subcaso troca a pasta comum por link para destino inexistente e entra no mesmo laço de subtestes; correto. O hook não mudou. Já lido, sem mudança: hook, demais testes e fragmento (parecer anterior); o resto do delta são pareceres de segurança e QA, fora do código.
+- M14 no head (`git diff --numstat --no-renames 234dbe0 ddb7768`): hook 20, `tests/test_pre_push_trava.py` 122, 2 em cada um dos outros quatro módulos; total 150, no teto de 150 ("até 150"). Um comportamento só; cumpre. Sem folga: qualquer linha nova nesta branch estoura o teto.
+- Nota de estilo, não achado: a linha 540 do teste ficou comprida; vira recomendação só se o formatador do projeto a barrar no CI.
 
 ## O que entrega
 Item E3 do pedido, C4 do desenho com os controles C-9 a C-13 e C-15 do modelo (`docs/security/ameacas/pre-push.md`), na opção Q-S1 = B:
@@ -21,7 +26,7 @@ Item E3 do pedido, C4 do desenho com os controles C-9 a C-13 e C-15 do modelo (`
 - Fragmento com o aviso de transição das worktrees (C-15).
 
 ## M14 (decisão M14, agents/tech-lead.md:19)
-- Linhas contadas (`git diff --numstat --no-renames 234dbe0 aff0ec2`): `.githooks/pre-push` 20, `tests/test_pre_push_trava.py` 118, e 2 em cada um de `test_pre_push_afetados.py`, `test_pre_push_parecer.py`, `test_pre_push_parecer_curto.py` e `test_suite_paralela.py`; total 146, abaixo de 150. O fragmento fica fora.
+- Linhas contadas (`git diff --numstat --no-renames 234dbe0 aff0ec2`): `.githooks/pre-push` 20, `tests/test_pre_push_trava.py` 118, e 2 em cada um de `test_pre_push_afetados.py`, `test_pre_push_parecer.py`, `test_pre_push_parecer_curto.py` e `test_suite_paralela.py`; total 146, abaixo de 150 (no head ddb7768 são 150, ver a revalidação). O fragmento fica fora.
 - Um comportamento só (onde a trava e a fila moram); o `HOME` temporário é a condição de teste desse comportamento, não outro. Sem exceção de teto (que não valeria em `.githooks/`). Cumpre.
 
 ## Regras de ferramenta
@@ -40,4 +45,4 @@ Item E3 do pedido, C4 do desenho com os controles C-9 a C-13 e C-15 do modelo (`
 - A3 (recomendado) .githooks/pre-push:18 · Spec de mutação ausente para a condição da pasta comum e o guarda novo de `anotar`; pendência V2 do autor.
 
 ## Parecer
-Aprovado. Entrega o C4 do E3 com os controles do modelo e cumpre a M14 (146 linhas, um comportamento). A1 é condição de ordem de integração, não defeito da branch; A2 e A3 não devolvem.
+Aprovado, mantido no head ddb7768. Entrega o C4 do E3 com os controles do modelo e cumpre a M14 (150 linhas no head, um comportamento). A1 é condição de ordem de integração, não defeito da branch; A2 e A3 não devolvem.
