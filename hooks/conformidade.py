@@ -135,12 +135,16 @@ ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o 
 GRAPHQL_DE_ROTULO = re.compile(r"addLabelsToLabelable|labelIds|createLabel|updateLabel", re.I)
 CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.I)  # falha fechado pelo texto
 TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
-CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
+# FURO-HOOK-A, A3: a configuração que troca a estratégia ou o resultado do merge (R-REVIEW): a chave vale em `git config` e em `-c`
+CONFIG_DO_MERGE = re.compile(r"^(branch\..+\.mergeoptions|pull\.(twohead|octopus)|merge\..+\.driver)(=|$)", re.I)
+CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
+MERGE_OPCOES_QUE_MUDAM_O_RESULTADO = ("--strategy", "--strategy-option", "--squash", "--no-commit")  # e `-s`, `-X`
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
                   "--show-names", "--name-only", "--help", "-h"}
 CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section", "--remove-section", "-e",
                   "--edit"}
-CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
+CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
+CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment", "--value"}
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
@@ -378,6 +382,22 @@ def abreviacao_de(opcao, longas):
     return nome.startswith("--") and len(nome) > 3 and any(o.startswith(nome) for o in longas)
 
 
+def opcao_de_merge_que_muda_o_resultado(args):
+    """A3: a primeira opção do `git merge`/`pull` que troca a estratégia (`-s`, `-X`, também coladas e agrupadas, e as
+    longas, abreviadas como o git aceita), faz `--squash` ou deixa o commit para depois (`--no-commit`); None se não há."""
+    for a in args:
+        if a.startswith("--"):
+            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):
+                return a
+        elif a.startswith("-"):
+            for letra in a[1:]:
+                if letra in "sX":
+                    return a
+                if letra in "mFS":  # o resto do grupo é o valor
+                    break
+    return None
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -388,6 +408,8 @@ class Guarda:
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
+        self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
@@ -453,7 +475,9 @@ class Guarda:
 
     def regras_do_forge(self):
         """Os caminhos `so_forge` valem: a raiz tem o manifesto do Forge. Só protege mais, então basta o arquivo."""
-        return self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        if self._regras is None:
+            self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        return self._regras
 
     @staticmethod
     def raiz_git(pasta):
@@ -503,7 +527,9 @@ class Guarda:
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
-        raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        if self._raiz_home is None:
+            self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        raiz, home = self._raiz_home
         pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
@@ -1102,6 +1128,9 @@ class Guarda:
                 pasta_git = self.caminho(pasta, palavras[i + 1])
             elif palavras[i].startswith("--git-dir="):
                 pasta_git = self.caminho(pasta, palavras[i].split("=", 1)[1])
+            if palavras[i] == "-c" and i + 1 < len(palavras) and CONFIG_DO_MERGE.match(palavras[i + 1]):
+                self.barrar("R-REVIEW", f"git -c {palavras[i + 1]} muda como o merge mescla o que o review leu",
+                            "mescle sem estratégia, --squash nem --no-commit")
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
@@ -1122,6 +1151,10 @@ class Guarda:
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
                 if atual in ("main", "master"):
                     self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
+                achada = opcao_de_merge_que_muda_o_resultado(args)
+                if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
+                    self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
+                                "mescle sem estratégia, --squash nem --no-commit; resolva o conflito na branch de trabalho")
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
@@ -1262,20 +1295,29 @@ class Guarda:
     def git_config(self, args):
         """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
         worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
-        if "--worktree" in args or any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
+        if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
-        chaves, pulo = [], False
+        chaves, pulo, subcomando = [], False, False
         for a in args:
             if pulo:
                 pulo = False
+            elif not chaves and not subcomando and a in ("set", "unset"):  # git 2.46: `git config set <chave> <valor>` grava
+                subcomando = True  # as opções dele (`--all`, `--append`, `--comment`) vêm antes da chave e não contam
             elif a in CONFIG_COM_VALOR:
                 pulo = True
-            elif not a.startswith("-"):
+            elif a == "--":  # depois do `--` tudo é chave ou valor, mesmo com `-` na frente (`mergeoptions -- --squash`)
+                chaves += args[args.index("--") + 1:]
+                break
+            elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
-        grava = len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
-        if grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0]):
-            self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório",
-                        "use --worktree ou deixe ao usuário (R-DECISAO)")
+        grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
+        if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
+            return
+        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
+        if "--worktree" in args and not do_merge:  # as chaves do merge valem em toda worktree
+            return
+        dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
+        self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
 
     def git_push(self, args, pasta, ramos):
         refs = []

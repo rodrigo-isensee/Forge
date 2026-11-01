@@ -1,0 +1,125 @@
+{
+  "pedido": "impl-fechar-c-c1",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C1-1",
+      "guarda": "o sha local sem merge marca sem_merge na limpeza",
+      "arquivo": "bin/forge-fechar",
+      "de": "then sem_merge=1; fi",
+      "para": "then :; fi",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-2",
+      "guarda": "o --sem-limpar relê o sha local e decide pela leitura",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ -n \"$sha_sl\" ] && ! sha_confere \"$sha_sl\"; then",
+      "para": "if false; then",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-3",
+      "guarda": "a remota só imprime o comando que apaga com sha mesclado",
+      "arquivo": "bin/forge-fechar",
+      "de": "if sha_rsl=\"$(remoto_exato \"$ref\")\" && { [ -z \"$sha_rsl\" ] || sha_confere \"$sha_rsl\"; }; then",
+      "para": "if sha_rsl=\"$(remoto_exato \"$ref\")\"; then",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-4",
+      "guarda": "a remota com commit sem merge imprime a leitura (rem_leitura) e não o comando que apaga",
+      "arquivo": "bin/forge-fechar",
+      "de": "elif [ -n \"$rem_leitura\" ]; then pend_cmds=",
+      "para": "elif false; then pend_cmds=",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-5",
+      "guarda": "a leitura da remota que falha só avisa (falha fechada, sem comando que apaga)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  else printf '# não consegui ler a branch remota; confira o servidor antes de apagar\\n'",
+      "para": "  else printf 'git push origin --delete %q\\n' \"refs/heads/$ref\"",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-6",
+      "guarda": "de dentro da worktree sem outra para sair, o commit sem merge vira aviso",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$sem_merge\" = 1 ]; then\n          echo \"aviso: você está na worktree",
+      "para": "if false; then\n          echo \"aviso: você está na worktree",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    },
+    {
+      "id": "C1-7",
+      "guarda": "a pendência por commit sem merge é leitura (git log), não comando que apaga",
+      "arquivo": "bin/forge-fechar",
+      "de": "git log --oneline %q..%q",
+      "para": "git branch -D %q%q",
+      "testes": [
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_commit_novo_na_worktree_imprime_leitura_e_nao_comando_que_apaga",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_de_dentro_da_worktree_principal_com_commit_sem_merge_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_limpar_com_remota_sem_merge_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_commit_local_depois_do_passo_2_imprime_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_remota_que_andou_depois_do_passo_2_imprime_leitura_do_sha_remoto",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sem_limpar_com_leitura_da_remota_que_falha_so_avisa_e_nao_manda_apagar",
+        "tests.test_fechar_r1_worktree.SemMerge.test_ref_com_caractere_do_shell_sai_escapada_na_linha_de_leitura",
+        "tests.test_fechar_r1_worktree.SemMerge.test_sha_mesclado_com_worktree_ocupada_continua_imprimindo_o_comando"
+      ]
+    }
+  ]
+}
