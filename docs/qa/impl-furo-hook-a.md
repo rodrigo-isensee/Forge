@@ -2,43 +2,40 @@
 tipo: qa
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a2
-commit: 7b5f5aa36d90f6368325dfd53d514ebafa545040
+branch: melhoria/impl-furo-hook-a-a3
+commit: 336c43f199a90375d098cce24325fffa9fffca0d
 parecer: aprovado
-revisor: forge:qa-engineer
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
+revisor: forge:qa-engineer
 data: 2026-10-31
 ---
-# QA: impl-furo-hook-a, branch a2 (A2 PARECER-LANCADOR)
+# QA: impl-furo-hook-a, branch a3 (A3 HOOK-MERGE-FLAGS)
 
-Diff lido: 234dbe0..45f6c15 (parecer original) e, na revalidação, 6b77146..7b5f5aa. Item do pedido: E2/A2, o parecer lê o comando atrás dos lançadores com `separar_lancadores`, e `timeout`, `env`, `xargs` e `find -exec` antes do merge de PR deixam de passar sem parecer. Código: `hooks/parecer.py` (+32/-3, uma classe de comportamento), `tests/test_hooks.py` +5, 9 fixtures novas em `tests/hooks/parecer/`, uma fixture de corpus ajustada (CO5, parecer 0 para 2, sem `nao_promete`), a spec `tests/mutantes/impl-furo-hook-a-a2.json` e `docs/hooks.md`. M14 (`agents/tech-lead.md:19`): 40 linhas de código e teste, uma classe em `hooks/`, com corpus próprio. Cumpre.
-
-## Revalidação no head 7b5f5aa (delta 45f6c15..7b5f5aa)
-- O `forge-check delta` lista o que a develop trouxe nos dois merges (412abf7 e 7b5f5aa). Li só o que toca a entrega: `git diff 6b77146 7b5f5aa` em `hooks/parecer.py`, `docs/hooks.md`, `tests/test_hooks.py`, `tests/fixtures/heredoc-volta-unica.json` e a spec de mutantes. O diff da branch contra a base atual segue sendo só o A2; a mudança de `hooks/parecer.py` entre 45f6c15 e o head (K-164, `base_do_delta`) veio da develop, sem conflito, e não está no diff da branch.
-- `docs/hooks.md` (resolução do merge): o diff contra a base atual tem 4 linhas. A linha "Palavra crítica só no texto" ficou com o texto do A2 (lançadores seguidos, `xargs`, `find -exec` e demais recusam) e a outra linha mexida só acrescenta o `find -exec`; nada da develop se perdeu.
-- M14 (`agents/tech-lead.md:19`): a branch cumpre. Uma classe de comportamento (lançador no parecer), `hooks/parecer.py` +35/-3, `tests/test_hooks.py` +5, 9 fixtures, spec e `docs/hooks.md`.
-- Suíte completa no head (`python3 -m unittest discover -s tests`): `Ran 2344 tests in 936.046s`, `OK (skipped=27)`, rc=0. Uma rodada anterior, igual, terminou com `FAILED (failures=1, skipped=27)`; a saída foi cortada por `tail` e o teste não foi identificado; a repetição passou inteira sem mudança de código (a primeira rodava junto com a mutação). Fica registrada como instabilidade não explicada; nenhum teste foi pulado.
-- Vermelho antes do verde repetido no head (cópia em `$TMPDIR`, `hooks/parecer.py` de 6b77146 com os testes do head): `test_fixtures_do_lote_furo_hook_a` falha em 7 fixtures (`env`, `find-exec`, `flock`, `lancador-encadeado`, `timeout-reprovado`, `xargs`, `nice`), cada uma com `AssertionError: 0 != 2`.
-- Mutação sobre 7b5f5aa: `A2-m1 · morreu · hooks/parecer.py:284`, `A2-m2 · :279`, `A2-m3 · :279`, `A2-m4 · :282`, `A2-m5 · :287`; rc=0. `bin/forge-mutante --cobertura --base 6b77146`: `:279`, `:284` e `:287` com mutante declarado; nenhuma guarda sem mutante.
-- Parecer mantido: aprovado, sem achados. Depois deste teste a branch ganhou só o parecer do review (4a3ef0d, `docs/reviews/`).
+Etapa E1.4 (`R-QA`). Não sou o autor. Base `234dbe0`, head testado `336c43f`. Review e segurança aprovados em `bb78ecd`; depois deles só `tests/` mudou (fixtures e mutantes). Sem especificação de UX: as obrigações vêm do item E3 do pedido e do desenho §2.1 (flags do merge e `CONFIG_PROTEGIDA` no hook `conformidade`).
 
 ## Achados
+- A1 (recomendado) hooks/conformidade.py:372 · `git merge -m --squash <b>` na develop recusa, embora `--squash` ali seja o texto da mensagem (valor de `-m`). Falso bloqueio raro e do lado seguro; sem correção exigida.
+- A2 (recomendado) docs/hooks.md:104 · `--config-env` e `GIT_CONFIG_*` seguem fora do alcance (já declarado no texto, achado N1 do modelo de ameaças): cartão do dono, não defeito desta branch.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| A2: merge reprovado atrás de `timeout`, `env`, `flock` ou lançador encadeado bloqueia | fixtures `forge-clone-pr-merge-{timeout,env,flock,lancador-encadeado}-reprovado-bloqueia`, por `test_fixtures_do_lote_furo_hook_a` | lançador com e sem opção, encadeado | passou |
-| A2: `find -exec` e `xargs` no merge bloqueiam | fixtures `...-find-exec-bloqueia` e `...-xargs-branch-atual-aprovada-bloqueia` | alvo vindo da entrada padrão, mesmo com parecer aprovado | passou |
-| A2: merge com parecer aprovado atrás de `timeout` libera | fixture `...-timeout-aprovado-libera` | o lançador não vira falso positivo | passou |
-| A2: `cd` e `nice` de lançador não valem como pasta nem como parecer | fixtures `merge-na-develop-cd-de-lancador-nao-vale-bloqueia` e `merge-na-develop-nice-sem-parecer-bloqueia` | `cd` roda noutro processo | passou |
+| E3-1: merge/pull na integração recusa `-s`/`--strategy`, `-X`/`--strategy-option`, `--squash`, `--no-commit` (todo papel) | fixtures `merge-flag-{squash,strategy-*,s-*,x-*,no-commit*,grupo-curto,pull-*,depois-de-no-squash}-bloqueia` via `test_fixtures` e `test_fixtures_do_lote_furo_hook_a` | forma curta colada e agrupada, abreviação longa, opção depois de `--no-squash` | passou |
+| E3-2: sem flag e em `melhoria/*` o merge segue livre | `merge-flag-sem-flag-libera`, `merge-flag-na-melhoria-libera`, `merge-flag-mensagem-colada-libera` | `-m` com valor, outra branch | passou |
+| E3-3: `git config` das chaves do merge (`mergeoptions`, `pull.twohead`, `pull.octopus`, `merge.*.driver`) recusa, inclusive `--worktree`, `-c`, `--`, `set`/`unset` e opções antes da chave | fixtures `merge-flag-config-*-bloqueia`, `merge-flag-por-c-mergeoptions-bloqueia` | chave com valor começado em `-`, `set --all`, `--comment`/`--value`, `--worktree` | passou |
+| E3-4: leitura e chave sem valor seguem livres | `merge-flag-config-get-com-valor-libera`, `merge-flag-config-rastreio-libera` | só a chave, `--get` | passou |
+| `R-REVIEW` e `R-CONFORMIDADE` citados nas recusas | `test_fixtures` (campo `regra`) | n/a | passou |
 
 ## Cenários e resultado real
-- Vermelho antes do verde (manual, cópia em `$TMPDIR` com `hooks/parecer.py` da base e os testes do head): `test_fixtures_do_lote_furo_hook_a` falha em 7 fixtures (`env`, `find-exec`, `flock`, `lancador-encadeado`, `timeout-reprovado`, `xargs`, `nice`), `Ran 1 test in 23.7s`, FAILED. Verde no head: OK. O `forge-testes --vermelho` sobre a suíte inteira estourou o prazo aqui (sem veredito), por isso a prova é manual.
-- Mutação (`bin/forge-mutante tests/mutantes/impl-furo-hook-a-a2.json`): `A2-m1 · morreu · hooks/parecer.py:284`, `A2-m2 · morreu · :279`, `A2-m3 · morreu · :279`, `A2-m4 · morreu · :282`, `A2-m5 · morreu · :287`. Nenhum sobrevivente, nenhum inválido.
-- `bin/forge-mutante --cobertura --base 234dbe0`: as condições mudadas (`:279`, `:284`, `:287`) têm mutante declarado; nenhuma linha de guarda sem mutante.
-- Sem interface de usuário: acessibilidade e E2E não se aplicam.
-- Risco: o ramo `except (LancadorDemais, TextoDivididoAberto)` não é condição e não tem mutante; se falhasse, cairia na falha fechada do hook, que também recusa, então o efeito observável é o mesmo.
+- Suíte completa da worktree no head: `python3 -m unittest discover -s tests` · `Ran 2310 tests in 952.376s`, `OK (skipped=27)`, rc=0. Os 27 pulados são condicionais da própria suíte, nenhum marcado por mim.
+- Vermelho antes do verde: `forge-testes --vermelho 234dbe0fb90b005450d7c2eb59e6241ea9779155` abre com `vermelho: base=234dbe0fb90b head=336c43f199a9`, reverte à base `hooks/conformidade.py`, `docs/hooks.md` e os pareceres, e mantém os testes. Provam: `tests.test_hooks.Hooks.test_fixtures · H=ok · B=falha · prova (asserção)` e `tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a · H=ok · B=falha · prova (asserção)`. Nenhum teste cai no HEAD (`H=falha`: 0). rc=0.
+- Mutação: `bin/forge-mutante tests/mutantes/impl-furo-hook-a-a3.json tests/mutantes/impl-furo-hook-a-a3-2.json` · 20 mutantes (A3-m1 a A3-m20), todos `morreu`, rc=0.
+- Cobertura contra o diff: `bin/forge-mutante --cobertura --base 234dbe0fb90b005450d7c2eb59e6241ea9779155` saiu rc=0, com as linhas de guarda mudadas (371, 372, 374, 376, 378, 1083, 1107, 1250, 1256, 1260, 1263, 1265, 1266, 1269, 1271) todas `coberta`. Conferi à mão o diff de `git_config`: `subcomando or` (A3-m18), `chaves and a not in CONFIG_ESCOPO` (A3-m15), o `--` e o `--worktree` com `do_merge` têm mutante; nenhuma linha de guarda sem mutante.
+- Sondas próprias das funções `opcao_de_merge_que_muda_o_resultado` e `CONFIG_PROTEGIDA`: `--sq`, `--no-c`, `--no-commit=true`, `-xs`, `-Xours`, `--strategy-o=ours`, `--no-squash --squash` recusam; `--ff-only`, `--no-ff`, `--stat`, `-ms`, `-m msg-s` liberam; `branch.feat/x.mergeoptions=--squash` e `Merge.x.Driver` (caixa) casam. Só o falso bloqueio do A1.
+- M14 (`agents/tech-lead.md:19`): `git diff --numstat --no-renames 234dbe0..336c43f` sobre `bin/ hooks/ scripts/ .github/ .githooks/ tests/*.py tests/config.json` dá 45+9 em `hooks/conformidade.py` e 5 em `tests/test_hooks.py`: 59 linhas, abaixo de 150; uma classe de comportamento em `hooks/` (merge na integração que muda o resultado revisado), com corpus próprio. **A branch cumpre a M14.**
+
+Bugs abertos: nenhum.
