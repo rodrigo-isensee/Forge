@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 1fa43985b6bd4fd0eb231d872800012b3b3f5fc7
+commit: 262535c43f124882155c67d9fbd89b2bba788c2b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-01
 ---
 # Review de segurança: heredoc-comentario
 
-Etapa E1.3. Diff revisado: `e25d379..1fa4398` (4 commits). Modelo de ameaças: `docs/security/ameacas/heredoc-comentario.md` (C-1 a C-7, T1 a T6). Proposta: `docs/propostas/heredoc-comentario.md`.
+Etapa E1.3. Diff revisado: `e25d379..1fa4398` (4 commits) e, na revalidação, o delta `1fa4398..262535c` (seção "Revalidação em 262535c"; os números de linha de `_comum.py` no detalhe abaixo são os de 1fa4398, deslocados em +10 depois da linha 841). Modelo de ameaças: `docs/security/ameacas/heredoc-comentario.md` (C-1 a C-7, T1 a T6). Proposta: `docs/propostas/heredoc-comentario.md`.
 
 ## Gatilhos
 R-SEGURANCA, gatilho `controles do Forge`: muda o analisador de entrada do hook (`hooks/_comum.py`, `DonosDosHeredocs`). O defeito corrigido é liberação por tempo (L1 e L2 do modelo).
@@ -39,6 +39,14 @@ Evidência: `conformidade.py:762` chama `corpo_so_lido` por dono; cada `Dono` di
 
 ### A2
 Severidade baixa (cobertura de teste, não defeito). Correção mínima: na fixture (b), tirar o marcador crítico de fora do corpo ou fixar a mensagem esperada, para que só o dono com `| bash` decida. Dono: qa-engineer (E1.4).
+
+## Revalidação em 262535c
+Delta lido (`forge-check delta --parecer`, `1fa4398..262535c`): `hooks/_comum.py` 822, 827, 829, 844-855, 990, 1281, 1757-1781; `tests/test_hooks.py` 1682-1706, 1828-1846, 1875; as fixtures `heredoc-marca-c8a` a `c8f`, `tests/mutantes/heredoc-rapido-p2.json` e `changelog.d/heredoc-rapido-p2.md`. Já lido: o resto da branch (1fa4398).
+- **Merge fiel:** a contribuição da branch sobre a develop (`f534013..262535c`) é linha a linha a de `e25d379..1fa4398`, só com `re.sub(MARCA + r"\d+__", ...)` trocado por `MARCAS.sub` em `citadas` e no `_donos_da_base` do teste (mesmo padrão, que não cruza `\n`: T4 segue). O `montar` é o desta branch; o `sozinho` da develop sai com ele, sem perda.
+- **Marca curta e `sem_marcas`:** `gasto`, `largo` e `sozinho` se medem nas linhas citadas, já sem marca; o teto C-4 e o `ValueError` (só com `resto` acima de 150 mil, e `resto` não tem marca) não mudam. T1, T2, T3, T5 e T6 intactos.
+- **Teste do orçamento:** as formas das duas linhas juntas (`x=$(`, `|` e as da branch), cada uma com a recusa esperada; nenhuma afrouxada.
+- **M14:** `git diff --numstat --no-renames origin/develop...HEAD`: `hooks/_comum.py` 40+12 e `tests/test_hooks.py` 89+7, 148 de 150; uma classe em `hooks/`, sem linha de exceção. Cumpre.
+- **Testes rodados em 262535c:** `test_fixtures` (78,8 s) e os sete de heredoc (marca, aspa sem marcas, orçamento, C-1, C-4, C-5, lista positiva; 153,0 s), verdes. A1 e A2 seguem como estavam (fora do delta).
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Análise estática por leitura e medidas locais com os próprios hooks em pastas temporárias. `gitleaks`, `semgrep`, `zizmor` e `actionlint` não estão no PATH (lacuna; o diff não toca workflow nem segredo). Testes rodados aqui: os três novos de `tests/test_hooks.py` (C-1, C-4, C-5), verdes em 155,6 s.
