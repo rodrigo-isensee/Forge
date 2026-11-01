@@ -1800,12 +1800,18 @@ class Hooks(unittest.TestCase):
         dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
                            .read_text(encoding="utf-8"))
         n = 3000
-        for forma, texto in (("um por linha", "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n))),
-                             ("&&", " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n"
-                              + "".join(f"x\nE{i}\n" for i in range(n)))):
+        corpos = "".join(f"x\nE{i}\n" for i in range(n))
+        # C-7 do heredoc-rapido, passo 2: também o heredoc numa substituição (6004 palavras: recusa pelo teto, depois
+        # de ler a linha marcada) e o `|`
+        for forma, texto, recusa in (("um por linha", "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
+                                     ("&&", " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
+                                     ("x=$(", "".join(f"x=$(cat <<'E'\nx\nE\n)\n" for i in range(n)),
+                                      "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"),
+                                     ("|", " | ".join(f"cat <<'E{i}'" for i in range(n)) + "\n" + corpos, None)):
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(dados))
                 caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                caso["esperado"]["stderr"] = recusa or caso["esperado"]["stderr"]
                 tmp = self._pasta_temporaria()
                 arquivo = tmp / "conformidade" / "caso.json"
                 arquivo.parent.mkdir()
