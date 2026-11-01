@@ -1,0 +1,19 @@
+{
+  "descricao": "FURO-HOOK-A, A3: a chave do merge nao manda usar --worktree, que nao a protege",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "git config branch.develop.mergeoptions --squash"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "Corrigir: deixe ao usuário (R-DECISAO)"
+  }
+}

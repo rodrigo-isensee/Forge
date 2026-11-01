@@ -27,7 +27,7 @@ Formato do fixture:
               Em caminhos e textos, {marca} e {marca_wt} valem pela marca da sessão (`.git/forge/projeto-<hash da raiz>`) do
               projeto e da worktree `{tmp}/wt`
   esperado    codigo, saida (trecho do systemMessage; só o `vigia` escreve no stdout), pergunta (trecho do motivo: só o
-              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
+              `conformidade` pede confirmação, `permissionDecision: ask` no stdout, código 0), stderr (trecho), stderr_sem ([trechos] que a recusa não pode ter), estado {arquivo: {contem: [...], ausente: [...]}}, sem_arquivo [...],
               sem_run (true: .forge/run/ não foi criado), erros_log (trecho)
               sem_caminho ([caminho]: não existem; {tmp} vale)
 """
@@ -37,6 +37,7 @@ import errno
 import functools
 import hashlib
 import io
+import itertools
 import json
 import os
 import re
@@ -60,6 +61,16 @@ FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
+
+
+def _cpu_dos_filhos():
+    """Segundos de CPU (usuário + sistema) dos filhos já encerrados; None onde não há `resource`."""
+    try:
+        import resource
+    except ImportError:
+        return None
+    r = resource.getrusage(resource.RUSAGE_CHILDREN)
+    return r.ru_utime + r.ru_stime
 
 
 def pid_morto():
@@ -518,6 +529,23 @@ def rodar(hook, entrada, cwd, proc=None, extra=None, prazo=120, como_o_claude_co
 # do processo do teste, sem tocar os hooks): o segundo `Hook.campo`, o primeiro que o hook lê depois do marcador.
 PRAZO_GIT_NOS_TESTES = 120
 PRAZO_DA_DECISAO_NOS_TESTES = 120
+def nucleos_do_processo():
+    """Os núcleos do processo, pela afinidade (respeita cpuset) com recuo para `os.cpu_count()`; `None` se não der.
+    Não lê `FORGE_NPROC`: essa variável é dos fixtures e não dimensiona o portão (N-CI, C-1)."""
+    try:
+        return len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    except OSError:
+        return None
+
+
+def trabalhadores_do_pool(nucleos):
+    """As threads dos pools de testes: cada uma espera um subprocesso (não usa CPU), então o número acompanha os
+    núcleos, entre 2 e 4 (`R-TETO`); `None`, zero, negativo ou valor inválido dão 2 (N-CI, C-1)."""
+    if not isinstance(nucleos, int) or isinstance(nucleos, bool) or nucleos < 1:
+        return 2
+    return min(4, max(2, nucleos))
+
+
 LANCADOR = """
 import runpy, sys, time
 sys.path.insert(0, sys.argv[1])
@@ -572,7 +600,7 @@ class Hooks(unittest.TestCase):
             if f.dados.get("executaveis"):
                 tmp = self._pasta_temporaria()
                 montados[nome] = (tmp, f.montar(tmp, outro.pid))
-        trabalhadores = max(1, min(4, (os.cpu_count() or 2) // 2))
+        trabalhadores = trabalhadores_do_pool(nucleos_do_processo())
         with concurrent.futures.ThreadPoolExecutor(max_workers=trabalhadores) as pool:
             futuros = []
             for nome, f in em_paralelo:
@@ -635,6 +663,8 @@ class Hooks(unittest.TestCase):
             self.assertLessEqual(len(linha), 200)
             self.assertRegex(linha, r"^R-[A-Z]+: ")
             self.assertIn(esperado["stderr"], linha)
+            for trecho in esperado.get("stderr_sem", []):
+                self.assertNotIn(trecho, linha)
         run = raiz / ".forge" / "run"
         if esperado.get("sem_run"):
             self.assertFalse(run.exists(), ".forge/run/ não deveria ser criado")
@@ -1776,9 +1806,41 @@ class Hooks(unittest.TestCase):
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(dados))
                 caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                tmp = self._pasta_temporaria()
+                arquivo = tmp / "conformidade" / "caso.json"
+                arquivo.parent.mkdir()
+                arquivo.write_text(json.dumps(caso), encoding="utf-8")
+                fixture = Fixture(arquivo)
+                montado = fixture.montar(tmp, os.getpid())  # a montagem (git init, commit...) fica fora da janela medida
+                cpu_antes = _cpu_dos_filhos()
                 inicio = time.monotonic()
-                self.rodar_dados(caso)
-                self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
+                parede = time.monotonic() - inicio
+                cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
+                self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+                if cpu is not None:  # sem `resource` (Windows) só vale a parede
+                    self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
+
+    def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
+        """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra
+        decisão (outra `Guarda`) calcula de novo, sem cache entre elas."""
+        _, conformidade, _ = modulos_dos_hooks()
+        hook = mock.Mock(raiz=RAIZ)
+        manifestos, homes = [], []
+        def manifesto(raiz):
+            manifestos.append(raiz)
+            return True
+        def home():
+            homes.append(1)
+            return Path(os.path.expanduser("~"))
+        with mock.patch.object(conformidade, "tem_manifesto_do_forge", manifesto), \
+                mock.patch.object(conformidade.Path, "home", staticmethod(home)):
+            for _ in range(4):
+                guarda = conformidade.Guarda(hook, conformidade.politica(), "dev")
+                for i in range(50):
+                    guarda.caminho_barrado(RAIZ / f"f{i}")
+        self.assertEqual((len(manifestos), len(homes)), (4, 4), "uma leitura e um home por Guarda, não por destino")
+        self.assertEqual({str(m) for m in manifestos}, {str(RAIZ)})
 
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
@@ -1789,7 +1851,8 @@ class Hooks(unittest.TestCase):
                      and f.caminho.stem != FIXTURE_DE_ORCAMENTO]  # a linha adversária de tempo recusa pelo teto, não pelo corpus
             fora = [f.caminho.stem for f in todas if "erros_log" in f.dados["esperado"]
                     or not bash_aceita(f.dados["entrada"]["tool_input"]["command"])]
-            self.assertLessEqual(len(fora), 8, fora)
+            # 10: as duas sondas de extglob do PN7-DOLAR-INTERROG; o `bash -n` não roda o `shopt -s extglob` da 1ª linha
+            self.assertLessEqual(len(fora), 10, fora)
             _CORPUS.extend(f.dados["entrada"]["tool_input"]["command"] for f in todas if f.caminho.stem not in fora)
         return minimo(_CORPUS, 500, "linhas de recusa de Bash")
 
@@ -1845,6 +1908,29 @@ class Hooks(unittest.TestCase):
         self.assertEqual(len(casos), len(FAMILIAS_DE_RECUSA) * len(MECANISMOS_DO_COMENTARIO) - len(FORA_DO_T2))
         self.assertEqual(self.executar_em_lote(casos), len(casos))
 
+    def test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante(self):  # FURO-HOOK-A, A1 TESTE-MATRIZ-CRITICO
+        """T6, pelo hook real: a ação sem marcador `CRITICO` (que a rede da ADR 0011 não recusa) com cada variante que o
+        bash ignora sai 2 sem o motivo da rede ("o hook não modela", `nao_modelada`): a recusa vem da leitura, que viu a ação
+        ou a deu por ilegível. O `parecer` entra com o merge reprovado, que a rede dele também cobriria. Nenhum caso sai da
+        matriz: uma lista de pendentes afrouxaria o controle e precisa do dono."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertLessEqual(set(MECANISMOS_DO_COMENTARIO.values()), set(VARIANTES_QUE_O_BASH_IGNORA))
+        por_comando = {f.dados["entrada"]["tool_input"].get("command"): f for f in self.fixtures
+                       if f"{f.hook}/{f.caminho.stem}" in FAMILIAS_DE_RECUSA}
+        sem_marcador = [a for a, hook in ACOES_DO_CORPUS.items() if hook == "conformidade" and not conformidade.CRITICO.search(a)]
+        self.assertGreaterEqual(len(sem_marcador), 2, sem_marcador)
+        merge = "gh pr merge feature/x --repo rodrigo-isensee/Forge --merge"
+        acoes = [(a, por_comando[a]) for a in sem_marcador + [merge]]
+        casos = []
+        for acao, modelo in acoes:
+            for i, (prefixo, sufixo) in enumerate(VARIANTES_QUE_O_BASH_IGNORA):
+                f = Fixture(modelo.caminho)
+                f.dados["entrada"]["tool_input"]["command"] = prefixo + acao + sufixo
+                rede = "com ação crítica: o hook não modela" if modelo.hook == "conformidade" else "o hook não modela"
+                f.dados["esperado"] = {"codigo": 2, "stderr": "R-", "stderr_sem": [rede]}  # `R-` vale: ilegível também recusa
+                casos.append((f"{modelo.hook}/{modelo.caminho.stem} + variante {i}", f))
+        self.assertEqual(self.executar_em_lote(casos), len(acoes) * len(VARIANTES_QUE_O_BASH_IGNORA))
+
     def test_t3_todo_comentario_marcado_e_comentario_para_o_bash(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T3, oráculo do bash para a gramática G: em cada posição que `comentarios` marca, troca o texto do comentário
         por aspas e crase sem par; se o bash não lesse ali um comentário, a linha deixaria de ser aceita (`bash -n`).
@@ -1872,6 +1958,11 @@ class Hooks(unittest.TestCase):
                 with self.subTest(linha=linha, posicao=p):
                     self.assertTrue(bash_aceita(trocada), f"o bash não lê comentário em {p}: {trocada!r}")
         self.assertGreaterEqual(conferidas, len(MODELOS_EM_G))
+
+    def test_fixtures_do_lote_furo_hook_a(self):  # FURO-HOOK-A: só as fixtures do lote (a descrição abre com o nome), para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("FURO-HOOK-A")]
+        self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
 
     def test_t4_nenhum_hook_le_a_linha_fora_de_leituras(self):  # HOOK-COMENTARIO-SHLEX, ADR 0013
         """T4, estrutural: os hooks leem a linha só por `leituras` (`_comum.py`); `comandos` só é chamada por ela e
@@ -1948,6 +2039,89 @@ class Hooks(unittest.TestCase):
         self.assertGreaterEqual(len(casos), len(ACOES_DO_CORPUS) * len(VARIANTES_QUE_O_BASH_IGNORA))
         self.assertLess(duracao, 60, f"oráculo lento: {duracao:.1f} s para {len(casos)} execuções")
 
+
+class CodigoDeSaida(unittest.TestCase):  # PN7-DOLAR-INTERROG (ADR 0011, emenda H1-1)
+    """O `$?` é construção modelada só entre aspas duplas: `$?` × posição na palavra × aspas × lugar × `IFS` posto de
+    qualquer jeito. Entre aspas duplas passa sempre; fora de aspas, o `$?` é recusado, como todo outro `$`, nos lugares
+    da propriedade, que o hook lê por terem marcador crítico; sem marcador crítico o hook lê como na base."""
+    TOKENS = ("$?", "${?}", "$#", "$@", "$1", "$x", "$'r'", '$"r"', "$$?", "$?$x")
+    POSICOES = ("{}", "rc={}", "a{}b", "{}x")
+    ASPAS = {"fora": "{}", "duplas": '"{}"', "simples": "'{}'"}
+    IFS = ("", "IFS=0; ", 'export I"FS"=0; ', "declare I'FS'=0; ", "export I\\FS=0; ", "printf -v IF\\S %s 0; ",
+           'read -r I""FS < f; ', ". ./ifs.sh; ", "declare $(printf I)FS=0; ")
+    LUGARES = ("echo {}", "printf %s {}", "echo {}; git push origin melhoria/x", "git push origin {}",
+               "{} push origin main", "echo {} | sh", "echo {} > f", "printf -v {} x", "printf {} x", "x={}",
+               "echo $(git push origin {})", "git push origin {}; echo ok", "git push origin $(true) echo {}",
+               "git push origin $((0)) echo {}", "git push origin @(x)echo {}", "git push origin >& echo {}",
+               "git push origin 2>& echo {}", "git push origin <& echo {}", "git push origin >| echo {}")
+
+    def test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs(self):
+        _comum, _, parecer = modulos_dos_hooks()
+        vistos = 0
+        for token, posicao, (aspas, molde), ifs, lugar in itertools.product(
+                self.TOKENS, self.POSICOES, self.ASPAS.items(), self.IFS, self.LUGARES):
+            if aspas == "simples" and "'" in token:
+                continue  # `$'r'` não se escreve entre aspas simples
+            comando = lugar.format(molde.format(posicao.format(token)))
+            passa = aspas == "simples" or token == "$?" and aspas == "duplas"
+            with self.subTest(comando=comando, ifs=ifs):
+                vistos += 1
+                linha = f"{ifs}git commit -F - <<'EOF'\nx\nEOF\n{comando}"
+                self.assertEqual(_comum.construcao_nao_modelada(linha) is None, passa, linha)
+                resto = f"{ifs}git commit -F - {_comum.OPERADOR_K}\n{comando}"
+                da_gramatica = not any(s in resto for s in ("\\", "<", ">", "|", "("))
+                self.assertEqual(isinstance(_comum.simples_da_gramatica(resto), list), passa and da_gramatica, resto)
+                self.assertFalse(parecer.heredocs_simples(f"cat <<'EOF'\nx\nEOF\n{ifs}{comando}"))
+        self.assertGreaterEqual(vistos, 5000)
+
+    def test_codigo_fora_de_aspas_recusa_em_todo_lugar(self):
+        """Fora de aspas o `$?` recusa também como argumento de `echo` (DECISÃO DO DONO 2026-10-30, "A"): a fronteira do
+        comando simples não é plana no bash (`$(…)`, extglob `@(x)`, `>&`), e só as aspas duplas impedem a divisão. Vale
+        no domínio de `construcao_nao_modelada`, que o hook só roda com marcador crítico; sem ele lê como na base."""
+        _comum, _, _ = modulos_dos_hooks()
+        for antes in ("", "git push origin x; ", "git push origin $(true) ", "shopt -s extglob nullglob\ngit push @(x)",
+                      "git push origin >& ", "git push origin >| ", "IFS=0; git push origin <& "):
+            for depois, passa in (("echo rc=$?", False), ('echo "rc=$?"', True), ("echo rc=\"$?\"", True)):
+                with self.subTest(linha=antes + depois):
+                    self.assertEqual(_comum.construcao_nao_modelada(antes + depois) is None, passa)
+        k3 = f"git commit -m {_comum.PALAVRA_K3}\necho "
+        self.assertIsInstance(_comum.simples_da_gramatica(k3 + '"rc=$?"'), list)
+        self.assertIsInstance(_comum.simples_da_gramatica("git commit -m x\necho rc=$?"), str)
+        self.assertIsInstance(_comum.simples_da_gramatica('git commit -m x\necho "$$?"'), str)
+
+    def test_ifs_com_digito_divide_o_codigo_fora_de_aspas(self):
+        """O motivo de valer só entre aspas: no bash, `x$?main` vira duas palavras com `IFS=1` e uma só entre aspas."""
+        saida = subprocess.run(["bash", "-c", "IFS=1; false; printf '<%s>' x$?main; false; printf '<%s>' \"x$?main\""],
+                               capture_output=True, text=True, check=False).stdout
+        self.assertEqual(saida, "<x><main><x1main>")
+
+
+class PoolDosFixtures(unittest.TestCase):
+    """O pool de threads dos fixtures e do corpus: uma fonte só (N-CI, C-1), por subprocesso (espera, não CPU)."""
+
+    def test_pool_por_nucleos_e_limites(self):  # AB-8
+        for nucleos, esperado in ((1, 2), (2, 2), (4, 4), (16, 4), (None, 2), (0, 2), (-3, 2), ("x", 2)):
+            with self.subTest(nucleos=nucleos):
+                self.assertEqual(trabalhadores_do_pool(nucleos), esperado)
+
+    def test_pool_le_a_afinidade_e_ignora_o_forge_nproc(self):  # AB-8
+        with mock.patch.dict(os.environ, {"FORGE_NPROC": "64"}):
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1}), \
+                    mock.patch.object(os, "cpu_count", return_value=16):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)
+            with mock.patch.object(os, "sched_getaffinity", create=True, return_value={0, 1, 2, 3, 4, 5}):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 4)
+            with mock.patch.object(os, "sched_getaffinity", create=True, side_effect=OSError), \
+                    mock.patch.object(os, "cpu_count", return_value=8):
+                self.assertEqual(trabalhadores_do_pool(nucleos_do_processo()), 2)  # sem leitura, o piso
+
+    def test_pool_uma_fonte_so(self):  # C-1: nenhum módulo de teste refaz a conta `cpu_count // 2` do pool
+        copias = []
+        for arquivo in sorted(Path(__file__).resolve().parent.glob("*.py")):
+            for n, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), 1):
+                if re.search(r"cpu_count\(\) or 2\) // 2", linha):
+                    copias.append(f"{arquivo.name}:{n}")
+        self.assertEqual([c.split(":")[0] for c in copias], ["apoio_volta_unica.py"], copias)  # só o limite de CPU (C-3)
 
 
 if __name__ == "__main__":

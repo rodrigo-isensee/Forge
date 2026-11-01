@@ -1,0 +1,26 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A1-m1",
+      "guarda": "a leitura do corpo da crase confere a acao sem marcador com cada variante",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        for corpo in conteudos_de_crase(comando, so_os_fechados=True):\n            for p in sorted(vistas, key=str):",
+      "para": "        for corpo in []:\n            for p in sorted(vistas, key=str):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante"
+      ]
+    },
+    {
+      "id": "A1-m2",
+      "guarda": "a leitura da substituicao na atribuicao confere a acao sem marcador com cada variante",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        for p in atribuicoes + palavras:",
+      "para": "        for p in palavras:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_t6_a_leitura_ve_a_acao_sem_marcador_com_cada_variante"
+      ]
+    }
+  ]
+}

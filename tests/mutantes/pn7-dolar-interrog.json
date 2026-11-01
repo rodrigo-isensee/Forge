@@ -1,0 +1,50 @@
+{
+  "pedido": "pn7-dolar-interrog",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D1",
+      "guarda": "a construcao volta a recusar o $? entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and contexto[0] == \"duplas\":",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
+      ]
+    },
+    {
+      "id": "D2",
+      "guarda": "a construcao aceita o $? fora de aspas",
+      "arquivo": "hooks/_comum.py",
+      "de": "elif c == \"$\" and seguinte == \"?\" and contexto[0] == \"duplas\":",
+      "para": "elif c == \"$\" and seguinte == \"?\":",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
+      ]
+    },
+    {
+      "id": "D3",
+      "guarda": "a gramatica volta a recusar o $? entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "resto[i + 1:fim].replace(\"$?\", \"\")",
+      "para": "resto[i + 1:fim]",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
+      ]
+    },
+    {
+      "id": "D4",
+      "guarda": "a gramatica aceita todo $ entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "resto[i + 1:fim].replace(\"$?\", \"\")",
+      "para": "resto[i + 1:fim].replace(\"$\", \"\")",
+      "testes": [
+        "tests.test_hooks.CodigoDeSaida.test_dolar_interrogacao_por_posicao_aspas_lugar_e_ifs",
+        "tests.test_hooks.CodigoDeSaida.test_codigo_fora_de_aspas_recusa_em_todo_lugar"
+      ]
+    }
+  ]
+}

@@ -36,7 +36,7 @@
       "id": "M4",
       "guarda": "PROP-TEMPO-CPU: voltar o limite do corpus a 90 s fixos reprovaria o lote paralelo (CPU somada dos trabalhadores)",
       "arquivo": "tests/apoio_volta_unica.py",
-      "de": "    return 90 * trabalhadores_do_lote()\n",
+      "de": "    return 90 * trabalhadores_do_limite_de_cpu()\n",
       "para": "    return 90\n",
       "testes": [
         "tests.test_medida_cpu.MedidaDeCpuDosTestesDeDesempenho.test_limite_do_corpus_e_90_s_por_trabalhador"
