@@ -2,26 +2,26 @@
 tipo: review
 contrato: 1
 pedido: impl-fechar-c
-branch: melhoria/impl-fechar-c-c2
-commit: 84bc6772ee38a0a49fe090ec25d05d6d31936647
+branch: melhoria/impl-fechar-c-c3
+commit: e8fd8ec3526bdd59d2ff96755cee1c1375bdc914
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-fechar-c (branch c2)
+# Review: impl-fechar-c (branch c3)
 
-Etapa E1.2, revisor de outra instância (D-ETAPAS-INST = A). Diff lido: `234dbe0..84bc677` (2 commits: teste e fragmento).
+Etapa E1.2, revisor de outra instância (D-ETAPAS-INST = A). Diff lido: `234dbe0..e8fd8ec` (2 commits: correção e fragmento).
 
 ## Item entregue
-E2 do pedido, FECHAR-B-REC-REVIEW item 1: o preparo de `Fechar` registra a remoção da sua pasta `fechar-*` como limpeza do próprio teste (`addCleanup` com `ignore_errors`), o que cobre os dois laços que chamam o preparo dentro do subteste e qualquer laço futuro; o módulo novo `tests/test_fechar_tmp.py` roda esses dois testes num processo filho com `TMPDIR` próprio e confere que não sobra `fechar-*`. Bate com o desenho (`fechar-c.md` §2 E2, item 1).
+E3 do pedido, FECHAR-B-REC-REVIEW item 2: o `--dry-run` mostra no passo 1 o sha da branch local (o passo real usa `--ref "$sha_conferido"`, `bin/forge-fechar:620-621`), com marcador "sha não lido" sem branch local, e nos passos 4 e 5 o número do PR lido no passo 3, no lugar do nome da branch; o passo 6 continua por nome, como o script roda. Só texto, leitura local (`git rev-parse`), sem `gh` nem servidor. Bate com o desenho (`fechar-c.md` §2 E2, item 2).
 
 ## M14 (R-REVIEW, agents/tech-lead.md:19)
-Um comportamento (limpeza das pastas temporárias dos testes). 34 linhas (`tests/test_fechar.py` 1, `tests/test_fechar_tmp.py` 33), abaixo de 150. Cumpre.
+Um comportamento (o texto do `--dry-run`). 27 linhas (`bin/forge-fechar` 5+3, `tests/test_fechar.py` 19), abaixo de 150. Cumpre.
 
 ## Checklist
-1. Nem mais nem menos: só teste, nenhuma asserção sai. 3. Legível. 7. Se um dos nomes em `LACOS` mudar, o filho sai com código diferente de 0 e o teste fica vermelho (não passa calado). 9. Commits limpos. 11. A pasta lida é própria e criada vazia; a lista vazia é o resultado certo, e o código 0 do filho prova que os testes rodaram.
+1. Nem mais nem menos. 2. Nenhuma regra muda. 3. Legível; o comentário diz por que o número não aparece. 4. Sem branch local o `rev-parse` falha e cai no marcador (atribuição com `||`, não derruba o script com `set -e`; coberto por teste). 7. Dois casos: sha e número com branch local (sem nenhuma chamada registrada), e o marcador sem ela. 9. Commits limpos.
 
-Ferramentas: módulos `tests/test_fechar*.py` rodados na worktree, sem bytecode: `Ran 203 tests in 109.461s` / `OK (skipped=1)`. `bin/forge-testes --listar` dá suíte completa (`tests/test_fechar.py sem mapa`).
+Ferramentas: módulos `tests/test_fechar*.py` rodados na worktree, sem bytecode: `Ran 204 tests in 108.180s` / `OK (skipped=1)`. Shellcheck: não instalado aqui; fica com o CI, pendência registrada.
 
 ## Achados
 

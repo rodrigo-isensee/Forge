@@ -582,12 +582,14 @@ conferir_base() {
 
 if [ "$seco" = 1 ]; then
   echo "forge-fechar --dry-run: nada será executado."
-  passo 1 "$check pr $pedido --ref $ref --base $base"
+  # Só leitura local: o passo 1 real passa o sha, o número do PR só existe depois do passo 3 (o --dry-run não chama gh nem o servidor).
+  sha_dry="$(git rev-parse --verify -q "refs/heads/$ref^{commit}" 2>/dev/null)" || sha_dry="<sha não lido: a branch local não existe>"
+  passo 1 "$check pr $pedido --ref $sha_dry --base $base"
   passo 2 "git ls-remote origin refs/heads/$ref (igual ao head local de $ref)"
   passo "2b" "git ls-remote origin refs/heads/$alvo (igual a $base; senão, git fetch origin $alvo); se a base andou, git diff --no-renames -z dos dois lados: arquivo em comum para, sem arquivo em comum avisa (só leitura; não roda quando o head já está em $base ou o PR já está MERGED)"
   passo 3 "$gh pr create --base $alvo --head $ref --title '$titulo' (se não houver PR aberto; não abre se o head já está em $base ou já tem PR MERGED)"
-  passo 4 "$gh pr checks $ref (espera até ${espera}s; só pass/skipping passam)"
-  passo 5 "$gh pr view $ref --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
+  passo 4 "$gh pr checks <número do PR, lido no passo 3> (espera até ${espera}s; só pass/skipping passam)"
+  passo 5 "$gh pr view <número do PR, lido no passo 3> --json labels (recusa se o título cita afrouxa-regra ou o item do rótulo está marcado no corpo, e o rótulo não está aplicado; com --esperar-rotulo, espera o rótulo do dono e a catraca verde até o fim de --espera)"
   passo 6 "$gh pr merge $ref $metodo --match-head-commit <head conferido> (base $alvo; recusa base main; PR em rascunho vira pronto; PR já MERGED não repete o merge)"
   [ "$sem_limpar" = 0 ] || echo "--sem-limpar: o passo 7 é pulado; imprime os comandos da limpeza e sai com código 3 depois do merge."
   passo 7 "git worktree remove <worktree de $ref> (prune se o diretório já sumiu); git branch -D $ref (só com o sha mesclado); git push origin --delete $ref (até 3 tentativas, por último); sai com código 3 se algo ficar pendente"
