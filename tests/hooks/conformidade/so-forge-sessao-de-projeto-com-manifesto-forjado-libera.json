@@ -1,0 +1,29 @@
+{
+  "descricao": "Sessão de projeto (externo) com plugin.json forjado na raiz: os caminhos so_forge não valem (C-5 c).",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "env": {
+    "HOME": "{tmp}/home",
+    "CLAUDE_PROJECT_DIR": "{tmp}/proj"
+  },
+  "entrada": {
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{raiz}/.github/x.yml",
+      "content": "x\n"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

@@ -143,7 +143,7 @@ class Brinquedo(unittest.TestCase):
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
         self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
-                        XDG_RUNTIME_DIR=str(self.run_dir), FORGE_TRAVA_ESPERA="20")
+                        XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("CI", None)
         self.env.pop("GITHUB_ACTIONS", None)
