@@ -2202,6 +2202,16 @@ class FerramentaDefasadaNoForge(ap.ForgeFalso):
                 self.assertNotIn(ap.FRASE, r.stdout)
                 self.assertNotIn("a conferência não vale", r.stdout)
 
+    def test_base_com_prefixo_origin_e_conferida_como_a_sem_prefixo(self):  # C4 (FC-VERSAO-BASE-AVISO)
+        self.assertNotIn("versão não conferida", self.check(self.igual, "pr", "p", "--base", "origin/develop").stderr)
+        r = self.check(self.antiga_sem_objeto, "pr", "p", "--base", "origin/develop")
+        self.assertIn(ap.FRASE_NO_FORGE, r.stderr)
+        self.assertNotIn("versão não conferida", r.stderr)
+        for torto in ("origin/origin/develop", "../x", "-c", "develop..main"):  # só um prefixo cai; o resto segue "não conferida", sem traceback
+            with self.subTest(torto):
+                r = self.check(self.igual, "pr", "p", "--base", torto)
+                self.assertNotIn("Traceback", r.stderr)
+
     def test_o_aviso_nao_muda_o_codigo_de_saida(self):
         for nome, args in self.comandos().items():
             with self.subTest(nome):
@@ -4434,9 +4444,9 @@ class RepoDeSeguranca(unittest.TestCase):
         (self.repo / ".forge" / "run").mkdir(parents=True)
         (self.repo / ".forge" / "run" / "autoria.jsonl").write_text("".join(json.dumps(r) + "\n" for r in registros), encoding="utf-8")
 
-    def entrega(self, etapa, *extra):
+    def entrega(self, etapa, *extra, cwd=None):
         r = rodar_fc("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", etapa, *extra,
-                     raiz=self.repo, home=self.tmp / "home")
+                     raiz=self.repo, home=self.tmp / "home", cwd=cwd)
         return r.returncode, r.stdout, r.stderr
 
 
@@ -4568,6 +4578,24 @@ class RepoComOrigem(unittest.TestCase):
     def pr(self, *extra, ref="melhoria/x"):
         r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home)
         return r.returncode, r.stdout, r.stderr
+
+
+class FalhaDoGitNoE4(RepoDeSeguranca):
+    """C3 (FC-E4-FALHA-ABERTA): o git que falha no diff da base não vira "nada a conferir" com rc 0; reprova e deixa tudo à vista."""
+
+    def test_diff_da_base_que_falha_reprova_e_lista_os_arquivos(self):
+        fc = carregar_forge_check()
+        head = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        intervalo = f"{fc.ref_da_base(self.repo, 'develop')}..{head}"
+        real = fc.git
+        falho = lambda raiz, *args, **kw: (128, b"") if "--name-only" in args and intervalo in args else real(raiz, *args, **kw)
+        for etapa in ("pedido-de-merge-ao-dono", "merge-integracao"):
+            with self.subTest(etapa), mock.patch.object(fc, "git", falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+                rc = fc.cmd_entrega(self.repo, str(self.pedido), "melhoria/x", "develop", self.base, etapa, None)
+            self.assertEqual(rc, 1, saida.getvalue())
+            self.assertIn("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", saida.getvalue())
+            self.assertIn('"src/app.txt"', saida.getvalue())
+            self.assertNotIn("sem commit (nada a conferir)", saida.getvalue())
 
 
 class PrAposMergeDaBase(RepoComOrigem):
@@ -4848,6 +4876,51 @@ class EntregasParalelas(RepoDeSeguranca):
         c = self.brief("p1-OUTRO-tech-lead-1.md", pedido="p1-OUTRO")
         self.assertEqual(self.entrega("review", "--brief", a, "--brief", c)[0], 1)
 
+    def test_pedido_do_brief_por_caminho_vale_so_pelo_realpath_do_pedido_conferido(self):  # C1 (C-1 a C-6; A1 a A8)
+        outro, ln = self.tmp / "outro", self.tmp / "ln"
+        outro.mkdir()
+        ln.mkdir()
+        (outro / "p1.md").write_text("x\n", encoding="utf-8")
+        (self.tmp / "p2.md").write_text("x\n", encoding="utf-8")
+        (self.tmp / "p1-REV.md").write_text("x\n", encoding="utf-8")
+        (ln / "p1.md").symlink_to(self.pedido)
+        (ln / "p2.md").symlink_to(self.tmp / "p2.md")
+        ok, outro_sha = self.brief("p1-tech-lead-1.md"), git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+        casos = {"absoluto": (str(self.pedido), {}, 0), "link para o próprio pedido": (str(ln / "p1.md"), {}, 0),
+                 "-REV na pasta do pedido": (str(self.tmp / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
+                 "link para outro pedido": (str(ln / "p2.md"), {}, 1), "-REV noutra pasta": (str(outro / "p1-REV.md"), {}, 1),
+                 "~usuario": ("~outro/p1.md", {}, 1), "byte NUL": (f"{self.tmp}/a\x00b/p1.md", {}, 1), "caminho certo, outro Base-sha": (str(self.pedido), {"base_sha": outro_sha}, 1)}
+        for nome, (valor, campos, rc_esperado) in casos.items():
+            with self.subTest(nome):
+                (self.repo / "docs" / "briefs" / "p1-x-1.md").write_text(self.cabecalho(**campos).replace("docs/pedidos/p1.md", valor), encoding="utf-8")
+                rc, saida, erro = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-x-1.md")
+                self.assertEqual(rc, rc_esperado, saida)
+                self.assertNotIn("Traceback", erro)
+
+    def test_pedido_do_brief_com_til_e_relativo_so_valem_na_forma_certa(self):  # A4, A9
+        (self.tmp / "home").mkdir()
+        self.pedido = self.tmp / "home" / "p1.md"
+        self.pedido.write_text("# Pedido p1\n", encoding="utf-8")
+        ok = self.brief("p1-tech-lead-1.md")
+        for valor, rc_esperado in (("~/p1.md", 0), (f"~/{self.tmp}/home/p1.md", 0), ("./p1.md", 1), ("../home/p1.md", 1), ("~/outro/p1.md", 1)):
+            with self.subTest(valor):
+                (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("docs/pedidos/p1.md", valor), encoding="utf-8")
+                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.tmp / "home")
+                self.assertEqual(rc, rc_esperado, saida)
+
+    def test_brief_sem_a_linha_pedido_reprova_com_linha_limpa(self):  # A1 (C-4): sem exceção, com veredito
+        ok = self.brief("p1-tech-lead-1.md")
+        (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("Pedido: docs/pedidos/p1.md\n", ""), encoding="utf-8")
+        rc, saida, erro = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md")
+        self.assertEqual(rc, 1, saida + erro)
+        self.assertNotIn("Traceback", erro)
+        self.assertIn("escopo: união de briefs de entregas diferentes docs/briefs/p1-y-1.md", saida)
+
+    def test_til_de_outro_usuario_nunca_expande(self):  # A5: base de contas trocada por um dublê
+        mod = carregar_forge_check()
+        with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.tmp))):
+            self.assertFalse(mod.mesmo_pedido("~outro/p1.md", "x", self.pedido))
+
     def test_brief_de_outra_branch_base_sha_ou_pedido_reprova_a_uniao(self):  # abuso 20
         ok = self.brief("p1-tech-lead-1.md")
         outro_sha = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
@@ -4871,6 +4944,61 @@ class EntregasParalelas(RepoDeSeguranca):
         rc, saida, _ = self.entrega("review")
         self.assertNotIn("brief:", saida)
         self.assertNotIn("união", saida)
+
+
+class CaminhoDoPedido(unittest.TestCase):
+    """C2 (FC-PEDIDO-CAMINHO-DUPLO): argumento com cara de caminho nunca ganha `docs/pedidos/` nem `.md`; a raiz só vale em `docs/pedidos/` (C-8)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="forge-cam-")).resolve()
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.home, self.repo, self.fora = self.tmp / "home", self.tmp / "repo", self.tmp / "fora"
+        for pasta in (self.home / "r" / "docs" / "pedidos", self.repo / "docs" / "pedidos", self.fora):
+            pasta.mkdir(parents=True)
+        for arq in (self.home / "r" / "docs" / "pedidos" / "p.md", self.repo / "docs" / "pedidos" / "p.md", self.repo / "README.md", self.repo / "solto.md", self.fora / "x.md"):
+            arq.write_text("# x\n", encoding="utf-8")
+        self.mod = carregar_forge_check()
+        for parte in (mock.patch.object(self.mod, "RAIZES_DE_BRIEF", ()), mock.patch.dict(os.environ, {"HOME": str(self.home)})):
+            parte.start()
+            self.addCleanup(parte.stop)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.fora)
+
+    def acha(self, pedido):
+        return self.mod.caminho_do_pedido(self.repo, pedido)
+
+    def test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo(self):
+        self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
+        self.assertEqual(self.acha("docs/pedidos/p.md"), self.repo / "docs" / "pedidos" / "p.md")
+        self.assertEqual(self.acha("p"), self.repo / "docs" / "pedidos" / "p.md")  # o id segue como sempre
+        os.chdir(self.home / "r"); self.assertEqual(self.acha("docs/pedidos/p.md"), Path("docs/pedidos/p.md"))  # existe no cwd e na raiz: o cwd vence (M3)
+
+    def test_caminho_que_nao_existe_volta_como_foi_dado(self):
+        for dado in (str(self.tmp / "nada" / "x.md"), "~/nada/x.md"):
+            with self.subTest(dado):
+                achado = str(self.acha(dado))
+                self.assertNotIn(".md.md", achado)
+                self.assertNotIn("docs/pedidos/docs/pedidos", achado)
+
+    def test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande(self):  # B1 a B4
+        (self.repo / "docs" / "pedidos" / "ln.md").symlink_to(self.fora / "x.md")
+        with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.home))):
+            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md"):
+                with self.subTest(dado):
+                    self.assertEqual(self.acha(dado), Path(dado))
+
+    def test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem(self):  # A1 do QA
+        brief = self.tmp / "brief"
+        (brief / "docs" / "pedidos").mkdir(parents=True)
+        (brief / "docs" / "pedidos" / "so2.md").write_text("# x\n", encoding="utf-8")
+        with mock.patch.object(self.mod, "RAIZES_DE_BRIEF", (brief,)):
+            self.assertEqual(self.acha("docs/pedidos/so2.md"), brief / "docs" / "pedidos" / "so2.md")
+
+    def test_pedido_absoluto_inexistente_com_quebra_de_linha_sai_numa_linha_com_rc_2(self):  # B5
+        r = rodar_fc("entrega", f"{self.tmp}/nada\nescopo: ok.md", "--branch", "x", "--base", "develop", "--base-sha", "0" * 40, "--etapa", "codigo",
+                     raiz=self.repo, home=self.home)
+        self.assertEqual(r.returncode, 2, r.stdout)
+        self.assertEqual(len(r.stdout.splitlines()), 1, r.stdout)
 
 
 class CustoPorPedido(Raiz):

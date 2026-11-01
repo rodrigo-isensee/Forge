@@ -1,0 +1,26 @@
+{
+  "descricao": "HOME é um link simbólico: o destino em ~/ pelo caminho real segue barrado (realpath do home, C-3).",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "links": {
+    "../homelink": "{tmp}/home"
+  },
+  "env": {
+    "HOME": "{tmp}/homelink"
+  },
+  "entrada": {
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "tool_name": "Write",
+    "tool_input": {
+      "file_path": "{tmp}/home/.claude.json",
+      "content": "x"
+    },
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "~/.claude.json"
+  }
+}

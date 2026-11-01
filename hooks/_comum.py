@@ -819,14 +819,14 @@ def tirar_heredocs(comando, com_gravado=False):
         no_resto[ini] = tamanho  # onde o operador fica na linha sem os corpos (a soma, sem reler a saída)
         saida.append(troca)
         tamanho += len(troca)
-        marcada.append(f" {MARCA}{ini}__ " if troca else "")
+        marcada.append(f" {marca(ini)} " if troca else "")
         inicio = fim
     saida.append(comando[inicio:])
     marcada.append(comando[inicio:])
     resto, marcada = "".join(saida), "".join(marcada)
-    lidas = leituras(marcada, com_sinal=True) if corpos else None
+    lidas = leituras(marcada, com_sinal=True, sem_marcas=resto) if corpos else None
     donos = DonosDosHeredocs(resto, lidas) if corpos else None  # o que serve a todos, lido uma vez por texto
-    lidos = [(donos.dono(no_resto[operador], f"{MARCA}{operador}__"), corpo) for operador, corpo in corpos]
+    lidos = [(donos.dono(no_resto[operador], marca(operador)), corpo) for operador, corpo in corpos]
     return (resto, lidos, donos and donos.gravado_e_rodado) if com_gravado else (resto, lidos)
 
 
@@ -841,8 +841,18 @@ def continua_na_proxima(linha):
 
 # No lugar de cada operador, com o número dele e `__`, na linha sem os corpos (`DonosDosHeredocs`): uma palavra comum,
 # que a gramática G lê como as outras (um caractere de controle mudaria a prova do `#` seguinte). A mesma palavra
-# escrita na linha só junta mais texto ao dono.
-MARCA = "__forge_heredoc_"
+# escrita na linha só junta mais texto ao dono. Curta (heredoc-rapido, passo 2): a linha marcada é lida inteira, e
+# cada caractere da marca pesa nessa leitura (3000 heredocs: 112 para 76 mil caracteres). Fonte única dos usos: `marca`
+# escreve, `MARCAS` procura.
+MARCA = "__fh"
+MARCAS = re.compile(MARCA + r"\d+__")
+
+
+def marca(operador):
+    """A marca do heredoc cujo operador está na posição `operador` do texto."""
+    return f"{MARCA}{operador}__"
+
+
 # Palavras de comando composto: a leitura por pipeline não as modela (o `;` de `{ read; bash; }` não separa quem lê o
 # corpo), e uma delas em qualquer palavra da linha, entre aspas ou não, faz o dono ser o comando lógico inteiro.
 COMPOSTOS = frozenset({"{", "}", "if", "then", "elif", "else", "fi", "case", "esac", "for", "select", "while", "until",
@@ -945,7 +955,7 @@ class DonosDosHeredocs:
                 for opaco in OPACO.values():
                     palavras = [p.replace(opaco, "_") for p in palavras]
                 linhas.append(" ".join(map(citar, palavras)))
-            sozinho = re.sub(MARCA + r"\d+__", " ", "\n".join(linhas))
+            sozinho = MARCAS.sub(" ", "\n".join(linhas))
         # os programas do texto vêm antes: uma aspa sem par no dono não os esconde
         texto = Dono("\n".join([*(comando for _, comando in self.fora_do_texto), sozinho]))
         if self.fora_do_texto and corpo_so_lido(sozinho):
@@ -1240,7 +1250,7 @@ def indice_das_partes(partes):
     opaco = any(sinal in ("(", ")") or COMPOSTOS.intersection(palavras) for palavras, _, _, sinal in partes)
     onde, mesmo, pipeline, abertos = {}, {}, {}, {}
     for i, (palavras, destinos, sub, _) in enumerate(partes):
-        for marca in dict.fromkeys(m for p in palavras for m in re.findall(MARCA + r"\d+__", p)):
+        for marca in dict.fromkeys(m for p in palavras for m in MARCAS.findall(p)):
             onde.setdefault(marca, []).append(i)
         if not (palavras or destinos):
             continue
@@ -1716,12 +1726,14 @@ def excede_o_teto(texto):
 Leituras = collections.namedtuple("Leituras", "partes ilegivel")
 
 
-def leituras(comando, com_sinal=False):
+def leituras(comando, com_sinal=False, sem_marcas=None):
     """ADR 0013: a única porta dos hooks para ler a linha. `partes`: a leitura fiel (`comandos`) e, se a linha tem `#`
     e a leitura antiga (a da develop, `legado`) fecha e dá outro resultado, também ela (I2: o que a develop recusava
     continua recusado). `ilegivel`: a leitura fiel não fecha (aspas sem par, também no corpo de uma crase que fecha) ou
     um comentário que o hook não prova levaria aspa ou `\\` para outra linha (`comentario_ambiguo`); quem chama
-    decide, fechado onde é controle. `com_sinal`: o de `comandos` (o sinal que encerra cada comando)."""
+    decide, fechado onde é controle. `com_sinal`: o de `comandos` (o sinal que encerra cada comando). `sem_marcas`: o
+    `comando` sem as marcas de `tirar_heredocs` (palavras `[A-Za-z0-9_]` depois de um espaço, sem aspa, `\\` nem `$`,
+    não mudam a `aspa_escapada`), cuja `palavras_do_texto` o chamador lê de qualquer jeito: lida no lugar da marcada."""
     def corpos_se_leem(texto, nivel):
         """CRASE-ASPA-HOOK: o bash fecha a crase antes da aspa (`` x=`'`; L; y=`'` ``), o `shlex` não; a aspa sem par
         de um corpo casaria com a de outro e o comando do meio viraria texto. Cada corpo (e os de dentro, até
@@ -1737,7 +1749,8 @@ def leituras(comando, com_sinal=False):
 
     try:
         fiel = (None if comentario_ambiguo(comando) or not corpos_se_leem(comando, 1)
-                or palavras_do_texto(comando).aspa_escapada  # HOOK-ANSI-C: o `shlex` não fecha `$'…\'…'` como o bash
+                # HOOK-ANSI-C: o `shlex` não fecha `$'…\'…'` como o bash
+                or palavras_do_texto(comando if sem_marcas is None else sem_marcas).aspa_escapada
                 else list(comandos(comando, com_sinal=com_sinal)))
     except ValueError:
         fiel = None

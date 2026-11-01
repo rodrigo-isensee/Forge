@@ -66,6 +66,20 @@ def interprete(programa):
     return bool(INTERPRETES.match(programa)) or programa in AWKS
 
 
+def args_do_forge_check(prog, args):
+    """A4: os argumentos do `forge-check`, se o comando simples o roda (direto, por caminho, por interpretador ou com o nome
+    do programa opaco: `$(command -v forge-check)`, que só conta com a forma do `anotar` ou do `--gravar`); senão None."""
+    if prog == "forge-check":
+        return args
+    if INTERPRETES.match(prog):
+        # a opção do interpretador pode levar valor (`-X utf8`, `-W ignore`): procura a palavra, não a 1.ª sem `-`
+        achados = [i for i, a in enumerate(args) if Path(a).name == "forge-check"]
+        return args[achados[0] + 1:] if achados else None
+    opaco = re.search(r"[`$]", prog) and ("anotar" in args and any(abreviacao_de(a, ("--tipo",)) for a in args)
+                                           or any(abreviacao_de(a, ("--gravar",)) for a in args))
+    return args if opaco else None
+
+
 # Opções longas do sed e do gawk: o getopt_long do GNU aceita qualquer prefixo não ambíguo (`--expr`, `--i`, `--inc`).
 SED_LONGAS = ("binary", "debug", "expression", "file", "follow-symlinks", "help", "in-place", "line-length", "null-data",
               "zero-terminated", "posix", "quiet", "regexp-extended", "sandbox", "separate", "silent", "unbuffered", "version")
@@ -117,16 +131,21 @@ CONTRIB_GRAPHQL = re.compile(r"closePullRequest|reopenPullRequest|updatePullRequ
                              r"removeLabelsFromLabelable|createIssue|createLabel|updateLabel|deleteLabel|updateIssue|closeIssue|"
                              r"markPullRequestReadyForReview|convertPullRequestToDraft", re.I)
 ROTULO_PROTEGIDO = "afrouxa-regra"  # R-CONTRIB: só a conta do dono do Forge o aplica
+ROTULO_COM_VALOR = ("--add-label", "--label", "-l", "--remove-label")  # a opção que acaba a linha leva o valor do xargs
 # Mutações do GraphQL que aplicam, criam ou renomeiam rótulo: o ID não traz o nome, então toda ocorrência conta
 GRAPHQL_DE_ROTULO = re.compile(r"addLabelsToLabelable|labelIds|createLabel|updateLabel", re.I)
 CITA_ROTULO = re.compile(rf"{ROTULO_PROTEGIDO}|{GRAPHQL_DE_ROTULO.pattern}", re.I)  # falha fechado pelo texto
 TIMEOUT_DA_CONTA = 5  # s; abaixo do timeout do hook em hooks.json (10 s), senão o Claude Code o mata e o comando segue
-CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)", re.I)
+# FURO-HOOK-A, A3: a configuração que troca a estratégia ou o resultado do merge (R-REVIEW): a chave vale em `git config` e em `-c`
+CONFIG_DO_MERGE = re.compile(r"^(branch\..+\.mergeoptions|pull\.(twohead|octopus)|merge\..+\.driver)(=|$)", re.I)
+CONFIG_PROTEGIDA = re.compile(r"^(user\.|core\.|commit\.gpgsign$|include|alias\.)|" + CONFIG_DO_MERGE.pattern[1:], re.I)
+MERGE_OPCOES_QUE_MUDAM_O_RESULTADO = ("--strategy", "--strategy-option", "--squash", "--no-commit")  # e `-s`, `-X`
 CONFIG_LEITURA = {"--get", "--get-all", "--get-regexp", "--get-urlmatch", "--list", "-l", "--show-origin", "--show-scope",
                   "--show-names", "--name-only", "--help", "-h"}
 CONFIG_ESCRITA = {"--unset", "--unset-all", "--add", "--replace-all", "--rename-section", "--remove-section", "-e",
                   "--edit"}
-CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default"}
+CONFIG_ESCOPO = {"--local", "--global", "--system", "--worktree"}  # escolhem o arquivo, não são valor
+CONFIG_COM_VALOR = {"-f", "--file", "--blob", "--type", "--default", "--comment", "--value"}
 
 # Travas para atos perigosos (arquitetura do primeiro uso, 2.2 e 2.5). Valem para todo papel e todo perfil; no perfil
 # `iniciante` a recusa e a confirmação trazem a consequência em linguagem simples. Mensagem de uma linha (200 caracteres).
@@ -250,6 +269,10 @@ FORMATO_ASSINATURA = re.compile(r"%[-+ ]?G")
 FORGE_CHECK_GRAVA = ("--gerar-entrada", "--gravar", "--escrever", "--salvar")
 # Nomes que ainda não existem casam só por inteiro: `--destino` do `forge-check brief` é prefixo de `--destino-arquivo`.
 FORGE_CHECK_GRAVA_EXATA = ("--destino-arquivo",)
+# FURO-HOOK-A, A4: o subcomando do `forge-check` que grava fora do papel só de leitura -> a pasta de destino (a política de caminhos
+# decide quem grava lá); o `transcricao anonimizar` grava no 2.º argumento. Os que gravam em caminho livre ficam na 2.ª lista.
+FORGE_CHECK_ESCRITAS = {"anotar": "docs/pedidos", "brief": "docs/briefs"}
+FORGE_CHECK_EM_CAMINHO_LIVRE = {"movimento", "registrar"}
 # `test` no papel só de leitura: só estas, com um caminho (`agents/conferente.md`); o `-v` reavalia o índice como código.
 TESTE_LEITURA = {"-e", "-f", "-d", "-s"}
 DICA_LEITURA = ("use só os comandos de `so_leitura` em hooks/conformidade.json, um por vez ou encadeados com &&, ; e |; "
@@ -348,6 +371,11 @@ def sem_lancadores(palavras):
     return [comando for comando, _ in separar_lancadores(palavras)]
 
 
+def atras_do_xargs(escritas, palavras):
+    """A5: o `xargs` está entre os lançadores antes do comando `palavras`: os argumentos dele vêm da entrada padrão."""
+    return "xargs" in {Path(p).name for p in escritas[: max(0, len(escritas) - len(palavras))]}
+
+
 def exporta(palavras):
     """`export`, `declare -x` e `typeset -x` passam as variáveis aos comandos seguintes."""
     return palavras[:1] == ["export"] or palavras[:1] in (["declare"], ["typeset"]) and any(
@@ -360,6 +388,22 @@ def abreviacao_de(opcao, longas):
     return nome.startswith("--") and len(nome) > 3 and any(o.startswith(nome) for o in longas)
 
 
+def opcao_de_merge_que_muda_o_resultado(args):
+    """A3: a primeira opção do `git merge`/`pull` que troca a estratégia (`-s`, `-X`, também coladas e agrupadas, e as
+    longas, abreviadas como o git aceita), faz `--squash` ou deixa o commit para depois (`--no-commit`); None se não há."""
+    for a in args:
+        if a.startswith("--"):
+            if abreviacao_de(a, MERGE_OPCOES_QUE_MUDAM_O_RESULTADO):
+                return a
+        elif a.startswith("-"):
+            for letra in a[1:]:
+                if letra in "sX":
+                    return a
+                if letra in "mFS":  # o resto do grupo é o valor
+                    break
+    return None
+
+
 class Guarda:
     def __init__(self, hook, politica, papel):
         self.h, self.pol, self.papel = hook, politica, papel
@@ -370,6 +414,8 @@ class Guarda:
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
+        self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
@@ -435,7 +481,9 @@ class Guarda:
 
     def regras_do_forge(self):
         """Os caminhos `so_forge` valem: a raiz tem o manifesto do Forge. Só protege mais, então basta o arquivo."""
-        return self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        if self._regras is None:
+            self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        return self._regras
 
     @staticmethod
     def raiz_git(pasta):
@@ -485,7 +533,9 @@ class Guarda:
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
-        raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        if self._raiz_home is None:
+            self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        raiz, home = self._raiz_home
         pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
@@ -916,6 +966,9 @@ class Guarda:
         elif prog in ENVOLVEDORES or INTERPRETES.match(prog) or prog == "forge" or prog in BINARIOS_DE_ATUALIZACAO:
             self.atualizacao(palavras)
         no_lugar = bool(PERL_OU_RUBY.match(prog)) and edita_no_lugar(args)
+        argumentos_do_forge_check = args_do_forge_check(prog, args)
+        if argumentos_do_forge_check is not None:
+            self.forge_check_grava(argumentos_do_forge_check, pasta)
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
@@ -942,7 +995,7 @@ class Guarda:
         elif prog == "git":
             self.git(palavras, parte, pasta, ramos, self.da_atribuicao(atribuicoes, "GIT_DIR"), atribuicoes)
         elif prog == "gh":
-            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"))
+            self.gh(palavras, parte, pasta, self.da_atribuicao(atribuicoes, "GH_REPO"), atras_do_xargs(originais, palavras))
         elif prog == "claude":
             self.claude(args)
         elif prog in TODOS_OS_ARGUMENTOS or (prog == "sed" and sed_no_lugar(args)):
@@ -973,6 +1026,27 @@ class Guarda:
                     self.barrar("R-CONFORMIDADE", f"ler {nome} expõe segredos",
                                 "peça ao usuário o valor de que precisa (R-DECISAO)")
         return pasta
+
+    def forge_check_grava(self, args, pasta):
+        """A4: o que o `forge-check` grava passa pela política de caminhos do papel, como o Write no mesmo destino (o `anotar`
+        em `docs/pedidos/`, o `brief --gravar` em `docs/briefs/`, a saída do `transcricao anonimizar`), a partir da pasta da
+        sessão e de `~/.forge-contrib`, as duas raízes que o `forge-check` aceita. `--raiz` e `--raiz-pedidos`, antes ou depois
+        do subcomando, só saem do caminho para achar o subcomando: a política não depende do nome do pedido nem da raiz."""
+        livres, pular = [], False
+        for a in args:
+            if pular:
+                pular = False
+            elif abreviacao_de(a, ("--raiz", "--raiz-pedidos")):
+                pular = "=" not in a  # o valor vem na palavra seguinte
+            elif not a.startswith("-"):
+                livres.append(a)
+        sub = next(iter(livres), "")
+        if sub in FORGE_CHECK_ESCRITAS and (sub != "brief" or any(abreviacao_de(a, ("--gravar",)) for a in args)):
+            destinos = [f"{r}/{FORGE_CHECK_ESCRITAS[sub]}/pedido.md" for r in (".", "~/.forge-contrib")]
+        else:
+            destinos = livres[3:4] if sub == "transcricao" and livres[1:2] == ["anonimizar"] else []
+        for destino in destinos:
+            self.checar_escrita(destino, pasta)
 
     def checar_so_leitura(self, palavras, atribuicoes):
         """Papel só de leitura (`so_leitura`): lista branca de comandos, depois da gramática (`gramatica_de_leitura`, que já
@@ -1060,6 +1134,9 @@ class Guarda:
                 pasta_git = self.caminho(pasta, palavras[i + 1])
             elif palavras[i].startswith("--git-dir="):
                 pasta_git = self.caminho(pasta, palavras[i].split("=", 1)[1])
+            if palavras[i] == "-c" and i + 1 < len(palavras) and CONFIG_DO_MERGE.match(palavras[i + 1]):
+                self.barrar("R-REVIEW", f"git -c {palavras[i + 1]} muda como o merge mescla o que o review leu",
+                            "mescle sem estratégia, --squash nem --no-commit")
             i += 2 if palavras[i] in parecer.GIT_COM_VALOR else 1
         sub, args = (palavras[i], palavras[i + 1:]) if i < len(palavras) else (None, [])
         ativacao = sub == "config" and args == ["core.hooksPath", ".githooks"]  # R-CONTRIB: ativar o hook do repositório
@@ -1080,6 +1157,10 @@ class Guarda:
             if atual in INTEGRACAO and not all(b == atual for b, _ in parte[2]):
                 if atual in ("main", "master"):
                     self.barrar("R-MAIN", f"merge na {atual} é do usuário", "abra o PR e peça ao usuário que o mescle")
+                achada = opcao_de_merge_que_muda_o_resultado(args)
+                if achada:  # A3: todo papel; a estratégia, o squash e o no-commit descartam ou mudam o que o review leu
+                    self.barrar("R-REVIEW", f"git {sub} {achada} na {atual} muda o que o review leu",
+                                "mescle sem estratégia, --squash nem --no-commit; resolva o conflito na branch de trabalho")
                 if not self.pode("merge_integracao"):
                     self.barrar("R-CONFORMIDADE", f"merge em {atual} {self.so_de('merge_integracao')} "
                                                   f"(papel: {self.papel})", "peça ao tech-lead")
@@ -1220,20 +1301,29 @@ class Guarda:
     def git_config(self, args):
         """`git config` que grava identidade, `core.*`, assinatura, `include*` ou alias: fora do papel de todos. Numa
         worktree, sem `--worktree` ele grava no `.git/config` comum a todas as cópias (R-CONFORMIDADE)."""
-        if "--worktree" in args or any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
+        if any(a in CONFIG_LEITURA or a.startswith(("--get", "--show-")) for a in args):
             return
-        chaves, pulo = [], False
+        chaves, pulo, subcomando = [], False, False
         for a in args:
             if pulo:
                 pulo = False
+            elif not chaves and not subcomando and a in ("set", "unset"):  # git 2.46: `git config set <chave> <valor>` grava
+                subcomando = True  # as opções dele (`--all`, `--append`, `--comment`) vêm antes da chave e não contam
             elif a in CONFIG_COM_VALOR:
                 pulo = True
-            elif not a.startswith("-"):
+            elif a == "--":  # depois do `--` tudo é chave ou valor, mesmo com `-` na frente (`mergeoptions -- --squash`)
+                chaves += args[args.index("--") + 1:]
+                break
+            elif not a.startswith("-") or (chaves and a not in CONFIG_ESCOPO):  # depois da chave, toda palavra é valor
                 chaves.append(a)
-        grava = len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
-        if grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0]):
-            self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório",
-                        "use --worktree ou deixe ao usuário (R-DECISAO)")
+        grava = subcomando or len(chaves) > 1 or any(a in CONFIG_ESCRITA for a in args)  # só a chave é leitura
+        if not (grava and chaves[:1] and CONFIG_PROTEGIDA.match(chaves[0])):
+            return
+        do_merge = bool(CONFIG_DO_MERGE.match(chaves[0]))
+        if "--worktree" in args and not do_merge:  # as chaves do merge valem em toda worktree
+            return
+        dica = "deixe ao usuário (R-DECISAO)" if do_merge else "use --worktree ou deixe ao usuário (R-DECISAO)"
+        self.barrar("R-CONFORMIDADE", f"git config grava {chaves[0]} na configuração compartilhada do repositório", dica)
 
     def git_push(self, args, pasta, ramos):
         refs = []
@@ -1346,7 +1436,7 @@ class Guarda:
                 saida.append(a.split("=", 1)[1])
         return [r.strip().lower() for v in saida for r in v.split(",")]
 
-    def aplica_afrouxa_regra(self, palavras, pasta):
+    def aplica_afrouxa_regra(self, palavras, pasta, por_xargs=False):
         """True se o comando `gh` aplica (ou pode aplicar) ou tira o rótulo `afrouxa-regra` (`--remove-label` como o `DELETE`), `gh label clone`, ou cria ou renomeia um rótulo com
         esse nome: `gh pr|issue edit|create` com o rótulo, `gh label create|edit` que o cita, `gh api` em
         `issues/<n>[/labels]` ou `labels[/<nome>]` com o nome no texto e a mutação GraphQL de rótulo (o ID do rótulo
@@ -1355,7 +1445,12 @@ class Guarda:
         pos = parecer.posicionais(palavras[1:], GH_COM_VALOR)
         grupo, sub = (pos + [None, None])[:2]
         if grupo in ("pr", "issue") and sub in ("edit", "create"):
-            return ROTULO_PROTEGIDO in self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
+            pedidos = self.rotulos_pedidos(palavras[1:]) + self.rotulos_removidos(palavras[1:])
+            # A5: o valor que o hook não vê (variável, substituição, opção sem valor, entrada do xargs) pode ser o rótulo
+            return (ROTULO_PROTEGIDO in pedidos or any(re.search(r"[`$]", r) for r in pedidos)
+                    or palavras[-1] in ROTULO_COM_VALOR or por_xargs)
+        if grupo == "alias" and sub in ("set", "import"):  # o alias do gh que cita o rótulo aplica sem que o hook o veja
+            return any(CITA_ROTULO.search(a) for a in palavras[3:])
         if grupo == "label" and sub == "clone":  # cria ou sobrescreve rótulos de outro repositório, sem citar o nome
             return True
         if grupo == "label" and sub in ("create", "edit"):
@@ -1365,6 +1460,8 @@ class Guarda:
         args = palavras[2:]
         endpoint = endpoint_normalizado(parecer.endpoint_da_api(args))
         textos, ilegivel = self.textos_da_api(args, pasta)
+        textos = [re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m[1], 16)), t) for t in textos]  # A5: escape JSON
+        ilegivel = ilegivel or any(r"\u" in t for t in textos)  # o que não decodifica conta como ilegível
         junto = urllib.parse.unquote(" ".join(textos)).lower()
         if endpoint.lower() == "graphql":
             return ilegivel or any("mutation" in t and GRAPHQL_DE_ROTULO.search(t) for t in textos)
@@ -1391,13 +1488,16 @@ class Guarda:
             for palavras, _, _ in (parte for partes in lidas.partes for parte in partes):  # ADR 0013: as duas leituras
                 while palavras and palavras[0] in CORPO_DE_LACO:
                     palavras = palavras[1:]
-                for palavras in sem_lancadores(palavras):  # a recusa é a união das leituras possíveis do lançador
+                escritas = palavras
+                for palavras in sem_lancadores(escritas):  # a recusa é a união das leituras possíveis do lançador
                     for p in palavras:
                         if "$(" in p.replace(OPACO["$"], ""):
                             self.rotulo_na_sessao_do_forge(p, pasta, nivel + 1)
                     prog = Path(palavras[0].lstrip("`")).name if palavras else ""
                     if prog == "gh":
-                        self.gh_rotulo(palavras, pasta)
+                        self.gh_rotulo(palavras, pasta, atras_do_xargs(escritas, palavras))
+                    elif prog == "alias" and CITA_ROTULO.search(" ".join(palavras)):  # A5: o alias do shell guarda o rótulo
+                        self.exigir_dono()
                     elif prog in SHELLS:
                         for i, a in enumerate(palavras[1:]):
                             if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
@@ -1418,10 +1518,10 @@ class Guarda:
         if "\\`" in texto:
             self.rotulo_na_sessao_do_forge(texto.replace("\\`", "`"), pasta, nivel)
 
-    def gh_rotulo(self, palavras, pasta):
+    def gh_rotulo(self, palavras, pasta, por_xargs=False):
         """R-CONTRIB: na sessão do Forge, só a conta do dono do Forge aplica o rótulo `afrouxa-regra`; qualquer outra conta,
         ou erro ao ler a conta ou o dono, barra. Os outros rótulos e comandos não mudam."""
-        if not self.aplica_afrouxa_regra(palavras, pasta):
+        if not self.aplica_afrouxa_regra(palavras, pasta, por_xargs):
             return
         self.exigir_dono()
 
@@ -1545,11 +1645,11 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"claude {' '.join(pos[:3])} altera a instalação do Forge",
                         f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
 
-    def gh(self, palavras, parte, pasta, repo_env=None):
+    def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False):
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if self.sessao_forge:
-            self.gh_rotulo(palavras, pasta)
+            self.gh_rotulo(palavras, pasta, por_xargs)
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
