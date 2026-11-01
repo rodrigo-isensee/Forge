@@ -1,6 +1,6 @@
 {
   "name": "forge",
-  "version": "0.30.8",
+  "version": "0.31.0",
   "description": "Forge: fábrica de software com agentes. Jarvis (orquestrador), tech lead, arquiteto, UX, back-end Node, front-end React, QA, devops, segurança e agile coach, com as skills, o processo (discovery, code review, QA obrigatório, Kanban, melhoria contínua) e os modelos para iniciar projetos.",
   "author": {
     "name": "Rodrigo Isensee"
