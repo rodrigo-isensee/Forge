@@ -1885,7 +1885,7 @@ class Hooks(unittest.TestCase):
         self.assertFalse(_comum.corpo_so_lido(novos[-1][0]), "o `| bash` do último dono fica")
         self.assertIn(resto, novos[-1][0], "o largo leva o resto")
         pipe = "".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(400)) + "true"  # segmentos iguais: um texto só
-        self.assertEqual(self._lidos(_comum, pipe), self._donos_da_base(_comum, pipe), "o cache não gasta o teto")
+        self.assertTrue(self._lidos(_comum, pipe) == self._donos_da_base(_comum, pipe), "o cache não gasta o teto")
         longo = "".join(f"cat a{i}{'y' * 40} <<'E' # c\nx\nE\n" for i in range(3000)) + "true"
         self.assertEqual(self._lidos(_comum, longo), "ilegível")
 
