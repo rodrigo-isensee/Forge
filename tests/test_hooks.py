@@ -1821,6 +1821,27 @@ class Hooks(unittest.TestCase):
                 if cpu is not None:  # sem `resource` (Windows) só vale a parede
                     self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
 
+    def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
+        """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra
+        decisão (outra `Guarda`) calcula de novo, sem cache entre elas."""
+        _, conformidade, _ = modulos_dos_hooks()
+        hook = mock.Mock(raiz=RAIZ)
+        manifestos, homes = [], []
+        def manifesto(raiz):
+            manifestos.append(raiz)
+            return True
+        def home():
+            homes.append(1)
+            return Path(os.path.expanduser("~"))
+        with mock.patch.object(conformidade, "tem_manifesto_do_forge", manifesto), \
+                mock.patch.object(conformidade.Path, "home", staticmethod(home)):
+            for _ in range(4):
+                guarda = conformidade.Guarda(hook, conformidade.politica(), "dev")
+                for i in range(50):
+                    guarda.caminho_barrado(RAIZ / f"f{i}")
+        self.assertEqual((len(manifestos), len(homes)), (4, 4), "uma leitura e um home por Guarda, não por destino")
+        self.assertEqual({str(m) for m in manifestos}, {str(RAIZ)})
+
     def corpus_de_recusas(self):
         """As linhas das fixtures de recusa de Bash (código 2) dos hooks que leem a linha, menos as que o bash não aceita
         (`bash -n`: a variante cairia dentro de uma aspa aberta) e as recusas por erro interno (`erros_log`)."""
