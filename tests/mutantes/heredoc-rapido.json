@@ -86,8 +86,8 @@
       "id": "H9",
       "guarda": "raiz/home: o home nao passa pelo realpath (C-3)",
       "arquivo": "hooks/conformidade.py",
-      "de": "Path(os.path.realpath(Path.home()))",
-      "para": "Path(Path.home())",
+      "de": "Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))",
+      "para": "Path(os.path.realpath(self.h.raiz)), Path(Path.home())",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures"
       ]
