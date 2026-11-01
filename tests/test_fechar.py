@@ -115,6 +115,7 @@ CHECK_FALSO = '#!/usr/bin/env bash\necho "forge-check $*" >> "$REGISTRO"\nexit "
 class Fechar(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="fechar-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)  # cada pasta criada aqui (também a do subteste) é apagada no fim do teste
         self.estado = self.tmp / "estado"
         self.estado.mkdir()
         self.registro = self.tmp / "registro"
