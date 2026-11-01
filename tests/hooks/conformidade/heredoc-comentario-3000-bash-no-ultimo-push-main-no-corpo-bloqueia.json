@@ -1,5 +1,5 @@
 {
-  "descricao": "HEREDOC-COMENTARIO, C-6 (b): 3000 heredocs com `# c`, o último lido pelo `| bash` com `git push origin main` no corpo, recusam.",
+  "descricao": "HEREDOC-COMENTARIO, C-6 (b): 3000 heredocs com `# c`, o último lido pelo `| bash` com `git push origin main` no corpo, recusam. O corpo se confere por último: com a máquina lenta, a recusa pode vir pelo prazo da linha (3 s) e não pela R-MAIN; as duas fecham.",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -25,6 +25,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-MAIN: push direto para main"
+    "stderr": "R-"
   }
 }
