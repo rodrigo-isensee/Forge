@@ -4,6 +4,34 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.31.0] - 2026-11-01
+### Alterado
+- CLAUDE.md do Forge: o comando de testes passa a ser .githooks/pre-push --suite
+- A suíte do CI divide o pool de threads dos fixtures por subprocesso (2 a 4, pela afinidade) e os pesos da divisão foram regravados com os 79 módulos (IMPL-N-CI)
+- O resumo do passo do CI traz a duração por unidade, a soma, a maior unidade, o desequilíbrio, os módulos sem peso e os módulos de cada grupo (IMPL-N-CI)
+### Corrigido
+- o hook lê mais depressa a linha com muitos heredocs: marca curta (__fh) e a aspa escapada lida na linha sem marcas, sem mudar o que recusa (heredoc-rapido, passo 2)
+- o hook conformidade lê o manifesto do Forge e resolve a raiz e o home uma vez por decisão, e recusa 3000 heredocs mais rápido, com o mesmo limite de 5 s
+- forge-fechar: pendência por commit sem merge imprime leitura (git log), não comando que apaga, também no --sem-limpar e na remota
+- forge-fechar: os subtestes de fechar não deixam pastas fechar-* no TMPDIR
+- forge-fechar: o --dry-run descreve o sha e o número do PR que os passos usam
+- forge-fechar: a execução da Catraca só vira velha com o rótulo ausente depois de vista (uma leitura do rótulo logo depois dos checks)
+- forge-check: o Pedido do brief vale pelo realpath do próprio pedido (absoluto ou ~/) e caminho_do_pedido não monta caminho duplo (FC-ENTREGA-PEDIDO-CAMINHO, FC-PEDIDO-CAMINHO, FC-PEDIDO-CAMINHO-DUPLO)
+- forge-check: a falha do git no filtro do E4 reprova em vez de esconder o escopo (FC-E4-FALHA-ABERTA)
+- forge-check: --base origin/develop é conferido sem virar refs/remotes/origin/origin/develop (FC-VERSAO-BASE-AVISO)
+- A matriz crítica T6 do teste dos hooks mede a leitura do hook real, sem a rede do marcador.
+- O parecer lê o comando atrás de lançadores (env, timeout, flock, nice, xargs, find -exec), com separar_lancadores.
+- O merge na integração recusa estratégia, squash e no-commit, e a configuração que faz o mesmo.
+- O forge-check só grava onde a política de caminhos deixa, em qualquer papel (anotar, brief --gravar, transcricao anonimizar).
+- O rótulo afrouxa-regra vindo de variável, substituição, xargs, alias ou escape JSON exige o dono.
+- O resumo do passo do CI sai depois do veredito e um erro nele vira "resumo indisponível" sem mudar o código de saída; execução reprovada não vale para o orçamento e módulo sem duração é listado (IMPL-N-CI)
+- pre-push: recusa a subpasta da trava com escrita de grupo ou de outros, e erro na leitura do modo é recusa.
+- pre-push: o erro do --status (subpasta recusada, trava link ou ilegível) sai com 2, não com 1, e aponta o --suite.
+- pre-push: o --status com suíte rodando aponta o --suite.
+- pre-push: a trava e a fila ficam em $HOME/.forge-contrib, dentro e fora do sandbox, sem recuo (as provas ficam onde estavam); todo teste que roda o hook usa HOME temporário. As worktrees abertas só usam a trava comum depois de trazer o hook novo.
+- pre-push: o texto da trava traz o namespace depois do pid.
+- teste do orçamento de heredocs mede a parede só da execução do hook e a CPU dos filhos, sem a montagem do fixture e sem subir o teto de 5,0 s
+
 ## [0.30.8] - 2026-10-31
 ### Adicionado
 - Painel "Aguardando o dono" vira regra (PA-6): complemento na R-DECISAO, vaga na R-WIP, coluna na skill kanban-scrum, seção no topo do modelo de KANBAN.md e frase no Jarvis. Projetos que já existem não recebem a seção, porque o modelo só é copiado pelo forge-init; o Jarvis a cria no topo na primeira espera.
