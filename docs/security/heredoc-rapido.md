@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: heredoc-rapido
 branch: melhoria/heredoc-rapido-p2
-commit: 11a3bdbaac2c6f53b80dcad437bcd3e9fb2fab38
+commit: 3a8c5f064f8dbc483f7ba1dce7b2fc7c3f4e58ef
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-01
@@ -11,6 +11,9 @@ data: 2026-11-01
 # Review de segurança: heredoc-rapido, passo 2
 
 Etapa E1.9. Diff lido: `299f01f..11a3bdb` (changelog, `hooks/_comum.py` +23/-10, `tests/test_hooks.py`, 6 fixtures C-8 e `tests/mutantes/heredoc-rapido-p2.json`; o merge da develop não acrescenta código). Modelo de ameaças: `docs/security/ameacas/heredoc-rapido-passo2.md` (C-1 a C-8, F1 a F9). Substitui o parecer do passo 1 (#417), que veio da develop. Revisor diferente do autor.
+
+## Revalidação em 3a8c5f0
+`forge-check delta` de 11a3bdb a 3a8c5f0 lista só `tests/test_hooks.py:1697-1706` (teste `test_aspa_escapada_e_lida_na_linha_sem_marcas`) e `tests/mutantes/heredoc-rapido-p2.json:44-75` (P5 a P7 com testes); `hooks/` sem diferença (0 arquivos). O teste trava o C-5: com `$'\\''` a linha sai ilegível e o dono é o comando inteiro, e o mutante P5 (`sem_marcas` vazio) o mata. Fecha em parte o A2 (P4 segue equivalente). Veredito mantido, achados A1 e A2 inalterados.
 
 ## Gatilhos
 `controles do Forge` (R-SEGURANCA): `hooks/_comum.py` decide o dono de cada heredoc, e dono menor seria bypass de R-MAIN e R-VERIFY.
