@@ -2,67 +2,47 @@
 tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a5
-commit: 4f0f35c23913f59e111a56b91838dd3d3990029d
+branch: melhoria/impl-furo-hook-a-a4
+commit: 10192e5f4a04d2ff63dae52af40066b58970eb6e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a5 (A5 ROTULO-VARIAVEL)
+# Review: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK), revalidação 2
 
-Escopo: `234dbe0..dc3762c` (base 234dbe0fb90b005450d7c2eb59e6241ea9779155), commits `38d218a` (teste das fixtures do lote), `fc151f4` (correção, com a spec de mutantes) e `dc3762c` (fragmento). Revisor em instância diferente do autor (D-ETAPAS-INST = A).
+Escopo: revalidação por delta do parecer anterior (`e74f5cc`, reprovado sobre `6a15c2a`). Commits novos: `4b67f82` (fixtures das sondas do A1, vermelhas antes da correção) e `ddf8bf3` (correção). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
+
+## Delta lido
+Saída de `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` (intervalo `6a15c2a..ddf8bf3`):
+- `hooks/conformidade.py` +3 -2, linhas 75-77 (ramo do interpretador em `args_do_forge_check`);
+- `tests/hooks/conformidade/fc-anotar-por-interpretador-opcao-w-dev-bloqueia.json` e `fc-anotar-por-interpretador-opcao-x-dev-bloqueia.json`, +20 cada (inteiros).
+
+Já lido, sem mudança desde o parecer anterior: o resto de `234dbe0..6a15c2a` (`forge_check_grava`, o ramo do nome opaco, as 20 fixtures, o teste estrutural, a spec de mutantes, `docs/hooks.md` e o fragmento).
+
+## Revalidação 2 (head 10192e5)
+`forge-check delta --parecer` sobre o intervalo `ddf8bf3..10192e5` lista só: a fixture `fc-anotar-por-interpretador-sem-forge-check-dev-libera.json` (+19, inteira, contraprova: `python3 anotar ...` sem forge-check sai 0) e `tests/mutantes/impl-furo-hook-a-a4.json` (spec: trechos `de`/`para` realinhados à correção do A1 e o mutante `A4-m14`). Lidos os dois; o JSON da spec é válido. `git diff ddf8bf3 HEAD -- hooks bin tests/test_hooks.py` vazio: código de produção sem mudança (o `10192e5` e o `c83dd9d` só trazem pareceres de QA e segurança, já fora do delta). `tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no head: `Ran 1 test`, `OK`. M14: 61 linhas de código e teste, cumpre. Já lido: o resto de `234dbe0..ddf8bf3`, como acima.
 
 ## Item entregue
-E5, item A5 ROTULO-VARIAVEL do pedido, pelo desenho §2.7. `aplica_afrouxa_regra` passa a exigir o dono nestes casos:
-- valor de rótulo com `$` ou crase;
-- opção de rótulo no fim da linha;
-- `xargs` antes do `gh` com rótulo pedido;
-- `gh alias set|import` e `alias` do shell que citam o rótulo;
-- `\uXXXX` decodificado no `gh api`, com o resto contando como ilegível.
-
-São 16 fixtures, com 3 contraprovas que liberam e R7 e R8 como regressão. Há 9 mutantes na spec, e o `docs/hooks.md` foi atualizado.
+E4 do pedido, item A4 FC-SUBCOMANDO-HOOK (desenho §2.3), sem mudança de escopo na volta.
 
 ## M14
-Linhas que contam: `hooks/conformidade.py` 25+9 e `tests/test_hooks.py` 5, num total de 39. Ficam fora as fixtures, a spec, o `.md` e o `changelog.d/`. São 39 linhas, abaixo de 150. Há uma classe em `hooks/` (o rótulo que o hook não vê exige o dono), com corpus próprio, e nenhum caminho de `PROTEGIDOS`. Cumpre.
+`git diff --numstat --no-renames 234dbe0..ddf8bf3`: `hooks/conformidade.py` 42 e `tests/test_hooks.py` 19, total 61, abaixo de 150. Fixtures, spec, `.md` e `changelog.d/` ficam fora. Uma classe em `hooks/` (o que o `forge-check` grava passa pela política de caminhos), com corpus próprio; nenhum caminho de `PROTEGIDOS`. Cumpre.
 
 ## Conferido
-Sondas pelo hook real no HEAD revisado, com o fixture `conformidade/rotulo-variavel-por-xargs-bloqueia.json` como modelo (sessão do Forge, conta que não é a do dono):
-- `echo afrouxa-regra | xargs gh pr edit 1 --add-label` sai 2;
-- `echo afrouxa-regra | xargs gh pr edit 1 --add-label bug` sai 2;
-- `echo --add-label afrouxa-regra | xargs gh pr edit 1` sai **0**;
-- `printf "%s\n" 1 --add-label afrouxa-regra | xargs gh pr edit` sai **0**;
-- `cat r.txt | xargs gh pr edit 1` sai **0**.
+`python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no `ddf8bf3`: `Ran 1 test`, `OK`.
 
-No bash, o `xargs` junta a entrada aos argumentos, e o `gh` recebe `--add-label afrouxa-regra`. Por isso o rótulo passa sem o dono quando a opção vem da entrada padrão. O desenho §2.7(b) conta como pode aplicar todo comando que estava atrás de `xargs`. A implementação só conta se já houver rótulo pedido na linha (achado A1).
+A1 anterior, pelo hook real no `ddf8bf3` (modelo: `fc-anotar-por-interpretador-opcao-x-dev-bloqueia.json`, papel `forge:node-backend`): saem 2 `python3 -X utf8 bin/forge-check anotar ...`, `python3 -W ignore ...`, `python3 -u -X dev -W ignore ./bin/forge-check anotar ...`, `python3 -Xutf8 ...`, `env python3 -X utf8 ...` e `python3 -I ...`. Saem 0, como devem: `python3 -X utf8 bin/forge-check pr p1` e `... docs`. A1 fechado.
 
-Também conferido:
-- R-NEUTRO e R-CUSTO: nada a apontar. Não há shell tocado. O Forge não tem `docs/engineering/praticas.md`.
-- Commits em Conventional Commits, com os trailers.
+A correção procura a palavra cujo nome é `forge-check` entre os argumentos do interpretador. Um `forge-check` que apareça como argumento de outro script (`python3 x.py bin/forge-check anotar`) passa a ser lido como o `forge-check`: falha fechada, sem furo novo.
 
-## Revalidação (volta 1, 2026-10-31)
-Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `dc3762cd5d9caf6f339d76864cb9196a26ae3ae1..caae6a663ca509a07ea3ff0e015fa316dd2fc7f0`. O delta lido:
-- `hooks/conformidade.py:1367`, +1 -1: `por_xargs and bool(pedidos)` passou a `por_xargs`;
-- as fixtures novas `rotulo-variavel-por-xargs-echo-bloqueia.json`, `-printf-` e `-cat-` (1-29 cada), com `codigo` 2 e conta que não é a do dono. São as três sondas do A1 da rodada anterior.
+Também conferido: R-NEUTRO e R-CUSTO sem nada a apontar; não há shell tocado; o Forge não tem `docs/engineering/praticas.md`, então não há regra de leitura nem de ferramenta a citar; commits em Conventional Commits, com os trailers, e o teste vermelho veio antes da correção.
 
-O resto ficou como "já lido": a revisão de `dc3762c` acima.
-
-`python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no HEAD `caae6a6`: `Ran 1 test`, `OK`.
-
-Sondas pelo hook real no HEAD `caae6a6`, com o mesmo modelo de antes:
-- saem 2: `echo --add-label afrouxa-regra | xargs gh pr edit 1`, `printf "%s\n" 1 --add-label afrouxa-regra | xargs gh pr edit`, `cat r.txt | xargs gh pr edit 1`, `echo 1 | xargs gh issue edit` e `echo x | xargs -I{} gh pr create --title {}`;
-- saem 0, como devem: `echo 1 | xargs gh pr view` e `gh pr edit 1 --title x`.
-
-A M14 segue cumprida: `hooks/conformidade.py` continua com 25+9 linhas, e o total da branch, com 39.
-
-## Revalidação (volta 2, 2026-10-31)
-Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `caae6a663ca509a07ea3ff0e015fa316dd2fc7f0..4f0f35c23913f59e111a56b91838dd3d3990029d`. O delta lido:
-- `tests/mutantes/impl-furo-hook-a-a5.json:25-26`, +2 -2: o mutante A5-m3 passou a mirar a linha `hooks/conformidade.py:1367` como ela está (`or palavras[-1] in ROTULO_COM_VALOR or por_xargs)` para `... or False)`). O trecho `de` existe na linha 1367 do HEAD, e o teste apontado é o das fixtures do lote.
-
-O resto ficou como "já lido": o código de produção, as fixtures e o review anterior. Os pareceres de QA e de segurança que entraram no intervalo não são código e não foram relidos aqui. Nenhum arquivo de produção mudou desde `caae6a6`.
-
-M14: cumprida. Contam `hooks/conformidade.py` 25+9 e `tests/test_hooks.py` 5, total de 39 linhas, abaixo de 150, com uma classe em `hooks/` e nenhum caminho de `PROTEGIDOS`.
+## Achado anterior fechado
+O A1 do parecer anterior (hooks/conformidade.py:75, opção do interpretador com valor) está fechado e sai do bloco: as duas sondas saem 2 no `ddf8bf3`, com fixture cada. A2 e A3 seguem sem mudança e não devolvem.
 
 ## Achados
+- A2 (recomendado) hooks/conformidade.py:78 · com nome opaco, `--t decisao` sai 0: o argparse aceita prefixo de uma letra e `abreviacao_de` exige mais de 3 caracteres; conte `anotar` sozinho, ou qualquer prefixo de `--tipo`, como a forma do anotar.
+- A3 (recomendado) docs/hooks.md:41 · o texto diz que vale atrás de lançador, mas `find -exec forge-check anotar` e `xargs forge-check` com o subcomando na entrada saem 0; restrinja o texto aos lançadores lidos e leve a classe ao security-engineer, como cartão.
 
 ## Parecer
-Aprovado no HEAD `4f0f35c`. O achado A1 da rodada anterior (`dc3762c`, reprovada), em `hooks/conformidade.py:1367`, está resolvido. Agora todo `gh pr|issue edit|create` atrás de `xargs` exige o dono, como pede o desenho §2.7(b), e a correção tem fixture. O delta não traz achado novo.
+Aprovado. O A1 está fechado, com fixtures vermelhas antes da correção, e a branch segue entregando o A4 dentro da M14. A2 e A3 ficam como recomendação, que não devolve.

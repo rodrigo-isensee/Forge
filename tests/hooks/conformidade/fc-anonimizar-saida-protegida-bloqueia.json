@@ -1,0 +1,20 @@
+{
+  "descricao": "FURO-HOOK-A, A4: a saída do anonimizar passa pela política de caminhos.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "docs/pedidos/p1.md": "# Pedido p1\n\n## Histórico\n- 2026-10-30: aberto\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "forge-check transcricao anonimizar entrada.jsonl docs/reviews/p1-1.md"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-CONFORMIDADE: "
+  }
+}

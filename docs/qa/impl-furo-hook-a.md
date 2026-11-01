@@ -2,8 +2,8 @@
 tipo: qa
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a5
-commit: 6ddca7a8890c3a153bf00ab4d75962a5a99c78de
+branch: melhoria/impl-furo-hook-a-a4
+commit: 8ece4aba1e244960910f40f340b9ac8643d2cef3
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -13,26 +13,28 @@ bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-31
 ---
-# QA: impl-furo-hook-a, branch a5 (A5 ROTULO-VARIAVEL)
+# QA: impl-furo-hook-a, branch a4 (A4 FC-SUBCOMANDO-HOOK)
 
-Diff lido: 234dbe0..6ddca7a. Item do pedido: E5/A5, `aplica_afrouxa_regra` com o rótulo vindo de variável, substituição, `xargs`, alias ou escape JSON exige o dono (`R-CONTRIB`). Código: `hooks/conformidade.py`, `tests/test_hooks.py` +5, 19 fixtures `rotulo-variavel-*`, spec `tests/mutantes/impl-furo-hook-a-a5.json`, `docs/hooks.md`. M14 (`agents/tech-lead.md:19`): 39 linhas de código e teste, uma classe em `hooks/`. Cumpre.
+Revalidação sobre o head 8ece4ab (parecer anterior: 820043b, reprovado por A1 e A2). Diff total 234dbe0..8ece4ab: `hooks/conformidade.py` +42 (`args_do_forge_check`, `forge_check_grava`, tabelas), `tests/test_hooks.py` +19, 23 fixtures, spec `tests/mutantes/impl-furo-hook-a-a4.json`, `docs/hooks.md`. M14 (`agents/tech-lead.md:19`): 61 linhas de código e teste, uma classe em `hooks/`. Cumpre.
 
-Revalidação sobre o head novo. Delta lido (`forge-check delta`, a6c8952..6ddca7a): só `tests/mutantes/impl-furo-hook-a-a5.json:25-26` (+2 -2), o trecho de A5-m3 passa a `or palavras[-1] in ROTULO_COM_VALOR or por_xargs)` para `... or False)`. Os demais arquivos não mudaram desde o parecer anterior.
+Delta lido (`forge-check delta --parecer`, 820043b..8ece4ab): a fixture nova `fc-anotar-por-interpretador-sem-forge-check-dev-libera.json` (+19) e a spec de mutantes (+41 -15, ids m2, m6, m7 reescritos e m14 novo). Nenhum código de produção mudou no delta.
 
 ## Achados
-- A1 (recomendado) tests/mutantes/impl-furo-hook-a-a5.json:25 · o A1 anterior (A5-m3 inválido, guarda `or por_xargs` sem mutante) foi corrigido em 6ddca7a: A5-m3 morre; nada bloqueante aberto
+- A1 (recomendado) hooks/conformidade.py:77 · `--cobertura` ainda imprime "sem mutante" em :77 (a ferramenta olha a condição `achados`); o mutante A4-m14 existe e morre, e um mutante meu na condição (`if not achados`) também morre. Só a heurística da ferramenta, não é defeito da entrega
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| A5: rótulo por variável, substituição, prefixo, aspas ANSI ou comentário em expansão exige o dono | fixtures `rotulo-variavel-por-variavel`, `-por-substituicao`, `-com-prefixo`, `-aspas-ansi`, `-comentario-em-expansao` (bloqueia) | outro argumento e outro rótulo literal liberam (`-outro-argumento-libera`, `-rotulo-literal-outro-libera`) | passou |
-| A5: opção de rótulo sem valor no fim da linha e `xargs` com qualquer comando antes exigem o dono | fixtures `-opcao-sem-valor`, `-por-xargs`, `-por-xargs-cat`, `-por-xargs-echo`, `-por-xargs-printf`, `-por-xargs-com-valor` | entrada do `xargs` que o hook não vê | passou |
-| A5: `gh alias`, alias do shell e `gh api` com escape JSON exigem o dono | fixtures `-gh-alias`, `-alias-do-shell`, `-api-input`, `-api-escape-json`, `-api-escape-malformado`; `-api-escape-inofensivo-libera` | escape que não decodifica conta como ilegível; escape inofensivo libera | passou |
-| A5: spec de mutantes declarada cobre cada linha de guarda | `bin/forge-mutante tests/mutantes/impl-furo-hook-a-a5.json` | cobertura "declarado, não provado" | passou (rc=0, 9 mutantes mortos) |
+| A4: `forge-check anotar` fora do papel só de leitura não forja a decisão do dono nem a linha conferida | fixtures `fc-anotar-*-dev-bloqueia` (direto, caminho, interpretador, `-X`, `-W`, env, `=`, abreviada, raiz antes do subcomando, opaco); `fc-anotar-jarvis-libera` | todas as formas de chamar; jarvis libera | passou |
+| A4: interpretador sem forge-check na linha não é lido como forge-check | `fc-anotar-por-interpretador-sem-forge-check-dev-libera` | mutante `else args` (A2 anterior) | passou, mutante m14 morreu |
+| A4: `brief --gravar` (também abreviado) e saída do `transcricao anonimizar` seguem a política de caminhos | fixtures `fc-brief-gravar-*`, `fc-anonimizar-saida-*`, `fc-brief-sem-gravar-dev-libera`, `fc-pr-dev-libera`, `fc-sem-subcomando-dev-libera` | só grava com `--gravar`; destino livre libera | passou |
+| A4: todo subcomando que grava está classificado | `test_a4_todo_subcomando_do_forge_check_que_grava_esta_classificado` | piso de 4 subcomandos; prefixo recusado | passou |
+| A4: spec de mutantes cobre cada linha de guarda | `bin/forge-mutante tests/mutantes/impl-furo-hook-a-a4.json` | linhas 72, 74, 76, 77, 78, 80 e as de `forge_check_grava` | passou, rc=0 |
 
 ## Cenários e resultado real
-- Vermelho antes do verde (manual, cópia em `$TMPDIR` com `hooks/conformidade.py` da base e os testes do head): `test_fixtures_do_lote_furo_hook_a` falha nas fixtures de `alias-do-shell`, `api-escape-json`, `api-escape-malformado`, `com-prefixo`, `gh-alias`, `opcao-sem-valor`, `por-substituicao`, `por-variavel`..., FAILED. Verde no head: OK. O `forge-testes --vermelho` sobre a suíte inteira estourou o prazo aqui, sem veredito.
-- Mutação da spec do autor, no head 6ddca7a: `bin/forge-mutante tests/mutantes/impl-furo-hook-a-a5.json` rc=0; `A5-m1 morreu :1366`, `m2 :1367`, `m3 :1367`, `m4 :1368`, `m5 :1379`, `m6 :1380`, `m7 :1415`, `m8 :354`, `m9 :1440`, todos morreram, nenhum inválido nem sobrevivente.
-- `bin/forge-mutante --cobertura --base 234dbe0`: todas as condições mudadas saem `coberta` (354, 1366 com m1 a m3, 1368, 1380, 1415, 1440); conferido contra o diff, a guarda `or por_xargs` de :1367 tem agora mutante declarado.
-- Suíte: `python3 -m unittest tests.test_hooks` 53 testes OK; `scripts/validar-plugin.sh` Validation passed. A suíte completa roda no pre-push do envio.
+- Mutação (head 8ece4ab, rc=0): m1 :72, m2 :76, m3 :78, m4 :1012, m5 :1015, m6 :74, m7 :76, m8 :80, m9 :938, m10 :1005, m11 :1007, m12 :1008, m13 :1009, m14 :77, todos "morreu". Mutante extra do QA em `$TMPDIR` (`if achados else None` para `if not achados else None`): morreu, rc=0.
+- Conferência da lista contra o diff: `--cobertura --base 234dbe0` marca como coberta toda condição mudada, exceto o :77 (ver A1, recomendado).
+- Vermelho antes do verde (do parecer anterior, mantido, código de produção inalterado no delta): com `hooks/conformidade.py` da base e os testes do head, `test_fixtures_do_lote_furo_hook_a` falha em várias fixtures; no head, OK. A fixture nova é contraprova de liberação, provada pelo mutante m14.
+- Suíte: `python3 -m unittest tests.test_hooks` no head: 54 testes, OK (212 s). `scripts/validar-plugin.sh`: Validation passed.
 - Sem interface de usuário: acessibilidade e E2E não se aplicam.
+- Parecer: aprovado; A1 e A2 do parecer anterior estão corrigidos.
