@@ -1694,6 +1694,16 @@ class Hooks(unittest.TestCase):
                 self.assertNotIn(_comum.marca(operador), _comum.COMPOSTOS)
         self.assertEqual(len(_comum.MARCAS.findall(marcada)), 2)
 
+    def test_aspa_escapada_e_lida_na_linha_sem_marcas(self):  # heredoc-rapido, passo 2, C-4 (qa A1, mutante P5)
+        """O `$'…\\'…'` do texto deixa a linha ilegível para o `tirar_heredocs`: o dono é o comando lógico inteiro (com
+        o `|`), não o pipeline que a leitura fiel acharia."""
+        _comum, _, _ = modulos_dos_hooks()
+        corpo = "cat <<'X' | tr a b\ncorpo\nX\n"
+        _, [(sem_aspa, _)] = _comum.tirar_heredocs(corpo + "echo ola ; ls ; ''")
+        _, [(com_aspa, _)] = _comum.tirar_heredocs(corpo + "echo $'\\'' ; ls ; '")
+        self.assertNotIn("|", sem_aspa)  # lida: o dono sai do pipeline, sem o operador
+        self.assertIn("|", com_aspa)  # ilegível: o dono é a linha inteira
+
     def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
         """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
         (shell, `source`, `.`, `eval`, laço, lançador, alias de `git -c`) faz dele comando."""

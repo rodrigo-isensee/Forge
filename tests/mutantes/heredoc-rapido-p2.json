@@ -49,6 +49,7 @@
       "de": "leituras(marcada, com_sinal=True, sem_marcas=resto)",
       "para": "leituras(marcada, com_sinal=True, sem_marcas=\"\")",
       "testes": [
+        "tests.test_hooks.Hooks.test_aspa_escapada_e_lida_na_linha_sem_marcas",
         "tests.test_hooks.Hooks.test_fixtures"
       ]
     },
