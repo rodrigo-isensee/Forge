@@ -2,57 +2,67 @@
 tipo: review
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a3
-commit: 351040ddb778ebba181230484f8272264df899e4
+branch: melhoria/impl-furo-hook-a-a5
+commit: 4f0f35c23913f59e111a56b91838dd3d3990029d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-10-31
 ---
-# Review: impl-furo-hook-a, branch a3 (A3 HOOK-MERGE-FLAGS), revalidação 4
+# Review: impl-furo-hook-a, branch a5 (A5 ROTULO-VARIAVEL)
 
-Escopo: revalidação por delta do parecer anterior (`6a0b80d`, reprovado sobre `1804a43`), depois da volta 3 pelo A1 (`git config set` com opção antes da chave e `--comment` na forma antiga). Commits novos: `8158b0f` (cinco fixtures) e `f732639` (correção). O revisor é uma instância diferente da do autor (D-ETAPAS-INST = A).
-
-## Delta lido
-Saída de `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` (intervalo `1804a43..f732639`):
-- `hooks/conformidade.py` +4 -5, linhas 133, 1252, 1256-1257 e 1264 (`--comment` e `--value` em `CONFIG_COM_VALOR`; o subcomando `set`/`unset` reconhecido dentro do laço, antes de qualquer chave, e não mais tirado de `chaves` depois);
-- `tests/hooks/conformidade/merge-flag-config-comment-valor-bloqueia.json`, `-set-all-`, `-set-append-`, `-set-comment-igual-` e `-set-value-igual-bloqueia.json`, +19 cada (inteiros).
-
-Já lido, sem mudança desde o parecer anterior: o resto de `234dbe0..1804a43` (ramo do merge, `CONFIG_DO_MERGE`, `CONFIG_ESCOPO`, a saída por `--worktree`, as fixtures anteriores, a spec de mutantes, `tests/test_hooks.py`, `docs/hooks.md` e o fragmento). Os commits de parecer (`f21d6d8`, `ca26af5`) não são código.
-
-## Revalidação 4 (head 351040d)
-Escopo: delta `f732639..351040d`, depois do review anterior (`bb78ecd`, aprovado sobre `f732639`). Entraram `dbea044`, `221f8e5`, `044bf31` e `336c43f` (fixtures e mutantes, só `tests/`) e `351040d` (parecer de QA). Instância diferente da do autor (D-ETAPAS-INST = A).
-
-Delta lido (`forge-check delta --parecer docs/reviews/impl-furo-hook-a.md`): cinco fixtures `merge-flag-config-*` com a descrição ajustada (+1 -1 cada), cinco fixtures novas (`depois-dos-tracos-opcao-vira-valor`, `dica-da-chave-do-merge`, `get-com-valor-libera`, `set-value-separado`, `unset-so-a-chave`, todas com a descrição aberta por `FURO-HOOK-A`), `tests/mutantes/impl-furo-hook-a-a3-2.json` (nova, 46 linhas) e `tests/mutantes/impl-furo-hook-a-a3.json` (+67 -7). Já lido, sem mudança: `hooks/conformidade.py`, `tests/test_hooks.py`, `docs/hooks.md` e o fragmento (`git diff --stat f732639 HEAD -- hooks bin` vazio); os pareceres de QA e de segurança não são código.
-
-Achados anteriores: A3 e A4 resolvidos. As descrições das fixtures abrem com `FURO-HOOK-A`, e `bin/forge-mutante --cobertura --base 234dbe0` sai 0 (rc lido em comando próprio): todas as linhas `coberta`, nenhuma "sem mutante" nem inválida. A1 e A2 seguem como cartões ao security-engineer, sem mudança de código.
-
-M14: `git diff --numstat --no-renames origin/develop...HEAD` em código e teste (`hooks/conformidade.py` 45+9, `tests/test_hooks.py` 5) soma 59, abaixo de 150; fixtures, specs, `.md` e fragmento ficam fora; uma classe em `hooks/` com corpus próprio; nenhum caminho de `PROTEGIDOS`. Cumpre.
-
-Parecer deste delta: aprovado; a mudança é só de teste e não enfraquece nenhuma fixture anterior.
+Escopo: `234dbe0..dc3762c` (base 234dbe0fb90b005450d7c2eb59e6241ea9779155), commits `38d218a` (teste das fixtures do lote), `fc151f4` (correção, com a spec de mutantes) e `dc3762c` (fragmento). Revisor em instância diferente do autor (D-ETAPAS-INST = A).
 
 ## Item entregue
-E3 do pedido, item A3 HOOK-MERGE-FLAGS (desenho §2.1), sem mudança de escopo na volta.
+E5, item A5 ROTULO-VARIAVEL do pedido, pelo desenho §2.7. `aplica_afrouxa_regra` passa a exigir o dono nestes casos:
+- valor de rótulo com `$` ou crase;
+- opção de rótulo no fim da linha;
+- `xargs` antes do `gh` com rótulo pedido;
+- `gh alias set|import` e `alias` do shell que citam o rótulo;
+- `\uXXXX` decodificado no `gh api`, com o resto contando como ilegível.
+
+São 16 fixtures, com 3 contraprovas que liberam e R7 e R8 como regressão. Há 9 mutantes na spec, e o `docs/hooks.md` foi atualizado.
 
 ## M14
-`git diff --numstat --no-renames 234dbe0...f732639`, só código e teste: `hooks/conformidade.py` 45+9 e `tests/test_hooks.py` 5, total 59, abaixo de 150. Fixtures, spec, `.md` e `changelog.d/` ficam fora. Uma classe em `hooks/` (o merge na integração que muda o que o review leu), com corpus próprio; nenhum caminho de `PROTEGIDOS`. Cumpre.
+Linhas que contam: `hooks/conformidade.py` 25+9 e `tests/test_hooks.py` 5, num total de 39. Ficam fora as fixtures, a spec, o `.md` e o `changelog.d/`. São 39 linhas, abaixo de 150. Há uma classe em `hooks/` (o rótulo que o hook não vê exige o dono), com corpus próprio, e nenhum caminho de `PROTEGIDOS`. Cumpre.
 
 ## Conferido
-`python3 -m unittest tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no `f732639`: `Ran 2 tests in 329.578s`, `OK`.
+Sondas pelo hook real no HEAD revisado, com o fixture `conformidade/rotulo-variavel-por-xargs-bloqueia.json` como modelo (sessão do Forge, conta que não é a do dono):
+- `echo afrouxa-regra | xargs gh pr edit 1 --add-label` sai 2;
+- `echo afrouxa-regra | xargs gh pr edit 1 --add-label bug` sai 2;
+- `echo --add-label afrouxa-regra | xargs gh pr edit 1` sai **0**;
+- `printf "%s\n" 1 --add-label afrouxa-regra | xargs gh pr edit` sai **0**;
+- `cat r.txt | xargs gh pr edit 1` sai **0**.
 
-Sondas pelo hook real no `f732639` (montagem das fixtures do delta, tech-lead, só o comando trocado):
-- Saem 2 com R-CONFORMIDADE, como devem: as sondas do A1 anterior (`set --all`, `--append`, `--comment x`, `--comment=x`, `--value=x`, `--fixed-value --value=x`) e a forma antiga `git config --comment x branch.develop.mergeoptions --squash`; também `set --value x`, `--local set`, `--worktree set --all pull.twohead`, `set --type bool --all merge.x.driver`, `unset --all`, `unset --value=x`, `set -z`, `set --file .git/config`, `set -- <chave> <valor>`, `set --comment x user.name y`. `git config set --all core.hooksPath ...` sai 2 por R-VERIFY.
-- Saem 0, como devem: `git config get <chave do merge>`, `git config <chave do merge>`, `git config --local user.name`, `git config set --worktree user.name y`, `git config --type bool set.x`, `git config branch.develop.description set`, `git config list`.
-- `git config -- set branch.develop.mergeoptions --squash` sai 0 no hook, mas o git 2.55 real recusa (`key does not contain a section: set`, código 2) e nada grava: não é furo.
+No bash, o `xargs` junta a entrada aos argumentos, e o `gh` recebe `--add-label afrouxa-regra`. Por isso o rótulo passa sem o dono quando a opção vem da entrada padrão. O desenho §2.7(b) conta como pode aplicar todo comando que estava atrás de `xargs`. A implementação só conta se já houver rótulo pedido na linha (achado A1).
 
-Ferramenta (`bin/forge-mutante --cobertura --base 234dbe0`, código 1): `A3-m5` tem `de` que não existe mais no código (inválido desde a volta 1) e as condições de `git_config` (1250 a 1271) aparecem "sem mutante". É pendência do autor para o QA, citada no A4; não refeita aqui.
+Também conferido:
+- R-NEUTRO e R-CUSTO: nada a apontar. Não há shell tocado. O Forge não tem `docs/engineering/praticas.md`.
+- Commits em Conventional Commits, com os trailers.
 
-Também conferido: R-NEUTRO e R-CUSTO sem nada a apontar; não há shell tocado; o Forge não tem `docs/engineering/praticas.md`, então não há regra de leitura nem de ferramenta a citar; commits em Conventional Commits, com os trailers, teste antes da correção.
+## Revalidação (volta 1, 2026-10-31)
+Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `dc3762cd5d9caf6f339d76864cb9196a26ae3ae1..caae6a663ca509a07ea3ff0e015fa316dd2fc7f0`. O delta lido:
+- `hooks/conformidade.py:1367`, +1 -1: `por_xargs and bool(pedidos)` passou a `por_xargs`;
+- as fixtures novas `rotulo-variavel-por-xargs-echo-bloqueia.json`, `-printf-` e `-cat-` (1-29 cada), com `codigo` 2 e conta que não é a do dono. São as três sondas do A1 da rodada anterior.
+
+O resto ficou como "já lido": a revisão de `dc3762c` acima.
+
+`python3 -m unittest tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a` no HEAD `caae6a6`: `Ran 1 test`, `OK`.
+
+Sondas pelo hook real no HEAD `caae6a6`, com o mesmo modelo de antes:
+- saem 2: `echo --add-label afrouxa-regra | xargs gh pr edit 1`, `printf "%s\n" 1 --add-label afrouxa-regra | xargs gh pr edit`, `cat r.txt | xargs gh pr edit 1`, `echo 1 | xargs gh issue edit` e `echo x | xargs -I{} gh pr create --title {}`;
+- saem 0, como devem: `echo 1 | xargs gh pr view` e `gh pr edit 1 --title x`.
+
+A M14 segue cumprida: `hooks/conformidade.py` continua com 25+9 linhas, e o total da branch, com 39.
+
+## Revalidação (volta 2, 2026-10-31)
+Rodei `forge-check delta --parecer docs/reviews/impl-furo-hook-a.md` na worktree da a5. Intervalo: `caae6a663ca509a07ea3ff0e015fa316dd2fc7f0..4f0f35c23913f59e111a56b91838dd3d3990029d`. O delta lido:
+- `tests/mutantes/impl-furo-hook-a-a5.json:25-26`, +2 -2: o mutante A5-m3 passou a mirar a linha `hooks/conformidade.py:1367` como ela está (`or palavras[-1] in ROTULO_COM_VALOR or por_xargs)` para `... or False)`). O trecho `de` existe na linha 1367 do HEAD, e o teste apontado é o das fixtures do lote.
+
+O resto ficou como "já lido": o código de produção, as fixtures e o review anterior. Os pareceres de QA e de segurança que entraram no intervalo não são código e não foram relidos aqui. Nenhum arquivo de produção mudou desde `caae6a6`.
+
+M14: cumprida. Contam `hooks/conformidade.py` 25+9 e `tests/test_hooks.py` 5, total de 39 linhas, abaixo de 150, com uma classe em `hooks/` e nenhum caminho de `PROTEGIDOS`.
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:1269 · sem mudança: fora das chaves do merge, `--worktree` ainda libera o `git config` (`core.*`, `user.*`), e sem `extensions.worktreeConfig` o git grava no `.git/config` comum; classe anterior, cartão ao security-engineer.
-- A2 (recomendado) hooks/conformidade.py:132 · sem mudança: depois da chave o git grava `--local`, `--global`, `--system` e `--worktree` como valor; `git config user.name --global` sai 0. Sem efeito no merge; cartão ao security-engineer.
-- A3 (recomendado) tests/hooks/conformidade/merge-flag-config-set-all-bloqueia.json:2 · resolvido na revalidação 4: as fixtures abrem a descrição com `FURO-HOOK-A`.
-- A4 (recomendado) tests/mutantes/impl-furo-hook-a-a3.json:46 · resolvido na revalidação 4: `forge-mutante --cobertura` sai 0.
 
 ## Parecer
-Aprovado. A volta 3 fecha o A1 anterior: o `set`/`unset` é reconhecido antes de qualquer chave, as opções dele não viram chave, e `--comment`/`--value` passam a levar valor também na forma antiga; as sondas do review e da segurança saem 2 e as leituras seguem livres. A1 e A2 seguem como cartões; A3 e A4 não devolvem, mas o A4 deve chegar ao QA resolvido.
+Aprovado no HEAD `4f0f35c`. O achado A1 da rodada anterior (`dc3762c`, reprovada), em `hooks/conformidade.py:1367`, está resolvido. Agora todo `gh pr|issue edit|create` atrás de `xargs` exige o dono, como pede o desenho §2.7(b), e a correção tem fixture. O delta não traz achado novo.

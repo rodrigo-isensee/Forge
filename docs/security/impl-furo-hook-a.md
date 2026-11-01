@@ -2,52 +2,47 @@
 tipo: revisao-seguranca
 contrato: 1
 pedido: impl-furo-hook-a
-branch: melhoria/impl-furo-hook-a-a3
-commit: f732639d904cea5b959e809467952843a8658a41
+branch: melhoria/impl-furo-hook-a-a5
+commit: ecf99c3e60cb11ea3f52ab029327e967619d7053
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-10-31
 ---
-# Review de segurança: impl-furo-hook-a, branch a3 (revalidação da volta 3)
+# Review de segurança: impl-furo-hook-a, branch a5
 
-Etapa E1.3 do pedido `impl-furo-hook-a` (brief `impl-furo-hook-a-security-engineer-4`). Revalidação pelo delta do parecer anterior (`f21d6d8`, que revisou `1804a43`, reprovado com A1 bloqueante). Modelo de ameaças: `~/.forge-contrib/docs/security/ameacas/furo-hook.md`, §4.3. Não sou o autor.
-
-## Delta lido
-`forge-check delta --parecer docs/security/impl-furo-hook-a.md` listou `1804a43..f732639`:
-- `hooks/conformidade.py` +4 -5, nas linhas 133 (`CONFIG_COM_VALOR` ganha `--comment` e `--value`), 1252, 1256-1257 (o `set`/`unset` reconhecido antes de entrar em `chaves`) e 1264 (sai o corte posterior do `set`).
-- Cinco fixtures novas: `merge-flag-config-comment-valor-bloqueia.json`, `merge-flag-config-set-all-bloqueia.json`, `merge-flag-config-set-append-bloqueia.json`, `merge-flag-config-set-comment-igual-bloqueia.json` e `merge-flag-config-set-value-igual-bloqueia.json`.
-
-Como o delta toca um controle do Forge (o hook `conformidade`), reli `git_config` inteira (`hooks/conformidade.py:1247-1272`) e as constantes que ela usa (`:125-133`). O resto da branch fica como já lido nos pareceres anteriores (`0f870fe`, `f21d6d8`).
+Etapa E1.3 do pedido `impl-furo-hook-a` (brief `impl-furo-hook-a-security-engineer-2`). Diff lido: `234dbe0..ecf99c3`, incluindo a volta 1 (`cf5b850`, `caae6a6`). Modelo de ameaças: `~/.forge-contrib/docs/security/ameacas/furo-hook.md`, §4.6. Não sou o autor.
 
 ## Item entregue e M14
-- **Item:** E3, A3 HOOK-MERGE-FLAGS.
-- **M14 (`agents/tech-lead.md:19` na develop):** `git diff --numstat --no-renames 234dbe0..f732639` conta `hooks/conformidade.py` (45+9) e `tests/test_hooks.py` (5): 59 linhas, abaixo de 400 (fixtures, mutantes, `.md` e fragmento ficam fora). Uma classe de comportamento em `hooks/` (merge na integração que muda o resultado revisado), com corpus próprio. **Cumpre.**
+- **Item:** E5, A5 ROTULO-VARIAVEL: `aplica_afrouxa_regra` com o rótulo por variável, substituição, `xargs`, alias e escape JSON.
+- **M14 (decisão M14, `agents/tech-lead.md:19` na develop):** contam `hooks/conformidade.py` (25+9) e `tests/test_hooks.py` (5): 39 linhas, abaixo de 150. As fixtures de `tests/hooks/`, `tests/mutantes/`, `docs/hooks.md`, `changelog.d/` e os pareceres ficam fora. Uma classe de comportamento em `hooks/` (o rótulo que o hook não vê exige o dono), com corpus próprio (19 fixtures `rotulo-variavel-*`). **Cumpre.**
 
 ## Gatilhos
-R-SEGURANCA, controles do Forge: o hook `conformidade`, nos portões R-REVIEW e R-CONFORMIDADE.
+R-SEGURANCA, controles do Forge: o hook `conformidade` no portão R-CONTRIB (o rótulo `afrouxa-regra` só pela conta do dono).
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:1267 · anterior à branch, segue: `git config remove-section core` e `--remove-section core` saem 0 e apagam o core.hooksPath (o pre-push deixa de rodar); a seção sem ponto não casa CONFIG_PROTEGIDA. Cartão novo ao dono, como o N1.
-- A2 (recomendado) hooks/conformidade.py:1250 · segue: `GIT_EDITOR=<script> git config -e|--edit|edit` e as chaves do bash fora da linha crítica gravam sem recusa. Cartão.
+- A1 (recomendado) hooks/conformidade.py:1366 · chaves e glob do bash no rótulo saem 0 fora da conta do dono: `--add-label={afrouxa-regra,bug}` (rótulo literal na linha), `--add-label=afrouxa-regr{a,a}`, `afrouxa-regr?` (com o arquivo criado antes), `gh api … -flabels[]=afrouxa-regr{a,a}`. Cartão.
 
 ## Detalhe dos achados
-Sondas: cada uma monta a fixture `merge-flag-config-set-mergeoptions-bloqueia` pelo `Fixture`/`rodar` da própria worktree, troca só o comando e roda o hook real com o papel tech-lead. Nada rodou contra repositório real, rede ou produção.
+Sondas: cada uma monta a fixture `rotulo-variavel-por-variavel-bloqueia` (sessão do Forge, conta `outra-pessoa`) pelo `Fixture`/`rodar` da própria worktree e roda o hook real. A expansão do bash foi conferida com `printf` local. Nada rodou contra repositório real, rede ou produção.
 
-**A1 anterior (opções do `set`/`unset` antes da chave), corrigido.** Saem 2, com a chave protegida certa na mensagem:
-- as oito sondas do parecer anterior: `set --all branch.develop.mergeoptions --squash`, `set --append pull.twohead ours`, `set --comment=x pull.octopus ours`, `set --value=x core.editor vi`, `set --comment x pull.twohead ours`, `set --type=bool core.bare true`, `set --fixed-value core.editor vi`, `unset --all alias.p`;
-- a forma antiga apontada pelo review: `git config --comment x pull.twohead ours` e `--value x pull.twohead ours`;
-- variações da matriz (posição e combinação): `set --value x core.editor vi`, `--local set …`, `--file .git/config set …`, `set --local --all …`, `set --worktree --all branch.develop.mergeoptions --squash`, `set -f .git/config merge.nos.driver true`, `set --file=… pull.twohead ours`, `set --type bool --all core.bare true`, `set --default x --all core.editor vi`, `set --blob HEAD:x core.editor vi`, `unset --fixed-value --value=x alias.p`, `set -- branch.develop.mergeoptions --squash`, `set --all -- …`, `--comment set pull.twohead ours` e `--type set core.bare true` (o `set` consumido como valor da opção não vira subcomando, e a chave seguinte segue protegida);
-- as do A1 da volta 2: `--worktree branch.develop.mergeoptions --squash` e `branch.develop.mergeoptions -- --squash`.
+**O que a branch fecha:** as 15 fixtures `-bloqueia` do lote (variável, `${A}regra`, `$( )`, aspas ANSI, comentário em expansão, opção sem valor, `xargs` com `echo`, `printf`, `cat` e com valor, `gh alias`, `alias` do shell, escape JSON, escape malformado e `--input`) saem 2. As contraprovas (`--add-label bug`, variável noutro argumento, escape inofensivo e rótulo literal diferente) saem 0. Também saem 2 `-lafrouxa-regra` colado no `pr create` e `AFROUXA-REGRA` em maiúsculas. O A1 da volta anterior (`xargs` sem rótulo na linha) está fechado em `hooks/conformidade.py:1366-1367`, pelo `por_xargs` sozinho. Rodei `test_fixtures_do_lote_furo_hook_a` no HEAD revisado, com `OK`.
 
-Corpus de legítimos, sai 0: `set --all branch.feature/x.merge refs/heads/develop`, `set --comment x branch.feature/x.merge refs/heads/develop`, `set branch.feature/x.merge refs/heads/develop`, `branch.feature/x.merge refs/heads/develop`, `get --all branch.develop.mergeoptions`, `get --comment x branch.develop.mergeoptions`, `list`, `--get core.editor` e `--worktree core.sparseCheckout true`.
+**A1, recomendado.** Evidência: `hooks/conformidade.py:1366` compara o valor do rótulo com o literal e só falha fechado com `$` ou crase no valor. A expansão de chaves e o glob do bash mudam o valor depois do hook. Sondas com saída 0 na conta `outra-pessoa`, cada uma conferida pela expansão do bash:
+- `gh pr edit 1 --add-label={afrouxa-regra,bug}` vira `--add-label=afrouxa-regra --add-label=bug`, com o texto do rótulo literal na linha;
+- `gh pr edit 1 --add-label=afrouxa-regr{a,a}`;
+- `gh pr edit 1 {--add-label=afrouxa-regra,--add-label=bug}`;
+- `gh pr create -t x -b y --label={afrouxa-regra,bug}`;
+- `gh pr edit 1 --remove-label=afrouxa-regr{a,a}`;
+- `gh api repos/o/r/issues/1/labels -flabels[]=afrouxa-regr{a,a}` e `--raw-field=labels[]=afrouxa-regr{a,a}`;
+- `gh pr edit 1 --add-label=afrouxa-regr?`, `afrouxa-regr[a]` e `afrouxa-regr*`, que só aplicam o rótulo se antes se criar um arquivo `afrouxa-regra` na pasta.
 
-A guarda nova (`:1256`) só reconhece `set`/`unset` enquanto nenhuma chave foi vista, e o `pulo` vem antes dela: um `set` que é valor de `--comment`/`--type`/`--file` não liga o subcomando. Incluir `--comment` e `--value` em `CONFIG_COM_VALOR` só faz a palavra seguinte deixar de ser chave; na forma antiga com só a chave (`--comment x <chave>`) a leitura segue liberada, como antes. Sem regressão no corpus.
+Na base `234dbe0`, `--add-label={afrouxa-regra,bug}` também sai 0: a branch não abre isso. Mas é a mesma família que ela fecha (o valor que o shell muda depois do hook). Caminho: só deliberado. Uma sessão com outra conta do `gh`, por injeção, monta o rótulo com chaves ou glob. Nesta máquina os agentes usam a conta do dono, então o controle só pesa para sessões de outra conta. A mesma intenção também passa por um interpretador que monta o texto (N6, limite aceito). Por isso não bloqueia. Severidade baixa. Correção mínima (cartão):
+1. Em `gh pr|issue edit|create`, `CITA_ROTULO` sobre o texto da linha inteira conta como "pode aplicar", o que fecha a forma com o rótulo literal e falha fechado pelo texto, como o resto do R-CONTRIB.
+2. Toda palavra com `{` seguido de `,` ou `..` antes do `}`, ou com `*`, `?` ou `[` fora de aspas, num `gh pr|issue edit|create` ou num `gh api` de rótulo, também conta como "pode aplicar". O falso positivo atinge só contas que não são do dono, e o contorno é escrever o valor literal ou entre aspas (§2.7(d) do desenho).
 
-**A1, recomendado (era o A2; anterior à branch, fora das chaves do merge).** Sem mudança: o delta não tocou `CONFIG_PROTEGIDA` nem as formas de seção. Correção mínima do parecer anterior, mantida: `remove-section` e `rename-section`, nas duas formas, recusam quando o nome da seção (ou o novo nome) é `core`, `user`, `alias`, `include*`, `commit`, `pull`, `merge.<d>` ou `branch.<b>`. Severidade média, caminho só deliberado. Esforço P. Dono: tech-lead, por cartão novo ao dono junto do N1.
+Fixtures `-bloqueia` com as sondas acima e contraprova `gh pr edit 1 --add-label bug` · 0. Esforço P. Dono: tech-lead.
 
-**A2, recomendado (era o A3).** Sem mudança: o delta não tocou `-e`/`--edit`/`edit` nem o marcador `CRITICO`. Cartão, dono tech-lead.
-
-Dimensão para a matriz do modelo (§8), já registrada no parecer anterior e agora coberta por fixture: **Posição, opção do subcomando antes da chave**. Segue aberta, nos cartões: **Mecanismo, seção inteira** (`remove-section`, `rename-section`).
+Dimensão nova para a matriz do modelo (§8, Mecanismo): **expansão de chaves e glob do bash** em linha sem a rede da ADR 0011 (fora do projeto ou sem marcador). Ela aparece também nas branches a2, a3 e a4. Proponho um cartão único para as quatro.
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito. Ferramentas: `forge-check delta`, leitura do delta e de `git_config` inteira, sondas locais pelo harness de fixtures. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o delta não traz segredo, dependência nem workflow).
+Nenhum risco aceito. Ferramentas: leitura do diff, sondas locais pelo harness de fixtures, `printf` local para a expansão e execução das fixtures do lote. `gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o diff não traz segredo, dependência nem workflow).
