@@ -2,41 +2,42 @@
 tipo: review
 contrato: 1
 pedido: heredoc-rapido
-branch: melhoria/heredoc-rapido
-commit: c1eaaec72bbb54a878baee575a7ec4ca8713190e
+branch: melhoria/heredoc-rapido-p2
+commit: 3a8c5f064f8dbc483f7ba1dce7b2fc7c3f4e58ef
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-01
 ---
-# Review: heredoc-rapido
+# Review: heredoc-rapido (passo 2)
 
-Etapa E1.2 (instância revisora, não a autora). Diff lido: `c454ccb..c51715f` e, na revalidação, o delta `c51715f..c1eaaec` (o que a branch acrescenta à develop).
+Etapa E1.8 (instância revisora, não a autora). Diff lido: `299f01f..3a8c5f0` (a leitura integral foi feita em `11a3bdb`; a revalidação está em "Revalidação"), o que o passo 2 acrescenta à develop atual (o passo 1, #417, já está nela). Conferido contra o desenho `docs/propostas/heredoc-rapido.md` (b, último parágrafo) e os controles C-1 a C-8 de `docs/security/ameacas/heredoc-rapido-passo2.md`. O parecer anterior neste arquivo era do passo 1 (branch `melhoria/heredoc-rapido`) e foi substituído por este.
 
 ## O que a branch entrega
-Item E1 do pedido, passo 1 do desenho `docs/propostas/heredoc-rapido.md`: `Guarda._regras` guarda o resultado de `regras_do_forge` e `Guarda._raiz_home` guarda o par `(realpath da raiz, realpath do home)`, ambos preguiçosos, com sentinela `None`, na instância. O passo 2 (leitura da linha marcada) não entrou, como manda a decisão técnica do Jarvis de 2026-10-31 22:12. Nenhum teto de teste sobe: o `test_muitos_heredocs_recusam_dentro_do_orcamento` segue com 5,0 s.
+Item E1, passo 2: a linha marcada que o `tirar_heredocs` lê fica menor (marca `__fh<pos>__` no lugar de `__forge_heredoc_<pos>__`, com uma fonte única: `marca()` escreve e `MARCAS` procura, `hooks/_comum.py:847-853`), e a `aspa_escapada` passa a ser lida na linha sem marcas (`resto`), cuja leitura o chamador faz de qualquer jeito (`leituras(..., sem_marcas=)`, `:827` e `:1753`). Nenhum teto sobe: o teste do orçamento segue com 5,0 s e ganha as formas `x=$(` e `|` do C-7.
 
 ## M14
-`git diff --numstat --no-renames c454ccb c51715f`: `hooks/conformidade.py` 8+2, `tests/test_hooks.py` 21+0, total 31 linhas que contam (o `changelog.d/heredoc-rapido.md` fica fora). Abaixo de 150, sem linha de exceção (nem cabe: mexe em `hooks/`). Um comportamento só, uma classe em `hooks/` (cache por decisão na `Guarda`). Cumpre.
+`git diff --numstat --no-renames origin/develop...3a8c5f0`: `hooks/_comum.py` 23+10, `tests/test_hooks.py` 34+3, total 70 linhas que contam; ficam fora o fragmento `changelog.d/`, as seis fixtures de `tests/hooks/conformidade/` e a spec `tests/mutantes/heredoc-rapido-p2.json`. Abaixo de 150, sem linha de exceção (nem cabe: mexe em `hooks/`). Um comportamento, uma classe em `hooks/`: a leitura da linha marcada no `tirar_heredocs`, com corpus próprio (C-8 a a f). Cumpre.
 
-## Controles do modelo de ameaças (C-1 a C-6), lidos no diff
-- C-1: cache em atributo da instância, preguiçoso, sentinela `None` distinta de `False`; sem variável de módulo, `lru_cache`, atributo no `hook` nem disco. Cumpre.
-- C-2: o `externo is None` entrou dentro do valor guardado (`conformidade.py:441`), não fora dele. Hoje dá o mesmo resultado, porque `principal` grava `guarda.externo` (`:1798`) antes do `decidir` e o cálculo é preguiçoso; ver A1.
-- C-3: ordem `raiz, home` mantida (`:494`) e o `realpath` dos dois; nenhuma outra função mudou. Cumpre.
-- C-4: o diff não acrescenta atribuição a `self.h.raiz`, `self.externo` nem `os.environ`; `hook.raiz` muda só em `:1795`, antes da `Guarda` que decide nascer (`:1797`). Cumpre.
-- C-5: casos de abuso são do QA (E1.4); o caso (e) já tem teste novo (`test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao`): 4 instâncias com 50 destinos cada contam 4 leituras do manifesto e 4 `Path.home`, provando o cache por instância e a ausência de cache entre instâncias.
-- C-6: passo 2 fora do diff. Cumpre.
-- Achado de segurança novo: nenhum. A revisão de segurança é a E1.3 (`docs/security/`), não refeita aqui.
+## Controles do modelo de ameaças, lidos no diff
+- C-1 (oráculo diferencial): rodei, no mesmo processo, o `tirar_heredocs(..., com_gravado=True)` de `299f01f` e o de `11a3bdb` sobre 597 linhas (todas as fixtures com `<<` e uma matriz de 13 posições × 5 mecanismos × 7 donos, com `$(`, `"$(`, `<(`, `eval`, composto, `#` com aspa, `\`⏎, `|`⏎, `$'a\'b'`, operador colado e marca escrita pela pessoa). Uma diferença só, na marca escrita pela pessoa (`echo __fh21__ && cat <<'E' | sh`): o dono passa de `sh cat sh` para `sh echo cat sh`, isto é, **maior**, o que o C-1 aceita (a palavra igual à marca só junta texto ao dono). Nenhuma diferença em `resto`, `gravado` nem nos corpos.
+- C-2: a marca é `[A-Za-z0-9_]`, começa por `_`, sem `=`, fora de `COMPOSTOS`, cercada de espaço, única por posição; os quatro usos saem de `marca()`/`MARCAS` (grep: nenhum `__forge_heredoc_` sobra em `hooks/`, `bin/` ou `tests/*.py`). O teste `test_marca_do_heredoc_e_palavra_comum_entre_espacos` (`tests/test_hooks.py:1682`) prova isso na linha marcada real.
+- C-3: o caminho `trechos=None` e o `opaco`/`ilegivel` não mudaram no diff.
+- C-4 (T2) e C-6 (T4): fora do diff; não há recorte nem cache novo.
+- C-5 (T3): só a `aspa_escapada` vem do `resto`; `comentario_ambiguo`, `corpos_se_leem` e `comandos` continuam sobre a marcada. A troca é segura: `marcada` é o `resto` com uma palavra `[A-Za-z0-9_]` inserida depois de um espaço, que não abre `$'…'` nem fica dentro de um (o `<<` dentro de aspas não é heredoc). O oráculo acima confirma. O mutante P4 está declarado equivalente na spec com essa justificativa, que aceito.
+- C-7: o teste do orçamento cobre "um por linha", `&&`, `x=$(` (recusa pelo teto de palavras, com a mensagem fixada) e `|`. A forma com `#` (3000 heredocs, ~20 s) ficou de fora por decisão do dono (P-HEREDOC-COMENTARIO = B, pedido heredoc-comentario); não é deste PR.
+- C-8: as fixtures (a) a (f) estão no corpus e recusam; (g) está na spec de mutantes (P1 marca sem espaços, P2 marca com `=`, P3 condição invertida). Mutantes "dono vazio" e "recorte por linha física" não se aplicam: o diff não toca nesses caminhos.
+- Achado de segurança novo: nenhum. O review de segurança é a E1.9 (`docs/security/`), não refeito aqui.
 
 ## Ferramentas (citadas, não refeitas)
-- `python3 -m unittest tests.test_hooks.Hooks.test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento`: `Ran 2 tests in 10.269s` `OK` (local, load 3,4).
-- `bin/forge-mutante --cobertura --base c454ccb...`: rc=1, `sem mutante · hooks/conformidade.py:440 · self._regras is None` e `sem mutante · hooks/conformidade.py:492 · self._raiz_home is None`. Falta a spec `tests/mutantes/heredoc-rapido.json`, que o desenho, seção (d), põe com o QA (M1, M2 e o M3 declarado equivalente); ver A2.
+- `python3 -m unittest tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos tests.test_hooks.Hooks.test_fixtures tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento`: `Ran 3 tests in 188.448s` `OK` (local, load 5,5 a 9,1).
+- Mutação (`bin/forge-mutante tests/mutantes/heredoc-rapido-p2.json`): o autor relatou P1 a P3 mortos na E1.7 (entrega conferida 4384236); a medida no runner e a rodada de mutantes do QA são da E1.10.
+
+## Revalidação (volta 1 do autor, 11a3bdb..3a8c5f0)
+`forge-check delta --parecer docs/reviews/heredoc-rapido.md` listou só `tests/test_hooks.py:1697-1706` (+10) e `tests/mutantes/heredoc-rapido-p2.json:44-75` (+32); `hooks/` não mudou. Lido: o teste `test_aspa_escapada_e_lida_na_linha_sem_marcas` compara o dono com e sem `$'\\''` e prova que a `aspa_escapada` é lida na linha sem marcas (mutante P5); rodou `OK` (0,067 s). A lista de testes de P5 a P7 na spec aponta para testes existentes. Já lido e mantido: todo o resto do diff, sem mudança. M14 segue abaixo de 150 (70) e o corte de `hooks/` é o mesmo.
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:441 · o C-2 pede o `externo is None` conferido a cada chamada, fora do cache; hoje está dentro. Equivale enquanto o C-4 valer; mover para `return self.externo is None and self._regras` deixa o controle literal. Decisão da E1.3.
-- A2 (recomendado) tests/mutantes/heredoc-rapido.json:1 · a cobertura de mutação saía rc=1 (linhas 440 e 492 sem mutante); resolvido: a spec entrou na E1.4 e a cobertura sai rc=0 no head novo.
+- A1 (recomendado) hooks/_comum.py:1753 · o P4 é equivalente só pelo argumento de que a marca não muda a aspa_escapada; um teste que compare palavras_do_texto(marcada) e (resto) na matriz do C-1 deixaria essa premissa provada na suíte, não só no parecer.
+- A2 (recomendado) hooks/_comum.py:847 · a marca curta torna mais provável a palavra igual escrita pela pessoa; o efeito é só dono maior (fixture C-8 d e oráculo), sem bypass. Registrado para a E1.9 decidir se basta.
 
 ## Parecer
-Aprovado. A branch entrega o passo 1 do E1 com 31 linhas, um comportamento, sem subir teto, e o teste novo prova o cache por decisão. A1 e A2 não devolvem: A1 é equivalente hoje e cabe ao security-engineer decidir; A2 é a spec de mutantes que o desenho atribui ao QA, e o `forge-mutante --cobertura` precisa sair rc=0 antes da E1.5.
-
-## Revalidação (head c1eaaec)
-`forge-check delta --parecer docs/reviews/heredoc-rapido.md` listou só `tests/hooks/conformidade/home-por-link-simbolico-bloqueia.json`, `home-trocado-na-linha-bloqueia.json`, `so-forge-sessao-de-projeto-com-manifesto-forjado-libera.json` (fixtures novas) e `tests/mutantes/heredoc-rapido.json` (spec do QA). Lido o delta: fixtures só acrescentam casos, a spec traz H1 a H7 sobre `conformidade.py:440` e `:492`. Já lido (não relido): `hooks/` e `tests/test_hooks.py`, sem mudança desde c51715f (`git diff c51715f c1eaaec -- hooks tests/test_hooks.py` vazio). M14: o delta é só corpus e fixtures, as 31 linhas que contam seguem iguais. `bin/forge-mutante --cobertura --base c454ccb`: rc=0, linhas 440 e 492 cobertas. Parecer segue aprovado.
+Aprovado. O passo 2 cumpre o desenho e a M14 (70 linhas, um comportamento, uma classe em `hooks/`), não sobe teto e o oráculo diferencial contra a base não acha dono menor. A1 e A2 são recomendações e não devolvem.

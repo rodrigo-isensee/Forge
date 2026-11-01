@@ -1679,6 +1679,31 @@ class Hooks(unittest.TestCase):
         # M2 da volta única: o dono soma os programas do texto fora da lista dos outros (o `ls` da linha seguinte)
         self.assertEqual(set(dono.split()), {"bash", "ls"})
 
+    def test_marca_do_heredoc_e_palavra_comum_entre_espacos(self):  # heredoc-rapido, passo 2, C-2
+        """Na linha que o `tirar_heredocs` lê para achar os donos, cada operador vira a marca dele cercada de espaço,
+        uma palavra comum (sem `=`, sem dígito ou `-` no começo, fora de `COMPOSTOS`), e só elas casam com `MARCAS`."""
+        _comum, _, _ = modulos_dos_hooks()
+        linha = "cat<<'A'|bash\na\nA\nx=$(cat <<B\nb\nB\n)"
+        with mock.patch.object(_comum, "leituras", wraps=_comum.leituras) as lidas:
+            _comum.tirar_heredocs(linha)
+        marcada = lidas.call_args_list[0].args[0]
+        for operador in (3, linha.index("<<B")):
+            with self.subTest(operador=operador):
+                self.assertIn(f" {_comum.marca(operador)} ", marcada)
+                self.assertRegex(_comum.marca(operador), r"^[A-Za-z_][A-Za-z0-9_]*$")
+                self.assertNotIn(_comum.marca(operador), _comum.COMPOSTOS)
+        self.assertEqual(len(_comum.MARCAS.findall(marcada)), 2)
+
+    def test_aspa_escapada_e_lida_na_linha_sem_marcas(self):  # heredoc-rapido, passo 2, C-4 (qa A1, mutante P5)
+        """O `$'…\\'…'` do texto deixa a linha ilegível para o `tirar_heredocs`: o dono é o comando lógico inteiro (com
+        o `|`), não o pipeline que a leitura fiel acharia."""
+        _comum, _, _ = modulos_dos_hooks()
+        corpo = "cat <<'X' | tr a b\ncorpo\nX\n"
+        _, [(sem_aspa, _)] = _comum.tirar_heredocs(corpo + "echo ola ; ls ; ''")
+        _, [(com_aspa, _)] = _comum.tirar_heredocs(corpo + "echo $'\\'' ; ls ; '")
+        self.assertNotIn("|", sem_aspa)  # lida: o dono sai do pipeline, sem o operador
+        self.assertIn("|", com_aspa)  # ilegível: o dono é a linha inteira
+
     def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
         """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
         (shell, `source`, `.`, `eval`, laço, lançador, alias de `git -c`) faz dele comando."""
@@ -1800,19 +1825,25 @@ class Hooks(unittest.TestCase):
         dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
                            .read_text(encoding="utf-8"))
         n = 3000
-        formas = {"um por linha": "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
-                  "&&": " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + "".join(f"x\nE{i}\n" for i in range(n)),
+        corpos = "".join(f"x\nE{i}\n" for i in range(n))
+        teto = "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"  # o teto de palavras, como a develop
+        formas = {"um por linha": ("".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
+                  "&&": (" && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
+                  # C-7 do heredoc-rapido, passo 2: também o heredoc numa substituição (6004 palavras: recusa pelo teto,
+                  # depois de ler a linha marcada) e o `|`
+                  "x=$(": ("".join(f"x=$(cat <<'E'\nx\nE\n)\n" for i in range(n)), teto),
+                  "|": (" | ".join(f"cat <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
                   # HEREDOC-COMENTARIO (C-3): o `#` na linha junta os heredocs num pipeline da leitura legado
-                  **{c: "".join(f"cat > f{i} <<'EOF'{c}\nx\nEOF\n" for i in range(n)) for c in (" # c", " x#c", ";#c")},
-                  "linha de #": "".join(f"# c\ncat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)),
-                  "cat a<i> # c": "".join(f"cat a{i} <<'EOF' # c\nx\nEOF\n" for i in range(n)),  # textos distintos: o dono largo
-                  "| cat > f # c": "".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(n))}
-        for forma, texto in formas.items():
+                  **{c: ("".join(f"cat > f{i} <<'EOF'{c}\nx\nEOF\n" for i in range(n)), teto if c == " x#c" else None)
+                     for c in (" # c", " x#c", ";#c")},
+                  "linha de #": ("".join(f"# c\ncat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
+                  "cat a<i> # c": ("".join(f"cat a{i} <<'EOF' # c\nx\nEOF\n" for i in range(n)), teto),  # o dono largo
+                  "| cat > f # c": ("".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(n)), teto)}
+        for forma, (texto, recusa) in formas.items():
             with self.subTest(forma=forma):
                 caso = json.loads(json.dumps(dados))
                 caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
-                if forma in (" x#c", "cat a<i> # c", "| cat > f # c"):  # 6004 palavras: o teto de palavras, como a develop
-                    caso["esperado"]["stderr"] = "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"
+                caso["esperado"]["stderr"] = recusa or caso["esperado"]["stderr"]
                 tmp = self._pasta_temporaria()
                 arquivo = tmp / "conformidade" / "caso.json"
                 arquivo.parent.mkdir()
@@ -1841,7 +1872,7 @@ class Hooks(unittest.TestCase):
                     for opaco in _comum.OPACO.values():
                         palavras = [p.replace(opaco, "_") for p in palavras]
                     linhas.append(" ".join(map(_comum.citar, palavras)))
-            return self.vestir(re.sub(_comum.MARCA + r"\d+__", " ", "\n".join(linhas)))
+            return self.vestir(_comum.MARCAS.sub(" ", "\n".join(linhas)))
         with mock.patch.object(_comum.DonosDosHeredocs, "montar", montar):
             return Hooks._lidos(_comum, texto)
 
