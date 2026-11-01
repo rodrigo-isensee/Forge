@@ -33,7 +33,7 @@ Etapa E1.4. Base f534013 (develop, com o passo 2 do heredoc-rapido), head 262535
 | C-5 vigia de produção | test_forma_com_comentario_recusa_pela_regra_com_o_vigia_de_producao | 1000 heredocs, 3 s | passou (R-MAIN) |
 | C-6 (a) a (d) | 4 fixtures heredoc-comentario-3000-* (test_fixtures) | 3000 heredocs | passou |
 | C-6 (e) | sem fixture | n/a | A2 |
-| M14 (150 linhas) | `git diff --numstat` em hooks/ e tests/test_*.py | teto de 150 | 140 linhas (40+12 e 85+3); uma classe de comportamento em hooks/ |
+| M14 (150 linhas) | `git diff --numstat` em hooks/ e tests/test_*.py | teto de 150 | 148 linhas sobre f534013 (40+12 e 89+7); uma classe de comportamento em hooks/ |
 
 ## Cenários e resultado real
 - `bin/forge-mutante --cobertura --base e25d379`: rc=0; cobertas 923 (M10), 950 (M9), 954 (M11), 957 (M6), 958 (M12), todas "declarado, não provado". Conferi contra o diff: cada condição nova de `segmento` e `montar` tem mutante; `vestir` e `citadas` só movem código.
