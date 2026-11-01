@@ -1,0 +1,78 @@
+{
+  "pedido": "HEREDOC-RAPIDO-P2",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "P1",
+      "guarda": "C-8 g: a marca sem os espacos em volta, colada a palavra vizinha",
+      "arquivo": "hooks/_comum.py",
+      "de": "marcada.append(f\" {marca(ini)} \" if troca else \"\")",
+      "para": "marcada.append(f\"{marca(ini)}\" if troca else \"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos",
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "P2",
+      "guarda": "C-8 g: a marca com '=', lida como atribuicao",
+      "arquivo": "hooks/_comum.py",
+      "de": "MARCA = \"__fh\"",
+      "para": "MARCA = \"X=__fh\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos",
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "P3",
+      "guarda": "sem_marcas: a condicao invertida, os outros chamadores leem palavras_do_texto(None)",
+      "arquivo": "hooks/_comum.py",
+      "de": "palavras_do_texto(comando if sem_marcas is None else sem_marcas)",
+      "para": "palavras_do_texto(comando if sem_marcas is not None else sem_marcas)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "P4",
+      "guarda": "sem_marcas ignorado: a aspa_escapada volta a ser lida na linha marcada (desempenho)",
+      "arquivo": "hooks/_comum.py",
+      "de": "palavras_do_texto(comando if sem_marcas is None else sem_marcas)",
+      "para": "palavras_do_texto(comando)",
+      "equivalente": "na decisao: a aspa_escapada da linha marcada e a da linha sem marcas sao iguais (a marca e [A-Za-z0-9_] depois de um espaco, sem aspa, barra nem cifrao, e nao muda o estado do leitor); so o tempo muda, e o teste do orcamento o mede no runner"
+    },
+    {
+      "id": "P5",
+      "guarda": "sem_marcas vazio: a aspa_escapada ($'...\\'...') deixa de ser lida e o HOOK-ANSI-C perde a guarda",
+      "arquivo": "hooks/_comum.py",
+      "de": "leituras(marcada, com_sinal=True, sem_marcas=resto)",
+      "para": "leituras(marcada, com_sinal=True, sem_marcas=\"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_aspa_escapada_e_lida_na_linha_sem_marcas",
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "P6",
+      "guarda": "dono procurado com a marca do operador errado: o dono deixa de achar o pipeline (dono menor)",
+      "arquivo": "hooks/_comum.py",
+      "de": "donos.dono(no_resto[operador], marca(operador))",
+      "para": "donos.dono(no_resto[operador], marca(operador + 1))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "P7",
+      "guarda": "MARCAS sem o terminador __: a marca __fh1__ casa so ate __fh1 e o __ sobra na linha do dono",
+      "arquivo": "hooks/_comum.py",
+      "de": "MARCAS = re.compile(MARCA + r\"\\d+__\")",
+      "para": "MARCAS = re.compile(MARCA + r\"\\d+\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures",
+        "tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos"
+      ]
+    }
+  ]
+}

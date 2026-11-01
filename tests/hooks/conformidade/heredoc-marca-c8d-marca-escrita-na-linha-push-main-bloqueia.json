@@ -1,0 +1,30 @@
+{
+  "descricao": "C-8 (d): a pessoa escreve a própria marca do operador (__fh21__, a posição do <<) na linha; só junta texto ao dono; recusa como antes.",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "git": [
+    {
+      "branch": "feature/x"
+    },
+    {
+      "arquivos": {
+        "src/app.js": "v2\n"
+      },
+      "commit": "feat: muda o app"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "echo __fh21__ && cat <<'E' | sh\ngit push origin main\nE"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: push direto para main"
+  }
+}

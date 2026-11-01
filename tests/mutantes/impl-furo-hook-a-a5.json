@@ -1,0 +1,78 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A-A5",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A5-m1",
+      "guarda": "o valor do rotulo com variavel ou substituicao exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or any(re.search(r\"[`$]\", r) for r in pedidos)",
+      "para": "or False",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m2",
+      "guarda": "a opcao de rotulo sem valor exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or palavras[-1] in ROTULO_COM_VALOR",
+      "para": "or False",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m3",
+      "guarda": "o rotulo atras do xargs exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or palavras[-1] in ROTULO_COM_VALOR or por_xargs)",
+      "para": "or palavras[-1] in ROTULO_COM_VALOR or False)",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m4",
+      "guarda": "o gh alias set que cita o rotulo exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if grupo == \"alias\" and sub in (\"set\", \"import\"):",
+      "para": "if False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m5",
+      "guarda": "o escape JSON do gh api e decodificado antes de procurar o rotulo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "lambda m: chr(int(m[1], 16))",
+      "para": "lambda m: m[0]",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m6",
+      "guarda": "o escape que nao decodifica conta como ilegivel",
+      "arquivo": "hooks/conformidade.py",
+      "de": "ilegivel = ilegivel or any(r\"\\u\" in t for t in textos)",
+      "para": "ilegivel = ilegivel",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m7",
+      "guarda": "o alias do shell que cita o rotulo exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif prog == \"alias\" and CITA_ROTULO.search(\" \".join(palavras)):",
+      "para": "elif False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m8",
+      "guarda": "o xargs entre os lancadores e reconhecido",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return \"xargs\" in {Path(p).name",
+      "para": "return \"xargs_\" in {Path(p).name",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    },
+    {
+      "id": "A5-m9",
+      "guarda": "o rotulo que nao pode ser o protegido nao exige o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not self.aplica_afrouxa_regra(palavras, pasta, por_xargs):",
+      "para": "if False:",
+      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"]
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "pedido": "IMPL-FURO-HOOK-A-A4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "A4-m1",
+      "guarda": "o forge-check direto passa pela politica de caminhos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if prog == \"forge-check\":\n        return args\n    if INTERPRETES",
+      "para": "    if False:\n        return args\n    if INTERPRETES",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m2",
+      "guarda": "o forge-check por interpretador passa pela politica de caminhos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "Path(a).name == \"forge-check\"",
+      "para": "Path(a).name == \"forge-check_\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m3",
+      "guarda": "o programa opaco com anotar ou --gravar passa pela politica de caminhos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "opaco = re.search(r\"[`$]\", prog) and (",
+      "para": "opaco = None and (",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m4",
+      "guarda": "o brief so grava com --gravar: sem ele o dev le",
+      "arquivo": "hooks/conformidade.py",
+      "de": "(sub != \"brief\" or any(",
+      "para": "(sub != \"brief\" or True or any(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m5",
+      "guarda": "a saida do transcricao anonimizar passa pela politica de caminhos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "livres[1:2] == [\"anonimizar\"]",
+      "para": "livres[1:2] == [\"anonimizar_\"]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m6",
+      "guarda": "o forge-check por interpretador entra na conferencia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "    if INTERPRETES.match(prog):\n        # a opção",
+      "para": "    if False:\n        # a opção",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m7",
+      "guarda": "a palavra forge-check do interpretador e achada entre os argumentos",
+      "arquivo": "hooks/conformidade.py",
+      "de": "for i, a in enumerate(args) if Path(a).name",
+      "para": "for i, a in enumerate(args) if not Path(a).name",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m8",
+      "guarda": "o programa opaco com anotar ou --gravar entra na conferencia",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return args if opaco else None",
+      "para": "return args if False else None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m9",
+      "guarda": "o forge-check reconhecido passa pela conferencia de escrita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if argumentos_do_forge_check is not None:",
+      "para": "if argumentos_do_forge_check is None:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m10",
+      "guarda": "o valor da raiz em palavra separada nao e tomado por subcomando",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if pular:\n                pular = False",
+      "para": "if False:\n                pular = False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m11",
+      "guarda": "a raiz dada antes do subcomando e reconhecida, tambem abreviada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif abreviacao_de(a, (\"--raiz\", \"--raiz-pedidos\")):",
+      "para": "elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m12",
+      "guarda": "a raiz com igual nao consome a palavra seguinte",
+      "arquivo": "hooks/conformidade.py",
+      "de": "pular = \"=\" not in a",
+      "para": "pular = True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m13",
+      "guarda": "o subcomando e o primeiro argumento sem opcao",
+      "arquivo": "hooks/conformidade.py",
+      "de": "elif not a.startswith(\"-\"):\n                livres.append(a)",
+      "para": "elif False:\n                livres.append(a)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    },
+    {
+      "id": "A4-m14",
+      "guarda": "interpretador sem forge-check na linha nao e lido como forge-check",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if achados else None",
+      "para": "if achados else args",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_lote_furo_hook_a"
+      ]
+    }
+  ]
+}

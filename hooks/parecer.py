@@ -26,12 +26,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
-                    PROFUNDIDADE, SHELLS_DA_REAVALIACAO, bloquear,
+                    PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
                     contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
                     palavras_do_texto, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
-                    separar_regra, tirar_heredocs)
+                    separar_lancadores, separar_regra, tirar_heredocs)
 
 MERGE = r"merge(?!-base\b)"  # `git merge-base` só lê o grafo (HK3-PARECER, E2): não é merge
 PREFILTRO = re.compile(rf"\bgh\b.*\bpr\b.*\b(create|{MERGE}|ready)\b|\bgh\b.*\bapi\b|\bgit\b.*\b({MERGE}|pull)\b", re.S)
@@ -256,6 +256,35 @@ def analisar(toks):
     if sub != "merge" or MERGE_SEM_ALVO & set(args):
         return None
     return ("merge", pasta, [(nome_da_branch(r), [r]) for r in posicionais(args, MERGE_COM_VALOR)])
+
+
+# FURO-HOOK-A, A2: o que o parecer vê atrás de um lançador. O `find -exec` e estes lançadores (fora de `LANCADORES`) rodam o
+# merge sem que o hook o leia: recusa (ADR 0011), como o conformidade faz com `LANCADORES_RECUSADOS`.
+EXEC_DO_FIND = {"-exec", "-execdir", "-ok", "-okdir"}
+OUTROS_LANCADORES = {"ionice", "chrt", "taskset", "flock", "unshare", "script", "watch", "parallel", "doas", "busybox",
+                     "expect", "socat"}
+
+
+def analise_do_comando(palavras):
+    """A2: `analisar` do comando simples atrás dos lançadores (`separar_lancadores`, a fonte do conformidade). O `cd` de
+    lançador roda noutro processo e não vale; atrás do `xargs` o alvo do merge vem da entrada padrão e recusa. A opção de
+    lançador fora da tabela recusa antes, com o marcador do hook, então a leitura é uma só."""
+    sem = sem_atribuicoes(palavras)
+    try:
+        (comando, lancadas), *_ = separar_lancadores(palavras)
+    except (LancadorDemais, TextoDivididoAberto) as achado:
+        bloquear("R-REVIEW", f"`{achado}` antes de gh pr, gh api, merge ou pull: opção de lançador que o hook não lê. "
+                             "Corrigir: rode o comando direto, sem lançador")
+    nome = next((Path(c).name for c in comando[:1]), "")
+    if nome in OUTROS_LANCADORES or nome == "find" and EXEC_DO_FIND & set(comando):
+        bloquear("R-REVIEW", f"`{nome}` na chamada com gh pr, gh api, merge ou pull: o hook não lê o que ele roda. "
+                             f"Corrigir: rode o comando direto, sem `{nome}`")
+    analise = analisar(palavras[: len(palavras) - len(sem)] + lancadas + comando)
+    antes = sem[: max(0, len(sem) - len(comando))]
+    if analise and analise[0] in ("prmerge", "merge") and "xargs" in {Path(p).name for p in antes}:
+        bloquear("R-REVIEW", "`xargs` antes de gh pr merge, git merge ou git pull: o alvo vem da entrada padrão e o hook "
+                             "não o conhece. Corrigir: rode o merge direto, com a branch na linha")
+    return None if antes and analise and analise[0] == "cd" else analise
 
 
 def soltos(leitura):
@@ -583,7 +612,7 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
                  for dono, corpo in corpos if not corpo_so_lido(dono)]
     vistos = {}
     for leitura in lidas.partes:  # a fiel e, se diferir, a da develop (I2)
-        partes = [(analisar(palavras), palavras, solto)
+        partes = [(analise_do_comando(palavras), palavras, solto)
                   for (todas, _, sub, _), solto in zip(leitura, soltos(leitura)) if sub or not so_substituicoes
                   for palavras in [sem_chaves(todas)]]
         for pasta, branches, ambiente in estados:
