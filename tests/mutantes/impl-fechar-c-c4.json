@@ -1,0 +1,113 @@
+{
+  "pedido": "impl-fechar-c-c4",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "C4-1",
+      "guarda": "a execução vista sem o rótulo entra como candidata",
+      "arquivo": "bin/forge-fechar",
+      "de": "      case \"$run_cand\" in *\" $run_ck \"*) ;; *) run_cand=\"$run_cand$run_ck \" ;; esac",
+      "para": "      :",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ]
+    },
+    {
+      "id": "C4-2",
+      "guarda": "leitura posterior do rótulo que falha descarta a candidata em vez de promovê-la",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! ler \"$gh\" pr view \"$pr_n\" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then",
+      "para": "if lido_cand=\"$(ler \"$gh\" pr view \"$pr_n\" --json labels --jq '.labels[].name')\" && ! printf '%s\\n' \"$lido_cand\" | grep -qx 'afrouxa-regra'; then",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ]
+    },
+    {
+      "id": "C4-3",
+      "guarda": "a lista de candidatas é zerada a cada decisão",
+      "arquivo": "bin/forge-fechar",
+      "de": "      run_cand=\" \"\n    fi\n    if [ -z \"$estados\" ]",
+      "para": "      :\n    fi\n    if [ -z \"$estados\" ]",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ]
+    },
+    {
+      "id": "C4-4",
+      "guarda": "rótulo ausente na leitura posterior promove a velha (e não o presente)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! ler \"$gh\" pr view \"$pr_n\" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then",
+      "para": "if ler \"$gh\" pr view \"$pr_n\" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ]
+    },
+    {
+      "id": "C4-5",
+      "guarda": "rótulo presente na leitura posterior descarta (nunca promove sempre)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if ! ler \"$gh\" pr view \"$pr_n\" --json labels --jq '.labels[].name' | grep -qx 'afrouxa-regra'; then",
+      "para": "if true; then",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ]
+    },
+    {
+      "id": "C4-6",
+      "guarda": "a leitura posterior só vale com --esperar-rotulo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 1 ] && [ \"$rotulo_ok\" = 0 ] && [ \"$run_cand\" != \" \" ]",
+      "para": "[ \"$rotulo_ok\" = 0 ] && [ \"$run_cand\" != \" \" ]",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ],
+      "equivalente": "sem a opção `run_cand` nunca enche: estados_da_espera só roda com esperar = 1, então a condição fica falsa do mesmo jeito."
+    },
+    {
+      "id": "C4-7",
+      "guarda": "a leitura posterior só roda com candidata",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 1 ] && [ \"$rotulo_ok\" = 0 ] && [ \"$run_cand\" != \" \" ]",
+      "para": "[ \"$esperar\" = 1 ] && [ \"$rotulo_ok\" = 0 ]",
+      "testes": [
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_reprovando_para_na_hora",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_corrida_com_a_nova_passando_mescla_preso_ao_head",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_descartada_em_fail_sem_velha_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla",
+        "tests.test_fechar_corrida_rotulo.CorridaDoRotulo.test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha"
+      ],
+      "equivalente": "sem candidata o laço `for` não promove nada e `run_cand` já é \" \": a leitura a mais não muda estado nem decisão."
+    }
+  ]
+}

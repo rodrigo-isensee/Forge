@@ -35,9 +35,9 @@ class FecharEsperaCatraca(unittest.TestCase):
         gh.write_text(texto.replace(LEITURA, SEQUENCIA + LEITURA), encoding="utf-8")
 
     def seq(self, *blocos):
-        """Cada bloco é uma leitura dos checks (a última se repete); o rótulo aparece na 2ª leitura."""
+        """Cada bloco é uma leitura dos checks (a última se repete); o rótulo aparece na 3ª leitura dele: a volta antes do rótulo lê duas vezes (a 2ª é a posterior aos checks), então ele aparece depois da primeira volta completa."""
         (self.estado / "checks_seq").write_text("---\n".join("".join(f"{l}\n" for l in b) for b in blocos))
-        (self.estado / "rotulo_na_leitura").write_text("2\n")
+        (self.estado / "rotulo_na_leitura").write_text("3\n")
         (self.estado / "texto").write_text(base.Fechar.ITEM_MARCADO)
 
     def leituras_de_checks(self):
