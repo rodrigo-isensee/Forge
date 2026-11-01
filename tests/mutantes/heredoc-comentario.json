@@ -1,0 +1,107 @@
+{
+  "pedido": "HEREDOC-COMENTARIO",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "chave do texto pelo primeiro segmento (T3)",
+      "arquivo": "hooks/_comum.py",
+      "de": "chave = tuple(map(id, pedacos))",
+      "para": "chave = tuple(map(id, pedacos[:1]))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_dos_heredocs_iguais_aos_da_base"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "legado ignorado nos donos, trechos[:1] (T1)",
+      "arquivo": "hooks/_comum.py",
+      "de": "for k, dela in enumerate(trechos) for seg in dela]",
+      "para": "for k, dela in enumerate(trechos[:1]) for seg in dela]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_dos_heredocs_iguais_aos_da_base"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "segmento sem a leitura k na chave (T3)",
+      "arquivo": "hooks/_comum.py",
+      "de": "chave = (k, sub, ini, fim)",
+      "para": "chave = (sub, ini, fim)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_dos_heredocs_iguais_aos_da_base"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "dono largo sem o resto (C-4)",
+      "arquivo": "hooks/_comum.py",
+      "de": "self.vestir(\"\\n\".join([*todas, self.resto]))",
+      "para": "self.vestir(\"\\n\".join([*todas]))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M4b",
+      "guarda": "dono largo vazio (T6)",
+      "arquivo": "hooks/_comum.py",
+      "de": "self.vestir(\"\\n\".join([*todas, self.resto]))",
+      "para": "self.vestir(\"\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "largo sem uma das leituras (C-4)",
+      "arquivo": "hooks/_comum.py",
+      "de": "for partes in self.lidas.partes for l in",
+      "para": "for partes in self.lidas.partes[:1] for l in",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "teto de custo desligado: volta a quadratico (C-2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "if self.gasto > TETO_DE_CARACTERES_DA_CHAMADA:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo",
+        "tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "ValueError do largo trocado por seguir (T6)",
+      "arquivo": "hooks/_comum.py",
+      "de": "raise ValueError(\"donos dos heredocs acima do teto\")",
+      "para": "pass",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "gasto contado so pelo ultimo texto (C-4)",
+      "arquivo": "hooks/_comum.py",
+      "de": "self.gasto += len(sozinho)",
+      "para": "self.gasto = len(sozinho)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "largo remontado a cada chave nova (C-2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if self.largo is not None:\n            return self.largo\n",
+      "para": "",
+      "testes": [
+        "tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento"
+      ]
+    }
+  ]
+}

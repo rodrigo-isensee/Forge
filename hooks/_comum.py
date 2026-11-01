@@ -914,7 +914,17 @@ class DonosDosHeredocs:
         # M3: o texto grava arquivo e roda programa fora da lista; com o marcador crítico, construção não modelada
         self.gravado_e_rodado = self.fora_do_texto[0][0] if self.grava and self.fora_do_texto else None
         self.indices = [] if lidas.ilegivel else [indice_das_partes(partes) for partes in lidas.partes]
-        self.vistos = {}
+        self.vistos, self.citados, self.iguais, self.montados, self.gasto, self.largo = {}, {}, {}, {}, 0, None
+
+    def segmento(self, k, sub, ini, fim):
+        """As linhas citadas do segmento (nível, ini, fim) da leitura k, lidas uma vez (T3: a chave é o segmento, não o
+        lugar); linhas e segmentos iguais viram o mesmo objeto, e `montar` os compara pelo `id`."""
+        chave = (k, sub, ini, fim)
+        if chave not in self.citados:
+            partes, indice = self.lidas.partes[k], self.indices[k]
+            linhas = tuple(self.iguais.setdefault(l, l) for l in citadas(partes[j][0] for j in indice.mesmo[sub][ini:fim + 1]))
+            self.citados[chave] = self.iguais.setdefault(linhas, linhas)
+        return self.citados[chave]
 
     def dono(self, posicao, marca):
         """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta
@@ -936,21 +946,39 @@ class DonosDosHeredocs:
     def montar(self, lugar, trechos):
         if trechos is None:
             inicios, fins = limites_logicos(self.resto)
-            sozinho = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
-        else:
-            donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos)
-                     for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
-            linhas = []
-            for palavras in donos:  # a palavra `$(…)` não é programa: vale `_`, como no leitor
-                for opaco in OPACO.values():
-                    palavras = [p.replace(opaco, "_") for p in palavras]
-                linhas.append(" ".join(map(citar, palavras)))
-            sozinho = re.sub(MARCA + r"\d+__", " ", "\n".join(linhas))
+            return self.vestir(self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else "")
+        if self.largo is not None:
+            return self.largo
+        pedacos = [self.segmento(k, *seg) for k, dela in enumerate(trechos) for seg in dela]
+        chave = tuple(map(id, pedacos))  # o texto só depende dos segmentos, não do lugar
+        if chave not in self.montados:
+            sozinho = "\n".join(l for seg in pedacos for l in seg)
+            self.gasto += len(sozinho)
+            if self.gasto > TETO_DE_CARACTERES_DA_CHAMADA:  # C-4: alarga para as leituras inteiras e o resto, um objeto
+                if len(self.resto) > TETO_DE_CARACTERES_DA_CHAMADA:
+                    raise ValueError("donos dos heredocs acima do teto")
+                todas = [l for partes in self.lidas.partes for l in citadas(p[0] for p in partes)]
+                self.largo = self.vestir("\n".join([*todas, self.resto]))
+                return self.largo
+            self.montados[chave] = self.vestir(sozinho)
+        return self.montados[chave]
+
+    def vestir(self, sozinho):
         # os programas do texto vêm antes: uma aspa sem par no dono não os esconde
         texto = Dono("\n".join([*(comando for _, comando in self.fora_do_texto), sozinho]))
         if self.fora_do_texto and corpo_so_lido(sozinho):
             texto.rodado = self.fora_do_texto[0][0]
         return texto
+
+
+def citadas(grupos):
+    """Cada grupo de palavras de uma leitura, escrito de novo numa linha (`citar`), sem as marcas dos operadores."""
+    linhas = []
+    for palavras in grupos:  # a palavra `$(…)` não é programa: vale `_`, como no leitor
+        for opaco in OPACO.values():
+            palavras = [p.replace(opaco, "_") for p in palavras]
+        linhas.append(re.sub(MARCA + r"\d+__", " ", " ".join(map(citar, palavras))))
+    return linhas
 
 
 # LOTE-LEITURA-HOOK, volta única (M1 e M2): o leitor sequencial do texto sem os corpos de heredoc. Uma passada, um
@@ -2390,7 +2418,7 @@ def barrar_sem_versao(hook, critico, bruto):
 # ação, então a decisão de um hook que recusa tem de vir antes. Um alarme do processo (`signal.setitimer`, na thread
 # principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; com o marcador crítico na
 # chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
-# fica com os tetos de `excede_o_teto` e o prazo de `conformidade.bash`.
+# fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
 PRAZO_DA_DECISAO_S = 3.0
 
 
