@@ -1,0 +1,116 @@
+{
+  "pedido": "HEREDOC-RAPIDO",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "H1",
+      "guarda": "regras: sentinela invertida, o manifesto nunca e lido (so_forge deixa de valer)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._regras is None:\n            self._regras =",
+      "para": "        if self._regras is not None:\n            self._regras =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H2",
+      "guarda": "regras: sem cache, le o manifesto a cada chamada (M3, desempenho)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._regras is None:\n            self._regras =",
+      "para": "        if True:\n            self._regras =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao"
+      ]
+    },
+    {
+      "id": "H3",
+      "guarda": "regras: o valor guardado e sempre False (M1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)",
+      "para": "self._regras = False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H4",
+      "guarda": "regras: o externo vira ou, so_forge vale mesmo sem manifesto",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)",
+      "para": "self._regras = self.externo is None or tem_manifesto_do_forge(self.h.raiz)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H5",
+      "guarda": "regras: sessao externa deixa de desligar so_forge (C-5 c)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)",
+      "para": "self._regras = tem_manifesto_do_forge(self.h.raiz)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H6",
+      "guarda": "raiz/home: sentinela invertida, o par nunca e calculado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._raiz_home is None:\n            self._raiz_home =",
+      "para": "        if self._raiz_home is not None:\n            self._raiz_home =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H7",
+      "guarda": "raiz/home: sem cache, resolve a cada destino (M3, desempenho)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._raiz_home is None:\n            self._raiz_home =",
+      "para": "        if True:\n            self._raiz_home =",
+      "testes": [
+        "tests.test_hooks.Hooks.test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao"
+      ]
+    },
+    {
+      "id": "H8",
+      "guarda": "raiz/home: ordem do par trocada (M2)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        raiz, home = self._raiz_home",
+      "para": "        home, raiz = self._raiz_home",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H9",
+      "guarda": "raiz/home: o home nao passa pelo realpath (C-3)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "Path(os.path.realpath(Path.home()))",
+      "para": "Path(Path.home())",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "H10",
+      "guarda": "regras: cache de classe, a raiz da primeira decisao serve a seguinte (C-1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._regras is None:\n            self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)\n        return self._regras",
+      "para": "        if not hasattr(Guarda, '_rg'):\n            Guarda._rg = self.externo is None and tem_manifesto_do_forge(self.h.raiz)\n        self._regras = Guarda._rg\n        return self._regras",
+      "testes": [
+        "tests.test_hooks.Hooks.test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao"
+      ]
+    },
+    {
+      "id": "H11",
+      "guarda": "raiz/home: cache de classe, a raiz da primeira decisao serve a seguinte (C-1)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if self._raiz_home is None:\n            self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))\n        raiz, home = self._raiz_home",
+      "para": "        if not hasattr(Guarda, '_rh'):\n            Guarda._rh = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))\n        raiz, home = self._raiz_home = Guarda._rh",
+      "testes": [
+        "tests.test_hooks.Hooks.test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao"
+      ]
+    }
+  ]
+}
