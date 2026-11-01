@@ -97,10 +97,40 @@
       "id": "M9",
       "guarda": "largo remontado a cada chave nova (C-2)",
       "arquivo": "hooks/_comum.py",
-      "de": "        if self.largo is not None:\n            return self.largo\n",
-      "para": "",
+      "de": "self.largo is not None",
+      "para": "False",
       "testes": [
         "tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "segmento citado de novo a cada heredoc: volta a quadratico (C-2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "chave not in self.citados",
+      "para": "True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "texto montado de novo a cada chave: o gasto cresce e o largo entra sem precisar (C-4)",
+      "arquivo": "hooks/_comum.py",
+      "de": "chave not in self.montados",
+      "para": "True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "resto acima do teto no largo segue em vez de ilegivel (T6)",
+      "arquivo": "hooks/_comum.py",
+      "de": "len(self.resto) > TETO_DE_CARACTERES_DA_CHAMADA",
+      "para": "False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_dono_largo_acima_do_teto_de_custo"
       ]
     }
   ]
