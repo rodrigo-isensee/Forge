@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: heredoc-rapido
 branch: melhoria/heredoc-rapido
-commit: c51715f222eb6d6b9ec0c990f5db6e5bceea4c10
+commit: c1eaaec72bbb54a878baee575a7ec4ca8713190e
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-01
 ---
 # Review: heredoc-rapido
 
-Etapa E1.2 (instância revisora, não a autora). Diff lido: `c454ccb..c51715f` (o que a branch acrescenta à develop).
+Etapa E1.2 (instância revisora, não a autora). Diff lido: `c454ccb..c51715f` e, na revalidação, o delta `c51715f..c1eaaec` (o que a branch acrescenta à develop).
 
 ## O que a branch entrega
 Item E1 do pedido, passo 1 do desenho `docs/propostas/heredoc-rapido.md`: `Guarda._regras` guarda o resultado de `regras_do_forge` e `Guarda._raiz_home` guarda o par `(realpath da raiz, realpath do home)`, ambos preguiçosos, com sentinela `None`, na instância. O passo 2 (leitura da linha marcada) não entrou, como manda a decisão técnica do Jarvis de 2026-10-31 22:12. Nenhum teto de teste sobe: o `test_muitos_heredocs_recusam_dentro_do_orcamento` segue com 5,0 s.
@@ -33,7 +33,10 @@ Item E1 do pedido, passo 1 do desenho `docs/propostas/heredoc-rapido.md`: `Guard
 
 ## Achados
 - A1 (recomendado) hooks/conformidade.py:441 · o C-2 pede o `externo is None` conferido a cada chamada, fora do cache; hoje está dentro. Equivale enquanto o C-4 valer; mover para `return self.externo is None and self._regras` deixa o controle literal. Decisão da E1.3.
-- A2 (recomendado) tests/mutantes/heredoc-rapido.json:1 · a cobertura de mutação sai rc=1 (linhas 440 e 492 sem mutante): falta a spec com M1, M2 e o M3 equivalente justificado (desenho, seção d). Entra na E1.4 antes do merge.
+- A2 (recomendado) tests/mutantes/heredoc-rapido.json:1 · a cobertura de mutação saía rc=1 (linhas 440 e 492 sem mutante); resolvido: a spec entrou na E1.4 e a cobertura sai rc=0 no head novo.
 
 ## Parecer
 Aprovado. A branch entrega o passo 1 do E1 com 31 linhas, um comportamento, sem subir teto, e o teste novo prova o cache por decisão. A1 e A2 não devolvem: A1 é equivalente hoje e cabe ao security-engineer decidir; A2 é a spec de mutantes que o desenho atribui ao QA, e o `forge-mutante --cobertura` precisa sair rc=0 antes da E1.5.
+
+## Revalidação (head c1eaaec)
+`forge-check delta --parecer docs/reviews/heredoc-rapido.md` listou só `tests/hooks/conformidade/home-por-link-simbolico-bloqueia.json`, `home-trocado-na-linha-bloqueia.json`, `so-forge-sessao-de-projeto-com-manifesto-forjado-libera.json` (fixtures novas) e `tests/mutantes/heredoc-rapido.json` (spec do QA). Lido o delta: fixtures só acrescentam casos, a spec traz H1 a H7 sobre `conformidade.py:440` e `:492`. Já lido (não relido): `hooks/` e `tests/test_hooks.py`, sem mudança desde c51715f (`git diff c51715f c1eaaec -- hooks tests/test_hooks.py` vazio). M14: o delta é só corpus e fixtures, as 31 linhas que contam seguem iguais. `bin/forge-mutante --cobertura --base c454ccb`: rc=0, linhas 440 e 492 cobertas. Parecer segue aprovado.
