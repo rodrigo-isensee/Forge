@@ -2,56 +2,61 @@
 tipo: qa
 contrato: 1
 pedido: impl-fechar-c
-branch: melhoria/impl-fechar-c-c3
-commit: d5afb7864265dc0b11cb3d624fbeac9fe3109e5c
+branch: melhoria/impl-fechar-c-c4
+commit: 6336b6b442e5760a0dfa8532ac30beb833ea3d4a
 parecer: aprovado
 revisor: forge:qa-engineer
-escopo: completo
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
 data: 2026-10-31
 ---
-# QA: impl-fechar-c (branch c3)
+# QA: impl-fechar-c (branch c4)
 
-Etapa E1.4, `R-QA`. Diff lido: `234dbe0..d5afb78` (`bin/forge-fechar` 5+3, `tests/test_fechar.py` +19, `docs/fechamento-integrador.md`, fragmento; mais os pareceres).
+Etapa E1.4, `R-QA`. Diff lido: `234dbe0..6336b6b` (`bin/forge-fechar` 15+3, `tests/test_fechar_corrida_rotulo.py` novo, `tests/test_fechar_espera_catraca.py` 2+2, `docs/fechamento-integrador.md`, fragmento; mais os pareceres).
 
 ## Item entregue e M14
-Item E3 do pedido (FECHAR-B-REC-REVIEW 2): o `--dry-run` descreve o sha (lido só localmente, com marcador se a branch local não existe) e o número do PR (marcador, só existe depois do passo 3) que os passos usam. M14 (agents/tech-lead.md:19): um comportamento, 27 linhas de código e teste, abaixo do teto; fora de `hooks/` e `PROTEGIDOS`. Cumpre.
+Item E4 do pedido (FECHAR-B-REC-REVIEW 3), pela opção B' do modelo de ameaças (SEC-FECHARC-1): a execução da Catraca vista antes do rótulo é só candidata (`run_cand`); uma leitura do rótulo logo depois da leitura dos checks a promove a velha (`run_antes`) se o rótulo segue ausente, ou a descarta se presente. M14 (agents/tech-lead.md:19): um comportamento, 101 linhas de código e teste, abaixo do teto; fora de `hooks/` e `PROTEGIDOS`. Cumpre.
 
 ## Achados
-- A1 (recomendado) bin/forge-fechar:557 · Mutante sobrevivente: ler o sha com `git ls-remote` no lugar do rev-parse local passa os testes; nada prende o C3-1 (--dry-run sem servidor), porque o git falso não registra ls-remote. Não bloqueia: só texto, saída igual.
-- A2 (recomendado) bin/forge-fechar:559 · A1 da segurança (C3-3): linhas do --dry-run com cara de comando ainda imprimem a ref sem printf '%q'; ref com $ sai sem escape. Não bloqueia (recomendado no modelo de ameaças); o dono é o tech-lead.
+- A1 (recomendado) tests/test_fechar_corrida_rotulo.py:64 · Resolvido: o teste novo falha só a leitura posterior do rótulo, com o rótulo presente depois, e afirma sem merge; o mutante C4-2 morre.
+- A2 (recomendado) tests/test_fechar_corrida_rotulo.py:72 · Resolvido: o teste novo do rótulo retirado na espera (AB-C4-7) prende o `run_cand` zerado; o mutante C4-3 morre.
+- A3 (recomendado) bin/forge-fechar:690 · Dois mutantes equivalentes (C4-6, C4-7), declarados com justificativa na spec do autor e aceitos pelo QA: sem a opção `run_cand` nunca enche; sem candidata a leitura a mais não muda estado.
+- A4 (recomendado) tests/mutantes/impl-fechar-c-c4.json:1 · Resolvido: spec declarada pelo autor (7 mutantes: 5 morrem, 2 equivalentes).
+
+## Revalidação (volta por delta)
+`forge-check delta --parecer docs/qa/impl-fechar-c.md` listou `2e75595..6336b6b`: `tests/mutantes/impl-fechar-c-c4.json` (1-113, lido inteiro) e `tests/test_fechar_corrida_rotulo.py` (34-45 o `rotulo_lido`, 84-103 os dois testes novos, lidos). Já lido e sem mudança: `bin/forge-fechar` e o resto do diff (`bin/` não mudou na volta).
+Conferência da lista contra o diff de `bin/forge-fechar`: uma linha de guarda mudada por mutante (candidata, leitura posterior, promoção, descarte, zerar a lista, condição da leitura). `forge-mutante --cobertura` só diz `não coberto: bin/forge-fechar` (shell); a conferência foi à mão.
 
 ## Critério → teste → resultado
-O pedido não traz `CA-n`; os critérios são C3-1 e C3-2 do modelo de ameaças (SEC-FECHARC-3) e os casos AB-C3-1 e AB-C3-2.
+O pedido não traz `CA-n`; os critérios são C4-1 a C4-8 do modelo de ameaças (SEC-FECHARC-1) e os casos AB-C4-1 a AB-C4-9.
 | Critério | Teste | Fronteira protegida | Resultado |
 |---|---|---|---|
-| C3-1/AB-C3-1 sha local e marcador do PR; zero chamadas | `test_dry_run_descreve_o_sha_e_o_numero_do_pr_que_os_passos_usam` | passo 6 segue por nome; `chamadas() == []` | passou (vermelho na base) |
-| C3-2/AB-C3-2 sem branch local: marcador, rc 0 | `test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido` | branch ausente | passou (vermelho na base) |
-| C3-1 regressão: dry-run não chama gh nem check | `test_dry_run_nao_altera_nada_nem_chama_gh_ou_check` (existente) | sem rede | passou (verde antes e depois) |
+| AB-C4-1 nova reprovando para na hora | `test_corrida_com_a_nova_reprovando_para_na_hora` | rótulo aparece após a leitura dele | passou (vermelho na base) |
+| AB-C4-2 nova passando mescla preso ao head | `test_corrida_com_a_nova_passando_mescla_preso_ao_head` | `--match-head-commit` | passou (vermelho na base) |
+| AB-C4-3 velha cancelada e nova em pass | `test_catraca_velha_cancelada_espera_a_nova_e_mescla_preso_ao_head` (existente, cenário ajustado) | promoção na leitura posterior | passou (vermelho na base) |
+| AB-C4-4 leitura posterior falha | `test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla` (e o anterior, que falha toda leitura) | falha da API | passou (mata o mutante C4-2) |
+| AB-C4-5 descartada em skipping | `test_a2_velha_cancelada_e_nova_em_skipping_...` e `test_a2_nova_em_skipping_depois_de_pendente_...` (existentes) | só pass libera | passou |
+| AB-C4-6 descartada em fail sem velha | `test_descartada_em_fail_sem_velha_nunca_mescla` | `run_antes` vazio | passou (vermelho na base) |
+| AB-C4-7 rótulo retirado durante a espera | `test_rotulo_retirado_na_espera_nao_deixa_candidata_descartada_virar_velha` | rótulo presente depois ausente | passou (mata o mutante C4-3) |
+| AB-C4-8 head que muda | `test_esperar_rotulo_head_que_muda_durante_a_espera_para` (existente) | head preso | passou (regressão) |
+| AB-C4-9 / C4-7 os testes da espera, só o cenário muda | `test_fechar_espera_catraca` | rótulo na 3ª leitura | passou |
+| C4-5 a leitura nova só lê | `test_a_leitura_nova_so_le` | sem `rerun` nem POST | passou (regressão) |
 
 ## Cenários e resultado real
-Vermelho antes do verde, `forge-testes --vermelho 234dbe0fb90b005450d7c2eb59e6241ea9779155 --modulos test_fechar`:
+Vermelho dos testes antigos: parecer anterior (`forge-testes --vermelho 234dbe0...`, 3 provam no módulo novo mais os 6 `B=falha`, rc=0; com o módulo de espera junto, rc=2 pelo prazo da base, explicado lá). Os dois testes novos da volta cobrem código que a branch já tinha (a volta só mexeu em `tests/`), então o vermelho deles é o mutante: `forge-testes --vermelho d88f136~1` sai `nenhum teste prova a mudança` (esperado), e a prova são os mutantes C4-2 e C4-3, que sobreviviam e agora morrem.
+Mutação, `bin/forge-mutante tests/mutantes/impl-fechar-c-c4.json`:
 ```
-vermelho: base=234dbe0fb90b head=d5afb7864265 módulos=test_fechar (restrito por --modulos)
-revertidos à base: bin/forge-fechar, changelog.d/impl-fechar-c-c3.md, docs/fechamento-integrador.md, docs/reviews/impl-fechar-c.md, docs/security/impl-fechar-c.md
-mantidos no HEAD: tests/test_fechar.py
-tests.test_fechar.Fechar.test_dry_run_descreve_o_sha_e_o_numero_do_pr_que_os_passos_usam · H=ok · B=falha · prova (asserção)
-tests.test_fechar.Fechar.test_dry_run_sem_branch_local_marca_o_sha_como_nao_lido · H=ok · B=falha · prova (asserção)
-contagem: não prova (passa na base)=86; prova (asserção)=2; pulado=1
+forge-mutante: pedido=impl-fechar-c-c4 rev=6336b6b442e5 spec=9a4654fb4f1b258440e301b030ed0bf7d2fffa80c2f6d00f2ee2d7178de63c98
+C4-1 · morreu · bin/forge-fechar:345
+C4-2 · morreu · bin/forge-fechar:691
+C4-3 · morreu · bin/forge-fechar:696
+C4-4 · morreu · bin/forge-fechar:691
+C4-5 · morreu · bin/forge-fechar:691
+C4-6 · equivalente · bin/forge-fechar:690
+C4-7 · equivalente · bin/forge-fechar:690
 rc=0
 ```
-Os 86 são testes que já existiam e passam na base, como esperado. Mutação (`bin/forge-mutante`, spec do QA fora do repositório, 5 mutantes, rev d5afb7864265; o autor não declarou spec, o QA a escreveu, um mutante por linha de guarda mudada):
-```
-M1 · morreu · bin/forge-fechar:558
-M2 · morreu · bin/forge-fechar:557
-M3 · morreu · bin/forge-fechar:562
-M4 · morreu · bin/forge-fechar:563
-M5 · sobreviveu · bin/forge-fechar:557
-rc=1
-```
-M5 é o A1 (recomendado, justificado acima).
-
-Suíte: módulos `tests/test_fechar*.py` no head, sem bytecode: `Ran 204 tests` / `OK (skipped=1)` (o skip é `test_shellcheck_fechar_passa_limpo`, que pula sem `shellcheck` no PATH; o CI o roda). A bateria completa e o `scripts/validar-plugin.sh` ficam com o pre-push e o CI do envio.
+Suíte: `tests/test_fechar*.py` no head: `Ran 209 tests` / `OK (skipped=1)` (o skip é o shellcheck, que o CI roda). A bateria completa e o `scripts/validar-plugin.sh` ficam com o pre-push e o CI do envio.
