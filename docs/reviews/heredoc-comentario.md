@@ -3,12 +3,23 @@ tipo: review
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 1fa43985b6bd4fd0eb231d872800012b3b3f5fc7
+commit: 262535c43f124882155c67d9fbd89b2bba788c2b
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-01
 ---
 # Review: heredoc-comentario (E1.2)
+
+## Revalidação no 262535c (volta por delta)
+`forge-check delta --parecer docs/reviews/heredoc-comentario.md`: intervalo `1fa4398..262535c` (o merge da develop f534013, heredoc-rapido passo 2). Lido o que ele lista: `hooks/_comum.py` 822-855, 990, 1281, 1757-1781; `tests/test_hooks.py` 1682-1706, 1828-1846, 1875; as 6 fixtures `heredoc-marca-c8*`, `tests/mutantes/heredoc-rapido-p2.json` e `changelog.d/heredoc-rapido-p2.md` (estes do PR #422, já revisados lá; conferi só que não alteram esta branch). Lidos também `git show --cc 262535c` (os dois conflitos resolvidos) e `git diff f534013 262535c`.
+- `hooks/_comum.py`: `montar` ficou o desta branch; `citadas` troca o `re.sub` com `MARCA` por `MARCAS.sub` (`_comum.py:848`, fonte única do passo 2, com `MARCA = "__fh"`). Aplicar por linha equivale ao texto juntado da develop: a marca não atravessa a quebra de linha. `segmento` lê `partes` e `indice.mesmo`, que o passo 2 não muda.
+- Oráculo C-1 (`test_hooks.py:1862`): o `montar` dele é agora o da develop f534013 (com `MARCAS`), linha a linha; segue valendo como base.
+- Teste do orçamento (`test_hooks.py:1820`): as 4 formas da develop e as 6 desta branch, cada uma com a recusa esperada: teto de palavras em `x=$(` (develop) e em ` x#c`, `cat a<i> # c`, `| cat > f # c` (como no 1fa4398); as demais, a R-MAIN da fixture. Nenhuma expectativa caiu.
+- Rodado no 262535c: os 4 testes da branch, `Ran 4 tests in 153.824s OK`; as 10 fixtures `heredoc-comentario-*` e `heredoc-marca-*` pelo `executar_em_lote`, OK. Vigia de produção: C-6 (b) R-MAIN em 2,11 s (antes 2,3 a 2,5), (a) R-MAIN em 1,53 s, (c) teto de palavras em 0,99 s, (d) `.claude/**` em 1,76 s.
+- M14 no head: `git diff --numstat --no-renames origin/develop...HEAD` (develop 91d6cc1): `hooks/_comum.py` 40+12, `tests/test_hooks.py` 89+7: **148 de 150**, uma classe de comportamento em `hooks/`. `git merge-tree` com a develop atual: limpo.
+- Já lido no parecer do 1fa4398 e fora do delta: o resto de `montar`, `segmento`, `vestir`, os testes C-1, C-4, C-5 e as 4 fixtures C-6.
+
+## Parecer do 1fa4398 (base da revalidação)
 
 Diff lido: `e25d379..1fa4398` (4 commits). Referências: proposta `docs/propostas/heredoc-comentario.md` (E1.0) e modelo `docs/security/ameacas/heredoc-comentario.md` (C-1 a C-7, T1 a T6). Revisor não é o autor (D-ETAPAS-INST).
 
@@ -32,10 +43,11 @@ O Forge não tem `docs/engineering/praticas.md` com regras "ferramenta"; cito o 
 - Folga do C-5: 0,65 s aqui contra 3 s do vigia; no CI, ~2 s. Folga de ~1,5 vez. A3.
 
 ## Achados
-- A1 (recomendado) tests/hooks/conformidade/heredoc-comentario-3000-bash-no-ultimo-push-main-no-corpo-bloqueia.json:28 · "R-" aceita qualquer recusa; no CI ela sairá pelo prazo da linha (R-MAIN aqui a 2,5 s de 3 s). Fecha, e o dono do `| bash` está provado sem relógio no teste C-4; o QA registra no CI qual recusa saiu.
-- A2 (recomendado) tests/test_hooks.py:1795 · C-6 (e) sem fixture própria: o vigia de 120 s da suíte cobre a decisão sem prazo efetivo; falta só a plataforma sem SIGALRM, a registrar no QA (E1.4).
-- A3 (recomendado) tests/test_hooks.py:1892 · folga do C-5 de ~1,5 vez no CI (0,65 s aqui contra o vigia de 3 s); o QA mede o tempo desse teste no run do PR.
-- A4 (recomendado) tests/test_hooks.py:1869 · `dono[0] == "e"` lê-se invertido (o `)"` vai para os donos sem `eval`); medi que as 1.372 linhas dessa variante são legíveis e comparadas, então não perde cobertura; um comentário com a intenção basta.
+- A1 (recomendado) tests/hooks/conformidade/heredoc-comentario-3000-bash-no-ultimo-push-main-no-corpo-bloqueia.json:28 · "R-" aceita qualquer recusa; no CI pode sair pelo prazo (R-MAIN aqui em 2,1 s de 3 s). Fecha; o `| bash` está provado sem relógio no teste C-4; o QA registra a recusa do CI.
+- A2 (recomendado) tests/test_hooks.py:1820 · C-6 (e) sem fixture própria: o vigia de 120 s da suíte cobre a decisão sem prazo efetivo; falta só a plataforma sem SIGALRM, a registrar no QA (E1.4).
+- A3 (recomendado) tests/test_hooks.py:1923 · folga do C-5 de ~1,5 vez no CI (0,65 s aqui contra o vigia de 3 s); o QA mede o tempo desse teste no run do PR.
+- A4 (recomendado) tests/test_hooks.py:1900 · `dono[0] == "e"` lê-se invertido (o `)"` vai para os donos sem `eval`); medi que as 1.372 linhas dessa variante são legíveis e comparadas, então não perde cobertura; um comentário com a intenção basta.
+- A5 (recomendado) tests/test_hooks.py:1864 · a docstring do oráculo diz `montar` da develop e25d379; depois do merge ele é o da f534013 (com `MARCAS`). Trocar a referência, sem mudar a lógica.
 
 ## Parecer
-Aprovado. Cumpre a M14 (140 de 150, uma classe de comportamento em `hooks/`), segue a proposta E1.0 e não toca nenhum dos T1 a T6; C-1, C-2, C-3, C-4 e C-7 conferidos na leitura e na execução; C-5 e C-6 com folga e cobertura que o QA confirma no CI (A1 a A3). Nenhum achado bloqueia. Segurança (E1.3) e QA (E1.4) dão os seus pareceres; não os refaço.
+Aprovado no 262535c: o merge da develop preserva o desenho, as recusas e os controles; A5 é nova e recomendada. Cumpre a M14 (148 de 150 no head, 140 no 1fa4398, uma classe de comportamento em `hooks/`), segue a proposta E1.0 e não toca nenhum dos T1 a T6; C-1, C-2, C-3, C-4 e C-7 conferidos na leitura e na execução; C-5 e C-6 com folga e cobertura que o QA confirma no CI (A1 a A3). Nenhum achado bloqueia. Segurança (E1.3) e QA (E1.4) dão os seus pareceres; não os refaço.
