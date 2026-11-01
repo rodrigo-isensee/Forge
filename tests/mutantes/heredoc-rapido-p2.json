@@ -9,6 +9,7 @@
       "de": "marcada.append(f\" {marca(ini)} \" if troca else \"\")",
       "para": "marcada.append(f\"{marca(ini)}\" if troca else \"\")",
       "testes": [
+        "tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos",
         "tests.test_hooks.Hooks.test_fixtures"
       ]
     },
@@ -19,6 +20,7 @@
       "de": "MARCA = \"__fh\"",
       "para": "MARCA = \"X=__fh\"",
       "testes": [
+        "tests.test_hooks.Hooks.test_marca_do_heredoc_e_palavra_comum_entre_espacos",
         "tests.test_hooks.Hooks.test_fixtures"
       ]
     },

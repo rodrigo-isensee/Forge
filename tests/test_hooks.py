@@ -1679,6 +1679,21 @@ class Hooks(unittest.TestCase):
         # M2 da volta única: o dono soma os programas do texto fora da lista dos outros (o `ls` da linha seguinte)
         self.assertEqual(set(dono.split()), {"bash", "ls"})
 
+    def test_marca_do_heredoc_e_palavra_comum_entre_espacos(self):  # heredoc-rapido, passo 2, C-2
+        """Na linha que o `tirar_heredocs` lê para achar os donos, cada operador vira a marca dele cercada de espaço,
+        uma palavra comum (sem `=`, sem dígito ou `-` no começo, fora de `COMPOSTOS`), e só elas casam com `MARCAS`."""
+        _comum, _, _ = modulos_dos_hooks()
+        linha = "cat<<'A'|bash\na\nA\nx=$(cat <<B\nb\nB\n)"
+        with mock.patch.object(_comum, "leituras", wraps=_comum.leituras) as lidas:
+            _comum.tirar_heredocs(linha)
+        marcada = lidas.call_args_list[0].args[0]
+        for operador in (3, linha.index("<<B")):
+            with self.subTest(operador=operador):
+                self.assertIn(f" {_comum.marca(operador)} ", marcada)
+                self.assertRegex(_comum.marca(operador), r"^[A-Za-z_][A-Za-z0-9_]*$")
+                self.assertNotIn(_comum.marca(operador), _comum.COMPOSTOS)
+        self.assertEqual(len(_comum.MARCAS.findall(marcada)), 2)
+
     def test_corpo_de_heredoc_so_lido_pela_lista_positiva(self):  # LOTE-LEITURA-HOOK, A1 de segurança
         """O corpo só fica fora da conferência quando todo comando da linha do dono é um leitor; qualquer outro dono
         (shell, `source`, `.`, `eval`, laço, lançador, alias de `git -c`) faz dele comando."""
