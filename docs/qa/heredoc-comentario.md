@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 1fa43985b6bd4fd0eb231d872800012b3b3f5fc7
+commit: 262535c43f124882155c67d9fbd89b2bba788c2b
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -15,7 +15,7 @@ data: 2026-11-01
 ---
 # QA: heredoc-comentario
 
-Etapa E1.4. Base e25d379 (develop), head 1fa4398. Sem especificação de UX (pedido de correção do hook): as obrigações são o PQ-1 do pedido e os controles C-1 a C-6 do modelo de ameaças. A medida no runner do CI fica com a E1.5 (decisão do Jarvis de 2026-11-01 12:36).
+Etapa E1.4. Base f534013 (develop, com o passo 2 do heredoc-rapido), head 262535c (revalidação da volta que trouxe a develop; o parecer anterior aprovou 1fa4398). Sem especificação de UX (pedido de correção do hook): as obrigações são o PQ-1 do pedido e os controles C-1 a C-6 do modelo de ameaças. A medida no runner do CI fica com a E1.5 (decisão do Jarvis de 2026-11-01 12:36).
 
 ## Achados
 - A1 (recomendado) tests/hooks/conformidade/heredoc-comentario-3000-bash-no-ultimo-push-main-no-corpo-bloqueia.json:28 · a fixture C-6 (b) aceita qualquer recusa ("R-"), não só a regra do corpo; o oráculo test_donos_dos_heredocs_iguais_aos_da_base guarda o dono, então o risco é baixo.
@@ -45,5 +45,16 @@ Etapa E1.4. Base e25d379 (develop), head 1fa4398. Sem especificação de UX (ped
 - Vermelho: `forge-testes --vermelho e25d379` saiu rc=2 ("test_hooks · sem veredito (prazo, sinal ou executor sem registro)"), sem veredito, e não vale. Recuo manual, teste do head sobre o código da base, numa worktree descartável: `vermelho: base=e25d379 head=1fa4398`; o orçamento falha nas 6 formas novas (`' # c'` 21,9 s; `' x#c'` 29,8 s; `';#c'` 33,4 s; `'linha de #'` 32,8 s; `'cat a<i> # c'` 29,7 s; `'| cat > f # c'` 41,3 s, todas "not less than 5.0"); o oráculo e o dono largo dão ERROR na base (sem `vestir`/`segmento`), o que também prova que não existiam.
 - Não rodei a suíte inteira nem o pre-push antes do parecer; o pre-push do envio a roda.
 
+## Revalidação no head 262535c (volta que trouxe a develop f534013)
+- Delta lido (`forge-check delta --parecer`, 1fa4398..262535c): `hooks/_comum.py` (822-855, 990, 1281, 1757-1781: a mescla do passo 2, `DonosDosHeredocs.montar` com a versão desta branch e `citadas` via `MARCAS.sub`), `tests/test_hooks.py` (1682-1706 e 1828-1875: formas das duas linhas no teste do orçamento), e o que veio da develop (6 fixtures `heredoc-marca-c8*`, `tests/mutantes/heredoc-rapido-p2.json`, fragmento do passo 2). Já lido e não relido: fixtures C-6, spec de mutantes, achados A1 a A3 (seguem valendo, recomendados).
+- Diff contra a develop f534013 (`git diff f534013 262535c -- hooks tests/test_hooks.py`): `montar` agora cacheia por segmento (`segmento`, `self.citados`, `iguais`), compara por `id`, alarga ao teto de custo (C-4) e vira `vestir`; a recusa por palavras (6004) e a R-MAIN ficam como na develop. Sem linha de guarda nova sem mutante.
+- M14 (agents/tech-lead.md:19, teto de 150 linhas): `git diff --numstat` em hooks/ e tests/test_*.py contra f534013 dá 52 em hooks/_comum.py (40+12) e 96 em tests/test_hooks.py (89+7), 148 linhas, abaixo do teto; uma classe de comportamento em hooks/ (a leitura do `#` na linha do heredoc). Corpus, fixtures e mutantes ficam fora da conta. Cumpre.
+- `bin/forge-mutante --cobertura --base f534013`: rc=0; cobertas 933 (M10), 960 (M9), 964 (M11), 967 (M6), 968 (M12), "declarado, não provado".
+- `bin/forge-mutante tests/mutantes/heredoc-comentario.json`: rc=0, 13 mortos (M1 a M12, M4b), nenhum sobrevivente.
+- Medida local, 5 execuções, 3000 heredocs, `rodar` do teste (hook real, sem a carga de outros processos; load 2 a 3): develop f534013, `# c`: 19,60 / 19,16 / 19,80 / 20,02 / 19,87 s (R-MAIN, tarde); `| cat > f # c`: 39,09 / 39,84 / 39,68 / 39,40 / 40,85 s (teto de 6004 palavras). Head: `# c`: 1,39 / 1,42 / 1,47 / 1,47 / 1,55 s (R-MAIN); `| cat > f # c`: 0,91 / 0,95 / 0,96 / 0,94 / 0,95 s (teto de 6004 palavras, igual à base). A medida no runner do CI fica com a E1.5.
+- Testes: orçamento, oráculo C-1, dono largo e C-5 (4 testes) OK em 154 s; `Hooks.test_fixtures` e `test_hooks_volta_corpus` (17 testes) OK em 139 s. Código de hooks/ e tests/ do worktree igual ao de 262535c.
+- Vermelho: o do parecer anterior segue valendo para os testes novos da branch (a base não tem `vestir`/`segmento`); na develop f534013 as 6 formas novas continuam lentas (19 a 40 s contra o limite de 5,0 s).
+- Não rodei a suíte inteira; o pre-push do envio a roda.
+
 ## Parecer
-Aprovado. A branch cumpre a M14: 140 linhas contáveis (limite 150), um comportamento em hooks/, corpus e fixtures fora da conta; a recusa não muda (oráculo C-1) e o teto só alarga o dono ou recusa (T6). Sem bugs; três recomendações que não devolvem.
+Aprovado no head 262535c. A branch cumpre a M14: 148 linhas contáveis sobre a develop f534013 (limite 150), um comportamento em hooks/, corpus e fixtures fora da conta; a recusa não muda (oráculo C-1) e o teto só alarga o dono ou recusa (T6). Sem bugs; três recomendações que não devolvem.
