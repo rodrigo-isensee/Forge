@@ -370,6 +370,8 @@ class Guarda:
         self.ambiente = {}   # GH_REPO e GIT_DIR definidos antes, na mesma linha de comando
         self.conferidas, self.conferencias = {}, 0  # orçamento da linha (`bash`)
         self._repos = {}     # (raiz git, remoto) -> é o Forge
+        self._regras = None  # `regras_do_forge`, lido uma vez por decisão (a raiz e o `externo` não mudam nela)
+        self._raiz_home = None  # (realpath da raiz, realpath do home), uma vez por decisão
         self.linha = ""      # a linha de comando inteira, como veio (nível 0)
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
@@ -435,7 +437,9 @@ class Guarda:
 
     def regras_do_forge(self):
         """Os caminhos `so_forge` valem: a raiz tem o manifesto do Forge. Só protege mais, então basta o arquivo."""
-        return self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        if self._regras is None:
+            self._regras = self.externo is None and tem_manifesto_do_forge(self.h.raiz)
+        return self._regras
 
     @staticmethod
     def raiz_git(pasta):
@@ -485,7 +489,9 @@ class Guarda:
 
     def caminho_barrado(self, caminho):
         """(rid, o quê, como corrigir) se o `caminho` (já resolvido) é protegido para o papel; senão None."""
-        raiz, home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        if self._raiz_home is None:
+            self._raiz_home = Path(os.path.realpath(self.h.raiz)), Path(os.path.realpath(Path.home()))
+        raiz, home = self._raiz_home
         pais = {caminho, *caminho.parents}
         posix = caminho.as_posix()
         formas = []
