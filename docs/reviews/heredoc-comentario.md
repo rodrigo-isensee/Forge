@@ -3,12 +3,20 @@ tipo: review
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 262535c43f124882155c67d9fbd89b2bba788c2b
+commit: d964f7ceab2afcd7787c7dda22729d04510aabae
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-01
+data: 2026-11-02
 ---
 # Review: heredoc-comentario (E1.2)
+
+## Revalidação no d964f7c (volta por delta)
+`forge-check delta --parecer docs/reviews/heredoc-comentario.md`: intervalo `262535c..d964f7c` (merge da develop b2580c6, sem conflito). Lido o que ele lista de código: `hooks/conformidade.py` 69-82, 272-275, 969-971, 1030-1050 e `tests/test_hooks.py` 2155-2168 (#423, IMPL-FURO-HOOK-A a4), com `docs/hooks.md`:41. O resto do delta é da release 0.31.0 (#424: versão nos dois `plugin.json`, `CHANGELOG.md`, fragmentos apagados), as 23 fixtures `fc-*` e `tests/mutantes/impl-furo-hook-a-a4.json`, já revisados nos PRs de origem; conferi só que não tocam esta branch.
+- O #423 lê o subcomando do `forge-check` por comando simples (`args_do_forge_check`, `forge_check_grava`); não passa por `DonosDosHeredocs` nem por `tirar_heredocs`. Custo por comando: uma comparação e um `re.search` no nome do programa; não mexe no orçamento dos heredocs.
+- O que a branch acrescenta à develop (`git diff b2580c6 d964f7c`): `hooks/_comum.py` e as linhas da branch em `tests/test_hooks.py` iguais às de `git diff 91d6cc1 262535c`, linha a linha; o merge não mudou o patch.
+- M14 no head: `git diff --numstat --no-renames origin/develop...HEAD` (develop b2580c6): `hooks/_comum.py` 40+12, `tests/test_hooks.py` 89+7: **148 de 150**, uma classe de comportamento em `hooks/`, sem linha de exceção (não vale em `hooks/`). `git merge-tree` com a develop atual: limpo.
+- Rodado no d964f7c, só o módulo do delta: `python3 -m unittest tests.test_hooks`: `Ran 67 tests in 565.260s OK` (inclui os 4 testes desta branch e o teste A4 do #423).
+- Já lido e fora do delta: tudo da revalidação no 262535c e do parecer do 1fa4398 abaixo. A1 a A5 seguem como estão.
 
 ## Revalidação no 262535c (volta por delta)
 `forge-check delta --parecer docs/reviews/heredoc-comentario.md`: intervalo `1fa4398..262535c` (o merge da develop f534013, heredoc-rapido passo 2). Lido o que ele lista: `hooks/_comum.py` 822-855, 990, 1281, 1757-1781; `tests/test_hooks.py` 1682-1706, 1828-1846, 1875; as 6 fixtures `heredoc-marca-c8*`, `tests/mutantes/heredoc-rapido-p2.json` e `changelog.d/heredoc-rapido-p2.md` (estes do PR #422, já revisados lá; conferi só que não alteram esta branch). Lidos também `git show --cc 262535c` (os dois conflitos resolvidos) e `git diff f534013 262535c`.
@@ -50,4 +58,4 @@ O Forge não tem `docs/engineering/praticas.md` com regras "ferramenta"; cito o 
 - A5 (recomendado) tests/test_hooks.py:1864 · a docstring do oráculo diz `montar` da develop e25d379; depois do merge ele é o da f534013 (com `MARCAS`). Trocar a referência, sem mudar a lógica.
 
 ## Parecer
-Aprovado no 262535c: o merge da develop preserva o desenho, as recusas e os controles; A5 é nova e recomendada. Cumpre a M14 (148 de 150 no head, 140 no 1fa4398, uma classe de comportamento em `hooks/`), segue a proposta E1.0 e não toca nenhum dos T1 a T6; C-1, C-2, C-3, C-4 e C-7 conferidos na leitura e na execução; C-5 e C-6 com folga e cobertura que o QA confirma no CI (A1 a A3). Nenhum achado bloqueia. Segurança (E1.3) e QA (E1.4) dão os seus pareceres; não os refaço.
+Aprovado no d964f7c: o merge da develop b2580c6 não muda o patch da branch nem o desenho; o #423 não alcança os donos dos heredocs. Aprovado no 262535c: o merge da develop preserva o desenho, as recusas e os controles; A5 é nova e recomendada. Cumpre a M14 (148 de 150 no head, 140 no 1fa4398, uma classe de comportamento em `hooks/`), segue a proposta E1.0 e não toca nenhum dos T1 a T6; C-1, C-2, C-3, C-4 e C-7 conferidos na leitura e na execução; C-5 e C-6 com folga e cobertura que o QA confirma no CI (A1 a A3). Nenhum achado bloqueia. Segurança (E1.3) e QA (E1.4) dão os seus pareceres; não os refaço.
