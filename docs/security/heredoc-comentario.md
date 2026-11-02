@@ -3,20 +3,20 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 262535c43f124882155c67d9fbd89b2bba788c2b
+commit: d964f7ceab2afcd7787c7dda22729d04510aabae
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-01
+data: 2026-11-02
 ---
 # Review de segurança: heredoc-comentario
 
-Etapa E1.3. Diff revisado: `e25d379..1fa4398` (4 commits) e, na revalidação, o delta `1fa4398..262535c` (seção "Revalidação em 262535c"; os números de linha de `_comum.py` no detalhe abaixo são os de 1fa4398, deslocados em +10 depois da linha 841). Modelo de ameaças: `docs/security/ameacas/heredoc-comentario.md` (C-1 a C-7, T1 a T6). Proposta: `docs/propostas/heredoc-comentario.md`.
+Etapa E1.3. Diff revisado: `e25d379..1fa4398` (4 commits) e, na revalidação, o delta `1fa4398..262535c` (seções "Revalidação em 262535c" e "Revalidação em d964f7c"; os números de linha de `_comum.py` no detalhe abaixo são os de 1fa4398, deslocados em +10 depois da linha 841). Modelo de ameaças: `docs/security/ameacas/heredoc-comentario.md` (C-1 a C-7, T1 a T6). Proposta: `docs/propostas/heredoc-comentario.md`.
 
 ## Gatilhos
 R-SEGURANCA, gatilho `controles do Forge`: muda o analisador de entrada do hook (`hooks/_comum.py`, `DonosDosHeredocs`). O defeito corrigido é liberação por tempo (L1 e L2 do modelo).
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:762 · Já existe na develop e25d379, não vem desta branch: com N heredocs de donos distintos e programas fora da lista, cada dono repete `fora_do_texto` e `corpo_so_lido` fica O(N²); 1000 deles e o último corpo dado a `bash` com escrita em `.github/` liberam (rc 0, 3,3 s). Cartão novo.
+- A1 (recomendado) hooks/conformidade.py:780 · Já existe na develop e25d379, não vem desta branch: com N heredocs de donos distintos e programas fora da lista, cada dono repete `fora_do_texto` e `corpo_so_lido` fica O(N²); 1000 deles e o último corpo dado a `bash` com escrita em `.github/` liberam (rc 0, 3,3 s). Cartão novo.
 - A2 (recomendado) tests/hooks/conformidade/heredoc-comentario-3000-bash-no-ultimo-push-main-no-corpo-bloqueia.json:1 · O caso C-6 (b) espera só `R-`: a linha já recusa por outros caminhos com o marcador crítico, e a fixture não prova que o `| bash` segue no dono. O teste do dono largo cobre parte; o QA pode fixar a mensagem ou somar a prova.
 
 ## Detalhe dos achados
@@ -35,7 +35,7 @@ R-SEGURANCA, gatilho `controles do Forge`: muda o analisador de entrada do hook 
 1100 heredocs `cat a<i><110 y> <<'E' # c` (resto ~141 mil, abaixo do teto de palavras): com `git push origin main`, R-MAIN em 2,03 s; com `| bash` e push no corpo, recusa pelo prazo da linha em 3,32 s (fechado); com `true`, libera em 2,95 s (legítimo); 1300 deles, recusa em 0,09 s pelo teto da linha.
 
 ### A1 (pré-existente, fora do diff)
-Evidência: `conformidade.py:762` chama `corpo_so_lido` por dono; cada `Dono` distinto carrega `fora_do_texto` inteiro (`_comum.py:968`); a reentrada com o mesmo corpo volta antes do prazo da linha (`conformidade.py:665`). Em processo: 3000 donos de 17 mil caracteres, `corpo_so_lido` 128 s na develop e 131 s nesta branch (iguais). Hook real, papel dev em `melhoria/x`, escrita em `.github/` no corpo do último heredoc lido por `bash`, 1000 heredocs: rc 0 em 3,3 s na base e na branch; com 300, recusa. Caminho: o modelo da sessão, por erro ou instrução injetada, monta a linha sem o marcador crítico, o prazo vencido libera (L2) e a regra de caminho protegido não fala. Severidade: alta (contorno de controle do Forge, sem caminho remoto). Correção mínima: conferir `fora_do_texto` uma vez por texto e o `sozinho` por dono (ou contar `len(fora_do_texto)` no `gasto` e cair no largo), com o caso no teste do orçamento. Esforço P/M. Dono: tech-lead, em pedido próprio (mesma família da regra geral do modelo). Não bloqueia esta branch: não é regressão e está fora do escopo E1.
+Evidência: `conformidade.py:780` (762 antes do merge de b2580c6) chama `corpo_so_lido` por dono; cada `Dono` distinto carrega `fora_do_texto` inteiro (`_comum.py:968`); a reentrada com o mesmo corpo volta antes do prazo da linha (`conformidade.py:665`). Em processo: 3000 donos de 17 mil caracteres, `corpo_so_lido` 128 s na develop e 131 s nesta branch (iguais). Hook real, papel dev em `melhoria/x`, escrita em `.github/` no corpo do último heredoc lido por `bash`, 1000 heredocs: rc 0 em 3,3 s na base e na branch; com 300, recusa. Caminho: o modelo da sessão, por erro ou instrução injetada, monta a linha sem o marcador crítico, o prazo vencido libera (L2) e a regra de caminho protegido não fala. Severidade: alta (contorno de controle do Forge, sem caminho remoto). Correção mínima: conferir `fora_do_texto` uma vez por texto e o `sozinho` por dono (ou contar `len(fora_do_texto)` no `gasto` e cair no largo), com o caso no teste do orçamento. Esforço P/M. Dono: tech-lead, em pedido próprio (mesma família da regra geral do modelo). Não bloqueia esta branch: não é regressão e está fora do escopo E1.
 
 ### A2
 Severidade baixa (cobertura de teste, não defeito). Correção mínima: na fixture (b), tirar o marcador crítico de fora do corpo ou fixar a mensagem esperada, para que só o dono com `| bash` decida. Dono: qa-engineer (E1.4).
@@ -47,6 +47,13 @@ Delta lido (`forge-check delta --parecer`, `1fa4398..262535c`): `hooks/_comum.py
 - **Teste do orçamento:** as formas das duas linhas juntas (`x=$(`, `|` e as da branch), cada uma com a recusa esperada; nenhuma afrouxada.
 - **M14:** `git diff --numstat --no-renames origin/develop...HEAD`: `hooks/_comum.py` 40+12 e `tests/test_hooks.py` 89+7, 148 de 150; uma classe em `hooks/`, sem linha de exceção. Cumpre.
 - **Testes rodados em 262535c:** `test_fixtures` (78,8 s) e os sete de heredoc (marca, aspa sem marcas, orçamento, C-1, C-4, C-5, lista positiva; 153,0 s), verdes. A1 e A2 seguem como estavam (fora do delta).
+
+## Revalidação em d964f7c
+Delta lido (`forge-check delta --parecer`, `262535c..d964f7c`): o merge da develop b2580c6, sem conflito. `hooks/conformidade.py` 69-82, 272-275, 969-971, 1030-1050 (#423, A4: `args_do_forge_check`, `FORGE_CHECK_ESCRITAS`, `forge_check_grava`); `tests/test_hooks.py` 2155-2167; `docs/hooks.md`:41; as fixtures `fc-anonimizar-*` e `fc-anotar-*`; a release 0.31.0 (`plugin.json`, `CHANGELOG.md`, fragmentos apagados). Já lido: o resto da branch (262535c).
+- **Merge fiel:** a contribuição da branch em `hooks/_comum.py` e `tests/test_hooks.py` sobre a develop (`b2580c6..d964f7c`) é linha a linha a de `f534013..262535c`. O delta do #423 está em `Guarda` (por comando simples) e não toca `DonosDosHeredocs`, `montar`, o teto nem o largo: C-1 a C-7 e T1 a T6 seguem como na seção anterior.
+- **Interação:** o `forge_check_grava` só acrescenta conferência de escrita (nunca libera); o corpo de heredoc que o dono não só lê volta por `self.bash` (`conformidade.py:781`) e passa pela mesma conferência por comando simples. Sem achado novo.
+- **M14:** `git diff --numstat --no-renames origin/develop...HEAD` (origin/develop = b2580c6): `hooks/_comum.py` 40+12 e `tests/test_hooks.py` 89+7, 148 de 150; uma classe em `hooks/`, sem linha de exceção. Cumpre.
+- **A1** segue (a linha passou de 762 para 780); **A2** segue. Testes rodados em d964f7c: `python3 -m unittest tests.test_hooks`, 67 testes, OK em 566,4 s (load abaixo de 7).
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Análise estática por leitura e medidas locais com os próprios hooks em pastas temporárias. `gitleaks`, `semgrep`, `zizmor` e `actionlint` não estão no PATH (lacuna; o diff não toca workflow nem segredo). Testes rodados aqui: os três novos de `tests/test_hooks.py` (C-1, C-4, C-5), verdes em 155,6 s.
