@@ -524,6 +524,15 @@ def usa_admin(args):
     return any(a == "--admin" or a.startswith("--admin=") for a in args)
 
 
+PROGRAMA_GH = "gh"
+
+
+def gh_de_merge_ou_api(args):
+    """Os argumentos, lidos como se o programa fosse o `gh`, são `pr merge` ou `api`? (programa por expansão: falha fechado)"""
+    achado = analisar([PROGRAMA_GH, *args])
+    return bool(achado) and achado[0] in ("prmerge", "api")
+
+
 def base_do_pr(raiz, branch):
     """Base do PR da branch, sem rede: a que o `gh pr create` guardou no git; senão, pelo fluxo do Forge."""
     cod, base = git(raiz, "config", "--get", f"branch.{branch}.gh-merge-base")

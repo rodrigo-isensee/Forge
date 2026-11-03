@@ -96,8 +96,8 @@
       "id": "G10",
       "guarda": "o programa por expansão com pr merge ou api recusa (falha fechado)",
       "arquivo": "hooks/conformidade.py",
-      "de": "if parecer.expande(palavras[0]) and (oculto :=",
-      "para": "if False and (oculto :=",
+      "de": "if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):",
+      "para": "if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
