@@ -497,6 +497,9 @@ class RegrasInviolaveis(unittest.TestCase):
         self.assertEqual(problemas_de_motivo(curto, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
         inventada = {**base, "invariantes_motivo": {"a.md": {"regra": "R-XYZ", "porque": "sem o texto o agente mescla na main do usuário"}}}
         self.assertEqual(problemas_de_motivo(inventada, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
+        n_sobe = {**base, "invariantes_sem_motivo": {"b.md": 2}}  # A9 do QA: subir o n de qualquer arquivo reprova
+        self.assertEqual(len(problemas_de_motivo(n_sobe, regras)), 1)
+        self.assertIn("a contagem só encolhe até a real", problemas_de_motivo(n_sobe, regras)[0])
         legado_cresce = {**base, "invariantes_sem_motivo": {f"{n}.md": 1 for n in range(LEGADO_SEM_MOTIVO_MAXIMO + 1)}}
         self.assertTrue(problemas_de_motivo(legado_cresce, regras))
         # A6 do review: trecho novo em arquivo do legado traz o próprio motivo (o do arquivo não existe)
@@ -511,6 +514,9 @@ class RegrasInviolaveis(unittest.TestCase):
 
 
 LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
+
+
+LEGADO_TRECHOS_MAXIMO = 284  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
 
 
 def problemas_de_motivo(config, regras):
@@ -533,6 +539,10 @@ def problemas_de_motivo(config, regras):
                       if not isinstance(m, dict) or m.get("regra") not in regras or len(str(m.get("porque", "")).strip()) < 30]
     problemas += [f"{arq}: trecho novo em arquivo do legado sem regra e porque" for arq, n in sorted(legado.items())
                   if len(inv.get(arq, [])) - len(por_trecho.get(arq, {})) > n]
+    problemas += [f"{arq}: o legado diz {n} trechos sem motivo e o arquivo tem {len(inv.get(arq, [])) - len(por_trecho.get(arq, {}))}; a contagem só encolhe até a real"
+                  for arq, n in sorted(legado.items()) if len(inv.get(arq, [])) - len(por_trecho.get(arq, {})) < n]
+    if sum(legado.values()) > LEGADO_TRECHOS_MAXIMO:
+        problemas.append(f"o legado soma {sum(legado.values())} trechos sem motivo; só encolhe (máximo {LEGADO_TRECHOS_MAXIMO})")
     if len(legado) > LEGADO_SEM_MOTIVO_MAXIMO:
         problemas.append(f"o legado sem motivo tem {len(legado)} arquivos; só encolhe (máximo {LEGADO_SEM_MOTIVO_MAXIMO})")
     return problemas
