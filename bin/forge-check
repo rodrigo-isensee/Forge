@@ -113,6 +113,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -4167,6 +4168,27 @@ def comando_do_conferente(comando):
     return bool(segmentos)
 
 
+SHA_ABREVIADO = re.compile(r"(?<![0-9A-Za-z_./-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,39}(?![0-9A-Za-z_./-])")
+
+
+def grep_c_sem_arquivo(comando):
+    """L10 (OK-2): o `grep -c` que abre o comando sem arquivo (lê o terminal, não o que o PQ quer contar). `grep` depois de `|` lê a pipe: vale."""
+    for pedaco in re.split(r"&&|\|\||;", comando):
+        try:
+            palavras = shlex.split(pedaco.split("|")[0])
+        except ValueError:
+            continue
+        if not palavras or palavras[0] != "grep":
+            continue
+        opcoes = [p for p in palavras[1:] if p.startswith("-") and not p.startswith("--")]
+        if not any("c" in o[1:] for o in opcoes) and "--count" not in palavras:
+            continue
+        posicionais = [p for p in palavras[1:] if not p.startswith("-")]
+        if len(posicionais) < 2:  # o padrão (ou o valor de -e/-f) mais ao menos um arquivo
+            return True
+    return False
+
+
 def conferir_pq(linhas_pq):
     """Linhas do `Pronto quando` -> (linhas de saída com a marca de reprovação, tipos achados)."""
     saida, tipos, vistos = [], [], set()
@@ -4188,11 +4210,15 @@ def conferir_pq(linhas_pq):
             continue
         tipos.append(tipo)
         resto = linha[m.end():]
+        if curto := SHA_ABREVIADO.search(resto):  # L10: só avisa; o sha40 é o que o conferente compara (R-PROVA)
+            saida.append((f"aviso: PQ-{n} sha abreviado ({curto.group(0)[:12]}); use os 40 hex", False))
         espera = "não se aplica"
         verificador = "conferente"
         if tipo == "cmd":
             comando = re.search(r"`([^`]+)`", resto)
             fonte = comando.group(1) if comando else ""
+            if grep_c_sem_arquivo(fonte):  # L10
+                saida.append((f"aviso: PQ-{n} `grep -c` sem arquivo (lê o terminal, não o que se quer contar); passe o arquivo", False))
             e = ESPERA.search(resto)
             if e:
                 espera = "ok"

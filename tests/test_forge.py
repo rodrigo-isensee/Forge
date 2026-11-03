@@ -3077,6 +3077,27 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn("aviso: PQ-2 espera fraca", saida)
         self.assertEqual(rc, 0, "aviso não reprova")
 
+    def test_pq_fraco_avisa_grep_c_sem_arquivo_e_sha_abreviado(self):  # L10 (OK-2): aviso, nunca recusa (T-10)
+        arq = self.variante("etapa-outro-papel.md", ("`grep -c recurso docs/pedidos/pedido-sintetico.md`", "`grep -c recurso`"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
+        self.assertEqual(rc, 0, saida)
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a 3f85c29"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("aviso: PQ-1 sha abreviado (3f85c29)", saida)
+        self.assertEqual(rc, 0, saida)
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + "3f85c29" + "0" * 33))
+        self.assertNotIn("sha abreviado", self.rodar(arq, "--pedido", self.PEDIDO)[1])  # 40 hex não avisa
+
+    def test_grep_c_com_arquivo_ou_depois_de_pipe_nao_avisa(self):
+        fc = carregar_forge_check()
+        for comando in ("grep -c recurso docs/x.md", "git log | grep -c fix", "grep -c -e recurso docs/x.md", "grep -rc recurso docs/", "grep recurso"):
+            with self.subTest(comando):
+                self.assertFalse(fc.grep_c_sem_arquivo(comando))
+        for comando in ("grep -c recurso", "git status && grep -c recurso", "grep -ce recurso", "grep --count recurso"):
+            with self.subTest(comando):
+                self.assertTrue(fc.grep_c_sem_arquivo(comando))
+
     def test_pedido_sem_ids_nao_reprova_o_corte(self):
         rc, saida = self.conferir("corte-sem-marca.md", pedido=self.PASTA / "pedido-sem-ids.md")
         self.assertIn("corte: não verificável (pedido sem IDs)", saida)
