@@ -470,13 +470,55 @@ class RegrasInviolaveis(unittest.TestCase):
     """Se alguém apagar uma regra da fábrica por engano, o CI quebra."""
 
     def test_trechos_obrigatorios(self):
-        invariantes = minimo(CONFIG["invariantes"].items(), 23, "arquivos com invariantes")
-        minimo((t for _, ts in invariantes for t in ts), 95, "trechos invariantes")
+        invariantes = minimo(CONFIG["invariantes"].items(), 48, "arquivos com invariantes")
+        minimo((t for _, ts in invariantes for t in ts), 410, "trechos invariantes")
         for rel, trechos in invariantes:
             texto = (RAIZ / rel).read_text(encoding="utf-8")
             for t in trechos:
                 with self.subTest(arquivo=rel, trecho=t):
                     self.assertRegex(texto, re.compile(t, re.S))
+
+    def test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe(self):  # L35, OK-11, T-35
+        regras = {p.stem for p in (RAIZ / "docs" / "regras").glob("R-*.md")}
+        minimo(CONFIG["invariantes_motivo"], 17, "invariantes com regra e porque")
+        self.assertEqual(problemas_de_motivo(CONFIG, regras), [])
+
+    def test_invariante_novo_sem_regra_ou_sem_porque_reprova(self):  # L35
+        regras = {"R-MAIN"}
+        base = {"invariantes": {"a.md": ["x"], "b.md": ["y"]}, "invariantes_sem_motivo": ["b.md"],
+                "invariantes_motivo": {"a.md": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}
+        self.assertEqual(problemas_de_motivo(base, regras), [])
+        novo = {**base, "invariantes": {**base["invariantes"], "c.md": ["z"]}}
+        self.assertEqual(problemas_de_motivo(novo, regras), ["c.md: invariante sem regra e porque"])
+        sem_porque = {**base, "invariantes_motivo": {"a.md": {"regra": "R-MAIN"}}}
+        self.assertEqual(problemas_de_motivo(sem_porque, regras), ["a.md: o motivo tem só `regra` e `porque`"])
+        curto = {**base, "invariantes_motivo": {"a.md": {"regra": "R-MAIN", "porque": "curto"}}}
+        self.assertEqual(problemas_de_motivo(curto, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
+        inventada = {**base, "invariantes_motivo": {"a.md": {"regra": "R-XYZ", "porque": "sem o texto o agente mescla na main do usuário"}}}
+        self.assertEqual(problemas_de_motivo(inventada, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
+        legado_cresce = {**base, "invariantes_sem_motivo": ["b.md", "b.md"]}
+        self.assertTrue(problemas_de_motivo(legado_cresce, regras))
+
+
+LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
+
+
+def problemas_de_motivo(config, regras):
+    """Os invariantes que não dizem a regra que protegem e o porquê: todo arquivo de `invariantes` ou tem a entrada em
+    `invariantes_motivo` (`regra` de `docs/regras/` e `porque` com 30+ caracteres) ou consta do legado fechado."""
+    inv, motivos = config["invariantes"], config["invariantes_motivo"]
+    legado = config["invariantes_sem_motivo"]
+    problemas = [f"{a}: invariante sem regra e porque" for a in sorted(set(inv) - set(motivos) - set(legado))]
+    problemas += [f"{a}: consta do legado e tem motivo" for a in sorted(set(motivos) & set(legado))]
+    problemas += [f"{a}: motivo de um arquivo sem invariantes" for a in sorted(set(motivos) - set(inv))]
+    for arq, m in sorted(motivos.items()):
+        if not isinstance(m, dict) or set(m) != {"regra", "porque"}:
+            problemas.append(f"{arq}: o motivo tem só `regra` e `porque`")
+        elif m["regra"] not in regras or len(str(m["porque"]).strip()) < 30:
+            problemas.append(f"{arq}: `regra` desconhecida ou `porque` curto demais")
+    if len(legado) != len(set(legado)) or len(legado) > LEGADO_SEM_MOTIVO_MAXIMO:
+        problemas.append(f"o legado sem motivo tem {len(legado)} arquivos; só encolhe (máximo {LEGADO_SEM_MOTIVO_MAXIMO})")
+    return problemas
 
 
 REGRAS = RAIZ / "docs" / "regras"
