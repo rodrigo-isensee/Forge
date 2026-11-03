@@ -3077,6 +3077,26 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn("aviso: PQ-2 espera fraca", saida)
         self.assertEqual(rc, 0, "aviso não reprova")
 
+    def test_suposicao_sem_muda_com_e_custo_de_reverter_avisa(self):  # L11 (OK-6): aviso, nunca recusa
+        completa = "- Usa o banco X · `suposição` · base: degrau 2 · muda com: o dono trocar o banco · custo de reverter: 1 migração\n"
+        incompleta = "- Usa a fila Y · `suposição` · base: degrau 3\n"
+        antiga = "- (resolvida pela pergunta 2 = C) a fila Z\n"
+        pedido = self.PEDIDO.read_text(encoding="utf-8") + "\n## Suposições\n" + completa + incompleta + antiga
+        arq = self.tmp_pedido(pedido)
+        rc, saida = self.conferir("etapa-outro-papel.md", pedido=arq)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('aviso: suposição sem "muda com" e sem "custo de reverter": Usa a fila Y', saida)
+        self.assertNotIn("Usa o banco X", saida)
+        self.assertNotIn("fila Z", saida)
+        arq = self.tmp_pedido(self.PEDIDO.read_text(encoding="utf-8") + "\n## Suposições\n" + completa)
+        self.assertNotIn("aviso: suposição", self.conferir("etapa-outro-papel.md", pedido=arq)[1])
+
+    def tmp_pedido(self, texto):
+        pasta = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, pasta, ignore_errors=True)
+        (pasta / "pedido.md").write_text(texto, encoding="utf-8")
+        return pasta / "pedido.md"
+
     def test_pq_fraco_avisa_grep_c_sem_arquivo_e_sha_abreviado(self):  # L10 (OK-2): aviso, nunca recusa (T-10)
         arq = self.variante("etapa-outro-papel.md", ("`grep -c recurso docs/pedidos/pedido-sintetico.md`", "`grep -c recurso`"))
         rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)

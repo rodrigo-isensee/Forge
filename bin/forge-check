@@ -2509,6 +2509,15 @@ def _numero(n):
     return f"{n:g}"
 
 
+def reversoes_do_pedido(arquivo):
+    """L11 (OK-6): quantas linhas do `## Histórico` do pedido dizem `suposição revertida`; 0 se o pedido não abre. Só leitura."""
+    try:
+        texto = Path(arquivo).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0
+    return sum(1 for linha in linhas_da_secao(texto, "Histórico") if "suposicao revertida" in _sem_acento(linha))
+
+
 def cmd_voltas(raiz, pedido=None):
     """Imprime as voltas por pedido (linhas fixas, números e tipos). Só lê docs/kanban/historico.md, conferencias.md,
     docs/briefs e docs/pedidos."""
@@ -2555,6 +2564,8 @@ def cmd_voltas(raiz, pedido=None):
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+        if reversoes := reversoes_do_pedido(pasta / f"{nome}.md"):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
+            print(f"voltas: {nome} reversoes={reversoes}")
         soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
     print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
     return 0
@@ -4780,6 +4791,30 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     return pedido_id, linhas
 
 
+def linhas_da_secao(pedido_txt, titulo, sem_resolvidas=False):
+    """As linhas `- ` da seção `## <titulo>` do pedido (só leitura); `sem_resolvidas` tira as que abrem com `(resolvida ...)`."""
+    saida, dentro = [], False
+    for linha in pedido_txt.split("\n"):
+        if linha.startswith("## "):
+            dentro = _sem_acento(linha[3:]).startswith(_sem_acento(titulo))
+        elif dentro and linha.startswith("- ") and not (sem_resolvidas and "resolvida" in _sem_acento(linha)[:30]):
+            saida.append(linha)
+    return saida
+
+
+def avisos_de_suposicao(pedido_txt):
+    """L11 (OK-6): a suposição do pedido sem `muda com` ou sem `custo de reverter` sai como `aviso:`; nunca reprova. O texto vai por `sem_controle`."""
+    avisos = []
+    for linha in linhas_da_secao(pedido_txt, "Suposições", sem_resolvidas=True):
+        texto = _sem_acento(linha)
+        if "<" in linha[:3] or "nenhuma" in texto[:14]:  # a linha do modelo e o registro de "nenhuma"
+            continue
+        faltam = [campo for campo in ("muda com", "custo de reverter") if campo not in texto]
+        if faltam:
+            avisos.append(f"aviso: suposição sem {' e sem '.join(chr(34) + c + chr(34) for c in faltam)}: {sem_controle(linha[2:62])} (R-DECISAO)")
+    return avisos
+
+
 def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, pareceres=None):
     caminho_pedido = caminho_do_pedido(raiz, pedido)
     brief = Path(arquivo)
@@ -4805,6 +4840,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
             return 2
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     pedido_id, linhas = avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, arquivo, bytes_anterior, ref, pareceres)
+    linhas = list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
     reprovado = any(r for _, r in linhas)
     print(f"conferencia-brief-regra: {caminho_impresso(pedido_id)} → {caminho_impresso(brief.name)}")
     for linha, _ in linhas:

@@ -40,7 +40,8 @@ O que o usuário não pediu, ou o que saiu do escopo depois. Item que estava no 
 - <item> · Retira do escopo original: "<trecho do escopo>" · motivo: <...> · consequência: <...> · decisão: <linha DECISÃO DO DONO abaixo ou ADR> · `confirmado`
 
 ## Suposições
-- <suposição> · `suposição` · base: <degrau da escada da R-DECISAO>
+- <suposição> · `suposição` · base: <degrau da escada da R-DECISAO> · muda com: <o fato que a desfaria> · custo de reverter: <o que se refaz>
+Quando o dono troca uma suposição, grave no `## Histórico` a linha `suposição revertida: <qual>`; `forge-check voltas` conta essas linhas por pedido.
 
 ## Critério de pronto
 - PQ-1 <critério verificável> · prova: <sha | push | pr | run | cmd | arquivo | merge> · `técnico`

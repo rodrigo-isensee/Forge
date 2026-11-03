@@ -60,6 +60,15 @@ class Voltas(Raiz):
         super().setUp()
         self.gravar("docs/kanban/historico.md", HISTORICO)
 
+    def test_reversoes_de_suposicao_por_pedido(self):  # L11 (OK-6): o placar da escolha provisória que o dono trocou
+        self.gravar("docs/pedidos/XPTO.md", "# p\n\n## Histórico\n- 2026-10-17 10:00: aberto\n- 2026-10-17 11:00: suposição revertida: a fila\n"
+                    "- 2026-10-17 12:00: Suposição revertida: o banco\n- 2026-10-17 12:30: suposição mantida\n")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual(cod, 0)
+        self.assertIn("voltas: XPTO reversoes=2", linhas)
+        self.gravar("docs/pedidos/XPTO.md", "# p\n\n## Histórico\n- 2026-10-17 10:00: aberto\n")
+        self.assertFalse([l for l in self.rodar("voltas", "--pedido", "xpto")[1] if "reversoes" in l])
+
     def test_voltas_de_um_pedido_em_linhas_fixas_com_minutos(self):
         cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
         self.assertEqual(cod, 0)
