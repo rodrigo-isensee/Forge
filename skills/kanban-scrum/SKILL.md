@@ -62,10 +62,11 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 | 2026-10-10T14:05:00-03:00 | K-012 | Pronto para fazer | Em andamento | — |
 ```
 
-A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas.
+A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
+- **Dois relógios por release (D-4):** "pedido aberto → develop" (primeiro movimento do cartão até a entrega na develop, em "Aguardando sua validação" ou "Pronto") e "pronto para fazer → develop" (entrada em "Pronto para fazer" até a mesma entrega), com meta de 30 min no segundo; `forge-check voltas` imprime a linha `relogios:` por pedido, e o que não chegou à develop fica "não medido".
 - **Vazão:** cartões em Pronto por semana.
 - **Idade do WIP:** tempo desde a entrada em "Em andamento" dos cartões abertos.
 - **Tempo bloqueado** e **motivos de bloqueio**.

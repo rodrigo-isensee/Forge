@@ -1826,16 +1826,28 @@ class Hooks(unittest.TestCase):
                            .read_text(encoding="utf-8"))
         n = 3000
         corpos = "".join(f"x\nE{i}\n" for i in range(n))
-        # C-7 do heredoc-rapido, passo 2: também o heredoc numa substituição (6004 palavras: recusa pelo teto, depois
-        # de ler a linha marcada) e o `|`
-        for forma, texto, recusa in (("um por linha", "".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
-                                     ("&&", " && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
-                                     ("x=$(", "".join(f"x=$(cat <<'E'\nx\nE\n)\n" for i in range(n)),
-                                      "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"),
-                                     ("|", " | ".join(f"cat <<'E{i}'" for i in range(n)) + "\n" + corpos, None)):
+        teto = "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"  # o teto de palavras, como a develop
+        formas = {"um por linha": ("".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
+                  "&&": (" && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
+                  # C-7 do heredoc-rapido, passo 2: também o heredoc numa substituição (6004 palavras: recusa pelo teto,
+                  # depois de ler a linha marcada) e o `|`
+                  "x=$(": ("".join(f"x=$(cat <<'E'\nx\nE\n)\n" for i in range(n)), teto),
+                  "|": (" | ".join(f"cat <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
+                  # HEREDOC-COMENTARIO (C-3): o `#` na linha junta os heredocs num pipeline da leitura legado
+                  **{c: ("".join(f"cat > f{i} <<'EOF'{c}\nx\nEOF\n" for i in range(n)), teto if c == " x#c" else None)
+                     for c in (" # c", " x#c", ";#c")},
+                  "linha de #": ("".join(f"# c\ncat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
+                  "cat a<i> # c": ("".join(f"cat a{i} <<'EOF' # c\nx\nEOF\n" for i in range(n)), teto),  # o dono largo
+                  "| cat > f # c": ("".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(n)), teto)}
+        # HEREDOC-DONOS (C-3): N donos distintos e, no fim, `bash` gravando `.github/`, sem o marcador crítico (sem o push)
+        base = json.loads((FIXTURES / "conformidade" / "heredoc-donos-1-bash-grava-github-bloqueia.json").read_text(encoding="utf-8"))
+        for dono, m in itertools.product(("./x{i}", "sh -s a{i}", "python3 -", "python3 - a{i}"), (1000, 3000)):
+            formas[f"{dono} x{m}"] = ("".join(f"{dono.format(i=i)} <<'E'\nx\nE\n" for i in range(m))
+                                     + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ", None, base)
+        for forma, (texto, recusa, *outra) in formas.items():
             with self.subTest(forma=forma):
-                caso = json.loads(json.dumps(dados))
-                caso["entrada"]["tool_input"]["command"] = texto + "git push origin main"
+                caso = json.loads(json.dumps(*outra or [dados]))
+                caso["entrada"]["tool_input"]["command"] = texto if outra else texto + "git push origin main"
                 caso["esperado"]["stderr"] = recusa or caso["esperado"]["stderr"]
                 tmp = self._pasta_temporaria()
                 arquivo = tmp / "conformidade" / "caso.json"
@@ -1848,9 +1860,163 @@ class Hooks(unittest.TestCase):
                 self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
                 parede = time.monotonic() - inicio
                 cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
+                if outra:
+                    print(f"HEREDOC-DONOS {forma}: {parede:.2f} s de parede, {cpu or 0:.2f} s de CPU (limite {limite / 2:.1f} s)")
                 self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
                 if cpu is not None:  # sem `resource` (Windows) só vale a parede
                     self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
+
+    @staticmethod
+    def _donos_da_base(_comum, texto):
+        """HEREDOC-COMENTARIO (C-1): `tirar_heredocs` com o `montar` da develop e25d379 (o oráculo, quadrático)."""
+        def montar(self, lugar, trechos):
+            if trechos is None:
+                inicios, fins = _comum.limites_logicos(self.resto)
+                return self.vestir(self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else "")
+            linhas = []
+            for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos):
+                for palavras in (partes[j][0] for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]):
+                    for opaco in _comum.OPACO.values():
+                        palavras = [p.replace(opaco, "_") for p in palavras]
+                    linhas.append(" ".join(map(_comum.citar, palavras)))
+            return self.vestir(_comum.MARCAS.sub(" ", "\n".join(linhas)))
+        with mock.patch.object(_comum.DonosDosHeredocs, "montar", montar):
+            return Hooks._lidos(_comum, texto)
+
+    @staticmethod
+    def _lidos(_comum, texto):
+        try:
+            resto, lidos, gravado = _comum.tirar_heredocs(texto, com_gravado=True)
+        except ValueError:
+            return "ilegível"
+        return resto, [(str(dono), dono.rodado, corpo) for dono, corpo in lidos], gravado
+
+    def test_donos_dos_heredocs_iguais_aos_da_base(self):  # HEREDOC-COMENTARIO, C-1
+        """Cada segmento citado uma vez dá os mesmos (resto, donos, gravado) do `montar` da develop, abaixo do teto
+        de custo: as linhas com `<<` das fixtures e a matriz comentário × separador × dono × N."""
+        _comum, _, _ = modulos_dos_hooks()
+        linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
+                  if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
+        for com, sep, dono, n in itertools.product(("# c", "\t# c", "\r# c", "x#c", ";#c", "|#c", ""),
+                                                   ("\n", ";", " && ", " | ", " |\n", " &&\n", " \\\n"),
+                                                   ("cat > f{i}", "cat a{i}", "cat", "bash", "git commit -F -", "cat | bash",
+                                                    'eval "$(cat'), (1, 2, 7, 40)):
+            cab = [f"{dono.format(i=i)} <<'E{i}' {com}" for i in range(n)]
+            linhas += ["".join(f"{h}\nx{i}\nE{i}\n" for i, h in enumerate(cab)) + "git push origin main",
+                       sep.join(cab) + "\n" + "".join(f"x{i}\nE{i}\n" for i in range(n)) + "git push origin main",
+                       "# c\n".join(f"{h}\nx\nE{i}\n" for i, h in enumerate(cab)) + ("" if dono[0] == "e" else ")\"")]
+        self.assertGreater(len(linhas), 4200)
+        diferentes = [t for t in linhas if self._lidos(_comum, t) != self._donos_da_base(_comum, t)]
+        self.assertEqual(diferentes, [])
+
+    def test_dono_largo_acima_do_teto_de_custo(self):  # HEREDOC-COMENTARIO, C-4
+        """Com o texto novo dos donos acima de 150 mil caracteres, o dono vira um só, maior que o da base (todas as
+        leituras e o resto); com o resto também acima do teto, a linha é ilegível."""
+        _comum, _, _ = modulos_dos_hooks()
+        texto = "".join(f"cat a{i} <<'E' # c\nx\nE\n" for i in range(399)) + "cat <<'E' | bash # c\ngit push origin main\nE\n"
+        (resto, novos, gravado), (resto_base, base, gravado_base) = self._lidos(_comum, texto), self._donos_da_base(_comum, texto)
+        self.assertEqual((resto, gravado), (resto_base, gravado_base))
+        self.assertGreater(sum(novo != velho for novo, velho in zip(novos, base)), 300, "o dono largo entra")
+        for (novo, _, _), (velho, _, _) in zip(novos, base):
+            self.assertLessEqual(set(velho.split("\n")), set(novo.split("\n")), "as linhas do dono da base ficam")
+            self.assertLessEqual(_comum.corpo_so_lido(novo), _comum.corpo_so_lido(velho), "o largo não libera")
+        self.assertFalse(_comum.corpo_so_lido(novos[-1][0]), "o `| bash` do último dono fica")
+        self.assertIn(resto, novos[-1][0], "o largo leva o resto")
+        pipe = "".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(400)) + "true"  # segmentos iguais: um texto só
+        self.assertTrue(self._lidos(_comum, pipe) == self._donos_da_base(_comum, pipe), "o cache não gasta o teto")
+        longo = "".join(f"cat a{i}{'y' * 40} <<'E' # c\nx\nE\n" for i in range(3000)) + "true"
+        self.assertEqual(self._lidos(_comum, longo), "ilegível")
+
+    def test_forma_com_comentario_recusa_pela_regra_com_o_vigia_de_producao(self):  # HEREDOC-COMENTARIO, C-5
+        dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
+                           .read_text(encoding="utf-8"))
+        dados["entrada"]["tool_input"]["command"] = "".join(f"cat > f{i} <<'EOF' # c\nx\nEOF\n" for i in range(1000)) \
+            + "git push origin main"
+        tmp = self._pasta_temporaria()
+        arquivo = tmp / "conformidade" / "caso.json"
+        arquivo.parent.mkdir()
+        arquivo.write_text(json.dumps(dados), encoding="utf-8")
+        raiz, entrada = Fixture(arquivo).montar(tmp, os.getpid())
+        r = rodar("conformidade", entrada, raiz, extra={"FORGE_NPROC": "8"}, producao=True)
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("R-MAIN: push direto para main", r.stderr, "a regra, não a mensagem de prazo")
+
+    def test_donos_em_partes_leem_como_o_texto_inteiro(self):  # HEREDOC-DONOS, C-1
+        """O `vestir` da develop 032b4cb (o dono lido inteiro) e o de agora dão a mesma leitura, nos corpos também."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+
+        def velho(self, sozinho):
+            texto = _comum.Dono("\n".join([*(c for _, c in self.fora_do_texto), sozinho]))
+            if self.fora_do_texto and _comum.corpo_so_lido.__wrapped__(sozinho):
+                texto.rodado = self.fora_do_texto[0][0]
+            return texto
+
+        def leitura(dono, antigo):
+            if not antigo:
+                return (_comum.corpo_so_lido(dono), _comum.corpo_so_lido(dono, conformidade.interprete),
+                        conformidade.interpreta_o_corpo(dono))
+            lido, t = _comum.corpo_so_lido.__wrapped__, str(dono)
+            return (lido(t), lido(t, conformidade.interprete),
+                    any(conformidade.interprete(p) for p in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", t))))
+
+        def ler(texto, antigo):
+            try:
+                resto, lidos, gravado = _comum.tirar_heredocs(texto, com_gravado=True)
+            except ValueError:
+                return "ilegível"
+            return resto, gravado, [(str(d), d.rodado, c, leitura(d, antigo), ler(c, antigo)) for d, c in lidos]
+
+        linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
+                  if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
+        linhas = [l for l in linhas + list(self.corpus_de_recusas()) if "<<" in l and len(l) < 3000]  # o oráculo é quadrático
+        linhas += ["python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)",  # o programa só no texto de fora; o dono não tem
+                   "PATH=/tmp/x cat <<'E'\nx\nE\ncat <<'F'\nx\nF\n"]  # a atribuição antes do comando (M4)
+        for dono, sep, pre, n in itertools.product(
+                ("./x{i}", "sh -s a{i}", "python3 - a{i}", "cat > f{i}", "bash", "git commit -F -", 'eval "$(cat', "cat 'a{i}"),
+                ("\n", " && ", " | ", " |\n", " \\\n"),
+                ("", "export A=1\n", "cat > g <<'Z'\nx\nZ\ngit add g\n", "echo 'a\n", "cat $(x\n", "cat a \\\n"), (1, 2, 5, 12)):
+            cab = [f"{dono.format(i=i)} <<'E{i}'" for i in range(n)]
+            linhas += [pre + "".join(f"{h}\nx{i}\nE{i}\n" for i, h in enumerate(cab)) + "git push origin main",
+                       pre + sep.join(cab) + "\n" + "".join(f"x{i}\nE{i}\n" for i in range(n)) + "git push origin main"]
+        self.assertGreater(len(linhas), 1500)
+        diferentes = []
+        for texto in linhas:
+            with mock.patch.object(_comum.DonosDosHeredocs, "vestir", velho):
+                base = ler(texto, True)
+            if ler(texto, False) != base:
+                diferentes.append(texto)
+        self.assertEqual(diferentes, [])
+
+    def test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira(self):  # HEREDOC-DONOS, T2 e C-5
+        """Sem fronteira o dono se lê inteiro e conta o prefixo no teto: o dono largo assume, e o corpo do `bash` final fica comando."""
+        _comum, _, _ = modulos_dos_hooks()
+        for texto in ("cat 'a", "cat a \\", "cat $(x"):
+            self.assertFalse(_comum.fronteira_limpa(texto), texto)
+        _, limpo, _ = _comum.tirar_heredocs("./x0 <<'E'\nx\nE\n./x1 <<'E'\nx\nE\n", com_gravado=True)
+        self.assertEqual((getattr(limpo[0][0], "partes", None) or ("",))[0], "./x0\n./x1", "com fronteira, o dono se lê em duas partes")
+        texto = "".join(f"./x{i} '$(' <<'E'\nx\nE\n" for i in range(1000)) + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ\n"
+        _, lidos, _ = _comum.tirar_heredocs(texto, com_gravado=True)
+        self.assertFalse(hasattr(lidos[0][0], "partes"))
+        self.assertLess(len({id(dono) for dono, _ in lidos}), 100, "o teto conta o prefixo de cada dono sem fronteira")
+        self.assertFalse(_comum.corpo_so_lido(lidos[-1][0]))
+
+    def test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa(self):  # HEREDOC-DONOS, C-4 (variante A)
+        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente ou depois da ferramenta, libera."""
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
+        guarda = conformidade.Guarda(hook, conformidade.politica(), "dev")
+        with mock.patch.object(conformidade, "corpo_so_lido", side_effect=[True, KeyboardInterrupt]), self.assertRaises(KeyboardInterrupt):
+            guarda.bash("cat <<'A'\nx\nA\ncat <<'B'\nx\nB\ncat <<'C'\nx\nC", RAIZ, 0)
+        self.assertEqual(hook.corpos_pendentes, 2)
+        with mock.patch.object(_comum, "sessao_vigiada", return_value=True), contextlib.redirect_stderr(io.StringIO()) as erro:
+            with self.assertRaises(SystemExit):
+                _comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE")
+            self.assertRegex(erro.getvalue(), "2 corpo.s. de heredoc.*separe o comando")
+            hook.corpos_pendentes = 0
+            self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
+            hook.corpos_pendentes, hook.entrada = 2, {"hook_event_name": "PostToolUse"}
+            self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
 
     def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
         """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra

@@ -92,7 +92,7 @@ class QuadroSemKanban(Raiz):
                 self.assertFalse((self.tmp / "docs" / "kanban").exists())
 
     def test_com_kanban_nada_muda(self):
-        self.gravar("KANBAN.md", "# Quadro\n")
+        self.gravar("KANBAN.md", "# Quadro\n\n## a\n\n## b\n")
         self.assertEqual(self.rodar(*MOVER)[0], 0)
         self.assertEqual(self.rodar(*REGISTRAR)[0], 0)
         self.assertTrue((self.tmp / "docs" / "kanban" / "historico.md").is_file())

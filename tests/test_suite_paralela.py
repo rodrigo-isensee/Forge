@@ -367,6 +367,105 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(p.stdout.readline().strip(), "pronto")
         return trava
 
+    # ---- L32 (OK-3 e OK-13): o registro da suíte vermelha, fora do git ----
+    def pasta_do_registro(self, existe=True):
+        pasta = self.repo.parent / "home" / ".forge-contrib"
+        if existe:
+            pasta.mkdir(parents=True, mode=0o700)
+        return pasta
+
+    def vermelha(self, nome="b", mensagem="de propósito"):
+        self.modulo(nome, modulo_de_teste(nome, f"self.fail({mensagem!r})"))
+        return self.roda()
+
+    def test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem(self):  # L32, C-32a, C-32b
+        pasta = self.pasta_do_registro()
+        codigo, saida, erro = self.vermelha(mensagem="segredo-da-mensagem")
+        self.assertEqual(codigo, 1, saida + erro)
+        arquivo = pasta / "suite-vermelha.jsonl"
+        self.assertTrue(arquivo.exists(), "a suíte vermelha grava o registro")
+        linhas = arquivo.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(linhas), 1, linhas)
+        registro = json.loads(linhas[0])
+        self.assertEqual(registro["testes"], [{"id": "test_b.T.test_b", "vezes": 1, "de": 1}])
+        self.assertIn("carga", registro)
+        self.assertNotIn("segredo-da-mensagem", arquivo.read_text(encoding="utf-8"))
+        self.assertEqual(arquivo.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.roda()[0], 1)
+        outra = json.loads(arquivo.read_text(encoding="utf-8").splitlines()[1])
+        self.assertEqual(outra["testes"], [{"id": "test_b.T.test_b", "vezes": 2, "de": 2}])
+
+    def test_suite_verde_nao_grava_o_registro(self):  # L32
+        pasta = self.pasta_do_registro()
+        self.assertEqual(self.roda()[0], 0)
+        self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
+
+    def test_sem_a_pasta_o_registro_nao_a_cria_e_o_veredito_e_o_mesmo(self):  # L32, T-32
+        pasta = self.pasta_do_registro(existe=False)
+        codigo, saida, _ = self.vermelha()
+        self.assertEqual(codigo, 1)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED (failures=1"), saida)
+        self.assertFalse(pasta.exists())
+        self.assertNotIn("registro indisponível", self.vermelha("b")[2])  # a pasta ausente não é erro, só não há registro
+
+    def test_no_ci_o_registro_nao_grava(self):  # L32: o runner não tem ~/.forge-contrib
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "self.fail('x')"))
+        self.assertEqual(self.roda(GITHUB_ACTIONS="true")[0], 1)
+        self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
+
+    def test_processo_morto_nao_impede_o_registro_dos_testes_que_cairam(self):  # L32: o relatório de quem morreu é None
+        pasta = self.pasta_do_registro()
+        self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
+        self.modulo("c", modulo_de_teste("c", "self.fail('x')"))
+        self.assertEqual(self.roda()[0], 1)
+        self.assertTrue((pasta / "suite-vermelha.jsonl").exists(), "o relatório que falta não derruba o registro")
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8").splitlines()[0])
+        self.assertEqual([t["id"] for t in registro["testes"]], ["test_c.T.test_c"])
+
+    def test_o_id_gravado_so_leva_caractere_imprimivel(self):  # L32, C-32b
+        pasta = self.pasta_do_registro()
+        extra = "setattr(T, 'test_b\\x1b[31m', lambda self: self.fail('x'))\n"
+        self.modulo("b", modulo_de_teste("b", "pass") + extra)
+        self.assertEqual(self.roda()[0], 1)
+        texto = (pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8")
+        self.assertIn("test_b.T.test_b[31m", texto)
+        self.assertNotIn("\x1b", texto)
+
+    def test_sem_a_leitura_da_memoria_o_registro_grava_nulo(self):  # L32: /proc/meminfo ilegível
+        pasta = self.pasta_do_registro()
+        script = self.script_do_brinquedo()
+        relatorios = [{"caidos": ["test_b.T.test_b"]}, None]
+        with mock.patch.dict(os.environ, {"HOME": str(pasta.parent), "GITHUB_ACTIONS": ""}):
+            script.registrar_vermelha(relatorios, 1.5, None)
+        self.assertTrue((pasta / "suite-vermelha.jsonl").exists(), "a memória ilegível não derruba o registro")
+        registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
+        self.assertEqual((registro["carga"], registro["memoria_gb"]), (1.5, None))
+
+    def test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito(self):  # L32, C-32a, T-32
+        alvo = self.repo.parent / "alvo"
+        alvo.mkdir()
+        pasta = self.pasta_do_registro(existe=False)
+        pasta.parent.mkdir(parents=True)
+        pasta.symlink_to(alvo)
+        codigo, saida, _ = self.vermelha()
+        self.assertEqual(codigo, 1)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED (failures=1"), saida)
+        self.assertFalse((alvo / "suite-vermelha.jsonl").exists(), "a pasta que é link não recebe o registro")
+        pasta.unlink()
+        pasta.mkdir(mode=0o700)
+        (pasta / "suite-vermelha.jsonl").symlink_to(alvo / "destino")
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertFalse((alvo / "destino").exists(), "o arquivo que é link não recebe o registro")
+        self.assertIn("registro indisponível", erro)
+
+    def test_pasta_gravavel_por_outros_recusa(self):  # L32, C-32a
+        pasta = self.pasta_do_registro()
+        pasta.chmod(0o777)
+        self.assertEqual(self.vermelha()[0], 1)
+        self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
+
     def test_a_mao_espera_a_trava_do_pre_push(self):  # SUITE-FILA-JUSTA, AB-7
         self.segura_trava()
         codigo, saida, erro = self.roda(FORGE_TRAVA_ESPERA="1")

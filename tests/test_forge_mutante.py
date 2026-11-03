@@ -4,9 +4,11 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -171,6 +173,21 @@ class ValidacaoDaSpec(unittest.TestCase):
         self.assertTrue(self.f.validar_specs([a, {"pedido": "y", "mutantes": [mutante("M2")]}]))
         self.assertTrue(self.f.validar_specs([a, {"pedido": "x", "mutantes": [mutante("M1")]}]))
         self.assertTrue(self.f.validar_specs([]))
+
+
+class Encerramento(unittest.TestCase):
+    """L33: depois do sinal ou do erro de um processo, nenhum teste novo começa."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.f = carregar()
+
+    def test_rodar_depois_do_encerramento_nao_lanca_processo(self):
+        self.addCleanup(self.f.ABORTAR.clear)
+        self.f.ABORTAR.set()
+        with mock.patch.object(self.f.subprocess, "Popen") as popen:
+            self.assertIsNone(self.f.rodar(Path("."), ["tests.m.T.t"], "registro.jsonl", 5))
+        popen.assert_not_called()
 
 
 class Execucao(unittest.TestCase):
@@ -344,6 +361,84 @@ class Execucao(unittest.TestCase):
                 r = self.rodar(self.spec(mutante(testes=[teste])))
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertFalse(marca.exists())
+
+    # ---- L33 (M4): k processos, um clone cada ----
+    def com_testes_de_pid(self, *nomes, corpo="__import__('time').sleep(60)"):
+        """Acrescenta ao teste um método por nome: grava o pid e o cwd em `fora/` e roda `corpo`."""
+        extra = "".join(f"\n    def {n}(self):\n        d = {str(self.fora)!r}\n        os = __import__('os')\n"
+                        f"        open(d + '/pid-' + str(os.getpid()), 'w').write(os.getcwd())\n        {corpo}\n" for n in nomes)
+        self.gravar("tests/test_lib.py", TESTE + extra)
+        self.salvar()
+
+    def test_k_processos_dao_o_mesmo_veredito_que_em_serie(self):  # L33, C-33a
+        casos = {"1 sobrevive": [mutante("M1"), mutante("M2", para="x > 99"), mutante("M3", para="x > 9")],
+                 "todos morrem": [mutante("M1"), mutante("M2", para="x > 99"), mutante("M3", para="x > 90")],
+                 "um inválido": [mutante("M1"), mutante("M2", de="x > 11"), mutante("M3", para="x > 9")]}
+        for nome, mutantes in casos.items():
+            with self.subTest(nome):
+                spec = self.spec(*mutantes)
+                serie, paralelo = self.rodar(spec, "--processos", "1"), self.rodar(spec, "--processos", "3")
+                self.assertEqual((paralelo.returncode, paralelo.stdout), (serie.returncode, serie.stdout), paralelo.stderr)
+                self.assertEqual(serie.returncode, {"1 sobrevive": 1, "todos morrem": 0, "um inválido": 2}[nome], serie.stdout)
+                self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+
+    def test_cada_processo_roda_na_sua_copia(self):  # L33, T-33
+        self.com_testes_de_pid("test_copia", corpo="pass")
+        spec = self.spec(*[mutante(f"M{i}", para=f"x > 9{i}", testes=["tests.test_lib.T.test_copia"]) for i in range(1, 4)])
+        r = self.rodar(spec, "--processos", "3")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)  # os três sobrevivem: o teste não olha a lib
+        copias = {p.read_text(encoding="utf-8") for p in self.fora.glob("pid-*")}
+        self.assertEqual(len(copias), 3, copias)  # o controle e cada mutante ficam na pasta de um mutante, três pastas
+        self.assertTrue(all(str(self.tmp) in c for c in copias), copias)
+
+    def test_processos_fora_da_faixa_sai_2(self):  # L33, C-33b
+        for k in ("0", "5", "-1"):
+            with self.subTest(k):
+                r = self.rodar(self.spec(mutante()), "--processos", k)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("--processos vai de 1 a 4", r.stderr)
+
+    def test_processo_que_cai_e_sem_veredito_nunca_morreu_e_os_outros_seguem(self):  # L33, T-33
+        self.com_testes_de_pid("test_cai", corpo="__import__('os').kill(__import__('os').getpid(), 9)")
+        spec = self.spec(mutante("M1"), mutante("M2", testes=["tests.test_lib.T.test_cai"]), mutante("M3", para="x > 90"))
+        r = self.rodar(spec, "--processos", "3")
+        self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+        self.assertIn("M1 · morreu · lib.py:2", r.stdout)
+        self.assertIn("M2 · sem veredito", r.stdout)
+        self.assertNotIn("M2 · morreu", r.stdout)
+        self.assertIn("M3 · morreu · lib.py:2", r.stdout)
+
+    def test_sigterm_no_meio_mata_todos_os_processos_e_apaga_as_copias(self):  # L33, C-33a
+        self.com_testes_de_pid("test_a", "test_b", "test_c")
+        spec = self.spec(*[mutante(f"M{i}", testes=[f"tests.test_lib.T.test_{c}"]) for i, c in zip((1, 2, 3), "abc")])
+        p = subprocess.Popen([sys.executable, str(FERRAMENTA), spec, "--processos", "3"], cwd=self.dir,
+                             env={**AMBIENTE, "TMPDIR": str(self.tmp)}, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            limite = time.monotonic() + 60
+            while len(list(self.fora.glob("pid-*"))) < 3:
+                self.assertLess(time.monotonic(), limite, "os três processos de teste não subiram")
+                time.sleep(0.1)
+            pids = [int(x.name[4:]) for x in self.fora.glob("pid-*")]
+            p.send_signal(signal.SIGTERM)
+            try:
+                codigo = p.wait(timeout=20)  # os testes dormem 60 s: sair antes disso é o sinal que os matou
+            except subprocess.TimeoutExpired:
+                self.fail("o forge-mutante não saiu em 20 s depois do SIGTERM")
+            self.assertEqual(codigo, 143)
+        finally:
+            if p.poll() is None:
+                p.kill()
+            p.communicate()
+        self.assertEqual(list(self.tmp.iterdir()), [], "sobrou cópia em $TMPDIR")
+        for pid in pids:
+            for _ in range(50):
+                try:
+                    os.kill(pid, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(0.1)
+            else:
+                self.fail(f"o processo de teste {pid} segue vivo")
 
     def test_teste_que_estoura_o_prazo_sai_2_sem_veredito(self):  # CA-9
         self.gravar("tests/test_lib.py", TESTE + "\n    def test_lento(self):\n        __import__('time').sleep(60)\n")

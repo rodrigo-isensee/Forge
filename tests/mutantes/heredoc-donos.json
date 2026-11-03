@@ -1,0 +1,173 @@
+{
+  "pedido": "HEREDOC-DONOS",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "D1",
+      "guarda": "T2/T3: o corpo_so_lido do dono lê as duas partes, não só o dono (T2)",
+      "arquivo": "hooks/_comum.py",
+      "de": "lidas = [_leitura_do_dono(p, tambem) for p in partes]",
+      "para": "lidas = [_leitura_do_dono(partes[-1], tambem)]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D2",
+      "guarda": "T1: o prefixo não se deduplica por nome do programa",
+      "arquivo": "hooks/_comum.py",
+      "de": "self.prefixo = \"\\n\".join(comando for _, comando in self.fora_do_texto)",
+      "para": "self.prefixo = \"\\n\".join(dict(self.fora_do_texto).values())",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D3",
+      "guarda": "T4: a leitura do dono em cache vale pelo texto inteiro, não pela última linha",
+      "arquivo": "hooks/_comum.py",
+      "de": "    programas = programas_e_atribuicoes(texto)\n    return bool(programas), all(",
+      "para": "    programas = programas_e_atribuicoes(texto.rsplit(\"\\n\", 1)[-1])\n    return bool(programas), all(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D4",
+      "guarda": "T3: o interpretados lê o texto todo (as duas partes), não só o dono",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return any(map(interpretado, getattr(dono, \"partes\", None) or (dono,)))",
+      "para": "return any(map(interpretado, (getattr(dono, \"partes\", None) or (dono,))[-1:]))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D5",
+      "guarda": "M2: o programa provado pode estar só no prefixo (tem programa em alguma parte)",
+      "arquivo": "hooks/_comum.py",
+      "de": "return any(tem for tem, _ in lidas) and all(ok for _, ok in lidas)",
+      "para": "return lidas[-1][0] and all(ok for _, ok in lidas)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D6",
+      "guarda": "T2: só há partes com a fronteira provada",
+      "arquivo": "hooks/_comum.py",
+      "de": "self.fronteira = fronteira_limpa(self.prefixo)  # provada",
+      "para": "self.fronteira = True  # provada",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
+      ]
+    },
+    {
+      "id": "D7",
+      "guarda": "T2: a fronteira_limpa recusa o texto de fora com aspa, barra ou $( sem fechar",
+      "arquivo": "hooks/_comum.py",
+      "de": "    return (not so.duvida and not junto.duvida",
+      "para": "    return (True or not junto.duvida",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
+      ]
+    },
+    {
+      "id": "D8",
+      "guarda": "o dono com fronteira se lê em partes (a leitura é rápida)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if self.fronteira:\n            texto.partes",
+      "para": "        if False:\n            texto.partes",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
+      ]
+    },
+    {
+      "id": "D9",
+      "guarda": "o texto do dono é o da base: o prefixo só entra se há texto de fora (str igual)",
+      "arquivo": "hooks/_comum.py",
+      "de": "Dono(f\"{self.prefixo}\\n{sozinho}\" if self.fora_do_texto else sozinho)",
+      "para": "Dono(f\"{self.prefixo}\\n{sozinho}\" if True else sozinho)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    },
+    {
+      "id": "D10",
+      "guarda": "C-5: o dono sem fronteira conta o prefixo no teto de custo",
+      "arquivo": "hooks/_comum.py",
+      "de": "(0 if self.fronteira else len(self.prefixo))",
+      "para": "(0 if True else len(self.prefixo))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
+      ]
+    },
+    {
+      "id": "D11",
+      "guarda": "C-4: o prazo vencido com corpo pendente recusa mesmo sem o marcador crítico",
+      "arquivo": "hooks/_comum.py",
+      "de": "(hook.marcado is False and not hook.corpos_pendentes)",
+      "para": "hook.marcado is False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
+      ]
+    },
+    {
+      "id": "D12",
+      "guarda": "C-4: a mensagem do prazo diz os corpos pendentes e pede para separar o comando",
+      "arquivo": "hooks/_comum.py",
+      "de": "if hook.marcado is not False else",
+      "para": "if True else",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
+      ]
+    },
+    {
+      "id": "D13",
+      "guarda": "C-4: os corpos tirados da linha entram na conta dos pendentes",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.h.corpos_pendentes += len(corpos)",
+      "para": "self.h.corpos_pendentes += 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
+      ]
+    },
+    {
+      "id": "D14",
+      "guarda": "C-4: o corpo conferido sai da conta dos pendentes",
+      "arquivo": "hooks/conformidade.py",
+      "de": "self.h.corpos_pendentes -= 1",
+      "para": "self.h.corpos_pendentes -= 0",
+      "testes": [
+        "tests.test_hooks.Hooks.test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa"
+      ]
+    },
+    {
+      "id": "D15",
+      "guarda": "T6: o laço dos corpos não pula os restantes (corpo crítico no meio)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.h.corpos_pendentes -= 1\n",
+      "para": "            self.h.corpos_pendentes -= 1\n            break\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures"
+      ]
+    },
+    {
+      "id": "D16",
+      "guarda": "M4: o comando com atribuição antes não só lê o corpo (a atribuição conta na leitura do dono)",
+      "arquivo": "hooks/_comum.py",
+      "de": "all(not a and le_o_corpo(p, args, tambem)",
+      "para": "all(True and le_o_corpo(p, args, tambem)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "partes is not None",
+      "motivo": "ramo rápido: o resultado é o da leitura do todo (oráculo C-1); o custo vale pelo teste do orçamento"
+    }
+  ]
+}

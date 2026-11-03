@@ -31,7 +31,9 @@ case "$1 $2" in
   "pr list")
     case "$*" in *"--head "*) todos="$*"; h="${todos#*--head }"; echo "${h%% *}" > "$ESTADO/branch_vista" ;; esac  # a branch da entrega, para o head padrão do pr view
     falha_n falha_lista && { echo "HTTP 502" >&2; exit 1; }
-    [ -f "$ESTADO/aberto" ] && awk -v fork="$([ -f "$ESTADO/aberto_fork" ] && echo true || echo false)" '{print $1 " OPEN " $2 " - " fork}' "$ESTADO/aberto"
+    # o head do PR aberto, como o GitHub o devolve: o arquivo "aberto_head" (só da lista), o "head" ou o da branch no remoto
+    h_aberto="$(cat "$ESTADO/aberto_head" 2>/dev/null || cat "$ESTADO/head" 2>/dev/null || { r="refs/heads/$(cat "$ESTADO/branch_vista")"; git ls-remote origin "$r" | awk -v r="$r" '$2 == r {print $1}'; })"
+    [ -f "$ESTADO/aberto" ] && awk -v fork="$([ -f "$ESTADO/aberto_fork" ] && echo true || echo false)" -v h="$h_aberto" '{print $1 " OPEN " $2 " " h " " fork}' "$ESTADO/aberto"
     cat "$ESTADO/lista_extra" 2>/dev/null; exit 0 ;;
   "pr view")
     # head_do_pr [arquivo]: o head que o GitHub devolve (arquivo "head" ou o da branch no remoto, que é o conferido pelo script)

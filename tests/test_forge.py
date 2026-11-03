@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede, P5)
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
@@ -332,6 +333,42 @@ class Skills(unittest.TestCase):
             self.assertIn(titulo, texto)
 
 
+# L34 (OK-4): todo caminho citado entre crases em agents/, skills/ e docs/regras/ existe. O que os agentes mandam criar no
+# projeto, e que não tem modelo em templates/projeto/, fica nesta lista fechada; o resto que não existe reprova.
+PASTAS_CITADAS = ("bin", "hooks", "scripts", "docs", "tests", "agents", "skills", "stacks", "templates", ".github",
+                  ".githooks", ".claude-plugin", "changelog.d")
+CRIADOS_NO_PROJETO = frozenset({"docs/api", "docs/architecture/data-model.md", "docs/architecture/overview.md",
+                                "docs/briefs", "docs/kanban/conferencias.md", "docs/security/aceites"})
+CITACAO = re.compile(r"`([^`\n]+)`")
+MOLDE = re.compile(r"[<>*{}$|\[\]]|\.\.\.|…|NNNN")
+
+
+def caminhos_citados(texto):
+    """Os caminhos do repositório entre crases (uma palavra só, começada por uma pasta do Forge, sem molde nem glob)."""
+    achados = []
+    for citado in CITACAO.findall(texto):
+        citado = re.sub(r":\d+(-\d+)?$", "", citado.strip().split("#")[0].rstrip(".,;:)"))
+        if " " not in citado and "/" in citado and citado.split("/")[0] in PASTAS_CITADAS and not MOLDE.search(citado):
+            achados.append(citado.rstrip("/"))
+    return achados
+
+
+def caminhos_ausentes(texto, raiz, criados=CRIADOS_NO_PROJETO):
+    """Os caminhos citados que não existem em `raiz` nem no modelo do projeto, fora a lista fechada de `criados`.
+    Só lê; um link que aponta para fora de `raiz` conta como ausente (C-34)."""
+    base = raiz.resolve()
+    ausentes = []
+    for caminho in caminhos_citados(texto):
+        if caminho in criados:
+            continue
+        for onde in (raiz / caminho, raiz / "templates" / "projeto" / caminho):
+            if os.path.lexists(onde) and onde.resolve().is_relative_to(base) and onde.exists():
+                break
+        else:
+            ausentes.append(caminho)
+    return ausentes
+
+
 class Referencias(unittest.TestCase):
     def test_caminhos_do_plugin_existem(self):
         padrao = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([\w./-]+)")
@@ -339,6 +376,35 @@ class Referencias(unittest.TestCase):
             for rel in padrao.findall(p.read_text(encoding="utf-8", errors="ignore")):
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), ref=rel):
                     self.assertTrue((RAIZ / rel.rstrip(".")).exists(), f"{rel} não existe no Forge")
+
+    def textos_que_citam_caminhos(self):
+        fontes = [*AGENTES.glob("*.md"), *SKILLS.glob("**/*.md"), *(RAIZ / "docs" / "regras").glob("*.md")]
+        return minimo([f for f in fontes if not f.is_symlink()], 35, "agents/, skills/ e docs/regras/")
+
+    def test_todo_caminho_citado_em_agentes_skills_e_regras_existe(self):  # L34, OK-4
+        total = 0
+        for arquivo in self.textos_que_citam_caminhos():
+            texto = arquivo.read_text(encoding="utf-8")
+            total += len(caminhos_citados(texto))
+            with self.subTest(arquivo=str(arquivo.relative_to(RAIZ))):
+                self.assertEqual(caminhos_ausentes(texto, RAIZ), [], "caminho citado que não existe no Forge nem no modelo do projeto")
+        self.assertGreaterEqual(total, 120, "o teste leu poucos caminhos (padrão de citação quebrado?)")
+
+    def test_caminho_inventado_reprova_e_o_que_existe_ou_e_molde_passa(self):  # L34
+        texto = ("`docs/inventado/xyz.md` `bin/forge-check` `docs/pedidos/<pedido>.md` `tests/test_*.py` `scripts/nao-existe.py:12` "
+                 "`docs/api` `ls docs/x` `docs/reviews/_modelo.md` `src/app.py`")
+        self.assertEqual(caminhos_ausentes(texto, RAIZ), ["docs/inventado/xyz.md", "scripts/nao-existe.py"])
+        self.assertEqual(caminhos_ausentes(texto, RAIZ, criados=frozenset()), ["docs/inventado/xyz.md", "scripts/nao-existe.py", "docs/api"])
+
+    def test_link_para_fora_do_repositorio_conta_como_ausente(self):  # L34, C-34
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz, fora = Path(tmp) / "raiz", Path(tmp) / "fora"
+            (raiz / "docs").mkdir(parents=True)
+            fora.mkdir()
+            (fora / "alvo.md").write_text("x", encoding="utf-8")
+            (raiz / "docs" / "dentro.md").write_text("x", encoding="utf-8")
+            (raiz / "docs" / "link.md").symlink_to(fora / "alvo.md")
+            self.assertEqual(caminhos_ausentes("`docs/dentro.md` `docs/link.md`", raiz), ["docs/link.md"])
 
 
 class Neutralidade(unittest.TestCase):
@@ -405,13 +471,81 @@ class RegrasInviolaveis(unittest.TestCase):
     """Se alguém apagar uma regra da fábrica por engano, o CI quebra."""
 
     def test_trechos_obrigatorios(self):
-        invariantes = minimo(CONFIG["invariantes"].items(), 23, "arquivos com invariantes")
-        minimo((t for _, ts in invariantes for t in ts), 95, "trechos invariantes")
+        invariantes = minimo(CONFIG["invariantes"].items(), 48, "arquivos com invariantes")
+        minimo((t for _, ts in invariantes for t in ts), 410, "trechos invariantes")
         for rel, trechos in invariantes:
             texto = (RAIZ / rel).read_text(encoding="utf-8")
             for t in trechos:
                 with self.subTest(arquivo=rel, trecho=t):
                     self.assertRegex(texto, re.compile(t, re.S))
+
+    def test_invariante_traz_regra_e_porque_e_o_legado_so_encolhe(self):  # L35, OK-11, T-35
+        regras = {p.stem for p in (RAIZ / "docs" / "regras").glob("R-*.md")}
+        minimo(CONFIG["invariantes_motivo"], 17, "invariantes com regra e porque")
+        self.assertEqual(problemas_de_motivo(CONFIG, regras), [])
+
+    def test_invariante_novo_sem_regra_ou_sem_porque_reprova(self):  # L35
+        regras = {"R-MAIN"}
+        base = {"invariantes": {"a.md": ["x"], "b.md": ["y"]}, "invariantes_sem_motivo": {"b.md": 1}, "invariantes_motivo_trecho": {},
+                "invariantes_motivo": {"a.md": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}
+        self.assertEqual(problemas_de_motivo(base, regras), [])
+        novo = {**base, "invariantes": {**base["invariantes"], "c.md": ["z"]}}
+        self.assertEqual(problemas_de_motivo(novo, regras), ["c.md: invariante sem regra e porque"])
+        sem_porque = {**base, "invariantes_motivo": {"a.md": {"regra": "R-MAIN"}}}
+        self.assertEqual(problemas_de_motivo(sem_porque, regras), ["a.md: o motivo tem só `regra` e `porque`"])
+        curto = {**base, "invariantes_motivo": {"a.md": {"regra": "R-MAIN", "porque": "curto"}}}
+        self.assertEqual(problemas_de_motivo(curto, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
+        inventada = {**base, "invariantes_motivo": {"a.md": {"regra": "R-XYZ", "porque": "sem o texto o agente mescla na main do usuário"}}}
+        self.assertEqual(problemas_de_motivo(inventada, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
+        n_sobe = {**base, "invariantes_sem_motivo": {"b.md": 2}}  # A9 do QA: subir o n de qualquer arquivo reprova
+        self.assertEqual(len(problemas_de_motivo(n_sobe, regras)), 1)
+        self.assertIn("a contagem só encolhe até a real", problemas_de_motivo(n_sobe, regras)[0])
+        legado_cresce = {**base, "invariantes_sem_motivo": {f"{n}.md": 1 for n in range(LEGADO_SEM_MOTIVO_MAXIMO + 1)}}
+        self.assertTrue(problemas_de_motivo(legado_cresce, regras))
+        # A6 do review: trecho novo em arquivo do legado traz o próprio motivo (o do arquivo não existe)
+        trecho_novo = {**base, "invariantes": {**base["invariantes"], "b.md": ["y", "w"]}}
+        self.assertEqual(problemas_de_motivo(trecho_novo, regras), ["b.md: trecho novo em arquivo do legado sem regra e porque"])
+        com_motivo = {**trecho_novo, "invariantes_motivo_trecho": {"b.md": {"w": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}}
+        self.assertEqual(problemas_de_motivo(com_motivo, regras), [])
+        curto_no_trecho = {**trecho_novo, "invariantes_motivo_trecho": {"b.md": {"w": {"regra": "R-MAIN", "porque": "curto"}}}}
+        self.assertEqual(problemas_de_motivo(curto_no_trecho, regras), ["b.md: trecho `w`: `regra` desconhecida ou `porque` curto demais"])
+        fora_do_legado = {**base, "invariantes_motivo_trecho": {"a.md": {"x": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}}
+        self.assertEqual(problemas_de_motivo(fora_do_legado, regras), ["a.md: motivo por trecho só vale para arquivo do legado"])
+
+
+LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
+
+
+LEGADO_TRECHOS_MAXIMO = 284  # L35 (A9 do QA): a soma dos trechos do legado, igual à real de hoje; só encolhe
+
+
+def problemas_de_motivo(config, regras):
+    """Os invariantes que não dizem a regra que protegem e o porquê: todo arquivo de `invariantes` ou tem a entrada em
+    `invariantes_motivo` (`regra` de `docs/regras/` e `porque` com 30+ caracteres) ou consta do legado fechado."""
+    inv, motivos = config["invariantes"], config["invariantes_motivo"]
+    legado, por_trecho = config["invariantes_sem_motivo"], config["invariantes_motivo_trecho"]  # legado: {arquivo: trechos de antes do campo}
+    problemas = [f"{a}: invariante sem regra e porque" for a in sorted(set(inv) - set(motivos) - set(legado))]
+    problemas += [f"{a}: consta do legado e tem motivo" for a in sorted(set(motivos) & set(legado))]
+    problemas += [f"{a}: motivo de um arquivo sem invariantes" for a in sorted(set(motivos) - set(inv))]
+    for arq, m in sorted(motivos.items()):
+        if not isinstance(m, dict) or set(m) != {"regra", "porque"}:
+            problemas.append(f"{arq}: o motivo tem só `regra` e `porque`")
+        elif m["regra"] not in regras or len(str(m["porque"]).strip()) < 30:
+            problemas.append(f"{arq}: `regra` desconhecida ou `porque` curto demais")
+    for arq, trechos in sorted(por_trecho.items()):  # L35, A6 do review: o legado cobre os trechos de antes; o trecho novo traz o seu motivo
+        if arq not in legado:
+            problemas.append(f"{arq}: motivo por trecho só vale para arquivo do legado")
+        problemas += [f"{arq}: trecho `{t}`: `regra` desconhecida ou `porque` curto demais" for t, m in sorted(trechos.items())
+                      if not isinstance(m, dict) or m.get("regra") not in regras or len(str(m.get("porque", "")).strip()) < 30]
+    problemas += [f"{arq}: trecho novo em arquivo do legado sem regra e porque" for arq, n in sorted(legado.items())
+                  if len(inv.get(arq, [])) - len(por_trecho.get(arq, {})) > n]
+    problemas += [f"{arq}: o legado diz {n} trechos sem motivo e o arquivo tem {len(inv.get(arq, [])) - len(por_trecho.get(arq, {}))}; a contagem só encolhe até a real"
+                  for arq, n in sorted(legado.items()) if len(inv.get(arq, [])) - len(por_trecho.get(arq, {})) < n]
+    if sum(legado.values()) > LEGADO_TRECHOS_MAXIMO:
+        problemas.append(f"o legado soma {sum(legado.values())} trechos sem motivo; só encolhe (máximo {LEGADO_TRECHOS_MAXIMO})")
+    if len(legado) > LEGADO_SEM_MOTIVO_MAXIMO:
+        problemas.append(f"o legado sem motivo tem {len(legado)} arquivos; só encolhe (máximo {LEGADO_SEM_MOTIVO_MAXIMO})")
+    return problemas
 
 
 REGRAS = RAIZ / "docs" / "regras"
@@ -1851,10 +1985,31 @@ class ForgeCheck(unittest.TestCase):
         coluna(11)
         self.assertIn("limite 10", self.check("kanban", nproc=16)[1])
 
+    def assertAprovado(self, resultado, marca=None):
+        """LOTE E1: o `pr` aprovado sai com rc 0 e uma só linha, `pr: veredito: aprovado · ...`; nenhuma violação."""
+        codigo, saida = resultado
+        self.assertEqual(codigo, 0, marca or saida)
+        self.assertEqual(len(saida.splitlines()), 1, marca or saida)
+        self.assertTrue(saida.startswith("pr: veredito: aprovado · "), marca or saida)
+
+    def test_pr_aprovado_imprime_veredito(self):
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 0, saida)
+        self.assertRegex(saida, r'^pr: veredito: aprovado · "p1" · exigidos review, qa · head [0-9a-f]{7} · base estrita$')
+        self.assertIn("head " + self.head()[:7], saida)
+
+    def test_pr_com_violacao_nao_imprime_veredito(self):
+        self.pareceres(self.head())  # sem commitar: o parecer só existe na árvore de trabalho
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("veredito", saida)
+
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_parecer_so_na_arvore_de_trabalho_falha(self):
         """PA-4: o parecer no disco e fora do commit não vale (novo, só no índice ou editado depois)."""
@@ -1866,7 +2021,7 @@ class ForgeCheck(unittest.TestCase):
         git("add", "docs/reviews/p1.md", "docs/qa/p1.md", cwd=self.tmp)  # no índice, ainda não commitado
         self.assertIn("ausente no commit", self.check("pr", "p1")[1])
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
         self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "revalidado\n")
         saida = self.check("pr", "p1")[1]  # versão nova no disco, a do commit é a antiga
         self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida)
@@ -1884,7 +2039,7 @@ class ForgeCheck(unittest.TestCase):
             self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida[1])
             git("update-index", "--no-" + marca[2:], "docs/qa/p1.md", cwd=self.tmp)
             git("checkout", "--", "docs/qa/p1.md", cwd=self.tmp)
-            self.assertEqual(self.check("pr", "p1"), (0, ""), marca)
+            self.assertAprovado(self.check("pr", "p1"), marca)
 
     def test_ajuda_geral_cita_parecer_commitado_no_pr(self):
         """PA-4 (BUG-1 do QA): `forge-check --help` lista o `pr` e cita a exigência de parecer commitado."""
@@ -1898,7 +2053,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
@@ -1913,7 +2068,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_autoria_de_papel_errado_ou_ausente_falha(self):
         self.pareceres(self.head())
@@ -1941,7 +2096,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         self.assertFalse((self.tmp / ".forge/run/autoria.jsonl").exists())
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_autoria_com_ref_compara_o_texto_da_branch(self):
         git("switch", "-q", "-c", "develop", cwd=self.tmp)
@@ -1952,7 +2107,7 @@ class ForgeCheck(unittest.TestCase):
         self.commitar()
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
     def test_raiz_depois_do_subcomando_e_git_isolado(self):
         self.pareceres(self.head())
@@ -1960,7 +2115,7 @@ class ForgeCheck(unittest.TestCase):
         env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
-        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
 
     def test_aviso_de_migracao_pendente(self):
         fc = carregar_forge_check()
@@ -2012,7 +2167,7 @@ class ForgeCheck(unittest.TestCase):
                       f"commit: {head}\nparecer: aprovado\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
         self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="aprovado", extra="") + "---\n")
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"), ("docs/devops/p1.md", "tech-lead"),
                      ("docs/security/p1.md", "seguranca"))
         self.assertIn("docs/devops/p1.md: autoria", self.check("pr", "p1")[1])
@@ -2021,7 +2176,7 @@ class ForgeCheck(unittest.TestCase):
         self.entrega("src/outro.txt")
         self.pareceres(self.head())
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_gatilhos_de_seguranca_pelo_diff(self):
         for arquivo in ("package-lock.json", "app/.env", "db/migrations/001.sql", "hooks/conformidade.json", "docs/regras/R-X.md"):
@@ -2117,7 +2272,7 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("docs/security/aceites/p1.md", self.check("pr", "p1")[1])
 
     def test_riscos_aceitos_com_o_arquivo_de_aceite_vale(self):
-        self.assertEqual(self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\nAceito o risco X.\n"), (0, ""))
+        self.assertAprovado(self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\nAceito o risco X.\n"))
 
     def test_aceite_de_commit_antigo_reprova(self):
         codigo, saida = self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\n", commit="0" * 40)
@@ -2144,7 +2299,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(base)
         self.escrever("KANBAN.md", "# Quadro\n")
         self.commitar()
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_commit_desatualizado(self):
         base = self.head()
@@ -2170,7 +2325,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar()
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
         self.assertIn("sem parecer", self.check("pr", "p1")[1])
 
     def test_pr_qa_com_bug_alto_falha(self):
@@ -2181,6 +2336,11 @@ class ForgeCheck(unittest.TestCase):
 
 
 class Orcamento(unittest.TestCase):
+    def test_conferente_usa_o_pedido_da_mensagem(self):  # LOTE E4: a mensagem traz `Pedido: <id>`; o caminho montado à mão duplicava docs/pedidos/
+        texto = RAIZ.joinpath("agents", "conferente.md").read_text(encoding="utf-8")
+        self.assertNotIn("docs/pedidos/<Pedido>.md", texto)
+        self.assertIn("--pedido <Pedido> --destino <Agente conferido>", texto)
+
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
         for p in agentes_do_plugin():
@@ -2888,6 +3048,50 @@ class MedirAlucinacao(unittest.TestCase):
         relatorio = "Commit abc1234, PR #118, push aceito, mesclado, 312 testes OK."
         self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=5 sem_lastro=5 taxa=100.0%", self.lastro(relatorio, saida))
 
+    def test_afirmacao_absoluta_sem_saida_de_teste_conta_sem_lastro(self):  # L12 (OK-5): só mede
+        relatorio = "Todos os testes passam e nenhuma falha restou."
+        self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "git status limpo"))
+        self.assertIn("afirmacoes=1 sem_lastro=0 taxa=0.0%", self.lastro(relatorio, "Ran 312 tests in 4s\nOK\n"))
+        self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "Ran 10 tests in 1s\nFAILED (failures=1)"))
+        self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", self.lastro("Não é verdade que todos os testes passam.", "x"))  # negada não conta
+
+    def test_recusas_por_papel_contam_so_numeros(self):  # L14 (P9): sem o comando recusado
+        def evento(papel, id_agente, texto, uso, erro=True):
+            base = {"isSidechain": True, "agentId": id_agente, "sessionId": "sess"}
+            return [{"type": "user", "sessionId": "sess", "toolUseResult": {"agentId": id_agente},
+                     "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"u-{id_agente}", "content": "ok"}]}},
+                    {**base, "type": "user", "message": {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": uso, "is_error": erro, "content": [{"type": "text", "text": texto}]}]}}]
+
+        delegacoes = [{"type": "assistant", "sessionId": "sess", "message": {"id": "d", "role": "assistant", "content": [
+            {"type": "tool_use", "id": f"u-{n}", "name": "Agent", "input": {"subagent_type": papel}}]}}
+            for n, papel in (("a1", "forge:conferente"), ("a2", "forge:dev-exemplo"))]
+        recusa = "PreToolUse:Bash hook error: R-CONFORMIDADE: `$(` fora da gramática do papel só de leitura (forge:conferente): segredo-xyz"
+        linhas = delegacoes + evento("c", "a1", recusa, "t1") + evento("c", "a1", recusa, "t2") \
+            + evento("d", "a2", "R-REVIEW: o hook não modela a linha segredo-xyz", "t3") + evento("d", "a2", recusa, "t4", erro=False)
+        saida, _ = self.rodar("recusas", linhas)
+        self.assertIn("recusas: papel forge:conferente nao_modela=0 fora_da_gramatica=2", saida)
+        self.assertIn("recusas: papel forge:dev-exemplo nao_modela=1 fora_da_gramatica=0", saida)
+        self.assertIn("recusas: total: papeis=2 nao_modela=1 fora_da_gramatica=2", saida)
+        self.assertNotIn("segredo-xyz", saida)
+
+    def test_veredito_que_contradiz_as_proprias_linhas_conta(self):  # L13 (P7): só mede
+        cumpriu_com_pendente = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\npendente: \"Entregar\" item 3 sem commit\nveredito: cumpriu"
+        nao_cumpriu_sem_linha = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\nveredito: não cumpriu"
+        coerente_a = "PQ-1 cumpriu | x\nveredito: cumpriu"
+        coerente_b = "PQ-1 não cumpriu | x\nveredito: não cumpriu"
+        sem_veredito = "Relatório sem a linha fixa."
+        coerente_c = "PQ-1 cumpriu | x\nescopo: Base-sha fora da branch | git merge-base\nveredito: não cumpriu"  # A3 do review: as linhas do conferente.md
+        coerente_d = "forma: brief sem arquivo em docs/briefs/\nveredito: não cumpriu"
+        coerente_e = "escopo: ok (anexo) | git diff\nescopo: confira | git diff\nforma: ok\nveredito: cumpriu"  # linha que não reprova
+        coerente_f = "escopo: integração da base (o que difere dos dois pais)\nescopo: sem commit (nada a conferir)\nescopo: união de 3 briefs (mesma Branch, Base, Base-sha e pedido)\nveredito: cumpriu"  # A3 do review: o entrega imprime sem reprovar
+        linhas = []
+        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito, coerente_c, coerente_d, coerente_e, coerente_f)):
+            linhas += [{**o, "agentId": f"a{i}"} for o in self.subagente(texto, "x")]
+        saida, _ = self.rodar("vereditos", linhas)
+        self.assertIn("vereditos: sessao s1: vereditos=8 contraditorios=2 taxa=25.0%", saida)
+        self.assertNotIn("pendente", saida)  # só números
+
     def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):
         saida = self.lastro("Commit abc1234 entrou.", "abc1234", erro=True)
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", saida)
@@ -3051,6 +3255,47 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn("aviso: PQ-2 espera fraca", saida)
         self.assertEqual(rc, 0, "aviso não reprova")
 
+    def test_suposicao_sem_muda_com_e_custo_de_reverter_avisa(self):  # L11 (OK-6): aviso, nunca recusa
+        completa = "- Usa o banco X · `suposição` · base: degrau 2 · muda com: o dono trocar o banco · custo de reverter: 1 migração\n"
+        incompleta = "- Usa a fila Y · `suposição` · base: degrau 3\n"
+        antiga = "- (resolvida pela pergunta 2 = C) a fila Z\n"
+        pedido = self.PEDIDO.read_text(encoding="utf-8") + "\n## Suposições\n" + completa + incompleta + antiga
+        arq = self.tmp_pedido(pedido)
+        rc, saida = self.conferir("etapa-outro-papel.md", pedido=arq)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('aviso: suposição sem "muda com" e sem "custo de reverter": Usa a fila Y', saida)
+        self.assertNotIn("Usa o banco X", saida)
+        self.assertNotIn("fila Z", saida)
+        arq = self.tmp_pedido(self.PEDIDO.read_text(encoding="utf-8") + "\n## Suposições\n" + completa)
+        self.assertNotIn("aviso: suposição", self.conferir("etapa-outro-papel.md", pedido=arq)[1])
+
+    def tmp_pedido(self, texto):
+        pasta = Path(tempfile.mkdtemp(prefix="forge-brief-"))
+        self.addCleanup(shutil.rmtree, pasta, ignore_errors=True)
+        (pasta / "pedido.md").write_text(texto, encoding="utf-8")
+        return pasta / "pedido.md"
+
+    def test_pq_fraco_avisa_grep_c_sem_arquivo_e_sha_abreviado(self):  # L10 (OK-2): aviso, nunca recusa (T-10)
+        arq = self.variante("etapa-outro-papel.md", ("`grep -c recurso docs/pedidos/pedido-sintetico.md`", "`grep -c recurso`"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("aviso: PQ-2 `grep -c` sem arquivo", saida)
+        self.assertEqual(rc, 0, saida)
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a 3f85c29"))
+        rc, saida = self.rodar(arq, "--pedido", self.PEDIDO)
+        self.assertIn("aviso: PQ-1 sha abreviado (3f85c29)", saida)
+        self.assertEqual(rc, 0, saida)
+        arq = self.variante("etapa-outro-papel.md", ("`git log -1 --format=%h` da branch", "`git rev-parse HEAD` igual a " + "3f85c29" + "0" * 33))
+        self.assertNotIn("sha abreviado", self.rodar(arq, "--pedido", self.PEDIDO)[1])  # 40 hex não avisa
+
+    def test_grep_c_com_arquivo_ou_depois_de_pipe_nao_avisa(self):
+        fc = carregar_forge_check()
+        for comando in ("grep -c recurso docs/x.md", "git log | grep -c fix", "grep -c -e recurso docs/x.md", "grep -rc recurso docs/", "grep recurso"):
+            with self.subTest(comando):
+                self.assertFalse(fc.grep_c_sem_arquivo(comando))
+        for comando in ("grep -c recurso", "git status && grep -c recurso", "grep -ce recurso", "grep --count recurso"):
+            with self.subTest(comando):
+                self.assertTrue(fc.grep_c_sem_arquivo(comando))
+
     def test_pedido_sem_ids_nao_reprova_o_corte(self):
         rc, saida = self.conferir("corte-sem-marca.md", pedido=self.PASTA / "pedido-sem-ids.md")
         self.assertIn("corte: não verificável (pedido sem IDs)", saida)
@@ -3196,7 +3441,8 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn("forge-check brief <arquivo> --pedido <pedido>", conferente)
         for rel in ("agents/conferente.md", "docs/regras/R-BRIEF.md", "agents/jarvis.md"):
             with self.subTest(arquivo=rel):
-                self.assertIn("todos os achados", (RAIZ / rel).read_text(encoding="utf-8"))
+                texto = texto_do_jarvis(RAIZ) if rel == "agents/jarvis.md" else (RAIZ / rel).read_text(encoding="utf-8")
+                self.assertIn("todos os achados", texto)
 
 
 class PraticasDeEspecificacao(unittest.TestCase):
@@ -3796,7 +4042,7 @@ class TextosDoAgenteEDaRegra(unittest.TestCase):
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         cls.regra = (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8")
-        cls.jarvis = (RAIZ / "agents" / "jarvis.md").read_text(encoding="utf-8")
+        cls.jarvis = texto_do_jarvis(RAIZ)
 
     def test_ordem_da_primeira_passada_e_tardio_no_agente(self):  # 15 e 17
         for trecho in ("Primeira passada", "`tardio:`", "reprova como os outros", "não muda o veredito", "por leitura, sempre",
@@ -4598,6 +4844,34 @@ class FalhaDoGitNoE4(RepoDeSeguranca):
             self.assertNotIn("sem commit (nada a conferir)", saida.getvalue())
 
 
+class LerDirigidoDoBrief(RepoComOrigem):
+    """L09 (P3 e P4): o `## Ler` do brief gerado aponta o trecho do pedido, nunca o pedido inteiro; o integrador lê só o comando e roda em haiku."""
+
+    def gerar(self, etapa, destino):
+        r = rodar_fc("brief", "gerar", "--pedido", "p1", "--destino", destino, "--etapa", etapa, "--branch", "melhoria/x", "--base", "develop",
+                     raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout, r.stderr
+
+    def ler(self, saida):
+        return saida.split("## Ler\n")[1].split("\n## ")[0] if "## Ler\n" in saida else ""  # sem a seção a asserção reprova, não o índice
+
+    def test_codigo_le_so_escopo_etapas_e_decisoes(self):
+        rc, saida, _ = self.gerar("codigo", "forge:dev-exemplo")
+        self.assertEqual(rc, 0, saida)
+        ler = self.ler(saida)
+        self.assertIn("docs/pedidos/p1.md: só `## Escopo`, `## Etapas` e `## Decisões`", ler)
+        self.assertIn("nunca o pedido inteiro", ler)
+
+    def test_merge_integracao_le_so_o_comando_e_imprime_o_modelo_haiku(self):
+        rc, saida, erro = self.gerar("merge-integracao", "forge:tech-lead")
+        self.assertEqual(rc, 0, saida + erro)
+        ler = self.ler(saida)
+        self.assertIn("bin/forge-fechar p1 --ref melhoria/x --dry-run", ler)
+        self.assertNotIn("docs/pedidos/p1.md", ler)
+        self.assertIn("modelo: haiku", erro)
+        self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
+
+
 class PrAposMergeDaBase(RepoComOrigem):
     """E4 (CONF-MERGE-ESCOPO): o merge da develop depois do parecer não o invalida, por CONTEÚDO e lendo `origin/<base>`; nenhum byte
     do commit de merge escapa; `--base` só aceita as bases do fluxo; os gatilhos de segurança seguem o diff da branch (abusos 7 a 13)."""
@@ -4606,7 +4880,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
         self.mescla_a_develop()
         rc, saida, _ = self.pr("--base", "develop")
-        self.assertEqual((rc, saida), (0, ""), saida)
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_develop_local_parada_e_origin_adiante_vale_pela_remota(self):  # abuso 10
         antiga = git("rev-parse", "develop", cwd=self.repo).stdout.strip()
@@ -4616,7 +4890,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         for base in ("develop", "origin/develop"):
             with self.subTest(base):
                 rc, saida, _ = self.pr("--base", base)
-                self.assertEqual((rc, saida), (0, ""), saida)
+                self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_uma_linha_a_mais_num_arquivo_trazido_pela_develop_invalida(self):  # abuso 8
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
@@ -4645,7 +4919,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         self.develop_anda({"docs/qa/x.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # y.txt força o merge simulado
         self.assertEqual(self.mescla_a_develop(lambda: git("checkout", "--ours", "docs/qa/x.md", cwd=self.repo)), 1)
         rc, saida, _ = self.pr("--base", "develop")
-        self.assertEqual((rc, saida), (0, ""), saida)
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_a_branch_muda_o_proprio_arquivo_depois_do_parecer(self):  # o teste do dono
         self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")
@@ -5202,14 +5476,14 @@ class TetoPorPr(unittest.TestCase):
 
     def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
-            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else (RAIZ / caminho).read_text(encoding="utf-8")
             for frase in ("linhas alteradas de código e teste",
                           "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
 
     def test_teto_de_150_linhas_tambem_no_jarvis(self):
-        texto = (RAIZ / "agents/jarvis.md").read_text(encoding="utf-8")
+        texto = texto_do_jarvis(RAIZ)
         self.assertIn("150 linhas alteradas de código e teste", texto)
         self.assertNotIn("400 linhas", texto)
 

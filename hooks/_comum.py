@@ -924,7 +924,19 @@ class DonosDosHeredocs:
         # M3: o texto grava arquivo e roda programa fora da lista; com o marcador crítico, construção não modelada
         self.gravado_e_rodado = self.fora_do_texto[0][0] if self.grava and self.fora_do_texto else None
         self.indices = [] if lidas.ilegivel else [indice_das_partes(partes) for partes in lidas.partes]
-        self.vistos = {}
+        self.vistos, self.citados, self.iguais, self.montados, self.gasto, self.largo = {}, {}, {}, {}, 0, None
+        self.prefixo = "\n".join(comando for _, comando in self.fora_do_texto)  # montado e lido uma vez
+        self.fronteira = fronteira_limpa(self.prefixo)  # provada: o dono se lê em duas partes (`corpo_so_lido`)
+
+    def segmento(self, k, sub, ini, fim):
+        """As linhas citadas do segmento (nível, ini, fim) da leitura k, lidas uma vez (T3: a chave é o segmento, não o
+        lugar); linhas e segmentos iguais viram o mesmo objeto, e `montar` os compara pelo `id`."""
+        chave = (k, sub, ini, fim)
+        if chave not in self.citados:
+            partes, indice = self.lidas.partes[k], self.indices[k]
+            linhas = tuple(self.iguais.setdefault(l, l) for l in citadas(partes[j][0] for j in indice.mesmo[sub][ini:fim + 1]))
+            self.citados[chave] = self.iguais.setdefault(linhas, linhas)
+        return self.citados[chave]
 
     def dono(self, posicao, marca):
         """O texto que `corpo_so_lido` confere para o heredoc do operador `marca` (A1 de segurança e A1 do review, volta
@@ -946,21 +958,41 @@ class DonosDosHeredocs:
     def montar(self, lugar, trechos):
         if trechos is None:
             inicios, fins = limites_logicos(self.resto)
-            sozinho = self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else ""
-        else:
-            donos = [partes[j][0] for partes, indice, dela in zip(self.lidas.partes, self.indices, trechos)
-                     for sub, ini, fim in dela for j in indice.mesmo[sub][ini:fim + 1]]
-            linhas = []
-            for palavras in donos:  # a palavra `$(…)` não é programa: vale `_`, como no leitor
-                for opaco in OPACO.values():
-                    palavras = [p.replace(opaco, "_") for p in palavras]
-                linhas.append(" ".join(map(citar, palavras)))
-            sozinho = MARCAS.sub(" ", "\n".join(linhas))
+            return self.vestir(self.resto[inicios[lugar]:fins[lugar]] if lugar < len(fins) else "")
+        if self.largo is not None:
+            return self.largo
+        pedacos = [self.segmento(k, *seg) for k, dela in enumerate(trechos) for seg in dela]
+        chave = tuple(map(id, pedacos))  # o texto só depende dos segmentos, não do lugar
+        if chave not in self.montados:
+            sozinho = "\n".join(l for seg in pedacos for l in seg)
+            self.gasto += len(sozinho) + (0 if self.fronteira else len(self.prefixo))  # C-5: sem fronteira o dono relê o prefixo
+            if self.gasto > TETO_DE_CARACTERES_DA_CHAMADA:  # C-4: alarga para as leituras inteiras e o resto, um objeto
+                if len(self.resto) > TETO_DE_CARACTERES_DA_CHAMADA:
+                    raise ValueError("donos dos heredocs acima do teto")
+                todas = [l for partes in self.lidas.partes for l in citadas(p[0] for p in partes)]
+                self.largo = self.vestir("\n".join([*todas, self.resto]))
+                return self.largo
+            self.montados[chave] = self.vestir(sozinho)
+        return self.montados[chave]
+
+    def vestir(self, sozinho):
         # os programas do texto vêm antes: uma aspa sem par no dono não os esconde
-        texto = Dono("\n".join([*(comando for _, comando in self.fora_do_texto), sozinho]))
+        texto = Dono(f"{self.prefixo}\n{sozinho}" if self.fora_do_texto else sozinho)
         if self.fora_do_texto and corpo_so_lido(sozinho):
             texto.rodado = self.fora_do_texto[0][0]
+        if self.fronteira:
+            texto.partes = (self.prefixo, sozinho)
         return texto
+
+
+def citadas(grupos):
+    """Cada grupo de palavras de uma leitura, escrito de novo numa linha (`citar`), sem as marcas dos operadores."""
+    linhas = []
+    for palavras in grupos:  # a palavra `$(…)` não é programa: vale `_`, como no leitor
+        for opaco in OPACO.values():
+            palavras = [p.replace(opaco, "_") for p in palavras]
+        linhas.append(MARCAS.sub(" ", " ".join(map(citar, palavras))))
+    return linhas
 
 
 # LOTE-LEITURA-HOOK, volta única (M1 e M2): o leitor sequencial do texto sem os corpos de heredoc. Uma passada, um
@@ -1430,9 +1462,27 @@ def corpo_so_lido(dono, tambem=nenhum):
     (`le_o_corpo`), sem atribuição antes no mesmo comando simples (M4: `PATH=/tmp/x cat`, `GIT_CONFIG_COUNT=1 … git
     commit` mudam o programa ou o que ele roda). Senão, o corpo é conferido como comando. O resultado fica guardado: os
     heredocs de um mesmo dono (o mesmo texto) são conferidos uma vez só."""
+    partes = getattr(dono, "partes", None)
+    if partes is not None:  # o texto de fora lido uma vez (cache), o do dono à parte: a mesma leitura do todo
+        lidas = [_leitura_do_dono(p, tambem) for p in partes]
+        return any(tem for tem, _ in lidas) and all(ok for _, ok in lidas)
     programas = programas_e_atribuicoes(dono)
     return bool(programas) and all(not atribuicoes and le_o_corpo(programa, argumentos, tambem)
                                    for programa, argumentos, atribuicoes in programas)
+
+
+@functools.lru_cache(maxsize=1024)
+def _leitura_do_dono(texto, tambem):
+    programas = programas_e_atribuicoes(texto)
+    return bool(programas), all(not a and le_o_corpo(p, args, tambem) for p, args, a in programas)
+
+
+@functools.lru_cache(maxsize=64)
+def fronteira_limpa(prefixo):
+    """O texto de fora termina num estado novo do leitor: sem dúvida, e um comando depois dele é lido sozinho."""
+    so, junto = palavras_do_texto(prefixo), palavras_do_texto(prefixo + "\ntrue")
+    return (not so.duvida and not junto.duvida and junto.simples[:-1] == so.simples
+            and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),))
 
 
 def construcao_nao_modelada(linha):
@@ -2222,6 +2272,7 @@ class Hook:
         self._config = None
         self._run = None
         self.marcado = None  # o texto da ação tem o marcador crítico? None: ainda não se sabe (`marcado`)
+        self.corpos_pendentes = 0  # corpos de heredoc tirados da linha e ainda não conferidos (`prazo_vencido`)
 
     # Entrada -------------------------------------------------------------------------------
     def campo(self, *chaves):
@@ -2403,7 +2454,7 @@ def barrar_sem_versao(hook, critico, bruto):
 # ação, então a decisão de um hook que recusa tem de vir antes. Um alarme do processo (`signal.setitimer`, na thread
 # principal) interrompe qualquer passo lento, de hoje ou futuro, inclusive a busca do `re`; com o marcador crítico na
 # chamada, o prazo vencido recusa, e sem o marcador nada muda. Não existe no Windows nativo (sem `SIGALRM`): lá a decisão
-# fica com os tetos de `excede_o_teto` e o prazo de `conformidade.bash`.
+# fica com os tetos de custo (`excede_o_teto` e o de `DonosDosHeredocs.montar`), sem outro prazo.
 PRAZO_DA_DECISAO_S = 3.0
 
 
@@ -2432,14 +2483,17 @@ def vigia_de_prazo(segundos):
 
 def prazo_vencido(hook, critico, bruto, clone_do_forge, regra):
     """O vigia venceu: com o marcador crítico (e `marcado` ainda desconhecido vale como marcado: a busca do próprio
-    marcador passou do prazo), numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera,
-    com a linha no erros.log. Roda fora do vigia, e não refaz a busca do marcador."""
+    marcador passou do prazo) ou com corpo de heredoc ainda por conferir (C-4: o último corpo é o que ninguém leu),
+    numa sessão vigiada e antes da ferramenta, recusa pela `regra` do hook; senão, libera, com a linha no erros.log.
+    Roda fora do vigia, e não refaz a busca do marcador."""
     hook.registrar_erro(Aviso(f"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido"))
-    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or hook.marcado is False
+    if (critico is None or hook.entrada.get("hook_event_name") == "PostToolUse" or (hook.marcado is False and not hook.corpos_pendentes)
             or not sessao_vigiada(hook, clone_do_forge)):
         return
-    bloquear(regra, f"o hook não decidiu em {PRAZO_DA_DECISAO_S:g} s a chamada com ação crítica (texto longo ou lento "
-                    f"demais, ou um `git` lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {CONTORNO_DO_TETO}")
+    quem, como = (("a chamada com ação crítica", CONTORNO_DO_TETO) if hook.marcado is not False else
+                  (f"{hook.corpos_pendentes} corpo(s) de heredoc", "separe o comando em chamadas menores"))
+    bloquear(regra, f"o hook não decidiu em {PRAZO_DA_DECISAO_S:g} s {quem} (texto longo ou lento demais, ou um `git` "
+                    f"lento): recusa, em vez de deixar o timeout liberá-la. Corrigir: {como}")
 
 
 def executar(nome, funcao, critico=None, clone_do_forge=False, regra_do_prazo=None):

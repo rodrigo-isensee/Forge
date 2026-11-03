@@ -676,6 +676,23 @@ class RecusaDoIdDoPedido(unittest.TestCase):
         (briefs / f"{self.ID}-qa-engineer-1.md").write_text(f"Pedido: {self.ID}\nBranch: melhoria/terceira\n\n## Objetivo\nx\n", encoding="utf-8")
         self.assertEqual(self.pr(self.ID)[0], 2)  # dois slugs: o argumento fica e o `uso:` segue
 
+    def parecer_da_branch(self, pedido):
+        (self.tmp / "docs" / "reviews").mkdir(parents=True, exist_ok=True)
+        (self.tmp / "docs" / "reviews" / f"{pedido}.md").write_text(self.PARECER.replace("ID-DO-PEDIDO", pedido).replace("{c}", "a" * 7), encoding="utf-8")
+        self.git("add", "-A")
+        self.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "parecer")
+
+    def test_id_sem_brief_vira_o_slug_da_branch_com_parecer_dela(self):  # L08: id e slug dão o mesmo veredito
+        self.parecer_da_branch("outra")
+        self.assertEqual(self.pr(self.ID), self.pr("outra"))
+        self.assertNotEqual(self.pr(self.ID)[0], 2)
+
+    def test_id_sem_brief_e_parecer_de_outro_pedido_segue_o_uso(self):  # C-08a: nunca o pedido mais fraco
+        self.parecer_da_branch("terceiro")
+        rc, saida = self.pr(self.ID)
+        self.assertEqual(rc, 2, saida)
+        self.assertIn("uso: use o slug da branch", saida)
+
     def test_slug_sem_pedido_com_esse_nome_segue_o_caminho_antigo(self):
         rc, saida = self.pr("meu-slug")
         self.assertNotEqual(rc, 2, saida)

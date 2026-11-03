@@ -9,17 +9,19 @@ Formato (modelo em `_modelo.md`): contexto, decisão, alternativas, consequênci
 |---|---|
 | [0001](0001-nucleo-neutro-e-pacotes-de-stack.md) | Núcleo neutro e pacotes de stack em `stacks/<nome>/` |
 | [0002](0002-uma-fonte-por-regra.md) | Uma fonte por regra em `docs/regras/`, com IDs |
-| [0003](0003-hooks-deterministicos-e-silenciosos.md) | Hooks determinísticos e silenciosos no plugin |
+| [0003](0003-hooks-deterministicos-e-silenciosos.md) | Hooks determinísticos e silenciosos no plugin (emenda proposta: retomada com pedido aberto) |
 | [0004](0004-contrato-verificavel-entre-agentes.md) | Contrato verificável entre agentes e `forge-check` |
 | [0005](0005-migracao-iniciada-pelo-projeto.md) | Migração iniciada pelo projeto e `forge-upgrade` |
 | [0006](0006-contribuicao-de-qualquer-projeto.md) | Contribuição de qualquer projeto e versão só na release |
 | [0007](0007-verificacao-de-comportamento-sem-custo.md) | Verificação de comportamento sem custo |
 | [0008](0008-governanca-de-contribuicoes.md) | Governança de contribuições: portões para todos, catraca e identidade dos agentes |
-| [0009](0009-conformidade-dos-agentes.md) | Conformidade dos agentes por construção: sandbox, papéis, vigia (proposta) |
+| [0009](0009-conformidade-dos-agentes.md) | Conformidade dos agentes por construção: sandbox, papéis, vigia (proposta; emenda proposta: sandbox nos projetos, oráculo, dois conferentes) |
 | [0010](0010-agentes-devops-e-seguranca.md) | Agentes `devops-engineer` e `security-engineer`; parecer de segurança com gatilho (`R-SEGURANCA`) (proposta) |
 | [0011](0011-analisador-de-comandos-gramatica-positiva.md) | Analisador de comandos dos hooks: gramática positiva e falha fechada no que não modela (proposta) |
 | [0012](0012-main-por-merge-commit.md) | `main` mesclada por merge commit; sem PR de sincronização `main` → `develop` (substitui em parte a 0008) |
 | [0013](0013-leitura-do-comentario-nos-hooks.md) | Leitura do comentário nos hooks: só onde se prova, com a leitura antiga como piso (emenda o item 2 da 0011) (proposta) |
+| [0014](0014-fluxo-de-tres-degraus-nos-projetos.md) | Fluxo de três degraus nos projetos: `develop` → `homolog` → `main` (proposta; vale a partir do PR da fase E do lote-unico-032) |
+| [0015](0015-porta-de-entrada-do-onboarding.md) | Porta de entrada do onboarding: terminal e Jarvis, sem hook fora de projeto (proposta; vale a partir do PR da fase E do lote-unico-032) |
 
 ## Substituídas
 Nenhuma.
