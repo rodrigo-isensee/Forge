@@ -1387,7 +1387,7 @@ class Guarda:
     def textos_da_api(args, pasta):
         """(textos, ilegivel) do `gh api`: o texto vem inline ou de arquivo (`-F query=@arq`, `--input arq`); o que não
         dá para ler (`--input -`, arquivo ausente) marca `ilegivel`."""
-        textos = []
+        textos, args = [], parecer.desagrupa_i(args)
         for i, a in enumerate(args):
             valor = args[i + 1] if a == "--input" and i + 1 < len(args) else a.split("=", 1)[-1]
             if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (

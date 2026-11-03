@@ -498,18 +498,31 @@ def aponta_para_o_forge(texto):
     return bool(re.search(rf"(?<![\w.-]){re.escape(slug)}(\.git)?(?![\w.-])", texto.lower()))
 
 
+def desagrupa_i(args):
+    """`-iX PUT`, `-iXPUT`, `-if k=v`: o `gh api` lê o `-i` (boolean) e a opção colada como duas (`-i -X`)."""
+    saida = []
+    for a in args:
+        while re.match(r"-i[^-]", a):
+            saida.append("-i")
+            a = "-" + a[2:]
+        saida.append(a)
+    return saida
+
+
 def metodo_mutante(args):
     """True se o `gh api` altera algo: método diferente de GET, ou campos (que viram POST)."""
+    args = desagrupa_i(args)
     metodo = opcao(args, "--method", "-X")
     if metodo:
         return metodo.upper() != "GET"
     return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
                or a.startswith(("--field=", "--raw-field=", "--input="))
-               or re.match(r"-i?[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado
+               or re.match(r"-[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado
                for a in args)
 
 
 def endpoint_da_api(args):
+    args = desagrupa_i(args)
     return (posicionais(args, API_COM_VALOR) or [""])[0]
 
 

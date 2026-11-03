@@ -121,6 +121,26 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G24",
+      "guarda": "o -i colado a uma opção valorada (-iX PUT) é lido como duas opções",
+      "arquivo": "hooks/parecer.py",
+      "de": "while re.match(r\"-i[^-]\", a):",
+      "para": "while False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G25",
+      "guarda": "o resto do agrupado vira opção própria (-iX vira -X)",
+      "arquivo": "hooks/parecer.py",
+      "de": "a = \"-\" + a[2:]",
+      "para": "a = a[2:]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
