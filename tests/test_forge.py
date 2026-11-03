@@ -332,6 +332,42 @@ class Skills(unittest.TestCase):
             self.assertIn(titulo, texto)
 
 
+# L34 (OK-4): todo caminho citado entre crases em agents/, skills/ e docs/regras/ existe. O que os agentes mandam criar no
+# projeto, e que não tem modelo em templates/projeto/, fica nesta lista fechada; o resto que não existe reprova.
+PASTAS_CITADAS = ("bin", "hooks", "scripts", "docs", "tests", "agents", "skills", "stacks", "templates", ".github",
+                  ".githooks", ".claude-plugin", "changelog.d")
+CRIADOS_NO_PROJETO = frozenset({"docs/api", "docs/architecture/data-model.md", "docs/architecture/overview.md",
+                                "docs/briefs", "docs/kanban/conferencias.md", "docs/security/aceites"})
+CITACAO = re.compile(r"`([^`\n]+)`")
+MOLDE = re.compile(r"[<>*{}$|\[\]]|\.\.\.|…|NNNN")
+
+
+def caminhos_citados(texto):
+    """Os caminhos do repositório entre crases (uma palavra só, começada por uma pasta do Forge, sem molde nem glob)."""
+    achados = []
+    for citado in CITACAO.findall(texto):
+        citado = re.sub(r":\d+(-\d+)?$", "", citado.strip().split("#")[0].rstrip(".,;:)"))
+        if " " not in citado and "/" in citado and citado.split("/")[0] in PASTAS_CITADAS and not MOLDE.search(citado):
+            achados.append(citado.rstrip("/"))
+    return achados
+
+
+def caminhos_ausentes(texto, raiz, criados=CRIADOS_NO_PROJETO):
+    """Os caminhos citados que não existem em `raiz` nem no modelo do projeto, fora a lista fechada de `criados`.
+    Só lê; um link que aponta para fora de `raiz` conta como ausente (C-34)."""
+    base = raiz.resolve()
+    ausentes = []
+    for caminho in caminhos_citados(texto):
+        if caminho in criados:
+            continue
+        for onde in (raiz / caminho, raiz / "templates" / "projeto" / caminho):
+            if os.path.lexists(onde) and onde.resolve().is_relative_to(base) and onde.exists():
+                break
+        else:
+            ausentes.append(caminho)
+    return ausentes
+
+
 class Referencias(unittest.TestCase):
     def test_caminhos_do_plugin_existem(self):
         padrao = re.compile(r"\$\{CLAUDE_PLUGIN_ROOT\}/([\w./-]+)")
@@ -339,6 +375,35 @@ class Referencias(unittest.TestCase):
             for rel in padrao.findall(p.read_text(encoding="utf-8", errors="ignore")):
                 with self.subTest(arquivo=str(p.relative_to(RAIZ)), ref=rel):
                     self.assertTrue((RAIZ / rel.rstrip(".")).exists(), f"{rel} não existe no Forge")
+
+    def textos_que_citam_caminhos(self):
+        fontes = [*AGENTES.glob("*.md"), *SKILLS.glob("**/*.md"), *(RAIZ / "docs" / "regras").glob("*.md")]
+        return minimo([f for f in fontes if not f.is_symlink()], 35, "agents/, skills/ e docs/regras/")
+
+    def test_todo_caminho_citado_em_agentes_skills_e_regras_existe(self):  # L34, OK-4
+        total = 0
+        for arquivo in self.textos_que_citam_caminhos():
+            texto = arquivo.read_text(encoding="utf-8")
+            total += len(caminhos_citados(texto))
+            with self.subTest(arquivo=str(arquivo.relative_to(RAIZ))):
+                self.assertEqual(caminhos_ausentes(texto, RAIZ), [], "caminho citado que não existe no Forge nem no modelo do projeto")
+        self.assertGreaterEqual(total, 120, "o teste leu poucos caminhos (padrão de citação quebrado?)")
+
+    def test_caminho_inventado_reprova_e_o_que_existe_ou_e_molde_passa(self):  # L34
+        texto = ("`docs/inventado/xyz.md` `bin/forge-check` `docs/pedidos/<pedido>.md` `tests/test_*.py` `scripts/nao-existe.py:12` "
+                 "`docs/api` `ls docs/x` `docs/reviews/_modelo.md` `src/app.py`")
+        self.assertEqual(caminhos_ausentes(texto, RAIZ), ["docs/inventado/xyz.md", "scripts/nao-existe.py"])
+        self.assertEqual(caminhos_ausentes(texto, RAIZ, criados=frozenset()), ["docs/inventado/xyz.md", "scripts/nao-existe.py", "docs/api"])
+
+    def test_link_para_fora_do_repositorio_conta_como_ausente(self):  # L34, C-34
+        with tempfile.TemporaryDirectory() as tmp:
+            raiz, fora = Path(tmp) / "raiz", Path(tmp) / "fora"
+            (raiz / "docs").mkdir(parents=True)
+            fora.mkdir()
+            (fora / "alvo.md").write_text("x", encoding="utf-8")
+            (raiz / "docs" / "dentro.md").write_text("x", encoding="utf-8")
+            (raiz / "docs" / "link.md").symlink_to(fora / "alvo.md")
+            self.assertEqual(caminhos_ausentes("`docs/dentro.md` `docs/link.md`", raiz), ["docs/link.md"])
 
 
 class Neutralidade(unittest.TestCase):

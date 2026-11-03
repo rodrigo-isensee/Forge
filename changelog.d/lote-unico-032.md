@@ -11,6 +11,7 @@
 - forge-check fila mostra a ocupação da trava da suíte (lida pelo `.githooks/pre-push --status`, sem tomá-la nem apagá-la; link ou saída inesperada vira `não verificável`) e avisa quando passa de 0.6; o Jarvis só despacha etapa que roda a suíte abaixo disso (lote-unico-032, L18, M7)
 - a suíte vermelha grava os testes que caíram, a carga e a taxa por teste em ~/.forge-contrib/suite-vermelha.jsonl, fora do git, sem mudar o veredito nem seguir link (lote-unico-032, L32, OK-3 e OK-13)
 - forge-mutante --processos K (1 a 4, padrão 1) roda os mutantes em k processos, um clone cada, com o mesmo veredito em série e em paralelo; o SIGTERM ou o erro de um mata todos e apaga as cópias (lote-unico-032, L33, M4)
+- teste confere que todo caminho citado entre crases em agents/, skills/ e docs/regras/ existe no Forge ou no modelo do projeto, com lista fechada do que só nasce no projeto (lote-unico-032, L34, OK-4)
 
 ### Alterado
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).
