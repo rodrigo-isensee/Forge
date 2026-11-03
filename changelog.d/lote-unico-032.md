@@ -13,6 +13,7 @@
 - forge-mutante --processos K (1 a 4, padrão 1) roda os mutantes em k processos, um clone cada, com o mesmo veredito em série e em paralelo; o SIGTERM ou o erro de um mata todos e apaga as cópias (lote-unico-032, L33, M4)
 - teste confere que todo caminho citado entre crases em agents/, skills/ e docs/regras/ existe no Forge ou no modelo do projeto, com lista fechada do que só nasce no projeto (lote-unico-032, L34, OK-4)
 - tests/config.json ganha invariantes_motivo (regra e porque dos invariantes das 17 regras com ID) e o teste exige o motivo em todo arquivo novo de invariantes; o legado sem motivo só encolhe e os mínimos de cobertura sobem para 48 arquivos e 410 trechos (lote-unico-032, L35, OK-11)
+- tests/comportamento/ com 5 casos anonimizados de erro do orquestrador (teto, PR sem parecer, três perguntas, bloqueio contornado, push na main) e o teste que mede a reincidência detectada pelo verificador da ADR 0007 (lote-unico-032, L36, AQ-7)
 
 ### Alterado
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).

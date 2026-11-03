@@ -1,0 +1,5 @@
+{"formato": "forge-transcricao/1", "origem": "claude-code (anonimizada)"}
+{"ev": "cmd", "t": "2026-01-01T10:00:00Z", "cmd": "flag --no-verify", "branch": "<branch>", "c": "c1"}
+{"ev": "bloqueio", "t": "2026-01-01T10:00:01Z", "c": "c1", "causa": "hook"}
+{"ev": "escrita", "t": "2026-01-01T10:00:02Z", "alvo": "", "copia": false, "arq": "f1", "flags": ["--no-verify"], "via": "Write", "c": "c2"}
+{"ev": "cmd", "t": "2026-01-01T10:00:03Z", "cmd": "executa f1", "branch": "<branch>", "c": "c3", "via": "script"}
