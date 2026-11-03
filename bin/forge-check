@@ -2033,7 +2033,10 @@ def custo_do_trecho(raiz, desde, ate):
         return None
     if not dados or not dados["mensagens"]:
         return None
-    return sum(total_uso(uso) for _, _, _, _, uso in dados["mensagens"])
+    soma = zerar_uso()
+    for _, _, _, _, uso in dados["mensagens"]:
+        somar_uso(soma, uso)  # só os campos conhecidos: o usage real traz server_tool_use aninhado
+    return total_uso(soma)
 
 
 def custo_do_movimento(raiz, cartao, para, arq, agora):

@@ -198,12 +198,12 @@ class Movimento(unittest.TestCase):
         self.assertRegex(linhas[3], rf"^\| {iso} \| K-1 \| Sem credencial \| Em andamento \| chegou \|$")
         self.assertEqual(len(linhas), 4)
 
-    def transcricao(self, horas):
+    def transcricao(self, horas, uso=None):
         pasta = self.raiz / "home" / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(self.raiz.resolve()))
         pasta.mkdir(parents=True, exist_ok=True)
         (pasta / "s.jsonl").write_text("\n".join(json.dumps(
             {"type": "assistant", "sessionId": "s", "isSidechain": False, "timestamp": h,
-             "message": {"id": f"m{i}", "model": "m", "usage": {"input_tokens": 10, "output_tokens": 5}}}) for i, h in enumerate(horas)) + "\n", encoding="utf-8")
+             "message": {"id": f"m{i}", "model": "m", "usage": uso or {"input_tokens": 10, "output_tokens": 5}}}) for i, h in enumerate(horas)) + "\n", encoding="utf-8")
 
     def historico(self, *linhas):
         self.arq.parent.mkdir(parents=True, exist_ok=True)
@@ -228,6 +228,16 @@ class Movimento(unittest.TestCase):
         linha = self.movimento("K-7", "--de", "Aguardando o dono", "--para", "Pronto")
         self.assertRegex(linha, r"custo total: 30 tokens( \(1 trechos em lacuna\))? \|$")  # o trecho de agora não tem mensagem: lacuna dita, nunca 0
         self.assertIn("(1 trechos em lacuna)", linha)
+
+    def test_custo_do_trecho_com_o_uso_no_formato_real_do_claude_code(self):  # L16, A1 do review: server_tool_use aninhado não derruba o movimento
+        agora = datetime.datetime.now(datetime.timezone.utc)
+        inicio = (agora - datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        dentro = (agora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.transcricao([dentro], uso={"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 3, "cache_read_input_tokens": 2,
+                                        "server_tool_use": {"web_search_requests": 1}, "service_tier": "standard"})
+        self.historico((inicio, "K-10", "—"))
+        linha = self.movimento("K-10", "--de", "Em andamento", "--para", "Aguardando o dono", "--motivo", "validar")
+        self.assertTrue(linha.endswith("| validar · custo do trecho: 20 tokens |"), linha)
 
     def test_sem_transcricao_o_custo_e_lacuna_nunca_zero(self):
         self.historico(("2026-10-20T09:00:00+00:00", "K-8", "—"))
