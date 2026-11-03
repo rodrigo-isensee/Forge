@@ -62,7 +62,7 @@
       "de": "  sleep \"$1\" &\n  dorme_pid=$!",
       "para": "  sleep \"$1\"\n  dorme_pid=$!",
       "testes": [
-        "tests.test_fechar_sinal.Teste.test_l5_term_durante_a_espera_grava_fim_codigo_143"
+        "tests.test_fechar_sinal.Teste.test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait"
       ]
     }
   ]
