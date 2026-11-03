@@ -538,8 +538,10 @@ def metodo_mutante(args):
     """True se o `gh api` altera algo: qualquer método diferente de GET (não só o último), ou campos (que viram POST)."""
     args = desagrupa_i(args)
     metodos = metodos_pedidos(args)
-    if metodos:
-        return any(m.upper() != "GET" for m in metodos)
+    if any(metodo.upper() != "GET" for metodo in metodos):
+        return True
+    if metodos:  # só GET pedido: os campos viram consulta, não corpo
+        return False
     return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
                or a.startswith(("--field=", "--raw-field=", "--input="))
                or re.match(r"-[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado

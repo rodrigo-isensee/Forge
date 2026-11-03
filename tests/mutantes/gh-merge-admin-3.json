@@ -6,8 +6,8 @@
       "id": "G28",
       "guarda": "um -X mutante recusa mesmo seguido de -X GET (só o último não basta)",
       "arquivo": "hooks/parecer.py",
-      "de": "m.upper() != \"GET\"",
-      "para": "m.upper() != \"GET\" and m is metodos[-1]",
+      "de": "metodo.upper() != \"GET\"",
+      "para": "metodo.upper() != \"GET\" and metodo is metodos[-1]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -16,8 +16,8 @@
       "id": "G29",
       "guarda": "um -X GET antes do mutante não libera (só o primeiro não basta)",
       "arquivo": "hooks/parecer.py",
-      "de": "m.upper() != \"GET\"",
-      "para": "m.upper() != \"GET\" and m is metodos[0]",
+      "de": "metodo.upper() != \"GET\"",
+      "para": "metodo.upper() != \"GET\" and metodo is metodos[0]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
