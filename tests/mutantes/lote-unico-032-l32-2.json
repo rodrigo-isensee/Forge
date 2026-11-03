@@ -26,8 +26,8 @@
       "id": "M14",
       "guarda": "o relatório de quem morreu (None) não impede o registro dos outros",
       "arquivo": "scripts/suite-paralela.py",
-      "de": "for rel in relatorios if rel for i in rel.get",
-      "para": "for rel in relatorios for i in rel.get",
+      "de": "rel is not None for i in rel.get",
+      "para": "True for i in rel.get",
       "testes": [
         "tests.test_suite_paralela.Brinquedo.test_processo_morto_nao_impede_o_registro_dos_testes_que_cairam"
       ]

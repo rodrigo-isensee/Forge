@@ -489,7 +489,7 @@ def registrar_vermelha(relatorios, carga, memoria):
         pasta = pasta_do_registro()
         if pasta is None:
             return
-        caidos = sorted({i for rel in relatorios if rel for i in rel.get("caidos", ())})[:LIMITE_REGISTRO]
+        caidos = sorted({i for rel in relatorios if rel is not None for i in rel.get("caidos", ())})[:LIMITE_REGISTRO]
         caidos = ["".join(c for c in str(i)[:200] if c.isprintable()) for i in caidos]
         arquivo = pasta / REGISTRO
         antes = collections.Counter()
