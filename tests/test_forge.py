@@ -1851,10 +1851,31 @@ class ForgeCheck(unittest.TestCase):
         coluna(11)
         self.assertIn("limite 10", self.check("kanban", nproc=16)[1])
 
+    def assertAprovado(self, resultado, marca=None):
+        """LOTE E1: o `pr` aprovado sai com rc 0 e uma só linha, `pr: veredito: aprovado · ...`; nenhuma violação."""
+        codigo, saida = resultado
+        self.assertEqual(codigo, 0, marca or saida)
+        self.assertEqual(len(saida.splitlines()), 1, marca or saida)
+        self.assertTrue(saida.startswith("pr: veredito: aprovado · "), marca or saida)
+
+    def test_pr_aprovado_imprime_veredito(self):
+        self.pareceres(self.head())
+        self.commitar("pareceres")
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 0, saida)
+        self.assertRegex(saida, r'^pr: veredito: aprovado · "p1" · exigidos review, qa · head [0-9a-f]{7} · base estrita$')
+        self.assertIn("head " + self.head()[:7], saida)
+
+    def test_pr_com_violacao_nao_imprime_veredito(self):
+        self.pareceres(self.head())  # sem commitar: o parecer só existe na árvore de trabalho
+        codigo, saida = self.check("pr", "p1")
+        self.assertEqual(codigo, 1)
+        self.assertNotIn("veredito", saida)
+
     def test_pr_aprovado_no_head(self):
         self.pareceres(self.head())
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_parecer_so_na_arvore_de_trabalho_falha(self):
         """PA-4: o parecer no disco e fora do commit não vale (novo, só no índice ou editado depois)."""
@@ -1866,7 +1887,7 @@ class ForgeCheck(unittest.TestCase):
         git("add", "docs/reviews/p1.md", "docs/qa/p1.md", cwd=self.tmp)  # no índice, ainda não commitado
         self.assertIn("ausente no commit", self.check("pr", "p1")[1])
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
         self.escrever("docs/qa/p1.md", (self.tmp / "docs/qa/p1.md").read_text(encoding="utf-8") + "revalidado\n")
         saida = self.check("pr", "p1")[1]  # versão nova no disco, a do commit é a antiga
         self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida)
@@ -1884,7 +1905,7 @@ class ForgeCheck(unittest.TestCase):
             self.assertIn("docs/qa/p1.md: parecer presente na árvore de trabalho e ausente no commit", saida[1])
             git("update-index", "--no-" + marca[2:], "docs/qa/p1.md", cwd=self.tmp)
             git("checkout", "--", "docs/qa/p1.md", cwd=self.tmp)
-            self.assertEqual(self.check("pr", "p1"), (0, ""), marca)
+            self.assertAprovado(self.check("pr", "p1"), marca)
 
     def test_ajuda_geral_cita_parecer_commitado_no_pr(self):
         """PA-4 (BUG-1 do QA): `forge-check --help` lista o `pr` e cita a exigência de parecer commitado."""
@@ -1898,7 +1919,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
@@ -1913,7 +1934,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_autoria_de_papel_errado_ou_ausente_falha(self):
         self.pareceres(self.head())
@@ -1941,7 +1962,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar("pareceres")
         self.assertFalse((self.tmp / ".forge/run/autoria.jsonl").exists())
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_autoria_com_ref_compara_o_texto_da_branch(self):
         git("switch", "-q", "-c", "develop", cwd=self.tmp)
@@ -1952,7 +1973,7 @@ class ForgeCheck(unittest.TestCase):
         self.commitar()
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"))
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
     def test_raiz_depois_do_subcomando_e_git_isolado(self):
         self.pareceres(self.head())
@@ -1960,7 +1981,7 @@ class ForgeCheck(unittest.TestCase):
         env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
-        self.assertEqual((r.returncode, r.stdout, r.stderr), (0, "", ""))
+        self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
 
     def test_aviso_de_migracao_pendente(self):
         fc = carregar_forge_check()
@@ -2012,7 +2033,7 @@ class ForgeCheck(unittest.TestCase):
                       f"commit: {head}\nparecer: aprovado\nrevisor: forge:devops-engineer\ndata: 2026-10-14\n---\n")
         self.escrever("docs/security/p1.md", "---\n" + self.SEGURANCA.format(c=head, p="aprovado", extra="") + "---\n")
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
         self.autoria(("docs/reviews/p1.md", "tech-lead"), ("docs/qa/p1.md", "qa"), ("docs/devops/p1.md", "tech-lead"),
                      ("docs/security/p1.md", "seguranca"))
         self.assertIn("docs/devops/p1.md: autoria", self.check("pr", "p1")[1])
@@ -2021,7 +2042,7 @@ class ForgeCheck(unittest.TestCase):
         self.entrega("src/outro.txt")
         self.pareceres(self.head())
         self.commitar("pareceres")
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_gatilhos_de_seguranca_pelo_diff(self):
         for arquivo in ("package-lock.json", "app/.env", "db/migrations/001.sql", "hooks/conformidade.json", "docs/regras/R-X.md"):
@@ -2117,7 +2138,7 @@ class ForgeCheck(unittest.TestCase):
         self.assertIn("docs/security/aceites/p1.md", self.check("pr", "p1")[1])
 
     def test_riscos_aceitos_com_o_arquivo_de_aceite_vale(self):
-        self.assertEqual(self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\nAceito o risco X.\n"), (0, ""))
+        self.assertAprovado(self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\nAceito o risco X.\n"))
 
     def test_aceite_de_commit_antigo_reprova(self):
         codigo, saida = self.aceite("---\npedido: p1\ncommit: {HEAD}\naceite: sim\n---\n", commit="0" * 40)
@@ -2144,7 +2165,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(base)
         self.escrever("KANBAN.md", "# Quadro\n")
         self.commitar()
-        self.assertEqual(self.check("pr", "p1"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1"))
 
     def test_pr_commit_desatualizado(self):
         base = self.head()
@@ -2170,7 +2191,7 @@ class ForgeCheck(unittest.TestCase):
         self.pareceres(self.head())
         self.commitar()
         git("switch", "-q", "develop", cwd=self.tmp)
-        self.assertEqual(self.check("pr", "p1", "--ref", "melhoria/x"), (0, ""))
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
         self.assertIn("sem parecer", self.check("pr", "p1")[1])
 
     def test_pr_qa_com_bug_alto_falha(self):
@@ -4606,7 +4627,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
         self.mescla_a_develop()
         rc, saida, _ = self.pr("--base", "develop")
-        self.assertEqual((rc, saida), (0, ""), saida)
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_develop_local_parada_e_origin_adiante_vale_pela_remota(self):  # abuso 10
         antiga = git("rev-parse", "develop", cwd=self.repo).stdout.strip()
@@ -4616,7 +4637,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         for base in ("develop", "origin/develop"):
             with self.subTest(base):
                 rc, saida, _ = self.pr("--base", base)
-                self.assertEqual((rc, saida), (0, ""), saida)
+                self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_uma_linha_a_mais_num_arquivo_trazido_pela_develop_invalida(self):  # abuso 8
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
@@ -4645,7 +4666,7 @@ class PrAposMergeDaBase(RepoComOrigem):
         self.develop_anda({"docs/qa/x.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # y.txt força o merge simulado
         self.assertEqual(self.mescla_a_develop(lambda: git("checkout", "--ours", "docs/qa/x.md", cwd=self.repo)), 1)
         rc, saida, _ = self.pr("--base", "develop")
-        self.assertEqual((rc, saida), (0, ""), saida)
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)  # LOTE E1: o rc 0 diz o que conferiu
 
     def test_a_branch_muda_o_proprio_arquivo_depois_do_parecer(self):  # o teste do dono
         self.commitar(self.repo, {"src/x.txt": "x1 do pedido\nx2 mudado depois\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "mudança depois do parecer")

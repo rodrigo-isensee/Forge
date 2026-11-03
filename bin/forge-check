@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
+`pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
+
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
@@ -686,12 +688,29 @@ def pedido_do_pr(raiz, pedido, ref=None):
     return slug
 
 
+def exigidos_do_pr(raiz, pedido, ref=None, base=None):
+    """Os pareceres que o `forge-check pr` exige e os gatilhos de segurança que pedem o de segurança: `(tipos, gatilhos)`."""
+    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
+    isentos = isencoes_da_entrega(raiz, ref, base)
+    return ([t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else []),
+            gatilhos_de_seguranca)
+
+
+def veredito_do_pr(raiz, pedido, ref, base):
+    """A linha que o `forge-check pr` imprime só com rc 0 (LOTE E1): o que foi conferido, para um rc 0 não ficar mudo. Os mesmos
+    exigidos do `cmd_pr`; a base é a que o `pr_da_cli` resolve (`origin/<base>`, `diff literal` ou `estrita` sem `--base`)."""
+    nome = (base or "").removeprefix("origin/")
+    resolvida = base_do_delta(raiz, nome, ref)[0] if base else None
+    exigidos, _ = exigidos_do_pr(raiz, pedido, ref, resolvida)
+    head = (sha_do_commit(raiz, ref or "HEAD") or "?")[:7]
+    como = "estrita" if not base else resolvida.removeprefix("refs/remotes/").removeprefix("refs/heads/") if resolvida else "diff literal"
+    return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
-    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
-    isentos = isencoes_da_entrega(raiz, ref, base)
-    exigidos = [t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
+    exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
         achados = []
@@ -5680,6 +5699,8 @@ def executar(a, raiz):
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "pr" and not violacoes:  # LOTE E1: só com rc 0, para o `promover-homolog` seguir contando as linhas do stdout com rc != 0
+        print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0
 
 
