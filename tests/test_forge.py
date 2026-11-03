@@ -2914,6 +2914,13 @@ class MedirAlucinacao(unittest.TestCase):
         relatorio = "Commit abc1234, PR #118, push aceito, mesclado, 312 testes OK."
         self.assertIn("lastro: sessao s1: relatorios=1 afirmacoes=5 sem_lastro=5 taxa=100.0%", self.lastro(relatorio, saida))
 
+    def test_afirmacao_absoluta_sem_saida_de_teste_conta_sem_lastro(self):  # L12 (OK-5): só mede
+        relatorio = "Todos os testes passam e nenhuma falha restou."
+        self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "git status limpo"))
+        self.assertIn("afirmacoes=1 sem_lastro=0 taxa=0.0%", self.lastro(relatorio, "Ran 312 tests in 4s\nOK\n"))
+        self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "Ran 10 tests in 1s\nFAILED (failures=1)"))
+        self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", self.lastro("Não é verdade que todos os testes passam.", "x"))  # negada não conta
+
     def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):
         saida = self.lastro("Commit abc1234 entrou.", "abc1234", erro=True)
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", saida)

@@ -92,7 +92,7 @@ repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Um
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
-`lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK)
+`lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
 e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` (M3) conta as respostas da sessão
 principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo". Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
@@ -3762,6 +3762,9 @@ RE_PUSH = re.compile(r"\bpush\b[^.\n]{0,25}\b(?:aceito|entrou|enviado|feito|real
 RE_MESCLADO = re.compile(r"\bmescl(?:ado|ada|ei|ou)\b|\bmerged\b", re.I)
 RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)|\b(\d{1,6})\s+OK\b", re.I)
 RE_NEGACAO = re.compile(r"\b(?:n[ãa]o|sem|nunca)\b", re.I)
+# L12 (OK-5): afirmação absoluta sobre testes ou falhas; só medida, o lastro é uma saída de teste que terminou OK.
+RE_ABSOLUTA = re.compile(r"\btodos os testes (?:passa\w*|est[ãa]o verdes|ficaram verdes)\b|\btudo verde\b|\b100\s?%\s+dos testes\b|"
+                         r"\bnenhum(?:a)? (?:falha|erro|regress[ãa]o|teste (?:falha|falhou|quebr\w+))\b", re.I)
 # Saída de `git push`; a de `git fetch` tem o mesmo formato, mas o destino é `origin/...`.
 RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+(?!origin/)\S+|\[new (?:branch|tag)\]")
 
@@ -3783,6 +3786,8 @@ def afirmacoes_do_relatorio(texto):
     if any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)):
         achadas.add(("mesclado", ",".join(prs)))
     achadas |= {("testes", m.group(1) or m.group(2) or m.group(3)) for m in RE_TESTES.finditer(texto)}
+    if any(sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(texto)):
+        achadas.add(("absoluta", ""))
     return achadas
 
 
@@ -3815,6 +3820,8 @@ def tem_lastro(afirmacao, saidas):
         return RE_SAIDA_PUSH.search(saidas) is not None
     if tipo == "mesclado":
         return any(merge_provado(n, saidas) for n in (valor.split(",") if valor else [""]))
+    if tipo == "absoluta":
+        return testes_ok(r"\d+", saidas)
     return testes_ok(valor, saidas)
 
 
