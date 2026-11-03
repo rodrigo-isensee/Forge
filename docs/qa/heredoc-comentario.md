@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: heredoc-comentario
 branch: melhoria/heredoc-comentario
-commit: 262535c43f124882155c67d9fbd89b2bba788c2b
+commit: d964f7ceab2afcd7787c7dda22729d04510aabae
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -11,7 +11,7 @@ bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-01
+data: 2026-11-02
 ---
 # QA: heredoc-comentario
 
@@ -56,5 +56,15 @@ Etapa E1.4. Base f534013 (develop, com o passo 2 do heredoc-rapido), head 262535
 - Vermelho: o do parecer anterior segue valendo para os testes novos da branch (a base não tem `vestir`/`segmento`); na develop f534013 as 6 formas novas continuam lentas (19 a 40 s contra o limite de 5,0 s).
 - Não rodei a suíte inteira; o pre-push do envio a roda.
 
+## Revalidação no head d964f7c (volta que trouxe a develop b2580c6)
+- Delta lido (`forge-check delta --parecer`, 262535c..d964f7c): só o que veio da develop por merge sem conflito (o #423, IMPL-FURO-HOOK-A a4, em `hooks/conformidade.py` e `tests/test_hooks.py`, e o #424, release 0.31.0: `plugin.json`, CHANGELOG, fragmentos, `docs/hooks.md`). `hooks/_comum.py` e as fixtures C-6 não mudaram desde 262535c. Já lido e não relido: achados A1 a A3 (seguem valendo, recomendados).
+- M14 (agents/tech-lead.md:19): `git diff --numstat b2580c6 d964f7c -- hooks tests/test_*.py` dá 40+12 em `hooks/_comum.py` e 89+7 em `tests/test_hooks.py`, 148 linhas, abaixo do teto de 150; uma classe de comportamento em hooks/. Cumpre.
+- `bin/forge-mutante --cobertura --base b2580c6`: rc=0; cobertas 933 (M10), 960 (M9), 964 (M11), 967 (M6), 968 (M12), "declarado, não provado". Sem linha de guarda nova sem mutante.
+- `bin/forge-mutante tests/mutantes/heredoc-comentario.json`: rc=0, 13 mortos (M1 a M12, M4b), nenhum sobrevivente.
+- Medida local, 5 execuções, 3000 heredocs, hook real (`rodar` do teste, load 6 a 11 por outras tarefas): develop b2580c6, `# c`: 26,21 / 26,80 / 26,34 / 22,62 / 24,06 s (R-MAIN, tarde); `| cat > f # c`: 44,51 / 42,89 / 45,32 / 44,44 / 32,63 s (teto de 6004 palavras). Head: `# c`: 1,39 / 1,45 / 1,57 / 1,58 / 1,48 s (R-MAIN); `| cat > f # c`: 0,93 / 0,95 / 0,83 / 0,91 / 0,82 s (teto de 6004 palavras, igual à base). A medida no runner do CI fica com a E1.5.
+- Testes: orçamento, oráculo C-1, dono largo, C-5, `Hooks.test_fixtures` e `test_hooks_volta_corpus`: 21 testes OK em 295 s.
+- Vermelho: o dos pareceres anteriores segue valendo (a base não tem `vestir`/`segmento`; na develop b2580c6 o `# c` leva 22 a 26 s contra o limite de 5,0 s).
+- Não rodei a suíte inteira; o pre-push do envio a roda.
+
 ## Parecer
-Aprovado no head 262535c. A branch cumpre a M14: 148 linhas contáveis sobre a develop f534013 (limite 150), um comportamento em hooks/, corpus e fixtures fora da conta; a recusa não muda (oráculo C-1) e o teto só alarga o dono ou recusa (T6). Sem bugs; três recomendações que não devolvem.
+Aprovado no head d964f7c. A branch cumpre a M14: 148 linhas contáveis sobre a develop b2580c6 (limite 150), um comportamento em hooks/, corpus e fixtures fora da conta; a recusa não muda (oráculo C-1) e o teto só alarga o dono ou recusa. Sem bugs; três recomendações que não devolvem.
