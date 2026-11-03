@@ -420,7 +420,11 @@ class Execucao(unittest.TestCase):
                 time.sleep(0.1)
             pids = [int(x.name[4:]) for x in self.fora.glob("pid-*")]
             p.send_signal(signal.SIGTERM)
-            self.assertEqual(p.wait(timeout=60), 143)
+            try:
+                codigo = p.wait(timeout=20)  # os testes dormem 60 s: sair antes disso é o sinal que os matou
+            except subprocess.TimeoutExpired:
+                self.fail("o forge-mutante não saiu em 20 s depois do SIGTERM")
+            self.assertEqual(codigo, 143)
         finally:
             if p.poll() is None:
                 p.kill()
