@@ -108,7 +108,7 @@
       "guarda": "a pasta que não existe não é criada",
       "arquivo": "scripts/suite-paralela.py",
       "de": "    except OSError:\n        return None\n    if not stat",
-      "para": "    except OSError:\n        pasta.mkdir(mode=0o700)\n        return pasta\n    if not stat",
+      "para": "    except OSError:\n        pasta.mkdir(parents=True, mode=0o700)\n        return pasta\n    if not stat",
       "testes": [
         "tests.test_suite_paralela.Brinquedo.test_sem_a_pasta_o_registro_nao_a_cria_e_o_veredito_e_o_mesmo"
       ]
