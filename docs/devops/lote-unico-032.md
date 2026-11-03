@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: lote-unico-032
 branch: melhoria/lote-unico-032
-commit: 9f32431def2214ca564c4d1968c48b726e2d8d45
+commit: cd93720c89c21f935783c98501d3817a5b7ad3f7
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-03
@@ -34,6 +34,9 @@ Aprovado, sem bloqueante. No delta, `.github/` só muda no `ci.yml` (3 linhas de
 - O A2 anterior (gate por diretório e não por `.md`) segue como recomendação, sem mudança.
 - Ferramentas: `shellcheck` presente (nenhum shell novo); `actionlint` ausente do PATH (lacuna registrada); `py_compile` do `bin/forge-check` passa.
 - Custo zero (`R-CUSTO`): nenhum job, runner, cache ou artefato novo; os tetos de tempo maiores vêm da `develop` e ficam dentro da franquia. Rollback: reverter o commit da correção correspondente; sem migração.
+
+## Revalidação da volta 3 (delta `9f32431..cd93720`, head `cd93720`)
+Aprovado, sem bloqueante. `git diff --stat 9f32431..cd93720 -- .github .githooks scripts Dockerfile* compose*` vem vazio: o pipeline, os containers, a IaC e o pre-push não mudam. `bin/forge-check` muda só na `RE_LINHA_REPROVADA` (L13: `escopo:` de integração da base, sem commit e união de N briefs deixam de contar como reprovação) e no texto de uso, e `tests/test_forge.py` e `tests/config.json` ganham os casos e contagens do L35 (9f5c191); o `forge-check vereditos` só mede e o CI e o pre-push não o chamam. `py_compile` do `bin/forge-check` e `yaml.safe_load` do `ci.yml` passam; `actionlint` segue fora do PATH (lacuna registrada). Custo zero (`R-CUSTO`); rollback por revert do commit, sem migração. O A2 segue como recomendação.
 
 ## Achados
 - A2 (recomendado) .github/workflows/ci.yml:106 · o gate pula por diretório, não por tipo de arquivo, então um arquivo executável em `docs/ux/` ou `docs/devops/` pularia a bateria (o mesmo já valia para `docs/reviews/` e `docs/qa/`). Sem caminho de ataque concreto hoje; se preocupar, restringir a `\.md$`.
