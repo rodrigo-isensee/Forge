@@ -4,20 +4,20 @@
   "mutantes": [
     {
       "id": "G28",
-      "guarda": "o método vale o último -X separado, não o primeiro",
+      "guarda": "um -X mutante recusa mesmo seguido de -X GET (só o último não basta)",
       "arquivo": "hooks/parecer.py",
-      "de": "                metodo = args[i + 1]\n",
-      "para": "                metodo = metodo or args[i + 1]\n",
+      "de": "return any(m.upper() != \"GET\" for m in metodos)",
+      "para": "return metodos[-1].upper() != \"GET\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
     },
     {
       "id": "G29",
-      "guarda": "o método vale o último -X colado, não o primeiro",
+      "guarda": "um -X GET antes do mutante não libera (só o primeiro não basta)",
       "arquivo": "hooks/parecer.py",
-      "de": "            metodo = a[2:].removeprefix",
-      "para": "            metodo = metodo or a[2:].removeprefix",
+      "de": "return any(m.upper() != \"GET\" for m in metodos)",
+      "para": "return metodos[0].upper() != \"GET\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -34,7 +34,7 @@
     },
     {
       "id": "G31",
-      "guarda": "o valor de opção valorada não vira método no ultimo_metodo",
+      "guarda": "o valor de opção valorada não vira método em metodos_pedidos",
       "arquivo": "hooks/parecer.py",
       "de": "        if valor:\n            valor = False\n            continue\n        if a in (\"-X\"",
       "para": "        if False:\n            valor = False\n            continue\n        if a in (\"-X\"",
@@ -56,8 +56,8 @@
       "id": "G33",
       "guarda": "-X sem valor no fim não quebra",
       "arquivo": "hooks/parecer.py",
-      "de": "            if i + 1 < len(args):\n                metodo",
-      "para": "            if True:\n                metodo",
+      "de": "            if i + 1 < len(args):\n                metodos",
+      "para": "            if True:\n                metodos",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -86,8 +86,8 @@
       "id": "G36",
       "guarda": "o valor de outra opção valorada é pulado depois do -X",
       "arquivo": "hooks/parecer.py",
-      "de": "        else:\n            valor = a in API_COM_VALOR\n    return metodo",
-      "para": "        else:\n            valor = False\n    return metodo",
+      "de": "        else:\n            valor = a in API_COM_VALOR\n    return metodos",
+      "para": "        else:\n            valor = False\n    return metodos",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]

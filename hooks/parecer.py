@@ -514,32 +514,32 @@ def desagrupa_i(args):
     return saida
 
 
-def ultimo_metodo(args):
-    """O método vale o último `-X`/`--method`, como no gh; o token depois de opção valorada é valor, não opção."""
-    metodo, valor = None, False
+def metodos_pedidos(args):
+    """Todo `-X`/`--method` do comando; o token depois de opção valorada é valor, não opção."""
+    metodos, valor = [], False
     for i, a in enumerate(args):
         if valor:
             valor = False
             continue
         if a in ("-X", "--method"):
             if i + 1 < len(args):
-                metodo = args[i + 1]
+                metodos.append(args[i + 1])
             valor = True
         elif a.startswith("--method="):
-            metodo = a.split("=", 1)[1]
+            metodos.append(a.split("=", 1)[1])
         elif a.startswith("-X") and len(a) > 2:
-            metodo = a[2:].removeprefix("=")  # `-XPUT`, `-X=PUT`
+            metodos.append(a[2:].removeprefix("="))  # `-XPUT`, `-X=PUT`
         else:
             valor = a in API_COM_VALOR
-    return metodo
+    return metodos
 
 
 def metodo_mutante(args):
-    """True se o `gh api` altera algo: método diferente de GET, ou campos (que viram POST)."""
+    """True se o `gh api` altera algo: qualquer método diferente de GET (não só o último), ou campos (que viram POST)."""
     args = desagrupa_i(args)
-    metodo = ultimo_metodo(args)
-    if metodo:
-        return metodo.upper() != "GET"
+    metodos = metodos_pedidos(args)
+    if metodos:
+        return any(m.upper() != "GET" for m in metodos)
     return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
                or a.startswith(("--field=", "--raw-field=", "--input="))
                or re.match(r"-[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado
