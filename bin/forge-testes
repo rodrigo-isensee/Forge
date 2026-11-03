@@ -109,6 +109,7 @@ MAPA = [
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
+    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta",)),

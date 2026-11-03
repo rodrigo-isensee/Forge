@@ -7,13 +7,16 @@ import shutil
 import stat
 import subprocess
 import tempfile
+import sys
 import unittest
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 HOOK = RAIZ / "templates" / "projeto" / ".githooks" / "pre-push"
 ZERO = "0" * 40
-AMBIENTE = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
+AMBIENTE = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
 AMBIENTE.update(GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t", GIT_COMMITTER_EMAIL="t@t")
 PULO = "só docs/** e .md; lint e typecheck pulados"
 
