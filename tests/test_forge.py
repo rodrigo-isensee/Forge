@@ -3055,11 +3055,14 @@ class MedirAlucinacao(unittest.TestCase):
         coerente_a = "PQ-1 cumpriu | x\nveredito: cumpriu"
         coerente_b = "PQ-1 não cumpriu | x\nveredito: não cumpriu"
         sem_veredito = "Relatório sem a linha fixa."
+        coerente_c = "PQ-1 cumpriu | x\nescopo: Base-sha fora da branch | git merge-base\nveredito: não cumpriu"  # A3 do review: as linhas do conferente.md
+        coerente_d = "forma: brief sem arquivo em docs/briefs/\nveredito: não cumpriu"
+        coerente_e = "escopo: ok (anexo) | git diff\nescopo: confira | git diff\nforma: ok\nveredito: cumpriu"  # linha que não reprova
         linhas = []
-        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito)):
+        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito, coerente_c, coerente_d, coerente_e)):
             linhas += [{**o, "agentId": f"a{i}"} for o in self.subagente(texto, "x")]
         saida, _ = self.rodar("vereditos", linhas)
-        self.assertIn("vereditos: sessao s1: vereditos=4 contraditorios=2 taxa=50.0%", saida)
+        self.assertIn("vereditos: sessao s1: vereditos=7 contraditorios=2 taxa=28.6%", saida)
         self.assertNotIn("pendente", saida)  # só números
 
     def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):

@@ -85,7 +85,6 @@ class OcupacaoDaTrava(unittest.TestCase):
         (self.raiz / ".githooks" / "pre-push").unlink()
         self.assertFalse([l for l in self.fila() if "trava" in l])
 
-
     def test_hook_alheio_sem_o_status_do_forge_nao_e_executado_nem_vira_trava_presa(self):  # L18, A2 do review
         marca = self.tmp / "executou"
         hook = self.raiz / ".githooks" / "pre-push"

@@ -4016,7 +4016,8 @@ def medir_lastro(relatorios):
 
 
 RE_VEREDITO = re.compile(r"^\s*veredito:\s*(n[ãa]o cumpriu|cumpriu)\s*$", re.I | re.M)
-RE_LINHA_REPROVADA = re.compile(r"^\s*(?:PQ-\d+\s+n[ãa]o cumpriu\b|escopo:\s*fora\b|pendente:)", re.I | re.M)
+# As linhas que reprovam no conferente.md: PQ não cumpriu, pendente:, escopo: que não seja ok nem confira, forma: que não seja ok.
+RE_LINHA_REPROVADA = re.compile(r"^\s*(?:PQ-\d+\s+n[ãa]o cumpriu\b|pendente:|escopo:\s*(?!ok\b|confira\b)\S|forma:\s*(?!ok\b)\S)", re.I | re.M)
 
 
 def medir_vereditos(relatorios):
