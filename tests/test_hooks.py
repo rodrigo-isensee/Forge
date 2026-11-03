@@ -1992,7 +1992,7 @@ class Hooks(unittest.TestCase):
         for texto in ("cat 'a", "cat a \\", "cat $(x"):
             self.assertFalse(_comum.fronteira_limpa(texto), texto)
         _, limpo, _ = _comum.tirar_heredocs("./x0 <<'E'\nx\nE\n./x1 <<'E'\nx\nE\n", com_gravado=True)
-        self.assertEqual(limpo[0][0].partes[0], "./x0\n./x1", "com fronteira, o dono se lê em duas partes")
+        self.assertEqual((getattr(limpo[0][0], "partes", None) or ("",))[0], "./x0\n./x1", "com fronteira, o dono se lê em duas partes")
         texto = "".join(f"./x{i} '$(' <<'E'\nx\nE\n" for i in range(1000)) + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ\n"
         _, lidos, _ = _comum.tirar_heredocs(texto, com_gravado=True)
         self.assertFalse(hasattr(lidos[0][0], "partes"))
