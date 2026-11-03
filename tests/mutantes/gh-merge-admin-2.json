@@ -101,6 +101,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G22",
+      "guarda": "o valor do -R entre pr e o subcomando é lido quando existe",
+      "arquivo": "hooks/parecer.py",
+      "de": "repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2",
+      "para": "repo_pr, j = (toks[j + 1] if False else None), j + 2",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
