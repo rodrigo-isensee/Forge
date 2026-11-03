@@ -2695,6 +2695,8 @@ class Workflows(unittest.TestCase):
         self.assertIn("if: github.event_name == 'push' && github.ref == 'refs/heads/develop'", ci)
         self.assertRegex(ci, r"(?m)^  bateria:")
         self.assertIn("docs/(reviews|qa|security|devops|ux)/", ci)
+        # Teto de tempo (ci-suite-no-teto): checagem rápida 20 min; bateria e bateria python 3.14, 25 min.
+        self.assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "25", "25"])
 
     def test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde(self):
         """Review independente: renomeação, testes de pareceres, check forjado, cancelamento e promoção."""

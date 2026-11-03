@@ -1,0 +1,25 @@
+{
+  "descricao": "HEREDOC-DONOS, C-4 e C-6 (a): 1 heredocs de donos distintos (`./x{i}`) e, no fim, `bash` gravando `.github/` (sem o marcador crítico) recusam pela regra do caminho, como a linha curta.",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    ".claude-plugin/plugin.json": "{\"name\": \"forge\"}\n"
+  },
+  "git": [
+    {
+      "branch": "melhoria/x"
+    }
+  ],
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "./x0 <<'E'\nx\nE\nbash <<'Z'\necho x > .github/workflows/ci.yml\nZ"
+    },
+    "agent_type": "forge:node-backend",
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": ".github/ (papel: dev)"
+  }
+}
