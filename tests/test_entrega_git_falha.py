@@ -97,6 +97,11 @@ class FalhaDoGit(Repositorio):
             with self.subTest(etapa=etapa):
                 self.reprova(f"*--verify --quiet {self.base}*", "todas", "--etapa", etapa, passo="base da entrega")
 
+    def test_base_pedida_que_falha_so_na_primeira_leitura_reprova(self):  # A6: a 2ª leitura acerta; a lista nunca sai de outra base com rc 0
+        for etapa in ("codigo", "review", "merge-integracao"):
+            with self.subTest(etapa=etapa):
+                self.reprova(f"*--verify --quiet {self.base}*", 1, "--etapa", etapa, passo="diff da entrega")
+
     def test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo(self):  # L08: "igual à base" exige código 0 nos dois
         merge = self.squash()
         rc, saida = self.falhar("*nunca-casa*", 1, "--etapa", "review", "--branch", merge)

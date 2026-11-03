@@ -513,9 +513,9 @@ def arquivos_da_entrega(raiz, ref=None, base=None, desde=None):
     Com `desde` (um sha já conferido, VV-2), só o que mudou depois dele: a interseção com `desde..ref` tira o que entrou
     por merge da base (com o Base-sha regravado depois do merge); sem `desde`, a branch inteira, como sempre. Soma o que a branch já
     tinha mudado até `desde` (base...desde) e um commit posterior devolveu ao estado da base, como um teste apagado (`desfeitos_da_entrega`)."""
-    b = base_da_entrega(raiz, base)
+    b = base_da_entrega(raiz, base, so_a_pedida=True)  # uma só leitura da base: a falha no Base-sha dado nunca cai para as BASES (A6 da segurança)
     if not b:
-        return []  # sem base não há como saber (o modo "estrita" do `pr`); o `entrega` já tem o Base-sha lido e trata esse caso como falha do git
+        return None if base else []  # base dada que não lê é falha do git (C-1); sem base nenhuma não há como saber (o modo "estrita" do `pr`)
     cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
                      f"{b}...{ref or 'HEAD'}", "--", bruto=True)
     if cod:
@@ -1250,10 +1250,10 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     falhas = []  # C-1: os passos do git que falharam; com algum, a entrega reprova em toda etapa e nenhum filtro tira arquivo (C-3)
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
     if arquivos is None:
+        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:  # só rotula: o Base-sha já foi lido como commit, sem base aqui o git falhou
+            falhas.append("base da entrega")
         falhas.append("diff da entrega")
         arquivos = []  # sem lista para mostrar: a reprovação vem de `falhas`, nunca de "nada a conferir"
-    elif base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:  # o Base-sha já foi lido como commit: sem base aqui, o git falhou
-        falhas.append("base da entrega")
     todos = list(arquivos)  # a lista antes de qualquer filtro: uma falha posterior a um filtro saudável mostra esta (C-3, exibição)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
     desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)

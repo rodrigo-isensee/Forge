@@ -23,6 +23,16 @@
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_integracao_limpa_nao_le_o_primeiro_pai"
       ]
+    },
+    {
+      "id": "M40",
+      "guarda": "a base do arquivos_da_entrega é uma só leitura, sem cair para as BASES",
+      "arquivo": "bin/forge-check",
+      "de": "    b = base_da_entrega(raiz, base, so_a_pedida=True)  # uma só",
+      "para": "    b = base_da_entrega(raiz, base)  # uma só",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_so_na_primeira_leitura_reprova"
+      ]
     }
   ],
   "isentas": [
