@@ -36,7 +36,10 @@ só avisa (`aviso:`), como a falta da coluna "Pronto para fazer" ou "Pronto" no 
 linha `fila: ... não tem KANBAN.md` (SEM_QUADRO).
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
 reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
-uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
+uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs. Do cartão que
+chegou à develop (primeiro movimento para "Aguardando sua validação" ou "Pronto") traz também `relogios:` (L49, D-4): minutos de
+`aberto_ate_develop` (primeiro movimento do cartão) e de `pronto_ate_develop` (entrada em "Pronto para fazer"; `-` se nunca esteve),
+com a `meta=30` do segundo e `dentro=sim|nao|-`.
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
 mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido` (e pelo motivo do movimento que cita o pedido), lista os casados e aceita `--kanban`.
@@ -2578,6 +2581,21 @@ def voltas_do_cartao(movimentos):
     return voltas, (_minutos(inicio, fim) if inicio and fim else None)
 
 
+COLUNAS_NA_DEVELOP = ("aguardando sua validacao", "pronto")  # a entrega chegou à develop e espera o dono (ou já passou dele)
+META_PRONTO_ATE_DEVELOP = 30  # minutos (D-4)
+
+
+def relogios_do_cartao(movimentos):
+    """L49 (D-4): de [(hora, de, para, motivo)] em ordem de hora, (aberto até a develop, pronto para fazer até a develop) em minutos;
+    None se o cartão não chegou à develop. Aberto: o primeiro movimento do cartão. Pronto para fazer: o primeiro movimento que põe o cartão
+    nessa coluna, ou a primeira saída dela (o cartão que já nasce nela); None se nunca esteve nela. Só lê o histórico já carregado."""
+    fim = next((h for h, _, p, _ in movimentos if _sem_acento(p) in COLUNAS_NA_DEVELOP), None)
+    if not movimentos or not fim:
+        return None
+    pronto = next((h for h, d, p, _ in movimentos if "pronto para fazer" in (_sem_acento(d), _sem_acento(p))), None)
+    return _minutos(movimentos[0][0], fim), _minutos(pronto, fim) if pronto else None
+
+
 def _uniao_de_minutos(janelas):
     """Minutos da união de [(inicio, fim)]: janelas que se sobrepõem contam uma vez."""
     total, fim = 0.0, None
@@ -2649,6 +2667,11 @@ def cmd_voltas(raiz, pedido=None):
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+        if relogios := relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0])):  # L49 (D-4): os dois relógios
+            aberto, pronto = relogios
+            dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
+            print(f"voltas: {nome} relogios: aberto_ate_develop={_numero(aberto)} pronto_ate_develop="
+                  f"{_numero(pronto) if pronto is not None else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}")
         if reversoes := reversoes_do_pedido(pasta / f"{nome}.md"):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
             print(f"voltas: {nome} reversoes={reversoes}")
         soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]

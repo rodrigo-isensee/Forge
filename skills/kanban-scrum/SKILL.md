@@ -66,6 +66,7 @@ A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardand
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
+- **Dois relógios por release (D-4):** "pedido aberto → develop" (primeiro movimento do cartão até a entrega na develop, em "Aguardando sua validação" ou "Pronto") e "pronto para fazer → develop" (entrada em "Pronto para fazer" até a mesma entrega), com meta de 30 min no segundo; `forge-check voltas` imprime a linha `relogios:` por pedido, e o que não chegou à develop fica "não medido".
 - **Vazão:** cartões em Pronto por semana.
 - **Idade do WIP:** tempo desde a entrada em "Em andamento" dos cartões abertos.
 - **Tempo bloqueado** e **motivos de bloqueio**.
