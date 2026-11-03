@@ -362,10 +362,10 @@ class Teste(unittest.TestCase):
         self.renomeio_limpo()
         (self.estado / "depois_do_envio").write_text(
             f'set -e\nG="$REAL_GIT_FALSO"\nd="$(mktemp -d)"\n"$G" clone -q -b develop {self.remoto} "$d/c"\ncd "$d/c"\n'
-            'printf "l1\\nl2\\nl3\\nl4\\nmais\\n" > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n', encoding="utf-8")
+            'printf "l1\\nl2\\nl3\\nl4\\nmais\\n" > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n' + f'"$G" -C {self.proj} fetch -q origin\n', encoding="utf-8")
         r = self.fechar("p1", "--ref", "melhoria/r")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
-        self.assertIn("passo 2b", r.stderr)
+        self.assertIn("a base andou e tocou arquivo que a branch também tocou", r.stderr)  # a listagem que para, não o pedido de fetch
         self.assertEqual(r.stdout.count("merge limpo em melhoria/r"), 1, "um merge por cadeia")
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
 
