@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-fc-seguranca
-commit: e8b76448ca469e970529c0cd427f67ba7dd808e6
+commit: dd441fa8cf8788b15188b604d0c2877c46da1742
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
 # Review: versao-033 (lote E2+E3, `bin/forge-check`)
 
-Rodada 2 (head e8b76448ca469e970529c0cd427f67ba7dd808e6): aprovado; A2 a A5 resolvidos; A1 e A6 seguem como recomendados; sem achado novo. A rodada 1 (head ae4dacd) fica abaixo, como foi escrita.
+Rodada 3 (head dd441fa8cf8788b15188b604d0c2877c46da1742): aprovado; o A6 da segurança da rodada 2 está resolvido, sem regressão; A1 e A6 deste parecer seguem como recomendados; sem achado novo. As rodadas 1 (head ae4dacd) e 2 (head e8b7644) ficam abaixo, como foram escritas.
 
 Revisor: outra instância do `tech-lead`, não o autor (D-ETAPAS-INST = A). Base 928e61b66015f7ee2a2e585dc8178e07dc16be39, head ae4dacd791edf104c21cbe2b79092e93591c659d, 3 commits (a02cfc6 E3, 7cb82f3 E2, ae4dacd mapa do E3).
 
@@ -69,3 +69,15 @@ Delta lido: `bin/forge-check delta --parecer` sobre este parecer, intervalo ae4d
 
 **Commits.** Onze commits de E3 e quatro de E2 na volta, Conventional Commits em português; os de E2 (7f3a70c, 35fcc59, 2a33b77, 7903caf) só tocam o caminho do pedido, o teste dele, o fragmento e a isenta da spec 4. Achados recorrentes (PA-7) conferidos: AR-4 não volta (A4 resolvido); nenhuma classe repetida neste parecer.
 
+## Rodada 3
+Delta lido: `bin/forge-check delta --parecer` sobre este parecer, intervalo e8b7644..dd441fa (o 655424f, o b25f05b e o 626595e não mudam código): `bin/forge-check` +4 -4 (linhas 516, 518, 1253-1256), `tests/test_entrega_git_falha.py` +5 (100-104) e `tests/mutantes/lote-fc-seguranca-4.json` +10 (26-35). Um commit, dd441fa, que se reverte sozinho. Já lido nas rodadas 1 e 2 e fora do delta: o resto dos arquivos.
+
+**A6 da segurança (rodada 2): resolvido.**
+- `arquivos_da_entrega` (`bin/forge-check:516`) lê a base uma só vez com `so_a_pedida=True`: com o Base-sha dado, as BASES não entram, e a lista nunca sai do diff contra a develop (C-1, C-3 do E3; T-1 sem `or []`).
+- `:518` devolve None com base dada que não lê e `[]` só sem base nenhuma; `cmd_entrega` (`:1252-1256`) leva o None a `falhas` ("diff da entrega") e só rotula "base da entrega" se a 2ª leitura também falha. Com a falha só na 1ª leitura, reprova com rc 1 (C-2).
+- Teste `test_base_pedida_que_falha_so_na_primeira_leitura_reprova` nas três etapas: o padrão casa só a leitura sem `--end-of-options`, então o `sha_do_commit` do início não consome a ordem 1, e a falha cai mesmo em `arquivos_da_entrega`.
+- M40 conferido à mão, numa cópia do head em `$TMPDIR`: sem `so_a_pedida`, o teste cai nas três etapas (3 falhas).
+
+**Regressão: nenhuma.** O None novo alcança os outros chamadores com base dada: `gatilhos` exige os dois portões e `isencoes_do_diff(None)` não isenta (C-4, fecha); `arquivos_por_branch` passa a base já resolvida, que lê. No `pr` com base ilegível, o resultado agora fecha em vez de cair para a develop: aperta, não afrouxa.
+
+**Testes.** No head dd441fa: `python3 -m unittest tests.test_forge tests.test_pedido_fora tests.test_entrega_git_falha`, 518 testes, OK (125 s). A suíte inteira fica com o QA (D-5). Achados recorrentes (PA-7) conferidos: nenhuma classe repetida nesta rodada.
