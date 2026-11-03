@@ -1,0 +1,70 @@
+{
+  "pedido": "lote-unico-032-l36",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "CP-1: o teto de agentes é detectado",
+      "arquivo": "bin/forge-check",
+      "de": "if len(ativos) > teto:",
+      "para": "if len(ativos) > 99:",
+      "testes": ["tests.test_comportamento.Comportamento.test_cada_caso_de_erro_conhecido_e_detectado_com_as_regras_dele"]
+    },
+    {
+      "id": "M2",
+      "guarda": "CP-5: a main é detectada",
+      "arquivo": "bin/forge-check",
+      "de": "if main:",
+      "para": "if False:",
+      "testes": ["tests.test_comportamento.Comportamento.test_cada_caso_de_erro_conhecido_e_detectado_com_as_regras_dele"]
+    },
+    {
+      "id": "M3",
+      "guarda": "CP-2: o PR sem delegação prévia é detectado",
+      "arquivo": "bin/forge-check",
+      "de": "if c == \"gh pr create\":",
+      "para": "if c == \"gh pr nunca\":",
+      "testes": ["tests.test_comportamento.Comportamento.test_cada_caso_de_erro_conhecido_e_detectado_com_as_regras_dele"]
+    },
+    {
+      "id": "M4",
+      "guarda": "CP-3: as três perguntas são detectadas",
+      "arquivo": "bin/forge-check",
+      "de": "if resposta[\"perguntas\"] > 1:",
+      "para": "if resposta[\"perguntas\"] > 99:",
+      "testes": ["tests.test_comportamento.Comportamento.test_cada_caso_de_erro_conhecido_e_detectado_com_as_regras_dele"]
+    },
+    {
+      "id": "M5",
+      "guarda": "CP-4: o bloqueio contornado por outra via é detectado",
+      "arquivo": "bin/forge-check",
+      "de": "if bc != e[\"c\"] and comum",
+      "para": "if False and comum",
+      "testes": ["tests.test_comportamento.Comportamento.test_cada_caso_de_erro_conhecido_e_detectado_com_as_regras_dele"]
+    },
+    {
+      "id": "M6",
+      "guarda": "a sessão limpa não dispara regra: o detector não acusa por padrão",
+      "arquivo": "bin/forge-check",
+      "de": "if papel not in vistos:",
+      "para": "if True:",
+      "testes": ["tests.test_comportamento.Comportamento.test_a_sessao_limpa_nao_dispara_nenhuma_regra"]
+    },
+    {
+      "id": "M7",
+      "guarda": "o mapa roda o módulo novo onde o forge-check roda",
+      "arquivo": "bin/forge-testes",
+      "de": "\"test_fila_ocupacao\", \"test_proximo\", \"test_comportamento\") + VOLTA_UNICA",
+      "para": "\"test_fila_ocupacao\", \"test_proximo\") + VOLTA_UNICA",
+      "testes": ["tests.test_testes_tocados.MapaDoForgeCheck.test_mapa_lista_todo_modulo_que_usa_o_forge_check"]
+    },
+    {
+      "id": "M8",
+      "guarda": "a pasta de casos roda só o módulo dela",
+      "arquivo": "bin/forge-testes",
+      "de": "    (r\"tests/comportamento/.*\", (\"test_comportamento\",)),\n",
+      "para": "",
+      "testes": ["tests.test_testes_tocados.Mapa.test_os_casos_de_comportamento_rodam_so_o_modulo_deles"]
+    }
+  ]
+}
