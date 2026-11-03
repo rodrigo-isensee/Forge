@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
+from test_forge import ambiente_limpo  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "brief"
 PEDIDO = (FIXTURES / "pedido.md").read_text(encoding="utf-8")
@@ -83,7 +84,7 @@ class PedidoForaDasRaizes(Fora):
     LINHA = "forge-check: --pedido fora de docs/pedidos/ das raízes"
 
     def entrega(self, pedido, cwd=None):
-        env = dict(os.environ, HOME=str(self.tmp / "home"))
+        env = dict(ambiente_limpo(), HOME=str(self.tmp / "home"))
         r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "entrega", pedido, "--branch", "melhoria/x", "--base", "develop",
                             "--base-sha", "0" * 40, "--etapa", "codigo"], capture_output=True, text=True, env=env, cwd=cwd or self.tmp)
         return r.returncode, r.stdout
