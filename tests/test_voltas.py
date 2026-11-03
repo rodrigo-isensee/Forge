@@ -108,6 +108,15 @@ class Voltas(Raiz):
         _, linhas, _ = self.rodar("voltas", "--pedido", "p4")
         self.assertIn("voltas: P4 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", linhas)
 
+    def test_pedido_que_andou_sem_volta_traz_o_relogio_tambem_sem_pedido(self):  # L49, A5 do review: a tabela por release não perde o pedido sem volta
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+                    "| 2026-10-17T08:00:00-03:00 | P5 | Backlog | Em andamento | x |\n"
+                    "| 2026-10-17T08:05:00-03:00 | P5 | Em andamento | Pronto | y |\n")
+        _, todos, _ = self.rodar("voltas")
+        self.assertIn("voltas: P5 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", todos)
+        _, um, _ = self.rodar("voltas", "--pedido", "p5")
+        self.assertIn("voltas: P5 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", um)
+
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
         _, todos, _ = self.rodar("voltas")
         self.assertFalse(any("OUTRO" in l for l in todos), todos)

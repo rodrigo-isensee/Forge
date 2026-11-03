@@ -2661,8 +2661,9 @@ def cmd_voltas(raiz, pedido=None):
         rodadas = rodadas_de_brief(raiz, chave)
         linhas = [("brief", h, m, f" ref={o}") for o, r, h, m in rodadas["extras"]] + \
                  [(t, h.isoformat(timespec="seconds"), m, "") for t, h, m in voltas]
-        if not linhas and not pedido:
-            continue
+        relogios = relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))  # L49 (D-4): os dois relógios
+        if not linhas and not pedido and not relogios:
+            continue  # o pedido que andou sem volta segue na lista pelo relógio
         nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
         for tipo, inicio, minutos, ref in linhas:
             contagem[tipo] += 1
@@ -2675,7 +2676,7 @@ def cmd_voltas(raiz, pedido=None):
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
-        if relogios := relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0])):  # L49 (D-4): os dois relógios
+        if relogios:
             aberto, pronto = relogios
             dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
             print(f"voltas: {nome} relogios: aberto_ate_develop={_numero(aberto)} pronto_ate_develop="
