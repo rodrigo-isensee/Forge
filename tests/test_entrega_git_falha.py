@@ -122,6 +122,7 @@ class FalhaDoGit(Repositorio):
     def test_git_saudavel_nao_muda(self):
         for etapa in ("codigo", "review", "merge-integracao"):
             rc, saida = self.falhar("*nunca-casa*", 1, "--etapa", etapa)
+            self.assertEqual(rc, 1 if etapa == "merge-integracao" else 0, saida)  # merge-integracao sem pareceres no head reprova; o git saudável não muda o resto
             self.assertNotIn(LINHA, saida)
             self.assertIn('escopo: confira "a.txt" +1 -0', saida)
 
