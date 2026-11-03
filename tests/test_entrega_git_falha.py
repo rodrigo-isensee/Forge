@@ -133,6 +133,14 @@ class FalhaDoGit(Repositorio):
             with self.subTest(passo=nome, ordem=ordem):
                 self.reprova(padrao, ordem, "--etapa", "codigo", passo=nome)
 
+    def test_filtro_e4_com_outro_passo_falho_nao_tira_arquivo(self):  # C-3: o que a base trouxe só sai da lista com o git inteiro saudável
+        self.integrar_a_base()
+        rc, saida = self.falhar("*nunca-casa*", 1, "--etapa", "merge-integracao")
+        self.assertNotIn('escopo: confira "base.txt"', saida)
+        rc, saida = self.falhar("*--numstat*", 1, "--etapa", "merge-integracao")
+        self.assertIn("o git falhou (contagens do diff)", saida)
+        self.assertIn('escopo: confira "base.txt"', saida)
+
     def test_filtro_que_falha_nao_tira_arquivo(self):
         self.integrar_a_base()  # a integração limpa não tem escopo próprio: com o git saudável, só o que a branch fez
         rc, saida = self.falhar("*--numstat*", 1, "--desde", self.c1, "--etapa", "codigo")

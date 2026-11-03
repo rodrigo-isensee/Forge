@@ -1,0 +1,130 @@
+{
+  "pedido": "lote-fc-seguranca",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M25",
+      "guarda": "a falha vira None depois de contada",
+      "arquivo": "bin/forge-check",
+      "de": "(None if isinstance(r, FalhaDoGit) else r for r in",
+      "para": "(r for r in",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "com falha, o filtro dos dois pais não tira arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    if not falhas and dos_dois_pais:",
+      "para": "    if dos_dois_pais:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "com falha, o filtro do primeiro pai não tira arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "    elif not falhas and primeiro_pai is not None:",
+      "para": "    elif primeiro_pai is not None:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_falha_depois_de_um_filtro_saudavel_mostra_a_lista_inteira"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "com falha, o filtro E4 não tira arquivo",
+      "arquivo": "bin/forge-check",
+      "de": "        elif not falhas:  # C-3",
+      "para": "        elif True:  # C-3",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_e4_com_outro_passo_falho_nao_tira_arquivo"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "rev-list dos pais do head do entrega falha",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod_pais:\n        falhas.append",
+      "para": "    if False:\n        falhas.append",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_rev_list_dos_pais_do_head_do_cmd_entrega_tem_teste_proprio"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "diff do merge integrado falha",
+      "arquivo": "bin/forge-check",
+      "de": "        if do_merge is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_diff_do_merge_integrado_falha_e_reprova"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "contagens que falham entram em falhas",
+      "arquivo": "bin/forge-check",
+      "de": "    if contagens is None:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "a falha tardia mostra a lista inteira",
+      "arquivo": "bin/forge-check",
+      "de": "    if falhas:  # o filtro que já rodou",
+      "para": "    if False:  # o filtro que já rodou",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_falha_depois_de_um_filtro_saudavel_mostra_a_lista_inteira"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "a falha tardia não anuncia o filtro que não vale",
+      "arquivo": "bin/forge-check",
+      "de": "if not i[0].startswith(\"escopo: integração da base\")]",
+      "para": "if True]",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_falha_depois_de_um_filtro_saudavel_mostra_a_lista_inteira"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "sem arquivo e com falha não é nada a conferir",
+      "arquivo": "bin/forge-check",
+      "de": "    if not arquivos and not falhas:",
+      "para": "    if not arquivos:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_sem_commit_so_com_todos_os_git_em_zero",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "a branch cujo git falhou fica fora da comparação",
+      "arquivo": "bin/forge-check",
+      "de": "        if arquivos is not None:  # informativo",
+      "para": "        if True:  # informativo",
+      "testes": [
+        "tests.test_forge"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "o que não é integração da base não usa o escopo dos dois pais",
+      "arquivo": "bin/forge-check",
+      "de": "    if proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_conferencia_base_dono",
+        "tests.test_volta_por_delta"
+      ]
+    }
+  ]
+}
