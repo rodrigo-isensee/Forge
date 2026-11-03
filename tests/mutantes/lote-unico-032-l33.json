@@ -92,6 +92,34 @@
       "testes": [
         "tests.test_forge_mutante.Execucao.test_sigterm_no_meio_mata_todos_os_processos_e_apaga_as_copias"
       ]
+    },
+    {
+      "id": "M10",
+      "guarda": "controle vermelho para antes da troca, em série e em paralelo",
+      "arquivo": "bin/forge-mutante",
+      "de": "    if estado != \"ok\":\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_sai_2"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o controle vermelho é dito como controle vermelho, não como sem veredito",
+      "arquivo": "bin/forge-mutante",
+      "de": "'controle vermelho' if estado == 'vermelho' else",
+      "para": "'controle vermelho' if estado == 'x' else",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_controle_vermelho_sai_2"
+      ]
+    },
+    {
+      "id": "E1",
+      "guarda": "o controle por conjunto de testes se calcula uma vez",
+      "arquivo": "bin/forge-mutante",
+      "de": "            if chave not in self.estados:",
+      "para": "            if True:",
+      "equivalente": "o cache só evita repetir o controle de testes idênticos; recalcular dá o mesmo estado, sem efeito no veredito"
     }
   ]
 }
