@@ -4714,7 +4714,7 @@ class LerDirigidoDoBrief(RepoComOrigem):
         return r.returncode, r.stdout, r.stderr
 
     def ler(self, saida):
-        return saida.split("## Ler\n")[1].split("\n## ")[0]
+        return saida.split("## Ler\n")[1].split("\n## ")[0] if "## Ler\n" in saida else ""  # sem a seção a asserção reprova, não o índice
 
     def test_codigo_le_so_escopo_etapas_e_decisoes(self):
         rc, saida, _ = self.gerar("codigo", "forge:dev-exemplo")
