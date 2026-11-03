@@ -39,3 +39,15 @@ Regras como o teto de agentes simultâneos, "pesado um por vez" e "PR só com pa
 - Mais difícil: cada hook é código a manter e testar. O nome exato da ferramenta de agentes no matcher precisa ser conferido na versão do Claude Code usada no CI.
 - Riscos: a contagem de agentes erra se `SubagentStop` não disparar (mitigado pela expiração); os padrões de comando pesado podem ser contornados por nomes alternativos. Aceito, porque é guarda de processo, não de segurança.
 - Os hooks rodam a cada chamada de ferramenta: precisam terminar em menos de 100 ms no caso comum, sem chamar `git` quando o comando não casa com nenhum padrão.
+
+## Emenda: retomada de sessão com pedido aberto (AQ-4; proposta, vale a partir do PR da fase C do lote-unico-032, L29)
+Estado da emenda: **proposta**. Nenhum hook injeta contexto até esse PR; o item 1 segue valendo como está escrito. O que a destrava: o hook `retomada` (L29) com fixtures e o parecer de segurança da classe H11.
+
+**Exceção estreita ao item 1.** Um hook só pode escrever contexto no `SessionStart` (matchers `startup`, `resume` e `compact`) quando o projeto tem pedido aberto, e então escreve **a saída curta do `forge-check proximo <pedido>`**: até 40 linhas, com a hora do registro, para a sessão retomar sem reconstruir o estado. Regras:
+1. Sem pedido aberto, silêncio total (o item 1, inalterado).
+2. O texto injetado é **dado**: toda linha vinda do pedido sai escapada e truncada (`sem_controle`, `nome_seguro`) e nunca vira instrução literal; o veredito vem do parecer validado, não do Histórico; sem registro, a saída é `não verificável`.
+3. O `PreCompact` só **avisa** (stderr, uma linha, item 1) quando há decisão do dono fora do disco; não injeta contexto.
+4. O hook continua determinístico (item 2): só estado em disco e git local, sem rede nem IA; falha interna sai com 0 (item 4).
+5. Registro velho (hora do registro além do prazo do item 5) sai marcado como velho, nunca omitido.
+
+Critério de reversão da emenda: um caso em que o texto do Histórico, injetado, mude o comportamento da sessão (injeção no contexto), ou mais de 2 retomadas por mês com o estado injetado divergente do pedido.

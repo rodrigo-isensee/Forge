@@ -1,7 +1,11 @@
 """Pacote 1 de clareza: o texto novo existe nos arquivos que o carregam (marcas, recibo, formato de pergunta, ordem ampla, tags)."""
 import re
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 MARCAS = ["confirmado", "delegado", "suposição", "técnico", "no-protótipo"]
@@ -31,7 +35,7 @@ class TestClareza(unittest.TestCase):
         self.assertIn("Teste de bloqueante", t)  # trecho existente continua
 
     def test_jarvis_manda_marcar_dar_recibo_gravar_tags_e_citar_formato(self):
-        t = ler("agents/jarvis.md")
+        t = texto_do_jarvis(RAIZ)
         for trecho in ["Recibo antes de acionar o time", "frase literal entre aspas", "Como perguntar", "Ordem ampla não confirma"] + TAGS:
             self.assertIn(trecho, t)
 
@@ -53,7 +57,7 @@ class TestClareza(unittest.TestCase):
         regra = ler("docs/regras/R-DECISAO.md")
         for trecho in ["se afrouxa o processo", "tempo e os tokens a mais ou a menos", "`medido`", "`estimado`", "`não medido`"]:
             self.assertIn(trecho, regra)
-        self.assertIn("custo de eficiência em tempo e tokens por opção", ler("agents/jarvis.md"))
+        self.assertIn("custo de eficiência em tempo e tokens por opção", texto_do_jarvis(RAIZ))
 
 
 

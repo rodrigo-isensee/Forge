@@ -1,5 +1,6 @@
 """`forge-check sobreposicao` (TA-6) e `forge-check movimento` (PA-9), mais a fila de integração (PA-3) como texto;
 `forge-check fila` (P9: o que pode começar agora, T1 a T8)."""
+import datetime
 import json
 import os
 import re
@@ -13,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-check"
@@ -183,7 +185,7 @@ class Movimento(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.raiz = Path(self._tmp.name)
-        (self.raiz / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")  # sem quadro o movimento recusa (FC-PEDIDO-FORA)
+        (self.raiz / "KANBAN.md").write_text("# Quadro\n\n## Aguardando o dono\n\n## Em andamento (WIP 1 por agente)\n\n## Pronto\n\n## a\n\n## b\n\n## a/b\n\n## c d\n", encoding="utf-8")  # sem quadro o movimento recusa (FC-PEDIDO-FORA)
         self.arq = self.raiz / "docs" / "kanban" / "historico.md"
 
     def test_cria_o_arquivo_e_acrescenta_com_hora_iso_e_fuso(self):
@@ -192,9 +194,72 @@ class Movimento(unittest.TestCase):
         linhas = self.arq.read_text(encoding="utf-8").splitlines()
         self.assertEqual(linhas[:2], ["| Data/hora | Cartão | De | Para | Motivo |", "|---|---|---|---|---|"])
         iso = r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d[+-]\d\d:\d\d"
-        self.assertRegex(linhas[2], rf"^\| {iso} \| K-1 \| Aguardando o dono \| Sem credencial \| — \|$")
+        self.assertRegex(linhas[2], rf"^\| {iso} \| K-1 \| Aguardando o dono \| Sem credencial \| custo do trecho: lacuna \|$")  # L16: parada sem transcrição
         self.assertRegex(linhas[3], rf"^\| {iso} \| K-1 \| Sem credencial \| Em andamento \| chegou \|$")
         self.assertEqual(len(linhas), 4)
+
+    def transcricao(self, horas, uso=None):
+        pasta = self.raiz / "home" / ".claude" / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(self.raiz.resolve()))
+        pasta.mkdir(parents=True, exist_ok=True)
+        (pasta / "s.jsonl").write_text("\n".join(json.dumps(
+            {"type": "assistant", "sessionId": "s", "isSidechain": False, "timestamp": h,
+             "message": {"id": f"m{i}", "model": "m", "usage": uso or {"input_tokens": 10, "output_tokens": 5}}}) for i, h in enumerate(horas)) + "\n", encoding="utf-8")
+
+    def historico(self, *linhas):
+        self.arq.parent.mkdir(parents=True, exist_ok=True)
+        self.arq.write_text("| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n" + "".join(
+            f"| {hora} | {cartao} | A | B | {motivo} |\n" for hora, cartao, motivo in linhas), encoding="utf-8")
+
+    def movimento(self, *args):
+        env = dict(os.environ, HOME=str(self.raiz / "home"))
+        r = subprocess.run([sys.executable, str(FERRAMENTA), "--raiz", str(self.raiz), "movimento", *args], capture_output=True, text=True, env=env)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return self.arq.read_text(encoding="utf-8").splitlines()[-1]
+
+    def test_parada_grava_o_custo_do_trecho_e_o_pronto_soma(self):  # L16 (EXT-3): o custo do trecho vai pelo `movimento`, só acrescentando
+        agora = datetime.datetime.now(datetime.timezone.utc)
+        inicio = (agora - datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        dentro = [(agora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"), (agora - datetime.timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")]
+        fora = (agora - datetime.timedelta(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ")  # antes do último movimento: não entra
+        self.transcricao([fora, *dentro])
+        self.historico((inicio, "K-7", "—"))
+        linha = self.movimento("K-7", "--de", "Em andamento", "--para", "Aguardando o dono", "--motivo", "validar")
+        self.assertTrue(linha.endswith("| validar · custo do trecho: 30 tokens |"), linha)  # 2 mensagens de 15 tokens
+        linha = self.movimento("K-7", "--de", "Aguardando o dono", "--para", "Pronto")
+        self.assertRegex(linha, r"custo total: 30 tokens( \(1 trechos em lacuna\))? \|$")  # o trecho de agora não tem mensagem: lacuna dita, nunca 0
+        self.assertIn("(1 trechos em lacuna)", linha)
+
+    def test_custo_do_trecho_com_o_uso_no_formato_real_do_claude_code(self):  # L16, A1 do review: server_tool_use aninhado não derruba o movimento
+        agora = datetime.datetime.now(datetime.timezone.utc)
+        inicio = (agora - datetime.timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        dentro = (agora - datetime.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        self.transcricao([dentro], uso={"input_tokens": 10, "output_tokens": 5, "cache_creation_input_tokens": 3, "cache_read_input_tokens": 2,
+                                        "server_tool_use": {"web_search_requests": 1}, "service_tier": "standard"})
+        self.historico((inicio, "K-10", "—"))
+        linha = self.movimento("K-10", "--de", "Em andamento", "--para", "Aguardando o dono", "--motivo", "validar")
+        self.assertTrue(linha.endswith("| validar · custo do trecho: 20 tokens |"), linha)
+
+    def test_sem_transcricao_o_custo_e_lacuna_nunca_zero(self):
+        self.historico(("2026-10-20T09:00:00+00:00", "K-8", "—"))
+        linha = self.movimento("K-8", "--de", "Em andamento", "--para", "Sem credencial")
+        self.assertTrue(linha.endswith("| custo do trecho: lacuna |"), linha)
+        linha = self.movimento("K-8", "--de", "Sem credencial", "--para", "Pronto")
+        self.assertTrue(linha.endswith("| custo total: lacuna |"), linha)
+        self.assertNotIn("0 tokens", self.arq.read_text(encoding="utf-8"))
+
+    def test_movimento_fora_de_parada_nao_grava_custo(self):
+        linha = self.movimento("K-9", "--de", "Em andamento", "--para", "Aguardando o dono")
+        self.assertIn("custo do trecho: lacuna", linha)
+        self.assertNotIn("custo", self.movimento("K-9", "--de", "Aguardando o dono", "--para", "Em andamento"))
+
+    def test_coluna_fora_do_quadro_recusa_sem_gravar(self):  # LOTE E2: o historico.md tinha "Discovery", "Fila" e "Feito" que o quadro não tem
+        for args in (("--de", "Em andamento", "--para", "Discovery"), ("--de", "Fila", "--para", "Em andamento"), ("--de", "—", "--para", "—")):
+            rc, saida = checar(self.raiz, "movimento", "K-6", *args)
+            self.assertEqual(rc, 1, saida)
+            self.assertIn("fora do KANBAN.md", saida)
+        self.assertFalse(self.arq.exists())
+        self.assertEqual(checar(self.raiz, "movimento", "K-6", "--de", "—", "--para", "aguardando O DONO")[0], 0)  # cartão novo; acento e caixa não contam
+        self.assertEqual(checar(self.raiz, "movimento", "K-6", "--de", "Em andamento", "--para", "Conferência")[0], 0)  # estado fora do quadro
 
     def test_nao_reescreve_o_que_existe_e_protege_a_tabela(self):
         self.arq.parent.mkdir(parents=True)
@@ -215,9 +280,9 @@ class Movimento(unittest.TestCase):
         self.assertIn("| K-3 | a | b | — |", linhas[3])
 
     def test_remove_caracteres_de_controle(self):
-        checar(self.raiz, "movimento", "K-4", "--de", "a\x1b[31mb", "--para", "c\x01d\x7f", "--motivo", "e\x07f")
+        checar(self.raiz, "movimento", "K-4", "--de", "a\x1b", "--para", "b\x01\x7f", "--motivo", "e\x07f")
         linha = self.arq.read_text(encoding="utf-8").splitlines()[-1]
-        self.assertTrue(linha.endswith("| K-4 | a[31mb | cd | ef |"), linha)
+        self.assertTrue(linha.endswith("| K-4 | a | b | ef |"), linha)
         self.assertNotRegex(linha, r"[\x00-\x08\x0b-\x1f\x7f]")
 
     def test_link_simbolico_e_recusado_sem_escrever(self):
@@ -247,7 +312,7 @@ class RegrasEmTexto(unittest.TestCase):
                 self.assertIn(trecho, self.texto(rel), rel)
 
     def test_jarvis_serializa_antes_de_disparar_e_registra_o_quadro(self):
-        t = self.texto("agents/jarvis.md")
+        t = texto_do_jarvis(RAIZ)
         for trecho in ("bin/forge-check sobreposicao", "serializam", "forge-check movimento"):
             self.assertIn(trecho, t)
 
