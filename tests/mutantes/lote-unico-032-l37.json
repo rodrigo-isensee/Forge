@@ -1,0 +1,78 @@
+{
+  "pedido": "lote-unico-032-l37",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "só em melhoria/* o integrador faz o merge (C-37c)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    case \"$ref\" in melhoria/*) [ \"$trazida\" = 1 ]",
+      "para": "    case \"$ref\" in *) [ \"$trazida\" = 1 ]",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_branch_fora_de_melhoria_nunca_recebe_o_merge"]
+    },
+    {
+      "id": "M2",
+      "guarda": "um merge só por cadeia: o --trazida impede o segundo (T-37b)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$trazida\" = 1 ] || trazer_a_base \"$base_sha\"",
+      "para": "true || trazer_a_base \"$base_sha\"",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_so_um_merge_por_cadeia_a_base_que_anda_de_novo_para"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o commit de merge tem a base como segundo pai (C-37a)",
+      "arquivo": "bin/forge-fechar",
+      "de": "-p \"$sha_conferido\" -p \"$base_srv\" -m",
+      "para": "-p \"$sha_conferido\" -m",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_base_com_arquivo_em_comum_sem_conflito_faz_o_merge_e_recomeca_a_cadeia"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a árvore do commit de merge é a do merge-tree, nada à mão (C-37a)",
+      "arquivo": "bin/forge-fechar",
+      "de": "git commit-tree \"$arvore\" -p",
+      "para": "git commit-tree \"$sha_conferido^{tree}\" -p",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_base_com_arquivo_em_comum_sem_conflito_faz_o_merge_e_recomeca_a_cadeia"]
+    },
+    {
+      "id": "M5",
+      "guarda": "falha do merge-tree para, nunca segue (falha fechada, C-37c)",
+      "arquivo": "bin/forge-fechar",
+      "de": "    *) die \"parou no passo 2b: não consegui calcular o merge",
+      "para": "    *) return 0 ;;\n    9) die \"parou no passo 2b: não consegui calcular o merge",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_git_sem_merge_tree_ou_com_falha_para_sem_mexer_na_branch"]
+    },
+    {
+      "id": "M6",
+      "guarda": "a worktree com mudança não commitada não recebe o merge",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ -z \"$(git -C \"$arvore_lock\" status --porcelain)\" ] || die",
+      "para": "true || die",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_worktree_com_mudanca_nao_commitada_para_sem_mexer_na_branch"]
+    },
+    {
+      "id": "M7",
+      "guarda": "o envio recusado para, sem abrir PR",
+      "arquivo": "bin/forge-fechar",
+      "de": "git push origin \"$ramo:$ramo\" || die",
+      "para": "git push origin \"$ramo:$ramo\" || true; [ -z \"\" ] || die",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_envio_recusado_para_sem_abrir_pr_e_diz_onde_o_merge_ficou"]
+    },
+    {
+      "id": "M8",
+      "guarda": "o recomeço da cadeia leva --trazida: a base que anda de novo não gera outro merge (T-37b)",
+      "arquivo": "bin/forge-fechar",
+      "de": "\"${args_originais[@]}\" --trazida\n  exit $?",
+      "para": "\"${args_originais[@]}\"\n  exit $?",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_a_base_que_anda_de_novo_depois_do_merge_para_na_cadeia_seguinte"]
+    },
+    {
+      "id": "M9",
+      "guarda": "a branch local só avança para o commit de merge (fast-forward da worktree)",
+      "arquivo": "bin/forge-fechar",
+      "de": "merge --ff-only --quiet \"$novo\"",
+      "para": "merge --ff-only --quiet \"$sha_conferido\"",
+      "testes": ["tests.test_fechar_base_andou.Teste.test_l37_o_merge_sobe_pelo_envio_normal_e_a_worktree_da_branch_anda_junto"]
+    }
+  ]
+}

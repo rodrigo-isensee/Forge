@@ -22,6 +22,7 @@
 - forge-check pr aprovado imprime a linha `pr: veredito: aprovado · <pedido> · exigidos … · head … · base …` (rc 0 continua o mesmo; com violação nada muda); a lista do cmd_pr sai de `exigidos_do_pr` (lote-unico-032, L05, LOTE-FORGE-CHECK-032 E1)
 - agents/jarvis.md manda gravar o Histórico do pedido e a decisão, pergunta ou ordem do dono por `forge-check anotar`, nunca à mão (lote-unico-032, L06, LOTE-FORGE-CHECK-032 E3)
 - forge-check brief gerar põe em `## Ler` só o trecho do pedido (Escopo, Etapas, Decisões e as linhas citadas do Histórico), nunca o pedido inteiro; na merge-integracao o Ler é só o comando do forge-fechar e o `modelo: haiku` sai no stderr, sem efeito sobre o portão (lote-unico-032, L09, ESTUDO-30MIN P3 e P4)
+- forge-fechar traz a develop sozinho no passo 2b quando a base andou, tocou arquivo da branch e o git merge-tree --write-tree sai limpo (commit de merge com a árvore do merge-tree, envio normal pelo pre-push, cadeia recomeçada no head novo); com conflito, fora de melhoria/* ou na segunda vez da cadeia, para como antes (lote-unico-032, L37, D-3)
 
 ### Corrigido
 - brief gerar --volta grava a linha `Etapa:` (e `Cobre:`) do brief anterior, e o `brief mensagem --entrega` deixa de recusar a volta (lote-unico-032, L03, LOTE-FORGE-CHECK-032 E5)
