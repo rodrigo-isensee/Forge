@@ -21,6 +21,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
+     forge-check decisoes [--pedido ID]
      forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
@@ -92,6 +93,8 @@ ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `ante
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
+`decisoes` (EXT-2; só leitura, sem rede, nada se grava) imprime o registro das linhas `DECISÃO DO DONO` de `docs/pedidos/`: `decisao: <pedido>:<linha> | data | decisão | motivo | reabre se`
+(`—` onde a linha não diz); a linha da frase fora de `(<data>): <texto>` sai `aviso:` e fica fora. Derivado e informativo: nenhum portão o lê, e o aceite continua a linha literal do pedido.
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
@@ -4547,6 +4550,49 @@ def ler_registro(raiz, rel):
     return None, "ausente"
 
 
+DECISAO_DO_REGISTRO = re.compile(rf"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
+MOTIVO_DA_DECISAO = re.compile(r"\bmotivo\s*:\s*([^;·]+)", re.I)
+REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
+
+
+def pedidos_do_registro(raiz, pedido):
+    """Os nomes de `docs/pedidos/*.md` (a cópia principal e a raiz, sem repetir), ou só `<pedido>`; só nomes, sem link."""
+    if pedido:
+        return [pedido.removesuffix(".md")] if re.fullmatch(r"[A-Za-z0-9._-]+", pedido.removesuffix(".md")) else []
+    nomes = set()
+    for base in (raiz_principal(raiz), Path(raiz)):
+        pasta = Path(base) / "docs" / "pedidos"
+        if pasta.is_dir():
+            nomes |= {p.stem for p in pasta.glob("*.md") if not p.is_symlink() and re.fullmatch(r"[A-Za-z0-9._-]+", p.stem)}
+    return sorted(nomes)
+
+
+def cmd_decisoes(raiz, pedido=None):
+    """L15 (EXT-2): o registro das linhas `DECISÃO DO DONO` dos pedidos, gerado no stdout (nada se grava): `decisao: <pedido>:<linha> | data |
+    decisão | motivo | reabre se`. A linha que abre com a frase e não segue `(<data>): <texto>` sai `aviso:` e fica fora. Só as linhas
+    de `docs/pedidos/` valem (brief, parecer e transcrição não entram), e nenhum portão lê esta saída (C-15a). O texto vai por `sem_controle`."""
+    saida, avisos, total = [], 0, 0
+    for nome in pedidos_do_registro(raiz, pedido):
+        texto, motivo_de_falha = ler_registro(raiz, f"docs/pedidos/{nome}.md")
+        if texto is None:
+            saida.append(f"decisoes: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
+            avisos += 1
+            continue
+        for n, linha in linhas_de_decisao(texto):
+            m = DECISAO_DO_REGISTRO.match(linha)
+            if not m:
+                saida.append(f"decisoes: aviso: {nome}:{n}: linha de decisão sem `(<data>): <texto>`; fora do registro")
+                avisos += 1
+                continue
+            motivo, reabre = MOTIVO_DA_DECISAO.search(m.group(2)), REABRE_SE.search(m.group(2))
+            campos = [m.group(1), sem_controle(m.group(2)).strip()[:160], sem_controle(motivo.group(1)).strip() if motivo else "—",
+                      sem_controle(reabre.group(1)).strip() if reabre else "—"]
+            saida.append(f"decisao: {nome}:{n} | " + " | ".join(campos))
+            total += 1
+    saida.append(f"decisoes: total={total} avisos={avisos}")
+    return saida
+
+
 HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
 
 
@@ -5664,6 +5710,8 @@ def main():
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
+    de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -5824,6 +5872,10 @@ def executar(a, raiz):
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
+    if a.cmd == "decisoes":
+        for linha in cmd_decisoes(raiz, a.pedido):
+            print(linha)
+        return 0
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
                   else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))
