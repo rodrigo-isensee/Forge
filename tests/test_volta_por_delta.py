@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from gh_falso import com_gh_falso  # noqa: E402
@@ -884,7 +885,7 @@ class TextoDosAgentes(unittest.TestCase):
             self.assertIn(trecho, t)
 
     def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
-        conferente, jarvis = self.texto("conferente"), self.texto("jarvis")
+        conferente, jarvis = self.texto("conferente"), texto_do_jarvis(RAIZ)
         for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
                        "peça a ref da branch da entrega ao Jarvis"):
             self.assertIn(trecho, conferente)

@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from neutralidade import termos_achados  # noqa: E402
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR; teste sem rede, P5)
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
@@ -3410,7 +3411,8 @@ class ConferirBrief(unittest.TestCase):
         self.assertIn("forge-check brief <arquivo> --pedido <pedido>", conferente)
         for rel in ("agents/conferente.md", "docs/regras/R-BRIEF.md", "agents/jarvis.md"):
             with self.subTest(arquivo=rel):
-                self.assertIn("todos os achados", (RAIZ / rel).read_text(encoding="utf-8"))
+                texto = texto_do_jarvis(RAIZ) if rel == "agents/jarvis.md" else (RAIZ / rel).read_text(encoding="utf-8")
+                self.assertIn("todos os achados", texto)
 
 
 class PraticasDeEspecificacao(unittest.TestCase):
@@ -4010,7 +4012,7 @@ class TextosDoAgenteEDaRegra(unittest.TestCase):
     def setUpClass(cls):
         cls.agente = (RAIZ / "agents" / "conferente.md").read_text(encoding="utf-8")
         cls.regra = (RAIZ / "docs" / "regras" / "R-BRIEF.md").read_text(encoding="utf-8")
-        cls.jarvis = (RAIZ / "agents" / "jarvis.md").read_text(encoding="utf-8")
+        cls.jarvis = texto_do_jarvis(RAIZ)
 
     def test_ordem_da_primeira_passada_e_tardio_no_agente(self):  # 15 e 17
         for trecho in ("Primeira passada", "`tardio:`", "reprova como os outros", "não muda o veredito", "por leitura, sempre",
@@ -5444,14 +5446,14 @@ class TetoPorPr(unittest.TestCase):
 
     def test_teto_e_classe_unica_no_jarvis_no_tech_lead_e_na_skill(self):
         for caminho in ("agents/jarvis.md", "agents/tech-lead.md", "skills/engineering-practices/SKILL.md"):
-            texto = (RAIZ / caminho).read_text(encoding="utf-8")
+            texto = texto_do_jarvis(RAIZ) if caminho == "agents/jarvis.md" else (RAIZ / caminho).read_text(encoding="utf-8")
             for frase in ("linhas alteradas de código e teste",
                           "uma classe de comportamento por PR em `hooks/`, com corpus próprio"):
                 with self.subTest(arquivo=caminho, frase=frase):
                     self.assertIn(frase, texto)
 
     def test_teto_de_150_linhas_tambem_no_jarvis(self):
-        texto = (RAIZ / "agents/jarvis.md").read_text(encoding="utf-8")
+        texto = texto_do_jarvis(RAIZ)
         self.assertIn("150 linhas alteradas de código e teste", texto)
         self.assertNotIn("400 linhas", texto)
 

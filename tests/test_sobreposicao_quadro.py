@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FERRAMENTA = RAIZ / "bin" / "forge-check"
@@ -301,7 +302,7 @@ class RegrasEmTexto(unittest.TestCase):
                 self.assertIn(trecho, self.texto(rel), rel)
 
     def test_jarvis_serializa_antes_de_disparar_e_registra_o_quadro(self):
-        t = self.texto("agents/jarvis.md")
+        t = texto_do_jarvis(RAIZ)
         for trecho in ("bin/forge-check sobreposicao", "serializam", "forge-check movimento"):
             self.assertIn(trecho, t)
 

@@ -10,6 +10,9 @@ import unittest
 from importlib.machinery import SourceFileLoader
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
 fc = SourceFileLoader("forge_check_anotar", str(FORGE_CHECK)).load_module()
@@ -173,7 +176,7 @@ class Anotar(Base):
 
 class TextoDoJarvis(unittest.TestCase):
     def test_jarvis_manda_anotar_o_historico(self):  # LOTE E3: sem a frase, o Jarvis escrevia o Histórico à mão, com hora estimada
-        texto = RAIZ.joinpath("agents", "jarvis.md").read_text(encoding="utf-8")
+        texto = texto_do_jarvis(RAIZ)
         self.assertIn("forge-check anotar", texto)
         self.assertIn("--tipo historico", texto)
 

@@ -13,6 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from test_voltas import Raiz  # noqa: E402
 
 
@@ -432,7 +433,7 @@ class TextosDizemQuandoCadaMedidaRoda(unittest.TestCase):
         return (self.RAIZ / rel).read_text(encoding="utf-8")
 
     def test_jarvis_roda_custo_com_pedido_esperas_e_registra_escape(self):
-        jarvis = self.texto("agents/jarvis.md")
+        jarvis = texto_do_jarvis(self.RAIZ)
         for trecho in ("forge-check transcricao custo --entregas --entrega <pedido> --pedido <pedido>", "forge-check esperas --pedido <pedido>",
                        "forge-check escape registrar", "forge-check movimento"):
             self.assertIn(trecho, jarvis)
