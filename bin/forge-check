@@ -1977,6 +1977,42 @@ def cmd_fila(raiz):
     return saida + [resumo]
 
 
+PARADAS_DO_QUADRO = ("aguardando o dono", "sem credencial", "bloqueado", "aguardando sua validacao")  # sem acento: o cartão parou
+FIM_DO_QUADRO = "pronto"
+
+
+def custo_do_trecho(raiz, desde, ate):
+    """L16 (EXT-3): tokens das transcrições locais entre `desde` e `ate`, ou None (`lacuna`) se não há transcrição ou mensagem com uso na
+    janela: a falta de medida nunca vira 0. Só lê o disco local (`transcricao custo`); o valor é número, nunca texto da transcrição."""
+    try:
+        arquivos, _ = transcricoes_do_alvo(None, raiz)
+        dados = ler_uso(arquivos, (desde, ate)) if arquivos else None
+    except OSError:
+        return None
+    if not dados or not dados["mensagens"]:
+        return None
+    return sum(total_uso(uso) for _, _, _, _, uso in dados["mensagens"])
+
+
+def custo_do_movimento(raiz, cartao, para, arq, agora):
+    """L16: o texto `custo do trecho: N tokens|lacuna` (ao parar o cartão) ou `custo total: ...` (no Pronto), ou "". O trecho vai do
+    último movimento do cartão até agora; o total soma os trechos já gravados mais o de agora, e uma lacuna fica dita, nunca 0."""
+    destino = _sem_acento(para)
+    if destino not in PARADAS_DO_QUADRO and destino != FIM_DO_QUADRO:
+        return ""
+    movimentos = [c for c in _ler_tabela(arq) if len(c) >= 5 and c[1].casefold() == cartao.casefold() and ISO8601.match(c[0])]
+    ultimo = _hora(movimentos[-1][0]) if movimentos else None
+    trecho = custo_do_trecho(raiz, ultimo, agora) if ultimo else None
+    if destino != FIM_DO_QUADRO:
+        return f"custo do trecho: {trecho} tokens" if trecho is not None else "custo do trecho: lacuna"
+    anteriores = [m for c in movimentos for m in re.findall(r"custo do trecho: (\d+) tokens|(custo do trecho: lacuna)", "|".join(c[4:]))]
+    valores = [int(n) for n, _ in anteriores if n] + ([trecho] if trecho is not None else [])
+    lacunas = sum(1 for n, _ in anteriores if not n) + (1 if trecho is None else 0)
+    if not valores:
+        return "custo total: lacuna"
+    return f"custo total: {sum(valores)} tokens" + (f" ({lacunas} trechos em lacuna)" if lacunas else "")
+
+
 ESTADOS_FORA_DO_QUADRO = ("Sem credencial", "Conferência", "Review")  # estados que o jarvis.md e o `esperas` usam sem coluna própria
 
 
@@ -1989,7 +2025,8 @@ def colunas_do_quadro(raiz):
 
 def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
-    coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
+    coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
@@ -2004,8 +2041,11 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
-    hora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {limpo(motivo) or '—'} |\n"
+    agora = datetime.datetime.now().astimezone()
+    hora = agora.isoformat(timespec="seconds")
+    custo = custo_do_movimento(raiz, campos[0], campos[2], arq, agora)  # L16: só no `movimento`, só acrescentando (C-16a)
+    motivo = " · ".join(t for t in (limpo(motivo), custo) if t)
+    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo or '—'} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
     return [linha.rstrip("\n")]
 

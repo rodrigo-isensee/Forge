@@ -6,6 +6,7 @@
 - forge-check transcricao vereditos conta os relatórios do conferente cujo `veredito:` contradiz as próprias linhas (`cumpriu` com `pendente:`, `escopo: fora` ou `PQ-n não cumpriu`, ou `não cumpriu` sem nenhuma); só mede, sem trecho da transcrição (lote-unico-032, L13, P7)
 - forge-check transcricao recusas conta, por papel, as recusas de linha dos hooks ("não modela" e "fora da gramática"), só com números, sem o comando recusado; docs/hooks.md traz a forma de leitura em lote (lote-unico-032, L14, P9)
 - forge-check decisoes imprime o registro gerado das linhas `DECISÃO DO DONO` dos pedidos (data, decisão, motivo, "reabre se"), só no stdout; a linha torta sai como aviso e fora do registro; nenhum portão o lê; a skill de arquitetura pede o "reabre se" na proposta recusada (lote-unico-032, L15, EXT-2)
+- forge-check movimento grava, ao parar o cartão, o custo do trecho (tokens das transcrições locais desde o último movimento) no motivo e, no Pronto, o custo total; sem transcrição na janela sai `lacuna`, nunca 0 (lote-unico-032, L16, EXT-3)
 
 ### Alterado
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).

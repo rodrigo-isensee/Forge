@@ -62,7 +62,7 @@ Append-only, uma linha por movimento — é a fonte das métricas:
 | 2026-10-10T14:05:00-03:00 | K-012 | Pronto para fazer | Em andamento | — |
 ```
 
-A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado.
+A linha não se escreve à mão: a cada mudança de estado, inclusive "Aguardando o dono" e "Sem credencial", rode `forge-check movimento <cartão> --de <coluna> --para <coluna> [--motivo <texto>]`. Ele grava a hora real (ISO 8601, com fuso) e cria o arquivo se faltar; as esperas passam a ser medidas. Coluna que não está no `KANBAN.md` (fora "Sem credencial", "Conferência" e "Review"; `—` só no `--de`) sai com rc 1 e nada é gravado. Ao parar o cartão ("Aguardando o dono", "Sem credencial", "Bloqueado", "Aguardando sua validação"), o motivo ganha `custo do trecho: <N> tokens` (lido das transcrições locais, do último movimento até agora) e, no "Pronto", `custo total`; sem transcrição na janela sai `lacuna`, nunca 0.
 
 ## Métricas de fluxo do time
 - **Lead time:** entrada no Backlog → Pronto. **Cycle time:** entrada em "Em andamento" → Pronto.
