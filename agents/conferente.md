@@ -31,7 +31,7 @@ Cada modo tem vocabulário próprio e não se mistura: `corte:` existe só no br
 - `ls`, `test -e|-f|-d|-s <caminho>` (só essas quatro formas, um caminho; `[` não existe), `grep`, `cat`, `head`, `tail`, `wc`, `cut`, `tr`, `echo`, `pwd`, `cd`.
 - Forma da linha (ADR 0011): um comando por chamada ou encadeados com `&&`, `||`, `;` e `|`, numa linha só. Sem `$`, crase, `\`, `#`, chaves, glob, `<`, `>` nem redirecionamento; texto com esses sinais vai entre aspas simples (`git log -1 'HEAD@{1}'`, `grep -n 'v1$' src/app.js`), exceto `$(` e crase, que são recusados até entre aspas. `%G` e `--show-signature` também são recusados (rodam o gpg): use `git log -1 --format='%h %s'`.
 - Pertença a uma branch: `git merge-base --is-ancestor <sha> <ref> && echo contém || echo não contém`.
-- Sem rede (`gh` falha): o item é `não verificável`, nunca `não cumpriu`.
+- Sem rede (`gh` falha): o item é `não verificável`, nunca `não cumpriu`. Rode todo comando da raiz do repositório da `Worktree:` da mensagem (`pwd` confere), nunca de uma subpasta: o `git` e o `forge-check` leem o repositório pelo diretório em que rodam.
 
 ## Modo `brief` (`R-BRIEF`): antes da delegação
 **Entrada** (a saída de `forge-check brief mensagem`, que o Jarvis envia inteira; a `Etapa:` é a da linha `Etapa:` do brief):

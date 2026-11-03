@@ -11,3 +11,4 @@
 ### Corrigido
 - brief gerar --volta grava a linha `Etapa:` (e `Cobre:`) do brief anterior, e o `brief mensagem --entrega` deixa de recusar a volta (lote-unico-032, L03, LOTE-FORGE-CHECK-032 E5)
 - agents/conferente.md chama `forge-check brief <Arquivo> --pedido <Pedido>` com o id da mensagem, sem montar o caminho docs/pedidos/ à mão (lote-unico-032, L07, LOTE-FORGE-CHECK-032 E4)
+- forge-check pr aceita o id do pedido ou o slug da branch com o mesmo veredito (sem brief, o slug da própria branch com parecer dela; ambíguo segue o `uso:`), e o `entrega` tira do escopo o commit de release ou squash de outro pedido que já é da base remota com o mesmo conteúdo; conferente.md roda na raiz da Worktree e jarvis.md reenvia todo `não cumpriu` ao conferente (lote-unico-032, L08, ESTUDO-30MIN P1)

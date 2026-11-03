@@ -100,6 +100,40 @@ class Entrega(Repositorio):
         for nome in ("a.txt", "b.txt", "c.txt", "tests/config.json"):
             self.assertIn(f'confira "{nome}"', saida)
 
+    def rebaseada_sobre_um_release_da_base(self):
+        """A branch rebaseada sobre a develop: o commit de release de outro pedido (já na base) cai entre o Base-sha e o head."""
+        c1 = self.commitar({"a.txt": "1\n"}, "entrega")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"release.txt": "0.1\n"}, "chore(release): versão 0.1 de outro pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("rebase", "-q", "develop", cwd=self.repo)
+        return c1
+
+    def test_commit_de_release_ja_na_base_sai_do_escopo(self):  # L08 (P1, P-CONF-SOBREPOR): o falso positivo do conferente
+        self.rebaseada_sobre_um_release_da_base()
+        self.gravar_pedido()
+        rc, saida = self.entrega()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: confira "a.txt"', saida)
+        self.assertNotIn("release.txt", saida)
+
+    def test_commit_de_release_fora_da_base_segue_no_escopo(self):  # C-08b: a mensagem não decide; só estar na base
+        self.rebaseada_sobre_um_release_da_base()
+        self.commitar({"outro.txt": "x\n"}, "chore(release): versão 0.2")  # só na branch
+        self.gravar_pedido()
+        saida = self.entrega()[1]
+        self.assertIn('confira "outro.txt"', saida)
+        self.assertIn('confira "a.txt"', saida)
+        self.assertNotIn("release.txt", saida)
+
+    def test_commit_da_base_alterado_depois_nela_segue_no_escopo(self):  # C-08b: conteúdo diferente da base não sai
+        self.rebaseada_sobre_um_release_da_base()
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"release.txt": "0.2\n"}, "a base mexeu no mesmo arquivo")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido()
+        self.assertIn('confira "release.txt"', self.entrega()[1])
+
     def test_desde_sem_conferencia_anterior_reprova_e_volta_ao_base_sha(self):
         self.tres_delegacoes()
         outro = git("commit-tree", "-m", "x", f"{self.c1}^{{tree}}", cwd=self.repo).stdout.strip()  # existe, fora da branch

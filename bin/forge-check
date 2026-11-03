@@ -681,8 +681,14 @@ def pedido_do_pr(raiz, pedido, ref=None):
             branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) or ""
             if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch.startswith("melhoria/"):
                 slugs.add(branch.removeprefix("melhoria/"))
-    if len(slugs) != 1:
+    if len(slugs) > 1:  # ambíguo: o `uso:` segue, nunca o pedido mais fraco (C-08a)
         return pedido
+    if not slugs:  # L08: sem brief, o slug é o da própria branch, se um parecer dela leva `pedido: <slug>`
+        slug = branch_da_convencao(raiz, ref)
+        if not slug or not any((validar_documento(rel, texto)[0] or {}).get("pedido") == slug for rel, texto in documentos(Path(raiz), None, ref)):
+            return pedido
+        print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (a branch da ref)", file=sys.stderr)
+        return slug
     slug = slugs.pop()
     print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (linha Branch: do brief)", file=sys.stderr)
     return slug
@@ -1091,6 +1097,9 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
         if not pais:
             return None
         proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
+        if len(pais) == 1 and e_ancestral(raiz, commit, base_ref):  # L08: commit de release ou squash de outro pedido, já na base remota
+            da_base = {n for n in proprios if git(raiz, "rev-parse", f"{commit}:{n}") == git(raiz, "rev-parse", f"{base_ref}:{n}")}
+            integrou, proprios = integrou or bool(da_base), proprios - da_base  # só o que a base ainda tem igual sai; o resto é da entrega
         if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
             integrou = True
             da_base = set(nomes_do_intervalo(raiz, pais[1], commit))
