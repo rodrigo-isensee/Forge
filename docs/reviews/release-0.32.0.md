@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: release-0.32.0
 branch: melhoria/release-0.32.0
-commit: 5e7f00387bd005269d11e99e5f80ab4e3c6bbf65
-parecer: reprovado
+commit: cb9f7c1ee1a5ba99b8ddc80dae7c4c9535b20ff9
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
@@ -13,13 +13,19 @@ data: 2026-11-03
 Escopo (E1.2): a leva da 0.32.0 contra a main, `git diff 5b6d13a...5e7f003`, 105 arquivos, +5198 −209. São 5 commits (`git log --oneline 5b6d13a..5e7f003`): #427 (032b4cb, HEREDOC-COMENTARIO), #428 (1b6f418, HEREDOC-DONOS), #429 (c6244ac, CI-SUITE-NO-TETO), #430 (928e61b, LOTE-UNICO-032) e o commit de release 5e7f003. Cada PR já teve review, segurança e QA próprios (e devops no #429 e no #430), todos `parecer: aprovado` na branch. Este parecer julga o conjunto, sem refazer o que eles provaram. Revisor: outra instância, não autora do commit de release nem de PR da leva (D-ETAPAS-INST = A).
 
 ## Achados
-- A4 (bloqueante) tests/test_forge.py:340 · a release apaga o último fragmento e `changelog.d/` some (a main já não o tinha); o L34 do #430 exige que todo caminho citado exista e falha em 5e7f003 (agents/tech-lead.md, skills/contribuir-com-o-forge/SKILL.md); em 928e61b passa. Toda release futura cai igual.
+- A4 (bloqueante) tests/test_forge.py:340 · resolvido em cb9f7c1 (changelog.d/README.md). A release apagava o último fragmento e changelog.d/ sumia; o L34 do #430 exige que todo caminho citado exista e falhava em 5e7f003 (agents/tech-lead.md, skills/contribuir-com-o-forge/SKILL.md).
 - A1 (recomendado) CHANGELOG.md:29 · a entrada do gate do CI cita "pedido VEL-P6-GATE, lote V3 do plano VEL" sem o id `lote-unico-032` que as outras entradas do mesmo fragmento trazem; quem procura o PR pelo id não acha. Alinhar no fragmento da próxima entrega de texto.
 - A2 (recomendado) CHANGELOG.md:43 · dez entradas de Corrigido descrevem defeitos achados e corrigidos dentro do próprio #430 (A1 a A10 dos pareceres do lote), que nunca chegaram à main; parecem correções de algo publicado. Nas próximas, fundir na entrada do item.
 - A3 (recomendado) hooks/conformidade.py:747 · `corpos_pendentes` sobe antes do retorno antecipado da linha ilegível e só desce no laço dos corpos; se o prazo vencer depois, a recusa cita corpos que já não estão pendentes. Falha para o lado fechado (recusa), só a mensagem fica imprecisa; lido, não reproduzido. Cartão de texto.
 
+## Rodada 2 (delta até cb9f7c1)
+- **Delta lido:** `bin/forge-check delta --parecer docs/reviews/release-0.32.0.md` lista só `changelog.d/README.md` (+6 −0, linhas 1-6), o commit cb9f7c1 (`git diff --numstat 5e7f003 cb9f7c1`: `6 0 changelog.d/README.md`). O resto da leva (5b6d13a...5e7f003) fica como já lido na rodada 1, abaixo; os commits depois de cb9f7c1 na branch são só os pareceres de segurança e devops.
+- **A4 resolvido:** o arquivo versionado mantém `changelog.d/` na árvore depois da release, a opção que a rodada 1 apontou. O `forge-changelog` o ignora ao juntar e ao apagar (`bin/forge-changelog:59`, `:194`, filtro `readme.md`), então a próxima release não o apaga. `python3 -m unittest tests.test_forge.Referencias tests.test_changelog`: `Ran 50 tests`, `OK (skipped=1)`. `scripts/conferir-release.py --base origin/main`: rc 0, `ok: changelog.d/ sem fragmentos pendentes`, `versão base: 0.31.0 | versão da release: 0.32.0`. O texto do README é neutro e não muda a versão (E3 segue: minor).
+
 ## Parecer
-Reprovado por um defeito provado (A4, `R-REVIEW`): a árvore do commit de release não passa a suíte. Os outros três achados são recomendações e não devolvem.
+Aprovado na rodada 2: o único bloqueante (A4) foi resolvido pelo delta cb9f7c1; A1 a A3 seguem recomendações, que não devolvem.
+
+Rodada 1 (sobre 5e7f003): reprovado por um defeito provado (A4, `R-REVIEW`): a árvore do commit de release não passava a suíte.
 
 - **A4, a prova:** o `git push` deste parecer foi recusado pelo pre-push (`FAILED (failures=2)`, `pre-push: testes do Forge falharam.`): `tests.test_forge.Referencias.test_todo_caminho_citado_em_agentes_skills_e_regras_existe` acusa `['changelog.d', 'changelog.d']` em `agents/tech-lead.md` e `['changelog.d']` em `skills/contribuir-com-o-forge/SKILL.md`. Rodado só esse teste: em `5e7f003`, `FAILED (failures=2)`; em `928e61b`, `OK`. `git ls-tree 5b6d13a changelog.d` é vazio: a 0.31.0 já saiu sem a pasta, e o teste (L34, novo no #430) só passou na develop porque havia fragmentos. O defeito é da composição L34 × `bin/forge-changelog release`, não do commit de release em si, e repete em toda release. Correção (do autor, por PR na develop, depois a release refeita sobre ela): pôr `changelog.d` na lista fechada do teste (ele nasce no `forge-changelog novo`) ou manter um arquivo versionado na pasta que a release não apague; a escolha é do autor com o arquiteto. Sem a correção nenhum push da branch passa o pre-push, e este parecer não pôde ser enviado (`R-VERIFY`: sem `--no-verify`).
 - **Nada fora da leva:** a main `5b6d13a` tem a mesma árvore que `b2580c6` (`git diff --stat 5b6d13a b2580c6` vazio), e a cadeia é linear `b2580c6 → 032b4cb → 1b6f418 → c6244ac → 928e61b → 5e7f003`; `git diff 5b6d13a...5e7f003` e `git diff 5b6d13a 5e7f003` têm o mesmo sha1. Os PRs #427 a #430 estão `MERGED` na base `develop` com os merge commits acima, e `origin/develop` = `928e61b` (o Base-sha do brief). Nenhum item da 0.33 nem as fases C, E e G do lote estão no diff (decisão do dono de 2026-11-03 07:18).
