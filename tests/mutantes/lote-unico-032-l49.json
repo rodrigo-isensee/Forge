@@ -1,0 +1,68 @@
+{
+  "pedido": "lote-unico-032-l49",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a meta de 30 min vale no limite (30 min dá dentro=sim)",
+      "arquivo": "bin/forge-check",
+      "de": "pronto <= META_PRONTO_ATE_DEVELOP",
+      "para": "pronto < META_PRONTO_ATE_DEVELOP",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o cartão que já nasce em Pronto para fazer conta o relógio pela primeira saída dela",
+      "arquivo": "bin/forge-check",
+      "de": "\"pronto para fazer\" in (_sem_acento(d), _sem_acento(p))",
+      "para": "\"pronto para fazer\" == _sem_acento(p)",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a coluna Pronto também marca a chegada à develop",
+      "arquivo": "bin/forge-check",
+      "de": "(\"aguardando sua validacao\", \"pronto\")",
+      "para": "(\"aguardando sua validacao\",)",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "Aguardando sua validação marca a chegada à develop (o relógio fecha na primeira)",
+      "arquivo": "bin/forge-check",
+      "de": "(\"aguardando sua validacao\", \"pronto\")",
+      "para": "(\"pronto\",)",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o cartão que nunca esteve em Pronto para fazer sai com - e sem meta",
+      "arquivo": "bin/forge-check",
+      "de": "\"-\" if pronto is None else \"sim\"",
+      "para": "\"nao\" if pronto is None else \"sim\"",
+      "testes": [
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o relógio aberto parte do primeiro movimento do cartão",
+      "arquivo": "bin/forge-check",
+      "de": "_minutos(movimentos[0][0], fim),",
+      "para": "_minutos(movimentos[-1][0], fim),",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    }
+  ]
+}
