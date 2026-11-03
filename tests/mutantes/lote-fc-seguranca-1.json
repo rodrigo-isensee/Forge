@@ -6,8 +6,8 @@
       "id": "M1",
       "guarda": "a base pedida não cai para as BASES",
       "arquivo": "bin/forge-check",
-      "de": "([] if base and so_a_pedida else list(BASES))",
-      "para": "list(BASES)",
+      "de": "base and so_a_pedida",
+      "para": "False",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_nao_cai_para_as_bases"
       ]
@@ -26,8 +26,8 @@
       "id": "M3",
       "guarda": "desfeitos que falha é None, nunca vazio",
       "arquivo": "bin/forge-check",
-      "de": "return None if nomes is None else set(nomes)",
-      "para": "return set(nomes or [])",
+      "de": "None if nomes is None else set(nomes)",
+      "para": "None if False else set(nomes)",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
       ]

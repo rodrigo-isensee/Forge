@@ -6,8 +6,8 @@
       "id": "M25",
       "guarda": "a falha vira None depois de contada",
       "arquivo": "bin/forge-check",
-      "de": "(None if isinstance(r, FalhaDoGit) else r for r in",
-      "para": "(r for r in",
+      "de": "None if isinstance(r, FalhaDoGit) else r for r in",
+      "para": "None if False else r for r in",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde"
       ]
