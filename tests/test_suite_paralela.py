@@ -367,6 +367,69 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(p.stdout.readline().strip(), "pronto")
         return trava
 
+    # ---- L32 (OK-3 e OK-13): o registro da suíte vermelha, fora do git ----
+    def pasta_do_registro(self, existe=True):
+        pasta = self.repo.parent / "home" / ".forge-contrib"
+        if existe:
+            pasta.mkdir(parents=True, mode=0o700)
+        return pasta
+
+    def vermelha(self, nome="b", mensagem="de propósito"):
+        self.modulo(nome, modulo_de_teste(nome, f"self.fail({mensagem!r})"))
+        return self.roda()
+
+    def test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem(self):  # L32, C-32a, C-32b
+        pasta = self.pasta_do_registro()
+        codigo, saida, erro = self.vermelha(mensagem="segredo-da-mensagem")
+        self.assertEqual(codigo, 1, saida + erro)
+        arquivo = pasta / "suite-vermelha.jsonl"
+        linhas = arquivo.read_text(encoding="utf-8").splitlines()
+        self.assertEqual(len(linhas), 1, linhas)
+        registro = json.loads(linhas[0])
+        self.assertEqual(registro["testes"], [{"id": "test_b.T.test_b", "vezes": 1, "de": 1}])
+        self.assertIn("carga", registro)
+        self.assertNotIn("segredo-da-mensagem", arquivo.read_text(encoding="utf-8"))
+        self.assertEqual(arquivo.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(self.roda()[0], 1)
+        outra = json.loads(arquivo.read_text(encoding="utf-8").splitlines()[1])
+        self.assertEqual(outra["testes"], [{"id": "test_b.T.test_b", "vezes": 2, "de": 2}])
+
+    def test_suite_verde_nao_grava_o_registro(self):  # L32
+        pasta = self.pasta_do_registro()
+        self.assertEqual(self.roda()[0], 0)
+        self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
+
+    def test_sem_a_pasta_o_registro_nao_a_cria_e_o_veredito_e_o_mesmo(self):  # L32, T-32
+        pasta = self.pasta_do_registro(existe=False)
+        codigo, saida, _ = self.vermelha()
+        self.assertEqual(codigo, 1)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED (failures=1"), saida)
+        self.assertFalse(pasta.exists())
+
+    def test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito(self):  # L32, C-32a, T-32
+        alvo = self.repo.parent / "alvo"
+        alvo.mkdir()
+        pasta = self.pasta_do_registro(existe=False)
+        pasta.parent.mkdir(parents=True)
+        pasta.symlink_to(alvo)
+        codigo, saida, _ = self.vermelha()
+        self.assertEqual(codigo, 1)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED (failures=1"), saida)
+        self.assertFalse((alvo / "suite-vermelha.jsonl").exists(), "a pasta que é link não recebe o registro")
+        pasta.unlink()
+        pasta.mkdir(mode=0o700)
+        (pasta / "suite-vermelha.jsonl").symlink_to(alvo / "destino")
+        codigo, saida, erro = self.roda()
+        self.assertEqual(codigo, 1)
+        self.assertFalse((alvo / "destino").exists(), "o arquivo que é link não recebe o registro")
+        self.assertIn("registro indisponível", erro)
+
+    def test_pasta_gravavel_por_outros_recusa(self):  # L32, C-32a
+        pasta = self.pasta_do_registro()
+        pasta.chmod(0o777)
+        self.assertEqual(self.vermelha()[0], 1)
+        self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
+
     def test_a_mao_espera_a_trava_do_pre_push(self):  # SUITE-FILA-JUSTA, AB-7
         self.segura_trava()
         codigo, saida, erro = self.roda(FORGE_TRAVA_ESPERA="1")

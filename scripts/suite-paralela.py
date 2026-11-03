@@ -37,6 +37,7 @@ import json
 import os
 import shutil
 import signal
+import stat
 import statistics
 import subprocess
 import sys
@@ -56,6 +57,8 @@ ESPERA_TERMINO_S = 10
 HOOK = RAIZ / ".githooks" / "pre-push"
 FORA_DO_HASH = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "changelog.d/")
 CARIMBO = "forge-suite-verde"
+REGISTRO_PASTA, REGISTRO = ".forge-contrib", "suite-vermelha.jsonl"  # fora do git (L32)
+LIMITE_REGISTRO, LINHAS_LIDAS = 50, 2000
 LIMITE_LENTAS, LIMITE_SEM_PESO, LIMITE_SEM_DURACAO = 10, 20, 20  # o resumo do CI é curto (N-CI, C-11)
 
 
@@ -219,7 +222,8 @@ def processo(entrada, saida):
         resultado.stopTestRun()
     resultado.printErrors()
     sys.stderr.write(f"\nRan {resultado.testsRun} tests\n")
-    relatorio = {"ids": resultado.ids, "rodados": resultado.testsRun, "falhas": len(resultado.failures),
+    caidos = sorted({getattr(t, "test_case", t).id() for t, _ in resultado.failures + resultado.errors})
+    relatorio = {"ids": resultado.ids, "caidos": caidos, "rodados": resultado.testsRun, "falhas": len(resultado.failures),
                  "erros": len(resultado.errors), "pulados": len(resultado.skipped),
                  "esperados": len(resultado.expectedFailures), "inesperados": len(resultado.unexpectedSuccesses),
                  "ok": resultado.wasSuccessful(), "duracoes": duracoes}
@@ -462,6 +466,52 @@ def publicar_no_ci(*dados):
         print(f"suite-paralela: resumo indisponível ({type(e).__name__})", file=sys.stderr)
 
 
+def pasta_do_registro():
+    """`~/.forge-contrib/` se já existe como pasta do próprio usuário, sem link e sem escrita de outros; senão None (a
+    suíte não cria a pasta nem escreve onde não deve: L32, C-32a)."""
+    pasta = Path.home() / REGISTRO_PASTA
+    try:
+        info = pasta.lstat()
+    except OSError:
+        return None
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or info.st_mode & 0o022:
+        return None
+    return pasta
+
+
+def registrar_vermelha(relatorios, carga, memoria):
+    """Suíte vermelha: acrescenta ao registro fora do git uma linha com a carga e os testes que caíram, cada um com a
+    taxa (vezes em que caiu / suíte vermelhas registradas). Só ids e números, nunca a mensagem da falha (C-32b).
+    Roda depois do veredito impresso: qualquer erro daqui vira uma linha em stderr e não muda o código de saída (C-32a)."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return
+    try:
+        pasta = pasta_do_registro()
+        if pasta is None:
+            return
+        caidos = sorted({i for rel in relatorios if rel for i in rel.get("caidos", ())})[:LIMITE_REGISTRO]
+        caidos = ["".join(c for c in str(i)[:200] if c.isprintable()) for i in caidos]
+        arquivo = pasta / REGISTRO
+        antes = collections.Counter()
+        vermelhas = 0
+        try:
+            if not arquivo.is_symlink():
+                for linha in arquivo.read_text(encoding="utf-8").splitlines()[-LINHAS_LIDAS:]:
+                    vermelhas += 1
+                    antes.update(t["id"] for t in json.loads(linha).get("testes", ()))
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        registro = {"quando": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "carga": carga, "memoria_gb": None if memoria is None else round(memoria, 1),
+                    "vermelhas": vermelhas + 1,
+                    "testes": [{"id": i, "vezes": antes[i] + 1, "de": vermelhas + 1} for i in caidos]}
+        fd = os.open(arquivo, os.O_WRONLY | os.O_APPEND | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(fd, "a", encoding="utf-8") as f:
+            f.write(json.dumps(registro, ensure_ascii=False) + "\n")
+    except Exception as e:  # noqa: BLE001 - o registro é informativo; o veredito já saiu
+        print(f"suite-paralela: registro indisponível ({type(e).__name__})", file=sys.stderr)
+
+
 def gravar_pesos(relatorios):
     pesos = ler_pesos()
     for rel in relatorios:
@@ -534,6 +584,8 @@ def orquestrar():
         veredito, codigo = fechar_verde(relatorios, hash_arvore, pulados), 0
     print(veredito)
     publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
+    if codigo:
+        registrar_vermelha(relatorios, carga, memoria)
     return codigo
 
 
