@@ -21,6 +21,76 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G30",
+      "guarda": "o token depois de opção valorada fica como veio também no desagrupa_i",
+      "arquivo": "hooks/parecer.py",
+      "de": "        valor = a in API_COM_VALOR\n    return saida",
+      "para": "        valor = False\n    return saida",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G31",
+      "guarda": "o valor de opção valorada não vira método no ultimo_metodo",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if valor:\n            valor = False\n            continue\n        if a in (\"-X\"",
+      "para": "        if False:\n            valor = False\n            continue\n        if a in (\"-X\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G32",
+      "guarda": "-X e --method separados entram",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if a in (\"-X\", \"--method\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G33",
+      "guarda": "-X sem valor no fim não quebra",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if i + 1 < len(args):\n                metodo",
+      "para": "            if True:\n                metodo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G34",
+      "guarda": "--method=valor entra",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"--method=\"):",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G35",
+      "guarda": "-XVALOR colado entra",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
+      "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G36",
+      "guarda": "o valor de outra opção valorada é pulado depois do -X",
+      "arquivo": "hooks/parecer.py",
+      "de": "        else:\n            valor = a in API_COM_VALOR\n    return metodo",
+      "para": "        else:\n            valor = False\n    return metodo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
