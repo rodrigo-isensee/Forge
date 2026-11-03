@@ -141,6 +141,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G26",
+      "guarda": "o valor de opção valorada (-p -iX) não é desmontado como grupo",
+      "arquivo": "hooks/parecer.py",
+      "de": "        valor = a in API_COM_VALOR\n",
+      "para": "        valor = False\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }

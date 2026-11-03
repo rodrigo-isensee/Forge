@@ -500,12 +500,17 @@ def aponta_para_o_forge(texto):
 
 def desagrupa_i(args):
     """`-iX PUT`, `-iXPUT`, `-if k=v`: o `gh api` lê o `-i` (boolean) e a opção colada como duas (`-i -X`)."""
-    saida = []
+    saida, valor = [], False
     for a in args:
+        if valor:  # o token que segue uma opção valorada (`-p -iX`) é o valor dela: fica como veio
+            saida.append(a)
+            valor = False
+            continue
         while re.match(r"-i[^-]", a):
             saida.append("-i")
             a = "-" + a[2:]
         saida.append(a)
+        valor = a in API_COM_VALOR
     return saida
 
 
