@@ -1,10 +1,12 @@
 """FC-PEDIDO-FORA: o `forge-check` acha o pedido e o brief em `~/.forge-contrib` (E1) e o quadro só grava onde há KANBAN.md (E2)."""
+import os
+import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
-from test_voltas import Raiz  # noqa: E402
+from test_voltas import FORGE_CHECK, Raiz  # noqa: E402
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "brief"
 PEDIDO = (FIXTURES / "pedido.md").read_text(encoding="utf-8")
@@ -74,6 +76,43 @@ class Fora(Raiz):
         rc, saida, _ = self.rodar("brief", "docs/briefs/pedido-sintetico-dev-exemplo-1.md", "--pedido", "pedido-sintetico")
         self.assertNotIn(f"origem: {self.pedido.resolve()}", saida)
         self.assertNotIn(f"origem: {propria.resolve()}", saida)  # a da raiz é a conhecida: sem linha de origem
+
+
+class PedidoForaDasRaizes(Fora):
+    """FC-PEDIDO-FORA-DAS-RAIZES (E2 da 0.33, C-6): `--pedido` com cara de caminho só vale em `docs/pedidos/` de uma raiz guardada."""
+    LINHA = "forge-check: --pedido fora de docs/pedidos/ das raízes"
+
+    def entrega(self, pedido, cwd=None):
+        env = dict(os.environ, HOME=str(self.tmp / "home"))
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.tmp), "entrega", pedido, "--branch", "melhoria/x", "--base", "develop",
+                            "--base-sha", "0" * 40, "--etapa", "codigo"], capture_output=True, text=True, env=env, cwd=cwd or self.tmp)
+        return r.returncode, r.stdout
+
+    def test_caminho_fora_das_raizes_e_recusado_com_rc_2_e_a_regra(self):
+        fora = self.tmp / "solto"
+        fora.mkdir()
+        (fora / "x.md").write_text(PEDIDO, encoding="utf-8")
+        (self.tmp / "home" / "notas").mkdir()
+        (self.tmp / "home" / "notas" / "x.md").write_text(PEDIDO, encoding="utf-8")
+        (self.tmp / "docs" / "propostas").mkdir(parents=True)
+        (self.tmp / "docs" / "propostas" / "x.md").write_text(PEDIDO, encoding="utf-8")
+        (self.tmp / "docs" / "pedidos").mkdir()
+        (self.tmp / "docs" / "pedidos" / "l.md").symlink_to(fora / "x.md")
+        (self.tmp / "docs" / "pedidosX").mkdir()
+        (self.tmp / "docs" / "pedidosX" / "x.md").write_text(PEDIDO, encoding="utf-8")
+        (self.tmp / "x.md").write_text(PEDIDO, encoding="utf-8")  # existe no cwd
+        for dado in (str(fora / "x.md"), "~/notas/x.md", "docs/pedidos/../propostas/x.md", "docs/pedidos/l.md", "docs/pedidosX/x.md", "./x.md",
+                     "docs/pedidos"):
+            with self.subTest(dado):
+                rc, saida = self.entrega(dado)
+                self.assertEqual((rc, saida.startswith(self.LINHA)), (2, True), saida)
+
+    def test_dentro_das_raizes_e_o_id_nu_passam(self):
+        for dado in ("~/.forge-contrib/docs/pedidos/pedido-sintetico.md", str(self.pedido), "pedido-sintetico"):
+            with self.subTest(dado):
+                rc, saida = self.entrega(dado)
+                self.assertNotIn(self.LINHA, saida)
+                self.assertIn("entrega: ref ilegível", saida)  # leu o pedido e chegou à conferência das refs, que não existem aqui
 
 
 class QuadroSemKanban(Raiz):

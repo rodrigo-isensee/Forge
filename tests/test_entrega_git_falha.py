@@ -31,7 +31,7 @@ class FalhaDoGit(Repositorio):
         self.gravar_pedido()
 
     def falhar(self, padrao, ordem, *args):
-        env = dict(ambiente_limpo(), PATH=f"{self.pasta}:{os.environ['PATH']}", PADRAO=padrao, ORDEM=str(ordem),
+        env = dict(ambiente_limpo(), HOME=str(self.home), PATH=f"{self.pasta}:{os.environ['PATH']}", PADRAO=padrao, ORDEM=str(ordem),
                    CONTAGEM=str(self.tmp / "contagem"), O_GIT_DE_VERDADE=shutil.which("git"))
         (self.tmp / "contagem").unlink(missing_ok=True)
         r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.repo), "entrega", str(self.pedido), "--branch", "melhoria/x",

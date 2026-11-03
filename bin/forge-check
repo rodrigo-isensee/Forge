@@ -845,21 +845,34 @@ def arquivo_existe(caminho):
         return False
 
 
+class PedidoFora(Exception):
+    """`--pedido` com cara de caminho que não cai em `docs/pedidos/` de nenhuma raiz guardada (FC-PEDIDO-FORA-DAS-RAIZES, R-2)."""
+
+
 def caminho_do_pedido(raiz, pedido):
-    """Arquivo do pedido: o caminho dado, `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e,
-    por último, de cada raiz de brief (só em `docs/pedidos/`, `realpath`: travessia e link para fora não valem)."""
+    """Arquivo do pedido: `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e, por último, de cada
+    raiz de brief; o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
+    (travessia, link e pasta vizinha não valem) e o que se lê é o caminho resolvido (C-3). Fora delas, levanta `PedidoFora`."""
     caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
     dado = Path(pedido)
     if pedido.startswith("~/"):  # só o `~/` do começo, pelo HOME; nunca `~usuario` (C-10)
         dado = Path.home() / pedido[2:]
-    if arquivo_existe(dado) or (caminhoso and dado.is_absolute()):
-        return dado
     if caminhoso:
+        dentro, escapa = [], False  # escapa: numa raiz o caminho existe, mas o `realpath` sai de docs/pedidos/ (link, `..`)
         for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
-            achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
-            if achado is not None and arquivo_existe(achado):
-                return achado
-        return dado
+            try:
+                achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
+            except ValueError:  # NUL no nome
+                achado = None
+            if achado is not None:
+                dentro.append(achado)
+            else:
+                escapa = escapa or os.path.lexists(Path(base) / dado)
+        if existentes := [a for a in dentro if arquivo_existe(a)]:
+            return existentes[0]
+        if not dentro or escapa:
+            raise PedidoFora(pedido)
+        return dentro[0]  # dentro das raízes e sem arquivo: quem lê diz que não conseguiu
     for pasta in (raiz_principal(raiz), Path(raiz)):
         if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
             return pasta / "docs" / "pedidos" / f"{pedido}.md"
@@ -6111,6 +6124,9 @@ def main():
     except subprocess.TimeoutExpired as e:
         print(f"git: tempo esgotado ({GIT_TIMEOUT_S} s) em `{' '.join(map(str, e.cmd[3:5]))}`; tente de novo")
         return 1
+    except PedidoFora as e:  # C-2: entrada ilegível em todo chamador, nunca "sem pedido"
+        print(f"forge-check: --pedido fora de docs/pedidos/ das raízes: {nome_seguro(sem_controle(e))}")
+        return 2
 
 
 def executar(a, raiz):

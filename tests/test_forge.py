@@ -3177,8 +3177,18 @@ class ConferirBrief(unittest.TestCase):
     PEDIDO = PASTA / "pedido.md"
 
     def rodar(self, *args, cwd=None):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *map(str, args)],
-                           capture_output=True, text=True, cwd=cwd or RAIZ, env=com_gh_falso())  # o gerar --branch não vai à rede (P5)
+        args = list(map(str, args))
+        if not hasattr(self, "casa"):  # o pedido só vale em docs/pedidos/ de uma raiz guardada (E2): a cópia vai para lá, num HOME por teste
+            self.casa = Path(tempfile.mkdtemp(prefix="forge-brief-home-"))
+            self.addCleanup(shutil.rmtree, self.casa, ignore_errors=True)
+        casa = self.casa
+        if "--pedido" in args and Path(args[args.index("--pedido") + 1]).is_file():
+            guardado = casa / ".forge-contrib" / "docs" / "pedidos" / Path(args[args.index("--pedido") + 1]).name
+            guardado.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(args[args.index("--pedido") + 1], guardado)
+            args[args.index("--pedido") + 1] = str(guardado)
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
+                           env=dict(com_gh_falso(), HOME=str(casa)))  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
     def conferir(self, nome, *extra, pedido=None):
@@ -4236,7 +4246,9 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
         (self.repo / "docs" / "qa" / f"q{FORJA}.md").write_text("---\ntipo: qa\ncontrato: 1\n---\n", encoding="utf-8")
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "arquivo forjado", cwd=self.repo)
-        (self.tmp / "p1.md").write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "p1.md"  # o pedido só vale em docs/pedidos/ de uma raiz guardada (E2)
+        self.pedido.parent.mkdir(parents=True)
+        self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
 
     def rodar(self, *args):
         return rodar_fc(*args, raiz=self.repo, home=self.tmp / "home")
@@ -4246,7 +4258,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
         self.assertEqual(linhas_forjadas(saida, ("resultado: aprovado", "resultado: reprovado", *reais)), [], saida)
 
     def test_entrega_e_delta_nao_forjam_linha(self):  # abuso 17
-        r = self.rodar("entrega", str(self.tmp / "p1.md"), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo")
+        r = self.rodar("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo")
         self.assertIn("escopo: confira", r.stdout)
         self.assertEqual(sum(1 for l in r.stdout.splitlines() if l.startswith("escopo:")), 3, r.stdout)  # os 3 arquivos, uma linha cada
         self.sem_forja(r, 'escopo: confira "*')
@@ -4338,7 +4350,8 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
         (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
         git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)
-        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text(PEDIDO + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
         self.rel_anterior = "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
         (self.repo / "docs" / "briefs").mkdir(parents=True)
@@ -4683,7 +4696,8 @@ class RepoDeSeguranca(unittest.TestCase):
             arq.write_text(texto, encoding="utf-8")
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "entrega", cwd=self.repo)
-        self.pedido = self.tmp / "p1.md"
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
         registros = [{"caminho": rel, "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": "seguranca"}
                      for rel, texto in (("docs/security/p1.md", self.parecer), ("docs/security/aceites/p1.md", self.aceite))]
@@ -4836,7 +4850,8 @@ class FalhaDoGitNoE4(RepoDeSeguranca):
         real = fc.git
         falho = lambda raiz, *args, **kw: (128, b"") if "--name-only" in args and intervalo in args else real(raiz, *args, **kw)
         for etapa in ("pedido-de-merge-ao-dono", "merge-integracao"):
-            with self.subTest(etapa), mock.patch.object(fc, "git", falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+            with (self.subTest(etapa), mock.patch.object(fc, "git", falho), mock.patch.object(fc, "RAIZES_DE_BRIEF", (self.tmp / "home" / ".forge-contrib",)),
+                  contextlib.redirect_stdout(io.StringIO()) as saida):
                 rc = fc.cmd_entrega(self.repo, str(self.pedido), "melhoria/x", "develop", self.base, etapa, None)
             self.assertEqual(rc, 1, saida.getvalue())
             self.assertIn("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", saida.getvalue())
@@ -4977,7 +4992,8 @@ class PrAposMergeDaBase(RepoComOrigem):
         base_sha = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
         self.mescla_a_develop()
-        self.pedido = self.tmp / "p1.md"
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
 
         def rodar(etapa):
@@ -4999,7 +5015,8 @@ class BaseShaDoBrief(RepoComOrigem):
 
     def setUp(self):
         super().setUp()
-        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text(self.PEDIDO_TXT, encoding="utf-8")
 
     def gerar(self, branch, base="develop"):
@@ -5156,12 +5173,12 @@ class EntregasParalelas(RepoDeSeguranca):
         ln.mkdir()
         (outro / "p1.md").write_text("x\n", encoding="utf-8")
         (self.tmp / "p2.md").write_text("x\n", encoding="utf-8")
-        (self.tmp / "p1-REV.md").write_text("x\n", encoding="utf-8")
+        (self.pedido.parent / "p1-REV.md").write_text("x\n", encoding="utf-8")
         (ln / "p1.md").symlink_to(self.pedido)
         (ln / "p2.md").symlink_to(self.tmp / "p2.md")
         ok, outro_sha = self.brief("p1-tech-lead-1.md"), git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         casos = {"absoluto": (str(self.pedido), {}, 0), "link para o próprio pedido": (str(ln / "p1.md"), {}, 0),
-                 "-REV na pasta do pedido": (str(self.tmp / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
+                 "-REV na pasta do pedido": (str(self.pedido.parent / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
                  "link para outro pedido": (str(ln / "p2.md"), {}, 1), "-REV noutra pasta": (str(outro / "p1-REV.md"), {}, 1),
                  "~usuario": ("~outro/p1.md", {}, 1), "byte NUL": (f"{self.tmp}/a\x00b/p1.md", {}, 1), "caminho certo, outro Base-sha": (str(self.pedido), {"base_sha": outro_sha}, 1)}
         for nome, (valor, campos, rc_esperado) in casos.items():
@@ -5172,14 +5189,11 @@ class EntregasParalelas(RepoDeSeguranca):
                 self.assertNotIn("Traceback", erro)
 
     def test_pedido_do_brief_com_til_e_relativo_so_valem_na_forma_certa(self):  # A4, A9
-        (self.tmp / "home").mkdir()
-        self.pedido = self.tmp / "home" / "p1.md"
-        self.pedido.write_text("# Pedido p1\n", encoding="utf-8")
         ok = self.brief("p1-tech-lead-1.md")
-        for valor, rc_esperado in (("~/p1.md", 0), (f"~/{self.tmp}/home/p1.md", 0), ("./p1.md", 1), ("../home/p1.md", 1), ("~/outro/p1.md", 1)):
+        for valor, rc_esperado in (("~/.forge-contrib/docs/pedidos/p1.md", 0), (f"~/{self.pedido}", 0), ("./p1.md", 1), ("../pedidos/p1.md", 1), ("~/outro/p1.md", 1)):
             with self.subTest(valor):
                 (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("docs/pedidos/p1.md", valor), encoding="utf-8")
-                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.tmp / "home")
+                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.pedido.parent)
                 self.assertEqual(rc, rc_esperado, saida)
 
     def test_brief_sem_a_linha_pedido_reprova_com_linha_limpa(self):  # A1 (C-4): sem exceção, com veredito
@@ -5242,24 +5256,26 @@ class CaminhoDoPedido(unittest.TestCase):
         return self.mod.caminho_do_pedido(self.repo, pedido)
 
     def test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo(self):
-        self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
+        with mock.patch.object(self.mod, "RAIZES_DE_BRIEF", (self.home / "r",)):
+            self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("docs/pedidos/p.md"), self.repo / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("p"), self.repo / "docs" / "pedidos" / "p.md")  # o id segue como sempre
-        os.chdir(self.home / "r"); self.assertEqual(self.acha("docs/pedidos/p.md"), Path("docs/pedidos/p.md"))  # existe no cwd e na raiz: o cwd vence (M3)
+        self.assertEqual(self.acha(str(self.repo / "docs" / "pedidos" / "p.md")), self.repo / "docs" / "pedidos" / "p.md")  # absoluto dentro da raiz
 
-    def test_caminho_que_nao_existe_volta_como_foi_dado(self):
+    def test_caminho_dentro_das_raizes_que_nao_existe_volta_resolvido_e_o_de_fora_levanta(self):
+        achado = self.acha("docs/pedidos/nada.md")
+        self.assertEqual(achado, self.repo / "docs" / "pedidos" / "nada.md")
+        self.assertFalse(achado.exists())
         for dado in (str(self.tmp / "nada" / "x.md"), "~/nada/x.md"):
-            with self.subTest(dado):
-                achado = str(self.acha(dado))
-                self.assertNotIn(".md.md", achado)
-                self.assertNotIn("docs/pedidos/docs/pedidos", achado)
+            with self.subTest(dado), self.assertRaises(self.mod.PedidoFora):
+                self.acha(dado)
 
     def test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande(self):  # B1 a B4
         (self.repo / "docs" / "pedidos" / "ln.md").symlink_to(self.fora / "x.md")
         with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.home))):
-            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md"):
-                with self.subTest(dado):
-                    self.assertEqual(self.acha(dado), Path(dado))
+            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md", "docs/pedidos/a\x00b.md"):
+                with self.subTest(dado), self.assertRaises(self.mod.PedidoFora):
+                    self.acha(dado)
 
     def test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem(self):  # A1 do QA
         brief = self.tmp / "brief"
