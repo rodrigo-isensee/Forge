@@ -1,0 +1,97 @@
+{
+  "pedido": "lote-unico-032-l33",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o veredito agrega pelo pior caso, não pelo último (C-33a)",
+      "arquivo": "bin/forge-mutante",
+      "de": "codigo = max((c for _, c, _ in resultados), default=0)",
+      "para": "codigo = resultados[-1][1]",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_k_processos_dao_o_mesmo_veredito_que_em_serie"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o mutante que sobrevive dá 1",
+      "arquivo": "bin/forge-mutante",
+      "de": "{\"inválido\": 2, \"sobreviveu\": 1}.get(classe, 0)",
+      "para": "{\"inválido\": 2, \"sobreviveu\": 0}.get(classe, 0)",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_k_processos_dao_o_mesmo_veredito_que_em_serie"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o sinal mata o grupo de cada processo de teste em curso (C-33a)",
+      "arquivo": "bin/forge-mutante",
+      "de": "            try:\n                os.killpg(processo.pid, signal.SIGKILL)\n            except ProcessLookupError:\n                pass\n\n\ndef rodar",
+      "para": "            pass\n\n\ndef rodar",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_sigterm_no_meio_mata_todos_os_processos_e_apaga_as_copias"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "depois do encerramento nenhum teste começa",
+      "arquivo": "bin/forge-mutante",
+      "de": "        if ABORTAR.is_set():\n            return None\n        processo",
+      "para": "        if False:\n            return None\n        processo",
+      "testes": [
+        "tests.test_forge_mutante.Encerramento.test_rodar_depois_do_encerramento_nao_lanca_processo"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "k processos de fato, até o teto",
+      "arquivo": "bin/forge-mutante",
+      "de": "max_workers=max(1, min(processos, len(mutantes)))",
+      "para": "max_workers=1",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_sigterm_no_meio_mata_todos_os_processos_e_apaga_as_copias"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o teto fixo de k (C-33b)",
+      "arquivo": "bin/forge-mutante",
+      "de": "PROCESSOS_MAXIMO = 4",
+      "para": "PROCESSOS_MAXIMO = 40",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_processos_fora_da_faixa_sai_2"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "k de 1 a 4: zero recusa",
+      "arquivo": "bin/forge-mutante",
+      "de": "if not 1 <= args.processos <= PROCESSOS_MAXIMO:",
+      "para": "if not 0 <= args.processos <= PROCESSOS_MAXIMO:",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_processos_fora_da_faixa_sai_2"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "cada processo tem a sua cópia (T-33)",
+      "arquivo": "bin/forge-mutante",
+      "de": "copia = trabalho / m[\"id\"]",
+      "para": "copia = trabalho / \"unica\"",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_cada_processo_roda_na_sua_copia",
+        "tests.test_forge_mutante.Execucao.test_k_processos_dao_o_mesmo_veredito_que_em_serie"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o erro ou o sinal encerram todos antes de sair (C-33a)",
+      "arquivo": "bin/forge-mutante",
+      "de": "            except BaseException:  # um erro, SIGTERM ou Ctrl-C: nada fica rodando (C-33a)\n                encerrar_todos()\n",
+      "para": "            except BaseException:  # um erro, SIGTERM ou Ctrl-C: nada fica rodando (C-33a)\n",
+      "testes": [
+        "tests.test_forge_mutante.Execucao.test_sigterm_no_meio_mata_todos_os_processos_e_apaga_as_copias"
+      ]
+    }
+  ]
+}
