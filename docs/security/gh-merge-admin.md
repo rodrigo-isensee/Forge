@@ -3,23 +3,53 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: 2e9c621b0f6939f1b82b74d36bfd55957f79f610
+commit: 150f3604ab3f5a114568ab12341a9cd7549b649a
 parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
 # Review de segurança: gh-merge-admin (E1 da 0.33)
 
-Base `928e61b66015f7ee2a2e585dc8178e07dc16be39`. Rodada 1 sobre `6c7e573` (reprovado, A1 a A4 bloqueantes, A5 recomendado). Rodada 2 sobre `9535b63` (reprovado, A6). Rodada 3 sobre `2e9c621` (a volta 2 do autor, contra o A6): revalidação do delta `9535b63..2e9c621` em `hooks/`, `tests/` e `changelog.d/` (`forge-check delta --parecer` sobre este parecer) contra o A6, os controles C-1 a C-8 e as mudanças proibidas T-1 a T-5 de `docs/security/ameacas/versao-033.md` (seção E1).
+Base `928e61b66015f7ee2a2e585dc8178e07dc16be39`. Rodada 1 sobre `6c7e573` (reprovado, A1 a A4 bloqueantes, A5 recomendado). Rodada 2 sobre `9535b63` (reprovado, A6). Rodada 3 sobre `2e9c621` (reprovado, A7). Rodada 4 sobre `150f360` (a volta 3 do autor, contra o A7 desta revisão e o A8 do review, o mesmo defeito): revalidação do delta `e436e06..150f360` em `hooks/`, `tests/` e `changelog.d/` (`forge-check delta --parecer` sobre este parecer) contra o A7, os controles C-1 a C-8 e as mudanças proibidas T-1 a T-5 de `docs/security/ameacas/versao-033.md` (seção E1).
 
 ## Gatilhos
 `controles do Forge`: `hooks/conformidade.py` e `hooks/parecer.py` (classificador de comando, `R-MAIN`, `R-CONTRIB`, `R-REVIEW`). Não toca segredo, dependência, workflow nem o pre-push.
 
 ## Achados
-- A7 (bloqueante) hooks/parecer.py:505 · desagrupa_i desmonta também o valor de opção valorada: `gh api -p -iX repos/o/r/pulls/1/merge -X PUT` (e com -q, --jq, -H, -t) passa nos dois hooks; a base recusava no parecer; contra C-4 e T-4; classe: segurança com gatilho
-- A8 (recomendado) hooks/conformidade.py:1608 · gh_trava lê o método com parecer.opcao sem desagrupa_i: `gh api -iX DELETE repos/o/r` passa (igual na base, fora do E1); mesma família, cartão próprio; classe: recomendação
+- A9 (bloqueante) hooks/parecer.py:520 · metodo_mutante lê só o primeiro -X: `gh api -X GET -X PUT repos/o/r/pulls/1/merge` passa nos dois hooks e o gh faz o PUT (vale o último); também `-p -XGET ... -X PUT`, `merges` e GraphQL; contra C-4; classe: segurança com gatilho
+- A8 (recomendado) hooks/conformidade.py:1608 · gh_trava lê o método com parecer.opcao sem desagrupa_i e pelo primeiro -X: `gh api -iX DELETE repos/o/r` passa (igual na base, fora do E1); mesma família, cartão próprio; classe: recomendação
 
-## Rodada 3
+## Rodada 4
+Veredito: **reprovado**. O A7 está resolvido, sem regressão com caminho de ataque, mas a varredura da leitura do método achou o A9, uma forma de merge por API que a head e a base deixam passar e que fere o C-4. Ele já existia nas rodadas 1 a 3 e não foi apontado antes (falha desta revisão, não do autor): fica em uma passada só, com a lista inteira das formas.
+
+**A7 resolvido.** `hooks/parecer.py:501` (`desagrupa_i`) passa a copiar sem desmontar o token que segue uma opção de `API_COM_VALOR` (`:505-508`, `:513`), inclusive a que fecha um grupo (`-iX` toma o próximo como valor). Sondas, head | base | rodada 3 (`conformidade`, `parecer`), como `tech-lead` salvo indicação: `gh api -p -iX repos/o/r/pulls/1/merge -X PUT` (2 2 | 0 2 | 0 0), o mesmo com `-q`, `--jq`, `-t -iH`, `-H`, `--template` (`jarvis`), `--hostname` (sem `agent_type`), `--cache`, `-ip`, `-iq`, `-p -iiX`, `--method PUT` e `-p -iX -X PUT <endpoint>` (2 2 | 0 2 | 0 0); como `security-engineer`, o mesmo (2 2). `cd /tmp && gh api -p -iX ... -X PUT`, `gh api --preview -if repos/o/r/merges -f base=main -f head=x` e `gh api -p -iX graphql -F query=@q.graphql` (2 0 | 0 0 | 0 0): o C-4 recusa em toda pasta, como pede o modelo. As sondas do A6 seguem recusadas (`-iX PUT`, `-iXPUT`, `-iX POST graphql`, `-if query=@arq graphql`). Os legítimos `-i`, `-iH Accept:x`, `-iq .x`, `-p -iX <GET>`, `-q -iX <GET>`, `-H Accept:x -iX GET`, `graphql` de leitura, `PATCH pulls/12` e `gh pr view 12` passam (0 0), como na base. A leitura confere com o gh 2.102.0 local (`GH_DEBUG=api`, host `.invalid`, conexão negada pelo sandbox antes de sair): `-p -iX user -X PATCH` manda `PATCH /user`.
+
+**Mutantes G26 e G27** (`tests/mutantes/gh-merge-admin-2.json:144-163`): aplicados à head numa cópia em `$TMPDIR`, os dois reabrem as cinco formas do A7 (0 0 nos dois hooks), que as oito fixtures novas de `tests/hooks/conformidade/gh-merge-admin-api-valor-de-opcao-*` cobrem; mortos. As oito fixtures cobrem as dez sondas da rodada 3 menos `--method PUT`, `-X PUT` antes do endpoint e `cd /tmp`, que usam a mesma desmontagem (recomendação, sem achado).
+
+**Regressão sem caminho de ataque.** `gh api -p -p -iX repos/o/r/pulls/1/merge -X PUT`: a base recusava no `parecer` (`R-CONTRIB`), a head passa (0 0). O gh lê o segundo `-p` como valor do primeiro e o endpoint como valor do `-X` do grupo, e para com `accepts 1 arg(s), received 0` sem requisição (conferido no gh local, como acima). A head lê igual ao gh; a base recusava por ler errado. Sem achado; a T-4 não é ferida em efeito (nenhuma recusa que impedia um merge deixa de impedir). Com o endpoint antes do grupo (`-p -p -iX PUT <endpoint>`) a head recusa.
+
+**A9** (alta, esforço P, dono `forge:tech-lead`). Evidência: `hooks/parecer.py:520` (`metodo = opcao(args, "--method", "-X")`) devolve a primeira ocorrência do método, e `opcao` (`:135`) não pula o valor de opção valorada. O gh usa a última (a `pflag` sobrescreve a opção de texto): no gh local, `gh api -X GET -X PATCH user` manda `PATCH`, e `gh api -p -XGET user -X PATCH` também (o `-XGET` é o valor do `-p`). Sondas, head | base | rodada 3, rc 0 0 nos dois hooks em todas: `gh api -X GET -X PUT repos/o/r/pulls/1/merge`, `-XGET -XPUT`, `--method GET --method PUT`, `-p -XGET repos/o/r/pulls/1/merge -X PUT`, `gh api -X GET repos/o/r/merges -X POST -f base=main -f head=x` e `gh api -X GET -X POST graphql -F query=@q.graphql` (arquivo com `mergePullRequest`). Ator e ganho: os da rodada 1 (o modelo de qualquer papel, por erro ou instrução injetada, com o token do gh; merge que pula checks e review). Fere o C-4 (merge por API recusado em toda forma) e deixa sem efeito o `R-CONTRIB` de merge por API (`merge_por_api`, `:597`), que usa a mesma leitura. Não é regressão do delta. Correção mínima: em `metodo_mutante`, percorrer os argumentos já desmontados pulando o valor de cada opção de `API_COM_VALOR` (a mesma lista do A7: `-X`, `--method`, `-H`, `--header`, `-f`, `--raw-field`, `-F`, `--field`, `--input`, `-q`, `--jq`, `-t`, `--template`, `--hostname`, `--cache`, `-p`, `--preview`) e contar como mutante se **qualquer** ocorrência do método (`-X v`, `--method v`, `--method=v`, `-Xv`, `-X=v`) for diferente de GET (falha fechada: `-X PUT -X GET` recusa a mais, sem custo real). Fixtures para as seis sondas acima e um mutante que volte a ler só a primeira ocorrência. Os outros leitores de `metodo_mutante` (`hooks/conformidade.py:1475`, `:1580`, `:1606`, `:1710`, `:1715`) passam a ler certo pela mesma troca.
+
+**A8** (recomendado, sem mudança de classe): além do `-iX DELETE`, `gh_trava` (`hooks/conformidade.py:1608` e `:1626`) também lê o primeiro `-X` (`-X GET -X DELETE repos/o/r`); fora do E1, cartão próprio, que pode reusar a leitura do A9.
+
+**Controles na head `150f360`.**
+- C-1: `--admin` em qualquer forma e posição recusa em todo papel; o delta não toca `usa_admin` nem `gh_admin`.
+- C-2: a recusa segue antes das saídas antecipadas; o delta não mexe na ordem.
+- C-3: as posições da matriz seguem pelo mesmo leitor; sem parser novo de linha, só a desmontagem dos argumentos do `gh api`.
+- C-4: REST e GraphQL, inline, em arquivo, colados, agrupados ao `-i` e com o valor em forma de grupo recusam, menos o método repetido ou em posição de valor (A9).
+- C-5: os oito legítimos do modelo e os GET com `-i` mantêm o veredito da base nos dois hooks.
+- C-6: nada de rede nem `gh` novo; a desmontagem segue linear no número de argumentos.
+- C-7: os casos de abuso (a) a (g) seguem recusados e (h) passa (lote `test_fixtures_do_gh_merge_admin`); faltam os do A9.
+- C-8: G26 e G27 cobrem o A7; falta o do A9.
+- T-1 a T-3: sem condição de papel, base, projeto ou repositório; sem leitura do valor de `--admin=`; sem escape por ambiente ou configuração.
+- T-4: nenhuma recusa que impedia um merge passa a liberar (o único texto liberado, `-p -p -iX`, o gh não executa); o A9 é anterior ao E1.
+- T-5: o alias do `gh` segue fora: risco residual, N1, cartão próprio.
+
+PA-7 (`docs/engineering/achados-recorrentes.md`, AR-1 a AR-10), conferida de novo: o A9 é da classe da AR-10 (o leitor decide por uma ocorrência e o programa executa outra) e é o terceiro da família "leitura de opção do `gh api`" (A6, A7, A9); AR-1: a lista de mutantes não tem o caso do método repetido; AR-3, AR-5 e AR-7 não se aplicam ao delta.
+
+## Rodada 3 (histórico, 2e9c621)
+Achados da rodada 3: A7 (bloqueante, valor de opção valorada desmontado), resolvido na rodada 4; A8 (recomendado), segue acima.
+
 Veredito: **reprovado**. O A6 está resolvido nas sete formas da rodada 2, mas a correção abriu uma regressão (A7): um texto que a base recusava passa a ser liberado.
 
 **A6 resolvido.** `hooks/parecer.py:501` (`desagrupa_i`) desmonta `-i<letra><resto>` em `-i` e `-<letra><resto>`, e entra em `metodo_mutante` (`:514`), `endpoint_da_api` (`:525`) e `textos_da_api` (`hooks/conformidade.py:1390`). Sondas na head, como `tech-lead` e `security-engineer` (`conformidade` | `parecer`): `gh api repos/o/r/pulls/1/merge -iX PUT` (2 | 2), `... -iXPUT` (2 | 2), `gh api repos/o/r/merges -iX POST` (2 | 0), `gh api -H 'Accept: x' -iX PUT repos/o/r/pulls/1/merge` (2 | 2), `gh api -iX POST graphql -F query=@q.graphql` (2 | 0), `gh api -if query=@q.graphql graphql` (2 | 0), `gh api -iF query=@q.graphql graphql` (2 | 0), e ainda `-iiX PUT` e `-iX=PUT` (2 | 2). Na base, rc 0 nos dois hooks. O `parecer` só olha `pulls/<n>/merge`, como na base; a recusa do `merges` e do GraphQL vem do `conformidade`, que roda em toda chamada. A troca de `-i?[fF]` por `-[fF]` em `metodo_mutante` (`:520`) não perde forma: o `-if` chega como `-f` depois da desmontagem. Os legítimos `gh api -i repos/o/r/pulls/1`, `... -i` no fim, `-iH Accept:x` e `-iq .x` em GET passam (0 | 0), como na base. Faltam fixtures da sonda com `-H` antes e de `-iiX` (recomendação, sem achado: a desmontagem é a mesma).
@@ -98,4 +128,4 @@ Verificado e de acordo:
 PA-7 (`docs/engineering/achados-recorrentes.md`, AR-1 a AR-10): conferida item a item. A1 e A4 se aproximam da AR-8 (o leitor de `hooks/parecer.py:224` decide pelo token literal do programa) e da AR-10 (texto recusado executado por outro caminho); A2 e A3 são classe nova. AR-3, AR-5 e AR-7 não se aplicam ao diff (sem trava de ambiente, sem python novo no caminho que decide, sem leitura nova da pasta do git).
 
 ## Riscos aceitos e ferramentas
-Nenhum risco aceito pelo usuário. Residual: o alias do `gh` (`gh alias set`, `gh <alias>`), com o N1 de `furo-hook.md` (cartão próprio). Ferramentas na rodada 3: `forge-check delta --parecer` sobre este parecer, leitura do delta, 33 sondas locais dos dois hooks na head e na base, como `tech-lead` e `security-engineer` (montador das fixtures da suíte, `$TMPDIR`), sem rede; `python3 -m unittest tests.test_hooks` na head: 71 testes, OK (959 s). `gitleaks`, `semgrep`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o delta não toca segredo, dependência nem workflow).
+Nenhum risco aceito pelo usuário. Residual: o alias do `gh` (`gh alias set`, `gh <alias>`), com o N1 de `furo-hook.md` (cartão próprio). Ferramentas na rodada 4: `forge-check delta --parecer` sobre este parecer, leitura do delta, 42 sondas locais dos dois hooks na head, na base e na rodada 3, como `tech-lead`, `security-engineer`, `jarvis` e sem `agent_type` (montador das fixtures da suíte, `$TMPDIR`), os mutantes G26 e G27 aplicados numa cópia, e o gh local com `GH_DEBUG=api` num host `.invalid` (a conexão é negada pelo sandbox; nenhuma requisição sai); `python3 -m unittest tests.test_hooks` na head: 71 testes em 926 s, 70 OK e uma falha de tempo em `test_muitos_heredocs_recusam_dentro_do_orcamento` (forma `python3 - x3000`: 8,49 s de parede contra 1,01 s de CPU, máquina disputada), que passa sozinha (0,91 s; OK) e não é tocada pelo delta. `gitleaks`, `semgrep`, `zizmor` e `actionlint` não estão no PATH (lacuna registrada; o delta não toca segredo, dependência nem workflow).
