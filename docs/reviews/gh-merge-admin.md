@@ -4,7 +4,7 @@ contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
 commit: 2e9c621b0f6939f1b82b74d36bfd55957f79f610
-parecer: aprovado
+parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
@@ -20,6 +20,7 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A5 (recomendado) hooks/conformidade.py:1664 · resolvido na rodada 2: as specs `tests/mutantes/gh-merge-admin.json` e `gh-merge-admin-2.json` cobrem G1 a G23, sem o G13, que caiu com a alternativa morta.
 - A6 (bloqueante) hooks/parecer.py:501 · resolvido na rodada 3: `desagrupa_i` separa o `-i` agrupado antes de `metodo_mutante`, `endpoint_da_api` e `textos_da_api`; `-iX PUT`, `-iXPUT`, `merges -iX POST`, `-if` e `-iF query=@arq graphql` recusam com R-MAIN.
 - A7 (recomendado) hooks/conformidade.py:1608 · fora do E1 e anterior à base: o `gh_trava` lê `-X` sem `desagrupa_i`, e `gh api -iX DELETE repos/o/r` sai com rc=0 (sem `-i`, recusa). O mesmo vale em :1626. Vira cartão para o `security-engineer`.
+- A8 (bloqueante) hooks/parecer.py:505 · regressão com gatilho (C-4, T-4): `desagrupa_i` desmonta o valor de opção valorada; `gh api -p -iX repos/o/r/pulls/1/merge -X PUT` recusa no hook `parecer` na base (R-CONTRIB) e sai com rc=0 na head; também com `-q`, `-H` e `--preview -if`.
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -77,10 +78,11 @@ Head `2e9c621`, sobre `9535b63`. Delta lido: `git diff 9535b63..2e9c621 -- hooks
 
 - **A6, resolvido.** O `gh api` só tem o `-i` como curta booleana, então separar o `-i` do resto agrupado reproduz a leitura do `gh`. Sondas na `Fixture` do teste: as seis formas do brief recusam com R-MAIN, e também `-iX=PUT`, `-iiX PUT`, `-i -XPUT`, `-ifquery=@arq`, `-iFquery=@arq`, `-iX PUT --input q.json graphql` e a forma dentro de shell com `-c`. O bloco do API_ADMIN também fecha (`-iX PUT …/branches/main/protection` recusa com R-CONFORMIDADE).
 - **C-5, sem regressão.** `gh api -i …/pulls/1/merge`, `-iX GET …/merge`, `-iq .x …/pulls/1` e `-i graphql -f query='query{…}'` liberam (rc=0). A troca de `-i?[fF]` por `-[fF]` não afrouxa, porque o `-if…` já chega separado.
-- **C-1 a C-4 e C-6, cumpridos.** Sem rede e sem `gh` novo; `desagrupa_i` é linear no número de palavras.
+- **A8, novo e bloqueante (regressão, C-4 e T-4).** `desagrupa_i` também desmonta o valor de uma opção valorada. Com `-p -iX` antes do endpoint, o `-X` desmontado toma o endpoint como valor e `endpoint_da_api` fica vazio. Sonda no hook `parecer`, com `gh api -p -iX repos/o/r/pulls/1/merge -X PUT`: rc=2 (R-CONTRIB) na base e rc=0 na head. O `conformidade` libera nas duas, e o mesmo vale com `-q`, `-H` e `--preview -if … merges`. Eu tinha deixado isso passar no primeiro fechamento desta rodada. O `security-engineer` achou (o A7 do parecer dele) e eu confirmei antes do envio. Sugestão: o mesmo pulo de `posicionais`, sem desmontar o token que segue uma opção de `API_COM_VALOR`, inclusive a que fecha o grupo. Cada forma leva uma fixture `-bloqueia`, e o pulo leva um mutante.
+- **C-1 a C-3 e C-6, cumpridos.** Sem rede e sem `gh` novo; `desagrupa_i` é linear no número de palavras. O C-4 cai pelo A8.
 - **A7, recomendado.** Mesma classe do A6 num controle fora do E1 (apagar repositório, 2.5), já presente na base `928e61b`. Não devolve a entrega; segue em cartão ao `security-engineer`.
 - **Achado recorrente.** A linha AR da classe "forma de opção do `gh` não normalizada" (A2, A6, A7) segue pendente, porque o brief só permite commitar o parecer.
 - **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `2e9c621`: `Ran 71 tests in 951.181s`, `OK` (D-5).
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...2e9c621`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 58 e `tests/test_hooks.py` 5, total de 91 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
 
-**Parecer da rodada 3: aprovado.** A1 a A6 resolvidos; A7 é recomendação. Segurança e QA têm parecer próprio (E1.4 e E1.6).
+**Parecer da rodada 3: reprovado.** A1 a A6 estão resolvidos e o A7 é recomendação. O A8 bloqueia. Segurança e QA têm parecer próprio (E1.4 e E1.6).
