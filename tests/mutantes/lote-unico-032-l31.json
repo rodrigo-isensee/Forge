@@ -1,0 +1,69 @@
+{
+  "pedido": "lote-unico-032-l31",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o hook lento em CPU depois do vigia estoura a parede e a CPU do teste (C-31)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook.registrar_erro(Aviso(f\"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido\"))\n",
+      "para": "    _t = time.monotonic()\n    while time.monotonic() - _t < 8:\n        pass\n    hook.registrar_erro(Aviso(f\"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido\"))\n",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem",
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_cobre_a_busca_do_proprio_marcador"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o hook lento em espera depois do vigia estoura a parede do teste (C-31)",
+      "arquivo": "hooks/_comum.py",
+      "de": "    hook.registrar_erro(Aviso(f\"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido\"))\n",
+      "para": "    time.sleep(8)\n    hook.registrar_erro(Aviso(f\"prazo de {PRAZO_DA_DECISAO_S:g} s da decisão vencido\"))\n",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o teto do vigia (3 s) não sobe",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DA_DECISAO_S = 3.0\n",
+      "para": "PRAZO_DA_DECISAO_S = 12.0\n",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem",
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_cobre_a_busca_do_proprio_marcador"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "o alarme do vigia arma no prazo, sem alongá-lo",
+      "arquivo": "hooks/_comum.py",
+      "de": "signal.setitimer(signal.ITIMER_REAL, segundos)\n    try:",
+      "para": "signal.setitimer(signal.ITIMER_REAL, segundos * 4)\n    try:",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem",
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_cobre_a_busca_do_proprio_marcador"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o vigia que vence cedo demais reprova (limite inferior)",
+      "arquivo": "hooks/_comum.py",
+      "de": "PRAZO_DA_DECISAO_S = 3.0\n",
+      "para": "PRAZO_DA_DECISAO_S = 1.0\n",
+      "testes": [
+        "tests.test_hooks_volta_propriedades.PropriedadesDaVoltaUnica.test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o sinal corta o sleep do intervalo (a espera do fechar não dorme em primeiro plano)",
+      "arquivo": "bin/forge-fechar",
+      "de": "  sleep \"$1\" &\n  dorme_pid=$!",
+      "para": "  sleep \"$1\"\n  dorme_pid=$!",
+      "testes": [
+        "tests.test_fechar_sinal.Teste.test_l5_term_durante_a_espera_grava_fim_codigo_143"
+      ]
+    }
+  ]
+}

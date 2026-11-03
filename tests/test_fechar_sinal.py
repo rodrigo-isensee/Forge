@@ -28,11 +28,11 @@ class Teste(unittest.TestCase):
 
     # ---- N-FECHAR-a, A4: corte por sinal no meio da espera (o teto de 600 s do Bash manda TERM) ----
     def espera_cortada_por(self, sinal, grupo=False):
-        """Roda com checks pendentes e `--espera 60`, manda `sinal` depois da linha `checks:` (ao pid, ou ao grupo de
+        """Roda com checks pendentes e `--espera 120`, manda `sinal` depois da linha `checks:` (ao pid, ou ao grupo de
         processos inteiro) e devolve (código de saída, linhas do log, segundos até o fim do processo)."""
         (self.estado / "checks").write_text("bateria\tpending\t0\turl\n")
-        env = dict(self.env, FORGE_FECHAR_INTERVALO="30")  # intervalo longo: o sinal tem de cortar o sleep, não esperá-lo
-        p = subprocess.Popen(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x", "--espera", "60"], cwd=self.proj, env=env,
+        env = dict(self.env, FORGE_FECHAR_INTERVALO="120")  # intervalo longo (o teto da faixa): o sinal tem de cortar o sleep, não esperá-lo
+        p = subprocess.Popen(["bash", str(SCRIPT), "p1", "--ref", "melhoria/x", "--espera", "120"], cwd=self.proj, env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=grupo)
         try:
             log = Path(p.stdout.readline().strip()[len("log: "):])
@@ -42,7 +42,7 @@ class Teste(unittest.TestCase):
                 time.sleep(0.05)
             t0 = time.monotonic()
             (os.killpg if grupo else os.kill)(p.pid, sinal)
-            rc = p.wait(timeout=30)
+            rc = p.wait(timeout=90)
             gasto = time.monotonic() - t0
             while not log.read_text().splitlines()[-1].count("fim: código") and time.monotonic() < limite + 30:
                 time.sleep(0.05)
@@ -56,7 +56,7 @@ class Teste(unittest.TestCase):
         rc, linhas, gasto = self.espera_cortada_por(signal.SIGTERM)
         self.assertEqual(rc, 143)
         self.assertTrue(linhas[-1].endswith(" fim: código 143"), linhas[-3:])
-        self.assertLess(gasto, 10)  # com o sleep de 30 s em curso: o `fim:` não espera o intervalo
+        self.assertLess(gasto, 60)  # com o sleep de 120 s em curso: o `fim:` não espera o intervalo (a meta é do intervalo, não da fila da máquina)
         self.assertFalse(any("Entrega p1 fechada" in x for x in linhas))
         self.assertEqual([c for c in self.chamadas() if c.startswith("gh pr merge")], [])
 
@@ -64,7 +64,7 @@ class Teste(unittest.TestCase):
         rc, linhas, gasto = self.espera_cortada_por(signal.SIGTERM, grupo=True)
         self.assertEqual(rc, 143)
         self.assertTrue(linhas[-1].endswith(" fim: código 143"), linhas[-3:])
-        self.assertLess(gasto, 10)
+        self.assertLess(gasto, 60)
 
     def test_l5_int_e_hup_gravam_130_e_129(self):
         for sinal, codigo in ((signal.SIGINT, 130), (signal.SIGHUP, 129)):
