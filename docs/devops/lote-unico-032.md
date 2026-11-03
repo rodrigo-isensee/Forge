@@ -3,7 +3,7 @@ tipo: revisao-devops
 contrato: 1
 pedido: lote-unico-032
 branch: melhoria/lote-unico-032
-commit: 0c90721c86b15d89ea0aec0befa1850b45948698
+commit: 9f32431def2214ca564c4d1968c48b726e2d8d45
 parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-03
@@ -11,7 +11,7 @@ data: 2026-11-03
 # Review de devops: lote-unico-032
 
 ## Parecer
-Aprovado. No diff `b2580c6...0c90721` a parte de devops é `.github/workflows/ci.yml` (7 linhas em 3 trechos, L01), `scripts/suite-paralela.py` (L32) e `bin/forge-mutante` (L33). Nenhum `Dockerfile`, `compose*`, IaC nem `.githooks/` mudou.
+Aprovado. No diff `b2580c6...9f32431` a parte de devops é `.github/workflows/ci.yml` (7 linhas em 3 trechos, L01), `scripts/suite-paralela.py` (L32) e `bin/forge-mutante` (L33). Nenhum `Dockerfile`, `compose*`, IaC nem `.githooks/` mudou.
 
 Ferramentas: `shellcheck` presente (sem script de shell novo no diff); `yaml.safe_load` do `ci.yml` e `py_compile` dos dois scripts passam. `actionlint` não está no PATH: lacuna registrada, o trecho alterado é só um `if`/`grep` dentro de `run:` e uma linha de `unittest`.
 
@@ -26,8 +26,16 @@ Grava em `~/.forge-contrib/suite-vermelha.jsonl`, fora do repositório; não esc
 ### L33, `forge-mutante --processos K` (`bin/forge-mutante`)
 Nenhum workflow nem o pre-push chamam o `forge-mutante` (conferido por busca): o CI não muda. Padrão 1 (série), teto 4 (o mesmo do pool da suíte), cada mutante na sua cópia, controle calculado uma vez por conjunto de testes sob trava, e erro ou sinal mata os grupos de processo em curso e apaga as cópias. Só biblioteca padrão e CPU local.
 
+## Revalidação da volta 2 (delta `0c90721..9f32431`, head `9f32431`)
+Aprovado, sem bloqueante. No delta, `.github/` só muda no `ci.yml` (3 linhas de `timeout-minutes`, vindas do merge da `develop` `6ef56a0`, #429); `Dockerfile*`, `compose*`, IaC, `.githooks/` e `scripts/` não mudaram. `bin/forge-check` tem as correções L16, L18, L13, L15, L49, L35, L31 e L17, sem relação com o pipeline.
+- `ci.yml` depois do merge: `yaml.safe_load` passa; o gate do L01 (regex `docs/(reviews|qa|security|devops|ux)/`, `--no-renames`, `!cancelled()`, `permissions`, SHAs) está intacto e os `timeout-minutes` são 20, 25 e 25, juntos, sem marcador de conflito. `tests.test_catraca` (`test_ci_em_poucos_jobs_com_timeout_e_gate_sem_paths_ignore`, `test_gate_do_ci_nao_deixa_codigo_escapar_nem_forjar_o_verde`) passa. A `develop` `c6244ac` já é ancestral do head.
+- Conflito do A1 anterior (item removido dos achados) (`tests/test_catraca.py`): resolvido com as duas linhas, o `assertIn("docs/(reviews|qa|security|devops|ux)/", ci)` e o `assertEqual(..., ["20", "25", "25"])`. A1 fechado.
+- L18 (`ocupacao_da_trava`, `bin/forge-check:1940`): agora só executa `.githooks/pre-push --status` se o texto do hook contém `--status`, sem seguir link; não executa hook alheio. Melhora o que o parecer de segurança apontou, sem custo nem serviço novo.
+- O A2 anterior (gate por diretório e não por `.md`) segue como recomendação, sem mudança.
+- Ferramentas: `shellcheck` presente (nenhum shell novo); `actionlint` ausente do PATH (lacuna registrada); `py_compile` do `bin/forge-check` passa.
+- Custo zero (`R-CUSTO`): nenhum job, runner, cache ou artefato novo; os tetos de tempo maiores vêm da `develop` e ficam dentro da franquia. Rollback: reverter o commit da correção correspondente; sem migração.
+
 ## Achados
-- A1 (recomendado) tests/test_catraca.py:2697 · a junção com a `develop` (`c6244ac`) conflita neste ponto: a `develop` pôs a linha dos `timeout-minutes` (#429) e o lote trocou o `assertIn` para `docs/(reviews|qa|security|devops|ux)/`. A resolução é manter as duas linhas (o `ci.yml` resultante traz o novo regex e os três tetos); o `tech-lead` resolve ao atualizar a branch antes do PR. Não bloqueia: o conflito está em teste, não em pipeline, e o conteúdo de `.github/` junta limpo.
 - A2 (recomendado) .github/workflows/ci.yml:106 · o gate pula por diretório, não por tipo de arquivo, então um arquivo executável em `docs/ux/` ou `docs/devops/` pularia a bateria (o mesmo já valia para `docs/reviews/` e `docs/qa/`). Sem caminho de ataque concreto hoje; se preocupar, restringir a `\.md$`.
 
 ## Custo e rollback
