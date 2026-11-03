@@ -183,7 +183,7 @@ class Movimento(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.raiz = Path(self._tmp.name)
-        (self.raiz / "KANBAN.md").write_text("# Quadro\n", encoding="utf-8")  # sem quadro o movimento recusa (FC-PEDIDO-FORA)
+        (self.raiz / "KANBAN.md").write_text("# Quadro\n\n## Aguardando o dono\n\n## Em andamento (WIP 1 por agente)\n\n## a\n\n## b\n\n## a/b\n\n## c d\n", encoding="utf-8")  # sem quadro o movimento recusa (FC-PEDIDO-FORA)
         self.arq = self.raiz / "docs" / "kanban" / "historico.md"
 
     def test_cria_o_arquivo_e_acrescenta_com_hora_iso_e_fuso(self):
@@ -195,6 +195,15 @@ class Movimento(unittest.TestCase):
         self.assertRegex(linhas[2], rf"^\| {iso} \| K-1 \| Aguardando o dono \| Sem credencial \| — \|$")
         self.assertRegex(linhas[3], rf"^\| {iso} \| K-1 \| Sem credencial \| Em andamento \| chegou \|$")
         self.assertEqual(len(linhas), 4)
+
+    def test_coluna_fora_do_quadro_recusa_sem_gravar(self):  # LOTE E2: o historico.md tinha "Discovery", "Fila" e "Feito" que o quadro não tem
+        for args in (("--de", "Em andamento", "--para", "Discovery"), ("--de", "Fila", "--para", "Em andamento"), ("--de", "—", "--para", "—")):
+            rc, saida = checar(self.raiz, "movimento", "K-6", *args)
+            self.assertEqual(rc, 1, saida)
+            self.assertIn("fora do KANBAN.md", saida)
+        self.assertFalse(self.arq.exists())
+        self.assertEqual(checar(self.raiz, "movimento", "K-6", "--de", "—", "--para", "aguardando O DONO")[0], 0)  # cartão novo; acento e caixa não contam
+        self.assertEqual(checar(self.raiz, "movimento", "K-6", "--de", "Em andamento", "--para", "Conferência")[0], 0)  # estado fora do quadro
 
     def test_nao_reescreve_o_que_existe_e_protege_a_tabela(self):
         self.arq.parent.mkdir(parents=True)
@@ -215,9 +224,9 @@ class Movimento(unittest.TestCase):
         self.assertIn("| K-3 | a | b | — |", linhas[3])
 
     def test_remove_caracteres_de_controle(self):
-        checar(self.raiz, "movimento", "K-4", "--de", "a\x1b[31mb", "--para", "c\x01d\x7f", "--motivo", "e\x07f")
+        checar(self.raiz, "movimento", "K-4", "--de", "a\x1b", "--para", "b\x01\x7f", "--motivo", "e\x07f")
         linha = self.arq.read_text(encoding="utf-8").splitlines()[-1]
-        self.assertTrue(linha.endswith("| K-4 | a[31mb | cd | ef |"), linha)
+        self.assertTrue(linha.endswith("| K-4 | a | b | ef |"), linha)
         self.assertNotRegex(linha, r"[\x00-\x08\x0b-\x1f\x7f]")
 
     def test_link_simbolico_e_recusado_sem_escrever(self):

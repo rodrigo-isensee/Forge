@@ -1942,6 +1942,16 @@ def cmd_fila(raiz):
     return saida + [resumo]
 
 
+ESTADOS_FORA_DO_QUADRO = ("Sem credencial", "Conferência", "Review")  # estados que o jarvis.md e o `esperas` usam sem coluna própria
+
+
+def colunas_do_quadro(raiz):
+    """Títulos `## ` do KANBAN.md cortados no primeiro ` (` (o limite de WIP), mais os estados fora do quadro; só leitura."""
+    texto = (raiz / "KANBAN.md").read_text(encoding="utf-8", errors="replace")
+    titulos = [re.split(r"\s+\(", l[3:].strip(), maxsplit=1)[0].strip() for l in texto.split("\n") if l.startswith("## ")]
+    return titulos + list(ESTADOS_FORA_DO_QUADRO)
+
+
 def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
     coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
@@ -1952,6 +1962,10 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
     if not (raiz / "KANBAN.md").is_file():
         return [SEM_QUADRO.format(cmd="movimento", raiz=caminho_impresso(raiz))]
+    validas = {_sem_acento(c) for c in colunas_do_quadro(raiz)}
+    for nome, valor, extra in (("--de", campos[1], {"—"}), ("--para", campos[2], set())):  # `—` só na origem (cartão novo)
+        if valor not in extra and _sem_acento(valor) not in validas:
+            return [f"movimento: coluna \"{nome_seguro(valor)}\" ({nome}) fora do KANBAN.md (colunas: {', '.join(colunas_do_quadro(raiz))}); nada gravado"]
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
