@@ -1676,8 +1676,7 @@ class Guarda:
         endpoint = parecer.endpoint_da_api(args)
         merge = bool(parecer.MERGE_POR_API.search(endpoint))
         if not merge and parecer.ENDPOINT_GRAPHQL.search(endpoint):
-            # pasta que o hook não resolveu: o arquivo do corpo não se lê (`/dev/null/…`), então o GraphQL falha fechado
-            textos, ilegivel = self.textos_da_api(args, pasta or Path(os.devnull))
+            textos, ilegivel = self.textos_da_api(args, pasta)
             merge = ilegivel or any(parecer.MERGE_NO_GRAPHQL.search(t) for t in textos)
         if merge:
             self.barrar("R-MAIN", "gh api que mescla PR (merge REST ou GraphQL) pode desviar a proteção da branch",

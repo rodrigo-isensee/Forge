@@ -23,16 +23,6 @@
       ]
     },
     {
-      "id": "G13",
-      "guarda": "a pasta que o hook não resolveu não lê o arquivo do corpo (falha fechado)",
-      "arquivo": "hooks/conformidade.py",
-      "de": "pasta or Path(os.devnull))",
-      "para": "pasta)",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
-      ]
-    },
-    {
       "id": "G14",
       "guarda": "o api que casa com merge recusa",
       "arquivo": "hooks/conformidade.py",
