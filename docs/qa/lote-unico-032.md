@@ -3,9 +3,9 @@ tipo: qa
 contrato: 1
 pedido: lote-unico-032
 branch: melhoria/lote-unico-032
-commit: 0c90721c86b15d89ea0aec0befa1850b45948698
-parecer: reprovado
-escopo: completo
+commit: 9f32431def2214ca564c4d1968c48b726e2d8d45
+parecer: aprovado
+escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
@@ -14,19 +14,39 @@ data: 2026-11-03
 ---
 # QA: lote-unico-032
 
-Pedido de revisão: lote-unico-032-REV (E3.1). Base `b2580c6441549e1f1cf4d153ca8db3247cae8cf3`, head `0c90721c86b15d89ea0aec0befa1850b45948698`, 51 commits, 76 arquivos, +3377 -173. Fases 0+A, B, D e F (L00 a L18, L31 a L37, L49 a L51). Sem especificação de UX: os critérios são as obrigações `C-nn` e as regras do pedido; sem E2E nem acessibilidade (nada de interface). Máquina: load 2 a 6,6 e MemAvailable acima de 9 GB antes de cada tarefa pesada, uma por vez.
+Pedido de revisão: lote-unico-032-REV (E3.1); volta 1 sobre 0c90721 (reprovada pelo A1), volta 2 sobre 9f32431 (esta). Base `b2580c6441549e1f1cf4d153ca8db3247cae8cf3`, head `0c90721c86b15d89ea0aec0befa1850b45948698`, 51 commits, 76 arquivos, +3377 -173. Fases 0+A, B, D e F (L00 a L18, L31 a L37, L49 a L51). Sem especificação de UX: os critérios são as obrigações `C-nn` e as regras do pedido; sem E2E nem acessibilidade (nada de interface). Máquina: load 2 a 6,6 e MemAvailable acima de 9 GB antes de cada tarefa pesada, uma por vez.
 
-Veredito: reprovado por um achado bloqueante (A1: mutante M6 da L31 sem veredito, o teste dele trava em vez de falhar). Todo o resto é verde ou recomendação.
+Veredito (volta 2, head 9f32431): aprovado. O A1 da volta 1 (M6 da L31) e o A7 (merge com a develop) estão resolvidos; as 8 correções da volta têm o teste vermelho provado; a suíte inteira passou sobre 9f32431. Sobram só recomendações (A2 a A6 e A8, abaixo), que não devolvem.
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/lote-unico-032-l31.json:59 · mutante sem veredito (R-QA): o M6 aponta um teste que trava com o mutante (prazo estoura, spec rc 2); apontar test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait ou dar prazo ao teste.
-- A2 (recomendado) bin/forge-check:695 · condição sem mutante (R-QA, AR-1): L03 a L18 sem spec; o --cobertura lista 115 condições, quase todas em bin/forge-check (L03 :695, L10 :4379, L13 :4022, L15 :4662, L17 :4688, L18 :1938).
+- A2 (recomendado) bin/forge-check:695 · condição sem mutante (R-QA, AR-1): L03 a L18 e as guardas das correções da volta 2 (:1940, :2664, :4020, :4675, :4693) sem spec; cada teste novo prova o vermelho, a mutação não foi declarada.
 - A3 (recomendado) bin/forge-check:2621 · mesma classe: suposicao revertida (L11), reversoes_do_pedido (L49 :2675) e o ramo do pr (L05 :6144) sem mutante; forge-fechar sai "não coberto" (shell).
-- A4 (recomendado) tests/test_suite_paralela.py:426 · vermelho sem veredito (rc 2, L32): o teste erra na base em vez de falhar por asserção; o mutante M15 da l32-2 o mata.
-- A5 (recomendado) tests/test_comportamento.py:1 · vermelho sem veredito (rc 2, L36): módulo novo, sem registro na base; os 8 mutantes da l36 morreram e substituem a prova.
-- A6 (recomendado) tests/test_decisoes.py:1 · 14 testes novos passam na base (guardas negativas); quatro sem mutante: test_decisoes, test_fila_ocupacao, test_etapa_do_brief e test_jarvis_nucleo (ver seção do vermelho).
-- A7 (recomendado) tests/test_catraca.py:2697 · o merge com a develop atual (c6244ac) conflita aqui (merge-tree rc=1): resolver antes do PR e rodar de novo a spec vel-p6-gate e o test_catraca (o devops já registrou).
+- A4 (recomendado) tests/test_suite_paralela.py:426 · vermelho sem veredito (rc 2, L32): o teste erra na base em vez de falhar por asserção; o mutante M15 da l32-2 o mata (volta 1, sem mudança no diff).
+- A5 (recomendado) tests/test_comportamento.py:1 · vermelho sem veredito (rc 2, L36): módulo novo, sem registro na base; os 8 mutantes da l36 morreram e substituem a prova (volta 1, sem mudança no diff).
+- A6 (recomendado) tests/test_decisoes.py:1 · 14 testes novos passam na base (guardas negativas); quatro sem mutante: test_decisoes, test_fila_ocupacao, test_etapa_do_brief e test_jarvis_nucleo (ver seção do vermelho da volta 1).
 - A8 (recomendado) agents/jarvis.md:1 · o git revert isolado conflita em 13 de 28 itens (arquivos compartilhados); reverter o lote em ordem inversa ou por inteiro, não item a item.
+
+## Revalidação da volta 2 (9f32431)
+Máquina: load 0,9 a 4 e MemAvailable 13 GB antes de cada tarefa pesada, uma por vez. Delta desde 0c90721: 42 arquivos (8 correções, o merge da develop c6244ac e os pareceres).
+| Item | Resultado |
+|---|---|
+| Suíte inteira | `FORGE_SUITE_SEM_REUSO=1 python3 scripts/suite-paralela.py`: `Ran 2489 tests in 697.591s (4 processos)` `OK (skipped=1)` rc=0 (o skip é o herdado) |
+| A1 da volta 1 (M6 da L31) | resolvido: `bin/forge-mutante tests/mutantes/lote-unico-032-l31.json` M1 a M6 morreram, `M6 · morreu · bin/forge-fechar:259`, rc=0 (o M6 aponta test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait) |
+| A7 da volta 1 (merge com a develop) | resolvido: `git merge-tree --write-tree HEAD origin/develop` rc=0 (origin/develop em c6244ac, já contida) |
+| vel-p6-gate depois do merge | `bin/forge-mutante tests/mutantes/vel-p6-gate.json`: M1 a M9 morreram, rc=0 |
+| `scripts/verificar-contribuicao.sh origin/develop` | rc=0 |
+| L16 custo do trecho (0e7f04a) | vermelho, `forge-testes --vermelho 0c90721 --modulos test_sobreposicao_quadro`: `test_custo_do_trecho_com_o_uso_no_formato_real_do_claude_code · H=ok · B=falha · prova (asserção)`, rc=0 |
+| L18 fila (7eae698) | `--modulos test_fila_ocupacao`: `test_hook_alheio_sem_o_status_do_forge_nao_e_executado_nem_vira_trava_presa · H=ok · B=falha · prova (asserção)`, rc=0 |
+| L13 vereditos (d58718a) | `--modulos test_forge`: `MedirAlucinacao.test_veredito_que_contradiz_as_proprias_linhas_conta · H=ok · B=falha · prova (asserção)`, rc=0 (as linhas escopo e forma do conferente entram no teste) |
+| L15 decisoes (7d0f599) | `--modulos test_decisoes`: `test_sem_pedido_lista_tambem_a_raiz_de_pedidos · H=ok · B=falha · prova (asserção)`, rc=0 |
+| L49 voltas (bcad27a) | `--modulos test_voltas`: `test_pedido_que_andou_sem_volta_traz_o_relogio_tambem_sem_pedido · H=ok · B=falha · prova (asserção)`, rc=0 |
+| L17 proximo (9f32431) | `--modulos test_proximo`: `test_mencao_a_etapa_sem_verbo_de_inicio_nem_de_entrega_nao_a_poe_em_curso · H=ok · B=falha · prova (asserção)`, rc=0 |
+| L35 trecho novo do legado (c0c180e) | sem vermelho por base: `problemas_de_motivo` mora no próprio tests/test_forge.py, então a correção é de teste. Prova por mutação à mão sobre cópia: trocar `> n` por `>= n` derruba 2 testes de RegrasInviolaveis (inclusive o do config real); trocar `if arq not in legado` por `if False` derruba 1. |
+| L31 (9b1e375) | só a spec (acima) |
+
+Cada saída do `forge-testes --vermelho` abre com `vermelho: base=0c90721c86b1 head=9f32431def22 módulos=<módulo> (restrito por --modulos)`; as demais linhas são testes que passam na base e não provam.
+
+Mantidas as seções já aprovadas da volta 1 (tabela critério → teste, mutantes das demais specs, vermelho dos 28 itens, reversão por item), que o delta não alterou. Os seis bloqueantes do review (A1 a A6 de docs/reviews/lote-unico-032.md) estão cobertos pelos testes acima, cada um vermelho na base; a decisão de aceite do review é dele.
 
 ## Observações
 Os bloqueantes do review (A1 a A6 de docs/reviews/lote-unico-032.md: L16, L18, L13, L15, L49, L35) não repito aqui; o QA não os reproduziu um a um, e os testes dos itens passam porque não exercem esses casos.
