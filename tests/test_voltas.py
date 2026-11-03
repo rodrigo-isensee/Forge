@@ -97,7 +97,8 @@ class Voltas(Raiz):
         self.assertIn("voltas: P1 relogios: aberto_ate_develop=70 pronto_ate_develop=30 meta=30 dentro=sim", p1)
         _, p2, _ = self.rodar("voltas", "--pedido", "p2")
         self.assertIn("voltas: P2 relogios: aberto_ate_develop=60 pronto_ate_develop=60 meta=30 dentro=nao", p2)
-        _, p3, _ = self.rodar("voltas", "--pedido", "p3")
+        cod3, p3, _ = self.rodar("voltas", "--pedido", "p3")
+        self.assertEqual(cod3, 0, p3)
         self.assertFalse([l for l in p3 if "relogios" in l], p3)  # ainda não chegou à develop: sem relógio
 
     def test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto(self):  # L49
