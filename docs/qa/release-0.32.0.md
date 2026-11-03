@@ -15,11 +15,11 @@ data: 2026-11-03
 ---
 # QA: release-0.32.0
 
-Leva `5b6d13a...cb9f7c1` contra a main 0.31.0: os PRs #427 a #430 (HEREDOC-COMENTARIO, HEREDOC-DONOS, CI-SUITE-NO-TETO, LOTE-UNICO-032), o commit de release 5e7f003 e a correção cb9f7c1 (`changelog.d/README.md`). Os commits depois de cb9f7c1 na branch são só pareceres (3 arquivos em docs/, 146 linhas); o código testado é o de cb9f7c1. Sem especificação de UX nem contrato de API; as obrigações são os escopos E1 a E3 do pedido e as regras com ID (R-QA, R-CUSTO, R-FLUXO).
+Leva `5b6d13a...cb9f7c1` contra a main 0.31.0: os PRs #427 a #430 (HEREDOC-COMENTARIO, HEREDOC-DONOS, CI-SUITE-NO-TETO, LOTE-UNICO-032), o commit de release 5e7f003 e a correção cb9f7c1 (`changelog.d/README.md`). Os commits depois de cb9f7c1 na branch são só pareceres (`git diff --numstat cb9f7c1 eb201bc`: 4 arquivos em docs/, 203 linhas: devops 37, qa 57, reviews 40, security 69); o código testado é o de cb9f7c1. Áreas tocadas pela leva: bin/, hooks/, tests/, skills/, scripts/, .github/workflows/ci.yml (e ainda agents/, docs/, templates/, changelog.d/, CHANGELOG.md, plugin.json). Sem especificação de UX nem contrato de API; as obrigações são os escopos E1 a E3 do pedido e as regras com ID (R-QA, R-CUSTO, R-FLUXO).
 
 ## Achados
-- A1 (recomendado) tests/mutantes/lote-unico-032-l49.json:1 · M10 desatualizado: o trecho `relogios := relogios_do_cartao(` não existe (o código usa `=`, bin/forge-check:2664); a spec sai rc 2 (inválido). Corrigido o trecho numa cópia, M10 morre. Nenhum sobrevivente.
-- A2 (recomendado) bin/forge-check:695 · AR-1: `forge-mutante --cobertura --base 5b6d13a` lista 118 condições sem mutante (L03 a L18 e voltas, já aceitas como recomendado no QA do #430, A2 e A3); a release não soma código novo.
+- A1 (recomendado) tests/mutantes/lote-unico-032-l49.json:93 · M10 desatualizado: o trecho `relogios := relogios_do_cartao(` não existe (o código usa `=`, bin/forge-check:2664); a spec sai rc 2 (inválido). Corrigido o trecho numa cópia, M10 morre. Nenhum sobrevivente.
+- A2 (recomendado) bin/forge-mutante:544 (função `cobertura`) · AR-1: `forge-mutante --cobertura --base 5b6d13a` lista 118 condições sem mutante (L03 a L18 e voltas, já aceitas como recomendado no QA do #430, A2 e A3); a release não soma código novo.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -30,7 +30,7 @@ Leva `5b6d13a...cb9f7c1` contra a main 0.31.0: os PRs #427 a #430 (HEREDOC-COMEN
 | E2: plugin válido | `scripts/validar-plugin.sh` | manifesto e marketplace | passou (`Validation passed`) |
 | R-QA: suíte inteira verde | `.githooks/pre-push --suite` sobre cb9f7c1 | 2489 testes em 88 módulos, 4 processos | passou (rc 0) |
 | R-QA: controle com mutantes declarados | `forge-mutante` nas 11 specs da leva | um mutante por guarda declarada | passou (ver A1) |
-| R-CUSTO: nada pago | diff: só ci.yml com `timeout-minutes` (20, 25, 25) e scripts locais | n/a | passou |
+| R-CUSTO: nada pago | diff do ci.yml (`git diff 5b6d13a...cb9f7c1 -- .github/workflows/ci.yml`: 10 inserções, 7 remoções): `timeout-minutes` 10 para 20 (checagem rápida) e 15 para 25 (dois jobs); o gate do commit só de parecer passa a valer para docs/reviews, qa, security, devops e ux (fora modelos `_*` e docs/security/{ameacas,aceites}/) e exige a bateria verde no commit anterior; o passo "Testes que leem pareceres" ganha `tests.test_forge.NeutralidadeDoNucleo`. Nenhum serviço, segredo ou ação nova; scripts locais | n/a | passou |
 | E3: versão minor | leitura do CHANGELOG 0.32.0 e do diff | ver "Versão minor" | sem quebra |
 
 ## Cenários e resultado real
@@ -43,6 +43,7 @@ Leva `5b6d13a...cb9f7c1` contra a main 0.31.0: os PRs #427 a #430 (HEREDOC-COMEN
   - lote-unico-032-l49: M1 a M4, M6 a M9, M11 e M12 morreram; M10 inválido por trecho desatualizado (A1); com o trecho `relogios = ` numa cópia, `M10 · morreu · bin/forge-check:2664`, rc 0. A spec não tem M5.
   - Total: nenhum sobrevivente; 1 inválido, que provei morto à mão.
 - `forge-mutante --cobertura --base 5b6d13a`: rc 1, 118 `sem mutante` (A2), `não coberto`: .claude-plugin/plugin.json e .github/workflows/ci.yml. Com `--base c6244ac` (base do #430) a mesma contagem, 118: nada novo entrou depois do #430.
+- #429 (CI-SUITE-NO-TETO) sem spec em tests/mutantes/: o PR só muda `timeout-minutes` no ci.yml (YAML, que o `forge-mutante` lista como `não coberto`, não é condição Python) e 2 linhas em tests/test_catraca.py, que é teste e não regra de `bin/`, `hooks/`, `.githooks/` nem `tests/catraca.py`; não há condição nova para mutar. O gate do commit só de parecer e a lista de testes do passo de parecer (shell no ci.yml) vieram do #430 e também são `não coberto` pelo `forge-mutante`; conferi o diff acima à mão.
 - Vermelho antes do verde: não repetido aqui; a release não adiciona teste novo de regra (os pareceres dos PRs trazem a saída do vermelho de cada um). Mutação no diff: coberta pelas rodadas acima.
 
 ## PA-7 (docs/engineering/achados-recorrentes.md)
