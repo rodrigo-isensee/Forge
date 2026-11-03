@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: release-0.32.0
 branch: melhoria/release-0.32.0
-commit: 5e7f00387bd005269d11e99e5f80ab4e3c6bbf65
+commit: cb9f7c1ee1a5ba99b8ddc80dae7c4c9535b20ff9
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
 # Review de segurança: release-0.32.0
 
-Etapa E1.3 do pedido release-0.32.0. Diff revisado: `5b6d13a...5e7f003` (main 0.31.0 até o commit de release), com os PRs #427 (HEREDOC-COMENTARIO), #428 (HEREDOC-DONOS), #429 (CI-SUITE-NO-TETO), #430 (LOTE-UNICO-032) e o commit de release 5e7f003. Veredito: **aprovado**, sem bloqueante.
+Etapa E1.3 do pedido release-0.32.0. Diff revisado: `5b6d13a...cb9f7c1` (main 0.31.0 até a correção do commit de release), com os PRs #427 (HEREDOC-COMENTARIO), #428 (HEREDOC-DONOS), #429 (CI-SUITE-NO-TETO), #430 (LOTE-UNICO-032), o commit de release 5e7f003 e a correção cb9f7c1. Rodada 2: a rodada 1 foi sobre 5e7f003; esta revalida só o delta `5e7f003..cb9f7c1`. Veredito: **aprovado**, sem bloqueante.
 
 ## Gatilhos
 `R-SEGURANCA`, gatilho `controles do Forge`: `hooks/_comum.py` e `hooks/conformidade.py` (#427, #428), `bin/forge-check`, `bin/forge-fechar`, `bin/forge-mutante`, `bin/forge-testes`, `scripts/suite-paralela.py` e `tests/config.json` (#430), e pipeline em `.github/workflows/ci.yml` (#429, #430). `.githooks/pre-push` não muda na leva (`git diff 5b6d13a 5e7f003 -- .githooks/` vazio).
@@ -25,6 +25,9 @@ Etapa E1.3 do pedido release-0.32.0. Diff revisado: `5b6d13a...5e7f003` (main 0.
 - A7 (recomendado) bin/forge-check:2058 · Continua aberto do lote-unico-032 (A4): o `custo total` soma `custo do trecho: N tokens` lido da célula inteira, motivo livre incluído. Ler só o sufixo que o `movimento` grava.
 
 ## Detalhe dos achados
+
+### Rodada 2: delta 5e7f003..cb9f7c1
+`bin/forge-check delta --parecer docs/security/release-0.32.0.md` lista só `changelog.d/README.md` (+6 -0, linhas 1 a 6), a correção do A1 do parecer de devops. É texto, arquivo comum (modo 100644, não é link) e não toca controle do Forge. O `forge-changelog` o ignora como fragmento: `fragmentos` (`bin/forge-changelog:59`) e o filtro do diff (`bin/forge-changelog:194`) excluem `readme.md`, então a release não o junta nem o apaga, e o `conferir-release` segue `ok` (rc 0). Nenhum achado novo. Os A1 a A7 não dependem desse arquivo e continuam como estavam, recomendados e abertos.
 
 ### O que chega à main é o que foi revisado
 Cada squash da develop tem, fora dos pareceres, a árvore do head que os portões do PR aprovaram:
