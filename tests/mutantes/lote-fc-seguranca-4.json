@@ -46,12 +46,7 @@
     },
     {
       "arquivo": "bin/forge-check",
-      "trecho": "achado is not None and achado.is_file()",
-      "motivo": "condição reescrita: o id nu passou a usar a mesma checagem do caminho (M10, M11 e o teste do id nu que é link)"
-    },
-    {
-      "arquivo": "bin/forge-check",
-      "trecho": "(pasta / 'docs' / 'pedidos' / f'{pedido}.md').is_file()",
+      "trecho": "(pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\").is_file()",
       "motivo": "condição reescrita: o is_file sem realpath virou dentro_da_raiz com arquivo_existe (M8, M10)"
     },
     {
@@ -61,7 +56,7 @@
     },
     {
       "arquivo": "bin/forge-check",
-      "trecho": "(dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref))",
+      "trecho": "dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref)",
       "motivo": "condição removida: a chamada saiu do if para os passos do git serem lidos um a um (M24, M25, M26)"
     }
   ]
