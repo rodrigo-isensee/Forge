@@ -383,6 +383,7 @@ class Brinquedo(unittest.TestCase):
         codigo, saida, erro = self.vermelha(mensagem="segredo-da-mensagem")
         self.assertEqual(codigo, 1, saida + erro)
         arquivo = pasta / "suite-vermelha.jsonl"
+        self.assertTrue(arquivo.exists(), "a suíte vermelha grava o registro")
         linhas = arquivo.read_text(encoding="utf-8").splitlines()
         self.assertEqual(len(linhas), 1, linhas)
         registro = json.loads(linhas[0])

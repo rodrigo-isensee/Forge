@@ -393,6 +393,7 @@ class Teste(unittest.TestCase):
 
     def test_l37_nunca_usa_no_verify_nem_force_no_envio(self):  # T-37c
         texto = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("trazer_a_base() {", texto, "o integrador traz a base")
         corpo = texto[texto.index("trazer_a_base() {"):texto.index("# conferir_base (passo 2b")]
         self.assertIn('git push origin "$ramo:$ramo"', corpo)
         for proibido in ("--no-verify", "--force", " -f ", "-X ", "--allow-unrelated-histories", "+refs"):
