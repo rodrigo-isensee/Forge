@@ -514,10 +514,30 @@ def desagrupa_i(args):
     return saida
 
 
+def ultimo_metodo(args):
+    """O método vale o último `-X`/`--method`, como no gh; o token depois de opção valorada é valor, não opção."""
+    metodo, valor = None, False
+    for i, a in enumerate(args):
+        if valor:
+            valor = False
+            continue
+        if a in ("-X", "--method"):
+            if i + 1 < len(args):
+                metodo = args[i + 1]
+            valor = True
+        elif a.startswith("--method="):
+            metodo = a.split("=", 1)[1]
+        elif a.startswith("-X") and len(a) > 2:
+            metodo = a[2:].removeprefix("=")  # `-XPUT`, `-X=PUT`
+        else:
+            valor = a in API_COM_VALOR
+    return metodo
+
+
 def metodo_mutante(args):
     """True se o `gh api` altera algo: método diferente de GET, ou campos (que viram POST)."""
     args = desagrupa_i(args)
-    metodo = opcao(args, "--method", "-X")
+    metodo = ultimo_metodo(args)
     if metodo:
         return metodo.upper() != "GET"
     return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
