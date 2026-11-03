@@ -1283,9 +1283,11 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             diferem = set(nomes_da_base) | desfeitos  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
             arquivos = [n for n in arquivos if n in diferem]
     cod_pais, saida_pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    pais = []
     if cod_pais:
         falhas.append("rev-list dos pais do head")
-    pais = [] if cod_pais else saida_pais.split()[1:]
+    else:
+        pais = saida_pais.split()[1:]
     integrado = etapa == "merge-integracao" and bool(base_ref) and e_ancestral(raiz, head, base_ref) and len(pais) == 1
     if integrado:  # E1: a ref já foi apagada (squash): o head é o mergeCommit e o escopo é só o que ele traz
         de, do_merge = pais[0], nomes_do_intervalo(raiz, pais[0], head, estrito=True)
@@ -1293,8 +1295,6 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
             falhas.append("diff do merge integrado")
         else:
             arquivos = do_merge
-    if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
-        arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
     revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
     violacoes = pareceres_da_integracao(raiz, branch, head, base, de if integrado else None) if revisados else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
@@ -1307,6 +1307,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     registros = autorias(raiz)
     m = re.search(r"^id:\s*(\S+)", texto, re.M)
     pedido_id = m.group(1) if m else caminho.stem
+    if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
+        arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
     if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"

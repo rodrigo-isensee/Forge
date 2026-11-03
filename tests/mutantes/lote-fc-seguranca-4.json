@@ -41,12 +41,7 @@
   "isentas": [
     {
       "arquivo": "bin/forge-check",
-      "trecho": "[] if cod_pais else saida_pais",
-      "motivo": "com o git falho o stdout é vazio e ''.split()[1:] é []: a falha já entra em falhas na linha anterior (M29)"
-    },
-    {
-      "arquivo": "bin/forge-check",
-      "trecho": "pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\"",
+      "trecho": "(pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\").is_file()",
       "motivo": "condição reescrita: o is_file sem realpath virou dentro_da_raiz com arquivo_existe (M8, M10)"
     },
     {
