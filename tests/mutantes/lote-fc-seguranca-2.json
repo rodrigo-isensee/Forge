@@ -77,10 +77,20 @@
       "id": "M20",
       "guarda": "diff do ancestral comum falha",
       "arquivo": "bin/forge-check",
-      "de": "                if descartados is None:",
-      "para": "                if False:",
+      "de": "            if descartados is None:",
+      "para": "            if False:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "os números da integração são contra os dois pais",
+      "arquivo": "bin/forge-check",
+      "de": "dos_dois_pais[1] if dos_dois_pais else",
+      "para": "dos_dois_pais[1] if False else",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_os_numeros_da_integracao_sao_contra_os_dois_pais"
       ]
     },
     {
@@ -111,17 +121,6 @@
       "para": "    if False:\n        falhas.append",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
-      ]
-    },
-    {
-      "id": "M24",
-      "guarda": "o passo que falhou entra em falhas",
-      "arquivo": "bin/forge-check",
-      "de": "for r in (dos_dois_pais, primeiro_pai) if isinstance(r, FalhaDoGit)]",
-      "para": "for r in (dos_dois_pais, primeiro_pai) if False]",
-      "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
       ]
     }
   ]

@@ -3,6 +3,18 @@
   "executor": "unittest",
   "mutantes": [
     {
+      "id": "M37",
+      "guarda": "sem base não há escopo pelo primeiro pai",
+      "arquivo": "bin/forge-check",
+      "de": "    if not base_ref:\n        return None\n    nomes, integrou",
+      "para": "    if False:\n        return None\n    nomes, integrou",
+      "testes": [
+        "tests.test_conferencia_base_dono",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
+      ]
+    },
+    {
       "id": "M39",
       "guarda": "o primeiro pai só vale sem o escopo dos dois pais",
       "arquivo": "bin/forge-check",

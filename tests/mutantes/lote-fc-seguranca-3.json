@@ -3,6 +3,17 @@
   "executor": "unittest",
   "mutantes": [
     {
+      "id": "M24",
+      "guarda": "o passo que falhou entra em falhas",
+      "arquivo": "bin/forge-check",
+      "de": "for r in (dos_dois_pais, primeiro_pai) if isinstance(r, FalhaDoGit)]",
+      "para": "for r in (dos_dois_pais, primeiro_pai) if False]",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
       "id": "M25",
       "guarda": "a falha vira None depois de contada",
       "arquivo": "bin/forge-check",
@@ -111,18 +122,6 @@
       "para": "    if False:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_merge_de_outra_coisa_nao_e_integracao_da_base"
-      ]
-    },
-    {
-      "id": "M37",
-      "guarda": "sem base não há escopo pelo primeiro pai",
-      "arquivo": "bin/forge-check",
-      "de": "    if not base_ref:\n        return None\n    nomes, integrou",
-      "para": "    if False:\n        return None\n    nomes, integrou",
-      "testes": [
-        "tests.test_conferencia_base_dono",
-        "tests.test_volta_por_delta",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
       ]
     }
   ]
