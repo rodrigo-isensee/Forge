@@ -52,6 +52,24 @@ class FalhaDoGit(Repositorio):
         git("merge", "-q", "--no-ff", "-m", "integra a base", "develop", cwd=self.repo)
         self.gravar_pedido([self.c1])
 
+    def squash(self):
+        """O forge-fechar integrou por squash e apagou a ref: o head é o mergeCommit (um pai só), já na develop."""
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"outro.txt": "o\n"}, "outro PR já na develop")
+        git("merge", "-q", "--squash", "melhoria/x", cwd=self.repo)
+        git("commit", "-q", "-m", "squash", cwd=self.repo)
+        git("branch", "-q", "-D", "melhoria/x", cwd=self.repo)
+        return self.head()
+
+    def test_diff_do_merge_integrado_falha_e_reprova(self):  # C-5/C-6: o 2º diff `..` é o do squash
+        merge = self.squash()
+        self.reprova(DOIS, 3, "--etapa", "merge-integracao", "--branch", merge, passo="diff do merge integrado")
+
+    def test_rev_list_dos_pais_do_head_do_cmd_entrega_tem_teste_proprio(self):  # a 1ª chamada homônima é a de `diferem_dos_dois_pais`
+        for etapa in ("codigo", "review", "merge-integracao"):
+            with self.subTest(etapa=etapa):
+                self.reprova("*rev-list --parents -n 1*", 2, "--etapa", etapa, passo="rev-list dos pais do head")
+
     def test_passos_do_caminho_simples_em_toda_etapa(self):
         for etapa in ("codigo", "review", "merge-integracao"):
             for nome, padrao, ordem in (("diff da entrega", TRES, 1), ("rev-list dos pais do head", "*rev-list --parents -n 1*", 1),
