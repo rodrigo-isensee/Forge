@@ -4649,6 +4649,7 @@ def pedidos_do_registro(raiz, pedido):
 TETO_DO_PROXIMO = 40  # linhas da saída do `proximo`
 LARGURA_DO_PROXIMO = 160
 NAO_VERIFICAVEL = "não verificável"
+ESPERAS_DO_PROXIMO = ("aguardando o dono", "sem credencial", "bloqueado")  # colunas (sem acento) em que o cartão do pedido está parado
 
 
 def texto_da_etapa(texto):
@@ -4735,7 +4736,7 @@ def cmd_proximo(raiz, pedido):
     linhas += passos
     bloqueios = [f"proximo: bloqueio: depende de {nome_seguro(sem_controle(d))}, que não está em Pronto no quadro" for d in dependencias_do_texto(pedido_txt)[0]
                  if not pedido_em_coluna(raiz, d, ("pronto",))]
-    bloqueios += [f"proximo: bloqueio: cartão em {sem_controle(coluna)}" for coluna in colunas_do_pedido(raiz, ids) if _sem_acento(coluna) in PARADAS_DO_QUADRO]
+    bloqueios += [f"proximo: bloqueio: cartão em {sem_controle(coluna)}" for coluna in colunas_do_pedido(raiz, ids) if _sem_acento(coluna) in ESPERAS_DO_PROXIMO]
     linhas += bloqueios or ["proximo: bloqueios: nenhum no registro"]
     linhas = [sem_controle(l)[:LARGURA_DO_PROXIMO] for l in linhas]
     if len(linhas) > TETO_DO_PROXIMO:
