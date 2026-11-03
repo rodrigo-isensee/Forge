@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Forge: bloqueia envio para a main — ela só muda por pull request validado e mesclado pelo usuário.
 # Só a main é protegida aqui; o hook do Forge protege também develop e homolog (fluxo próprio da fábrica).
+refs_enviadas=()
 while read -r _ local_sha remote_ref remote_sha; do
+  refs_enviadas+=("$local_sha $remote_ref $remote_sha")
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -30,9 +32,38 @@ done
 # Um hook do git recebe GIT_DIR e afins (numa worktree, GIT_DIR aponta para o repositório principal);
 # limpa para que nada rodado aqui escreva em outro repositório.
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
+
+# Só docs: o pre-push.local (lint e typecheck) é pulado apenas quando cada arquivo mudado por cada ref
+# enviada é de docs/** ou termina em .md (minúsculas). Sem base clara, ou qualquer dúvida, roda tudo;
+# o CI do projeto segue com a bateria completa. Sem variável nem opção que pule.
+so_docs() {
+  local par ls rr rs lista f achou
+  [ "${#refs_enviadas[@]}" -gt 0 ] || return 1
+  lista="$(mktemp 2>/dev/null)" || return 1
+  for par in "${refs_enviadas[@]}"; do
+    read -r ls rr rs <<<"$par"
+    case "$ls" in *[!0]*) ;; *) rm -f "$lista"; return 1 ;; esac
+    case "$rs" in *[!0]*) ;; *) rm -f "$lista"; return 1 ;; esac
+    case "$rr" in refs/tags/*) rm -f "$lista"; return 1 ;; esac
+    git diff --name-only -z --no-renames "$rs" "$ls" >"$lista" 2>/dev/null || { rm -f "$lista"; return 1; }
+    achou=0
+    while IFS= read -r -d '' f; do
+      achou=1
+      case "$f" in .github/*) rm -f "$lista"; return 1 ;; docs/*|*.md) ;; *) rm -f "$lista"; return 1 ;; esac
+    done <"$lista"
+    [ "$achou" -eq 1 ] || { rm -f "$lista"; return 1; }
+  done
+  rm -f "$lista"
+  return 0
+}
+
 # Checagem própria do projeto (opcional): crie .githooks/pre-push.local executável (ex.: lint + typecheck).
 local_hook="$(dirname "$0")/pre-push.local"
 if [ -x "$local_hook" ]; then
-  "$local_hook" || exit 1
+  if so_docs; then
+    echo "pre-push: só docs/** e .md; lint e typecheck pulados (o CI roda tudo)"
+  else
+    "$local_hook" || exit 1
+  fi
 fi
 exit 0
