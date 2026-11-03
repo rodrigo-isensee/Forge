@@ -652,42 +652,64 @@
     "skills/trabalho-em-paralelo/SKILL.md": {"regra": "R-TETO", "porque": "sem o texto, o Jarvis dispara tarefas pesadas em paralelo sem a série por arquivo e sem o quadro com hora real"},
     "skills/falar-com-o-dono/SKILL.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis pergunta ao dono fora do formato e trata ordem ampla como confirmação"}
   },
-  "invariantes_sem_motivo": [
-    "skills/kanban-scrum/SKILL.md",
-    "agents/conferente.md",
-    "hooks/conformidade.json",
-    "hooks/_comum.py",
-    "hooks/conformidade.py",
-    "skills/modo-iniciante/SKILL.md",
-    "docs/adr/_modelo.md",
-    "templates/projeto/docs/architecture/adr/_modelo.md",
-    "skills/engineering-practices/SKILL.md",
-    "docs/melhoria-continua.md",
-    "agents/jarvis.md",
-    "templates/projeto/docs/pedidos/_modelo.md",
-    "docs/protecao-de-branch.md",
-    "templates/projeto/docs/engineering/protecao-de-branch.md",
-    "templates/projeto/docs/engineering/praticas.md",
-    "agents/tech-lead.md",
-    "agents/devops-engineer.md",
-    "agents/security-engineer.md",
-    "skills/ci-cd/SKILL.md",
-    ".githooks/pre-push",
-    "agents/agile-coach.md",
-    "agents/ux-designer.md",
-    "agents/qa-engineer.md",
-    "skills/qa-testing/SKILL.md",
-    "skills/cyber-security/SKILL.md",
-    "tests/test_forge.py",
-    "agents/software-architect.md",
-    "templates/projeto/CLAUDE.md",
-    "templates/projeto/.githooks/pre-push",
-    "templates/projeto/.claude/settings.json",
-    "bin/forge-check",
-    "hooks/parecer.py",
-    "docs/hooks.md",
-    "scripts/jarvis-forge"
-  ],
+  "invariantes_sem_motivo": {
+    "skills/kanban-scrum/SKILL.md": 5,
+    "agents/conferente.md": 61,
+    "hooks/conformidade.json": 2,
+    "hooks/_comum.py": 1,
+    "hooks/conformidade.py": 18,
+    "skills/modo-iniciante/SKILL.md": 8,
+    "docs/adr/_modelo.md": 3,
+    "templates/projeto/docs/architecture/adr/_modelo.md": 3,
+    "skills/engineering-practices/SKILL.md": 5,
+    "docs/melhoria-continua.md": 2,
+    "agents/jarvis.md": 73,
+    "templates/projeto/docs/pedidos/_modelo.md": 16,
+    "docs/protecao-de-branch.md": 3,
+    "templates/projeto/docs/engineering/protecao-de-branch.md": 3,
+    "templates/projeto/docs/engineering/praticas.md": 4,
+    "agents/tech-lead.md": 19,
+    "agents/devops-engineer.md": 10,
+    "agents/security-engineer.md": 13,
+    "skills/ci-cd/SKILL.md": 5,
+    ".githooks/pre-push": 1,
+    "agents/agile-coach.md": 10,
+    "agents/ux-designer.md": 2,
+    "agents/qa-engineer.md": 6,
+    "skills/qa-testing/SKILL.md": 10,
+    "skills/cyber-security/SKILL.md": 4,
+    "tests/test_forge.py": 1,
+    "agents/software-architect.md": 3,
+    "templates/projeto/CLAUDE.md": 3,
+    "templates/projeto/.githooks/pre-push": 2,
+    "templates/projeto/.claude/settings.json": 2,
+    "bin/forge-check": 3,
+    "hooks/parecer.py": 2,
+    "docs/hooks.md": 1,
+    "scripts/jarvis-forge": 2
+  },
+  "invariantes_motivo_trecho": {
+    "skills/engineering-practices/SKILL.md": {
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+    },
+    "agents/jarvis.md": {
+      "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
+      "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
+      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"}
+    },
+    "agents/tech-lead.md": {
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+    },
+    "agents/security-engineer.md": {
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+    },
+    "agents/qa-engineer.md": {
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+    },
+    "skills/cyber-security/SKILL.md": {
+      "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
+    }
+  },
   "custo_permitido": {},
   "padroes_custo_transcricao": [
     {"token": "custo claude -p", "regex": "^claude\\b.*\\s(?:-p|--print)\\b"},

@@ -486,7 +486,7 @@ class RegrasInviolaveis(unittest.TestCase):
 
     def test_invariante_novo_sem_regra_ou_sem_porque_reprova(self):  # L35
         regras = {"R-MAIN"}
-        base = {"invariantes": {"a.md": ["x"], "b.md": ["y"]}, "invariantes_sem_motivo": ["b.md"],
+        base = {"invariantes": {"a.md": ["x"], "b.md": ["y"]}, "invariantes_sem_motivo": {"b.md": 1}, "invariantes_motivo_trecho": {},
                 "invariantes_motivo": {"a.md": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}
         self.assertEqual(problemas_de_motivo(base, regras), [])
         novo = {**base, "invariantes": {**base["invariantes"], "c.md": ["z"]}}
@@ -497,8 +497,17 @@ class RegrasInviolaveis(unittest.TestCase):
         self.assertEqual(problemas_de_motivo(curto, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
         inventada = {**base, "invariantes_motivo": {"a.md": {"regra": "R-XYZ", "porque": "sem o texto o agente mescla na main do usuário"}}}
         self.assertEqual(problemas_de_motivo(inventada, regras), ["a.md: `regra` desconhecida ou `porque` curto demais"])
-        legado_cresce = {**base, "invariantes_sem_motivo": ["b.md", "b.md"]}
+        legado_cresce = {**base, "invariantes_sem_motivo": {f"{n}.md": 1 for n in range(LEGADO_SEM_MOTIVO_MAXIMO + 1)}}
         self.assertTrue(problemas_de_motivo(legado_cresce, regras))
+        # A6 do review: trecho novo em arquivo do legado traz o próprio motivo (o do arquivo não existe)
+        trecho_novo = {**base, "invariantes": {**base["invariantes"], "b.md": ["y", "w"]}}
+        self.assertEqual(problemas_de_motivo(trecho_novo, regras), ["b.md: trecho novo em arquivo do legado sem regra e porque"])
+        com_motivo = {**trecho_novo, "invariantes_motivo_trecho": {"b.md": {"w": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}}
+        self.assertEqual(problemas_de_motivo(com_motivo, regras), [])
+        curto_no_trecho = {**trecho_novo, "invariantes_motivo_trecho": {"b.md": {"w": {"regra": "R-MAIN", "porque": "curto"}}}}
+        self.assertEqual(problemas_de_motivo(curto_no_trecho, regras), ["b.md: trecho `w`: `regra` desconhecida ou `porque` curto demais"])
+        fora_do_legado = {**base, "invariantes_motivo_trecho": {"a.md": {"x": {"regra": "R-MAIN", "porque": "sem o texto o agente mescla na main do usuário"}}}}
+        self.assertEqual(problemas_de_motivo(fora_do_legado, regras), ["a.md: motivo por trecho só vale para arquivo do legado"])
 
 
 LEGADO_SEM_MOTIVO_MAXIMO = 34  # L35 (OK-11): os invariantes de antes do campo; a lista só encolhe, e o novo já nasce com regra e porque
@@ -508,7 +517,7 @@ def problemas_de_motivo(config, regras):
     """Os invariantes que não dizem a regra que protegem e o porquê: todo arquivo de `invariantes` ou tem a entrada em
     `invariantes_motivo` (`regra` de `docs/regras/` e `porque` com 30+ caracteres) ou consta do legado fechado."""
     inv, motivos = config["invariantes"], config["invariantes_motivo"]
-    legado = config["invariantes_sem_motivo"]
+    legado, por_trecho = config["invariantes_sem_motivo"], config["invariantes_motivo_trecho"]  # legado: {arquivo: trechos de antes do campo}
     problemas = [f"{a}: invariante sem regra e porque" for a in sorted(set(inv) - set(motivos) - set(legado))]
     problemas += [f"{a}: consta do legado e tem motivo" for a in sorted(set(motivos) & set(legado))]
     problemas += [f"{a}: motivo de um arquivo sem invariantes" for a in sorted(set(motivos) - set(inv))]
@@ -517,7 +526,14 @@ def problemas_de_motivo(config, regras):
             problemas.append(f"{arq}: o motivo tem só `regra` e `porque`")
         elif m["regra"] not in regras or len(str(m["porque"]).strip()) < 30:
             problemas.append(f"{arq}: `regra` desconhecida ou `porque` curto demais")
-    if len(legado) != len(set(legado)) or len(legado) > LEGADO_SEM_MOTIVO_MAXIMO:
+    for arq, trechos in sorted(por_trecho.items()):  # L35, A6 do review: o legado cobre os trechos de antes; o trecho novo traz o seu motivo
+        if arq not in legado:
+            problemas.append(f"{arq}: motivo por trecho só vale para arquivo do legado")
+        problemas += [f"{arq}: trecho `{t}`: `regra` desconhecida ou `porque` curto demais" for t, m in sorted(trechos.items())
+                      if not isinstance(m, dict) or m.get("regra") not in regras or len(str(m.get("porque", "")).strip()) < 30]
+    problemas += [f"{arq}: trecho novo em arquivo do legado sem regra e porque" for arq, n in sorted(legado.items())
+                  if len(inv.get(arq, [])) - len(por_trecho.get(arq, {})) > n]
+    if len(legado) > LEGADO_SEM_MOTIVO_MAXIMO:
         problemas.append(f"o legado sem motivo tem {len(legado)} arquivos; só encolhe (máximo {LEGADO_SEM_MOTIVO_MAXIMO})")
     return problemas
 
