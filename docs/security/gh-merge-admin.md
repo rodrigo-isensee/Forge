@@ -4,7 +4,7 @@ contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
 commit: 9535b63a7908ae1578f998ef5e1978734aacb82f
-parecer: aprovado
+parecer: reprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
@@ -16,10 +16,13 @@ Base `928e61b66015f7ee2a2e585dc8178e07dc16be39`. Rodada 1 sobre `6c7e573` (repro
 `controles do Forge`: `hooks/conformidade.py` e `hooks/parecer.py` (classificador de comando, `R-MAIN`, `R-CONTRIB`, `R-REVIEW`). Não toca segredo, dependência, workflow nem o pre-push.
 
 ## Achados
-- A5 (recomendado) tests/test_hooks.py:2164 · as dimensões novas da rodada 1 (programa por caminho, `./` e expansão; `-R`/`--repo` entre `pr` e o subcomando; campo colado; `graphql?`) já têm fixture no lote; falta só a linha na matriz do modelo de ameaças, que é do security-engineer
+- A6 (bloqueante) hooks/parecer.py:503 · opção curta combinada com `-i`: `gh api repos/o/r/pulls/1/merge -iX PUT`, `-iXPUT`, `repos/o/r/merges -iX POST`, `-iX POST graphql -F query=@arq` e `-if`/`-iF query=@arq graphql` passam (rc 0 nos dois hooks); contra C-4; classe: segurança com gatilho
+- A5 (recomendado) tests/test_hooks.py:2164 · as dimensões novas da rodada 1 (programa por caminho, `./` e expansão; `-R`/`--repo` entre `pr` e o subcomando; campo colado; `graphql?`) já têm fixture no lote; falta a linha na matriz do modelo de ameaças, com a do A6
 
 ## Rodada 2
-Veredito: **aprovado**. Os quatro bloqueantes estão resolvidos, sem regressão nova; nenhum texto recusado na base passa a ser liberado.
+Veredito: **reprovado**. Os quatro bloqueantes da rodada 1 estão resolvidos e nenhum texto recusado na base passa a ser liberado, mas a varredura da família `gh api` achou o A6 (opção curta combinada), que a rodada 1 também deixou passar: dimensão nova da matriz, levantada em paralelo pelo review (A6 de `docs/reviews/gh-merge-admin.md`) e confirmada aqui por sonda.
+
+**A6** (alta, esforço P, dono `forge:tech-lead`). Evidência: `hooks/parecer.py:503` (`metodo_mutante`) e `:512` (`endpoint_da_api`) leem `-X`, `-f` e `-F` só como token próprio ou colado ao valor. O `-i` (`--include`, a única opção curta booleana do `gh api`) agrupado antes deles (`-iX`, `-if`, `-iF`) não é desmontado: o método fica GET e, com a opção antes do endpoint, o valor `PUT`/`POST` vira o endpoint. O gh lê `-iX` como `-i -X`. Sondas na head, rc 0 nos dois hooks: `gh api repos/o/r/pulls/1/merge -iX PUT`, `... -iXPUT`, `gh api repos/o/r/merges -iX POST`, `gh api -H 'Accept: x' -iX PUT repos/o/r/pulls/1/merge`, `gh api -iX POST graphql -F query=@q.graphql`, `gh api -if query=@q.graphql graphql` e `gh api -iF query=@q.graphql graphql` (arquivo com `mergePullRequest`). Com `-X PUT -i` separados, ou `graphql -iF ...` com o endpoint antes, recusa. Ator e ganho: os da rodada 1 (merge que pula a proteção). Correção mínima: antes de `metodo_mutante`, `endpoint_da_api` e `textos_da_api`, desmontar o grupo `-i<letra><resto>` em `-i` e `-<letra><resto>`, com a letra entre `X`, `f`, `F`, `H`, `q`, `t` e `p`, repetindo enquanto o token começar por `-i`; fixture para as sete sondas acima e um mutante que tire a desmontagem. `-pX PUT` não é desvio (o `-p` toma `X` como valor e o gh recusa dois posicionais).
 
 **A1 resolvido.** `hooks/parecer.py:225` compara `Path(toks[0]).name == "gh"`. Sondas na head (`conformidade` | `parecer`): `/usr/bin/gh pr merge 12 --admin`, `./gh ...`, `~/bin/gh ...`, `/usr/bin/gh api -X PUT repos/o/r/pulls/12/merge`, `./gh api -X PUT ...` como `jarvis`, `env /usr/bin/gh ...`, `command /usr/bin/gh ...`, `echo 12 | xargs /usr/bin/gh pr merge --admin`: rc 2 `R-MAIN` no `conformidade` (na base, rc 0 nos dois). `/usr/bin/gh pr merge melhoria/x --squash` como `developer` volta a recusar (`R-CONFORMIDADE` e `R-REVIEW`).
 
@@ -31,14 +34,14 @@ Veredito: **aprovado**. Os quatro bloqueantes estão resolvidos, sem regressão 
 
 **Refatoração `1363cd6`** (`hooks/conformidade.py:1679`, sai `pasta or Path(os.devnull)`): a `pasta` vem sempre de `caminho` (`hooks/conformidade.py:537`), que devolve `Path`; a mesma `pasta` já ia sem alternativa à `graphql_perigoso`. Sondas com `cd /tmp`, `cd /nao/existe` e `cd "$(mktemp -d)"` antes de `gh api graphql -F query=@q.graphql`: rc 2, sem exceção. Sem regressão.
 
-**Controles.** C-1 e C-2: `--admin` recusa em `tech-lead`, `developer`, `jarvis` e sem `agent_type`, por caminho, `-R` e expansão, antes das saídas antecipadas; `conferente` segue recusado (`R-CONFORMIDADE`). C-3: `sh -c`, `bash -c`, `xargs`, `env`, `command`, aspas e `g\h` chegam à mesma recusa. C-4: REST e GraphQL, inline, em arquivo e colados, recusam; GET e `--jq` passam. C-5: os oito legítimos do modelo e os acima mantêm o veredito da base nos dois hooks (comparação uma a uma, 73 sondas, head e base). C-6: nada de rede nem `gh` novo. C-8: os mutantes G1 a G23 de `tests/mutantes/gh-merge-admin.json` e `-2.json` cobrem os quatro do modelo e as dimensões novas. T-1 a T-4: sem condição de papel, base, projeto ou repositório; sem leitura do valor de `--admin=`; sem escape por ambiente ou configuração; as recusas antigas ficam iguais ou mais cedo (só muda a mensagem onde a nova vem antes). T-5: o alias do `gh` segue fora (risco residual, N1, cartão próprio).
+**Controles.** C-1 e C-2: `--admin` recusa em `tech-lead`, `developer`, `jarvis` e sem `agent_type`, por caminho, `-R` e expansão, antes das saídas antecipadas; `conferente` segue recusado (`R-CONFORMIDADE`). C-3: `sh -c`, `bash -c`, `xargs`, `env`, `command`, aspas e `g\h` chegam à mesma recusa. C-4: REST e GraphQL, inline, em arquivo e colados, recusam, menos o grupo com `-i` (A6); GET e `--jq` passam. C-5: os oito legítimos do modelo e os acima mantêm o veredito da base nos dois hooks (comparação uma a uma, 73 sondas, head e base). C-6: nada de rede nem `gh` novo. C-8: os mutantes G1 a G23 de `tests/mutantes/gh-merge-admin.json` e `-2.json` cobrem os quatro do modelo e as dimensões novas. T-1 a T-4: sem condição de papel, base, projeto ou repositório; sem leitura do valor de `--admin=`; sem escape por ambiente ou configuração; as recusas antigas ficam iguais ou mais cedo (só muda a mensagem onde a nova vem antes). T-5: o alias do `gh` segue fora (risco residual, N1, cartão próprio).
 
 Observação sem achado: no hook `parecer` sozinho, `$(which gh) pr merge 12 --admin` e `g\h pr merge 12 --admin` seguem rc 0; a recusa vem do `conformidade`, que roda em toda chamada do Bash, como o C-2 pede.
 
-PA-7 (`docs/engineering/achados-recorrentes.md`, AR-1 a AR-10), conferida de novo: a volta fecha os casos próximos da AR-8 e da AR-10 (programa por caminho e por expansão). AR-3, AR-5 e AR-7 não se aplicam ao delta.
+PA-7 (`docs/engineering/achados-recorrentes.md`, AR-1 a AR-10), conferida de novo: a volta fecha os casos próximos da AR-8 e da AR-10 (programa por caminho e por expansão); o A6 é classe nova (opção curta agrupada). AR-3, AR-5 e AR-7 não se aplicam ao delta.
 
 ## Rodada 1 (histórico, 6c7e573)
-Achados da rodada 1, todos resolvidos na rodada 2: A1 (bloqueante, programa por caminho), A2 (bloqueante, `-R` entre `pr` e o subcomando), A3 (bloqueante, `graphql?`), A4 (bloqueante, programa por expansão), A5 (recomendado, dimensões novas da matriz; segue acima).
+Achados da rodada 1, resolvidos na rodada 2: A1 (bloqueante, programa por caminho), A2 (bloqueante, `-R` entre `pr` e o subcomando), A3 (bloqueante, `graphql?`), A4 (bloqueante, programa por expansão); A5 (recomendado, dimensões novas da matriz) segue acima.
 
 ### Detalhe dos achados da rodada 1
 Ator de todos: o modelo de qualquer papel, por erro ou por instrução injetada, com o token do `gh` que pode ser de administrador (ativo e ator do modelo de ameaças, seção E1). Ganho: um merge que pula checks e review e chega à `develop`, à `homolog` ou à `main`. Severidade comum: alta (desvio total do controle novo e, em A1 e A2, também das recusas antigas de `gh pr merge`).
