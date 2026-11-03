@@ -87,6 +87,14 @@ class FalhaDoGit(Repositorio):
             with self.subTest(etapa=etapa):
                 self.reprova(f"*--verify --quiet {self.base}*", "todas", "--etapa", etapa, passo="base da entrega")
 
+    def test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo(self):  # L08: "igual à base" exige código 0 nos dois
+        merge = self.squash()
+        rc, saida = self.falhar("*nunca-casa*", 1, "--etapa", "review", "--branch", merge)
+        self.assertIn(SEM_COMMIT, saida)  # saudável: o squash já está na base, nada a conferir
+        rc, saida = self.falhar("*rev-parse *:*", "todas", "--etapa", "review", "--branch", merge)
+        self.assertNotIn(SEM_COMMIT, saida)
+        self.assertIn('escopo: confira "a.txt"', saida)
+
     def test_passos_do_desde_em_toda_etapa(self):
         self.commitar({"b.txt": "2\n"}, "segunda delegação")
         self.gravar_pedido([self.c1])

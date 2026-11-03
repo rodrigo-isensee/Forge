@@ -1130,6 +1130,12 @@ def diferem_dos_dois_pais(raiz, de, head, base_ref):
     return comuns, contagens
 
 
+def igual_na_base(raiz, commit, base_ref, nome):
+    """O `nome` é byte a byte o mesmo no `commit` e na base; só com o `rev-parse` em código 0 nos dois lados (dois que falham não são "iguais")."""
+    (cod, a), (cod_base, b) = git(raiz, "rev-parse", f"{commit}:{nome}"), git(raiz, "rev-parse", f"{base_ref}:{nome}")
+    return cod == 0 and cod_base == 0 and a == b
+
+
 def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
     """G2: arquivos do autor quando o caminho do primeiro pai de `de..head` tem um merge da base, com commits de parecer ou de trabalho
     antes ou depois: cada commit conta o que mudou contra o primeiro pai; o merge cujo outro pai é ancestral da base conta só o que difere
@@ -1149,7 +1155,7 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
             return FalhaDoGit("diff do commit contra o primeiro pai")
         proprios = set(proprios)
         if len(pais) == 1 and e_ancestral(raiz, commit, base_ref):  # L08: commit de release ou squash de outro pedido, já na base remota
-            da_base = {n for n in proprios if git(raiz, "rev-parse", f"{commit}:{n}") == git(raiz, "rev-parse", f"{base_ref}:{n}")}
+            da_base = {n for n in proprios if igual_na_base(raiz, commit, base_ref, n)}
             integrou, proprios = integrou or bool(da_base), proprios - da_base  # só o que a base ainda tem igual sai; o resto é da entrega
         if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
             integrou = True
