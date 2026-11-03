@@ -966,6 +966,9 @@ class Guarda:
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
+        if parecer.expande(palavras[0]) and (oculto := parecer.analisar(["gh", *args])) and oculto[0] in ("prmerge", "api"):
+            self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
+                        "chame `gh` pelo nome, sem expansão")  # GH-MERGE-ADMIN, C-1 e C-3: falha fechado
         if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
             alvo = next((a for a in args if not a.startswith("-")), None)
             return self.caminho(pasta, alvo) if alvo else pasta

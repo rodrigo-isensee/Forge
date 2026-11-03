@@ -222,22 +222,29 @@ def analisar(toks):
         return None
     if toks[0] == "cd":
         return ("cd", toks[1] if len(toks) > 1 else None)
-    if toks[0] == "gh":
+    if Path(toks[0]).name == "gh":  # `/usr/bin/gh`, `./gh`: o mesmo programa (GH-MERGE-ADMIN, C-1)
         if toks[1:2] == ["api"]:
             return ("api", toks[2:])
         if "pr" not in toks:
             return None
         i = toks.index("pr")
-        args = toks[i + 2:]
-        if toks[i + 1: i + 2] == ["create"]:
+        j, repo_pr = i + 1, None
+        while j < len(toks) and (toks[j] in ("-R", "--repo") or toks[j].startswith(("--repo=", "-R"))):
+            # `-R`/`--repo` persistente do `gh pr`, que o gh aceita entre `pr` e o subcomando
+            if toks[j] in ("-R", "--repo"):
+                repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2
+            else:
+                repo_pr, j = toks[j].split("=", 1)[-1].removeprefix("-R"), j + 1
+        args = toks[j + 1:]
+        if toks[j: j + 1] == ["create"]:
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
                     bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}))
-        if toks[i + 1: i + 2] == ["ready"]:
+        if toks[j: j + 1] == ["ready"]:
             return ("prready", (posicionais(args, READY_COM_VALOR) or [None])[0],
                     bandeira(args, READY_COM_VALOR, {"--undo"}))
-        if toks[i + 1: i + 2] == ["merge"]:
-            repo = opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
-                                                        if a.startswith("GH_REPO=")), None)
+        if toks[j: j + 1] == ["merge"]:
+            repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
+                                                                   if a.startswith("GH_REPO=")), None)
             alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
             return ("prmerge", repo, alvo)
         return None
@@ -496,7 +503,9 @@ def metodo_mutante(args):
     metodo = opcao(args, "--method", "-X")
     if metodo:
         return metodo.upper() != "GET"
-    return any(a in ("-f", "-F", "--field", "--raw-field", "--input") or a.startswith(("--field=", "--raw-field="))
+    return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
+               or a.startswith(("--field=", "--raw-field=", "--input="))
+               or re.match(r"-i?[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado
                for a in args)
 
 
@@ -507,7 +516,7 @@ def endpoint_da_api(args):
 # GH-MERGE-ADMIN: o que passa por cima da proteção da branch, sem ler o valor nem o papel (aperta; R-MAIN)
 MERGE_POR_API = re.compile(r"(^|/)(pulls/[^/]+/merge|repos/[^/]+/[^/]+/merges)\b", re.I)
 MERGE_NO_GRAPHQL = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|enqueuePullRequest|mergeBranch", re.I)
-ENDPOINT_GRAPHQL = re.compile(r"(^|/)graphql/?$", re.I)
+ENDPOINT_GRAPHQL = re.compile(r"(^|/)graphql/?([?#]|$)", re.I)
 
 
 def usa_admin(args):

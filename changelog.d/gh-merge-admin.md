@@ -1,2 +1,2 @@
 ### Corrigido
-- os hooks recusam `gh pr merge --admin` (qualquer valor) e o merge por `gh api` (REST e GraphQL, inline ou em arquivo) em todo papel, base e pasta: o dono mescla pela interface do GitHub (GH-MERGE-ADMIN, R-MAIN)
+- os hooks recusam `gh pr merge --admin` (qualquer valor) e o merge por `gh api` (REST e GraphQL, inline ou em arquivo) em todo papel, base e pasta, também com o programa por caminho (`/usr/bin/gh`, `./gh`), por expansão (`$(which gh)`), com `-R`/`--repo` entre `pr` e o subcomando, com `-f`/`-F`/`--input=` colados e com `graphql?x=1`: o dono mescla pela interface do GitHub (GH-MERGE-ADMIN, R-MAIN)

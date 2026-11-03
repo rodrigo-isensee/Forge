@@ -13,6 +13,6 @@
   },
   "esperado": {
     "codigo": 2,
-    "stderr": "R-"
+    "stderr": "R-MAIN: gh api que mescla PR"
   }
 }
