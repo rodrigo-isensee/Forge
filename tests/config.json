@@ -318,6 +318,7 @@
       "vira pendência no parecer, não revisão manual"
     ],
     "agents/tech-lead.md": [
+      "só o `qa-engineer` roda a suíte inteira",
       "Commite o parecer na branch revisada",
       "Fila de integração",
       "ordem de chegada",
@@ -351,6 +352,7 @@
       "`R-CONTRIB`"
     ],
     "agents/security-engineer.md": [
+      "só o `qa-engineer` roda a suíte inteira",
       "Commite o parecer na branch revisada",
       "e só em `docs/security/`",
       "\\*\\*Defensiva e estática:\\*\\*",
@@ -468,6 +470,7 @@
       "`R-DISCOVERY`"
     ],
     "agents/qa-engineer.md": [
+      "só o `qa-engineer` roda a suíte inteira",
       "forge-testes --vermelho",
       "Commite o parecer na branch revisada",
       "`R-QA`",
@@ -488,12 +491,14 @@
       "## Mutantes declarados nos pedidos de controle"
     ],
     "skills/cyber-security/SKILL.md": [
+      "só o `qa-engineer` roda a suíte inteira",
       "lista os \\*\\*casos de abuso\\*\\*",
       "dimensões da família",
       "entregue \\*\\*antes do código\\*\\*",
       "orçamento de tempo e de tamanho da entrada"
     ],
     "skills/engineering-practices/SKILL.md": [
+      "só o `qa-engineer` roda a suíte inteira",
       "comando de pronto do projeto \\(`CLAUDE.md`\\) verde, rodado da raiz do repositório",
       "nem conta como volta de `R-QA`",
       "## Definição de pronto",

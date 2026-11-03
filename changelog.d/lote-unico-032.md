@@ -17,6 +17,7 @@
 - forge-check voltas imprime a linha `relogios:` do pedido que chegou à develop, com "pedido aberto → develop" e "pronto para fazer → develop" (meta de 30 min no segundo), e o agile-coach e a skill kanban-scrum os pedem nas tabelas por release (lote-unico-032, L49, D-4)
 
 ### Alterado
+- só o `qa-engineer` roda a suíte inteira (D-5, decisão do dono de 2026-11-01): review e segurança leem o diff e rodam só os testes dos arquivos tocados, e o tech-lead, o security-engineer, o qa-engineer, as skills engineering-practices e cyber-security e a economia-de-tokens dizem isso; o pre-push do autor e o CI seguem (lote-unico-032, L50, D-5)
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).
 - forge-fechar: o PR aberto em rascunho pelo autor na entrega é reusado só com o head conferido (um PR só, base develop, sem fork) e o marcar-como-pronto roda preso ao head antes do merge; head diferente ou mais de um PR aberto para no passo 3; tech-lead.md e jarvis.md mandam o autor abrir o rascunho (lote-unico-032, L02, D-1)
 - forge-check movimento recusa coluna que não está no KANBAN.md (rc 1, nada gravado), com a lista das colunas válidas na mensagem (lote-unico-032, L04, LOTE-FORGE-CHECK-032 E2)
