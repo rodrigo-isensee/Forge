@@ -1168,14 +1168,11 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
             cod, mb = git(raiz, "merge-base", pais[0], pais[1])
             if da_base is None or cod:
                 return FalhaDoGit("diff do merge da base")
-            da_base, descartados = set(da_base), None
-            if mb:
-                descartados = nomes_do_intervalo(raiz, mb, pais[1], estrito=True)
-                if descartados is None:
-                    return FalhaDoGit("diff do ancestral comum")
-                descartados = set(descartados) & da_base
-            else:
-                descartados = da_base
+            descartados = nomes_do_intervalo(raiz, mb, pais[1], estrito=True)
+            if descartados is None:
+                return FalhaDoGit("diff do ancestral comum")
+            da_base = set(da_base)
+            descartados = set(descartados) & da_base
             proprios = (proprios & da_base) | descartados  # o que a base mudou e o merge não manteve (-s ours) é do autor
         nomes |= proprios
     return nomes if integrou else None
@@ -1262,14 +1259,15 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)
     if desfeitos is None:
         falhas.append("diff do que a branch já mudou até a conferida")
+        desfeitos = set()  # sem lista; a reprovação vem de `falhas` e a lista volta inteira no fim
     dos_dois_pais = diferem_dos_dois_pais(raiz, de, head, base_ref)
     primeiro_pai = escopo_pelo_primeiro_pai(raiz, de, head, base_ref) if dos_dois_pais is None else None  # G2: o merge entre outros commits
     falhas += [r.passo for r in (dos_dois_pais, primeiro_pai) if isinstance(r, FalhaDoGit)]
     dos_dois_pais, primeiro_pai = (None if isinstance(r, FalhaDoGit) else r for r in (dos_dois_pais, primeiro_pai))
-    if not falhas and dos_dois_pais:  # E2: só integração na branch
+    if dos_dois_pais:  # E2: só integração na branch
         arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
-    elif not falhas and primeiro_pai is not None:
+    elif primeiro_pai is not None:
         antes = len(arquivos)
         arquivos = [n for n in arquivos if n in primeiro_pai or n in desfeitos]
         informativas += [("escopo: integração da base (o que difere dos dois pais)", False)] if len(arquivos) < antes else []
@@ -1279,7 +1277,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         nomes_da_base = nomes_do_intervalo(raiz, base_ref, head, estrito=True)
         if nomes_da_base is None:  # C3: o git falhou; nada se filtra e a etapa reprova, com ou sem arquivo (C-13)
             linhas.append(("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", True))
-        elif not falhas:  # C-3: com outro passo do git falho, nenhum filtro tira arquivo
+        else:  # com outro passo do git falho a lista volta inteira no fim (C-3)
             diferem = set(nomes_da_base) | desfeitos  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
             arquivos = [n for n in arquivos if n in diferem]
     cod_pais, saida_pais = git(raiz, "rev-list", "--parents", "-n", "1", head)

@@ -60,7 +60,7 @@
       "para": "if True}",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo",
-        "tests.test_volta_por_delta.AnexosImplicitos"
+        "tests.test_volta_por_delta.Entrega.test_commit_da_base_alterado_depois_nela_segue_no_escopo"
       ]
     },
     {

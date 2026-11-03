@@ -37,9 +37,9 @@
       "guarda": "gatilhos: sem diff lido, os dois portões",
       "arquivo": "bin/forge-check",
       "de": "    if arquivos is None:  # C-4",
-      "para": "    if False:  # C-4",
+      "para": "    if arquivos is not None:  # C-4",
       "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_git_que_falha_exige_todos_os_portoes_sem_excecao"
+        "tests.test_forge.ForgeCheck.test_pr_sem_gatilho_nao_exige_devops_nem_seguranca"
       ]
     },
     {

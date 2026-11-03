@@ -3,38 +3,13 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M37",
-      "guarda": "sem base não há escopo pelo primeiro pai",
-      "arquivo": "bin/forge-check",
-      "de": "    if not base_ref:\n        return None\n    nomes, integrou",
-      "para": "    if False:\n        return None\n    nomes, integrou",
-      "testes": [
-        "tests.test_conferencia_base_dono",
-        "tests.test_volta_por_delta",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
-      ]
-    },
-    {
-      "id": "M38",
-      "guarda": "sem ancestral comum o que a base mudou é do autor",
-      "arquivo": "bin/forge-check",
-      "de": "            if mb:\n                descartados",
-      "para": "            if False:\n                descartados",
-      "testes": [
-        "tests.test_conferencia_base_dono",
-        "tests.test_volta_por_delta"
-      ]
-    },
-    {
       "id": "M39",
       "guarda": "o primeiro pai só vale sem o escopo dos dois pais",
       "arquivo": "bin/forge-check",
       "de": "if dos_dois_pais is None else None  # G2",
       "para": "if True else None  # G2",
       "testes": [
-        "tests.test_conferencia_base_dono",
-        "tests.test_volta_por_delta",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde"
+        "tests.test_entrega_git_falha.FalhaDoGit.test_integracao_limpa_nao_le_o_primeiro_pai"
       ]
     }
   ],

@@ -31,11 +31,13 @@ class FalhaDoGit(Repositorio):
         self.gravar_pedido()
 
     def falhar(self, padrao, ordem, *args):
+        return self.rodar(padrao, ordem, "entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, *args)
+
+    def rodar(self, padrao, ordem, *args):
         env = dict(ambiente_limpo(), HOME=str(self.home), PATH=f"{self.pasta}:{os.environ['PATH']}", PADRAO=padrao, ORDEM=str(ordem),
                    CONTAGEM=str(self.tmp / "contagem"), O_GIT_DE_VERDADE=shutil.which("git"))
         (self.tmp / "contagem").unlink(missing_ok=True)
-        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.repo), "entrega", str(self.pedido), "--branch", "melhoria/x",
-                            "--base", "develop", "--base-sha", self.base, *args], env=env, capture_output=True, text=True)
+        r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(self.repo), *args], env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
 
     def reprova(self, padrao, ordem, *args, passo=None):
@@ -118,7 +120,8 @@ class FalhaDoGit(Repositorio):
             for nome, padrao, ordem in (("rev-list dos pais do head", "*rev-list --parents -n 1*", 1),
                                         ("rev-list dos commits próprios", "*rev-list*--not*", 1),
                                         ("diff contra um dos pais", DOIS, 2), ("diff contra um dos pais", DOIS, 3),
-                                        ("diff contra um dos pais", "*--numstat*", 1)):
+                                        ("diff contra um dos pais", "*--numstat*", 1),
+                                        ("diff do que a branch já mudou até a conferida", TRES, 3)):
                 with self.subTest(etapa=etapa, passo=nome, ordem=ordem):
                     self.reprova(padrao, ordem, "--desde", self.c1, "--etapa", etapa, passo=nome)
 
@@ -140,6 +143,30 @@ class FalhaDoGit(Repositorio):
         rc, saida = self.falhar("*--numstat*", 1, "--etapa", "merge-integracao")
         self.assertIn("o git falhou (contagens do diff)", saida)
         self.assertIn('escopo: confira "base.txt"', saida)
+
+    def test_merge_de_outra_coisa_nao_e_integracao_da_base(self):  # o conteúdo do outro pai não some do escopo
+        git("switch", "-q", "-c", "outra", self.base, cwd=self.repo)
+        self.commitar({"o.txt": "o\n"}, "outra coisa")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("merge", "-q", "--no-ff", "-m", "traz a outra coisa", "outra", cwd=self.repo)
+        self.gravar_pedido([self.c1])
+        rc, saida = self.falhar("*nunca-casa*", 1, "--desde", self.c1, "--etapa", "codigo")
+        self.assertIn('escopo: confira "o.txt"', saida)
+
+    def test_integracao_limpa_nao_le_o_primeiro_pai(self):  # com os dois pais lidos, o rev-list do primeiro pai nem roda
+        self.integrar_a_base()
+        rc, saida = self.falhar("*rev-list --first-parent*", "todas", "--desde", self.c1, "--etapa", "codigo")
+        self.assertNotIn(LINHA, saida)
+
+    def test_branch_cujo_git_falhou_fica_fora_da_sobreposicao(self):  # informativo: nunca entra como vazia
+        git("switch", "-q", "-c", "melhoria/y", self.base, cwd=self.repo)
+        self.commitar({"a.txt": "2\n"}, "mesmo arquivo")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        rc, saida = self.rodar("*nunca-casa*", 1, "sobreposicao", "--base", "develop")
+        self.assertIn("a.txt", saida)
+        rc, saida = self.rodar("*--name-only*...*", 1, "sobreposicao", "--base", "develop")
+        self.assertEqual(rc, 0, saida)
+        self.assertNotIn("a.txt", saida)
 
     def test_filtro_que_falha_nao_tira_arquivo(self):
         self.integrar_a_base()  # a integração limpa não tem escopo próprio: com o git saudável, só o que a branch fez

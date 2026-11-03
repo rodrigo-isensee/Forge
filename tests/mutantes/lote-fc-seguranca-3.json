@@ -13,38 +13,6 @@
       ]
     },
     {
-      "id": "M26",
-      "guarda": "com falha, o filtro dos dois pais não tira arquivo",
-      "arquivo": "bin/forge-check",
-      "de": "    if not falhas and dos_dois_pais:",
-      "para": "    if dos_dois_pais:",
-      "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
-      ]
-    },
-    {
-      "id": "M27",
-      "guarda": "com falha, o filtro do primeiro pai não tira arquivo",
-      "arquivo": "bin/forge-check",
-      "de": "    elif not falhas and primeiro_pai is not None:",
-      "para": "    elif primeiro_pai is not None:",
-      "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo",
-        "tests.test_entrega_git_falha.FalhaDoGit.test_falha_depois_de_um_filtro_saudavel_mostra_a_lista_inteira"
-      ]
-    },
-    {
-      "id": "M28",
-      "guarda": "com falha, o filtro E4 não tira arquivo",
-      "arquivo": "bin/forge-check",
-      "de": "        elif not falhas:  # C-3",
-      "para": "        elif True:  # C-3",
-      "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_e4_com_outro_passo_falho_nao_tira_arquivo"
-      ]
-    },
-    {
       "id": "M29",
       "guarda": "rev-list dos pais do head do entrega falha",
       "arquivo": "bin/forge-check",
@@ -106,13 +74,33 @@
       ]
     },
     {
+      "id": "M26",
+      "guarda": "a integração limpa lê só os dois pais",
+      "arquivo": "bin/forge-check",
+      "de": "    if dos_dois_pais:  # E2",
+      "para": "    if False:  # E2",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "o merge entre outros commits lê o primeiro pai",
+      "arquivo": "bin/forge-check",
+      "de": "    elif primeiro_pai is not None:",
+      "para": "    elif False:",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch"
+      ]
+    },
+    {
       "id": "M35",
       "guarda": "a branch cujo git falhou fica fora da comparação",
       "arquivo": "bin/forge-check",
       "de": "        if arquivos is not None:  # informativo",
       "para": "        if True:  # informativo",
       "testes": [
-        "tests.test_forge"
+        "tests.test_entrega_git_falha.FalhaDoGit.test_branch_cujo_git_falhou_fica_fora_da_sobreposicao"
       ]
     },
     {
@@ -122,8 +110,19 @@
       "de": "    if proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):",
       "para": "    if False:",
       "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_merge_de_outra_coisa_nao_e_integracao_da_base"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "sem base não há escopo pelo primeiro pai",
+      "arquivo": "bin/forge-check",
+      "de": "    if not base_ref:\n        return None\n    nomes, integrou",
+      "para": "    if False:\n        return None\n    nomes, integrou",
+      "testes": [
         "tests.test_conferencia_base_dono",
-        "tests.test_volta_por_delta"
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
       ]
     }
   ]
