@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: 2e9c621b0f6939f1b82b74d36bfd55957f79f610
+commit: 150f3604ab3f5a114568ab12341a9cd7549b649a
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-03
@@ -20,7 +20,9 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A5 (recomendado) hooks/conformidade.py:1664 · resolvido na rodada 2: as specs `tests/mutantes/gh-merge-admin.json` e `gh-merge-admin-2.json` cobrem G1 a G23, sem o G13, que caiu com a alternativa morta.
 - A6 (bloqueante) hooks/parecer.py:501 · resolvido na rodada 3: `desagrupa_i` separa o `-i` agrupado antes de `metodo_mutante`, `endpoint_da_api` e `textos_da_api`; `-iX PUT`, `-iXPUT`, `merges -iX POST`, `-if` e `-iF query=@arq graphql` recusam com R-MAIN.
 - A7 (recomendado) hooks/conformidade.py:1608 · fora do E1 e anterior à base: o `gh_trava` lê `-X` sem `desagrupa_i`, e `gh api -iX DELETE repos/o/r` sai com rc=0 (sem `-i`, recusa). O mesmo vale em :1626. Vira cartão para o `security-engineer`.
-- A8 (bloqueante) hooks/parecer.py:505 · regressão com gatilho (C-4, T-4): `desagrupa_i` desmonta o valor de opção valorada; `gh api -p -iX repos/o/r/pulls/1/merge -X PUT` recusa no hook `parecer` na base (R-CONTRIB) e sai com rc=0 na head; também com `-q`, `-H` e `--preview -if`.
+- A8 (bloqueante) hooks/parecer.py:505 · resolvido na rodada 4: `desagrupa_i` copia como veio o token que segue uma opção de `API_COM_VALOR`; `-p`, `-q`, `--jq`, `-H`, `-t` e `--preview` antes de `-iX`, `-iH` ou `-if` recusam com R-MAIN.
+- A9 (bloqueante) hooks/parecer.py:520 · segurança com gatilho (C-4): `metodo_mutante` lê o primeiro `-X` (`opcao`), e o gh vale o último, sem pular valor de opção; `gh api -X GET -X PUT repos/o/r/pulls/1/merge` e `-X GET -X POST graphql -F query=@q.graphql` saem com rc=0 nos dois hooks.
+- A10 (recomendado) hooks/conformidade.py:1608 · mesma leitura do A9 fora do E1, já na base: `gh api -X GET -X DELETE repos/o/r` e `-X GET -X PUT .../branches/main/protection -f x=y` saem com rc=0; o mesmo em :1626. Segue com o A7, em cartão ao `security-engineer`.
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -86,3 +88,18 @@ Head `2e9c621`, sobre `9535b63`. Delta lido: `git diff 9535b63..2e9c621 -- hooks
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...2e9c621`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 58 e `tests/test_hooks.py` 5, total de 91 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
 
 **Parecer da rodada 3: reprovado.** A1 a A6 estão resolvidos e o A7 é recomendação. O A8 bloqueia. Segurança e QA têm parecer próprio (E1.4 e E1.6).
+
+## Rodada 4
+Head `150f360`, sobre `2e9c621`. Delta lido, pela saída de `bin/forge-check delta 2e9c621 150f360`: `hooks/parecer.py` :503, :505-508 e :513 (o pulo do valor em `desagrupa_i`), as 8 fixtures `gh-merge-admin-api-valor-de-opcao-*-bloqueia.json` e os mutantes G26 e G27 em `tests/mutantes/gh-merge-admin-2.json` :144-163. Já lido e não tocado pelo delta: `gh_admin`, `analisar`, `gh_api_de_merge`, `merge_por_api`, `textos_da_api`, `metodo_mutante`, `endpoint_da_api` e as 68 fixtures anteriores.
+
+- **A8, resolvido.** O token que segue uma opção de `API_COM_VALOR` é copiado como veio, inclusive depois do `-X` que fecha um grupo (`-iX PUT`). É a leitura do `gh`, cujo parser dá o próximo token como valor da opção valorada mesmo quando ele começa com `-`. Sondas na `Fixture` do teste, no `conformidade`: as 8 formas das fixtures recusam com R-MAIN, e também `--template`, `--cache` e `--hostname` antes de `-iX`, `-ip -iX` e as formas do A6 (`-iX PUT`, `-iXPUT`). No `parecer`, as formas REST de `pulls/<n>/merge` voltam a recusar com R-CONTRIB, como na base.
+- **Mutantes G26 e G27.** Apliquei cada um numa cópia da head: `gh api -p -iX repos/o/r/pulls/1/merge -X PUT` sai com rc=0 nos dois, então a fixture `-p` os mata.
+- **C-5, sem regressão.** `gh api repos/o/r/pulls/12/merge` (GET), `--jq .merged`, `-p x … --jq .merged`, `-H Accept:x -i …`, `-q -iX repos/o/r/pulls/12` e `gh pr view 12 --json mergeStateStatus,mergeable` liberam (rc=0) nos dois hooks.
+- **A9, novo e bloqueante (segurança com gatilho, C-4).** `metodo_mutante` lê o primeiro `-X` (`opcao`, parecer.py:135). O `gh` vale o último: `gh api --hostname ghe.invalid -X GET -X PUT repos/o/r/pulls/1/merge --verbose` imprime `> PUT /api/v3/repos/o/r/pulls/1/merge`. Por isso `gh api -X GET -X PUT repos/o/r/pulls/1/merge`, `--method GET --method PUT`, `-XGET -XPUT`, `-X GET <endpoint> -X PUT` e `-X GET -X POST graphql -F query=@q.graphql` saem com rc=0 no `conformidade` e no `parecer`. Já estava em `6c7e573` e passou nas três rodadas anteriores. Não é regressão: a base também libera. Mas é a mesma porta do A6, que o C-4 manda recusar, então classifico pelo mesmo critério. Sugestão: o método vem da última ocorrência de `-X`/`--method`, lida com o pulo de valor de `posicionais`. Cada forma ganha uma fixture `-bloqueia`, e a escolha da última ocorrência ganha um mutante.
+- **A10, recomendado.** A mesma leitura do A9, nos controles fora do E1 (`gh_trava`, conformidade.py:1608 e :1626), já na base. `gh api -X GET -X DELETE repos/o/r` sai com rc=0, e sem o `-X GET` recusa. Não devolve a entrega. Segue com o A7, em cartão ao `security-engineer`.
+- **C-1 a C-3 e C-6, cumpridos.** Sem rede e sem `gh` novo; `desagrupa_i` continua linear.
+- **Achado recorrente.** A classe "leitura de opção do `gh api` diferente da do `gh`" volta pela quarta vez (A2, A6, A8, A9). A linha AR segue pendente, porque o brief só permite commitar o parecer.
+- **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `150f360`: `Ran 71 tests in 882.019s`, `OK` (D-5). As sondas e os mutantes ficaram em `$TMPDIR/tech-lead-gh-merge-admin/`.
+- **Teto (M14).** `git diff --numstat --no-renames 928e61b...150f360`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 63 e `tests/test_hooks.py` 5, total de 96 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
+
+**Parecer da rodada 4: reprovado.** A1 a A6 e A8 estão resolvidos. A7 e A10 são recomendações. O A9 bloqueia. Segurança e QA têm parecer próprio (E1.4 e E1.6), e o A9 também vai para o `security-engineer`.
