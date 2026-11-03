@@ -1252,6 +1252,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         arquivos = []  # sem lista para mostrar: a reprovação vem de `falhas`, nunca de "nada a conferir"
     elif base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:  # o Base-sha já foi lido como commit: sem base aqui, o git falhou
         falhas.append("base da entrega")
+    todos = list(arquivos)  # a lista antes de qualquer filtro: uma falha posterior a um filtro saudável mostra esta (C-3, exibição)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
     desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)
     if desfeitos is None:
@@ -1299,6 +1300,8 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     registros = autorias(raiz)
     m = re.search(r"^id:\s*(\S+)", texto, re.M)
     pedido_id = m.group(1) if m else caminho.stem
+    if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
+        arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
     linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
     if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"

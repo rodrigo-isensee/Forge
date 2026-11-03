@@ -65,6 +65,14 @@ class FalhaDoGit(Repositorio):
         merge = self.squash()
         self.reprova(DOIS, 3, "--etapa", "merge-integracao", "--branch", merge, passo="diff do merge integrado")
 
+    def test_falha_depois_de_um_filtro_saudavel_mostra_a_lista_inteira(self):  # C-3, exibição: o filtro que já rodou não esconde arquivo
+        merge = self.squash()
+        rc, saida = self.falhar(DOIS, 3, "--etapa", "merge-integracao", "--branch", merge)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("o git falhou (diff do merge integrado)", saida)
+        self.assertIn('escopo: confira "a.txt"', saida)
+        self.assertNotIn("integração da base", saida)  # o filtro que a lista não passou a ter não é anunciado
+
     def test_rev_list_dos_pais_do_head_do_cmd_entrega_tem_teste_proprio(self):  # a 1ª chamada homônima é a de `diferem_dos_dois_pais`
         for etapa in ("codigo", "review", "merge-integracao"):
             with self.subTest(etapa=etapa):
