@@ -111,6 +111,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G23",
+      "guarda": "o programa por expansão só recusa o pr merge e o api (a leitura da ação decide)",
+      "arquivo": "hooks/parecer.py",
+      "de": "return bool(achado) and achado[0] in (\"prmerge\", \"api\")",
+      "para": "return bool(achado) and achado[0] in (\"api\",)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
