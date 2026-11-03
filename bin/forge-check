@@ -1938,6 +1938,11 @@ def ocupacao_da_trava(raiz):
     if hook.is_symlink() or not hook.is_file():
         return None
     try:
+        if '[ "$1" = "--status" ]' not in hook.read_text(encoding="utf-8", errors="replace"):
+            return None  # hook de outro dono (o do modelo de projeto não tem --status): não se executa hook alheio
+    except OSError:
+        return None
+    try:
         r = subprocess.run([str(hook), "--status"], capture_output=True, text=True, timeout=10, cwd=str(raiz))
     except (OSError, subprocess.SubprocessError):
         return None, "o --status não rodou"

@@ -86,5 +86,15 @@ class OcupacaoDaTrava(unittest.TestCase):
         self.assertFalse([l for l in self.fila() if "trava" in l])
 
 
+    def test_hook_alheio_sem_o_status_do_forge_nao_e_executado_nem_vira_trava_presa(self):  # L18, A2 do review
+        marca = self.tmp / "executou"
+        hook = self.raiz / ".githooks" / "pre-push"
+        hook.write_text(f"#!/bin/sh\ntouch {marca}\nexit 0\n", encoding="utf-8")
+        hook.chmod(0o755)
+        linhas = self.fila()
+        self.assertFalse(marca.exists(), "o hook de outro dono não roda")
+        self.assertFalse([l for l in linhas if "presa" in l or "ocupacao=" in l], linhas)
+
+
 if __name__ == "__main__":
     unittest.main()
