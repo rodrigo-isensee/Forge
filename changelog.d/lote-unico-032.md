@@ -8,6 +8,7 @@
 - forge-check decisoes imprime o registro gerado das linhas `DECISÃO DO DONO` dos pedidos (data, decisão, motivo, "reabre se"), só no stdout; a linha torta sai como aviso e fora do registro; nenhum portão o lê; a skill de arquitetura pede o "reabre se" na proposta recusada (lote-unico-032, L15, EXT-2)
 - forge-check movimento grava, ao parar o cartão, o custo do trecho (tokens das transcrições locais desde o último movimento) no motivo e, no Pronto, o custo total; sem transcrição na janela sai `lacuna`, nunca 0 (lote-unico-032, L16, EXT-3)
 - forge-check proximo <pedido> imprime onde o pedido está (etapas com o estado que o Histórico prova, branch, último veredito dos pareceres commitados, próximo passo e bloqueios), em até 40 linhas, só leitura; o texto do pedido sai escapado e nunca vira passo; sem registro, `não verificável` (lote-unico-032, L17, AQ-2)
+- forge-check fila mostra a ocupação da trava da suíte (lida pelo `.githooks/pre-push --status`, sem tomá-la nem apagá-la; link ou saída inesperada vira `não verificável`) e avisa quando passa de 0.6; o Jarvis só despacha etapa que roda a suíte abaixo disso (lote-unico-032, L18, M7)
 
 ### Alterado
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).

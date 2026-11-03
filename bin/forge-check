@@ -1924,6 +1924,43 @@ def carga_alta_agora():
     return agentes.carga_alta(carga, memoria, total, agentes.nucleos())
 
 
+LIMITE_DE_OCUPACAO = 0.6  # M7: acima dele o Jarvis não despacha etapa que roda a suíte
+
+
+def ocupacao_da_trava(raiz):
+    """M7: `(ocupação, texto)` da trava da suíte pelo `.githooks/pre-push --status` da própria raiz, ou None sem esse hook. A ocupação é o
+    que a trava tem agora: 0 livre; 1 mais a fila, presa (capacidade 1). O `--status` só testa e solta (a leitura não toma nem apaga a
+    trava, C-18) e recusa link e dono diferente; qualquer saída que não seja 0 ou 1 é `(None, motivo)`: não verificável, nunca livre."""
+    hook = Path(raiz) / ".githooks" / "pre-push"
+    if hook.is_symlink() or not hook.is_file():
+        return None
+    try:
+        r = subprocess.run([str(hook), "--status"], capture_output=True, text=True, timeout=10, cwd=str(raiz))
+    except (OSError, subprocess.SubprocessError):
+        return None, "o --status não rodou"
+    if r.returncode == 1:
+        return 0.0, "livre"
+    if r.returncode == 0:
+        fila = re.search(r"(\d+) na fila", r.stdout)
+        n = int(fila.group(1)) if fila else 0
+        return 1.0 + n, f"presa, {n} na fila"
+    return None, f"o --status saiu com {r.returncode}"
+
+
+def linhas_de_ocupacao(raiz):
+    """As linhas da `fila` sobre a trava (M7); vazio sem o hook."""
+    lida = ocupacao_da_trava(raiz)
+    if lida is None:
+        return []
+    ocupacao, texto = lida
+    if ocupacao is None:
+        return [f"aviso: trava da suíte {NAO_VERIFICAVEL} ({sem_controle(texto)}); trate como ocupada (M7)"]
+    linhas = [f"fila: trava ocupacao={ocupacao:.1f} limite={LIMITE_DE_OCUPACAO} ({texto})"]
+    if ocupacao > LIMITE_DE_OCUPACAO:
+        linhas.append(f"aviso: ocupação {ocupacao:.1f} da trava acima de {LIMITE_DE_OCUPACAO}: não despache etapa que roda a suíte (M7)")
+    return linhas
+
+
 def cmd_fila(raiz):
     """O que pode começar agora (P9; só leitura, sem rede, rc 0): cartões de "Pronto para fazer" sem dependência
     pendente nem ciclo, até as vagas de R-TETO (teto menos agentes vigentes; carga alta zera). Sobreposição de
@@ -1972,6 +2009,7 @@ def cmd_fila(raiz):
     for coluna in ("Pronto para fazer", "Pronto"):
         if coluna not in quadro:
             saida.append(f'aviso: o quadro não tem a coluna "{coluna}"')
+    saida += linhas_de_ocupacao(raiz)
     resumo = f"fila: {pode} podem começar, {vagas} vagas de {teto} ({ativos} ativos), {esperam} esperam"
     if len(saida) > FILA_LINHAS - 1:
         saida = saida[:FILA_LINHAS - 2] + [f"... (+{len(saida) - (FILA_LINHAS - 2)} linhas omitidas)"]
