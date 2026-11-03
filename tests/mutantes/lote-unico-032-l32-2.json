@@ -1,0 +1,64 @@
+{
+  "pedido": "lote-unico-032-l32",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M12",
+      "guarda": "no CI o registro não grava (o runner não tem a pasta)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if os.environ.get(\"GITHUB_ACTIONS\") == \"true\":\n        return\n    try:\n        pasta = pasta_do_registro()",
+      "para": "if os.environ.get(\"GITHUB_ACTIONS\") == \"nunca\":\n        return\n    try:\n        pasta = pasta_do_registro()",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_no_ci_o_registro_nao_grava"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "a pasta ausente não vira erro: o registro sai calado",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "        if pasta is None:\n            return",
+      "para": "        if False:\n            return",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_sem_a_pasta_o_registro_nao_a_cria_e_o_veredito_e_o_mesmo"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "o relatório de quem morreu (None) não impede o registro dos outros",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "for rel in relatorios if rel for i in rel.get",
+      "para": "for rel in relatorios for i in rel.get",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_processo_morto_nao_impede_o_registro_dos_testes_que_cairam"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "o id gravado só leva caractere imprimível (C-32b)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if c.isprintable()",
+      "para": "if True",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_o_id_gravado_so_leva_caractere_imprimivel"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "sem a leitura da memória o registro grava nulo, não quebra",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "None if memoria is None else round(memoria, 1)",
+      "para": "None if memoria is not None else round(memoria, 1)",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_sem_a_leitura_da_memoria_o_registro_grava_nulo"
+      ]
+    },
+    {
+      "id": "E1",
+      "guarda": "a leitura do registro não segue link",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "if not arquivo.is_symlink():",
+      "para": "if True:",
+      "equivalente": "a escrita em link já é recusada por O_NOFOLLOW; ler o alvo do link só mudaria a taxa que nunca é gravada, sem efeito observável"
+    }
+  ]
+}
