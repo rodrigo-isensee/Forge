@@ -3,22 +3,20 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-fc-seguranca
-commit: ae4dacd791edf104c21cbe2b79092e93591c659d
+commit: e8b76448ca469e970529c0cd427f67ba7dd808e6
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
 # Review: versao-033 (lote E2+E3, `bin/forge-check`)
 
+Rodada 2 (head e8b76448ca469e970529c0cd427f67ba7dd808e6): aprovado; A2 a A5 resolvidos; A1 e A6 seguem como recomendados; sem achado novo. A rodada 1 (head ae4dacd) fica abaixo, como foi escrita.
+
 Revisor: outra instância do `tech-lead`, não o autor (D-ETAPAS-INST = A). Base 928e61b66015f7ee2a2e585dc8178e07dc16be39, head ae4dacd791edf104c21cbe2b79092e93591c659d, 3 commits (a02cfc6 E3, 7cb82f3 E2, ae4dacd mapa do E3).
 
 ## Achados
-- A1 (recomendado) bin/forge-testes:73 · o E3 ficou em dois commits (a02cfc6 e ae4dacd): em a02cfc6 sozinho o test_testes_tocados falha (módulo fora do mapa) e o revert de a02cfc6 conflita; a develop integra por squash, então não devolve; nos próximos lotes, o mapa no commit do item
-- A2 (recomendado) bin/forge-check:1246 · a segunda chamada a base_da_entrega quase nunca dá None: se o rev-parse do Base-sha falha, ela cai nas BASES e o diff passa a ser sobre a develop; o C-1 fica cumprido no caso sem base nenhuma; sugestão: com base pedida, não cair para as BASES no entrega
-- A3 (recomendado) bin/forge-check:1151 · no filtro do primeiro pai, dois rev-parse que falham iguais (os dois objetos ausentes) contam como "igual à base" e tiram o arquivo; linha anterior ao lote e fora da lista do C-1, mas toca o C-3; sugestão: exigir código 0 nos dois lados
-- A4 (recomendado) tests/test_pedido_fora.py:86 · o teste novo herda o os.environ inteiro (classe do AR-4), como o Raiz de test_voltas; sugestão: partir de ambiente_limpo()
-- A5 (recomendado) tests/test_entrega_git_falha.py:104 · test_git_saudavel_nao_muda não confere o rc; sugestão: assertEqual(rc, 0) junto da linha
-- A6 (recomendado) bin/forge-check:1 · o lote soma 414 linhas de código e teste (decisão M14); o corpo do PR, aberto na E1.7, precisa da linha teto: excedido com o motivo (lote por arquivo, E21) ou citar a decisão do dono de 10:06
+- A1 (recomendado) bin/forge-testes:73 · o E3 ficou em dois commits (a02cfc6 e ae4dacd): em a02cfc6 sozinho o test_testes_tocados falha e o revert conflita; a develop integra por squash, então não devolve; cortado na volta pelo Jarvis (14:04), segue como lição de processo
+- A6 (recomendado) bin/forge-check:1 · o lote passa de 150 linhas de código e teste (decisão M14); o corpo do PR, aberto na E1.7, precisa da linha teto: excedido com o motivo ou citar a decisão do dono de 10:06; segue pendente para a E1.7
 
 ## Parecer
 Aprovado. Síntese por controle do modelo de ameaças (seções E2 e E3 de `docs/security/ameacas/versao-033.md`):
@@ -43,3 +41,31 @@ Aprovado. Síntese por controle do modelo de ameaças (seções E2 e E3 de `docs
 **Commits.** Três commits em Conventional Commits; E2 se reverte sozinho; E3 não (A1). Fragmento `changelog.d/lote-fc-seguranca.md` presente.
 
 **Segurança e devops.** O parecer de segurança (E1.4) roda em paralelo e não é refeito aqui; o lote não toca `.github/` nem o pre-push (sem E1.5).
+
+## Rodada 2
+Delta lido: `bin/forge-check delta --parecer` sobre este parecer, intervalo ae4dacd..e8b7644 (o 9966b27 é só o parecer de segurança): `bin/forge-check` +38 -23 (linhas 501-504, 877-888, 1138-1143, 1163, 1171-1175, 1255-1309), `tests/test_entrega_git_falha.py` +78 -3, `tests/test_pedido_fora.py` +13 -1, `changelog.d/lote-fc-seguranca.md` +1 -1 e as quatro specs `tests/mutantes/lote-fc-seguranca-{1..4}.json` (38 mutantes, 3 isentas). Já lido na rodada 1 e fora do delta: o resto de `bin/forge-check`, `bin/forge-testes`, `tests/test_forge.py`, `tests/test_volta_por_delta.py`, `tests/test_conferencia_base_dono.py` e `tests/test_testes_tocados.py`.
+
+**Achados da rodada 1.**
+- A2 resolvido: `base_da_entrega(..., so_a_pedida=True)` (`bin/forge-check:501`) não cai para as BASES quando o Base-sha falha; os outros chamadores seguem com o padrão. Teste `test_base_pedida_que_falha_nao_cai_para_as_bases`, nas três etapas.
+- A3 resolvido: `igual_na_base` (`bin/forge-check:1138`) exige código 0 nos dois `rev-parse`; `test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo` prova o par saudável (nada a conferir) e o que falha (`a.txt` à vista).
+- A4 resolvido: `PedidoForaDasRaizes.entrega` parte de `ambiente_limpo()`.
+- A5 resolvido: `test_git_saudavel_nao_muda` confere o rc (1 só na `merge-integracao`, pelos pareceres ausentes no head do repositório de teste).
+- A1 e A6 não entraram, pelo corte do Jarvis de 14:04; seguem recomendados.
+
+**Itens da segurança na volta (conferidos contra C-n e T-n, sem refazer o parecer dela).** E2: o id nu passa pela `dentro_da_raiz` em cada raiz, na ordem de hoje (C-4), e o link para fora de `docs/pedidos/` recusa com rc 2 (C-2, C-3), teste `test_id_nu_que_e_link_para_fora_e_recusado_em_cada_raiz` na raiz e na raiz de brief; `os.path.lexists` com NUL dá False, sem exceção. E3: `todos` (`bin/forge-check:1257`) guarda a lista antes dos filtros e, com qualquer falha, volta inteira no fim e a informativa "integração da base" sai (C-3, exibição), também quando a falha vem depois do filtro saudável (`diff do merge integrado`, teste próprio). Novos testes cobrem o `rev-list --parents` do `cmd_entrega`, o `desfeitos` no `--desde`, o E4 com outro passo falho, o merge de outra coisa, a integração limpa e a `sobreposicao` com a branch cujo git falhou (C-4).
+
+**Refatorações sem mudança de comportamento.**
+- 776706e, `pais` em if/else (`:1284-1288`): mesma lista nos dois ramos; rc e saída iguais.
+- 218b44f, `if mb:` removido (`:1171-1175`): com `cod` 0 o `git merge-base` sempre imprime o sha; com `cod` diferente de 0 a função já devolve `FalhaDoGit` antes; o ramo `else` era inalcançável com o git real.
+- As três guardas `not falhas` removidas (`:1267`, `:1270`, `:1280`): entre os filtros e o fim, `arquivos` não é lido (`pareceres_da_integracao`, `contagens` e `autorias` não o usam) e, com falha, `:1308` o troca por `todos` e tira a informativa que só o filtro punha; sem falha, o caminho é o de antes. Saída igual.
+- `desfeitos = set()` na falha (`:1262`): só evita o `None` nos filtros que agora rodam; a reprovação vem de `falhas` e a lista final é `todos`.
+
+**As três condições "apagada" do `forge-mutante --cobertura` (base 928e61b).**
+- `:861` (`is_file` do id nu na principal e na raiz): virou `achado is not None and arquivo_existe(achado)` com a `dentro_da_raiz` no laço único (`:877-888`); mesma ordem e mesmo arquivo achado, mais o aperto do link; isenta na spec 4 com motivo.
+- `:1196` (`if dos_dois_pais := ...`): a chamada saiu do `if` para o passo falho ser lido; `diferem_dos_dois_pais` devolve tupla (verdadeira) ou None ou `FalhaDoGit`, e o `if dos_dois_pais:` depois da troca da falha por None decide igual; o primeiro pai só roda com None (`M39` mata o `if True`).
+- `:1228` (`if not arquivos:`): virou `if not arquivos and not falhas` (`:1311`), o C-2; coberto pelos testes de passo em toda etapa.
+
+**Testes.** No head e8b7644: `python3 -m unittest tests.test_forge tests.test_pedido_fora tests.test_entrega_git_falha`, 517 testes, OK (137 s). O `bin/forge-testes --listar` cai na suíte completa por causa das specs em `tests/mutantes/` (fora do mapa, como desenhado); a suíte inteira fica com o QA (D-5). Mutação: o autor relata 38 mutantes mortos (conferido na entrega de 16:03); não refeita aqui.
+
+**Commits.** Onze commits de E3 e quatro de E2 na volta, Conventional Commits em português; os de E2 (7f3a70c, 35fcc59, 2a33b77, 7903caf) só tocam o caminho do pedido, o teste dele, o fragmento e a isenta da spec 4. Achados recorrentes (PA-7) conferidos: AR-4 não volta (A4 resolvido); nenhuma classe repetida neste parecer.
+
