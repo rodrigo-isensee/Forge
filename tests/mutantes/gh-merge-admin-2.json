@@ -151,6 +151,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G27",
+      "guarda": "o token depois de opção valorada é copiado como veio",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if valor:  #",
+      "para": "        if False:  #",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
