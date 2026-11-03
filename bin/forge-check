@@ -22,6 +22,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
      forge-check decisoes [--pedido ID]
+     forge-check proximo <pedido>
      forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
@@ -4607,6 +4608,117 @@ def pedidos_do_registro(raiz, pedido):
     return sorted(nomes)
 
 
+TETO_DO_PROXIMO = 40  # linhas da saída do `proximo`
+LARGURA_DO_PROXIMO = 160
+NAO_VERIFICAVEL = "não verificável"
+
+
+def texto_da_etapa(texto):
+    """O texto de `E1.1 (papel): texto`, sem o id e o papel."""
+    return re.sub(r"^\S+\s*\([^)]*\):\s*", "", texto)
+
+
+def etapas_do_proximo(pedido_txt, historico):
+    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`, `em curso` ou `não verificável`)."""
+    saida = []
+    for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
+        citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
+        estado = "entregue" if any("entregue" in l.casefold() for l in citam) else "em curso" if citam else NAO_VERIFICAVEL
+        saida.append((etapa, papel, texto, estado))
+    return saida
+
+
+def branch_do_proximo(raiz, pedido):
+    """(branch, head sha7 ou None) pela linha `Branch:` dos briefs do pedido, se for uma só; senão (None, None)."""
+    branches = set()
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for arq in sorted((Path(base) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+            try:
+                cabecalho = cabecalho_do_brief(arq.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch:
+                branches.add(branch)
+    if len(branches) != 1:
+        return None, None
+    branch = branches.pop()
+    head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+    return branch, head[:7] if head else None
+
+
+def vereditos_do_proximo(raiz, ids):
+    """[(tipo, rel, parecer, commit, commitado)] do parecer mais recente de cada tipo para algum dos `ids` (o frontmatter validado é a fonte)."""
+    saida = []
+    for tipo in PASTA_E_REGRA:
+        achados = []
+        for rel, texto in documentos(raiz, tipo):
+            campos, _ = validar_documento(rel, texto)
+            if campos is not None and campos.get("pedido") in ids:
+                achados.append((campos.get("data", ""), rel, campos))
+        if achados:
+            _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
+            saida.append((tipo, rel, campos.get("parecer", "?"), campos.get("commit", "?"), parecer_commitado(raiz, rel)))
+    return saida
+
+
+def cmd_proximo(raiz, pedido):
+    """L17 (AQ-2): o ponto em que o pedido está, só leitura e sem rede: etapas com o estado que o Histórico prova, branch, último veredito dos
+    pareceres, próximo passo e bloqueios. O texto do pedido é DADO: cada linha sai por `sem_controle`, limitada em largura, e o próximo
+    passo nunca é montado com frase do Histórico (C-17a, T-17). O que falta de registro sai `não verificável`; nada se grava."""
+    caminho = caminho_do_pedido(raiz, pedido)
+    try:
+        pedido_txt = caminho.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return [f"proximo: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)"], 2
+    pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
+    historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
+    linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"]
+    etapas = etapas_do_proximo(pedido_txt, historico)
+    linhas += [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in etapas] \
+        or [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"]
+    branch, head = branch_do_proximo(raiz, pedido_id)
+    linhas.append(f"proximo: branch {branch}" + (f" · head {head}" if head else "") if branch else f"proximo: branch: {NAO_VERIFICAVEL} (nenhum brief do pedido com `Branch:` único)")
+    ids = {pedido_id, caminho.stem, *( [branch.removeprefix("melhoria/")] if branch else [])}
+    vereditos, reprovados = vereditos_do_proximo(raiz, ids), []
+    for tipo, rel, parecer, commit, commitado in vereditos:
+        if commitado:
+            linhas.append(f"proximo: último veredito {tipo}={parecer} · {caminho_impresso(rel)} · commit {sem_controle(commit)[:7]}")
+            if parecer not in ("aprovado", "riscos-aceitos"):
+                reprovados.append(tipo)
+        else:
+            linhas.append(f"proximo: último veredito {tipo}: {NAO_VERIFICAVEL} ({caminho_impresso(rel)} fora do commit)")
+    if not vereditos:
+        linhas.append(f"proximo: último veredito: {NAO_VERIFICAVEL} (nenhum parecer do pedido em docs/)")
+    falta = next(((e, papel, texto) for e, papel, texto, estado in etapas if estado != "entregue"), None)
+    passos = [f"proximo: passo: volta ao autor, parecer {tipo} não aprovado" for tipo in reprovados]
+    passos.append(f"proximo: passo: {falta[0]} ({falta[1]}) · {texto_da_etapa(falta[2])}" if falta else
+                  "proximo: passo: todas as etapas têm registro de entrega; confira o critério de pronto" if etapas else f"proximo: passo: {NAO_VERIFICAVEL}")
+    linhas += passos
+    bloqueios = [f"proximo: bloqueio: depende de {nome_seguro(sem_controle(d))}, que não está em Pronto no quadro" for d in dependencias_do_texto(pedido_txt)[0]
+                 if not pedido_em_coluna(raiz, d, ("pronto",))]
+    bloqueios += [f"proximo: bloqueio: cartão em {sem_controle(coluna)}" for coluna in colunas_do_pedido(raiz, ids) if _sem_acento(coluna) in PARADAS_DO_QUADRO]
+    linhas += bloqueios or ["proximo: bloqueios: nenhum no registro"]
+    linhas = [sem_controle(l)[:LARGURA_DO_PROXIMO] for l in linhas]
+    if len(linhas) > TETO_DO_PROXIMO:
+        linhas = linhas[:TETO_DO_PROXIMO - 1] + [f"proximo: mais {len(linhas) - TETO_DO_PROXIMO + 1} linhas omitidas"]
+    return linhas, 0
+
+
+def colunas_do_pedido(raiz, ids):
+    """As colunas do KANBAN.md em que há um cartão cuja célula de pedido é um dos `ids`; vazio sem quadro."""
+    try:
+        quadro = quadro_por_coluna(raiz)
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [coluna for coluna, cartoes in quadro.items() if any(id_do_pedido(c) in ids for cartao in cartoes for c in cartao)]
+
+
+def pedido_em_coluna(raiz, pedido, colunas):
+    """True se o cartão do pedido está numa das `colunas` (comparadas sem acento e caixa); sem quadro, False."""
+    return any(_sem_acento(c) in colunas for c in colunas_do_pedido(raiz, {pedido}))
+
+
 def cmd_decisoes(raiz, pedido=None):
     """L15 (EXT-2): o registro das linhas `DECISÃO DO DONO` dos pedidos, gerado no stdout (nada se grava): `decisao: <pedido>:<linha> | data |
     decisão | motivo | reabre se`. A linha que abre com a frase e não segue `(<data>): <texto>` sai `aviso:` e fica fora. Só as linhas
@@ -5750,6 +5862,8 @@ def main():
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
+    px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
     de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
     de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
@@ -5912,6 +6026,11 @@ def executar(a, raiz):
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
+    if a.cmd == "proximo":
+        linhas, codigo = cmd_proximo(raiz, a.pedido)
+        for linha in linhas:
+            print(linha)
+        return codigo
     if a.cmd == "decisoes":
         for linha in cmd_decisoes(raiz, a.pedido):
             print(linha)
