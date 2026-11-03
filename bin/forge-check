@@ -4667,11 +4667,11 @@ REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
 
 
 def pedidos_do_registro(raiz, pedido):
-    """Os nomes de `docs/pedidos/*.md` (a cópia principal e a raiz, sem repetir), ou só `<pedido>`; só nomes, sem link."""
+    """Os nomes de `docs/pedidos/*.md` (a cópia principal, a raiz e a raiz de pedidos, sem repetir), ou só `<pedido>`; só nomes, sem link."""
     if pedido:
         return [pedido.removesuffix(".md")] if re.fullmatch(r"[A-Za-z0-9._-]+", pedido.removesuffix(".md")) else []
     nomes = set()
-    for base in (raiz_principal(raiz), Path(raiz)):
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
         pasta = Path(base) / "docs" / "pedidos"
         if pasta.is_dir():
             nomes |= {p.stem for p in pasta.glob("*.md") if not p.is_symlink() and re.fullmatch(r"[A-Za-z0-9._-]+", p.stem)}

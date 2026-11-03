@@ -63,6 +63,14 @@ class Decisoes(unittest.TestCase):
         self.assertNotIn("no meio do texto", texto)
         self.assertNotIn("a do time", texto)
 
+    def test_sem_pedido_lista_tambem_a_raiz_de_pedidos(self):  # L15, A4 do review: no Forge os pedidos ficam fora do clone
+        fora = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos"
+        fora.mkdir(parents=True)
+        (fora / "p9.md").write_text("- DECISÃO DO DONO (2026-10-25): X → A\n", encoding="utf-8")
+        linhas = self.rodar()[1]
+        self.assertTrue([l for l in linhas if l.startswith("decisao: p9:1 | 2026-10-25")], linhas)
+        self.assertEqual(linhas[-1], "decisoes: total=3 avisos=1")
+
     def test_texto_com_controle_sai_escapado_e_pedido_inexistente_avisa(self):
         (self.pedidos / "p2.md").write_text("- DECISÃO DO DONO (2026-10-22): A\x1b[31m vermelho ‮oculto\n", encoding="utf-8")
         saida = "\n".join(self.rodar("--pedido", "p2")[1])

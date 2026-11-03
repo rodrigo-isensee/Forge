@@ -35,3 +35,4 @@
 - o custo do trecho (movimento para parada) soma só os campos conhecidos do usage, e o formato real com server_tool_use aninhado não derruba o movimento (lote-unico-032, L16, A1 do review)
 - a fila só executa o --status do .githooks/pre-push que é o do Forge; o hook de outro dono não roda e a trava não vira presa à toa (lote-unico-032, L18, A2 do review)
 - a medida de vereditos que contradizem as próprias linhas reconhece toda linha que reprova no conferente.md (escopo: e forma: diferentes de ok), não só escopo: fora (lote-unico-032, L13, A3 do review)
+- o decisoes sem --pedido lista também os pedidos da raiz de pedidos (~/.forge-contrib ou --raiz-pedidos), onde o Forge os guarda (lote-unico-032, L15, A4 do review)
