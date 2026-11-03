@@ -4690,12 +4690,16 @@ def texto_da_etapa(texto):
     return re.sub(r"^\S+\s*\([^)]*\):\s*", "", texto)
 
 
+VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
+
+
 def etapas_do_proximo(pedido_txt, historico):
-    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`, `em curso` ou `não verificável`)."""
+    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`; `em curso` só com verbo de início na linha; senão `não verificável`)."""
     saida = []
     for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
         citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
-        estado = "entregue" if any("entregue" in l.casefold() for l in citam) else "em curso" if citam else NAO_VERIFICAVEL
+        estado = "entregue" if any("entregue" in l.casefold() for l in citam) \
+            else "em curso" if any(VERBO_DE_INICIO.search(l) for l in citam) else NAO_VERIFICAVEL
         saida.append((etapa, papel, texto, estado))
     return saida
 

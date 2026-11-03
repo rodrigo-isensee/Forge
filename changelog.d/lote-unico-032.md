@@ -39,3 +39,4 @@
 - o voltas sem --pedido lista o pedido que andou sem volta pela linha relogios:, para a tabela por release não perdê-lo (lote-unico-032, L49, A5 do review)
 - o invariante novo em arquivo do legado traz regra e porque por trecho (invariantes_motivo_trecho), e o legado vira a contagem de trechos de antes; os trechos da L50 e da L51 ganham o motivo (lote-unico-032, L35, A6 do review)
 - o mutante M6 da L31 aponta o teste estático do sleep em segundo plano, que falha com o mutante em vez de travar (lote-unico-032, L31, A1 do QA)
+- o proximo só põe a etapa em curso com verbo de início na linha do Histórico (delegada, iniciada, em curso...); a menção solta, como "Próximo: ... E1.4", segue não verificável (lote-unico-032, L17, A7 do review)
