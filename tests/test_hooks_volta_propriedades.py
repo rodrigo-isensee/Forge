@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -166,19 +167,32 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                     _comum.separar_lancadores([p or "" for p in palavras])
                 self.assertLess(medida.cpu, 2.0, f"{nome}: {medida.texto()}")
 
-    def decidir_medido(self, montados, hook, texto, **como):
+    def decidir_medido(self, montados, hook, texto, subida=0, **como):
         """(código, stderr, parede do hook, CPU do processo) do hook real sobre `texto`: a parede vem de dentro do lançador
-        (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook."""
+        (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook.
+        `subida`: segundos de espera antes de o lançador começar, a fila da máquina carregada na subida do interpretador."""
         self.assertNotEqual(LANCADOR_MEDIDO, test_hooks.LANCADOR, "o lançador medido tem a medida")
+        lancador = LANCADOR_MEDIDO.replace("import os, runpy, sys, time", f"import os, runpy, sys, time\ntime.sleep({float(subida)!r})")
         raiz, entrada, proc = montados[hook]
         entrada = json.loads(json.dumps(entrada))
         entrada["tool_input"]["command"] = texto
         medida = Path(tempfile.mkdtemp(prefix="forge-medida-")) / "parede"
         self.addCleanup(shutil.rmtree, medida.parent, ignore_errors=True)
         extra = {"FORGE_NPROC": "8", "FORGE_MEDIDA_DO_HOOK": str(medida)}
-        with mock.patch.object(test_hooks, "LANCADOR", LANCADOR_MEDIDO), MedidaDeCpu() as gasto:
+        with mock.patch.object(test_hooks, "LANCADOR", lancador), MedidaDeCpu() as gasto:
             r = test_hooks.rodar(hook, entrada, raiz, proc, extra, producao=True, **como)
         return r.returncode, r.stderr, float(medida.read_text(encoding="utf-8")), gasto.cpu
+
+    def test_a_subida_lenta_do_interpretador_nao_conta_na_parede_do_hook(self):  # L31: load alto, o teste passa
+        """Com 4 s de espera antes do lançador (a máquina carregada), a chamada inteira passa de 4 s e a parede só do hook
+        não: o teto de 10 s e o vigia de 3 s seguem os de produção, medidos de dentro."""
+        montados = self.modelos_montados()
+        inicio = time.monotonic()
+        codigo, erro, parede, _ = self.decidir_medido(montados, "conformidade", "git push origin feature/x", subida=4)
+        total = time.monotonic() - inicio
+        self.assertEqual(codigo, 0, erro)
+        self.assertGreater(total, 4)
+        self.assertLess(parede, total - 3.5, "a espera da subida fica fora da parede do hook")
 
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
