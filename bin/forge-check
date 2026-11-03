@@ -1954,7 +1954,7 @@ def linhas_de_ocupacao(raiz):
         return []
     ocupacao, texto = lida
     if ocupacao is None:
-        return [f"aviso: trava da suíte {NAO_VERIFICAVEL} ({sem_controle(texto)}); trate como ocupada (M7)"]
+        return [f"aviso: trava da suíte não verificável ({sem_controle(texto)}); trate como ocupada (M7)"]
     linhas = [f"fila: trava ocupacao={ocupacao:.1f} limite={LIMITE_DE_OCUPACAO} ({texto})"]
     if ocupacao > LIMITE_DE_OCUPACAO:
         linhas.append(f"aviso: ocupação {ocupacao:.1f} da trava acima de {LIMITE_DE_OCUPACAO}: não despache etapa que roda a suíte (M7)")
