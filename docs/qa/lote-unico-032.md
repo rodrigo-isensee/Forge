@@ -3,8 +3,8 @@ tipo: qa
 contrato: 1
 pedido: lote-unico-032
 branch: melhoria/lote-unico-032
-commit: 9f32431def2214ca564c4d1968c48b726e2d8d45
-parecer: reprovado
+commit: cd93720c89c21f935783c98501d3817a5b7ad3f7
+parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
@@ -14,19 +14,36 @@ data: 2026-11-03
 ---
 # QA: lote-unico-032
 
-Pedido de revisão: lote-unico-032-REV (E3.1); volta 1 sobre 0c90721 (reprovada pelo A1), volta 2 sobre 9f32431 (esta). Base `b2580c6441549e1f1cf4d153ca8db3247cae8cf3`, head `0c90721c86b15d89ea0aec0befa1850b45948698`, 51 commits, 76 arquivos, +3377 -173. Fases 0+A, B, D e F (L00 a L18, L31 a L37, L49 a L51). Sem especificação de UX: os critérios são as obrigações `C-nn` e as regras do pedido; sem E2E nem acessibilidade (nada de interface). Máquina: load 2 a 6,6 e MemAvailable acima de 9 GB antes de cada tarefa pesada, uma por vez.
+Pedido de revisão: lote-unico-032-REV (E3.1); volta 1 sobre 0c90721 (reprovada pelo A1), volta 2 sobre 9f32431 (reprovada por A9 e A10), volta 3 sobre cd93720 (esta). Base `b2580c6441549e1f1cf4d153ca8db3247cae8cf3`, head `0c90721c86b15d89ea0aec0befa1850b45948698`, 51 commits, 76 arquivos, +3377 -173. Fases 0+A, B, D e F (L00 a L18, L31 a L37, L49 a L51). Sem especificação de UX: os critérios são as obrigações `C-nn` e as regras do pedido; sem E2E nem acessibilidade (nada de interface). Máquina: load 2 a 6,6 e MemAvailable acima de 9 GB antes de cada tarefa pesada, uma por vez.
 
-Veredito (volta 2, head 9f32431): reprovado por dois bloqueantes que reproduzi depois de ler os pareceres de review e segurança (A9, A10); os testes das duas correções passam porque só exercem o caso do achado, não o vizinho. O A1 da volta 1 (M6 da L31) e o A7 (merge com a develop) estão resolvidos; as demais correções da volta têm o teste vermelho provado; a suíte inteira passou sobre 9f32431.
+Veredito (volta 3, head cd93720): aprovado. Os dois bloqueantes da volta 2 (A9, L35, 9f5c191; A10, L13, cd93720) estão corrigidos e cada um tem o caso vizinho coberto; a suíte inteira passou sobre cd93720; nenhum bloqueante novo.
 
 ## Achados
-- A9 (bloqueante) tests/config.json:666 · L35 (OK-11), requisito: em agents/jarvis.md `invariantes_sem_motivo` vale n=73 e o arquivo tem 51 trechos sem motivo; 22 trechos novos entram sem regra e porque, o teste verde não os vê (conferido por script no head).
-- A10 (bloqueante) bin/forge-check:4021 · L13, defeito provado: `escopo: integração da base, sem commit (nada a conferir)` com `veredito: cumpriu` casa RE_LINHA_REPROVADA (True) e conta como contradição; o conferente não reprova por essa linha.
-- A2 (recomendado) bin/forge-check:695 · condição sem mutante (R-QA, AR-1): L03 a L18 e as guardas das correções da volta 2 (:1940, :2664, :4020, :4675, :4693) sem spec; cada teste novo prova o vermelho, a mutação não foi declarada.
+- A2 (recomendado) bin/forge-check:695 · condição sem mutante (R-QA, AR-1): L03 a L18 e as guardas das correções das voltas 2 e 3 (inclusive RE_LINHA_REPROVADA :4022) sem spec; cada teste novo prova o vermelho, a mutação não foi declarada.
 - A3 (recomendado) bin/forge-check:2621 · mesma classe: suposicao revertida (L11), reversoes_do_pedido (L49 :2675) e o ramo do pr (L05 :6144) sem mutante; forge-fechar sai "não coberto" (shell).
-- A4 (recomendado) tests/test_suite_paralela.py:426 · vermelho sem veredito (rc 2, L32): o teste erra na base em vez de falhar por asserção; o mutante M15 da l32-2 o mata (volta 1, sem mudança no diff).
-- A5 (recomendado) tests/test_comportamento.py:1 · vermelho sem veredito (rc 2, L36): módulo novo, sem registro na base; os 8 mutantes da l36 morreram e substituem a prova (volta 1, sem mudança no diff).
-- A6 (recomendado) tests/test_decisoes.py:1 · 14 testes novos passam na base (guardas negativas); quatro sem mutante: test_decisoes, test_fila_ocupacao, test_etapa_do_brief e test_jarvis_nucleo (ver seção do vermelho da volta 1).
+- A4 (recomendado) tests/test_suite_paralela.py:426 · vermelho sem veredito (rc 2, L32): o teste erra na base em vez de falhar por asserção; o mutante M15 da l32-2 o mata.
+- A5 (recomendado) tests/test_comportamento.py:1 · vermelho sem veredito (rc 2, L36): módulo novo, sem registro na base; os 8 mutantes da l36 morreram e substituem a prova.
+- A6 (recomendado) tests/test_decisoes.py:1 · 14 testes novos passam na base (guardas negativas); quatro sem mutante: test_decisoes, test_fila_ocupacao, test_etapa_do_brief e test_jarvis_nucleo.
 - A8 (recomendado) agents/jarvis.md:1 · o git revert isolado conflita em 13 de 28 itens (arquivos compartilhados); reverter o lote em ordem inversa ou por inteiro, não item a item.
+- A11 (recomendado) tests/test_forge.py:519 · L35: o teto LEGADO_TRECHOS_MAXIMO (284) tem mutante sobrevivente (400 passa os 3 testes de RegrasInviolaveis); a igualdade por arquivo já impede a soma de crescer, então o teto é redundante, não furo; vai ao cartão LOTE-UNICO-032-AJUSTES.
+
+## Revalidação da volta 3 (cd93720)
+Máquina: load 0,5 a 1,0 e MemAvailable 13 GB antes de cada tarefa pesada, uma por vez. Delta desde 9f32431: bin/forge-check (docstring, uso e RE_LINHA_REPROVADA), tests/test_forge.py, tests/config.json (agents/jarvis.md 73 para 51), fragmento do changelog e pareceres.
+| Item | Resultado |
+|---|---|
+| Suíte inteira | `FORGE_SUITE_SEM_REUSO=1 python3 scripts/suite-paralela.py`: `Ran 2489 tests in 639.574s (4 processos)` `OK (skipped=1)` rc=0 (o skip é o herdado) |
+| A9 (L35, 9f5c191) | resolvido. Real no head: legado soma 284 em 34 arquivos e as contagens por arquivo batem uma a uma com `invariantes` menos `invariantes_motivo_trecho` (nenhuma divergência, por script). Vizinhos por mutação sobre cópia em $TMPDIR: n de agents/jarvis.md de volta a 73 derruba 1 teste; a igualdade `< n` trocada por `if False` derruba 1; trecho novo sem motivo em agents/jarvis.md derruba 2. Sobrevive só o teto 284 trocado por 400 (A11, redundante com a igualdade). |
+| A10 (L13, cd93720) | resolvido. As linhas que o entrega imprime sem reprovar (`escopo: integração da base`, `escopo: sem commit`, `escopo: união de N briefs`, de bin/forge-check:1070, :1198, :1202, :1231) não casam RE_LINHA_REPROVADA; vizinhos que seguem reprovando: `escopo: fora da branch`, `escopo: união de briefs` (sem número, :1066), `escopo: integracao da base` (sem acento) e `escopo: okay fora`, todos casam. As linhas `True` de :1058 e :1221 reprovam como antes. |
+| Vermelho L13 (cd93720) | `bin/forge-testes --vermelho 9f32431def2214ca564c4d1968c48b726e2d8d45 --modulos test_forge`: `vermelho: base=9f32431def22 head=cd93720c89c2 módulos=test_forge (restrito por --modulos)`; `MedirAlucinacao.test_veredito_que_contradiz_as_proprias_linhas_conta · H=ok · B=falha · prova (asserção)`; `contagem: não prova (passa na base)=481; prova (asserção)=1` rc=0 |
+| Vermelho L35 (9f5c191) | sem vermelho por base: `problemas_de_motivo` mora no próprio tests/test_forge.py (o forge-testes mantém o teste no HEAD e não há código de produção a reverter). Substitui a mutação à mão da linha A9 (3 de 4 mutantes mortos; o sobrevivente é o A11). |
+| Vermelho L35 (c0c180e) contra 0c90721 | `--modulos test_forge` contra 0c90721c86b15d89ea0aec0befa1850b45948698: só prova `test_veredito...` (L13); o teste de RegrasInviolaveis não prova por base, pela mesma razão (verificador no teste). Mutação de c0c180e (`> n` por `>= n`, `if arq not in legado` por `if False`) registrada na volta 2; a contagem igual da volta 3 a torna mais estrita. |
+| Vermelho L31 (9b1e375) contra 0c90721 | `--modulos test_hooks_volta_propriedades,test_fechar_sinal`: `nenhum teste prova a mudança.` rc=1; esperado, 9b1e375 só muda a spec tests/mutantes/lote-unico-032-l31.json (sem teste nem código). Substituto: `bin/forge-mutante tests/mutantes/lote-unico-032-l31.json`: M1 a M6 morreram (`M6 · morreu · bin/forge-fechar:259`), rc=0, sem sobrevivente. |
+| `scripts/verificar-contribuicao.sh origin/develop` | rc=0, `ok: nenhum segredo nem caminho pessoal no diff contra origin/develop.` |
+| Plugin | `scripts/validar-plugin.sh`: `Validation passed` |
+| Merge com a develop | `git merge-tree --write-tree HEAD origin/develop` rc=0 (origin/develop em c6244ac) |
+| PA-7 | AR-1 ocorre de novo (A2, guarda RE_LINHA_REPROVADA sem mutante); AR-5 sem ocorrência nova (nenhum python novo que decide). Linha AR-1 a atualizar pelo tech-lead no PR. |
+
+Mantidas as seções já aprovadas (tabela critério → teste, mutantes das demais specs, vermelho dos 28 itens, reversão por item, demais verificações); o delta da volta 3 não as altera.
 
 ## Revalidação da volta 2 (9f32431)
 Máquina: load 0,9 a 4 e MemAvailable 13 GB antes de cada tarefa pesada, uma por vez. Delta desde 0c90721: 42 arquivos (8 correções, o merge da develop c6244ac e os pareceres).
@@ -74,7 +91,7 @@ Detalhe dos achados: A1, o teste test_l5_term_durante_a_espera_grava_fim_codigo_
 | L10 PQ fraco | test_forge.ConferirBrief (grep -c sem arquivo, sha abreviado, com arquivo não avisa) | com e sem arquivo | passou |
 | L11 suposição sem muda com | test_forge.test_suposicao_sem_muda_com_e_custo_de_reverter_avisa; test_voltas.test_reversoes_de_suposicao_por_pedido | n/a | passou |
 | L12 afirmação absoluta sem saída | test_forge.MedirAlucinacao.test_afirmacao_absoluta_sem_saida_de_teste_conta_sem_lastro | n/a | passou |
-| L13 veredito contradiz as linhas | test_forge.MedirAlucinacao.test_veredito_que_contradiz_as_proprias_linhas_conta | n/a | passou (review A3: caso das linhas do conferente não coberto) |
+| L13 veredito contradiz as linhas | test_forge.MedirAlucinacao.test_veredito_que_contradiz_as_proprias_linhas_conta | n/a | passou (volta 3: caso das linhas de integração coberto) |
 | L14 recusas por papel | test_forge.MedirAlucinacao.test_recusas_por_papel_contam_so_numeros | n/a | passou |
 | L15 decisoes | test_decisoes (3 provam) | linha torta, controle escapado, pedido inexistente | passou (review A4: sem --pedido) |
 | L16 custo do trecho | test_sobreposicao_quadro (3 provam: grava, soma no Pronto, lacuna nunca zero) | sem transcrição | passou (review A1: formato real do usage) |
@@ -84,7 +101,7 @@ Detalhe dos achados: A1, o teste test_l5_term_durante_a_espera_grava_fim_codigo_
 | L32 suíte vermelha registra | test_suite_paralela (4 provam), l32 e l32-2 M1 a M16 | processo morto, link, id com controle (A4), memória ilegível | passou |
 | L33 forge-mutante em k processos | test_forge_mutante (6 provam), l33 M1 a M11 | k fora da faixa, SIGTERM em 20 s, processo que cai | passou |
 | L34 todo caminho citado existe | test_forge.Referencias (3 provam) | link para fora do repositório | passou |
-| L35 invariante traz regra e porque | test_forge.RegrasInviolaveis (2 provam) | invariante novo sem regra | passou (review A6: motivo por arquivo, não por trecho) |
+| L35 invariante traz regra e porque | test_forge.RegrasInviolaveis (2 provam) | invariante novo sem regra | passou (volta 3: contagem igual à real e teto) |
 | L36 casos de comportamento | test_testes_tocados.Mapa e MapaDoForgeCheck (4 provam), l36 M1 a M8 | caso que o detector não acusa | passou (A5) |
 | L37 merge da base limpo | test_fechar_base_andou (9 provam), l37 M1 a M9 | conflito, fora de melhoria/*, worktree suja, envio recusado, base que anda de novo | passou |
 | L49 dois relógios | test_voltas (2 provam), l49 M1 a M12 | pedido que nunca esteve em pronto | passou (review A5: sem --pedido) |
