@@ -41,3 +41,4 @@
 - o mutante M6 da L31 aponta o teste estático do sleep em segundo plano, que falha com o mutante em vez de travar (lote-unico-032, L31, A1 do QA)
 - o proximo só põe a etapa em curso com verbo de início na linha do Histórico (delegada, iniciada, em curso...); a menção solta, como "Próximo: ... E1.4", segue não verificável (lote-unico-032, L17, A7 do review)
 - a contagem do legado de invariantes sem motivo tem de ser igual à real de cada arquivo (agents/jarvis.md cai de 73 para 51) e a soma tem teto (284): subir o n ou acrescentar trecho sem motivo reprova (lote-unico-032, L35, A6 do review, A5 da segurança e A9 do QA)
+- a medição de vereditos (L13) não conta como reprovação as linhas escopo: de integração da base, sem commit e união de N briefs, que o entrega imprime sem reprovar; o texto de uso e a docstring dizem a regra nova (lote-unico-032, L13, A3 e A10 do review e A10 do QA)

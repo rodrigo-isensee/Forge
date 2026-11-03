@@ -3084,11 +3084,12 @@ class MedirAlucinacao(unittest.TestCase):
         coerente_c = "PQ-1 cumpriu | x\nescopo: Base-sha fora da branch | git merge-base\nveredito: não cumpriu"  # A3 do review: as linhas do conferente.md
         coerente_d = "forma: brief sem arquivo em docs/briefs/\nveredito: não cumpriu"
         coerente_e = "escopo: ok (anexo) | git diff\nescopo: confira | git diff\nforma: ok\nveredito: cumpriu"  # linha que não reprova
+        coerente_f = "escopo: integração da base (o que difere dos dois pais)\nescopo: sem commit (nada a conferir)\nescopo: união de 3 briefs (mesma Branch, Base, Base-sha e pedido)\nveredito: cumpriu"  # A3 do review: o entrega imprime sem reprovar
         linhas = []
-        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito, coerente_c, coerente_d, coerente_e)):
+        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito, coerente_c, coerente_d, coerente_e, coerente_f)):
             linhas += [{**o, "agentId": f"a{i}"} for o in self.subagente(texto, "x")]
         saida, _ = self.rodar("vereditos", linhas)
-        self.assertIn("vereditos: sessao s1: vereditos=7 contraditorios=2 taxa=28.6%", saida)
+        self.assertIn("vereditos: sessao s1: vereditos=8 contraditorios=2 taxa=25.0%", saida)
         self.assertNotIn("pendente", saida)  # só números
 
     def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):
