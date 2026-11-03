@@ -1,6 +1,13 @@
 {
   "pedido": "gh-merge-admin-3",
   "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "hooks/parecer.py",
+      "trecho": "metodo.upper() != \"GET\"",
+      "motivo": "a comparação saiu do return e foi para o any(), coberta pelos mutantes G28 e G29"
+    }
+  ],
   "mutantes": [
     {
       "id": "G28",
@@ -96,8 +103,8 @@
       "id": "G37",
       "guarda": "o -X lido vale: sem ele, o método não conta",
       "arquivo": "hooks/parecer.py",
-      "de": "    if metodos:\n",
-      "para": "    if False:\n",
+      "de": "    if metodos:",
+      "para": "    if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
