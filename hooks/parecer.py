@@ -504,6 +504,17 @@ def endpoint_da_api(args):
     return (posicionais(args, API_COM_VALOR) or [""])[0]
 
 
+# GH-MERGE-ADMIN: o que passa por cima da proteção da branch, sem ler o valor nem o papel (aperta; R-MAIN)
+MERGE_POR_API = re.compile(r"(^|/)(pulls/[^/]+/merge|repos/[^/]+/[^/]+/merges)\b", re.I)
+MERGE_NO_GRAPHQL = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|enqueuePullRequest|mergeBranch", re.I)
+ENDPOINT_GRAPHQL = re.compile(r"(^|/)graphql/?$", re.I)
+
+
+def usa_admin(args):
+    """`--admin` ou `--admin=<valor>`, em qualquer posição dos argumentos (até depois de `--` ou como valor de outra opção)."""
+    return any(a == "--admin" or a.startswith("--admin=") for a in args)
+
+
 def base_do_pr(raiz, branch):
     """Base do PR da branch, sem rede: a que o `gh pr create` guardou no git; senão, pelo fluxo do Forge."""
     cod, base = git(raiz, "config", "--get", f"branch.{branch}.gh-merge-base")

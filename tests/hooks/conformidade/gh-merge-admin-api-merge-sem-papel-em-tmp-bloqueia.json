@@ -1,0 +1,18 @@
+{
+  "descricao": "GH-MERGE-ADMIN: cd /tmp && gh api --method PUT repos/{owner}/{repo}/pulls/12/merge -f merge_method=squash",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "cd /tmp && gh api --method PUT repos/{owner}/{repo}/pulls/12/merge -f merge_method=squash"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-"
+  }
+}

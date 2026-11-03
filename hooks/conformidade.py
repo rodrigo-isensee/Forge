@@ -1659,11 +1659,33 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"claude {' '.join(pos[:3])} altera a instalação do Forge",
                         f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
 
+    CORRIGIR_DO_MERGE = "o dono mescla pela interface do GitHub, fora dos hooks do agente (R-DECISAO)"
+
+    def gh_admin(self, palavras, parte):
+        """GH-MERGE-ADMIN (R-MAIN): `gh pr merge` com `--admin` (qualquer valor) pula a proteção do GitHub: recusa em
+        qualquer papel, base e pasta, antes de toda saída antecipada de `gh`."""
+        if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
+            self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
+
+    def gh_api_de_merge(self, args, pasta):
+        """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
+        proteção. O GraphQL que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
+        endpoint = parecer.endpoint_da_api(args)
+        merge = bool(parecer.MERGE_POR_API.search(endpoint))
+        if not merge and parecer.ENDPOINT_GRAPHQL.search(endpoint):
+            # pasta que o hook não resolveu: o arquivo do corpo não se lê (`/dev/null/…`), então o GraphQL falha fechado
+            textos, ilegivel = self.textos_da_api(args, pasta or Path(os.devnull))
+            merge = ilegivel or any(parecer.MERGE_NO_GRAPHQL.search(t) for t in textos)
+        if merge:
+            self.barrar("R-MAIN", "gh api que mescla PR (merge REST ou GraphQL) pode desviar a proteção da branch",
+                        self.CORRIGIR_DO_MERGE)
+
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False):
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if self.sessao_forge:
             self.gh_rotulo(palavras, pasta, por_xargs)
+        self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -1688,6 +1710,8 @@ class Guarda:
                     or any("mutation" in a and GRAPHQL_PERIGOSO.search(a) for a in args)):
                 self.barrar("R-CONFORMIDADE", "gh api que altera refs, regras, acessos ou faz merge",
                             "use gh pr/git pelo papel certo ou leve ao usuário (R-DECISAO)")
+            if parecer.metodo_mutante(args):
+                self.gh_api_de_merge(args, pasta)
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod

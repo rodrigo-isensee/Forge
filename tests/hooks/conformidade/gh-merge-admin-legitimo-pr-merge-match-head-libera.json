@@ -1,0 +1,18 @@
+{
+  "descricao": "GH-MERGE-ADMIN: gh pr merge melhoria/x --squash --match-head-commit 0123456789abcdef0123456789abcdef01234567",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr merge melhoria/x --squash --match-head-commit 0123456789abcdef0123456789abcdef01234567"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}
