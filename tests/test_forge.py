@@ -2921,6 +2921,19 @@ class MedirAlucinacao(unittest.TestCase):
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "Ran 10 tests in 1s\nFAILED (failures=1)"))
         self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", self.lastro("Não é verdade que todos os testes passam.", "x"))  # negada não conta
 
+    def test_veredito_que_contradiz_as_proprias_linhas_conta(self):  # L13 (P7): só mede
+        cumpriu_com_pendente = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\npendente: \"Entregar\" item 3 sem commit\nveredito: cumpriu"
+        nao_cumpriu_sem_linha = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\nveredito: não cumpriu"
+        coerente_a = "PQ-1 cumpriu | x\nveredito: cumpriu"
+        coerente_b = "PQ-1 não cumpriu | x\nveredito: não cumpriu"
+        sem_veredito = "Relatório sem a linha fixa."
+        linhas = []
+        for i, texto in enumerate((cumpriu_com_pendente, nao_cumpriu_sem_linha, coerente_a, coerente_b, sem_veredito)):
+            linhas += [{**o, "agentId": f"a{i}"} for o in self.subagente(texto, "x")]
+        saida, _ = self.rodar("vereditos", linhas)
+        self.assertIn("vereditos: sessao s1: vereditos=4 contraditorios=2 taxa=50.0%", saida)
+        self.assertNotIn("pendente", saida)  # só números
+
     def test_saida_com_erro_nao_da_lastro_e_nada_vaza(self):
         saida = self.lastro("Commit abc1234 entrou.", "abc1234", erro=True)
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", saida)

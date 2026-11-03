@@ -9,6 +9,7 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
      forge-check transcricao lastro [<pasta ou .jsonl>]
      forge-check transcricao decisoes [<pasta ou .jsonl>]
+     forge-check transcricao vereditos [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
      forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
@@ -94,7 +95,8 @@ registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o ca
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
 `lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
 e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` (M3) conta as respostas da sessão
-principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo". Só medem; não bloqueiam nada.
+principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
+contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `escopo: fora` ou `pendente:`, ou `não cumpriu` sem nenhuma). Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sem `--ref`, `pr` lê o parecer do disco e exige que ele seja igual ao do HEAD (parecer commitado, bytes idênticos).
 `pr --base` (só `develop`, `homolog`, `main` ou `origin/<essas>`, lida de `refs/remotes/origin/<base>`) aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou: o merge da base depois do parecer não o invalida, mas qualquer byte a mais no commit de merge sim (por conteúdo, nunca por nome); base que já contém o head vale só pelo diff literal (aviso no stderr).
@@ -3899,6 +3901,27 @@ def medir_lastro(relatorios):
     return medida
 
 
+RE_VEREDITO = re.compile(r"^\s*veredito:\s*(n[ãa]o cumpriu|cumpriu)\s*$", re.I | re.M)
+RE_LINHA_REPROVADA = re.compile(r"^\s*(?:PQ-\d+\s+n[ãa]o cumpriu\b|escopo:\s*fora\b|pendente:)", re.I | re.M)
+
+
+def medir_vereditos(relatorios):
+    """L13 (P7): {sessão: (relatórios com `veredito:`, os que contradizem as próprias linhas)}. `cumpriu` com linha `PQ-n não cumpriu`,
+    `escopo: fora` ou `pendente:`, ou `não cumpriu` sem nenhuma delas, é contradição. Só mede; nada do texto sai daqui."""
+    medida = {}
+    for sessao, itens in relatorios.items():
+        total = contraditorios = 0
+        for relatorio, _ in itens:
+            vereditos = RE_VEREDITO.findall(relatorio)
+            if not vereditos:
+                continue
+            total += 1
+            cumpriu = not vereditos[-1].lower().startswith("n")
+            contraditorios += 1 if cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None) else 0
+        medida[sessao] = (total, contraditorios)
+    return medida
+
+
 RE_OPCAO = re.compile(r"^\s*(?:[-*+]\s+)?(\|\s*)?(?:\*\*\s*)?(Op[çc][ãa]o\s+)?([A-F])(\*\*)?\s*(?:([).:|,])(?:\*\*)?)?(?=\s|$)")
 RE_RECOMENDO = re.compile(r"recomendo|recomenda[çc][ãa]o:", re.I)
 RE_DECIDIDO = re.compile(r"^\s*(?:\*\*)?(?:Decidido|Escolhida):", re.I)
@@ -5667,7 +5690,8 @@ def main():
     cu.add_argument("--ate", help="só as mensagens até esta hora (ISO 8601)")
     cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento dos cartões do pedido em docs/kanban/historico.md (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
-                        ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)")):
+                        ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)"),
+                        ("vereditos", "vereditos do conferente que contradizem as próprias linhas (P7)")):
         medida = tsub.add_parser(nome, help=ajuda)
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
@@ -5708,6 +5732,8 @@ def executar(a, raiz):
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1, raiz)
+    if a.cmd == "transcricao" and a.acao == "vereditos":
+        return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "delta":
