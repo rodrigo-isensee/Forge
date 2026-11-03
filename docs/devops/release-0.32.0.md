@@ -3,17 +3,17 @@ tipo: revisao-devops
 contrato: 1
 pedido: release-0.32.0
 branch: melhoria/release-0.32.0
-commit: 5e7f00387bd005269d11e99e5f80ab4e3c6bbf65
-parecer: reprovado
+commit: cb9f7c1ee1a5ba99b8ddc80dae7c4c9535b20ff9
+parecer: aprovado
 revisor: forge:devops-engineer
 data: 2026-11-03
 ---
 # Review de devops: release-0.32.0
 
-Escopo: `git diff 5b6d13a...5e7f003` (PRs #427 a #430 e o commit de release), na parte de pipeline, scripts e pre-push. Pareceres dos PRs individuais lidos como insumo, sem refazê-los.
+Escopo: `git diff 5b6d13a...cb9f7c1` (rodada 2: delta 5e7f003..cb9f7c1, só `changelog.d/README.md`) (PRs #427 a #430 e o commit de release), na parte de pipeline, scripts e pre-push. Pareceres dos PRs individuais lidos como insumo, sem refazê-los.
 
 ## Parecer
-Reprovado por um defeito provado (A1, bloqueante): o teste novo da L34 reprova na árvore do commit de release, o que deixa vermelha a bateria do PR e a da homolog e da main. O que é de pipeline (ci.yml, scripts, pre-push) está sem defeito.
+Aprovado na rodada 2. O A1 da rodada 1 (teste da L34 vermelho sem `changelog.d`) está resolvido: o cb9f7c1 versiona `changelog.d/README.md`, a pasta existe e `test_todo_caminho_citado_em_agentes_skills_e_regras_existe` passa (rodado). O que é de pipeline (ci.yml, scripts, pre-push) está sem defeito.
 
 - `.github/workflows/ci.yml` (#429): `timeout-minutes` 10→20 (checagem rápida) e 15→25 (bateria e bateria python 3.14). Só o teto sobe; `permissions:`, `concurrency`, SHAs das ações e nenhum `uses:` foram tocados (0 linhas `uses:` mudadas). Sem `continue-on-error`, `[skip ci]` nem `pull_request_target` (grep). O YAML carrega sem erro.
 - `ci.yml` (#430, L01): o gate do commit só de parecer agora cobre `docs/{reviews,qa,security,devops,ux}/`, recusa modelo `_*` e `docs/security/{ameacas,aceites}/`, e continua exigindo `bateria` verde do app `github-actions` no commit anterior, só em PR com base `develop` e ação `synchronize`. `$ANTES` e `$HEAD_SHA` seguem por variável de ambiente, sem interpolação de entrada não confiável em `run:`. Entrou `NeutralidadeDoNucleo` nos testes leves do gate, coerente com o núcleo do Jarvis ter movido invariantes.
@@ -27,7 +27,7 @@ Ferramentas: `shellcheck` disponível (o pre-push e `forge-testes` são Python/h
 Versão minor: nada na leva quebra os projetos. O que muda é aditivo (novos subcomandos do `forge-check`, avisos sem recusa, registro local, `forge-mutante --processos` com padrão 1) ou reorganiza texto do Jarvis para skills sem remover regra. A mudança de papel (só o `qa-engineer` roda a suíte inteira, D-5) é decisão do dono e não exige ação dos projetos. Minor adequado.
 
 ## Achados
-- A1 (bloqueante) tests/test_forge.py:339 · changelog.d está em PASTAS_CITADAS mas a release apaga os fragmentos: no 5e7f003 a pasta não existe e test_todo_caminho_citado_em_agentes_skills_e_regras_existe falha (agents/tech-lead.md, skills/contribuir-com-o-forge/SKILL.md); o pre-push recusa o envio. Pôr changelog.d em CRIADOS_NO_PROJETO.
+- A1 (recomendado) tests/test_forge.py:339 · RESOLVIDO no cb9f7c1 (changelog.d/README.md versionado); texto original: changelog.d está em PASTAS_CITADAS mas a release apaga os fragmentos: no 5e7f003 a pasta não existe e test_todo_caminho_citado_em_agentes_skills_e_regras_existe falha (agents/tech-lead.md, skills/contribuir-com-o-forge/SKILL.md); o pre-push recusa o envio. Pôr changelog.d em CRIADOS_NO_PROJETO.
 - A2 (recomendado) .github/workflows/ci.yml:108 · a exclusão de modelo no CI testa `/_[^/]*$` (só o nome do arquivo), enquanto o pre-push usa `*/_*` (qualquer componente); caminho como docs/devops/_x/y.md passa no CI e roda tudo no pre-push.
 - A3 (recomendado) .github/workflows/ci.yml:107 · o gate do CI isenta docs/ux/ e o pre-push (.githooks/pre-push:225) não; o comentário diz "como no pre-push". Alinhar o comentário ou o pre-push (hoje o CI é o mais permissivo, sem efeito, pois docs/ux/ não existe).
 
