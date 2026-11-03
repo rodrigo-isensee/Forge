@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: 9535b63a7908ae1578f998ef5e1978734aacb82f
-parecer: reprovado
+commit: 2e9c621b0f6939f1b82b74d36bfd55957f79f610
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
@@ -18,7 +18,8 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A3 (recomendado) tests/hooks/conformidade/gh-merge-admin-admin-e-bash-c-bloqueia.json:17 · resolvido na rodada 2: o esperado das quatro fixtures traz o texto da recusa nova.
 - A4 (recomendado) tests/test_hooks.py:2164 · resolvido na rodada 2: heredoc, xargs, `--repo=`, conferente, homolog e as linhas de A1 e A2 têm fixture.
 - A5 (recomendado) hooks/conformidade.py:1664 · resolvido na rodada 2: as specs `tests/mutantes/gh-merge-admin.json` e `gh-merge-admin-2.json` cobrem G1 a G23, sem o G13, que caiu com a alternativa morta.
-- A6 (bloqueante) hooks/parecer.py:503 · segurança com gatilho (C-4), opção curta combinada: `gh api repos/o/r/pulls/1/merge -iX PUT`, `-iXPUT` e `gh api -if query=@q.graphql graphql` saem com rc=0. O gh lê `-iX` como `-i -X` (`gh api -iX` responde "flag needs an argument: 'X' in -X").
+- A6 (bloqueante) hooks/parecer.py:501 · resolvido na rodada 3: `desagrupa_i` separa o `-i` agrupado antes de `metodo_mutante`, `endpoint_da_api` e `textos_da_api`; `-iX PUT`, `-iXPUT`, `merges -iX POST`, `-if` e `-iF query=@arq graphql` recusam com R-MAIN.
+- A7 (recomendado) hooks/conformidade.py:1608 · fora do E1 e anterior à base: o `gh_trava` lê `-X` sem `desagrupa_i`, e `gh api -iX DELETE repos/o/r` sai com rc=0 (sem `-i`, recusa). O mesmo vale em :1626. Vira cartão para o `security-engineer`.
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -70,3 +71,16 @@ Head `9535b63`, sobre `6c7e573`. Revalidei só o delta: `git diff 6c7e573..9535b
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...9535b63`, contando só código e teste: `hooks/conformidade.py` 26, `hooks/parecer.py` 45 (37+8) e `tests/test_hooks.py` 5, total de 76 linhas. É uma classe de comportamento em `hooks/` (merge que desvia a proteção), com corpus próprio. Dentro do teto.
 
 **Parecer da rodada 2: reprovado.** A1 a A5 estão resolvidos. A6 bloqueia. Segurança e QA têm parecer próprio (E1.4 e E1.6). A6 também vai para o `security-engineer`.
+
+## Rodada 3
+Head `2e9c621`, sobre `9535b63`. Delta lido: `git diff 9535b63..2e9c621 -- hooks/ tests/ changelog.d/`. Ele traz `hooks/parecer.py` +14/-1 (`desagrupa_i` e o seu uso em `metodo_mutante` e `endpoint_da_api`), `hooks/conformidade.py` +1/-1 (`textos_da_api`), 5 fixtures novas `gh-merge-admin-api-opcao-curta-agrupada-*-bloqueia.json`, os mutantes G24 e G25 em `tests/mutantes/gh-merge-admin-2.json` e o changelog. Já lido e não tocado pelo delta: `gh_admin`, `analisar`, `gh_api_de_merge`, `merge_por_api` e as 63 fixtures anteriores.
+
+- **A6, resolvido.** O `gh api` só tem o `-i` como curta booleana, então separar o `-i` do resto agrupado reproduz a leitura do `gh`. Sondas na `Fixture` do teste: as seis formas do brief recusam com R-MAIN, e também `-iX=PUT`, `-iiX PUT`, `-i -XPUT`, `-ifquery=@arq`, `-iFquery=@arq`, `-iX PUT --input q.json graphql` e a forma dentro de shell com `-c`. O bloco do API_ADMIN também fecha (`-iX PUT …/branches/main/protection` recusa com R-CONFORMIDADE).
+- **C-5, sem regressão.** `gh api -i …/pulls/1/merge`, `-iX GET …/merge`, `-iq .x …/pulls/1` e `-i graphql -f query='query{…}'` liberam (rc=0). A troca de `-i?[fF]` por `-[fF]` não afrouxa, porque o `-if…` já chega separado.
+- **C-1 a C-4 e C-6, cumpridos.** Sem rede e sem `gh` novo; `desagrupa_i` é linear no número de palavras.
+- **A7, recomendado.** Mesma classe do A6 num controle fora do E1 (apagar repositório, 2.5), já presente na base `928e61b`. Não devolve a entrega; segue em cartão ao `security-engineer`.
+- **Achado recorrente.** A linha AR da classe "forma de opção do `gh` não normalizada" (A2, A6, A7) segue pendente, porque o brief só permite commitar o parecer.
+- **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `2e9c621`: `Ran 71 tests in 951.181s`, `OK` (D-5).
+- **Teto (M14).** `git diff --numstat --no-renames 928e61b...2e9c621`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 58 e `tests/test_hooks.py` 5, total de 91 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
+
+**Parecer da rodada 3: aprovado.** A1 a A6 resolvidos; A7 é recomendação. Segurança e QA têm parecer próprio (E1.4 e E1.6).
