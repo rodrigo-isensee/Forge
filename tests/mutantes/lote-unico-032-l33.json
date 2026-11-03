@@ -130,7 +130,7 @@
     },
     {
       "arquivo": "bin/forge-mutante",
-      "trecho": "controles[chave] == \"vermelho\"",
+      "trecho": "controles[chave] == 'vermelho'",
       "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
     },
     {
