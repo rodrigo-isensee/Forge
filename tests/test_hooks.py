@@ -1969,7 +1969,8 @@ class Hooks(unittest.TestCase):
         linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
                   if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
         linhas = [l for l in linhas + list(self.corpus_de_recusas()) if "<<" in l and len(l) < 3000]  # o oráculo é quadrático
-        linhas.append("python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)")  # o programa só no texto de fora; o dono não tem
+        linhas += ["python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)",  # o programa só no texto de fora; o dono não tem
+                   "PATH=/tmp/x cat <<'E'\nx\nE\ncat <<'F'\nx\nF\n"]  # a atribuição antes do comando (M4)
         for dono, sep, pre, n in itertools.product(
                 ("./x{i}", "sh -s a{i}", "python3 - a{i}", "cat > f{i}", "bash", "git commit -F -", 'eval "$(cat', "cat 'a{i}"),
                 ("\n", " && ", " | ", " |\n", " \\\n"),
