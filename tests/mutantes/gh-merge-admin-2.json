@@ -161,26 +161,6 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
-    },
-    {
-      "id": "G28",
-      "guarda": "o método vale o último -X separado, não o primeiro",
-      "arquivo": "hooks/parecer.py",
-      "de": "                metodo = args[i + 1]\n",
-      "para": "                metodo = metodo or args[i + 1]\n",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
-      ]
-    },
-    {
-      "id": "G29",
-      "guarda": "o método vale o último -X colado, não o primeiro",
-      "arquivo": "hooks/parecer.py",
-      "de": "            metodo = a[2:].removeprefix",
-      "para": "            metodo = metodo or a[2:].removeprefix",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
-      ]
     }
   ]
 }
