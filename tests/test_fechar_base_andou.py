@@ -277,7 +277,8 @@ class Teste(unittest.TestCase):
     # ---- L37 (D-3): a base andou e tocou arquivo da branch; com `git merge-tree` limpo o integrador faz o merge ----
     def renomeio_limpo(self, nome="melhoria/r"):
         """A branch edita `a` e a base só o renomeia para `g`: arquivo em comum, mas o merge-tree sai limpo."""
-        self.ramo_que_edita(nome, "a", "editado\n")
+        self.base_anda({"a": "l1\nl2\nl3\nl4\nl5\n"})
+        self.ramo_que_edita(nome, "a", "editado\nl2\nl3\nl4\nl5\n")
         self.base_anda({}, renomear=("a", "g"))
 
     def head_remoto(self, nome):
@@ -361,7 +362,7 @@ class Teste(unittest.TestCase):
         self.renomeio_limpo()
         (self.estado / "depois_do_envio").write_text(
             f'set -e\nG="$REAL_GIT_FALSO"\nd="$(mktemp -d)"\n"$G" clone -q -b develop {self.remoto} "$d/c"\ncd "$d/c"\n'
-            'echo mais > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n', encoding="utf-8")
+            'printf "l1\\nl2\\nl3\\nl4\\nmais\\n" > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n', encoding="utf-8")
         r = self.fechar("p1", "--ref", "melhoria/r")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("passo 2b", r.stderr)

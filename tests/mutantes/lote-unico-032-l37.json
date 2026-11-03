@@ -15,7 +15,7 @@
       "guarda": "um merge só por cadeia: o --trazida impede o segundo (T-37b)",
       "arquivo": "bin/forge-fechar",
       "de": "[ \"$trazida\" = 1 ] || trazer_a_base \"$base_sha\"",
-      "para": "true || trazer_a_base \"$base_sha\"",
+      "para": "false || trazer_a_base \"$base_sha\"",
       "testes": ["tests.test_fechar_base_andou.Teste.test_l37_so_um_merge_por_cadeia_a_base_que_anda_de_novo_para"]
     },
     {
