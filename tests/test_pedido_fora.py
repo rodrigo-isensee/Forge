@@ -108,6 +108,17 @@ class PedidoForaDasRaizes(Fora):
                 rc, saida = self.entrega(dado)
                 self.assertEqual((rc, saida.startswith(self.LINHA)), (2, True), saida)
 
+    def test_id_nu_que_e_link_para_fora_e_recusado_em_cada_raiz(self):  # C-3: o arquivo lido é o resolvido, nunca o link
+        fora = self.tmp / "solto"
+        fora.mkdir()
+        (fora / "x.md").write_text(PEDIDO, encoding="utf-8")
+        for nome, pasta in {"raiz": self.tmp, "brief": self.tmp / "home" / ".forge-contrib"}.items():
+            with self.subTest(nome):
+                (pasta / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
+                (pasta / "docs" / "pedidos" / f"elo-{nome}.md").symlink_to(fora / "x.md")
+                rc, saida = self.entrega(f"elo-{nome}")
+                self.assertEqual((rc, saida.startswith(self.LINHA)), (2, True), saida)
+
     def test_dentro_das_raizes_e_o_id_nu_passam(self):
         for dado in ("~/.forge-contrib/docs/pedidos/pedido-sintetico.md", str(self.pedido), "pedido-sintetico"):
             with self.subTest(dado):

@@ -874,13 +874,18 @@ def caminho_do_pedido(raiz, pedido):
         if not dentro or escapa:
             raise PedidoFora(pedido)
         return dentro[0]  # dentro das raízes e sem arquivo: quem lê diz que não conseguiu
-    for pasta in (raiz_principal(raiz), Path(raiz)):
-        if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
-            return pasta / "docs" / "pedidos" / f"{pedido}.md"
-    for base in RAIZES_DE_BRIEF:
-        achado = dentro_da_raiz(base, Path("docs") / "pedidos" / f"{pedido}.md", ("docs/pedidos",))
-        if achado is not None and achado.is_file():
+    escapa = False  # id nu cujo arquivo é link para fora de docs/pedidos/ (C-3): nunca é lido
+    for pasta in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        relativo = Path("docs") / "pedidos" / f"{pedido}.md"
+        try:
+            achado = dentro_da_raiz(pasta, relativo, ("docs/pedidos",))
+        except ValueError:  # NUL no nome
+            achado = None
+        if achado is not None and arquivo_existe(achado):
             return achado
+        escapa = escapa or (achado is None and os.path.lexists(Path(pasta) / relativo))
+    if escapa:
+        raise PedidoFora(pedido)
     return Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
 
 
