@@ -44,21 +44,75 @@
       ]
     },
     {
-      "id": "M5",
-      "guarda": "o cartão que nunca esteve em Pronto para fazer sai com - e sem meta",
-      "arquivo": "bin/forge-check",
-      "de": "\"-\" if pronto is None else \"sim\"",
-      "para": "\"nao\" if pronto is None else \"sim\"",
-      "testes": [
-        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
-      ]
-    },
-    {
       "id": "M6",
       "guarda": "o relógio aberto parte do primeiro movimento do cartão",
       "arquivo": "bin/forge-check",
       "de": "_minutos(movimentos[0][0], fim),",
       "para": "_minutos(movimentos[-1][0], fim),",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "a chegada à develop é o primeiro movimento para uma das colunas, não o primeiro fora delas",
+      "arquivo": "bin/forge-check",
+      "de": "_sem_acento(p) in COLUNAS_NA_DEVELOP",
+      "para": "_sem_acento(p) not in COLUNAS_NA_DEVELOP",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o cartão que não chegou à develop não tem relógio",
+      "arquivo": "bin/forge-check",
+      "de": "not movimentos or not fim",
+      "para": "not movimentos",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "o relógio de pronto para fazer só existe se o cartão esteve nela",
+      "arquivo": "bin/forge-check",
+      "de": "if pronto else None",
+      "para": "if not pronto else None",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o pedido sem movimento não imprime relógio",
+      "arquivo": "bin/forge-check",
+      "de": "relogios := relogios_do_cartao(sorted(por_cartao.get(chave, []), key=",
+      "para": "relogios := relogios_do_cartao(sorted([], key=",
+      "testes": [
+        "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o cartão que nunca esteve em Pronto para fazer sai com - na meta",
+      "arquivo": "bin/forge-check",
+      "de": "pronto is None",
+      "para": "pronto is not None",
+      "testes": [
+        "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "o relógio de pronto para fazer imprime o número, e - só sem ele",
+      "arquivo": "bin/forge-check",
+      "de": "pronto is not None else",
+      "para": "pronto is None else",
       "testes": [
         "tests.test_voltas.Voltas.test_dois_relogios_do_pedido_que_chegou_a_develop",
         "tests.test_voltas.Voltas.test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto"
