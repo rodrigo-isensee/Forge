@@ -419,6 +419,7 @@ class Brinquedo(unittest.TestCase):
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
         self.modulo("c", modulo_de_teste("c", "self.fail('x')"))
         self.assertEqual(self.roda()[0], 1)
+        self.assertTrue((pasta / "suite-vermelha.jsonl").exists(), "o relatório que falta não derruba o registro")
         registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8").splitlines()[0])
         self.assertEqual([t["id"] for t in registro["testes"]], ["test_c.T.test_c"])
 
@@ -437,6 +438,7 @@ class Brinquedo(unittest.TestCase):
         relatorios = [{"caidos": ["test_b.T.test_b"]}, None]
         with mock.patch.dict(os.environ, {"HOME": str(pasta.parent), "GITHUB_ACTIONS": ""}):
             script.registrar_vermelha(relatorios, 1.5, None)
+        self.assertTrue((pasta / "suite-vermelha.jsonl").exists(), "a memória ilegível não derruba o registro")
         registro = json.loads((pasta / "suite-vermelha.jsonl").read_text(encoding="utf-8"))
         self.assertEqual((registro["carga"], registro["memoria_gb"]), (1.5, None))
 
