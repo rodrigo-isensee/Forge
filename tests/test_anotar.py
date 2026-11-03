@@ -171,6 +171,13 @@ class Anotar(Base):
         self.assertIn(f"- {linha}\n", saida)
 
 
+class TextoDoJarvis(unittest.TestCase):
+    def test_jarvis_manda_anotar_o_historico(self):  # LOTE E3: sem a frase, o Jarvis escrevia o Histórico à mão, com hora estimada
+        texto = RAIZ.joinpath("agents", "jarvis.md").read_text(encoding="utf-8")
+        self.assertIn("forge-check anotar", texto)
+        self.assertIn("--tipo historico", texto)
+
+
 class Retomada(Base):
     def test_decisao_que_cita_o_pedido_e_falta_nele_gera_aviso(self):
         self.com(COM_SECAO)
