@@ -46,7 +46,7 @@
     },
     {
       "arquivo": "bin/forge-check",
-      "trecho": "(pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\").is_file()",
+      "trecho": "pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\"",
       "motivo": "condição reescrita: o is_file sem realpath virou dentro_da_raiz com arquivo_existe (M8, M10)"
     },
     {
