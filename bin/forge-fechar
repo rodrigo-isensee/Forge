@@ -2,7 +2,7 @@
 # Forge: fecha uma entrega na branch de integração com os passos mecânicos do integrador (TA-5, R-FLUXO, R-CONTRIB).
 # Uso: forge-fechar <pedido> --ref <branch> [--base origin/develop] [--titulo T] [--origem T] [--muda T]
 #                  [--medir T] [--espera SEGUNDOS] [--esperar-rotulo] [--limpar] [--sem-limpar] [--dry-run]
-# Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto);
+# Roda em ordem e para no primeiro erro: (1) forge-check pr; (2) git ls-remote do head; (3) abre o PR (ou reusa o aberto, também o rascunho do autor, um só e com o head conferido);
 # (2b) se a base andou desde o ponto de partida e tocou arquivo que a branch também tocou, para (só leitura; falha de leitura também para);
 # (4) espera e lê os checks; (5) recusa rótulo pedido (título que o cita ou item do checklist marcado) e ainda não aplicado; (6) merge preso ao head conferido; (7) limpeza.
 # Código de saída: 0 fechado e limpo; 1 parou; 3 fechado (o merge ocorreu) com limpeza pendente (o resumo "limpeza: ..." lista o comando de cada parte).
@@ -673,12 +673,16 @@ else
   else
     passo "2b" "base de $alvo"
     conferir_base
-    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3 " " $5; exit}')"
+    n_abertos="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {n++} END {print n+0}')"
+    [ "$n_abertos" -le 1 ] || die "parou no passo 3: há $n_abertos PRs abertos para $ref; feche os outros e rode de novo (o fechamento só reusa um)"
+    aberto="$(printf '%s\n' "$lista" | awk '$2=="OPEN" {print $1 " " $3 " " $5 " " $4; exit}')"
     if [ -n "$aberto" ]; then
-      read -r pr_n aberto_base aberto_fork <<<"$aberto"
+      read -r pr_n aberto_base aberto_fork aberto_head <<<"$aberto"
       [[ "$pr_n" =~ ^[0-9]{1,9}$ ]] || die "parou no passo 3: o número do PR aberto não é numérico"
       [ "$aberto_fork" != true ] || die "parou no passo 3: o PR aberto #$pr_n vem de um fork (isCrossRepository) com o mesmo nome de branch; o fechamento só vale para PR do próprio repositório"
       [ "$aberto_base" = "$alvo" ] || die "parou no passo 3: o PR aberto #$pr_n tem base $aberto_base, não $alvo; feche-o ou corrija a base (R-MAIN)"
+      # O rascunho que o autor abriu na entrega (D-1) só se reusa com o head conferido; o `pr ready` fica no passo 6, depois dos pareceres e do rótulo.
+      [ "$aberto_head" = "$remoto_sha" ] || die "parou no passo 3: o PR aberto #$pr_n tem o head ${aberto_head:-desconhecido}, não o conferido no passo 2 ($remoto_sha); envie a branch de novo ou feche o PR"
       echo "PR #$pr_n já aberto; reusado."
     else
       url_pr="$("$gh" pr create --base "$alvo" --head "$ref" --title "$titulo" --body "$corpo")" || die "parou no passo 3: não consegui abrir o PR"
