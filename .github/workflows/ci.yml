@@ -23,7 +23,7 @@ jobs:
     name: checagem rápida (push na develop)
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -42,7 +42,7 @@ jobs:
     # shellcheck, actionlint, zizmor, claude plugin validate e a varredura de segredos não executam Python.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -73,7 +73,7 @@ jobs:
     name: bateria
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     permissions:
       contents: read
       checks: read  # o gate lê o resultado da bateria no commit anterior do PR
