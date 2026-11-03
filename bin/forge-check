@@ -1533,6 +1533,9 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base, a.base):
         return None, 1, [recusa]
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
+    etapa_anterior = getattr(a, "etapa", None) or grupo(ETAPA_DO_CABECALHO, cabecalho_do_brief(anterior))  # LOTE E5: sem `Etapa:` o `brief mensagem --entrega` recusa
+    cobre_anterior = grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(anterior))
+    saida.append(f"Etapa: {sem_controle(etapa_anterior) if etapa_anterior else PREENCHER}" + (f"   Cobre: {sem_controle(cobre_anterior)}" if cobre_anterior else "") + "\n")
     saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 
     def copiado(nome):

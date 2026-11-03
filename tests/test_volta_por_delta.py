@@ -665,6 +665,13 @@ class BriefDeVolta(Repositorio):
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
         self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
 
+    def test_volta_grava_a_etapa_do_brief_anterior(self):  # LOTE E5: sem `Etapa:` o `brief mensagem --entrega` recusa a volta
+        texto = self.ANTERIOR.read_text(encoding="utf-8").replace("Agente destino: forge:dev-exemplo\n", "Agente destino: forge:dev-exemplo\nEtapa: codigo   Cobre: E1\n", 1)
+        self.brief_anterior.write_text(texto, encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("Etapa: codigo   Cobre: E1\n", saida)
+
     def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
         rc, saida = self.gerar()
         rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
