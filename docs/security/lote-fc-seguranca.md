@@ -3,25 +3,55 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-fc-seguranca
-commit: e8b76448ca469e970529c0cd427f67ba7dd808e6
-parecer: reprovado
+commit: dd441fa8cf8788b15188b604d0c2877c46da1742
+parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
 # Review de segurança: lote E2+E3 da 0.33 (FC-PEDIDO-FORA-DAS-RAIZES e FC-ENTREGA-GIT-FALHA-ABERTA)
 
-Escopo da rodada 2: só o delta `9966b27..e8b7644` (`forge-check delta --parecer` sobre este parecer lê `ae4dacd..e8b7644`, o mesmo conteúdo, porque `9966b27` é só o parecer da rodada 1). São 8 arquivos (+557 / -28): `bin/forge-check`, o fragmento do changelog, os dois testes do lote e quatro listas de mutantes. Referência: as seções E2 e E3 de `~/.forge-contrib/docs/security/ameacas/versao-033.md`. A revisão é estática. As sondas e os mutantes rodaram em repositórios descartáveis e em cópias (`git archive`) em `$TMPDIR/security-engineer-lote-fc-seguranca/`. Não escrevi esta branch.
+Escopo da rodada 3: só o delta `626595e..dd441fa` (`bin/forge-check`, `tests/test_entrega_git_falha.py` e `tests/mutantes/lote-fc-seguranca-4.json`, +19 / -4), contra o A6 da rodada 2. Referência: as seções E2 e E3 de `~/.forge-contrib/docs/security/ameacas/versao-033.md`. A revisão é estática; os mutantes rodaram em cópias (`git archive`) em `$TMPDIR/security-engineer-lote-fc-seguranca/`. Não escrevi esta branch.
 
-**Veredito: reprovado.** A1 a A4 da rodada 1 entraram resolvidos, e as refatorações sem mudança de comportamento mantêm rc e saída. Reprovo por um achado novo, A6, num passo que o delta retrabalhou. Uma falha do git em `base_da_entrega` ainda tira arquivo da lista com rc 0. A correção é pequena (esforço P).
+**Veredito: aprovado.** O A6 entrou resolvido, sem regressão nos outros chamadores de `arquivos_da_entrega`. Ficam duas recomendações, que não devolvem: A5 (anterior ao lote, com cartão próprio) e A7 (docstring).
 
 ## Gatilhos
 `controles do Forge` (`bin/forge-check`), da R-SEGURANCA.
 
 ## Achados
 - A5 (recomendado) bin/forge-check:6118 · anterior ao lote, fora desta volta (cartão FC-RAIZ-PEDIDOS-SUBPASTA): `--raiz-pedidos` aceita qualquer subpasta da raiz, e `<raiz>/x/docs/pedidos/` vira raiz aceita pelo E2
-- A6 (bloqueante) bin/forge-check:516 · requisito (C-1/C-3 do E3): `arquivos_da_entrega` ainda cai para as BASES quando o rev-parse do Base-sha falha; com a falha só nessa 1ª chamada, a de :1255 acerta, nada vai a `falhas` e a lista sai do diff contra a develop, sem arquivo, com rc 0
+- A7 (recomendado) bin/forge-check:511 · docstring de `arquivos_da_entrega` ainda diz "[] se a base não existe"; com base dada, agora é None (falha); vale ajustar o texto na próxima mudança do arquivo
+
+## Rodada 3 (dd441fa)
+
+### A6 da rodada 2: resolvido
+- **Uma só leitura.** `arquivos_da_entrega` (`:516`) chama `base_da_entrega(raiz, base, so_a_pedida=True)`. Com base dada que não lê, devolve `None` (`:518`), nunca `[]` nem o diff contra as BASES.
+- **`cmd_entrega`.** O `None` vai a `falhas` como "diff da entrega" (`:1256`). A 2ª leitura da base (`:1253`) só acrescenta o rótulo "base da entrega" quando também falha. Não decide mais nada: o `elif` que lia a base de novo com a lista em mãos saiu, e a lista vem sempre da única leitura.
+- **Teste.** `test_base_pedida_que_falha_so_na_primeira_leitura_reprova` (`tests/test_entrega_git_falha.py:100`) faz o rev-parse do Base-sha falhar só na ordem 1, nas etapas `codigo`, `review` e `merge-integracao`. Espera rc 1, a linha "o git falhou (diff da entrega" e nenhum "nada a conferir". É o cenário da minha sonda da rodada 2.
+- **Mutantes.** O M40 (tirar o `so_a_pedida` de `:516`) morre no teste novo (3 falhas). Rodei mais dois meus, que também morrem em `tests.test_entrega_git_falha`:
+  - `return None if base else []` trocado por `return []`: 9 falhas;
+  - tirar o rótulo "base da entrega" de `:1254`: 6 falhas.
+
+### Os outros chamadores (C-4, T-2, T-4 do E3)
+O `so_a_pedida=True` vale para todo chamador de `arquivos_da_entrega`, não só para a entrega. Conferi um a um:
+- **Caminho saudável (T-4).** Ninguém passa uma base que não existe: `pr_da_cli` e o hook `parecer` passam a de `base_do_delta`, já resolvida ou `None`. A catraca passa um sha, `:1200` passa o pai e `arquivos_por_branch` (`:1846`) passa o `b` já resolvido. Com a base dada, as candidatas (`origin/<b>` e `<b>`) acertam como antes, e a saída não muda.
+- **Na falha.** Antes, a base dada que não lia caía para as BASES e o diff saía de outra base. Agora:
+  - `gatilhos` (`:543`) exige os dois portões;
+  - `isencoes_do_diff(None)` não isenta;
+  - `arquivos_por_branch` deixa a branch fora da comparação, que é só informativa.
+  Em todos, o resultado aperta e nada afrouxa.
+- **T-2.** Não há caminho novo de exceção: `None` é tratado em `:544`, `:569` e `:1847`. O hook `parecer` só chama `isencoes_da_entrega` e `cmd_pr`.
+- **T-3.** O `GIT_TIMEOUT_S` não mudou.
+
+### PA-7 e testes
+- **AR-1.** O M40 está na lista do lote.
+- **AR-2.** O ramo de falha da 1ª leitura agora tem teste de comportamento.
+- **AR-9.** É o A7: o texto antigo ficou na docstring.
+- **Testes do brief.** `python3 -m unittest tests.test_forge tests.test_pedido_fora tests.test_entrega_git_falha`: 518 testes, OK (131,0 s). Por dúvida sobre o hook, rodei também `tests.test_hooks_parecer_pasta`, `tests.test_sobreposicao_quadro` e `tests.test_pre_push_parecer`: 63 testes, OK.
+- **Ferramentas.** `gitleaks` e `semgrep` seguem fora do PATH (lacuna). O delta não traz segredo nem dependência.
 
 ## Rodada 2 (e8b7644)
+
+Veredito da rodada: reprovado (A6, resolvido na rodada 3).
 
 ### Achados da rodada 1
 - **A1, resolvido.** `test_diff_do_merge_integrado_falha_e_reprova` (`tests/test_entrega_git_falha.py:66`) monta o squash na develop. Com o 2º diff `..` em falha, espera rc 1 e "diff do merge integrado". O mutante M30 (`if do_merge is None:` trocado por `if False:`) está na lista.
