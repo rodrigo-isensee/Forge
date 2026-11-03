@@ -3,36 +3,51 @@ tipo: review
 contrato: 1
 pedido: lote-unico-032
 branch: melhoria/lote-unico-032
-commit: 0c90721c86b15d89ea0aec0befa1850b45948698
+commit: 9f32431def2214ca564c4d1968c48b726e2d8d45
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
-# Review: lote-unico-032 (review único do experimento do dono, E1.4 / lote-unico-032-REV E1.1)
+# Review: lote-unico-032 (review único do experimento do dono, lote-unico-032-REV E1.1, volta 2)
 
-Intervalo lido: `b2580c6441549e1f1cf4d153ca8db3247cae8cf3...0c90721c86b15d89ea0aec0befa1850b45948698` (52 commits, 76 arquivos, +3377 -173). Referência de cada item: seção 2 de `docs/propostas/lote-unico-032.md` (fora do clone). Os commits de ajuste vão na seção do item deles. Um commit por item conferido no `git log`; o `dd51c0a` (sem Lnn) e o fragmento único `changelog.d/lote-unico-032.md` seguem a DECISÃO TÉCNICA de 2026-11-02 22:15 do pedido.
+Volta 2, por delta. Rodada anterior: parecer `3052f00` sobre `0c90721c86b15d89ea0aec0befa1850b45948698` (52 commits, `b2580c6...0c90721`; as seções por item abaixo ficam mantidas). Delta lido nesta rodada: `git diff 0c90721c86b15d89ea0aec0befa1850b45948698..9f32431def2214ca564c4d1968c48b726e2d8d45` (`forge-check delta --parecer docs/reviews/lote-unico-032.md`), que é o merge da develop `6ef56a0` e os oito commits de correção `0e7f04a`, `7eae698`, `d58718a`, `7d0f599`, `bcad27a`, `c0c180e`, `9b1e375` e `9f32431`. Ficou como "já lido": todo o resto da branch (`b2580c6...0c90721`), sem byte novo fora desses commits.
 
-Dispensados só neste PR pela decisão 3 = A do dono, e por isso fora dos achados: o teto de 150 linhas, um comportamento por PR e uma classe por PR em `hooks/` (o lote não toca `hooks/`).
+Dispensados só neste PR pela decisão 3 = A do dono, e por isso fora dos achados: o teto de 150 linhas, um comportamento por PR e uma classe por PR em `hooks/` (o lote não toca `hooks/`; o `hooks/` do delta veio da develop, #427 e #428).
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:2036 · L16, defeito provado: custo_do_trecho soma o usage bruto; com o formato real do Claude Code (server_tool_use aninhado) o movimento para "Aguardando o dono" cai em TypeError, rc 1, nada gravado; a base grava. Somar por CAMPOS_USO e testar com o formato real.
-- A2 (bloqueante) bin/forge-check:1941 · L18, defeito provado: a fila executa o .githooks/pre-push da raiz com --status; no projeto o hook do modelo não tem --status, roda o pre-push.local e sai 0, e a fila diz trava presa (1.0) sempre. Não executar hook alheio: conferir que é o do Forge ou ler a trava.
-- A3 (bloqueante) bin/forge-check:4011 · L13, defeito provado: veredito não cumpriu sustentado por "escopo: Base-sha fora da branch" ou "forma:" conta como contraditório (medir_vereditos deu (1, 1)). A lista de linhas que reprovam precisa cobrir as do conferente.md.
-- A4 (bloqueante) bin/forge-check:4665 · L15, defeito provado: sem --pedido, decisoes lê só a raiz e a cópia principal, nunca a raiz de pedidos; no Forge sai total=0, também com --raiz-pedidos (com --pedido lote-unico-032 saem 7). Incluir RAIZES_DE_BRIEF na listagem.
-- A5 (bloqueante) bin/forge-check:2656 · L49, defeito provado: voltas sem --pedido pula o pedido sem volta e com ele a linha relogios:; a tabela por release do agile-coach perde os pedidos que andaram sem volta. Histórico sintético: sem --pedido nada, com --pedido a linha sai.
-- A6 (bloqueante) tests/test_forge.py:512 · L35, requisito (OK-11): o motivo é por arquivo e o legado cobre 34 arquivos, então trecho novo em arquivo do legado nasce sem regra e porque; a L50 deste lote pôs 5 assim (tests/config.json:330, 364, 482, 503, 510). Exigir motivo por trecho novo.
-- A7 (recomendado) bin/forge-check:4688 · L17: o estado da etapa vem de qualquer menção no Histórico; a linha "Próximo: os portões únicos E1.4 ..." pôs E1.4 a E1.7 do lote-unico-032 em "em curso" antes de começarem. Exigir verbo de início ou de entrega na linha.
+- A3 (bloqueante) bin/forge-check:4021 · L13, defeito provado: a lista negativa conta como reprovação toda linha escopo: que não começa com ok ou confira; escopo: integração da base, sem commit (nada a conferir) e união de N briefs, que o entrega imprime sem reprovar, com veredito cumpriu dão (1, 1).
+- A6 (bloqueante) tests/config.json:666 · L35, requisito (OK-11): o legado por trecho não encolhe; agents/jarvis.md tem n=73 com 51 trechos sem motivo hoje, então 22 trechos novos entram sem regra e porque, e subir o n de qualquer arquivo passa sem aviso. Fixar n igual ao de hoje e a soma num teto.
 - A8 (recomendado) bin/forge-check:2026 · L16: cada parada lê todas as transcrições das pastas padrão (2481 arquivos nesta máquina) e o custo total soma só trechos que terminaram em parada, não o ciclo do cartão; dizer isso na skill ou medir o tempo do movimento.
 - A9 (recomendado) bin/forge-check:4384 · L10: valor de opção conta como posicional, e `grep -c -m 1 padrao` não avisa; é só aviso, falso negativo.
+- A10 (recomendado) bin/forge-check:4026 · L13: a docstring de medir_vereditos e o texto de uso (bin/forge-check:107) ainda dizem só PQ-n não cumpriu, escopo: fora ou pendente:; alinhar com a regra nova junto da correção do A3.
 
 ## Parecer
-**Reprovado**, por seis bloqueantes numa passada só (A1 a A6); os outros itens estão aprovados como estão. Quatro dos defeitos são de medida ou leitura (A3, A4, A5) ou de texto de teste (A6), e dois quebram comando em uso real (A1 grava nada no quadro quando há transcrição; A2 dá ocupação falsa em todo projeto e executa o `pre-push.local` dele a partir de um comando de leitura). A2 toca execução de script do repositório por um comando que se declara só de leitura: vira cartão para o `security-engineer` (gatilho `bin-forge-check`), sem refazer aqui o parecer dele.
+**Reprovado**, por dois bloqueantes (A3 e A6), numa passada só sobre o delta inteiro. Dos sete achados da rodada anterior que pediam correção, cinco estão corrigidos e provados (A1, A2, A4, A5 e A7); A3 e A6 foram corrigidos em parte e o resíduo de cada um está provado abaixo. Os outros itens seguem aprovados como estavam; o merge da develop está certo.
 
-Classes, sem linha AR nesta rodada (DECISÃO TÉCNICA de 2026-10-29 15:28 do T1-CONF-ESCOPO-REV): A1 é "dado sintético mais frouxo que o real no teste" (o teste do L16 usa `usage` só com inteiros; mesma família do item 12 do checklist, falso mais frouxo que o script); A2 é "comando de leitura que executa código do repositório"; A3 é "lista positiva incompleta de vocabulário do conferente"; A4 é "raiz de pedidos esquecida" (`ler_registro` e `pedido_do_pr` olham `RAIZES_DE_BRIEF`, a listagem não); A5 é "filtro herdado esconde medida nova"; A6 é "granularidade da guarda mais larga que o requisito".
+Classes, sem linha AR nesta rodada (DECISÃO TÉCNICA de 2026-10-29 15:28 do T1-CONF-ESCOPO-REV): A3 segue "vocabulário do conferente lido por lista incompleta" (na volta 1 a lista positiva esquecia linhas que reprovam; na volta 2 a lista negativa esquece linhas que não reprovam; a fonte que já diz qual reprova é o par `(linha, reprova)` que o `cmd_entrega` monta); A6 segue "granularidade da guarda mais larga que o requisito" (a contagem por arquivo sem amarra ao valor de hoje deixa a folga que o L51 abriu no Jarvis). É a segunda volta das duas classes neste pedido.
 
-Achados recorrentes (`docs/engineering/achados-recorrentes.md`, PA-7) conferidos contra o diff: AR-4 (ambiente do CI) está tratado em `tests/test_suite_paralela.py` (`GITHUB_ACTIONS` limpo); AR-6 e AR-8 não se aplicam (nenhum shell novo de captura nem `cd` escondido); AR-9 (limite antigo no texto) não reapareceu nos textos do L18 e do L50; AR-1, AR-2, AR-3, AR-5, AR-7 e AR-10 ficam com o QA e a segurança (specs de mutantes e hooks).
+## Revalidação por delta (volta 2)
+Cada correção traz um teste novo. Rodei os seis testes novos que exercitam `bin/forge-check` com o `bin/forge-check` de `0c90721` numa cópia da árvore de `9f32431` (`git archive` em `$TMPDIR/tech-lead-lote-unico-032/antes`): os seis falham (`FAILED (failures=6)`), e na árvore de `9f32431` passam. O teste mostra o defeito.
+
+- **A1 (L16) · 0e7f04a · corrigido.** `custo_do_trecho` soma por `somar_uso` (só `CAMPOS_USO`, inteiros positivos) e depois `total_uso`; `server_tool_use` aninhado e `service_tier` deixam de entrar. Teste `tests/test_sobreposicao_quadro.py::Movimento.test_custo_do_trecho_com_o_uso_no_formato_real_do_claude_code`, com o `usage` no formato real (20 tokens = 10+5+3+2): falha antes, passa agora.
+- **A2 (L18) · 7eae698 · corrigido.** `ocupacao_da_trava` só executa o hook que traz o `[ "$1" = "--status" ]` do Forge (`.githooks/pre-push:108`; o `templates/projeto/.githooks/pre-push` não o tem); senão, devolve `None` e nada roda. Teste `tests/test_fila_ocupacao.py::OcupacaoDaTrava.test_hook_alheio_sem_o_status_do_forge_nao_e_executado_nem_vira_trava_presa`: o hook alheio não roda nem vira trava presa. Ler a trava sem executar nada seria mais firme (é o recomendado A1 da segurança, com o `security-engineer`), mas o defeito provado da rodada anterior não se reproduz.
+- **A3 (L13) · d58718a · corrigido em parte, segue bloqueante.** Os dois casos da rodada anterior (`escopo: Base-sha fora da branch`, `forma: ...`) agora contam certo, e `escopo: ok (...)`, `escopo: confira` e `forma: ok` não reprovam. Resíduo provado com `medir_vereditos({'s': [("PQ-1 cumpriu\n<linha>\nveredito: cumpriu\n", None)]})`: com `escopo: integração da base (o que difere dos dois pais)`, `escopo: sem commit (nada a conferir)` e `escopo: união de 2 briefs (mesma Branch, Base, Base-sha e pedido)` sai `{'s': (1, 1)}` nos três; com `escopo: ok (parecer de tech-lead) ...`, `(1, 0)`. As três linhas saem do `cmd_entrega` marcadas como não reprovação (bin/forge-check:1070, 1198, 1231), e a primeira aparece em toda conferência de entrega depois de merge da base, como esta. Sugestão: tirar as linhas que não reprovam (ou as que reprovam) das mesmas strings do `cmd_entrega`, com um caso de teste para cada uma.
+- **A4 (L15) · 7d0f599 · corrigido.** `pedidos_do_registro` lista também `RAIZES_DE_BRIEF`. Teste `tests/test_decisoes.py::Decisoes.test_sem_pedido_lista_tambem_a_raiz_de_pedidos`. No Forge: `forge-check decisoes` → `decisoes: total=2023 avisos=646` (na rodada anterior, `total=0`); com `--raiz-pedidos ~/.forge-contrib`, o mesmo.
+- **A5 (L49) · bcad27a · corrigido.** O laço só pula o pedido sem volta quando ele também não tem relógio. Teste `tests/test_voltas.py::Voltas.test_pedido_que_andou_sem_volta_traz_o_relogio_tambem_sem_pedido` (com e sem `--pedido`); o teste antigo `test_pedido_sem_voltas_so_aparece_com_pedido_explicito` segue verde (o pedido sem histórico de quadro continua fora).
+- **A6 (L35) · c0c180e · corrigido em parte, segue bloqueante.** O legado vira `{arquivo: trechos de antes}` e `invariantes_motivo_trecho` traz `regra` e `porque` dos trechos novos (os cinco do L50 e os três ponteiros do L51); o teste cobre trecho novo sem motivo, motivo curto e motivo fora do legado, e toda chave de `invariantes_motivo_trecho` existe em `invariantes`. Resíduo provado com `problemas_de_motivo` sobre o `tests/config.json` de `9f32431`: hoje `[]`; com um trecho novo sem motivo em `agents/jarvis.md`, `[]` (o n é 73, o número de `b2580c6`, e o Jarvis tem 51 trechos sem motivo depois do L51); com um trecho novo em `agents/tech-lead.md`, a guarda pega, e com o mesmo trecho mais `"agents/tech-lead.md": 20`, `[]`. O `LEGADO_SEM_MOTIVO_MAXIMO` só conta arquivos, então o n de cada um sobe sem teste cair. Os outros 33 arquivos do legado estão com n igual à contagem de hoje. Sugestão: n do Jarvis em 51 e uma constante para a soma dos n (só encolhe), com os dois casos no teste.
+- **A7 (L17) · 9f32431 · corrigido.** `etapas_do_proximo` só põe `em curso` com verbo de início na linha (`VERBO_DE_INICIO`); menção solta sai `não verificável`. Teste `tests/test_proximo.py::Proximo.test_mencao_a_etapa_sem_verbo_de_inicio_nem_de_entrega_nao_a_poe_em_curso`. Era recomendado.
+- **A1 do QA (L31) · 9b1e375.** Só a spec `tests/mutantes/lote-unico-032-l31.json` muda: o M6 aponta `tests.test_fechar_sinal.Teste.test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait`, que existe (tests/test_fechar_sinal.py:87) e passa. Matar o mutante é do QA, que revalida o achado dele.
+- **Merge da develop · 6ef56a0 (A7 do QA, A1 do devops).** `git show --remerge-diff 6ef56a0`: o único conflito é `tests/test_catraca.py:2697`, e a resolução mantém as duas linhas: o `assertIn("docs/(reviews|qa|security|devops|ux)/", ci)` da branch (L01, que contém o `docs/(reviews|qa)/` da develop) e o `assertEqual(re.findall(r"timeout-minutes: (\d+)", ci), ["20", "25", "25"])` do #429. Nenhum outro byte difere do merge automático. `hooks/_comum.py`, `hooks/conformidade.py`, o corpus de `tests/hooks/conformidade/`, `tests/test_hooks.py`, os timeouts do `.github/workflows/ci.yml` e os pareceres de `heredoc-comentario`, `heredoc-donos` e `ci-suite-no-teto` vêm iguais aos da develop (#427 a #429, já revistos lá); `tests.test_catraca` passa no head.
+- **Fragmento do changelog.** `changelog.d/lote-unico-032.md` ganhou uma linha por correção (8 linhas), no mesmo arquivo único já aceito.
 
 ## Testes e ferramentas (D-5: só os módulos tocados, carga abaixo de 7, núcleos 8-15)
+Volta 2 (módulos tocados pelo delta; `taskset -c 8-15`, carga de 5,9 e de 4,8 no início de cada rodada):
+- `python3 -m unittest tests.test_sobreposicao_quadro tests.test_fila_ocupacao tests.test_decisoes tests.test_voltas tests.test_proximo tests.test_catraca.Workflows tests.test_fechar_sinal.Teste.test_o_sleep_das_esperas_roda_em_segundo_plano_com_wait`: `Ran 86 tests in 16.240s` / `OK`.
+- `python3 -m unittest tests.test_forge tests.test_catraca`: `Ran 753 tests in 214.325s` / `OK`.
+- Os seis testes novos que exercitam `bin/forge-check`, com o `bin/forge-check` de `0c90721`: `Ran 22 tests` / `FAILED (failures=6)`, um por achado (A1, A2, A3, A4, A5, A7).
+- Nenhum shell tocado pelo delta fora do que veio da develop. A suíte inteira, `scripts/validar-plugin.sh` e os mutantes ficam com o QA (D-5); pipeline com o `devops-engineer`, segurança com o `security-engineer`, não refeitos aqui.
+
+Volta 1 (sobre `0c90721`, mantido):
 - `python3 -m unittest tests.test_fechar_rascunho tests.test_fila_ocupacao tests.test_proximo tests.test_decisoes tests.test_voltas tests.test_jarvis_nucleo tests.test_comportamento tests.test_suite_paralela tests.test_etapa_do_brief tests.test_sobreposicao_quadro tests.test_volta_por_delta tests.test_anotar tests.test_clareza tests.test_medidas_m14b tests.test_pedido_fora tests.test_testes_tocados`: `Ran 413 tests in 155.456s` / `OK`.
 - `python3 -m unittest tests.test_fechar tests.test_fechar_base_andou tests.test_fechar_sinal tests.test_forge_mutante tests.test_catraca`: `Ran 476 tests in 176.314s` / `OK`.
 - `python3 -m unittest tests.test_forge tests.test_hooks_volta_propriedades`: `Ran 491 tests in 189.001s` / `OK`.
@@ -90,25 +105,25 @@ Aviso no `brief`, contagem de `suposição revertida` no `voltas`, modelo do ped
 ### L12 (OK-5, afirmação absoluta no lastro) · 6655353 · aprovado
 A afirmação absoluta só tem lastro numa saída de teste com OK; a negação não conta. Só mede.
 
-### L13 (P7, veredito contraditório) · 9cca941 · reprovado (A3)
+### L13 (P7, veredito contraditório) · 9cca941, d58718a · reprovado (A3, volta 2: o falso positivo mudou de lado)
 A contagem acerta o caso `cumpriu` com linha reprovada, mas trata como contradição todo `não cumpriu` que não traga `PQ-n não cumpriu`, `escopo: fora` ou `pendente:`, e o conferente reprova também por `forma:` e por outras linhas de `escopo:`. Como a P7 decide hook só com ocorrência, o falso positivo infla a medida que decide.
 
 ### L14 (P9, recusas por papel) · b7729a0 · aprovado
 Só papel e contagem saem; o comando recusado nunca. `docs/hooks.md` ganhou a forma de leitura.
 
-### L15 (EXT-2, registro das decisões) · 7100834 · reprovado (A4)
+### L15 (EXT-2, registro das decisões) · 7100834, 7d0f599 · aprovado na volta 2 (A4 corrigido)
 O formato do registro, o aviso da linha torta e o `sem_controle` estão certos, e com `--pedido` funciona; a listagem sem `--pedido` não alcança a raiz de pedidos que o resto do `forge-check` já lê, e no Forge o registro sai vazio.
 
-### L16 (EXT-3, custo em toda parada) · 266fd1b · reprovado (A1), com A8 (recomendado)
+### L16 (EXT-3, custo em toda parada) · 266fd1b, 0e7f04a · aprovado na volta 2 (A1 corrigido), com A8 (recomendado)
 A regra "lacuna, nunca 0" está certa, mas a soma usa o `usage` cru e quebra o `movimento` em uso real; o teste usa só inteiros. Enquanto isso não se corrige, o item piora o comando de quadro mais usado do Jarvis.
 
-### L17 (AQ-2, `proximo`) · b255e99, 87b54be · aprovado, com A7 (recomendado)
+### L17 (AQ-2, `proximo`) · b255e99, 87b54be, 9f32431 · aprovado (A7 corrigido na volta 2)
 Só leitura, sem rede, linhas por `sem_controle` e largura de 160, teto de 40 linhas, `não verificável` onde falta registro, veredito só de parecer commitado. A heurística de estado por menção é fraca (A7), mas está dentro do que a seção 2 pede.
 
-### L18 (M7, ocupação da trava) · 6cff313, 595af30 · reprovado (A2)
+### L18 (M7, ocupação da trava) · 6cff313, 595af30, 7eae698 · aprovado na volta 2 (A2 corrigido)
 No Forge a leitura do `--status` está certa (0 é presa, 1 é livre, outro código é não verificável). O defeito é fora do Forge: o comando executa o hook do repositório que estiver na raiz e lê o código de saída dele como estado de trava.
 
-### L31 (M1, prazo sem depender da carga) · 6ef2997, 55f12ec · aprovado
+### L31 (M1, prazo sem depender da carga) · 6ef2997, 55f12ec, 9b1e375 · aprovado (o M6 da spec é do QA)
 A parede vem de dentro do lançador e a CPU de `MedidaDeCpu`, sem subir teto; o teste da subida lenta prova que a espera fica fora. Spec `tests/mutantes/lote-unico-032-l31.json`.
 
 ### L32 (OK-3 e OK-13, registro da suíte vermelha) · 5c30b85, 0e8b9f5, ecf192b, 8b5e8d8, 1845f3f, 2908366 · aprovado
@@ -120,7 +135,7 @@ Grava só ids e números em `~/.forge-contrib/suite-vermelha.jsonl`, nunca no CI
 ### L34 (OK-4, caminhos citados) · a96f038 · aprovado
 Lista fechada do que só nasce no projeto, mínimo de 35 arquivos e de 120 caminhos lidos, link para fora conta como ausente.
 
-### L35 (OK-11, invariante com regra e porque) · d6ea7e6 · reprovado (A6)
+### L35 (OK-11, invariante com regra e porque) · d6ea7e6, c0c180e · reprovado (A6, volta 2: corrigido em parte)
 O formato (`invariantes_motivo` com `regra` de `docs/regras/` e `porque` de 30+ caracteres) e o legado que só encolhe estão certos para arquivo novo; a guarda não alcança o trecho novo em arquivo antigo, que é onde o próprio lote acrescentou invariantes.
 
 ### L36 (AQ-7, regressão de comportamento) · f658ceb, 35d353d · aprovado
@@ -129,7 +144,7 @@ Cinco casos anonimizados com o verificador da ADR 0007, sessão limpa sem regra,
 ### L37 (D-3, integrador traz a develop) · 68db7a2, 60805de, 982d462, ecf192b · aprovado
 Só em `melhoria/*`, uma vez por cadeia (`--trazida`), árvore do `merge-tree --write-tree` conferida no commit de merge, avanço por fast-forward (worktree limpa) ou `update-ref` com o valor antigo, envio sem `--force` nem `--no-verify` e recomeço da cadeia no head novo; conflito, falha de leitura ou envio recusado param. O parecer anterior continua valendo pelo `--base` (merge sem byte a mais).
 
-### L49 (D-4, dois relógios) · 312723f, 1507cf8, d175e11, e671c89 · reprovado (A5)
+### L49 (D-4, dois relógios) · 312723f, 1507cf8, d175e11, e671c89, bcad27a · aprovado na volta 2 (A5 corrigido)
 `relogios_do_cartao` está certo e o pedido que não chegou à develop sai com rc 0; o filtro antigo do laço esconde a linha nova justamente no uso por release que o `agile-coach.md` manda.
 
 ### L50 (D-5, só o QA roda a suíte inteira) · 428d0a1 · aprovado (o trecho novo nos invariantes entra no A6)
@@ -142,4 +157,4 @@ Nenhuma regra perdida: (1) `tests/test_jarvis_nucleo.py` compara os 73 trechos d
 Aceitos como estão: o fragmento único do changelog (com uma linha por item), `docs/fechamento-integrador.md` no L02 e no L37, o mapa de módulos de `bin/forge-testes` (3b967a9 e L51) e os refactors 87b54be e 595af30. A documentação afetada de cada item foi atualizada na mesma entrega (`docs/hooks.md`, `docs/melhoria-continua.md`, `docs/transcricoes.md`, skills `kanban-scrum`, `software-architecture`, `engineering-practices`, `cyber-security` e `qa-testing`).
 
 ## Volta
-O brief de volta sai dos seis bloqueantes; cada correção traz o teste que cai hoje (A1 com o `usage` no formato real; A2 com o hook do modelo de projeto; A3 com as linhas de reprovação de `agents/conferente.md`; A4 com pedidos só na raiz de pedidos; A5 com pedido sem volta; A6 com trecho novo em arquivo do legado). A revalidação lê só o delta (`forge-check delta --parecer docs/reviews/lote-unico-032.md`).
+O brief da volta 3 sai dos dois bloqueantes (A3 e A6), cada um com o teste que cai hoje: A3 com as três linhas `escopo:` do `cmd_entrega` que não reprovam e veredito `cumpriu`; A6 com trecho novo sem motivo em `agents/jarvis.md` e com o n de um arquivo do legado aumentado. O A10 pode ir junto do A3 (recomendado). A revalidação lê só o delta (`forge-check delta --parecer docs/reviews/lote-unico-032.md`).
