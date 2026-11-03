@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: 6c7e5731a7138e9eaf11e4c216726318091dfd57
+commit: 9535b63a7908ae1578f998ef5e1978734aacb82f
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-03
@@ -13,11 +13,12 @@ data: 2026-11-03
 Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor do E1.2. Base `928e61b`, um commit (`6c7e573`).
 
 ## Achados
-- A1 (bloqueante) hooks/conformidade.py:1667 · segurança com gatilho (C-1, C-2, alvo -R): `gh pr -R dono/repo merge 12 --admin` e `gh pr --repo=dono/repo merge melhoria/x --admin` saem com rc=0. O gh aceita o -R persistente entre `pr` e `merge`, mas `parecer.analisar` só vê `merge` logo após `pr`, e o `gh_admin` não roda.
-- A2 (bloqueante) hooks/parecer.py:499 · segurança com gatilho (C-4): `metodo_mutante` não vê as formas coladas que o gh aceita e que viram POST. `gh api graphql --input=q.json` (mergePullRequest no arquivo), `-Fquery=@q.graphql`, `-fquery='mutation{mergePullRequest…}'` e `gh api repos/o/r/merges -fbase=main -fhead=x` saem com rc=0.
-- A3 (recomendado) tests/hooks/conformidade/gh-merge-admin-admin-e-bash-c-bloqueia.json:17 · o esperado `R-` (também em em-crase, em-eval e api-merge-sem-papel-em-tmp) aceita qualquer recusa. A sonda mostra que essas linhas já saem com o texto R-MAIN do item: use esse texto no esperado para que só a recusa nova satisfaça a fixture.
-- A4 (recomendado) tests/test_hooks.py:2164 · faltam fixtures para pontos da matriz: heredoc para bash, xargs, `--repo=`, papel conferente e base homolog. Na sonda, heredoc, xargs e `--repo=` já recusam com R-MAIN e o conferente recusa com R-CONFORMIDADE. Inclua também as linhas de A1 e A2.
-- A5 (recomendado) hooks/conformidade.py:1664 · não há spec de mutação dos 4 mutantes do C-8. Pela leitura, as fixtures b-numero, valor-false, valor-um e g-graphql-arquivo os matam, mas a prova do autor pela ferramenta falta (AR-1).
+- A1 (bloqueante) hooks/conformidade.py:1667 · resolvido na rodada 2: `-R`/`--repo` entre `pr` e `merge` recusa com R-MAIN (parecer.py:231). Rodada 1: `gh pr -R dono/repo merge 12 --admin` saía com rc=0.
+- A2 (bloqueante) hooks/parecer.py:499 · resolvido na rodada 2: `--input=`, `-f`/`-F` colados e `merges -fbase=` recusam. Rodada 1: as formas coladas saíam com rc=0.
+- A3 (recomendado) tests/hooks/conformidade/gh-merge-admin-admin-e-bash-c-bloqueia.json:17 · resolvido na rodada 2: o esperado das quatro fixtures traz o texto da recusa nova.
+- A4 (recomendado) tests/test_hooks.py:2164 · resolvido na rodada 2: heredoc, xargs, `--repo=`, conferente, homolog e as linhas de A1 e A2 têm fixture.
+- A5 (recomendado) hooks/conformidade.py:1664 · resolvido na rodada 2: as specs `tests/mutantes/gh-merge-admin.json` e `gh-merge-admin-2.json` cobrem G1 a G23, sem o G13, que caiu com a alternativa morta.
+- A6 (bloqueante) hooks/parecer.py:503 · segurança com gatilho (C-4), opção curta combinada: `gh api repos/o/r/pulls/1/merge -iX PUT`, `-iXPUT` e `gh api -if query=@q.graphql graphql` saem com rc=0. O gh lê `-iX` como `-i -X` (`gh api -iX` responde "flag needs an argument: 'X' in -X").
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -48,3 +49,24 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 Na volta, cada brecha leva a sua fixture `-bloqueia`. A3 a A5 são recomendações e não devolvem a entrega.
 
 Segurança e QA têm parecer próprio (E1.4 e E1.6), que não refaço. A1 e A2 também chegam ao `security-engineer` pelo E1.4.
+
+## Rodada 2
+Head `9535b63`, sobre `6c7e573`. Revalidei só o delta: `git diff 6c7e573..9535b63 -- hooks/ tests/ changelog.d/`. Ele traz conformidade.py com +4/-1, parecer.py com +29/-7, 22 fixtures novas, 4 com o esperado apertado, duas specs de mutação e o changelog. O que já tinha lido na rodada 1 e que o delta não toca: o resto de `gh_admin`, `gh_api_de_merge` e `textos_da_api`, e as 41 fixtures.
+
+- **A1, resolvido.** `analisar` agora pula `-R`, `-R<valor>`, `--repo` e `--repo=` entre `pr` e o subcomando. Também reconhece o programa chamado por caminho (`Path(...).name`). Sondei `gh pr -R dono/repo merge 12 --admin`, `--repo=`, `-Rdono/repo`, `-R` junto com `--repo`, `/usr/bin/gh`, `command gh` e `env gh`, e todos recusam com R-MAIN. Sem `--admin`, `gh pr -R o/r merge 1` e `gh pr -R o/r view 1` liberam.
+- **A2, resolvido nas formas da rodada 1.** `--input=q.json`, `-Fquery=@q.graphql` e `merges -fbase=main -fhead=x` recusam com R-MAIN. `-fquery='mutation{mergePullRequest…}'` é recusado antes, com R-CONFORMIDADE, pelo bloco do GRAPHQL_PERIGOSO.
+- **A6, novo.** A regex `-i?[fF]` (parecer.py:508) mostra que o autor considerou o `-i` combinado, mas só para o campo:
+  - `opcao(args, "--method", "-X")` não vê `-iX`;
+  - `endpoint_da_api` toma o valor de `-iX` ou `-if` como endpoint;
+  - por isso passam o merge REST sem corpo (`-iX PUT`) e o GraphQL com `-if` antes do endpoint.
+
+  A forma já existia em `6c7e573` e eu não a vi na rodada 1, mas a porta é a mesma que o delta altera. Sugestão: antes de `metodo_mutante`, `endpoint_da_api` e `textos_da_api`, normalizar o `-i` combinado (`-iX…`, `-if…`, `-iF…`) em `-i` mais o resto. Isso só aperta (T-4). Na volta, cada forma leva a sua fixture `-bloqueia`. O bloco do API_ADMIN usa a mesma leitura e tem a mesma brecha.
+- **C-1 a C-3, cumpridos.** A6 é do C-4. A expansão no lugar do programa (`$G pr … merge`, `"$(which gh)" api …`) recusa com R-MAIN, em falha fechada. Isso também recusa `"$(which gh)" api user`, que é só leitura: é o custo aceito do C-3, e a mensagem diz como corrigir.
+- **C-4, cumprido salvo A6.** `graphql?x=1` e `graphql#…` casam o endpoint, e `-F query=@-` recusa.
+- **C-6, cumprido.** Sem rede e sem `gh` novo. A troca de `pasta or Path(os.devnull)` por `pasta` é segura, porque `segmento` e `caminho` sempre devolvem `Path`. A fixture da pasta inexistente segue recusando.
+- **Regressão: nenhuma no módulo.** A mudança em `analisar` também aperta `gh pr -R x create` e `ready`, que antes saíam sem análise. Os dois casos têm fixtures próprias.
+- **Achado recorrente.** A classe "forma de opção do `gh` que o leitor não normaliza (colada ou combinada)" volta neste pedido, em A2 e A6. O PA-7 pede a linha AR em `docs/engineering/achados-recorrentes.md`, mas este brief só permite commitar o parecer. Fica pendente.
+- **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `9535b63`: `Ran 71 tests in 924.730s`, `OK` (D-5). As sondas usaram a `Fixture` do próprio teste, em `$TMPDIR/tech-lead-gh-merge-admin/`.
+- **Teto (M14).** `git diff --numstat --no-renames 928e61b...9535b63`, contando só código e teste: `hooks/conformidade.py` 26, `hooks/parecer.py` 45 (37+8) e `tests/test_hooks.py` 5, total de 76 linhas. É uma classe de comportamento em `hooks/` (merge que desvia a proteção), com corpus próprio. Dentro do teto.
+
+**Parecer da rodada 2: reprovado.** A1 a A5 estão resolvidos. A6 bloqueia. Segurança e QA têm parecer próprio (E1.4 e E1.6). A6 também vai para o `security-engineer`.
