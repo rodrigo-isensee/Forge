@@ -82,6 +82,11 @@ class FalhaDoGit(Repositorio):
             with self.subTest(etapa=etapa):
                 self.reprova("*--verify --quiet [!-]*", "todas", "--etapa", etapa, passo="base da entrega")
 
+    def test_base_pedida_que_falha_nao_cai_para_as_bases(self):  # só o Base-sha falha no rev-parse; a develop segue lendo
+        for etapa in ("codigo", "review", "merge-integracao"):
+            with self.subTest(etapa=etapa):
+                self.reprova(f"*--verify --quiet {self.base}*", "todas", "--etapa", etapa, passo="base da entrega")
+
     def test_passos_do_desde_em_toda_etapa(self):
         self.commitar({"b.txt": "2\n"}, "segunda delegação")
         self.gravar_pedido([self.c1])

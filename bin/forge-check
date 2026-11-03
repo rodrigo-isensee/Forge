@@ -498,9 +498,10 @@ PASTA_E_REGRA = {"review": ("docs/reviews", "R-REVIEW"), "qa": ("docs/qa", "R-QA
                  "revisao-devops": ("docs/devops", "R-REVIEW"), "revisao-seguranca": ("docs/security", "R-SEGURANCA")}
 
 
-def base_da_entrega(raiz, base=None):
-    """A primeira base (a pedida ou uma das BASES) que existe no repositório; None se nenhuma."""
-    for b in ([f"origin/{base}", base] if base else []) + list(BASES):  # a remota na frente: uma local movida não encolhe o diff (M4.4)
+def base_da_entrega(raiz, base=None, so_a_pedida=False):
+    """A primeira base (a pedida ou uma das BASES) que existe no repositório; None se nenhuma. Com `so_a_pedida` e uma base dada,
+    as BASES não entram: o rev-parse que falha nela não cai no diff contra a develop (C-1 do E3)."""
+    for b in ([f"origin/{base}", base] if base else []) + ([] if base and so_a_pedida else list(BASES)):  # a remota na frente: uma local movida não encolhe o diff (M4.4)
         if not git(raiz, "rev-parse", "--verify", "--quiet", f"{b}^{{commit}}")[0]:
             return b
     return None
@@ -1243,7 +1244,7 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if arquivos is None:
         falhas.append("diff da entrega")
         arquivos = []  # sem lista para mostrar: a reprovação vem de `falhas`, nunca de "nada a conferir"
-    elif base_da_entrega(raiz, base_sha) is None:  # o Base-sha já foi lido como commit: sem base aqui, o git falhou
+    elif base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:  # o Base-sha já foi lido como commit: sem base aqui, o git falhou
         falhas.append("base da entrega")
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
     desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)
