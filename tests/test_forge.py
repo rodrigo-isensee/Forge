@@ -2202,6 +2202,11 @@ class ForgeCheck(unittest.TestCase):
 
 
 class Orcamento(unittest.TestCase):
+    def test_conferente_usa_o_pedido_da_mensagem(self):  # LOTE E4: a mensagem traz `Pedido: <id>`; o caminho montado à mão duplicava docs/pedidos/
+        texto = RAIZ.joinpath("agents", "conferente.md").read_text(encoding="utf-8")
+        self.assertNotIn("docs/pedidos/<Pedido>.md", texto)
+        self.assertIn("--pedido <Pedido> --destino <Agente conferido>", texto)
+
     def test_tamanho_dos_prompts(self):
         lim = CONFIG["limite_linhas"]
         for p in agentes_do_plugin():

@@ -10,3 +10,4 @@
 
 ### Corrigido
 - brief gerar --volta grava a linha `Etapa:` (e `Cobre:`) do brief anterior, e o `brief mensagem --entrega` deixa de recusar a volta (lote-unico-032, L03, LOTE-FORGE-CHECK-032 E5)
+- agents/conferente.md chama `forge-check brief <Arquivo> --pedido <Pedido>` com o id da mensagem, sem montar o caminho docs/pedidos/ à mão (lote-unico-032, L07, LOTE-FORGE-CHECK-032 E4)
