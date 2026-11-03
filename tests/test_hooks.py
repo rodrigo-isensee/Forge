@@ -1969,6 +1969,7 @@ class Hooks(unittest.TestCase):
         linhas = [f.dados["entrada"]["tool_input"]["command"] for f in self.fixtures
                   if "<<" in str(f.dados["entrada"].get("tool_input", {}).get("command"))]
         linhas = [l for l in linhas + list(self.corpus_de_recusas()) if "<<" in l and len(l) < 3000]  # o oráculo é quadrático
+        linhas.append("python3 - <<'E'\nx\nE\n(<<'F'\nx\nF\n)")  # o programa só no texto de fora; o dono não tem
         for dono, sep, pre, n in itertools.product(
                 ("./x{i}", "sh -s a{i}", "python3 - a{i}", "cat > f{i}", "bash", "git commit -F -", 'eval "$(cat', "cat 'a{i}"),
                 ("\n", " && ", " | ", " |\n", " \\\n"),
@@ -1986,12 +1987,11 @@ class Hooks(unittest.TestCase):
         self.assertEqual(diferentes, [])
 
     def test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira(self):  # HEREDOC-DONOS, T2 e C-5
-        """Sem fronteira o dono se lê inteiro e conta o prefixo no teto: o dono largo assume, e o `bash` final lê o corpo."""
+        """Sem fronteira o dono se lê inteiro e conta o prefixo no teto: o dono largo assume, e o corpo do `bash` final fica comando."""
         _comum, _, _ = modulos_dos_hooks()
         for texto in ("cat 'a", "cat a \\", "cat $(x"):
             self.assertFalse(_comum.fronteira_limpa(texto), texto)
-        self.assertTrue(all(map(_comum.fronteira_limpa, ("", "cat a", "./x0\n./x1"))))
-        _, limpo, _ = _comum.tirar_heredocs("./x0 <<'E'\nx\nE\n./x1 <<'E'\nx\nE\n")
+        _, limpo, _ = _comum.tirar_heredocs("./x0 <<'E'\nx\nE\n./x1 <<'E'\nx\nE\n", com_gravado=True)
         self.assertEqual(limpo[0][0].partes[0], "./x0\n./x1", "com fronteira, o dono se lê em duas partes")
         texto = "".join(f"./x{i} '$(' <<'E'\nx\nE\n" for i in range(1000)) + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ\n"
         _, lidos, _ = _comum.tirar_heredocs(texto, com_gravado=True)
@@ -2000,8 +2000,7 @@ class Hooks(unittest.TestCase):
         self.assertFalse(_comum.corpo_so_lido(lidos[-1][0]))
 
     def test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa(self):  # HEREDOC-DONOS, C-4 (variante A)
-        """O vigia vence no 2.o de 3 corpos: sem o marcador crítico, o prazo vencido recusa pelos 2 pendentes; sem pendente,
-        ou depois da ferramenta, libera como antes."""
+        """O vigia vence no 2.o de 3 corpos: sem o marcador, recusa pelos 2 pendentes; sem pendente ou depois da ferramenta, libera."""
         _comum, conformidade, _ = modulos_dos_hooks()
         hook = _comum.Hook("conformidade")
         hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
