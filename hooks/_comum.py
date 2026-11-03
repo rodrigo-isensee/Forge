@@ -1480,8 +1480,6 @@ def _leitura_do_dono(texto, tambem):
 @functools.lru_cache(maxsize=64)
 def fronteira_limpa(prefixo):
     """O texto de fora termina num estado novo do leitor: sem dúvida, e um comando depois dele é lido sozinho."""
-    if not prefixo:
-        return True
     so, junto = palavras_do_texto(prefixo), palavras_do_texto(prefixo + "\ntrue")
     return (not so.duvida and not junto.duvida and junto.simples[:-1] == so.simples
             and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),))

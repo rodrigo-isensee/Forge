@@ -66,8 +66,8 @@
       "id": "D7",
       "guarda": "T2: a fronteira_limpa recusa o texto de fora com aspa, barra ou $( sem fechar",
       "arquivo": "hooks/_comum.py",
-      "de": "    if not prefixo:\n        return True\n",
-      "para": "    return True\n",
+      "de": "    return (not so.duvida and not junto.duvida",
+      "para": "    return (True or not junto.duvida",
       "testes": [
         "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
       ]
@@ -86,8 +86,8 @@
       "id": "D9",
       "guarda": "o texto do dono é o da base: o prefixo só entra se há texto de fora (str igual)",
       "arquivo": "hooks/_comum.py",
-      "de": "texto = Dono(f\"{self.prefixo}\\n{sozinho}\" if self.fora_do_texto else sozinho)",
-      "para": "texto = Dono(f\"{self.prefixo}\\n{sozinho}\")",
+      "de": "Dono(f\"{self.prefixo}\\n{sozinho}\" if self.fora_do_texto else sozinho)",
+      "para": "Dono(f\"{self.prefixo}\\n{sozinho}\" if True else sozinho)",
       "testes": [
         "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
       ]
@@ -97,7 +97,7 @@
       "guarda": "C-5: o dono sem fronteira conta o prefixo no teto de custo",
       "arquivo": "hooks/_comum.py",
       "de": "(0 if self.fronteira else len(self.prefixo))",
-      "para": "0",
+      "para": "(0 if True else len(self.prefixo))",
       "testes": [
         "tests.test_hooks.Hooks.test_fronteira_limpa_e_o_teto_dos_donos_sem_fronteira"
       ]
@@ -151,6 +151,23 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures"
       ]
+    },
+    {
+      "id": "D16",
+      "guarda": "M4: o comando com atribuição antes não só lê o corpo (a atribuição conta na leitura do dono)",
+      "arquivo": "hooks/_comum.py",
+      "de": "all(not a and le_o_corpo(p, args, tambem)",
+      "para": "all(True and le_o_corpo(p, args, tambem)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_donos_em_partes_leem_como_o_texto_inteiro"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "partes is not None",
+      "motivo": "ramo rápido: o resultado é o da leitura do todo (oráculo C-1); o custo vale pelo teste do orçamento"
     }
   ]
 }
