@@ -4624,6 +4624,34 @@ class FalhaDoGitNoE4(RepoDeSeguranca):
             self.assertNotIn("sem commit (nada a conferir)", saida.getvalue())
 
 
+class LerDirigidoDoBrief(RepoComOrigem):
+    """L09 (P3 e P4): o `## Ler` do brief gerado aponta o trecho do pedido, nunca o pedido inteiro; o integrador lê só o comando e roda em haiku."""
+
+    def gerar(self, etapa, destino):
+        r = rodar_fc("brief", "gerar", "--pedido", "p1", "--destino", destino, "--etapa", etapa, "--branch", "melhoria/x", "--base", "develop",
+                     raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout, r.stderr
+
+    def ler(self, saida):
+        return saida.split("## Ler\n")[1].split("\n## ")[0]
+
+    def test_codigo_le_so_escopo_etapas_e_decisoes(self):
+        rc, saida, _ = self.gerar("codigo", "forge:dev-exemplo")
+        self.assertEqual(rc, 0, saida)
+        ler = self.ler(saida)
+        self.assertIn("docs/pedidos/p1.md: só `## Escopo`, `## Etapas` e `## Decisões`", ler)
+        self.assertIn("nunca o pedido inteiro", ler)
+
+    def test_merge_integracao_le_so_o_comando_e_imprime_o_modelo_haiku(self):
+        rc, saida, erro = self.gerar("merge-integracao", "forge:tech-lead")
+        self.assertEqual(rc, 0, saida + erro)
+        ler = self.ler(saida)
+        self.assertIn("bin/forge-fechar p1 --ref melhoria/x --dry-run", ler)
+        self.assertNotIn("docs/pedidos/p1.md", ler)
+        self.assertIn("modelo: haiku", erro)
+        self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
+
+
 class PrAposMergeDaBase(RepoComOrigem):
     """E4 (CONF-MERGE-ESCOPO): o merge da develop depois do parecer não o invalida, por CONTEÚDO e lendo `origin/<base>`; nenhum byte
     do commit de merge escapa; `--base` só aceita as bases do fluxo; os gatilhos de segurança seguem o diff da branch (abusos 7 a 13)."""

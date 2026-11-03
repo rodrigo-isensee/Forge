@@ -5156,11 +5156,21 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if coberta:
         saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
-    if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
-        existe_achados, problemas_achados = achados_recorrentes(raiz)
-        avisar_dos_achados(problemas_achados)
+    saida += ["", "## Ler"]
+    if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
+        print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
+        saida.append(f"- `bin/forge-fechar {sem_controle(pedido_id)} --ref {branch or PREENCHER} --dry-run` e as paradas de `docs/fechamento-integrador.md`; o pedido não precisa ser lido")
+    else:
+        existe_achados = False
+        if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
+            existe_achados, problemas_achados = achados_recorrentes(raiz)
+            avisar_dos_achados(problemas_achados)
         if existe_achados:
-            saida += ["", "## Ler", LINHA_DE_ACHADOS, f"- {PREENCHER}: demais leituras do destino (pedido, propostas, arquivos)"]
+            saida.append(LINHA_DE_ACHADOS)
+        saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
+                     "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
+        if existe_achados:
+            saida.append(f"- {PREENCHER}: demais leituras do destino (propostas, arquivos)")
     saida += ["", "## Decisões e restrições (linhas `DECISÃO DO DONO` copiadas literalmente do pedido)"]
     saida += [f"- {d}" for d in dados["decisoes"]] or [f"- {PREENCHER}: o pedido não tem linha `DECISÃO DO DONO`"]
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
