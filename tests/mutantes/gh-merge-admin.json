@@ -8,7 +8,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
       "para": "        None if parte and parte[0] == \"prmerge\" and not parecer.branch_do_pr(self.h.raiz, parte[2]) else self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G2",
@@ -16,7 +18,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "return any(a == \"--admin\" or a.startswith(\"--admin=\") for a in args)",
       "para": "return any(a == \"--admin\" for a in args)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G3",
@@ -24,7 +28,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "        self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
       "para": "        pass  # antes de toda saída antecipada",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G4",
@@ -32,7 +38,9 @@
       "arquivo": "hooks/conformidade.py",
       "de": "merge = ilegivel or any(parecer.MERGE_NO_GRAPHQL.search(t) for t in textos)",
       "para": "merge = any(parecer.MERGE_NO_GRAPHQL.search(t) for t in args)",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G5",
@@ -40,7 +48,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "r\"(^|/)graphql/?([?#]|$)\"",
       "para": "r\"(^|/)graphql/?$\"",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G6",
@@ -48,7 +58,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "if Path(toks[0]).name == \"gh\":",
       "para": "if toks[0] == \"gh\":",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G7",
@@ -56,7 +68,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "while j < len(toks) and (toks[j] in (\"-R\", \"--repo\") or toks[j].startswith((\"--repo=\", \"-R\"))):",
       "para": "while False:",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G8",
@@ -64,7 +78,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "or re.match(r\"-i?[fF]\", a) is not None",
       "para": "or False",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G9",
@@ -72,7 +88,9 @@
       "arquivo": "hooks/parecer.py",
       "de": "(\"--field=\", \"--raw-field=\", \"--input=\")",
       "para": "(\"--field=\", \"--raw-field=\")",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     },
     {
       "id": "G10",
@@ -80,7 +98,119 @@
       "arquivo": "hooks/conformidade.py",
       "de": "if parecer.expande(palavras[0]) and (oculto :=",
       "para": "if False and (oculto :=",
-      "testes": ["tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"]
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G11",
+      "guarda": "o --admin do pr merge só recusa com a condição inteira",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parte and parte[0] == \"prmerge\" and parecer.usa_admin(palavras[1:]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G12",
+      "guarda": "o endpoint graphql entra na leitura do corpo",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not merge and parecer.ENDPOINT_GRAPHQL.search(endpoint):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G13",
+      "guarda": "a pasta que o hook não resolveu não lê o arquivo do corpo (falha fechado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "pasta or Path(os.devnull))",
+      "para": "pasta)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G14",
+      "guarda": "o api que casa com merge recusa",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if merge:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G15",
+      "guarda": "só o gh api mutante passa pela checagem de merge (o GET de leitura libera)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parecer.metodo_mutante(args):\n                self.gh_api_de_merge(args, pasta)",
+      "para": "if True:\n                self.gh_api_de_merge(args, pasta)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G16",
+      "guarda": "o -R separado do valor entre pr e o subcomando",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if toks[j] in (\"-R\", \"--repo\"):",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G17",
+      "guarda": "o -R sem valor no fim da linha não quebra o leitor",
+      "arquivo": "hooks/parecer.py",
+      "de": "repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2",
+      "para": "repo_pr, j = toks[j + 1], j + 2",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G18",
+      "guarda": "o create depois do -R continua sendo lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "if toks[j: j + 1] == [\"create\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G19",
+      "guarda": "o ready depois do -R continua sendo lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "if toks[j: j + 1] == [\"ready\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G20",
+      "guarda": "o merge depois do -R continua sendo lido",
+      "arquivo": "hooks/parecer.py",
+      "de": "if toks[j: j + 1] == [\"merge\"]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G21",
+      "guarda": "o repositório do -R entre pr e o merge vale como o --repo",
+      "arquivo": "hooks/parecer.py",
+      "de": "repo = repo_pr or opcao(",
+      "para": "repo = opcao(",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
