@@ -2921,6 +2921,26 @@ class MedirAlucinacao(unittest.TestCase):
         self.assertIn("afirmacoes=1 sem_lastro=1 taxa=100.0%", self.lastro(relatorio, "Ran 10 tests in 1s\nFAILED (failures=1)"))
         self.assertIn("afirmacoes=0 sem_lastro=0 taxa=n/a", self.lastro("Não é verdade que todos os testes passam.", "x"))  # negada não conta
 
+    def test_recusas_por_papel_contam_so_numeros(self):  # L14 (P9): sem o comando recusado
+        def evento(papel, id_agente, texto, uso, erro=True):
+            base = {"isSidechain": True, "agentId": id_agente, "sessionId": "sess"}
+            return [{"type": "user", "sessionId": "sess", "toolUseResult": {"agentId": id_agente},
+                     "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": f"u-{id_agente}", "content": "ok"}]}},
+                    {**base, "type": "user", "message": {"role": "user", "content": [
+                        {"type": "tool_result", "tool_use_id": uso, "is_error": erro, "content": [{"type": "text", "text": texto}]}]}}]
+
+        delegacoes = [{"type": "assistant", "sessionId": "sess", "message": {"id": "d", "role": "assistant", "content": [
+            {"type": "tool_use", "id": f"u-{n}", "name": "Agent", "input": {"subagent_type": papel}}]}}
+            for n, papel in (("a1", "forge:conferente"), ("a2", "forge:dev-exemplo"))]
+        recusa = "PreToolUse:Bash hook error: R-CONFORMIDADE: `$(` fora da gramática do papel só de leitura (forge:conferente): segredo-xyz"
+        linhas = delegacoes + evento("c", "a1", recusa, "t1") + evento("c", "a1", recusa, "t2") \
+            + evento("d", "a2", "R-REVIEW: o hook não modela a linha segredo-xyz", "t3") + evento("d", "a2", recusa, "t4", erro=False)
+        saida, _ = self.rodar("recusas", linhas)
+        self.assertIn("recusas: papel forge:conferente nao_modela=0 fora_da_gramatica=2", saida)
+        self.assertIn("recusas: papel forge:dev-exemplo nao_modela=1 fora_da_gramatica=0", saida)
+        self.assertIn("recusas: total: papeis=2 nao_modela=1 fora_da_gramatica=2", saida)
+        self.assertNotIn("segredo-xyz", saida)
+
     def test_veredito_que_contradiz_as_proprias_linhas_conta(self):  # L13 (P7): só mede
         cumpriu_com_pendente = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\npendente: \"Entregar\" item 3 sem commit\nveredito: cumpriu"
         nao_cumpriu_sem_linha = "conferencia: p forge:x modo=entrega\nPQ-1 cumpriu | git log\nveredito: não cumpriu"

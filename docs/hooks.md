@@ -116,6 +116,9 @@ O `.githooks/pre-push` do Forge, além de bloquear envio direto e histórico ree
 
 Saber se há suíte rodando: `.githooks/pre-push --status`, chamado à mão com esse único argumento (o git passa nome e URL do remoto, então um remoto de nome `--status` segue o caminho normal); só testa a trava e a solta na hora (saída 0 e uma linha com o pid, se há; saída 1 e "nenhuma suíte do Forge rodando", se não). Use-o no lugar do `pgrep -af 'python3 -m unittest discover'`, que casa com o próprio shell. Limite conhecido: sandbox e terminal sem a mesma pasta de trava não se enxergam; a trava cobre o `pre-push`, não uma suíte lançada à mão.
 
+## Ler as recusas de linha em lote
+`forge-check transcricao recusas [<pasta ou .jsonl>]` (só leitura, sem rede) conta, por papel, as vezes em que um hook recusou a linha por "não modela" ou "fora da gramática" (`nao_modela=`, `fora_da_gramatica=`), a partir das transcrições locais do Claude Code. A saída traz só o papel e a contagem, nunca o comando recusado nem o caminho. É a medida para decidir qual construção vale modelar no hook: o papel com mais recusas mostra onde o fluxo esbarra.
+
 ## Formato e fontes
 `hooks/hooks.json` é carregado pelo Claude Code sem declaração no `plugin.json`. Cada hook usa a forma exec (`command` + `args`, sem shell; `${CLAUDE_PLUGIN_ROOT}` é expandido em cada item de `args`) e `timeout` de 10 s (o padrão seria 600 s). O que os hooks usam está na documentação oficial: matcher `Agent|Task` (só letras e `|`: nomes exatos), eventos `PostToolUseFailure`, `PermissionDenied` (negação no modo automático, com `tool_use_id`), `SubagentStart`/`SubagentStop` com `agent_id` e `agent_type`, `agent_id` também nos eventos de ferramenta dentro de um subagente e saída 2 que bloqueia no `PreToolUse`. Fontes: [hooks](https://code.claude.com/docs/en/hooks.md) e [referência do manifesto](https://code.claude.com/docs/en/plugins/manifest-reference.md), consultadas em 2026-10-12.
 

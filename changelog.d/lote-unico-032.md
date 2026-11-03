@@ -4,6 +4,7 @@
 - forge-check brief avisa a suposição do pedido sem `muda com` e `custo de reverter`, e `forge-check voltas` conta as linhas `suposição revertida` do Histórico por pedido; modelo do pedido e R-DECISAO dizem o formato (lote-unico-032, L11, OK-6)
 - forge-check transcricao lastro conta também a afirmação absoluta ("todos os testes passam", "nenhuma falha") sem saída de teste OK; só mede (lote-unico-032, L12, OK-5)
 - forge-check transcricao vereditos conta os relatórios do conferente cujo `veredito:` contradiz as próprias linhas (`cumpriu` com `pendente:`, `escopo: fora` ou `PQ-n não cumpriu`, ou `não cumpriu` sem nenhuma); só mede, sem trecho da transcrição (lote-unico-032, L13, P7)
+- forge-check transcricao recusas conta, por papel, as recusas de linha dos hooks ("não modela" e "fora da gramática"), só com números, sem o comando recusado; docs/hooks.md traz a forma de leitura em lote (lote-unico-032, L14, P9)
 
 ### Alterado
 - CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).
