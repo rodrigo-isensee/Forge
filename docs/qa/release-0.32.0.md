@@ -19,7 +19,7 @@ Leva `5b6d13a...cb9f7c1` contra a main 0.31.0: os PRs #427 a #430 (HEREDOC-COMEN
 
 ## Achados
 - A1 (recomendado) tests/mutantes/lote-unico-032-l49.json:93 · M10 desatualizado: o trecho `relogios := relogios_do_cartao(` não existe (o código usa `=`, bin/forge-check:2664); a spec sai rc 2 (inválido). Corrigido o trecho numa cópia, M10 morre. Nenhum sobrevivente.
-- A2 (recomendado) bin/forge-mutante:544 (função `cobertura`) · AR-1: `forge-mutante --cobertura --base 5b6d13a` lista 118 condições sem mutante (L03 a L18 e voltas, já aceitas como recomendado no QA do #430, A2 e A3); a release não soma código novo.
+- A2 (recomendado) bin/forge-mutante:544 · função `cobertura`; AR-1: `forge-mutante --cobertura --base 5b6d13a` lista 118 condições sem mutante (L03 a L18 e voltas, já aceitas como recomendado no QA do #430, A2 e A3); a release não soma código novo.
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
