@@ -121,5 +121,32 @@
       "para": "            if True:",
       "equivalente": "o cache só evita repetir o controle de testes idênticos; recalcular dá o mesmo estado, sem efeito no veredito"
     }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "controles[chave] != 'ok'",
+      "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "controles[chave] == 'vermelho'",
+      "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "chave not in controles",
+      "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "classe == 'inválido'",
+      "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
+    },
+    {
+      "arquivo": "bin/forge-mutante",
+      "trecho": "classe == 'sobreviveu' and codigo == 0",
+      "motivo": "a condição passou do laço de principal() para provar() e Controles; o mutante da nova (M1, M2, M10, M11) a cobre"
+    }
   ]
 }
