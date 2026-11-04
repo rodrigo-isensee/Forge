@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 04437d12dfb5579af2dafaf065c06bf6457f7938
+commit: 083a959c725246adaff6be0cf7fa4275ea2606c7
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -57,6 +57,14 @@ O `318a437` só acrescenta `QaA9Promocao` a `tests/test_qa_lote_l08.py`. Ele rod
 
 ## Nota (04437d1, teste movido e mapa)
 O delta `51eeeac..04437d1` não toca código de produção: `bin/forge-check`, `hooks/`, `agents/`, `docs/regras/` e `scripts/` estão iguais desde `4e2270d`. O teste do `forge-fechar` real saiu de `tests/test_fechar.py` para `tests/test_fechar_forge_check_real.py` com as mesmas asserções (só o prefixo `base.` mudou). O `bin/forge-testes` só acrescenta `test_fechar_forge_check_real` e `test_qa_lote_l08` ao mapa FORGE_CHECK: o pre-push passa a rodar mais testes, não menos. Nenhuma recusa passou a liberar. Rodei `test_fechar_forge_check_real.py` (2), `test_testes_tocados.py` (86) e `test_qa_lote_l08.py` (21): OK.
+
+## Revalidação (083a959, pareceres por branch, E7 e E11)
+Delta `1d50bea` e `083a959` (o código está em `bin/forge-check`: `pr_da_cli` e `cmd_pr`). Numa branch de trabalho, o `pr` só conta os pareceres com `branch:` igual à dela e reprova se não houver nenhum. Na promoção e sem branch, vale o mais recente do pedido, como antes. Nenhuma recusa passou a liberar: com parecer da branch, a escolha é a mesma de antes (`da_branch or achados`); sem ele, o que antes caía no mais recente do pedido agora reprova. Toda escolha continua presa ao `commit_vale` contra o head.
+- `branch:` forjado ou copiado de outra branch: o campo só escolhe qual parecer é lido. O parecer escolhido ainda precisa ter um `commit:` que cubra o head (ancestral, e depois dele só pareceres, quadro e o fragmento do changelog). Copiar o parecer de outro item não faz o código desta branch passar por revisado, e `docs/security/` é escrita só do papel de segurança.
+- Branch com nome de promoção: um nome em `develop`, `homolog` ou `main` (também `origin/<base>`, que `branch_da_ref` reduz ao nome) cai no caminho de antes, o mais recente do pedido. Isso não é afrouxamento novo, e a conferência do head segue cobrada fora da `promocao`, que compara por sha.
+- Sha ambíguo: `branch_do_sha` devolve None quando há mais de uma branch no sha, e o `pr` volta ao comportamento anterior (mais recente do pedido mais `commit_vale`). A conferência do head segue cobrada e, sem pedido direto, reprova. É o mesmo nível de antes, não uma brecha nova. Recomendação (baixa): na linha de comando, sha ambíguo entre branches de trabalho poderia reprovar em vez de voltar ao mais recente.
+- Parecer ausente: na branch de trabalho, reprova (`sem parecer da branch`). Sem branch nenhuma (sha solto, catraca do CI) vale o caminho antigo por desenho. O hook `parecer` (`hooks/parecer.py:419`) chama `cmd_pr` sem `branch` e herda `branch_da_ref`, ou seja, o mesmo aperto quando a ref é nome de branch.
+Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead` (11) e `-p test_promover_homolog.py` (36), OK no L08, onde está o código.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
