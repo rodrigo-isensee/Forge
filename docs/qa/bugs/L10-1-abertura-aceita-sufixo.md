@@ -1,5 +1,6 @@
 # L10-1 - a linha de abertura de etapa aceita texto colado em "aberta"
 - Severidade: baixa
+- Estado: fechado em 08aa2a4
 - Responsável sugerido: forge:tech-lead
 - Ambiente: melhoria/lote-l10 @ 4bb60b8 (código effbe5b), bin/forge-check:1832
 

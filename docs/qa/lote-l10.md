@@ -3,14 +3,13 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: 4bb60b87c357e7a5fdc9ea4dbc3cba46b371cadc
+commit: fd7b1449476c771f60ee4607e083b503777e2ed6
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 1
-aceite_usuario: sim
+bugs_baixos: 0
 data: 2026-11-04
 ---
 # QA: lote L10 (E14 VOLTA-ETAPA-NOVA)
@@ -18,7 +17,6 @@ data: 2026-11-04
 Código testado: effbe5b1b16cedb1c84698afcf4921c053692c48, head 018abcb. O `commit:` é o do teste novo do QA (tests/test_qa_lote_l10.py, 32 linhas, commit separado do parecer, E16). Segurança do L10 aprovada em ea27a6a (informada pelo coordenador).
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1832 · L10-1: `ETAPA_ABERTA` termina em `aberta\b` e aceita `etapa E1.4b aberta-nao` como prova de abertura (T-3); exposição pequena
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -36,3 +34,10 @@ Código testado: effbe5b1b16cedb1c84698afcf4921c053692c48, head 018abcb. O `comm
 - Vermelho antes do verde: o teste novo do QA não roda na base (usa o fixture E14, que a base não tem), então a prova é por mutação (Q1 e Q2 caem só com o teste novo; os demais, com o do autor).
 - Cenário de abuso fora do plano do autor: `aberta-nao` entra (bug L10-1, baixa). A data da linha não é comparada, só a ordem no Histórico (é o que C-3 pede).
 - Bug: docs/qa/bugs/L10-1-abertura-aceita-sufixo.md.
+
+## Revalidação (delta 08aa2a4 e 59bec42, head fd7b144)
+- O `commit:` passou a ser o do teste do QA que acrescenta o caso `aberta-nao` (fd7b144), sobre a correção 08aa2a4 (código testado).
+- L10-1 fechado: `ETAPA_ABERTA` termina em `aberta\s*$` (bin/forge-check:1832). `aberta-nao`, `abertura prevista` e `abertas` não valem como prova; o caso novo do QA passa e antes da correção falhava (observado sobre effbe5b).
+- `test_volta_por_delta` + `test_qa_lote_l10`: 69 OK.
+- `bin/forge-mutante tests/mutantes/lote-l10.json`: M1 a M13 mortos, rc=0 (M13 guarda a âncora do fim da linha).
+- Bugs abertos: 0 (docs/qa/bugs/L10-1-abertura-aceita-sufixo.md fechado).
