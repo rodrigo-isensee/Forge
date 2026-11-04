@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: fd7b1449476c771f60ee4607e083b503777e2ed6
+commit: f25db720f6c418c78c2b9e0624a893bb9538e337
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -45,3 +45,4 @@ Código testado: effbe5b1b16cedb1c84698afcf4921c053692c48, head 018abcb. O `comm
 ## Revalidação (head f25db72)
 - Depois do parecer anterior vieram os merges do L09 e f25db72 (o teste do QA no mapa do bin/forge-testes), sem mudar código nem o teste; o `commit:` segue fd7b144, que é ancestral do head.
 - `-p test_qa_lote_l10.py`: 1 OK sobre f25db72.
+- O `commit:` aponta para f25db72: a linha do mapa do forge-testes entrou depois do teste; o código de produção não mudou (o teste fd7b144 é ancestral).
