@@ -1,0 +1,18 @@
+{
+  "descricao": "GH-MERGE-ADMIN: gh api -X GET repos/o/r/pulls/12/merge -f x=1 (GET com campo vira consulta: leitura)",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X GET repos/o/r/pulls/12/merge -f x=1"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 0
+  }
+}

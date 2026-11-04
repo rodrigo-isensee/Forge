@@ -1,0 +1,167 @@
+{
+  "pedido": "gh-merge-admin",
+  "executor": "unittest",
+  "isentas": [],
+  "mutantes": [
+    {
+      "id": "G28",
+      "guarda": "um -X mutante recusa mesmo seguido de -X GET (só o último não basta)",
+      "arquivo": "hooks/parecer.py",
+      "de": "metodo.upper() != \"GET\"",
+      "para": "metodo.upper() != \"GET\" and metodo is metodos[-1]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G29",
+      "guarda": "um -X GET antes do mutante não libera (só o primeiro não basta)",
+      "arquivo": "hooks/parecer.py",
+      "de": "metodo.upper() != \"GET\"",
+      "para": "metodo.upper() != \"GET\" and metodo is metodos[0]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G30",
+      "guarda": "o token depois de opção valorada fica como veio também no desagrupa_i",
+      "arquivo": "hooks/parecer.py",
+      "de": "        valor = a in API_COM_VALOR\n    return saida",
+      "para": "        valor = False\n    return saida",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G31",
+      "guarda": "o -XPUT que é valor de outra opção valorada (-p -XPUT) conta como método pedido",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            metodos.append",
+      "para": "        elif a.startswith(\"-X\") and len(a) > 2 and not (i and args[i - 1] in API_COM_VALOR):\n            metodos.append",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G32",
+      "guarda": "-X e --method separados entram",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if a in (\"-X\", \"--method\"):",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G33",
+      "guarda": "-X sem valor no fim não quebra",
+      "arquivo": "hooks/parecer.py",
+      "de": "            if i + 1 < len(args):\n                metodos",
+      "para": "            if True:\n                metodos",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G34",
+      "guarda": "--method=valor entra",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"--method=\"):\n            metodos.append",
+      "para": "        elif False:\n            metodos.append",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G35",
+      "guarda": "-XVALOR colado entra",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            metodos.append",
+      "para": "        elif False:\n            metodos.append",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G37",
+      "guarda": "o -X GET real vale: sem o atalho, o GET com campos recusa",
+      "arquivo": "hooks/parecer.py",
+      "de": "    if real is not None and real.upper() == \"GET\":",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G38",
+      "guarda": "o atalho só-GET decide pelo último -X real, não por metodos_pedidos (o -XGET valor de -p/-t não libera os campos)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    real = ultimo_metodo_real(args)\n    if real is not None and real.upper() == \"GET\":",
+      "para": "    real = metodos[-1] if metodos else None\n    if real is not None and real.upper() == \"GET\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G39",
+      "guarda": "o último -X real pula o valor das outras opções valoradas",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a in API_COM_VALOR:\n            pular = True",
+      "para": "        elif False:\n            pular = True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G40",
+      "guarda": "o valor de outra opção valorada é pulado na leitura do último -X real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if pular:\n            pular = False",
+      "para": "        if False:\n            pular = False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G41",
+      "guarda": "-X separado entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a in (\"-X\", \"--method\"):\n            ultimo, pular",
+      "para": "        elif False:\n            ultimo, pular",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G42",
+      "guarda": "-X sem valor no fim não quebra o último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "args[i + 1] if i + 1 < len(args) else ultimo",
+      "para": "args[i + 1] if True else ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G43",
+      "guarda": "--method=valor entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"--method=\"):\n            ultimo",
+      "para": "        elif False:\n            ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G44",
+      "guarda": "-XVALOR colado entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            ultimo",
+      "para": "        elif False:\n            ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    }
+  ]
+}
