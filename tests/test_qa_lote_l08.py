@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RepoComOrigem, git, rodar_fc, com_gh_falso  # noqa: E402
 from test_volta_por_delta import BriefDeVolta, Repositorio  # noqa: E402
 from test_fechar import FecharComOForgeCheckReal  # noqa: E402
+from test_promover_homolog import Promover, SCRIPT  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
 
@@ -244,10 +245,40 @@ class QaE7FecharReal(FecharComOForgeCheckReal):
         self.assertIn("conferência:", self.parou_no_passo_1())
 
 
+class QaA9Promocao(Promover):
+    """A9 do review: `scripts/promover-homolog.py` real, com o `forge-check` real, num repositório descartável; a promoção não cobra a
+    conferência do head (sem pedido de release e sem conferida), e a branch de trabalho com `--base main` segue cobrada."""
+
+    def test_promocao_real_passa_sem_pedido_de_release_e_sem_conferida(self):
+        self.pronta()
+        self.assertFalse((self.tmp / ".forge-contrib").exists())  # HOME sem pedido algum
+        for args in (("--dry-run",), ()):
+            with self.subTest(args):
+                r = self.roda(*args)
+                self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+                self.assertIn("valem contra a main", r.stdout)
+                self.assertNotIn("conferência:", r.stdout + r.stderr)
+        self.assertIn("pr create --base homolog --head develop", "\n".join(self.gh_chamadas()))
+
+    def test_branch_de_trabalho_com_base_main_ou_homolog_reprova(self):
+        self.pronta()
+        self.git("switch", "-q", "-c", "melhoria/y", "origin/develop")
+        self.escrever("src/y.txt", "trabalho\n")
+        self.git("add", ".")
+        self.git("commit", "-q", "-m", "feat: trabalho")
+        for base in ("main", "homolog"):
+            with self.subTest(base):
+                r = subprocess.run([sys.executable, "-I", str(SCRIPT.parent.parent / "bin" / "forge-check"), "pr", "release-0.2.0", "--ref",
+                                    "melhoria/y", "--base", base], cwd=self.proj, env=self.env, capture_output=True, text=True, timeout=60)
+                self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+                self.assertIn("conferência: sem o pedido", r.stdout)
+                self.assertNotIn("promoção", r.stderr)
+
+
 def load_tests(loader, tests, pattern):
     """As classes herdam as bases dos módulos de teste do autor; só os testes próprios daqui entram (os herdados já rodam nos módulos deles)."""
     suite = unittest.TestSuite()
-    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal):
+    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal, QaA9Promocao):
         suite.addTests(cls(nome) for nome in vars(cls) if nome.startswith("test"))
     return suite
 
