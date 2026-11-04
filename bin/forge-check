@@ -113,6 +113,8 @@ contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `
 sem PQ do GitHub (`pendente:`), com `--branch` de verdade ou com PQ `sha`/`push` reprova; nunca sai "nada a conferir".
 Na promoção (base `homolog` ou `main` e o head igual à ponta de `origin/develop` ou `origin/homolog`), a conferência do head não é cobrada:
 ela é portão de cada PR da leva (A9; `scripts/promover-homolog.py`).
+Numa branch de trabalho (a da ref, ou a única cujo head é o sha da ref), o `pr` só conta os pareceres com `branch:` igual a ela; o de outro
+item do pedido, trazido pelo merge da base, não vale nem reprova, e sem parecer da branch reprova. Na promoção valem os de todos os itens.
 `pr --pr <n>` (E10, CONF-MERGE-APOS-SQUASH) confere o PR já mesclado no head dele (`headRefOid` do `gh pr view`, sha40 presente no clone, estado
 MERGED, e o parecer escolhido pelo `headRefName`), nunca no commit do squash; sem gh, PR aberto ou head ausente, rc 2 e nada conferido.
 O `Desde:` da `brief mensagem --entrega` e o `--desde` do `brief gerar --volta` vêm da base mais recente da própria branch (E12,
@@ -661,6 +663,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
+        branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
         return cmd_pr(raiz, pedido, ref, None, branch) + conferencia_do_head(raiz, pedido, ref, None, branch)
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
@@ -673,7 +676,8 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
               file=sys.stderr)
     if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
-        return cmd_pr(raiz, pedido, ref, resolvida, branch)
+        return cmd_pr(raiz, pedido, ref, resolvida, branch)  # na leva da promoção valem os pareceres de todos os itens
+    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
     return cmd_pr(raiz, pedido, ref, resolvida, branch) + conferencia_do_head(raiz, pedido, ref, resolvida, branch)
 
 
@@ -889,9 +893,13 @@ def commit_junto_do_parecer(raiz, rel, ate, livres):
 
 
 def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
-    """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`."""
+    """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`.
+    Numa branch de trabalho (fora de BASES_DO_FLUXO), só contam os pareceres com `branch:` igual a ela: o de outro item do mesmo pedido,
+    trazido pelo merge da base, não vale nem reprova; sem nenhum da branch, reprova (falha fechada). Sem branch (o sha da catraca do CI)
+    ou numa branch de integração (a promoção), vale o mais recente do pedido, como antes."""
     saida = []
     branch = branch or branch_da_ref(raiz, ref)
+    de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     for tipo in exigidos:
@@ -906,6 +914,9 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
             saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
         da_branch = [a for a in achados if branch and a[2].get("branch") == branch]  # E11
+        if de_trabalho and not da_branch:  # só os pareceres desta branch (como a catraca, CATRACA-RAMO-CMD-PR)
+            saida.append(f"{pasta}: {tipo}: sem parecer da branch {nome_seguro(branch)} para o pedido `{pedido}` ({rid})")
+            continue
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
         saida += viol
         if ref is None and not parecer_commitado(raiz, rel):
