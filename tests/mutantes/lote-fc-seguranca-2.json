@@ -140,7 +140,7 @@
       "de": "([f\"origin/{base}\", base] if base else [])",
       "para": "([f\"origin/{base}\", base] if False else [])",
       "testes": [
-        "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_so_na_primeira_leitura_reprova"
+        "tests.test_entrega_git_falha.FalhaDoGit.test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo"
       ]
     },
     {
