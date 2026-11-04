@@ -22,6 +22,36 @@
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_ref_por_sha_acha_a_branch_como_no_forge_fechar"
       ]
+    },
+    {
+      "id": "M50",
+      "guarda": "a promoção não cobra a conferência do head (A9)",
+      "arquivo": "bin/forge-check",
+      "de": "    if promocao(raiz, ref, nome):  # A9",
+      "para": "    if False:  # A9",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M51",
+      "guarda": "só homolog e main são base de promoção (A9)",
+      "arquivo": "bin/forge-check",
+      "de": "anteriores = {\"homolog\": (\"develop\",), \"main\": (\"develop\", \"homolog\")}.get(base, ())",
+      "para": "anteriores = {\"homolog\": (\"develop\",), \"main\": (\"develop\", \"homolog\")}.get(base, (\"develop\",))",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M52",
+      "guarda": "o head precisa ser a ponta da integração (A9)",
+      "arquivo": "bin/forge-check",
+      "de": "return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)",
+      "para": "return bool(head)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"
+      ]
     }
   ]
 }

@@ -111,6 +111,8 @@ contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `
 `entrega --etapa ato-github --branch — --brief <brief>` (E19, ATO-GITHUB-ENTREGA) confere a entrega que é só um ato no GitHub: o tipo vem do brief
 (`Tipo: ato-github`, `Branch: —`, mesmo pedido, Base e Base-sha), cada PQ `pr`, `merge` ou `run` sai `escopo: ato-github: confira`, e
 sem PQ do GitHub (`pendente:`), com `--branch` de verdade ou com PQ `sha`/`push` reprova; nunca sai "nada a conferir".
+Na promoção (base `homolog` ou `main` e o head igual à ponta de `origin/develop` ou `origin/homolog`), a conferência do head não é cobrada:
+ela é portão de cada PR da leva (A9; `scripts/promover-homolog.py`).
 `pr --pr <n>` (E10, CONF-MERGE-APOS-SQUASH) confere o PR já mesclado no head dele (`headRefOid` do `gh pr view`, sha40 presente no clone, estado
 MERGED, e o parecer escolhido pelo `headRefName`), nunca no commit do squash; sem gh, PR aberto ou head ausente, rc 2 e nada conferido.
 O `Desde:` da `brief mensagem --entrega` e o `--desde` do `brief gerar --volta` vêm da base mais recente da própria branch (E12,
@@ -669,7 +671,19 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
+    if promocao(raiz, ref, nome):  # A9: a conferência do head é portão da branch de trabalho; a leva já passou por ele em cada PR
+        print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
+        return cmd_pr(raiz, pedido, ref, resolvida, branch)
     return cmd_pr(raiz, pedido, ref, resolvida, branch) + conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+
+
+def promocao(raiz, ref, base):
+    """A9 e A10 do review do L08: True na promoção do fluxo, `develop` -> `homolog` -> `main`: a base é `homolog` ou `main` e o head é,
+    commit a commit, a ponta de uma branch de integração anterior (`origin/develop` ou `origin/homolog`, ou a local sem remoto). Uma branch
+    de trabalho não vira promoção trocando o `--base`: o head dela não é a ponta da integração."""
+    head = sha_do_commit(raiz, ref or "HEAD")
+    anteriores = {"homolog": ("develop",), "main": ("develop", "homolog")}.get(base, ())
+    return bool(head) and any(head == ref_da_base(raiz, b) for b in anteriores)
 
 
 def pedido_da_conferencia(raiz, pedido, branch):

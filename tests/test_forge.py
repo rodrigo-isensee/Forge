@@ -5908,6 +5908,25 @@ class ConferenciaPresaAoHead(RepoComOrigem):
         self.assertEqual(rc, 1, saida)
         self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
 
+    def test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada(self):  # A9 e A10 do review do L08
+        git("push", "-q", "origin", "melhoria/x:develop", cwd=self.repo)  # a leva já mesclada: a develop é o head da entrega
+        git("fetch", "-q", "origin", cwd=self.repo)
+        for base in ("main", "homolog"):
+            with self.subTest(base):
+                rc, saida, erro = self.pr("--base", base, ref="origin/develop")
+                self.assertEqual(rc, 0, saida)  # sem pedido e sem conferida: a promoção não é portão de entrega
+                self.assertIn(f"pr: promoção: o head é o da integração e a base é {base}", erro)
+        trabalho = self.commitar(self.repo, {"src/x.txt": "x1 do pedido, outra\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "trabalho")
+        self.pareceres(trabalho)
+        casos = {"branch de trabalho com --base main": ("melhoria/x", "main"), "branch de trabalho com --base homolog": ("melhoria/x", "homolog"),
+                 "develop com --base develop": ("origin/develop", "develop")}
+        for nome, (ref, base) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.pr("--base", base, ref=ref)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
+                self.assertNotIn("promoção", erro)
+
     def test_pedido_pelos_briefs_da_branch(self):  # no Forge, o argumento é o slug e o pedido mora em ~/.forge-contrib
         contrib = self.home / ".forge-contrib" / "docs"
         self.historico(arquivo=contrib / "pedidos" / "real.md")
