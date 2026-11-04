@@ -1,6 +1,7 @@
 """Testes da lógica pura do scripts/ci-local (resumo, status, regra do pulado, leitura dos workflows), sem rede e sem git."""
 import importlib.machinery
 import importlib.util
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -117,6 +118,14 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
             ids += [j["id"] for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / arquivo).read_text(encoding="utf-8"))]
         esperados = {"rapida", "bateria", "catraca"}
         self.assertTrue(esperados <= set(ids), esperados - set(ids))
+
+    def test_todo_job_roda_no_ubuntu_26_04(self):
+        """FILA-30 16c: o runner ubuntu-24.04 sai de linha em 19/11/2026; runner fixado (sem -latest), igual nos jobs de todos os workflows."""
+        for arquivo in sorted((RAIZ / ".github" / "workflows").glob("*.yml")):
+            runners = re.findall(r"^\s*runs-on:\s*(\S+)", arquivo.read_text(encoding="utf-8"), re.M)
+            with self.subTest(workflow=arquivo.name):
+                self.assertTrue(runners)
+                self.assertEqual(set(runners), {"ubuntu-26.04"})
 
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))

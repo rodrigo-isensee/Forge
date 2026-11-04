@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     # 25 min: a suíte em série estourou 20 min na v0.32.0 (run 41748756935); agora roda em paralelo, como o CI
     timeout-minutes: 25
     steps:

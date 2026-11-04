@@ -23,7 +23,7 @@ jobs:
   rapida:
     name: checagem rápida (push na develop)
     if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -42,7 +42,7 @@ jobs:
     # Python (changelog, release, catraca) ficam na "bateria" (testes travam um passo só de cada) e a suíte os cobre no 3.14.
     # shellcheck, actionlint, zizmor, claude plugin validate e a varredura de segredos não executam Python.
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -73,7 +73,7 @@ jobs:
   bateria:
     name: bateria
     if: github.event_name != 'push' || github.ref != 'refs/heads/develop'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 25
     permissions:
       contents: read
