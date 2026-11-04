@@ -39,5 +39,11 @@ class InvarianteGatilho(unittest.TestCase):
         self.assertIn("invariante novo ou alterado em `tests/config.json`", linha[0])
 
 
+class AchadoTetoDoc(unittest.TestCase):
+    def test_agentes_de_parecer_dizem_o_teto_de_300_do_achado(self):
+        for nome in ("security-engineer", "qa-engineer"):
+            self.assertIn("até 300 caracteres sem contar o prefixo", ler("agents", nome + ".md"), nome)
+
+
 if __name__ == "__main__":
     unittest.main()
