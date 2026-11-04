@@ -230,11 +230,11 @@ def conferir(args):
         return
     if not mudou:
         return
-    if all(e_parecer(m) for m in mudou):
-        print(f"ok: PR só de parecer ({len(mudou)} arquivo(s) em docs/), sem fragmento (RELEASE-PR-SO-PARECER)")
-        return
-    for p in novos:
+    for p in novos:  # fragmento presente é validado antes do atalho de parecer (regressão achada pelo QA)
         ler_fragmento(git("show", f"HEAD:{p}"), p)
+    if all(e_parecer(m) for m in mudou):
+        print(f"ok: PR só de parecer ({len(mudou)} arquivo(s) em docs/), sem fragmento novo (RELEASE-PR-SO-PARECER)")
+        return
     if novos:
         print(f"ok: {len(novos)} fragmento(s) novo(s) em {PASTA}/")
         return

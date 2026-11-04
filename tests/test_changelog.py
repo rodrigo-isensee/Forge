@@ -446,6 +446,19 @@ class ConferirNoCI(Base):
         r = self._so_arquivo("docs/qa/_x/a.md")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
+    def test_parecer_mais_fragmento_malformado_reprova(self):
+        """Regressão do QA: o atalho de "só parecer" não pode pular a validação de um fragmento presente no PR."""
+        (self.dir / "changelog.d").mkdir()
+        (self.dir / "changelog.d" / "x.md").write_text("isto não é um fragmento\n", encoding="utf-8")
+        r = self._so_arquivo("docs/qa/a.md")
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+        self.assertIn("formato inválido", r.stdout + r.stderr)
+
+    def test_parecer_mais_fragmento_valido_passa(self):
+        forge_changelog(self.dir, "novo", "Corrigido", "x")
+        r = self._so_arquivo("docs/qa/a.md")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_pr_de_parecer_com_outro_arquivo_da_fabrica_continua_exigindo_fragmento(self):
         (self.dir / "docs" / "devops").mkdir(parents=True)
         (self.dir / "docs" / "devops" / "a.md").write_text("x\n", encoding="utf-8")
