@@ -394,6 +394,34 @@ def exporta(palavras):
         re.fullmatch(r"-[a-zA-Z]*x[a-zA-Z]*", p) for p in palavras[1:])
 
 
+VALOR_DE_CONTAINS = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._/@^~-]*$")
+
+
+def forma_de_leitura_git(chave, args):
+    """E8 (C-1, C-2): lista branca exata de `git branch` (sem argumento, `--list`, `-r`, `--contains <commit>` ou
+    `--contains=<commit>`, e o padrão sem `-` só junto de `--list`) e de `git worktree` (só `list`, sem argumento)."""
+    if chave == "git worktree":
+        return args == ["list"]
+    padroes, lista, i = [], False, 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--list", "-r"):
+            lista = lista or a == "--list"
+        elif a == "--contains":
+            i += 1
+            if i >= len(args) or not VALOR_DE_CONTAINS.match(args[i]):
+                return False
+        elif a.startswith("--contains="):
+            if not VALOR_DE_CONTAINS.match(a[len("--contains="):]):
+                return False
+        elif a.startswith("-"):
+            return False
+        else:
+            padroes.append(a)
+        i += 1
+    return lista or not padroes
+
+
 def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
@@ -1104,7 +1132,13 @@ class Guarda:
     def git_so_leitura(self, chave, args):
         """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
         `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas (`--textconv` e
-        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`)."""
+        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`). `git branch` e
+        `git worktree` só passam pela gramática exata de `forma_de_leitura_git` (E8, C-1 e C-2)."""
+        if chave in ("git branch", "git worktree"):
+            if not forma_de_leitura_git(chave, args):
+                self.barrar("R-CONFORMIDADE", f"`{(chave + ' ' + ' '.join(args)).strip()}` fora das formas de leitura "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+            return
         for a in args:
             if chave == "git ls-remote":
                 if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):

@@ -11,7 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import ARQ, Cenario  # noqa: E402
-from test_hooks import montar_proc, rodar as rodar_hook  # noqa: E402  (só funções)
+from test_hooks import modulos_dos_hooks, montar_proc, rodar as rodar_hook  # noqa: E402  (só funções)
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
@@ -116,6 +116,43 @@ class GuardaDoConferente(Cenario):
     def test_outro_agente_passa_sem_cabecalho(self):
         r = self.lancar("faça algo", tipo="forge:tech-lead")
         self.assertEqual(r.returncode, 0, r.stderr)
+
+
+class LeituraDeGitDoConferente(Cenario):
+    """E8 (C-1 a C-6): `git branch` e `git worktree` do `forge:conferente` só nas formas de leitura do modelo."""
+
+    def setUp(self):
+        GuardaDoConferente.setUp(self)  # o mesmo projeto e o mesmo proc, sem repetir os testes do lançamento
+
+    def bash(self, comando):
+        entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "s", "cwd": str(self.projeto),
+                   "agent_type": "forge:conferente", "tool_input": {"command": comando}}
+        return rodar_hook("conformidade", entrada, self.projeto, self.proc, {"FORGE_NPROC": "8"})
+
+    def test_passam_as_formas_de_leitura(self):
+        for comando in ("git branch", "git branch --list 'melhoria/*'", "git branch -r", "git branch --contains 928e61b",
+                        "git branch --contains=928e61b", "git branch -r --contains origin/develop", "git branch -r --list x",
+                        "git -C . --no-pager branch", "git worktree list"):
+            with self.subTest(comando):
+                r = self.bash(comando)
+                self.assertEqual(r.returncode, 0, r.stderr)
+
+    def test_recusam_as_formas_de_escrita_e_fora_do_limite(self):
+        for comando in ("git branch x", "git branch -D develop", "git branch -d x", "git branch -m a b", "git branch -f x HEAD",
+                        "git branch -u origin/x", "git branch --edit-description", "git branch --del x", "git branch --cont x",
+                        "git branch --contains -D", "git branch --contains", "git branch --contains x novo", "git branch -rd x",
+                        "git branch -a", "git branch -v", "git branch --show-current", "git branch --list -x",
+                        "git worktree add ../w", "git worktree prune", "git worktree remove w", "git worktree list --porcelain",
+                        "git worktree", "git -c core.pager=x branch", "git branch $(pwd)", "git branch > saida"):
+            with self.subTest(comando):
+                r = self.bash(comando)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertIn("R-CONFORMIDADE", r.stderr)
+
+    def test_outro_papel_e_a_forca_de_leitura_nao_mudam(self):
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertNotIn("branch", conformidade.GIT_LEITURA)
+        self.assertNotIn("worktree", conformidade.GIT_LEITURA)
 
 
 if __name__ == "__main__":
