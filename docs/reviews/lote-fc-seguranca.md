@@ -3,14 +3,14 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-fc-seguranca
-commit: dd441fa8cf8788b15188b604d0c2877c46da1742
+commit: 4ccb323dd95762683c8c66e66d7e316498ec2897
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-03
 ---
 # Review: versao-033 (lote E2+E3, `bin/forge-check`)
 
-Rodada 3 (head dd441fa8cf8788b15188b604d0c2877c46da1742): aprovado; o A6 da segurança da rodada 2 está resolvido, sem regressão; A1 e A6 deste parecer seguem como recomendados; sem achado novo. As rodadas 1 (head ae4dacd) e 2 (head e8b7644) ficam abaixo, como foram escritas.
+Rodada 4 (head 4ccb323dd95762683c8c66e66d7e316498ec2897): aprovado; A1 e A2 do QA (95f1b22) e o A7 da segurança da rodada 3 resolvidos, sem regressão; A1 e A6 deste parecer seguem como recomendados; sem achado novo. As rodadas 1 (head ae4dacd), 2 (head e8b7644) e 3 (head dd441fa) ficam abaixo, como foram escritas.
 
 Revisor: outra instância do `tech-lead`, não o autor (D-ETAPAS-INST = A). Base 928e61b66015f7ee2a2e585dc8178e07dc16be39, head ae4dacd791edf104c21cbe2b79092e93591c659d, 3 commits (a02cfc6 E3, 7cb82f3 E2, ae4dacd mapa do E3).
 
@@ -81,3 +81,16 @@ Delta lido: `bin/forge-check delta --parecer` sobre este parecer, intervalo e8b7
 **Regressão: nenhuma.** O None novo alcança os outros chamadores com base dada: `gatilhos` exige os dois portões e `isencoes_do_diff(None)` não isenta (C-4, fecha); `arquivos_por_branch` passa a base já resolvida, que lê. No `pr` com base ilegível, o resultado agora fecha em vez de cair para a develop: aperta, não afrouxa.
 
 **Testes.** No head dd441fa: `python3 -m unittest tests.test_forge tests.test_pedido_fora tests.test_entrega_git_falha`, 518 testes, OK (125 s). A suíte inteira fica com o QA (D-5). Achados recorrentes (PA-7) conferidos: nenhuma classe repetida nesta rodada.
+
+## Rodada 4
+Delta lido: `bin/forge-check delta --parecer` sobre este parecer, intervalo dd441fa..4ccb323 (o b3ab315, o dd8a378 e o 95f1b22 são só pareceres): `bin/forge-check` +1 -1 (linha 511, docstring), `tests/mutantes/lote-fc-seguranca-2.json` +36 -6 (98-111, 125-154), `tests/mutantes/lote-fc-seguranca-4.json` +1 -1 (28) e `tests/test_entrega_git_falha.py` +8 (105-112). Dois commits: cb43b00 (specs, teste e docstring) e 4ccb323 (teste do M44). Já lido nas rodadas 1 a 3 e fora do delta: o resto dos arquivos.
+
+**A1 do QA: resolvido.** M21 e M22 apontam para o trecho de hoje (`:1252` e `:1253`); os ids das quatro specs são únicos (M40 da spec 4 virou M46); cada trecho `de` de `bin/forge-check` aparece uma vez no head. `bin/forge-mutante --processos 1` com as quatro specs no head 4ccb323: rc 0, 42 de 42 mortos (3 min 18 s).
+
+**A2 do QA: resolvido.** Teste `test_so_o_diff_que_falha_nao_anuncia_a_base_ausente` (falha só no `diff de...ate`, nas três etapas): rc 1, o passo "diff da entrega" na linha e sem "base da entrega"; o M43 (`if True` em `:1253`) morre nele. Mutantes novos: M44 em `:504` (lista da base pedida), M45 em `:518` (None com base dada), M22 e M43 em `:1253`, M21 em `:1252`; todos morreram. `bin/forge-mutante --cobertura --base 928e61b`: nenhuma condição sem mutante; as três "apagada" (`:861`, `:1196`, `:1228` da base) são as explicadas na rodada 2.
+
+**A7 da segurança (rodada 3): resolvido.** A docstring de `arquivos_da_entrega` (`:511`) diz agora o que `:516-518` fazem: `[]` só sem base dada e sem nenhuma das BASES; com base dada que não lê, None. Só texto; o código não muda.
+
+**Regressão: nenhuma.** Em `bin/forge-check` só a docstring muda; C-1 a C-6 e T-1 a T-4 das seções E2 e E3 seguem como na rodada 3.
+
+**Testes.** No head 4ccb323: `python3 -m unittest tests.test_forge tests.test_pedido_fora tests.test_entrega_git_falha`, 519 testes, OK (129 s). A suíte inteira fica com o QA (D-5). Achados recorrentes (PA-7) conferidos: o AR-1 do QA fica resolvido aqui; nenhuma classe repetida nesta rodada.
