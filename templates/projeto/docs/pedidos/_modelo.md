@@ -34,6 +34,7 @@ Uma linha por ocorrência, em `## Registro de clareza` no fim do pedido, no mesm
 O que pertence a outro papel ou momento (review, QA, push pelo dono). Um item por linha, `E1.1 (papel): ...`, onde o papel é o agente ou `dono`. Etapa de outro papel não é corte de escopo: no brief do agente destino aparece em "Fora do escopo" sem a marca.
 - E1.1 (<agente>): <etapa>
 - E1.2 (dono): <etapa>
+- E1.3 (security-engineer): <review de segurança>: pedido que toca um gatilho da `R-SEGURANCA` já nasce com esta etapa, inclusive quando prevê invariante novo ou alterado em `tests/config.json` (controle do Forge); sem gatilho, apague a linha e escreva "sem gatilho de segurança" no plano
 
 ## Fora do escopo
 O que o usuário não pediu, ou o que saiu do escopo depois. Item que estava no escopo e foi cortado leva a marca literal "Retira do escopo original", o trecho do escopo citado, a justificativa, a consequência e a decisão que o autoriza (`R-DECISAO`):

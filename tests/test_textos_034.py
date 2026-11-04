@@ -31,5 +31,13 @@ class ModelosDeParecer(unittest.TestCase):
         self.assertNotIn("neutralidade", ler("templates", "projeto", "docs", "security", "_modelo.md"))
 
 
+class InvarianteGatilho(unittest.TestCase):
+    def test_modelo_de_pedido_nasce_com_a_etapa_de_seguranca_para_invariante_novo(self):
+        texto = ler("templates", "projeto", "docs", "pedidos", "_modelo.md")
+        linha = [l for l in texto.splitlines() if l.startswith("- E1.3 (security-engineer)")]
+        self.assertEqual(len(linha), 1)
+        self.assertIn("invariante novo ou alterado em `tests/config.json`", linha[0])
+
+
 if __name__ == "__main__":
     unittest.main()
