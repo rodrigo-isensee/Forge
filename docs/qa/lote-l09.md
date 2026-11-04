@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: a6eee8bfa774d62a3b4d23ff157e8b6d53d74c85
+commit: d4d1ca79ed7c5436d219f20a41c31520a0afa027
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -36,3 +36,4 @@ Código testado: 882a7dd7fa933f473d82fcac65c94517b6fb46fa (patch bc6d081), head 
 ## Revalidação (head d4d1ca7)
 - O `commit:` passou a ser a6eee8b, o teste do QA na lote-l09 (o 61e72dd da qa-l09 foi reaplicado por cherry-pick, mesmo conteúdo). Depois vieram o merge do L08 e d4d1ca7 (o teste no mapa do bin/forge-testes), sem mudar código nem teste.
 - `-p test_qa_lote_l09.py`: 3 OK sobre d4d1ca7.
+- O `commit:` aponta para d4d1ca7: a linha do mapa do forge-testes entrou depois do teste; o código de produção não mudou (o teste a6eee8b é ancestral).
