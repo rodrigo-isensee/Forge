@@ -1,0 +1,56 @@
+{
+  "pedido": "hook-parecer-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o corpo de heredoc que a chamada pode rodar e que o hook nao le recusa com a causa propria, sem mandar usar <<'FIM'",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if corpo_de_heredoc:  # o texto é o corpo de um heredoc que a chamada pode rodar",
+      "para": "        if False:  # o texto é o corpo de um heredoc que a chamada pode rodar",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o contorno das recusas de corpo de heredoc nomeia o Write ou Edit",
+      "arquivo": "hooks/parecer.py",
+      "de": "GRAVE_E_RODE_NOUTRA = \"grave pelo Write ou Edit e rode o programa noutra chamada\"",
+      "para": "GRAVE_E_RODE_NOUTRA = \"grave numa chamada do Bash e rode o programa noutra\"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "a recusa M2 (programa do texto e aspa sem par) usa o contorno com o Write ou Edit",
+      "arquivo": "hooks/parecer.py",
+      "de": "f\"o corpo do heredoc tem aspa sem par. Corrigir: {GRAVE_E_RODE_NOUTRA}\")",
+      "para": "f\"o corpo do heredoc tem aspa sem par. Corrigir: grave numa chamada do Bash\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "a recusa M3 (heredoc gravado e programa fora da lista) usa o contorno com o Write ou Edit",
+      "arquivo": "hooks/parecer.py",
+      "de": "f\"api, merge ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}\")",
+      "para": "f\"api, merge ou pull. Corrigir: grave numa chamada do Bash\")",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a recusa do corpo com aspa sem par a programa que pode roda-lo nomeia o Write ou Edit",
+      "arquivo": "hooks/parecer.py",
+      "de": "\"rodá-lo. Corrigir: grave o texto pelo Write ou Edit e passe-o ao programa \"",
+      "para": "\"rodá-lo. Corrigir: grave o texto num arquivo e passe-o ao programa \"",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    }
+  ]
+}
