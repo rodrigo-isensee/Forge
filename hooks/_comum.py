@@ -347,7 +347,9 @@ def conteudos_de_crase(comando, so_os_fechados=False):
     """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
     aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
     conta. Crase sem par levanta ValueError (a linha não se analisa); com `so_os_fechados`, ficam só os corpos que
-    fecham (o que vem depois da crase sem par o bash não roda: é erro de sintaxe)."""
+    fecham (o que vem depois da crase sem par o bash não roda: é erro de sintaxe). O corpo sai como o bash o lê (tira a
+    barra de `\\\\`, `` \\` `` e `\\$`) e, se der outro texto, também como a leitura antiga (só `` \\` ``): a crase
+    aninhada em três níveis chega ao teto de `PROFUNDIDADE` (SEGMENTO-CRASE-HOOK)."""
     saida, inicio, simples, duplas, i = [], None, False, False, 0
     provados = comentarios(comando)
     while i < len(comando):
@@ -361,7 +363,8 @@ def conteudos_de_crase(comando, so_os_fechados=False):
             continue
         if inicio is not None:
             if c == "`":
-                saida.append(comando[inicio:i].replace("\\`", "`"))
+                fiel, antiga = re.sub(r"\\([\\`$])", r"\1", comando[inicio:i]), comando[inicio:i].replace("\\`", "`")
+                saida += [fiel] if fiel == antiga else [fiel, antiga]
                 inicio = None
         elif simples:
             simples = c != "'"

@@ -60,6 +60,7 @@ HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
+CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK",)  # as fixtures de cada cartão abrem a descrição com o ID dele
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -2160,6 +2161,18 @@ class Hooks(unittest.TestCase):
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("FURO-HOOK-A")]
         self.assertGreaterEqual(len(lote), 8, "as fixtures do lote")
         self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_fixtures_da_trilha_034(self):  # trilha hooks/conformidade da 0.34: a descrição abre com o cartão, para a mutação
+        lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures
+                if f.dados.get("descricao", "").startswith(CARTOES_DA_TRILHA_034)]
+        self.assertGreaterEqual(len(lote), 4 * len(CARTOES_DA_TRILHA_034), "as fixtures da trilha")
+        self.assertEqual(self.executar_em_lote(lote), len(lote))
+
+    def test_corpo_da_crase_como_o_bash_e_como_a_leitura_antiga(self):  # SEGMENTO-CRASE-HOOK
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \\$(b) \`c\``"), [r"a \$(b) `c`", r"a \\$(b) `c`"])
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\` \$d`"), ["a `c` $d", r"a `c` \$d"])
+        self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\``"), ["a `c`"])
 
     def test_fixtures_do_gh_merge_admin(self):  # GH-MERGE-ADMIN: a matriz, os abusos (a) a (g) e os legítimos do C-5
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("GH-MERGE-ADMIN")]
