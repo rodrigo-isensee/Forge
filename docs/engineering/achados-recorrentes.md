@@ -22,3 +22,4 @@ O `forge-check brief gerar` avisa em stderr a linha que não segue o formato. Qu
 - AR-8 · review · cd-escondido-por-involucro · R-REVIEW · vezes: 3 · última: hooks/parecer.py:224
 - AR-9 · review · limite-antigo-no-texto · R-REVIEW · vezes: 2 · última: skills/qa-testing/SKILL.md:85
 - AR-10 · review · texto-isento-executado-por-outro-caminho · R-REVIEW · vezes: 2 · última: hooks/parecer.py:117
+- AR-11 · seguranca · leitura-de-opcao-do-gh-api-difere-da-do-gh · R-MAIN · vezes: 5 · última: hooks/parecer.py:537

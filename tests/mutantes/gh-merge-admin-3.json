@@ -91,10 +91,30 @@
     },
     {
       "id": "G37",
-      "guarda": "o -X lido vale: sem ele, o método não conta",
+      "guarda": "o -X GET real vale: sem o atalho, o GET com campos recusa",
       "arquivo": "hooks/parecer.py",
-      "de": "    if metodos:",
+      "de": "    if real is not None and real.upper() == \"GET\":",
       "para": "    if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G38",
+      "guarda": "o atalho só-GET decide pelo último -X real, não por metodos_pedidos (o -XGET valor de -p/-t não libera os campos)",
+      "arquivo": "hooks/parecer.py",
+      "de": "    real = ultimo_metodo_real(args)\n    if real is not None and real.upper() == \"GET\":",
+      "para": "    real = metodos[-1] if metodos else None\n    if real is not None and real.upper() == \"GET\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G39",
+      "guarda": "o último -X real pula o valor das outras opções valoradas",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a in API_COM_VALOR:\n            pular = True",
+      "para": "        elif False:\n            pular = True",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]

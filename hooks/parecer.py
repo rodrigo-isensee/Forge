@@ -528,13 +528,31 @@ def metodos_pedidos(args):
     return metodos
 
 
+def ultimo_metodo_real(args):
+    """O último `-X`/`--method` que o `gh` lê de fato: o token depois de outra opção valorada (`-p -XGET`) é valor dela."""
+    ultimo, pular = None, False
+    for i, a in enumerate(args):
+        if pular:
+            pular = False
+        elif a in ("-X", "--method"):
+            ultimo, pular = (args[i + 1] if i + 1 < len(args) else ultimo), True
+        elif a.startswith("--method="):
+            ultimo = a.split("=", 1)[1]
+        elif a.startswith("-X") and len(a) > 2:
+            ultimo = a[2:].removeprefix("=")
+        elif a in API_COM_VALOR:
+            pular = True
+    return ultimo
+
+
 def metodo_mutante(args):
     """True se o `gh api` altera algo: qualquer método diferente de GET (não só o último), ou campos (que viram POST)."""
     args = desagrupa_i(args)
     metodos = metodos_pedidos(args)
     if any(metodo.upper() != "GET" for metodo in metodos):
         return True
-    if metodos:  # só GET pedido: os campos viram consulta, não corpo
+    real = ultimo_metodo_real(args)
+    if real is not None and real.upper() == "GET":  # só GET de fato: os campos viram consulta, não corpo
         return False
     return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
                or a.startswith(("--field=", "--raw-field=", "--input="))
