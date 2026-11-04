@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: 460659b89d6265e77c9ce984c9e76171377ef1d2
+commit: 83a28d7537c95c9b30e96e2bf0bb16a7342802a2
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -66,3 +66,5 @@ Testes e mutante, num clone isolado em 083a959:
 - `-k test_pr_`: rc=0 (32).
 - `-p test_promover_homolog.py`: rc=0 (36).
 - `bin/forge-mutante tests/mutantes/lote-l08-pareceres-da-branch.json`: rc=0, M53, M54 e M55 mortos.
+
+Enquanto esta revalidação rodava, entrou o teste do QA 5ac531f (`tests/test_qa_lote_l08.py` +38 -1, classe `QaPareceresDaBranch`). Li o teste inteiro. Ele cobre três casos: o parecer próprio aprovado com o alheio desatualizado ou reprovado, a falta do parecer próprio com o alheio aprovado e a falta só do QA. Nenhum achado. `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py` deu rc=0 (24 testes). Ele chegou aqui pelo merge 83a28d7, sem resolução manual (o `--remerge-diff` sai vazio). O `commit:` passa a 83a28d7, o último commit de teste (E16).
