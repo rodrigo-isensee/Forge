@@ -1014,6 +1014,21 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         self.assertIn("suíte completa", self.rodar("tests/test_nao_existe.py").stdout)
         self.assertIn("suíte completa", self.rodar("tests/test_novo.py", "docs/sem-regra.txt").stdout)
 
+    def test_teste_que_le_bin_fora_do_mapa_avisa_cedo(self):  # MAPA-TESTES-AVISO-CEDO
+        self.escrever("test_novo", 'RAIZ = None\nx = RAIZ / "bin" / "forge-sugerir"\n')
+        r = self.rodar("--listar", "tests/test_novo.py")
+        self.assertIn("tests/test_novo.py lê bin/forge-sugerir, mas o MAPA não leva a test_novo", r.stderr)
+
+    def test_sem_aviso_quando_o_mapa_ja_leva_o_modulo_ou_so_cita_o_caminho(self):
+        self.escrever("test_sugerir", 'RAIZ = None\nx = RAIZ / "bin" / "forge-sugerir"\n')
+        self.escrever("test_novo", 'CITA = "bin/forge-sugerir"\n')
+        r = self.rodar("--listar", "tests/test_sugerir.py", "tests/test_novo.py")
+        self.assertNotIn("o MAPA não leva", r.stderr)
+
+    def test_aviso_vale_tambem_no_diff_sem_caminho(self):
+        self.escrever("test_novo", 'RAIZ = None\nx = RAIZ.joinpath("bin", "forge-sugerir")\n')
+        self.assertIn("o MAPA não leva a test_novo", self.rodar("--listar").stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

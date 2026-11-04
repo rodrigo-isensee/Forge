@@ -188,6 +188,30 @@ def modulos_sem_mapa(pedidos, raiz=Path(".")):
     return sorted(a.group(1) for a in achados)
 
 
+# Só as formas que montam um caminho (`RAIZ / "bin/x"`, `RAIZ / "bin" / "x"`, `joinpath("bin", "x")`, `ler("bin/x")`):
+# texto que apenas cita o caminho não conta.
+LEITURA_DE_BIN = re.compile(r"""(?:/|\()\s*["']bin/([\w.-]+)["']|["']bin["']\s*[/,]\s*["']([\w.-]+)["']""")
+
+
+def avisos_de_mapa(caminhos, raiz=Path(".")):
+    """Um teste que cita um arquivo de bin/ que o MAPA não leva a ele: o pre-push o pularia, e a suíte completa
+    reprova (MapaCobreOQueOsTestesLeem). Avisa cedo (MAPA-TESTES-AVISO-CEDO)."""
+    avisos = []
+    for caminho in caminhos:
+        achado = MODULO_DE_TESTE.fullmatch(caminho)
+        if not achado or not (raiz / caminho).is_file():
+            continue
+        texto = (raiz / caminho).read_text(encoding="utf-8", errors="replace")
+        for alvo in sorted({a or b for a, b in LEITURA_DE_BIN.findall(texto)}):
+            if not (raiz / "bin" / alvo).is_file():
+                continue
+            modo, modulos = planejar([f"bin/{alvo}"], raiz)
+            if modo == "dirigido" and achado.group(1) not in modulos:
+                avisos.append(f"forge-testes: {caminho} lê bin/{alvo}, mas o MAPA não leva a {achado.group(1)}; "
+                              f"acrescente em bin/forge-testes e em tests/test_testes_tocados.py")
+    return avisos
+
+
 def anotar(modo, modulos, segundos, codigo):
     LOG.parent.mkdir(parents=True, exist_ok=True)
     agora = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -539,6 +563,11 @@ def main(argv=None):
     if args.vermelho is not None:
         return vermelho(args.base if args.vermelho is True else args.vermelho, modulos_pedidos, prazo)
 
+    try:
+        for aviso in avisos_de_mapa(pedidos or caminhos_alterados(args.base)):
+            print(aviso, file=sys.stderr)
+    except RuntimeError:
+        pass  # o plano abaixo trata o erro do git
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
     elif pedidos and (so_modulos := modulos_sem_mapa(pedidos)):
