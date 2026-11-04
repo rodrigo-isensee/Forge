@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: catraca-fork
+pedido: versao-033
 branch: melhoria/catraca-fork
 commit: 838803f4c8da680b589f47f022aebe9c2e81e25b
 parecer: aprovado
