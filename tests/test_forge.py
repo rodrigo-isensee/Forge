@@ -2070,9 +2070,9 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/p1b.md", "---\n" + self.REVIEW.format(c=velho, p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
         self.commitar("pareceres")
         self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
-        codigo, saida = self.check("pr", "p1", "--ref", self.head())  # sha sem branch: o mais recente do pedido, como antes
-        self.assertEqual(codigo, 1, saida)
-        self.assertIn("commit", saida)
+        self.assertAprovado(self.check("pr", "p1", "--ref", self.head()))  # o sha da ponta de uma branch só: a branch dele (forge-fechar)
+        violacoes = carregar_forge_check().cmd_pr(self.tmp, "p1", self.head(), None)  # a biblioteca com sha (a catraca do CI): o mais recente do pedido
+        self.assertTrue(any("commit" in v for v in violacoes), violacoes)
 
     def test_pr_parecer_reprovado_da_propria_branch_reprova(self):
         self.pareceres(self.head(), p="reprovado")
