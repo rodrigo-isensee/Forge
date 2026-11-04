@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: ci-ubuntu-26-migracao
+pedido: versao-033
 branch: melhoria/ci-ubuntu-26
 commit: fd3a3e1536b9b353e1f51e696f04412a5d994f05
 parecer: aprovado
