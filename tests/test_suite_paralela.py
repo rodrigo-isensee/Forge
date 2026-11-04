@@ -110,9 +110,44 @@ class Logica(unittest.TestCase):
         self.assertEqual(n({}, 16, 1.0, 0.9, 8.0)[0], 2)  # memória no piso
         self.assertEqual(n({}, 16, None, None, None)[0], 4)  # sem medida, não é carga alta
         self.assertEqual(n({"FORGE_SUITE_PROCS": "3"}, 16, 1.0, 6.0, 8.0), (3, "FORGE_SUITE_PROCS"))
-        for valor in ("5", "0", "x", "-1", "4.0"):
+        self.assertEqual(n({"FORGE_SUITE_PROCS": "16"}, 16, 1.0, 6.0, 8.0), (16, "FORGE_SUITE_PROCS"))  # SUITE-FLUIDA
+        self.assertEqual(n({"FORGE_SUITE_PROCS": "4"}, 2, 1.0, 6.0, 8.0), (4, "FORGE_SUITE_PROCS"))  # o piso é TETO
+        for valor in ("17", "0", "x", "-1", "4.0"):
             with self.subTest(valor=valor), self.assertRaises(ValueError):
                 n({"FORGE_SUITE_PROCS": valor}, 16, 1.0, 6.0, 8.0)
+
+    def test_quantos_em_paralelo_segue_a_carga_de_fora(self):  # SUITE-FLUIDA
+        q = lambda *a: self.s.quantos_em_paralelo(*a)[0]  # noqa: E731
+        self.assertEqual(q(12, 0.0, 20.0, 30.0), 9)  # máquina livre: 0,8 x 12
+        self.assertEqual(q(12, 3.2, 20.0, 30.0), 6)  # sobe e desce com os núcleos ocupados por outros
+        self.assertEqual(q(12, 7.0, 20.0, 30.0), 4)  # nunca abaixo de min(4, nproc) com folga
+        self.assertEqual(q(12, 9.6, 20.0, 30.0), 2)  # carga alta: 0,8 x nproc ocupados por outros
+        self.assertEqual(q(12, 0.0, 1.0, 30.0), 2)  # memória no piso
+        self.assertEqual(q(12, None, 20.0, 30.0), 4)  # sem medida da CPU
+        self.assertEqual(q(64, 0.0, 200.0, 256.0), 51)  # sem teto fixo: deriva do hardware
+        self.assertEqual(q(1, 0.0, 20.0, 30.0), 1)
+        self.assertEqual(q(None, None, None, None), 1)
+        for nproc in (1, 2, 3, 4, 8, 12, 64):
+            for alheios in (None, 0.0, 0.5, nproc / 2, nproc * 2.0):
+                with self.subTest(nproc=nproc, alheios=alheios):
+                    self.assertTrue(1 <= q(nproc, alheios, 20.0, 30.0) <= nproc)
+
+    def test_fila_do_mais_pesado_ao_mais_leve(self):  # SUITE-FLUIDA
+        fila = self.s.ordem_da_fila(["test_a", "test_b", "test_c", "test_novo"], {"test_a": 1, "test_b": 9, "test_c": 4})
+        self.assertEqual(fila, ["test_b", "test_c", "test_novo", "test_a"])  # sem peso vale a mediana (4)
+
+    def test_medidor_desconta_o_que_a_suite_gastou(self):  # SUITE-FLUIDA
+        amostras = iter([(100, 1000, 4), (500, 1400, 4)])
+        gastos = iter([{7: 250, 8: 100}])
+        original = (self.s.ler_cpu_do_sistema, self.s.ler_cpu_dos_grupos)
+        self.addCleanup(setattr, self.s, "ler_cpu_do_sistema", original[0])
+        self.addCleanup(setattr, self.s, "ler_cpu_dos_grupos", original[1])
+        self.s.ler_cpu_do_sistema = lambda: next(amostras)
+        self.s.ler_cpu_dos_grupos = lambda grupos: next(gastos)
+        medidor = self.s.Medidor()
+        medidor.nossos = {7: 50}
+        # 400 ticks ocupados em 400: a suíte gastou 200 (pid 7) + 100 (pid 8 novo) = 300; os outros, 100 = 1 de 4 CPUs
+        self.assertAlmostEqual(medidor.alheios({7, 8}), 1.0)
 
 
 class Brinquedo(unittest.TestCase):
@@ -587,8 +622,27 @@ class T(unittest.TestCase):
         self.assertEqual(list(self.tmpdir.iterdir()), [])
         self.assertFalse((self.run_dir / f"forge-suite-{os.getuid()}.verde").exists())
 
+    def test_modo_fluido_roda_cada_modulo_uma_vez_num_processo_proprio(self):  # SUITE-FLUIDA
+        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="")
+        self.assertEqual(codigo, 0, saida + erro)
+        self.assertEqual(saida.strip().splitlines()[-1], "OK")
+        self.assertIn("Ran 3 tests", saida)
+        self.assertIn("3 processos, até ", saida)
+        self.assertIn("fluido", erro)
+        self.assertIn("em paralelo (", erro)
+        self.assertEqual(self.rodaram(), ["a", "b", "c"])
+
+    def test_modo_fluido_reprova_um_modulo_vermelho(self):  # SUITE-FLUIDA
+        self.modulo("b", modulo_de_teste("b", "self.fail('de propósito')"))
+        self.git("add", "-A")
+        self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "y")
+        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="")
+        self.assertEqual(codigo, 1, saida + erro)
+        self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"), saida)
+        self.assertEqual(self.rodaram(), ["a", "b", "c"])
+
     def test_procs_acima_do_teto_e_recusado(self):
-        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="5")
+        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS=str(max(4, os.cpu_count() or 1) + 1))
         self.assertEqual(codigo, 1)
         self.assertIn("FORGE_SUITE_PROCS", erro)
         self.assertEqual(self.rodaram(), [])

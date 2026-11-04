@@ -1,13 +1,19 @@
 #!/usr/bin/env python3
-"""Forge: a suíte inteira (`python3 -m unittest discover -s tests`) dividida em até 4 processos (D4, R-TETO).
+"""Forge: a suíte inteira (`python3 -m unittest discover -s tests`) em processos paralelos que seguem a carga (D4, R-TETO).
 
 Uso: python3 scripts/suite-paralela.py
 Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de rede nem de custo (R-CUSTO).
 
 - Divisão por módulo (`tests/test*.py`), por LPT sobre os pesos de `tests/pesos-d4.json` (módulo -> segundos);
   peso ausente vale a mediana. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
-- Processos: N = min(4, nproc); com carga alta (load de 1 min >= 0,8 x nproc ou memória disponível no piso), 2.
-  FORGE_SUITE_PROCS fixa N de 1 a 4; fora disso o script recusa (falha fechada).
+- Processos, modo fluido (padrão, SUITE-FLUIDA): cada módulo roda num processo, numa fila do mais pesado ao mais leve.
+  A cada INTERVALO_S o script mede os núcleos ocupados por processos de fora da suíte (`/proc/stat` menos o que os
+  grupos da suíte gastaram) e a memória, e decide quantos processos pode ter: sobe enquanto a suíte cabe dentro de
+  0,8 x nproc com os outros, nunca abaixo de min(4, nproc) com folga nem de min(2, nproc) com carga alta ou memória no
+  piso, e nunca acima de nproc. Descer é não lançar: o processo em andamento termina o seu módulo. Sem leitura de
+  /proc, vale min(4, nproc). A linha `suite-paralela: até N em paralelo (...)` sai a cada mudança.
+- FORGE_SUITE_PROCS fixa N de 1 a nproc e volta à divisão fixa por LPT (N partes); fora disso o script recusa
+  (falha fechada).
 - Cada processo roda com `nice`, num grupo de processos próprio e com um TMPDIR próprio (modo 700), apagado ao fim.
 - Guarda de completude (falha fechada): a soma e a união (multiconjunto) dos IDs que os processos rodaram têm de
   ser iguais às do `discover` da suíte inteira; processo que sai com código diferente de 0, morre por sinal, roda
@@ -50,7 +56,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parent.parent
 TESTES = "tests"
 PESOS = RAIZ / TESTES / "pesos-d4.json"
-TETO = 4
+TETO = 4  # com folga, a suíte nunca roda com menos que min(TETO, nproc) processos (o que valia antes da SUITE-FLUIDA)
+INTERVALO_S = 1.5  # entre duas medidas da carga no modo fluido
 CARGA_MAX, PISO_GB, PISO_FRACAO = 0.8, 1.0, 0.15
 SINAIS = (signal.SIGTERM, signal.SIGINT, signal.SIGHUP)
 ESPERA_TERMINO_S = 10
@@ -170,17 +177,88 @@ def carga_alta(carga, memoria, total, nproc):
     return carga >= CARGA_MAX * nproc or memoria <= max(PISO_GB, PISO_FRACAO * total)
 
 
+def nucleos():
+    """Os núcleos que este processo pode usar (`sched_getaffinity`, senão `cpu_count`)."""
+    try:
+        return len(os.sched_getaffinity(0)) or 1
+    except (AttributeError, OSError):
+        return os.cpu_count() or 1
+
+
 def numero_de_processos(environ, nproc, carga, memoria, total):
-    """(N, origem). ValueError se FORGE_SUITE_PROCS vier fora de 1..TETO."""
+    """(N, origem). ValueError se FORGE_SUITE_PROCS vier fora de 1..max(TETO, nproc)."""
     fixo = environ.get("FORGE_SUITE_PROCS", "")
     if fixo:
-        if not fixo.isdigit() or not 1 <= int(fixo) <= TETO:
-            raise ValueError(f"FORGE_SUITE_PROCS deve ser um inteiro de 1 a {TETO} (veio '{fixo}')")
+        maximo = max(TETO, nproc or 1)
+        if not fixo.isdigit() or not 1 <= int(fixo) <= maximo:
+            raise ValueError(f"FORGE_SUITE_PROCS deve ser um inteiro de 1 a {maximo} (veio '{fixo}')")
         return int(fixo), "FORGE_SUITE_PROCS"
     base = max(1, min(TETO, nproc or 1))
     if carga_alta(carga, memoria, total, nproc):
         return min(2, base), f"carga alta (load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis)"
     return base, f"min({TETO}, nproc={nproc})"
+
+
+def ler_cpu_do_sistema():
+    """(ticks ocupados, ticks totais, CPUs) desde o boot, de /proc/stat; None se ilegível."""
+    try:
+        linhas = Path("/proc/stat").read_text(encoding="utf-8").splitlines()
+        campos = [int(x) for x in linhas[0].split()[1:9]]
+    except (OSError, ValueError, IndexError):
+        return None
+    cpus = sum(1 for linha in linhas[1:] if linha.startswith("cpu") and linha[3:4].isdigit())
+    if len(campos) < 8 or not cpus:
+        return None
+    return sum(campos) - campos[3] - campos[4], sum(campos), cpus
+
+
+def ler_cpu_dos_grupos(grupos):
+    """{pid: ticks} (utime+stime+cutime+cstime) dos processos dos grupos `grupos` (os da suíte)."""
+    tempos = {}
+    if not grupos:
+        return tempos
+    try:
+        pids = [d for d in os.listdir("/proc") if d.isdigit()]
+    except OSError:
+        return tempos
+    for pid in pids:
+        try:
+            resto = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8", errors="replace").rpartition(")")[2].split()
+            if int(resto[2]) in grupos:
+                tempos[int(pid)] = sum(int(x) for x in resto[11:15])
+        except (OSError, ValueError, IndexError):
+            continue
+    return tempos
+
+
+class Medidor:
+    """Núcleos ocupados por processos de fora da suíte entre duas chamadas (a 1.a devolve None)."""
+
+    def __init__(self):
+        self.cpu, self.nossos = ler_cpu_do_sistema(), {}
+
+    def alheios(self, grupos):
+        cpu, nossos = ler_cpu_do_sistema(), ler_cpu_dos_grupos(grupos)
+        antes, nossos_antes = self.cpu, self.nossos
+        self.cpu, self.nossos = cpu, nossos
+        if cpu is None or antes is None or cpu[1] <= antes[1]:
+            return None
+        nosso = sum(t - nossos_antes.get(p, 0) for p, t in nossos.items() if t >= nossos_antes.get(p, 0))
+        return max(0.0, (cpu[0] - antes[0] - nosso) / (cpu[1] - antes[1]) * cpu[2])
+
+
+def quantos_em_paralelo(nproc, alheios, memoria, total):
+    """(N, motivo): quantos processos a suíte pode ter agora (R-TETO fluido, SUITE-FLUIDA)."""
+    nproc = max(1, nproc or 1)
+    base, minimo = min(TETO, nproc), min(2, nproc)
+    if None not in (memoria, total) and memoria <= max(PISO_GB, PISO_FRACAO * total):
+        return minimo, f"memória no piso, {memoria:.1f} GB disponíveis"
+    if alheios is None:
+        return base, "sem medida da CPU"
+    if alheios >= round(CARGA_MAX * nproc, 6):
+        return minimo, f"carga alta, {alheios:.1f} de {nproc} núcleos ocupados por outros"
+    cabe = min(nproc, int(CARGA_MAX * nproc - alheios))
+    return max(base, cabe), f"{alheios:.1f} de {nproc} núcleos ocupados por outros"
 
 
 # Processo filho -------------------------------------------------------------------------------------------------
@@ -352,20 +430,58 @@ def encerrar(filhos):
 
 def lancar(partes, pasta, filhos):
     """Lança um processo por parte; cada um entra em `filhos` assim que nasce (o sinal pode chegar no meio)."""
-    env_base = dict(os.environ)
     for i, parte in enumerate(partes, 1):
-        tmp = pasta / f"p{i}"
-        tmp.mkdir(mode=0o700)
-        (pasta / f"p{i}.entrada.json").write_text(json.dumps(parte), encoding="utf-8")
-        log = (pasta / f"p{i}.log").open("w", encoding="utf-8")
-        env = dict(env_base, TMPDIR=str(tmp))
-        try:
-            filhos.append(subprocess.Popen(
-                [sys.executable, str(Path(__file__).resolve()), "--processo", str(pasta / f"p{i}.entrada.json"),
-                 str(pasta / f"p{i}.saida.json")], cwd=RAIZ, env=env, stdin=subprocess.DEVNULL, stdout=log,
-                stderr=subprocess.STDOUT, start_new_session=True))
-        finally:
-            log.close()
+        lancar_um(parte, i, pasta, filhos)
+
+
+def lancar_um(parte, i, pasta, filhos):
+    """O processo `i` (contado de 1), com a lista de módulos `parte`."""
+    tmp = pasta / f"p{i}"
+    tmp.mkdir(mode=0o700)
+    (pasta / f"p{i}.entrada.json").write_text(json.dumps(parte), encoding="utf-8")
+    log = (pasta / f"p{i}.log").open("w", encoding="utf-8")
+    env = dict(os.environ, TMPDIR=str(tmp))
+    try:
+        filhos.append(subprocess.Popen(
+            [sys.executable, str(Path(__file__).resolve()), "--processo", str(pasta / f"p{i}.entrada.json"),
+             str(pasta / f"p{i}.saida.json")], cwd=RAIZ, env=env, stdin=subprocess.DEVNULL, stdout=log,
+            stderr=subprocess.STDOUT, start_new_session=True))
+    finally:
+        log.close()
+
+
+def ordem_da_fila(nomes, pesos):
+    """O mais pesado primeiro (peso ausente vale a mediana; empate pelo nome): a fila do modo fluido."""
+    conhecidos = [pesos[m] for m in nomes if m in pesos]
+    mediana = statistics.median(conhecidos) if conhecidos else 1.0
+    return sorted(nomes, key=lambda m: (-pesos.get(m, mediana), m))
+
+
+def rodar_fluido(fila, pasta, filhos, partes, inicio, nproc):
+    """Lança um processo por módulo da fila, tantos em paralelo quanto `quantos_em_paralelo` deixar a cada medida;
+    `partes` recebe o módulo de cada processo na ordem em que nasce. Devolve o tempo de parede de cada um e o pico."""
+    medidor, pendentes, fim, aviso, pico = Medidor(), list(fila), [], None, 0
+    while pendentes or None in fim:
+        for i, p in enumerate(filhos):
+            if fim[i] is None and p.poll() is not None:
+                fim[i] = time.monotonic() - inicio
+        rodando = fim.count(None)
+        _, memoria, total = medir_carga()
+        alvo, motivo = quantos_em_paralelo(nproc, medidor.alheios({p.pid for p, f in zip(filhos, fim) if f is None}),
+                                           memoria, total)
+        if alvo != aviso:
+            print(f"suite-paralela: até {alvo} em paralelo ({motivo}).", file=sys.stderr, flush=True)
+            aviso = alvo
+        while pendentes and rodando < alvo:
+            partes.append([pendentes.pop(0)])
+            fim.append(None)
+            lancar_um(partes[-1], len(partes), pasta, filhos)
+            rodando += 1
+        pico = max(pico, rodando)
+        time.sleep(INTERVALO_S if pendentes else 0.2)
+    for p in filhos:  # um a um, pelo pid: o código de saída de cada filho conta, não o do último
+        p.wait()
+    return fim, pico
 
 
 def esperar(filhos, inicio):
@@ -525,8 +641,9 @@ def orquestrar():
     os.chdir(RAIZ)
     inicio = time.monotonic()
     carga, memoria, total_gb = medir_carga()
+    nproc = nucleos()
     try:
-        n, origem = numero_de_processos(os.environ, os.cpu_count(), carga, memoria, total_gb)
+        n, origem = numero_de_processos(os.environ, nproc, carga, memoria, total_gb)
     except ValueError as e:
         print(f"suite-paralela: {e}.", file=sys.stderr)
         print("FAILED (configuração)")
@@ -535,26 +652,37 @@ def orquestrar():
     total = sum(esperado.values())
     nomes = modulos()
     pesos = ler_pesos()
-    partes = repartir(nomes, pesos, min(n, max(1, len(nomes))))
+    fluido = not os.environ.get("FORGE_SUITE_PROCS")
+    partes = [[m] for m in nomes] if fluido else repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
     if erros or not nomes:
         print("suite-paralela: " + ("; ".join(erros) or "nenhum módulo de teste em tests/") + ".", file=sys.stderr)
         print("FAILED (divisão)")
         return 1
-    print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
-          file=sys.stderr, flush=True)
+    if fluido:
+        print(f"suite-paralela: {total} testes em {len(nomes)} módulos, um processo por módulo, fluido (de "
+              f"{min(2, nproc)} a {nproc} em paralelo, conforme a carga).", file=sys.stderr, flush=True)
+    else:
+        print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
+              file=sys.stderr, flush=True)
     antes = estado_da_arvore()
     hash_arvore = hash_da_arvore(RAIZ)
     pasta = Path(tempfile.mkdtemp(prefix="forge-suite-"))
     filhos = []
     anteriores = {s: signal.signal(s, ao_sinal) for s in SINAIS}
     try:
-        lancar(partes, pasta, filhos)
-        duracoes = esperar(filhos, inicio)
+        if fluido:
+            partes = []
+            duracoes, pico = rodar_fluido(ordem_da_fila(nomes, pesos), pasta, filhos, partes, inicio, nproc)
+            erros_fila = conferir_particao(nomes, partes)
+        else:
+            lancar(partes, pasta, filhos)
+            duracoes, pico, erros_fila = esperar(filhos, inicio), len(partes), []
         for s, h in anteriores.items():
             signal.signal(s, h)
         relatorios = [ler_relatorio(pasta / f"p{i}.saida.json") for i in range(1, len(filhos) + 1)]
         erros, linhas = resumir(partes, filhos, relatorios, duracoes, pasta)
+        erros += erros_fila
         executado = collections.Counter(i for rel in relatorios if rel for i in rel["ids"])
         erros += conferir_completude(esperado, executado)
         erros += conferir_arvore(antes, estado_da_arvore())
@@ -570,7 +698,8 @@ def orquestrar():
         shutil.rmtree(pasta, ignore_errors=True)
     segundos = time.monotonic() - inicio
     rodados = sum(rel["rodados"] for rel in relatorios if rel)
-    print(f"\nRan {rodados} tests in {segundos:.3f}s ({len(partes)} processos)\n")
+    paralelo = f"{len(partes)} processos" + (f", até {pico} em paralelo" if fluido else "")
+    print(f"\nRan {rodados} tests in {segundos:.3f}s ({paralelo})\n")
     falhas = sum(rel["falhas"] for rel in relatorios if rel)
     erros_t = sum(rel["erros"] for rel in relatorios if rel)
     pulados = sum(rel["pulados"] for rel in relatorios if rel)
