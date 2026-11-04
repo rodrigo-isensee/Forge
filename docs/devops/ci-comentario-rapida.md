@@ -1,7 +1,7 @@
 ---
 tipo: revisao-devops
 contrato: 1
-pedido: ci-comentario-rapida
+pedido: versao-033
 branch: melhoria/ci-comentario-rapida
 commit: 8bcc469d7eb32f3a09accc59d242755474d54f57
 parecer: aprovado
