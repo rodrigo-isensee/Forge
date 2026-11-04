@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: 75968a9e9b6f423ddfa204ed9bfc458ac82deace
-parecer: aprovado
+commit: b1991c6485069a9203403dbdaccc9c47ec1b135b
+parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-03
+data: 2026-11-04
 ---
 # Review: gh-merge-admin (versao-033, E1.3)
 
@@ -23,6 +23,7 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A8 (bloqueante) hooks/parecer.py:505 · resolvido na rodada 4: `desagrupa_i` copia como veio o token que segue uma opção de `API_COM_VALOR`; `-p`, `-q`, `--jq`, `-H`, `-t` e `--preview` antes de `-iX`, `-iH` ou `-if` recusam com R-MAIN.
 - A9 (bloqueante) hooks/parecer.py:517 · resolvido na rodada 5: `ultimo_metodo` vale o último `-X`/`--method` (separado, `=`, colado) e pula o valor de `API_COM_VALOR`; `-X GET -X PUT …/merge` e `-X GET -X POST graphql -F query=@q.graphql` recusam com R-MAIN.
 - A10 (recomendado) hooks/conformidade.py:1608 · mesma leitura do A9 fora do E1, já na base: `gh api -X GET -X DELETE repos/o/r` e `-X GET -X PUT .../branches/main/protection -f x=y` saem com rc=0; o mesmo em :1626. Segue com o A7, em cartão ao `security-engineer`.
+- A11 (bloqueante) hooks/parecer.py:537 · regressão da rodada 6: o `-XGET` que é valor de `-p`/`-q`/`-t`/`-H` conta como GET e o `if metodos:` libera os campos; o `gh` manda POST. `gh api -p -XGET -f query='mutation{mergePullRequest…}' graphql` e `merges -f base=` saem com rc=0 (recusavam em 6d6e7f1).
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -117,3 +118,19 @@ Head `75968a9`, sobre `578f6de` (a volta 4 traz `4f7879a`, `a6dc08f` e `75968a9`
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...75968a9`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 85 e `tests/test_hooks.py` 5, total de 118 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
 
 **Parecer da rodada 5: aprovado.** A1 a A6, A8 e A9 estão resolvidos. A7 e A10 são recomendações e não devolvem a entrega. Segurança e QA têm parecer próprio (E1.4 e E1.6).
+
+## Rodada 6
+Head `b1991c6`, sobre `75968a9`. A volta 5 (`97e98b6`, `daf71fe`, `03d4ce5`, `07cbbaf`, `ff76815`) e a volta 6 (`85c89f2`, `d4e1b40`, `079a77b`, `b1991c6`) entram juntas. Delta lido, pela saída de `bin/forge-check delta --parecer docs/reviews/gh-merge-admin.md`: `hooks/parecer.py` :517-538 (`metodos_pedidos` no lugar de `ultimo_metodo` e as duas condições novas de `metodo_mutante`), as 7 fixtures novas (`api-p-xput-bloqueia`, `api-valor-de-opcao-parece-x-bloqueia`, as 4 `api-metodo-primeiro-mutante-*-bloqueia` e `legitimo-api-x-get-com-campo-libera`) e `tests/mutantes/gh-merge-admin-3.json` (isenção nova, G28, G29, G31 e G33 trocados, G36 fora, G37). Já lido e não tocado pelo delta: `hooks/conformidade.py`, `desagrupa_i`, `endpoint_da_api`, `gh_api_de_merge`, `merge_por_api`, `textos_da_api` e as 85 fixtures anteriores (92 `gh-merge-admin-*` ao todo, recontadas).
+
+- **A10 da segurança, resolvido no que ele pede.** Todo `-X`/`-XV`/`-X=V`/`--method`/`--method=V` entra em `metodos_pedidos`, inclusive como valor de outra opção de `API_COM_VALOR`, e qualquer um diferente de GET torna o `gh api` mutante. Sondas com a árvore de cada revisão: `-p -XPUT …/pulls/1/merge` e `-H -XPUT -q -XDELETE` recusam.
+- **T-4, voltou à base.** `-X PUT -X GET …/pulls/1/merge` e `-X PUT --method= …/pulls/1/merge` recusam no `conformidade` (R-MAIN) e no `parecer` (R-CONTRIB), como o `parecer` da base `928e61b`; em `6d6e7f1` saíam com rc=0. `-X DELETE -X GET repos/o/r` recusa no `conformidade` ("apagar o repositório"), como na base.
+- **A11, bloqueante (regressão nova).** A condição `if metodos: return False` (parecer.py:537) trata como GET pedido o `-XGET` que é valor de outra opção. O `gh` lê esse token como valor (`-p`, `-q`, `-t` ou `-H`), não tem método explícito e manda POST com os campos. Saem com rc=0 em `b1991c6` e recusavam em `6d6e7f1`: `gh api -p -XGET -f query='mutation{mergePullRequest(…)}' graphql`, `gh api -t -XGET -f query='mutation{enablePullRequestAutoMerge(…)}' graphql`, `gh api -p -XGET -f base=main -f head=x repos/o/r/merges` e `gh api -q --method=GET -f base=main -f head=x repos/o/r/merges`. É o C-4 com gatilho: o agente mescla por GraphQL ou por `merges`. O mesmo caminho abre o bloco de `API_ADMIN` (`-p -XGET -f … repos/o/r/git/refs` sai com rc=0 e recusava em `6d6e7f1`). A base `928e61b` também liberava, então não fere o T-4. O defeito é a falha fechada que vira aberta no ramo do GET. Uma correção possível, sem afrouxar nada: contar todos os tokens só para recusar e liberar os campos apenas quando o GET vier de um `-X`/`--method` que não seja valor de opção, como lia o `ultimo_metodo`. Junto, a fixture `-p -XGET -f query=…mergePullRequest… graphql` com bloqueio e um mutante que tire essa distinção.
+- **C-5.** Os legítimos do modelo seguem liberando: `gh api repos/o/r/pulls/12/merge`, `--jq .merged`, a leitura GraphQL de `mergeable mergeStateStatus` e `-X GET -f q=1 …/merge`. Pela DECISÃO TÉCNICA de 21:37, passam a recusar dois casos que a rodada 5 dava como legítimos: `-X GET …/merge -q -XPUT` e `-XPOST -XGET …/merges -f base=main`. Nenhum dos dois está no C-5, e a recusa é da falha fechada decidida.
+- **Mutantes.** A isenção de `metodo.upper() != "GET"` tem motivo e está coberta por G28 e G29. G31 agora guarda o `-p -XPUT`. G37 guarda o `if metodos:`, mas nenhum mutante guarda o caso do A11.
+- **A7 e A10 (review), sem mudança.** `gh api -X GET -X DELETE repos/o/r` e `-iX DELETE repos/o/r` seguem com rc=0 em `conformidade.py:1608`. Estão fora do E1 e já na base, em cartão ao `security-engineer`.
+- **C-1 a C-3 e C-6, sem mudança.** O delta não toca `gh_admin` nem a leitura da linha. `metodos_pedidos` é linear, sem rede e sem `gh` novo.
+- **Achado recorrente.** O A11 é da mesma classe de A2, A6, A8 e A9: a leitura de opção do `gh api` diferente da do `gh`. Segue sem a linha AR, porque o brief só permite commitar o parecer.
+- **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `b1991c6`: `Ran 71 tests in 717.560s`, `OK` (D-5). Sondas em `$TMPDIR/tech-lead-gh-merge-admin/`.
+- **Teto (M14).** `git diff --numstat --no-renames 928e61b...b1991c6`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 87 e `tests/test_hooks.py` 5, total de 120 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
+
+**Parecer da rodada 6: reprovado.** O A10 da segurança e o T-4 estão resolvidos. O A11 bloqueia e vai também ao `security-engineer`. A7 e A10 (review) são recomendações. Segurança e QA têm parecer próprio (E1.4 e E1.6).
