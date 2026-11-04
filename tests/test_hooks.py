@@ -2027,6 +2027,17 @@ class Hooks(unittest.TestCase):
         for prefixo in ("", "python3 _", "X=1 git commit -m _", "bash -c 'x; y'"):
             self.assertTrue(_comum.fronteira_limpa(prefixo), prefixo)
 
+    def test_prazo_vencido_na_tirada_dos_heredocs_ja_os_acha_pendentes(self):  # HEREDOC-DONOS-AJUSTES, S-A2
+        _comum, conformidade, _ = modulos_dos_hooks()
+        hook = _comum.Hook("conformidade")
+        hook.raiz, hook.marcado, hook.entrada = RAIZ, False, {"hook_event_name": "PreToolUse"}
+        guarda = conformidade.Guarda(hook, conformidade.politica(), "dev")
+        with mock.patch.object(conformidade, "tirar_heredocs", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+            guarda.bash("cat <<'A'\nx\nA\ncat <<'B'\nx\nB", RAIZ, 0)
+        self.assertEqual(hook.corpos_pendentes, 2)
+        guarda.bash("cat <<'A'\nx\nA\ncat <<< y", RAIZ, 0)  # o `<<<` (não é heredoc) sai da conta depois da tirada
+        self.assertEqual(hook.corpos_pendentes, 2)
+
     def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
         """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra
         decisão (outra `Guarda`) calcula de novo, sem cache entre elas."""
