@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_forge import RepoComOrigem, git, rodar_fc, com_gh_falso  # noqa: E402
 from test_volta_por_delta import BriefDeVolta, Repositorio  # noqa: E402
-from test_fechar import FecharComOForgeCheckReal  # noqa: E402
+from test_fechar_forge_check_real import FecharComOForgeCheckReal  # noqa: E402
 from test_promover_homolog import Promover, SCRIPT  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 
