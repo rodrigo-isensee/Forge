@@ -914,7 +914,7 @@ class TextoDosAgentes(unittest.TestCase):
         for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
                        "peça a ref da branch da entrega ao Jarvis"):
             self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da última linha `conferida`", jarvis)
+        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
 
     def test_pareceres_trazem_achados_e_leem_o_delta(self):
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
