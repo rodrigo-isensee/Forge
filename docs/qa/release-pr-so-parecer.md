@@ -39,7 +39,7 @@ Cenários de ponta a ponta em repositório descartável (base `develop`, branch 
 ## Cenários e resultado real
 Rodado em `$TMPDIR` (scratchpad) com `python3 bin/forge-changelog conferir --base develop`; 16 cenários, todos como na tabela. Mutantes: sem spec declarada (a mudança é uma flag, coberta por CT-06 e pelo teste novo da branch). Sem teste novo de QA.
 
-Parecer: aprovado sobre b89f23e, com A1 recomendado (não devolve).
+Parecer inicial: aprovado sobre b89f23e, com A1 recomendado.
 
 ## Revalidação
 
