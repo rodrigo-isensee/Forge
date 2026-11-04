@@ -3566,12 +3566,8 @@ class Cenario(Raiz):
         return {p.relative_to(self.tmp).as_posix(): (p.read_bytes() if p.is_file() else None) for p in sorted(self.tmp.rglob("*"))}
 
 
-def entre_delimitadores(saida):
-    return saida.split(b"<<<BRIEF\n", 1)[1].rsplit(b"\nBRIEF>>>", 1)[0]
-
-
 class MensagemAprovada(Cenario):
-    def test_saida_integral_com_hash_e_bytes(self):
+    def test_saida_so_com_cabecalho_hash_e_bytes(self):
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
         conteudo = (self.tmp / ARQ).read_bytes()
@@ -3582,16 +3578,17 @@ class MensagemAprovada(Cenario):
         self.assertIn("Etapa: E1.1", linhas[1])
         self.assertEqual(linhas[2], f"Arquivo: {(self.tmp / ARQ).resolve()}")  # absoluto: o conferente o lê de qualquer pasta (E9)
         self.assertEqual(linhas[3], f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}   Bytes: {len(conteudo)}")
-        self.assertEqual(linhas[4], "<<<BRIEF")
-        self.assertEqual(entre_delimitadores(saida), conteudo)
-        self.assertTrue(saida.endswith(b"\nBRIEF>>>\n"), "nada depois de BRIEF>>>")
+        self.assertEqual(len(linhas), 4, "TEMPO-B1: só o cabeçalho, sem o texto do brief")
+        self.assertNotIn(b"<<<BRIEF", saida)
+        self.assertNotIn(b"BRIEF>>>", saida)
+        self.assertNotIn(b"Recurso A", saida)
 
-    def test_brief_sem_quebra_de_linha_final_sai_igual_byte_a_byte(self):
+    def test_brief_sem_quebra_de_linha_final_leva_o_hash_do_arquivo(self):
         sem_final = self.completo.rstrip("\n")
         self.gravar(ARQ, sem_final)
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
-        self.assertEqual(entre_delimitadores(saida), sem_final.encode())
+        self.assertIn(f"Brief-sha256: {hashlib.sha256(sem_final.encode()).hexdigest()}", saida.decode())
 
     def test_o_hash_da_mensagem_e_o_da_linha_arquivo_do_comando(self):
         _, saida = self.brief()
@@ -4117,7 +4114,7 @@ class TextosDoAgenteEDaRegra(unittest.TestCase):
         self.assertIn("forge-check brief mensagem", self.regra)
         self.assertIn("não substitui", self.regra)
         self.assertIn("Brief-sha256:", self.agente)
-        self.assertIn("as duas comparações valem, nenhuma no lugar da outra", self.agente)
+        self.assertIn("Vale o hash do arquivo que você leu", self.agente)  # TEMPO-B1: o texto vem só do arquivo
 
 
 # --- FORGE-CHECK-LOTE (E1 a E11): saída sanitizada, âncora da decisão, recomendação incluída, mensagem, versão, merge, custo ----------

@@ -75,9 +75,9 @@ não está no Entregar nem cortado com a marca (com `--ref`, e `--parecer` para 
 da raiz, a cópia principal na frente; `~/.forge-contrib/` é aceito como prefixo) e toda `ADR NNNN` citada no pedido: `fonte:` por fonte lida,
 `decisões: falta ...` (reprova) por linha ausente de `Decisões e restrições`, `decisões: registro citado ausente` e `grande demais` (reprovam),
 `decisões: fonte fora da regra ... (não verificável)` para referência a outro `.md` (não reprova, nunca some) e `decisões: ok`; a contradição
-literal continua do conferente (CONF-CORRECAO, E2). A frase só conta quando abre a linha (recuo, marcador de lista, `>` e ênfase antes dela): citada no meio do texto sai `decisões: menção fora do início ...` (informativo, nunca some). `brief mensagem` (E3; só imprime) devolve a mensagem integral ao conferente (`modo: brief`,
-cabeçalho, `Brief-sha256:` e o brief entre `<<<BRIEF` e `BRIEF>>>`) só se o brief passa em `forge-check brief`: resolve o arquivo só em `docs/briefs/`,
-lê uma vez e imprime o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
+literal continua do conferente (CONF-CORRECAO, E2). A frase só conta quando abre a linha (recuo, marcador de lista, `>` e ênfase antes dela): citada no meio do texto sai `decisões: menção fora do início ...` (informativo, nunca some). `brief mensagem` (E3; só imprime) devolve a mensagem ao conferente (`modo: brief`,
+cabeçalho, `Arquivo:` e `Brief-sha256:`, sem o texto do brief: TEMPO-B1) só se o brief passa em `forge-check brief`: resolve o arquivo só em `docs/briefs/`,
+lê uma vez, confere e hasheia o mesmo buffer, e recusa (rc 2) delimitador, caractere de controle ou de formato, nomeando o campo (`--etapa`, `--parecer 2`, ou `texto do brief, linha N, coluna M`) e o U+XXXX, nunca o valor; reprovado, rc 1 e sem o texto. Sem `--destino`, o destino é o `Agente destino:` do cabeçalho do brief (uma linha só; com `--destino`, têm de ser iguais) e `Arquivo:` sai com o caminho absoluto.
 `entrega` (VV-2, M9; só leitura) imprime `intervalo: <de>..<head>` e uma linha `escopo:` por arquivo da entrega; `--etapa` é
 obrigatório. O intervalo é o do Base-sha (branch inteira) ou, com `--desde`, só o que veio depois da última entrega conferida:
 o `--desde` vale só se for a `conferida <sha40>` (ou a linha `- <data>[ <hora>]: base do delta fixada pelo dono <sha40>`, que abre a linha e exige uma `DECISÃO DO DONO` no pedido; saída `base: fixada pelo dono`) mais recente do `## Histórico` do pedido (lido da cópia principal, não da
@@ -2296,7 +2296,7 @@ CLASSES_DE_FALHA = {
     "escopo": "cada item do Entregar cita a etapa `(E<n>)` do pedido; só corta com a marca de corte (R-BRIEF, R-DECISAO)",
     "prova": "cada prova com tipo e `espera:` do vocabulário, e que falhe sem a mudança (R-PROVA)",
     "base": "gere o brief de novo com `--branch`, para o Base-sha real (BRIEF-BASE-ATUAL)",
-    "forma": "cole inteira a saída de `forge-check brief mensagem` (R-BRIEF)",
+    "forma": "envie a saída de `forge-check brief mensagem` (cabeçalho, caminho e hash; R-BRIEF)",
     "citacao": "cite regra, número e trecho copiando o texto da fonte (R-BRIEF, autoconferência)",
     "implementacao": "rode a suíte inteira e cada prova antes do relatório (R-PROVA)",
     "ambiente": "rode o `forge-check` da versão vigente; limitação de ferramenta vira melhoria (R-DECISAO)",
@@ -5386,7 +5386,7 @@ def mensagem_de_entrega(raiz, a, conteudo, texto, destino, etapa, arquivo, recus
     linhas += [f"Desde: {base_sha if squash else bases[-1][0]}"] if bases else []
     linhas += [f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", f"Etapa: {etapa}"]
     sys.stdout.flush()
-    sys.stdout.buffer.write("\n".join(linhas).encode("utf-8") + b"\n<<<BRIEF\n" + conteudo + b"\nBRIEF>>>\n")
+    sys.stdout.buffer.write("\n".join(linhas).encode("utf-8") + b"\n")  # TEMPO-B1: sem o texto; o conferente lê o `Arquivo:` do disco
     sys.stdout.buffer.flush()
     return 0
 
@@ -5472,7 +5472,7 @@ def cmd_brief_mensagem(raiz, a):
     if any(d in linha for linha in cabecalho for d in DELIMITADORES):
         return recusar("um campo do cabeçalho contém um dos delimitadores da mensagem")
     sys.stdout.flush()
-    sys.stdout.buffer.write("\n".join(cabecalho).encode("utf-8") + b"\n<<<BRIEF\n" + conteudo + b"\nBRIEF>>>\n")
+    sys.stdout.buffer.write("\n".join(cabecalho).encode("utf-8") + b"\n")  # TEMPO-B1: sem o texto; o conferente lê o `Arquivo:` do disco
     sys.stdout.buffer.flush()
     return 0
 
