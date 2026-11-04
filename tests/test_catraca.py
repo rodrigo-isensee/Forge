@@ -25,6 +25,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho ta
 from ambiente_git import remoto_sem_manutencao, sem_manutencao  # noqa: E402
 
 AQUI = Path(__file__).resolve().parent
+_EM_CI = os.environ.pop("GITHUB_ACTIONS", None)  # a suíte roda como execução local; os testes de CI definem a variável
+
+
+def tearDownModule():
+    if _EM_CI is not None:
+        os.environ["GITHUB_ACTIONS"] = _EM_CI
 spec = importlib.util.spec_from_file_location("catraca", AQUI / "catraca.py")
 catraca = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(catraca)
@@ -1590,6 +1596,26 @@ class ParecerReprovadoBarraSempre(Base):
                 achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref, "fulano/Forge", "dono/Forge")
                 self.assertEqual(len(achadas), 1, achadas)
 
+    def test_em_ci_sem_base_repo_falha_fechado_e_fora_do_ci_libera(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        with mock.patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+            for head in ("", "dono/Forge"):
+                with self.subTest(head=head):
+                    achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, "")
+                    self.assertEqual(len(achadas), 1, achadas)
+            self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", "dono/Forge", "dono/Forge"), [])
+        self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", "", ""), [])
+
+    def test_workflow_declara_head_repo_e_base_repo_no_passo_de_pareceres(self):
+        texto = (AQUI.parent / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        (passo,) = [p for p in re.split(r"\n      - name: ", texto) if "--modo pareceres" in p]
+        env = passo.split("        env:\n", 1)[1].split("        run:", 1)[0]
+        self.assertIn("HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}", env)
+        self.assertIn("BASE_REPO: ${{ github.repository }}", env)
+        self.assertNotIn("${{", passo.split("        run:", 1)[1])
+
     def test_mesmo_repositorio_ou_sem_env_nao_muda_o_resultado(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
@@ -1602,7 +1628,7 @@ class ParecerReprovadoBarraSempre(Base):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
         self.parecer("review")
         self.repo.commit()
-        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REPO", "BASE_REPO")}
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS", "HEAD_REPO", "BASE_REPO")}
         argv = ["python3", str(AQUI / "catraca.py"), "--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base",
                 "--ramo", "pr", "--base-ref", "develop"]
         ok = subprocess.run(argv, capture_output=True, text=True, env={**env, "HEAD_REPO": "dono/Forge", "BASE_REPO": "dono/Forge"})
