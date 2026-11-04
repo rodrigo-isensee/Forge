@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/doutor-034
-commit: 606b86e500fa9a102e9469158e17c9cb8a770458
+commit: fab2bfa93ae3b717f9775547638a51f9e6c10e2a
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -31,9 +31,16 @@ Testado: 5bd8bdc (head do autor) mais o commit de teste do QA 606b86e (só `test
 
 ## Cenários e resultado real
 - Os testes do QA rodam o `hooks/doutor.py` como subprocesso, com remoto git local (`FORGE_REPO_URL`), HOME e raiz descartáveis, e viram o dia por `FORGE_HOJE` sem editar o cache (os do autor editam a data do cache).
-- Vermelho antes do verde: com `hooks/doutor.py` da base b45e40a e os testes novos, caem 3 (`tres_dias`, `ainda_mais_nova`, `sem_rede`, os que exigem o silêncio); no head, 5 de 5 passam. `cache_adulterado` e `forge_check_le_o_atraso` são guardas contra silenciar demais ou perder a prova e passam também na base, como devem.
+- Vermelho antes do verde (teste original 606b86e): com `hooks/doutor.py` da base b45e40a caem 3 de 5 e no head passam os 5. Revalidado no teste enxugado em "Revalidação".
 - Observação do teste de sem-rede: após a falha, a repetição só ocorre depois de `ESPERA_APOS_FALHA`; o teste zera `falhou_em` no cache para simular a passagem do tempo (o comportamento de espera já é do cartão anterior e está coberto pelos testes do autor).
 - `python3 -I -m unittest discover -s tests -p test_doutor.py` em 5bd8bdc: 75 testes, OK (58 s, `test_abrir_em_menos_de_cem_ms_em_media` passou). Módulo novo `test_qa_doutor_034.py`: 5 testes, OK.
 - `bin/forge-mutante tests/mutantes/doutor-034.json` (rev=606b86e500fa): M1, M2, M3 morreram em `hooks/doutor.py:105`; M4 morreu em `hooks/doutor.py:188`; rc 0.
 - Conferência da spec contra o diff: `bin/forge-mutante --cobertura --base b45e40a` lista `coberta · hooks/doutor.py:105 · M1, M2, M3`; o `except OSError` (linha 188) tem o M4. Linha de guarda sem mutante: nenhuma. Condição `defasada and` da linha 105: sem efeito observável (sem versão nova o texto é vazio e nada avisa), não vira achado.
 - Bugs abertos: nenhum.
+
+## Revalidação
+O review enxugou meu teste para o teto M14 em fab2bfa93ae3b717f9775547638a51f9e6c10e2a (`tests/test_qa_doutor_034.py`, de 106 para 85 linhas). Conferi o delta 606b86e..fab2bfa: os 5 testes mantêm o nome e as asserções; o cache adulterado virou laço sobre os mesmos 4 casos (`avisado` "true", `avisado` 1, JSON inválido, lista) nos mesmos dias; o teste do forge-check ganhou a asserção de aviso no dia 1 e silêncio no dia 2. A cobertura é a mesma, mais essa asserção. A cobertura do parecer acima vale para o teste enxugado.
+- `python3 -I -m unittest discover -s tests -p test_qa_doutor_034.py` no HEAD: 5 testes, OK.
+- `python3 -I -m unittest discover -s tests -p test_doutor.py` no HEAD: 75 testes, OK (58 s).
+- Vermelho: com `hooks/doutor.py` de b45e40a, caem 4 de 5 (`tres_dias`, `ainda_mais_nova`, `sem_rede`, `forge_check_le_o_atraso`, este agora pela asserção nova do dia 2). Só `cache_adulterado` passa na base, por ser guarda contra silenciar demais. Árvore restaurada ao HEAD.
+- Mutantes: sem mudança em `hooks/` desde a rodada anterior (M1 a M4 mortos, rc 0 em 5bd8bdc/606b86e).
