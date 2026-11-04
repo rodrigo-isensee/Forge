@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/hook-parecer-034
-commit: ef5e341a146734ca2e74aa05f458fddaf01243a6
-parecer: reprovado
+commit: 05b6d6b2a0dcb46ef9923ca4ee9d471a60460742
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
 ---
@@ -13,7 +13,6 @@ data: 2026-11-04
 Base b45e40a, HEAD ef5e341. Dois commits: 6a7a85a (mensagens de recusa do `hooks/parecer.py`, frase em `docs/hooks.md`, 4 fixtures `texto-barra-heredoc-*`) e ef5e341 (só testes: corpus `atualiza-*` com 5 casos e o método `test_corpus_atualiza_passa_e_barra`).
 
 ## Achados
-- A1 (bloqueante) hooks/parecer.py:669 · o ramo novo vale também quando o dono roda o corpo (sh, bash: corpo_de_heredoc é True) e a causa é um heredoc aninhado sem aspas; a dica troca o <<'FIM' pelo script fora do hook. Use isinstance(corpo_de_heredoc, str) e uma fixture com sh
 - A2 (recomendado) hooks/parecer.py:86 · com o programa do texto sh ou ./x.sh, "grave pelo Write ou Edit e rode o programa noutra chamada" aponta a lacuna [B] (script fora do hook); a classe já existia na base (M3). Cartão à segurança para a dica não nomear rodar o arquivo gravado
 
 ## O que foi lido e rodado
@@ -31,7 +30,7 @@ A1, defeito provado: a premissa do ramo novo, "`<<'FIM'` já está na linha", va
 A2: as recusas M2 e M3 já mandavam, na base, "rode o programa noutra" quando o programa é `sh f` ou `./publica.sh`. A branch só troca "numa chamada do Bash" por "Write ou Edit" e não cria a classe. Fica como recomendação e cartão à segurança, fora deste PR.
 
 ## M14 e o lote dos dois cartões
-- Teto: `hooks/parecer.py` 16 linhas mais `tests/test_hooks_parecer_pasta.py` 9 linhas, 25 linhas. As fixtures de `tests/hooks/`, a spec de `tests/mutantes/`, o fragmento e o `.md` ficam fora. Abaixo de 150, sem linha de exceção (que não valeria aqui, porque mexe em `hooks/` e em um PROTEGIDO).
+- Teto: `hooks/parecer.py` 17 linhas (16 na volta 0, mais 2 e menos 1 na volta 1) e `tests/test_hooks_parecer_pasta.py` 9 linhas, total de 26. As fixtures de `tests/hooks/`, a spec de `tests/mutantes/`, o fragmento e o `.md` ficam fora. Abaixo de 150, sem linha de exceção (que não valeria aqui, porque mexe em `hooks/` e em um PROTEGIDO).
 - Um PR ou dois: cabem num PR. A regra da 0.34 (`versao-0.34.md`, linha 3) permite "PR próprio ou lote por arquivo", e os dois cartões são do mesmo arquivo, `hooks/parecer.py`. A M14 pede uma classe de comportamento por PR em `hooks/`, com corpus próprio. Só o PARECER-HOOK-DICA-EDIT muda o hook (texto da recusa, com o corpus `texto-barra-heredoc-*-dica-*`). O PARECER-BARRA-FETCH não muda nenhuma linha de `hooks/`: ele prova o que já existe, com o corpus próprio `atualiza-*`. Há uma classe em `hooks/` e dois corpus separados, então não há achado M14.
 - `hooks/parecer.py` está em `PROTEGIDOS` (`tests/catraca.py:44`), e a catraca do PR pede o rótulo do dono depois do último push.
 
@@ -41,5 +40,13 @@ Na revisão rodei só o módulo dos testes tocados e a mutação (acima). `shell
 ## Fora do código (ao Jarvis)
 Nenhum dos dois cartões está na lista dos 20 da 0.34 (`docs/propostas/backlog/versao-0.34.md` do forge-contrib), e a lista diz que nenhum trabalho novo da 0.34 abre antes do "sim" do dono. O review não decide isso: fica a conferir com o dono antes do merge.
 
+## Revalidação (volta 1, HEAD 05b6d6b)
+- Delta lido com `bin/forge-check delta --parecer docs/reviews/hook-parecer-034.md` (ef5e341..4d7e174): `hooks/parecer.py:669-670`, a fixture nova `tests/hooks/parecer/texto-barra-heredoc-sh-com-heredoc-aninhado-sem-aspas-pede-fim.json` (1-34) e `tests/mutantes/hook-parecer-034.json` (7, 9-20). Os commits 0baf6aa e 4d7e174 são os pareceres de review e de segurança, trazidos por cherry-pick. O resto da branch não releio: fica como já lido na volta 0.
+- A1 (bloqueante na volta 0) está resolvido. O ramo do `except` agora usa a causa nova só quando `corpo_de_heredoc` é str, ou seja, quando outro programa do texto roda o corpo gravado. Com True (o dono `sh`/`bash` roda o corpo), a recusa volta a mandar `<<'FIM'`. A fixture nova confere `Corrigir: use <<'FIM'` e, com `stderr_sem`, a ausência de `Write ou Edit`. O M1 (`isinstance` virando truthy) e o M6 (`False`) cobrem as duas direções.
+- Comparei de novo a base e a branch: `sh <<'EOF'` com heredoc aninhado sem aspas recusa com 2 e a mensagem da base (`use <<'FIM'`); o `.md` gravado com `git` recusa com 2 e a mensagem nova. Nenhuma recusa libera.
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_pasta.py`: 3 testes, OK (26,1 s).
+- `bin/forge-mutante tests/mutantes/hook-parecer-034.json` (rev 4d7e174ecc0d): M1 a M6 morreram.
+- O parecer de segurança cherry-picado (4d7e174) é de ef5e341. Se ele precisa ser revalidado, quem aponta é o `forge-check pr`.
+
 ## Parecer
-Reprovado por A1 (bloqueante): o comportamento de bloqueio está preservado e testado, e o teto e o lote estão dentro da M14. A volta é pequena: uma condição em `hooks/parecer.py:669`, uma fixture e o M1 da spec. A2 é recomendação e não devolve.
+Aprovado na volta 1, em 05b6d6b. O A1 foi corrigido como sugerido, com fixture e mutantes. Nenhuma recusa passou a liberar, e o PR fica com 26 linhas e uma classe de comportamento em `hooks/`, dentro da M14. A2 segue como recomendação, para um cartão de segurança. Fica pendente, fora do código, a confirmação do dono sobre os cartões fora da lista da 0.34, e o rótulo do dono por causa do PROTEGIDO.
