@@ -1,13 +1,7 @@
 {
   "pedido": "gh-merge-admin-3",
   "executor": "unittest",
-  "isentas": [
-    {
-      "arquivo": "hooks/parecer.py",
-      "trecho": "metodo.upper() != \"GET\"",
-      "motivo": "a comparação saiu do return e foi para o any(), coberta pelos mutantes G28 e G29"
-    }
-  ],
+  "isentas": [],
   "mutantes": [
     {
       "id": "G28",
