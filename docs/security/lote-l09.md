@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 51ef12d27a999df2a830c4971ffd2f265523ac44
+commit: d4d1ca79ed7c5436d219f20a41c31520a0afa027
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -35,6 +35,9 @@ A branch foi reempilhada sobre o L08 novo (`7925640`, parecer próprio em `docs/
 - A1 fechado: o exemplo da Entrada traz `Brief-sha256: <64 hex>   Bytes: <n>` (`agents/conferente.md:42`), e `test_mensagem_sem_brief_sha256_reprova` o prende, junto com a frase que reprova a mensagem sem o hash.
 - `test_um_bloco_por_mensagem_e_o_segundo_modo_e_instrucao_ao_conferente` prende o bloco único e impede a volta da regra de dois blocos. Só texto e teste: nenhum controle afrouxa.
 Testes (um módulo por vez): `test_forge.py` na classe tocada `TextoDoConferenteNoLote` (9, OK) e `test_erros_no_brief.py` de novo sobre a base nova (OK).
+
+## Nota (d4d1ca7, teste do QA e mapa)
+O delta `51ef12d..d4d1ca7` traz três coisas. A primeira é o merge do L08: o `bin/forge-check` muda só pela `promocao` do `a46eab7`, idêntica à revisada no parecer do L08. A segunda é o teste `tests/test_qa_lote_l09.py`. A terceira, no `bin/forge-testes`, são só acréscimos ao mapa FORGE_CHECK e aos LEITORES_DE_TEXTO, então o pre-push roda mais testes. Do E15, nada mudou em `bin/forge-check`, `agents/conferente.md`, `docs/regras/R-BRIEF.md` nem `hooks/`. Nenhuma recusa passou a liberar. `test_qa_lote_l09.py` (3): OK.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes: `python3 -I -m unittest discover -s tests -p test_erros_no_brief.py` (42 testes, OK). Invariantes de `tests/config.json` checadas por script local. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência nova).
