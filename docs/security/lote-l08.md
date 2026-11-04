@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 083a959c725246adaff6be0cf7fa4275ea2606c7
+commit: 5ac531fef8e5783353db1ad148df22077b5f3fa4
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -65,6 +65,9 @@ Delta `1d50bea` e `083a959` (o código está em `bin/forge-check`: `pr_da_cli` e
 - Sha ambíguo: `branch_do_sha` devolve None quando há mais de uma branch no sha, e o `pr` volta ao comportamento anterior (mais recente do pedido mais `commit_vale`). A conferência do head segue cobrada e, sem pedido direto, reprova. É o mesmo nível de antes, não uma brecha nova. Recomendação (baixa): na linha de comando, sha ambíguo entre branches de trabalho poderia reprovar em vez de voltar ao mais recente.
 - Parecer ausente: na branch de trabalho, reprova (`sem parecer da branch`). Sem branch nenhuma (sha solto, catraca do CI) vale o caminho antigo por desenho. O hook `parecer` (`hooks/parecer.py:419`) chama `cmd_pr` sem `branch` e herda `branch_da_ref`, ou seja, o mesmo aperto quando a ref é nome de branch.
 Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead` (11) e `-p test_promover_homolog.py` (36), OK no L08, onde está o código.
+
+## Nota (5ac531f, teste do QA 5ac531f)
+O `5ac531f` só acrescenta `QaPareceresDaBranch` a `tests/test_qa_lote_l08.py`. Ele prova três casos: o parecer da própria branch passa mesmo com um parecer de outra branch desatualizado ou reprovado; sem parecer da branch, reprova mesmo com o alheio aprovado; e só o QA faltando também reprova. Não muda código nem controle, e a revalidação acima vale para este head.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
