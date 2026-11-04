@@ -1,0 +1,2 @@
+### Corrigido
+- a catraca, em `--modo pareceres`, recusa (falha fechada) o PR cujo head vem de outro repositório: o workflow passa `HEAD_REPO` (`github.event.pull_request.head.repo.full_name`) e `BASE_REPO` (`github.repository`) por env, e quando diferem (inclusive `head.repo` nulo) a catraca não lê parecer algum, nem nas promoções. Um fork com o nome de uma branch já mesclada não herda mais os pareceres dela. Vale depois que a catraca com a correção estiver na base, pois ela roda da base (CATRACA-FORK-HERDA-PARECER, A1 do CATRACA-RAMO-CMD-PR)

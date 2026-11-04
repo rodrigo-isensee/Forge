@@ -1570,6 +1570,46 @@ class ParecerReprovadoBarraSempre(Base):
         self.assertEqual(len(achadas), 1, achadas)
         self.assertIn("sem parecer para o pedido `ped` com `branch: pr`", achadas[0])
 
+    def test_fork_com_o_nome_de_branch_ja_mesclada_nao_herda_o_parecer(self):
+        """A1: parecer aprovado com `branch: pr` cobre o PR do próprio repositório, mas não o de um fork com o mesmo nome de branch."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.assertEqual(self.roda(), [])
+        for head in ("fulano/Forge", ""):  # fork e head.repo nulo (fork apagado)
+            with self.subTest(head=head):
+                achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, "dono/Forge")
+                self.assertEqual(len(achadas), 1, achadas)
+                self.assertIn("R-REVIEW", achadas[0])
+                self.assertIn("dono/Forge", achadas[0])
+
+    def test_fork_recusa_ate_sem_arquivo_sensivel_e_nas_promocoes(self):
+        self.repo.escreve("docs/x.md", "x\n")
+        self.repo.commit()
+        for ramo, base_ref in (("pr", "develop"), ("develop", "homolog"), ("homolog", "main")):
+            with self.subTest(ramo=ramo):
+                achadas = catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", ramo, base_ref, "fulano/Forge", "dono/Forge")
+                self.assertEqual(len(achadas), 1, achadas)
+
+    def test_mesmo_repositorio_ou_sem_env_nao_muda_o_resultado(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        for head, base in (("dono/Forge", "dono/Forge"), ("", "")):
+            with self.subTest(head=head):
+                self.assertEqual(catraca.violacoes_de_pareceres(self.repo.dir, "base", "HEAD", "pr", "develop", head, base), [])
+
+    def test_cli_le_o_repositorio_do_head_por_env_e_recusa_o_fork(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.repo.commit()
+        env = {k: v for k, v in os.environ.items() if k not in ("GITHUB_TOKEN", "GITHUB_STEP_SUMMARY", "HEAD_REPO", "BASE_REPO")}
+        argv = ["python3", str(AQUI / "catraca.py"), "--modo", "pareceres", "--raiz", str(self.repo.dir), "--base", "base",
+                "--ramo", "pr", "--base-ref", "develop"]
+        ok = subprocess.run(argv, capture_output=True, text=True, env={**env, "HEAD_REPO": "dono/Forge", "BASE_REPO": "dono/Forge"})
+        self.assertEqual(ok.returncode, 0, ok.stdout + ok.stderr)
+        fork = subprocess.run(argv, capture_output=True, text=True, env={**env, "HEAD_REPO": "fulano/Forge", "BASE_REPO": "dono/Forge"})
+        self.assertEqual(fork.returncode, 1, fork.stdout + fork.stderr)
+
     def test_nao_regressao_promocao_nao_le_parecer(self):
         self.repo.escreve("docs/x.md", "x\n")
         self.parecer("review", "reprovado")
