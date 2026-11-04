@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: effbe5b1b16cedb1c84698afcf4921c053692c48
+commit: f25db720f6c418c78c2b9e0624a893bb9538e337
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -38,5 +38,14 @@ Aceito. Sem a linha nova no Histórico, o gerador não propõe a etapa e a confe
 - `bin/forge-mutante tests/mutantes/lote-l10.json`: rev=effbe5b1b16c, M1 a M12 morreram, rc=0.
 - Shellcheck: não se aplica (não há shell no diff). Suíte inteira: fica com o QA (D-5).
 
+## Revalidação (head f25db72)
+- Delta lido, só o próprio do L10: 08aa2a4 (`ETAPA_ABERTA` agora fecha em `aberta\s*$`, e o subteste "prova fora da forma" ganha `aberta-nao` e `aberta.`), 59bec42 (M13 com o trecho que casa o código), 5e5d37e e fd7b144 (`tests/test_qa_lote_l10.py`: brief anterior exato, `exemplo-10`, e os sufixos `aberta-nao`, `abertura prevista`, `abertas`) e f25db72 (`test_qa_lote_l10` no `FORGE_CHECK` do `bin/forge-testes`, contagem 41 em `test_testes_tocados`).
+- Já lido: o resto do delta 51ef12d..effbe5b, que não mudou. Os merges do L08 e do L09 ficam com os pareceres deles.
+- A correção do L10-1 aperta a T-3, sem afrouxar nenhum C-n. O `\s*$` aceita só espaço no fim, e as linhas já vêm separadas por `splitlines`. O teste do QA herda a fixture de `BriefDeVolta` e o `load_tests` roda só a classe nova, sem repetir a suíte.
+- `-p test_volta_por_delta.py`: 68 OK, rc=0. `-p test_qa_lote_l10.py`: 1 OK, rc=0. `-p test_testes_tocados.py`: 86 OK, rc=0.
+- `bin/forge-mutante tests/mutantes/lote-l10.json`: M1 a M13 mortos, rc=0 (o M13 guarda a âncora no fim da linha).
+- O `commit:` aponta para f25db72, e não para fd7b144. O f25db72 mexe em `bin/forge-testes`, que fica fora de LIVRES, e com fd7b144 o `commit_vale` daria o parecer como desatualizado. De f25db72 ao head só mudam `docs/qa/` e `docs/reviews/`. O f25db72 é posterior ao teste do QA, fd7b144, e por isso atende o E16.
+- Os achados A1 a A3 seguem como recomendação. Com o delta próprio de agora, a conta do A1 dá 138 linhas de código e teste: `bin/forge-check` 53, `test_volta_por_delta` 49, `test_qa_lote_l10` 32 e o mapa 4. O total segue abaixo do teto de 150 da M14.
+
 ## Parecer
-Aprovado. O diff fica dentro do limite da Q14 e cada C-n tem teste que mata mutante. Nenhum T-n aparece no código, e a M14 é atendida. Os três achados são recomendações e não devolvem a entrega.
+Aprovado, e na revalidação sobre f25db72 também. O diff fica dentro do limite da Q14 e cada C-n tem teste que mata mutante. Nenhum T-n aparece no código, e a M14 é atendida. Os três achados são recomendações e não devolvem a entrega.
