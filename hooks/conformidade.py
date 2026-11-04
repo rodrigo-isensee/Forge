@@ -20,6 +20,7 @@ import tempfile
 import shlex
 import subprocess
 import time
+import unicodedata
 import urllib.parse
 from functools import lru_cache
 from pathlib import Path
@@ -27,7 +28,7 @@ from pathlib import Path
 import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
-                    PLUGIN, PROFUNDIDADE, bloquear, comentarios,
+                    LIMITE_MENSAGEM, PLUGIN, PROFUNDIDADE, bloquear, comentarios,
                     construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
@@ -37,6 +38,8 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
 # custo de uma conferência cresce com o tamanho do texto, então o número delas não basta (A1 do review): conta também os
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
 TETO_DE_CONFERENCIAS = 400
+TETO_DO_TRECHO = 50  # HOOK-MSG-SEGMENTO: caracteres do comando citado na recusa (C-A6-3)
+INVISIVEIS = frozenset(("Cc", "Cf", "Zl", "Zp"))  # controle C0/C1 e formato (bidirecionais): fora do trecho (C-A6-1)
 TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 s (recomendação do review, volta 3)
 PRAZO_DA_LINHA_S = 3.0
 
@@ -460,6 +463,7 @@ class Guarda:
         self.perguntas = []  # confirmações pendentes da linha (perfil iniciante)
         self.lancador_recusado = None  # lançador da linha que o hook não modela (`LANCADORES_RECUSADOS`), recusado no fim
         self.reavaliacao = None  # a primeira reavaliação pelo shell da linha, em qualquer nível (`reavaliacao`, opção B)
+        self.trecho = None  # as palavras do comando simples em conferência (`segmento`), que a recusa cita
         leitura = politica.get("so_leitura")
         self.leitura = leitura if leitura and papel in leitura["papeis"] else None  # papel só de leitura (conferente)
 
@@ -471,7 +475,7 @@ class Guarda:
         """Recusa (saída 2). No perfil iniciante, `simples` (SIMPLES) troca o texto técnico pela consequência."""
         if simples and self.h.iniciante():
             bloquear(rid, SIMPLES[simples])
-        bloquear(rid, f"{o_que}. Corrigir: {corrigir}")
+        bloquear(rid, com_trecho(rid, o_que, corrigir, self.trecho))
 
     def perguntar(self, texto):
         """Só no perfil iniciante: o ato é legítimo mas arriscado; a pessoa confirma na janela de permissão, com a
@@ -935,6 +939,14 @@ class Guarda:
                     self.ambiente[nome] = valor
 
     def segmento(self, palavras, pasta, ramos, nivel):
+        """HOOK-MSG-SEGMENTO: a recusa dentro do comando simples o cita (`com_trecho`); fora dele, volta o de antes."""
+        anterior, self.trecho = self.trecho, palavras
+        try:
+            return self.segmento_lido(palavras, pasta, ramos, nivel)
+        finally:
+            self.trecho = anterior
+
+    def segmento_lido(self, palavras, pasta, ramos, nivel):
         """Analisa um comando simples; devolve a pasta depois dele (acompanha `cd`). Atrás de lançador com palavra de `-`
         fora da tabela (`separar_lancadores`), roda as regras sobre cada leitura possível e recusa se qualquer uma recusa
         (RET-LEITURA-HOOK-G, opção A da proposta caminho-rev13). A pasta e as variáveis que seguem na linha são as da
@@ -1785,6 +1797,21 @@ class Guarda:
             dica = "use a instalação com lockfile congelado do gerenciador (--frozen, --locked ou o comando equivalente)" \
                 if self.pode("instalar_congelado") else "peça ao dev"
             self.barrar("R-CONFORMIDADE", f"{prog} {sub} {self.so_de(acao)} (papel: {self.papel})", dica)
+
+
+def com_trecho(rid, o_que, corrigir, palavras):
+    """HOOK-MSG-SEGMENTO: o texto da recusa com o comando simples que a disparou, `(em `…`)` antes do `Corrigir:`.
+    O trecho sai sem controle nem formato (C-A6-1), com crase trocada por `'` (C-A6-2) e até `TETO_DO_TRECHO`
+    caracteres; só entra se a linha inteira couber em `LIMITE_MENSAGEM`, para o motivo e o `Corrigir:` nunca se
+    cortarem por ele (C-A6-3)."""
+    texto = f"{o_que}. Corrigir: {corrigir}"
+    trecho = "".join("'" if c == "`" else c for c in " ".join(" ".join(palavras or ()).split())
+                     if unicodedata.category(c) not in INVISIVEIS)
+    if not trecho:
+        return texto
+    trecho = trecho if len(trecho) <= TETO_DO_TRECHO else trecho[:TETO_DO_TRECHO - 1] + "…"
+    citado = f"{o_que} (em `{trecho}`). Corrigir: {corrigir}"
+    return citado if len(" ".join(f"{rid}: {citado}".split())) <= LIMITE_MENSAGEM else texto
 
 
 def entrada_valida(e):

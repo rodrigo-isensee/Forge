@@ -1,0 +1,86 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M10",
+      "guarda": "C-A6-1: o trecho sai sem controle nem marca bidirecional",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if unicodedata.category(c) not in INVISIVEIS)",
+      "para": "if True)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "C-A6-2: a crase do trecho vira '",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if c == \"`\" else c for c",
+      "para": "if c == \"x\" else c for c",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "C-A6-3: o trecho se corta em TETO_DO_TRECHO",
+      "arquivo": "hooks/conformidade.py",
+      "de": "len(trecho) <= TETO_DO_TRECHO",
+      "para": "True",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "C-A6-3: o trecho só entra se a linha inteira cabe em LIMITE_MENSAGEM",
+      "arquivo": "hooks/conformidade.py",
+      "de": "<= LIMITE_MENSAGEM else texto",
+      "para": "< LIMITE_MENSAGEM else texto",
+      "testes": [
+        "tests.test_hooks.Hooks.test_trecho_so_entra_se_a_linha_inteira_cabe"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "fora do comando simples, a recusa volta a citar o trecho de antes",
+      "arquivo": "hooks/conformidade.py",
+      "de": "            self.trecho = anterior\n",
+      "para": "            pass\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "sem comando simples, a recusa não cita trecho vazio",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if not trecho:\n        return texto",
+      "para": "if False:\n        return texto",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "a recusa de dentro do comando simples o cita",
+      "arquivo": "hooks/conformidade.py",
+      "de": "com_trecho(rid, o_que, corrigir, self.trecho)",
+      "para": "com_trecho(rid, o_que, corrigir, None)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "sem comando simples (None), o trecho é vazio e a recusa não cita nada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "\" \".join(palavras or ())",
+      "para": "\" \".join(palavras or (\"x\",))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    }
+  ]
+}

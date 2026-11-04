@@ -60,7 +60,7 @@ HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
-CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA", "ROTULO-VARIAVEL", "K2-REC")  # as fixtures de cada cartão abrem a descrição com o ID dele
+CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA", "ROTULO-VARIAVEL", "K2-REC", "HOOK-MSG-SEGMENTO")  # as fixtures de cada cartão abrem a descrição com o ID dele
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -2218,6 +2218,14 @@ class Hooks(unittest.TestCase):
             hook = _comum.Hook("conformidade")
             hook.entrada = {"tool_input": {"command": comando}}
             self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), marcado, comando)
+
+    def test_trecho_so_entra_se_a_linha_inteira_cabe(self):  # HOOK-MSG-SEGMENTO, C-A6-3
+        _, conformidade, _ = modulos_dos_hooks()
+        resto = " (em `git push`). Corrigir: c"
+        cabe = "m" * (conformidade.LIMITE_MENSAGEM - len("R-X: ") - len(resto))
+        self.assertEqual(conformidade.com_trecho("R-X", cabe, "c", ["git", "push"]), cabe + resto)
+        self.assertEqual(conformidade.com_trecho("R-X", cabe + "m", "c", ["git", "push"]), cabe + "m. Corrigir: c")
+        self.assertEqual(conformidade.com_trecho("R-X", "m", "c", None), "m. Corrigir: c")
 
     def test_fixtures_do_gh_merge_admin(self):  # GH-MERGE-ADMIN: a matriz, os abusos (a) a (g) e os legítimos do C-5
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("GH-MERGE-ADMIN")]
