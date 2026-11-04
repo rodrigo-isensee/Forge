@@ -3,14 +3,14 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/prepush-so-docs
-commit: 0ba1a876f9176c74d9dae97ca208805c3f652e43
+commit: bce7ad1dc874ff83d553e9c8b01592851273e583
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
 # Review de segurança: prepush-so-docs (E18 PREPUSH-SO-DOCS, versao-033)
 
-Escopo: o diff `928e61b..0ba1a87` (2 commits): `templates/projeto/.githooks/pre-push`, `tests/test_prepush_so_docs.py`, `bin/forge-testes` (mapa) e `changelog.d/prepush-so-docs.md`. Conferido contra a seção E18 de `docs/security/ameacas/versao-033.md` (limite Q7 = A, controles C-1 a C-5, mudanças proibidas T-1 a T-4).
+Escopo (rodada 1, mantido): o diff `928e61b..0ba1a87` (2 commits): `templates/projeto/.githooks/pre-push`, `tests/test_prepush_so_docs.py`, `bin/forge-testes` (mapa) e `changelog.d/prepush-so-docs.md`. Conferido contra a seção E18 de `docs/security/ameacas/versao-033.md` (limite Q7 = A, controles C-1 a C-5, mudanças proibidas T-1 a T-4).
 
 ## Gatilhos
 `R-SEGURANCA`, gatilho controles do Forge: o pre-push que o modelo de projeto instala em todo projeto. A entrega afrouxa o controle (pula o `pre-push.local` em envio só de documentação), dentro do limite decidido pelo dono (Q7 = A).
@@ -36,3 +36,13 @@ Escopo: o diff `928e61b..0ba1a87` (2 commits): `templates/projeto/.githooks/pre-
 Risco residual aceito pelo dono na decisão Q7 = A (2026-11-03): código dentro de `docs/` (e qualquer `*.md`) pula o lint local; o CI do projeto pega. Nenhum risco novo pedido a aceite.
 
 Ferramentas: leitura do diff, os testes do item e sondas locais em `$TMPDIR`. Lacunas no PATH: `shellcheck`, `gitleaks`, `semgrep`, `zizmor` e `actionlint` (não instalados; o shellcheck roda na bateria do CI). Nada pago (`R-CUSTO`).
+
+## Rodada 2
+Escopo: só o delta `3dd4483..bce7ad1` (`templates/projeto/.githooks/pre-push` +4 -3), a correção do SC2094 do shellcheck. Veredito: aprovado, sem achado novo e sem regressão; A1 e A2 da rodada 1 seguem recomendados, sem mudança de critério (não bloqueiam, não foram tocados pelo delta).
+
+Conferência contra o modelo E18 (`:39-61`):
+- Equivalência de comportamento: a recusa agora é a variável `recusa` com `break` (`:53`), e o `rm -f "$lista"` com `return 1` ficam depois do `done` (`:56`), no teste `recusa=1` ou `achou=0`. Todo ramo que antes retornava 1 dentro do laço ainda retorna 1: `.github/*` e qualquer nome fora de `docs/*|*.md` recusam; lista vazia recusa; só retorna 0 quando toda ref passa. `recusa` zera a cada ref (`:50`), então uma ref de código não é esquecida nem herdada.
+- C-1, C-2 (falha fechada): o git que falha (`:48`, `|| return 1`), branch nova, apagar ref, tag, stdin vazio e `mktemp` falho seguem como na rodada 1, sem alteração. C-3: o `case` é o mesmo (`.github/*` antes de `docs/*|*.md`, sensível a caixa). C-4: `pre-push.local` chamado como antes. T-1 a T-4: nenhuma variável, opção ou arquivo novo; o bloco R-VERIFY e `main` (`:1-35`) não está no delta; nenhum workflow tocado.
+- Evidência: rodei `tests.test_prepush_so_docs`, `tests.test_ambiente_git` e `tests.test_testes_tocados` em bce7ad1 (130 testes, OK). No run 41780938757 (head bce7ad1) o passo `shellcheck (scripts e hooks)` deu success; o job `bateria` falhou só no passo de parecer de review, que aguarda o review em paralelo, fora do meu escopo.
+- Lista PA-7 (`docs/engineering/achados-recorrentes.md`): sem lista negativa de ambiente (AR-3), sem python no caminho que decide (AR-5), `unset GIT_DIR ...` antes do primeiro git (AR-7); AR-4, AR-6, AR-8, AR-9 e AR-10 não se aplicam ao delta.
+Resíduo: o `--ignore-submodules=none` do A1 continua ausente em `:48`; severidade baixa, o CI do projeto roda tudo. Ferramentas: `shellcheck` não está no PATH local (coberto pelo CI, acima).
