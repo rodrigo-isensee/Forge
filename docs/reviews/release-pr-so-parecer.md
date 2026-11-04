@@ -13,7 +13,7 @@ data: 2026-11-04
 ## Achados
 - A1 (bloqueante) bin/forge-changelog:217 · o diff de `mudou` não tem `--no-renames`: mover código para pasta de parecer (`git mv bin/forge-x docs/reviews/forge-x.md`) lista só o nome novo e passa sem fragmento; na develop reprova. Pôr `--no-renames`, como o gate do ci.yml, e testar o caso. Resolvido em b89f23e
 - A2 (recomendado) tests/test_changelog.py:414 · faltam casos no teste: renomeação de código para dentro de `docs/reviews/` (o A1) e arquivo em pasta `_*` (`docs/qa/_x/a.md`), para fixar o limite da regra. Resolvido em b89f23e
-- A3 (recomendado) bin/forge-changelog:236 · Com parecer e fragmento válido no PR, o atalho imprime "PR só de parecer (...), sem fragmento novo", mas há fragmento novo: o `changelog.d/` fica fora de `CAMINHOS_DA_FABRICA` e o `mudou` não o vê. Sugestão: "dispensa fragmento" no lugar de "sem fragmento novo", ou deixar o atalho só para `not novos` e seguir para a linha "ok: n fragmento(s)"
+- A3 (recomendado) bin/forge-changelog:236 · Com parecer e fragmento válido, o atalho diz "sem fragmento novo" (changelog.d/ fica fora de `mudou`). Trocar por "dispensa fragmento" ou só usar o atalho com `not novos`
 
 ## Parecer
 Aprovado na revalidação sobre c774cf2 (seções abaixo). Na rodada anterior (2665b9a) foi reprovado por um defeito provado (A1), regressão sobre a develop; o texto dessa rodada segue abaixo.
