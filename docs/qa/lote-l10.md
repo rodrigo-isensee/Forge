@@ -41,3 +41,7 @@ Código testado: effbe5b1b16cedb1c84698afcf4921c053692c48, head 018abcb. O `comm
 - `test_volta_por_delta` + `test_qa_lote_l10`: 69 OK.
 - `bin/forge-mutante tests/mutantes/lote-l10.json`: M1 a M13 mortos, rc=0 (M13 guarda a âncora do fim da linha).
 - Bugs abertos: 0 (docs/qa/bugs/L10-1-abertura-aceita-sufixo.md fechado).
+
+## Revalidação (head f25db72)
+- Depois do parecer anterior vieram os merges do L09 e f25db72 (o teste do QA no mapa do bin/forge-testes), sem mudar código nem o teste; o `commit:` segue fd7b144, que é ancestral do head.
+- `-p test_qa_lote_l10.py`: 1 OK sobre f25db72.
