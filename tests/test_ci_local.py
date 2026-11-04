@@ -72,7 +72,7 @@ def passos_da_bateria(texto):
                 blocos[-1]["env"].add("<na mesma linha>")
             if chave in ("uses", "id"):
                 blocos[-1][chave] = valor.split(" #")[0].strip()
-        elif recuo == 10 and em_env:
+        elif recuo > 8 and em_env and not linha.lstrip().startswith("#"):  # qualquer recuo maior que o do `env:`
             blocos[-1]["env"].add(_chave(linha)[0])
         elif recuo < 8:
             em_env = False
@@ -94,7 +94,7 @@ def env_do_job(texto):
             em_env = chave == "env"
             if em_env and valor.strip():
                 chaves.add("<na mesma linha>")
-        elif recuo == 6 and em_env:
+        elif recuo > 4 and em_env and not linha.lstrip().startswith("#"):
             chaves.add(_chave(linha)[0])
     return chaves
 
@@ -368,6 +368,13 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
         env_gate = "          BASE_REF: ${{ github.base_ref }}\n        run: |\n          pesada=true"
         variantes.update({  # A4 do review, A1 do QA e A5/A6 da segurança: env e chaves que executam
             "gate com env inline": troca(bloco_env_gate, "        env: {GH_TOKEN: x, BASH_ENV: scripts/x.sh}\n"),
+            "download com env em recuo 12": troca("        run: |\n          set -euo pipefail\n", "        env:\n            PATH: ./scripts:/usr/bin:/bin\n        run: |\n          set -euo pipefail\n"),
+            "download com env em recuo 14": troca("        run: |\n          set -euo pipefail\n", "        env:\n              LD_PRELOAD: ./x.so\n        run: |\n          set -euo pipefail\n"),
+            "download com env de recuo misto": troca("        run: |\n          set -euo pipefail\n", "        env:\n          A: 1\n            PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "setup com env em recuo 12": troca("      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        if: steps.gate.outputs.pesada == 'true'\n",
+                                               "      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        env:\n            PATH: ./scripts\n        if: steps.gate.outputs.pesada == 'true'\n"),
+            "gate com chave a mais em recuo 12": troca(env_gate, "            PATH: scripts\n" + env_gate),
+            "env do job com chave em recuo 8": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n        PATH: scripts\n      ACTIONLINT_VERSAO"),
             "gate com chave BASH_ENV entre aspas": troca(env_gate, '          "BASH_ENV": scripts/x.sh\n' + env_gate),
             "gate com PATH": troca(env_gate, "          PATH: scripts\n" + env_gate),
             "gate com GIT_EXTERNAL_DIFF": troca(env_gate, "          GIT_EXTERNAL_DIFF: scripts/x.sh\n" + env_gate),
