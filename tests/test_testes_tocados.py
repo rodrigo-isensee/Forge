@@ -1025,6 +1025,11 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         r = self.rodar("--listar", "tests/test_sugerir.py", "tests/test_novo.py")
         self.assertNotIn("o MAPA não leva", r.stderr)
 
+    def test_sem_aviso_quando_o_teste_passa_bin_x_como_argumento_ou_dado(self):  # bug forge-testes-034-aviso-falso-chamada
+        self.escrever("test_novo", 'def plano(c):\n    return c\nx = plano("bin/forge-sugerir")\ny = ("bin/forge-sugerir", 1)\n')
+        r = self.rodar("--listar", "tests/test_novo.py")
+        self.assertNotIn("o MAPA não leva", r.stderr)
+
     def test_aviso_vale_tambem_no_diff_sem_caminho(self):
         self.escrever("test_novo", 'RAIZ = None\nx = RAIZ.joinpath("bin", "forge-sugerir")\n')
         self.assertIn("o MAPA não leva a test_novo", self.rodar("--listar").stderr)

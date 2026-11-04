@@ -188,9 +188,37 @@ def modulos_sem_mapa(pedidos, raiz=Path(".")):
     return sorted(a.group(1) for a in achados)
 
 
-# Só as formas que montam um caminho (`RAIZ / "bin/x"`, `RAIZ / "bin" / "x"`, `joinpath("bin", "x")`, `ler("bin/x")`):
-# texto que apenas cita o caminho não conta.
-LEITURA_DE_BIN = re.compile(r"""(?:/|\()\s*["']bin/([\w.-]+)["']|["']bin["']\s*[/,]\s*["']([\w.-]+)["']""")
+def bin_lidos(texto):
+    """Arquivos de bin/ que o texto de um módulo de teste lê: só as formas que montam um caminho (`RAIZ / "bin/x"`,
+    `RAIZ / "bin" / "x"`, `joinpath("bin", "x")`, `ler("bin/x")`). Citar o caminho como argumento ou dado não conta."""
+    try:
+        arvore = ast.parse(texto)
+    except SyntaxError:
+        return set()
+    def texto_de(no):
+        return no.value if isinstance(no, ast.Constant) and isinstance(no.value, str) else None
+    achados = set()
+    for no in ast.walk(arvore):
+        partes = []
+        if isinstance(no, ast.BinOp) and isinstance(no.op, ast.Div):
+            raiz = no
+            while isinstance(raiz, ast.BinOp):
+                raiz = raiz.left
+            if ast.unparse(raiz).startswith("self."):
+                continue  # `self.dir / "bin" / "x"` monta o caminho num repositório de brinquedo, não no Forge
+            partes = [texto_de(no.right)]
+            if isinstance(no.left, ast.BinOp) and isinstance(no.left.op, ast.Div):
+                partes = [texto_de(no.left.right)] + partes
+        elif isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute) and no.func.attr == "joinpath":
+            partes = [texto_de(a) for a in no.args]
+        elif isinstance(no, ast.Call) and isinstance(no.func, ast.Name) and no.func.id == "ler" and no.args:
+            partes = [texto_de(no.args[0])]
+        for n, parte in enumerate(partes):
+            if parte and parte.startswith("bin/"):
+                achados.add(parte[4:])
+            elif parte == "bin" and n + 1 < len(partes) and partes[n + 1]:
+                achados.add(partes[n + 1])
+    return {a for a in achados if a and "/" not in a}
 
 
 def avisos_de_mapa(caminhos, raiz=Path(".")):
@@ -202,7 +230,7 @@ def avisos_de_mapa(caminhos, raiz=Path(".")):
         if not achado or not (raiz / caminho).is_file():
             continue
         texto = (raiz / caminho).read_text(encoding="utf-8", errors="replace")
-        for alvo in sorted({a or b for a, b in LEITURA_DE_BIN.findall(texto)}):
+        for alvo in sorted(bin_lidos(texto)):
             if not (raiz / "bin" / alvo).is_file():
                 continue
             modo, modulos = planejar([f"bin/{alvo}"], raiz)
