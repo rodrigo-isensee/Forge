@@ -1,0 +1,256 @@
+"""QA do lote L08 (versao-033; E7, E10, E12, E16, E19): cenários de ponta a ponta com o `forge-check` real (subprocesso) sobre repositórios
+temporários. Cada teste responde a um item do backlog da 0.33; a fronteira que guarda vem no docstring."""
+import json
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_forge import RepoComOrigem, git, rodar_fc, com_gh_falso  # noqa: E402
+from test_volta_por_delta import BriefDeVolta, Repositorio  # noqa: E402
+from test_fechar import FecharComOForgeCheckReal  # noqa: E402
+from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+
+
+class QaE7ConferenciaNoHead(RepoComOrigem):
+    """E7: o `pr` só aprova com `entrega conferida <sha40>` cobrindo o head; fronteira: o último commit depois da conferida."""
+    CONFERIR = False  # a fixture não grava a conferida do head: cada teste monta a sua
+
+    def historico(self, *shas):
+        self.pedido().write_text("# p1\n\n## Histórico\n- aberto\n" + "".join(f"- 2026-11-04 09:00: entrega conferida {s}\n" for s in shas), encoding="utf-8")
+
+    def pedido(self):
+        arq = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"  # o pedido mora fora do repositório (fixture nova do E7)
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        return arq
+
+    def test_ciclo_completo_conferida_codigo_novo_reconferida(self):
+        self.historico(self.c1)
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+        c2 = self.commitar(self.repo, {"src/x.txt": "x1 volta\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "volta")
+        self.pareceres(c2)
+        self.assertEqual(self.pr("--base", "develop")[0], 1)  # código novo sem conferência
+        self.historico(self.c1, c2)
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+
+    def test_commit_de_teste_do_qa_depois_da_conferida_exige_nova_conferencia(self):
+        """E7 x E16: o fluxo do QA (teste em commit próprio, depois o parecer) deixa o head fora da conferida; o `pr` reprova até haver outra."""
+        self.historico(self.c1)
+        teste = self.commitar(self.repo, {"tests/test_x.py": "# qa\n"}, "teste do QA")
+        self.pareceres(teste)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("conferência:", saida)
+
+    def test_ref_por_sha_acha_a_branch_pelos_briefs_e_falha_fechada_sem_pedido_ou_historico(self):
+        """E7 volta 1: o `forge-fechar` passa o sha; a branch única cujo head é o sha liga o pedido pelos briefs; sem pedido ou sem Histórico, reprova."""
+        sha = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+        self.pedido().unlink(missing_ok=True)
+        contrib = self.home / ".forge-contrib" / "docs"
+        (contrib / "briefs").mkdir(parents=True, exist_ok=True)
+        (contrib / "briefs" / "real-tech-lead-1.md").write_text("Pedido: real\nBranch: melhoria/x   Base: develop\n\n## Objetivo\nx\n", encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)  # o brief liga a branch ao pedido `real`, que não existe: falha fechada
+        self.assertIn("conferência: não consegui ler o pedido", saida)
+        (contrib / "pedidos").mkdir(exist_ok=True)
+        (contrib / "pedidos" / "real.md").write_text("# real\n", encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("o pedido não tem ## Histórico", saida)
+        (contrib / "pedidos" / "real.md").write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.c1}\n", encoding="utf-8")
+        self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
+        git("branch", "melhoria/gemea", sha, cwd=self.repo)  # duas branches no mesmo sha: ambíguo, não escolhe
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("conferência: sem o pedido", saida)
+
+    def test_ref_origin_sem_checkout(self):
+        """A ref `origin/melhoria/x` (PR aberto) segue a mesma regra."""
+        git("push", "-q", "origin", "melhoria/x", cwd=self.repo)
+        self.historico(self.c1)
+        self.assertEqual(self.pr("--base", "develop", ref="origin/melhoria/x")[0], 0)
+        self.historico("0" * 40)
+        self.assertEqual(self.pr("--base", "develop", ref="origin/melhoria/x")[0], 1)
+
+    def test_linha_conferida_sem_marcador_de_item_ou_fora_do_historico_nao_vale(self):
+        for linha in (f"`entrega conferida {self.c1}`", f"entrega conferida {self.c1}", f"- 2026-11-04 09:00: entrega conferida {self.c1[:39]}",
+                      f"- 2026-11-04 09:00: entrega NÃO conferida {self.c1}", f"- não: entrega conferida {self.c1}",
+                      f"- 2026-11-04 09:00: conferência não cumpriu; conferida {self.c1}", f"- 2026-11-04: entrega conferida {self.c1}"):  # L08-1
+            with self.subTest(linha):
+                self.pedido().write_text(f"# p1\n\n## Histórico\n- aberto\n{linha}\n", encoding="utf-8")
+                rc, saida, _ = self.pr("--base", "develop")
+                self.assertEqual(rc, 1, saida)
+
+
+class QaE10PrMesclado(RepoComOrigem):
+    """E10: `pr --pr <n>` com o PR já mesclado; fronteira: branch apagada e squash na develop."""
+
+    def squash(self):
+        arq = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(f"# p1\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.c1}\n", encoding="utf-8")
+        head = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+        git("switch", "-q", "-c", "sq", "origin/develop", cwd=self.repo)
+        git("merge", "-q", "--squash", "melhoria/x", cwd=self.repo)
+        git("commit", "-q", "-m", "entrega (#7)", cwd=self.repo)
+        git("push", "-q", "origin", "sq:develop", cwd=self.repo)
+        git("switch", "-q", "--detach", "origin/develop", cwd=self.repo)
+        git("branch", "-q", "-D", "melhoria/x", "sq", cwd=self.repo)
+        return head
+
+    def gh(self, head, estado="MERGED"):
+        corpo = json.dumps({"state": estado, "headRefOid": head, "headRefName": "melhoria/x"})
+        return {"PATH": com_gh_falso(script=f"printf '%s\\n' '{corpo}'\n")["PATH"]}
+
+    def test_depois_do_squash_o_pr_aprova_e_o_commit_do_squash_nao_vale(self):
+        head = self.squash()
+        r = rodar_fc("pr", "p1", "--pr", "7", "--base", "develop", raiz=self.repo, home=self.home, env_extra=self.gh(head))
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("head " + head[:7], r.stdout)  # o conferido é o head do PR, não o do squash
+
+    def test_pr_mesclado_com_parecer_reprovado_reprova(self):
+        head = self.squash()
+        git("switch", "-q", "-c", "melhoria/x", head, cwd=self.repo)
+        reprovado = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: reprovado\n"
+                     "revisor: forge:tech-lead\ndata: 2026-11-04\n---\n# r\n")
+        novo = self.commitar(self.repo, {"docs/reviews/p1.md": reprovado.format(c=self.c1)}, "reprova")
+        git("switch", "-q", "--detach", "origin/develop", cwd=self.repo)
+        r = rodar_fc("pr", "p1", "--pr", "7", "--base", "develop", raiz=self.repo, home=self.home, env_extra=self.gh(novo))
+        self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
+
+    def test_pr_com_numero_gigante_ou_espaco_nao_quebra(self):
+        for n in ("99999999999999999999", " 7", "7 ", "٧"):
+            with self.subTest(n):
+                r = rodar_fc("pr", "p1", "--pr", n, "--base", "develop", raiz=self.repo, home=self.home, env_extra=self.gh("1" * 40))
+                self.assertNotIn("Traceback", r.stderr)
+                self.assertIn(r.returncode, (1, 2))
+
+
+class QaE12DesdePorBranch(BriefDeVolta):
+    """E12: o `Desde` vem da base da própria branch; fronteira: conferida de outra branch por último."""
+
+    def test_gerar_volta_propoe_a_mais_recente_da_branch_e_nunca_a_da_outra(self):
+        git("switch", "-q", "-c", "melhoria/outra", self.base, cwd=self.repo)
+        outra = self.commitar({"src/outra.txt": "o\n"}, "outra branch")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        c2 = self.commitar({"src/app.txt": "v3\n"}, "segunda")
+        dono = f"DECISÃO DO DONO (2026-11-04): \"fixar\".\n- 2026-11-04 11:00: base do delta fixada pelo dono {c2}\n"
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + f"\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.c1}\n"
+                               + dono + f"- 2026-11-04 12:00: entrega conferida {outra}\n", encoding="utf-8")
+        c3 = self.commitar({"src/app.txt": "v4\n"}, "terceira")
+        rc, saida = self.gerar(ref=c3)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--desde {c2}`", saida)
+        self.assertNotIn(outra, saida)
+
+    def test_entrega_aceita_a_conferida_da_propria_branch_com_a_de_outra_por_ultimo(self):
+        git("switch", "-q", "-c", "melhoria/outra", self.base, cwd=self.repo)
+        outra = self.commitar({"src/outra.txt": "o\n"}, "outra branch")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.pedido.write_text(self.pedido.read_text(encoding="utf-8") + f"\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.c1}\n"
+                               f"- 2026-11-04 10:00: entrega conferida {outra}\n", encoding="utf-8")
+        c2 = self.commitar({"src/app.txt": "v3\n"}, "volta")
+        self.assertEqual(self.entrega(desde=self.c1)[0], 0)
+        self.assertEqual(self.entrega(desde=outra)[0], 1)
+        self.assertTrue(c2)
+
+
+class QaE16TesteEParecer(RepoComOrigem):
+    """E16: teste e parecer separados; fronteira: parecer que cita o commit anterior ao teste."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-11-04\n---\n# q\n")
+
+    def test_parecer_citando_o_commit_anterior_ao_teste_e_recusado_mesmo_em_commit_separado(self):
+        teste = self.commitar(self.repo, {"tests/test_x.py": "# qa\n"}, "teste")
+        self.commitar(self.repo, {"docs/qa/p1.md": self.QA.format(c=self.c1)}, "parecer citando o anterior")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer", saida)
+        self.assertNotIn("commitado junto", saida)  # commits separados: a explicação do junto não se aplica
+        self.assertTrue(teste)
+
+    def test_mensagem_do_junto_nao_vaza_com_nome_de_arquivo_hostil(self):
+        nome = "tests/test_\x1b[31m.py"
+        try:
+            self.commitar(self.repo, {nome: "# qa\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "junto")
+        except OSError:
+            self.skipTest("nome sem suporte")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("\x1b", saida)
+
+
+class QaE19AtoGithub(Repositorio):
+    """E19: `entrega --etapa ato-github`; fronteira: brief com duas PQs, PQ maiúscula, vários briefs."""
+    BASE_BRIEF = "Agente destino: forge:devops-engineer\nPedido: p1\nTipo: ato-github\nBranch: —   Base: develop   Base-sha: {b}\n\n## Objetivo\nx\n\n## Pronto quando\n{pqs}"
+
+    def setUp(self):
+        super().setUp()
+        self.gravar_pedido()
+        (self.repo / "docs" / "briefs").mkdir(parents=True, exist_ok=True)
+
+    def brief(self, pqs, nome="p1-devops-engineer-1.md"):
+        (self.repo / "docs" / "briefs" / nome).write_text(self.BASE_BRIEF.format(b=self.base, pqs=pqs), encoding="utf-8")
+        return f"docs/briefs/{nome}"
+
+    def ato(self, *briefs, branch="—"):
+        args = ["entrega", self.pedido, "--branch", branch, "--base", "develop", "--base-sha", self.base, "--etapa", "ato-github"]
+        for b in briefs:
+            args += ["--brief", b]
+        return self.check(*args)
+
+    def test_pr_merge_run_passam_com_confira(self):
+        rc, saida = self.ato(self.brief("- PQ-1 (merge): o PR #3 mesclado\n- PQ-2 (run): CI verde\n"))
+        self.assertEqual(rc, 0, saida)
+        self.assertEqual(saida.count("confira PQ-"), 2)
+
+    def test_dois_briefs_reprova(self):
+        rc, saida = self.ato(self.brief("- PQ-1 (pr): x\n"), self.brief("- PQ-1 (pr): y\n", "p1-devops-engineer-2.md"))
+        self.assertEqual(rc, 1, saida)
+
+    def test_pq_de_commit_junto_de_pq_do_github_reprova(self):
+        rc, saida = self.ato(self.brief("- PQ-1 (pr): x\n- PQ-2 (push): y\n"))
+        self.assertEqual(rc, 1, saida)
+
+    def test_pq_de_commit_em_maiuscula_reprova(self):  # L08-2
+        rc, saida = self.ato(self.brief("- PQ-1 (SHA): x\n- PQ-2 (pr): y\n"))
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("prova de commit", saida)
+
+    def test_branch_de_trabalho_com_commit_reprova_e_nao_diz_nada_a_conferir(self):
+        rc, saida = self.ato(self.brief("- PQ-1 (pr): x\n"), branch="melhoria/x")
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("nada a conferir", saida)
+
+
+class QaE7FecharReal(FecharComOForgeCheckReal):
+    """E7 com o `forge-fechar` real e o `forge-check` real: duas branches no mesmo sha (ambíguo) e pedido sem Histórico param no passo 1."""
+
+    def parou_no_passo_1(self):
+        r = self.fechar("x", "--ref", "melhoria/x")
+        self.assertNotEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("parou no passo 1", r.stdout + r.stderr)
+        self.assertFalse([c for c in self.chamadas() if c.startswith(("gh pr create", "gh pr merge"))])
+        return r.stdout + r.stderr
+
+    def test_pedido_sem_historico_para_no_passo_1(self):
+        self.pedido.write_text("# real\n", encoding="utf-8")
+        self.assertIn("conferência:", self.parou_no_passo_1())
+
+    def test_duas_branches_no_mesmo_sha_param_no_passo_1(self):
+        self.pedido.write_text(f"# real\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {self.entrega}\n", encoding="utf-8")
+        self.git("branch", "melhoria/gemea", "melhoria/x")
+        self.assertIn("conferência:", self.parou_no_passo_1())
+
+
+def load_tests(loader, tests, pattern):
+    """As classes herdam as bases dos módulos de teste do autor; só os testes próprios daqui entram (os herdados já rodam nos módulos deles)."""
+    suite = unittest.TestSuite()
+    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal):
+        suite.addTests(cls(nome) for nome in vars(cls) if nome.startswith("test"))
+    return suite
+
+
+if __name__ == "__main__":
+    unittest.main()
