@@ -1,0 +1,126 @@
+{
+  "pedido": "lote-l10",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "as linhas anteriores ficam idênticas e na ordem (C-1)",
+      "arquivo": "bin/forge-check",
+      "de": "    if novas[:len(velhas)] != velhas:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a linha só vale uma vez (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "motivo = \"volta: etapa repetida no Fora do escopo\" if linha in vistas else",
+      "para": "motivo =",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "linha fora da decisão reprova (C-2)",
+      "arquivo": "bin/forge-check",
+      "de": "decisao.get(linha, \"volta: linha nova no Fora do escopo não é etapa de ## Etapas\")",
+      "para": "decisao.get(linha)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "motivo reprova",
+      "arquivo": "bin/forge-check",
+      "de": "        saida += [(f\"{motivo} \\\"{sem_controle(linha)[:60]}\\\"\", True)] if motivo else []",
+      "para": "        saida += []",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "a abertura vem depois do brief anterior (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "for linha in historico[inicio + 1:] if",
+      "para": "for linha in historico if",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "sem brief anterior no Histórico, sem prova (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "if nome.search(linha)), None)",
+      "para": "if nome.search(linha)), -1)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "só a etapa aberta vale (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "decisao[linha] = None if id_ in abertas else",
+      "para": "decisao[linha] = None if True else",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a etapa da volta não entra (C-4)",
+      "arquivo": "bin/forge-check",
+      "de": "if id_ in (cobre, etapa) or re.search(",
+      "para": "if re.search(",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a etapa do anterior não entra (C-4)",
+      "arquivo": "bin/forge-check",
+      "de": "or re.search(rf\"(?<![\\w-]){re.escape(id_)}(?![\\w-]|\\.\\d)\", ja) or",
+      "para": "or",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o Fora do escopo vai à regra nova, e só ele (T-2)",
+      "arquivo": "bin/forge-check",
+      "de": "        if nome == \"Fora do escopo\":  # E14",
+      "para": "        if nome != \"Objetivo\":  # E14",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "o gerador acrescenta só a etapa sem motivo (C-5)",
+      "arquivo": "bin/forge-check",
+      "de": ".items() if motivo is None]",
+      "para": ".items()]",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a prova tem a forma exata do Jarvis (C-3)",
+      "arquivo": "bin/forge-check",
+      "de": "ETAPA_ABERTA = re.compile(r\"^-\\s+\\d{4}",
+      "para": "ETAPA_ABERTA = re.compile(r\"^.*?\\d{4}",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
+      ]
+    }
+  ]
+}
