@@ -3,10 +3,10 @@ tipo: revisao-devops
 contrato: 1
 pedido: versao-033
 branch: melhoria/prepush-so-docs
-commit: 0ba1a876f9176c74d9dae97ca208805c3f652e43
+commit: bce7ad1dc874ff83d553e9c8b01592851273e583
 parecer: aprovado
 revisor: forge:devops-engineer
-data: 2026-11-03
+data: 2026-11-04
 ---
 # Review de devops: prepush-so-docs (E18, pedido versao-033)
 
@@ -18,6 +18,13 @@ Efeito no fluxo dos projetos: o CI do modelo não muda (T-4); o pulo vale só no
 Provas: `python3 -m unittest tests.test_prepush_so_docs tests.test_ambiente_git tests.test_testes_tocados` · 130 testes, OK. Ferramentas: `shellcheck` ausente do PATH (lacuna registrada; o teste do item o roda quando existe e o CI o roda); `actionlint` não se aplica (sem workflow). PA-7: sem ocorrência (sem `.github/`, permissão, SHA de ação, cache nem entrada não confiável em `run:`).
 
 ## Achados
+
+## Rodada 2
+Delta 3dd4483..bce7ad1, só `templates/projeto/.githooks/pre-push` (+4 -3), a correção do SC2094 do shellcheck do CI. A recusa dentro do laço vira a variável `recusa` com `break`; o `rm -f "$lista"` e o `return 1` ficam depois do `done`, então o arquivo da lista não é mais apagado enquanto o laço o lê, e não há diretiva `disable`. `recusa` entra no `local` e é zerada a cada ref.
+
+Comportamento igual ao da rodada 1: `.github/*` e nome fora de `docs/*` ou `*.md` recusam (`recusa=1`); diff vazio recusa (`achou=0`); os demais retornos 1 (sem refs, `mktemp`, hash zerado, tag, falha do git) não mudaram; só libera quando toda ref passa. Sintaxe `bash -n` ok. O `break` e o `[ ] || [ ]` são POSIX e valem no Bash 3.2 em diante; nenhum git novo. Efeito no fluxo dos projetos igual ao da rodada 1: CI do projeto com a bateria completa, pulo só no pre-push local, `forge atualizar` sem migração, `.githooks/pre-push` do Forge fora do diff. Passo shellcheck do CI do PR #436 em success em bce7ad1 (run 41780938757), o que resolve a lacuna de ferramenta local; `shellcheck` segue ausente do PATH aqui. Sem regressão nova.
+
+Provas: `python3 -m unittest tests.test_prepush_so_docs tests.test_ambiente_git tests.test_testes_tocados` · 130 testes, OK. PA-7 conferido: sem ocorrência.
 
 ## Custo e rollback
 Custo zero (`R-CUSTO`): só script local, sem minutos de CI. Rollback: reverter o commit do hook; os projetos voltam a rodar o `pre-push.local` sempre.
