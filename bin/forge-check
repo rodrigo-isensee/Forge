@@ -106,6 +106,8 @@ e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` 
 principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
 contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `forma:` ou `escopo:` que reprova, ou `não cumpriu` sem nenhuma; `escopo:` de integração da base, sem commit ou união de N briefs não conta). Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
+`pr` (linha de comando; E7, TEMPO-B2) também exige, com o pedido achado (`docs/pedidos/<pedido>.md` ou o `Pedido:` dos briefs da branch) e com
+`## Histórico`, uma linha `entrega conferida <sha40>` ancestral do head e com só pareceres e quadro depois dela; senão `conferência:` (R-PROVA).
 `pr --pr <n>` (E10, CONF-MERGE-APOS-SQUASH) confere o PR já mesclado no head dele (`headRefOid` do `gh pr view`, sha40 presente no clone, estado
 MERGED, e o parecer escolhido pelo `headRefName`), nunca no commit do squash; sem gh, PR aberto ou head ausente, rc 2 e nada conferido.
 O `Desde:` da `brief mensagem --entrega` e o `--desde` do `brief gerar --volta` vêm da base mais recente da própria branch (E12,
@@ -654,7 +656,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
-        return cmd_pr(raiz, pedido, ref, None, branch)
+        return cmd_pr(raiz, pedido, ref, None, branch) + conferencia_do_head(raiz, pedido, ref, None, branch)
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -664,7 +666,63 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
-    return cmd_pr(raiz, pedido, ref, resolvida, branch)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch) + conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+
+
+def pedido_da_conferencia(raiz, pedido, branch):
+    """E7 (TEMPO-B2): (caminho, texto, problema) do pedido do `forge-check pr`: o `docs/pedidos/<pedido>.md` das raízes (`caminho_do_pedido`)
+    ou, no slug da branch do Forge, o `Pedido:` único dos briefs (`docs/briefs/` das raízes) cuja `Branch:` é a da ref, sem o sufixo `-REV`
+    (G6). Sem nenhum, (None, None, None); com dois pedidos, o problema; pedido ilegível, o problema (falha fechada)."""
+    try:
+        caminho = caminho_do_pedido(raiz, pedido)
+    except PedidoFora:
+        caminho = None
+    if caminho is None or not arquivo_existe(caminho):
+        ids = set()
+        for base in ((raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF) if branch else ()):
+            for arq in sorted((Path(base) / "docs" / "briefs").glob("*.md")):
+                try:
+                    cabecalho = cabecalho_do_brief(arq.read_text(encoding="utf-8"))
+                except (OSError, UnicodeDecodeError):
+                    continue
+                valor = grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho)
+                if valor and grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) == branch:
+                    ids.add(Path(valor).stem.removesuffix("-REV") if valor.endswith(".md") else valor.removesuffix("-REV"))
+        if len(ids) > 1:
+            return None, None, f"os briefs da branch {nome_seguro(branch)} citam mais de um pedido ({', '.join(sorted(map(nome_seguro, ids)))})"
+        if not ids:
+            return None, None, None
+        try:
+            caminho = caminho_do_pedido(raiz, ids.pop())
+        except PedidoFora:
+            return None, None, "o pedido citado pelos briefs da branch fica fora das raízes"
+    try:
+        return caminho, caminho.read_text(encoding="utf-8"), None
+    except (OSError, UnicodeDecodeError):
+        return caminho, None, f"não consegui ler o pedido {caminho_impresso(caminho)}"
+
+
+def conferencia_do_head(raiz, pedido, ref=None, base=None, branch=None):
+    """E7 (TEMPO-B2, D07 = A): a conferência de entrega corre junto com os portões, presa ao head. Com o pedido achado e com `## Histórico`,
+    vale só se uma linha `entrega conferida <sha40>` do Histórico cobre o head: o commit existe, é ancestral do head e, depois dele, só
+    mudaram pareceres, quadro e o fragmento do changelog (a mesma `commit_vale` dos pareceres, com a base). Senão, a violação (R-PROVA).
+    Sem pedido (o CI) não há o que ler; pedido sem `## Histórico`, só o aviso: a amarração é da linha de comando do Jarvis e do fechamento
+    (a catraca e o hook `parecer` chamam o `cmd_pr`, sem ela)."""
+    caminho, texto, problema = pedido_da_conferencia(raiz, pedido, branch or branch_da_ref(raiz, ref))
+    if problema:
+        return [f"pr: conferência: {problema}; o head não pode ser conferido (R-PROVA, TEMPO-B2)"]
+    if texto is None:  # sem pedido (o CI, projeto sem docs/pedidos/): nada a ler, sem ruído
+        return []
+    if "Histórico" not in secoes_por(texto, CABECALHO_PEDIDO):
+        print(f"pr: aviso: o pedido de {nome_seguro(pedido)} não tem ## Histórico; a conferência do head não foi lida (TEMPO-B2)", file=sys.stderr)
+        return []
+    head, livres = sha_do_commit(raiz, ref or "HEAD"), LIVRES + (f"changelog.d/{pedido}.md",)
+    for sha, origem in reversed(bases_do_pedido(texto)):
+        if origem == "conferida" and head and sha_do_commit(raiz, sha) == sha and e_ancestral(raiz, sha, head) \
+                and commit_vale(raiz, sha, head, base, livres) is None:
+            return []
+    return [f"{caminho_impresso(caminho)}: conferência: nenhuma linha `entrega conferida <sha40>` do ## Histórico cobre o head "
+            f"{(head or '?')[:7]} (depois dela, só pareceres e quadro); o QA e o merge esperam a conferência de entrega do mesmo head (R-PROVA, TEMPO-B2)"]
 
 
 def branch_da_convencao(raiz, ref=None):

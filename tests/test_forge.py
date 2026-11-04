@@ -5782,3 +5782,91 @@ class TesteEParecerSeparados(RepoComOrigem):
         self.commitar(self.repo, {"docs/reviews/p1.md": self.REVIEW.format(c=teste)}, "review revalida o delta do teste")
         rc, saida, _ = self.pr()
         self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+
+class ConferenciaPresaAoHead(RepoComOrigem):
+    """E7 (TEMPO-B2, D07 = A): a conferência corre junto com os portões, e o `forge-check pr` só aprova com a linha `entrega conferida
+    <sha40>` do Histórico do pedido que cobre o head (ancestral dele, e depois dela só pareceres e quadro)."""
+
+    def historico(self, *linhas, arquivo=None):
+        arquivo = arquivo or self.repo / "docs" / "pedidos" / "p1.md"
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        arquivo.write_text("# p1\n\n## Histórico\n- 2026-11-04 08:00: aberto\n" + "".join(f"{l}\n" for l in linhas), encoding="utf-8")
+
+    def conferida(self, sha):
+        return f"- 2026-11-04 09:00: entrega conferida {sha} (E1.2)"
+
+    def head_da_branch(self):
+        return git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+
+    def test_conferida_do_head_de_codigo_libera_e_parecer_depois_dela_nao_a_invalida(self):
+        self.historico(self.conferida(self.c1))
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+    def test_sem_conferida_que_cubra_o_head_reprova(self):
+        git("switch", "-q", "-c", "melhoria/outra", "origin/develop", cwd=self.repo)
+        outra = self.commitar(self.repo, {"src/y.txt": "y de outra branch\n"}, "outra branch do pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        arvore = git("rev-parse", f"{self.c1}^{{tree}}", cwd=self.repo).stdout.strip()
+        gemeo = git("commit-tree", arvore, "-p", base, "-m", "mesmo conteúdo, outro commit", cwd=self.repo).stdout.strip()
+        dono = ("DECISÃO DO DONO (2026-11-04): \"x\".", f"- 2026-11-04 09:00: base do delta fixada pelo dono {self.c1}")
+        casos = {"sem conferida": (), "conferida de outra branch": (self.conferida(outra),), "conferida da base": (self.conferida(base),),
+                 "conferida de commit fora do head, mesmo conteúdo": (self.conferida(gemeo),), "base do dono não é conferência": dono,
+                 "sha abreviado": (self.conferida(self.c1[:7]),), "conferida fora do Histórico": None}
+        for nome, linhas in casos.items():
+            with self.subTest(nome):
+                if linhas is None:
+                    (self.repo / "docs" / "pedidos" / "p1.md").write_text(f"# p1\n\n## Notas\n{self.conferida(self.c1)}\n\n## Histórico\n- aberto\n",
+                                                                          encoding="utf-8")
+                else:
+                    self.historico(*linhas)
+                for extra in (("--base", "develop"), ()):
+                    rc, saida, _ = self.pr(*extra)
+                    self.assertEqual(rc, 1, saida)
+                    self.assertIn("docs/pedidos/p1.md: conferência: nenhuma linha `entrega conferida <sha40>` do ## Histórico cobre o head", saida)
+
+    def test_codigo_depois_da_conferida_reprova_mesmo_com_os_pareceres_em_dia(self):
+        self.historico(self.conferida(self.c1))
+        c2 = self.commitar(self.repo, {"src/x.txt": "x1 do pedido, volta\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "volta do autor")
+        self.pareceres(c2)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"cobre o head {self.head_da_branch()[:7]}", saida)
+        self.historico(self.conferida(self.c1), self.conferida(c2))
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+
+    def test_merge_limpo_da_base_depois_da_conferida_nao_a_invalida(self):
+        self.historico(self.conferida(self.c1))
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 0, saida)
+
+    def test_sem_historico_so_avisa(self):
+        rc, saida, erro = self.pr("--base", "develop")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("pr: aviso: o pedido de \"p1\" não tem ## Histórico; a conferência do head não foi lida (TEMPO-B2)", erro)
+        (self.repo / "docs" / "pedidos" / "p1.md").unlink()
+        rc, saida, erro = self.pr("--base", "develop")
+        self.assertEqual((rc, erro), (0, ""), saida)  # sem pedido (o CI): nada a ler, sem ruído
+
+    def test_pedido_pelos_briefs_da_branch(self):  # no Forge, o argumento é o slug e o pedido mora em ~/.forge-contrib
+        (self.repo / "docs" / "pedidos" / "p1.md").unlink()
+        contrib = self.home / ".forge-contrib" / "docs"
+        self.historico(arquivo=contrib / "pedidos" / "real.md")
+        (contrib / "briefs").mkdir(parents=True)
+        cabecalho = "Pedido: {}\nBranch: melhoria/x   Base: develop\n\n## Objetivo\nx\n"
+        (contrib / "briefs" / "real-tech-lead-1.md").write_text(cabecalho.format("real"), encoding="utf-8")
+        (contrib / "briefs" / "real-REV-qa-engineer-1.md").write_text(cabecalho.format("real-REV"), encoding="utf-8")
+        (contrib / "briefs" / "alheio-tech-lead-1.md").write_text(cabecalho.format("alheio").replace("melhoria/x", "melhoria/y"), encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("real.md: conferência: nenhuma linha", saida)
+        self.historico(self.conferida(self.c1), arquivo=contrib / "pedidos" / "real.md")
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+        (contrib / "briefs" / "outro-tech-lead-1.md").write_text(cabecalho.format("outro"), encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: os briefs da branch "melhoria/x" citam mais de um pedido ("outro", "real")', saida)
