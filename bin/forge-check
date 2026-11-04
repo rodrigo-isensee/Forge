@@ -498,45 +498,51 @@ PASTA_E_REGRA = {"review": ("docs/reviews", "R-REVIEW"), "qa": ("docs/qa", "R-QA
                  "revisao-devops": ("docs/devops", "R-REVIEW"), "revisao-seguranca": ("docs/security", "R-SEGURANCA")}
 
 
-def base_da_entrega(raiz, base=None):
-    """A primeira base (a pedida ou uma das BASES) que existe no repositório; None se nenhuma."""
-    for b in ([f"origin/{base}", base] if base else []) + list(BASES):  # a remota na frente: uma local movida não encolhe o diff (M4.4)
+def base_da_entrega(raiz, base=None, so_a_pedida=False):
+    """A primeira base (a pedida ou uma das BASES) que existe no repositório; None se nenhuma. Com `so_a_pedida` e uma base dada,
+    as BASES não entram: o rev-parse que falha nela não cai no diff contra a develop (C-1 do E3)."""
+    for b in ([f"origin/{base}", base] if base else []) + ([] if base and so_a_pedida else list(BASES)):  # a remota na frente: uma local movida não encolhe o diff (M4.4)
         if not git(raiz, "rev-parse", "--verify", "--quiet", f"{b}^{{commit}}")[0]:
             return b
     return None
 
 
 def arquivos_da_entrega(raiz, ref=None, base=None, desde=None):
-    """Arquivos que a entrega muda sobre a base (merge-base); [] se a base não existe (sem como saber).
+    """Arquivos que a entrega muda sobre a base (merge-base); None se o git falha (falha fechada, C-12); [] só sem base dada e sem nenhuma das BASES (sem como saber); com base dada que não lê, None (falha, C-1).
     `--no-renames`: renomear lista também o nome antigo (como removido), e o gatilho não escapa pelo nome novo.
     Com `desde` (um sha já conferido, VV-2), só o que mudou depois dele: a interseção com `desde..ref` tira o que entrou
     por merge da base (com o Base-sha regravado depois do merge); sem `desde`, a branch inteira, como sempre. Soma o que a branch já
     tinha mudado até `desde` (base...desde) e um commit posterior devolveu ao estado da base, como um teste apagado (`desfeitos_da_entrega`)."""
-    b = base_da_entrega(raiz, base)
+    b = base_da_entrega(raiz, base, so_a_pedida=True)  # uma só leitura da base: a falha no Base-sha dado nunca cai para as BASES (A6 da segurança)
     if not b:
-        return []
+        return None if base else []  # base dada que não lê é falha do git (C-1); sem base nenhuma não há como saber (o modo "estrita" do `pr`)
     cod, saida = git(raiz, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", "--no-textconv",
                      f"{b}...{ref or 'HEAD'}", "--", bruto=True)
     if cod:
-        return []
+        return None
     nomes = nomes_z(saida)
     if desde:
-        novos = set(nomes_do_intervalo(raiz, desde, ref or "HEAD"))
-        desfeitos = novos & desfeitos_da_entrega(raiz, b, desde)
+        novos, todos_desfeitos = nomes_do_intervalo(raiz, desde, ref or "HEAD", estrito=True), desfeitos_da_entrega(raiz, b, desde)
+        if novos is None or todos_desfeitos is None:
+            return None
+        desfeitos = set(novos) & todos_desfeitos
         nomes = [n for n in nomes if n in novos] + sorted(desfeitos - set(nomes))
     return nomes
 
 
 def desfeitos_da_entrega(raiz, base, desde):
     """Arquivos que a branch já tinha mudado sobre a base até `desde` (base...desde). Se um commit posterior os devolve ao estado da
-    base, saem do diff `base...head` e continuam sendo da entrega (revisão de segurança A1)."""
-    return set(nomes_do_intervalo(raiz, base, desde, tres_pontos=True))
+    base, saem do diff `base...head` e continuam sendo da entrega (revisão de segurança A1). None se o git falha."""
+    nomes = nomes_do_intervalo(raiz, base, desde, tres_pontos=True, estrito=True)
+    return None if nomes is None else set(nomes)
 
 
 def gatilhos(raiz, pedido, ref=None, base=None):
     """(exige devops, [gatilhos de segurança]) da entrega: pelo diff nos casos óbvios e, no resto, pelo que o
     plano técnico do pedido marca em `gatilhos_seguranca` (R-SEGURANCA)."""
     arquivos = arquivos_da_entrega(raiz, ref, base)
+    if arquivos is None:  # C-4: o git falhou, o diff não foi lido; sem isenção nem gatilho a menos, os dois portões valem
+        return True, ["o git falhou: o diff da entrega não foi lido"]
     infra = any(PIPELINE_E_INFRA.match(a) for a in arquivos)
     achados = []
     for nome, casa in (("pipeline, contêiner ou infraestrutura", PIPELINE_E_INFRA.match),
@@ -810,10 +816,12 @@ def nomes_do_intervalo(raiz, de, ate, tres_pontos=False, estrito=False):
     return (None if estrito else []) if cod else nomes_z(saida)
 
 
-def contagens_do_intervalo(raiz, de, ate, tres_pontos=False):
-    """{arquivo: (acrescentadas, removidas)} do `--numstat` do intervalo (`-` do binário fica `-`)."""
+def contagens_do_intervalo(raiz, de, ate, tres_pontos=False, estrito=False):
+    """{arquivo: (acrescentadas, removidas)} do `--numstat` do intervalo (`-` do binário fica `-`). Com `estrito`, a falha do git devolve None."""
     rev = f"{de}...{ate}" if tres_pontos else f"{de}..{ate}"
     cod, saida = git(raiz, "diff", "--numstat", "-z", "--no-renames", "--no-ext-diff", "--no-textconv", rev, "--", bruto=True)
+    if cod and estrito:
+        return None
     contagens = {}
     for registro in ([] if cod else nomes_z(saida)):
         partes = registro.split("\t", 2)
@@ -838,28 +846,46 @@ def arquivo_existe(caminho):
         return False
 
 
+class PedidoFora(Exception):
+    """`--pedido` com cara de caminho que não cai em `docs/pedidos/` de nenhuma raiz guardada (FC-PEDIDO-FORA-DAS-RAIZES, R-2)."""
+
+
 def caminho_do_pedido(raiz, pedido):
-    """Arquivo do pedido: o caminho dado, `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e,
-    por último, de cada raiz de brief (só em `docs/pedidos/`, `realpath`: travessia e link para fora não valem)."""
+    """Arquivo do pedido: `docs/pedidos/<id>.md` da cópia principal (nunca o da branch entregue, A1), da raiz e, por último, de cada
+    raiz de brief; o caminho dado (absoluto, `~/` ou relativo) só vale se o `realpath` cair em `docs/pedidos/` de uma dessas raízes
+    (travessia, link e pasta vizinha não valem) e o que se lê é o caminho resolvido (C-3). Fora delas, levanta `PedidoFora`."""
     caminhoso = "/" in pedido or pedido.endswith(".md")  # com cara de caminho nunca recebe `docs/pedidos/` nem `.md` (C2)
     dado = Path(pedido)
     if pedido.startswith("~/"):  # só o `~/` do começo, pelo HOME; nunca `~usuario` (C-10)
         dado = Path.home() / pedido[2:]
-    if arquivo_existe(dado) or (caminhoso and dado.is_absolute()):
-        return dado
     if caminhoso:
+        dentro, escapa = [], False  # escapa: numa raiz o caminho existe, mas o `realpath` sai de docs/pedidos/ (link, `..`)
         for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
-            achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
-            if achado is not None and arquivo_existe(achado):
-                return achado
-        return dado
-    for pasta in (raiz_principal(raiz), Path(raiz)):
-        if (pasta / "docs" / "pedidos" / f"{pedido}.md").is_file():
-            return pasta / "docs" / "pedidos" / f"{pedido}.md"
-    for base in RAIZES_DE_BRIEF:
-        achado = dentro_da_raiz(base, Path("docs") / "pedidos" / f"{pedido}.md", ("docs/pedidos",))
-        if achado is not None and achado.is_file():
+            try:
+                achado = dentro_da_raiz(base, dado, ("docs/pedidos",))  # C-8: travessia e link para fora não valem
+            except ValueError:  # NUL no nome
+                achado = None
+            if achado is not None:
+                dentro.append(achado)
+            else:
+                escapa = escapa or os.path.lexists(Path(base) / dado)
+        if existentes := [a for a in dentro if arquivo_existe(a)]:
+            return existentes[0]
+        if not dentro or escapa:
+            raise PedidoFora(pedido)
+        return dentro[0]  # dentro das raízes e sem arquivo: quem lê diz que não conseguiu
+    escapa = False  # id nu cujo arquivo é link para fora de docs/pedidos/ (C-3): nunca é lido
+    for pasta in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        relativo = Path("docs") / "pedidos" / f"{pedido}.md"
+        try:
+            achado = dentro_da_raiz(pasta, relativo, ("docs/pedidos",))
+        except ValueError:  # NUL no nome
+            achado = None
+        if achado is not None and arquivo_existe(achado):
             return achado
+        escapa = escapa or (achado is None and os.path.lexists(Path(pasta) / relativo))
+    if escapa:
+        raise PedidoFora(pedido)
     return Path(raiz) / "docs" / "pedidos" / f"{pedido}.md"
 
 
@@ -1071,28 +1097,48 @@ def uniao_de_briefs(raiz, pedido_id, branch, base, base_sha, briefs, caminho=Non
     return linhas
 
 
+class FalhaDoGit:
+    """O git falhou num passo do escopo (C-1, FC-ENTREGA-GIT-FALHA-ABERTA): distinto do None dos filtros ("não se aplica")."""
+    def __init__(self, passo):
+        self.passo = passo
+
+
 def diferem_dos_dois_pais(raiz, de, head, base_ref):
     """`(arquivos, contagens)` que o `head` muda contra cada um dos pais quando ele é um commit de integração da base: dois pais,
     o único commit próprio do intervalo `de..head` (fora da base), um pai é o `de` e o outro é ancestral da base; senão None. É o
     que `git show --cc` mostra: a integração limpa não tem escopo próprio; com conflito resolvido, só os arquivos resolvidos. Com
     outro merge antes do head, o conteúdo posto nele não é visto pelo `--cc` do head: vale o escopo de hoje (CONF-BASE-DONO).
-    `contagens` é, por arquivo, o maior `+`/`-` entre os dois pais (a regra do anexo com remoção não pode ser enganada)."""
+    `contagens` é, por arquivo, o maior `+`/`-` entre os dois pais (a regra do anexo com remoção não pode ser enganada).
+    `FalhaDoGit` se o git falha em qualquer passo (nunca a lista vazia)."""
     cod, pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
-    partes = pais.split() if not cod else []
+    if cod:
+        return FalhaDoGit("rev-list dos pais do head")
+    partes = pais.split()
     if len(partes) != 3 or not base_ref or de not in partes[1:]:
         return None
     outro = partes[2] if partes[1] == de else partes[1]
     cod, proprios = git(raiz, "rev-list", f"{de}..{head}", "--not", base_ref)
-    if cod or proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):
+    if cod:
+        return FalhaDoGit("rev-list dos commits próprios")
+    if proprios.split() != [head] or not e_ancestral(raiz, outro, base_ref):
         return None
     comuns, contagens = None, {}
     for pai in partes[1:]:
-        nomes = set(nomes_do_intervalo(raiz, pai, head))
+        nomes, por_arquivo = nomes_do_intervalo(raiz, pai, head, estrito=True), contagens_do_intervalo(raiz, pai, head, estrito=True)
+        if nomes is None or por_arquivo is None:
+            return FalhaDoGit("diff contra um dos pais")
+        nomes = set(nomes)
         comuns = nomes if comuns is None else comuns & nomes
-        for nome, (mais, menos) in contagens_do_intervalo(raiz, pai, head).items():
+        for nome, (mais, menos) in por_arquivo.items():
             antes = contagens.get(nome)
             contagens[nome] = (maior_contagem(antes[0], mais), maior_contagem(antes[1], menos)) if antes else (mais, menos)
     return comuns, contagens
+
+
+def igual_na_base(raiz, commit, base_ref, nome):
+    """O `nome` é byte a byte o mesmo no `commit` e na base; só com o `rev-parse` em código 0 nos dois lados (dois que falham não são "iguais")."""
+    (cod, a), (cod_base, b) = git(raiz, "rev-parse", f"{commit}:{nome}"), git(raiz, "rev-parse", f"{base_ref}:{nome}")
+    return cod == 0 and cod_base == 0 and a == b
 
 
 def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
@@ -1100,22 +1146,33 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
     antes ou depois: cada commit conta o que mudou contra o primeiro pai; o merge cujo outro pai é ancestral da base conta só o que difere
     dos dois pais (o `--cc`, a resolução). Merge de outra coisa conta tudo (falha fechada). None sem merge da base (o escopo de hoje)."""
     cod, saida = git(raiz, "rev-list", "--first-parent", "--parents", f"{de}..{head}")
-    if cod or not base_ref:
+    if cod:
+        return FalhaDoGit("rev-list do primeiro pai")
+    if not base_ref:
         return None
     nomes, integrou = set(), False
     for linha in saida.splitlines():
         commit, *pais = linha.split()
         if not pais:
             return None
-        proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
+        proprios = nomes_do_intervalo(raiz, pais[0], commit, estrito=True)
+        if proprios is None:
+            return FalhaDoGit("diff do commit contra o primeiro pai")
+        proprios = set(proprios)
         if len(pais) == 1 and e_ancestral(raiz, commit, base_ref):  # L08: commit de release ou squash de outro pedido, já na base remota
-            da_base = {n for n in proprios if git(raiz, "rev-parse", f"{commit}:{n}") == git(raiz, "rev-parse", f"{base_ref}:{n}")}
+            da_base = {n for n in proprios if igual_na_base(raiz, commit, base_ref, n)}
             integrou, proprios = integrou or bool(da_base), proprios - da_base  # só o que a base ainda tem igual sai; o resto é da entrega
         if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
             integrou = True
-            da_base = set(nomes_do_intervalo(raiz, pais[1], commit))
+            da_base = nomes_do_intervalo(raiz, pais[1], commit, estrito=True)
             cod, mb = git(raiz, "merge-base", pais[0], pais[1])
-            descartados = set(nomes_do_intervalo(raiz, mb, pais[1])) & da_base if not cod and mb else da_base
+            if da_base is None or cod:
+                return FalhaDoGit("diff do merge da base")
+            descartados = nomes_do_intervalo(raiz, mb, pais[1], estrito=True)
+            if descartados is None:
+                return FalhaDoGit("diff do ancestral comum")
+            da_base = set(da_base)
+            descartados = set(descartados) & da_base
             proprios = (proprios & da_base) | descartados  # o que a base mudou e o merge não manteve (-s ours) é do autor
         nomes |= proprios
     return nomes if integrou else None
@@ -1190,14 +1247,28 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     if linha_do_desde:
         linhas.append((linha_do_desde, reprova))
     de = valido or base_sha
+    falhas = []  # C-1: os passos do git que falharam; com algum, a entrega reprova em toda etapa e nenhum filtro tira arquivo (C-3)
     arquivos = arquivos_da_entrega(raiz, head, base_sha, valido)
+    if arquivos is None:
+        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:  # só rotula: o Base-sha já foi lido como commit, sem base aqui o git falhou
+            falhas.append("base da entrega")
+        falhas.append("diff da entrega")
+        arquivos = []  # sem lista para mostrar: a reprovação vem de `falhas`, nunca de "nada a conferir"
+    todos = list(arquivos)  # a lista antes de qualquer filtro: uma falha posterior a um filtro saudável mostra esta (C-3, exibição)
     informativas = [("base: fixada pelo dono (linha do Histórico)", False)] if valido and origem_da_base == "dono" else []
-    if dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref):  # E2: só integração na branch
-        desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o merge que devolve à base o que a branch pôs (segurança A2)
+    desfeitos = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set()  # o que a branch pôs e o merge devolveu à base (segurança A1, A2)
+    if desfeitos is None:
+        falhas.append("diff do que a branch já mudou até a conferida")
+        desfeitos = set()  # sem lista; a reprovação vem de `falhas` e a lista volta inteira no fim
+    dos_dois_pais = diferem_dos_dois_pais(raiz, de, head, base_ref)
+    primeiro_pai = escopo_pelo_primeiro_pai(raiz, de, head, base_ref) if dos_dois_pais is None else None  # G2: o merge entre outros commits
+    falhas += [r.passo for r in (dos_dois_pais, primeiro_pai) if isinstance(r, FalhaDoGit)]
+    dos_dois_pais, primeiro_pai = (None if isinstance(r, FalhaDoGit) else r for r in (dos_dois_pais, primeiro_pai))
+    if dos_dois_pais:  # E2: só integração na branch
         arquivos = [n for n in arquivos if n in dos_dois_pais[0] or n in desfeitos]
         informativas.append(("escopo: integração da base (o que difere dos dois pais)", False))
-    elif (primeiro_pai := escopo_pelo_primeiro_pai(raiz, de, head, base_ref)) is not None:  # G2: o merge entre outros commits
-        desfeitos, antes = desfeitos_da_entrega(raiz, base_sha, valido) if valido else set(), len(arquivos)
+    elif primeiro_pai is not None:
+        antes = len(arquivos)
         arquivos = [n for n in arquivos if n in primeiro_pai or n in desfeitos]
         informativas += [("escopo: integração da base (o que difere dos dois pais)", False)] if len(arquivos) < antes else []
     if etapa in ETAPAS_DE_MERGE and base_ref and not e_ancestral(raiz, head, base_ref):
@@ -1206,26 +1277,38 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         nomes_da_base = nomes_do_intervalo(raiz, base_ref, head, estrito=True)
         if nomes_da_base is None:  # C3: o git falhou; nada se filtra e a etapa reprova, com ou sem arquivo (C-13)
             linhas.append(("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", True))
-        else:
-            diferem = set(nomes_da_base)
-            if valido:  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
-                diferem |= desfeitos_da_entrega(raiz, base_sha, valido)
+        else:  # com outro passo do git falho a lista volta inteira no fim (C-3)
+            diferem = set(nomes_da_base) | desfeitos  # o que a branch mudou até a conferida e devolveu à base depois dela continua à vista (segurança A1)
             arquivos = [n for n in arquivos if n in diferem]
-    pais = git(raiz, "rev-list", "--parents", "-n", "1", head)[1].split()[1:]
+    cod_pais, saida_pais = git(raiz, "rev-list", "--parents", "-n", "1", head)
+    pais = []
+    if cod_pais:
+        falhas.append("rev-list dos pais do head")
+    else:
+        pais = saida_pais.split()[1:]
     integrado = etapa == "merge-integracao" and bool(base_ref) and e_ancestral(raiz, head, base_ref) and len(pais) == 1
     if integrado:  # E1: a ref já foi apagada (squash): o head é o mergeCommit e o escopo é só o que ele traz
-        de, arquivos = pais[0], nomes_do_intervalo(raiz, pais[0], head)
+        de, do_merge = pais[0], nomes_do_intervalo(raiz, pais[0], head, estrito=True)
+        if do_merge is None:
+            falhas.append("diff do merge integrado")
+        else:
+            arquivos = do_merge
     revisados = etapa == "merge-integracao" and valido is None  # E1: com `--desde` o delta da etapa segue lido como sempre
     violacoes = pareceres_da_integracao(raiz, branch, head, base, de if integrado else None) if revisados else []
     if violacoes:  # E1: sem os pareceres aprovados no head, o escopo continua o do Entregar
         linhas.append((f"escopo: merge-integracao sem os pareceres aprovados no head: {caminho_impresso(violacoes[0])}", True))
     slug = branch_da_convencao(raiz, branch)
-    contagens = (dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None))
+    contagens = dos_dois_pais[1] if dos_dois_pais else contagens_do_intervalo(raiz, de, head, tres_pontos=valido is None, estrito=True)
+    if contagens is None:
+        falhas.append("contagens do diff")
+        contagens = {}  # só mostra "?" nas linhas; a reprovação vem de `falhas`
     registros = autorias(raiz)
     m = re.search(r"^id:\s*(\S+)", texto, re.M)
     pedido_id = m.group(1) if m else caminho.stem
-    linhas += informativas
-    if not arquivos:
+    if falhas:  # o filtro que já rodou não esconde arquivo de quem confere, nem anuncia o que a lista não passou a ter
+        arquivos, informativas = todos, [i for i in informativas if not i[0].startswith("escopo: integração da base")]
+    linhas += informativas + [(f"escopo: o git falhou ({passo}); o escopo não foi lido", True) for passo in falhas]
+    if not arquivos and not falhas:
         vazio = ("pendente: a entrega é só a integração da base (o merge não traz trabalho próprio); todo item do \"Entregar\" está sem commit"
                  if dos_dois_pais else "pendente: intervalo vazio na etapa codigo (nenhum commit novo); todo item do \"Entregar\" está sem commit")
         linhas.append((vazio, True) if etapa == "codigo" else ("escopo: sem commit (nada a conferir)", False))
@@ -1760,7 +1843,9 @@ def arquivos_por_branch(raiz, base=None):
     tocados = {}
     for nome in branches_de_melhoria(raiz):
         ref = nome if not git(raiz, "rev-parse", "--verify", "--quiet", f"refs/heads/{nome}")[0] else f"origin/{nome}"
-        tocados[nome] = set(arquivos_da_entrega(raiz, ref, b))
+        arquivos = arquivos_da_entrega(raiz, ref, b)
+        if arquivos is not None:  # informativo: a branch cujo git falhou fica fora da comparação, não entra como vazia
+            tocados[nome] = set(arquivos)
     return b, tocados
 
 
@@ -6054,6 +6139,9 @@ def main():
     except subprocess.TimeoutExpired as e:
         print(f"git: tempo esgotado ({GIT_TIMEOUT_S} s) em `{' '.join(map(str, e.cmd[3:5]))}`; tente de novo")
         return 1
+    except PedidoFora as e:  # C-2: entrada ilegível em todo chamador, nunca "sem pedido"
+        print(f"forge-check: --pedido fora de docs/pedidos/ das raízes: {nome_seguro(sem_controle(e))}")
+        return 2
 
 
 def executar(a, raiz):

@@ -1,0 +1,157 @@
+{
+  "pedido": "lote-fc-seguranca",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M13",
+      "guarda": "rev-list dos próprios falha",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return FalhaDoGit(\"rev-list dos commits próprios\")",
+      "para": "    if False:\n        return FalhaDoGit(\"rev-list dos commits próprios\")",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "diff contra um dos pais falha",
+      "arquivo": "bin/forge-check",
+      "de": "        if nomes is None or por_arquivo is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_merge_da_base_com_desde"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "dois rev-parse que falham não são iguais",
+      "arquivo": "bin/forge-check",
+      "de": "    return cod == 0 and cod_base == 0 and a == b",
+      "para": "    return a == b",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "rev-list do primeiro pai falha",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return FalhaDoGit(\"rev-list do primeiro pai\")",
+      "para": "    if False:\n        return FalhaDoGit(\"rev-list do primeiro pai\")",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "diff do commit contra o primeiro pai falha",
+      "arquivo": "bin/forge-check",
+      "de": "        if proprios is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
+      "id": "M18",
+      "guarda": "só o arquivo igual à base sai",
+      "arquivo": "bin/forge-check",
+      "de": "if igual_na_base(raiz, commit, base_ref, n)}",
+      "para": "if True}",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo",
+        "tests.test_volta_por_delta.Entrega.test_commit_da_base_alterado_depois_nela_segue_no_escopo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "diff do merge da base falha",
+      "arquivo": "bin/forge-check",
+      "de": "            if da_base is None or cod:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "diff do ancestral comum falha",
+      "arquivo": "bin/forge-check",
+      "de": "            if descartados is None:",
+      "para": "            if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_primeiro_pai_sem_desde"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "os números da integração são contra os dois pais",
+      "arquivo": "bin/forge-check",
+      "de": "dos_dois_pais[1] if dos_dois_pais else",
+      "para": "dos_dois_pais[1] if False else",
+      "testes": [
+        "tests.test_conferencia_base_dono.IntegracaoNaBranch.test_os_numeros_da_integracao_sao_contra_os_dois_pais"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "diff da entrega que falha abre o bloco das falhas",
+      "arquivo": "bin/forge-check",
+      "de": "    if arquivos is None:\n        if base_da_entrega",
+      "para": "    if False:\n        if base_da_entrega",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "a base ilegível do Base-sha rotula a falha",
+      "arquivo": "bin/forge-check",
+      "de": "        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_sem_base_na_entrega_e_falha_do_git"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "desfeitos que falha entra em falhas",
+      "arquivo": "bin/forge-check",
+      "de": "    if desfeitos is None:\n        falhas.append",
+      "para": "    if False:\n        falhas.append",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "só o diff que falha não rotula a base ausente",
+      "arquivo": "bin/forge-check",
+      "de": "        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_so_o_diff_que_falha_nao_anuncia_a_base_ausente"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "a lista de candidatos da base pedida existe com base dada",
+      "arquivo": "bin/forge-check",
+      "de": "([f\"origin/{base}\", base] if base else [])",
+      "para": "([f\"origin/{base}\", base] if False else [])",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "base dada que não lê é None, não []",
+      "arquivo": "bin/forge-check",
+      "de": "        return None if base else []",
+      "para": "        return None if False else []",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_sem_base_na_entrega_e_falha_do_git"
+      ]
+    }
+  ]
+}

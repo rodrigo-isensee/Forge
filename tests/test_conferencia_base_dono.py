@@ -206,6 +206,7 @@ class IntegracaoNaBranch(Repositorio):
 
 class PedidoForaDoClone(Repositorio):
     """E3: `--raiz-pedidos <dir>`: pedido e briefs numa raiz, git em outra."""
+    mostra_origem = True
 
     def setUp(self):
         super().setUp()
