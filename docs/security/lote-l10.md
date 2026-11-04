@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: fd7b1449476c771f60ee4607e083b503777e2ed6
+commit: 460659b89d6265e77c9ce984c9e76171377ef1d2
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -53,6 +53,14 @@ A pergunta da rodada foi se alguma recusa passou a liberar. Não passou. No `bin
 - A3 fechado pelo `08aa2a4`: `aberta-nao`, `aberta nao`, `aberta.`, `aberta` seguida de U+200B, de acento combinante ou de NUL não provam mais a abertura.
 - Sufixos que ainda passam, pela sonda da função `etapas_novas_da_volta`: só espaço em branco (`" "`, `\t`, `\r`, U+00A0, U+2003), que não carrega texto, e os separadores de linha do `str.splitlines()` seguidos de texto, por exemplo `aberta` + `\x0b` + `não, cancelada`. Nesse caso o `secoes_por` parte a linha física em duas e a primeira casa. É o A4: recomendado, severidade baixa. Para usar, o próprio Jarvis (único com escrita em `docs/pedidos/`) teria de gravar um caractere de controle no meio da linha. Não é regressão: com `aberta\b` passava igual. A mesma divisão vale para as outras linhas do Histórico lidas por `secoes_por`, como a `entrega conferida` do E7, e cabe num item próprio.
 - O `commit:` deste parecer é o `fd7b144`, o teste do QA (regra E16). Depois dele só entram o merge do L08 e do L09 e o mapa, já revisados nos pareceres deles, e a linha do L10 no mapa, que só acrescenta. As linhas do `## Achados` seguem este head. Testes: `test_volta_por_delta.py`, `test_qa_lote_l10.py` e `test_testes_tocados.py` (68, 1 e 86 testes): OK.
+
+## Revalidação (460659b, pareceres por branch, E7 e E11)
+O código chegou pelo merge do L08 (`1d50bea` e `083a959`). As linhas `+`/`-` do `bin/forge-check` são idênticas às do L08 (comparei os diffs); o código do item deste lote não mudou. Numa branch de trabalho, o `pr` só conta os pareceres com `branch:` igual à dela e reprova se não houver nenhum. Na promoção e sem branch, vale o mais recente do pedido, como antes. Nenhuma recusa passou a liberar: com parecer da branch, a escolha é a mesma de antes (`da_branch or achados`); sem ele, o que antes caía no mais recente do pedido agora reprova. Toda escolha continua presa ao `commit_vale` contra o head.
+- `branch:` forjado ou copiado de outra branch: o campo só escolhe qual parecer é lido. O parecer escolhido ainda precisa ter um `commit:` que cubra o head (ancestral, e depois dele só pareceres, quadro e o fragmento do changelog). Copiar o parecer de outro item não faz o código desta branch passar por revisado, e `docs/security/` é escrita só do papel de segurança.
+- Branch com nome de promoção: um nome em `develop`, `homolog` ou `main` (também `origin/<base>`, que `branch_da_ref` reduz ao nome) cai no caminho de antes, o mais recente do pedido. Isso não é afrouxamento novo, e a conferência do head segue cobrada fora da `promocao`, que compara por sha.
+- Sha ambíguo: `branch_do_sha` devolve None quando há mais de uma branch no sha, e o `pr` volta ao comportamento anterior (mais recente do pedido mais `commit_vale`). A conferência do head segue cobrada e, sem pedido direto, reprova. É o mesmo nível de antes, não uma brecha nova. Recomendação (baixa): na linha de comando, sha ambíguo entre branches de trabalho poderia reprovar em vez de voltar ao mais recente.
+- Parecer ausente: na branch de trabalho, reprova (`sem parecer da branch`). Sem branch nenhuma (sha solto, catraca do CI) vale o caminho antigo por desenho. O hook `parecer` (`hooks/parecer.py:419`) chama `cmd_pr` sem `branch` e herda `branch_da_ref`, ou seja, o mesmo aperto quando a ref é nome de branch.
+Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead` (11) e `-p test_promover_homolog.py` (36), OK no L08, onde está o código.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito por este parecer. O afrouxamento é o da Q14 = A, decisão do dono, e o rótulo `afrouxa-regra` fica com ele. Testes: `python3 -I -m unittest discover -s tests -p test_volta_por_delta.py` (68 testes, OK). A sonda local de `etapas_novas_da_volta` (seis casos) rodou no scratchpad, fora do repositório. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência).
