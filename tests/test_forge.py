@@ -2055,6 +2055,33 @@ class ForgeCheck(unittest.TestCase):
         git("switch", "-q", "develop", cwd=self.tmp)
         self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
+    def test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch(self):
+        """E11: mesmo pedido, tipo e data; o de outra branch (desatualizado, caminho depois na ordem) não passa na frente."""
+        velho = self.head()
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar("muda")
+        self.pareceres(self.head())
+        self.escrever("docs/reviews/p1b.md", "---\n" + self.REVIEW.format(c=velho, p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
+        codigo, saida = self.check("pr", "p1", "--ref", self.head())  # sha sem branch: o mais recente do pedido, como antes
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("commit", saida)
+
+    def test_pr_parecer_reprovado_da_propria_branch_reprova(self):
+        self.pareceres(self.head(), p="reprovado")
+        self.escrever("docs/reviews/p1b.md", "---\n" + self.REVIEW.format(c=self.head(), p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        codigo, saida = self.check("pr", "p1", "--ref", "melhoria/x")
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("não é aprovado", saida)
+
+    def test_pr_sem_parecer_da_branch_cai_no_mais_recente_do_pedido(self):
+        self.pareceres(self.head())
+        self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=self.head(), p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
+
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
         linhas = []
