@@ -1,2 +1,2 @@
 ### Alterado
-- Hook `conformidade`: a recusa de dentro de um comando cita o comando, `(em `…`)` antes do `Corrigir:`, até 50 caracteres, sem caractere de controle nem marca bidirecional e com a crase trocada por `'`; só entra se a linha inteira couber nos 200 caracteres, então o motivo e o `Corrigir:` nunca se cortam por ele (HOOK-MSG-SEGMENTO).
+- Hook `conformidade`: a recusa de dentro de um comando cita o comando, `(em `…`)` antes do `Corrigir:`, até 50 caracteres, sem caractere de controle nem marca bidirecional com a crase trocada por `'` e com o valor de `NOME=valor` e o corpo de token do GitHub (`ghp_`, `github_pat_`) mascarados; só entra se a linha inteira couber nos 200 caracteres, então o motivo e o `Corrigir:` nunca se cortam por ele (HOOK-MSG-SEGMENTO).
