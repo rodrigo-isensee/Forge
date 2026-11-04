@@ -5746,3 +5746,39 @@ class PrMescladoPeloHead(RepoComOrigem):
                 rc, saida, erro = self.pr_mesclado(*extra, "--base", "develop")
                 self.assertEqual(rc, 2, saida + erro)
                 self.assertNotIn("veredito", saida)
+
+
+class TesteEParecerSeparados(RepoComOrigem):
+    """E16 (QA-TESTE-E-PARECER-SEPARADOS, Q10 = A): o parecer commitado junto do teste, apontando para o commit anterior, é recusado
+    com o motivo; teste e parecer em commits separados passam, e o review revalida o delta do teste."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-13\n---\n# q2\n")
+    REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+              "revisor: forge:tech-lead\ndata: 2026-10-13\n---\n# r2\n")
+
+    def test_parecer_no_mesmo_commit_do_teste_e_recusado_com_o_motivo(self):
+        junto = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "teste e parecer juntos")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer; "
+                      f"o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
+                      "teste e parecer vão em commits separados", saida)
+
+    def test_commit_inexistente_nao_ganha_a_explicacao(self):  # o motivo é outro: o commit citado não existe
+        self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c="1" * 40)}, "teste e parecer juntos")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/qa/p1.md: commit: commit não existe no repositório (R-QA)", saida)
+        self.assertNotIn("commitado junto", saida)
+
+    def test_commits_separados_valem_e_o_review_revalida_o_delta_do_teste(self):
+        teste = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n"}, "teste do QA")
+        self.commitar(self.repo, {"docs/qa/p1.md": self.QA.format(c=teste)}, "parecer do QA")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("docs/qa/p1.md", saida)
+        self.assertIn("docs/reviews/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer", saida)
+        self.assertNotIn("commitado junto", saida)  # o review velho não veio com o teste: o motivo é o de sempre
+        self.commitar(self.repo, {"docs/reviews/p1.md": self.REVIEW.format(c=teste)}, "review revalida o delta do teste")
+        rc, saida, _ = self.pr()
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)

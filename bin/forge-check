@@ -776,6 +776,17 @@ def head_do_pr_mesclado(raiz, numero):
     return head, nome.removeprefix("refs/heads/"), None
 
 
+def commit_junto_do_parecer(raiz, rel, ate, livres):
+    """E16 (QA-TESTE-E-PARECER-SEPARADOS): (sha, arquivo) quando o último commit que mexeu no parecer `rel` até `ate` também mexeu num
+    arquivo fora de `livres` (o teste ou o código commitado com o parecer); senão None. Só explica a recusa, nunca a decide."""
+    cod, sha = git(raiz, "log", "-1", "--format=%H", "--end-of-options", ate, "--", rel)
+    if cod or not SHA40.match(sha):
+        return None
+    cod, saida = git(raiz, "diff-tree", "--no-commit-id", "--name-only", "-r", "-z", "--no-renames", "--root", sha, bruto=True)
+    fora = [] if cod else [n for n in nomes_z(saida) if not livre(n, livres)]
+    return (sha, fora[0]) if fora else None
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
     """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`."""
     saida = []
@@ -811,7 +822,12 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
         elif campos.get("parecer") not in ("aprovado", "riscos-aceitos"):
             saida.append(f"{caminho_impresso(rel)}: parecer: o último parecer não é aprovado ({rid})")
         elif campos.get("commit") and COMMIT.match(campos["commit"]):
-            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, LIVRES + (f"changelog.d/{pedido}.md",))  # D4
+            livres = LIVRES + (f"changelog.d/{pedido}.md",)  # D4
+            motivo = commit_vale(raiz, campos["commit"], ref or "HEAD", base, livres)
+            junto = commit_junto_do_parecer(raiz, rel, ref or "HEAD", livres) if motivo and motivo.startswith("desatualizado") else None
+            if junto and not e_ancestral(raiz, junto[0], campos["commit"]):  # E16: o parecer veio no mesmo commit do teste, depois do que cita
+                motivo += (f"; o parecer foi commitado junto com {caminho_impresso(junto[1])} ({junto[0][:7]}), depois do commit que ele cita: "
+                           "teste e parecer vão em commits separados e o `commit:` do parecer é o do teste (QA-TESTE-E-PARECER-SEPARADOS)")
             if motivo:
                 saida.append(f"{caminho_impresso(rel)}: commit: {motivo} ({rid})")
     return saida
