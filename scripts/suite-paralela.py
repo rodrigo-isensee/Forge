@@ -232,10 +232,11 @@ def ler_cpu_dos_grupos(grupos):
 
 
 class Medidor:
-    """Núcleos ocupados por processos de fora da suíte entre duas chamadas (a 1.a devolve None)."""
+    """Núcleos ocupados por processos de fora da suíte entre duas chamadas (a 1.a devolve None); `nosso` guarda os
+    núcleos que a própria suíte (os grupos `grupos`, com os subprocessos dos testes) usou no mesmo intervalo."""
 
     def __init__(self):
-        self.cpu, self.nossos = ler_cpu_do_sistema(), {}
+        self.cpu, self.nossos, self.nosso = ler_cpu_do_sistema(), {}, 0.0
 
     def alheios(self, grupos):
         cpu, nossos = ler_cpu_do_sistema(), ler_cpu_dos_grupos(grupos)
@@ -244,11 +245,14 @@ class Medidor:
         if cpu is None or antes is None or cpu[1] <= antes[1]:
             return None
         nosso = sum(t - nossos_antes.get(p, 0) for p, t in nossos.items() if t >= nossos_antes.get(p, 0))
+        self.nosso = nosso / (cpu[1] - antes[1]) * cpu[2]
         return max(0.0, (cpu[0] - antes[0] - nosso) / (cpu[1] - antes[1]) * cpu[2])
 
 
-def quantos_em_paralelo(nproc, alheios, memoria, total):
-    """(N, motivo): quantos processos a suíte pode ter agora (R-TETO fluido, SUITE-FLUIDA)."""
+def quantos_em_paralelo(nproc, alheios, memoria, total, rodando=0, nosso=0.0):
+    """(N, motivo): quantos processos a suíte pode ter agora (R-TETO fluido, SUITE-FLUIDA). Conta CPU, não processo:
+    acima do piso, só cabe mais um se os outros (`alheios`) mais o que os `rodando` da suíte usam (`nosso`, com os
+    subprocessos dos testes) mais um núcleo ficam em 0,8 x nproc; e sobe no máximo um por medida."""
     nproc = max(1, nproc or 1)
     base, minimo = min(TETO, nproc), min(2, nproc)
     if None not in (memoria, total) and memoria <= max(PISO_GB, PISO_FRACAO * total):
@@ -257,8 +261,9 @@ def quantos_em_paralelo(nproc, alheios, memoria, total):
         return base, "sem medida da CPU"
     if alheios >= round(CARGA_MAX * nproc, 6):
         return minimo, f"carga alta, {alheios:.1f} de {nproc} núcleos ocupados por outros"
-    cabe = min(nproc, int(CARGA_MAX * nproc - alheios))
-    return max(base, cabe), f"{alheios:.1f} de {nproc} núcleos ocupados por outros"
+    livre = CARGA_MAX * nproc - alheios - nosso
+    cabe = min(nproc, rodando + 1 if livre >= 1 else rodando, int(CARGA_MAX * nproc - alheios))
+    return max(base, cabe), f"{alheios:.1f} de {nproc} núcleos ocupados por outros, {nosso:.1f} pela suíte"
 
 
 # Processo filho -------------------------------------------------------------------------------------------------
@@ -467,11 +472,11 @@ def rodar_fluido(fila, pasta, filhos, partes, inicio, nproc):
                 fim[i] = time.monotonic() - inicio
         rodando = fim.count(None)
         _, memoria, total = medir_carga()
-        alvo, motivo = quantos_em_paralelo(nproc, medidor.alheios({p.pid for p, f in zip(filhos, fim) if f is None}),
-                                           memoria, total)
-        if alvo != aviso:
+        alheios = medidor.alheios({p.pid for p, f in zip(filhos, fim) if f is None})
+        alvo, motivo = quantos_em_paralelo(nproc, alheios, memoria, total, rodando, medidor.nosso)
+        if alvo != aviso and alvo != rodando:  # só a mudança de rumo, não cada processo que termina
             print(f"suite-paralela: até {alvo} em paralelo ({motivo}).", file=sys.stderr, flush=True)
-            aviso = alvo
+        aviso = alvo
         while pendentes and rodando < alvo:
             partes.append([pendentes.pop(0)])
             fim.append(None)

@@ -118,13 +118,20 @@ class Logica(unittest.TestCase):
 
     def test_quantos_em_paralelo_segue_a_carga_de_fora(self):  # SUITE-FLUIDA
         q = lambda *a: self.s.quantos_em_paralelo(*a)[0]  # noqa: E731
-        self.assertEqual(q(12, 0.0, 20.0, 30.0), 9)  # máquina livre: 0,8 x 12
-        self.assertEqual(q(12, 3.2, 20.0, 30.0), 6)  # sobe e desce com os núcleos ocupados por outros
+        self.assertEqual(q(12, 0.0, 20.0, 30.0), 4)  # no começo, o piso; sobe um por medida
+        self.assertEqual(q(12, 0.0, 20.0, 30.0, 8, 4.0), 9)  # máquina livre: até 0,8 x 12
+        self.assertEqual(q(12, 0.0, 20.0, 30.0, 9, 4.0), 9)  # e não passa disso
+        self.assertEqual(q(12, 3.2, 20.0, 30.0, 6, 3.0), 6)  # o teto desce com os núcleos ocupados por outros
         self.assertEqual(q(12, 7.0, 20.0, 30.0), 4)  # nunca abaixo de min(4, nproc) com folga
         self.assertEqual(q(12, 9.6, 20.0, 30.0), 2)  # carga alta: 0,8 x nproc ocupados por outros
         self.assertEqual(q(12, 0.0, 1.0, 30.0), 2)  # memória no piso
         self.assertEqual(q(12, None, 20.0, 30.0), 4)  # sem medida da CPU
-        self.assertEqual(q(64, 0.0, 200.0, 256.0), 51)  # sem teto fixo: deriva do hardware
+        self.assertEqual(q(64, 0.0, 200.0, 256.0, 50, 10.0), 51)  # sem teto fixo: deriva do hardware
+        # conta CPU, não processo: sobe um por medida enquanto os outros + a suíte + 1 núcleo cabem em 0,8 x nproc
+        self.assertEqual(q(12, 1.0, 20.0, 30.0, 5, 4.0), 6)
+        self.assertEqual(q(12, 1.0, 20.0, 30.0, 6, 8.5), 6)  # a suíte já usa 8,5 núcleos com 6 processos: não sobe
+        self.assertEqual(q(12, 1.0, 20.0, 30.0, 8, 9.0), 8)  # acima do teto de CPU: não lança (descer é não lançar)
+        self.assertEqual(q(12, 1.0, 20.0, 30.0, 3, 9.0), 4)  # o piso de min(4, nproc) com folga continua
         self.assertEqual(q(1, 0.0, 20.0, 30.0), 1)
         self.assertEqual(q(None, None, None, None), 1)
         for nproc in (1, 2, 3, 4, 8, 12, 64):
