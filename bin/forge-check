@@ -1829,7 +1829,7 @@ def acrescentar(linhas, novas):
     return corpo + [n + "\n" for n in novas] + ["\n"]
 
 
-ETAPA_ABERTA = re.compile(r"^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: etapa (E\d+\.\d+[a-z]?) aberta\b")  # E14: a linha do Jarvis no `## Histórico`
+ETAPA_ABERTA = re.compile(r"^-\s+\d{4}-\d{2}-\d{2} \d{2}:\d{2}: etapa (E\d+\.\d+[a-z]?) aberta\s*$")  # E14: a linha do Jarvis no `## Histórico`, fechada no fim (QA L10-1, T-3)
 
 
 def etapas_novas_da_volta(pedido_txt, anterior, rel_anterior, cobre, etapa):

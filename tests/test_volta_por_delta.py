@@ -884,7 +884,8 @@ class BriefDeVolta(Repositorio):
                 self.assertEqual(rc, 1, conferencia)
                 self.assertIn(esperado, conferencia)
         for nome, historico in {"etapa aberta antes do brief anterior": (aberta, brief), "sem prova no Histórico": (brief,),
-                                "brief anterior não registrado": (aberta,), "prova fora da forma": (brief, "- etapa E1.4b aberta", "- nota: 2026-11-04 10:00: etapa E1.4b aberta")}.items():
+                                "brief anterior não registrado": (aberta,), "prova fora da forma": (brief, "- etapa E1.4b aberta", "- nota: 2026-11-04 10:00: etapa E1.4b aberta",
+                                                        "- 2026-11-04 10:00: etapa E1.4b aberta-nao", "- 2026-11-04 10:00: etapa E1.4b aberta.")}.items():
             with self.subTest(nome):  # C-3: a prova é só a ordem do Histórico do pedido
                 self.pedido_e14(*historico)
                 self.assertNotIn(self.LINHA_E14, self.gerar()[1].split("## Fora do escopo")[1].split("\n## ")[0])
