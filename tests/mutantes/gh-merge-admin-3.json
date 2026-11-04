@@ -1,5 +1,5 @@
 {
-  "pedido": "gh-merge-admin-3",
+  "pedido": "gh-merge-admin",
   "executor": "unittest",
   "isentas": [],
   "mutantes": [

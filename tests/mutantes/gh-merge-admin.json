@@ -76,7 +76,7 @@
       "id": "G8",
       "guarda": "as formas coladas de -f, -F e --input= viram método mutante",
       "arquivo": "hooks/parecer.py",
-      "de": "or re.match(r\"-i?[fF]\", a) is not None",
+      "de": "or re.match(r\"-[fF]\", a) is not None",
       "para": "or False",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
