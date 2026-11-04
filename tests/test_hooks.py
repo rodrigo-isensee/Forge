@@ -567,8 +567,16 @@ if sys.argv[5] == "lento":
                     open(os.environ["FORGE_MEDIDA_DO_LENTO"], "w").write(repr(time.monotonic() - inicio))
         return campo(self, *chaves)
     _comum.Hook.campo = lento
+modo = sys.argv[4]
 sys.argv = [sys.argv[2]]
-runpy.run_path(sys.argv[0], run_name="__main__")
+if sys.argv[0].endswith("/conformidade.py") and modo != "producao":
+    # prazo de parede da linha (3 s) largo como o da decisão: os testes medem a CPU, e a fila da máquina carregada
+    # alongaria a parede (TESTE-HEREDOCS-ORCAMENTO-ESTAVEL); sem tocar o hook
+    import conformidade
+    conformidade.PRAZO_DA_LINHA_S = _comum.PRAZO_DA_DECISAO_S
+    _comum.executar("conformidade", conformidade.principal, conformidade.CRITICO, regra_do_prazo="R-CONFORMIDADE")
+else:
+    runpy.run_path(sys.argv[0], run_name="__main__")
 """
 
 
