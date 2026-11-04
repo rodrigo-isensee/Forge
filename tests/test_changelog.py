@@ -405,6 +405,37 @@ class ConferirNoCI(Base):
         self.assertNotEqual(r.returncode, 0)
         self.assertIn("fragmento novo", r.stdout + r.stderr)
 
+    def _so_arquivo(self, caminho):
+        (self.dir / caminho).parent.mkdir(parents=True, exist_ok=True)
+        (self.dir / caminho).write_text("x\n", encoding="utf-8")
+        self.commitar()
+        return self.conferir()
+
+    def test_pr_so_de_pareceres_passa_sem_fragmento(self):
+        """RELEASE-PR-SO-PARECER: o PR só de pareceres da release (#399) não tem o que registrar."""
+        (self.dir / "docs" / "reviews").mkdir(parents=True)
+        (self.dir / "docs" / "reviews" / "a.md").write_text("x\n", encoding="utf-8")
+        r = self._so_arquivo("docs/qa/a.md")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("só de parecer", r.stdout)
+
+    def test_pr_de_parecer_com_modelo_ameacas_ou_aceites_continua_exigindo_fragmento(self):
+        for caminho in ("docs/security/_modelo.md", "docs/security/ameacas/x.md", "docs/security/aceites/x.md"):
+            with self.subTest(caminho=caminho):
+                git(self.dir, "reset", "-q", "--hard", "develop")
+                r = self._so_arquivo(caminho)
+                self.assertNotEqual(r.returncode, 0)
+                self.assertIn("fragmento novo", r.stdout + r.stderr)
+
+    def test_pr_de_parecer_com_outro_arquivo_da_fabrica_continua_exigindo_fragmento(self):
+        (self.dir / "docs" / "devops").mkdir(parents=True)
+        (self.dir / "docs" / "devops" / "a.md").write_text("x\n", encoding="utf-8")
+        self.mudar_fabrica()
+        self.commitar()
+        r = self.conferir()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("fragmento novo", r.stdout + r.stderr)
+
     def test_pr_de_release_passa_sem_fragmento(self):
         self.mudar_fabrica()
         (self.dir / ".claude-plugin" / "plugin.json").write_text('{"version": "0.2.0"}\n', encoding="utf-8")

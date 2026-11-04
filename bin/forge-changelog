@@ -188,6 +188,12 @@ def linhas_nao_publicado(texto):
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")
 
 
+def e_parecer(caminho):
+    """Parecer de verdade: arquivo de docs/{reviews,qa,security,devops}/, fora modelos `_*` e docs/security/{ameacas,aceites}/ (como o gate do ci.yml)."""
+    return (caminho.startswith(PASTAS_DE_PARECER) and not Path(caminho).name.startswith("_")
+            and not caminho.startswith(("docs/security/ameacas/", "docs/security/aceites/")))
+
+
 def fragmentos_alterados(filtro, base):
     """Fragmentos de changelog.d/ (só a pasta raiz, sem o README) adicionados ("A") ou apagados ("D") entre base e HEAD."""
     caminhos = git("diff", "--name-only", "--no-renames", f"--diff-filter={filtro}", base, "HEAD", "--", PASTA).split()
@@ -223,6 +229,9 @@ def conferir(args):
         conferir_fechamento(base, apagados)
         return
     if not mudou:
+        return
+    if all(e_parecer(m) for m in mudou):
+        print(f"ok: PR só de parecer ({len(mudou)} arquivo(s) em docs/), sem fragmento (RELEASE-PR-SO-PARECER)")
         return
     for p in novos:
         ler_fragmento(git("show", f"HEAD:{p}"), p)
