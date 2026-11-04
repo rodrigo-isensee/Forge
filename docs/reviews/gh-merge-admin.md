@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: dfcc2b2936bab0980b51b87e6049c1c53aecb74c
+commit: 94377b7311db64c26d2f51d1641d760e4bcb73a6
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -150,3 +150,17 @@ Head `dfcc2b2`, sobre `b1991c6` (volta 7: `14fc4bf..dfcc2b2`). Delta lido, pela 
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...dfcc2b2`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 105 e `tests/test_hooks.py` 5, total de 138 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
 
 **Parecer da rodada 7: aprovado.** O A11 está resolvido, sem regressão. O A10 da segurança e o T-4 seguem resolvidos. A7 e A10 (review) são recomendações fora do E1. Segurança e QA têm parecer próprio (E1.4 e E1.6).
+
+## Rodada 8
+Head `94377b7`, sobre `c09ecec` (delta `git diff c09ecec..94377b7`: 3 arquivos, 3 linhas em cada lado). Delta lido: `tests/mutantes/gh-merge-admin.json:79`, `gh-merge-admin-2.json:2` e `gh-merge-admin-3.json:2`. Já lido e não tocado: `hooks/` inteiro (o diff de `hooks/` entre os dois commits tem 0 linhas), `tests/test_hooks.py`, as fixtures e o `docs/engineering/achados-recorrentes.md`.
+
+## Achados
+- A12 (recomendado) tests/mutantes/gh-merge-admin.json:79 · sem defeito: o `de` do G8 (`or re.match(r"-[fF]", a) is not None`) é igual ao texto de `hooks/parecer.py:559`, então o mutante aplica; nenhum bloqueante nesta rodada.
+
+- **G8.** O `de` antigo (`-i?[fF]`) não existia mais no código desde a rodada 7; o novo bate com a linha de `parecer.py:559`. O `para` (`or False`) e o teste que o mata não mudaram.
+- **`pedido`.** As três specs trazem `"pedido": "gh-merge-admin"`; as duas que diziam `-2` e `-3` foram igualadas. Os três JSON carregam.
+- **Sem código.** `hooks/` não mudou; as conclusões das rodadas 1 a 7 (A1 a A11, C-1 a C-6, T-4) valem como estão. A mutação é do autor (V2) e não a refiz.
+- **Testes.** Nenhum rodado: o delta só toca specs de mutação, sem arquivo de código ou teste (D-5); a suíte é do QA.
+- **Teto (M14).** Sem linha nova de código ou teste (specs em `tests/mutantes/` ficam fora); segue em 138 linhas.
+
+**Parecer da rodada 8: aprovado.**
