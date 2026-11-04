@@ -130,8 +130,14 @@ fi
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
 n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""
+# PREPUSH-TAGS: o nome do remoto (o git passa nome e URL) e as tags enviadas, para o caminho só de tags (abaixo).
+remoto_nome="${1:-}"; so_tags=1; tags_enviadas=()
 while read -r _ local_sha remote_ref remote_sha; do
   n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)) ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
+  case "$remote_ref" in
+    refs/tags/*) case "$local_sha" in *[!0]*) tags_enviadas+=("$local_sha") ;; esac ;;
+    *) so_tags=0 ;;
+  esac
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -177,6 +183,30 @@ fi
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# PREPUSH-TAGS (cartão 2 da 0.34, decisão do dono de 2026-11-04): o push em que toda ref é tag (refs/tags/*), e o
+# commit de cada tag enviada já está numa ref de acompanhamento do remoto do push (refs/remotes/<remoto>/*), não leva
+# commit novo: o código da tag já passou pelo pre-push do envio dele e pelo CI. Não roda teste nem pega a trava, como o
+# PREPUSH-DELETE, porque a árvore de trabalho não tem relação com o que a tag envia. Decidido depois de ler todas as refs
+# (a recusa de main, homolog, develop e de tag movida já valeu). Falha fechada: remoto que não é nome simples (o push
+# para uma URL), objeto que não chega a um commit, erro do git ou commit fora do remoto seguem o caminho de sempre.
+# As refs de acompanhamento são confiança local, não prova (o CI do PR repete tudo).
+tags_ja_no_remoto() {
+  local sha commit fora
+  [ "$n_refs" -gt 0 ] && [ "$so_tags" = 1 ] && [ "${#tags_enviadas[@]}" -gt 0 ] || return 1
+  case "$remoto_nome" in ''|-*|*[!A-Za-z0-9._-]*) return 1 ;; esac
+  for sha in "${tags_enviadas[@]}"; do
+    case "$sha" in *[!0-9a-f]*) return 1 ;; esac
+    commit="$(git rev-parse --verify -q "${sha}^{commit}" 2>/dev/null)" || return 1
+    [ -n "$commit" ] || return 1
+    fora="$(git rev-list -n 1 "$commit" --not --remotes="$remoto_nome" 2>/dev/null)" || return 1
+    [ -z "$fora" ] || return 1
+  done
+  return 0
+}
+if [ "$modo_suite" -eq 0 ] && tags_ja_no_remoto; then
+  echo "pre-push: o envio só leva tags de commits que já estão em ${remoto_nome} (nenhum commit novo); a bateria não roda (PREPUSH-TAGS)." >&2
+  exit 0
+fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
