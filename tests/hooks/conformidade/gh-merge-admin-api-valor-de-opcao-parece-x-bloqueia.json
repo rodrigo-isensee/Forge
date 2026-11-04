@@ -1,5 +1,5 @@
 {
-  "descricao": "GH-MERGE-ADMIN: gh api -H -XPUT -q -XDELETE repos/o/r/pulls/12/merge (o valor de -H e de -q não é método: GET de leitura)",
+  "descricao": "GH-MERGE-ADMIN: gh api -H -XPUT -q -XDELETE repos/o/r/pulls/12/merge (-XPUT e -XDELETE contam como método pedido mesmo depois de -H e -q: falha fechada)",
   "arquivos": {
     "src/app.js": "v1\n"
   },
@@ -13,6 +13,7 @@
     "agent_type": "forge:tech-lead"
   },
   "esperado": {
-    "codigo": 0
+    "codigo": 2,
+    "stderr": "R-MAIN: gh api que mescla PR"
   }
 }

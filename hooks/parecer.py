@@ -515,7 +515,7 @@ def desagrupa_i(args):
 
 
 def metodos_pedidos(args):
-    """Todo `-X`/`--method` do comando; o token depois de opção valorada é valor, não opção."""
+    """Todo `-X`/`--method` do comando, mesmo como valor de outra opção (`-p -XPUT`): falha fechada; só o valor do próprio `-X` se pula."""
     metodos, valor = [], False
     for i, a in enumerate(args):
         if valor:
@@ -529,8 +529,6 @@ def metodos_pedidos(args):
             metodos.append(a.split("=", 1)[1])
         elif a.startswith("-X") and len(a) > 2:
             metodos.append(a[2:].removeprefix("="))  # `-XPUT`, `-X=PUT`
-        else:
-            valor = a in API_COM_VALOR
     return metodos
 
 

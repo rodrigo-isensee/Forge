@@ -41,10 +41,10 @@
     },
     {
       "id": "G31",
-      "guarda": "o valor de opção valorada não vira método em metodos_pedidos",
+      "guarda": "o -XPUT que é valor de outra opção valorada (-p -XPUT) conta como método pedido",
       "arquivo": "hooks/parecer.py",
-      "de": "        if valor:\n            valor = False\n            continue\n        if a in (\"-X\"",
-      "para": "        if False:\n            valor = False\n            continue\n        if a in (\"-X\"",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
+      "para": "        elif a.startswith(\"-X\") and len(a) > 2 and not (i and args[i - 1] in API_COM_VALOR):",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -85,16 +85,6 @@
       "arquivo": "hooks/parecer.py",
       "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
       "para": "        elif False:",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
-      ]
-    },
-    {
-      "id": "G36",
-      "guarda": "o valor de outra opção valorada é pulado depois do -X",
-      "arquivo": "hooks/parecer.py",
-      "de": "        else:\n            valor = a in API_COM_VALOR\n    return metodos",
-      "para": "        else:\n            valor = False\n    return metodos",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
