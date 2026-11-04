@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/prepush-so-docs
-commit: 0ba1a876f9176c74d9dae97ca208805c3f652e43
+commit: bce7ad1dc874ff83d553e9c8b01592851273e583
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-03
+data: 2026-11-04
 ---
 # Review: prepush-so-docs (versao-033, L03, E18 PREPUSH-SO-DOCS)
 
@@ -38,3 +38,12 @@ Revisor: `forge:tech-lead`, outra instância (não é o autor; D-ETAPAS-INST = A
 
 ## Parecer
 Aprovado. O hook cumpre o limite exato e os controles C-1 a C-5 da seção E18, sem nenhuma mudança proibida, e o teste cobre a matriz pedida. Os três achados são recomendações e não devolvem a entrega.
+
+## Rodada 2
+Delta lido: `3dd4483..bce7ad1`, só `templates/projeto/.githooks/pre-push` (+4 -3). Já lido na rodada 1 e não relido: o teste, o mapa do `bin/forge-testes`, o fragmento e os controles C-1 a C-5 e T-1 a T-4 fora do laço.
+- SC2094 corrigido sem diretiva `disable`: o laço só lê `"$lista"`; a recusa vira a variável `recusa` com `break`, e o `rm -f "$lista"` e o `return 1` ficam depois do `done`, no `if` que também trata `achou` zero.
+- Comportamento igual ao da rodada 1: `.github/*` e arquivo fora de `docs/*` e `*.md` recusam (roda tudo); só docs libera; diff vazio roda tudo; o `break` sai do `while`, não do `for`, e o `if` seguinte devolve 1 antes da próxima ref. `recusa` é zerada a cada ref. Nenhuma regressão nova; os achados A1 a A3 seguem como recomendações.
+- Ferramentas: `python3 -m unittest tests.test_prepush_so_docs tests.test_ambiente_git tests.test_testes_tocados`, "Ran 130 tests in 50.392s, OK". CI do PR #436 (run 41780938757): o passo `shellcheck (scripts e hooks)` deu success em bce7ad1 (`shellcheck` não existe nesta máquina). Na mesma rodada, o passo de parecer do CI deu fail porque o parecer anterior apontava o commit 0ba1a87; este parecer o atualiza.
+- Teto M14: o delta soma 7 linhas; o total do item segue dispensado pela DECISÃO DO DONO "B" de 2026-11-03 10:06.
+
+Parecer da rodada 2: aprovado.
