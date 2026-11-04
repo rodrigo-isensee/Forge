@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 4ed6e442fe9f6ca439e5410c935c88042f0e5760
-parecer: reprovado
+commit: 318a4374a16a4662fcb1504565535f0caf92dcf4
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
 ---
@@ -13,8 +13,8 @@ data: 2026-11-04
 Primeira rodada: lida a branch inteira, de 4f53bde a 874c89e, um commit por item.
 
 ## Achados
-- A9 (bloqueante) bin/forge-check:744 · E7: a falha fechada sem pedido para o scripts/promover-homolog.py:150 (forge-check pr release-<v> --base main); test_promover_homolog dá 20 falhas em 7925640 e OK em 874c89e. Trava a promoção da 0.33
-- A10 (recomendado) bin/forge-check:751 · E7: com docs/pedidos/release-<v>.md presente, a conferida é da branch da release e a ref da promoção é o squash na develop, que não a tem como ancestral; decida se a promoção cobra a conferência
+- A11 (recomendado) bin/forge-check:686 · A9: promocao lê origin/<integração> e, sem remoto, a branch local; com a ref forjada no clone (update-ref) ou sem remoto, uma branch de trabalho com --base homolog/main passa sem conferida. Use só a remota
+- A12 (recomendado) docs/regras/R-PROVA.md:14 · A9: a regra diz que sem a linha o forge-check pr reprova; a exceção da promoção (base homolog/main, head na ponta da integração) está só no forge-check; cite-a na regra
 - A6 (recomendado) bin/forge-check:835 · E10: se o gh mentir com um head antigo da branch, presente no clone e com pareceres válidos, o pr passa. Compare o patch do head sobre a base com o do squash (patch-id).
 - A7 (recomendado) tests/test_forge.py:5710 · E10: o gh falso ignora os argumentos e aceitaria outro número ou outros campos. Faça o falso conferir `pr view 7 --json state,headRefOid,headRefName` (checklist 12).
 - A8 (recomendado) bin/forge-check:5671 · E19: o brief gerar não tem a etapa ato-github, então o Jarvis escreve o brief à mão. Abra um cartão para o gerar.
@@ -71,3 +71,25 @@ O parecer passa a citar 4ed6e44. Esse commit só acrescenta `tests/test_qa_lote_
 - Sobre os testes do QA, sem achado novo: `test_dois_briefs_reprova` e `test_pq_de_commit_junto_de_pq_do_github_reprova` afirmam só o rc, não a linha. O gh falso do `QaE10PrMesclado` ignora os argumentos, a mesma classe do A7.
 - Rodada: `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py` deu rc=0 (19 testes, OK).
 - Pela regra do próprio E7, o commit do teste fica depois da `entrega conferida` de 7925640. Por isso o `forge-check pr` cobra uma conferida que cubra 4ed6e44 (`test_commit_de_teste_do_qa_depois_da_conferida_exige_nova_conferencia`).
+
+## Revalidação (volta 2: A9 e A10)
+Revisado: a46eab7 (a correção), mais o teste do QA 318a437. O parecer cita 318a437, que é o teste mais recente (E16). Delta lido: 63c49f2..a46eab7 (`bin/forge-check` +14, `tests/test_forge.py` +19, `tests/mutantes/lote-l08-e7b.json` +30) e 318a437 (`tests/test_qa_lote_l08.py` +33). O resto fica como "já lido". Os commits de segurança 2a47613 e 3839cf9 são pareceres e ficam fora.
+
+Veredito: **aprovado**. O A9 está resolvido: `promocao()` dispensa a conferência só com base `homolog` ou `main` e head igual, commit a commit, à ponta de `origin/develop` (ou `origin/homolog` para a main), e avisa no stderr. O A10 está resolvido junto, porque a promoção não cobra mais a conferida. A6, A7 e A8 seguem recomendados; A11 e A12 são novos e também recomendados.
+
+Sonda de bypass (unittest descartável sobre o `RepoComOrigem`, branch de trabalho com pareceres e sem conferida):
+- `origin/develop` forjada no head de trabalho com `update-ref`: `--base homolog` e `--base main` dão rc 0, com o aviso de promoção. `--base develop` segue rc 1 (conferência).
+- Sem remoto, com a `develop` local no head: `--base homolog` e `--base main` dão rc 0. Isso vem do fallback local de `ref_da_base`.
+- `develop` local à frente da remota: rc 1 com `--base homolog` e `--base main`, e também com `--ref develop`. Não é bypass.
+
+Os dois primeiros casos não abrem caminho para mesclar uma entrega sem conferida. O `forge-fechar` só aceita `origin/develop` (bin/forge-fechar:77), e com `--base develop` a conferência continua cobrada. Além disso, forjar ref exige escrever no `.git` do próprio clone, o mesmo nível de confiança das outras leituras de `origin/<base>`. Por isso o A11 fica como recomendado: na promoção, ler só a remota.
+
+O A12 é texto: a exceção da promoção está no `forge-check`, mas não na R-PROVA.
+
+Mutante rc=2 da rodada anterior: o `forge-mutante` saiu com "a árvore de trabalho mudou durante a rodada; resultado descartado". A segurança e o QA fizeram commits na mesma worktree (2a47613 e 318a437) enquanto ele rodava, e ele descarta o resultado quando a árvore no fim difere da do início. Não foi defeito da spec: numa worktree isolada em a46eab7, e de novo agora em 3839cf9 com a árvore parada, deu rc=0.
+
+Testes e mutantes desta volta:
+- `python3 -I -m unittest discover -s tests -p test_promover_homolog.py`: rc=0 (36).
+- `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead`: rc=0 (9).
+- `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py`: rc=0 (21).
+- `bin/forge-mutante tests/mutantes/lote-l08-e7b.json`: rc=0 em 3839cf9, com M36, M37, M50, M51 e M52 mortos.
