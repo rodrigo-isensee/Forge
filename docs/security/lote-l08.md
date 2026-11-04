@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: a46eab7891b4f0c233e547b303dfa9ff6feee35b
+commit: 318a4374a16a4662fcb1504565535f0caf92dcf4
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -50,6 +50,10 @@ Delta `a46eab7~1..a46eab7`: `promocao` (`bin/forge-check:680-686`), o desvio em 
 - Head igual à develop num repositório manipulado (A4): `refs/remotes/origin/develop` é ref local e pode ser movida por `git update-ref` ou por um `fetch` de outro remoto; o hook não barra (`hooks/conformidade.py:1321` só barra apagar). Caminho: quem tem Bash no clone aponta a ref para o head de trabalho e roda `forge-check pr --base main`. O `forge-fechar` confere por `ls-remote` o head e a base, mas não a integração anterior. O ganho fica limitado: só cai a conferência do head, os pareceres continuam exigidos e o PR no GitHub mostra a branch real contra a `main`. Severidade baixa. Correção mínima: em `promocao`, exigir também que o head seja igual ao `git ls-remote origin refs/heads/<b>` (coluna 2 exata, como o `forge-fechar:138-143`), com falha de rede = não é promoção. Esforço P. Dono: tech-lead.
 - Branch de trabalho que já está na develop (head = ponta de `origin/develop`): é a leva já mesclada, que passou pela conferência no PR dela; correto por desenho.
 Testes: `python3 -I -m unittest discover -s tests -p test_promover_homolog.py` (36, OK), só esse módulo, como pedido. O teste novo fica em `test_forge.py` e não rodou nesta rodada; li o teste: ele cobre a promoção para `main` e `homolog` e três casos que seguem cobrados (trabalho com `--base main`, com `--base homolog` e `develop` com `--base develop`).
+
+## Nota (318a437, teste do QA)
+O `318a437` só acrescenta `QaA9Promocao` a `tests/test_qa_lote_l08.py`. Ele roda o `scripts/promover-homolog.py` real com o `forge-check` real num repositório descartável: a promoção passa sem pedido nem conferida, e a branch de trabalho com `--base main` ou `homolog` segue reprovada pela conferência, sem a linha `promoção`. Não muda código nem controle, e a análise acima vale para este head.
+- A11 do review (fallback da branch local em `promocao`, `bin/forge-check:686`): concordo que é recomendado, não bloqueante. É um caso particular do A4. A branch local só entra quando `refs/remotes/origin/<b>` falta, e a própria remota pode ser movida por `update-ref`. Nos dois casos cai só a conferência do head: os pareceres continuam exigidos e o PR no GitHub mostra a branch real. A correção do A4 (ponta conferida por `git ls-remote origin`, com falha de rede = não é promoção) fecha os dois de uma vez, sem um fallback local separado.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
