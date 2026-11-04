@@ -35,6 +35,8 @@ RUN_DO_ZIZMOR = "zizmor --offline --no-progress --min-severity medium .github/wo
 # Variável que faz o shell ler um arquivo da branch, `defaults` (shell padrão de todos os passos) e `env` no topo do workflow:
 # proibidos no arquivo inteiro, em bloco, com aspas ou em fluxo (`{BASH_ENV: x}`).
 ENV_QUE_EXECUTA = re.compile(r"""(?:^|[{,\s])["']?(BASH_ENV|ENV|defaults)["']?\s*:|^["']?env["']?\s*:""", re.MULTILINE)
+# Âncora, alias e merge YAML (`&a`, `*a`, `<<:`): o analisador por linha não os segue, então reprovam em falha fechada.
+ANCORA_OU_ALIAS = re.compile(r"""<<\s*:|(?:^|[:\[{,]|-)\s+[&*][\w-]+|^\s*[&*][\w-]+|^ *\t""", re.MULTILINE)
 # Env por lista positiva (chaves exatas): o ambiente em que o `run` roda não entra no hash (PATH, LD_PRELOAD, GIT_EXTERNAL_DIFF...).
 ENV_DO_GATE = {"GH_TOKEN", "EVENTO", "ACAO", "ANTES", "HEAD_SHA", "REPO", "BASE_REF"}
 ENV_DO_JOB = {"ACTIONLINT_VERSAO", "ACTIONLINT_SHA256", "ZIZMOR_VERSAO", "ZIZMOR_SHA256"}
@@ -54,15 +56,15 @@ def passos_da_bateria(texto):
     inicio = linhas.index("  bateria:")
     blocos, dentro, em_env = [], False, False
     for linha in linhas[inicio + 1:]:
-        if linha.strip() and len(linha) - len(linha.lstrip()) <= 2:
+        if linha.strip() and not linha.lstrip().startswith("#") and len(linha) - len(linha.lstrip()) <= 2:
             break
         if linha == "    steps:":
             dentro = True
         elif dentro and linha.startswith("      - "):
             blocos.append({"uses": "", "id": "", "chaves": set(), "env": set()})
             linha, em_env = "        " + linha[8:], False
-        if not (dentro and blocos and linha.strip()):
-            continue
+        if not (dentro and blocos and linha.strip()) or linha.lstrip().startswith("#"):
+            continue  # comentário não decide recuo nem fim de bloco
         recuo = len(linha) - len(linha.lstrip())
         if recuo == 8:
             chave, valor = _chave(linha)
@@ -72,7 +74,7 @@ def passos_da_bateria(texto):
                 blocos[-1]["env"].add("<na mesma linha>")
             if chave in ("uses", "id"):
                 blocos[-1][chave] = valor.split(" #")[0].strip()
-        elif recuo > 8 and em_env and not linha.lstrip().startswith("#"):  # qualquer recuo maior que o do `env:`
+        elif recuo > 8 and em_env:  # qualquer recuo maior que o do `env:`
             blocos[-1]["env"].add(_chave(linha)[0])
         elif recuo < 8:
             em_env = False
@@ -88,13 +90,15 @@ def env_do_job(texto):
     for linha in linhas[inicio + 1:]:
         if linha == "    steps:":
             break
+        if not linha.strip() or linha.lstrip().startswith("#"):
+            continue  # comentário não decide recuo nem fim de bloco
         recuo = len(linha) - len(linha.lstrip())
-        if recuo == 4 and linha.strip():
+        if recuo == 4:
             chave, valor = _chave(linha)
             em_env = chave == "env"
             if em_env and valor.strip():
                 chaves.add("<na mesma linha>")
-        elif recuo > 4 and em_env and not linha.lstrip().startswith("#"):
+        elif recuo > 4 and em_env:
             chaves.add(_chave(linha)[0])
     return chaves
 
@@ -122,6 +126,8 @@ def _pode_antes_do_lint(passo, n, n_gate):
 
 def passos_antes_do_lint_fora_da_lista(texto):
     """Nomes (ou `uses`) dos passos antes do actionlint e do zizmor que não estão na lista fechada."""
+    if ANCORA_OU_ALIAS.search(texto):  # antes de ler: o leitor por linha não segue âncora nem merge
+        return ["âncora, alias, merge YAML ou tab no recuo do workflow"]
     passos = passos_da_bateria(texto)
     nomes = [p["nome"] for p in passos]
     lint = nomes.index("actionlint")
@@ -375,6 +381,14 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
                                                "      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0\n        env:\n            PATH: ./scripts\n        if: steps.gate.outputs.pesada == 'true'\n"),
             "gate com chave a mais em recuo 12": troca(env_gate, "            PATH: scripts\n" + env_gate),
             "env do job com chave em recuo 8": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n        PATH: scripts\n      ACTIONLINT_VERSAO"),
+            "âncora e merge com shell no gate": troca("      - name: " + NOME_DO_GATE + "\n        id: gate\n", "      - &a\n        shell: python {0}\n      - name: " + NOME_DO_GATE + "\n        <<: *a\n        id: gate\n"),
+            "tab no recuo do env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n\t\t  PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "âncora no env do job": troca("    env:\n      ACTIONLINT_VERSAO: \"1.7.12\"", "    env: &e\n      ACTIONLINT_VERSAO: \"1.7.12\""),
+            "alias em valor de chave": troca("        run: actionlint -color\n", "        shell: *a\n        run: actionlint -color\n"),
+            "merge em fluxo": troca("jobs:\n", "x: {<<: *a}\njobs:\n"),
+            "comentário em recuo 8 no env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n        # c\n          PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "comentário em recuo 0 no env do download": troca("        run: |\n          set -euo pipefail\n", "        env:\n# c\n          PATH: ./scripts\n        run: |\n          set -euo pipefail\n"),
+            "comentário em recuo 4 no env do job": troca("    env:\n      ACTIONLINT_VERSAO", "    env:\n    # c\n      PATH: scripts\n      ACTIONLINT_VERSAO"),
             "gate com chave BASH_ENV entre aspas": troca(env_gate, '          "BASH_ENV": scripts/x.sh\n' + env_gate),
             "gate com PATH": troca(env_gate, "          PATH: scripts\n" + env_gate),
             "gate com GIT_EXTERNAL_DIFF": troca(env_gate, "          GIT_EXTERNAL_DIFF: scripts/x.sh\n" + env_gate),
