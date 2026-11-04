@@ -2175,6 +2175,10 @@ class Hooks(unittest.TestCase):
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\` \$d`"), ["a `c` $d", r"a `c` \$d"])
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\``"), ["a `c`"])
 
+    def test_ansi_c_decodifica_como_o_bash(self):  # HOOK-CONTINUACAO-LINHA, A2 da segurança
+        _comum, _, _ = modulos_dos_hooks()
+        self.assertEqual(_comum.decodificar_ansi_c(r"g\x68 \151 \cA \u00e9 \n \q \xg"), "gh i \x01 \u00e9 \n \\q \\xg")
+
     def test_marcador_critico_tambem_na_forma_juntada(self):  # HOOK-CONTINUACAO-LINHA
         _comum, conformidade, _ = modulos_dos_hooks()
         for comando, marcado in (("g\\\nit push origin main", True), ("echo a \\\nb", False)):

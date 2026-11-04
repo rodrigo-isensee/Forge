@@ -347,9 +347,53 @@ CONTINUACAO = re.compile(r"(?<!\\)((?:\\\\)*)\\\n")  # `\` + quebra de linha, se
 
 
 def juntar_continuacoes(texto):
-    """HOOK-CONTINUACAO-LINHA: o texto sem `\\` + quebra de linha, que o bash junta numa linha só (fora de aspas
-    simples, e também dentro delas no `bash -c` e no heredoc sem aspas). Quem confere lê as duas formas."""
+    """HOOK-CONTINUACAO-LINHA: o texto sem `\\` + quebra de linha, que o bash junta numa linha só. Junta em todo
+    lugar, também entre aspas simples e em comentário, onde o bash não junta: como a forma escrita segue conferida,
+    isso só deixa a conferência mais estrita (A4 da segurança)."""
     return CONTINUACAO.sub(r"\1", texto)
+
+
+def expandir_heredoc(corpo):
+    """HOOK-CONTINUACAO-LINHA, A1 da segurança: o corpo como o bash o entrega no heredoc sem aspas no delimitador (tira
+    `\\` + quebra de linha; `\\\\`, `\\$` e `` \\` `` viram o caractere). Vale também para o delimitador com aspas, onde
+    só deixa mais estrito."""
+    return re.sub(r"\\([\\`$\n])", lambda m: "" if m[1] == "\n" else m[1], corpo)
+
+
+def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
+    """As formas do texto, além da escrita, que o shell pode ler: a juntada e, no corpo de heredoc, a expandida e a
+    juntada dela. Quem confere confere todas (a união, como na I2)."""
+    formas = [juntar_continuacoes(texto)]
+    if corpo_de_heredoc:
+        expandida = expandir_heredoc(texto)
+        formas += [expandida, juntar_continuacoes(expandida)]
+    return [f for f in dict.fromkeys(formas) if f != texto]
+
+
+ANSI_C = re.compile(r"\\(x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{1,4}|U[0-9A-Fa-f]{1,8}|[0-7]{1,3}|c.|.)", re.S)
+ANSI_C_SIMPLES = {"a": "\a", "b": "\b", "e": "\x1b", "E": "\x1b", "f": "\f", "n": "\n", "r": "\r", "t": "\t", "v": "\v",
+                  "\\": "\\", "'": "'", '"': '"', "?": "?"}
+
+
+def decodificar_ansi_c(texto):
+    """HOOK-CONTINUACAO-LINHA, A2 da segurança: o conteúdo de `$'…'` como o bash o decodifica (`\\xHH`, `\\nnn`,
+    `\\uHHHH`, `\\cX`, `\\n`...); o escape desconhecido fica como veio."""
+    def um(m):
+        e = m[1]
+        if e[0] in "xuU" and len(e) > 1:
+            return chr(min(int(e[1:], 16), 0x10FFFF))
+        if e[0] in "01234567":
+            return chr(int(e, 8) & 0xFF)
+        if e[0] == "c" and len(e) > 1:
+            return chr(ord(e[1]) & 0x1F)
+        return ANSI_C_SIMPLES.get(e, "\\" + e)
+    return ANSI_C.sub(um, texto)
+
+
+def com_ansi_c(palavras):
+    """A2: as palavras de `bash -c`/`eval` juntadas, com a que veio de `$'…'` (o leitor a entrega como `$` + o texto
+    cru) decodificada. Uma `$X` comum também passa: a forma a mais só deixa mais estrito."""
+    return " ".join(decodificar_ansi_c(p[1:]) if p.startswith("$") else p for p in palavras)
 
 
 def conteudos_de_crase(comando, so_os_fechados=False):

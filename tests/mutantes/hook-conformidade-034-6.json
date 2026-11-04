@@ -1,6 +1,18 @@
 {
   "pedido": "hook-conformidade-034",
   "executor": "unittest",
+  "isentas": [
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "f != texto",
+      "motivo": "a forma escrita repetida só é conferida de novo pelo mesmo caminho, com o mesmo resultado; tirá-la evita trabalho, não muda decisão"
+    },
+    {
+      "arquivo": "hooks/_comum.py",
+      "trecho": "m[1] == \"\\n\"",
+      "motivo": "a quebra que sobra depois da barra é tirada pela forma juntada da expandida, que também se confere; o resultado lido é o mesmo"
+    }
+  ],
   "mutantes": [
     {
       "id": "M18",
@@ -16,8 +28,8 @@
       "id": "M19",
       "guarda": "a linha com \\ + quebra de linha também se confere juntada",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if junta != comando:  # HOOK-CONTINUACAO-LINHA",
-      "para": "        if False:  # HOOK-CONTINUACAO-LINHA",
+      "de": "        for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA",
+      "para": "        for forma in []:  # HOOK-CONTINUACAO-LINHA",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]
@@ -50,6 +62,76 @@
       "para": "or False):",
       "testes": [
         "tests.test_hooks.Hooks.test_rotulo_so_dono_erro_inesperado_falha_fechado"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "A1: o corpo de heredoc se confere também expandido",
+      "arquivo": "hooks/_comum.py",
+      "de": "    if corpo_de_heredoc:\n        expandida",
+      "para": "    if False:\n        expandida",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "A2: o $'…' de bash -c e eval se confere decodificado",
+      "arquivo": "hooks/_comum.py",
+      "de": "if p.startswith(\"$\") else p for p in palavras",
+      "para": "if p.startswith(\"@\") else p for p in palavras",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "A3: o hook parecer confere a forma juntada e a expandida",
+      "arquivo": "hooks/parecer.py",
+      "de": "    for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):",
+      "para": "    for forma in []:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "A3: o prefiltro do parecer lê g\\h como gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "comando.replace(\"\\\\\", \"\")]",
+      "para": "comando]",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "A2: \\xHH e \\uHHHH decodificam",
+      "arquivo": "hooks/_comum.py",
+      "de": "if e[0] in \"xuU\" and len(e) > 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodifica_como_o_bash"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "A2: \\nnn (octal) decodifica",
+      "arquivo": "hooks/_comum.py",
+      "de": "if e[0] in \"01234567\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodifica_como_o_bash"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "A2: \\cX decodifica",
+      "arquivo": "hooks/_comum.py",
+      "de": "if e[0] == \"c\" and len(e) > 1:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodifica_como_o_bash"
       ]
     }
   ]

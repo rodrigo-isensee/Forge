@@ -27,7 +27,7 @@ from types import SimpleNamespace
 
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_TETO, INTEGRACAO, OPACO, OPCAO_DE_REAVALIACAO, PLUGIN,
                     PROFUNDIDADE, SHELLS_DA_REAVALIACAO, LancadorDemais, TextoDivididoAberto, bloquear,
-                    contorno_da_reavaliacao, conteudos_de_crase, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
+                    contorno_da_reavaliacao, conteudos_de_crase, formas_que_o_shell_le, corpo_so_lido, depois_das_atribuicoes, e_clone_do_forge,
                     excede_o_teto, executar,
                     fora_da_gramatica_com_heredoc, forge_check, git, nome_da_branch, leituras, motivo_da_reavaliacao,
                     palavras_do_texto, raiz_de_estado, reavaliacao, reavaliacao_das_palavras, reduzida, sem_atribuicoes,
@@ -643,7 +643,8 @@ def merge_por_api(hook, pasta, args):
 
 def principal(hook):
     comando = hook.campo("tool_input", "command")
-    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not PREFILTRO.search(comando):
+    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not any(  # HOOK-CONTINUACAO-LINHA: e `g\h`
+            PREFILTRO.search(f) for f in [comando, *formas_que_o_shell_le(comando, True), comando.replace("\\", "")]):
         return
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 
@@ -656,6 +657,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     a linha é o corpo de um heredoc que vai a um programa fora da lista dos que só o leem. `reavaliacoes`: as
     reavaliações pelo shell (`reavaliacao`) achadas em qualquer nível, recusadas no fim do nível 0 com o marcador."""
     reavaliacoes = [] if reavaliacoes is None else reavaliacoes
+    for forma in formas_que_o_shell_le(comando, corpo_de_heredoc):  # HOOK-CONTINUACAO-LINHA: a que o bash roda
+        conferir_linha(hook, forma, estados, nivel, so_substituicoes, corpo_de_heredoc, reavaliacoes)
     if nivel > PROFUNDIDADE:
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull aninhada fundo demais para o hook ler. Corrigir: "
                              "rode o comando direto, sem crase nem $( dentro de outro")
