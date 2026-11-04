@@ -6,6 +6,11 @@
       "arquivo": "hooks/parecer.py",
       "trecho": "metodo.upper() != \"GET\"",
       "motivo": "a comparação saiu do return e foi para o any(), coberta pelos mutantes G28 e G29"
+    },
+    {
+      "arquivo": "hooks/parecer.py",
+      "trecho": "            valor = True",
+      "motivo": "equivalente: pular o valor do -X só muda o resultado se ele começar com -X, e então o método lido seria inválido e recusaria do mesmo jeito (falha fechada)"
     }
   ],
   "mutantes": [
