@@ -126,8 +126,8 @@
       "id": "M13",
       "guarda": "a prova de abertura fecha no fim da linha (QA L10-1, T-3)",
       "arquivo": "bin/forge-check",
-      "de": "aberta\\s*$\\\")",
-      "para": "aberta\\b\\\")",
+      "de": "aberta\\s*$\")",
+      "para": "aberta\\b\")",
       "testes": [
         "tests.test_volta_por_delta.BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior"
       ]
