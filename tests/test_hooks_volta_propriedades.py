@@ -3,10 +3,15 @@
 Os testes saíram da classe `CorpusHeredocVoltaUnica` de tests/test_hooks.py (HOOKS-CORPUS-RAPIDO); a base e o corpus estão em
 tests/apoio_volta_unica.py."""
 from pathlib import Path
+import json
+import os
 import shutil
 import subprocess
 import sys
+import tempfile
+import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from apoio_volta_unica import (  # noqa: E402
@@ -17,6 +22,16 @@ from apoio_volta_unica import (  # noqa: E402
     modulos_dos_hooks,
     texto)
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+import test_hooks  # noqa: E402
+
+# TESTE-T-VIGIA-PAREDE (L31): o teste do vigia mede a parede só do hook (de dentro do lançador, depois de subir o
+# interpretador e importar o `_comum`) e a CPU do processo (`MedidaDeCpu`); o teto segue o de sempre, e a fila da
+# máquina carregada não o estoura.
+LANCADOR_MEDIDO = test_hooks.LANCADOR.replace(
+    'runpy.run_path(sys.argv[0], run_name="__main__")',
+    "inicio_do_hook = time.monotonic()\ntry:\n    runpy.run_path(sys.argv[0], run_name='__main__')\n"
+    "finally:\n    open(os.environ['FORGE_MEDIDA_DO_HOOK'], 'w').write(repr(time.monotonic() - inicio_do_hook))").replace(
+    "import runpy, sys, time", "import os, runpy, sys, time")
 
 
 class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
@@ -152,6 +167,33 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                     _comum.separar_lancadores([p or "" for p in palavras])
                 self.assertLess(medida.cpu, 2.0, f"{nome}: {medida.texto()}")
 
+    def decidir_medido(self, montados, hook, texto, subida=0, **como):
+        """(código, stderr, parede do hook, CPU do processo) do hook real sobre `texto`: a parede vem de dentro do lançador
+        (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook.
+        `subida`: segundos de espera antes de o lançador começar, a fila da máquina carregada na subida do interpretador."""
+        self.assertNotEqual(LANCADOR_MEDIDO, test_hooks.LANCADOR, "o lançador medido tem a medida")
+        lancador = LANCADOR_MEDIDO.replace("import os, runpy, sys, time", f"import os, runpy, sys, time\ntime.sleep({float(subida)!r})")
+        raiz, entrada, proc = montados[hook]
+        entrada = json.loads(json.dumps(entrada))
+        entrada["tool_input"]["command"] = texto
+        medida = Path(tempfile.mkdtemp(prefix="forge-medida-")) / "parede"
+        self.addCleanup(shutil.rmtree, medida.parent, ignore_errors=True)
+        extra = {"FORGE_NPROC": "8", "FORGE_MEDIDA_DO_HOOK": str(medida)}
+        with mock.patch.object(test_hooks, "LANCADOR", lancador), MedidaDeCpu() as gasto:
+            r = test_hooks.rodar(hook, entrada, raiz, proc, extra, producao=True, **como)
+        return r.returncode, r.stderr, float(medida.read_text(encoding="utf-8")), gasto.cpu
+
+    def test_a_subida_lenta_do_interpretador_nao_conta_na_parede_do_hook(self):  # L31: load alto, o teste passa
+        """Com 4 s de espera antes do lançador (a máquina carregada), a chamada inteira passa de 4 s e a parede só do hook
+        não: o teto de 10 s e o vigia de 3 s seguem os de produção, medidos de dentro."""
+        montados = self.modelos_montados()
+        inicio = time.monotonic()
+        codigo, erro, parede, _ = self.decidir_medido(montados, "conformidade", "git push origin feature/x", subida=4)
+        total = time.monotonic() - inicio
+        self.assertEqual(codigo, 0, erro)
+        self.assertGreater(total, 4)
+        self.assertLess(parede, total - 3.5, "a espera da subida fica fora da parede do hook")
+
     def test_t_vigia_de_prazo_recusa_com_marcador_e_libera_sem(self):  # item 3 do critério de fim do bloco T
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
         recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e liberarem a
@@ -162,15 +204,16 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                   "parecer": ("gh pr create --draft --base develop --title x --body y", "R-REVIEW")}
         for hook, (critica, regra) in linhas.items():
             with self.subTest(hook=hook, caso="sem passo lento"):
-                self.assertEqual(self.decidir_com_prazo(montados, hook, critica)[0], 0)
+                self.assertEqual(self.decidir_medido(montados, hook, critica)[0], 0)
             with self.subTest(hook=hook, caso="com marcador"):
-                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, critica, lento=True)
+                codigo, erro, segundos, cpu = self.decidir_medido(montados, hook, critica, lento=True)
                 self.assertEqual(codigo, 2, erro)
                 self.assertRegex(erro, f"^{regra}: ")
                 self.assertGreater(segundos, 2.5, "o vigia vence aos 3 s")
                 self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
+                self.assertLess(cpu, PRAZO_DO_CLAUDE_CODE_S / 2, "o passo lento dorme: o vigia não gasta CPU")
             with self.subTest(hook=hook, caso="sem marcador"):
-                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, "echo oi", lento=True)
+                codigo, erro, segundos, _ = self.decidir_medido(montados, hook, "echo oi", lento=True)
                 self.assertEqual((codigo, erro), (0, ""))
                 self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
 
@@ -181,9 +224,10 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         textos = {"parecer": "pr " * 20_000 + "api", "conformidade": "git " * 20_000 + "--no-verify"}
         for hook, texto in textos.items():
             with self.subTest(hook=hook):
-                codigo, erro, segundos = self.decidir_com_prazo(montados, hook, texto)
+                codigo, erro, segundos, cpu = self.decidir_medido(montados, hook, texto)
                 self.assertEqual(codigo, 2, erro)
                 self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
+                self.assertLess(cpu, PRAZO_DO_CLAUDE_CODE_S / 2, "a busca interrompida gasta CPU até o vigia, e não além")
 
 
 

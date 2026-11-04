@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from apoio_jarvis import texto_do_jarvis  # noqa: E402
 from test_forge import RAIZ, ambiente_limpo, git  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
 from gh_falso import com_gh_falso  # noqa: E402
@@ -99,6 +100,40 @@ class Entrega(Repositorio):
         self.assertEqual(saida.splitlines()[0], f"intervalo: {self.base}..{self.c3}")
         for nome in ("a.txt", "b.txt", "c.txt", "tests/config.json"):
             self.assertIn(f'confira "{nome}"', saida)
+
+    def rebaseada_sobre_um_release_da_base(self):
+        """A branch rebaseada sobre a develop: o commit de release de outro pedido (já na base) cai entre o Base-sha e o head."""
+        c1 = self.commitar({"a.txt": "1\n"}, "entrega")
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"release.txt": "0.1\n"}, "chore(release): versão 0.1 de outro pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        git("rebase", "-q", "develop", cwd=self.repo)
+        return c1
+
+    def test_commit_de_release_ja_na_base_sai_do_escopo(self):  # L08 (P1, P-CONF-SOBREPOR): o falso positivo do conferente
+        self.rebaseada_sobre_um_release_da_base()
+        self.gravar_pedido()
+        rc, saida = self.entrega()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn('escopo: confira "a.txt"', saida)
+        self.assertNotIn("release.txt", saida)
+
+    def test_commit_de_release_fora_da_base_segue_no_escopo(self):  # C-08b: a mensagem não decide; só estar na base
+        self.rebaseada_sobre_um_release_da_base()
+        self.commitar({"outro.txt": "x\n"}, "chore(release): versão 0.2")  # só na branch
+        self.gravar_pedido()
+        saida = self.entrega()[1]
+        self.assertIn('confira "outro.txt"', saida)
+        self.assertIn('confira "a.txt"', saida)
+        self.assertNotIn("release.txt", saida)
+
+    def test_commit_da_base_alterado_depois_nela_segue_no_escopo(self):  # C-08b: conteúdo diferente da base não sai
+        self.rebaseada_sobre_um_release_da_base()
+        git("switch", "-q", "develop", cwd=self.repo)
+        self.commitar({"release.txt": "0.2\n"}, "a base mexeu no mesmo arquivo")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        self.gravar_pedido()
+        self.assertIn('confira "release.txt"', self.entrega()[1])
 
     def test_desde_sem_conferencia_anterior_reprova_e_volta_ao_base_sha(self):
         self.tres_delegacoes()
@@ -665,6 +700,13 @@ class BriefDeVolta(Repositorio):
         self.assertIn("- PQ-1 (sha): `git log -1 --format=%h` da branch", saida)  # os PQs do anterior continuam
         self.assertIn(f"- PQ-5 (cmd, do autor): `bin/forge-mutante --cobertura --base {self.base}` · espera: rc=0", saida)
 
+    def test_volta_grava_a_etapa_do_brief_anterior(self):  # LOTE E5: sem `Etapa:` o `brief mensagem --entrega` recusa a volta
+        texto = self.ANTERIOR.read_text(encoding="utf-8").replace("Agente destino: forge:dev-exemplo\n", "Agente destino: forge:dev-exemplo\nEtapa: codigo   Cobre: E1\n", 1)
+        self.brief_anterior.write_text(texto, encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("Etapa: codigo   Cobre: E1\n", saida)
+
     def test_brief_de_volta_marca_os_blocos_identicos_ao_anterior(self):  # C3, qa A2: a fiação no `forge-check brief --anterior`
         rc, saida = self.gerar()
         rc, conferencia = self.conferir(self.preenchido(saida), "--anterior", self.rel_anterior)
@@ -843,7 +885,7 @@ class TextoDosAgentes(unittest.TestCase):
             self.assertIn(trecho, t)
 
     def test_desde_vem_da_mensagem_do_jarvis_e_o_texto_do_hook_e_exato(self):  # S-A2, S-A5, R-A4
-        conferente, jarvis = self.texto("conferente"), self.texto("jarvis")
+        conferente, jarvis = self.texto("conferente"), texto_do_jarvis(RAIZ)
         for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
                        "peça a ref da branch da entrega ao Jarvis"):
             self.assertIn(trecho, conferente)

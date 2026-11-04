@@ -1,0 +1,117 @@
+{
+  "pedido": "lote-unico-032-l32",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "pasta gravável por outros recusa (C-32a)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": " or info.st_mode & 0o022:",
+      "para": " or False:",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pasta_gravavel_por_outros_recusa"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "a pasta que é link recusa: lstat, não stat (C-32a)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "info = pasta.lstat()",
+      "para": "info = pasta.stat()",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o arquivo que é link recusa: O_NOFOLLOW (C-32a)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": " | os.O_NOFOLLOW, 0o600)",
+      "para": ", 0o600)",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "só o id do teste, nunca a mensagem (C-32b)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": ".id() for t, _ in resultado.failures",
+      "para": ".id() + _ for t, _ in resultado.failures",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o registro não muda o código de saída (C-32a)",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "registrar_vermelha(relatorios, carga, memoria)\n    return codigo",
+      "para": "registrar_vermelha(relatorios, carga, memoria)\n        return 0\n    return codigo",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem",
+        "tests.test_suite_paralela.Brinquedo.test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "suíte verde não grava",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    if codigo:\n        registrar_vermelha",
+      "para": "    if True:\n        registrar_vermelha",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_suite_verde_nao_grava_o_registro"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "erro do registro vira linha em stderr e não derruba",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "print(f\"suite-paralela: registro indisponível ({type(e).__name__})\", file=sys.stderr)",
+      "para": "raise",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_pasta_ou_arquivo_que_e_link_recusa_sem_gravar_e_sem_mudar_o_veredito"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "a taxa conta as vezes em que o teste caiu",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "\"vezes\": antes[i] + 1",
+      "para": "\"vezes\": 1",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a taxa tem o total de suítes vermelhas",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "\"de\": vermelhas + 1}",
+      "para": "\"de\": 1}",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "o arquivo do registro é 600",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "os.O_NOFOLLOW, 0o600)",
+      "para": "os.O_NOFOLLOW, 0o644)",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_vermelha_grava_o_teste_que_caiu_a_carga_e_a_taxa_sem_a_mensagem"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a pasta que não existe não é criada",
+      "arquivo": "scripts/suite-paralela.py",
+      "de": "    except OSError:\n        return None\n    if not stat",
+      "para": "    except OSError:\n        pasta.mkdir(parents=True, mode=0o700)\n        return pasta\n    if not stat",
+      "testes": [
+        "tests.test_suite_paralela.Brinquedo.test_sem_a_pasta_o_registro_nao_a_cria_e_o_veredito_e_o_mesmo"
+      ]
+    }
+  ]
+}

@@ -10,6 +10,7 @@ Falha fechado nas ações críticas (seção 7); `FORGE_GUARDA_ABERTA=1` no ambi
 Só age em projeto com `.forge/versao`; quem é a sessão vem de `CLAUDE_PROJECT_DIR` (`identificar_sessao`, R-CONTRIB).
 """
 import contextlib
+import functools
 import hashlib
 import json
 import os
@@ -58,6 +59,17 @@ OPCAO_COM_RESTO = set("MmIxCeEfFdDr")  # no grupo de opções curtas do perl/rub
 CITA_A_MARCA = re.compile(r"\.git/forge|forge/projeto-")
 LANCADORES_RECUSADOS = {"ionice", "chrt", "taskset", "flock", "unshare", "script"}
 AWKS = {"awk", "gawk", "mawk", "nawk"}
+
+
+@functools.lru_cache(maxsize=64)
+def interpretado(texto):
+    """Algum programa do texto (as palavras, sem aspas nem `\\`) é interpretador."""
+    return any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", texto)))
+
+
+def interpreta_o_corpo(dono):
+    """Algum programa do dono é interpretador: o todo é a soma das partes (o `\\n` entre elas separa palavras)."""
+    return any(map(interpretado, getattr(dono, "partes", None) or (dono,)))
 
 
 def interprete(programa):
@@ -732,6 +744,7 @@ class Guarda:
             # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
             if not so_substituicoes:
                 self.reavaliacao = self.reavaliacao or reavaliacao(comando)
+        self.h.corpos_pendentes += len(corpos)  # C-4: descontado depois do corpo conferido, no laço dos corpos
         if lidas is None or lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
@@ -779,10 +792,11 @@ class Guarda:
         for dono, corpo in corpos:  # o corpo é comando, a menos que todo dono da linha só o leia (ou o interprete)
             if not corpo_so_lido(dono, interprete):
                 self.bash(corpo, pasta, nivel + 1, corpo_de_heredoc=getattr(dono, "rodado", None) or True)
-            if dono not in interpretados:
-                interpretados[dono] = any(interprete(t) for t in re.split(r"[\s;&|()`<>]+", re.sub(r"[\"'\\]", "", dono)))
+            if dono not in interpretados:  # o `\n` entre as partes separa: o todo lido como a soma das partes
+                interpretados[dono] = interpreta_o_corpo(dono)
             if interpretados[dono]:
                 self.checar_texto(corpo)
+            self.h.corpos_pendentes -= 1
         self.nao_modelada(achado)
         if gravado and not self.leitura and CRITICO.search(original):  # M3, depois das regras da linha e do corpo
             self.barrar("R-CONFORMIDADE", f"heredoc gravado e programa não modelado na mesma chamada (`{gravado}`)",

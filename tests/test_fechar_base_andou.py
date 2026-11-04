@@ -30,6 +30,14 @@ case "$1 $2" in
     # $ESTADO/ls_ref_falha: sem resposta do servidor para a branch da entrega (passo 2); $ESTADO/ls_ref_lixo: a coluna 1 não é sha
     if [ -f "$ESTADO/ls_ref_falha" ] && [ "$3" = refs/heads/melhoria/x ]; then echo "fatal: unable to access" >&2; exit 128; fi
     if [ -f "$ESTADO/ls_ref_lixo" ] && [ "$3" = refs/heads/melhoria/x ]; then printf '%s\t%s\n' "$(cat "$ESTADO/ls_ref_lixo")" "$3"; exit 0; fi ;;
+  "push origin")
+    # $ESTADO/depois_do_envio: um script que roda depois do envio (a base anda de novo entre o merge e a cadeia seguinte)
+    "$REAL_GIT_FALSO" "$@"; rc=$?
+    if [ "$rc" = 0 ] && [ -f "$ESTADO/depois_do_envio" ]; then sh "$ESTADO/depois_do_envio" >&2; rm -f "$ESTADO/depois_do_envio"; fi
+    exit "$rc" ;;
+  "merge-tree --write-tree")
+    # $ESTADO/merge_tree_falha: o git não sabe `merge-tree --write-tree` (anterior ao 2.38) ou falha ao calcular
+    if [ -f "$ESTADO/merge_tree_falha" ]; then echo "usage: git merge-tree" >&2; exit 129; fi ;;
   "rev-list --count")
     # $ESTADO/revlist_falha: a contagem de commits da base (passo 2b) falha
     if [ -f "$ESTADO/revlist_falha" ]; then echo "fatal: bad object" >&2; exit 128; fi ;;
@@ -93,7 +101,7 @@ class Teste(unittest.TestCase):
 
     def test_c5_base_renomeou_o_arquivo_que_a_branch_editou_para(self):
         self.ramo_que_edita("melhoria/r", "a", "editado\n")
-        self.base_anda({}, renomear=("a", "g"))
+        self.base_anda({"g": "outro conteúdo\n"}, renomear=("a", "g"))  # renomeio com edição: conflito, a lista traz o `a`
         r = self.fechar("p1", "--ref", "melhoria/r")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("  a", r.stderr.splitlines())
@@ -198,7 +206,7 @@ class Teste(unittest.TestCase):
 
     def test_arquivo_em_comum_so_no_diff_do_segundo_ponto_de_partida_para_e_lista_os_dois(self):
         self.criss_cross(arquivos=True)
-        r = self.fechar("p1", "--ref", "melhoria/c")
+        r = self.fechar("p1", "--ref", "melhoria/c", "--trazida")  # com --trazida o merge não se repete: só a listagem que para
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         # so_b só entra no diff de B e so_c só no de C: o laço sobre um só ponto de partida listaria um deles
         self.assertEqual([l for l in r.stderr.splitlines() if l.startswith("  ")], ["  so_b", "  so_c"])
@@ -265,6 +273,131 @@ class Teste(unittest.TestCase):
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("não consegui contar os commits da base", r.stderr)
         self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    # ---- L37 (D-3): a base andou e tocou arquivo da branch; com `git merge-tree` limpo o integrador faz o merge ----
+    def renomeio_limpo(self, nome="melhoria/r"):
+        """A branch edita `a` e a base só o renomeia para `g`: arquivo em comum, mas o merge-tree sai limpo."""
+        self.base_anda({"a": "l1\nl2\nl3\nl4\nl5\n"})
+        self.ramo_que_edita(nome, "a", "editado\nl2\nl3\nl4\nl5\n")
+        self.base_anda({}, renomear=("a", "g"))
+
+    def head_remoto(self, nome):
+        return self.git("ls-remote", "origin", f"refs/heads/{nome}").split()[0]
+
+    def test_l37_base_com_arquivo_em_comum_sem_conflito_faz_o_merge_e_recomeca_a_cadeia(self):
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        base_sha = self.head_remoto("develop")
+        arvore = self.git("merge-tree", "--write-tree", "--no-messages", antigo, base_sha)
+        r = self.fechar("p1", "--ref", "melhoria/r", "--sem-limpar")  # a branch fica para o teste conferir o head
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)
+        novo = self.git("rev-parse", "melhoria/r")
+        self.assertNotEqual(novo, antigo)
+        self.assertEqual(self.git("rev-list", "--parents", "-n", "1", novo).split(), [novo, antigo, base_sha])  # pais: head e base
+        self.assertEqual(self.git("rev-parse", f"{novo}^{{tree}}"), arvore)  # a árvore é a do merge-tree, nada à mão
+        # a cadeia recomeçou no head novo: o forge-check leu o antigo e depois o novo; o PR e o merge ficaram presos ao novo
+        pr = [c for c in self.chamadas() if c.startswith("forge-check pr")]
+        self.assertEqual([c.split()[4] for c in pr], [antigo, novo])
+        self.assertEqual(len(self.criacoes()), 1)
+        self.assertEqual(len(self.merges()), 1)
+        self.assertIn(novo, self.merges()[0])
+        self.assertNotIn(antigo, self.merges()[0])
+        self.assertIn("merge limpo em melhoria/r", r.stdout)
+
+    def test_l37_o_merge_sobe_pelo_envio_normal_e_a_worktree_da_branch_anda_junto(self):
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        arvore = self.tmp / "wt-r"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/r")
+        r = self.fechar("p1", "--ref", "melhoria/r", "--sem-limpar")
+        self.assertEqual(r.returncode, 3, r.stderr + r.stdout)  # fechado, limpeza pendente
+        novo = self.git("rev-parse", "melhoria/r")
+        self.assertNotEqual(novo, antigo)
+        self.assertEqual(self.git("-C", str(arvore), "rev-parse", "HEAD"), novo)  # a worktree acompanhou (fast-forward)
+        self.assertEqual(self.git("-C", str(arvore), "status", "--porcelain"), "")
+        self.assertEqual(self.head_remoto("melhoria/r"), novo)
+
+    def test_l37_worktree_com_mudanca_nao_commitada_para_sem_mexer_na_branch(self):
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        arvore = self.tmp / "wt-r"
+        self.git("worktree", "add", "-q", str(arvore), "melhoria/r")
+        (arvore / "rascunho").write_text("x\n")
+        self.git("add", "rascunho", cwd=arvore)
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("tem mudança não commitada", r.stderr)
+        self.assertEqual((self.git("rev-parse", "melhoria/r"), self.head_remoto("melhoria/r")), (antigo, antigo))
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_l37_com_conflito_para_sem_merge_sem_envio_e_sem_pr(self):
+        self.base_anda({"b": "da base\n"})  # a branch também criou `b`, com outro conteúdo: conflito
+        antigo = self.git("rev-parse", "melhoria/x")
+        r = self.fechar("p1", "--ref", "melhoria/x")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("tem conflito", r.stderr)
+        self.assertIn("git merge origin/develop", r.stderr)
+        self.assertEqual((self.git("rev-parse", "melhoria/x"), self.head_remoto("melhoria/x")), (antigo, antigo))
+        self.assertEqual(self.git("rev-list", "--merges", "-n", "1", "melhoria/x"), "")
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_l37_branch_fora_de_melhoria_nunca_recebe_o_merge(self):  # C-37c
+        self.renomeio_limpo("feature/z")
+        antigo = self.git("rev-parse", "feature/z")
+        r = self.fechar("p1", "--ref", "feature/z")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("passo 2b", r.stderr)
+        self.assertEqual((self.git("rev-parse", "feature/z"), self.head_remoto("feature/z")), (antigo, antigo))
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_l37_so_um_merge_por_cadeia_a_base_que_anda_de_novo_para(self):  # T-37b
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        r = self.fechar("p1", "--ref", "melhoria/r", "--trazida")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertEqual(self.git("rev-parse", "melhoria/r"), antigo)
+        self.assertEqual(self.criacoes(), [])
+
+    def test_l37_a_base_que_anda_de_novo_depois_do_merge_para_na_cadeia_seguinte(self):  # T-37b: o recomeço leva --trazida
+        self.renomeio_limpo()
+        (self.estado / "depois_do_envio").write_text(
+            f'set -e\nG="$REAL_GIT_FALSO"\nd="$(mktemp -d)"\n"$G" clone -q -b develop {self.remoto} "$d/c"\ncd "$d/c"\n'
+            'printf "l1\\nl2\\nl3\\nl4\\nmais\\n" > g\n"$G" add g\n"$G" commit -q -m "feat: base anda de novo"\n"$G" push -q origin develop\n' + f'"$G" -C {self.proj} fetch -q origin\n', encoding="utf-8")
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("a base andou e tocou arquivo que a branch também tocou", r.stderr)  # a listagem que para, não o pedido de fetch
+        self.assertEqual(r.stdout.count("merge limpo em melhoria/r"), 1, "um merge por cadeia")
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_l37_git_sem_merge_tree_ou_com_falha_para_sem_mexer_na_branch(self):  # falha fechada
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        (self.estado / "merge_tree_falha").write_text("1")
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("não consegui calcular o merge", r.stderr)
+        self.assertEqual((self.git("rev-parse", "melhoria/r"), self.head_remoto("melhoria/r")), (antigo, antigo))
+        self.assertEqual(self.criacoes(), [])
+
+    def test_l37_envio_recusado_para_sem_abrir_pr_e_diz_onde_o_merge_ficou(self):
+        self.renomeio_limpo()
+        antigo = self.git("rev-parse", "melhoria/r")
+        gancho = self.remoto / "hooks" / "pre-receive"
+        gancho.write_text("#!/bin/sh\necho recusado de proposito >&2\nexit 1\n", encoding="utf-8")
+        gancho.chmod(0o755)
+        r = self.fechar("p1", "--ref", "melhoria/r")
+        self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
+        self.assertIn("o envio do merge foi recusado", r.stderr)
+        self.assertEqual(self.head_remoto("melhoria/r"), antigo)
+        self.assertEqual((self.criacoes(), self.merges()), ([], []))
+
+    def test_l37_nunca_usa_no_verify_nem_force_no_envio(self):  # T-37c
+        texto = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("trazer_a_base() {", texto, "o integrador traz a base")
+        corpo = texto[texto.index("trazer_a_base() {"):texto.index("# conferir_base (passo 2b")]
+        self.assertIn('git push origin "$ramo:$ramo"', corpo)
+        for proibido in ("--no-verify", "--force", " -f ", "-X ", "--allow-unrelated-histories", "+refs"):
+            self.assertNotIn(proibido, corpo)
 
     # ---- LOTE-0307-A, E1: index.lock na pasta git da worktree da branch ----
     def worktree_de_x(self):

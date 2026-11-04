@@ -1,0 +1,43 @@
+---
+tipo: revisao-seguranca
+contrato: 1
+pedido: heredoc-donos
+branch: melhoria/heredoc-donos
+commit: f16b60eb3d9045948fc1fef7e16cb74e7607a103
+parecer: aprovado
+revisor: forge:security-engineer
+data: 2026-11-03
+---
+# Review de segurança: heredoc-donos
+
+Etapa E2.1 do pedido heredoc-donos-REV (E1.3 do heredoc-donos). Diff revisado: `032b4cb...f16b60e` (6 commits). Modelo de ameaças: `docs/security/ameacas/heredoc-donos.md` (T1 a T6, C-1 a C-6). Proposta: `docs/propostas/heredoc-donos.md`. Decisão do dono que vale aqui: P-HEREDOC-DONOS-C4 = A.
+
+## Gatilhos
+R-SEGURANCA, gatilho `controles do Forge`: a entrega muda o analisador de entrada do hook (`hooks/_comum.py`: `DonosDosHeredocs`, `corpo_so_lido`, `fronteira_limpa`, `prazo_vencido`; `hooks/conformidade.py`: o laço dos corpos). O defeito corrigido era uma liberação por tempo (L1 e L2 do modelo).
+
+## Achados
+- A1 (recomendado) hooks/_comum.py:1481 · `fronteira_limpa` não prova que a varredura dos comentários (G) atravessa o prefixo. Com um `$(` no prefixo, as partes divergem do todo (`python3 "$(cat)"` + `cat #; bash`: partes True, todo False). Hoje isso não se alcança porque o `fora_do_texto` cita a substituição como `_`.
+- A2 (recomendado) hooks/conformidade.py:747 · O C-4 só conta os corpos depois de `tirar_heredocs` e `leituras`. Se o vigia vencer nessa janela (0,85 s de CPU com 143 mil caracteres, mais tempo de parede numa máquina carregada), a linha sem marcador ainda é liberada. Contar os `<<` antes da tirada fecha a janela.
+- A3 (recomendado) hooks/_comum.py:980 · Com fronteira, cada dono ainda monta e faz o hash de `prefixo + sozinho`, que custa O(N·|prefixo|). Medido: 0,35 → 0,85 s de 4000 para 8000 donos (razão 2,4, abaixo de 4 e limitada pelos 150 mil caracteres). Sem `partes`, o texto inteiro só seria necessário na mensagem.
+
+## Detalhe dos achados
+
+### Controles do modelo (C-n) e mudanças proibidas (T-n)
+- **C-1 (nada recusado na develop passa a liberar):** `test_donos_em_partes_leem_como_o_texto_inteiro` (`tests/test_hooks.py:1944`) compara o `vestir` da 032b4cb com o novo nas fixtures, no `corpus_de_recusas` e em mais de 1500 linhas geradas. Ele confere `(resto, gravado, dono, rodado, corpo, corpo_so_lido, com interprete, interpreta_o_corpo)` também nos corpos aninhados. Verde. Rodei também um oráculo próprio com 11.520 linhas e dimensões fora do gerador do teste: prefixo com `$(`, crase, `${a#b}`, `{a,b}`, `case`, função, `if`, comentário, `\`⏎, `=~` e `<(`; donos com `#`, `#$(bash)`, `'#'`, `x#y`, `A=1 cat`, `cat; bash` e `cat | sh`; separadores `⏎`, `&&` e `|`; final com push main, com `bash` gravando em `.github/` ou sem nada. Somei 48 linhas com prefixo só de interpretadores (`python3 "$(cat)"`, `perl -`, `node`) e donos com `#` antes de substituição. Resultado: zero diferenças.
+- **Por que as partes equivalem ao todo (T2):** sempre que o prefixo não é vazio, ele tem um programa que não lê o corpo. É o próprio critério do `fora_do_texto`: `MUDAM_O_AMBIENTE` ∩ `LEITORES_DO_CORPO` = ∅, o `("git","git")` é anexado e a entrada `?` também. Então `all(ok)` sai False nas duas leituras com `tambem=nenhum`. A divergência só seria possível com `tambem=interprete` e prefixo só de interpretadores, e mesmo assim só se a leitura do `sozinho` mudasse com o contexto. `fronteira_limpa` recusa as três formas pedidas (`cat 'a`, `cat a \` e `cat $(x`, em `tests/test_hooks.py:1993`), e nessas o dono se lê inteiro e conta o prefixo no teto (C-5). O estado de comentários é o caso que `fronteira_limpa` não cobre (A1): `comentarios` é uma varredura global que para na primeira construção fora de G. Hoje o prefixo é sempre G-limpo, porque o `citar` aplica `shlex.quote` e a substituição sai como `_`; testei `$(cat)`, `x$(cat)`, `<(cat)`, crase, `"a$(cat)b"`, `$(cat)'#'` e `>(cat)`, e a varredura do prefixo chega ao fim em todos. Então não há fronteira falsa alcançável. Na leitura de função, porém, ela existe, e uma mudança futura no `citar` a abriria. Correção mínima (P, tech-lead): exigir também `varrer_comentarios(prefixo)[1] == len(prefixo)` em `fronteira_limpa`, com um teste que chame a função com `python3 "$(cat)"` e espere False. Severidade: informativa.
+- **T1:** o prefixo é o `fora_do_texto` inteiro, na ordem e com as atribuições (`_comum.py:928`); nada se deduplica por nome. Mutante D16 cobre a atribuição. **T3:** `interpreta_o_corpo` (`conformidade.py:70`) é o OR das partes, e o prefixo está nelas. Isso equivale ao `re.split` do todo, porque o `\n` entre as partes é separador e o `re.sub` de aspas e `\` não toca no `\n`. **T4:** `_leitura_do_dono` e `interpretado` usam o texto inteiro de cada parte como chave. O `lru_cache` de `corpo_so_lido` usa o valor do `Dono` (str), e a mistura com chamadas sobre `str` só importaria se as partes divergissem do todo (ver acima). **T5:** o prefixo continua antes do dono (`_comum.py:980`). **T6:** nenhum `except` novo. O teto só alarga (C-5 soma o prefixo quando não há fronteira).
+- **C-2 (linear):** a mudança tira o O(N²) da leitura. Restam a concatenação e o hash por dono (A3), e a razão medida fica abaixo de 4.
+- **C-3 (orçamento sem o marcador):** `test_muitos_heredocs_recusam_dentro_do_orcamento` ganhou `./x{i}`, `sh -s a{i}`, `python3 -` e `python3 - a{i}`, com 1000 e 3000 donos, terminando em `bash` que grava em `.github/`, sem push. Na minha rodada: de 0,39 a 1,83 s de parede, contra o limite de 5,0 s, todas recusando pela regra do caminho.
+- **C-4 (variante A):** `prazo_vencido` (`_comum.py:2490`) recusa com `corpos_pendentes` > 0 mesmo com `marcado False`, numa sessão vigiada e antes da ferramenta, e pede para "separe o comando em chamadas menores". `test_prazo_vencido_com_corpo_de_heredoc_pendente_recusa` interrompe no 2.º de 3 corpos (2 pendentes, recusa). Sem pendente, libera, e no PostToolUse também libera. O contador só sobe antes do laço e só desce depois do corpo conferido. Qualquer saída antecipada deixa o contador alto, o que só aperta. A janela antes da contagem fica no A2. O `ValueError` e o teto recusam pelo ramo ilegível, como antes. Severidade do A2: baixa. Ator: o modelo da sessão. Exige uma linha perto de 150 mil caracteres e a máquina carregada. Correção mínima (P, tech-lead): somar `comando.count("<<")` (ou 1 se houver `<<`) antes do `tirar_heredocs` e acertar depois com `len(corpos)`.
+- **C-5:** `gasto += len(sozinho) + len(prefixo)` quando não há fronteira (`_comum.py:968`). O teste das três formas sem fronteira mostra o dono largo assumindo (menos de 100 objetos para 1000 heredocs) e o corpo do `bash` final continuando comando.
+- **C-6 (casos de abuso), pelo hook real com o vigia de produção** (`rodar(..., como_o_claude_code=True)`), todos com rc 2 pela regra do caminho `.github/` e sem marcador. (a) `./x{i}`: 3000 em 1,17 s, 4000 em 0,77 s e 8000 em 1,74 s. (b) `python3 - a{i}` com 4000 em 1,22 s, e `sh -s a{i}` com 4000 em 1,09 s. (c) `export A{i}=1; tee f{i}` com 4000 em 2,07 s. (e) Corpo crítico no meio, com 3000: 0,53 s. Formas extras: aninhado (`bash <<'W'` com 2000 dentro) em 0,37 s, sem fronteira (`'$('`, `a \`) com 3000 em 1,14 s e 0,63 s, e `cat > g` com 2000 `git -C d{i} status` em 0,66 s. Acima de 150 mil caracteres, o teto da linha recusa (0,12 s). (d) Sem `SIGALRM`, e (f) os mutantes, ficam com o QA (`tests/mutantes/heredoc-donos.json`, D1 a D16).
+- **Escopo do C-4:** só o `conformidade` incrementa `corpos_pendentes` (`conformidade.py:747`). O `parecer` usa o mesmo `corpo_so_lido` e ganha a mesma velocidade, mas não ganhou o aperto do prazo. Isso fica fora do pedido (a decisão fala do hook de conformidade). É informativo e não entra como achado.
+
+### Achados recorrentes (PA-7)
+Confirmei AR-1 a AR-10. AR-1 (mutantes) e AR-2 (ramo de guarda com teste) ficam com o QA, e o ramo novo do C-4 tem teste de comportamento. AR-3 não se aplica: `fronteira_limpa` é uma prova positiva, não uma lista negativa. AR-5 não se aplica: nenhum caminho novo chama `python`. AR-6, AR-8 e AR-10 não se aplicam, porque a entrega não mexe no shell, no `cd` nem em texto isento. AR-9 também não: o changelog traz a medida e nenhum limite antigo.
+
+### Testes
+Rodei `python3 -m unittest tests.test_hooks` na worktree, com o head f16b60e, conforme a D-5 reformulada (só o arquivo tocado). Resultado: 70 testes, OK, em 670,7 s, com a carga da máquina subindo por outras sessões. As sondas ficaram em `$TMPDIR/security-engineer-heredoc-donos/`.
+
+## Riscos aceitos e ferramentas
+Nenhum risco aceito. As ferramentas da skill não estão no PATH (`gitleaks`, `semgrep`, `osv-scanner`, `zizmor` e `actionlint`). É uma lacuna registrada, e a revisão foi por leitura do diff, por oráculo diferencial e por medida no hook real. O diff não toca workflow, dependência nem segredo.

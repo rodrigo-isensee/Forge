@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Forge: valida o contrato entre agentes (ADR 0004). Só biblioteca padrão; não executa nada dos documentos.
 
+`pr` aprovado sai com rc 0 e uma linha `pr: veredito: aprovado · <pedido> · exigidos <pareceres> · head <sha7> · base <origin/x|diff literal|estrita>`; com violação, só as violações e rc 1.
+
 Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [--ref REF] [--base REF]   (as duas opções também depois do subcomando)
      forge-check transcricao anonimizar <entrada.jsonl> <saida.jsonl>
      forge-check transcricao verificar <arquivo.jsonl> [--teto N]
      forge-check transcricao custo [<pasta ou .jsonl>] [--entregas [--entrega NOME]] [--desde HORA --ate HORA | --pedido ID]
      forge-check transcricao lastro [<pasta ou .jsonl>]
      forge-check transcricao decisoes [<pasta ou .jsonl>]
+     forge-check transcricao vereditos [<pasta ou .jsonl>]
+     forge-check transcricao recusas [<pasta ou .jsonl>]
      forge-check brief <arquivo> --pedido <arquivo ou id> [--destino forge:<nome>]
      forge-check brief gerar --pedido <arquivo ou id> [--destino forge:<nome>] [--branch B] [--base develop] [--etapa E]
      forge-check brief mensagem --arquivo <brief em docs/briefs/> --pedido <arquivo ou id> [--destino forge:<nome>] [--etapa TEXTO] [--anterior <brief> --ref <branch>] | --entrega --worktree DIR
@@ -17,6 +21,8 @@ Uso: forge-check [--raiz DIR] [--raiz-pedidos DIR] docs | kanban | pr <pedido> [
      forge-check sobreposicao [--base REF] [--ref BRANCH]
      forge-check movimento <cartão> --de COLUNA --para COLUNA [--motivo TEXTO]
      forge-check voltas [--pedido ID]
+     forge-check decisoes [--pedido ID]
+     forge-check proximo <pedido>
      forge-check esperas [--pedido ID [--kanban ARQUIVO]]
      forge-check afrouxamentos (--prs N,N... | --rotulados ARQUIVO.json) [--ref REF]
      forge-check escape registrar --pedido ID --parecer-final P --achado-por COMO --gravidade G --controle-que-faltou C --nota TEXTO
@@ -30,7 +36,10 @@ só avisa (`aviso:`), como a falta da coluna "Pronto para fazer" ou "Pronto" no 
 linha `fila: ... não tem KANBAN.md` (SEM_QUADRO).
 `voltas` (M13; só leitura) lista, por pedido, as voltas (rodadas extras de brief, conferência que não cumpriu, review que
 reprovou, revalidação, escrita barrada, retorno de coluna fora do vocabulário = `nao-classificado`) e os minutos de cada
-uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs.
+uma, lidas das linhas de tabela de docs/kanban/historico.md (hora ISO), de docs/kanban/conferencias.md e de docs/briefs. Do cartão que
+chegou à develop (primeiro movimento para "Aguardando sua validação" ou "Pronto") traz também `relogios:` (L49, D-4): minutos de
+`aberto_ate_develop` (primeiro movimento do cartão) e de `pronto_ate_develop` (entrada em "Pronto para fazer"; `-` se nunca esteve),
+com a `meta=30` do segundo e `dentro=sim|nao|-`.
 `esperas` (M14b; só leitura) lista, por cartão de docs/kanban/historico.md, cada espera (`dono`: coluna ou motivo "Aguardando o dono";
 `credencial`: "Sem credencial"; `outra`: "Bloqueado" sem dizer por quê) e os minutos até o próximo movimento do cartão (`aberta` se não houve),
 mais o total por tipo; `--pedido` casa os cartões do pedido como o `transcricao custo --pedido` (e pelo motivo do movimento que cita o pedido), lista os casados e aceita `--kanban`.
@@ -88,11 +97,14 @@ ancestral do fim. `brief --anterior <brief da rodada anterior>` acrescenta `ante
 `fontes` compara o commit mais recente de cada fonte do registro local (~/.forge-contrib/fontes/fontes.json, fora do
 repositório) com o último revisado, por `git ls-remote` (grátis, R-CUSTO). Uma linha se houver versão nova; sem
 registro, silêncio; fonte inalcançável: sai com 3 (quem chama não grava o cache do dia).
+`decisoes` (EXT-2; só leitura, sem rede, nada se grava) imprime o registro das linhas `DECISÃO DO DONO` de `docs/pedidos/`: `decisao: <pedido>:<linha> | data | decisão | motivo | reabre se`
+(`—` onde a linha não diz); a linha da frase fora de `(<data>): <texto>` sai `aviso:` e fica fora. Derivado e informativo: nenhum portão o lê, e o aceite continua a linha literal do pedido.
 `transcricao` confere o comportamento de uma sessão gravada, sem IA e sem rede (ADR 0007); `custo` soma os tokens
 das transcrições locais do Claude Code (sem custo, R-CUSTO), com saída anonimizada.
-`lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK)
+`lastro` (M1) conta, no relatório final de cada subagente, as afirmações verificáveis (sha, PR, push, mescla, testes OK e a afirmação absoluta "todos os testes passam", que só tem lastro numa saída de teste que terminou OK)
 e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` (M3) conta as respostas da sessão
-principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo". Só medem; não bloqueiam nada.
+principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
+contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `forma:` ou `escopo:` que reprova, ou `não cumpriu` sem nenhuma; `escopo:` de integração da base, sem commit ou união de N briefs não conta). Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 Sem `--ref`, `pr` lê o parecer do disco e exige que ele seja igual ao do HEAD (parecer commitado, bytes idênticos).
 `pr --base` (só `develop`, `homolog`, `main` ou `origin/<essas>`, lida de `refs/remotes/origin/<base>`) aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou: o merge da base depois do parecer não o invalida, mas qualquer byte a mais no commit de merge sim (por conteúdo, nunca por nome); base que já contém o head vale só pelo diff literal (aviso no stderr).
@@ -111,6 +123,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -679,19 +692,42 @@ def pedido_do_pr(raiz, pedido, ref=None):
             branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho) or ""
             if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch.startswith("melhoria/"):
                 slugs.add(branch.removeprefix("melhoria/"))
-    if len(slugs) != 1:
+    if len(slugs) > 1:  # ambíguo: o `uso:` segue, nunca o pedido mais fraco (C-08a)
         return pedido
+    if not slugs:  # L08: sem brief, o slug é o da própria branch, se um parecer dela leva `pedido: <slug>`
+        slug = branch_da_convencao(raiz, ref)
+        if not slug or not any((validar_documento(rel, texto)[0] or {}).get("pedido") == slug for rel, texto in documentos(Path(raiz), None, ref)):
+            return pedido
+        print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (a branch da ref)", file=sys.stderr)
+        return slug
     slug = slugs.pop()
     print(f"pr: pedido {pedido} -> slug {nome_seguro(sem_controle(slug))} (linha Branch: do brief)", file=sys.stderr)
     return slug
 
 
+def exigidos_do_pr(raiz, pedido, ref=None, base=None):
+    """Os pareceres que o `forge-check pr` exige e os gatilhos de segurança que pedem o de segurança: `(tipos, gatilhos)`."""
+    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
+    isentos = isencoes_da_entrega(raiz, ref, base)
+    return ([t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else []),
+            gatilhos_de_seguranca)
+
+
+def veredito_do_pr(raiz, pedido, ref, base):
+    """A linha que o `forge-check pr` imprime só com rc 0 (LOTE E1): o que foi conferido, para um rc 0 não ficar mudo. Os mesmos
+    exigidos do `cmd_pr`; a base é a que o `pr_da_cli` resolve (`origin/<base>`, `diff literal` ou `estrita` sem `--base`)."""
+    nome = (base or "").removeprefix("origin/")
+    resolvida = base_do_delta(raiz, nome, ref)[0] if base else None
+    exigidos, _ = exigidos_do_pr(raiz, pedido, ref, resolvida)
+    head = (sha_do_commit(raiz, ref or "HEAD") or "?")[:7]
+    como = "estrita" if not base else resolvida.removeprefix("refs/remotes/").removeprefix("refs/heads/") if resolvida else "diff literal"
+    return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
-    infra, gatilhos_de_seguranca = gatilhos(raiz, pedido, ref, base)
-    isentos = isencoes_da_entrega(raiz, ref, base)
-    exigidos = [t for t in ("review", "qa") if t not in isentos] + (["revisao-devops"] if infra else []) + (["revisao-seguranca"] if gatilhos_de_seguranca else [])
+    exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     for tipo in exigidos:
         pasta, rid = PASTA_E_REGRA[tipo]
         achados = []
@@ -1072,6 +1108,9 @@ def escopo_pelo_primeiro_pai(raiz, de, head, base_ref):
         if not pais:
             return None
         proprios = set(nomes_do_intervalo(raiz, pais[0], commit))
+        if len(pais) == 1 and e_ancestral(raiz, commit, base_ref):  # L08: commit de release ou squash de outro pedido, já na base remota
+            da_base = {n for n in proprios if git(raiz, "rev-parse", f"{commit}:{n}") == git(raiz, "rev-parse", f"{base_ref}:{n}")}
+            integrou, proprios = integrou or bool(da_base), proprios - da_base  # só o que a base ainda tem igual sai; o resto é da entrega
         if len(pais) == 2 and e_ancestral(raiz, pais[1], base_ref):
             integrou = True
             da_base = set(nomes_do_intervalo(raiz, pais[1], commit))
@@ -1533,6 +1572,9 @@ def gerar_volta(raiz, caminho_pedido, pedido_txt, a):
     if recusa := recusa_do_desde(raiz, pedido_txt, ref, sha_base, a.base):
         return None, 1, [recusa]
     saida.append(f"Branch: {branch}   Base: {a.base}   Base-sha: {sha_base}\n")
+    etapa_anterior = getattr(a, "etapa", None) or grupo(ETAPA_DO_CABECALHO, cabecalho_do_brief(anterior))  # LOTE E5: sem `Etapa:` o `brief mensagem --entrega` recusa
+    cobre_anterior = grupo(r"\bCobre:\s*(\S+)", cabecalho_do_brief(anterior))
+    saida.append(f"Etapa: {sem_controle(etapa_anterior) if etapa_anterior else PREENCHER}" + (f"   Cobre: {sem_controle(cobre_anterior)}" if cobre_anterior else "") + "\n")
     saida.append(f"Volta-de: {caminho_impresso(rel_volta)} sha256 {hashlib.sha256(conteudo).hexdigest()}\n\n")
 
     def copiado(nome):
@@ -1885,6 +1927,48 @@ def carga_alta_agora():
     return agentes.carga_alta(carga, memoria, total, agentes.nucleos())
 
 
+LIMITE_DE_OCUPACAO = 0.6  # M7: acima dele o Jarvis não despacha etapa que roda a suíte
+
+
+def ocupacao_da_trava(raiz):
+    """M7: `(ocupação, texto)` da trava da suíte pelo `.githooks/pre-push --status` da própria raiz, ou None sem esse hook. A ocupação é o
+    que a trava tem agora: 0 livre; 1 mais a fila, presa (capacidade 1). O `--status` só testa e solta (a leitura não toma nem apaga a
+    trava, C-18) e recusa link e dono diferente; qualquer saída que não seja 0 ou 1 é `(None, motivo)`: não verificável, nunca livre."""
+    hook = Path(raiz) / ".githooks" / "pre-push"
+    if hook.is_symlink() or not hook.is_file():
+        return None
+    try:
+        if '[ "$1" = "--status" ]' not in hook.read_text(encoding="utf-8", errors="replace"):
+            return None  # hook de outro dono (o do modelo de projeto não tem --status): não se executa hook alheio
+    except OSError:
+        return None
+    try:
+        r = subprocess.run([str(hook), "--status"], capture_output=True, text=True, timeout=10, cwd=str(raiz))
+    except (OSError, subprocess.SubprocessError):
+        return None, "o --status não rodou"
+    if r.returncode == 1:
+        return 0.0, "livre"
+    if r.returncode == 0:
+        fila = re.search(r"(\d+) na fila", r.stdout)
+        n = int(fila.group(1)) if fila else 0
+        return 1.0 + n, f"presa, {n} na fila"
+    return None, f"o --status saiu com {r.returncode}"
+
+
+def linhas_de_ocupacao(raiz):
+    """As linhas da `fila` sobre a trava (M7); vazio sem o hook."""
+    lida = ocupacao_da_trava(raiz)
+    if lida is None:
+        return []
+    ocupacao, texto = lida
+    if ocupacao is None:
+        return [f"aviso: trava da suíte não verificável ({sem_controle(texto)}); trate como ocupada (M7)"]
+    linhas = [f"fila: trava ocupacao={ocupacao:.1f} limite={LIMITE_DE_OCUPACAO} ({texto})"]
+    if ocupacao > LIMITE_DE_OCUPACAO:
+        linhas.append(f"aviso: ocupação {ocupacao:.1f} da trava acima de {LIMITE_DE_OCUPACAO}: não despache etapa que roda a suíte (M7)")
+    return linhas
+
+
 def cmd_fila(raiz):
     """O que pode começar agora (P9; só leitura, sem rede, rc 0): cartões de "Pronto para fazer" sem dependência
     pendente nem ciclo, até as vagas de R-TETO (teto menos agentes vigentes; carga alta zera). Sobreposição de
@@ -1933,15 +2017,66 @@ def cmd_fila(raiz):
     for coluna in ("Pronto para fazer", "Pronto"):
         if coluna not in quadro:
             saida.append(f'aviso: o quadro não tem a coluna "{coluna}"')
+    saida += linhas_de_ocupacao(raiz)
     resumo = f"fila: {pode} podem começar, {vagas} vagas de {teto} ({ativos} ativos), {esperam} esperam"
     if len(saida) > FILA_LINHAS - 1:
         saida = saida[:FILA_LINHAS - 2] + [f"... (+{len(saida) - (FILA_LINHAS - 2)} linhas omitidas)"]
     return saida + [resumo]
 
 
+PARADAS_DO_QUADRO = ("aguardando o dono", "sem credencial", "bloqueado", "aguardando sua validacao")  # sem acento: o cartão parou
+FIM_DO_QUADRO = "pronto"
+
+
+def custo_do_trecho(raiz, desde, ate):
+    """L16 (EXT-3): tokens das transcrições locais entre `desde` e `ate`, ou None (`lacuna`) se não há transcrição ou mensagem com uso na
+    janela: a falta de medida nunca vira 0. Só lê o disco local (`transcricao custo`); o valor é número, nunca texto da transcrição."""
+    try:
+        arquivos, _ = transcricoes_do_alvo(None, raiz)
+        dados = ler_uso(arquivos, (desde, ate)) if arquivos else None
+    except OSError:
+        return None
+    if not dados or not dados["mensagens"]:
+        return None
+    soma = zerar_uso()
+    for _, _, _, _, uso in dados["mensagens"]:
+        somar_uso(soma, uso)  # só os campos conhecidos: o usage real traz server_tool_use aninhado
+    return total_uso(soma)
+
+
+def custo_do_movimento(raiz, cartao, para, arq, agora):
+    """L16: o texto `custo do trecho: N tokens|lacuna` (ao parar o cartão) ou `custo total: ...` (no Pronto), ou "". O trecho vai do
+    último movimento do cartão até agora; o total soma os trechos já gravados mais o de agora, e uma lacuna fica dita, nunca 0."""
+    destino = _sem_acento(para)
+    if destino not in PARADAS_DO_QUADRO and destino != FIM_DO_QUADRO:
+        return ""
+    movimentos = [c for c in _ler_tabela(arq) if len(c) >= 5 and c[1].casefold() == cartao.casefold() and ISO8601.match(c[0])]
+    ultimo = _hora(movimentos[-1][0]) if movimentos else None
+    trecho = custo_do_trecho(raiz, ultimo, agora) if ultimo else None
+    if destino != FIM_DO_QUADRO:
+        return f"custo do trecho: {trecho} tokens" if trecho is not None else "custo do trecho: lacuna"
+    anteriores = [m for c in movimentos for m in re.findall(r"custo do trecho: (\d+) tokens|(custo do trecho: lacuna)", "|".join(c[4:]))]
+    valores = [int(n) for n, _ in anteriores if n] + ([trecho] if trecho is not None else [])
+    lacunas = sum(1 for n, _ in anteriores if not n) + (1 if trecho is None else 0)
+    if not valores:
+        return "custo total: lacuna"
+    return f"custo total: {sum(valores)} tokens" + (f" ({lacunas} trechos em lacuna)" if lacunas else "")
+
+
+ESTADOS_FORA_DO_QUADRO = ("Sem credencial", "Conferência", "Review")  # estados que o jarvis.md e o `esperas` usam sem coluna própria
+
+
+def colunas_do_quadro(raiz):
+    """Títulos `## ` do KANBAN.md cortados no primeiro ` (` (o limite de WIP), mais os estados fora do quadro; só leitura."""
+    texto = (raiz / "KANBAN.md").read_text(encoding="utf-8", errors="replace")
+    titulos = [re.split(r"\s+\(", l[3:].strip(), maxsplit=1)[0].strip() for l in texto.split("\n") if l.startswith("## ")]
+    return titulos + list(ESTADOS_FORA_DO_QUADRO)
+
+
 def cmd_movimento(raiz, cartao, de, para, motivo):
     """Anota um movimento do quadro em docs/kanban/historico.md (PA-9): hora real ISO 8601 com fuso, cartão,
-    coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir."""
+    coluna de origem e de destino. Só acrescenta; cria o arquivo com o cabeçalho se não existir. Ao parar o cartão (EXT-3), o motivo leva
+    `custo do trecho: N tokens` (ou `lacuna`); no Pronto, `custo total`."""
     def limpo(t):
         return re.sub(r"[\x00-\x1f\x7f]", "", re.sub(r"\s+", " ", t.replace("|", "/"))).strip()
     campos = [limpo(x) for x in (cartao, de, para)]
@@ -1949,11 +2084,18 @@ def cmd_movimento(raiz, cartao, de, para, motivo):
         return ["movimento: cartão, --de e --para não podem ser vazios"]
     if not (raiz / "KANBAN.md").is_file():
         return [SEM_QUADRO.format(cmd="movimento", raiz=caminho_impresso(raiz))]
+    validas = {_sem_acento(c) for c in colunas_do_quadro(raiz)}
+    for nome, valor, extra in (("--de", campos[1], {"—"}), ("--para", campos[2], set())):  # `—` só na origem (cartão novo)
+        if valor not in extra and _sem_acento(valor) not in validas:
+            return [f"movimento: coluna \"{nome_seguro(valor)}\" ({nome}) fora do KANBAN.md (colunas: {', '.join(colunas_do_quadro(raiz))}); nada gravado"]
     arq = raiz / "docs" / "kanban" / "historico.md"
     if arq.is_symlink():
         return ["movimento: docs/kanban/historico.md é link simbólico; não escrevo através dele"]
-    hora = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
-    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {limpo(motivo) or '—'} |\n"
+    agora = datetime.datetime.now().astimezone()
+    hora = agora.isoformat(timespec="seconds")
+    custo = custo_do_movimento(raiz, campos[0], campos[2], arq, agora)  # L16: só no `movimento`, só acrescentando (C-16a)
+    motivo = " · ".join(t for t in (limpo(motivo), custo) if t)
+    linha = f"| {hora} | {campos[0]} | {campos[1]} | {campos[2]} | {motivo or '—'} |\n"
     acrescentar_ao_arquivo(arq, linha, "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n")
     return [linha.rstrip("\n")]
 
@@ -2447,6 +2589,21 @@ def voltas_do_cartao(movimentos):
     return voltas, (_minutos(inicio, fim) if inicio and fim else None)
 
 
+COLUNAS_NA_DEVELOP = ("aguardando sua validacao", "pronto")  # a entrega chegou à develop e espera o dono (ou já passou dele)
+META_PRONTO_ATE_DEVELOP = 30  # minutos (D-4)
+
+
+def relogios_do_cartao(movimentos):
+    """L49 (D-4): de [(hora, de, para, motivo)] em ordem de hora, (aberto até a develop, pronto para fazer até a develop) em minutos;
+    None se o cartão não chegou à develop. Aberto: o primeiro movimento do cartão. Pronto para fazer: o primeiro movimento que põe o cartão
+    nessa coluna, ou a primeira saída dela (o cartão que já nasce nela); None se nunca esteve nela. Só lê o histórico já carregado."""
+    fim = next((h for h, _, p, _ in movimentos if _sem_acento(p) in COLUNAS_NA_DEVELOP), None)
+    if not movimentos or not fim:
+        return None
+    pronto = next((h for h, d, p, _ in movimentos if "pronto para fazer" in (_sem_acento(d), _sem_acento(p))), None)
+    return _minutos(movimentos[0][0], fim), _minutos(pronto, fim) if pronto else None
+
+
 def _uniao_de_minutos(janelas):
     """Minutos da união de [(inicio, fim)]: janelas que se sobrepõem contam uma vez."""
     total, fim = 0.0, None
@@ -2461,6 +2618,15 @@ def _uniao_de_minutos(janelas):
 
 def _numero(n):
     return f"{n:g}"
+
+
+def reversoes_do_pedido(arquivo):
+    """L11 (OK-6): quantas linhas do `## Histórico` do pedido dizem `suposição revertida`; 0 se o pedido não abre. Só leitura."""
+    try:
+        texto = Path(arquivo).read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0
+    return sum(1 for linha in linhas_da_secao(texto, "Histórico") if "suposicao revertida" in _sem_acento(linha))
 
 
 def cmd_voltas(raiz, pedido=None):
@@ -2495,8 +2661,9 @@ def cmd_voltas(raiz, pedido=None):
         rodadas = rodadas_de_brief(raiz, chave)
         linhas = [("brief", h, m, f" ref={o}") for o, r, h, m in rodadas["extras"]] + \
                  [(t, h.isoformat(timespec="seconds"), m, "") for t, h, m in voltas]
-        if not linhas and not pedido:
-            continue
+        relogios = relogios_do_cartao(sorted(por_cartao.get(chave, []), key=lambda m: m[0]))  # L49 (D-4): os dois relógios
+        if not linhas and not pedido and not relogios:
+            continue  # o pedido que andou sem volta segue na lista pelo relógio
         nome, contagem = pedidos[chave], {t: 0 for t in TIPOS_DE_VOLTA}
         for tipo, inicio, minutos, ref in linhas:
             contagem[tipo] += 1
@@ -2509,6 +2676,13 @@ def cmd_voltas(raiz, pedido=None):
         razao = f"{total / construcao:.2f}" if construcao else "-"
         print(f"voltas: {nome} resumo: " + " ".join(f"{t}={n}" for t, n in contagem.items())
               + f" minutos={_numero(total)} construcao={_numero(construcao) if construcao is not None else '-'} razao={razao}")
+        if relogios:
+            aberto, pronto = relogios
+            dentro = "-" if pronto is None else "sim" if pronto <= META_PRONTO_ATE_DEVELOP else "nao"
+            print(f"voltas: {nome} relogios: aberto_ate_develop={_numero(aberto)} pronto_ate_develop="
+                  f"{_numero(pronto) if pronto is not None else '-'} meta={META_PRONTO_ATE_DEVELOP} dentro={dentro}")
+        if reversoes := reversoes_do_pedido(pasta / f"{nome}.md"):  # L11 (OK-6): o placar da escolha provisória revertida pelo dono
+            print(f"voltas: {nome} reversoes={reversoes}")
         soma = [soma[0] + 1, soma[1] + len(linhas), soma[2] + total]
     print(f"voltas: total: pedidos={soma[0]} voltas={soma[1]} minutos={_numero(soma[2])}")
     return 0
@@ -3705,6 +3879,9 @@ RE_PUSH = re.compile(r"\bpush\b[^.\n]{0,25}\b(?:aceito|entrou|enviado|feito|real
 RE_MESCLADO = re.compile(r"\bmescl(?:ado|ada|ei|ou)\b|\bmerged\b", re.I)
 RE_TESTES = re.compile(r"\b(\d{1,6})\s+(?:testes?|tests?)\b[^.\n]{0,20}\b(?:ok|passa\w*|verdes?|passed)\b|\bok\s*\((\d{1,6})\s+tests?\)|\b(\d{1,6})\s+OK\b", re.I)
 RE_NEGACAO = re.compile(r"\b(?:n[ãa]o|sem|nunca)\b", re.I)
+# L12 (OK-5): afirmação absoluta sobre testes ou falhas; só medida, o lastro é uma saída de teste que terminou OK.
+RE_ABSOLUTA = re.compile(r"\btodos os testes (?:passa\w*|est[ãa]o verdes|ficaram verdes)\b|\btudo verde\b|\b100\s?%\s+dos testes\b|"
+                         r"\bnenhum(?:a)? (?:falha|erro|regress[ãa]o|teste (?:falha|falhou|quebr\w+))\b", re.I)
 # Saída de `git push`; a de `git fetch` tem o mesmo formato, mas o destino é `origin/...`.
 RE_SAIDA_PUSH = re.compile(r"\.\.\S+\s+\S+\s+->\s+(?!origin/)\S+|\[new (?:branch|tag)\]")
 
@@ -3726,6 +3903,8 @@ def afirmacoes_do_relatorio(texto):
     if any(sem_negacao(texto, m) for m in RE_MESCLADO.finditer(texto)):
         achadas.add(("mesclado", ",".join(prs)))
     achadas |= {("testes", m.group(1) or m.group(2) or m.group(3)) for m in RE_TESTES.finditer(texto)}
+    if any(sem_negacao(texto, m) for m in RE_ABSOLUTA.finditer(texto)):
+        achadas.add(("absoluta", ""))
     return achadas
 
 
@@ -3758,6 +3937,8 @@ def tem_lastro(afirmacao, saidas):
         return RE_SAIDA_PUSH.search(saidas) is not None
     if tipo == "mesclado":
         return any(merge_provado(n, saidas) for n in (valor.split(",") if valor else [""]))
+    if tipo == "absoluta":
+        return testes_ok(r"\d+", saidas)
     return testes_ok(valor, saidas)
 
 
@@ -3833,6 +4014,80 @@ def medir_lastro(relatorios):
                 sem += 0 if tem_lastro(afirmacao, saidas) else 1
         medida[sessao] = (len(itens), total, sem)
     return medida
+
+
+RE_VEREDITO = re.compile(r"^\s*veredito:\s*(n[ãa]o cumpriu|cumpriu)\s*$", re.I | re.M)
+# As linhas que reprovam no conferente.md: PQ não cumpriu, pendente:, escopo: que não seja ok, confira nem as que o entrega imprime sem reprovar
+# (integração da base, sem commit, união de N briefs), forma: que não seja ok.
+RE_LINHA_REPROVADA = re.compile(r"^\s*(?:PQ-\d+\s+n[ãa]o cumpriu\b|pendente:|escopo:\s*(?!ok\b|confira\b|integração da base|sem commit|união de \d+ briefs)\S|forma:\s*(?!ok\b)\S)", re.I | re.M)
+
+
+def medir_vereditos(relatorios):
+    """L13 (P7): {sessão: (relatórios com `veredito:`, os que contradizem as próprias linhas)}. `cumpriu` com linha `PQ-n não cumpriu`,
+    `pendente:`, `forma:` ou `escopo:` que reprova (não `ok`, `confira`, integração da base, sem commit nem união de N briefs), ou `não cumpriu` sem nenhuma delas, é contradição. Só mede; nada do texto sai daqui."""
+    medida = {}
+    for sessao, itens in relatorios.items():
+        total = contraditorios = 0
+        for relatorio, _ in itens:
+            vereditos = RE_VEREDITO.findall(relatorio)
+            if not vereditos:
+                continue
+            total += 1
+            cumpriu = not vereditos[-1].lower().startswith("n")
+            contraditorios += 1 if cumpriu == (RE_LINHA_REPROVADA.search(relatorio) is not None) else 0
+        medida[sessao] = (total, contraditorios)
+    return medida
+
+
+RECUSAS_DE_LINHA = (("nao_modela", re.compile(r"não modela", re.I)), ("fora_da_gramatica", re.compile(r"fora da gramática", re.I)))
+
+
+def recusas_por_papel(arquivos):
+    """L14 (P9): {papel: [não modela, fora da gramática]} dos resultados de ferramenta com erro que dizem uma das duas recusas de linha dos
+    hooks. O papel é o `forge:<nome>` do subagente (por `agentId` ou `agentType`; `<agente>` se desconhecido) ou `jarvis`; o texto da
+    recusa e o comando recusado nunca saem daqui (T-14): só a contagem."""
+    tipo_do_uso, tipo_do_agente, contagem = {}, {}, {}
+    objetos = list(objetos_jsonl(arquivos, "recusas"))
+    for o in objetos:
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
+            if not isinstance(b, dict):
+                continue
+            if b.get("type") == "tool_use" and b.get("name") in ("Agent", "Task") and isinstance(b.get("input"), dict):
+                tipo_do_uso[b.get("id")] = marcar_agente(b["input"].get("subagent_type"))
+            elif b.get("type") == "tool_result" and isinstance(o.get("toolUseResult"), dict) and b.get("tool_use_id") in tipo_do_uso \
+                    and isinstance(o["toolUseResult"].get("agentId"), str):
+                tipo_do_agente[o["toolUseResult"]["agentId"]] = tipo_do_uso[b["tool_use_id"]]
+    for o in objetos:
+        msg = o.get("message") if isinstance(o.get("message"), dict) else {}
+        papel = (tipo_do_agente.get(o.get("agentId")) or (marcar_agente(o["agentType"]) if o.get("agentType") else "<agente>")) if o.get("isSidechain") else "jarvis"
+        for b in msg.get("content") if isinstance(msg.get("content"), list) else []:
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("is_error"):
+                texto = texto_de(b.get("content"))
+                for i, (_, padrao) in enumerate(RECUSAS_DE_LINHA):
+                    if padrao.search(texto):
+                        contagem.setdefault(papel, [0] * len(RECUSAS_DE_LINHA))[i] += 1
+    return contagem
+
+
+def cmd_transcricao_recusas(alvo, raiz=None):
+    """`transcricao recusas`: por papel, quantas vezes um hook recusou a linha por "não modela" ou "fora da gramática". Só números."""
+    try:
+        arquivos, onde = transcricoes_do_alvo(alvo, raiz)
+    except OSError as erro:
+        print(f"recusas: caminho inexistente: {caminho_impresso(erro.filename or alvo)}")
+        return 1
+    if not arquivos:
+        print(f"recusas: nenhum arquivo .jsonl em {caminho_impresso(onde)}")
+        return 1
+    print(f"recusas: vai ler {len(arquivos)} arquivo(s) .jsonl em {caminho_impresso(onde)}; só disco local, sem rede; "
+          "a saída traz só papel e contagem, nunca o comando recusado", file=sys.stderr)
+    contagem, soma = recusas_por_papel(arquivos), [0] * len(RECUSAS_DE_LINHA)
+    for papel, valores in sorted(contagem.items()):
+        print(f"recusas: papel {sem_controle(papel)} " + " ".join(f"{nome}={n}" for (nome, _), n in zip(RECUSAS_DE_LINHA, valores)))
+        soma = [a + b for a, b in zip(soma, valores)]
+    print(f"recusas: total: papeis={len(contagem)} " + " ".join(f"{nome}={n}" for (nome, _), n in zip(RECUSAS_DE_LINHA, soma)))
+    return 0
 
 
 RE_OPCAO = re.compile(r"^\s*(?:[-*+]\s+)?(\|\s*)?(?:\*\*\s*)?(Op[çc][ãa]o\s+)?([A-F])(\*\*)?\s*(?:([).:|,])(?:\*\*)?)?(?=\s|$)")
@@ -4122,6 +4377,27 @@ def comando_do_conferente(comando):
     return bool(segmentos)
 
 
+SHA_ABREVIADO = re.compile(r"(?<![0-9A-Za-z_./-])(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,39}(?![0-9A-Za-z_./-])")
+
+
+def grep_c_sem_arquivo(comando):
+    """L10 (OK-2): o `grep -c` que abre o comando sem arquivo (lê o terminal, não o que o PQ quer contar). `grep` depois de `|` lê a pipe: vale."""
+    for pedaco in re.split(r"&&|\|\||;", comando):
+        try:
+            palavras = shlex.split(pedaco.split("|")[0])
+        except ValueError:
+            continue
+        if not palavras or palavras[0] != "grep":
+            continue
+        opcoes = [p for p in palavras[1:] if p.startswith("-") and not p.startswith("--")]
+        if not any("c" in o[1:] for o in opcoes) and "--count" not in palavras:
+            continue
+        posicionais = [p for p in palavras[1:] if not p.startswith("-")]
+        if len(posicionais) < 2:  # o padrão (ou o valor de -e/-f) mais ao menos um arquivo
+            return True
+    return False
+
+
 def conferir_pq(linhas_pq):
     """Linhas do `Pronto quando` -> (linhas de saída com a marca de reprovação, tipos achados)."""
     saida, tipos, vistos = [], [], set()
@@ -4143,11 +4419,15 @@ def conferir_pq(linhas_pq):
             continue
         tipos.append(tipo)
         resto = linha[m.end():]
+        if curto := SHA_ABREVIADO.search(resto):  # L10: só avisa; o sha40 é o que o conferente compara (R-PROVA)
+            saida.append((f"aviso: PQ-{n} sha abreviado ({curto.group(0)[:12]}); use os 40 hex", False))
         espera = "não se aplica"
         verificador = "conferente"
         if tipo == "cmd":
             comando = re.search(r"`([^`]+)`", resto)
             fonte = comando.group(1) if comando else ""
+            if grep_c_sem_arquivo(fonte):  # L10
+                saida.append((f"aviso: PQ-{n} `grep -c` sem arquivo (lê o terminal, não o que se quer contar); passe o arquivo", False))
             e = ESPERA.search(resto)
             if e:
                 espera = "ok"
@@ -4381,6 +4661,165 @@ def ler_registro(raiz, rel):
             return None, "ausente"
         return (None, "grande") if len(bruto) > TETO_DE_REGISTRO else (bruto.decode("utf-8", "replace"), None)
     return None, "ausente"
+
+
+DECISAO_DO_REGISTRO = re.compile(rf"^\s*(?:(?:[-*+>_]|\d+[.)])\s*)*{re.escape(FRASE_DO_DONO)}\s*\((\d{{4}}-\d{{2}}-\d{{2}})(?:[ T]\d{{2}}:\d{{2}})?[^)]*\)\s*:\s*(.+)$")
+MOTIVO_DA_DECISAO = re.compile(r"\bmotivo\s*:\s*([^;·]+)", re.I)
+REABRE_SE = re.compile(r"\breabre se\s*:?\s*([^;·.]+)", re.I)
+
+
+def pedidos_do_registro(raiz, pedido):
+    """Os nomes de `docs/pedidos/*.md` (a cópia principal, a raiz e a raiz de pedidos, sem repetir), ou só `<pedido>`; só nomes, sem link."""
+    if pedido:
+        return [pedido.removesuffix(".md")] if re.fullmatch(r"[A-Za-z0-9._-]+", pedido.removesuffix(".md")) else []
+    nomes = set()
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        pasta = Path(base) / "docs" / "pedidos"
+        if pasta.is_dir():
+            nomes |= {p.stem for p in pasta.glob("*.md") if not p.is_symlink() and re.fullmatch(r"[A-Za-z0-9._-]+", p.stem)}
+    return sorted(nomes)
+
+
+TETO_DO_PROXIMO = 40  # linhas da saída do `proximo`
+LARGURA_DO_PROXIMO = 160
+NAO_VERIFICAVEL = "não verificável"
+ESPERAS_DO_PROXIMO = ("aguardando o dono", "sem credencial", "bloqueado")  # colunas (sem acento) em que o cartão do pedido está parado
+
+
+def texto_da_etapa(texto):
+    """O texto de `E1.1 (papel): texto`, sem o id e o papel."""
+    return re.sub(r"^\S+\s*\([^)]*\):\s*", "", texto)
+
+
+VERBO_DE_INICIO = re.compile(r"\b(?:delegad[ao]s?|iniciad[ao]s?|despachad[ao]s?|come[çc]ou|em curso|em andamento)\b", re.I)  # menção solta não inicia a etapa (L17, A7)
+
+
+def etapas_do_proximo(pedido_txt, historico):
+    """[(id, papel, texto, estado)] das etapas do pedido; o estado vem só do `## Histórico` (`entregue`; `em curso` só com verbo de início na linha; senão `não verificável`)."""
+    saida = []
+    for etapa, (papel, texto) in ler_pedido_brief(pedido_txt)["etapas"].items():
+        citam = [l for l in historico if re.search(rf"(?<![\w.]){re.escape(etapa)}(?![\w.])", l)]
+        estado = "entregue" if any("entregue" in l.casefold() for l in citam) \
+            else "em curso" if any(VERBO_DE_INICIO.search(l) for l in citam) else NAO_VERIFICAVEL
+        saida.append((etapa, papel, texto, estado))
+    return saida
+
+
+def branch_do_proximo(raiz, pedido):
+    """(branch, head sha7 ou None) pela linha `Branch:` dos briefs do pedido, se for uma só; senão (None, None)."""
+    branches = set()
+    for base in (raiz_principal(raiz), Path(raiz), *RAIZES_DE_BRIEF):
+        for arq in sorted((Path(base) / "docs" / "briefs").glob(f"{pedido}-*.md")):
+            try:
+                cabecalho = cabecalho_do_brief(arq.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError):
+                continue
+            branch = grupo(CABECALHO_DE_BRIEF_CAMPOS["Branch"], cabecalho)
+            if grupo(CABECALHO_DE_BRIEF_CAMPOS["Pedido"], cabecalho) == pedido and branch:
+                branches.add(branch)
+    if len(branches) != 1:
+        return None, None
+    branch = branches.pop()
+    head = sha_do_commit(raiz, f"refs/heads/{branch}") or sha_do_commit(raiz, f"refs/remotes/origin/{branch}")
+    return branch, head[:7] if head else None
+
+
+def vereditos_do_proximo(raiz, ids):
+    """[(tipo, rel, parecer, commit, commitado)] do parecer mais recente de cada tipo para algum dos `ids` (o frontmatter validado é a fonte)."""
+    saida = []
+    for tipo in PASTA_E_REGRA:
+        achados = []
+        for rel, texto in documentos(raiz, tipo):
+            campos, _ = validar_documento(rel, texto)
+            if campos is not None and campos.get("pedido") in ids:
+                achados.append((campos.get("data", ""), rel, campos))
+        if achados:
+            _, rel, campos = sorted(achados, key=lambda a: a[:2])[-1]
+            saida.append((tipo, rel, campos.get("parecer", "?"), campos.get("commit", "?"), parecer_commitado(raiz, rel)))
+    return saida
+
+
+def cmd_proximo(raiz, pedido):
+    """L17 (AQ-2): o ponto em que o pedido está, só leitura e sem rede: etapas com o estado que o Histórico prova, branch, último veredito dos
+    pareceres, próximo passo e bloqueios. O texto do pedido é DADO: cada linha sai por `sem_controle`, limitada em largura, e o próximo
+    passo nunca é montado com frase do Histórico (C-17a, T-17). O que falta de registro sai `não verificável`; nada se grava."""
+    caminho = caminho_do_pedido(raiz, pedido)
+    try:
+        pedido_txt = caminho.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return [f"proximo: pedido {nome_seguro(sem_controle(pedido))}: {NAO_VERIFICAVEL} (o arquivo do pedido não abre)"], 2
+    pedido_id = (re.search(r"^id:\s*(\S+)", pedido_txt, re.M) or [None, caminho.stem])[1]
+    historico = [l for l in secoes_por(pedido_txt, CABECALHO_PEDIDO).get("Histórico", []) if l.strip()]
+    linhas = [f"proximo: pedido {caminho_impresso(pedido_id)}"]
+    etapas = etapas_do_proximo(pedido_txt, historico)
+    linhas += [f"proximo: etapa {e} ({papel}) · {estado} · {texto_da_etapa(texto)}" for e, papel, texto, estado in etapas] \
+        or [f"proximo: etapas: {NAO_VERIFICAVEL} (o pedido não tem `## Etapas`)"]
+    branch, head = branch_do_proximo(raiz, pedido_id)
+    linhas.append(f"proximo: branch {branch}" + (f" · head {head}" if head else "") if branch else f"proximo: branch: {NAO_VERIFICAVEL} (nenhum brief do pedido com `Branch:` único)")
+    ids = {pedido_id, caminho.stem, *( [branch.removeprefix("melhoria/")] if branch else [])}
+    vereditos, reprovados = vereditos_do_proximo(raiz, ids), []
+    for tipo, rel, parecer, commit, commitado in vereditos:
+        if commitado:
+            linhas.append(f"proximo: último veredito {tipo}={parecer} · {caminho_impresso(rel)} · commit {sem_controle(commit)[:7]}")
+            if parecer not in ("aprovado", "riscos-aceitos"):
+                reprovados.append(tipo)
+        else:
+            linhas.append(f"proximo: último veredito {tipo}: {NAO_VERIFICAVEL} ({caminho_impresso(rel)} fora do commit)")
+    if not vereditos:
+        linhas.append(f"proximo: último veredito: {NAO_VERIFICAVEL} (nenhum parecer do pedido em docs/)")
+    falta = next(((e, papel, texto) for e, papel, texto, estado in etapas if estado != "entregue"), None)
+    passos = [f"proximo: passo: volta ao autor, parecer {tipo} não aprovado" for tipo in reprovados]
+    passos.append(f"proximo: passo: {falta[0]} ({falta[1]}) · {texto_da_etapa(falta[2])}" if falta else
+                  "proximo: passo: todas as etapas têm registro de entrega; confira o critério de pronto" if etapas else f"proximo: passo: {NAO_VERIFICAVEL}")
+    linhas += passos
+    bloqueios = [f"proximo: bloqueio: depende de {nome_seguro(sem_controle(d))}, que não está em Pronto no quadro" for d in dependencias_do_texto(pedido_txt)[0]
+                 if not pedido_em_coluna(raiz, d, ("pronto",))]
+    bloqueios += [f"proximo: bloqueio: cartão em {sem_controle(coluna)}" for coluna in colunas_do_pedido(raiz, ids) if _sem_acento(coluna) in ESPERAS_DO_PROXIMO]
+    linhas += bloqueios or ["proximo: bloqueios: nenhum no registro"]
+    linhas = [sem_controle(l)[:LARGURA_DO_PROXIMO] for l in linhas]
+    if len(linhas) > TETO_DO_PROXIMO:
+        linhas = linhas[:TETO_DO_PROXIMO - 1] + [f"proximo: mais {len(linhas) - TETO_DO_PROXIMO + 1} linhas omitidas"]
+    return linhas, 0
+
+
+def colunas_do_pedido(raiz, ids):
+    """As colunas do KANBAN.md em que há um cartão cuja célula de pedido é um dos `ids`; vazio sem quadro."""
+    try:
+        quadro = quadro_por_coluna(raiz)
+    except (OSError, UnicodeDecodeError):
+        return []
+    return [coluna for coluna, cartoes in quadro.items() if any(id_do_pedido(c) in ids for cartao in cartoes for c in cartao)]
+
+
+def pedido_em_coluna(raiz, pedido, colunas):
+    """True se o cartão do pedido está numa das `colunas` (comparadas sem acento e caixa); sem quadro, False."""
+    return any(_sem_acento(c) in colunas for c in colunas_do_pedido(raiz, {pedido}))
+
+
+def cmd_decisoes(raiz, pedido=None):
+    """L15 (EXT-2): o registro das linhas `DECISÃO DO DONO` dos pedidos, gerado no stdout (nada se grava): `decisao: <pedido>:<linha> | data |
+    decisão | motivo | reabre se`. A linha que abre com a frase e não segue `(<data>): <texto>` sai `aviso:` e fica fora. Só as linhas
+    de `docs/pedidos/` valem (brief, parecer e transcrição não entram), e nenhum portão lê esta saída (C-15a). O texto vai por `sem_controle`."""
+    saida, avisos, total = [], 0, 0
+    for nome in pedidos_do_registro(raiz, pedido):
+        texto, motivo_de_falha = ler_registro(raiz, f"docs/pedidos/{nome}.md")
+        if texto is None:
+            saida.append(f"decisoes: aviso: {nome}: pedido {motivo_de_falha}; nada lido")
+            avisos += 1
+            continue
+        for n, linha in linhas_de_decisao(texto):
+            m = DECISAO_DO_REGISTRO.match(linha)
+            if not m:
+                saida.append(f"decisoes: aviso: {nome}:{n}: linha de decisão sem `(<data>): <texto>`; fora do registro")
+                avisos += 1
+                continue
+            motivo, reabre = MOTIVO_DA_DECISAO.search(m.group(2)), REABRE_SE.search(m.group(2))
+            campos = [m.group(1), sem_controle(m.group(2)).strip()[:160], sem_controle(motivo.group(1)).strip() if motivo else "—",
+                      sem_controle(reabre.group(1)).strip() if reabre else "—"]
+            saida.append(f"decisao: {nome}:{n} | " + " | ".join(campos))
+            total += 1
+    saida.append(f"decisoes: total={total} avisos={avisos}")
+    return saida
 
 
 HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}-\d{{2}})[ T](\d{{2}}:\d{{2}})\b")
@@ -4709,6 +5148,30 @@ def avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, dest
     return pedido_id, linhas
 
 
+def linhas_da_secao(pedido_txt, titulo, sem_resolvidas=False):
+    """As linhas `- ` da seção `## <titulo>` do pedido (só leitura); `sem_resolvidas` tira as que abrem com `(resolvida ...)`."""
+    saida, dentro = [], False
+    for linha in pedido_txt.split("\n"):
+        if linha.startswith("## "):
+            dentro = _sem_acento(linha[3:]).startswith(_sem_acento(titulo))
+        elif dentro and linha.startswith("- ") and not (sem_resolvidas and "resolvida" in _sem_acento(linha)[:30]):
+            saida.append(linha)
+    return saida
+
+
+def avisos_de_suposicao(pedido_txt):
+    """L11 (OK-6): a suposição do pedido sem `muda com` ou sem `custo de reverter` sai como `aviso:`; nunca reprova. O texto vai por `sem_controle`."""
+    avisos = []
+    for linha in linhas_da_secao(pedido_txt, "Suposições", sem_resolvidas=True):
+        texto = _sem_acento(linha)
+        if "<" in linha[:3] or "nenhuma" in texto[:14]:  # a linha do modelo e o registro de "nenhuma"
+            continue
+        faltam = [campo for campo in ("muda com", "custo de reverter") if campo not in texto]
+        if faltam:
+            avisos.append(f"aviso: suposição sem {' e sem '.join(chr(34) + c + chr(34) for c in faltam)}: {sem_controle(linha[2:62])} (R-DECISAO)")
+    return avisos
+
+
 def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, pareceres=None):
     caminho_pedido = caminho_do_pedido(raiz, pedido)
     brief = Path(arquivo)
@@ -4734,6 +5197,7 @@ def cmd_brief_conferir(raiz, arquivo, pedido, destino, anterior=None, ref=None, 
             return 2
     lembrar_do_jarvis(raiz, tipo_do_brief(texto))
     pedido_id, linhas = avaliar_brief(raiz, brief, conteudo, texto, caminho_pedido, pedido_txt, destino, arquivo, bytes_anterior, ref, pareceres)
+    linhas = list(linhas) + [(aviso, False) for aviso in avisos_de_suposicao(pedido_txt)]
     reprovado = any(r for _, r in linhas)
     print(f"conferencia-brief-regra: {caminho_impresso(pedido_id)} → {caminho_impresso(brief.name)}")
     for linha, _ in linhas:
@@ -5111,11 +5575,21 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if coberta:
         saida += ["", "## Entregar", f"- \"{sem_controle(dados['etapas'][coberta][1])}\" ({coberta})",
                   f"- {PREENCHER}: o que esta etapa entrega, cada item citando o ID do pedido"]
-    if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
-        existe_achados, problemas_achados = achados_recorrentes(raiz)
-        avisar_dos_achados(problemas_achados)
+    saida += ["", "## Ler"]
+    if etapa == "merge-integracao":  # L09 (P3): o integrador só roda o comando; o `modelo:` é texto para o Jarvis, sem efeito sobre o portão
+        print("brief gerar: modelo: haiku (merge-integracao é mecânico; docs/economia-de-tokens.md, regra 2)", file=sys.stderr)
+        saida.append(f"- `bin/forge-fechar {sem_controle(pedido_id)} --ref {branch or PREENCHER} --dry-run` e as paradas de `docs/fechamento-integrador.md`; o pedido não precisa ser lido")
+    else:
+        existe_achados = False
+        if tipo == "codigo":  # PA-7: o arquivo vivo de achados entra pelo ## Ler, a única leitura garantida do autor
+            existe_achados, problemas_achados = achados_recorrentes(raiz)
+            avisar_dos_achados(problemas_achados)
         if existe_achados:
-            saida += ["", "## Ler", LINHA_DE_ACHADOS, f"- {PREENCHER}: demais leituras do destino (pedido, propostas, arquivos)"]
+            saida.append(LINHA_DE_ACHADOS)
+        saida.append(f"- docs/pedidos/{sem_controle(caminho_pedido.name)}: só `## Escopo`, `## Etapas` e `## Decisões` e, do `## Histórico`, só as linhas que este brief cita; "
+                     "nunca o pedido inteiro (docs/economia-de-tokens.md, regra 4)")
+        if existe_achados:
+            saida.append(f"- {PREENCHER}: demais leituras do destino (propostas, arquivos)")
     saida += ["", "## Decisões e restrições (linhas `DECISÃO DO DONO` copiadas literalmente do pedido)"]
     saida += [f"- {d}" for d in dados["decisoes"]] or [f"- {PREENCHER}: o pedido não tem linha `DECISÃO DO DONO`"]
     cobradas = decisoes_cobradas(raiz, caminho_pedido, pedido_txt)
@@ -5465,6 +5939,10 @@ def main():
     de.add_argument("--parecer", help="parecer (docs/reviews, qa, devops ou security) cujo `commit:` é o começo do intervalo")
     vo = sub.add_parser("voltas", parents=[comum], help="o vai e volta de cada pedido (voltas e minutos), lido de docs/kanban e docs/briefs; só leitura")
     vo.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md ou cartão do quadro); padrão: os que têm volta")
+    px = sub.add_parser("proximo", parents=[comum], help="onde o pedido está: etapas, branch, último veredito, próximo passo e bloqueios; só leitura (AQ-2)")
+    px.add_argument("pedido", help="id de docs/pedidos/<id>.md")
+    de = sub.add_parser("decisoes", parents=[comum], help="registro das linhas DECISÃO DO DONO dos pedidos (data, decisão, motivo, reabre se); só leitura, no stdout (EXT-2)")
+    de.add_argument("--pedido", help="só este pedido (id de docs/pedidos/<id>.md); padrão: todos")
     es = sub.add_parser("esperas", parents=[comum], help="quanto tempo cada cartão esperou o dono ou uma credencial, lido de docs/kanban/historico.md; só leitura (M14b)")
     es.add_argument("--pedido", help="só os cartões deste pedido (cartão igual, da mesma família de nome, com o pedido na coluna Pedido do KANBAN.md ou no motivo do movimento)")
     es.add_argument("--kanban", help="com --pedido: o KANBAN.md a ler (padrão: o da raiz)")
@@ -5543,7 +6021,9 @@ def main():
     cu.add_argument("--ate", help="só as mensagens até esta hora (ISO 8601)")
     cu.add_argument("--pedido", help="a janela do pedido (id de docs/pedidos/<id>.md que existe): do primeiro ao último movimento dos cartões do pedido em docs/kanban/historico.md (cartão igual, da mesma família de nome ou com o pedido na coluna Pedido do KANBAN.md)")
     for nome, ajuda in (("lastro", "afirmações dos relatórios de subagente sem lastro nas saídas de ferramenta (M1)"),
-                        ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)")):
+                        ("decisoes", "respostas do Jarvis com mais de uma decisão ou sem recomendação (M3)"),
+                        ("vereditos", "vereditos do conferente que contradizem as próprias linhas (P7)"),
+                        ("recusas", "recusas de linha dos hooks (não modela, fora da gramática) por papel (P9)")):
         medida = tsub.add_parser(nome, help=ajuda)
         medida.add_argument("alvo", nargs="?", help="pasta ou arquivo .jsonl (padrão: as sessões do diretório atual, de ~/.forge-contrib e das worktrees de ~/.forge-contrib/wt em ~/.claude/projects)")
     ve.add_argument("--teto", type=int, default=TETO_PADRAO, help=f"agentes simultâneos em segundo plano (padrão {TETO_PADRAO}, R-TETO)")
@@ -5584,6 +6064,10 @@ def executar(a, raiz):
         return cmd_transcricao_custo(a.alvo, a.entregas, a.entrega, raiz, a.desde, a.ate, a.pedido)
     if a.cmd == "transcricao" and a.acao == "lastro":
         return cmd_transcricao_medida("lastro", a.alvo, ler_relatorios, medir_lastro, ("relatorios", "afirmacoes", "sem_lastro"), 1, raiz)
+    if a.cmd == "transcricao" and a.acao == "recusas":
+        return cmd_transcricao_recusas(a.alvo, raiz)
+    if a.cmd == "transcricao" and a.acao == "vereditos":
+        return cmd_transcricao_medida("vereditos", a.alvo, ler_relatorios, medir_vereditos, ("vereditos", "contraditorios"), 0, raiz)
     if a.cmd == "transcricao" and a.acao == "decisoes":
         return cmd_transcricao_medida("decisoes", a.alvo, ler_respostas_do_jarvis, medir_decisoes, ("respostas", "com_grupo", "violacoes"), 0, raiz)
     if a.cmd == "delta":
@@ -5619,6 +6103,15 @@ def executar(a, raiz):
         if a.alvo == "mensagem":
             return cmd_brief_mensagem(raiz, a)
         return cmd_brief_conferir(raiz, a.alvo, a.pedido, a.destino, a.anterior, a.ref, a.parecer)
+    if a.cmd == "proximo":
+        linhas, codigo = cmd_proximo(raiz, a.pedido)
+        for linha in linhas:
+            print(linha)
+        return codigo
+    if a.cmd == "decisoes":
+        for linha in cmd_decisoes(raiz, a.pedido):
+            print(linha)
+        return 0
     if a.cmd in ("sobreposicao", "movimento"):
         linhas = (cmd_sobreposicao(raiz, a.base) if a.cmd == "sobreposicao"
                   else cmd_movimento(raiz, a.cartao, a.de, a.para, a.motivo))
@@ -5663,6 +6156,8 @@ def executar(a, raiz):
                  "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
     for v in violacoes:
         print(v)
+    if a.cmd == "pr" and not violacoes:  # LOTE E1: só com rc 0, para o `promover-homolog` seguir contando as linhas do stdout com rc != 0
+        print(veredito_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None)))
     return 1 if violacoes else 0
 
 

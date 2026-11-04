@@ -1,0 +1,38 @@
+{
+  "pedido": "lote-unico-032-l02",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o rascunho aberto só se reusa com o head conferido (C-02a)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$aberto_head\" = \"$remoto_sha\" ] || die",
+      "para": "true || die",
+      "testes": ["tests.test_fechar_rascunho.RascunhoDaEntrega.test_rascunho_com_head_diferente_do_conferido_para_no_passo_3"]
+    },
+    {
+      "id": "M2",
+      "guarda": "mais de um PR aberto do mesmo head para (C-02a)",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$n_abertos\" -le 1 ] || die",
+      "para": "[ \"$n_abertos\" -le 9 ] || die",
+      "testes": ["tests.test_fechar_rascunho.RascunhoDaEntrega.test_dois_prs_abertos_do_mesmo_head_param_no_passo_3"]
+    },
+    {
+      "id": "M3",
+      "guarda": "o rascunho vira pronto antes do merge (a entrega não fica em rascunho)",
+      "arquivo": "bin/forge-fechar",
+      "de": "if [ \"$pre_rascunho\" = true ]; then",
+      "para": "if false; then",
+      "testes": ["tests.test_fechar_rascunho.RascunhoDaEntrega.test_rascunho_do_mesmo_head_e_reusado_e_vira_pronto_antes_do_merge"]
+    },
+    {
+      "id": "M4",
+      "guarda": "a leitura da lista traz o head do PR aberto (sem ele a guarda do head nunca vê o valor)",
+      "arquivo": "bin/forge-fechar",
+      "de": "{print $1 \" \" $3 \" \" $5 \" \" $4; exit}",
+      "para": "{print $1 \" \" $3 \" \" $5 \" \" $1; exit}",
+      "testes": ["tests.test_fechar_rascunho.RascunhoDaEntrega.test_rascunho_do_mesmo_head_e_reusado_e_vira_pronto_antes_do_merge"]
+    }
+  ]
+}

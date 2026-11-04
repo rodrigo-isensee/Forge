@@ -50,6 +50,8 @@ Limite: a classificação é por texto do motivo; motivo novo cai em `nao-classi
 4. `forge-check transcricao verificar tests/transcricoes/<caso>.jsonl`. Se violar uma propriedade, registre o caso como falha esperada no teste `Transcricoes` e proponha um hook ou ajuste de agente.
 5. Abra o PR na `develop` (ADR 0006, `scripts/verificar-contribuicao.sh` sem achados).
 
+Erro real do orquestrador que ainda não tem caso: acrescente-o a `tests/comportamento/` (o arquivo `.jsonl` anonimizado do passo 2 e a entrada em `casos.json`, com `erro`, `regras` e `bloqueia`). O teste `Comportamento` roda o `transcricao verificar` sobre cada caso e mede a reincidência detectada (casos detectados sobre casos; o detector, não o prompt, é o que se testa).
+
 A anonimização é por lista de permissão: texto de usuário, saídas de ferramenta, prompts, caminhos, e-mails e nomes de projeto nunca são copiados. Nomes de branch viram `<branch>` (exceto `main`, `develop`, `homolog`) e agentes que não são `forge:*` viram `<agente>`. Eventos de subagentes (sidechain) entram só como ação (`cmd`, `escrita`, `bloqueio`, `sandbox`), com `ator` = tipo do agente (resolvido por `agentId` do resultado da delegação ou por `agentType`; sem isso `<agente>`, tratado como `dev`); texto e delegações de subagentes ficam de fora.
 
 Além de `agente`, `fim` e `cmd`, o formato `forge-transcricao/1` agora tem `escrita` (`alvo` = caminho protegido da política, nunca o caminho real; `copia`; `arq` = id neutro `fN` de script com flag proibida; `flags` de um vocabulário fechado), `bloqueio` (`c` = chamada, `causa` = `hook` ou `permissao`, sem texto), `sandbox` e `resposta` (só `perguntas`, `opcoes`, `recomenda`). Transcrições antigas continuam válidas.

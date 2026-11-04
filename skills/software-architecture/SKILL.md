@@ -22,6 +22,7 @@ flowchart LR
 ## ADR (`docs/architecture/adr/NNNN-titulo.md`)
 Siga o modelo `${CLAUDE_PLUGIN_ROOT}/templates/projeto/docs/architecture/adr/_modelo.md` (o `forge-init` o copia para o projeto). Ele define as seções e a linha `Estado:`; não copie o modelo para outro lugar.
 - Toda ADR traz **critério de reversão** (um fato observável) e a tabela de **leituras**. Sem critério de reversão, a ADR não está pronta.
+- Proposta recusada ou adiada pelo dono leva `reabre se: <fato observável>` na linha `DECISÃO DO DONO` (quem propõe escreve o critério); `forge-check decisoes` gera o registro dessas linhas, com data, motivo e "reabre se".
 - Quando a decisão cria mecanismo novo (hook, regra, ferramenta, campo, agente), a seção **"Por que o existente não basta"** é obrigatória: o que já existe para a mesma necessidade e por que não basta, com evidência de execução.
 
 ## Plano técnico de feature (`docs/architecture/features/<feature>.md`)

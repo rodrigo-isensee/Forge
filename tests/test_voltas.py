@@ -60,6 +60,15 @@ class Voltas(Raiz):
         super().setUp()
         self.gravar("docs/kanban/historico.md", HISTORICO)
 
+    def test_reversoes_de_suposicao_por_pedido(self):  # L11 (OK-6): o placar da escolha provisória que o dono trocou
+        self.gravar("docs/pedidos/XPTO.md", "# p\n\n## Histórico\n- 2026-10-17 10:00: aberto\n- 2026-10-17 11:00: suposição revertida: a fila\n"
+                    "- 2026-10-17 12:00: Suposição revertida: o banco\n- 2026-10-17 12:30: suposição mantida\n")
+        cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
+        self.assertEqual(cod, 0)
+        self.assertIn("voltas: XPTO reversoes=2", linhas)
+        self.gravar("docs/pedidos/XPTO.md", "# p\n\n## Histórico\n- 2026-10-17 10:00: aberto\n")
+        self.assertFalse([l for l in self.rodar("voltas", "--pedido", "xpto")[1] if "reversoes" in l])
+
     def test_voltas_de_um_pedido_em_linhas_fixas_com_minutos(self):
         cod, linhas, _ = self.rodar("voltas", "--pedido", "xpto")
         self.assertEqual(cod, 0)
@@ -73,6 +82,40 @@ class Voltas(Raiz):
             "minutos=66 construcao=10 razao=6.60",  # união: conferência e review se sobrepõem; revalidação e ajuste também
             "voltas: total: pedidos=1 voltas=5 minutos=66",
         ])
+
+    def test_dois_relogios_do_pedido_que_chegou_a_develop(self):  # L49 (D-4): aberto -> develop e pronto para fazer -> develop (meta 30 min)
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+                    "| 2026-10-17T08:00:00-03:00 | P1 | Backlog | Empatizar e definir | aberto |\n"
+                    "| 2026-10-17T08:40:00-03:00 | P1 | Empatizar e definir | Pronto para fazer | discovery |\n"
+                    "| 2026-10-17T08:50:00-03:00 | P1 | Pronto para fazer | Em andamento | brief |\n"
+                    "| 2026-10-17T09:10:00-03:00 | P1 | Em andamento | Aguardando sua validação | PR |\n"
+                    "| 2026-10-17T09:30:00-03:00 | P1 | Aguardando sua validação | Pronto | merge |\n"
+                    "| 2026-10-17T10:00:00-03:00 | P2 | Pronto para fazer | Em andamento | brief |\n"
+                    "| 2026-10-17T11:00:00-03:00 | P2 | Em andamento | Pronto | feito |\n"
+                    "| 2026-10-17T12:00:00-03:00 | P3 | Pronto para fazer | Em andamento | aberto |\n")
+        _, p1, _ = self.rodar("voltas", "--pedido", "p1")
+        self.assertIn("voltas: P1 relogios: aberto_ate_develop=70 pronto_ate_develop=30 meta=30 dentro=sim", p1)
+        _, p2, _ = self.rodar("voltas", "--pedido", "p2")
+        self.assertIn("voltas: P2 relogios: aberto_ate_develop=60 pronto_ate_develop=60 meta=30 dentro=nao", p2)
+        cod3, p3, _ = self.rodar("voltas", "--pedido", "p3")
+        self.assertEqual(cod3, 0, p3)
+        self.assertFalse([l for l in p3 if "relogios" in l], p3)  # ainda não chegou à develop: sem relógio
+
+    def test_cartao_que_nunca_esteve_em_pronto_para_fazer_tem_so_o_relogio_aberto(self):  # L49
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+                    "| 2026-10-17T08:00:00-03:00 | P4 | Backlog | Em andamento | x |\n"
+                    "| 2026-10-17T08:05:00-03:00 | P4 | Em andamento | Pronto | y |\n")
+        _, linhas, _ = self.rodar("voltas", "--pedido", "p4")
+        self.assertIn("voltas: P4 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", linhas)
+
+    def test_pedido_que_andou_sem_volta_traz_o_relogio_tambem_sem_pedido(self):  # L49, A5 do review: a tabela por release não perde o pedido sem volta
+        self.gravar("docs/kanban/historico.md", "| Data/hora | Cartão | De | Para | Motivo |\n|---|---|---|---|---|\n"
+                    "| 2026-10-17T08:00:00-03:00 | P5 | Backlog | Em andamento | x |\n"
+                    "| 2026-10-17T08:05:00-03:00 | P5 | Em andamento | Pronto | y |\n")
+        _, todos, _ = self.rodar("voltas")
+        self.assertIn("voltas: P5 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", todos)
+        _, um, _ = self.rodar("voltas", "--pedido", "p5")
+        self.assertIn("voltas: P5 relogios: aberto_ate_develop=5 pronto_ate_develop=- meta=30 dentro=-", um)
 
     def test_pedido_sem_voltas_so_aparece_com_pedido_explicito(self):
         _, todos, _ = self.rodar("voltas")

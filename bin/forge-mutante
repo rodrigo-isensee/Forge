@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: mutantes declarados do pedido (OK-14 e M-1). Só biblioteca padrão.
 
-Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
+Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS] [--processos K]
      forge-mutante --cobertura --base SHA [--rev REV]
   SPEC     arquivo JSON versionado na branch (`tests/mutantes/<pedido>.json`; pedido com mais de 16 mutantes
            divide em `tests/mutantes/<pedido>-<n>.json` e passa todas, do mesmo pedido e sem id repetido):
@@ -15,6 +15,8 @@ Uso: forge-mutante SPEC [SPEC ...] [--rev REV] [--prazo SEGUNDOS]
            (rc 2: o equivalente declarado é falso). A spec só de equivalentes sem `testes` não prova nada: rc 2.
   --rev    commit a mutar (padrão HEAD)
   --prazo  por execução de testes, em segundos (padrão 600)
+  --processos  quantos mutantes rodam de cada vez, de 1 a 4 (padrão 1, em série); cada um na sua cópia, e o veredito é o
+           mesmo em série e em paralelo. Um erro ou o sinal encerra todos e apaga as cópias; um processo que falha não conta como morto
   --cobertura --base SHA  checagem do autor, sem rodar teste: lista a condição mudada no diff `merge-base(SHA, REV)..REV`
            que nenhum mutante das specs desse diff cobre, a condição apagada e o arquivo que a checagem não analisa
            (`não coberto: <arquivo>`, uma vez por arquivo: shell, binário e tudo o que não é Python). Python: if, elif, while,
@@ -48,6 +50,7 @@ A rodada é evidência do QA; `--cobertura` é a checagem do autor; nenhum hook,
 """
 import argparse
 import ast
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -57,6 +60,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unicodedata
 import unittest
@@ -173,12 +177,32 @@ def executar(ids, registro):
     return 0
 
 
+ABORTAR = threading.Event()  # um processo falhou ou veio o sinal: nenhum teste novo começa (L33)
+ATIVOS, TRAVA_DOS_ATIVOS = set(), threading.Lock()
+PROCESSOS_MAXIMO = 4  # o mesmo teto do pool da suíte (R-TETO)
+
+
+def encerrar_todos():
+    """Mata o grupo de cada processo de teste em curso e impede que outro comece."""
+    with TRAVA_DOS_ATIVOS:
+        ABORTAR.set()
+        for processo in list(ATIVOS):
+            try:
+                os.killpg(processo.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
+
 def rodar(copia, ids, registro, prazo):
     """Roda os testes na cópia e devolve o registro por teste, ou None (prazo, sinal ou executor sem registro)."""
-    processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", *ids,
-                                 "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
-                                stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                                start_new_session=True)
+    with TRAVA_DOS_ATIVOS:
+        if ABORTAR.is_set():
+            return None
+        processo = subprocess.Popen([sys.executable, str(Path(__file__).resolve()), "--executar", *ids,
+                                     "--registro", str(registro)], cwd=copia, env=ambiente_da_copia(),
+                                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                                    start_new_session=True)
+        ATIVOS.add(processo)
     try:
         processo.wait(timeout=prazo)
     except BaseException as erro:  # prazo, sinal ou Ctrl-C: nada fica rodando
@@ -190,6 +214,9 @@ def rodar(copia, ids, registro, prazo):
         if isinstance(erro, subprocess.TimeoutExpired):
             return None
         raise
+    finally:
+        with TRAVA_DOS_ATIVOS:
+            ATIVOS.discard(processo)
     if processo.returncode != 0 or not Path(registro).is_file():
         return None
     return [json.loads(linha) for linha in Path(registro).read_text(encoding="utf-8").splitlines()]
@@ -559,56 +586,75 @@ def anotar(segundos, codigo):
         f.write(f"{agora} modo=mutante modulos=- duracao={segundos:.1f}s saida={codigo}\n")
 
 
-def principal(specs, sha, prazo):
-    """`specs`: lista de (bytes, dados) já validada por `validar_specs`; os mutantes rodam na ordem das specs."""
+class Controles:
+    """O controle (os testes declarados, sem a troca) por conjunto de testes, calculado uma vez mesmo com k processos."""
+
+    def __init__(self):
+        self.trava = threading.Lock()
+        self.travas, self.estados = {}, {}
+
+    def obter(self, chave, calcular):
+        with self.trava:
+            trava = self.travas.setdefault(chave, threading.Lock())
+        with trava:
+            if chave not in self.estados:
+                self.estados[chave] = calcular()
+            return self.estados[chave]
+
+
+def provar(m, sha, raiz, trabalho, prazo, controles):
+    """Um mutante de ponta a ponta, na cópia só dele (L33, C-33a): (linha, código 0, 1 ou 2, se algum teste rodou)."""
+    if "equivalente" in m and "testes" not in m:
+        linha, valido = linha_do_equivalente(sha, m)
+        return linha, 0 if valido else 2, False
+    copia = trabalho / m["id"]
+    montar_copia(raiz, copia, sha)
+
+    def controle():  # mesmo commit e mesmos testes: o controle dá o mesmo resultado
+        registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo)
+        resultado = None if registro is None else veredito(m["testes"], registro)
+        return "sem veredito" if resultado is None else ("ok" if resultado[0] == "sobreviveu" else "vermelho")
+
+    estado = controles.obter(tuple(m["testes"]), controle)
+    if estado != "ok":
+        return f"{m['id']} · {'controle vermelho' if estado == 'vermelho' else 'sem veredito'} · {m['arquivo']}", 2, False
+    linha, motivo = mutar(copia, m)
+    if motivo:
+        return f"{m['id']} · inválido · {m['arquivo']} · {motivo}", 2, False
+    registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo)
+    if registro is None:
+        return f"{m['id']} · sem veredito · {m['arquivo']}:{linha}", 2, False
+    classe, motivo = veredito(m["testes"], registro)
+    if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
+        classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
+            "inválido", "declarado equivalente, mas os testes listados o matam")
+    texto = f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else "")
+    return texto, {"inválido": 2, "sobreviveu": 1}.get(classe, 0), True
+
+
+def principal(specs, sha, prazo, processos=1):
+    """`specs`: lista de (bytes, dados) já validada por `validar_specs`; os mutantes saem na ordem das specs, rodados em
+    até `processos` de cada vez (um clone cada; o veredito agrega: um inválido ou sem veredito dá 2, um que sobreviveu dá 1)."""
     raiz = Path.cwd()
     antes = git("status", "--porcelain")
     hashes = " ".join(f"spec={hashlib.sha256(spec_bytes).hexdigest()}" for spec_bytes, _ in specs)
     print(f"forge-mutante: pedido={specs[0][1]['pedido']} rev={sha[:12]} {hashes}")
     anterior = signal.signal(signal.SIGTERM, lambda numero, quadro: sys.exit(143))  # o `finally` apaga as cópias
     trabalho = Path(tempfile.mkdtemp(prefix="forge-mutante-"))
-    controles, linhas, codigo, rodou = {}, [], 0, False
+    mutantes = [m for _, dados in specs for m in dados["mutantes"]]
+    controles, resultados = Controles(), []
+    ABORTAR.clear()
     inicio = time.monotonic()
     try:
-        for m in (m for _, dados in specs for m in dados["mutantes"]):
-            if "equivalente" in m and "testes" not in m:
-                linha, valido = linha_do_equivalente(sha, m)
-                linhas.append(linha)
-                codigo = codigo if valido else 2
-                continue
-            copia = trabalho / m["id"]
-            montar_copia(raiz, copia, sha)
-            chave = tuple(m["testes"])
-            if chave not in controles:  # mesmo commit e mesmos testes: o controle dá o mesmo resultado
-                registro = rodar(copia, m["testes"], trabalho / f"controle-{m['id']}.jsonl", prazo)
-                resultado = None if registro is None else veredito(m["testes"], registro)
-                controles[chave] = "sem veredito" if resultado is None else (
-                    "ok" if resultado[0] == "sobreviveu" else "vermelho")
-            if controles[chave] != "ok":
-                linhas.append(f"{m['id']} · {'controle vermelho' if controles[chave] == 'vermelho' else 'sem veredito'}"
-                              f" · {m['arquivo']}")
-                codigo = 2
-                continue
-            linha, motivo = mutar(copia, m)
-            if motivo:
-                linhas.append(f"{m['id']} · inválido · {m['arquivo']} · {motivo}")
-                codigo = 2
-                continue
-            registro = rodar(copia, m["testes"], trabalho / f"mutante-{m['id']}.jsonl", prazo)
-            if registro is None:
-                linhas.append(f"{m['id']} · sem veredito · {m['arquivo']}:{linha}")
-                codigo = 2
-                continue
-            classe, motivo = veredito(m["testes"], registro)
-            rodou = True
-            if "equivalente" in m and classe != "inválido":  # o teste listado que o mata desmente o equivalente
-                classe, motivo = ("equivalente", "") if classe == "sobreviveu" else (
-                    "inválido", "declarado equivalente, mas os testes listados o matam")
-            linhas.append(f"{m['id']} · {classe} · {m['arquivo']}:{linha}" + (f" · {motivo}" if motivo else ""))
-            if classe == "inválido":
-                codigo = 2
-            elif classe == "sobreviveu" and codigo == 0:
-                codigo = 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, min(processos, len(mutantes)))) as pool:
+            futuros = [pool.submit(provar, m, sha, raiz, trabalho, prazo, controles) for m in mutantes]
+            try:
+                resultados = [f.result() for f in futuros]
+            except BaseException:  # um erro, SIGTERM ou Ctrl-C: nada fica rodando (C-33a)
+                encerrar_todos()
+                for f in futuros:
+                    f.cancel()
+                raise
         depois = git("status", "--porcelain")
     except (RuntimeError, OSError) as erro:
         print(f"forge-mutante: {erro}", file=sys.stderr)
@@ -616,6 +662,9 @@ def principal(specs, sha, prazo):
     finally:
         signal.signal(signal.SIGTERM, anterior)
         shutil.rmtree(trabalho, ignore_errors=True)
+    linhas = [linha for linha, _, _ in resultados]
+    codigo = max((c for _, c, _ in resultados), default=0)
+    rodou = any(r for _, _, r in resultados)
     print("\n".join(linhas))
     if not rodou and codigo == 0:
         print("forge-mutante: nenhum teste rodou (spec só de equivalentes sem `testes`); nada provado.", file=sys.stderr)
@@ -632,6 +681,7 @@ def main(argv=None):
     p.add_argument("spec", nargs="*")
     p.add_argument("--rev", default="HEAD")
     p.add_argument("--prazo", type=int, default=PRAZO_PADRAO)
+    p.add_argument("--processos", type=int, default=1)
     p.add_argument("--cobertura", action="store_true", help="condição mudada sem mutante declarado (exige --base)")
     p.add_argument("--base", help="commit-base do diff da --cobertura (o Base-sha do brief)")
     p.add_argument("--executar", nargs="+", help=argparse.SUPPRESS)  # interno: o leitor de veredito do `unittest`
@@ -647,6 +697,8 @@ def main(argv=None):
         p.error("falta a SPEC")
     if not 0 < args.prazo <= PRAZO_MAXIMO:
         p.error(f"--prazo vai de 1 a {PRAZO_MAXIMO} segundos")
+    if not 1 <= args.processos <= PROCESSOS_MAXIMO:
+        p.error(f"--processos vai de 1 a {PROCESSOS_MAXIMO}")
     caminhos = [Path(s).resolve() for s in args.spec]
     try:
         os.chdir(git("rev-parse", "--show-toplevel").strip())
@@ -675,7 +727,7 @@ def main(argv=None):
     if sha is None:
         print(f"forge-mutante: --rev ilegível ({args.rev!r}).", file=sys.stderr)
         return 2
-    return principal(specs, sha, args.prazo)
+    return principal(specs, sha, args.prazo, args.processos)
 
 
 if __name__ == "__main__":
