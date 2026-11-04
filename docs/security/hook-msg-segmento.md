@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/hook-msg-segmento
-commit: aa2f1eada6e234cbd8318e54920177d9f2232968
+commit: a83e730c3480e822271d0d0944e909fdaec442a9
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -16,7 +16,7 @@ Revalidação do HEAD `aa2f1ea`, sobre `melhoria/k2-rec-glob` (`ec09530`). Dois 
 Controles do Forge (texto da recusa do hook `conformidade`, que volta ao modelo e à pessoa): R-SEGURANCA.
 
 ## Achados
-- A1 (recomendado) hooks/conformidade.py:1803 · a máscara cobre NOME=valor e ghp_/gho_/ghu_/ghs_/ghr_/github_pat_, mas não o valor depois de = em palavra que não é atribuição (http.extraHeader=Authorization: Basic …, --push-option=token=…) nem a senha de URL fora desses prefixos
+- A1 (recomendado) hooks/conformidade.py:1807 · a máscara cobre NOME=valor e ghp_/gho_/ghu_/ghs_/ghr_/github_pat_, mas não o valor depois de = em palavra que não é atribuição (http.extraHeader=Authorization: Basic …, --push-option=token=…) nem a senha de URL fora desses prefixos
 
 ## Detalhe dos achados
 **A máscara não quebra a decisão.** `mascarado` e `com_trecho` só montam texto depois de a recusa já estar decidida, com operações de `str` que não levantam exceção. Comparei 11 recusas lado a lado com `melhoria/k2-rec-glob` (R-MAIN com `GH_TOKEN=`, com `env GH_TOKEN=`, com token na URL, com `-c http.extraHeader`, com `--push-option`, com `A=1 B=2`, além de R-VERIFY e de apagar o repositório): o código e o motivo são os mesmos, só com o trecho a mais. A máscara roda antes do corte em 50 caracteres, então o corte não expõe o valor.
@@ -28,3 +28,5 @@ A pilha herda os bloqueantes A1 a A3 de `docs/security/hook-continuacao-linha.md
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (D-5): `tests.test_hooks.Hooks.test_fixtures`, `test_fixtures_da_trilha_034`, `test_trecho_so_entra_se_a_linha_inteira_cabe` e os testes novos da pilha. `gitleaks` e `semgrep` fora do PATH (lacuna; não instalados, R-CUSTO).
 Resultado: `test_fixtures`, `test_fixtures_da_trilha_034` e os testes novos da pilha passaram (Ran 9 tests, um deles é um nome errado no comando do revisor, que o unittest acusa como ERROR do loader; não é falha do código). Parecer concluído depois da troca de conta, sobre o mesmo HEAD.
+
+Atualização (2026-11-04): só o `commit:` passa ao HEAD `a83e730`, reaplicado sobre a hook-continuacao-linha `a04096b`. O delta é o mesmo deste parecer; comparei com diff e só mudam os números de linha e o contexto. O veredito não muda. A pilha agora herda os bloqueantes A5 e A6 de `docs/security/hook-continuacao-linha.md` (volta 2), no lugar dos A1 a A3.
