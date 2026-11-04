@@ -24,3 +24,4 @@ A pilha herda os bloqueantes A1 a A3 de `docs/security/hook-continuacao-linha.md
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (D-5): `tests.test_hooks.Hooks.test_fixtures`, `test_fixtures_da_trilha_034` e os testes novos da pilha. `gitleaks` e `semgrep` fora do PATH (lacuna; não instalados, R-CUSTO).
+Resultado: `test_fixtures`, `test_fixtures_da_trilha_034` e os testes novos da pilha passaram (Ran 8 tests, um deles é um nome errado no comando do revisor, que o unittest acusa como ERROR do loader; não é falha do código). Parecer concluído depois da troca de conta, sobre o mesmo HEAD.
