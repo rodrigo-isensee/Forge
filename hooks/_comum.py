@@ -1491,10 +1491,13 @@ def _leitura_do_dono(texto, tambem):
 
 @functools.lru_cache(maxsize=64)
 def fronteira_limpa(prefixo):
-    """O texto de fora termina num estado novo do leitor: sem dúvida, e um comando depois dele é lido sozinho."""
+    """O texto de fora termina num estado novo do leitor: sem dúvida, um comando depois dele é lido sozinho e a
+    varredura dos comentários (G) o atravessa, provando o `#` da linha seguinte (S-A1: `$(` ou crase no prefixo a
+    param, e o dono lido em partes leria outro comentário que o todo)."""
     so, junto = palavras_do_texto(prefixo), palavras_do_texto(prefixo + "\ntrue")
     return (not so.duvida and not junto.duvida and junto.simples[:-1] == so.simples
-            and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),))
+            and junto.simples[-1:] == (ComandoSimples((Palavra("true", "true"),), ()),)
+            and len(prefixo) + 6 in comentarios(prefixo + "\ntrue #"))
 
 
 def construcao_nao_modelada(linha):
