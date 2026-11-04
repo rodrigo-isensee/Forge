@@ -1,0 +1,19 @@
+{
+  "descricao": "GH-MERGE-ADMIN: GH_REPO=dono/repo gh pr merge https://github.com/dono/repo/pull/12 --admin=false",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "GH_REPO=dono/repo gh pr merge https://github.com/dono/repo/pull/12 --admin=false"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh pr merge com --admin"
+  }
+}
