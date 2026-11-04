@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/release-pr-so-parecer
-commit: b89f23e82be8ca226e78b9fa81f73513a9fff1e2
+commit: c774cf22c109618f2074a00d9c94ba56cdcf833c
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -13,9 +13,10 @@ data: 2026-11-04
 ## Achados
 - A1 (bloqueante) bin/forge-changelog:217 · o diff de `mudou` não tem `--no-renames`: mover código para pasta de parecer (`git mv bin/forge-x docs/reviews/forge-x.md`) lista só o nome novo e passa sem fragmento; na develop reprova. Pôr `--no-renames`, como o gate do ci.yml, e testar o caso. Resolvido em b89f23e
 - A2 (recomendado) tests/test_changelog.py:414 · faltam casos no teste: renomeação de código para dentro de `docs/reviews/` (o A1) e arquivo em pasta `_*` (`docs/qa/_x/a.md`), para fixar o limite da regra. Resolvido em b89f23e
+- A3 (recomendado) bin/forge-changelog:236 · Com parecer e fragmento válido no PR, o atalho imprime "PR só de parecer (...), sem fragmento novo", mas há fragmento novo: o `changelog.d/` fica fora de `CAMINHOS_DA_FABRICA` e o `mudou` não o vê. Sugestão: "dispensa fragmento" no lugar de "sem fragmento novo", ou deixar o atalho só para `not novos` e seguir para a linha "ok: n fragmento(s)"
 
 ## Parecer
-Aprovado na revalidação sobre b89f23e (seção abaixo). Na rodada anterior (2665b9a) foi reprovado por um defeito provado (A1), regressão sobre a develop; o texto dessa rodada segue abaixo.
+Aprovado na revalidação sobre c774cf2 (seções abaixo). Na rodada anterior (2665b9a) foi reprovado por um defeito provado (A1), regressão sobre a develop; o texto dessa rodada segue abaixo.
 
 - Lista de caminhos (`e_parecer`, `bin/forge-changelog:191`): recusa `_*` pelo nome do arquivo, `docs/security/ameacas/` e `docs/security/aceites/`, igual à regra do gate do `ci.yml:107-108`; `docs/ux/` fica fora (mais estrito que o CI, aceitável). Arquivo fora das quatro pastas cai no caminho antigo e exige fragmento.
 - O furo é a leitura de `mudou` (`bin/forge-changelog:217`): `git diff --name-only` sem `--no-renames` detecta renomeação e lista só o destino. Prova, num repositório de teste com `bin/forge-x` de 40 linhas movido para `docs/reviews/forge-x.md`: o `forge-changelog` da develop (b45e40a) sai com rc 1 ("Registre a mudança num fragmento novo"); o desta branch sai com rc 0 ("ok: PR só de parecer"). Ou seja, um PR que tira código da fábrica passa sem registro. O próprio gate que a docstring cita usa `--no-renames` (`ci.yml:105`), e `fragmentos_alterados` também (`:199`). Correção mínima: `--no-renames` na linha 217, mais um teste com `git mv` de `agents/a.md` para `docs/reviews/`.
@@ -32,3 +33,11 @@ Aprovado na revalidação sobre b89f23e (seção abaixo). Na rodada anterior (26
 - `python3 -I -m unittest discover -s tests -p test_changelog.py`: 51 testes, OK (1 pulado), rc 0.
 - M14: `git diff --numstat --no-renames b45e40a...b89f23e` dá `bin/forge-changelog` 10+1 e `tests/test_changelog.py` 50+0, 61 linhas, abaixo de 150. Um comportamento.
 - Segue a pendência da rodada anterior: o PR afrouxa um gate e pede o rótulo `afrouxa-regra` do dono.
+
+## Revalidação (c774cf2, regressão achada pelo QA)
+- `bin/forge-check delta --parecer docs/reviews/release-pr-so-parecer.md` (rc 0), intervalo b89f23e..c774cf2: `bin/forge-changelog:233-237` (+3 -3) e `tests/test_changelog.py:449-461` (+13). Li só isso; o resto da branch é o "já lido".
+- A correção está certa. Os fragmentos novos passam por `ler_fragmento` antes do atalho de parecer, como na develop: fragmento malformado reprova mesmo num PR só de parecer. Fora do atalho, o caminho é o de antes (a validação só subiu de lugar).
+- `test_parecer_mais_fragmento_malformado_reprova` é o vermelho: numa cópia de c774cf2 com o `forge-changelog` de b89f23e, ele falha; com a correção, passa. `test_parecer_mais_fragmento_valido_passa` é guarda.
+- O texto da mensagem mudou para "sem fragmento novo", que engana quando o PR traz fragmento válido. Fica como A3, recomendado.
+- `python3 -I -m unittest discover -s tests -p test_changelog.py`: 53 testes, OK (1 pulado), rc 0.
+- M14: o delta soma 19 linhas; a branch fica em 76 (`bin/forge-changelog` 11+2, `tests/test_changelog.py` 63), abaixo de 150.
