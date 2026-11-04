@@ -108,6 +108,9 @@ contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
 `pr` (linha de comando; E7, TEMPO-B2) também exige, com o pedido achado (`docs/pedidos/<pedido>.md` ou o `Pedido:` dos briefs da branch) e com
 `## Histórico`, uma linha `entrega conferida <sha40>` ancestral do head e com só pareceres e quadro depois dela; senão `conferência:` (R-PROVA).
+`entrega --etapa ato-github --branch — --brief <brief>` (E19, ATO-GITHUB-ENTREGA) confere a entrega que é só um ato no GitHub: o tipo vem do brief
+(`Tipo: ato-github`, `Branch: —`, mesmo pedido, Base e Base-sha), cada PQ `pr`, `merge` ou `run` sai `escopo: ato-github: confira`, e
+sem PQ do GitHub (`pendente:`), com `--branch` de verdade ou com PQ `sha`/`push` reprova; nunca sai "nada a conferir".
 `pr --pr <n>` (E10, CONF-MERGE-APOS-SQUASH) confere o PR já mesclado no head dele (`headRefOid` do `gh pr view`, sha40 presente no clone, estado
 MERGED, e o parecer escolhido pelo `headRefName`), nunca no commit do squash; sem gh, PR aberto ou head ausente, rc 2 e nada conferido.
 O `Desde:` da `brief mensagem --entrega` e o `--desde` do `brief gerar --volta` vêm da base mais recente da própria branch (E12,
@@ -895,6 +898,10 @@ def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 ETAPAS_DE_CODIGO = ("codigo", "review", "seguranca", "qa")
 ETAPAS_DE_BRANCH_INTEIRA = ("pr", "merge-integracao", "pedido-de-merge-ao-dono")  # sem `--desde`, o Base-sha é o ponto de partida
+ATO_GITHUB = "ato-github"  # E19: entrega só no GitHub, sem branch de trabalho (`Branch: —`), provada pelo estado no GitHub
+SEM_BRANCH = ("—", "-")
+PROVAS_DO_GITHUB = ("pr", "merge", "run")
+PROVAS_DE_COMMIT = ("sha", "push")
 BASES_DO_FLUXO = ("develop", "homolog", "main")
 ACEITES_DO_USUARIO = ("docs/security/aceites/",)
 CONFERIDA = re.compile(r"^\s*-\s.*\bconferida ([0-9a-f]{40})\b")  # registro do Jarvis, só dentro de `## Histórico` (A4)
@@ -1133,7 +1140,7 @@ def cabecalho_do_brief(texto):
 
 
 ETAPA_PARA_TIPO = {"codigo": "codigo", "review": "review", "seguranca": "review", "qa": "qa", "pr": "merge",
-                   "merge-integracao": "merge", "pedido-de-merge-ao-dono": "merge"}
+                   "merge-integracao": "merge", "pedido-de-merge-ao-dono": "merge", "ato-github": "ato-github"}
 
 
 def tipo_da_etapa(etapa, volta=False):
@@ -1359,6 +1366,56 @@ def anexo_implicito(raiz, de, head, slug, nome, tipo, removidas):
     return None
 
 
+def provas_do_brief(texto):
+    """[(n, tipo)] das linhas `PQ-n (<tipo>[, ...])` do `Pronto quando` do brief, na ordem."""
+    provas = []
+    for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
+        if (m := PQ.search(linha)) and m.group(2):
+            provas.append((m.group(1), m.group(2).split(",")[0].strip()))
+    return provas
+
+
+def entrega_ato_github(raiz, caminho, pedido_id, branch, base, base_sha, briefs):
+    """E19 (ATO-GITHUB-ENTREGA, Q8 = A, FLUXO-12): a entrega que é só um ato no GitHub, sem branch de trabalho. O tipo vem do brief do
+    Jarvis (um `--brief` com `Tipo: ato-github`, `Branch: —`, o mesmo pedido, Base e Base-sha), nunca do executor; a prova é o estado no
+    GitHub (PQ `pr`, `merge` ou `run`, que o conferente lê pelo `gh`). Nunca vira "nada a conferir": sem PQ do GitHub, `pendente:`; com
+    `--branch` de verdade ou PQ `sha`/`push` (entrega de código), reprova. Lista de (linha, reprova)."""
+    linhas = []
+    if branch not in SEM_BRANCH:
+        linhas.append((f"escopo: ato-github com --branch {nome_seguro(branch)}: o tipo é o da entrega sem branch de trabalho (Branch —); "
+                       "entrega com commit segue as outras etapas", True))
+    if base not in BASES_DO_FLUXO:
+        linhas.append(("escopo: base fora do fluxo", True))
+    if len(briefs) != 1:
+        linhas.append(("escopo: ato-github exige um --brief, o do Jarvis com `Tipo: ato-github` e `Branch: —`: o tipo vem do brief, "
+                       "não de quem executa", True))
+    for brief in briefs[:1]:
+        arquivo, _ = caminho_de_brief(raiz, brief)
+        try:
+            texto = arquivo.read_text(encoding="utf-8") if arquivo else None
+        except (OSError, UnicodeDecodeError):
+            texto = None
+        if texto is None:
+            linhas.append((f"escopo: brief {nome_seguro(brief)} ilegível ou fora de docs/briefs/", True))
+            continue
+        cabecalho = cabecalho_do_brief(texto)
+        campos = {c: grupo(CABECALHO_DE_BRIEF_CAMPOS[c], cabecalho) for c in ("Pedido", "Branch", "Base", "Base-sha")}
+        if (tipo_do_brief(texto) != ATO_GITHUB or campos["Branch"] not in SEM_BRANCH or not mesmo_pedido(campos["Pedido"], pedido_id, caminho)
+                or campos["Base"] != base or campos["Base-sha"] != base_sha):
+            linhas.append((f"escopo: o brief {nome_seguro(brief)} não é de ato-github desta entrega (`Tipo: ato-github`, `Branch: —` e o mesmo "
+                           "pedido, Base e Base-sha): o tipo vem do brief, não de quem executa", True))
+            continue
+        provas = provas_do_brief(texto)
+        de_commit = [f"PQ-{n} ({t})" for n, t in provas if t in PROVAS_DE_COMMIT]
+        if de_commit:
+            linhas.append((f"escopo: ato-github com prova de commit ({', '.join(de_commit)}): entrega de código não é ato-github", True))
+        do_github = [(n, t) for n, t in provas if t in PROVAS_DO_GITHUB]
+        if not do_github:
+            linhas.append(("pendente: ato-github sem PQ pr, merge ou run: a prova é o estado no GitHub", True))
+        linhas += [(f"escopo: ato-github: confira PQ-{n} ({t}) pelo estado no GitHub", False) for n, t in do_github]
+    return linhas
+
+
 def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
     """Escopo da entrega (VV-2, M9): `intervalo:` e uma linha `escopo:` por arquivo; só leitura. rc 0, 1 com reprovação, 2 entrada ilegível."""
     caminho = caminho_do_pedido(raiz, pedido)
@@ -1369,6 +1426,14 @@ def cmd_entrega(raiz, pedido, branch, base, base_sha, etapa, desde, briefs=()):
         return 2
     if origem := linha_de_origem(caminho):
         print(origem)
+    if etapa == ATO_GITHUB:  # E19: sem branch, sem intervalo do git; o --desde não se aplica
+        m = re.search(r"^id:\s*(\S+)", texto, re.M)
+        linhas = entrega_ato_github(raiz, caminho, m.group(1) if m else caminho.stem, branch, base, base_sha, list(briefs))
+        linhas += [("escopo: --desde não vale na etapa ato-github (sem branch)", True)] if desde else []
+        print("intervalo: — (ato-github: sem branch de trabalho; a prova é o estado no GitHub)")
+        for linha, _ in linhas:
+            print(linha)
+        return 1 if any(r for _, r in linhas) else 0
     head, inicio = sha_do_commit(raiz, branch), sha_do_commit(raiz, base_sha)
     if not head or inicio != base_sha:
         print(f"entrega: ref ilegível (--branch {nome_seguro(branch)} e --base-sha precisam ser commits; o Base-sha, sha40)")
@@ -2427,7 +2492,7 @@ CLASSES_DE_FALHA = {
     "outra": "—",
 }
 AUTORES_DE_FALHA = ("jarvis", "destino", "conferente", "ferramenta")
-TIPOS_DE_BRIEF = ("codigo", "volta", "review", "qa", "merge", "desconhecido")
+TIPOS_DE_BRIEF = ("codigo", "volta", "review", "qa", "merge", "ato-github", "desconhecido")
 TETO_DA_TABELA = 1024 * 1024
 JANELA_DE_RECORRENCIA = 30  # dias
 LIMIAR_DA_PROPOSTA = 3  # entregas distintas com a mesma classe e o mesmo autor
@@ -6227,7 +6292,7 @@ def main():
     en.add_argument("--branch", required=True, help="branch entregue")
     en.add_argument("--base", required=True, help="branch de integração da entrega (develop, homolog ou main)")
     en.add_argument("--base-sha", required=True, help="sha40 da base gravado na delegação (Base-sha)")
-    en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA,
+    en.add_argument("--etapa", required=True, choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA + (ATO_GITHUB,),
                     help="etapa conferida; `--desde` vale em todas as etapas (C1)")
     en.add_argument("--brief", action="append", default=[], help="entregas paralelas conferidas juntas: um brief (em docs/briefs/) por entrega, de mesma Branch, Base, Base-sha e pedido; repita a opção; sem ela, a saída é a de sempre")
     en.add_argument("--desde", help="sha40 da última entrega conferida (linha `conferida <sha40>` do Histórico do pedido); o escopo passa a ser só o que veio depois")

@@ -1,0 +1,116 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M35",
+      "guarda": "ato-github não aceita branch de verdade",
+      "arquivo": "bin/forge-check",
+      "de": "    if branch not in SEM_BRANCH:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M36",
+      "guarda": "ato-github exige um brief",
+      "arquivo": "bin/forge-check",
+      "de": "    if len(briefs) != 1:\n",
+      "para": "    if False:\n",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "o tipo vem do brief",
+      "arquivo": "bin/forge-check",
+      "de": "if (tipo_do_brief(texto) != ATO_GITHUB or ",
+      "para": "if (",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M38",
+      "guarda": "o brief é sem branch",
+      "arquivo": "bin/forge-check",
+      "de": "campos[\"Branch\"] not in SEM_BRANCH or not mesmo_pedido",
+      "para": "not mesmo_pedido",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "o brief é do mesmo pedido",
+      "arquivo": "bin/forge-check",
+      "de": "or not mesmo_pedido(campos[\"Pedido\"], pedido_id, caminho)",
+      "para": "",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M40",
+      "guarda": "o brief é do mesmo Base-sha",
+      "arquivo": "bin/forge-check",
+      "de": " or campos[\"Base-sha\"] != base_sha):",
+      "para": "):",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M41",
+      "guarda": "prova de commit reprova",
+      "arquivo": "bin/forge-check",
+      "de": "        if de_commit:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M42",
+      "guarda": "sem prova do GitHub fica pendente",
+      "arquivo": "bin/forge-check",
+      "de": "        if not do_github:\n",
+      "para": "        if False:\n",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "--desde não vale em ato-github",
+      "arquivo": "bin/forge-check",
+      "de": "ato-github (sem branch)\", True)] if desde else []",
+      "para": "ato-github (sem branch)\", True)] if False else []",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "ato-github é etapa que o entrega aceita",
+      "arquivo": "bin/forge-check",
+      "de": "choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA + (ATO_GITHUB,),",
+      "para": "choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA,",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_ato_github_do_brief_lista_as_provas_do_github"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "a etapa ato-github sai antes do git",
+      "arquivo": "bin/forge-check",
+      "de": "    if etapa == ATO_GITHUB:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_ato_github_do_brief_lista_as_provas_do_github"
+      ]
+    }
+  ]
+}

@@ -5870,3 +5870,64 @@ class ConferenciaPresaAoHead(RepoComOrigem):
         rc, saida, _ = self.pr("--base", "develop")
         self.assertEqual(rc, 1, saida)
         self.assertIn('pr: conferência: os briefs da branch "melhoria/x" citam mais de um pedido ("outro", "real")', saida)
+
+
+class EntregaAtoGithub(RepoComOrigem):
+    """E19 (ATO-GITHUB-ENTREGA, Q8 = A, FLUXO-12): a entrega só no GitHub, sem branch de trabalho. O tipo vem do brief (`Tipo: ato-github`,
+    `Branch: —`), a prova é o estado no GitHub (PQ pr, merge ou run) e nunca sai "nada a conferir" com rc 0."""
+    PQS = "- PQ-1 (pr): o PR #12 aberto na develop\n- PQ-2 (run): a execução do CI verde no head do PR\n"
+
+    def setUp(self):
+        super().setUp()
+        self.base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
+        self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
+
+    def brief(self, tipo="ato-github", branch="—", pedido="p1", base_sha=None, pqs=None):
+        arq = self.repo / "docs" / "briefs" / "p1-devops-engineer-1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(f"Agente destino: forge:devops-engineer\nPedido: {pedido}\nTipo: {tipo}\n"
+                       f"Branch: {branch}   Base: develop   Base-sha: {base_sha or self.base}\n\n## Objetivo\nx\n\n"
+                       f"## Pronto quando\n{self.PQS if pqs is None else pqs}", encoding="utf-8")
+        return "docs/briefs/p1-devops-engineer-1.md"
+
+    def entrega(self, *extra, branch="—"):
+        r = rodar_fc("entrega", str(self.pedido), "--branch", branch, "--base", "develop", "--base-sha", self.base, "--etapa", "ato-github",
+                     *extra, raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout, r.stderr
+
+    def test_ato_github_do_brief_lista_as_provas_do_github(self):
+        for sem_branch in ("—", "-"):
+            with self.subTest(sem_branch):
+                rc, saida, erro = self.entrega("--brief", self.brief(branch=sem_branch), branch=sem_branch)
+                self.assertEqual(rc, 0, saida + erro)
+                self.assertEqual(saida.splitlines()[1:], ["intervalo: — (ato-github: sem branch de trabalho; a prova é o estado no GitHub)",
+                                                      "escopo: ato-github: confira PQ-1 (pr) pelo estado no GitHub",
+                                                      "escopo: ato-github: confira PQ-2 (run) pelo estado no GitHub"])
+
+    def test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir(self):
+        outro_sha = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+        casos = {"branch de verdade": (lambda: ("--brief", self.brief()), "melhoria/x", "escopo: ato-github com --branch"),
+                 "sem --brief": (lambda: (), "—", "escopo: ato-github exige um --brief"),
+                 "brief sem Tipo ato-github": (lambda: ("--brief", self.brief(tipo="codigo")), "—", "não é de ato-github desta entrega"),
+                 "brief com Branch de verdade": (lambda: ("--brief", self.brief(branch="melhoria/x")), "—", "não é de ato-github desta entrega"),
+                 "brief de outro pedido": (lambda: ("--brief", self.brief(pedido="p2")), "—", "não é de ato-github desta entrega"),
+                 "brief de outro Base-sha": (lambda: ("--brief", self.brief(base_sha=outro_sha)), "—", "não é de ato-github desta entrega"),
+                 "brief fora de docs/briefs": (lambda: ("--brief", "src/x.txt"), "—", "ilegível ou fora de docs/briefs/"),
+                 "sem PQ do GitHub": (lambda: ("--brief", self.brief(pqs="- PQ-1 (cmd): `ls` · espera: rc=0\n")), "—",
+                                      "pendente: ato-github sem PQ pr, merge ou run"),
+                 "PQ de commit": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (sha): o commit da branch\n")), "—",
+                                  "escopo: ato-github com prova de commit (PQ-3 (sha))"),
+                 "com --desde": (lambda: ("--brief", self.brief(), "--desde", self.c1), "—", "escopo: --desde não vale na etapa ato-github")}
+        for nome, (extra, branch, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.entrega(*extra(), branch=branch)
+                self.assertEqual(rc, 1, saida + erro)
+                self.assertIn(esperado, saida)
+                self.assertNotIn("Traceback", erro)
+
+    def test_tipo_do_brief_e_o_da_etapa(self):
+        fc = carregar_forge_check()
+        self.assertEqual(fc.tipo_da_etapa("ato-github"), "ato-github")
+        self.assertEqual(fc.tipo_do_brief("Tipo: ato-github\nBranch: —\n\n## Objetivo\nx\n"), "ato-github")
