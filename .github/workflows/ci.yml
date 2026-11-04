@@ -55,8 +55,10 @@ jobs:
           python-version: "3.14"
       - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
         run: |
-          # uutils-coreutils do apt do runner (universe, sem custo): o GNU env 9.4 do runner recusa `-a`/`--argv0` e a prova viva
-          # do lançador cairia de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
+          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
+          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
+          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends rust-coreutils
@@ -256,8 +258,10 @@ jobs:
       - name: env com -a (uutils-coreutils do apt; prova viva de 20 formas do lançador)
         if: ${{ !cancelled() && steps.gate.outputs.pesada == 'true' }}
         run: |
-          # uutils-coreutils do apt do runner (universe, sem custo): o GNU env 9.4 do runner recusa `-a`/`--argv0` e a prova viva
-          # do lançador cairia de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
+          # uutils-coreutils do apt do runner (universe, sem custo): o env do runner pode recusar `-a`/`--argv0` (era o GNU env 9.4
+          # do ubuntu-24.04; o README da imagem 26.04 lista coreutils 9.5-1ubuntu2+0.0.0~ubuntu25, o pacote de transição para o
+          # uutils, e o passo abaixo confere o `env --version` e o `-a` de qualquer jeito). Sem `-a` a prova viva do lançador cairia
+          # de 20 formas para 2 (CI-ENV-ARGV0). Falha fechado: o passo reprova o job, sem tolerar falha.
           set -euo pipefail
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends rust-coreutils
