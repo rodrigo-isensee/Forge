@@ -724,7 +724,9 @@ def veredito_do_pr(raiz, pedido, ref, base):
     return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None):
+def cmd_pr(raiz, pedido, ref=None, base=None, ramo=None):
+    """`ramo` (a catraca passa a branch do PR, E11): só contam os pareceres com `branch: <ramo>`; sem nenhum, é `sem parecer`
+    (falha fechada). Sem `ramo` (o caminho manual), vale o mais recente do pedido, como antes."""
     saida = []
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
@@ -733,11 +735,12 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
         achados = []
         for rel, texto in documentos(raiz, tipo, ref):
             campos, viol = validar_documento(rel, texto)
-            if campos is not None and campos.get("pedido") == pedido:
+            if campos is not None and campos.get("pedido") == pedido and (ramo is None or campos.get("branch") == ramo):
                 achados.append((campos.get("data", ""), rel, campos, viol, texto))
         if not achados:
             motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
-            saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
+            da_branch = f" com `branch: {ramo}`" if ramo is not None else ""
+            saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{da_branch}{motivo} ({rid})")
             continue
         _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
         saida += viol
