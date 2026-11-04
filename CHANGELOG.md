@@ -4,6 +4,53 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.32.0] - 2026-11-03
+### Adicionado
+- ADR 0014 (fluxo de três degraus nos projetos) e ADR 0015 (porta de entrada do onboarding), as duas como proposta, e emendas propostas das ADRs 0003 (retomada com pedido aberto) e 0009 (sandbox nos projetos, oráculo do portão, dois conferentes); só texto, nenhum controle muda até os PRs das fases C e E (lote-unico-032, L00)
+- forge-check brief avisa (sem recusar) PQ com `grep -c` sem arquivo e PQ com sha abreviado (7 a 39 hex) (lote-unico-032, L10, OK-2)
+- forge-check brief avisa a suposição do pedido sem `muda com` e `custo de reverter`, e `forge-check voltas` conta as linhas `suposição revertida` do Histórico por pedido; modelo do pedido e R-DECISAO dizem o formato (lote-unico-032, L11, OK-6)
+- forge-check transcricao lastro conta também a afirmação absoluta ("todos os testes passam", "nenhuma falha") sem saída de teste OK; só mede (lote-unico-032, L12, OK-5)
+- forge-check transcricao vereditos conta os relatórios do conferente cujo `veredito:` contradiz as próprias linhas (`cumpriu` com `pendente:`, `escopo: fora` ou `PQ-n não cumpriu`, ou `não cumpriu` sem nenhuma); só mede, sem trecho da transcrição (lote-unico-032, L13, P7)
+- forge-check transcricao recusas conta, por papel, as recusas de linha dos hooks ("não modela" e "fora da gramática"), só com números, sem o comando recusado; docs/hooks.md traz a forma de leitura em lote (lote-unico-032, L14, P9)
+- forge-check decisoes imprime o registro gerado das linhas `DECISÃO DO DONO` dos pedidos (data, decisão, motivo, "reabre se"), só no stdout; a linha torta sai como aviso e fora do registro; nenhum portão o lê; a skill de arquitetura pede o "reabre se" na proposta recusada (lote-unico-032, L15, EXT-2)
+- forge-check movimento grava, ao parar o cartão, o custo do trecho (tokens das transcrições locais desde o último movimento) no motivo e, no Pronto, o custo total; sem transcrição na janela sai `lacuna`, nunca 0 (lote-unico-032, L16, EXT-3)
+- forge-check proximo <pedido> imprime onde o pedido está (etapas com o estado que o Histórico prova, branch, último veredito dos pareceres commitados, próximo passo e bloqueios), em até 40 linhas, só leitura; o texto do pedido sai escapado e nunca vira passo; sem registro, `não verificável` (lote-unico-032, L17, AQ-2)
+- forge-check fila mostra a ocupação da trava da suíte (lida pelo `.githooks/pre-push --status`, sem tomá-la nem apagá-la; link ou saída inesperada vira `não verificável`) e avisa quando passa de 0.6; o Jarvis só despacha etapa que roda a suíte abaixo disso (lote-unico-032, L18, M7)
+- a suíte vermelha grava os testes que caíram, a carga e a taxa por teste em ~/.forge-contrib/suite-vermelha.jsonl, fora do git, sem mudar o veredito nem seguir link (lote-unico-032, L32, OK-3 e OK-13)
+- forge-mutante --processos K (1 a 4, padrão 1) roda os mutantes em k processos, um clone cada, com o mesmo veredito em série e em paralelo; o SIGTERM ou o erro de um mata todos e apaga as cópias (lote-unico-032, L33, M4)
+- teste confere que todo caminho citado entre crases em agents/, skills/ e docs/regras/ existe no Forge ou no modelo do projeto, com lista fechada do que só nasce no projeto (lote-unico-032, L34, OK-4)
+- tests/config.json ganha invariantes_motivo (regra e porque dos invariantes das 17 regras com ID) e o teste exige o motivo em todo arquivo novo de invariantes; o legado sem motivo só encolhe e os mínimos de cobertura sobem para 48 arquivos e 410 trechos (lote-unico-032, L35, OK-11)
+- tests/comportamento/ com 5 casos anonimizados de erro do orquestrador (teto, PR sem parecer, três perguntas, bloqueio contornado, push na main) e o teste que mede a reincidência detectada pelo verificador da ADR 0007 (lote-unico-032, L36, AQ-7)
+- forge-check voltas imprime a linha `relogios:` do pedido que chegou à develop, com "pedido aberto → develop" e "pronto para fazer → develop" (meta de 30 min no segundo), e o agile-coach e a skill kanban-scrum os pedem nas tabelas por release (lote-unico-032, L49, D-4)
+### Alterado
+- CI: os limites de tempo sobem para 20 min na checagem rápida e 25 min na bateria e na bateria python 3.14, para a suíte não cair por tempo sem falha de teste (ci-suite-no-teto)
+- agents/jarvis.md em núcleo curto: o texto longo das conferências com o conferente, do trabalho em paralelo e do formato da pergunta ao dono vai para as skills briefs-e-conferencia, trabalho-em-paralelo e falar-com-o-dono, que o núcleo manda ler no passo; nenhuma regra sai e os invariantes do Jarvis em `tests/config.json` mudam de arquivo, sem sumir (lote-unico-032, L51, AQ-8)
+- só o `qa-engineer` roda a suíte inteira (D-5, decisão do dono de 2026-11-01): review e segurança leem o diff e rodam só os testes dos arquivos tocados, e o tech-lead, o security-engineer, o qa-engineer, as skills engineering-practices e cyber-security e a economia-de-tokens dizem isso; o pre-push do autor e o CI seguem (lote-unico-032, L50, D-5)
+- CI: o gate do job `bateria` trata como commit só de parecer também `docs/security/`, `docs/devops/` e `docs/ux/` (com a bateria verde no commit anterior ainda exigida); modelos `_*` e `docs/security/{ameacas,aceites}/` rodam a bateria inteira, e o caminho leve passa a rodar `NeutralidadeDoNucleo` (pedido VEL-P6-GATE, lote V3 do plano VEL).
+- forge-fechar: o PR aberto em rascunho pelo autor na entrega é reusado só com o head conferido (um PR só, base develop, sem fork) e o marcar-como-pronto roda preso ao head antes do merge; head diferente ou mais de um PR aberto para no passo 3; tech-lead.md e jarvis.md mandam o autor abrir o rascunho (lote-unico-032, L02, D-1)
+- forge-check movimento recusa coluna que não está no KANBAN.md (rc 1, nada gravado), com a lista das colunas válidas na mensagem (lote-unico-032, L04, LOTE-FORGE-CHECK-032 E2)
+- forge-check pr aprovado imprime a linha `pr: veredito: aprovado · <pedido> · exigidos … · head … · base …` (rc 0 continua o mesmo; com violação nada muda); a lista do cmd_pr sai de `exigidos_do_pr` (lote-unico-032, L05, LOTE-FORGE-CHECK-032 E1)
+- agents/jarvis.md manda gravar o Histórico do pedido e a decisão, pergunta ou ordem do dono por `forge-check anotar`, nunca à mão (lote-unico-032, L06, LOTE-FORGE-CHECK-032 E3)
+- forge-check brief gerar põe em `## Ler` só o trecho do pedido (Escopo, Etapas, Decisões e as linhas citadas do Histórico), nunca o pedido inteiro; na merge-integracao o Ler é só o comando do forge-fechar e o `modelo: haiku` sai no stderr, sem efeito sobre o portão (lote-unico-032, L09, ESTUDO-30MIN P3 e P4)
+- forge-fechar traz a develop sozinho no passo 2b quando a base andou, tocou arquivo da branch e o git merge-tree --write-tree sai limpo (commit de merge com a árvore do merge-tree, envio normal pelo pre-push, cadeia recomeçada no head novo); com conflito, fora de melhoria/* ou na segunda vez da cadeia, para como antes (lote-unico-032, L37, D-3)
+### Corrigido
+- hook de conformidade: os donos de milhares de heredocs com `#` na linha saem em tempo linear (antes ~22 s com 3000) e a recusa sai dentro do orçamento de 5 s, com a mesma decisão (HEREDOC-COMENTARIO)
+- hook de conformidade: o dono de cada heredoc é lido em duas partes (o texto de fora uma vez), em tempo linear, e a chamada com corpo de heredoc ainda por conferir quando o prazo vence é recusada (antes liberada, 128 s com 3000 donos distintos); a recusa por regra não muda (HEREDOC-DONOS)
+- brief gerar --volta grava a linha `Etapa:` (e `Cobre:`) do brief anterior, e o `brief mensagem --entrega` deixa de recusar a volta (lote-unico-032, L03, LOTE-FORGE-CHECK-032 E5)
+- agents/conferente.md chama `forge-check brief <Arquivo> --pedido <Pedido>` com o id da mensagem, sem montar o caminho docs/pedidos/ à mão (lote-unico-032, L07, LOTE-FORGE-CHECK-032 E4)
+- forge-check pr aceita o id do pedido ou o slug da branch com o mesmo veredito (sem brief, o slug da própria branch com parecer dela; ambíguo segue o `uso:`), e o `entrega` tira do escopo o commit de release ou squash de outro pedido que já é da base remota com o mesmo conteúdo; conferente.md roda na raiz da Worktree e jarvis.md reenvia todo `não cumpriu` ao conferente (lote-unico-032, L08, ESTUDO-30MIN P1)
+- os testes de prazo do vigia (test_t_vigia_*) medem a parede só do hook e a CPU do processo, sem subir teto, e o teste de sinal do fechar mede a meta contra o intervalo, não contra a fila da máquina (lote-unico-032, L31, TESTE-T-VIGIA-PAREDE)
+- o custo do trecho (movimento para parada) soma só os campos conhecidos do usage, e o formato real com server_tool_use aninhado não derruba o movimento (lote-unico-032, L16, A1 do review)
+- a fila só executa o --status do .githooks/pre-push que é o do Forge; o hook de outro dono não roda e a trava não vira presa à toa (lote-unico-032, L18, A2 do review)
+- a medida de vereditos que contradizem as próprias linhas reconhece toda linha que reprova no conferente.md (escopo: e forma: diferentes de ok), não só escopo: fora (lote-unico-032, L13, A3 do review)
+- o decisoes sem --pedido lista também os pedidos da raiz de pedidos (~/.forge-contrib ou --raiz-pedidos), onde o Forge os guarda (lote-unico-032, L15, A4 do review)
+- o voltas sem --pedido lista o pedido que andou sem volta pela linha relogios:, para a tabela por release não perdê-lo (lote-unico-032, L49, A5 do review)
+- o invariante novo em arquivo do legado traz regra e porque por trecho (invariantes_motivo_trecho), e o legado vira a contagem de trechos de antes; os trechos da L50 e da L51 ganham o motivo (lote-unico-032, L35, A6 do review)
+- o mutante M6 da L31 aponta o teste estático do sleep em segundo plano, que falha com o mutante em vez de travar (lote-unico-032, L31, A1 do QA)
+- o proximo só põe a etapa em curso com verbo de início na linha do Histórico (delegada, iniciada, em curso...); a menção solta, como "Próximo: ... E1.4", segue não verificável (lote-unico-032, L17, A7 do review)
+- a contagem do legado de invariantes sem motivo tem de ser igual à real de cada arquivo (agents/jarvis.md cai de 73 para 51) e a soma tem teto (284): subir o n ou acrescentar trecho sem motivo reprova (lote-unico-032, L35, A6 do review, A5 da segurança e A9 do QA)
+- a medição de vereditos (L13) não conta como reprovação as linhas escopo: de integração da base, sem commit e união de N briefs, que o entrega imprime sem reprovar; o texto de uso e a docstring dizem a regra nova (lote-unico-032, L13, A3 e A10 do review e A10 do QA)
+
 ## [0.31.0] - 2026-11-01
 ### Alterado
 - CLAUDE.md do Forge: o comando de testes passa a ser .githooks/pre-push --suite
