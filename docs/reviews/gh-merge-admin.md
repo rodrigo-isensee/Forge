@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/gh-merge-admin
-commit: b1991c6485069a9203403dbdaccc9c47ec1b135b
-parecer: reprovado
+commit: dfcc2b2936bab0980b51b87e6049c1c53aecb74c
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
 ---
@@ -23,7 +23,7 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A8 (bloqueante) hooks/parecer.py:505 · resolvido na rodada 4: `desagrupa_i` copia como veio o token que segue uma opção de `API_COM_VALOR`; `-p`, `-q`, `--jq`, `-H`, `-t` e `--preview` antes de `-iX`, `-iH` ou `-if` recusam com R-MAIN.
 - A9 (bloqueante) hooks/parecer.py:517 · resolvido na rodada 5: `ultimo_metodo` vale o último `-X`/`--method` (separado, `=`, colado) e pula o valor de `API_COM_VALOR`; `-X GET -X PUT …/merge` e `-X GET -X POST graphql -F query=@q.graphql` recusam com R-MAIN.
 - A10 (recomendado) hooks/conformidade.py:1608 · mesma leitura do A9 fora do E1, já na base: `gh api -X GET -X DELETE repos/o/r` e `-X GET -X PUT .../branches/main/protection -f x=y` saem com rc=0; o mesmo em :1626. Segue com o A7, em cartão ao `security-engineer`.
-- A11 (bloqueante) hooks/parecer.py:537 · regressão da rodada 6: o `-XGET` que é valor de `-p`/`-q`/`-t`/`-H` conta como GET e o `if metodos:` libera os campos; o `gh` manda POST. `gh api -p -XGET -f query='mutation{mergePullRequest…}' graphql` e `merges -f base=` saem com rc=0 (recusavam em 6d6e7f1).
+- A11 (bloqueante) hooks/parecer.py:555 · resolvido na rodada 7: o atalho só-GET decide por `ultimo_metodo_real`, que pula o valor de `API_COM_VALOR`. Rodada 6: `-p -XGET -f query=…mergePullRequest… graphql` e `merges -f base=` saíam com rc=0.
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -134,3 +134,19 @@ Head `b1991c6`, sobre `75968a9`. A volta 5 (`97e98b6`, `daf71fe`, `03d4ce5`, `07
 - **Teto (M14).** `git diff --numstat --no-renames 928e61b...b1991c6`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 87 e `tests/test_hooks.py` 5, total de 120 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
 
 **Parecer da rodada 6: reprovado.** O A10 da segurança e o T-4 estão resolvidos. O A11 bloqueia e vai também ao `security-engineer`. A7 e A10 (review) são recomendações. Segurança e QA têm parecer próprio (E1.4 e E1.6).
+
+## Rodada 7
+Head `dfcc2b2`, sobre `b1991c6` (volta 7: `14fc4bf..dfcc2b2`). Delta lido, pela saída de `bin/forge-check delta --parecer docs/reviews/gh-merge-admin.md`: `hooks/parecer.py` :531-547 (`ultimo_metodo_real`, novo) e :554-555 (o atalho só-GET de `metodo_mutante`), as 7 fixtures novas (4 `api-metodo-valor-de-opcao-*-bloqueia` e 3 `legitimo-api-*-get-com-campo-libera`), `tests/mutantes/gh-merge-admin-3.json` (isenção fora, G31, G34, G35 e G37 com trecho único, G38 a G44 novos) e a linha AR-11 de `docs/engineering/achados-recorrentes.md`. Já lido e não tocado pelo delta: `hooks/conformidade.py`, `metodos_pedidos`, `desagrupa_i`, `endpoint_da_api`, `gh_api_de_merge`, `textos_da_api` e as 92 fixtures anteriores (99 `gh-merge-admin-*` ao todo, recontadas).
+
+- **A11, resolvido.** A recusa segue pelo `any` sobre `metodos_pedidos`. O atalho que libera os campos só vale quando o último `-X`/`--method` que o `gh` lê de fato é GET, e `ultimo_metodo_real` pula o valor de qualquer opção de `API_COM_VALOR`. Sondei `metodo_mutante` com a árvore de cada revisão (`6d6e7f1`, `b1991c6`, `dfcc2b2`). As 6 formas da rodada 6 (`-p -XGET` e `-t -XGET` com GraphQL, `-p -XGET` e `-q --method=GET` com `merges`, `-p -XGET` com `git/refs`, `-p -XGET -F query=@arq graphql`) eram liberadas em `b1991c6` e voltam a ser mutantes em `dfcc2b2`, como em `6d6e7f1`.
+- **Rótulo da recusa.** As fixtures de `merges` e de GraphQL com arquivo recusam com R-MAIN. `git/refs` e `enablePullRequestAutoMerge` recusam antes, no bloco R-CONFORMIDADE de `API_ADMIN`/`GRAPHQL_PERIGOSO`, pela DECISÃO TÉCNICA de 2026-11-04 04:10. O C-4 fica coberto nos dois casos.
+- **Sem regressão.** Em 27 sondas, nenhuma forma que `b1991c6` recusava passa a liberar. Os legítimos do C-5 seguem liberando: `repos/o/r/pulls/12/merge`, `--jq .merged`, e `-X GET`, `-XGET`, `-X=GET`, `--method=GET`, `--method GET` e `-iXGET` com `-f`. Também libera `-X GET -p -XGET -f`, em que o `gh` lê GET. `-X` sem valor no fim segue recusando, sem exceção.
+- **A10 (segurança) e T-4, como na rodada 6.** `-p -XPUT …/pulls/1/merge` e `-X PUT -X GET …/pulls/1/merge` seguem mutantes, e `hooks/conformidade.py` não muda no delta.
+- **A7 e A10 (review), sem mudança.** Estão fora do E1 e já na base, em cartão ao `security-engineer`.
+- **C-1 a C-3 e C-6, sem mudança.** `ultimo_metodo_real` é linear, sem rede e sem `gh` novo.
+- **Mutantes.** G38 troca o atalho por `metodos[-1]` e cai nas fixtures `-p -XGET`. G39 e G40 guardam o pulo do valor, e G41 a G44, cada forma do método real. G42 cai na fixture `x-final-sem-valor`, que já existia. A isenção saiu, e o trecho dela agora tem mutante. A mutação é do autor (V2) e não a refiz.
+- **Achado recorrente.** A linha AR-11 segue o formato do arquivo, com classe, ID, contagem de 5 (A2, A6, A8, A9 e A11) e a linha do defeito da rodada 6. Conferida.
+- **Testes.** `python3 -m unittest tests.test_hooks` na worktree, no head `dfcc2b2`: `Ran 71 tests in 752.946s`, `OK` (D-5). Sondas em `$TMPDIR/tech-lead-gh-merge-admin/sonda-r7.py`.
+- **Teto (M14).** `git diff --numstat --no-renames 928e61b...dfcc2b2`, só código e teste: `hooks/conformidade.py` 28, `hooks/parecer.py` 105 e `tests/test_hooks.py` 5, total de 138 linhas. Uma classe de comportamento em `hooks/`, com corpus próprio. Dentro do teto.
+
+**Parecer da rodada 7: aprovado.** O A11 está resolvido, sem regressão. O A10 da segurança e o T-4 seguem resolvidos. A7 e A10 (review) são recomendações fora do E1. Segurança e QA têm parecer próprio (E1.4 e E1.6).
