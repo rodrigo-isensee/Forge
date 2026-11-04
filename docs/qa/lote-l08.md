@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 318a4374a16a4662fcb1504565535f0caf92dcf4
+commit: 04437d12dfb5579af2dafaf065c06bf6457f7938
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -57,3 +57,6 @@ Delta 7925640..a46eab7 (a promoção com head igual à ponta de `origin/develop`
 - `-p test_promover_homolog.py` e `-p test_qa_lote_l08.py` juntos: 57 testes OK (36 e 21).
 - `bin/forge-mutante tests/mutantes/lote-l08-*.json`, numa worktree limpa no head 3839cf9: 52 mortos, rc=0 (a rodada na worktree com o parecer do review ainda sem commit foi descartada pela ferramenta, "árvore mudou").
 - Bugs abertos: nenhum. Parecer segue aprovado.
+
+## Revalidação (04437d1, módulo do forge-fechar real)
+O autor moveu `FecharComOForgeCheckReal` para tests/test_fechar_forge_check_real.py e o tests/test_qa_lote_l08.py passou a importá-la dali (única mudança no arquivo do QA; por isso o `commit:` é 04437d1, que contém o arquivo de teste atual, regra E16). A classe movida não mudou além da referência ao cenário `Fechar` e ao caminho do `forge-check`, e os dois testes do QA que a usam (pedido sem Histórico e duas branches no mesmo sha, parada no passo 1) seguem cobrindo o mesmo. `-p test_qa_lote_l08.py` e `-p test_fechar_forge_check_real.py` juntos: 23 testes OK. Parecer segue aprovado, sem bugs abertos.

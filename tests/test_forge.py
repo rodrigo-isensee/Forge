@@ -2082,11 +2082,14 @@ class ForgeCheck(unittest.TestCase):
         self.assertEqual(codigo, 1, saida)
         self.assertIn("não é aprovado", saida)
 
-    def test_pr_sem_parecer_da_branch_cai_no_mais_recente_do_pedido(self):
+    def test_pr_sem_parecer_da_branch_reprova_mesmo_com_o_de_outra_branch_valido(self):  # antes: caía no mais recente do pedido
         self.pareceres(self.head())
         self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=self.head(), p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
         self.commitar("pareceres")
-        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
+        codigo, saida = self.check("pr", "p1", "--ref", "melhoria/x")
+        self.assertEqual(codigo, 1, saida)
+        self.assertEqual([l for l in saida.splitlines() if "R-REVIEW" in l],
+                         ['docs/reviews: review: sem parecer da branch "melhoria/x" para o pedido `p1` (R-REVIEW)'])
 
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
@@ -5926,6 +5929,38 @@ class ConferenciaPresaAoHead(RepoComOrigem):
                 self.assertEqual(rc, 1, saida)
                 self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
                 self.assertNotIn("promoção", erro)
+
+    def alheio(self, nome, commit, parecer="aprovado", data="2026-10-20"):  # parecer de outro item do mesmo pedido, trazido pelo merge da base
+        return {f"docs/reviews/{nome}.md": ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/outra\ncommit: {c}\nparecer: {p}\n"
+                                           "revisor: forge:tech-lead\ndata: {d}\n---\n# r\n").format(c=commit, p=parecer, d=data)}
+
+    def fora_do_repo(self):  # o pedido no HOME: o `git add -A` dos commits do teste não o leva para a branch
+        return self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+
+    def test_so_os_pareceres_da_branch_contam_e_falham_fechado(self):  # pareceres de outra branch do pedido (tempo-b1 na lote-l09)
+        self.historico(self.conferida(self.c1), arquivo=self.fora_do_repo())
+        base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        self.commitar(self.repo, self.alheio("alheio", base, "reprovado"), "parecer alheio, desatualizado e mais recente")
+        self.assertEqual(self.pr("--base", "develop")[0], 0)  # o alheio não reprova a branch
+        git("rm", "-q", "docs/reviews/p1.md", cwd=self.repo)
+        self.commitar(self.repo, self.alheio("alheio", self.c1), "só o alheio, válido")
+        sha = self.head_da_branch()
+        for ref in ("melhoria/x", sha):  # pelo nome e pelo sha, como o forge-fechar chama
+            with self.subTest(ref=ref):
+                rc, saida, _ = self.pr("--base", "develop", ref=ref)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('docs/reviews: review: sem parecer da branch "melhoria/x" para o pedido `p1` (R-REVIEW)', saida)
+                self.assertNotIn("alheio", saida)
+
+    def test_parecer_da_branch_desatualizado_reprova(self):
+        self.historico(self.conferida(self.c1), arquivo=self.fora_do_repo())
+        self.commitar(self.repo, self.alheio("alheio", self.c1, data="2026-10-01"), "parecer alheio válido")
+        c2 = self.commitar(self.repo, {"src/x.txt": "x1 depois do parecer\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "código depois do parecer")
+        self.historico(self.conferida(self.c1), self.conferida(c2), arquivo=self.fora_do_repo())
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews/p1.md: commit: desatualizado: src/x.txt mudou depois do parecer", saida)
+        self.assertNotIn("alheio", saida)
 
     def test_pedido_pelos_briefs_da_branch(self):  # no Forge, o argumento é o slug e o pedido mora em ~/.forge-contrib
         contrib = self.home / ".forge-contrib" / "docs"
