@@ -1,0 +1,27 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M36",
+      "guarda": "o sha da ref acha a branch (forge-fechar)",
+      "arquivo": "bin/forge-check",
+      "de": "branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, head)",
+      "para": "branch = branch or branch_da_ref(raiz, ref)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_ref_por_sha_acha_a_branch_como_no_forge_fechar",
+        "tests.test_fechar.FecharComOForgeCheckReal.test_com_a_conferida_do_head_fecha"
+      ]
+    },
+    {
+      "id": "M37",
+      "guarda": "a base do fluxo não é branch de trabalho",
+      "arquivo": "bin/forge-check",
+      "de": "        if nome not in (\"HEAD\", *BASES_DO_FLUXO):",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_ref_por_sha_acha_a_branch_como_no_forge_fechar"
+      ]
+    }
+  ]
+}

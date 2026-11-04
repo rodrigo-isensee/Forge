@@ -5897,6 +5897,8 @@ class ConferenciaPresaAoHead(RepoComOrigem):
         self.assertIn("real.md: conferência: nenhuma linha", saida)
         self.historico(self.conferida(self.c1), arquivo=contrib / "pedidos" / "real.md")
         self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
+        git("update-ref", "refs/heads/develop", sha, cwd=self.repo)  # a develop local no mesmo sha não é branch de trabalho
+        self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
         git("branch", "-q", "melhoria/gemea", sha, cwd=self.repo)  # duas branches no mesmo sha: a branch não é achada, falha fechada
         rc, saida, _ = self.pr("--base", "develop", ref=sha)
         self.assertEqual(rc, 1, saida)
