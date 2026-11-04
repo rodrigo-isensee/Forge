@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/doutor-034
-commit: 5bd8bdc7fc5657fe591ab47d024e2c08b004b0e4
+commit: fab2bfa93ae3b717f9775547638a51f9e6c10e2a
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -44,6 +44,19 @@ Delta lido: `bin/forge-check delta --parecer docs/reviews/doutor-034.md` respond
 Ferramentas, no HEAD 5bd8bdc:
 - `python3 -I -m unittest discover -s tests -p test_doutor.py`: 75 testes, OK (53 s; o `test_abrir_em_menos_de_cem_ms_em_media` passou na primeira).
 - `bin/forge-mutante tests/mutantes/doutor-034.json`: `rev=5bd8bdc7fc56`, M1, M2 e M3 morreram em `hooks/doutor.py:105` e M4 em `hooks/doutor.py:188`; rc=0. A reversão para `avisado = False` já foi provada na rodada 1 (o teste do dia seguinte reprova).
+
+## Revalidação (rodada 3, teste do QA, HEAD fab2bfa)
+Delta lido: só `tests/test_qa_doutor_034.py`. Ele entrou no 606b86e com 106 linhas, e o fab2bfa o enxugou para 85. Os pareceres em `docs/` ficam fora. `hooks/doutor.py` e `tests/test_doutor.py` são os mesmos de 5bd8bdc (já lidos).
+
+Teto (M14): com o teste do QA de 106 linhas, o PR chegava a 171 linhas (13 + 52 + 106). Ele toca `hooks/`, que não aceita a linha de exceção. Opções: (a) enxugar o teste do QA; (b) levar o ponta a ponta para um PR só de teste, o que exigiria refazer o `commit:` do QA nesta branch e pareceres para o PR novo. Decisão do tech-lead: (a), por ser a de menor custo, que preserva os cinco testes e as asserções. O fab2bfa tira o `import shutil` morto, o `RAIZ` repetido, o bloco `__main__` e a montagem em dois passos. Junta os quatro casos de cache adulterado num laço com as mesmas datas e o mesmo conteúdo. No teste do `forge-check`, afirma também o par [aviso, silêncio] dos dias 1 e 2, que antes só se chamava. `git diff --numstat --no-renames b45e40a...fab2bfa`: `hooks/doutor.py` 13, `tests/test_doutor.py` 52 e `tests/test_qa_doutor_034.py` 85, 150 linhas, no teto.
+
+Leitura do teste do QA: hook real em subprocesso, virada de dia por `FORGE_HOJE`, remoto git local e raiz descartável. O `load_tests` evita rodar de novo os herdados de `DoutorVersao`. Sem falso de `git`/`gh` mais frouxo que o código.
+
+Ferramentas, no HEAD fab2bfa:
+- `python3 -I -m unittest discover -s tests -p test_qa_doutor_034.py`: 5 testes, OK.
+- Com `hooks/doutor.py` de b45e40a e o teste enxugado, 4 de 5 caem. Caíam 3 antes: `tres_dias`, `ainda_mais_nova` e `sem_rede`, e agora também `forge_check_le_o_atraso`, pela asserção nova do silêncio. O `cache_adulterado` segue como guarda e passa na base. Arquivo restaurado (`git status` limpo).
+
+O parecer de QA (`commit: 606b86e`) fica desatualizado pelo fab2bfa e precisa ser revalidado pelo QA sobre esse delta.
 
 ## Achados
 - A1 (recomendado) hooks/doutor.py:77 · a docstring tem uma linha curta no meio ("None. Consulta desligada ... Consulta que"); juntar na próxima vez que o arquivo for tocado, sem volta
