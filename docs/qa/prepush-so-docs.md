@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/prepush-so-docs
-commit: 0ba1a876f9176c74d9dae97ca208805c3f652e43
+commit: bce7ad1dc874ff83d553e9c8b01592851273e583
 parecer: aprovado
 revisor: forge:qa-engineer
 escopo: completo
@@ -11,7 +11,7 @@ bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-03
+data: 2026-11-04
 ---
 # QA: prepush-so-docs (versao-033, L03, E18 PREPUSH-SO-DOCS)
 
@@ -43,3 +43,27 @@ Obrigações da seção E18 do modelo de ameaças (sem `CA-n`: é controle do Fo
 
 ## Parecer
 Aprovado. O hook cumpre o limite exato e os controles C-1 a C-5 de ponta a ponta, sem mudança proibida, e as checagens R-VERIFY e da `main` seguem intactas. A única falha da suíte é um teste de tempo fora do diff, não reproduzido, registrado como recomendado.
+
+## Rodada 2
+Volta 2 do autor: `bce7ad1` (`templates/projeto/.githooks/pre-push`, +4 -3), correção do SC2094 do shellcheck do CI: o laço deixa de apagar a lista que lê (`rm -f` e `return` dentro do `while`) e passa a marcar `recusa=1; break`, com o `rm -f` depois do laço. Testado em `c2f0ef91948f2755fc339d546cf826e1e8457474` (código em `bce7ad1`, o resto são pareceres). O delta é só a forma do laço: os casos que liberam e os que recusam o pulo são os mesmos (ver abaixo).
+
+Ponta a ponta, num repositório descartável com remoto bare e um `pre-push.local` que grava marca (hook do modelo da `bce7ad1`):
+
+| Caso | Resultado |
+|---|---|
+| docs/a.md, README.md, docs/x.ts, docs com espaço, remoção de .md, docs após código já enviado, docsx/a.md (termina em .md) | `pre-push.local` pulado, aviso impresso, rc 0 |
+| src/a.ts, docs + src em 2 commits, .github/x.md, .github/x.yml, a.MD, a.md.ts | roda tudo (local executou), rc 0 |
+| branch nova, tag v1, apagar ref (`:nova`), duas refs (docs e código) no mesmo push | roda tudo |
+| git que falha (cópia do hook com o `git diff` errando) no mesmo envio que, sem a falha, pula | roda tudo |
+| docs com local exit 3 / código com local exit 3 | rc 0 (pulado) / rc 1 (roda e falha) |
+| diff vazio (stdin direto, sha igual) | roda tudo |
+| `feat:main`; `+feat` não fast-forward | recusados (rc 1), local não roda: R-VERIFY e checagem da `main` intactas |
+
+Execução real:
+- Suíte inteira (`.githooks/pre-push --suite`, 4 processos, `--status` antes: nenhuma suíte rodando) sobre c2f0ef9: `Ran 2516 tests in 830.946s`, `OK (skipped=28)`, rc=0. O teste de tempo da A1 passou.
+- `scripts/validar-plugin.sh`: `Validation passed`, rc=0. `bin/forge-check docs`: rc=0. `shellcheck` segue ausente nesta máquina: a prova do SC2094 é do CI do PR (o `test_pre_push_shellcheck` roda lá); a leitura do diff confirma que não há mais escrita ou remoção da lista dentro do laço que a lê.
+- Vermelho: não se aplica de novo, o delta não traz teste novo; os testes da rodada 1 seguem verdes sobre a volta 2.
+- Mutantes: não se aplica (não toca `bin/`, `hooks/` nem `.githooks/` do Forge, só o modelo de projeto).
+- PA-7: AR-3 a AR-7 conferidos como na rodada 1, sem mudança no delta.
+
+Parecer da rodada 2: aprovado. O comportamento ficou igual depois da correção do SC2094; a A1 da rodada 1 não se reproduziu.
