@@ -275,11 +275,11 @@ def lancar(hook, agentes, agora):
     tipo = str(entrada.get("subagent_type") or "general-purpose")
     faltas = mensagem_sem_forma(entrada.get("prompt")) if tipo == CONFERENTE else None
     if faltas:
-        bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a inteira; "
+        bloquear("R-BRIEF", "gere a mensagem ao conferente com `forge-check brief mensagem` e envie-a (cabeçalho, caminho e hash); "
                             f"faltou: {faltas}.")
     divergencia = hash_do_brief_diverge(hook, entrada.get("prompt")) if tipo == CONFERENTE else None
     if divergencia:
-        bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a inteira.")
+        bloquear("R-BRIEF", f"{divergencia}; gere de novo com `forge-check brief mensagem` e envie-a.")
     descricao = " ".join(str(entrada.get("description") or "").split())
     for a in agentes:
         if descricao and a.get("tipo") == tipo and a.get("descricao") == descricao:

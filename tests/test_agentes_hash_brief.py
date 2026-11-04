@@ -89,6 +89,23 @@ class HashDoBrief(unittest.TestCase):
         self.arquivo.write_bytes(self.conteudo + b"linha nova\n")
         self.recusado(mensagem)
 
+    def curta(self, **kw):
+        """TEMPO-B1: a mensagem sem o bloco do texto (cabeçalho, caminho e hash)."""
+        return self.mensagem(**kw).split("<<<BRIEF")[0]
+
+    def test_mensagem_curta_com_hash_certo_libera_nos_dois_modos(self):
+        self.aceito(self.curta())
+        self.aceito(self.curta(modo="modo: entrega"))
+
+    def test_mensagem_curta_recusa_hash_errado_arquivo_ausente_fora_de_briefs_e_sem_modo(self):
+        self.gravar("docs/fora.md", self.conteudo)
+        for nome, prompt in (("hash errado", self.curta(sha="a" * 64)),
+                             ("arquivo ausente", self.curta(arquivo="docs/briefs/nao-existe.md")),
+                             ("fora de docs/briefs", self.curta(arquivo="docs/fora.md")),
+                             ("sem modo", self.curta(modo="Pedido: x"))):
+            with self.subTest(nome):
+                self.recusado(prompt)
+
     def test_mensagem_de_entrega_tambem_confere_o_hash(self):
         self.aceito(self.mensagem(modo="modo: entrega"))
         self.recusado(self.mensagem(modo="modo: entrega", sha="b" * 64))
