@@ -27,6 +27,7 @@ from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
+from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -1816,7 +1817,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
         self.escrever("docs/qa/p1.md", "---\n" + self.QA.format(c=commit, p=p, a=a, m=m, extra=extra) + "---\n# q\n")
 
-    def check(self, *args, nproc=3):
+    def check(self, *args, nproc=3, conferir=True):
         """O `kanban` mede o teto de R-TETO: por padrão com 3 núcleos simulados (FORGE_NPROC) e um /proc de
         máquina folgada (FORGE_PROC), para o resultado não depender do hardware que roda os testes."""
         env = ambiente_limpo()
@@ -1826,6 +1827,11 @@ class ForgeCheck(unittest.TestCase):
             (proc / "loadavg").write_text("0.10 0.10 0.10 1/100 1\n", encoding="utf-8")
             (proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
             env.update(FORGE_NPROC=str(nproc), FORGE_PROC=str(proc))
+        if args[:1] == ("pr",) and conferir:  # E7: o pedido com a conferida do head mora num HOME do teste
+            casa = self.tmp.parent / (self.tmp.name + "-casa")
+            self.addCleanup(shutil.rmtree, casa, ignore_errors=True)
+            gravar_conferida(casa, self.tmp, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
+            env["HOME"] = str(casa)
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
                            env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
@@ -2139,7 +2145,9 @@ class ForgeCheck(unittest.TestCase):
     def test_raiz_depois_do_subcomando_e_git_isolado(self):
         self.pareceres(self.head())
         self.commitar()
-        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
+        casa = self.tmp / "casa"
+        gravar_conferida(casa, self.tmp, "p1")
+        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa))  # GIT_* herdadas não valem
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
@@ -2316,7 +2324,7 @@ class ForgeCheck(unittest.TestCase):
                 self.assertEqual(self.aceite(texto)[0], 1)
 
     def test_pr_sem_pareceres(self):
-        codigo, saida = self.check("pr", "p1")
+        codigo, saida = self.check("pr", "p1", conferir=False)  # com o pedido gravado, o `uso:` do id sem parecer viria antes (rc 2)
         self.assertEqual(codigo, 1)
         self.assertIn("(R-REVIEW)", saida)
         self.assertIn("(R-QA)", saida)
@@ -4133,7 +4141,9 @@ def linhas_forjadas(texto, permitidas=()):
             and not any(l.startswith(p[:-1]) for p in permitidas if p.endswith("*"))]
 
 
-def rodar_fc(*args, raiz, home, cwd=None, env_extra=None):
+def rodar_fc(*args, raiz, home, cwd=None, env_extra=None, conferir=True):
+    if conferir and args[:1] == ("pr",) and "--pr" not in args and len(args) > 1:
+        gravar_conferida(home, raiz, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
     env = dict(ambiente_limpo(), HOME=str(home), **(env_extra or {}))
     return subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
                           cwd=cwd, timeout=60)
@@ -4815,7 +4825,7 @@ class RepoComOrigem(unittest.TestCase):
         remoto_sem_manutencao(self.origem)
         self.semente = self.clone("semente")
         self.commitar(self.semente, {"src/x.txt": "x1\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n", "src/y.txt": "y1\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n",
-                                     "hooks/conformidade.json": "{}\n", "docs/pedidos/p1.md": "# p1\n"}, "base")
+                                     "hooks/conformidade.json": "{}\n"}, "base")  # o pedido mora no HOME (`gravar_conferida`)
         git("push", "-q", "origin", "develop", cwd=self.semente)
         self.repo = self.clone("repo")
         git("switch", "-q", "-c", "melhoria/x", cwd=self.repo)
@@ -4862,8 +4872,10 @@ class RepoComOrigem(unittest.TestCase):
             git("commit", "-q", "--no-edit", cwd=self.repo)
         return r.returncode
 
+    CONFERIR = True  # E7: o pedido ganha a conferida do head (`gravar_conferida`), salvo nos testes da conferência
+
     def pr(self, *extra, ref="melhoria/x"):
-        r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home)
+        r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home, conferir=self.CONFERIR)
         return r.returncode, r.stdout, r.stderr
 
 
@@ -4890,6 +4902,9 @@ class LerDirigidoDoBrief(RepoComOrigem):
     """L09 (P3 e P4): o `## Ler` do brief gerado aponta o trecho do pedido, nunca o pedido inteiro; o integrador lê só o comando e roda em haiku."""
 
     def gerar(self, etapa, destino):
+        head = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()  # E7: o pedido na cópia principal, com a conferida do head
+        (self.repo / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
+        (self.repo / "docs" / "pedidos" / "p1.md").write_text(f"# p1\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {head}\n", encoding="utf-8")
         r = rodar_fc("brief", "gerar", "--pedido", "p1", "--destino", destino, "--etapa", etapa, "--branch", "melhoria/x", "--base", "develop",
                      raiz=self.repo, home=self.home)
         return r.returncode, r.stdout, r.stderr
@@ -5710,7 +5725,8 @@ class PrMescladoPeloHead(RepoComOrigem):
     def pr_mesclado(self, *extra, resposta=None, rc_gh=0):
         corpo = resposta if resposta is not None else json.dumps({"state": "MERGED", "headRefOid": self.head, "headRefName": "melhoria/x"})
         script = f"printf '%s\\n' '{corpo}'\nexit {rc_gh}\n"
-        r = rodar_fc("pr", "p1", *extra, raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso(script=script)["PATH"]})
+        gravar_conferida(self.home, self.repo, "p1", self.head)  # E7: a conferência do head do PR
+        r = rodar_fc("pr", "p1", *extra, raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso(script=script)["PATH"]}, conferir=False)
         return r.returncode, r.stdout, r.stderr
 
     def test_pr_mesclado_confere_no_head_e_pela_branch_dele(self):
@@ -5788,6 +5804,8 @@ class ConferenciaPresaAoHead(RepoComOrigem):
     """E7 (TEMPO-B2, D07 = A): a conferência corre junto com os portões, e o `forge-check pr` só aprova com a linha `entrega conferida
     <sha40>` do Histórico do pedido que cobre o head (ancestral dele, e depois dela só pareceres e quadro)."""
 
+    CONFERIR = False
+
     def historico(self, *linhas, arquivo=None):
         arquivo = arquivo or self.repo / "docs" / "pedidos" / "p1.md"
         arquivo.parent.mkdir(parents=True, exist_ok=True)
@@ -5818,6 +5836,7 @@ class ConferenciaPresaAoHead(RepoComOrigem):
         for nome, linhas in casos.items():
             with self.subTest(nome):
                 if linhas is None:
+                    (self.repo / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
                     (self.repo / "docs" / "pedidos" / "p1.md").write_text(f"# p1\n\n## Notas\n{self.conferida(self.c1)}\n\n## Histórico\n- aberto\n",
                                                                           encoding="utf-8")
                 else:
@@ -5825,7 +5844,8 @@ class ConferenciaPresaAoHead(RepoComOrigem):
                 for extra in (("--base", "develop"), ()):
                     rc, saida, _ = self.pr(*extra)
                     self.assertEqual(rc, 1, saida)
-                    self.assertIn("docs/pedidos/p1.md: conferência: nenhuma linha `entrega conferida <sha40>` do ## Histórico cobre o head", saida)
+                    self.assertIn("docs/pedidos/p1.md: conferência: nenhuma linha `- <data> <hora>: entrega conferida <sha40>` do ## Histórico "
+                                  "cobre o head", saida)
 
     def test_codigo_depois_da_conferida_reprova_mesmo_com_os_pareceres_em_dia(self):
         self.historico(self.conferida(self.c1))
@@ -5844,16 +5864,45 @@ class ConferenciaPresaAoHead(RepoComOrigem):
         rc, saida, _ = self.pr("--base", "develop")
         self.assertEqual(rc, 0, saida)
 
-    def test_sem_historico_so_avisa(self):
-        rc, saida, erro = self.pr("--base", "develop")
-        self.assertEqual(rc, 0, saida)
-        self.assertIn("pr: aviso: o pedido de \"p1\" não tem ## Histórico; a conferência do head não foi lida (TEMPO-B2)", erro)
+    def test_sem_historico_ou_sem_pedido_reprova(self):  # segurança A2, review A3(b): falha fechada
+        (self.repo / "docs" / "pedidos").mkdir(parents=True)
+        (self.repo / "docs" / "pedidos" / "p1.md").write_text("# p1\n", encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/pedidos/p1.md: conferência: o pedido não tem ## Histórico", saida)
         (self.repo / "docs" / "pedidos" / "p1.md").unlink()
-        rc, saida, erro = self.pr("--base", "develop")
-        self.assertEqual((rc, erro), (0, ""), saida)  # sem pedido (o CI): nada a ler, sem ruído
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
+
+    def test_so_a_linha_de_entrega_conferida_libera(self):  # segurança A1: a forma que o Jarvis grava
+        for linha in (f"- 2026-11-04 09:00: E1.2 conferida {self.c1}: não cumpriu", f"- entrega conferida {self.c1}",
+                      f"- 2026-11-04: entrega conferida {self.c1}", f"  - 2026-11-04 09:00: entrega conferida {self.c1}",
+                      f"- 2026-11-04 09:00: NÃO conferida {self.c1}", f"- não: entrega conferida {self.c1}",  # QA L08-1
+                      f"- 2026-11-04 09:00: não entrega conferida {self.c1}"):
+            with self.subTest(linha):
+                self.historico(linha)
+                self.assertEqual(self.pr("--base", "develop")[0], 1)
+        self.historico(self.conferida(self.c1))
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+
+    def test_ref_por_sha_acha_a_branch_como_no_forge_fechar(self):  # review A1: o forge-fechar passa o sha, não o nome
+        contrib = self.home / ".forge-contrib" / "docs"
+        self.historico(arquivo=contrib / "pedidos" / "real.md")
+        (contrib / "briefs").mkdir(parents=True)
+        (contrib / "briefs" / "real-tech-lead-1.md").write_text("Pedido: real\nBranch: melhoria/x   Base: develop\n\n## Objetivo\nx\n", encoding="utf-8")
+        sha = self.head_da_branch()
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("real.md: conferência: nenhuma linha", saida)
+        self.historico(self.conferida(self.c1), arquivo=contrib / "pedidos" / "real.md")
+        self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
+        git("branch", "-q", "melhoria/gemea", sha, cwd=self.repo)  # duas branches no mesmo sha: a branch não é achada, falha fechada
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
 
     def test_pedido_pelos_briefs_da_branch(self):  # no Forge, o argumento é o slug e o pedido mora em ~/.forge-contrib
-        (self.repo / "docs" / "pedidos" / "p1.md").unlink()
         contrib = self.home / ".forge-contrib" / "docs"
         self.historico(arquivo=contrib / "pedidos" / "real.md")
         (contrib / "briefs").mkdir(parents=True)

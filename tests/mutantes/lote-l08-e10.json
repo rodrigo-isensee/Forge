@@ -86,8 +86,8 @@
       "id": "M9",
       "guarda": "a branch do PR escolhe o parecer",
       "arquivo": "bin/forge-check",
-      "de": "    branch = branch or branch_da_ref(raiz, ref)",
-      "para": "    branch = branch_da_ref(raiz, ref)",
+      "de": "    branch = branch or branch_da_ref(raiz, ref)\n",
+      "para": "    branch = branch_da_ref(raiz, ref)\n",
       "testes": [
         "tests.test_forge.PrMescladoPeloHead.test_pr_mesclado_confere_no_head_e_pela_branch_dele"
       ]
