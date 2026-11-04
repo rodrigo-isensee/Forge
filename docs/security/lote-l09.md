@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 8bc28d636ec985d8a2b6b4816b598c434fe03ad3
+commit: 0e3067bc87e0dd9c96589cb96e146ebdf76dbf85
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -46,6 +46,9 @@ O código chegou pelo merge do L08 (`1d50bea` e `083a959`). As linhas `+`/`-` do
 - Sha ambíguo: `branch_do_sha` devolve None quando há mais de uma branch no sha, e o `pr` volta ao comportamento anterior (mais recente do pedido mais `commit_vale`). A conferência do head segue cobrada e, sem pedido direto, reprova. É o mesmo nível de antes, não uma brecha nova. Recomendação (baixa): na linha de comando, sha ambíguo entre branches de trabalho poderia reprovar em vez de voltar ao mais recente.
 - Parecer ausente: na branch de trabalho, reprova (`sem parecer da branch`). Sem branch nenhuma (sha solto, catraca do CI) vale o caminho antigo por desenho. O hook `parecer` (`hooks/parecer.py:419`) chama `cmd_pr` sem `branch` e herda `branch_da_ref`, ou seja, o mesmo aperto quando a ref é nome de branch.
 Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead` (11) e `-p test_promover_homolog.py` (36), OK no L08, onde está o código.
+
+## Nota (0e3067b, teste do QA 5ac531f)
+O `5ac531f` só acrescenta `QaPareceresDaBranch` a `tests/test_qa_lote_l08.py`. Ele prova três casos: o parecer da própria branch passa mesmo com um parecer de outra branch desatualizado ou reprovado; sem parecer da branch, reprova mesmo com o alheio aprovado; e só o QA faltando também reprova. Não muda código nem controle, e a revalidação acima vale para este head.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes: `python3 -I -m unittest discover -s tests -p test_erros_no_brief.py` (42 testes, OK). Invariantes de `tests/config.json` checadas por script local. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência nova).
