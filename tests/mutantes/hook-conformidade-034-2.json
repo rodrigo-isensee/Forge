@@ -1,0 +1,26 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M3",
+      "guarda": "R7: o # dentro de ${...} não vira comentário que esconde a crase seguinte",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if i in provados:\n            fim = comando.find(\"\\n\", i)  # comentário",
+      "para": "        if i in provados or c == \"#\":\n            fim = comando.find(\"\\n\", i)  # comentário",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "R8: $'...' com \\' que o shlex fecha em outro lugar deixa a linha ilegível (exige o dono)",
+      "arquivo": "hooks/_comum.py",
+      "de": "sem_marcas).aspa_escapada\n",
+      "para": "sem_marcas).aspa_escapada and False\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    }
+  ]
+}
