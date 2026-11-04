@@ -1,5 +1,6 @@
 # cilista-v2-comentario-no-env - comentário dentro do env zera a leitura e deixa PATH passar
 - Severidade: alta
+- Estado: fechado em 0ad1ad7 (revalidado pelo QA: a sonda reprova)
 - Responsável sugerido: agente de desenvolvimento da stack (test_ci_local.py)
 - Ambiente: melhoria/lote-cilista-v2 @ 6f7a9d1, python3 -I
 
