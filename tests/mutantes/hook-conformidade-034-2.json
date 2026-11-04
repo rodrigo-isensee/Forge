@@ -19,7 +19,8 @@
       "de": "sem_marcas).aspa_escapada\n",
       "para": "sem_marcas).aspa_escapada and False\n",
       "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034",
+        "tests.test_hook_ansi_c"
       ]
     }
   ]
