@@ -4,10 +4,20 @@
   "mutantes": [
     {
       "id": "M1",
-      "guarda": "o corpo de heredoc que a chamada pode rodar e que o hook nao le recusa com a causa propria, sem mandar usar <<'FIM'",
+      "guarda": "so o corpo que outro programa do texto pode rodar recusa com a causa propria; o dono que roda o corpo (sh) segue com <<'FIM'",
       "arquivo": "hooks/parecer.py",
-      "de": "        if corpo_de_heredoc:  # o texto é o corpo de um heredoc que a chamada pode rodar",
-      "para": "        if False:  # o texto é o corpo de um heredoc que a chamada pode rodar",
+      "de": "        if isinstance(corpo_de_heredoc, str):  # outro programa do texto pode rodar o corpo gravado",
+      "para": "        if corpo_de_heredoc:  # outro programa do texto pode rodar o corpo gravado",
+      "testes": [
+        "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o corpo de heredoc que outro programa do texto pode rodar e que o hook nao le recusa com a causa propria, sem mandar usar <<'FIM'",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if isinstance(corpo_de_heredoc, str):  # outro programa do texto pode rodar o corpo gravado",
+      "para": "        if False:  # outro programa do texto pode rodar o corpo gravado",
       "testes": [
         "tests.test_hooks_parecer_pasta.PastaDoGit.test_corpus_texto_passa_e_barra"
       ]

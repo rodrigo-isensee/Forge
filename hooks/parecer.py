@@ -666,7 +666,8 @@ def conferir_linha(hook, comando, estados, nivel=0, so_substituicoes=False, corp
     try:  # o corpo de um heredoc não é comando: com apóstrofo, sem par, ele deixaria a linha ilegível (A1 do review)
         comando, corpos, gravado = tirar_heredocs(comando, com_gravado=True)
     except ValueError:  # `<<` em dúvida com linha depois, ou corpo sem aspas no delimitador com `$(` ou crase (o bash roda)
-        if corpo_de_heredoc:  # o texto é o corpo de um heredoc que a chamada pode rodar: a causa é essa, não o `<<'FIM'`
+        if isinstance(corpo_de_heredoc, str):  # outro programa do texto pode rodar o corpo gravado: a causa é essa;
+            # o dono que roda o corpo (`sh <<'EOF'`, valor True) segue com o `<<'FIM'` para o heredoc de dentro
             bloquear("R-REVIEW", "corpo de heredoc que a chamada pode rodar e que o hook não lê, com gh pr, gh api, merge "
                                  f"ou pull. Corrigir: {GRAVE_E_RODE_NOUTRA}")
         bloquear("R-REVIEW", "linha com gh pr, gh api, merge ou pull com um heredoc que o hook não lê (<< que ele não "
