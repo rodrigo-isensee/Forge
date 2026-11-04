@@ -754,6 +754,8 @@ class Guarda:
                         "grep -F 'trecho' <arquivo>, sem esses sinais)")
         if self.leitura and nivel == 0:
             self.gramatica_de_leitura(comando)
+        provisorios = comando.count("<<")  # S-A2: o prazo que vence antes da tirada dos heredocs já os acha pendentes
+        self.h.corpos_pendentes += provisorios
         # ADR 0011, item 2: linha com marcador crítico e construção não modelada recusa; a recusa vem depois das
         # checagens da linha, para que a regra mais específica (R-MAIN, R-VERIFY...) fale primeiro.
         achado = None if self.leitura or not CRITICO.search(comando) else construcao_nao_modelada(comando)
@@ -774,7 +776,7 @@ class Guarda:
             # A palavra `"$(…)"` não: o texto dela é o do `shlex`, e o nível de fora já leu as substituições como escritas
             if not so_substituicoes:
                 self.reavaliacao = self.reavaliacao or reavaliacao(comando)
-        self.h.corpos_pendentes += len(corpos)  # C-4: descontado depois do corpo conferido, no laço dos corpos
+        self.h.corpos_pendentes += len(corpos) - provisorios  # C-4: descontado depois do corpo conferido, no laço
         if lidas is None or lidas.ilegivel:
             if nivel:
                 self.ilegivel(comando, pasta)
