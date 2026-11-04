@@ -76,8 +76,28 @@
       "id": "M17",
       "guarda": "sem comando simples (None), o trecho é vazio e a recusa não cita nada",
       "arquivo": "hooks/conformidade.py",
-      "de": "\" \".join(palavras or ())",
-      "para": "\" \".join(palavras or (\"x\",))",
+      "de": "map(mascarado, palavras or ())",
+      "para": "map(mascarado, palavras or (\"x\",))",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "A1 da segurança: o valor de NOME=valor sai mascarado no trecho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if igual and re.fullmatch(r\"[A-Za-z_][A-Za-z0-9_]*\", nome):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "A1 da segurança: o corpo do token do GitHub sai mascarado no trecho",
+      "arquivo": "hooks/conformidade.py",
+      "de": "return TOKEN_DO_GITHUB.sub(r\"\\1***\", palavra)",
+      "para": "return palavra",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]

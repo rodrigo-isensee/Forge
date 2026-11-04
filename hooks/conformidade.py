@@ -39,6 +39,7 @@ from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TET
 # caracteres somados e o tempo, com folga para o timeout do hooks.json (10 s), que o Claude Code trata como liberado.
 TETO_DE_CONFERENCIAS = 400
 TETO_DO_TRECHO = 50  # HOOK-MSG-SEGMENTO: caracteres do comando citado na recusa (C-A6-3)
+TOKEN_DO_GITHUB = re.compile(r"(gh[pousr]_|github_pat_)[A-Za-z0-9_]+")  # mascarado no trecho citado
 INVISIVEIS = frozenset(("Cc", "Cf", "Zl", "Zp"))  # controle C0/C1 e formato (bidirecionais): fora do trecho (C-A6-1)
 TETO_DE_CARACTERES = 150_000  # a conferência de 290 mil caracteres levava 4,2 s (recomendação do review, volta 3)
 PRAZO_DA_LINHA_S = 3.0
@@ -1799,13 +1800,22 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"{prog} {sub} {self.so_de(acao)} (papel: {self.papel})", dica)
 
 
+def mascarado(palavra):
+    """HOOK-MSG-SEGMENTO, A1 da segurança: a palavra citada sem o valor da atribuição (`GH_TOKEN=***`) e sem o corpo
+    de token do GitHub (`ghp_***`, `github_pat_***`)."""
+    nome, igual, _ = palavra.partition("=")
+    if igual and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", nome):
+        palavra = f"{nome}=***"
+    return TOKEN_DO_GITHUB.sub(r"\1***", palavra)
+
+
 def com_trecho(rid, o_que, corrigir, palavras):
     """HOOK-MSG-SEGMENTO: o texto da recusa com o comando simples que a disparou, `(em `…`)` antes do `Corrigir:`.
     O trecho sai sem controle nem formato (C-A6-1), com crase trocada por `'` (C-A6-2) e até `TETO_DO_TRECHO`
     caracteres; só entra se a linha inteira couber em `LIMITE_MENSAGEM`, para o motivo e o `Corrigir:` nunca se
-    cortarem por ele (C-A6-3)."""
+    cortarem por ele (C-A6-3). O valor de `NOME=valor` e o que tem cara de token do GitHub saem mascarados."""
     texto = f"{o_que}. Corrigir: {corrigir}"
-    trecho = "".join("'" if c == "`" else c for c in " ".join(" ".join(palavras or ()).split())
+    trecho = "".join("'" if c == "`" else c for c in " ".join(" ".join(map(mascarado, palavras or ())).split())
                      if unicodedata.category(c) not in INVISIVEIS)
     if not trecho:
         return texto
