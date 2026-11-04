@@ -112,6 +112,56 @@
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
+    },
+    {
+      "id": "G40",
+      "guarda": "o valor de outra opção valorada é pulado na leitura do último -X real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if pular:\n            pular = False",
+      "para": "        if False:\n            pular = False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G41",
+      "guarda": "-X separado entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a in (\"-X\", \"--method\"):\n            ultimo, pular",
+      "para": "        elif False:\n            ultimo, pular",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G42",
+      "guarda": "-X sem valor no fim não quebra o último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "args[i + 1] if i + 1 < len(args) else ultimo",
+      "para": "args[i + 1] if True else ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G43",
+      "guarda": "--method=valor entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"--method=\"):\n            ultimo",
+      "para": "        elif False:\n            ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G44",
+      "guarda": "-XVALOR colado entra no último método real",
+      "arquivo": "hooks/parecer.py",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            ultimo",
+      "para": "        elif False:\n            ultimo",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
     }
   ]
 }
