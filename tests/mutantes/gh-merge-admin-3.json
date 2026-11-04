@@ -6,11 +6,6 @@
       "arquivo": "hooks/parecer.py",
       "trecho": "metodo.upper() != \"GET\"",
       "motivo": "a comparação saiu do return e foi para o any(), coberta pelos mutantes G28 e G29"
-    },
-    {
-      "arquivo": "hooks/parecer.py",
-      "trecho": "            valor = True",
-      "motivo": "equivalente: pular o valor do -X só muda o resultado se ele começar com -X, e então o método lido seria inválido e recusaria do mesmo jeito (falha fechada)"
     }
   ],
   "mutantes": [
@@ -90,6 +85,17 @@
       "arquivo": "hooks/parecer.py",
       "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
       "para": "        elif False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G36",
+      "guarda": "pular o valor do próprio -X: sem o pulo, só muda o resultado se o valor começar com -X, e o método lido já seria inválido e recusaria igual (falha fechada)",
+      "equivalente": "o valor do -X (GET, PUT...) nunca começa com -X em comando válido; se começar, o método lido é inválido e recusa do mesmo jeito",
+      "arquivo": "hooks/parecer.py",
+      "de": "        if valor:\n            valor = False\n            continue\n        if a in (\"-X\"",
+      "para": "        if False:\n            valor = False\n            continue\n        if a in (\"-X\"",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
