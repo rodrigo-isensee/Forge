@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/fechar-esperar-rotulo
-commit: 52cbbd45ce33e8daf8d2d2ffe9855e7067eafbac
+commit: 6995fb14d13d9063003090aae617b6dbc6c01023
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
@@ -19,7 +19,7 @@ Links: não há `docs/ux` neste repositório; os critérios vêm do cartão 14 (
 Plano escrito depois do código, a partir do cartão e do diff: a independência é menor que a do plano antecipado. Escopo incremental: a suíte completa não foi rodada neste pedido.
 
 ## Achados
-- A1 (recomendado) bin/forge-fechar:822 · R-QA, repete AR-1: as guardas 817, 819 e 822 mudaram sem mutante declarado. Q1 a Q4 (abaixo) as matam; o autor as declara no JSON.
+- A1 (recomendado) bin/forge-fechar:822 · R-QA, repete AR-1: as guardas 817, 819 e 822 mudaram sem mutante declarado. Q1 a Q4 (abaixo) as matam; o autor as declara no JSON. FECHADO em 6995fb1 (Q1 a Q4 declarados na spec; AR-1 em 7).
 - A2 (recomendado) bin/forge-fechar:824 · a frase de espera (`aguardando ... pedido <gatilho>`) não tem teste que a afirme; lida à mão, correta (CA-7).
 
 ## Critério → teste → resultado
@@ -54,3 +54,10 @@ Rodados com o harness dos testes, sem alterar o repositório. Cada linha é a sa
 - Vermelho antes do verde: `bin/forge-testes --vermelho b45e40a --modulos test_fechar`, rc 0. Prova 3 por asserção (os três testes novos, que caem na base e passam no HEAD); 89 não provam por passar na base. Revertidos à base: `bin/forge-fechar` e o changelog; mantidos no HEAD: o JSON de mutantes e `tests/test_fechar.py`.
 - Suíte completa: não rodada neste pedido (escopo incremental).
 - Bugs abertos: nenhum.
+
+## Revalidação (6995fb1)
+Delta desde 52cbbd4 (o parecer anterior, 66e21fd, já é ancestral): `tests/mutantes/fechar-esperar-rotulo.json` (+Q1 a Q4), `docs/engineering/achados-recorrentes.md` (AR-1 de 6 para 7) e os pareceres de review e de segurança (`docs/reviews/`, `docs/security/`), que não entram na revalidação do QA. `bin/`, `hooks/`, `.githooks/` e `tests/catraca.py` não mudaram: o código testado segue o de 52cbbd4.
+- `bin/forge-mutante tests/mutantes/fechar-esperar-rotulo.json` no head 6995fb1: rc 0; R1 (818), R2 (820), R3 (829), R4 (829), Q1 (817), Q2 (819), Q3 (822) e Q4 (828) morreram.
+- A1 fechado: as guardas 817, 819 e 822 têm mutante declarado e morto.
+- A2 segue aberto como recomendado (frase de espera sem teste).
+- Parecer continua `aprovado`, sem bugs abertos.
