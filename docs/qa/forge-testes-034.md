@@ -3,14 +3,13 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/forge-testes-034
-commit: 1d7a02fa45244ba44dbcb2863c2029f350798c8e
+commit: 704a60655e092b56eb3d2b7ac5c1745978c90ef7
 parecer: aprovado
 escopo: incremental
 bugs_criticos: 0
 bugs_altos: 0
 bugs_medios: 0
-bugs_baixos: 1
-aceite_usuario: sim
+bugs_baixos: 0
 data: 2026-11-04
 ---
 # QA: forge-testes 0.34 (cartões 15, 19 e 20)
@@ -18,7 +17,7 @@ data: 2026-11-04
 Escopo: bin/forge-testes (CAMINHO de módulo sem mapa, aviso cedo de MAPA, `-k`). Comparação com a base b45e40a (develop) rodando o script dela sobre o mesmo diff. Suíte completa fica com o CI/pre-push (D-5); aqui rodou tests/test_testes_tocados.py.
 
 ## Achados
-- A1 (recomendado) bin/forge-testes:LEITURA_DE_BIN · aviso falso quando o teste só passa "bin/x" como argumento; BUG forge-testes-034-aviso-falso-chamada, baixa, só ruído em stderr.
+- A1 (recomendado) bin/forge-testes:bin_lidos · FECHADO na revalidação: aviso falso quando o teste só passa "bin/x" como argumento; BUG forge-testes-034-aviso-falso-chamada corrigido (leitura por AST).
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -36,3 +35,15 @@ Escopo: bin/forge-testes (CAMINHO de módulo sem mapa, aviso cedo de MAPA, `-k`)
 
 ## Cenários e resultado real
 Observações: `-k` sem correspondência sai 5 (herdado do unittest), sem mensagem do forge-testes. test_changelog tem 1 skip herdado, não tocado. Mutantes: não se aplica a mutante declarado neste pedido (sem spec em tests/mutantes/); sem outro bloqueio.
+
+## Revalidação
+
+Heads novos: sem-mapa aec5092, aviso-mapa 7d20b39, filtro-k 704a606 (pilha reempilhada). Delta conferido:
+
+- Bug fechado: `bin/forge-testes --listar tests/test_testes_tocados.py bin/forge-testes` não emite mais aviso de MAPA (0 ocorrências).
+- AST não perde leitura real: em raiz descartável, um teste com `RAIZ / "bin/forge-sugerir"` sem entrada no MAPA ainda avisa ("lê bin/forge-sugerir, mas o MAPA não leva a test_zzz"); o mesmo caminho como argumento de `subprocess.run` ou valor de dict não avisa.
+- A2 (`modulos_sem_mapa` com `:=`): mesma mensagem e mesmo modo "dirigido"; sem mudança de comportamento.
+- Execução: `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: 94 testes, OK.
+- Suíte completa e roteiro: fora deste delta (CI/pre-push, D-5).
+
+Parecer: aprovado sobre 704a606. Bug forge-testes-034-aviso-falso-chamada: fechado.

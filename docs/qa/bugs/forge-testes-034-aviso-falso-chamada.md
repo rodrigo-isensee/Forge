@@ -15,3 +15,6 @@ Dois avisos em stderr: "lê bin/forge-changelog, mas o MAPA não leva a test_tes
 
 ## Evidência
 Linhas 116 e 247 de tests/test_testes_tocados.py; regex em bin/forge-testes (LEITURA_DE_BIN). Saída idêntica à da develop, exceto essas duas linhas.
+
+## Status
+FECHADO em 704a606: a leitura passou a ser por AST (`bin_lidos`); revalidado pelo QA.
