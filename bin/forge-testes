@@ -8,6 +8,7 @@ Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
   CAMINHO       planeja só para estes caminhos (relativos ao diretório atual ou absolutos, dentro do repositório) e
                 não lê o git: o que mudou fica por conta de quem chama. Não combina com --completa nem com --vermelho
   --base REF    base da comparação (padrão origin/develop); sem efeito quando há CAMINHO
+  -k PADRAO     filtra por classe ou nome de teste (`unittest -k`; repetível); para rodar uma parte de módulo grande
   --listar      mostra o plano (modo e módulos) e não roda nada
   --completa    roda a suíte inteira, sem consultar o mapa
   --vermelho    prova que algum teste do diff derruba o defeito: roda os módulos em duas cópias commitadas em
@@ -176,6 +177,15 @@ def planejar(caminhos, raiz=Path(".")):
     if ausentes:
         return "completo", [f"módulo sem arquivo: {', '.join(ausentes)}"]
     return "dirigido", sorted(modulos)
+
+
+def modulos_sem_mapa(pedidos, raiz=Path(".")):
+    """Módulos de teste dados como CAMINHO (tests/test_x.py existente), ou None se algum pedido é outra coisa.
+    Pedir o módulo é dizer qual rodar: não há o que mapear (FORGE-TESTES-SEM-MAPA)."""
+    achados = [MODULO_DE_TESTE.fullmatch(c) for c in pedidos]
+    if not pedidos or not all(achados) or not all((raiz / c).is_file() for c in pedidos):
+        return None
+    return sorted(a.group(1) for a in achados)
 
 
 def anotar(modo, modulos, segundos, codigo):
@@ -531,6 +541,9 @@ def main(argv=None):
 
     if args.completa:
         modo, detalhe = "completo", ["pedido --completa"]
+    elif pedidos and (so_modulos := modulos_sem_mapa(pedidos)):
+        modo, detalhe = "dirigido", so_modulos
+        print(f"forge-testes: sem mapa para {', '.join(pedidos)}; roda só {', '.join(detalhe)}.", file=sys.stderr)
     elif pedidos:
         modo, detalhe = planejar(pedidos)
     else:

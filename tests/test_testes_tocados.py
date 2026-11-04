@@ -974,5 +974,46 @@ class Vermelho(unittest.TestCase):
         self.assertNotIn("H=erro", r.stdout)
 
 
+class CaminhoFiltroEAviso(unittest.TestCase):
+    """CAMINHO de módulo sem mapa (FORGE-TESTES-SEM-MAPA), aviso cedo do MAPA (MAPA-TESTES-AVISO-CEDO) e `-k`
+    (TESTES-DO-ITEM-FILTRO), num repositório de brinquedo."""
+
+    CORPO = ("import unittest\n{leitura}class Rapido(unittest.TestCase):\n    def test_a(self):\n        pass\n"
+             "class Lento(unittest.TestCase):\n    def test_b(self):\n        pass\n")
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.addCleanup(self._t.cleanup)
+        self.dir = Path(self._t.name)
+        git(self.dir, "init", "-q", "-b", "develop")
+        (self.dir / "tests").mkdir()
+        (self.dir / "bin").mkdir()
+        (self.dir / "bin" / "forge-sugerir").write_text("x = 1\n", encoding="utf-8")
+        for modulo in ("test_forge", "test_sugerir", "test_novo", "test_outro"):
+            self.escrever(modulo)
+        git(self.dir, "add", "-A")
+        git(self.dir, "commit", "-qm", "base")
+        git(self.dir, "switch", "-q", "-c", "melhoria/x")
+
+    def escrever(self, modulo, leitura=""):
+        (self.dir / "tests" / f"{modulo}.py").write_text(self.CORPO.format(leitura=leitura), encoding="utf-8")
+
+    def rodar(self, *args):
+        return subprocess.run([sys.executable, str(FERRAMENTA), "--base", "develop", *args], cwd=self.dir,
+                              env=AMBIENTE, capture_output=True, text=True)
+
+    def test_caminho_de_modulo_de_teste_roda_so_esse_modulo_e_avisa(self):  # FORGE-TESTES-SEM-MAPA
+        r = self.rodar("tests/test_novo.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("sem mapa para tests/test_novo.py; roda só test_novo", r.stderr)
+        self.assertIn("dirigido (test_novo)", r.stdout)
+        self.assertNotIn("suíte completa", r.stdout)
+        self.assertIn("modulos=test_novo ", (self.dir / ".forge" / "run" / "testes.log").read_text(encoding="utf-8"))
+
+    def test_caminho_de_modulo_inexistente_ou_misturado_com_outro_arquivo_segue_o_mapa(self):
+        self.assertIn("suíte completa", self.rodar("tests/test_nao_existe.py").stdout)
+        self.assertIn("suíte completa", self.rodar("tests/test_novo.py", "docs/sem-regra.txt").stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
