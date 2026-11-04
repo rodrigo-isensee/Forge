@@ -3,25 +3,45 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-fc-seguranca
-commit: dd441fa8cf8788b15188b604d0c2877c46da1742
+commit: 4ccb323dd95762683c8c66e66d7e316498ec2897
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-03
 ---
 # Review de segurança: lote E2+E3 da 0.33 (FC-PEDIDO-FORA-DAS-RAIZES e FC-ENTREGA-GIT-FALHA-ABERTA)
 
-Escopo da rodada 3: só o delta `626595e..dd441fa` (`bin/forge-check`, `tests/test_entrega_git_falha.py` e `tests/mutantes/lote-fc-seguranca-4.json`, +19 / -4), contra o A6 da rodada 2. Referência: as seções E2 e E3 de `~/.forge-contrib/docs/security/ameacas/versao-033.md`. A revisão é estática; os mutantes rodaram em cópias (`git archive`) em `$TMPDIR/security-engineer-lote-fc-seguranca/`. Não escrevi esta branch.
+Escopo da rodada 4: só o delta `dd441fa..4ccb323` (`bin/forge-check` +1 -1, só a docstring; `tests/test_entrega_git_falha.py` +8; `tests/mutantes/lote-fc-seguranca-2.json` e `-4.json`), a volta 3 do autor sobre o QA `95f1b22` e o A7 da rodada 3. Referência: as seções E2 e E3 de `~/.forge-contrib/docs/security/ameacas/versao-033.md`. A revisão é estática; mutantes e testes rodaram na worktree desta revisão. Não escrevi esta branch.
 
-**Veredito: aprovado.** O A6 entrou resolvido, sem regressão nos outros chamadores de `arquivos_da_entrega`. Ficam duas recomendações, que não devolvem: A5 (anterior ao lote, com cartão próprio) e A7 (docstring).
+**Veredito: aprovado.** O A7 entrou resolvido, e o delta não traz regressão nos controles C-n nem toca as mudanças proibidas T-n do E2 e do E3. Fica uma recomendação, que não devolve: A5 (anterior ao lote, com cartão próprio).
 
 ## Gatilhos
 `controles do Forge` (`bin/forge-check`), da R-SEGURANCA.
 
 ## Achados
 - A5 (recomendado) bin/forge-check:6118 · anterior ao lote, fora desta volta (cartão FC-RAIZ-PEDIDOS-SUBPASTA): `--raiz-pedidos` aceita qualquer subpasta da raiz, e `<raiz>/x/docs/pedidos/` vira raiz aceita pelo E2
-- A7 (recomendado) bin/forge-check:511 · docstring de `arquivos_da_entrega` ainda diz "[] se a base não existe"; com base dada, agora é None (falha); vale ajustar o texto na próxima mudança do arquivo
+
+## Rodada 4 (4ccb323)
+
+### A7 da rodada 3: resolvido
+- **Docstring.** `arquivos_da_entrega` (`bin/forge-check:511`) agora diz `[]` só sem base dada e sem nenhuma das BASES, e `None` com base dada que não lê. Confere com o código: `:516` lê a base uma vez com `so_a_pedida=True` e `:518` devolve `None if base else []`.
+- **Só texto.** É a única linha de `bin/forge-check` no delta (`forge-check delta`: `:511-511`). Nenhum comportamento muda, e os controles C-1 a C-4 do E3 e a C-2 e a C-3 do E2 seguem como na rodada 3.
+
+### Testes e mutantes da volta (QA 95f1b22)
+- **Teste novo.** `test_so_o_diff_que_falha_nao_anuncia_a_base_ausente` (`tests/test_entrega_git_falha.py:105`) faz falhar só o diff `de...ate`, com a base legível, nas etapas `codigo`, `review` e `merge-integracao`. Espera rc 1, "diff da entrega" e nenhum "base da entrega". Trava o rótulo de `:1253` sem afrouxar a reprovação (C-1, T-1).
+- **Specs.** Os `de` de todos os mutantes do lote (specs 1 a 4) aparecem uma só vez em `bin/forge-check`, e os ids são únicos (o M40 da spec 4 virou M46). O M21 e o M22 foram reescritos para o bloco atual de `:1252-1253`.
+- **Mutantes.** `bin/forge-mutante` nas specs 2 e 4 em `4ccb323`: os 18 morrem, incluindo M43 (`:1253`), M44 (`:504`), M45 (`:518`) e M46 (`:516`).
+- **T-n.** O delta não toca hook, `GIT_TIMEOUT_S`, raiz aceita do `--pedido` nem chamador de `arquivos_da_entrega`.
+
+### PA-7 e testes
+- **AR-1.** Os mutantes novos estão na lista do lote.
+- **AR-2.** O ramo do rótulo da base ganhou teste do caminho em que ele não deve sair.
+- **AR-9.** Resolvido (A7).
+- **Testes.** `python3 -m unittest tests.test_pedido_fora tests.test_entrega_git_falha`: 37 testes, OK (16,0 s). `tests.test_forge` não roda aqui, porque o delta não toca nada que ele cubra além da docstring.
+- **Ferramentas.** `gitleaks` e `semgrep` seguem fora do PATH (lacuna). O delta não traz segredo nem dependência.
 
 ## Rodada 3 (dd441fa)
+
+Veredito da rodada: aprovado (A7 recomendado, resolvido na rodada 4).
 
 ### A6 da rodada 2: resolvido
 - **Uma só leitura.** `arquivos_da_entrega` (`:516`) chama `base_da_entrega(raiz, base, so_a_pedida=True)`. Com base dada que não lê, devolve `None` (`:518`), nunca `[]` nem o diff contra as BASES.
