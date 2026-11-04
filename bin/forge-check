@@ -730,6 +730,18 @@ def veredito_do_pr(raiz, pedido, ref, base):
     return f"pr: veredito: aprovado · {nome_seguro(pedido)} · exigidos {', '.join(exigidos) or 'nenhum'} · head {head} · base {como}"
 
 
+def branch_da_ref(raiz, ref=None):
+    """E11: nome da branch que a `--ref` aponta (`origin/<b>`, `<b>` ou, sem ref, a do HEAD), só se existir como branch; senão None
+    (um sha, uma tag e um HEAD solto ficam sem branch, e o parecer vale como antes: o mais recente do pedido)."""
+    if ref is None or ref == "HEAD":
+        cod, nome = git(raiz, "symbolic-ref", "--short", "-q", "HEAD")
+        return nome if not cod and nome else None
+    nome = ref.removeprefix("refs/remotes/").removeprefix("refs/heads/").removeprefix("origin/")
+    if sha_do_commit(raiz, f"refs/heads/{nome}") or sha_do_commit(raiz, f"refs/remotes/origin/{nome}"):
+        return nome
+    return None
+
+
 def cmd_pr(raiz, pedido, ref=None, base=None):
     saida = []
     registros = autorias(raiz)
@@ -745,7 +757,8 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
             motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
             saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
-        _, rel, campos, viol, texto = sorted(achados, key=lambda a: a[:2])[-1]  # o mais recente
+        da_branch = [a for a in achados if branch_da_ref(raiz, ref) and a[2].get("branch") == branch_da_ref(raiz, ref)]  # E11
+        _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
         saida += viol
         if ref is None and not parecer_commitado(raiz, rel):
             saida.append(f"{caminho_impresso(rel)}: parecer presente na árvore de trabalho e ausente no commit (HEAD); quem o emitiu "
