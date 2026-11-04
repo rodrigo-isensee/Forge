@@ -24,6 +24,7 @@ Revisor: `forge:tech-lead`, outra instância (D-ETAPAS-INST); não sou o autor d
 - A9 (bloqueante) hooks/parecer.py:517 · resolvido na rodada 5: `ultimo_metodo` vale o último `-X`/`--method` (separado, `=`, colado) e pula o valor de `API_COM_VALOR`; `-X GET -X PUT …/merge` e `-X GET -X POST graphql -F query=@q.graphql` recusam com R-MAIN.
 - A10 (recomendado) hooks/conformidade.py:1608 · mesma leitura do A9 fora do E1, já na base: `gh api -X GET -X DELETE repos/o/r` e `-X GET -X PUT .../branches/main/protection -f x=y` saem com rc=0; o mesmo em :1626. Segue com o A7, em cartão ao `security-engineer`.
 - A11 (bloqueante) hooks/parecer.py:555 · resolvido na rodada 7: o atalho só-GET decide por `ultimo_metodo_real`, que pula o valor de `API_COM_VALOR`. Rodada 6: `-p -XGET -f query=…mergePullRequest… graphql` e `merges -f base=` saíam com rc=0.
+- A12 (recomendado) tests/mutantes/gh-merge-admin.json:79 · sem defeito: o `de` do G8 (`or re.match(r"-[fF]", a) is not None`) é igual ao texto de `hooks/parecer.py:559`, então o mutante aplica; nenhum bloqueante nesta rodada.
 
 ## O que li
 - O diff inteiro: `hooks/conformidade.py` (+24), `hooks/parecer.py` (+11), `tests/test_hooks.py` (+5), `changelog.d/gh-merge-admin.md` e as 41 fixtures `tests/hooks/conformidade/gh-merge-admin-*.json`.
@@ -154,8 +155,8 @@ Head `dfcc2b2`, sobre `b1991c6` (volta 7: `14fc4bf..dfcc2b2`). Delta lido, pela 
 ## Rodada 8
 Head `94377b7`, sobre `c09ecec` (delta `git diff c09ecec..94377b7`: 3 arquivos, 3 linhas em cada lado). Delta lido: `tests/mutantes/gh-merge-admin.json:79`, `gh-merge-admin-2.json:2` e `gh-merge-admin-3.json:2`. Já lido e não tocado: `hooks/` inteiro (o diff de `hooks/` entre os dois commits tem 0 linhas), `tests/test_hooks.py`, as fixtures e o `docs/engineering/achados-recorrentes.md`.
 
-## Achados
-- A12 (recomendado) tests/mutantes/gh-merge-admin.json:79 · sem defeito: o `de` do G8 (`or re.match(r"-[fF]", a) is not None`) é igual ao texto de `hooks/parecer.py:559`, então o mutante aplica; nenhum bloqueante nesta rodada.
+### Achados da rodada 8
+Um só achado, recomendado (A12, no bloco `## Achados` do início); nenhum bloqueante nesta rodada.
 
 - **G8.** O `de` antigo (`-i?[fF]`) não existia mais no código desde a rodada 7; o novo bate com a linha de `parecer.py:559`. O `para` (`or False`) e o teste que o mata não mudaram.
 - **`pedido`.** As três specs trazem `"pedido": "gh-merge-admin"`; as duas que diziam `-2` e `-3` foram igualadas. Os três JSON carregam.
