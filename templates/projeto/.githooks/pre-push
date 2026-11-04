@@ -37,7 +37,7 @@ unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_C
 # enviada é de docs/** ou termina em .md (minúsculas). Sem base clara, ou qualquer dúvida, roda tudo;
 # o CI do projeto segue com a bateria completa. Sem variável nem opção que pule.
 so_docs() {
-  local par ls rr rs lista f achou
+  local par ls rr rs lista f achou recusa
   [ "${#refs_enviadas[@]}" -gt 0 ] || return 1
   lista="$(mktemp 2>/dev/null)" || return 1
   for par in "${refs_enviadas[@]}"; do
@@ -47,11 +47,12 @@ so_docs() {
     case "$rr" in refs/tags/*) rm -f "$lista"; return 1 ;; esac
     git diff --name-only -z --no-renames "$rs" "$ls" >"$lista" 2>/dev/null || { rm -f "$lista"; return 1; }
     achou=0
+    recusa=0
     while IFS= read -r -d '' f; do
       achou=1
-      case "$f" in .github/*) rm -f "$lista"; return 1 ;; docs/*|*.md) ;; *) rm -f "$lista"; return 1 ;; esac
+      case "$f" in .github/*) recusa=1; break ;; docs/*|*.md) ;; *) recusa=1; break ;; esac
     done <"$lista"
-    [ "$achou" -eq 1 ] || { rm -f "$lista"; return 1; }
+    if [ "$recusa" -eq 1 ] || [ "$achou" -eq 0 ]; then rm -f "$lista"; return 1; fi
   done
   rm -f "$lista"
   return 0
