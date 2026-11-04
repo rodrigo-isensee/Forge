@@ -43,8 +43,8 @@
       "id": "G31",
       "guarda": "o -XPUT que é valor de outra opção valorada (-p -XPUT) conta como método pedido",
       "arquivo": "hooks/parecer.py",
-      "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
-      "para": "        elif a.startswith(\"-X\") and len(a) > 2 and not (i and args[i - 1] in API_COM_VALOR):",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            metodos.append",
+      "para": "        elif a.startswith(\"-X\") and len(a) > 2 and not (i and args[i - 1] in API_COM_VALOR):\n            metodos.append",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -73,8 +73,8 @@
       "id": "G34",
       "guarda": "--method=valor entra",
       "arquivo": "hooks/parecer.py",
-      "de": "        elif a.startswith(\"--method=\"):",
-      "para": "        elif False:",
+      "de": "        elif a.startswith(\"--method=\"):\n            metodos.append",
+      "para": "        elif False:\n            metodos.append",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
@@ -83,8 +83,8 @@
       "id": "G35",
       "guarda": "-XVALOR colado entra",
       "arquivo": "hooks/parecer.py",
-      "de": "        elif a.startswith(\"-X\") and len(a) > 2:",
-      "para": "        elif False:",
+      "de": "        elif a.startswith(\"-X\") and len(a) > 2:\n            metodos.append",
+      "para": "        elif False:\n            metodos.append",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
       ]
