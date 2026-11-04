@@ -25,6 +25,7 @@ Escopo: `origin/develop...9a08b1c` (`tests/sem_claude_ancestral.py` novo, `tests
 
 ## Achados
 - A1 (recomendado) tests/sem_claude_ancestral.py:27 · O lançador vai no plugin e, com --ate no shell do agente e sem as variáveis do Claude, esconde o claude (sonda provou). Sugestão: só aceitar --ate igual ao pai direto rodando unittest, ou citar a A1 ao security-engineer.
+- A2 (recomendado) tests/test_atualizar.py:706 · Com o defeito (mutante), o timeout=60 mata só o sh "claude"; o forge-atualizar sob pty.spawn fica órfão esperando a pergunta (achei 3 vivos). Sugestão: start_new_session=True e matar o grupo no timeout.
 
 ## Parecer
-Aprovado. O conserto fica nos testes, a guarda de produção segue igual, o teste novo pega o mutante que esconderia um `claude` abaixo do teste e a propagação aos filhos é restrita ao mesmo `bin/`. A1 é endurecimento, não devolve: o hook já barra o uso direto pelos nomes, e o desvio por ofuscação existia antes sem o lançador. Segurança tem parecer próprio em paralelo.
+Aprovado. O conserto fica nos testes, a guarda de produção segue igual, o teste novo pega o mutante que esconderia um `claude` abaixo do teste e a propagação aos filhos é restrita ao mesmo `bin/`. A1 e A2 são endurecimento, não devolvem; A2 só aparece com o defeito presente. Sobre A1: o hook já barra o uso direto pelos nomes, e o desvio por ofuscação existia antes sem o lançador. Segurança tem parecer próprio em paralelo.
