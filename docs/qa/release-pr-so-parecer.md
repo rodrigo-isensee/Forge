@@ -17,7 +17,7 @@ data: 2026-11-04
 Escopo: `bin/forge-changelog conferir` aceita PR só de pareceres (RELEASE-PR-SO-PARECER) e exige fragmento em todo o resto, inclusive `git mv` de código para docs/reviews (A1 do review, `--no-renames`). Suíte completa fica com o CI/pre-push (D-5); aqui rodou tests/test_changelog.py (51 testes, OK).
 
 ## Achados
-- A1 (recomendado) bin/forge-changelog:228 · PR com parecer e fragmento de changelog.d/ malformado agora passa no conferir (a base rejeitava com "formato inválido"): o fragmento fica fora de CAMINHOS_DA_FABRICA e o atalho de parecer sai antes de validá-lo; o erro só aparece no release.
+- A1 (recomendado) bin/forge-changelog:233 · PR com parecer e fragmento de changelog.d/ malformado agora passa no conferir (a base rejeitava com "formato inválido"): o fragmento fica fora de CAMINHOS_DA_FABRICA e o atalho de parecer sai antes de validá-lo; o erro só aparece no release.
 
 ## Critério → teste → resultado
 Cenários de ponta a ponta em repositório descartável (base `develop`, branch `pr`, `conferir --base develop`):
