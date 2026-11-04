@@ -27,10 +27,14 @@ if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_trava" ]; the
   exec sleep 30
 fi
 if [ "$1 $2 $3" = "push origin --delete" ] && [ -f "$ESTADO/delete_apaga_e_trava" ]; then
-  # o servidor apaga a ref e a resposta não volta a tempo: o `timeout` corta; as tentativas seguintes falham porque a ref já não existe
+  # o servidor apaga a ref e a resposta não volta a tempo: o `timeout` corta; as tentativas seguintes falham porque a ref já não existe.
+  # O apagamento termina mesmo se o corte vier antes dele (TERM ignorado nele, a máquina carregada; TESTE-HEREDOCS-ORCAMENTO-ESTAVEL)
   echo "git $*" >> "$REGISTRO"
-  "$(dirname "$0")/git-base" "$@" >/dev/null 2>&1 || true
+  trap 'cortado=1' TERM
+  ( trap '' TERM; exec "$(dirname "$0")/git-base" "$@" ) >/dev/null 2>&1 || true
   [ ! -f "$ESTADO/ls_falha" ] || touch "$ESTADO/ls_deve_falhar"
+  [ -z "${cortado:-}" ] || exit 143
+  trap - TERM
   exec sleep 30
 fi
 if [ "$1" = ls-remote ] && [ -f "$ESTADO/ls_deve_falhar" ]; then

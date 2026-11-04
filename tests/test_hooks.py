@@ -558,7 +558,13 @@ if sys.argv[5] == "lento":
     def lento(self, *chaves):
         chamadas.append(1)
         if len(chamadas) == 2:  # a 1.a leitura é a do marcador; a 2.a é a 1.a do hook, depois dele
-            time.sleep(60)
+            inicio = time.monotonic()
+            try:
+                time.sleep(60)
+            finally:  # quanto o passo lento dormiu até o vigia o cortar (TESTE-HEREDOCS-ORCAMENTO-ESTAVEL)
+                import os
+                if os.environ.get("FORGE_MEDIDA_DO_LENTO"):
+                    open(os.environ["FORGE_MEDIDA_DO_LENTO"], "w").write(repr(time.monotonic() - inicio))
         return campo(self, *chaves)
     _comum.Hook.campo = lento
 sys.argv = [sys.argv[2]]
@@ -622,6 +628,26 @@ class Hooks(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="forge-hook-"))
         self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
         return tmp
+
+    def custo_do_caso(self, caso):
+        """Segundos de CPU do hook (e dos filhos dele) sobre `caso`, com a montagem (git init, commit...) fora da medida:
+        o custo da decisão, que a fila da máquina carregada não alonga (TESTE-HEREDOCS-ORCAMENTO-ESTAVEL). Sem `resource`
+        (Windows), a parede."""
+        tmp = self._pasta_temporaria()
+        arquivo = tmp / "conformidade" / "caso.json"
+        arquivo.parent.mkdir()
+        arquivo.write_text(json.dumps(caso), encoding="utf-8")
+        fixture = Fixture(arquivo)
+        montado = fixture.montar(tmp, os.getpid())
+        cpu, inicio = _cpu_dos_filhos(), time.monotonic()
+        self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
+        return time.monotonic() - inicio if cpu is None else _cpu_dos_filhos() - cpu
+
+    def assert_custo_linear(self, grande, controle, fator, rotulo):
+        """A entrada `fator` vezes maior custa menos que o meio do caminho entre o linear (`fator`) e o quadrático
+        (`fator²`) vezes o custo do controle medido na mesma execução: a razão não depende da máquina nem da carga."""
+        teto = controle * (fator + fator ** 2) / 2
+        self.assertLess(grande, teto, f"{rotulo}: {grande:.2f} s contra {controle:.2f} s do controle {fator:.1f} vezes menor")
 
     @staticmethod
     def depende_de_pid_ou_trava(f):
@@ -896,41 +922,47 @@ class Hooks(unittest.TestCase):
     def test_linha_adversaria_de_crases_e_pastas_recusa_dentro_do_orcamento(self):
         """Segurança A1 do LOTE-LEITURA-HOOK: 60 `cd` e 60 crases aninhadas terminando em push com --no-verify refaziam a
         conferência 37 630 vezes (10,9 s, acima do timeout do hooks.json, e o Claude Code libera o comando que o hook não
-        decidiu a tempo). O `conformidade` recusa (saída 2) em uma fração do prazo."""
+        decidiu a tempo). O `conformidade` recusa (saída 2) em uma fração do prazo. TESTE-HEREDOCS-ORCAMENTO-ESTAVEL: a
+        CPU do hook, e não a parede, e cada linha custa menos que o meio do caminho entre o linear e o quadrático do
+        controle três vezes menor, medido na mesma execução."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
         dados = json.loads((FIXTURES / "conformidade" / f"{FIXTURE_DE_ORCAMENTO}.json")
                            .read_text(encoding="utf-8"))
         comando = dados["entrada"]["tool_input"]["command"]
-        self.assertGreaterEqual(comando.count("cd d"), 60, "a linha adversária tem as 60 pastas")
-        self.assertGreaterEqual(comando.count("`echo"), 60, "a linha adversária tem as 60 crases aninhadas")
-        self.assertTrue(comando.endswith("--no-verify origin feature/x`"), "e termina na ação que a base recusava")
-        inicio = time.monotonic()
-        self.rodar_dados(dados)
-        self.assertLess(time.monotonic() - inicio, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
+        crase = "`echo \\`echo \\\\\\`ls\\\\\\`\\``"
+        adversaria = lambda k: (" && ".join(f"cd d{i}" for i in range(k)) + " && " + " ".join([crase] * k)  # noqa: E731
+                                + " `git push --no-verify origin feature/x`")
+        self.assertEqual(comando, adversaria(60), "a linha adversária: 60 pastas, 60 crases aninhadas e a ação que a base recusava")
+
+        def medir(linha, esperado=None):
+            caso = json.loads(json.dumps(dados))
+            caso["entrada"]["tool_input"]["command"] = linha
+            caso["esperado"] = esperado or caso["esperado"]
+            return self.custo_do_caso(caso)
+
+        def linear(grande, controle_texto, esperado=None):
+            custo = medir(grande, esperado)
+            controle = medir(controle_texto, {"codigo": 2, "stderr": "R-"})  # o controle só recusa: abaixo do teto, a regra é outra
+            self.assert_custo_linear(custo, controle, len(grande) / len(controle_texto), f"{len(grande)} caracteres")
+            self.assertLess(custo, limite / 2, "a decisão custa bem menos que o prazo do Claude Code, sem depender da carga")
+        linear(comando, adversaria(20))
         # A1 do review: o custo de cada conferência cresce com o corpo; 20 `cd` e 19 crases distintas de 5 a 20 KB
         # (a de 8 KB tem 152 KB e passava de 14 s com o teto só por contagem). A base recusava pela rede da ADR 0011.
+        grande = lambda pastas, crases, kb: (" && ".join(f"cd d{i}" for i in range(pastas)) + " && " + " ".join(  # noqa: E731
+            f"`echo \\`echo \\\\\\`ls\\\\\\`\\` c{i} {'a' * kb * 1024}`" for i in range(crases))
+            + " `git push --no-verify origin feature/x`")
         for pastas, crases, kb in ((20, 19, 5), (20, 19, 8), (15, 25, 20)):
-            corpo = " ".join(f"`echo \\`echo \\\\\\`ls\\\\\\`\\` c{i} {'a' * kb * 1024}`" for i in range(crases))
-            linha = " && ".join(f"cd d{i}" for i in range(pastas)) + f" && {corpo} `git push --no-verify origin feature/x`"
             with self.subTest(pastas=pastas, crases=crases, kb=kb):
-                self.assertGreater(len(linha), crases * kb * 1024)
-                grande = json.loads(json.dumps(dados))
-                grande["entrada"]["tool_input"]["command"] = linha
-                inicio = time.monotonic()
-                self.rodar_dados(grande)
-                self.assertLess(time.monotonic() - inicio, limite / 2, "a linha grande também sai antes do prazo")
+                self.assertGreater(len(grande(pastas, crases, kb)), crases * kb * 1024)
+                linear(grande(pastas, crases, kb), grande(pastas, -(-crases // 3), kb))
         # Recomendação do review (volta 3): uma conferência só de 290 mil caracteres levava 4,2 s, perto do timeout com a
         # máquina carregada; o teto de caracteres fica em cerca de 150 mil, e a linha logo acima dele recusa por ele.
         _, conformidade, _ = modulos_dos_hooks()
         self.assertLessEqual(conformidade.TETO_DE_CARACTERES, 150_000)
-        grande = json.loads(json.dumps(dados))
-        grande["entrada"]["tool_input"]["command"] = ("echo " + "a" * conformidade.TETO_DE_CARACTERES
-                                                      + " && git push --no-verify origin feature/x")
-        grande["esperado"] = {"codigo": 2, "stderr": "linha longa demais"}
-        inicio = time.monotonic()
-        self.rodar_dados(grande)
-        self.assertLess(time.monotonic() - inicio, limite / 2, "a recusa pelo teto sai antes do prazo")
+        acima = lambda n: "echo " + "a" * n + " && git push --no-verify origin feature/x"  # noqa: E731
+        linear(acima(conformidade.TETO_DE_CARACTERES), acima(conformidade.TETO_DE_CARACTERES // 3),
+               {"codigo": 2, "stderr": "linha longa demais"})
 
     def test_timeout_de_rede_dos_hooks_abaixo_do_hooks_json(self):
         """Segurança A1: todo subprocesso de rede dos hooks (`gh`, `curl`, `git fetch`...) tem limite de tempo menor que o
@@ -1819,14 +1851,35 @@ class Hooks(unittest.TestCase):
 
     def test_muitos_heredocs_recusam_dentro_do_orcamento(self):  # LOTE-LEITURA-HOOK, A1 do review, volta 5
         """Pelo hook real: 3000 heredocs com `git push origin main` no fim recusam (R-MAIN) bem antes do timeout do
-        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo)."""
+        `hooks.json` (26,9 s antes, e o Claude Code libera o comando que o hook não decidiu a tempo). TESTE-HEREDOCS-
+        ORCAMENTO-ESTAVEL: mede a CPU do hook, e não a parede, e cada forma com 3000 custa menos que o meio do caminho
+        entre o linear e o quadrático do controle de 1000, medido na mesma execução."""
         limite = min(h["timeout"] for g in json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))["hooks"]["PreToolUse"]
                      for h in g["hooks"] if h["args"][0].endswith("/conformidade.py"))
-        dados = json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
-                           .read_text(encoding="utf-8"))
-        n = 3000
-        corpos = "".join(f"x\nE{i}\n" for i in range(n))
+        modelos = {False: json.loads((FIXTURES / "conformidade" / "heredoc-outro-comando-make-push-main-bloqueia.json")
+                                     .read_text(encoding="utf-8")),
+                   True: json.loads((FIXTURES / "conformidade" / "heredoc-donos-1-bash-grava-github-bloqueia.json")
+                                    .read_text(encoding="utf-8"))}
         teto = "R-CONFORMIDADE: chamada com ação crítica e 6004 palavras"  # o teto de palavras, como a develop
+        controles = self._formas_de_heredocs(1000, "R-")  # 2004 palavras: abaixo do teto, recusa por outra regra
+        for forma, (texto, recusa, donos) in self._formas_de_heredocs(3000, teto).items():
+            with self.subTest(forma=forma):
+                custos = []
+                for corpo, esperado in ((controles[forma][0], controles[forma][1]), (texto, recusa)):
+                    caso = json.loads(json.dumps(modelos[donos]))
+                    caso["entrada"]["tool_input"]["command"] = corpo if donos else corpo + "git push origin main"
+                    caso["esperado"]["stderr"] = esperado or caso["esperado"]["stderr"]
+                    custos.append(self.custo_do_caso(caso))
+                if donos:
+                    print(f"HEREDOC-DONOS {forma}: {custos[1]:.2f} s de CPU, controle {custos[0]:.2f} s (limite {limite / 2:.1f} s)")
+                self.assert_custo_linear(custos[1], custos[0], 3, forma)
+                self.assertLess(custos[1], limite / 2, "o custo do hook fica no orçamento, sem depender da carga")
+
+    @staticmethod
+    def _formas_de_heredocs(n, teto):
+        """As formas do teste de muitos heredocs com `n` deles: (texto, recusa, donos); `teto` é a recusa das formas que
+        passam do teto de palavras, e `donos`, as do HEREDOC-DONOS (sem o push, `bash` gravando `.github/` no fim)."""
+        corpos = "".join(f"x\nE{i}\n" for i in range(n))
         formas = {"um por linha": ("".join(f"cat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
                   "&&": (" && ".join(f"cat > f{i} <<'E{i}'" for i in range(n)) + "\n" + corpos, None),
                   # C-7 do heredoc-rapido, passo 2: também o heredoc numa substituição (6004 palavras: recusa pelo teto,
@@ -1839,32 +1892,12 @@ class Hooks(unittest.TestCase):
                   "linha de #": ("".join(f"# c\ncat > f{i} <<'EOF'\nx\nEOF\n" for i in range(n)), None),
                   "cat a<i> # c": ("".join(f"cat a{i} <<'EOF' # c\nx\nEOF\n" for i in range(n)), teto),  # o dono largo
                   "| cat > f # c": ("".join("cat <<'E' | cat > f # c\nx\nE\n" for _ in range(n)), teto)}
+        formas = {forma: (texto, recusa, False) for forma, (texto, recusa) in formas.items()}
         # HEREDOC-DONOS (C-3): N donos distintos e, no fim, `bash` gravando `.github/`, sem o marcador crítico (sem o push)
-        base = json.loads((FIXTURES / "conformidade" / "heredoc-donos-1-bash-grava-github-bloqueia.json").read_text(encoding="utf-8"))
-        for dono, m in itertools.product(("./x{i}", "sh -s a{i}", "python3 -", "python3 - a{i}"), (1000, 3000)):
-            formas[f"{dono} x{m}"] = ("".join(f"{dono.format(i=i)} <<'E'\nx\nE\n" for i in range(m))
-                                     + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ", None, base)
-        for forma, (texto, recusa, *outra) in formas.items():
-            with self.subTest(forma=forma):
-                caso = json.loads(json.dumps(*outra or [dados]))
-                caso["entrada"]["tool_input"]["command"] = texto if outra else texto + "git push origin main"
-                caso["esperado"]["stderr"] = recusa or caso["esperado"]["stderr"]
-                tmp = self._pasta_temporaria()
-                arquivo = tmp / "conformidade" / "caso.json"
-                arquivo.parent.mkdir()
-                arquivo.write_text(json.dumps(caso), encoding="utf-8")
-                fixture = Fixture(arquivo)
-                montado = fixture.montar(tmp, os.getpid())  # a montagem (git init, commit...) fica fora da janela medida
-                cpu_antes = _cpu_dos_filhos()
-                inicio = time.monotonic()
-                self.executar_fixture(fixture, tmp, os.getpid(), montado=montado)
-                parede = time.monotonic() - inicio
-                cpu = None if cpu_antes is None else _cpu_dos_filhos() - cpu_antes
-                if outra:
-                    print(f"HEREDOC-DONOS {forma}: {parede:.2f} s de parede, {cpu or 0:.2f} s de CPU (limite {limite / 2:.1f} s)")
-                self.assertLess(parede, limite / 2, "a decisão sai bem antes do Claude Code matar o hook")
-                if cpu is not None:  # sem `resource` (Windows) só vale a parede
-                    self.assertLess(cpu, limite / 2, "o custo de CPU do hook (filhos) fica no mesmo teto, sem depender da carga")
+        for dono in ("./x{i}", "sh -s a{i}", "python3 -", "python3 - a{i}"):
+            formas[dono] = ("".join(f"{dono.format(i=i)} <<'E'\nx\nE\n" for i in range(n))
+                            + "bash <<'Z'\necho x > .github/workflows/ci.yml\nZ", None, True)
+        return formas
 
     @staticmethod
     def _donos_da_base(_comum, texto):

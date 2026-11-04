@@ -31,19 +31,25 @@ class CorridaDoRotulo(unittest.TestCase):
         (self.estado / "rotulo_na_leitura").write_text(f"{rotulo_na_leitura}\n")
         (self.estado / "texto").write_text(base.Fechar.ITEM_MARCADO)
 
-    def rotulo_lido(self, quando):
-        """O rótulo em cada leitura dele: n ausente, s presente, f falha (a última se repete). O invólucro responde só `--json labels`; o resto vai ao `gh` falso."""
+    def rotulo_lido(self, quando, espera_s=0):
+        """O rótulo em cada leitura dele: n ausente, s presente, f falha, z presente depois de passar `espera_s` da 1.a leitura (o prazo
+        vence nessa volta, e não antes, qualquer que seja a carga da máquina); a última se repete. O invólucro responde só
+        `--json labels`; o resto vai ao `gh` falso."""
         falso = self.tmp / "gh"
         falso.rename(self.tmp / "gh-base")
         (self.estado / "rotulo_quando").write_text(quando)
+        (self.estado / "rotulo_espera").write_text(f"{espera_s}\n")
         falso.write_text('#!/usr/bin/env bash\ncase "$*" in *"--json labels"*)\n'
                          '  n=$(( $(cat "$ESTADO/rotulo_lidas" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$ESTADO/rotulo_lidas"\n'
+                         '  [ -s "$ESTADO/rotulo_t0" ] || date +%s > "$ESTADO/rotulo_t0"\n'
                          '  set -- $(cat "$ESTADO/rotulo_quando"); [ "$n" -le "$#" ] || n=$#; eval "r=\\${$n}"\n'
-                         '  case "$r" in f) exit 1 ;; s) echo afrouxa-regra ;; esac; exit 0 ;;\nesac\n'
+                         '  case "$r" in f) exit 1 ;; s) echo afrouxa-regra ;; z) a=$(( $(cat "$ESTADO/rotulo_t0") + $(cat "$ESTADO/rotulo_espera") + 2 - $(date +%s) ))\n'
+                         '    [ "$a" -le 0 ] || sleep "$a"; echo afrouxa-regra ;; esac; exit 0 ;;\nesac\n'
                          f'exec "{self.tmp / "gh-base"}" "$@"\n')
         falso.chmod(0o755)
 
-    def espera_rotulo(self, espera_s="3"):
+    def espera_rotulo(self, espera_s="600"):
+        """Sem o prazo no meio do caso: a decisão sai da sequência dos checks e do rótulo, e não da carga da máquina."""
         return self.fechar("p1", "--ref", "melhoria/x", "--esperar-rotulo", "--espera", espera_s)
 
     def test_corrida_com_a_nova_reprovando_para_na_hora(self):  # AB-C4-1
@@ -68,7 +74,7 @@ class CorridaDoRotulo(unittest.TestCase):
     def test_descartada_em_fail_sem_velha_nunca_mescla(self):  # AB-C4-6
         # o rótulo aparece na leitura posterior da primeira volta: a execução 2 foi vista na janela de dúvida e é descartada
         self.seq(2, [self.cat("fail", 2)])
-        r = self.espera_rotulo()
+        r = self.espera_rotulo("3")  # para no prazo: com qualquer número de voltas antes dele, nunca mescla
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertNotIn("só a execução velha", r.stderr)
         self.assertTrue(self.sem_merge())
@@ -76,7 +82,7 @@ class CorridaDoRotulo(unittest.TestCase):
     def test_leitura_posterior_do_rotulo_que_falha_conta_como_ausente_e_nunca_mescla(self):  # AB-C4-4
         (self.estado / "falha_leitura").write_text("")  # toda leitura do rótulo falha (3 tentativas por leitura)
         self.seq(2, [self.cat("fail", 1)])
-        r = self.espera_rotulo("2")
+        r = self.espera_rotulo("2")  # o rótulo nunca aparece: para no prazo, com qualquer número de voltas antes dele
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("o dono ainda não o aplicou", r.stderr)
         self.assertTrue(self.sem_merge())
@@ -84,8 +90,8 @@ class CorridaDoRotulo(unittest.TestCase):
     def test_so_a_leitura_posterior_falha_e_o_rotulo_presente_depois_segue_velha_e_nunca_mescla(self):  # AB-C4-4 (C4-2)
         # a execução 1 é vista sem o rótulo; só a leitura posterior falha (conta como ausente: a promove a velha); na volta 2 o rótulo está presente
         self.seq(99, [self.cat("fail", 1)])
-        self.rotulo_lido("n f f f s")
-        r = self.espera_rotulo()
+        self.rotulo_lido("n f f f z", 10)  # o prazo vence na volta 2, com o rótulo presente: a volta 1 tem 10 s de folga
+        r = self.espera_rotulo("10")
         self.assertEqual(r.returncode, 1, r.stderr + r.stdout)
         self.assertIn("só a execução velha da Catraca (run 1)", r.stderr)
         self.assertTrue(self.sem_merge())

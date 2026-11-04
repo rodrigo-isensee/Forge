@@ -169,7 +169,8 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
 
     def decidir_medido(self, montados, hook, texto, subida=0, **como):
         """(código, stderr, parede do hook, CPU do processo) do hook real sobre `texto`: a parede vem de dentro do lançador
-        (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook.
+        (sem a subida do interpretador), a CPU, de `MedidaDeCpu`; sem o prazo de 10 s do Claude Code a matar o hook. Com
+        `lento`, `self.sono` guarda quanto o passo lento dormiu até ser cortado (None se o vigia venceu antes dele).
         `subida`: segundos de espera antes de o lançador começar, a fila da máquina carregada na subida do interpretador."""
         self.assertNotEqual(LANCADOR_MEDIDO, test_hooks.LANCADOR, "o lançador medido tem a medida")
         lancador = LANCADOR_MEDIDO.replace("import os, runpy, sys, time", f"import os, runpy, sys, time\ntime.sleep({float(subida)!r})")
@@ -178,9 +179,11 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         entrada["tool_input"]["command"] = texto
         medida = Path(tempfile.mkdtemp(prefix="forge-medida-")) / "parede"
         self.addCleanup(shutil.rmtree, medida.parent, ignore_errors=True)
-        extra = {"FORGE_NPROC": "8", "FORGE_MEDIDA_DO_HOOK": str(medida)}
+        extra = {"FORGE_NPROC": "8", "FORGE_MEDIDA_DO_HOOK": str(medida), "FORGE_MEDIDA_DO_LENTO": str(medida.parent / "sono")}
         with mock.patch.object(test_hooks, "LANCADOR", lancador), MedidaDeCpu() as gasto:
             r = test_hooks.rodar(hook, entrada, raiz, proc, extra, producao=True, **como)
+        sono = medida.parent / "sono"
+        self.sono = float(sono.read_text(encoding="utf-8")) if sono.exists() else None
         return r.returncode, r.stderr, float(medida.read_text(encoding="utf-8")), gasto.cpu
 
     def test_a_subida_lenta_do_interpretador_nao_conta_na_parede_do_hook(self):  # L31: load alto, o teste passa
@@ -198,8 +201,16 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
         """Um passo lento injetado (`lancador(lento=True)`: o 2.o `Hook.campo`, depois do marcador, dorme 60 s) faz os dois hooks
         recusarem a chamada com o marcador antes de 10 s, com a regra do hook (R-CONFORMIDADE, R-REVIEW), e liberarem a
         sem marcador. Sem o passo lento, a mesma chamada com marcador passa: o que recusa é o vigia, e é por construção,
-        para qualquer passo lento, e não só para os que o teste 1 gera."""
+        para qualquer passo lento, e não só para os que o teste 1 gera. TESTE-HEREDOCS-ORCAMENTO-ESTAVEL: o prazo se prova
+        sem a parede, que a fila da máquina alonga: o passo lento dorme até o alarme (`self.sono`, não os 60 s), e o
+        prazo do vigia mais a CPU do hook ficam abaixo dos 10 s do Claude Code."""
+        _comum, _, _ = modulos_dos_hooks()
         montados = self.modelos_montados()
+
+        def no_prazo(cpu):
+            if self.sono is not None:  # sob carga o alarme pode vencer antes do passo lento, e ele nem dorme
+                self.assertLess(self.sono, _comum.PRAZO_DA_DECISAO_S + 1, "o alarme corta o passo lento aos 3 s")
+            self.assertLess(_comum.PRAZO_DA_DECISAO_S + cpu, PRAZO_DO_CLAUDE_CODE_S)
         linhas = {"conformidade": ("git push origin feature/x", "R-CONFORMIDADE"),
                   "parecer": ("gh pr create --draft --base develop --title x --body y", "R-REVIEW")}
         for hook, (critica, regra) in linhas.items():
@@ -210,12 +221,12 @@ class PropriedadesDaVoltaUnica(BaseVoltaUnica, unittest.TestCase):
                 self.assertEqual(codigo, 2, erro)
                 self.assertRegex(erro, f"^{regra}: ")
                 self.assertGreater(segundos, 2.5, "o vigia vence aos 3 s")
-                self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
                 self.assertLess(cpu, PRAZO_DO_CLAUDE_CODE_S / 2, "o passo lento dorme: o vigia não gasta CPU")
+                no_prazo(cpu)
             with self.subTest(hook=hook, caso="sem marcador"):
-                codigo, erro, segundos, _ = self.decidir_medido(montados, hook, "echo oi", lento=True)
+                codigo, erro, segundos, cpu = self.decidir_medido(montados, hook, "echo oi", lento=True)
                 self.assertEqual((codigo, erro), (0, ""))
-                self.assertLess(segundos, PRAZO_DO_CLAUDE_CODE_S)
+                no_prazo(cpu)
 
     def test_t_vigia_cobre_a_busca_do_proprio_marcador(self):
         """O marcador é um regex com `.*`, e o texto de propósito o faz levar mais de 10 s (`pr pr … api`). O vigia o

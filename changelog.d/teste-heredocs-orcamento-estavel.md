@@ -1,0 +1,2 @@
+### Corrigido
+- Os testes de orçamento de tempo do hook (muitos heredocs, linha adversária de crases e o vigia de prazo) e os de tempo do forge-fechar (corte do push --delete e espera do rótulo) deixam de depender da carga da máquina: medem a CPU do hook contra um controle medido na mesma execução, o sono cortado pelo alarme e a sequência das leituras, e seguem reprovando um mutante quadrático (TESTE-HEREDOCS-ORCAMENTO-ESTAVEL).
