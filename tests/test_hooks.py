@@ -60,7 +60,7 @@ HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
-CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA", "ROTULO-VARIAVEL")  # as fixtures de cada cartão abrem a descrição com o ID dele
+CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA", "ROTULO-VARIAVEL", "K2-REC")  # as fixtures de cada cartão abrem a descrição com o ID dele
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 

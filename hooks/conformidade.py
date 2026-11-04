@@ -229,8 +229,8 @@ def so_leitura(linha):
             args = args[1:]
         elif prog not in LEITORES_SEM_EXEC:
             return False
-        if not opcoes_sem_exec(args):
-            return False
+        if not opcoes_sem_exec(args) or any(re.match(r"[*?\[]", a) or "{" in a for a in args):
+            return False  # R2 (conformidade-leitura): `*`, `?` e `[` no início e `{` expandem para `--pre=...`
     return True
 
 
