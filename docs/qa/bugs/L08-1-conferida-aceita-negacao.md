@@ -1,5 +1,6 @@
 # L08-1 - a linha `conferida <sha40>` do Histórico vale mesmo negada ou no meio de outra frase (E7)
 - Severidade: baixa
+- Estado: fechado (ac8921c e b8d2aad), revalidado pelo QA sobre 7925640
 - Responsável sugerido: forge:tech-lead (bin/forge-check, CONFERIDA em :907)
 - Ambiente: melhoria/lote-l08 @ 874c89e, python3
 

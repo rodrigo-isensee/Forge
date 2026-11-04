@@ -1,5 +1,6 @@
 # L08-2 - `entrega --etapa ato-github` não valida o tipo da PQ: `(SHA)` não conta como prova de commit (E19)
 - Severidade: baixa
+- Estado: fechado (ac8921c e b8d2aad), revalidado pelo QA sobre 7925640
 - Responsável sugerido: forge:tech-lead (bin/forge-check, provas_do_brief e entrega_ato_github)
 - Ambiente: melhoria/lote-l08 @ 874c89e
 
