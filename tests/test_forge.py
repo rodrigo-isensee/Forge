@@ -5688,3 +5688,61 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
         self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)
+
+
+class PrMescladoPeloHead(RepoComOrigem):
+    """E10 (CONF-MERGE-APOS-SQUASH, Q13 = A): depois do squash, com a branch apagada, `pr --pr <n>` confere os pareceres no head do PR
+    (headRefOid do gh, sha40 presente no clone), escolhe o parecer pelo headRefName (E11) e nunca usa o commit do squash."""
+
+    def setUp(self):
+        super().setUp()
+        outra = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/outra\ncommit: {c}\nparecer: reprovado\n"
+                 "revisor: forge:tech-lead\ndata: 2026-10-13\n---\n# r\n")  # mais recente, de outra branch do mesmo pedido
+        self.head = self.commitar(self.repo, {"docs/reviews/p1-outra.md": outra.format(c=self.c1)}, "parecer de outra branch")
+        git("switch", "-q", "-c", "sq", "origin/develop", cwd=self.repo)
+        git("merge", "-q", "--squash", "melhoria/x", cwd=self.repo)
+        git("commit", "-q", "-m", "entrega (#7)", cwd=self.repo)
+        git("push", "-q", "origin", "sq:develop", cwd=self.repo)
+        git("switch", "-q", "--detach", "origin/develop", cwd=self.repo)
+        git("branch", "-q", "-D", "melhoria/x", "sq", cwd=self.repo)
+        self.develop_anda({"src/y.txt": "y1 de outro PR\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # o que o PR não tocou
+
+    def pr_mesclado(self, *extra, resposta=None, rc_gh=0):
+        corpo = resposta if resposta is not None else json.dumps({"state": "MERGED", "headRefOid": self.head, "headRefName": "melhoria/x"})
+        script = f"printf '%s\\n' '{corpo}'\nexit {rc_gh}\n"
+        r = rodar_fc("pr", "p1", *extra, raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso(script=script)["PATH"]})
+        return r.returncode, r.stdout, r.stderr
+
+    def test_pr_mesclado_confere_no_head_e_pela_branch_dele(self):
+        rc, saida, erro = self.pr_mesclado("--pr", "7", "--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida + erro)
+        self.assertIn(f"head {self.head[:7]}", saida)
+        self.assertIn(f"pareceres conferidos no head {self.head[:7]} (headRefOid de \"melhoria/x\")", erro)
+
+    def test_sem_o_head_do_pr_o_parecer_de_outra_branch_decide(self):  # o que o --pr corrige: a ref sha não tem branch
+        rc, saida, _ = self.pr_mesclado("--ref", self.head, "--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews/p1-outra.md: parecer: o último parecer não é aprovado", saida)
+
+    def test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir(self):
+        casos = {"PR aberto": (json.dumps({"state": "OPEN", "headRefOid": self.head, "headRefName": "melhoria/x"}), 0, "não MERGED"),
+                 "head curto": (json.dumps({"state": "MERGED", "headRefOid": self.head[:7], "headRefName": "melhoria/x"}), 0, "ilegível"),
+                 "head ausente do clone": (json.dumps({"state": "MERGED", "headRefOid": "1" * 40, "headRefName": "melhoria/x"}), 0,
+                                           "git fetch origin pull/7/head"),
+                 "nome com controle": (json.dumps({"state": "MERGED", "headRefOid": self.head, "headRefName": "melhoria/x\u001b"}), 0, "ilegível"),
+                 "estado que não é texto": (json.dumps({"state": None, "headRefOid": self.head, "headRefName": "melhoria/x"}), 0, "ilegível"),
+                 "JSON quebrado": ("{", 0, "ilegível"),
+                 "gh falhou": ("", 1, "gh sem rede")}
+        for nome, (resposta, rc_gh, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.pr_mesclado("--pr", "7", "--base", "develop", resposta=resposta, rc_gh=rc_gh)
+                self.assertEqual(rc, 2, saida + erro)
+                self.assertIn(esperado, saida)
+                self.assertNotIn("veredito", saida)
+
+    def test_numero_invalido_ou_com_ref_recusa(self):
+        for extra in (("--pr", "7x"), ("--pr", "0"), ("--pr", "-1"), ("--pr", "7", "--ref", "HEAD")):
+            with self.subTest(extra):
+                rc, saida, erro = self.pr_mesclado(*extra, "--base", "develop")
+                self.assertEqual(rc, 2, saida + erro)
+                self.assertNotIn("veredito", saida)

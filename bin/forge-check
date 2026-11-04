@@ -106,6 +106,8 @@ e quantas não aparecem literalmente nas saídas de ferramenta dele; `decisoes` 
 principal com mais de um grupo de opções A/B/C ou com grupo sem "Recomendo"; `vereditos` (P7) conta os relatórios do conferente cujo `veredito:`
 contradiz as próprias linhas (`cumpriu` com `PQ-n não cumpriu`, `pendente:`, `forma:` ou `escopo:` que reprova, ou `não cumpriu` sem nenhuma; `escopo:` de integração da base, sem commit ou união de N briefs não conta). Só medem; não bloqueiam nada.
 `pr --ref` lê os pareceres da ref (ex.: a branch a mesclar) e compara o commit deles com ela, não com o HEAD.
+`pr --pr <n>` (E10, CONF-MERGE-APOS-SQUASH) confere o PR já mesclado no head dele (`headRefOid` do `gh pr view`, sha40 presente no clone, estado
+MERGED, e o parecer escolhido pelo `headRefName`), nunca no commit do squash; sem gh, PR aberto ou head ausente, rc 2 e nada conferido.
 Sem `--ref`, `pr` lê o parecer do disco e exige que ele seja igual ao do HEAD (parecer commitado, bytes idênticos).
 `pr --base` (só `develop`, `homolog`, `main` ou `origin/<essas>`, lida de `refs/remotes/origin/<base>`) aceita também o parecer cujo diff efetivo sobre a base (merge-base, fora de pareceres e quadro) não mudou: o merge da base depois do parecer não o invalida, mas qualquer byte a mais no commit de merge sim (por conteúdo, nunca por nome); base que já contém o head vale só pelo diff literal (aviso no stderr).
 Sai com 0 se válido; com 1 imprime uma linha por violação: arquivo: campo: problema (R-ID).
@@ -641,7 +643,7 @@ def base_do_delta(raiz, base, ref=None):
     return resolvida, None
 
 
-def pr_da_cli(raiz, pedido, ref=None, base=None):
+def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
@@ -650,7 +652,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
-        return cmd_pr(raiz, pedido, ref, None)
+        return cmd_pr(raiz, pedido, ref, None, branch)
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -660,7 +662,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None):
     if isencoes_da_entrega(raiz, ref, resolvida):
         print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
               file=sys.stderr)
-    return cmd_pr(raiz, pedido, ref, resolvida)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch)
 
 
 def branch_da_convencao(raiz, ref=None):
@@ -742,8 +744,40 @@ def branch_da_ref(raiz, ref=None):
     return None
 
 
-def cmd_pr(raiz, pedido, ref=None, base=None):
+def head_do_pr_mesclado(raiz, numero):
+    """E10 (CONF-MERGE-APOS-SQUASH, Q13 = A): (headRefOid, headRefName, None) do PR `numero` MERGED, por `gh pr view <n> --json
+    state,headRefOid,headRefName` (grátis, R-CUSTO; teto de 10 s); senão (None, None, motivo). A saída do `gh` decide a ref, então vale
+    só com o número inteiro, o estado MERGED, o head em sha40 que existe no clone e o nome sem caractere de controle: o commit do squash
+    nunca é o conferido (falha fechada)."""
+    if not INTEIRO.fullmatch(numero or "") or int(numero) < 1:
+        return None, None, "use o número do PR (inteiro positivo)"
+    try:
+        r = subprocess.run(["gh", "pr", "view", numero, "--json", "state,headRefOid,headRefName"], cwd=raiz, capture_output=True,
+                           text=True, timeout=TETO_DO_GH_S, stdin=subprocess.DEVNULL)
+    except FileNotFoundError:
+        return None, None, "sem gh"
+    except subprocess.TimeoutExpired:
+        return None, None, f"gh passou de {TETO_DO_GH_S} s"
+    if r.returncode:
+        return None, None, "gh sem rede, sem acesso ou PR inexistente"
+    try:
+        dados = json.loads(r.stdout)
+        estado, head, nome = dados["state"], dados["headRefOid"], dados["headRefName"]
+    except (ValueError, KeyError, TypeError):
+        return None, None, "resposta do gh ilegível"
+    if not all(isinstance(v, str) for v in (estado, head, nome)) or not SHA40.fullmatch(head) or not nome or com_controle(nome):
+        return None, None, "resposta do gh ilegível (headRefOid em sha40 e headRefName sem controle)"
+    if estado != "MERGED":
+        return None, None, f"o PR está {nome_seguro(estado)}, não MERGED; antes do merge, use --ref <branch>"
+    if sha_do_commit(raiz, head) != head:
+        return None, None, f"o head {head[:7]} não existe no clone; rode git fetch origin pull/{numero}/head e repita"
+    return head, nome.removeprefix("refs/heads/"), None
+
+
+def cmd_pr(raiz, pedido, ref=None, base=None, branch=None):
+    """`branch`: a branch do parecer quando a ref é um sha (o `headRefName` do PR mesclado, `--pr`, E10); sem ela, `branch_da_ref`."""
     saida = []
+    branch = branch or branch_da_ref(raiz, ref)
     registros = autorias(raiz)
     exigidos, gatilhos_de_seguranca = exigidos_do_pr(raiz, pedido, ref, base)
     for tipo in exigidos:
@@ -757,7 +791,7 @@ def cmd_pr(raiz, pedido, ref=None, base=None):
             motivo = f" ({gatilhos_de_seguranca[0]})" if tipo == "revisao-seguranca" else ""
             saida.append(f"{pasta}: {tipo}: sem parecer para o pedido `{pedido}`{motivo} ({rid})")
             continue
-        da_branch = [a for a in achados if branch_da_ref(raiz, ref) and a[2].get("branch") == branch_da_ref(raiz, ref)]  # E11
+        da_branch = [a for a in achados if branch and a[2].get("branch") == branch]  # E11
         _, rel, campos, viol, texto = sorted(da_branch or achados, key=lambda a: a[:2])[-1]  # o mais recente (da branch da ref, se houver)
         saida += viol
         if ref is None and not parecer_commitado(raiz, rel):
@@ -6095,6 +6129,8 @@ def main():
     pr.add_argument("pedido")
     pr.add_argument("--ref", help="lê os pareceres desta ref do git e compara com ela (padrão: disco e HEAD; sem --ref, o parecer do disco precisa estar commitado, igual ao do HEAD)")
     pr.add_argument("--base", help="branch de destino: merge dela depois do parecer não o invalida (diff efetivo)")
+    pr.add_argument("--pr", dest="numero_pr", help="PR já mesclado (squash, branch apagada): os pareceres são conferidos no head dele (headRefOid, "
+                    "lido do gh e presente no clone), nunca no commit do merge; não se combina com --ref (E10, CONF-MERGE-APOS-SQUASH)")
     en = sub.add_parser("entrega", parents=[comum], help="escopo da entrega: arquivos do intervalo da delegação (`--desde` só depois de uma conferência); só leitura")
     en.add_argument("pedido", help="arquivo do pedido ou id (docs/pedidos/<id>.md da cópia principal)")
     en.add_argument("--branch", required=True, help="branch entregue")
@@ -6248,13 +6284,25 @@ def executar(a, raiz):
     if pendentes:
         print(f"forge-check: aviso: migração do Forge pendente ({', '.join(pendentes)}); rode forge-upgrade",
               file=sys.stderr)
+    branch_do_pr = None
+    if a.cmd == "pr" and getattr(a, "numero_pr", None) is not None:  # E10: o head mesclado do PR vira a ref
+        if a.ref is not None:
+            print("pr: --pr e --ref não se combinam: o --pr já escolhe a ref (o headRefOid do PR)")
+            return 2
+        head, branch_do_pr, motivo = head_do_pr_mesclado(raiz, a.numero_pr)
+        if motivo:
+            print(f"pr: --pr {nome_seguro(sem_controle(a.numero_pr))}: {motivo}; nada conferido (CONF-MERGE-APOS-SQUASH)")
+            return 2
+        print(f"pr: PR #{a.numero_pr} mesclado: pareceres conferidos no head {head[:7]} (headRefOid de {nome_seguro(branch_do_pr)}), "
+              "não no commit do merge", file=sys.stderr)
+        a.ref = head
     if a.cmd == "pr":
         a.pedido = pedido_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))
     if a.cmd == "pr" and (uso := uso_do_pr(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None))):
         print(uso)
         return 2
     violacoes = {"docs": lambda: cmd_docs(raiz), "kanban": lambda: cmd_kanban(raiz),
-                 "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None))}[a.cmd]()
+                 "pr": lambda: pr_da_cli(raiz, getattr(a, "pedido", ""), getattr(a, "ref", None), getattr(a, "base", None), branch_do_pr)}[a.cmd]()
     for v in violacoes:
         print(v)
     if a.cmd == "pr" and not violacoes:  # LOTE E1: só com rc 0, para o `promover-homolog` seguir contando as linhas do stdout com rc != 0

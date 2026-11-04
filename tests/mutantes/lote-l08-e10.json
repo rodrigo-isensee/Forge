@@ -1,0 +1,96 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o PR precisa estar MERGED",
+      "arquivo": "bin/forge-check",
+      "de": "if estado != \"MERGED\":",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "o headRefOid precisa ser sha40",
+      "arquivo": "bin/forge-check",
+      "de": "or not SHA40.fullmatch(head) or not nome",
+      "para": "or not head or not nome",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "o nome sem controle",
+      "arquivo": "bin/forge-check",
+      "de": "or not nome or com_controle(nome):",
+      "para": "or not nome:",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "os campos do gh precisam ser texto",
+      "arquivo": "bin/forge-check",
+      "de": "if not all(isinstance(v, str) for v in (estado, head, nome)) or",
+      "para": "if",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "o head precisa existir no clone",
+      "arquivo": "bin/forge-check",
+      "de": "if sha_do_commit(raiz, head) != head:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "o gh que falha recusa",
+      "arquivo": "bin/forge-check",
+      "de": "    if r.returncode:\n        return None, None, \"gh sem rede",
+      "para": "    if False:\n        return None, None, \"gh sem rede",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "o número do PR é inteiro positivo",
+      "arquivo": "bin/forge-check",
+      "de": "or int(numero) < 1:",
+      "para": "or int(numero) < 0:",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_numero_invalido_ou_com_ref_recusa"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "--pr e --ref não se combinam",
+      "arquivo": "bin/forge-check",
+      "de": "        if a.ref is not None:\n            print(\"pr: --pr e --ref",
+      "para": "        if False:\n            print(\"pr: --pr e --ref",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_numero_invalido_ou_com_ref_recusa"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "a branch do PR escolhe o parecer",
+      "arquivo": "bin/forge-check",
+      "de": "    branch = branch or branch_da_ref(raiz, ref)",
+      "para": "    branch = branch_da_ref(raiz, ref)",
+      "testes": [
+        "tests.test_forge.PrMescladoPeloHead.test_pr_mesclado_confere_no_head_e_pela_branch_dele"
+      ]
+    }
+  ]
+}
