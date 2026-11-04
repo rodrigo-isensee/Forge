@@ -17,7 +17,7 @@ Controles do Forge (R-SEGURANCA): `bin/forge-check` (`pr`, `entrega`, `brief`), 
 
 ## Achados
 - A3 (recomendado) bin/forge-check:858 · `gh pr view <n>` sem `--repo` usa o repositório padrão do gh; com mais de um remoto (fork e origem), o #n pode ser de outro repositório. Passe `--repo` do origin ou imprima a URL do PR.
-- A4 (recomendado) bin/forge-check:685 · `promocao` compara o head com `refs/remotes/origin/<b>` local (ou a branch local sem remoto); um `git update-ref` local dessa ref faz uma branch de trabalho passar por promoção sem a conferência do head. Confirme a ponta por `git ls-remote origin`.
+- A4 (recomendado) bin/forge-check:686 · `promocao` compara o head com `refs/remotes/origin/<b>` local (ou a branch local sem remoto); um `git update-ref` local dessa ref faz uma branch de trabalho passar por promoção sem a conferência do head. Confirme a ponta por `git ls-remote origin`.
 
 ## Detalhe dos achados
 **Respostas ao foco.**
