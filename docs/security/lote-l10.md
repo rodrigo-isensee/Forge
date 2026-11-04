@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: effbe5b1b16cedb1c84698afcf4921c053692c48
+commit: fd7b1449476c771f60ee4607e083b503777e2ed6
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -16,9 +16,9 @@ Escopo: só o delta `51ef12d..effbe5b` (o L09 tem parecer próprio): `bin/forge-
 Controles do Forge (`R-SEGURANCA`): a conferência da volta (R-BRIEF, `SECOES_COPIADAS`), com afrouxamento dentro do limite da Q14 = A. O PR precisa do rótulo `afrouxa-regra`, que só o dono aplica.
 
 ## Achados
-- A1 (recomendado) bin/forge-check:1828 · a prova de abertura conta a partir da primeira linha do Histórico que cita o nome do brief anterior, qualquer que seja; um nome curto ou genérico abre a janela cedo. Amarrar a linha à forma da delegação ou exigir o nome na convenção `<pedido>-<destino>-<n>`.
-- A2 (recomendado) bin/forge-check:2018 · a conferência lê `Cobre:`/`Etapa:` do brief da volta e o gerador os do anterior (`:1964`); passe à função a união dos dois, para a mesma decisão nos dois lados (C-5) mesmo se o cabeçalho da volta for editado.
-- A3 (recomendado) bin/forge-check:1818 · `ETAPA_ABERTA` aceita qualquer texto depois de `aberta` (ex.: `aberta? não, cancelada`); ancorar o fim (`aberta\s*$` ou `aberta(\s+\(.*\))?$`) se o Jarvis não anota a linha.
+- A1 (recomendado) bin/forge-check:1842 · a prova de abertura conta a partir da primeira linha do Histórico que cita o nome do brief anterior, qualquer que seja; um nome curto ou genérico abre a janela cedo. Amarrar a linha à forma da delegação ou exigir o nome na convenção `<pedido>-<destino>-<n>`.
+- A2 (recomendado) bin/forge-check:2032 · a conferência lê `Cobre:`/`Etapa:` do brief da volta e o gerador os do anterior (`:1964`); passe à função a união dos dois, para a mesma decisão nos dois lados (C-5) mesmo se o cabeçalho da volta for editado.
+- A4 (recomendado) bin/forge-check:4614 · `secoes_por` corta o Histórico com `str.splitlines()`, que também quebra em `\x0b`, `\x0c`, `\x1c`-`\x1e`, `\x85`, U+2028 e U+2029; `aberta<VT>não, cancelada` ainda prova a abertura. Cortar só em `\n` ou recusar esses caracteres no Histórico.
 
 ## Detalhe dos achados
 **Controles (C-n) por teste.** `BriefDeVolta.test_volta_acrescenta_so_a_etapa_aberta_depois_do_brief_anterior` (`tests/test_volta_por_delta.py:855-893`):
@@ -47,6 +47,12 @@ Controles do Forge (`R-SEGURANCA`): a conferência da volta (R-BRIEF, `SECOES_CO
 **A3.** Evidência: `bin/forge-check:1818`. Caminho: anotação humana na linha de abertura que a desmente. Severidade informativa (os pedidos reais anotam a cauda de linhas do Histórico, então ancorar o fim exige combinar a forma com o Jarvis). Esforço P. Dono: tech-lead.
 
 **Fora do delta (informativo, sem achado):** `blocos_literais` (`:1704-1715`) ignora o conteúdo de uma segunda seção com o mesmo nome. Uma volta com um segundo `## Fora do escopo` no fim escapa da comparação byte a byte. Isso já valia antes do E14, e o conferente lê o brief inteiro. Vale um item à parte do tech-lead: seção repetida no brief reprova.
+
+## Revalidação (f25db72; commit do parecer fd7b144, teste do QA, E16)
+A pergunta da rodada foi se alguma recusa passou a liberar. Não passou. No `bin/forge-check`, o delta `effbe5b..f25db72` traz só duas mudanças. Uma é a `promocao` do L08 (`a46eab7`), que veio pelo merge e já foi revisada no parecer do L08. A outra é o `08aa2a4` (QA L10-1): `ETAPA_ABERTA` passou de `aberta\b` para `aberta\s*$`, o que só aperta. O `bin/forge-testes` só acrescenta módulos ao mapa. O resto é teste do QA e mutante.
+- A3 fechado pelo `08aa2a4`: `aberta-nao`, `aberta nao`, `aberta.`, `aberta` seguida de U+200B, de acento combinante ou de NUL não provam mais a abertura.
+- Sufixos que ainda passam, pela sonda da função `etapas_novas_da_volta`: só espaço em branco (`" "`, `\t`, `\r`, U+00A0, U+2003), que não carrega texto, e os separadores de linha do `str.splitlines()` seguidos de texto, por exemplo `aberta` + `\x0b` + `não, cancelada`. Nesse caso o `secoes_por` parte a linha física em duas e a primeira casa. É o A4: recomendado, severidade baixa. Para usar, o próprio Jarvis (único com escrita em `docs/pedidos/`) teria de gravar um caractere de controle no meio da linha. Não é regressão: com `aberta\b` passava igual. A mesma divisão vale para as outras linhas do Histórico lidas por `secoes_por`, como a `entrega conferida` do E7, e cabe num item próprio.
+- O `commit:` deste parecer é o `fd7b144`, o teste do QA (regra E16). Depois dele só entram o merge do L08 e do L09 e o mapa, já revisados nos pareceres deles, e a linha do L10 no mapa, que só acrescenta. As linhas do `## Achados` seguem este head. Testes: `test_volta_por_delta.py`, `test_qa_lote_l10.py` e `test_testes_tocados.py` (68, 1 e 86 testes): OK.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito por este parecer. O afrouxamento é o da Q14 = A, decisão do dono, e o rótulo `afrouxa-regra` fica com ele. Testes: `python3 -I -m unittest discover -s tests -p test_volta_por_delta.py` (68 testes, OK). A sonda local de `etapas_novas_da_volta` (seis casos) rodou no scratchpad, fora do repositório. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência).
