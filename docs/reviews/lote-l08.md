@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 874c89ec82a86840262c5c4a5b93eba48554eb5c
+commit: 79256408521daeb3c1ca57261b690614b1e12699
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -13,17 +13,14 @@ data: 2026-11-04
 Primeira rodada: lida a branch inteira, de 4f53bde a 874c89e, um commit por item.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:685 · E7: com --ref sha (como o forge-fechar chama) a ref fica sem branch, os briefs não são lidos e o pr aprova sem conferida. Sonda: rc 0 com o sha, rc 1 com a branch. Falha aberta no merge (D07). Ache a branch do sha ou exija o pedido.
-- A2 (bloqueante) agents/conferente.md:85 · E12: o texto ainda exige que o Desde seja a última conferida do pedido e só aceita o Base-sha depois de squash. O Desde novo, da própria branch, sai como "diverge do Histórico". Alinhe aqui e em skills/briefs-e-conferencia/SKILL.md:10.
-- A3 (recomendado) docs/regras/R-PROVA.md:14 · E7: a regra diz que depois da conferida só mudam pareceres e quadro, mas o código também libera changelog.d/<pedido>.md (bin/forge-check:722). Alinhe o texto ou o código.
-- A4 (recomendado) bin/forge-check:720 · E7: o pedido sem ## Histórico só gera aviso, mas a R-PROVA diz que nada vai ao merge sem a linha. Escreva a exceção na regra ou recuse.
-- A5 (recomendado) agents/jarvis.md:37 · E7: o texto diz que o forge-check pr cobra a linha, mas não diz que o forge-fechar para no passo 1 sem ela nem que a linha precisa estar gravada antes do fechamento. Cite isso também em docs/fechamento-integrador.md:14.
+- A9 (bloqueante) bin/forge-check:744 · E7: a falha fechada sem pedido para o scripts/promover-homolog.py:150 (forge-check pr release-<v> --base main); test_promover_homolog dá 20 falhas em 7925640 e OK em 874c89e. Trava a promoção da 0.33
+- A10 (recomendado) bin/forge-check:751 · E7: com docs/pedidos/release-<v>.md presente, a conferida é da branch da release e a ref da promoção é o squash na develop, que não a tem como ancestral; decida se a promoção cobra a conferência
 - A6 (recomendado) bin/forge-check:835 · E10: se o gh mentir com um head antigo da branch, presente no clone e com pareceres válidos, o pr passa. Compare o patch do head sobre a base com o do squash (patch-id).
 - A7 (recomendado) tests/test_forge.py:5710 · E10: o gh falso ignora os argumentos e aceitaria outro número ou outros campos. Faça o falso conferir `pr view 7 --json state,headRefOid,headRefName` (checklist 12).
 - A8 (recomendado) bin/forge-check:5671 · E19: o brief gerar não tem a etapa ato-github, então o Jarvis escreve o brief à mão. Abra um cartão para o gerar.
 
 ## Parecer
-Reprovado: há dois bloqueantes.
+Rodada 1 (874c89e): reprovado por dois bloqueantes, A1 (bin/forge-check:685, --ref sha sem branch, falha aberta) e A2 (agents/conferente.md:85, Desde da própria branch), com os recomendados A3 a A8. A1 a A5 foram resolvidos na volta 1 e saíram do bloco de achados. Rodada 2 (7925640): ver "Revalidação (volta 1)" no fim.
 
 Por item:
 - E10 CONF-MERGE-APOS-SQUASH (Q13 = A): aprovado. O pr confere no headRefOid, nunca no squash. Com o gh falhando, com JSON quebrado, PR aberto, head curto ou ausente do clone, nome com caractere de controle ou estado que não é texto, sai rc 2 e não confere nada. É falha fechada, e os testes cobrem cada caso. O gh que mente com um head válido só é pego pelo A6, que fica como recomendado.
@@ -35,3 +32,34 @@ Por item:
 Teto (M14): dispensado pela DECISÃO DO DONO de 2026-11-03 10:06 ("B"). O corpo do PR traz a linha `teto: excedido`, aceita aqui.
 Segurança: o gatilho são os controles do Forge, e o parecer é do security-engineer (docs/security/lote-l08.md). Não refiz essa análise.
 Testes rodados, um módulo por vez, com `python3 -I -m unittest discover -s tests -p <arq>`: test_forge, test_mensagem_conferente, test_volta_por_delta, test_conferencia_base_dono, test_erros_no_brief, test_etapa_do_brief e test_isencoes, todos com rc=0.
+
+## Revalidação (volta 1)
+Revisado: 7925640, o head da volta. `forge-check delta --parecer docs/reviews/lote-l08.md 7925640` deu o intervalo 874c89e..7925640, com 16 arquivos. Li só esses trechos; o resto da branch, lido na rodada 1, fica como "já lido". Nesta branch de review, o commit do parecer da rodada 1 (ac80ff0) foi reaplicado sobre 7925640, sem mudar o texto, antes da revalidação. O commit 4b43e23 (testes do QA, depois de 7925640) fica fora deste review.
+
+Veredito: **reprovado**, com um bloqueante novo (A9). A1 a A5 foram resolvidos. A6 a A8 seguem recomendados e não devolvem.
+
+Pontos pedidos:
+- (a) Alcance da falha fechada. No `brief gerar`, o alcance é aceitável. Na etapa `qa`, `pareceres_da_etapa` (bin/forge-check:5707) fica só com as linhas `docs/reviews`, então a linha da conferência não trava o brief do QA. Nas etapas `pr` e de merge, e no `entrega --etapa merge-integracao` (via `pareceres_da_integracao`, bin/forge-check:1370), cobrar a conferida é o que a R-PROVA já manda; a mudança só antecipa a recusa do merge.
+  O alcance vai além do que a volta descreve. O `pr_da_cli` também atende ao `scripts/promover-homolog.py:150`, que roda `forge-check pr release-<versão> --ref origin/develop --base main`. Sem `docs/pedidos/release-<versão>.md`, a promoção para em "sem o pedido": é o A9, defeito provado. Com o pedido presente, a promoção para mesmo assim pelo A10, que está latente desde 87d34cf.
+  Reprodução: `python3 -I -m unittest discover -s tests -p test_promover_homolog.py` dá rc 1 em 7925640 (20 falhas, todas com `pr: conferência: sem o pedido de "release-0.2.0"`) e rc 0 em 874c89e.
+  Correção mínima sugerida: a conferência do head não vale na promoção (`--base main` com ref `develop`), ou o promover-homolog trata a linha `pr: conferência:` como as de `PARECERES_DA_LEVA`, com teste. A escolha é do autor com o arquiteto, sem afrouxar o `forge-fechar`.
+- (b) `tests/apoio_conferida.py` e o RepoComOrigem não mascaram teste.
+  - O `gravar_conferida` grava a linha do head que vai ser lido, num pedido do HOME do teste.
+  - As classes que testam a conferência desligam a gravação e gravam a própria linha: `ConferenciaPresaAoHead.CONFERIR = False`, e `conferir=False` em `test_pr_sem_pareceres`, `test_md_comum_sem_review_reprova_pela_r_review` e `PrMescladoPeloHead`.
+  - Tirar `docs/pedidos/p1.md` do commit base não muda nenhuma asserção. O arquivo nunca entrava no diff, e o `LerDirigidoDoBrief` agora o grava na cópia. As classes que leem o pedido (`PrAposMergeDaBase`, `EntregaAtoGithub`, `BaseShaDoBrief`) já o escreviam no HOME, e as asserções delas não mudaram.
+- (c) O conflito com a develop em `skills/briefs-e-conferencia/SKILL.md:10` não é achado. As duas edições caem em trechos diferentes da mesma linha: a develop (TEMPO-B1, #441) mexe no formato da mensagem, e o E12 mexe no `Desde:`. O `git merge-tree 7925640 origin/develop` mostra conflito só nesse arquivo. A resolução que já está no L09 (3a09c5a) junta os dois lados; conferi os dois trechos no resultado. O conflito se resolve no merge (R-FLUXO), e o `forge-check pr` aponta se a resolução invalida os pareceres.
+
+Volta 1, por commit:
+- ac8921c (E7): resolve o A1 e o A4. A forma estrita `- <data> <hora>: entrega conferida <sha40>` aperta o portão, e a branch ambígua falha fechada.
+- 1a4bc84 (E12): texto alinhado.
+- b8d2aad (E19): o tipo da PQ em minúsculas está certo e testado.
+- 7925640: a develop no mesmo sha não tira a branch de trabalho.
+
+Testes e mutantes desta rodada, em 7925640, um módulo por vez (`python3 -I -m unittest discover -s tests -p <arq>`):
+- test_fechar: rc=0, 91 testes
+- test_isencoes: rc=0, 5
+- test_volta_por_delta: rc=0, 67
+- test_etapa_do_brief: rc=0, 65
+- test_forge: rc=0, 509
+- test_promover_homolog: rc=1, 20 falhas. Rodei por dúvida sobre o alcance do item (a).
+- `bin/forge-mutante tests/mutantes/lote-l08-{e7,e7b,e10,e19}.json`: rc=0 nas quatro specs, todos os mutantes mortos.
