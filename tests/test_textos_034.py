@@ -45,5 +45,13 @@ class AchadoTetoDoc(unittest.TestCase):
             self.assertIn("até 300 caracteres sem contar o prefixo", ler("agents", nome + ".md"), nome)
 
 
+class PermissaoAgentesMd(unittest.TestCase):
+    def test_skill_manda_avisar_antes_de_delegar_edicao_de_agents(self):
+        texto = ler("skills", "trabalho-em-paralelo", "SKILL.md")
+        self.assertIn("**Delegação que edita `agents/*.md`:**", texto)
+        self.assertIn("precisa de uma regra de permissão para editar `agents/**`", texto)
+        self.assertIn("não contorna por script (`R-CONFORMIDADE`)", texto)
+
+
 if __name__ == "__main__":
     unittest.main()
