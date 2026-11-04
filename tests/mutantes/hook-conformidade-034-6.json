@@ -38,8 +38,8 @@
       "id": "M20",
       "guarda": "o marcador crítico vale também na forma juntada (prazo e falha fechada)",
       "arquivo": "hooks/_comum.py",
-      "de": "hook.marcado = critico.search(texto) is not None or critico.search(juntar_continuacoes(texto)) is not None",
-      "para": "hook.marcado = critico.search(texto) is not None",
+      "de": "any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])",
+      "para": "any(critico.search(t) is not None for t in [texto])",
       "testes": [
         "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
       ]
@@ -48,8 +48,8 @@
       "id": "M21",
       "guarda": "na sessão do Forge, o rótulo se confere também na forma juntada",
       "arquivo": "hooks/conformidade.py",
-      "de": "        if juntar_continuacoes(comando) != comando:  # HOOK-CONTINUACAO-LINHA",
-      "para": "        if False:  # HOOK-CONTINUACAO-LINHA",
+      "de": "        for forma in formas_que_o_shell_le(comando):  # HOOK-CONTINUACAO-LINHA: a juntada e a do",
+      "para": "        for forma in []:  # HOOK-CONTINUACAO-LINHA: a juntada e a do",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]
@@ -98,8 +98,8 @@
       "id": "M28",
       "guarda": "A3: o prefiltro do parecer lê g\\h como gh",
       "arquivo": "hooks/parecer.py",
-      "de": "comando.replace(\"\\\\\", \"\")]",
-      "para": "comando]",
+      "de": "for g in (f, re.sub(r\"[\\\\'\\\"]\", \"\", f))",
+      "para": "for g in (f,)",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]

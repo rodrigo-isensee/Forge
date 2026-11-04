@@ -1531,8 +1531,8 @@ class Guarda:
         outro erro sobe a `principal`, que barra se a linha cita o rótulo."""
         if nivel > PROFUNDIDADE:
             return
-        if juntar_continuacoes(comando) != comando:  # HOOK-CONTINUACAO-LINHA: a forma juntada também
-            self.rotulo_na_sessao_do_forge(juntar_continuacoes(comando), pasta, nivel)
+        for forma in formas_que_o_shell_le(comando):  # HOOK-CONTINUACAO-LINHA: a juntada e a do `$'…'` também
+            self.rotulo_na_sessao_do_forge(forma, pasta, nivel)
         try:
             sem_heredoc, corpos = tirar_heredocs(comando)
             for interno in conteudos_de_crase(sem_heredoc):  # a crase é um `$(...)`: o mesmo caminho

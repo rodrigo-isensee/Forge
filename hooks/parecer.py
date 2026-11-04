@@ -643,8 +643,8 @@ def merge_por_api(hook, pasta, args):
 
 def principal(hook):
     comando = hook.campo("tool_input", "command")
-    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not any(  # HOOK-CONTINUACAO-LINHA: e `g\h`
-            PREFILTRO.search(f) for f in [comando, *formas_que_o_shell_le(comando, True), comando.replace("\\", "")]):
+    if hook.campo("tool_name") != "Bash" or not isinstance(comando, str) or not any(  # HOOK-CONTINUACAO-LINHA: e `g\h`, `g'h'`
+            PREFILTRO.search(g) for f in [comando, *formas_que_o_shell_le(comando, True)] for g in (f, re.sub(r"[\\'\"]", "", f))):
         return
     conferir_linha(hook, SED_LE.sub(r"cat\2", comando), [(hook.cwd(), {}, SEM_AMBIENTE)])
 

@@ -361,13 +361,37 @@ def expandir_heredoc(corpo):
 
 
 def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
-    """As formas do texto, além da escrita, que o shell pode ler: a juntada e, no corpo de heredoc, a expandida e a
-    juntada dela. Quem confere confere todas (a união, como na I2)."""
-    formas = [juntar_continuacoes(texto)]
+    """As formas do texto, além da escrita, que o shell pode ler: a juntada, a com o `$'…'` decodificado e, no corpo
+    de heredoc, a expandida e a juntada dela. Quem confere confere todas (a união, como na I2)."""
+    formas = [juntar_continuacoes(texto), ansi_c_decodificado(texto)]
     if corpo_de_heredoc:
         expandida = expandir_heredoc(texto)
         formas += [expandida, juntar_continuacoes(expandida)]
     return [f for f in dict.fromkeys(formas) if f != texto]
+
+
+def ansi_c_decodificado(texto):
+    """HOOK-CONTINUACAO-LINHA, A5 da segurança: o texto com cada `$'…'` fora de aspas trocado pelo conteúdo
+    decodificado entre aspas simples, em qualquer ponto da palavra (`g$'\\x68'`, `gh $'r\\x65po'`)."""
+    saida, i, aspas = [], 0, None
+    while i < len(texto):
+        c = texto[i]
+        if aspas != "'" and c == "\\":
+            saida.append(texto[i:i + 2])
+            i += 2
+            continue
+        if aspas is None and texto.startswith("$'", i):
+            fim = i + 2
+            while fim < len(texto) and texto[fim] != "'":
+                fim += 2 if texto[fim] == "\\" else 1
+            saida.append("'" + decodificar_ansi_c(texto[i + 2:fim]).replace("'", "'\\''") + "'")
+            i = fim + 1
+            continue
+        if c in "'\"" and aspas in (None, c):
+            aspas = None if aspas else c
+        saida.append(c)
+        i += 1
+    return "".join(saida)
 
 
 ANSI_C = re.compile(r"\\(x[0-9A-Fa-f]{1,2}|u[0-9A-Fa-f]{1,4}|U[0-9A-Fa-f]{1,8}|[0-7]{1,3}|c.|.)", re.S)
@@ -2477,7 +2501,7 @@ def marcado(hook, critico, bruto):
     decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
     if hook.marcado is None:
         texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
-        hook.marcado = critico.search(texto) is not None or critico.search(juntar_continuacoes(texto)) is not None
+        hook.marcado = any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])
     return hook.marcado
 
 

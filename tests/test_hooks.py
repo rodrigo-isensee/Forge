@@ -2179,6 +2179,12 @@ class Hooks(unittest.TestCase):
         _comum, _, _ = modulos_dos_hooks()
         self.assertEqual(_comum.decodificar_ansi_c(r"g\x68 \151 \cA \u00e9 \n \q \xg"), "gh i \x01 \u00e9 \n \\q \\xg")
 
+    def test_ansi_c_decodificado_no_texto(self):  # HOOK-CONTINUACAO-LINHA, A5 da segurança
+        _comum, _, _ = modulos_dos_hooks()
+        for escrito, lido in ((r"g$'\x68' x", "g'h' x"), (r"echo 'x$' $'\x68'", "echo 'x$' 'h'"), (r"$'a\'b' c", "'a'\\''b' c"),
+                              (r"echo 'a\' $'\x68'", r"echo 'a\' 'h'"), (r"""echo "$'\x68'" \$'y'""", r"""echo "$'\x68'" \$'y'""")):
+            self.assertEqual(_comum.ansi_c_decodificado(escrito), lido, escrito)
+
     def test_marcador_critico_tambem_na_forma_juntada(self):  # HOOK-CONTINUACAO-LINHA
         _comum, conformidade, _ = modulos_dos_hooks()
         for comando, marcado in (("g\\\nit push origin main", True), ("echo a \\\nb", False)):
