@@ -1,10 +1,7 @@
-"""QA do AVISO-VERSAO-UMA-VEZ (pedido versao-033): o hook `doutor.py` roda de verdade, com virada de dia real (FORGE_HOJE por chamada,
-sem editar o cache), remoto git local e raiz descartável. Obrigação: a mesma versão nova avisa uma vez; versão mais nova volta a avisar;
-o cache segue provando o atraso para o `forge-check`; cache adulterado não esconde aviso nem derruba o hook."""
+"""QA do AVISO-VERSAO-UMA-VEZ (versao-033): hook real, virada de dia por FORGE_HOJE, remoto git local e raiz descartável."""
 import importlib.machinery
 import importlib.util
 import json
-import shutil
 import subprocess
 import sys
 import unittest
@@ -13,16 +10,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_doutor as td  # noqa: E402
 
-RAIZ = td.RAIZ
 DIAS = ["2026-11-01", "2026-11-02", "2026-11-03", "2026-11-04"]
 
 
 class AvisoUmaVezPontaAPonta(td.DoutorVersao):
-
     def stop_em(self, dia):
-        entrada = {"hook_event_name": "Stop", "session_id": "s1", "cwd": str(self.proj)}
-        env = dict(self.env, FORGE_HOJE=dia)
-        r = subprocess.run([sys.executable, str(td.HOOK)], input=json.dumps(entrada), env=env, cwd=self.proj,
+        entrada = json.dumps({"hook_event_name": "Stop", "session_id": "s1", "cwd": str(self.proj)})
+        r = subprocess.run([sys.executable, str(td.HOOK)], input=entrada, env=dict(self.env, FORGE_HOJE=dia), cwd=self.proj,
                            capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, r.stderr)
         return r.stdout
@@ -69,38 +63,23 @@ class AvisoUmaVezPontaAPonta(td.DoutorVersao):
         nova = self.mais_nova()
         self.tag(f"v{nova}")
         self.assertTrue(self.avisa(DIAS[0], nova))
-        arq = self.proj / ".forge/run/versao-nova"
-        for lixo in ({"avisado": "true", "atual": self.versao, "ultima": nova, "defasado": True, "data": DIAS[0]},
-                     {"avisado": 1, "atual": self.versao, "ultima": nova, "defasado": True, "data": DIAS[0]}):
-            arq.write_text(json.dumps(lixo), encoding="utf-8")
-            self.assertTrue(self.avisa(DIAS[1], nova), lixo)  # só `True` literal silencia
-        arq.write_text("{não é json", encoding="utf-8")
-        self.assertTrue(self.avisa(DIAS[2], nova))
-        arq.write_text("[1,2]", encoding="utf-8")
-        self.assertTrue(self.avisa(DIAS[3], nova))
+        par = {"atual": self.versao, "ultima": nova, "defasado": True, "data": DIAS[0]}
+        for dia, lixo in zip((DIAS[1], DIAS[1], DIAS[2], DIAS[3]),  # só `True` literal silencia; JSON inválido e lista não derrubam
+                             (json.dumps({**par, "avisado": "true"}), json.dumps({**par, "avisado": 1}), "{não é json", "[1,2]")):
+            (self.proj / ".forge/run/versao-nova").write_text(lixo, encoding="utf-8")
+            self.assertTrue(self.avisa(dia, nova), lixo)
 
     def test_o_forge_check_le_o_atraso_do_cache_mesmo_calado(self):  # o cache continua provando para o forge-check
         nova = self.mais_nova()
         self.tag(f"v{nova}")
-        self.avisa(DIAS[0], nova)
-        self.avisa(DIAS[1], nova)
+        self.assertEqual([self.avisa(d, nova) for d in DIAS[:2]], [True, False])
         self.assertEqual(self.cache()["avisado"], True)
-        carregador = importlib.machinery.SourceFileLoader("forge_check_qa", str(RAIZ / "bin/forge-check"))
-        spec = importlib.util.spec_from_loader("forge_check_qa", carregador)
-        fc = importlib.util.module_from_spec(spec)
+        carregador = importlib.machinery.SourceFileLoader("forge_check_qa", str(td.RAIZ / "bin/forge-check"))
+        fc = importlib.util.module_from_spec(importlib.util.spec_from_loader("forge_check_qa", carregador))
         carregador.exec_module(fc)
         fc.versao_da_propria_copia = lambda: self.versao
-        estado, _ = fc.comparar_com_o_cache_do_projeto(self.proj)
-        self.assertEqual(estado, "atrasada")
+        self.assertEqual(fc.comparar_com_o_cache_do_projeto(self.proj)[0], "atrasada")
 
 
 def load_tests(loader, tests, pattern):  # só os testes desta classe, não os herdados do DoutorVersao
-    suite = unittest.TestSuite()
-    for nome in AvisoUmaVezPontaAPonta.__dict__:
-        if nome.startswith("test_"):
-            suite.addTest(AvisoUmaVezPontaAPonta(nome))
-    return suite
-
-
-if __name__ == "__main__":
-    unittest.main()
+    return unittest.TestSuite(AvisoUmaVezPontaAPonta(n) for n in AvisoUmaVezPontaAPonta.__dict__ if n.startswith("test_"))
