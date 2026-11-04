@@ -16,7 +16,7 @@ from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 
 
-class GuardaDoConferente(Cenario):
+class ProjetoDoConferente(Cenario):
     """M6 (R-BRIEF): o hook `agentes` recusa o `forge:conferente` sem o cabeçalho da mensagem; o arquivo do brief existe no
     projeto e o hash do cabeçalho é o dele (AGT-2: o hook o recalcula)."""
 
@@ -34,6 +34,9 @@ class GuardaDoConferente(Cenario):
             (self.projeto / "docs" / "briefs" / nome).write_bytes(conteudo)
         self.HASH = hashlib.sha256(conteudo).hexdigest()
 
+
+
+class GuardaDoConferente(ProjetoDoConferente):
     def no_projeto(self, mensagem):
         """A mensagem real do `forge-check brief mensagem` (gerada na raiz do cenário) com o brief copiado para o projeto do hook."""
         origem = (self.tmp / ARQ).resolve()
@@ -118,11 +121,8 @@ class GuardaDoConferente(Cenario):
         self.assertEqual(r.returncode, 0, r.stderr)
 
 
-class LeituraDeGitDoConferente(Cenario):
+class LeituraDeGitDoConferente(ProjetoDoConferente):
     """E8 (C-1 a C-6): `git branch` e `git worktree` do `forge:conferente` só nas formas de leitura do modelo."""
-
-    def setUp(self):
-        GuardaDoConferente.setUp(self)  # o mesmo projeto e o mesmo proc, sem repetir os testes do lançamento
 
     def bash(self, comando):
         entrada = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "session_id": "s", "cwd": str(self.projeto),
