@@ -4914,6 +4914,53 @@ class LerDirigidoDoBrief(RepoComOrigem):
         self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
 
 
+class PareceresComDocsUx(RepoComOrigem):
+    """E9 (PARECER-UX-LIVRE): `docs/ux/` entra em LIVRES, e só ela (C-1 a C-3); os pareceres seguem válidos só para commit nessa pasta."""
+
+    def ver(self, arquivos, mensagem="muda depois do parecer"):
+        self.commitar(self.repo, arquivos, mensagem)
+        return self.pr("--base", "develop")
+
+    def test_livres_tem_exatamente_estas_entradas(self):  # C-1
+        fc = carregar_forge_check()
+        self.assertEqual(fc.LIVRES, ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/", "docs/ux/"))
+        self.assertTrue(fc.livre("docs/ux/a.md", fc.LIVRES))
+
+    def test_commit_so_em_docs_ux_nao_invalida(self):  # C-3
+        rc, saida, _ = self.ver({"docs/ux/a.md": "tela\n"})
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+    def test_nomes_parecidos_invalidam(self):  # C-3
+        for nome in ("docs/ux-x/a.md", "docs/UX/a.md", "docs/uxa.md"):
+            with self.subTest(nome):
+                antes = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+                rc, saida, _ = self.ver({nome: "x\n"})
+                git("reset", "-q", "--hard", antes, cwd=self.repo)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(f"desatualizado: {nome}", saida)
+
+    def test_renome_de_hooks_para_docs_ux_invalida(self):  # C-3: --no-renames lista o nome antigo
+        self.commitar(self.repo, {"hooks/x.py": "x = 1\n"}, "hook")
+        self.pareceres(git("rev-parse", "HEAD", cwd=self.repo).stdout.strip())
+        (self.repo / "docs" / "ux").mkdir(parents=True)
+        git("mv", "hooks/x.py", "docs/ux/x.py", cwd=self.repo)
+        git("commit", "-q", "-m", "renomeia", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: hooks/x.py", saida)
+
+    def test_docs_ux_mais_um_byte_em_bin_invalida(self):  # C-3
+        rc, saida, _ = self.ver({"docs/ux/a.md": "tela\n", "bin/forge-x": "#!/bin/sh\n"})
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: bin/forge-x", saida)
+
+    def test_merge_da_develop_so_com_docs_ux_nao_invalida(self):  # C-3
+        self.develop_anda({"docs/ux/b.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+
 class PrAposMergeDaBase(RepoComOrigem):
     """E4 (CONF-MERGE-ESCOPO): o merge da develop depois do parecer não o invalida, por CONTEÚDO e lendo `origin/<base>`; nenhum byte
     do commit de merge escapa; `--base` só aceita as bases do fluxo; os gatilhos de segurança seguem o diff da branch (abusos 7 a 13)."""

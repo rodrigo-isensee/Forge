@@ -138,7 +138,7 @@ COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 INTEIRO = re.compile(r"^\d+$")
 PARECER = {"aprovado", "reprovado"}
 # Caminhos que um commit posterior pode tocar sem invalidar o parecer (ADR 0004, item 3).
-LIVRES = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/")
+LIVRES = ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/", "docs/ux/")
 COLUNAS = ["ID", "Cartão", "Pedido", "Responsável", "Entrou", "Na coluna desde", "Obs."]
 ID_RESP = re.compile(r"^(forge:[a-z0-9][a-z0-9-]*|usuário)$")
 
