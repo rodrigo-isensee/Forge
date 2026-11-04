@@ -35,12 +35,12 @@ Quando o Forge recusar algo que a pessoa pediu (recusa de hook, F4), o doutor ou
 - Registre a mudança num fragmento em `changelog.d/`: `bin/forge-changelog novo <Adicionado|Alterado|Corrigido> "<texto>"` (arquivo `changelog.d/<branch-sem-prefixo>.md`; não edite o `CHANGELOG.md`). **Não** suba a versão em `.claude-plugin/plugin.json`: a versão é decidida na release pelo `tech-lead`.
 
 ## 5. Antes do PR, no clone de contribuição
+A sessão de projeto **não roda a suíte inteira do Forge** (`python3 -m unittest discover -s tests`): quem a roda é o CI do PR, que não custa nada no repositório público (`R-CUSTO`). Rode só os testes dos arquivos que você tocou e os dois comandos abaixo.
 ```bash
-python3 -m unittest discover -s tests -v
 scripts/validar-plugin.sh                  # cópia limpa em $TMPDIR (o sandbox suja a raiz; o CI usa claude plugin validate . --strict)
 scripts/verificar-contribuicao.sh        # segredos e caminhos pessoais no diff
 ```
-Falhou? Corrija e rode de novo; o PR só sai com as três verdes.
+Falhou? Corrija e rode de novo; o PR só sai com as duas verdes e os testes dos arquivos tocados.
 
 ## 6. Abra o PR para a `develop`
 Use `.github/pull_request_template.md` e preencha:
