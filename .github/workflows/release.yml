@@ -12,15 +12,18 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-24.04
-    # 20 min: a Release da v0.30.4 cancelou duas vezes aos 10m09s com 10 min (run 40654086533)
-    timeout-minutes: 20
+    # 25 min: a suíte em série estourou 20 min na v0.32.0 (run 41748756935); agora roda em paralelo, como o CI
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           persist-credentials: false  # o token só serve ao `gh release`, não aos testes
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
       - name: Testes antes de publicar
-        run: python3 -m unittest discover -s tests -q
+        run: python3 scripts/suite-paralela.py
       - name: Tag e release
         env:
           GH_TOKEN: ${{ github.token }}
