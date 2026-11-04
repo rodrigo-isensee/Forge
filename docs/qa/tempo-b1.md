@@ -42,9 +42,10 @@ A mensagem ao `forge:conferente` leva só o cabeçalho, com `Arquivo:` e `Brief-
 - Fixtures e acessibilidade: não se aplicam (sem tela).
 
 ## Achados
-- A1 (recomendado) docs/regras/R-BRIEF.md:11 · já registrado no review A1 (regra ainda descreve o texto integral); sem achado novo de QA.
+(nenhum)
 
-Nenhum achado novo bloqueante. Os recomendados do review (A1, A2) e da segurança (A1, A2, A3) seguem para o E15.
+## Registrados nos outros pareceres
+Os recomendados do review (A1, A2) e da segurança (A1, A2, A3) seguem para o E15; sem achado novo de QA.
 
 ## Parecer
 Aprovado: comportamento igual ao da base para toda entrada recusada, forma curta liberada, saída do `forge-check` só com cabeçalho.
