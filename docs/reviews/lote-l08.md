@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 318a4374a16a4662fcb1504565535f0caf92dcf4
+commit: 04437d12dfb5579af2dafaf065c06bf6457f7938
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -93,3 +93,13 @@ Testes e mutantes desta volta:
 - `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead`: rc=0 (9).
 - `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py`: rc=0 (21).
 - `bin/forge-mutante tests/mutantes/lote-l08-e7b.json`: rc=0 em 3839cf9, com M36, M37, M50, M51 e M52 mortos.
+
+## Revalidação (volta 3: mapa do forge-testes)
+Revisado: 04437d1. Li só o delta 51eeeac..04437d1, que tem 5 arquivos; o resto fica como "já lido". Veredito: **aprovado**, sem achado novo.
+- `FecharComOForgeCheckReal` saiu de `tests/test_fechar.py` e foi para `tests/test_fechar_forge_check_real.py`. Comparei as duas versões da classe: são iguais, salvo a qualificação `base.Fechar` e `base.RAIZ`. O módulo novo importa `test_fechar` como módulo, e não a classe, para que os testes do `Fechar` não sejam coletados de novo. Assim, os `test_fechar_*` deixam de depender do `forge-check`.
+- `tests/test_qa_lote_l08.py` passa a importar a classe do módulo novo. O `load_tests` dele continua só com os testes próprios.
+- `bin/forge-testes`: `test_fechar_forge_check_real` e `test_qa_lote_l08` entram no `FORGE_CHECK`, e o `test_testes_tocados` passa a esperar 39 módulos.
+
+Testes, em 04437d1:
+- `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: rc=0 (86 testes).
+- `python3 -I -m unittest discover -s tests -p test_fechar_forge_check_real.py`: rc=0 (2 testes).

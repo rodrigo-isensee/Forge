@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 61e72dd9b86320e2ce4295a8b7a56553623a0389
+commit: d4d1ca79ed7c5436d219f20a41c31520a0afa027
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -32,3 +32,8 @@ Código testado: 882a7dd7fa933f473d82fcac65c94517b6fb46fa (patch bc6d081), head 
 - `bin/forge-mutante tests/mutantes/lote-l09.json`: M1 morreu, rc=0; `--cobertura --base a46eab7` sem condição pendente. Mutantes do QA (spec no scratchpad): Q1 (voltar a imprimir o texto) morreu; Q2 (hook sem a checagem de forma do hash) sobreviveu, equivalente na prática: `hash_do_brief_diverge` recusa a mesma mensagem logo depois (só muda o texto da recusa).
 - Observação: "dois blocos" com separador `<<<BRIEF` ainda passa no hook, por desenho e teste do autor (test_so_o_primeiro_bloco_e_conferido); a regra do conferente cobre a forma nova.
 - Bugs: nenhum.
+
+## Revalidação (head d4d1ca7)
+- O `commit:` passou a ser a6eee8b, o teste do QA na lote-l09 (o 61e72dd da qa-l09 foi reaplicado por cherry-pick, mesmo conteúdo). Depois vieram o merge do L08 e d4d1ca7 (o teste no mapa do bin/forge-testes), sem mudar código nem teste.
+- `-p test_qa_lote_l09.py`: 3 OK sobre d4d1ca7.
+- O `commit:` aponta para d4d1ca7: a linha do mapa do forge-testes entrou depois do teste; o código de produção não mudou (o teste a6eee8b é ancestral).
