@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 79256408521daeb3c1ca57261b690614b1e12699
+commit: a46eab7891b4f0c233e547b303dfa9ff6feee35b
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -16,7 +16,8 @@ Diff revisado: `4f53bde..874c89e` (E10, E12, E16, E7, E19) e, na revalidação, 
 Controles do Forge (R-SEGURANCA): `bin/forge-check` (`pr`, `entrega`, `brief`), `docs/regras/R-PROVA.md` e a conferência de entrega (`agents/conferente.md`, `agents/jarvis.md`).
 
 ## Achados
-- A3 (recomendado) bin/forge-check:844 · `gh pr view <n>` sem `--repo` usa o repositório padrão do gh; com mais de um remoto (fork e origem), o #n pode ser de outro repositório. Passe `--repo` do origin ou imprima a URL do PR.
+- A3 (recomendado) bin/forge-check:858 · `gh pr view <n>` sem `--repo` usa o repositório padrão do gh; com mais de um remoto (fork e origem), o #n pode ser de outro repositório. Passe `--repo` do origin ou imprima a URL do PR.
+- A4 (recomendado) bin/forge-check:685 · `promocao` compara o head com `refs/remotes/origin/<b>` local (ou a branch local sem remoto); um `git update-ref` local dessa ref faz uma branch de trabalho passar por promoção sem a conferência do head. Confirme a ponta por `git ls-remote origin`.
 
 ## Detalhe dos achados
 **Respostas ao foco.**
@@ -39,6 +40,16 @@ Delta lido inteiro (`forge-check delta --parecer`): `bin/forge-check:708-754` e 
 - Bypass procurado, sem caminho: (a) sha de outra branch: o nome só escolhe o pedido; a liberação continua presa a `commit_vale` (só pareceres, quadro e o fragmento do changelog entre a conferida e o head), então o código liberado é o que foi conferido; (b) linha forjada no Histórico: `docs/pedidos/` é escrita só do Jarvis (hook), e a forma estrita barra as variantes negativas; (c) pedido de outra branch (`--pedido` direto): a conferida dele só libera um head cujo conteúdo, fora dos livres, é o mesmo commit conferido; ramo empilhado com código novo reprova.
 - Tipo da PQ em minúsculas (`bin/forge-check:1400`): fecha `(SHA)` e `(Push)` no ato-github; nos outros consumidores só faz a grafia maiúscula valer como a minúscula, sem tipo novo aceito.
 Testes (um módulo por vez): `test_forge.py` só nas classes tocadas (`ConferenciaPresaAoHead` 8, `EntregaAtoGithub` 3, `PrMescladoPeloHead` 4, `LerDirigidoDoBrief` 2), `test_fechar.py`, `test_etapa_do_brief.py`, `test_isencoes.py`, `test_volta_por_delta.py`: todos OK. Os casos de abuso acima têm teste (`test_so_a_linha_de_entrega_conferida_libera`, `test_sem_historico_ou_sem_pedido_reprova`, `test_ref_por_sha_acha_a_branch_como_no_forge_fechar` com a branch gêmea).
+
+## Revalidação (a46eab7, review A9 e A10)
+Delta `a46eab7~1..a46eab7`: `promocao` (`bin/forge-check:680-686`), o desvio em `pr_da_cli` (`:674-676`), a ajuda e o teste `ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada`. Só a conferência do head (E7) deixa de ser cobrada; `cmd_pr` (review, segurança, QA e o resto dos portões) roda igual, e o caminho sem `--base` não muda.
+- Limite conferido: base `homolog` aceita só a ponta de `develop`; base `main`, a de `develop` ou `homolog`; `develop` como base nunca é promoção. A comparação é por sha40 (`sha_do_commit`, com `--end-of-options`), não por nome.
+- `--ref origin/develop` sendo outra coisa: o nome não decide. Uma branch local `refs/heads/origin/develop` ganha do remoto no `rev-parse`, mas o sha dela é comparado com `refs/remotes/origin/develop` por caminho completo; se forem diferentes, não é promoção. Ref inexistente dá None e não é promoção.
+- develop local à frente da origin: `ref_da_base` (`:1128-1130`) lê `refs/remotes/origin/develop` antes da local; a local só vale sem o remoto. Sem bypass.
+- Ref local sem remoto: só vale quando `refs/remotes/origin/<b>` não existe (projeto sem origem). No Forge e nos projetos com origem, o remoto existe e a local é ignorada. Coberto no A4.
+- Head igual à develop num repositório manipulado (A4): `refs/remotes/origin/develop` é ref local e pode ser movida por `git update-ref` ou por um `fetch` de outro remoto; o hook não barra (`hooks/conformidade.py:1321` só barra apagar). Caminho: quem tem Bash no clone aponta a ref para o head de trabalho e roda `forge-check pr --base main`. O `forge-fechar` confere por `ls-remote` o head e a base, mas não a integração anterior. O ganho fica limitado: só cai a conferência do head, os pareceres continuam exigidos e o PR no GitHub mostra a branch real contra a `main`. Severidade baixa. Correção mínima: em `promocao`, exigir também que o head seja igual ao `git ls-remote origin refs/heads/<b>` (coluna 2 exata, como o `forge-fechar:138-143`), com falha de rede = não é promoção. Esforço P. Dono: tech-lead.
+- Branch de trabalho que já está na develop (head = ponta de `origin/develop`): é a leva já mesclada, que passou pela conferência no PR dela; correto por desenho.
+Testes: `python3 -I -m unittest discover -s tests -p test_promover_homolog.py` (36, OK), só esse módulo, como pedido. O teste novo fica em `test_forge.py` e não rodou nesta rodada; li o teste: ele cobre a promoção para `main` e `homolog` e três casos que seguem cobrados (trabalho com `--base main`, com `--base homolog` e `develop` com `--base develop`).
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
