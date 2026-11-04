@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/doutor-f8-caminho
-commit: 85c5b80d7f42889d0d26f413fd3a22c31ac4d732
+commit: c5eb2465b09751cc80ea316d131844960cd95f36
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -22,6 +22,13 @@ Escopo: `b45e40a...85c5b80`, um commit (85c5b80) com `bin/forge-doutor`, `tests/
 - `python3 -I -m unittest discover -s tests -p test_doutor_protecao_gh.py` no HEAD 85c5b80: 15 testes, OK.
 - O teste reprova sem a mudança. Com `bin/forge-doutor` da base b45e40a e os testes do HEAD, `test_o_aviso_cita_o_passo_a_passo_so_se_o_arquivo_existe_na_raiz` falha nos dois subtestes. Com o `bin/forge-doutor` da rodada 1 (9db3c4b, caminho fixo), falham o `assertNotIn` novo de `test_main_sem_protecao_vira_problema_que_cita_a_branch_e_a_skill_ci_cd` (projeto sem o arquivo) e o subteste `docs/protecao-de-branch.md`. Os dois sentidos estão cobertos. Depois da prova, o arquivo voltou ao HEAD (`git status` limpo).
 - Ferramentas: não há shell no diff. Não veio spec de mutação, mas as duas provas acima matam as mutações óbvias (caminho fixo, sem o caminho, uma das duas entradas da lista). Não abro achado por isso.
+
+## Revalidação (rodada 2, teste do QA, c5eb246)
+Delta lido: só `tests/test_qa_doutor_f8.py` (85 linhas, novo no c5eb246). Os pareceres em `docs/` ficam fora. `bin/forge-doutor` e `tests/test_doutor_protecao_gh.py` são os mesmos de 85c5b80 (já lidos).
+
+- Teto (M14): `bin/forge-doutor` 4, `tests/test_doutor_protecao_gh.py` 12 e `tests/test_qa_doutor_f8.py` 85, 101 linhas. Um comportamento, nada em `hooks/`.
+- Leitura: roda o `bin/forge-doutor` completo, com o `gh` falso da classe `Protecao` (rota exata da API de proteção, já lida na rodada 1). Cobre nenhum arquivo, cada caminho sozinho, a precedência do de `docs/engineering`, diretório e link pendente com o nome (`is_file` falso), as três branches citando o guia e o silêncio com as branches protegidas.
+- `python3 -I -m unittest discover -s tests -p test_qa_doutor_f8.py`: 7 testes, OK. Com `bin/forge-doutor` de b45e40a, 4 de 7 caem: os que exigem o caminho. Os de só a skill, borda e silêncio são guardas e passam na base. Arquivo restaurado (`git status` limpo).
 
 ## Achados
 - A1 (recomendado) bin/forge-doutor:378 · a linha do `guia` passa de 135 colunas; quebrar a tupla de caminhos numa constante (por exemplo, PASSO_A_PASSO_PROTECAO) deixa o texto e a ordem legíveis
