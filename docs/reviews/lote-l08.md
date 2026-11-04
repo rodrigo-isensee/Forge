@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 79256408521daeb3c1ca57261b690614b1e12699
+commit: 4ed6e442fe9f6ca439e5410c935c88042f0e5760
 parecer: reprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -63,3 +63,11 @@ Testes e mutantes desta rodada, em 7925640, um módulo por vez (`python3 -I -m u
 - test_forge: rc=0, 509
 - test_promover_homolog: rc=1, 20 falhas. Rodei por dúvida sobre o alcance do item (a).
 - `bin/forge-mutante tests/mutantes/lote-l08-{e7,e7b,e10,e19}.json`: rc=0 nas quatro specs, todos os mutantes mortos.
+
+## Teste do QA (4ed6e44)
+O parecer passa a citar 4ed6e44. Esse commit só acrescenta `tests/test_qa_lote_l08.py` (256 linhas, 19 testes) sobre 7925640. Li o arquivo inteiro.
+- O que cobre: E7 (ciclo conferida, código novo e nova conferida; commit do QA depois da conferida; ref por sha com e sem pedido ou Histórico; ref `origin/`; formas inválidas da linha), E10 (squash), E12 (`Desde` da própria branch), E16 (parecer que cita o commit anterior ao teste) e E19 (ato-github). Usa o `forge-check` e o `forge-fechar` reais. O `load_tests` evita rodar de novo os testes herdados.
+- Não muda nada do que foi lido na revalidação. O A9 continua, porque o arquivo não exercita o `scripts/promover-homolog.py`.
+- Sobre os testes do QA, sem achado novo: `test_dois_briefs_reprova` e `test_pq_de_commit_junto_de_pq_do_github_reprova` afirmam só o rc, não a linha. O gh falso do `QaE10PrMesclado` ignora os argumentos, a mesma classe do A7.
+- Rodada: `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py` deu rc=0 (19 testes, OK).
+- Pela regra do próprio E7, o commit do teste fica depois da `entrega conferida` de 7925640. Por isso o `forge-check pr` cobra uma conferida que cubra 4ed6e44 (`test_commit_de_teste_do_qa_depois_da_conferida_exige_nova_conferencia`).
