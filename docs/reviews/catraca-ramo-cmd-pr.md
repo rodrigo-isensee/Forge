@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: versao-033
+pedido: catraca-ramo-cmd-pr
 branch: melhoria/catraca-ramo-cmd-pr
 commit: c0124465c1e425a8c799da5ba06dcb4a1b03bd36
 parecer: aprovado
