@@ -102,6 +102,14 @@ class FalhaDoGit(Repositorio):
             with self.subTest(etapa=etapa):
                 self.reprova(f"*--verify --quiet {self.base}*", 1, "--etapa", etapa, passo="diff da entrega")
 
+    def test_so_o_diff_que_falha_nao_anuncia_a_base_ausente(self):  # AR-1: o rótulo "base da entrega" só vale com a base ilegível
+        for etapa in ("codigo", "review", "merge-integracao"):
+            with self.subTest(etapa=etapa):
+                rc, saida = self.falhar(TRES, 1, "--etapa", etapa)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(LINHA + "diff da entrega)", saida)
+                self.assertNotIn("base da entrega", saida)
+
     def test_rev_parse_do_objeto_que_falha_nos_dois_lados_nao_tira_o_arquivo(self):  # L08: "igual à base" exige código 0 nos dois
         merge = self.squash()
         rc, saida = self.falhar("*nunca-casa*", 1, "--etapa", "review", "--branch", merge)

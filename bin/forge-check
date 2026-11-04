@@ -508,7 +508,7 @@ def base_da_entrega(raiz, base=None, so_a_pedida=False):
 
 
 def arquivos_da_entrega(raiz, ref=None, base=None, desde=None):
-    """Arquivos que a entrega muda sobre a base (merge-base); None se o git falha (falha fechada, C-12); [] se a base não existe (sem como saber).
+    """Arquivos que a entrega muda sobre a base (merge-base); None se o git falha (falha fechada, C-12); [] só sem base dada e sem nenhuma das BASES (sem como saber); com base dada que não lê, None (falha, C-1).
     `--no-renames`: renomear lista também o nome antigo (como removido), e o gatilho não escapa pelo nome novo.
     Com `desde` (um sha já conferido, VV-2), só o que mudou depois dele: a interseção com `desde..ref` tira o que entrou
     por merge da base (com o Base-sha regravado depois do merge); sem `desde`, a branch inteira, como sempre. Soma o que a branch já

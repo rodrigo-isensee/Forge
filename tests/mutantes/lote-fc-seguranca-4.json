@@ -25,7 +25,7 @@
       ]
     },
     {
-      "id": "M40",
+      "id": "M46",
       "guarda": "a base do arquivos_da_entrega é uma só leitura, sem cair para as BASES",
       "arquivo": "bin/forge-check",
       "de": "    b = base_da_entrega(raiz, base, so_a_pedida=True)  # uma só",

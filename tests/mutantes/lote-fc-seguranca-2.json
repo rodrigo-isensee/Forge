@@ -95,20 +95,20 @@
     },
     {
       "id": "M21",
-      "guarda": "diff da entrega que falha entra em falhas",
+      "guarda": "diff da entrega que falha abre o bloco das falhas",
       "arquivo": "bin/forge-check",
-      "de": "    if arquivos is None:\n        falhas.append(\"diff da entrega\")",
-      "para": "    if False:\n        falhas.append(\"diff da entrega\")",
+      "de": "    if arquivos is None:\n        if base_da_entrega",
+      "para": "    if False:\n        if base_da_entrega",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
       ]
     },
     {
       "id": "M22",
-      "guarda": "base do Base-sha ausente é falha",
+      "guarda": "a base ilegível do Base-sha rotula a falha",
       "arquivo": "bin/forge-check",
-      "de": "    elif base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:",
-      "para": "    elif False:",
+      "de": "        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:",
+      "para": "        if False:",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_sem_base_na_entrega_e_falha_do_git"
       ]
@@ -121,6 +121,36 @@
       "para": "    if False:\n        falhas.append",
       "testes": [
         "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M43",
+      "guarda": "só o diff que falha não rotula a base ausente",
+      "arquivo": "bin/forge-check",
+      "de": "        if base_da_entrega(raiz, base_sha, so_a_pedida=True) is None:",
+      "para": "        if True:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_so_o_diff_que_falha_nao_anuncia_a_base_ausente"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "a lista de candidatos da base pedida existe com base dada",
+      "arquivo": "bin/forge-check",
+      "de": "([f\"origin/{base}\", base] if base else [])",
+      "para": "([f\"origin/{base}\", base] if False else [])",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_so_na_primeira_leitura_reprova"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "base dada que não lê é None, não []",
+      "arquivo": "bin/forge-check",
+      "de": "        return None if base else []",
+      "para": "        return None if False else []",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_sem_base_na_entrega_e_falha_do_git"
       ]
     }
   ]
