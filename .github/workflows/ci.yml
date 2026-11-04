@@ -1,10 +1,11 @@
 name: CI
 
 # Pull request: bateria completa (job "bateria"), em um job só porque o GitHub cobra cada job por minuto cheio (~10 jobs
-# de 10 s custavam 10 min). Push na develop: só a checagem rápida (o PR já validou o mesmo conteúdo, R-FLUXO). Push na
-# homolog e na main: a bateria completa de novo. Commit de PR que só muda docs/reviews/, docs/qa/, docs/security/,
-# docs/devops/ ou docs/ux/ (fora modelos _* e docs/security/{ameacas,aceites}/), com a bateria verde no commit anterior,
-# pula os passos pesados (gate por passo, nunca paths-ignore: ele deixaria o check exigido pendente).
+# de 10 s custavam 10 min). Push na develop: só o job "rapida", que roda a suíte inteira (scripts/suite-paralela.py, Python
+# 3.12) e não os demais passos da bateria (o PR já validou o mesmo conteúdo, R-FLUXO). Push na homolog e na main: a bateria
+# completa de novo. Commit de PR que só muda docs/reviews/, docs/qa/, docs/security/, docs/devops/ ou docs/ux/ (fora
+# modelos _* e docs/security/{ameacas,aceites}/), com a bateria verde no commit anterior, pula os passos pesados (gate
+# por passo, nunca paths-ignore: ele deixaria o check exigido pendente).
 on:
   pull_request:
     types: [opened, synchronize, reopened]  # rótulo e edição do PR reagem só em catraca.yml (sem a bateria pesada)

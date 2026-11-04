@@ -127,6 +127,15 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
                 self.assertTrue(runners)
                 self.assertEqual(set(runners), {"ubuntu-26.04"})
 
+    def test_comentario_do_topo_diz_que_a_rapida_roda_a_suite(self):
+        """CI-COMENTARIO-RAPIDA: o comentário não chama a suíte inteira da develop de "checagem rápida"; cita o script do job."""
+        texto = (RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+        topo = texto.split("\non:\n", 1)[0]
+        self.assertNotIn("só a checagem rápida", topo)
+        self.assertIn("scripts/suite-paralela.py", topo)
+        (rapida,) = [j for j in ci.ler_jobs(texto) if j["id"] == "rapida"]
+        self.assertTrue(any("scripts/suite-paralela.py" in p["run"] for p in rapida["passos"]))
+
     def test_bateria_consolidada_mantem_os_passos_que_eram_jobs(self):
         (bateria,) = [j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
                       if j["id"] == "bateria"]
