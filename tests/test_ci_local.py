@@ -128,7 +128,7 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
 
     def test_rapida_e_bateria_rodam_a_suite_pelo_script_dividido(self):
         """D4: os dois passos "Testes do Forge" chamam o mesmo script do pre-push (guarda de completude nos dois);
-        o passo curto dos pareceres continua como está; a release continua em série (contraprova)."""
+        o passo curto dos pareceres continua como está; a release também roda em paralelo (RELEASE-SUITE-PARALELA)."""
         jobs = {j["id"]: j for j in ci.ler_jobs((RAIZ / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))}
         for nome in ("rapida", "bateria"):
             with self.subTest(job=nome):
@@ -137,8 +137,9 @@ class LeituraDosWorkflowsTest(unittest.TestCase):
                 self.assertFalse([p["nome"] for p in jobs[nome]["passos"] if "unittest discover" in p["run"]])
         self.assertTrue([p for p in jobs["bateria"]["passos"] if p["nome"].startswith("Testes que leem pareceres")
                          and "python3 -m unittest tests.test_forge.Neutralidade" in p["run"]])
-        self.assertIn("python3 -m unittest discover -s tests",
-                      (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8"))
+        release = (RAIZ / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+        self.assertIn("python3 scripts/suite-paralela.py", release)
+        self.assertNotIn("unittest discover", release)
 
     def test_bateria_ferramenta_e_checagens_baratas_antes_dos_testes(self):
         """CI-FERRAMENTA-ANTES: o vermelho barato aparece antes da suíte; testes continuam obrigatórios."""
