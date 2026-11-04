@@ -19,7 +19,7 @@ class ProvaDaAbertura(BriefDeVolta):
         self.assertIn(self.LINHA_E14, self.fora(self.BRIEF, aberta))  # controle: a forma certa entra
         outro = self.BRIEF.replace("exemplo-1 ", "exemplo-10 ")  # outro brief, de número que começa igual
         self.assertNotIn(self.LINHA_E14, self.fora(outro, aberta))
-        for ruim in ("- 2026-11-04 10:00: etapa E1.4b abertura prevista", "- 2026-11-04 10:00: etapa E1.4b abertas"):
+        for ruim in ("- 2026-11-04 10:00: etapa E1.4b aberta-nao", "- 2026-11-04 10:00: etapa E1.4b abertura prevista", "- 2026-11-04 10:00: etapa E1.4b abertas"):
             with self.subTest(ruim):
                 self.assertNotIn(self.LINHA_E14, self.fora(self.BRIEF, ruim))
 
