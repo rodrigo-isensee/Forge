@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 51ef12d27a999df2a830c4971ffd2f265523ac44
+commit: d4d1ca79ed7c5436d219f20a41c31520a0afa027
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -31,6 +31,7 @@ Rodada 1 (bc6d081): **reprovado**, um bloqueante (A1): o commit troca a linha do
 
 ## Achados
 - A2 (recomendado) tests/config.json:610 · o PR muda um invariante protegido de R-BRIEF; o título do PR leva o destaque, como a DECISÃO TÉCNICA de 04:17 do pedido manda
+- A4 (recomendado) bin/forge-testes:102 · o test_qa_lote_l09 roda hooks/agentes.py, mas não está na lista de hooks/.*; mudança só no hook não o roda no pre-push
 
 ## Parecer
 Rodada 1 (bc6d081): reprovado pelo A1 (tests/test_forge.py:5512, StopIteration), defeito provado, e com o A3 recomendado; os dois foram resolvidos na volta 1 (ver "Revalidação (volta 1)"). Passo usado para reproduzir: na worktree da branch, `python3 -I -m unittest discover -s tests -p test_forge.py -k TextoDoConferenteNoLote` dá rc 1 com `StopIteration` em `test_dois_blocos_so_depois_do_brief_e_modo_dentro_do_brief_nao_abre_bloco`; em `103247e` dá rc 0. Correção esperada: reescrever esse teste para a linha nova (`Cada mensagem traz um bloco só`, "mensagens separadas", `forma: instrução ao conferente`, "responda só ao primeiro bloco") e, de preferência, cobrir a `forma: mensagem sem Brief-sha256` (A3). O resto do delta está correto e pode seguir sem nova leitura na volta.
@@ -56,3 +57,24 @@ Testes desta rodada, em 51ef12d, um módulo por vez (`python3 -I -m unittest dis
 - test_comportamento: rc=0, 6
 - test_forge: rc=0, 510
 - `bin/forge-mutante tests/mutantes/lote-l09.json`: rc=0, `M1 · morreu · bin/forge-check:5673`
+
+## Revalidação (volta 2: teste do QA e mapa do forge-testes)
+Revisado: d4d1ca7. O parecer da volta 1 (51ef12d) foi trazido para a branch por cherry-pick. Li só o que entrou na branch depois de 51ef12d e não é do L08:
+- a6eee8b: `tests/test_qa_lote_l09.py`, do QA, lido inteiro.
+- d4d1ca7: `bin/forge-testes` e `tests/test_testes_tocados.py`.
+
+Os merges do L08 (f37be88 e d6c9ac7) trazem só o que foi revisado no parecer do L08. O d6c9ac7 não tem resolução manual: o `--remerge-diff` sai vazio.
+
+Veredito: **aprovado**.
+- O teste do QA liga o `forge-check brief mensagem` real ao hook `hooks/agentes.py` real. Ele cobre:
+  - o caminho feliz;
+  - a recusa do lembrete antes do `modo:`;
+  - o hash ausente ou adulterado;
+  - os dois blocos.
+- O d4d1ca7 põe `test_qa_lote_l09` no `FORGE_CHECK` e no `LEITORES_DE_TEXTO`, e a contagem do mapa vai para 40.
+
+Recomendação A4, sem bloquear: o `test_qa_lote_l09` roda o `hooks/agentes.py`, mas não está na lista de `hooks/.*` do `bin/forge-testes`. Uma mudança só no hook não o rodaria no pre-push.
+
+Testes, em d4d1ca7:
+- `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: rc=0, 86 testes.
+- `python3 -I -m unittest discover -s tests -p test_fechar_forge_check_real.py`: rc=0, 2 testes.
