@@ -3,7 +3,7 @@
   "executor": "unittest",
   "mutantes": [
     {
-      "id": "M35",
+      "id": "M38",
       "guarda": "ato-github não aceita branch de verdade",
       "arquivo": "bin/forge-check",
       "de": "    if branch not in SEM_BRANCH:\n",
@@ -13,7 +13,7 @@
       ]
     },
     {
-      "id": "M36",
+      "id": "M39",
       "guarda": "ato-github exige um brief",
       "arquivo": "bin/forge-check",
       "de": "    if len(briefs) != 1:\n",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "id": "M37",
+      "id": "M40",
       "guarda": "o tipo vem do brief",
       "arquivo": "bin/forge-check",
       "de": "if (tipo_do_brief(texto) != ATO_GITHUB or ",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "id": "M38",
+      "id": "M41",
       "guarda": "o brief é sem branch",
       "arquivo": "bin/forge-check",
       "de": "campos[\"Branch\"] not in SEM_BRANCH or not mesmo_pedido",
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "id": "M39",
+      "id": "M42",
       "guarda": "o brief é do mesmo pedido",
       "arquivo": "bin/forge-check",
       "de": "or not mesmo_pedido(campos[\"Pedido\"], pedido_id, caminho)",
@@ -53,7 +53,7 @@
       ]
     },
     {
-      "id": "M40",
+      "id": "M43",
       "guarda": "o brief é do mesmo Base-sha",
       "arquivo": "bin/forge-check",
       "de": " or campos[\"Base-sha\"] != base_sha):",
@@ -63,7 +63,7 @@
       ]
     },
     {
-      "id": "M41",
+      "id": "M44",
       "guarda": "prova de commit reprova",
       "arquivo": "bin/forge-check",
       "de": "        if de_commit:\n",
@@ -73,7 +73,7 @@
       ]
     },
     {
-      "id": "M42",
+      "id": "M45",
       "guarda": "sem prova do GitHub fica pendente",
       "arquivo": "bin/forge-check",
       "de": "        if not do_github:\n",
@@ -83,7 +83,7 @@
       ]
     },
     {
-      "id": "M43",
+      "id": "M46",
       "guarda": "--desde não vale em ato-github",
       "arquivo": "bin/forge-check",
       "de": "ato-github (sem branch)\", True)] if desde else []",
@@ -93,7 +93,7 @@
       ]
     },
     {
-      "id": "M44",
+      "id": "M47",
       "guarda": "ato-github é etapa que o entrega aceita",
       "arquivo": "bin/forge-check",
       "de": "choices=ETAPAS_DE_CODIGO + ETAPAS_DE_BRANCH_INTEIRA + (ATO_GITHUB,),",
@@ -103,7 +103,17 @@
       ]
     },
     {
-      "id": "M45",
+      "id": "M48",
+      "guarda": "o tipo da PQ não depende de maiúscula",
+      "arquivo": "bin/forge-check",
+      "de": ".split(\",\")[0].strip().lower()))",
+      "para": ".split(\",\")[0].strip()))",
+      "testes": [
+        "tests.test_forge.EntregaAtoGithub.test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir"
+      ]
+    },
+    {
+      "id": "M49",
       "guarda": "a etapa ato-github sai antes do git",
       "arquivo": "bin/forge-check",
       "de": "    if etapa == ATO_GITHUB:",

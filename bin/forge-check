@@ -1397,7 +1397,7 @@ def provas_do_brief(texto):
     provas = []
     for linha in secoes_por(texto, CABECALHO_BRIEF).get("Pronto quando", []):
         if (m := PQ.search(linha)) and m.group(2):
-            provas.append((m.group(1), m.group(2).split(",")[0].strip()))
+            provas.append((m.group(1), m.group(2).split(",")[0].strip().lower()))  # QA L08-2: `(SHA)` é prova de commit como `(sha)`
     return provas
 
 

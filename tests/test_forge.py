@@ -5968,6 +5968,10 @@ class EntregaAtoGithub(RepoComOrigem):
                                       "pendente: ato-github sem PQ pr, merge ou run"),
                  "PQ de commit": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (sha): o commit da branch\n")), "—",
                                   "escopo: ato-github com prova de commit (PQ-3 (sha))"),
+                 "PQ de commit em maiúscula": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (SHA): o commit da branch\n")), "—",
+                                               "escopo: ato-github com prova de commit (PQ-3 (sha))"),  # QA L08-2
+                 "PQ de push em maiúscula": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (Push, do autor): o envio\n")), "—",
+                                             "escopo: ato-github com prova de commit (PQ-3 (push))"),
                  "com --desde": (lambda: ("--brief", self.brief(), "--desde", self.c1), "—", "escopo: --desde não vale na etapa ato-github")}
         for nome, (extra, branch, esperado) in casos.items():
             with self.subTest(nome):
