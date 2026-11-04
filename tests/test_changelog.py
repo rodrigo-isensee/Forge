@@ -427,6 +427,25 @@ class ConferirNoCI(Base):
                 self.assertNotEqual(r.returncode, 0)
                 self.assertIn("fragmento novo", r.stdout + r.stderr)
 
+    def test_renomear_codigo_para_pasta_de_parecer_continua_exigindo_fragmento(self):
+        """A1 do review: o diff com detecção de renomeação lista só o destino e deixava o código sair como se fosse parecer."""
+        (self.dir / "docs" / "reviews").mkdir(parents=True)
+        git(self.dir, "mv", "agents/a.md", "docs/reviews/a.md")
+        self.commitar()
+        r = self.conferir()
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("fragmento novo", r.stdout + r.stderr)
+
+    def test_so_o_nome_do_arquivo_com_underline_e_modelo(self):
+        """Limite da regra (A2 do review), igual ao gate do ci.yml (`/_[^/]*$`): `docs/qa/_modelo.md` é modelo e exige fragmento;
+        `docs/qa/_x/a.md` (pasta com `_`, arquivo comum) é parecer."""
+        r = self._so_arquivo("docs/qa/_modelo.md")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("fragmento novo", r.stdout + r.stderr)
+        git(self.dir, "reset", "-q", "--hard", "develop")
+        r = self._so_arquivo("docs/qa/_x/a.md")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
     def test_pr_de_parecer_com_outro_arquivo_da_fabrica_continua_exigindo_fragmento(self):
         (self.dir / "docs" / "devops").mkdir(parents=True)
         (self.dir / "docs" / "devops" / "a.md").write_text("x\n", encoding="utf-8")

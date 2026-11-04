@@ -214,7 +214,7 @@ def conferir_fechamento(base, apagados):
 
 def conferir(args):
     base = args.base
-    mudou = git("diff", "--name-only", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
+    mudou = git("diff", "--name-only", "--no-renames", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
     versao = lambda ref: re.search(r'"version"\s*:\s*"([^"]+)"', git("show", f"{ref}:.claude-plugin/plugin.json")).group(1)
     atual, anterior = versao("HEAD"), versao(base)
     print(f"arquivos da fábrica alterados: {len(mudou)} | versão base: {anterior} | versão do PR: {atual}")
