@@ -2020,6 +2020,13 @@ class Hooks(unittest.TestCase):
             hook.corpos_pendentes, hook.entrada = 2, {"hook_event_name": "PostToolUse"}
             self.assertIsNone(_comum.prazo_vencido(hook, re.compile("x"), "", False, "R-CONFORMIDADE"))
 
+    def test_fronteira_limpa_so_se_os_comentarios_atravessam_o_prefixo(self):  # HEREDOC-DONOS-AJUSTES, S-A1
+        _comum, _, _ = modulos_dos_hooks()
+        for prefixo in ('python3 "$(cat)"', "a `b` c"):
+            self.assertFalse(_comum.fronteira_limpa(prefixo), prefixo)
+        for prefixo in ("", "python3 _", "X=1 git commit -m _", "bash -c 'x; y'"):
+            self.assertTrue(_comum.fronteira_limpa(prefixo), prefixo)
+
     def test_regras_e_raiz_sao_calculadas_uma_vez_por_decisao(self):  # HEREDOC-RAPIDO, E1.1 (desenho, seção c)
         """Os N destinos de uma decisão (uma `Guarda`) leem o manifesto e resolvem a raiz e o home uma vez; outra
         decisão (outra `Guarda`) calcula de novo, sem cache entre elas."""
