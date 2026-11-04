@@ -90,17 +90,6 @@
       ]
     },
     {
-      "id": "G36",
-      "guarda": "pular o valor do próprio -X: sem o pulo, só muda o resultado se o valor começar com -X, e o método lido já seria inválido e recusaria igual (falha fechada)",
-      "equivalente": "o valor do -X (GET, PUT...) nunca começa com -X em comando válido; se começar, o método lido é inválido e recusa do mesmo jeito",
-      "arquivo": "hooks/parecer.py",
-      "de": "        if valor:\n            valor = False\n            continue\n        if a in (\"-X\"",
-      "para": "        if False:\n            valor = False\n            continue\n        if a in (\"-X\"",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
-      ]
-    },
-    {
       "id": "G37",
       "guarda": "o -X lido vale: sem ele, o método não conta",
       "arquivo": "hooks/parecer.py",

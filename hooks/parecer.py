@@ -515,16 +515,12 @@ def desagrupa_i(args):
 
 
 def metodos_pedidos(args):
-    """Todo `-X`/`--method` do comando, mesmo como valor de outra opção (`-p -XPUT`): falha fechada; só o valor do próprio `-X` se pula."""
-    metodos, valor = [], False
+    """Todo `-X`/`--method` do comando, mesmo como valor de outra opção (`-p -XPUT`): falha fechada."""
+    metodos = []
     for i, a in enumerate(args):
-        if valor:
-            valor = False
-            continue
         if a in ("-X", "--method"):
             if i + 1 < len(args):
                 metodos.append(args[i + 1])
-            valor = True
         elif a.startswith("--method="):
             metodos.append(a.split("=", 1)[1])
         elif a.startswith("-X") and len(a) > 2:
