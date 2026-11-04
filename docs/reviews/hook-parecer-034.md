@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/hook-parecer-034
-commit: 05b6d6b2a0dcb46ef9923ca4ee9d471a60460742
+commit: 907d3ad5c85e57aa2d03b255954dff456e97ca6d
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -48,5 +48,9 @@ Nenhum dos dois cartões está na lista dos 20 da 0.34 (`docs/propostas/backlog/
 - `bin/forge-mutante tests/mutantes/hook-parecer-034.json` (rev 4d7e174ecc0d): M1 a M6 morreram.
 - O parecer de segurança cherry-picado (4d7e174) é de ef5e341. Se ele precisa ser revalidado, quem aponta é o `forge-check pr`.
 
+## Revalidação (volta 2, HEAD 907d3ad)
+- Delta: 907d3ad, do QA, traz só a fixture `tests/hooks/parecer/atualiza-barra-ff-only-na-develop-sem-checkout.json`, que fecha o A1 da segurança. A sessão já está na develop, sem checkout na linha, e roda `git merge --ff-only feature/x` com o review reprovado; o esperado é código 2 com `R-REVIEW: docs/reviews/p1-1.md`. O hook não mudou, e o restante fica como já lido.
+- `python3 -I -m unittest discover -s tests -p test_hooks_parecer_pasta.py`: 3 testes, OK (13,3 s). O corpus `atualiza-*` passou a 6 casos (o mínimo exigido é 5).
+
 ## Parecer
-Aprovado na volta 1, em 05b6d6b. O A1 foi corrigido como sugerido, com fixture e mutantes. Nenhuma recusa passou a liberar, e o PR fica com 26 linhas e uma classe de comportamento em `hooks/`, dentro da M14. A2 segue como recomendação, para um cartão de segurança. Fica pendente, fora do código, a confirmação do dono sobre os cartões fora da lista da 0.34, e o rótulo do dono por causa do PROTEGIDO.
+Aprovado na volta 2, em 907d3ad (na volta 1, em 05b6d6b). O A1 foi corrigido como sugerido, com fixture e mutantes. Nenhuma recusa passou a liberar, e o PR fica com 26 linhas e uma classe de comportamento em `hooks/`, dentro da M14. A2 segue como recomendação, para um cartão de segurança. Fica pendente, fora do código, a confirmação do dono sobre os cartões fora da lista da 0.34, e o rótulo do dono por causa do PROTEGIDO.
