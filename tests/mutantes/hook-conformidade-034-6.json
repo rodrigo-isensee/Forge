@@ -1,0 +1,56 @@
+{
+  "pedido": "hook-conformidade-034",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M18",
+      "guarda": "o \\ + quebra de linha some na forma juntada",
+      "arquivo": "hooks/_comum.py",
+      "de": "return CONTINUACAO.sub(r\"\\1\", texto)",
+      "para": "return texto",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "a linha com \\ + quebra de linha também se confere juntada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if junta != comando:  # HOOK-CONTINUACAO-LINHA",
+      "para": "        if False:  # HOOK-CONTINUACAO-LINHA",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "o marcador crítico vale também na forma juntada (prazo e falha fechada)",
+      "arquivo": "hooks/_comum.py",
+      "de": "hook.marcado = critico.search(texto) is not None or critico.search(juntar_continuacoes(texto)) is not None",
+      "para": "hook.marcado = critico.search(texto) is not None",
+      "testes": [
+        "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
+      ]
+    },
+    {
+      "id": "M21",
+      "guarda": "na sessão do Forge, o rótulo se confere também na forma juntada",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        if juntar_continuacoes(comando) != comando:  # HOOK-CONTINUACAO-LINHA",
+      "para": "        if False:  # HOOK-CONTINUACAO-LINHA",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "o erro interno com o rótulo partido por \\ + quebra de linha falha fechado",
+      "arquivo": "hooks/conformidade.py",
+      "de": "or CITA_ROTULO.search(juntar_continuacoes(entrada[\"command\"]))):",
+      "para": "or False):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_rotulo_so_dono_erro_inesperado_falha_fechado"
+      ]
+    }
+  ]
+}

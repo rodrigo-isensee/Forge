@@ -60,7 +60,7 @@ HOOKS = RAIZ / "hooks"
 FIXTURES = Path(__file__).resolve().parent / "hooks"
 # Erro de caminho igual em toda versão do Python (a 3.14 engole o OSError de Path.exists): ver o módulo da pasta.
 PATHLIB_312 = Path(__file__).resolve().parent / "apoio_pathlib_312"
-CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK",)  # as fixtures de cada cartão abrem a descrição com o ID dele
+CARTOES_DA_TRILHA_034 = ("SEGMENTO-CRASE-HOOK", "HOOK-CONTINUACAO-LINHA")  # as fixtures de cada cartão abrem a descrição com o ID dele
 PESADOS_DA_STACK = json.loads((RAIZ / "stacks/node-react/pesados.json").read_text(encoding="utf-8"))
 
 
@@ -966,6 +966,7 @@ class Hooks(unittest.TestCase):
         """Revisão (4) e segurança R3: erro do analisador que não é ValueError barra na sessão do Forge quando a linha
         cita o rótulo (mesmo com a conta do dono: o hook não pôde decidir); a linha que não cita segue a regra geral."""
         for comando, codigo in {"gh pr edit 70 --add-label afrouxa-regra": 2, "gh pr edit 70 --add-label bug": 0,
+                                "gh pr edit 70 --add-label afrouxa\\\n-regra": 2,  # HOOK-CONTINUACAO-LINHA
                                 "gh api graphql -f query='mutation { addLabelsToLabelable(input:{}) { x } }'": 2}.items():
             with self.subTest(comando=comando):
                 tmp = self._pasta_temporaria()
@@ -2173,6 +2174,13 @@ class Hooks(unittest.TestCase):
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \\$(b) \`c\``"), [r"a \$(b) `c`", r"a \\$(b) `c`"])
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\` \$d`"), ["a `c` $d", r"a `c` \$d"])
         self.assertEqual(_comum.conteudos_de_crase(r"echo `a \`c\``"), ["a `c`"])
+
+    def test_marcador_critico_tambem_na_forma_juntada(self):  # HOOK-CONTINUACAO-LINHA
+        _comum, conformidade, _ = modulos_dos_hooks()
+        for comando, marcado in (("g\\\nit push origin main", True), ("echo a \\\nb", False)):
+            hook = _comum.Hook("conformidade")
+            hook.entrada = {"tool_input": {"command": comando}}
+            self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), marcado, comando)
 
     def test_fixtures_do_gh_merge_admin(self):  # GH-MERGE-ADMIN: a matriz, os abusos (a) a (g) e os legítimos do C-5
         lote = [(f"{f.hook}/{f.caminho.stem}", f) for f in self.fixtures if f.dados.get("descricao", "").startswith("GH-MERGE-ADMIN")]

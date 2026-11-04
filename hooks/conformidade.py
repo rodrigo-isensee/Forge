@@ -28,7 +28,7 @@ import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
-                    construcao_nao_modelada, contorno_da_reavaliacao, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
+                    construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
@@ -731,6 +731,9 @@ class Guarda:
                                               "conferir dentro do prazo",
                         "separe em comandos menores, sem crase nem $( aninhados, e grave texto longo num arquivo")
         self.conferir_linha(comando, pasta, nivel, so_substituicoes, corpo_de_heredoc)
+        junta = juntar_continuacoes(comando)
+        if junta != comando:  # HOOK-CONTINUACAO-LINHA: o bash junta `\` + quebra de linha; as duas formas recusam
+            self.conferir_linha(junta, pasta, nivel, so_substituicoes, corpo_de_heredoc)
         self.conferidas[chave] = dict(self.ambiente or {})
 
     def recusar_o_teto(self, comando, original, nivel):
@@ -1527,6 +1530,8 @@ class Guarda:
         outro erro sobe a `principal`, que barra se a linha cita o rótulo."""
         if nivel > PROFUNDIDADE:
             return
+        if juntar_continuacoes(comando) != comando:  # HOOK-CONTINUACAO-LINHA: a forma juntada também
+            self.rotulo_na_sessao_do_forge(juntar_continuacoes(comando), pasta, nivel)
         try:
             sem_heredoc, corpos = tirar_heredocs(comando)
             for interno in conteudos_de_crase(sem_heredoc):  # a crase é um `$(...)`: o mesmo caminho
@@ -1953,7 +1958,8 @@ def principal(hook):
             try:
                 guarda.rotulo_na_sessao_do_forge(entrada["command"], hook.cwd())
             except Exception as erro:  # noqa: BLE001 - linha que cita o rótulo falha fechado (R-CONTRIB)
-                if not CITA_ROTULO.search(entrada["command"]):
+                if not (CITA_ROTULO.search(entrada["command"])  # HOOK-CONTINUACAO-LINHA: também a forma juntada
+                        or CITA_ROTULO.search(juntar_continuacoes(entrada["command"]))):
                     raise
                 hook.registrar_erro(erro)
                 bloquear("R-CONTRIB", "erro interno ao conferir o rótulo afrouxa-regra; o hook não pôde decidir. "

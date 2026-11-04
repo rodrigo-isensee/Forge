@@ -343,6 +343,15 @@ def comentario_ambiguo(linha):
     return False
 
 
+CONTINUACAO = re.compile(r"(?<!\\)((?:\\\\)*)\\\n")  # `\` + quebra de linha, sem contar a barra escapada antes
+
+
+def juntar_continuacoes(texto):
+    """HOOK-CONTINUACAO-LINHA: o texto sem `\\` + quebra de linha, que o bash junta numa linha só (fora de aspas
+    simples, e também dentro delas no `bash -c` e no heredoc sem aspas). Quem confere lê as duas formas."""
+    return CONTINUACAO.sub(r"\1", texto)
+
+
 def conteudos_de_crase(comando, so_os_fechados=False):
     """Os comandos dentro de crase (`` `…` ``), que o shell executa como `$(...)`: fora de aspas simples, inclusive entre
     aspas duplas; a barra invertida escapa; comentário (o `#` que a gramática G prova, `comentarios`, ADR 0013) não
@@ -2423,7 +2432,8 @@ def marcado(hook, critico, bruto):
     """O texto da ação tem o marcador crítico? Calculado uma vez e guardado em `hook.marcado`: é o primeiro passo da
     decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
     if hook.marcado is None:
-        hook.marcado = critico.search(texto_da_acao(hook, bruto)) is not None
+        texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
+        hook.marcado = critico.search(texto) is not None or critico.search(juntar_continuacoes(texto)) is not None
     return hook.marcado
 
 
