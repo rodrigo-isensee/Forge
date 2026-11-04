@@ -1,0 +1,38 @@
+{
+  "pedido": "fechar-esperar-rotulo",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "R1",
+      "guarda": "o título como gatilho é dito na mensagem",
+      "arquivo": "bin/forge-fechar",
+      "de": "gatilho=\"pelo título\"",
+      "para": "gatilho=\"por um item marcado do corpo\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    },
+    {
+      "id": "R2",
+      "guarda": "o item do corpo como gatilho é dito na mensagem",
+      "arquivo": "bin/forge-fechar",
+      "de": "gatilho=\"por um item marcado do corpo\"",
+      "para": "gatilho=\"pelo título\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_item_do_corpo"]
+    },
+    {
+      "id": "R3",
+      "guarda": "sem a opção a mensagem manda rodar de novo com --esperar-rotulo",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 0 ] || dica=\"\"",
+      "para": "dica=\"\"",
+      "testes": ["tests.test_fechar.Fechar.test_mensagem_do_passo_5_diz_que_o_gatilho_foi_o_titulo"]
+    },
+    {
+      "id": "R4",
+      "guarda": "com a opção a mensagem não manda repeti-la",
+      "arquivo": "bin/forge-fechar",
+      "de": "[ \"$esperar\" = 0 ] || dica=\"\"",
+      "para": "true",
+      "testes": ["tests.test_fechar.Fechar.test_prazo_esgotado_com_esperar_rotulo_para_sem_mandar_repetir_a_opcao"]
+    }
+  ]
+}

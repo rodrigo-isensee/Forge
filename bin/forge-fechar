@@ -813,14 +813,21 @@ if [ "$ja_mesclado" = 0 ]; then
   # O título é o lugar oficial do sinal de afrouxamento (primeira linha do texto): citar o rótulo nele já para.
   # No corpo, só a linha de item marcado (`- [x]`, `* [X]`, `+ [x]`, `1. [x]`, `1) [x]`) que cita o rótulo; texto que apenas o menciona não para.
   if ! printf '%s\n' "$rotulos" | grep -qx 'afrouxa-regra'; then
-    if printf '%s\n' "$texto" | head -n 1 | grep -qi 'afrouxa-regra' \
-      || printf '%s\n' "$texto" | tail -n +2 | grep -qiE '^[[:space:]]*([-*+]|[0-9]+[.)])[[:space:]]+\[x\].*afrouxa-regra'; then
+    gatilho=""
+    if printf '%s\n' "$texto" | head -n 1 | grep -qi 'afrouxa-regra'; then
+      gatilho="pelo título"
+    elif printf '%s\n' "$texto" | tail -n +2 | grep -qiE '^[[:space:]]*([-*+]|[0-9]+[.)])[[:space:]]+\[x\].*afrouxa-regra'; then
+      gatilho="por um item marcado do corpo"
+    fi
+    if [ -n "$gatilho" ]; then
       if [ "$esperar" = 1 ] && [ $((SECONDS - inicio)) -lt "$espera" ]; then
-        echo "aguardando o rótulo afrouxa-regra do dono (o script nunca o aplica)..."
+        echo "aguardando o rótulo afrouxa-regra do dono, pedido $gatilho (o script nunca o aplica)..."
         dormir "$intervalo"
         continue
       fi
-      die "$msg_rotulo"
+      dica="; depois que o dono aplicar o rótulo, rode de novo com --esperar-rotulo"
+      [ "$esperar" = 0 ] || dica=""
+      die "parou no passo 5: o rótulo afrouxa-regra foi pedido $gatilho e o dono ainda não o aplicou; o script nunca aplica rótulo$dica"
     fi
   fi
   break
