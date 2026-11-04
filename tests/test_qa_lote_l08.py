@@ -157,6 +157,43 @@ class QaE12DesdePorBranch(BriefDeVolta):
         self.assertTrue(c2)
 
 
+class QaPareceresDaBranch(RepoComOrigem):
+    """E7 e E11 (integração do versao-033): numa branch de trabalho o `pr` conta só os pareceres da própria branch; o de outra branch do
+    pedido, desatualizado ou reprovado, não vale nem reprova; sem parecer próprio, reprova (falha fechada)."""
+    ALHEIO = ("---\ntipo: {t}\ncontrato: 1\npedido: p1\nbranch: melhoria/outra\ncommit: {c}\nparecer: {p}\n{extra}data: 2026-11-05\n---\n# alheio\n")
+
+    def alheios(self, parecer):
+        velho = git("rev-parse", f"{self.c1}^", cwd=self.repo).stdout.strip()  # commit antigo: o parecer alheio está desatualizado
+        self.commitar(self.repo, {
+            "docs/reviews/p1-outra.md": self.ALHEIO.format(t="review", c=velho, p=parecer, extra="revisor: forge:tech-lead\n"),
+            "docs/qa/p1-outra.md": self.ALHEIO.format(t="qa", c=velho, p=parecer, extra="escopo: completo\nbugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\n")},
+            "pareceres de outra branch, mais recentes")
+
+    def test_parecer_proprio_aprovado_passa_com_alheio_desatualizado_ou_reprovado(self):
+        for parecer in ("aprovado", "reprovado"):
+            with self.subTest(parecer):
+                self.alheios(parecer)
+                rc, saida, _ = self.pr("--base", "develop")
+                self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+                self.assertNotIn("p1-outra", saida)
+
+    def test_sem_parecer_da_propria_branch_reprova_mesmo_com_alheio_aprovado(self):
+        self.alheios("aprovado")
+        git("rm", "-q", "docs/reviews/p1.md", "docs/qa/p1.md", cwd=self.repo)
+        git("commit", "-q", "-m", "tira os pareceres da branch", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("sem parecer da branch \"melhoria/x\" para o pedido `p1`", saida)
+
+    def test_so_o_parecer_de_qa_faltando_reprova(self):
+        self.alheios("aprovado")
+        git("rm", "-q", "docs/qa/p1.md", cwd=self.repo)
+        git("commit", "-q", "-m", "tira o QA da branch", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("sem parecer da branch", saida)
+
+
 class QaE16TesteEParecer(RepoComOrigem):
     """E16: teste e parecer separados; fronteira: parecer que cita o commit anterior ao teste."""
     QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
@@ -278,7 +315,7 @@ class QaA9Promocao(Promover):
 def load_tests(loader, tests, pattern):
     """As classes herdam as bases dos módulos de teste do autor; só os testes próprios daqui entram (os herdados já rodam nos módulos deles)."""
     suite = unittest.TestSuite()
-    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal, QaA9Promocao):
+    for cls in (QaE7ConferenciaNoHead, QaE10PrMesclado, QaE12DesdePorBranch, QaE16TesteEParecer, QaE19AtoGithub, QaE7FecharReal, QaA9Promocao, QaPareceresDaBranch):
         suite.addTests(cls(nome) for nome in vars(cls) if nome.startswith("test"))
     return suite
 
