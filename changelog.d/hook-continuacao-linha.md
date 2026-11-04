@@ -1,0 +1,2 @@
+### Corrigido
+- Hook `conformidade`: `\` + quebra de linha, que o bash junta numa linha só, também se confere na forma juntada (em todo nível: linha, crase, `$(`, `bash -c`, heredoc), no marcador crítico e no rótulo `afrouxa-regra` da sessão do Forge; `g\⏎it push origin main`, `--no-ver\⏎ify`, `g\⏎h repo delete`, `gh pr merge --admin` e `afrouxa\⏎-regra` passavam com rc 0 e agora são recusados (HOOK-CONTINUACAO-LINHA).
