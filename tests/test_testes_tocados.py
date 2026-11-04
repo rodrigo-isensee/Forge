@@ -1034,6 +1034,18 @@ class CaminhoFiltroEAviso(unittest.TestCase):
         self.escrever("test_novo", 'RAIZ = None\nx = RAIZ.joinpath("bin", "forge-sugerir")\n')
         self.assertIn("o MAPA não leva a test_novo", self.rodar("--listar").stderr)
 
+    def test_k_filtra_os_testes_do_modulo(self):  # TESTES-DO-ITEM-FILTRO
+        r = self.rodar("-k", "Lento", "tests/test_novo.py")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("Ran 1 test", r.stderr)
+        self.assertIn("Ran 2 tests", self.rodar("tests/test_novo.py").stderr)
+
+    def test_k_repetido_soma_os_padroes_e_nao_combina_com_vermelho(self):
+        self.assertIn("Ran 2 tests", self.rodar("-k", "test_a", "-k", "test_b", "tests/test_novo.py").stderr)
+        r = self.rodar("--vermelho", "-k", "x")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("-k não combina com --vermelho", r.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

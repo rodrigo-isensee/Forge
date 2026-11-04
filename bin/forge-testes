@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Forge: teste dirigido durante a iteração do autor (TA-3). Só biblioteca padrão.
 
-Uso: forge-testes [--base REF] [--listar] [--completa] [CAMINHO ...]
+Uso: forge-testes [--base REF] [--listar] [--completa] [-k PADRAO ...] [CAMINHO ...]
      forge-testes --vermelho [BASE] [--modulos M[,M...]] [--prazo SEGUNDOS]
   (sem opção)   lê o que mudou desde o ancestral comum com REF (padrão origin/develop), mais os arquivos
                 não commitados e os novos, e roda só os módulos de teste que cobrem esses caminhos
@@ -551,6 +551,8 @@ def main(argv=None):
     p.add_argument("--base", default=BASE_PADRAO)
     p.add_argument("--listar", action="store_true")
     p.add_argument("--completa", action="store_true")
+    p.add_argument("-k", dest="filtros", action="append", default=[], metavar="PADRAO",
+                   help="só os testes cujo nome contém PADRAO (como `unittest -k`; repita para somar)")
     p.add_argument("--vermelho", nargs="?", const=True, default=None, metavar="BASE")
     p.add_argument("--modulos", metavar="M[,M...]")
     p.add_argument("--prazo", type=int, metavar="SEGUNDOS", help=f"por módulo, em segundos (padrão {PRAZO_PADRAO})")
@@ -563,6 +565,8 @@ def main(argv=None):
         p.error("--modulos só vale com --vermelho")
     if args.vermelho is not None and (args.completa or args.listar):
         p.error("--vermelho não combina com --completa nem com --listar")
+    if args.vermelho is not None and args.filtros:
+        p.error("-k não combina com --vermelho")
     if args.vermelho is None and args.prazo is not None:
         p.error("--prazo só vale com --vermelho")
     prazo = PRAZO_PADRAO if args.prazo is None else args.prazo
@@ -619,6 +623,8 @@ def main(argv=None):
     else:
         print(f"forge-testes: dirigido ({', '.join(detalhe)}). O CI do PR roda a suíte inteira.")
         comando, modulos = [sys.executable, "-m", "unittest", "-q", *[f"tests.{m}" for m in detalhe]], detalhe
+    for filtro in args.filtros:
+        comando += ["-k", filtro]
     if args.listar:
         return 0
     inicio = time.monotonic()
