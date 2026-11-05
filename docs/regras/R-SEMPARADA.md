@@ -1,9 +1,9 @@
 ---
-id: R-SEM-PARADA
+id: R-SEMPARADA
 titulo: O Jarvis não espera com a máquina livre
 verificada_por: revisão (retrospectiva do agile-coach) e invariante em `tests/config.json`
 ---
-# R-SEM-PARADA: O Jarvis não espera com a máquina livre
+# R-SEMPARADA: O Jarvis não espera com a máquina livre
 
 Propósito: texto único desta regra; os outros arquivos citam o ID. Público: o Jarvis e quem o conduz. Revisão: 2026-11-05.
 
