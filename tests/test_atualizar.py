@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import SINAIS_DE_CUSTO, remoto_sem_manutencao, sem_manutencao  # noqa: E402
+from sem_claude_ancestral import comando  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 ATUALIZAR = RAIZ / "bin" / "forge-atualizar"
@@ -63,8 +64,9 @@ class Base(unittest.TestCase):
         self.gitconfig = self.home / "gitconfig"
         self.gitconfig.write_text("[user]\n\tname = Pessoa Teste\n\temail = pessoa@exemplo.test\n", encoding="utf-8")
         self.publicado = self.tmp / "forge-publicado.git"
-        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas), e os scripts se recusam a rodar
-        # aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do ambiente do subprocesso.
+        # A suíte roda dentro do Claude Code (CLAUDECODE e CLAUDE_CODE_ENTRYPOINT definidas, `claude` ancestral), e os scripts
+        # se recusam a rodar aí (F5-01). Os testes do caminho feliz simulam "a pessoa no terminal": tiram essas variáveis do
+        # ambiente e rodam o script pelo lançador `sem_claude_ancestral`, que não olha acima do processo do teste.
         self.env = {k: v for k, v in os.environ.items()
                     if not k.startswith("GIT_") and k not in ("CLAUDE_PROJECT_DIR", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT", *SINAIS_DE_CUSTO)}
         self.env.update(HOME=str(self.home), GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=str(self.gitconfig),
@@ -153,14 +155,14 @@ class Base(unittest.TestCase):
         produzir saída por `ocioso` s (pergunta sem resposta). Máquina lenta atrasa, não reprova."""
         env = env or self.env
         if respostas is None:
-            r = subprocess.run([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, capture_output=True,
+            r = subprocess.run(comando(script, *args, ate=os.getpid()), env=env, cwd=cwd or self.proj, capture_output=True,
                                text=True, timeout=120, stdin=subprocess.DEVNULL)
             return r.returncode, r.stdout + r.stderr
         mestre, escravo = pty.openpty()
         os.write(mestre, "".join(r + "\n" for r in respostas).encode())
         # No terminal o Ctrl-C chega ao processo: o SIGINT volta ao padrão mesmo quando quem roda a suíte o ignora (o pre-push a
         # roda em segundo plano, com `&`, e o bash deixa o SIGINT ignorado para ela e para os filhos dela; FLAKY-CTRLC-TROCA).
-        p = subprocess.Popen([sys.executable, str(script), *args], env=env, cwd=cwd or self.proj, stdin=escravo,
+        p = subprocess.Popen(comando(script, *args, ate=os.getpid()), env=env, cwd=cwd or self.proj, stdin=escravo,
                              stdout=escravo, stderr=escravo, close_fds=True,
                              preexec_fn=lambda: signal.signal(signal.SIGINT, signal.SIG_DFL))
         os.close(escravo)
@@ -689,6 +691,23 @@ class Dentro(Base):
                 self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
                 self.assertEqual(self.chamadas_do_claude(), [])
                 self.assertEqual(self.ramos(), {"main", "develop", "homolog"})
+
+    def test_o_lancador_dos_testes_nao_esconde_um_claude_abaixo_do_teste(self):
+        """TESTES-SEM-CLAUDE-ANCESTRAL: o lançador só ignora o que está acima do processo do teste; um `claude` no meio recusa."""
+        self.publicar("9.9.0")
+        for script in (ATUALIZAR, VOLTAR):
+            with self.subTest(script=script.name):
+                pasta = self.tmp / ("lancado-" + script.name)
+                pasta.mkdir()
+                claude = pasta / "claude"
+                claude.write_text(f"#!/bin/sh\n{sys.executable} -c \"import pty,sys;sys.exit(pty.spawn({comando(script, ate=os.getpid())!r}) >> 8)\"\n",
+                                  encoding="utf-8")
+                claude.chmod(0o755)
+                r = subprocess.run([str(claude)], env=self.env, cwd=self.proj, capture_output=True, text=True, timeout=60,
+                                   stdin=subprocess.DEVNULL)
+                self.assertEqual(r.returncode, 2, r.stdout + r.stderr)
+                self.assertIn("fora do Claude", r.stdout + r.stderr)
+                self.assertEqual(self.chamadas_do_claude(), [])
 
     def test_fixar_tambem_recusa(self):
         self.recusa(ATUALIZAR, {**self.env, "CLAUDECODE": "1"}, "--fixar")
