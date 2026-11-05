@@ -45,9 +45,9 @@ class MensagemPelaEtapaDoBrief(Cenario):
         conteudo = (self.tmp / ARQ).read_bytes()
         esperado = ["modo: entrega", f"Pedido: {ID}", "Agente conferido: forge:dev-exemplo", f"Arquivo: {(self.tmp / ARQ).resolve()}",
                     f"Worktree: {self.pasta}", "Branch: melhoria/x", "Base: develop", f"Base-sha: {BASE_SHA}", f"Desde: {SHA_B}",
-                    f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", "Etapa: codigo", "<<<BRIEF"]
-        self.assertEqual(saida.decode().splitlines()[:12], esperado)
-        self.assertTrue(saida.endswith(conteudo + b"\nBRIEF>>>\n"))
+                    f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", "Etapa: codigo"]
+        self.assertEqual(saida.decode().splitlines(), esperado)  # TEMPO-B1: sem o bloco do texto
+        self.assertNotIn(b"<<<BRIEF", saida)
 
     def test_sem_conferida_no_historico_a_linha_desde_nao_sai(self):
         rc, saida = self.entrega("--worktree", str(self.pasta), pedido_extra="- 2026-10-29 07:36: aberto\n")
