@@ -3,11 +3,15 @@
 pedido do HOME do teste (fora do repositório, onde o Jarvis do Forge o guarda), sobre o head da ref; os testes do E7 gravam a deles."""
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ambiente_git import sem_manutencao  # noqa: E402
 
 
 def gravar_conferida(home, raiz, pedido, ref="HEAD"):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env = sem_manutencao({k: v for k, v in os.environ.items() if not k.startswith("GIT_")})
     r = subprocess.run(["git", "-C", str(raiz), "rev-parse", "--verify", "-q", f"{ref}^{{commit}}"], capture_output=True, text=True, env=env)
     if r.returncode:
         return
