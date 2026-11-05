@@ -2079,9 +2079,12 @@ class Hooks(unittest.TestCase):
         for linha in self.corpus_de_recusas():
             base = lidos(linha, todas=False) or []
             for prefixo, sufixo in VARIANTES_QUE_O_BASH_IGNORA:
-                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)):
+                if '$(' in prefixo and '"' in prefixo and ('"' in linha or _comum.CASE.search(linha)
+                                                          or ("$'" in linha and "\\\\" in linha)):
                     # O hook relê a palavra que o `shlex` já tirou das aspas: a aspa dupla da linha fecha a de fora, e o
                     # `)` de um padrão de `case` fecha o `$(` (achado do lote, cartão próprio; o T5 cobre as ações)
+                    # O `\\` de um `$'…'` também: entre aspas duplas o `shlex` o lê como `\`, e a relida muda a palavra
+                    # (as fixtures continuacao-linha-40b e 42b provam que o hook recusa a variante; HOOK-CONTINUACAO-LINHA)
                     continue
                 if "`" in linha and (prefixo, sufixo) in CRASE_EM_VOLTA:
                     continue  # crase não se aninha sem `\``: em volta de outra, a variante muda o que o bash roda

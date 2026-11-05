@@ -39,6 +39,15 @@ class MergeIntegracao(Repositorio):
         self.assertEqual(rc, 0, saida)
         self.assertIn(OK_INTEGRACAO, saida)
 
+    def test_escopo_le_so_os_pareceres_e_o_pr_segue_cobrando_a_conferencia(self):
+        """Regressão do L08: na ref viva, o escopo da merge-integracao lê só os pareceres (como o caminho do squash); a conferência do
+        head (E7) continua portão do `forge-check pr` da linha de comando, no mesmo repositório."""
+        self.commitar(review(self.codigo), "review")
+        rc, saida = self.entrega(etapa="merge-integracao")
+        self.assertEqual((rc, "conferência" in saida), (0, False), saida)
+        rc, saida = self.check("pr", "x", "--ref", "melhoria/x", "--base", "develop")
+        self.assertEqual((rc, "pr: conferência: sem o pedido de" in saida), (1, True), saida)
+
     def test_sem_parecer_ou_com_parecer_reprovado_continua_reprovando(self):
         for nome, arquivos in {"ausente": {}, "reprovado": review(self.codigo, "reprovado")}.items():
             with self.subTest(nome):

@@ -77,7 +77,7 @@ class Catalogo(unittest.TestCase):
                 self.assertNotIn(fc.PREENCHER, evita)
 
     def test_tipos_de_brief(self):
-        self.assertEqual(set(fc.TIPOS_DE_BRIEF), {"codigo", "volta", "review", "qa", "merge", "desconhecido"})
+        self.assertEqual(set(fc.TIPOS_DE_BRIEF), {"codigo", "volta", "review", "qa", "merge", "ato-github", "desconhecido"})
 
 
 # ---- passo 2: registrar --classe e --autor ----
