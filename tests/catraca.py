@@ -1110,17 +1110,18 @@ def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
         return [violacao_de_git(e)]
 
 
-def pareceres_que_nao_aprovam(raiz, fc, pedidos, head):
+def pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo=None):
     """Violações do último parecer de cada tipo (review, qa, revisao-devops, revisao-seguranca) dos `pedidos` da branch, quando
     ele não aprova. O "último" usa a chave do `cmd_pr` (data, caminho); o critério é o dele: `aprovado`, ou `riscos-aceitos` com
-    o aceite do usuário. Não depende de arquivo sensível, do tipo ser exigido nem da base (QA na `develop` inclusive)."""
+    o aceite do usuário. Não depende de arquivo sensível, do tipo ser exigido nem da base (QA na `develop` inclusive). Com `ramo`,
+    só contam os pareceres com `branch: <ramo>`, como no `cmd_pr` (E11)."""
     achadas = []
     for ped in pedidos:
         for tipo, (_, rid) in fc.PASTA_E_REGRA.items():
             candidatos = []
             for rel, texto in fc.documentos(Path(raiz), tipo, head):
                 campos, _ = fc.validar_documento(rel, texto)
-                if campos is not None and campos.get("pedido") == ped:
+                if campos is not None and campos.get("pedido") == ped and (ramo is None or campos.get("branch") == ramo):
                     candidatos.append((campos.get("data", ""), rel, campos))
             if not candidatos:
                 continue
@@ -1141,12 +1142,12 @@ def _violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
     tocados = [a for a in alterados(raiz, b, head) if a.startswith(SENSIVEIS)]
     fc = forge_check()
     pedidos = fc.pedidos_da_branch(Path(raiz), ramo, head)
-    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head)
+    nao_aprovam = pareceres_que_nao_aprovam(raiz, fc, pedidos, head, ramo)
     if not tocados:
         return nao_aprovam
     achados = []
     for ped in pedidos:  # todos os pedidos da branch passam: um aprovado não cobre o reprovado de outro
-        linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base) if l.strip()]
+        linhas = [l for l in fc.cmd_pr(Path(raiz), ped, head, base, ramo) if l.strip()]  # E11: o parecer é o da branch do PR
         if base_ref != "homolog":  # o QA só é exigido na entrada da homolog
             linhas = [l for l in linhas if not l.startswith("docs/qa") and "(R-QA)" not in l]
         achados += linhas

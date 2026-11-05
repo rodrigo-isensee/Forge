@@ -1546,6 +1546,29 @@ class ParecerReprovadoBarraSempre(Base):
         self.parecer("review", "reprovado", ramo="outra")
         self.assertEqual(self.roda(), [])
 
+    def test_e11_parecer_da_branch_do_pr_vence_o_de_outra_branch_no_desempate(self):
+        """Caso do #437: mesmo pedido e data; o parecer de outra branch (sha sumido no squash) vence por caminho, e o da branch vale."""
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("review", ramo="outra", arquivo="zz-outra", commit="deadbee", commita=False)
+        self.assertEqual(self.roda(), [])
+
+    def test_e11_reprovado_da_propria_branch_barra_com_aprovado_de_outra_vencendo(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review", "reprovado")
+        self.parecer("review", ramo="outra", arquivo="zz-outra", commita=False)
+        achadas = self.roda()
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn("docs/reviews/ped.md", achadas[0])
+
+    def test_e11_tipo_exigido_so_em_outra_branch_falha_fechado(self):
+        self.repo.escreve("hooks/novo.py", "x = 1\n")
+        self.parecer("review")
+        self.parecer("qa", ramo="outra", commita=False)
+        achadas = self.roda("homolog")
+        self.assertEqual(len(achadas), 1, achadas)
+        self.assertIn('sem parecer da branch "pr" para o pedido `ped`', achadas[0])
+
     def test_nao_regressao_promocao_nao_le_parecer(self):
         self.repo.escreve("docs/x.md", "x\n")
         self.parecer("review", "reprovado")
