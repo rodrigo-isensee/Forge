@@ -5696,7 +5696,7 @@ def cmd_brief_mensagem(raiz, a):
         pedido_txt = caminho_pedido.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return recusar(f"não consegui ler o pedido {nome_seguro(sem_controle(a.pedido))}")
-    lembrar_do_jarvis(raiz, tipo_do_brief(texto))
+    # E15: sem lembrete aqui; a saída inteira vai ao conferente e a primeira linha dela é `modo: brief`
     _, linhas = avaliar_brief(raiz, arquivo, conteudo, texto, caminho_pedido, pedido_txt, destino, rel, bytes_anterior, a.ref, a.parecer)
     if any(r for _, r in linhas):
         print("brief mensagem: o brief reprova no `forge-check brief`; corrija antes de enviar ao conferente")

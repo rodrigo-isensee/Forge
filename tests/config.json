@@ -136,7 +136,7 @@
       "decisão D: não muda o veredito",
       "impressa pelo `forge-check` que você rodou \\(só no Forge\\)",
       "Não rode a suíte",
-      "logo depois do `BRIEF>>>`",
+      "brief e entrega vão em mensagens separadas",
       "união de briefs de entregas diferentes",
       "--brief <Arquivo>",
       "--base origin/<Base>`",
@@ -607,7 +607,8 @@
       "forge-check brief gerar",
       "só com o que o arquivo delas diz",
       "\\*\\*antes\\*\\* de chegar ao agente",
-      "literal, exatamente como será enviado",
+      "só com o caminho e o hash",
+      "nenhuma linha de lembrete ou de outro tipo vem antes",
       "corte de escopo marcado",
       "O agente só recebe o texto aprovado",
       "docs/briefs/"
