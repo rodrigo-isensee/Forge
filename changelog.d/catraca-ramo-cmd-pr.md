@@ -1,2 +1,0 @@
-### Corrigido
-- a catraca, em `--modo pareceres`, passa a branch do PR ao `cmd_pr` do `forge-check`, que conta só os pareceres com `branch:` dessa branch: um parecer do mesmo pedido em outra branch (com o sha sumido num squash) não vence mais o desempate (data, caminho) e não trava o PR; sem parecer da própria branch, falha fechada (`sem parecer ... com branch:`). O `forge-check pr <pedido>` manual segue igual. Substitui o #439 (CATRACA-RAMO-CMD-PR, E11)
