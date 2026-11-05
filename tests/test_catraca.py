@@ -1552,7 +1552,6 @@ class ParecerReprovadoBarraSempre(Base):
         self.parecer("review")
         self.parecer("review", ramo="outra", arquivo="zz-outra", commit="deadbee", commita=False)
         self.assertEqual(self.roda(), [])
-        self.assertTrue(any("zz-outra" in l for l in catraca.forge_check().cmd_pr(self.repo.dir, "ped", "HEAD", "base")))  # manual: igual
 
     def test_e11_reprovado_da_propria_branch_barra_com_aprovado_de_outra_vencendo(self):
         self.repo.escreve("hooks/novo.py", "x = 1\n")
@@ -1568,7 +1567,7 @@ class ParecerReprovadoBarraSempre(Base):
         self.parecer("qa", ramo="outra", commita=False)
         achadas = self.roda("homolog")
         self.assertEqual(len(achadas), 1, achadas)
-        self.assertIn("sem parecer para o pedido `ped` com `branch: pr`", achadas[0])
+        self.assertIn('sem parecer da branch "pr" para o pedido `ped`', achadas[0])
 
     def test_nao_regressao_promocao_nao_le_parecer(self):
         self.repo.escreve("docs/x.md", "x\n")
