@@ -18,8 +18,8 @@ Código testado: f7e3481 (head da branch 500aa80; entre os dois só mudam os par
 
 ## Achados
 - A1 (recomendado) tests/test_hooks.py:1865 · test_muitos_heredocs_recusam_dentro_do_orcamento falhou na suíte (5,78 s contra limite de 5,0 s, carga 17 em 12 núcleos). Isolado passa no head e na base 360186e. Instável por carga, sem relação com o diff; dono do teste decide folga.
-- A2 (recomendado) bin/forge-mutante · Q3 (D em `status in ("A","M")`) sobreviveu: equivalente, pois D tem modo novo 000000, que o teste de modo já recusa. Defesa em profundidade; sem ação.
-- A3 (recomendado) bin/forge-testes · `--vermelho 360186e` estourou 590 s sem veredito (carga). Vermelho feito à mão, abaixo; o autor repete com a máquina livre.
+- A2 (recomendado) bin/forge-check:4936 · Q3 (D em `status in ("A","M")`) sobreviveu: equivalente, pois D tem modo novo 000000, que o teste de modo já recusa. Defesa em profundidade; sem ação.
+- A3 (recomendado) bin/forge-testes:1 · `--vermelho 360186e` estourou 590 s sem veredito (carga). Vermelho feito à mão, abaixo; o autor repete com a máquina livre.
 
 ## Critério → teste → resultado
 O pedido não traz CA em EARS; as obrigações são os controles C-1 a C-9 do modelo de ameaças.
