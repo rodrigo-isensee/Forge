@@ -21,14 +21,6 @@
       "testes": [
         "tests.test_conf_escopo.MergeIntegracao.test_escopo_le_so_os_pareceres_e_o_pr_segue_cobrando_a_conferencia"
       ]
-    },
-    {
-      "id": "M62",
-      "guarda": "sem base, o pr também respeita conferir",
-      "arquivo": "bin/forge-check",
-      "de": "return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])",
-      "para": "return cmd_pr(raiz, pedido, ref, None, branch) + conferencia_do_head(raiz, pedido, ref, None, branch)",
-      "equivalente": "o único chamador com conferir=False passa base (origin/<base>); o ramo sem base só roda com o padrão True, sem teste que o distinga (QA)"
     }
   ]
 }
