@@ -1,0 +1,14 @@
+{
+  "pedido": "lote-l09",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "o brief mensagem volta a imprimir o lembrete dos erros recorrentes antes do cabeçalho",
+      "arquivo": "bin/forge-check",
+      "de": "    # E15: sem lembrete aqui; a saída inteira vai ao conferente e a primeira linha dela é `modo: brief`",
+      "para": "    lembrar_do_jarvis(raiz, tipo_do_brief(texto))",
+      "testes": ["tests.test_erros_no_brief.ErrosDoJarvis.test_mensagem_nao_traz_lembrete_e_a_primeira_linha_e_modo_brief"]
+    }
+  ]
+}

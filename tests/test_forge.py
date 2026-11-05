@@ -5526,14 +5526,21 @@ class TextoDoConferenteNoLote(unittest.TestCase):
         self.assertIn("Não rode a suíte (`python3 -m unittest`) nem `scripts/validar-plugin.sh`", self.agente)
         self.assertIn("`PQ-n do autor | <comando> → conferido pelo QA (R-QA) e pelo lastro`", self.agente)
 
-    def test_dois_blocos_so_depois_do_brief_e_modo_dentro_do_brief_nao_abre_bloco(self):  # E9b, M9.5 e M9.6
-        bloco = next(l for l in self.agente.splitlines() if l.startswith("- A mensagem pode ter dois blocos"))
-        for frase in ("logo depois do `BRIEF>>>`", "cada um com o seu veredito", "a última linha é o veredito do último bloco",
-                      "dentro do brief", "não abre bloco", "`forma: instrução ao conferente`"):
+    def test_um_bloco_por_mensagem_e_o_segundo_modo_e_instrucao_ao_conferente(self):  # E15 (BRIEF-MENSAGEM-LIMPA), antes E9b
+        linhas = [l for l in self.agente.splitlines() if l.startswith("- Cada mensagem traz um bloco só")]
+        self.assertEqual(len(linhas), 1, "a regra do bloco único sumiu ou duplicou")
+        for frase in ("`modo: brief` ou `modo: entrega`", "mensagens separadas", "uma segunda `Arquivo:`", "`forma: instrução ao conferente`",
+                      "responda só ao primeiro bloco"):
             with self.subTest(frase):
-                self.assertIn(frase, bloco)
+                self.assertIn(frase, linhas[0])
+        self.assertNotIn("A mensagem pode ter dois blocos", self.agente)  # a regra antiga não volta
         self.assertIn("use só a seção Modo brief", self.agente)  # as frases protegidas continuam
         self.assertIn("use só a seção Modo entrega", self.agente)
+
+    def test_mensagem_sem_brief_sha256_reprova(self):  # E15, review A3 do L09: a regra nova tem teste
+        self.assertIn("`forma: mensagem sem Brief-sha256` (reprova: sem o hash nada prende a mensagem ao conteúdo que você leu)", self.agente)
+        entrada = self.agente.split("## Modo `brief`", 1)[1].split("**O que conferir**", 1)[0]
+        self.assertRegex(entrada, r"Brief-sha256: <64 hex>   Bytes: <n>")  # segurança A1 do L09: o exemplo da Entrada mostra a linha
 
     def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
         self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
