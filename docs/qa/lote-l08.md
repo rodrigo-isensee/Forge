@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 3625656cf0462fe8829ce3aff82bbfa055b352df
+commit: df0a0e98d3d3b65efeea5086787ec328a9745081
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -14,7 +14,7 @@ data: 2026-11-05
 ---
 # QA: lote L08 (E7, E10, E12, E16, E19)
 
-Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes; a segunda sobre 79256408521daeb3c1ca57261b690614b1e12699; a primeira rodada foi sobre 874c89ec82a86840262c5c4a5b93eba48554eb5c). O `commit:` é o último commit de código revisado (3625656); os commits do QA depois dele só mexem em specs de mutantes (bf883a0, df0a0e9).
+Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes; a segunda sobre 79256408521daeb3c1ca57261b690614b1e12699; a primeira rodada foi sobre 874c89ec82a86840262c5c4a5b93eba48554eb5c). O `commit:` é o último commit de código revisado (df0a0e9, o último commit de teste do QA, que só mexe em specs de mutantes sobre o código testado 3625656).
 
 ## Achados
 - A1 (recomendado) docs/qa/lote-l08.md:1 · nenhum achado bloqueante aberto; o A1 antigo (spec e7b velha, L08-3) está fechado
@@ -77,3 +77,8 @@ Head testado c4b582d (depois de 3625656 só há pareceres). Delta: `git diff 91d
 - Mutantes: spec nova tests/mutantes/lote-l08-escopo.json (M60 `conferir=False` do escopo e M61 padrão `conferir=True`, ambos mortos pelo teste novo). O fix mudou as linhas de M29 e M30 (tests/mutantes/lote-l08-e7.json), que saíram inválidas (rc=2); atualizei o trecho `de` (df0a0e9). `bin/forge-mutante tests/mutantes/lote-l08-*.json` no head df0a0e9: 57 mortos, M36 equivalente, rc=0. As linhas de guarda mudadas pelo fix (:657, :1396 e as duas de `conferir else []`, cobertas por M29 e M30) têm mutante.
 - Vermelho antes do verde: não rodei `forge-testes --vermelho`; o review mutou o `conferir=False` e o teste novo caiu, e M60 e M61 mortos aqui valem como a prova de que o teste falha sem a implementação.
 - Bugs abertos: nenhum (L08-1, L08-2 e L08-3 fechados). Veredito: aprovado.
+
+## Revalidação df0a0e9 (spec de mutantes)
+Delta `c4b582d..df0a0e9`, só tests/mutantes/: lote-l08-e7.json (M29 e M30 com o `conferir` do fix 3625656) e lote-l08-escopo.json (M60 e M61, sem o M62 duplicado). O `commit:` é o do último commit de teste (E16); depois dele só há pareceres (8df8e17, 12a5d19, 3991a93). Nenhum código de produção mudou.
+- `bin/forge-mutante tests/mutantes/lote-l08-*.json` no head 3991a93, árvore limpa: rc=0, todos os mutantes mortos (M60 em bin/forge-check:1396 e M61 em :657 mortos pelo teste novo do escopo; M29 e M30 mortos), M36 equivalente declarado.
+- Bugs abertos: nenhum. Veredito: aprovado.
