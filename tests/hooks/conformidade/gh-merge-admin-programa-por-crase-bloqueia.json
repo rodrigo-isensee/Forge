@@ -1,0 +1,19 @@
+{
+  "descricao": "GH-MERGE-ADMIN: `which gh` pr merge 12 --admin",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "`which gh` pr merge 12 --admin"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: programa por expansão"
+  }
+}

@@ -394,6 +394,34 @@ def exporta(palavras):
         re.fullmatch(r"-[a-zA-Z]*x[a-zA-Z]*", p) for p in palavras[1:])
 
 
+VALOR_DE_CONTAINS = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._/@^~-]*$")
+
+
+def forma_de_leitura_git(chave, args):
+    """E8 (C-1, C-2): lista branca exata de `git branch` (sem argumento, `--list`, `-r`, `--contains <commit>` ou
+    `--contains=<commit>`, e o padrão sem `-` só junto de `--list`) e de `git worktree` (só `list`, sem argumento)."""
+    if chave == "git worktree":
+        return args == ["list"]
+    padroes, lista, i = [], False, 0
+    while i < len(args):
+        a = args[i]
+        if a in ("--list", "-r"):
+            lista = lista or a == "--list"
+        elif a == "--contains":
+            i += 1
+            if i >= len(args) or not VALOR_DE_CONTAINS.match(args[i]):
+                return False
+        elif a.startswith("--contains="):
+            if not VALOR_DE_CONTAINS.match(a[len("--contains="):]):
+                return False
+        elif a.startswith("-"):
+            return False
+        else:
+            padroes.append(a)
+        i += 1
+    return lista or not padroes
+
+
 def abreviacao_de(opcao, longas):
     """A opção longa (sem o `=valor`) é uma das `longas` ou a abreviação dela que o git aceita (`--upload-p`)."""
     nome = opcao.split("=", 1)[0]
@@ -966,6 +994,9 @@ class Guarda:
         if self.raiz_e_projeto() and LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}:
             self.lancador_recusado = (LANCADORES_RECUSADOS & {prog, Path(originais[0]).name}).pop()  # recusa no fim da linha
         parte = parecer.analisar(palavras)
+        if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):
+            self.barrar("R-MAIN", "programa por expansão com pr merge ou api: o hook não sabe se é o gh",
+                        "chame `gh` pelo nome, sem expansão")  # GH-MERGE-ADMIN, C-1 e C-3: falha fechado
         if prog == "pushd":  # como o `cd`: o destino é o primeiro argumento que não é opção
             alvo = next((a for a in args if not a.startswith("-")), None)
             return self.caminho(pasta, alvo) if alvo else pasta
@@ -1101,7 +1132,13 @@ class Guarda:
     def git_so_leitura(self, chave, args):
         """Opções do git no papel só de leitura: lista branca no `ls-remote` (sem transporte `<x>::`, que roda o
         `git-remote-<x>`); nos outros subcomandos, recusa as de `GIT_EXECUTA`, inclusive abreviadas (`--textconv` e
-        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`)."""
+        `--filters` rodam o driver configurado no repositório), e o formato `%G` (`FORMATO_ASSINATURA`). `git branch` e
+        `git worktree` só passam pela gramática exata de `forma_de_leitura_git` (E8, C-1 e C-2)."""
+        if chave in ("git branch", "git worktree"):
+            if not forma_de_leitura_git(chave, args):
+                self.barrar("R-CONFORMIDADE", f"`{(chave + ' ' + ' '.join(args)).strip()}` fora das formas de leitura "
+                                              f"(papel só de leitura: {self.papel})", DICA_LEITURA)
+            return
         for a in args:
             if chave == "git ls-remote":
                 if a.startswith("-") and a not in LS_REMOTE_LEITURA and not a.startswith("--sort="):
@@ -1384,7 +1421,7 @@ class Guarda:
     def textos_da_api(args, pasta):
         """(textos, ilegivel) do `gh api`: o texto vem inline ou de arquivo (`-F query=@arq`, `--input arq`); o que não
         dá para ler (`--input -`, arquivo ausente) marca `ilegivel`."""
-        textos = []
+        textos, args = [], parecer.desagrupa_i(args)
         for i, a in enumerate(args):
             valor = args[i + 1] if a == "--input" and i + 1 < len(args) else a.split("=", 1)[-1]
             if a == "--input" or a.startswith("--input=") or re.search(r"=@", a) or (
@@ -1659,11 +1696,32 @@ class Guarda:
             self.barrar("R-CONFORMIDADE", f"claude {' '.join(pos[:3])} altera a instalação do Forge",
                         f"só o usuário, no terminal dele; {SUGESTAO}", "instalacao")
 
+    CORRIGIR_DO_MERGE = "o dono mescla pela interface do GitHub, fora dos hooks do agente (R-DECISAO)"
+
+    def gh_admin(self, palavras, parte):
+        """GH-MERGE-ADMIN (R-MAIN): `gh pr merge` com `--admin` (qualquer valor) pula a proteção do GitHub: recusa em
+        qualquer papel, base e pasta, antes de toda saída antecipada de `gh`."""
+        if parte and parte[0] == "prmerge" and parecer.usa_admin(palavras[1:]):
+            self.barrar("R-MAIN", "gh pr merge com --admin desvia a proteção da branch", self.CORRIGIR_DO_MERGE)
+
+    def gh_api_de_merge(self, args, pasta):
+        """GH-MERGE-ADMIN (R-MAIN): o `gh api` mutante de merge (REST ou GraphQL, inline ou em arquivo) também desvia a
+        proteção. O GraphQL que não dá para ler (`--input -`, arquivo ausente) falha fechado."""
+        endpoint = parecer.endpoint_da_api(args)
+        merge = bool(parecer.MERGE_POR_API.search(endpoint))
+        if not merge and parecer.ENDPOINT_GRAPHQL.search(endpoint):
+            textos, ilegivel = self.textos_da_api(args, pasta)
+            merge = ilegivel or any(parecer.MERGE_NO_GRAPHQL.search(t) for t in textos)
+        if merge:
+            self.barrar("R-MAIN", "gh api que mescla PR (merge REST ou GraphQL) pode desviar a proteção da branch",
+                        self.CORRIGIR_DO_MERGE)
+
     def gh(self, palavras, parte, pasta, repo_env=None, por_xargs=False):
         self.gh_trava(palavras, pasta)
         self.gh_contrib(palavras, pasta, repo_env)
         if self.sessao_forge:
             self.gh_rotulo(palavras, pasta, por_xargs)
+        self.gh_admin(palavras, parte)  # antes de toda saída antecipada: não depende de branch, base nem raiz
         if not parte:
             return
         if parte[0] == "pr" and not self.pode("pr_criar"):
@@ -1688,6 +1746,8 @@ class Guarda:
                     or any("mutation" in a and GRAPHQL_PERIGOSO.search(a) for a in args)):
                 self.barrar("R-CONFORMIDADE", "gh api que altera refs, regras, acessos ou faz merge",
                             "use gh pr/git pelo papel certo ou leve ao usuário (R-DECISAO)")
+            if parecer.metodo_mutante(args):
+                self.gh_api_de_merge(args, pasta)
 
     # Pacotes ----------------------------------------------------------------------------------------
     @staticmethod

@@ -1,0 +1,106 @@
+{
+  "pedido": "gh-merge-admin",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "G1",
+      "guarda": "o --admin recusa mesmo quando a branch do PR não se resolve (a checagem não fica depois do return da branch)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
+      "para": "        None if parte and parte[0] == \"prmerge\" and not parecer.branch_do_pr(self.h.raiz, parte[2]) else self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G2",
+      "guarda": "o --admin=<valor> também recusa (não só o casamento exato)",
+      "arquivo": "hooks/parecer.py",
+      "de": "return any(a == \"--admin\" or a.startswith(\"--admin=\") for a in args)",
+      "para": "return any(a == \"--admin\" for a in args)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G3",
+      "guarda": "a recusa do --admin vive no conformidade, para qualquer papel (não só no parecer)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "        self.gh_admin(palavras, parte)  # antes de toda saída antecipada",
+      "para": "        pass  # antes de toda saída antecipada",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G4",
+      "guarda": "o GraphQL de merge em arquivo (-F query=@arq, --input) também recusa, não só o inline",
+      "arquivo": "hooks/conformidade.py",
+      "de": "merge = ilegivel or any(parecer.MERGE_NO_GRAPHQL.search(t) for t in textos)",
+      "para": "merge = any(parecer.MERGE_NO_GRAPHQL.search(t) for t in args)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G5",
+      "guarda": "o endpoint graphql com consulta ou fragmento na URL ainda é GraphQL",
+      "arquivo": "hooks/parecer.py",
+      "de": "r\"(^|/)graphql/?([?#]|$)\"",
+      "para": "r\"(^|/)graphql/?$\"",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G6",
+      "guarda": "o programa com caminho (/usr/bin/gh, ./gh) é o gh",
+      "arquivo": "hooks/parecer.py",
+      "de": "if Path(toks[0]).name == \"gh\":",
+      "para": "if toks[0] == \"gh\":",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G7",
+      "guarda": "o -R/--repo entre pr e o subcomando é pulado antes de ler o subcomando",
+      "arquivo": "hooks/parecer.py",
+      "de": "while j < len(toks) and (toks[j] in (\"-R\", \"--repo\") or toks[j].startswith((\"--repo=\", \"-R\"))):",
+      "para": "while False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G8",
+      "guarda": "as formas coladas de -f, -F e --input= viram método mutante",
+      "arquivo": "hooks/parecer.py",
+      "de": "or re.match(r\"-[fF]\", a) is not None",
+      "para": "or False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G9",
+      "guarda": "a --input= colada é método mutante",
+      "arquivo": "hooks/parecer.py",
+      "de": "(\"--field=\", \"--raw-field=\", \"--input=\")",
+      "para": "(\"--field=\", \"--raw-field=\")",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    },
+    {
+      "id": "G10",
+      "guarda": "o programa por expansão com pr merge ou api recusa (falha fechado)",
+      "arquivo": "hooks/conformidade.py",
+      "de": "if parecer.expande(palavras[0]) and parecer.gh_de_merge_ou_api(args):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_do_gh_merge_admin"
+      ]
+    }
+  ]
+}

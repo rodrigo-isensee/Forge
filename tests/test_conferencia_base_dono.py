@@ -206,6 +206,7 @@ class IntegracaoNaBranch(Repositorio):
 
 class PedidoForaDoClone(Repositorio):
     """E3: `--raiz-pedidos <dir>`: pedido e briefs numa raiz, git em outra."""
+    mostra_origem = True
 
     def setUp(self):
         super().setUp()
@@ -310,15 +311,22 @@ class VoltaComABaseDoDono(Repositorio):
         return self.check("entrega", "pedido-sintetico", "--raiz-pedidos", self.fora, "--branch", "melhoria/x", "--base",
                           "develop", "--base-sha", self.base, "--etapa", "codigo", "--desde", desde)[0]
 
-    def test_base_que_o_entrega_recusa_para_o_gerar_sem_brief(self):  # P-N6: a recusa sai na hora, com o motivo
+    def test_base_que_o_entrega_recusa_volta_ao_base_sha_no_gerar(self):  # P-N6 com o E12: a base que não vale não é proposta
         ref = self.head("melhoria/x")
         self.historico(ref)  # a base do dono igual à ref zeraria o delta
         rc, saida = self.gerar("--raiz-pedidos", self.fora)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(f"--etapa codigo --desde {self.base}` · espera: rc=0", saida)  # sem base da própria branch, o Base-sha
+        self.assertEqual(self.entrega_fora(ref), 1)  # a mesma regra do entrega
+        self.assertEqual(self.entrega_fora(self.base), 0)
+
+    def test_base_que_o_entrega_recusa_para_o_gerar_sem_brief(self):  # P-N6: a recusa sai na hora, com o motivo
+        self.commitar({"docs/pedidos/x.md": "x\n"}, "a entrega mexe em docs/pedidos/ depois da base do dono")
+        rc, saida = self.gerar("--raiz-pedidos", self.fora)
         self.assertEqual(rc, 1, saida)
-        self.assertIn(f"recusado: a base de Desde {ref[:7]} (fixada pelo dono", saida)
+        self.assertIn(f"recusado: a base de Desde {self.c1[:7]} (fixada pelo dono", saida)
         self.assertIn("nada gerado (P-N6)", saida)
         self.assertNotIn("## Entregar", saida)
-        self.assertEqual(self.entrega_fora(ref), 1)  # a mesma regra do entrega
 
     def test_base_do_dono_no_base_sha_passa_como_no_entrega(self):  # P-N6: o Base-sha vale pelo `desde_e_a_base`
         self.historico(self.base)
@@ -367,12 +375,20 @@ class DesdeNoBaseSha(Repositorio):
         git("switch", "-q", "--no-track", "-c", "melhoria/velha", self.base, cwd=self.repo)
         velha = self.commitar({"v.txt": "v\n"}, "branch anterior, integrada por squash")
         git("switch", "-q", "melhoria/x", cwd=self.repo)
-        self.gravar_pedido([self.c1, velha])  # vale a última: a de antes do squash, fora do head
+        self.gravar_pedido([velha])  # só a de antes do squash, fora do head
         rc, saida = self.entrega(desde=self.base)
         self.assertEqual(rc, 0, saida)
+        self.gravar_pedido([self.c1, velha])  # E12: a conferida da própria branch vale, ainda que a de outra venha depois
+        self.assertEqual(self.entrega(desde=self.base)[0], 1)
         self.assertEqual(saida.splitlines(), [f"intervalo: {self.base}..{self.c1}", self.BASE_DO_BRIEF, 'escopo: confira "a.txt" +1 -0'])
         self.gravar_pedido([velha], extra=linha_do_dono(self.c1))  # só a linha `conferida` decide; a do dono não conta
         self.assertEqual(self.entrega(desde=self.base)[0], 0)
+
+    def test_conferida_ja_na_base_nao_e_da_branch(self):  # E12: só conta a conferida ancestral do head e fora do Base-sha
+        self.gravar_pedido([self.base])
+        rc, saida = self.entrega(desde=self.base)
+        self.assertEqual(rc, 0, saida)
+        self.assertIn(self.BASE_DO_BRIEF, saida)
 
     def test_branch_que_nao_nasce_do_base_sha_segue_recusada(self):
         git("switch", "-q", "develop", cwd=self.repo)

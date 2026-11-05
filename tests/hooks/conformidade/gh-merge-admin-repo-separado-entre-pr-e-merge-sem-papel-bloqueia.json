@@ -1,0 +1,18 @@
+{
+  "descricao": "GH-MERGE-ADMIN: gh pr --repo dono/repo merge 12 --admin",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh pr --repo dono/repo merge 12 --admin"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh pr merge com --admin"
+  }
+}

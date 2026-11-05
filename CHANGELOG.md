@@ -4,6 +4,26 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/); versões e
 
 ## [Não publicado]
 
+## [0.33.0] - 2026-11-05
+### Adicionado
+- forge-check entrega --etapa ato-github --branch — --brief <brief>: a entrega que é só um ato no GitHub, com o tipo vindo do brief (Tipo: ato-github, Branch: —) e a prova pelas PQ pr, merge ou run; sem PQ do GitHub, com --branch de verdade ou com PQ sha/push reprova, nunca nada a conferir (ATO-GITHUB-ENTREGA, FLUXO-12)
+### Alterado
+- O `forge:conferente` lê `git branch` (sem argumento, `--list`, `-r`, `--contains <commit>`) e `git worktree list`, por gramática exata no hook `conformidade`; toda forma de escrita segue recusada (E8, afrouxa).
+- QA commita teste e parecer em commits separados, com o commit: do parecer igual ao do teste; o forge-check pr recusa o parecer commitado junto do teste dizendo isso, e o review revalida o delta do teste; o texto de quem revalida diz que o forge-check delta não lista docs/ux/ (QA-TESTE-E-PARECER-SEPARADOS, C-4 do PARECER-UX-LIVRE)
+- a conferência de entrega corre junto com o review e os outros portões, presa ao head: o forge-check pr (linha de comando) só aprova com a linha entrega conferida <sha40> do ## Histórico do pedido que cobre o head (depois dela, só pareceres e quadro); a R-PROVA e o jarvis dizem a nova ordem (TEMPO-B2, D07 = A)
+- Textos: o brief do autor manda o push da branch de trabalho (E13); o modelo de brief traz a pasta literal de logs $TMPDIR/<papel>-<pedido>/ (E17); a sessão de projeto não roda a suíte inteira do Forge, o CI do PR roda (E20)
+- O parecer de review, QA, devops e segurança segue válido depois de um commit só em docs/ux/ (a entrada entra em LIVRES do forge-check, E9 PARECER-UX-LIVRE); o forge-check delta não lista essa pasta.
+- O pre-push do modelo de projeto pula o pre-push.local (lint e typecheck) quando todo arquivo enviado é de docs/** ou termina em .md; qualquer outro arquivo, branch nova, tag, apagar ref ou falha do git roda tudo, e o CI segue completo (PREPUSH-SO-DOCS, afrouxa)
+- A mensagem ao conferente leva só o cabeçalho, o caminho e o hash do brief, sem o texto integral; o hook aceita as duas formas (TEMPO-B1)
+### Corrigido
+- os hooks recusam `gh pr merge --admin` (qualquer valor) e o merge por `gh api` (REST e GraphQL, inline ou em arquivo) em todo papel, base e pasta, também com o programa por caminho (`/usr/bin/gh`, `./gh`), por expansão (`$(which gh)`), com `-R`/`--repo` entre `pr` e o subcomando, com `-f`/`-F`/`--input=` colados, com a opção curta agrupada ao `-i` (`-iX PUT`, `-if`) e com `graphql?x=1`: o dono mescla pela interface do GitHub (GH-MERGE-ADMIN, R-MAIN)
+- forge-check entrega: a falha do git em qualquer passo do escopo reprova em toda etapa (rc 1, "o git falhou") em vez de virar "nada a conferir"; sem diff lido, o forge-check pr exige todos os portões (FC-ENTREGA-GIT-FALHA-ABERTA)
+- forge-check: --pedido com cara de caminho só vale em docs/pedidos/ de uma raiz guardada (absoluto, ~/, .. e link para fora, inclusive o id nu que é link, recusam com rc 2) (FC-PEDIDO-FORA-DAS-RAIZES)
+- forge-check pr --pr <n> confere o PR já mesclado (squash, branch apagada) no head dele (headRefOid do gh, sha40 presente no clone) e escolhe o parecer pelo headRefName; o commit do squash nunca vale como revisado (CONF-MERGE-APOS-SQUASH)
+- brief mensagem --entrega e brief gerar --volta propõem o Desde pela base mais recente da própria branch (conferida ou do dono), não pela última do pedido; sem ela, o Base-sha; e o forge-check entrega só aceita o Base-sha como Desde sem conferida da própria branch (CONFERIDA-DESDE-POR-BRANCH)
+- o forge-check pr escolhe o parecer de cada tipo pela branch da --ref antes do mais recente do pedido; pareceres de outra branch do mesmo pedido não travam mais o forge-fechar (PARECER-POR-BRANCH)
+- O workflow Release roda a suíte com scripts/suite-paralela.py, como o CI, em vez do unittest em série que estourou o teto de 20 min na v0.32.0 (RELEASE-SUITE-PARALELA)
+
 ## [0.32.0] - 2026-11-03
 ### Adicionado
 - ADR 0014 (fluxo de três degraus nos projetos) e ADR 0015 (porta de entrada do onboarding), as duas como proposta, e emendas propostas das ADRs 0003 (retomada com pedido aberto) e 0009 (sandbox nos projetos, oráculo do portão, dois conferentes); só texto, nenhum controle muda até os PRs das fases C e E (lote-unico-032, L00)

@@ -222,22 +222,29 @@ def analisar(toks):
         return None
     if toks[0] == "cd":
         return ("cd", toks[1] if len(toks) > 1 else None)
-    if toks[0] == "gh":
+    if Path(toks[0]).name == "gh":  # `/usr/bin/gh`, `./gh`: o mesmo programa (GH-MERGE-ADMIN, C-1)
         if toks[1:2] == ["api"]:
             return ("api", toks[2:])
         if "pr" not in toks:
             return None
         i = toks.index("pr")
-        args = toks[i + 2:]
-        if toks[i + 1: i + 2] == ["create"]:
+        j, repo_pr = i + 1, None
+        while j < len(toks) and (toks[j] in ("-R", "--repo") or toks[j].startswith(("--repo=", "-R"))):
+            # `-R`/`--repo` persistente do `gh pr`, que o gh aceita entre `pr` e o subcomando
+            if toks[j] in ("-R", "--repo"):
+                repo_pr, j = (toks[j + 1] if j + 1 < len(toks) else None), j + 2
+            else:
+                repo_pr, j = toks[j].split("=", 1)[-1].removeprefix("-R"), j + 1
+        args = toks[j + 1:]
+        if toks[j: j + 1] == ["create"]:
             return ("pr", None, opcao(args, "--base", "-B"), opcao(args, "--head", "-H"),
                     bandeira(args, CREATE_COM_VALOR, {"--draft", "-d"}))
-        if toks[i + 1: i + 2] == ["ready"]:
+        if toks[j: j + 1] == ["ready"]:
             return ("prready", (posicionais(args, READY_COM_VALOR) or [None])[0],
                     bandeira(args, READY_COM_VALOR, {"--undo"}))
-        if toks[i + 1: i + 2] == ["merge"]:
-            repo = opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
-                                                        if a.startswith("GH_REPO=")), None)
+        if toks[j: j + 1] == ["merge"]:
+            repo = repo_pr or opcao(args, "--repo", "-R") or next((a.split("=", 1)[1] for a in atribuicoes
+                                                                   if a.startswith("GH_REPO=")), None)
             alvo = (posicionais(args, MERGE_PR_COM_VALOR) or [None])[0]
             return ("prmerge", repo, alvo)
         return None
@@ -491,17 +498,91 @@ def aponta_para_o_forge(texto):
     return bool(re.search(rf"(?<![\w.-]){re.escape(slug)}(\.git)?(?![\w.-])", texto.lower()))
 
 
+def desagrupa_i(args):
+    """`-iX PUT`, `-iXPUT`, `-if k=v`: o `gh api` lê o `-i` (boolean) e a opção colada como duas (`-i -X`)."""
+    saida, valor = [], False
+    for a in args:
+        if valor:  # o token que segue uma opção valorada (`-p -iX`) é o valor dela: fica como veio
+            saida.append(a)
+            valor = False
+            continue
+        while re.match(r"-i[^-]", a):
+            saida.append("-i")
+            a = "-" + a[2:]
+        saida.append(a)
+        valor = a in API_COM_VALOR
+    return saida
+
+
+def metodos_pedidos(args):
+    """Todo `-X`/`--method` do comando, mesmo como valor de outra opção (`-p -XPUT`): falha fechada."""
+    metodos = []
+    for i, a in enumerate(args):
+        if a in ("-X", "--method"):
+            if i + 1 < len(args):
+                metodos.append(args[i + 1])
+        elif a.startswith("--method="):
+            metodos.append(a.split("=", 1)[1])
+        elif a.startswith("-X") and len(a) > 2:
+            metodos.append(a[2:].removeprefix("="))  # `-XPUT`, `-X=PUT`
+    return metodos
+
+
+def ultimo_metodo_real(args):
+    """O último `-X`/`--method` que o `gh` lê de fato: o token depois de outra opção valorada (`-p -XGET`) é valor dela."""
+    ultimo, pular = None, False
+    for i, a in enumerate(args):
+        if pular:
+            pular = False
+        elif a in ("-X", "--method"):
+            ultimo, pular = (args[i + 1] if i + 1 < len(args) else ultimo), True
+        elif a.startswith("--method="):
+            ultimo = a.split("=", 1)[1]
+        elif a.startswith("-X") and len(a) > 2:
+            ultimo = a[2:].removeprefix("=")
+        elif a in API_COM_VALOR:
+            pular = True
+    return ultimo
+
+
 def metodo_mutante(args):
-    """True se o `gh api` altera algo: método diferente de GET, ou campos (que viram POST)."""
-    metodo = opcao(args, "--method", "-X")
-    if metodo:
-        return metodo.upper() != "GET"
-    return any(a in ("-f", "-F", "--field", "--raw-field", "--input") or a.startswith(("--field=", "--raw-field="))
+    """True se o `gh api` altera algo: qualquer método diferente de GET (não só o último), ou campos (que viram POST)."""
+    args = desagrupa_i(args)
+    metodos = metodos_pedidos(args)
+    if any(metodo.upper() != "GET" for metodo in metodos):
+        return True
+    real = ultimo_metodo_real(args)
+    if real is not None and real.upper() == "GET":  # só GET de fato: os campos viram consulta, não corpo
+        return False
+    return any(a in ("-f", "-F", "--field", "--raw-field", "--input")
+               or a.startswith(("--field=", "--raw-field=", "--input="))
+               or re.match(r"-[fF]", a) is not None  # `-fchave=valor`, `-Fquery=@arq`: o gh aceita o valor colado
                for a in args)
 
 
 def endpoint_da_api(args):
+    args = desagrupa_i(args)
     return (posicionais(args, API_COM_VALOR) or [""])[0]
+
+
+# GH-MERGE-ADMIN: o que passa por cima da proteção da branch, sem ler o valor nem o papel (aperta; R-MAIN)
+MERGE_POR_API = re.compile(r"(^|/)(pulls/[^/]+/merge|repos/[^/]+/[^/]+/merges)\b", re.I)
+MERGE_NO_GRAPHQL = re.compile(r"mergePullRequest|enablePullRequestAutoMerge|enqueuePullRequest|mergeBranch", re.I)
+ENDPOINT_GRAPHQL = re.compile(r"(^|/)graphql/?([?#]|$)", re.I)
+
+
+def usa_admin(args):
+    """`--admin` ou `--admin=<valor>`, em qualquer posição dos argumentos (até depois de `--` ou como valor de outra opção)."""
+    return any(a == "--admin" or a.startswith("--admin=") for a in args)
+
+
+PROGRAMA_GH = "gh"
+
+
+def gh_de_merge_ou_api(args):
+    """Os argumentos, lidos como se o programa fosse o `gh`, são `pr merge` ou `api`? (programa por expansão: falha fechado)"""
+    achado = analisar([PROGRAMA_GH, *args])
+    return bool(achado) and achado[0] in ("prmerge", "api")
 
 
 def base_do_pr(raiz, branch):

@@ -70,9 +70,9 @@ NOME_DE_MODULO = re.compile(r"test_[a-z0-9_]+")
 VOLTA_UNICA = ("test_hooks_volta_corpus", "test_hooks_volta_lancador", "test_hooks_volta_propriedades")
 FORGE_CHECK = ("test_anotar", "test_brief_gravar", "test_catraca", "test_citacao", "test_conferencia_base_dono", "test_doutor_relogio",
                "test_conf_escopo", "test_conferencia_registrar", "test_decisao_aprovacao", "test_erros_no_brief", "test_hook_ansi_c",
-               "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
+               "test_entrega_git_falha", "test_estado_da_branch", "test_etapa_do_brief", "test_forge", "test_guarda_conferente", "test_guarda_git", "test_hooks", "test_hooks_parecer_pasta",
                "test_isencoes", "test_medida_cpu", "test_medidas_m14b", "test_mensagem_conferente", "test_pedido_fora", "test_portao_diff_proprio", "test_sobreposicao_quadro",
-               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado",
+               "test_testes_tocados", "test_volta_por_delta", "test_voltas", "test_esperar_estado", "test_fechar_forge_check_real", "test_qa_lote_l08",
                "test_decisoes", "test_fila_ocupacao", "test_proximo", "test_comportamento") + VOLTA_UNICA
 # Módulos que leem textos do Forge (agents/, skills/, docs/, templates/, stacks/): o filtro do pre-push tem de
 # rodá-los quando o texto muda (a conferência `MapaCobreOQueOsTestesLeem` prova a lista).
@@ -109,6 +109,7 @@ MAPA = [
     (r"stacks/.*", CONTEUDO + ("test_hooks",) + VOLTA_UNICA),
     (r"(dev/)?\.claude-plugin/.*", PUBLICADO + ("test_hooks",) + VOLTA_UNICA),
     (r"templates/projeto/docs/(reviews|qa|security)/_modelo\.md", PUBLICADO + ("test_volta_por_delta",)),  # o teste gera parecer do modelo
+    (r"templates/projeto/\.githooks/pre-push", PUBLICADO + ("test_prepush_so_docs",)),
     (r"(migrations|templates)/.*", PUBLICADO),
     (r"docs/economia-de-tokens\.md", CONTEUDO + ("test_testes_tocados",)),
     (r"docs/security/_modelo\.md", CONTEUDO + ("test_volta_por_delta",)),

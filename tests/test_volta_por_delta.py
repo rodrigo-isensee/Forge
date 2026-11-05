@@ -33,6 +33,7 @@ def carregar_forge_check():
 
 class Repositorio(unittest.TestCase):
     """Repositório com a `develop` e a branch `melhoria/x`; o pedido mora fora dele (a cópia principal do Jarvis)."""
+    mostra_origem = False
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-vv2-"))
@@ -44,7 +45,9 @@ class Repositorio(unittest.TestCase):
         git("config", "user.name", "Teste", cwd=self.repo)
         self.base = self.commitar({"src/app.txt": "v1\n"}, "base")
         git("switch", "-q", "-c", "melhoria/x", cwd=self.repo)
-        self.pedido = self.tmp / "p1.md"
+        self.home = self.tmp / "home"  # o pedido mora onde o Jarvis o guarda (E2: só vale em docs/pedidos/ de uma raiz guardada)
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
 
     def commitar(self, arquivos, mensagem="mudanca"):
         for rel, texto in arquivos.items():
@@ -65,8 +68,8 @@ class Repositorio(unittest.TestCase):
 
     def check(self, *args, raiz=None):
         r = subprocess.run([sys.executable, FORGE_CHECK, "--raiz", str(raiz or self.repo), *map(str, args)],
-                           env=ambiente_limpo(), capture_output=True, text=True)
-        return r.returncode, r.stdout
+                           env=dict(ambiente_limpo(), HOME=str(self.home)), capture_output=True, text=True)
+        return r.returncode, "".join(l for l in r.stdout.splitlines(keepends=True) if self.mostra_origem or not l.startswith("origem: "))  # informativa: o pedido mora fora do repositório
 
     def entrega(self, desde=None, etapa="codigo", base="develop", base_sha=None, branch="melhoria/x"):
         args = ["entrega", self.pedido, "--branch", branch, "--base", base, "--base-sha", base_sha or self.base, "--etapa", etapa]
@@ -534,12 +537,14 @@ class Delta(Repositorio):
 
 class BriefAnterior(unittest.TestCase):
     PASTA = RAIZ / "tests" / "fixtures" / "brief"
-    PEDIDO = PASTA / "pedido.md"
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="forge-vv2-brief-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
         (self.tmp / "docs" / "briefs").mkdir(parents=True)
+        self.PEDIDO = self.tmp / "docs" / "pedidos" / "pedido.md"  # o pedido só vale em docs/pedidos/ de uma raiz guardada (E2)
+        self.PEDIDO.parent.mkdir(parents=True)
+        self.PEDIDO.write_bytes((self.PASTA / "pedido.md").read_bytes())
         self.texto = (self.PASTA / "etapa-outro-papel.md").read_text(encoding="utf-8")
         self.anterior = self.tmp / "docs" / "briefs" / "p-dev-exemplo-1.md"
         self.anterior.write_text(self.texto, encoding="utf-8")
@@ -605,11 +610,16 @@ class BriefAnterior(unittest.TestCase):
 
 
 class PqDeMerge(unittest.TestCase):
-    PEDIDO = RAIZ / "tests" / "fixtures" / "brief" / "pedido.md"
+    def setUp(self):  # o pedido mora onde o Jarvis o guarda (E2: só vale em docs/pedidos/ de uma raiz guardada)
+        self.home = Path(tempfile.mkdtemp(prefix="forge-vv2-pq-"))
+        self.addCleanup(shutil.rmtree, self.home, ignore_errors=True)
+        pasta = self.home / ".forge-contrib" / "docs" / "pedidos"
+        pasta.mkdir(parents=True)
+        (pasta / "pedido.md").write_bytes((RAIZ / "tests" / "fixtures" / "brief" / "pedido.md").read_bytes())
 
     def gerar(self, *extra, rc=0):
-        r = subprocess.run([sys.executable, FORGE_CHECK, "brief", "gerar", "--pedido", str(self.PEDIDO), "--destino", "forge:tech-lead",
-                            "--branch", "melhoria/a", *extra], capture_output=True, text=True, env=com_gh_falso())
+        r = subprocess.run([sys.executable, FORGE_CHECK, "brief", "gerar", "--pedido", "pedido", "--destino", "forge:tech-lead",
+                            "--branch", "melhoria/a", *extra], capture_output=True, text=True, env=dict(com_gh_falso(), HOME=str(self.home)))
         self.assertEqual(r.returncode, rc, r.stderr)
         return r.stdout
 
@@ -643,7 +653,7 @@ class BriefDeVolta(Repositorio):
 
     def setUp(self):
         super().setUp()
-        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido = self.pedido.with_name("pedido-sintetico.md")
         self.pedido.write_text(self.PEDIDO_FIXTURE.read_text(encoding="utf-8"), encoding="utf-8")
         self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
         (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")  # o brief é do Jarvis, não da branch
@@ -821,6 +831,21 @@ class BriefDeVolta(Repositorio):
                 self.assertEqual(rc, 0, saida)
                 self.assertIn("src/app.txt:3", saida)
 
+    def test_desde_da_volta_e_a_conferida_da_propria_branch(self):  # E12 (CONFERIDA-DESDE-POR-BRANCH)
+        git("switch", "-q", "-c", "melhoria/outra", self.base, cwd=self.repo)
+        outra = self.commitar({"src/outra.txt": "o\n"}, "entrega de outra branch do mesmo pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        pedido = self.pedido.read_text(encoding="utf-8")
+        self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n"
+                               f"- 2026-10-19 17:00: entrega conferida {outra}\n", encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)  # antes: a última do pedido (de outra branch) era proposta e o gerar recusava
+        self.assertIn(f"--etapa codigo --desde {self.c1}` · espera: rc=0", saida)
+        self.assertNotIn(outra, saida)
+        rc, saida = self.entrega(desde=self.base)  # o Base-sha não vale como Desde com conferida da própria branch (antes: só a última contava)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
         self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
@@ -889,7 +914,7 @@ class TextoDosAgentes(unittest.TestCase):
         for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
                        "peça a ref da branch da entrega ao Jarvis"):
             self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da última linha `conferida`", jarvis)
+        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
 
     def test_pareceres_trazem_achados_e_leem_o_delta(self):
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):

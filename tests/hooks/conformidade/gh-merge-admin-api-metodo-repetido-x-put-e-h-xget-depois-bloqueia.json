@@ -1,0 +1,19 @@
+{
+  "descricao": "GH-MERGE-ADMIN: gh api -X PUT repos/o/r/pulls/1/merge -H -XGET",
+  "arquivos": {
+    "src/app.js": "v1\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api -X PUT repos/o/r/pulls/1/merge -H -XGET"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh api que mescla PR"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "descricao": "GH-MERGE-ADMIN: gh api --preview -if repos/o/r/merges -f base=main -f head=x (valor de opção valorada com a forma de um grupo)",
+  "arquivos": {
+    "src/app.js": "v1\n",
+    "q.graphql": "mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }\n"
+  },
+  "entrada": {
+    "tool_name": "Bash",
+    "tool_input": {
+      "command": "gh api --preview -if repos/o/r/merges -f base=main -f head=x"
+    },
+    "hook_event_name": "PreToolUse",
+    "tool_use_id": "toolu_9",
+    "agent_type": "forge:tech-lead"
+  },
+  "esperado": {
+    "codigo": 2,
+    "stderr": "R-MAIN: gh api que mescla PR"
+  }
+}
