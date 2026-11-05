@@ -86,7 +86,7 @@
       "id": "M29",
       "guarda": "a amarração vale sem --base",
       "arquivo": "bin/forge-check",
-      "de": "        return cmd_pr(raiz, pedido, ref, None, branch) + conferencia_do_head(raiz, pedido, ref, None, branch)",
+      "de": "        return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])",
       "para": "        return cmd_pr(raiz, pedido, ref, None, branch)",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
@@ -96,7 +96,7 @@
       "id": "M30",
       "guarda": "a amarração vale com --base",
       "arquivo": "bin/forge-check",
-      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch) + conferencia_do_head(raiz, pedido, ref, resolvida, branch)",
+      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])",
       "para": "    return cmd_pr(raiz, pedido, ref, resolvida, branch)",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"

@@ -1,12 +1,12 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: versao-033
+pedido: versao-034
 branch: melhoria/lote-l09
-commit: 871d8840c824c1e82bf351fb56410ba6d7aa7563
+commit: 8c889ce5e9d57f4657a86c6608444ac0ae596f74
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-04
+data: 2026-11-05
 ---
 # Review de segurança: versao-033, lote L09 (E15 BRIEF-MENSAGEM-LIMPA)
 
@@ -55,6 +55,13 @@ O `988505e` só muda `tests/mutantes/lote-l08-e7b.json`; nos merges vieram tamb�
 - M36 equivalente: conferi a justificativa. Os dois chamadores de `conferencia_do_head` estão em `pr_da_cli`, que agora resolve a branch pelo sha antes de chamá-la. Por isso o `or branch_do_sha` interno só roda com branch vazia e daria o mesmo None.
 - M56 novo: guarda a busca da branch pelo sha sem `--base`.
 Nenhum controle afrouxa, e a análise acima vale para este head.
+
+## Revalidação 0.34 (8c889ce, junção da develop)
+Delta `871d884..8c889ce` lido pelo `forge-check delta` e pelo `git show --remerge-diff`. Em `bin/` e `tests/`, ele só traz o L08 já mesclado na develop (#445): `pr_da_cli` ganha `conferir` e `pareceres_da_integracao` o passa como `False` (`bin/forge-check:657-682` e `:1396`), mais `tests/apoio_conferida.py`, `tests/test_conf_escopo.py`, `tests/test_estado_da_branch.py` e as specs `tests/mutantes/lote-l08-e7.json` e `lote-l08-escopo.json`. Esse código tem parecer próprio ("Revalidação 3625656" em `docs/security/lote-l08.md`), e conferi de novo o essencial.
+- `conferir=False` não se liga de fora: o único chamador é o escopo da merge-integracao, e a CLI `pr` não expõe a opção. Os portões do merge seguem cobrando a conferência do head (passo 1 do `forge-fechar` e `brief gerar` das etapas de merge, com o padrão `conferir=True`). `test_conf_escopo` e `test_estado_da_branch` provam os dois lados.
+- Resolução dos conflitos (remerge-diff): `bin/forge-testes` e `tests/test_testes_tocados.py` ficam com a união (o L09 acrescenta `test_qa_lote_l09` ao mapa e conta 40 módulos), o que só amplia o que o pre-push roda. `lote-l08-e7.json` fica com o `de` de M29 e M30 alinhado ao código novo. Os pareceres do L08 ficam como estão na develop.
+- `git diff 360186e 8c889ce -- bin hooks agents docs/regras` (a develop contra o L09) mostra só o próprio E15: a linha de `cmd_brief_mensagem`, o texto do conferente e de R-BRIEF já analisados acima e o mapa do `forge-testes`. A junção não reabre nem desfaz nada, e nenhuma recusa passou a liberar. Nenhum controle falha aberto, e a análise acima vale para este head.
+Testes (só os módulos tocados): `test_conf_escopo.py`, `test_estado_da_branch.py` e `test_erros_no_brief.py`, todos OK. Sem achado novo. Veredito: aprovado.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes: `python3 -I -m unittest discover -s tests -p test_erros_no_brief.py` (42 testes, OK). Invariantes de `tests/config.json` checadas por script local. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência nova).
