@@ -49,5 +49,11 @@ Sem spec do autor (`tests/mutantes/` não tem o pedido); spec minha em `/tmp/qa-
 ## Suíte inteira (tmux qa-brief-head-local, trava esperou ~1 h)
 `suite-paralela: 2621 testes em 92 módulos, 2 processos`; processo 2 rc 0 (1654 testes); processo 1 rc 1 (967 testes) com uma falha, a de A1. `Ran 2621 tests in 2158.452s (2 processos) FAILED (failures=1, skipped=30, guarda=1)`, `rc=1`. A falha é de tempo sob carga e passa isolada (`Ran 1 test ... OK`) no head e na base; os 74 testes do módulo do E2 passam na suíte. A suíte limpa fica para a máquina livre ou o CI.
 
+## Comparação com a origin/develop
+Cópia descartável da origin/develop d9b26bb (`git worktree add --detach /tmp/qa-brief-head-local-dev d9b26bb`, removida), carga 17 em 12 núcleos, a mesma da suíte do head.
+- `python3 -m unittest test_hooks.Hooks.test_muitos_heredocs_recusam_dentro_do_orcamento` na develop: `FAILED (failures=1)`, `Ran 1 test in 37.049s`, no subteste `forma='python3 - a{i} x3000'` (o hook recusou por prazo em vez de apontar o dono). Ou seja, falha também na develop sob a mesma carga; não é do diff. Confirma o A1 (instável por carga, nenhum arquivo do diff toca o hook).
+- `guarda=1` (linha 64 do log): vem do `scripts/suite-paralela.py:411`, que conta uma guarda por processo com rc diferente de 0. A guarda única é "processo 1 saiu com 1" (linha 62 do log), consequência direta da única falha do A1 no processo 1; o processo 2 saiu com 0. Não é divisão, completude nem árvore alterada. O diff não toca `scripts/` (`git diff --stat 360186e..f7e3481 -- scripts` vazio), logo a guarda não vem dele.
+- Veredito mantido: `parecer: aprovado`.
+
 ## Acessibilidade
 n/a (ferramenta de linha de comando).
