@@ -188,6 +188,12 @@ def linhas_nao_publicado(texto):
 PASTAS_DE_PARECER = ("docs/reviews/", "docs/qa/", "docs/security/", "docs/devops/")
 
 
+def e_parecer(caminho):
+    """Parecer de verdade: arquivo de docs/{reviews,qa,security,devops}/, fora modelos `_*` e docs/security/{ameacas,aceites}/ (como o gate do ci.yml)."""
+    return (caminho.startswith(PASTAS_DE_PARECER) and not Path(caminho).name.startswith("_")
+            and not caminho.startswith(("docs/security/ameacas/", "docs/security/aceites/")))
+
+
 def fragmentos_alterados(filtro, base):
     """Fragmentos de changelog.d/ (só a pasta raiz, sem o README) adicionados ("A") ou apagados ("D") entre base e HEAD."""
     caminhos = git("diff", "--name-only", "--no-renames", f"--diff-filter={filtro}", base, "HEAD", "--", PASTA).split()
@@ -208,7 +214,7 @@ def conferir_fechamento(base, apagados):
 
 def conferir(args):
     base = args.base
-    mudou = git("diff", "--name-only", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
+    mudou = git("diff", "--name-only", "--no-renames", base, "HEAD", "--", *CAMINHOS_DA_FABRICA).split()
     versao = lambda ref: re.search(r'"version"\s*:\s*"([^"]+)"', git("show", f"{ref}:.claude-plugin/plugin.json")).group(1)
     atual, anterior = versao("HEAD"), versao(base)
     print(f"arquivos da fábrica alterados: {len(mudou)} | versão base: {anterior} | versão do PR: {atual}")
@@ -224,8 +230,11 @@ def conferir(args):
         return
     if not mudou:
         return
-    for p in novos:
+    for p in novos:  # fragmento presente é validado antes do atalho de parecer (regressão achada pelo QA)
         ler_fragmento(git("show", f"HEAD:{p}"), p)
+    if all(e_parecer(m) for m in mudou):
+        print(f"ok: PR só de parecer ({len(mudou)} arquivo(s) em docs/), sem fragmento novo (RELEASE-PR-SO-PARECER)")
+        return
     if novos:
         print(f"ok: {len(novos)} fragmento(s) novo(s) em {PASTA}/")
         return
