@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-034
 branch: melhoria/brief-head-local
-commit: 10c3703330bdbf0d6d813523cd0fb3bd3d6c1a21
+commit: f7e34819f8402d6e6e1c6b049c21e4d7903d42d3
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-05
@@ -59,3 +59,11 @@ Controles do Forge: a mudança altera a pré-condição `commit:` da R-BRIEF e a
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito por este parecer; o afrouxamento do texto da R-BRIEF depende do rótulo e do aceite do dono na E1.8. Ferramentas: leitura do diff e `bin/forge-testes bin/forge-check` (resultado no relatório ao Jarvis). Lacunas no PATH: `gitleaks` e `semgrep` ausentes (o delta não traz segredo nem dependência; as varreduras seguem no CI).
+
+## Confirmação
+Delta revisado: `338eacf..f7e3481` (`bin/forge-check`, `tests/test_etapa_do_brief.py`; três commits: 138b6fc, 9717fa3, f7e3481). Revisão estática e defensiva; `python3 -m unittest tests.test_etapa_do_brief`: 74 testes, OK.
+- A1 fechado: a constante nova chama-se `PASTAS_DO_SO_PARECER` (`bin/forge-check:4917`, uso em :4937) e a `PASTAS_DE_PARECER` de :961 voltou a ser única; o teste :626 usa o nome novo.
+- A2 fechado: `test_parecer_so_local_a_frente_do_remoto_continua_sem_parecer_no_pr_pela_ref_do_remoto` (`tests/test_etapa_do_brief.py:599`) prova o abuso 14: válido na ref local, "review: sem parecer" em `--ref origin/<b>`, rc 1. O A1 do review ganhou também o teste de amend (:583), que afirma a reprovação pela ancestralidade (C-2, abuso 5).
+- Os 9 controles (C-1 a C-9) seguem valendo: o delta de código é só a troca do nome da constante, sem mudar lógica, lista branca, `commit_vale` nem `cmd_pr`. Nenhum falha aberto.
+- A3 segue recomendado e fora desta volta (cartão BRIEF-HEAD-LOCAL-AJUSTES); não devolve. Sem risco aceito novo; o rótulo `afrouxa-regra` segue na E1.8.
+Veredito: aprovado.
