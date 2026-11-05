@@ -3,40 +3,40 @@ tipo: review
 contrato: 1
 pedido: versao-035
 branch: melhoria/brief-forma-aceita
-commit: 93225dfda6dea43f5004deaaa6ec3001b3edd30f
-parecer: reprovado
+commit: 4f2ef7ed87f238ba07b694c8d6ef1ce8f8b92219
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
 ---
 # Review: versao-035, E7 BRIEF-FORMA-ACEITA
 
-Etapa E2.4 (outra instância; não implementei o E7). Diff lido: `d9b26bb3e6b11e7d45c8b7ed81c7da7a8a325503...93225dfda6dea43f5004deaaa6ec3001b3edd30f`, dois commits: e0b4fa0 (`bin/forge-check` e `tests/test_brief_forma_aceita.py`) e 93225df (só `changelog.d/brief-forma-aceita.md`). Lidos: a seção `## E7.` do desenho (`docs/arquitetura/versao-035-desenho.md`) e a linha do Histórico de 15:32 do pedido.
+Etapa E2.4 (outra instância; não implementei o E7). Esta é a revalidação de 4f2ef7e. O parecer anterior, sobre 93225df, reprovou por A1. Lidos: a seção `## E7.` do desenho (`docs/arquitetura/versao-035-desenho.md`) e a linha do Histórico de 15:32 do pedido.
+
+## Revalidação por delta (93225df..4f2ef7e)
+`forge-check delta --parecer docs/reviews/brief-forma-aceita.md` (rc 0) listou `bin/forge-check` 4553-4554, 5968-5969; `bin/forge-testes` 71, 104; `changelog.d/brief-forma-aceita.md` 2; `tests/test_brief_forma_aceita.py` 10, 33, 37, 40-61; `tests/test_testes_tocados.py` 61. Li só esses trechos e os pontos de uso de `CABECALHO_BRIEF` que o A1 alcança (`cabecalho_do_brief`, `blocos_literais`, `delta_de_brief`, `conferir_brief`, `destino_da_mensagem`). O resto do diff da base ficou como "já lido" no parecer de 93225df: a constante `FORMAS_DE_COMMIT`, os testes (c) do hook e o primeiro fragmento.
+
+Commits novos: 524c154 (A1), a266d90 (A2), b59fa02 (A4), 7d618dc (move o parecer para `docs/reviews/`, ADR 0004), 17148b5 (fragmento) e 4f2ef7e (mapa do `forge-testes`). Os seis seguem Conventional Commits, em português, um assunto cada.
+
+## Achados anteriores
+- A1, fechado em 524c154. O ajuste está em `bin/forge-check:4553-4554`: `SECAO_DAS_FORMAS` entra no `CABECALHO_BRIEF`, então a seção abre um bloco próprio que nenhuma checagem lê. O `com_commit` de `conferir_brief` lê só `Entregar` e `Pronto quando`. O teste está em `tests/test_brief_forma_aceita.py:48-61`: gera o brief, preenche e confere `forma: ok`. Para provar que o teste pega o defeito, tirei a seção do regex numa cópia: esse teste reprova. Os outros usos do regex não mudam para briefs gerados, porque a seção vem depois de todas as de `SECOES_BRIEF`. `delta_de_brief` percorre só `SECOES_BRIEF`.
+- A2, fechado em a266d90. A linha do merge saiu de `bin/forge-check:5968-5969`, e o merge vem só do `pq_de_merge`. O teste está em `tests/test_brief_forma_aceita.py:40-46` e conta 1 ocorrência na etapa `merge-integracao`. Recoloquei a linha numa cópia: esse teste e o `:27` reprovam. O fragmento (17148b5, `changelog.d/brief-forma-aceita.md:2`) acompanha a mudança.
+- A3, aberto (recomendado; não devolve). `FORMAS_DE_COMMIT` (`bin/forge-check:4568`) segue sem o merge. Com o A2, o merge deixou de fazer parte da oferta e fica de vez com o `pq_de_merge`. Hoje a fonte única das formas de commit é essa constante, e a do merge é o `pq_de_merge`. A recomendação perdeu quase todo o peso.
+- A4, fechado em b59fa02 (`tests/test_brief_forma_aceita.py:37`, `assertEqual(rc, 0, saida)` no teste do review).
+
+## Commits novos fora dos achados
+- 4f2ef7e: `test_brief_forma_aceita` entra em `FORGE_CHECK` (`bin/forge-testes:71`) e na regra de `hooks/.*` (`:104`). Está correto, porque o teste (c) carrega o hook `conformidade`, e uma mudança no hook tem de rodar a oferta. A contagem de `tests/test_testes_tocados.py:61` passa de 39 para 40. O comentário da linha ainda fala só do L08 (A6).
+- 7d618dc: é só um rename. O parecer passa a ficar onde o `forge-check docs` e o `forge-check pr` o leem.
 
 ## Teto (M14) e forma
-- `bin/forge-check` +8, `tests/test_brief_forma_aceita.py` +67: 75 linhas contadas, abaixo de 150. Um comportamento só. Não toca `hooks/` nem caminho de `PROTEGIDOS`. O teto do desenho (30 no script, 70 no teste) foi respeitado.
-- O fragmento em `changelog.d/` está presente. `R-NEUTRO` e `R-CUSTO`: sem efeito. Sem gatilho de segurança (desenho, E7), então não há parecer do `security-engineer` a citar.
-- Os commits seguem Conventional Commits, em português, e cada um é coerente.
+Contado com `git diff --numstat --no-renames d9b26bb...HEAD` (código e teste): `bin/forge-check` 9+1, `bin/forge-testes` 2+2, `tests/test_brief_forma_aceita.py` 91, `tests/test_testes_tocados.py` 1+1. O total é 107, abaixo de 150. A branch tem um comportamento só, não toca `hooks/` nem caminho de `PROTEGIDOS`, e o teto do desenho (30 no script) foi respeitado. Não há gatilho de segurança (desenho, E7), então não há parecer do `security-engineer` a citar. `R-NEUTRO` e `R-CUSTO` não são afetados.
 
 ## Testes rodados (só os tocados, D-5)
-`python3 -m unittest test_brief_forma_aceita -v` (de `tests/`): 4 testes, OK. O `bin/forge-testes` com `tests/test_etapa_do_brief.py` junto passou do teto de 540 s e foi encerrado sem resultado, então não conta como prova. Os três pontos do desenho estão cobertos: (a) a seção aparece com cada forma; (b) ela não aparece no review; (c) cada forma de commit passa pelo hook `conformidade` como `forge:tech-lead`, com um controle que prova que o hook está de pé (`--no-verify` dá 2). A forma heredoc da constante é a K3 da ADR 0011 (`"$(cat <<'EOF'⏎…⏎EOF⏎)"` como valor de `-m`), copiada do ADR e não de memória.
-
-## Defeito provado: a seção nova entra no `## Pronto quando` e cria uma reprovação no `forge-check brief`
-`secoes_por` (`bin/forge-check:4584`) só abre uma seção nova num cabeçalho de `SECOES_BRIEF`. `## Formas aceitas pelos hooks` não é um deles, então as linhas da seção viram linhas do `Pronto quando`. Como elas contêm a palavra `commit`, `conferir_brief` (`bin/forge-check:5297-5299`) passa a exigir um PQ do conferente. Prova com dois briefs iguais, gerados pelo `brief gerar` desta branch e preenchidos, com um único `PQ-1 (cmd)` de verificador autor e um `Entregar` sem a palavra commit; a única diferença entre eles é a seção nova:
-- sem a seção: `forma: ok`
-- com a seção: `forma: sem PQ que o conferente confira` (reprova)
-
-O cartão existe para tirar rodadas de conferência reprovadas por forma. A oferta não pode criar uma razão nova de reprovar, e o desenho diz "Nada de checagem nova no conferente" (E7, item 3). A correção é do autor. Caminhos possíveis: o leitor de seções fechar a seção corrente em qualquer `## ` fora de `SECOES_BRIEF`, ou a seção sair antes do `## Pronto quando`, num lugar que não alimente checagem. Em qualquer caso, com um teste que gera o brief, o preenche e confere `forma: ok` com e sem a seção.
-
-## Achados do conferente de 15:32
-- Linha do merge duplicada com o `pq_de_merge` nas etapas de merge: confirmada (`bin/forge-check:5965` e `:5969` emitem o mesmo `git merge-base --is-ancestor <mergeCommit> origin/<base>`). Não quebra nada provado. Recomendação: nas etapas de `ETAPAS_DE_MERGE`, a seção traz só as formas de commit, porque o PQ do merge já vem pronto.
-- Constante `FORMAS_DE_COMMIT` sem o merge, quando o desenho pede `FORMAS_ACEITAS` com as três formas: é um desvio de forma do desenho, sem defeito. O merge ficou numa f-string na linha 5969, e o teste (a) o cobre. Recomendação: uma constante só, como no desenho, para a oferta ter uma fonte única.
-- Nome do teste (`test_brief_forma_aceita.py`, contra `test_brief_formas_aceitas.py` no desenho) e a forma heredoc num bloco cercado em vez de "linha pronta de PQ": divergências de forma sem efeito no comportamento, que seguem o brief da implementação. Não devolvem.
+`python3 -m unittest test_brief_forma_aceita test_testes_tocados` (de `tests/`): 92 testes, OK, em 31 s. Também rodei, em cópias da árvore (`git archive`), um mutante para A1 e outro para A2. Cada um reprova o teste correspondente.
 
 ## Achados
-- A1 (bloqueante) bin/forge-check:5967 · a seção nova não é cabeçalho de SECOES_BRIEF, entra no Pronto quando pelo secoes_por e a palavra commit nela faz o forge-check brief reprovar com sem PQ que o conferente confira um brief que passava; o desenho do E7 veda checagem nova
-- A2 (recomendado) bin/forge-check:5969 · nas etapas de merge a linha do merge repete o PQ que o pq_de_merge já emitiu na linha 5965; ofertar ali só as formas de commit
-- A3 (recomendado) bin/forge-check:4567 · a constante FORMAS_DE_COMMIT não traz o merge, que ficou numa f-string; o desenho pede FORMAS_ACEITAS como fonte única das três formas
-- A4 (recomendado) tests/test_brief_forma_aceita.py:34 · o teste do review não afirma rc 0 do gerar; um gerar que falhe também passa no assertNotIn
+- A3 (recomendado) bin/forge-check:4568 · FORMAS_DE_COMMIT segue sem o merge; com o A2 o merge é só do pq_de_merge, então a fonte única virou duas, por desenho
+- A5 (recomendado) bin/forge-check:4554 · brief à mão com o cabeçalho das formas logo após Entregar tira o trecho da cobrança de PQ do conferente (provado com conferir_brief); só abrir essa seção depois do Pronto quando
+- A6 (recomendado) tests/test_testes_tocados.py:61 · o comentário da contagem 40 ainda cita só o L08; citar o E7
 
 ## Parecer
-Reprovado por A1. É um defeito provado: a oferta das formas cria uma reprovação nova no `forge-check brief`, o contrário do que o cartão quer. O resto está correto e dentro do teto: as formas batem com a ADR 0011 e com o hook, e o teste (c) mantém a oferta presa ao hook. A volta é o A1, com o teste de conferência. A2 a A4 são recomendações e não devolvem.
+Aprovado. A1, o único bloqueante, fechou com teste que reprova sem a correção (mutante conferido). A2 e A4 também fecharam. A3, A5 e A6 são recomendações e não devolvem. A5 não passa de recomendado: é um desvio estreito do "nenhuma recusa muda" do desenho, só para brief escrito à mão, e a mesma cobrança já se contorna sem a seção, trocando a palavra.
