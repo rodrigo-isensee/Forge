@@ -3,12 +3,12 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 04437d12dfb5579af2dafaf065c06bf6457f7938
-parecer: aprovado
+commit: 5ac531fef8e5783353db1ad148df22077b5f3fa4
+parecer: reprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 0
+bugs_medios: 1
 bugs_baixos: 0
 data: 2026-11-04
 ---
@@ -17,6 +17,7 @@ data: 2026-11-04
 Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes; a segunda sobre 79256408521daeb3c1ca57261b690614b1e12699; a primeira rodada foi sobre 874c89ec82a86840262c5c4a5b93eba48554eb5c). O `commit:` é o do teste novo do QA (tests/test_qa_lote_l08.py, commit separado do parecer, pelo E16), que só acrescenta teste ao código revisado.
 
 ## Achados
+- A1 (bloqueante) tests/mutantes/lote-l08-e7b.json:13 · L08-3: spec de mutantes velha: teste movido (controle vermelho, rc=2) e M36 equivalente depois do 1d50bea
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -31,6 +32,7 @@ Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes
 | L08-1 negação da conferida | test_linha_conferida_sem_marcador... (7 variantes) | linha negada, sem hora | passou |
 | L08-2 tipo da PQ | test_pq_de_commit_em_maiuscula_reprova | (SHA) | passou |
 | A9 promoção não cobra a conferência do head; branch de trabalho segue cobrada | QaA9Promocao (promover-homolog.py real) | pedido de release ausente; --base main e homolog | passou |
+| E7 e E11 pr só conta os pareceres da própria branch | QaPareceresDaBranch (3) | parecer alheio desatualizado ou reprovado; falta o próprio (revisão e QA) | passou |
 
 ## Cenários e resultado real
 - 7 módulos tocados: test_forge 507, test_mensagem_conferente 15, test_volta_por_delta 67, test_conferencia_base_dono 33, test_erros_no_brief 42, test_etapa_do_brief 65, test_isencoes 5: todos OK. Arquivo novo do QA: 15 testes OK.
@@ -60,3 +62,10 @@ Delta 7925640..a46eab7 (a promoção com head igual à ponta de `origin/develop`
 
 ## Revalidação (04437d1, módulo do forge-fechar real)
 O autor moveu `FecharComOForgeCheckReal` para tests/test_fechar_forge_check_real.py e o tests/test_qa_lote_l08.py passou a importá-la dali (única mudança no arquivo do QA; por isso o `commit:` é 04437d1, que contém o arquivo de teste atual, regra E16). A classe movida não mudou além da referência ao cenário `Fechar` e ao caminho do `forge-check`, e os dois testes do QA que a usam (pedido sem Histórico e duas branches no mesmo sha, parada no passo 1) seguem cobrindo o mesmo. `-p test_qa_lote_l08.py` e `-p test_fechar_forge_check_real.py` juntos: 23 testes OK. Parecer segue aprovado, sem bugs abertos.
+
+## Revalidação (083a959: pareceres só da própria branch)
+Teste novo do QA em commit próprio, 5ac531f (E16), que o `commit:` cita; código testado 083a959.
+- Cenário de ponta a ponta com o `forge-check` real num repositório descartável: branch com parecer próprio aprovado e pareceres alheios (de outra branch, mais recentes, desatualizados, aprovados ou reprovados): o `pr` da branch passa e não cita o alheio. Sem os pareceres próprios, ou sem só o de QA, reprova com `sem parecer da branch "melhoria/x" para o pedido p1`.
+- Vermelho: sobre 04437d1 (antes do fix) 2 dos 3 testes falham (os de falta do parecer próprio); o terceiro guarda a fronteira.
+- `-p test_qa_lote_l08.py`: 24 testes OK.
+- `bin/forge-mutante tests/mutantes/lote-l08-*.json` numa worktree limpa em 5ac531f: 54 mortos e `M36 · controle vermelho`, rc=2. Defeito L08-3 (docs/qa/bugs/L08-3-spec-de-mutantes-e7b-velha.md): a spec lote-l08-e7b.json cita `tests.test_fechar.FecharComOForgeCheckReal`, movido por 04437d1 para tests/test_fechar_forge_check_real.py, e, com o caminho corrigido, M36 sobrevive porque o 1d50bea tornou redundante o `branch_do_sha` dentro de `conferencia_do_head`. A correção é do autor (spec); o parecer volta a aprovado quando a rodada der rc=0.

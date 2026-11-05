@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 04437d12dfb5579af2dafaf065c06bf6457f7938
+commit: 5ac531fef8e5783353db1ad148df22077b5f3fa4
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -103,3 +103,22 @@ Revisado: 04437d1. Li só o delta 51eeeac..04437d1, que tem 5 arquivos; o resto 
 Testes, em 04437d1:
 - `python3 -I -m unittest discover -s tests -p test_testes_tocados.py`: rc=0 (86 testes).
 - `python3 -I -m unittest discover -s tests -p test_fechar_forge_check_real.py`: rc=0 (2 testes).
+
+## Revalidação (pareceres da branch: 1d50bea e 083a959)
+Revisado: 083a959, o head de código da branch. Veredito: **aprovado**, sem achado novo.
+
+Delta lido: 1d50bea e 083a959 do L08, nos arquivos `bin/forge-check` (+13 -2), `tests/test_forge.py` (+40 -5) e `tests/mutantes/lote-l08-pareceres-da-branch.json`.
+
+Numa branch de trabalho, o `cmd_pr` agora conta só os pareceres cujo `branch:` é igual à branch. Se não houver nenhum, reprova com `sem parecer da branch` (falha fechada). A branch vem da ref ou, quando a ref é um sha, de `branch_do_sha`. A promoção, a biblioteca chamada sem branch (catraca do CI) e o sha ambíguo continuam lendo o parecer mais recente do pedido, como antes. Isso aperta a regra e não afrouxa nenhum portão.
+
+O efeito no `hooks/parecer.py:419`, que usa o mesmo `cmd_pr`, também aperta: `gh pr create` e `gh pr ready` passam a exigir o parecer da própria branch.
+
+Sonda de bypass: um parecer de outro item com `branch:` forjado para a branch de trabalho, e `commit:` na base. Resultado: rc 1, `commit: desatualizado: src/x.txt mudou depois do parecer`. O `branch:` só escolhe qual parecer é lido; a validade continua sendo a do `commit_vale`. Um parecer forjado não aprova nada que o mais recente do pedido já não aprovasse antes, então não há bypass.
+
+Testes e mutante, num clone isolado em 083a959:
+- `python3 -I -m unittest discover -s tests -p test_forge.py -k ConferenciaPresaAoHead`: rc=0 (11).
+- `-k test_pr_`: rc=0 (32).
+- `-p test_promover_homolog.py`: rc=0 (36).
+- `bin/forge-mutante tests/mutantes/lote-l08-pareceres-da-branch.json`: rc=0, M53, M54 e M55 mortos.
+
+Enquanto esta revalidação rodava, entrou o teste do QA 5ac531f (`tests/test_qa_lote_l08.py` +38 -1, classe `QaPareceresDaBranch`). Li o teste inteiro. Ele cobre três casos: o parecer próprio aprovado com o alheio desatualizado ou reprovado, a falta do parecer próprio com o alheio aprovado e a falta só do QA. Nenhum achado. `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py` deu rc=0 (24 testes). O `commit:` passa a 5ac531f, o último commit de teste (E16).
