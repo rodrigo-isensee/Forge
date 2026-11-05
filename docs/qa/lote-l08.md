@@ -3,21 +3,21 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 5ac531fef8e5783353db1ad148df22077b5f3fa4
-parecer: reprovado
+commit: 3625656cf0462fe8829ce3aff82bbfa055b352df
+parecer: aprovado
 escopo: completo
 bugs_criticos: 0
 bugs_altos: 0
-bugs_medios: 1
+bugs_medios: 0
 bugs_baixos: 0
-data: 2026-11-04
+data: 2026-11-05
 ---
 # QA: lote L08 (E7, E10, E12, E16, E19)
 
-Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes; a segunda sobre 79256408521daeb3c1ca57261b690614b1e12699; a primeira rodada foi sobre 874c89ec82a86840262c5c4a5b93eba48554eb5c). O `commit:` é o do teste novo do QA (tests/test_qa_lote_l08.py, commit separado do parecer, pelo E16), que só acrescenta teste ao código revisado.
+Código testado: a46eab7891b4f0c233e547b303dfa9ff6feee35b (revalidado duas vezes; a segunda sobre 79256408521daeb3c1ca57261b690614b1e12699; a primeira rodada foi sobre 874c89ec82a86840262c5c4a5b93eba48554eb5c). O `commit:` é o último commit de código revisado (3625656); os commits do QA depois dele só mexem em specs de mutantes (bf883a0, df0a0e9).
 
 ## Achados
-- A1 (bloqueante) tests/mutantes/lote-l08-e7b.json:13 · L08-3: spec de mutantes velha: teste movido (controle vermelho, rc=2) e M36 equivalente depois do 1d50bea
+- A1 (recomendado) docs/qa/lote-l08.md:1 · nenhum achado bloqueante aberto; o A1 antigo (spec e7b velha, L08-3) está fechado
 
 ## Critério → teste → resultado
 | Critério | Teste | Fronteira protegida | Resultado |
@@ -69,3 +69,11 @@ Teste novo do QA em commit próprio, 5ac531f (E16), que o `commit:` cita; códig
 - Vermelho: sobre 04437d1 (antes do fix) 2 dos 3 testes falham (os de falta do parecer próprio); o terceiro guarda a fronteira.
 - `-p test_qa_lote_l08.py`: 24 testes OK.
 - `bin/forge-mutante tests/mutantes/lote-l08-*.json` numa worktree limpa em 5ac531f: 54 mortos e `M36 · controle vermelho`, rc=2. Defeito L08-3 (docs/qa/bugs/L08-3-spec-de-mutantes-e7b-velha.md): a spec lote-l08-e7b.json cita `tests.test_fechar.FecharComOForgeCheckReal`, movido por 04437d1 para tests/test_fechar_forge_check_real.py, e, com o caminho corrigido, M36 sobrevive porque o 1d50bea tornou redundante o `branch_do_sha` dentro de `conferencia_do_head`. A correção é do autor (spec); o parecer volta a aprovado quando a rodada der rc=0.
+
+## Revalidação 3625656 (4 regressões do pre-push)
+Head testado c4b582d (depois de 3625656 só há pareceres). Delta: `git diff 91d52dc 3625656` (bin/forge-check `conferir=False` só no escopo da merge-integracao, apoio_conferida, test_conf_escopo, test_estado_da_branch).
+- Suíte inteira, `.githooks/pre-push --suite` (log /tmp/claude-0/suite.log): 2612 testes, 4 processos, `FAILED (failures=6, errors=1, skipped=30, guarda=2)`. Os 7 itens são de ambiente (pid namespace) em test_hooks (4 subtestes de test_fixtures `agentes/inicio-sem-par-grava-pid-da-sessao`, `reserva-grava-pid-e-sessao`, `inicio-casa-reserva-da-sessao-e-mantem-pid`, `inicio-so-casa-reserva-da-mesma-sessao`; `test_registro_de_agente_solta_so_com_prova_de_sessao_morta`) e test_atualizar (`test_ancestral_chamado_claude_recusa_mesmo_com_pty_e_sem_variavel`, forge-atualizar e forge-voltar-versao). Prova: `tests.test_hooks tests.test_atualizar` numa cópia de origin/develop (b45e40a) dão os mesmos 7 e mais um de tempo (`test_muitos_heredocs...`), `failures=7, errors=1`. Nenhum teste do L08 caiu; test_conf_escopo e test_estado_da_branch passaram. O contador `guarda=2` não traz detalhe no log.
+- As 4 regressões: o escopo da merge-integracao lê só os pareceres (`conferir=False`, :1396), enquanto o `pr` da linha de comando, o `brief gerar` e o forge-fechar seguem cobrando a conferência (padrão True, :657); test_estado_da_branch grava a conferida do head; apoio_conferida usa `sem_manutencao`. O teste novo `test_escopo_le_so_os_pareceres_e_o_pr_segue_cobrando_a_conferencia` cobre as duas metades.
+- Mutantes: spec nova tests/mutantes/lote-l08-escopo.json (M60 `conferir=False` do escopo e M61 padrão `conferir=True`, ambos mortos pelo teste novo). O fix mudou as linhas de M29 e M30 (tests/mutantes/lote-l08-e7.json), que saíram inválidas (rc=2); atualizei o trecho `de` (df0a0e9). `bin/forge-mutante tests/mutantes/lote-l08-*.json` no head df0a0e9: 57 mortos, M36 equivalente, rc=0. As linhas de guarda mudadas pelo fix (:657, :1396 e as duas de `conferir else []`, cobertas por M29 e M30) têm mutante.
+- Vermelho antes do verde: não rodei `forge-testes --vermelho`; o review mutou o `conferir=False` e o teste novo caiu, e M60 e M61 mortos aqui valem como a prova de que o teste falha sem a implementação.
+- Bugs abertos: nenhum (L08-1, L08-2 e L08-3 fechados). Veredito: aprovado.
