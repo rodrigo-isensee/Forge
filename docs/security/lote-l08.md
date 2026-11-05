@@ -3,10 +3,10 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 988505eb1c632144795dfbe9b8160f6245aabfc3
+commit: 3625656cf0462fe8829ce3aff82bbfa055b352df
 parecer: aprovado
 revisor: forge:security-engineer
-data: 2026-11-04
+data: 2026-11-05
 ---
 # Review de segurança: versao-033 (lote L08)
 
@@ -19,6 +19,7 @@ Controles do Forge (R-SEGURANCA): `bin/forge-check` (`pr`, `entrega`, `brief`), 
 - A3 (recomendado) bin/forge-check:858 · `gh pr view <n>` sem `--repo` usa o repositório padrão do gh; com mais de um remoto (fork e origem), o #n pode ser de outro repositório. Passe `--repo` do origin ou imprima a URL do PR.
 - A4 (recomendado) bin/forge-check:686 · `promocao` compara o head com `refs/remotes/origin/<b>` local (ou a branch local sem remoto); um `git update-ref` local dessa ref faz uma branch de trabalho passar por promoção sem a conferência do head. Confirme a ponta por `git ls-remote origin`.
 
+- A5 (recomendado) agents/conferente.md:79 · o escopo `merge-integracao` diz "o `pr` do comando", mas desde 3625656 ele lê só os pareceres, sem a conferência do head; diga isso na prosa para o conferente não tomar o rótulo `ok` como prova da conferência.
 ## Detalhe dos achados
 **Respostas ao foco.**
 - E10: o head não é forjável por quem não controla o `gh` do PATH (fora do modelo). A resposta só vale com `state == MERGED`, `headRefOid` em sha40 exato (`SHA40.fullmatch`, sem sha curto, então sem ambiguidade) e presente no clone (`rev-parse --verify <sha>^{commit}` igual a ele), e com `headRefName` sem caractere de controle; `--pr` e `--ref` juntos dão rc 2. PR de fork: o `headRefName` escolhido por quem abriu o fork só escolhe *qual* parecer, que ainda precisa casar com o head pelo `commit_vale`. Por isso o fork não ganha nada. O único vetor que sobra é o A3.
@@ -74,6 +75,15 @@ O `988505e` só muda `tests/mutantes/lote-l08-e7b.json`; nos merges vieram tamb�
 - M36 equivalente: conferi a justificativa. Os dois chamadores de `conferencia_do_head` estão em `pr_da_cli`, que agora resolve a branch pelo sha antes de chamá-la. Por isso o `or branch_do_sha` interno só roda com branch vazia e daria o mesmo None.
 - M56 novo: guarda a busca da branch pelo sha sem `--base`.
 Nenhum controle afrouxa, e a análise acima vale para este head.
+
+## Revalidação 3625656
+Delta lido inteiro: `91d52dc..3625656` (`bin/forge-check:657-682` e `:1396`, `tests/apoio_conferida.py`, `tests/test_conf_escopo.py`, `tests/test_estado_da_branch.py`). A junção `b68efc3..91d52dc` só traz o TEMPO-B1 já mesclado na develop (#441, com parecer próprio em `docs/security/tempo-b1.md`); conferi o stat e não há outra mudança de controle.
+- `conferir` não se desliga de fora: o único `conferir=False` está em `pareceres_da_integracao` (`bin/forge-check:1396`). A CLI `pr` chama `pr_da_cli` só com pedido, ref, base e branch (`:6513`), sem opção para isso no argparse (`:6336-6341`). Nenhuma variável de ambiente nem campo do brief chega ao parâmetro, e `hooks/parecer.py` usa só `cmd_pr`, como antes.
+- A merge-integracao sem a conferência no escopo não deixa código não conferido chegar à develop. A `entrega` só decide o que o conferente lê; os portões do merge cobram a conferência do head. São dois: o passo 1 do `forge-fechar` (`bin/forge-fechar:687`, CLI `forge-check pr`; `FORGE_CHECK` só vale com `FORGE_FECHAR_TESTE=1`) e o `brief gerar` das etapas de merge (`bin/forge-check:5893`, `pareceres_da_etapa` com o padrão `conferir=True`). O teste novo de `test_estado_da_branch.py` prova o segundo: o `gerar` da merge-integracao só passa com `entrega conferida` do head. `test_conf_escopo` prova o primeiro no mesmo repositório (`pr` com rc 1). O caminho do squash (`pai`) já usava `cmd_pr` sem a conferência, então ficam iguais.
+- `apoio_conferida.py` e os testes: só o ambiente de teste (`sem_manutencao`), sem efeito em produção.
+- Achado novo: A5 (recomendado, prosa do conferente). A3 e A4 seguem recomendados, sem mudança.
+Testes (só os módulos do brief, um por vez): `test_conf_escopo.py` 11, `test_estado_da_branch.py` 8, `test_ambiente_git.py` 17, todos OK.
+Veredito: aprovado.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
