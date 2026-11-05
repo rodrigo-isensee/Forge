@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 3625656cf0462fe8829ce3aff82bbfa055b352df
+commit: df0a0e98d3d3b65efeea5086787ec328a9745081
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-05
@@ -87,3 +87,6 @@ Veredito: aprovado.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
+
+## Revalidação df0a0e9
+Delta `c4b582d..df0a0e9` lido inteiro: só `tests/mutantes/lote-l08-e7.json` (M29 e M30, texto do `de` alinhado ao código) e `tests/mutantes/lote-l08-escopo.json` (novo, M60 e M61, sobre o escopo `merge-integracao` e o padrão `conferir=True`). Os dois JSON são válidos. Não toca código de produção nem controle do Forge (`bin/forge-check`, `hooks/`, `agents/`, `docs/regras/`, `scripts/` iguais); são specs de teste que só endurecem a prova. Sem achado novo; A3, A4 e A5 seguem recomendados, sem mudança. Veredito: aprovado.
