@@ -1103,7 +1103,21 @@ def so_troca_sha_de_acoes(raiz, b, h):
     return True
 
 
-def violacoes_de_pareceres(raiz, base, head, ramo, base_ref):
+def violacao_de_fork(repo_head, repo_base):
+    """PR de outro repositório (fork) herdaria os pareceres da branch homônima já mesclada: recusa (falha fechada).
+    `head.repo` nulo (fork apagado) chega vazio e também recusa. Os dois vazios só liberam fora do CI (execução local): com GITHUB_ACTIONS e sem `BASE_REPO`, o passo
+    perdeu a configuração e também recusa."""
+    if repo_head == repo_base and (repo_base or not os.environ.get("GITHUB_ACTIONS")):
+        return []
+    return [msg("R-REVIEW", f"o head do PR vem de `{repo_head or 'repositório desconhecido'}`, não de `{repo_base or 'repositório desconhecido'}`",
+                "o nome da branch é do autor: num fork ele herdaria os pareceres de uma branch homônima já mesclada",
+                "reabra o PR a partir de uma branch do próprio repositório",
+                "docs/regras/R-REVIEW.md")]
+
+
+def violacoes_de_pareceres(raiz, base, head, ramo, base_ref, repo_head="", repo_base=""):
+    if violacao_de_fork(repo_head, repo_base):
+        return violacao_de_fork(repo_head, repo_base)
     try:
         return _violacoes_de_pareceres(raiz, base, head, ramo, base_ref)
     except FALHAS_DO_GIT as e:
@@ -1181,6 +1195,8 @@ def main(argv=None):
         return 1
 
 
+# HEAD_REPO e BASE_REPO vêm por env e não por opção: a catraca roda da base, que ainda não conhece opção nova (opção desconhecida daria rc=2).
+
 def _main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--modo", choices=("regras", "pr-texto", "pareceres"), default="regras")
@@ -1204,7 +1220,8 @@ def _main(argv=None):
     if a.modo == "pr-texto":
         viol, titulo = violacoes_do_texto(os.environ.get("PR_BODY", "")), "pr-texto"
     elif a.modo == "pareceres":
-        viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref), "pareceres"
+        viol, titulo = violacoes_de_pareceres(raiz, a.base, a.head, a.ramo, a.base_ref,
+                                          os.environ.get("HEAD_REPO", ""), os.environ.get("BASE_REPO", "")), "pareceres"
     else:
         viol, titulo = violacoes_das_regras(raiz, a.base, a.head), "catraca"
         if viol:
