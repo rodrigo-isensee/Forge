@@ -55,6 +55,29 @@ class AprovacaoNaRaizDoBrief(unittest.TestCase):
             with self.subTest(pedido=outro):
                 self.assertCobrada(*self.conferir(linha("2026-01-01 10:00").replace("| exemplo |", f"| {outro} |")))
 
+    def test_quadro_so_na_raiz_do_brief_vale_com_raiz_no_clone(self):
+        self.assertAvisa(*self.conferir(linha("2026-01-01 10:00"), raiz=self.clone))
+
+    def test_no_clone_sem_aprovacao_ou_retrodatada_segue_cobrada(self):
+        for falsa in ("2026-01-01 10:00", "reprovado"), ("2026-01-01 09:59", "aprovado"):
+            with self.subTest(linha=falsa):
+                self.assertCobrada(*self.conferir(linha(*falsa), raiz=self.clone))
+
+    def test_primeiro_quadro_decide_sem_somar_o_seguinte(self):
+        self.gravar(self.clone, QUADRO, CABECALHO + linha("2026-01-01 10:00"))
+        self.assertCobrada(*self.conferir(linha("2026-01-01 10:00", "reprovado"), raiz=self.clone))
+
+    def test_quadro_que_e_link_nao_vale_e_nao_cai_no_seguinte(self):
+        self.gravar(self.clone, QUADRO, CABECALHO + linha("2026-01-01 10:00"))
+        forjado = self.gravar(self.tmp, "fora/docs/kanban/conferencias.md", CABECALHO + linha("2026-01-01 10:00"))
+        kanban = self.contrib / "docs" / "kanban"
+        for link, alvo in ((kanban / "conferencias.md", forjado), (kanban, forjado.parent)):
+            with self.subTest(link=link.name):
+                shutil.rmtree(kanban, ignore_errors=True)
+                link.parent.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(alvo)
+                self.assertCobrada(*self.conferir(raiz=self.clone))
+
 
 if __name__ == "__main__":
     unittest.main()

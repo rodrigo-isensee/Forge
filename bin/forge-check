@@ -5167,11 +5167,18 @@ HORA_DA_DECISAO = re.compile(rf"{re.escape(FRASE_DO_DONO)}\s*\(?(\d{{4}}-\d{{2}}
 def hora_da_aprovacao(raiz, brief, pedido_id):
     """P-N4: a hora `AAAA-MM-DD HH:MM` da última linha `aprovado` do brief (modo `brief`, pedido `pedido_id` na coluna 2, A3 da
     segurança) em docs/kanban/conferencias.md, ou None. Hora fora do formato ou anterior ao mtime do brief (no minuto, fuso local; A1 da
-    segurança) não vale: segue cobrado contra tudo."""
+    segurança) não vale: segue cobrado contra tudo. O quadro é o primeiro que existe na ordem fixa: a raiz do próprio brief (pai
+    `docs/briefs`), `raiz`, `RAIZES_DE_BRIEF`; link ou fora de `docs/kanban/` não vale e não cai no seguinte (C-4, C-5 da E5)."""
+    real, rel = Path(brief).resolve(), "docs/kanban/conferencias.md"
+    do_brief = [real.parents[2]] if real.parent.name == "briefs" and real.parent.parent.name == "docs" else []
+    base = next((b for b in (*do_brief, Path(raiz), *RAIZES_DE_BRIEF) if os.path.lexists(Path(b) / rel)), None)
+    if base is None or dentro_da_raiz(base, rel, ("docs/kanban",)) is None:
+        return None
     nome = Path(brief).name.removesuffix(".md").casefold()
     escrita = datetime.datetime.fromtimestamp(Path(brief).stat().st_mtime).astimezone().strftime("%Y-%m-%d %H:%M")
-    horas = [c[0] for c in _ler_tabela(Path(raiz) / "docs" / "kanban" / "conferencias.md")
-             if len(c) >= 6 and c[1].casefold() == pedido_id.casefold() and c[2].removesuffix(".md").casefold() == nome and c[3].casefold() == "brief" and _aprovou(c[5])
+    horas = [c[0] for c in _ler_tabela(Path(base) / rel)  # O_NOFOLLOW: o próprio arquivo que é link não vale
+             if len(c) >= 6 and c[1].casefold() == pedido_id.casefold() and c[2].removesuffix(".md").casefold() == nome
+             and c[3].casefold() == "brief" and _aprovou(c[5])
              and HORA_DO_REGISTRO.fullmatch(c[0]) and c[0] >= escrita]
     return horas[-1] if horas else None
 
