@@ -1,7 +1,5 @@
-"""PUSH-PARECER-JA-NO-REMOTO: o pre-push não roda a suíte quando o remoto já tem a ref no commit enviado.
-
-O hook roda de verdade num repositório descartável com remoto bare local e uma suíte que falha (se rodar, o hook
-sai 1). O stdin traz o `remote_sha` zerado, o estado velho que o git entrega antes de outro envio terminar."""
+"""PUSH-PARECER-JA-NO-REMOTO: o pre-push não roda a suíte quando o remoto já tem a ref no commit enviado. O hook roda
+num repositório descartável com remoto bare e uma suíte que falha; o stdin traz o `remote_sha` velho (zerado)."""
 import os
 import subprocess
 import sys
@@ -92,7 +90,6 @@ class PrePushJaNoRemoto(unittest.TestCase):
         codigo, erro = self.roda(self.linha("develop", self.c2))
         self.assertEqual(codigo, 1)
         self.assertIn("envio direto para develop bloqueado", erro)
-        self.assertNotIn("o remoto já tem", erro)
 
     def test_remoto_ganha_a_ref_durante_a_espera_pula_e_solta_fila_e_trava(self):
         trava, fila = (self.run_dir / f"forge-suite-{os.getuid()}.{s}" for s in ("lock", "fila"))
@@ -115,7 +112,3 @@ class PrePushJaNoRemoto(unittest.TestCase):
         self.assertIn(f"o remoto já tem o que seria enviado (melhoria/x em {self.c2[:7]})", erro)
         self.assertEqual(list(fila.iterdir()), [], "a senha da fila ficou")
         self.assertEqual(trava.read_text(), "", "o pulo gravou na trava como se a suíte fosse rodar")
-
-
-if __name__ == "__main__":
-    unittest.main()

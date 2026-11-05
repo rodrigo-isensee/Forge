@@ -194,11 +194,7 @@ ja_no_remoto() {
     case "$ref" in refs/heads/main|refs/heads/homolog|refs/heads/develop|*[[:cntrl:]]*) return 1 ;; refs/heads/?*) ;; *) return 1 ;; esac
     sha_valido "$sha" || return 1
     saida="$(GIT_TERMINAL_PROMPT=0 timeout 20 git ls-remote -- "$1" "$ref" 2>/dev/null)" || return 1
-    while IFS=$'\t' read -r s r; do
-      [ "$r" = "$ref" ] || continue
-      [ -z "$achado" ] || return 1
-      achado="$s"
-    done <<< "$saida"
+    while IFS=$'\t' read -r s r; do [ "$r" = "$ref" ] && achado="$s"; done <<< "$saida"
     sha_valido "$achado" || return 1
     if [ "$achado" != "$sha" ]; then
       git cat-file -e "${achado}^{commit}" 2>/dev/null && git merge-base --is-ancestor "$sha" "$achado" 2>/dev/null || return 1
