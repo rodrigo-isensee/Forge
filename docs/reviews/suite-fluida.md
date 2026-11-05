@@ -3,8 +3,8 @@ tipo: review
 contrato: 1
 pedido: suite-fluida
 branch: melhoria/suite-fluida
-commit: 389c585e627559e0e9371bfc7cab04659f83b15f
-parecer: reprovado
+commit: fd09d0e411b4f504aadb0e296c23a4c7f4db5656
+parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
 ---
@@ -52,7 +52,7 @@ A busca do brief no head 24499f7 deu uma linha só: `scripts/suite-paralela.py:5
 - `tests/config.json`: intacto. Os invariantes do R-TETO (linhas 407-413) seguem.
 
 ## E4: teto de agentes
-A troca proposta em `## E4` do desenho é só texto e não afrouxa: acrescenta a leitura renovada a cada disparo e o teto que acompanha a carga medida, sem tirar limite nem condição, e o invariante de `tests/config.json` não cita a frase. A branch ainda não a tem: o R-TETO:13 está igual à base. O ajuste é a E1.2b, numa outra delegação.
+A troca proposta em `## E4` do desenho para o teto de agentes do R-TETO é só texto e não afrouxa: acrescenta a leitura renovada a cada disparo e o teto que acompanha a carga medida, sem tirar limite nem condição, e o invariante de `tests/config.json` não cita a frase. A branch ainda não a tem: o R-TETO:13 está igual à base. O ajuste é a E1.2b, numa outra delegação.
 
 ## E5: fragmento de changelog
 `changelog.d/suite-fluida.md` existe, com o tipo `Alterado` (um dos tipos de `bin/forge-changelog`) e um texto que descreve o comportamento e a marca "afrouxa R-TETO". A faixa "de 1 a nproc" do texto precisa acompanhar o desfecho do A1.
@@ -100,3 +100,21 @@ O risco relatado pelo autor se confirmou e é bloqueante (A8). O `setUp` do `Bri
 
 ## Parecer
 Reprovado, pelo A8. A1 a A7 estão fechados. O A8 é um efeito da correção do A1: o código está certo, e quem quebra é o teste, que presume pelo menos 3 núcleos. A volta é curta e fica só em `tests/test_suite_paralela.py`. Na próxima rodada, leio só o delta que o `forge-check delta` listar.
+
+## Rodada 3
+Revalidação da volta do A8 (fd09d0e), em fd09d0e. Delta lido por `forge-check delta --parecer docs/reviews/suite-fluida.md` (intervalo 389c585..fd09d0e): só `tests/test_suite_paralela.py`, linhas 40-48, 253, 285, 309, 359, 366, 399, 456, 461, 527, 617 e 642-644 (+22 -9; o mesmo de `git diff 0239583 fd09d0e`). O commit 0239583 é só a forma do parecer. O resto da branch ficou como já lido nas rodadas 1 e 2.
+
+### Ferramentas
+- `python3 -m unittest tests.test_suite_paralela` em fd09d0e, com os 12 núcleos: `Ran 52 tests in 63.868s`, `OK`.
+- O mesmo com `taskset -c 0,1`: `Ran 52 tests in 61.014s`, `OK`.
+- O mesmo com `taskset -c 0`: `Ran 52 tests in 62.461s`, `OK (skipped=3)`. A árvore ficou limpa nas três.
+- Teto M14: 423 linhas de código e teste (`scripts/suite-paralela.py` 189+48, `tests/test_suite_paralela.py` 154+23, `bin/forge-testes` 6+3). Sem `hooks/` nem `PROTEGIDOS`, um comportamento só. Aceito a exceção se o corpo do PR trouxer `teto: excedido, 423 linhas, <motivo>`.
+
+### A8: fechado
+`procs(n)` (linha 40) devolve min(n, nucleos()), a mesma função que o script usa para a faixa 1..nproc, então o valor nunca é recusado. O `setUp` (linha 253), `orquestrar_no_processo` (linha 285) e o teste de zero testes (linha 461) passam por ela, e as contagens esperadas (linhas 309, 359, 366, 617, 642) usam `PROCS3`. O que cada teste prova continua provado:
+- Com 3 núcleos ou mais, os valores são os de antes (3 e 2), e as asserções são as mesmas.
+- Com 2 núcleos, 3 módulos rodam em 2 processos: TMPDIR, grupo de processo e `::group::` seguem distintos por processo, e a leitura dos grupos (linhas 642-644) passou a juntar as unidades de cada grupo, sem afrouxar a conferência de `test_a`, `test_b` e `test_c`.
+- Com 1 núcleo, os três testes cuja premissa é um processo morto ao lado de outro vivo (linhas 399, 456, 527) são pulados com motivo, em vez de passarem sem provar nada. As contagens por processo viram 1 e só provam a forma; o mesmo teste prova a distinção em qualquer máquina de 2 núcleos ou mais, e o CI tem 4.
+
+## Parecer da rodada 3
+Aprovado. A1 a A8 estão fechados; A3 a A7 eram recomendações e foram atendidos na rodada 2. Sem achado novo.
