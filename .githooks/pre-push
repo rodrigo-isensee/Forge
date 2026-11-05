@@ -295,6 +295,8 @@ if [ "$curta" = 0 ]; then
     flock -w "$((resta_ns / 1000000000)).$(printf '%03d' $(( resta_ns / 1000000 % 1000 )))" 9 || barrar
   fi
   fila_sair
+  # PUSH-PARECER-JA-NO-REMOTO: o remoto pode ter recebido o mesmo commit durante a espera; a senha já saiu e a trava solta no exit.
+  if ja_no_remoto "${1:-}"; then exit 0; fi
   : > /proc/self/fd/9
   # C5: o pid sozinho não diz de que namespace vem (o do sandbox tem pids próprios); o inode vem depois dos dois primeiros
   # campos "pid N", que scripts/suite-paralela.py confere. Leitura que falha grava "?": é só informação.
