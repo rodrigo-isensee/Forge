@@ -257,7 +257,8 @@
       "Na abertura de cada pedido, confira com o time se ele cabe num lote",
       "skills/briefs-e-conferencia/SKILL\\.md",
       "skills/trabalho-em-paralelo/SKILL\\.md",
-      "skills/falar-com-o-dono/SKILL\\.md"
+      "skills/falar-com-o-dono/SKILL\\.md",
+      "Sem parar à espera: `R-SEMPARADA`"
     ],
     "skills/briefs-e-conferencia/SKILL.md": [
       "lista \\*\\*todos os achados\\*\\* de uma vez; corrija todos",
@@ -276,7 +277,8 @@
       "worktree: <nome>` na Obs\\.",
       "suba mais instâncias iguais dele",
       "\\*\\*Lote por arquivo:\\*\\*",
-      "`R-DECISAO` painel \"Aguardando o dono\""
+      "`R-DECISAO` painel \"Aguardando o dono\"",
+      "`R-SEMPARADA` o Jarvis não espera"
     ],
     "skills/falar-com-o-dono/SKILL.md": [
       "que não se oferece em pergunta de custo, acesso, exceção a regra ou ato irreversível",
@@ -701,7 +703,8 @@
     "agents/jarvis.md": {
       "skills/briefs-e-conferencia/SKILL\\.md": {"regra": "R-BRIEF", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o texto de briefs e conferência"},
       "skills/trabalho-em-paralelo/SKILL\\.md": {"regra": "R-TETO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda a série por arquivo e o teto"},
-      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"}
+      "skills/falar-com-o-dono/SKILL\\.md": {"regra": "R-DECISAO", "porque": "sem o apontamento, o núcleo do Jarvis perde o caminho da skill que guarda o formato da pergunta ao dono"},
+      "Sem parar à espera: `R-SEMPARADA`": {"regra": "R-SEMPARADA", "porque": "sem a citação, o núcleo do Jarvis perde o apontamento para a regra e volta a esperar com a máquina livre"}
     },
     "agents/tech-lead.md": {
       "só o `qa-engineer` roda a suíte inteira": {"regra": "R-QA", "porque": "sem o texto, review e segurança voltam a rodar a suíte inteira e o custo da rodada multiplica sem ganho"}
