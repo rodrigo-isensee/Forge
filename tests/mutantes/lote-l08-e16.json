@@ -1,0 +1,36 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M18",
+      "guarda": "o parecer junto do teste ganha o motivo",
+      "arquivo": "bin/forge-check",
+      "de": "if junto and not e_ancestral(raiz, junto[0], campos[\"commit\"]):",
+      "para": "if False:",
+      "testes": [
+        "tests.test_forge.TesteEParecerSeparados.test_parecer_no_mesmo_commit_do_teste_e_recusado_com_o_motivo"
+      ]
+    },
+    {
+      "id": "M19",
+      "guarda": "só o parecer desatualizado ganha o motivo",
+      "arquivo": "bin/forge-check",
+      "de": "if motivo and motivo.startswith(\"desatualizado\") else None",
+      "para": "if motivo else None",
+      "testes": [
+        "tests.test_forge.TesteEParecerSeparados.test_commit_inexistente_nao_ganha_a_explicacao"
+      ]
+    },
+    {
+      "id": "M20",
+      "guarda": "arquivo livre não conta como junto",
+      "arquivo": "bin/forge-check",
+      "de": "fora = [] if cod else [n for n in nomes_z(saida) if not livre(n, livres)]",
+      "para": "fora = [] if cod else [n for n in nomes_z(saida)]",
+      "testes": [
+        "tests.test_forge.TesteEParecerSeparados.test_commits_separados_valem_e_o_review_revalida_o_delta_do_teste"
+      ]
+    }
+  ]
+}
