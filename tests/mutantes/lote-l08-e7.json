@@ -1,0 +1,156 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M21",
+      "guarda": "a conferida precisa cobrir o conteúdo do head",
+      "arquivo": "bin/forge-check",
+      "de": "and commit_vale(raiz, sha, head, base, livres) is None:",
+      "para": "and True:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_codigo_depois_da_conferida_reprova_mesmo_com_os_pareceres_em_dia"
+      ]
+    },
+    {
+      "id": "M22",
+      "guarda": "a conferida precisa ser ancestral do head",
+      "arquivo": "bin/forge-check",
+      "de": "sha_do_commit(raiz, sha) == sha and e_ancestral(raiz, sha, head) and",
+      "para": "sha_do_commit(raiz, sha) == sha and",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+      ]
+    },
+    {
+      "id": "M23",
+      "guarda": "só a linha de entrega conferida libera",
+      "arquivo": "bin/forge-check",
+      "de": "if (m := ENTREGA_CONFERIDA.match(linha))]",
+      "para": "if (m := CONFERIDA.match(linha))]",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_so_a_linha_de_entrega_conferida_libera"
+      ]
+    },
+    {
+      "id": "M24",
+      "guarda": "a linha abre com data e hora",
+      "arquivo": "bin/forge-check",
+      "de": "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}: entrega conferida ([0-9a-f]{40})",
+      "para": ".*entrega conferida ([0-9a-f]{40})",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_so_a_linha_de_entrega_conferida_libera"
+      ]
+    },
+    {
+      "id": "M25",
+      "guarda": "pedido ambíguo reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if problema:\n        return [f\"pr: conferência: {problema}",
+      "para": "    if False:\n        return [f\"pr: conferência: {problema}",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M26",
+      "guarda": "pedido sem Histórico reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if \"Histórico\" not in secoes_por(texto, CABECALHO_PEDIDO):\n        return [f\"{caminho_impresso(caminho)}: conferência: o pedido não tem",
+      "para": "    if False:\n        return [f\"{caminho_impresso(caminho)}: conferência: o pedido não tem",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_historico_ou_sem_pedido_reprova"
+      ]
+    },
+    {
+      "id": "M27",
+      "guarda": "sem pedido reprova",
+      "arquivo": "bin/forge-check",
+      "de": "    if texto is None:\n        return [f\"pr: conferência: sem o pedido",
+      "para": "    if False:\n        return [f\"pr: conferência: sem o pedido",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_historico_ou_sem_pedido_reprova"
+      ]
+    },
+    {
+      "id": "M28",
+      "guarda": "o -REV é o mesmo pedido",
+      "arquivo": "bin/forge-check",
+      "de": "ids.add(Path(valor).stem.removesuffix(\"-REV\") if valor.endswith(\".md\") else valor.removesuffix(\"-REV\"))",
+      "para": "ids.add(Path(valor).stem.removesuffix(\"-REV\") if valor.endswith(\".md\") else valor)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M29",
+      "guarda": "a amarração vale sem --base",
+      "arquivo": "bin/forge-check",
+      "de": "        return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])",
+      "para": "        return cmd_pr(raiz, pedido, ref, None, branch)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+      ]
+    },
+    {
+      "id": "M30",
+      "guarda": "a amarração vale com --base",
+      "arquivo": "bin/forge-check",
+      "de": "    return cmd_pr(raiz, pedido, ref, resolvida, branch) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])",
+      "para": "    return cmd_pr(raiz, pedido, ref, resolvida, branch)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_conferida_que_cubra_o_head_reprova"
+      ]
+    },
+    {
+      "id": "M31",
+      "guarda": "pedido ausente vai aos briefs",
+      "arquivo": "bin/forge-check",
+      "de": "    if caminho is None or not arquivo_existe(caminho):",
+      "para": "    if caminho is None:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M32",
+      "guarda": "sem branch não há briefs a ler",
+      "arquivo": "bin/forge-check",
+      "de": "if branch else ()",
+      "para": "if False else ()",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M33",
+      "guarda": "só os briefs da branch da ref contam",
+      "arquivo": "bin/forge-check",
+      "de": "if valor and grupo(CABECALHO_DE_BRIEF_CAMPOS[\"Branch\"], cabecalho) == branch:",
+      "para": "if valor:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M34",
+      "guarda": "dois pedidos é ambíguo",
+      "arquivo": "bin/forge-check",
+      "de": "if len(ids) > 1:",
+      "para": "if len(ids) > 2:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_pedido_pelos_briefs_da_branch"
+      ]
+    },
+    {
+      "id": "M35",
+      "guarda": "sem brief, sem pedido",
+      "arquivo": "bin/forge-check",
+      "de": "        if not ids:\n            return None, None, None",
+      "para": "        if False:\n            return None, None, None",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_sem_historico_ou_sem_pedido_reprova"
+      ]
+    }
+  ]
+}

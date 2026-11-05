@@ -1,0 +1,55 @@
+{
+  "pedido": "lote-fc-seguranca",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M37",
+      "guarda": "sem base não há escopo pelo primeiro pai",
+      "arquivo": "bin/forge-check",
+      "de": "    if not base_ref:\n        return None\n    nomes, integrou",
+      "para": "    if False:\n        return None\n    nomes, integrou",
+      "testes": [
+        "tests.test_conferencia_base_dono",
+        "tests.test_volta_por_delta",
+        "tests.test_entrega_git_falha.FalhaDoGit.test_filtro_que_falha_nao_tira_arquivo"
+      ]
+    },
+    {
+      "id": "M39",
+      "guarda": "o primeiro pai só vale sem o escopo dos dois pais",
+      "arquivo": "bin/forge-check",
+      "de": "if dos_dois_pais is None else None  # G2",
+      "para": "if True else None  # G2",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_integracao_limpa_nao_le_o_primeiro_pai"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "a base do arquivos_da_entrega é uma só leitura, sem cair para as BASES",
+      "arquivo": "bin/forge-check",
+      "de": "    b = base_da_entrega(raiz, base, so_a_pedida=True)  # uma só",
+      "para": "    b = base_da_entrega(raiz, base)  # uma só",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_so_na_primeira_leitura_reprova"
+      ]
+    }
+  ],
+  "isentas": [
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "(pasta / \"docs\" / \"pedidos\" / f\"{pedido}.md\").is_file()",
+      "motivo": "condição reescrita: o is_file sem realpath virou dentro_da_raiz com arquivo_existe (M8, M10)"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "arquivo_existe(dado) or (caminhoso and dado.is_absolute())",
+      "motivo": "condição removida: o caminho dado só vale resolvido e dentro de docs/pedidos/ (M6 a M9)"
+    },
+    {
+      "arquivo": "bin/forge-check",
+      "trecho": "dos_dois_pais := diferem_dos_dois_pais(raiz, de, head, base_ref)",
+      "motivo": "condição removida: a chamada saiu do if para os passos do git serem lidos um a um (M24, M25, M26)"
+    }
+  ]
+}
