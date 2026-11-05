@@ -654,17 +654,18 @@ def base_do_delta(raiz, base, ref=None):
     return resolvida, None
 
 
-def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
+def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None, conferir=True):
     """`forge-check pr` como o Jarvis e o conferente o chamam (E4, M4.2 e M4.3): `--base` só aceita as bases do fluxo (`develop`, `homolog`,
     `main`, ou `origin/<essas>`) e a base vale lida de `refs/remotes/origin/<base>` (a local só sem remoto, nunca adiante dele). Uma
     base que já contém o head não rescinde nada: o parecer vale só pelo diff literal. A biblioteca (`cmd_pr`) segue aceitando
-    qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR."""
+    qualquer ref para a catraca do CI, que recebe a base do próprio evento do PR. `conferir=False` (só o escopo da `entrega` na
+    merge-integracao, como o caminho do squash pelo `cmd_pr`) lê só os pareceres: a conferência do head é portão do `pr` e do `forge-fechar`."""
     if base is None:
         if isencoes_da_entrega(raiz, ref, None):
             print("pr: isento de QA: diff só de .md fora do controle (MD_DE_CONTROLE: agents/, skills/, stacks/*/agents|skills|seguranca.md|pronto.md, docs/regras/, templates/projeto/, CLAUDE.md) (R-QA); o review continua exigido (R-REVIEW)",
                   file=sys.stderr)
         branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-        return cmd_pr(raiz, pedido, ref, None, branch) + conferencia_do_head(raiz, pedido, ref, None, branch)
+        return cmd_pr(raiz, pedido, ref, None, branch) + (conferencia_do_head(raiz, pedido, ref, None, branch) if conferir else [])
     nome = base.removeprefix("origin/")
     if nome not in BASES_DO_FLUXO:
         return [f"pr: --base {nome_seguro(sem_controle(base))}: use {', '.join(BASES_DO_FLUXO)} (ou origin/<uma delas>); a base é lida de origin/<base>"]
@@ -678,7 +679,7 @@ def pr_da_cli(raiz, pedido, ref=None, base=None, branch=None):
         print(f"pr: promoção: o head é o da integração e a base é {nome}; a conferência do head ficou nos PRs da leva (TEMPO-B2)", file=sys.stderr)
         return cmd_pr(raiz, pedido, ref, resolvida, branch)  # na leva da promoção valem os pareceres de todos os itens
     branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or "HEAD"))  # o sha do forge-fechar
-    return cmd_pr(raiz, pedido, ref, resolvida, branch) + conferencia_do_head(raiz, pedido, ref, resolvida, branch)
+    return cmd_pr(raiz, pedido, ref, resolvida, branch) + (conferencia_do_head(raiz, pedido, ref, resolvida, branch) if conferir else [])
 
 
 def promocao(raiz, ref, base):
@@ -1392,7 +1393,7 @@ def pareceres_da_integracao(raiz, branch, head, base, pai=None):
         pedido = min(pedidos) if len(pedidos) == 1 else None  # A2: dois pedidos nos reviews do commit não escolhem um pelo nome
     if not pedido:
         return ["docs/reviews: review: sem parecer do pedido na entrega (R-REVIEW)"]
-    return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}")
+    return cmd_pr(raiz, pedido, head, pai) if pai else pr_da_cli(raiz, pedido, ref=branch, base=f"origin/{base}", conferir=False)
 
 
 def trazido_por_merge(raiz, de, head, nome):
