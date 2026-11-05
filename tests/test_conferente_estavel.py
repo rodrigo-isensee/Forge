@@ -1,6 +1,7 @@
 """E4 da versao-035 (R-BRIEF): o texto do conferente não reabre por leitura o campo que o `forge-check brief` decidiu `ok`
 e deixa a lista de comandos permitidos intacta (o hook `conformidade` a lê)."""
 import hashlib
+import re
 import unittest
 from pathlib import Path
 
@@ -37,6 +38,18 @@ class FerramentasDoDestino(unittest.TestCase):
         for trecho in ("grep -n '^tools:' agents/<nome>.md", "--destino forge:<nome>", "`forma: destino não encontrado`",
                        "`forma: PQ-n cmd para destino sem Bash (rode-o o Jarvis ou mude o verificador)`, que reprova"):
             self.assertIn(trecho, forma)
+
+    def test_caminho_do_destino_sai_so_do_nome(self):
+        """C-5 e T-2: todo comando sobre o destino lê só `agents/<nome>.md`, com `<nome>` limitado ao padrão."""
+        forma = paragrafo("4. **Forma**")
+        comandos = [c for c in re.findall(r"`((?:ls|grep|cat|head|test) [^`]*)`", forma)
+                    if not all(arg.startswith("-") for arg in c.split()[1:])]  # `ls -l` citado sem caminho
+        self.assertGreaterEqual(len(comandos), 2)
+        for comando in comandos:
+            self.assertTrue(comando.endswith(" agents/<nome>.md"), comando)
+        self.assertEqual(set(re.findall(r"[\w./*<>-]*agents/[^\s`]*\.md", forma)), {"agents/<nome>.md"})
+        self.assertIn("`<nome>` só de `[a-z0-9-]+`", forma)
+        self.assertNotIn("stacks/", forma)
 
 
 class ComandosPermitidos(unittest.TestCase):
