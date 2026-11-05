@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 988505eb1c632144795dfbe9b8160f6245aabfc3
+commit: df0a0e98d3d3b65efeea5086787ec328a9745081
 parecer: aprovado
 revisor: forge:tech-lead
-data: 2026-11-04
+data: 2026-11-05
 ---
 # Review: versao-033, lote L08
 
@@ -17,6 +17,7 @@ Primeira rodada: lida a branch inteira, de 4f53bde a 874c89e, um commit por item
 - A12 (recomendado) docs/regras/R-PROVA.md:14 · A9: a regra diz que sem a linha o forge-check pr reprova; a exceção da promoção (base homolog/main, head na ponta da integração) está só no forge-check; cite-a na regra
 - A6 (recomendado) bin/forge-check:835 · E10: se o gh mentir com um head antigo da branch, presente no clone e com pareceres válidos, o pr passa. Compare o patch do head sobre a base com o do squash (patch-id).
 - A7 (recomendado) tests/test_forge.py:5710 · E10: o gh falso ignora os argumentos e aceitaria outro número ou outros campos. Faça o falso conferir `pr view 7 --json state,headRefOid,headRefName` (checklist 12).
+- A13 (recomendado) agents/conferente.md:79 · E7: o escopo ok da merge-integracao é atribuído ao `pr` do comando, mas desde 3625656 lê só os pareceres (conferir=False). Escreva "os pareceres do `pr`" e diga que a conferência do head fica com o forge-fechar
 - A8 (recomendado) bin/forge-check:5671 · E19: o brief gerar não tem a etapa ato-github, então o Jarvis escreve o brief à mão. Abra um cartão para o gerar.
 
 ## Parecer
@@ -131,3 +132,21 @@ Delta lido: 988505e, só `tests/mutantes/lote-l08-e7b.json` (+13 -2). O `bin/for
 - **Recomendação, sem achado no bloco:** o fallback redundante de :757 pode sair do código numa próxima mudança de `bin/forge-check`, e o M36 junto. Código que nenhum mutante consegue matar é candidato a remoção.
 
 `bin/forge-mutante tests/mutantes/lote-l08-e7b.json`, numa worktree limpa em 988505e: rc=0. M36 equivalente; M37, M50, M51, M52 e M56 mortos.
+
+## Revalidação 3625656
+Revisado: 3625656, o fix das 4 regressões do pre-push. Delta lido: `git diff 91d52dc 3625656` (`bin/forge-check` +6 -5, `tests/apoio_conferida.py` +5 -1, `tests/test_conf_escopo.py` +9, `tests/test_estado_da_branch.py` +2). A junção da develop (b68efc3..91d52dc, TEMPO-B1 #441) foi conferida pelo brief e fica como "já lido", junto com o resto da branch. Veredito: **aprovado**, sem bloqueante. O A13 é novo e recomendado.
+
+- **A falha fechada do E7 não abre em outro caminho.** O `conferir=False` só aparece em `pareceres_da_integracao` (bin/forge-check:1396), que só o escopo do `entrega --etapa merge-integracao` chama (:1551). Nos outros chamadores o padrão continua `True`: o `forge-check pr` da linha de comando (:6513), o `brief gerar` em `pareceres_da_etapa` (:5732) e no estado da branch (:5827), e o `forge-fechar`, que chama o `forge-check pr` da linha de comando no passo 1 (bin/forge-fechar:687). O caminho do squash (`pai`) já usava só o `cmd_pr`, então a ref viva agora segue o mesmo caminho.
+- **O teste novo reprova sem a correção.** Rodei duas mutações numa cópia de 3625656 (`git archive` em `$TMPDIR`). Sem o `conferir=False` em :1396, o `test_conf_escopo` dá 3 falhas. O teste novo é uma delas, com `escopo: merge-integracao sem os pareceres aprovados no head: pr: conferência: sem o pedido de "x"`. Com o padrão `conferir=False` em :657, o teste novo falha na segunda asserção, porque o `pr` da linha de comando deixa de cobrar a conferência. Cada metade do teste pega a sua mutação.
+- **As mudanças de teste não mascaram defeito.** Em `test_estado_da_branch`, o teste grava a `entrega conferida` do head antes do `brief gerar --etapa merge-integracao`. É o que o E7 exige para o merge, e a recusa sem essa linha continua coberta em `tests/test_forge.py:5876`, `:5905` e `:5923`. Em `tests/apoio_conferida.py`, o `sem_manutencao` só acrescenta ao ambiente do `git` as chaves que desligam a manutenção automática. Não muda o que a conferida grava nem o que o teste afirma.
+- **A13 (recomendado):** o texto do conferente ainda aponta o `pr` do comando como a fonte do escopo ok. Foi o que o aviso da conferência indicou. O portão continua fechado, porque o `forge-fechar` e o `brief gerar` seguem cobrando a conferência do head. O problema é só o texto, que ficou impreciso.
+
+Testes, numa cópia de 3625656: `python3 -m unittest tests.test_conf_escopo tests.test_estado_da_branch tests.test_ambiente_git` deu rc=0 (36 testes).
+
+## Revalidação df0a0e9
+Delta lido: `git diff c4b582d df0a0e9`, só `tests/mutantes/lote-l08-e7.json` (M29 e M30) e `tests/mutantes/lote-l08-escopo.json` (novo, M60 e M61); o resto fica como "já lido". O `bin/forge-check` não mudou. O `commit:` passa a df0a0e9, o último commit de teste (E16). Veredito: **aprovado**, sem achado novo.
+
+- M29 e M30: o `de` bate com bin/forge-check:668 e :682 (`... + (conferencia_do_head(...) if conferir else [])`); o `para` tira a conferência, e o teste da `ConferenciaPresaAoHead` a mata.
+- M60 (:1396): o `de` é a chamada com `conferir=False` do escopo da merge-integracao; o `para` liga a conferência. M61 (:657): o `de` é a assinatura com `conferir=True`; o `para` troca o padrão. Os dois apontam para o teste novo de `test_conf_escopo`, que cobre as duas metades.
+- Nenhum mutante vivo escondido: `bin/forge-mutante` sobre as duas specs em 8df8e17, rc=0, 17 mortos (M29, M30, M60 e M61 inclusos), nenhum vivo nem equivalente novo.
+- Os commits 8df8e17 e bf883a0 são parecer do QA e spec; não mudam código.
