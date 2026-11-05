@@ -1,7 +1,7 @@
 ---
 tipo: review
 contrato: 1
-pedido: prepush-tags
+pedido: prepush-leve
 branch: melhoria/prepush-tags
 commit: 24e055ce0157013cee88f2873b3147eb37ab2b4e
 parecer: aprovado
