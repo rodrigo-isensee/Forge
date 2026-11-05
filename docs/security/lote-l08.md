@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 5ac531fef8e5783353db1ad148df22077b5f3fa4
+commit: 988505eb1c632144795dfbe9b8160f6245aabfc3
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -68,6 +68,12 @@ Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k Conferenci
 
 ## Nota (5ac531f, teste do QA 5ac531f)
 O `5ac531f` só acrescenta `QaPareceresDaBranch` a `tests/test_qa_lote_l08.py`. Ele prova três casos: o parecer da própria branch passa mesmo com um parecer de outra branch desatualizado ou reprovado; sem parecer da branch, reprova mesmo com o alheio aprovado; e só o QA faltando também reprova. Não muda código nem controle, e a revalidação acima vale para este head.
+
+## Nota (988505e, spec de mutantes do L08, 988505e)
+O `988505e` só muda `tests/mutantes/lote-l08-e7b.json`; nos merges vieram também pareceres e bugs em `docs/`. Nada mudou em `bin/forge-check`, `hooks/` nem `agents/`.
+- M36 equivalente: conferi a justificativa. Os dois chamadores de `conferencia_do_head` estão em `pr_da_cli`, que agora resolve a branch pelo sha antes de chamá-la. Por isso o `or branch_do_sha` interno só roda com branch vazia e daria o mesmo None.
+- M56 novo: guarda a busca da branch pelo sha sem `--base`.
+Nenhum controle afrouxa, e a análise acima vale para este head.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito. Testes rodados (só os arquivos tocados, D-5): `python3 -m unittest tests.test_forge.PrMescladoPeloHead tests.test_forge.TesteEParecerSeparados tests.test_forge.ConferenciaPresaAoHead tests.test_forge.EntregaAtoGithub tests.test_conferencia_base_dono tests.test_mensagem_conferente tests.test_volta_por_delta tests.test_erros_no_brief`, com `Ran 173 tests ... OK`. Ferramentas ausentes no PATH (lacuna, não instaladas): gitleaks, semgrep, osv-scanner, zizmor, actionlint. O diff não toca workflow nem dependência.
