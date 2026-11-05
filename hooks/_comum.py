@@ -360,14 +360,25 @@ def expandir_heredoc(corpo):
     return re.sub(r"\\([\\`$\n])", lambda m: "" if m[1] == "\n" else m[1], corpo)
 
 
+TETO_DE_FORMAS = 8  # rodadas até o ponto fixo; acima, RuntimeError, e o hook falha fechado (`marcado`)
+
+
 def formas_que_o_shell_le(texto, corpo_de_heredoc=False):
-    """As formas do texto, além da escrita, que o shell pode ler: a juntada, a com o `$'…'` decodificado e, no corpo
-    de heredoc, a expandida e a juntada dela. Quem confere confere todas (a união, como na I2)."""
-    formas = [juntar_continuacoes(texto), ansi_c_decodificado(texto)]
-    if corpo_de_heredoc:
-        expandida = expandir_heredoc(texto)
-        formas += [expandida, juntar_continuacoes(expandida)]
-    return [f for f in dict.fromkeys(formas) if f != texto]
+    """As formas do texto, além da escrita, que o shell pode ler: cada passo sozinho (a expandida, no corpo de
+    heredoc; a juntada; a com o `$'…'` decodificado) e os passos compostos, repetidos até o ponto fixo (A3 do review:
+    `g$'\\x68' repo de\\` + quebra + `lete` só se lê com os dois). Quem confere confere todas (a união, como na I2)."""
+    passos = ([expandir_heredoc] if corpo_de_heredoc else []) + [juntar_continuacoes, ansi_c_decodificado]
+    formas, atual = [], texto
+    for _ in range(TETO_DE_FORMAS):
+        formas += [passo(atual) for passo in passos]
+        seguinte = atual
+        for passo in passos:
+            seguinte = passo(seguinte)
+        if seguinte == atual:
+            return [f for f in dict.fromkeys(formas) if f != texto]
+        formas.append(seguinte)
+        atual = seguinte
+    raise RuntimeError("o texto não para de mudar com as transformações do shell")
 
 
 def ansi_c_decodificado(texto):
@@ -386,6 +397,9 @@ def ansi_c_decodificado(texto):
                 fim += 2 if texto[fim] == "\\" else 1
             saida.append("'" + decodificar_ansi_c(texto[i + 2:fim]).replace("'", "'\\''") + "'")
             i = fim + 1
+            continue
+        if aspas is None and texto.startswith('$"', i):  # `$"…"` (tradução do locale) é o texto entre aspas duplas
+            i += 1
             continue
         if c in "'\"" and aspas in (None, c):
             aspas = None if aspas else c
@@ -412,12 +426,6 @@ def decodificar_ansi_c(texto):
             return chr(ord(e[1]) & 0x1F)
         return ANSI_C_SIMPLES.get(e, "\\" + e)
     return ANSI_C.sub(um, texto).split("\0", 1)[0]  # A10: o bash encerra o $'…' no primeiro NUL
-
-
-def com_ansi_c(palavras):
-    """A2: as palavras de `bash -c`/`eval` juntadas, com a que veio de `$'…'` (o leitor a entrega como `$` + o texto
-    cru) decodificada. Uma `$X` comum também passa: a forma a mais só deixa mais estrito."""
-    return " ".join(decodificar_ansi_c(p[1:]) if p.startswith("$") else p for p in palavras)
 
 
 def conteudos_de_crase(comando, so_os_fechados=False):
@@ -2501,7 +2509,10 @@ def marcado(hook, critico, bruto):
     decisão, sob o vigia de prazo, e o prazo vencido só recusa com o marcador (`prazo_vencido`)."""
     if hook.marcado is None:
         texto = texto_da_acao(hook, bruto)  # HOOK-CONTINUACAO-LINHA: também a forma juntada
-        hook.marcado = any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])
+        try:
+            hook.marcado = any(critico.search(t) is not None for t in [texto, *formas_que_o_shell_le(texto)])
+        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado
+            hook.marcado = True
     return hook.marcado
 
 

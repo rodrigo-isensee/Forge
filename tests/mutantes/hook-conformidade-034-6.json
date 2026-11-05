@@ -68,18 +68,8 @@
       "id": "M25",
       "guarda": "A1: o corpo de heredoc se confere também expandido",
       "arquivo": "hooks/_comum.py",
-      "de": "    if corpo_de_heredoc:\n        expandida",
-      "para": "    if False:\n        expandida",
-      "testes": [
-        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
-      ]
-    },
-    {
-      "id": "M26",
-      "guarda": "A2: o $'…' de bash -c e eval se confere decodificado",
-      "arquivo": "hooks/_comum.py",
-      "de": "if p.startswith(\"$\") else p for p in palavras",
-      "para": "if p.startswith(\"@\") else p for p in palavras",
+      "de": "[expandir_heredoc] if corpo_de_heredoc else []",
+      "para": "[expandir_heredoc] if False else []",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]
@@ -132,6 +122,27 @@
       "para": "if False:",
       "testes": [
         "tests.test_hooks.Hooks.test_ansi_c_decodifica_como_o_bash"
+      ]
+    },
+    {
+      "id": "M44",
+      "guarda": "A3 do review: os passos se compõem até o ponto fixo",
+      "arquivo": "hooks/_comum.py",
+      "de": "        if seguinte == atual:\n",
+      "para": "        if True:\n",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034",
+        "tests.test_hooks.Hooks.test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha"
+      ]
+    },
+    {
+      "id": "M45",
+      "guarda": "formas demais marcam a ação como crítica (falha fechado)",
+      "arquivo": "hooks/_comum.py",
+      "de": "        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado\n            hook.marcado = True",
+      "para": "        except RuntimeError:  # formas demais: marca, e o erro que volta na decisão falha fechado\n            hook.marcado = False",
+      "testes": [
+        "tests.test_hooks.Hooks.test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha"
       ]
     }
   ]

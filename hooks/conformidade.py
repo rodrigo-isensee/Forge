@@ -28,7 +28,7 @@ import parecer
 from _comum import (CONTORNO_DA_GRAMATICA, CONTORNO_DO_LANCADOR, CONTORNO_DO_TETO, CORPO_DE_LACO, INTEGRACAO,
                     LancadorDemais, OPACO, TextoAbertoComLeituras, TextoDivididoAberto,
                     PLUGIN, PROFUNDIDADE, bloquear, comentarios,
-                    construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, com_ansi_c, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
+                    construcao_nao_modelada, contorno_da_reavaliacao, juntar_continuacoes, formas_que_o_shell_le, conteudos_de_crase, contrib, corpo_so_lido, diretorio_comum,
                     e_clone_do_forge, em_contrib, excede_o_teto, executar, fora_da_gramatica_com_heredoc,
                     fora_da_gramatica_de_leitura, motivo_da_reavaliacao,
                     forge_check, git, leituras, mensagem, nome_da_branch, raiz_declarada, raiz_do_projeto, reavaliacao,
@@ -1019,11 +1019,9 @@ class Guarda:
         if prog in SHELLS:
             for i, a in enumerate(args):
                 if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 1 < len(args):
-                    for texto in dict.fromkeys([args[i + 1], com_ansi_c(args[i + 1:i + 2])]):  # A2: `$'…'` decodificado
-                        self.aninhado(texto, pasta, nivel, atribuicoes)
+                    self.aninhado(args[i + 1], pasta, nivel, atribuicoes)
         elif prog == "eval":
-            for texto in dict.fromkeys([" ".join(args), com_ansi_c(args)]):
-                self.aninhado(texto, pasta, nivel, atribuicoes)
+            self.aninhado(" ".join(args), pasta, nivel, atribuicoes)
         elif INTERPRETES.match(prog):
             for a in args:
                 self.checar_texto(a)
@@ -1558,11 +1556,9 @@ class Guarda:
                     elif prog in SHELLS:
                         for i, a in enumerate(palavras[1:]):
                             if re.fullmatch(r"-[a-z]*c[a-z]*", a) and i + 2 < len(palavras):
-                                for texto in dict.fromkeys([palavras[i + 2], com_ansi_c(palavras[i + 2:i + 3])]):
-                                    self.rotulo_no_argumento(texto, pasta, nivel + 1)
+                                self.rotulo_no_argumento(palavras[i + 2], pasta, nivel + 1)
                     elif prog == "eval":
-                        for texto in dict.fromkeys([" ".join(palavras[1:]), com_ansi_c(palavras[1:])]):
-                            self.rotulo_no_argumento(texto, pasta, nivel + 1)
+                        self.rotulo_no_argumento(" ".join(palavras[1:]), pasta, nivel + 1)
             for dono, corpo in corpos:
                 if not corpo_so_lido(dono):
                     for forma in [corpo, *formas_que_o_shell_le(corpo, True)]:  # A1: o corpo expandido também

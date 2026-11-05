@@ -2181,9 +2181,18 @@ class Hooks(unittest.TestCase):
 
     def test_ansi_c_decodificado_no_texto(self):  # HOOK-CONTINUACAO-LINHA, A5 da segurança
         _comum, _, _ = modulos_dos_hooks()
-        for escrito, lido in ((r"g$'\x68' x", "g'h' x"), (r"echo 'x$' $'\x68'", "echo 'x$' 'h'"), (r"$'a\'b' c", "'a'\\''b' c"),
+        for escrito, lido in ((r"g$'\x68' x", "g'h' x"), (r"echo 'x$' $'\x68'", "echo 'x$' 'h'"), (r"$'a\'b' c", "'a'\\''b' c"), ('x $"g"h', 'x "g"h'),
                               (r"echo 'a\' $'\x68'", r"echo 'a\' 'h'"), (r"""echo "$'\x68'" \$'y'""", r"""echo "$'\x68'" \$'y'""")):
             self.assertEqual(_comum.ansi_c_decodificado(escrito), lido, escrito)
+
+    def test_formas_compostas_ate_o_ponto_fixo_e_teto_fecha(self):  # HOOK-CONTINUACAO-LINHA, A3 do review
+        _comum, conformidade, _ = modulos_dos_hooks()
+        self.assertIn("g'h' repo delete", _comum.formas_que_o_shell_le("g$'\\x68' repo de\\\nlete"))
+        hook = _comum.Hook("conformidade")
+        hook.entrada = {"tool_input": {"command": "echo $'a' \\\nb"}}
+        with mock.patch.object(_comum, "TETO_DE_FORMAS", 1):
+            self.assertRaises(RuntimeError, _comum.formas_que_o_shell_le, "g$'\\x68' repo de\\\nlete")
+            self.assertIs(_comum.marcado(hook, conformidade.CRITICO, ""), True)  # formas demais: marca e fecha
 
     def test_marcador_critico_tambem_na_forma_juntada(self):  # HOOK-CONTINUACAO-LINHA
         _comum, conformidade, _ = modulos_dos_hooks()

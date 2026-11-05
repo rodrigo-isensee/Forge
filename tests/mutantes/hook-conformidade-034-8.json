@@ -6,8 +6,8 @@
       "id": "M34",
       "guarda": "A5: o texto se confere também com o $'…' decodificado em qualquer ponto",
       "arquivo": "hooks/_comum.py",
-      "de": "formas = [juntar_continuacoes(texto), ansi_c_decodificado(texto)]",
-      "para": "formas = [juntar_continuacoes(texto)]",
+      "de": "[juntar_continuacoes, ansi_c_decodificado]",
+      "para": "[juntar_continuacoes]",
       "testes": [
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]
@@ -99,6 +99,17 @@
       "de": "return ANSI_C.sub(um, texto).split(\"\\0\", 1)[0]",
       "para": "return ANSI_C.sub(um, texto)",
       "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
+    },
+    {
+      "id": "M46",
+      "guarda": "$\"…\" se lê como o texto entre aspas duplas",
+      "arquivo": "hooks/_comum.py",
+      "de": "if aspas is None and texto.startswith('$\"', i):",
+      "para": "if aspas is None and texto.startswith('$#', i):",
+      "testes": [
+        "tests.test_hooks.Hooks.test_ansi_c_decodificado_no_texto",
         "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
       ]
     }
