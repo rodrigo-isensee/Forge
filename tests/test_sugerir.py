@@ -15,6 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # tests/ no caminho também no modo `tests.<módulo>`
 from ambiente_git import sem_manutencao  # noqa: E402
+from sem_claude_ancestral import comando  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 SUGERIR = RAIZ / "bin" / "forge-sugerir"
@@ -72,12 +73,12 @@ class Base(unittest.TestCase):
         """Com `respostas`, num terminal (pty); sem elas, sem terminal."""
         env = env or self.env
         if respostas is None:
-            r = subprocess.run([sys.executable, str(SUGERIR), *args], env=env, cwd=self.proj, capture_output=True, text=True,
+            r = subprocess.run(comando(SUGERIR, *args, ate=os.getpid()), env=env, cwd=self.proj, capture_output=True, text=True,
                                timeout=60, stdin=subprocess.DEVNULL)
             return r.returncode, r.stdout + r.stderr
         mestre, escravo = pty.openpty()
         os.write(mestre, "".join(r + "\n" for r in respostas).encode())
-        p = subprocess.Popen([sys.executable, str(SUGERIR), *args], env=env, cwd=self.proj, stdin=escravo, stdout=escravo,
+        p = subprocess.Popen(comando(SUGERIR, *args, ate=os.getpid()), env=env, cwd=self.proj, stdin=escravo, stdout=escravo,
                              stderr=escravo, close_fds=True)
         os.close(escravo)
         saida, limite = b"", time.time() + 25
