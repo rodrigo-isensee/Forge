@@ -45,9 +45,9 @@ class MensagemPelaEtapaDoBrief(Cenario):
         conteudo = (self.tmp / ARQ).read_bytes()
         esperado = ["modo: entrega", f"Pedido: {ID}", "Agente conferido: forge:dev-exemplo", f"Arquivo: {(self.tmp / ARQ).resolve()}",
                     f"Worktree: {self.pasta}", "Branch: melhoria/x", "Base: develop", f"Base-sha: {BASE_SHA}", f"Desde: {SHA_B}",
-                    f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", "Etapa: codigo", "<<<BRIEF"]
-        self.assertEqual(saida.decode().splitlines()[:12], esperado)
-        self.assertTrue(saida.endswith(conteudo + b"\nBRIEF>>>\n"))
+                    f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}", "Etapa: codigo"]
+        self.assertEqual(saida.decode().splitlines(), esperado)  # TEMPO-B1: sem o bloco do texto
+        self.assertNotIn(b"<<<BRIEF", saida)
 
     def test_sem_conferida_no_historico_a_linha_desde_nao_sai(self):
         rc, saida = self.entrega("--worktree", str(self.pasta), pedido_extra="- 2026-10-29 07:36: aberto\n")
@@ -134,7 +134,19 @@ class DesdeNaBranchNova(Cenario):
     def test_sem_conferida_fica_o_comportamento_de_hoje(self):
         self.assertEqual(self.desde("- 2026-10-29 07:36: aberto\n"), [])
         dono = f"DECISÃO DO DONO (2026-10-29): \"fixar a base\".\n- 2026-10-29 11:00: base do delta fixada pelo dono {self.c1}\n"
-        self.assertEqual(self.desde(dono), [f"Desde: {self.c1}"])
+        self.assertEqual(self.desde(dono), [f"Desde: {self.base}"])  # E12: a base do dono igual ao head não vale (o `entrega` a recusa)
+
+    def test_desde_e_a_base_da_propria_branch_mesmo_com_outra_depois(self):  # E12 (CONFERIDA-DESDE-POR-BRANCH, MENSAGEM-DESDE-BASE-DONO)
+        c2 = self.commitar("segunda entrega da branch nova")
+        decisao = "DECISÃO DO DONO (2026-10-29): \"fixar a base\".\n"
+        da_outra = f"- 2026-10-29 12:00: entrega conferida {self.velha}\n"
+        casos = {"conferida da branch, depois a de outra": (f"- 2026-10-29 10:08: entrega conferida {self.c1}\n" + da_outra, self.c1),
+                 "base do dono da branch, depois a de outra": (decisao + f"- 2026-10-29 11:00: base do delta fixada pelo dono {self.c1}\n" + da_outra, self.c1),
+                 "só a de outra branch": (da_outra, self.base),
+                 "base do dono igual ao head": (decisao + f"- 2026-10-29 11:00: base do delta fixada pelo dono {c2}\n", self.base)}
+        for nome, (historico, esperado) in casos.items():
+            with self.subTest(nome):
+                self.assertEqual(self.desde(historico), [f"Desde: {esperado}"])
 
 
 if __name__ == "__main__":

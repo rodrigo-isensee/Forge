@@ -1,0 +1,127 @@
+{
+  "pedido": "lote-fc-seguranca",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M1",
+      "guarda": "a base pedida não cai para as BASES",
+      "arquivo": "bin/forge-check",
+      "de": "base and so_a_pedida",
+      "para": "False",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_base_pedida_que_falha_nao_cai_para_as_bases"
+      ]
+    },
+    {
+      "id": "M2",
+      "guarda": "diff do desde que falha reprova",
+      "arquivo": "bin/forge-check",
+      "de": "if novos is None or todos_desfeitos is None:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M3",
+      "guarda": "desfeitos que falha é None, nunca vazio",
+      "arquivo": "bin/forge-check",
+      "de": "None if nomes is None else set(nomes)",
+      "para": "None if False else set(nomes)",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_desde_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M4",
+      "guarda": "gatilhos: sem diff lido, os dois portões",
+      "arquivo": "bin/forge-check",
+      "de": "    if arquivos is None:  # C-4",
+      "para": "    if arquivos is not None:  # C-4",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_pr_sem_gatilho_nao_exige_devops_nem_seguranca"
+      ]
+    },
+    {
+      "id": "M5",
+      "guarda": "numstat estrito devolve None na falha",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod and estrito:",
+      "para": "    if False:",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
+      ]
+    },
+    {
+      "id": "M6",
+      "guarda": "só o caminho dentro da raiz entra",
+      "arquivo": "bin/forge-check",
+      "de": "            if achado is not None:\n                dentro.append(achado)",
+      "para": "            if True:\n                dentro.append(achado)",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_caminho_fora_das_raizes_e_recusado_com_rc_2_e_a_regra",
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_dentro_das_raizes_e_o_id_nu_passam"
+      ]
+    },
+    {
+      "id": "M7",
+      "guarda": "link para fora numa raiz conta como escape",
+      "arquivo": "bin/forge-check",
+      "de": "escapa = escapa or os.path.lexists(Path(base) / dado)",
+      "para": "escapa = False",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_caminho_fora_das_raizes_e_recusado_com_rc_2_e_a_regra"
+      ]
+    },
+    {
+      "id": "M8",
+      "guarda": "o arquivo existente dentro da raiz vence",
+      "arquivo": "bin/forge-check",
+      "de": "if existentes := [a for a in dentro if arquivo_existe(a)]:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_dentro_das_raizes_e_o_id_nu_passam"
+      ]
+    },
+    {
+      "id": "M9",
+      "guarda": "sem raiz ou com escape, PedidoFora",
+      "arquivo": "bin/forge-check",
+      "de": "if not dentro or escapa:",
+      "para": "if False:",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_caminho_fora_das_raizes_e_recusado_com_rc_2_e_a_regra"
+      ]
+    },
+    {
+      "id": "M10",
+      "guarda": "id nu que é link para fora conta como escape",
+      "arquivo": "bin/forge-check",
+      "de": "escapa = escapa or (achado is None and os.path.lexists(Path(pasta) / relativo))",
+      "para": "escapa = False",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_id_nu_que_e_link_para_fora_e_recusado_em_cada_raiz"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "id nu com escape levanta PedidoFora",
+      "arquivo": "bin/forge-check",
+      "de": "    if escapa:\n        raise PedidoFora(pedido)\n    return Path(raiz)",
+      "para": "    if False:\n        raise PedidoFora(pedido)\n    return Path(raiz)",
+      "testes": [
+        "tests.test_pedido_fora.PedidoForaDasRaizes.test_id_nu_que_e_link_para_fora_e_recusado_em_cada_raiz"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "rev-list dos pais do head falha no diferem_dos_dois_pais",
+      "arquivo": "bin/forge-check",
+      "de": "    if cod:\n        return FalhaDoGit(\"rev-list dos pais do head\")",
+      "para": "    if False:\n        return FalhaDoGit(\"rev-list dos pais do head\")",
+      "testes": [
+        "tests.test_entrega_git_falha.FalhaDoGit.test_passos_do_caminho_simples_em_toda_etapa"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M53",
+      "guarda": "só os pareceres da branch de trabalho contam",
+      "arquivo": "bin/forge-check",
+      "de": "        if de_trabalho and not da_branch:",
+      "para": "        if False:",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_so_os_pareceres_da_branch_contam_e_falham_fechado"
+      ]
+    },
+    {
+      "id": "M54",
+      "guarda": "a integração não é branch de trabalho (promoção)",
+      "arquivo": "bin/forge-check",
+      "de": "de_trabalho = bool(branch) and branch not in BASES_DO_FLUXO",
+      "para": "de_trabalho = bool(branch)",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M55",
+      "guarda": "o sha da ref acha a branch dos pareceres (forge-fechar)",
+      "arquivo": "bin/forge-check",
+      "de": "    branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or \"HEAD\"))  # o sha do forge-fechar\n    return cmd_pr",
+      "para": "    branch = branch or branch_da_ref(raiz, ref)  # o sha do forge-fechar\n    return cmd_pr",
+      "testes": [
+        "tests.test_forge.ConferenciaPresaAoHead.test_so_os_pareceres_da_branch_contam_e_falham_fechado"
+      ]
+    }
+  ]
+}

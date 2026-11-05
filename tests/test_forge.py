@@ -27,6 +27,7 @@ from gh_falso import com_gh_falso  # noqa: E402  (o gerar --branch consulta o PR
 import apoio_versao_defasada as ap  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401  (guarda do .git/config comum)
 from test_voltas import Raiz  # noqa: E402  (raiz sintética do CONF-CORRECAO; sem teste próprio)
+from apoio_conferida import gravar_conferida  # noqa: E402  (E7: a conferida do head nos testes que não tratam dela)
 
 RAIZ = Path(__file__).resolve().parent.parent
 AGENTES = RAIZ / "agents"
@@ -1816,7 +1817,7 @@ class ForgeCheck(unittest.TestCase):
         self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=commit, p=p) + "---\n# r\n")
         self.escrever("docs/qa/p1.md", "---\n" + self.QA.format(c=commit, p=p, a=a, m=m, extra=extra) + "---\n# q\n")
 
-    def check(self, *args, nproc=3):
+    def check(self, *args, nproc=3, conferir=True):
         """O `kanban` mede o teto de R-TETO: por padrão com 3 núcleos simulados (FORGE_NPROC) e um /proc de
         máquina folgada (FORGE_PROC), para o resultado não depender do hardware que roda os testes."""
         env = ambiente_limpo()
@@ -1826,6 +1827,11 @@ class ForgeCheck(unittest.TestCase):
             (proc / "loadavg").write_text("0.10 0.10 0.10 1/100 1\n", encoding="utf-8")
             (proc / "meminfo").write_text("MemTotal: 16777216 kB\nMemAvailable: 8388608 kB\n", encoding="utf-8")
             env.update(FORGE_NPROC=str(nproc), FORGE_PROC=str(proc))
+        if args[:1] == ("pr",) and conferir:  # E7: o pedido com a conferida do head mora num HOME do teste
+            casa = self.tmp.parent / (self.tmp.name + "-casa")
+            self.addCleanup(shutil.rmtree, casa, ignore_errors=True)
+            gravar_conferida(casa, self.tmp, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
+            env["HOME"] = str(casa)
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "--raiz", str(self.tmp), *args],
                            env=env, capture_output=True, text=True)
         return r.returncode, r.stdout
@@ -2055,6 +2061,36 @@ class ForgeCheck(unittest.TestCase):
         git("switch", "-q", "develop", cwd=self.tmp)
         self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
 
+    def test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch(self):
+        """E11: mesmo pedido, tipo e data; o de outra branch (desatualizado, caminho depois na ordem) não passa na frente."""
+        velho = self.head()
+        self.escrever("src/app.txt", "v2\n")
+        self.commitar("muda")
+        self.pareceres(self.head())
+        self.escrever("docs/reviews/p1b.md", "---\n" + self.REVIEW.format(c=velho, p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        self.assertAprovado(self.check("pr", "p1", "--ref", "melhoria/x"))
+        self.assertAprovado(self.check("pr", "p1", "--ref", self.head()))  # o sha da ponta de uma branch só: a branch dele (forge-fechar)
+        violacoes = carregar_forge_check().cmd_pr(self.tmp, "p1", self.head(), None)  # a biblioteca com sha (a catraca do CI): o mais recente do pedido
+        self.assertTrue(any("commit" in v for v in violacoes), violacoes)
+
+    def test_pr_parecer_reprovado_da_propria_branch_reprova(self):
+        self.pareceres(self.head(), p="reprovado")
+        self.escrever("docs/reviews/p1b.md", "---\n" + self.REVIEW.format(c=self.head(), p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        codigo, saida = self.check("pr", "p1", "--ref", "melhoria/x")
+        self.assertEqual(codigo, 1, saida)
+        self.assertIn("não é aprovado", saida)
+
+    def test_pr_sem_parecer_da_branch_reprova_mesmo_com_o_de_outra_branch_valido(self):  # antes: caía no mais recente do pedido
+        self.pareceres(self.head())
+        self.escrever("docs/reviews/p1.md", "---\n" + self.REVIEW.format(c=self.head(), p="aprovado").replace("melhoria/x", "melhoria/outra") + "---\n# r\n")
+        self.commitar("pareceres")
+        codigo, saida = self.check("pr", "p1", "--ref", "melhoria/x")
+        self.assertEqual(codigo, 1, saida)
+        self.assertEqual([l for l in saida.splitlines() if "R-REVIEW" in l],
+                         ['docs/reviews: review: sem parecer da branch "melhoria/x" para o pedido `p1` (R-REVIEW)'])
+
     def autoria(self, *registros):
         """Grava .forge/run/autoria.jsonl como o hook conformidade: (caminho, papel) com o hash do texto atual."""
         linhas = []
@@ -2112,7 +2148,9 @@ class ForgeCheck(unittest.TestCase):
     def test_raiz_depois_do_subcomando_e_git_isolado(self):
         self.pareceres(self.head())
         self.commitar()
-        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"))  # GIT_* herdadas não valem
+        casa = self.tmp / "casa"
+        gravar_conferida(casa, self.tmp, "p1")
+        env = dict(ambiente_limpo(), GIT_DIR=str(self.tmp / "nao-existe"), HOME=str(casa))  # GIT_* herdadas não valem
         r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "pr", "p1", "--raiz", str(self.tmp)],
                            env=env, capture_output=True, text=True)
         self.assertEqual((r.returncode, r.stdout.split(" · ")[0], r.stderr), (0, "pr: veredito: aprovado", ""))  # LOTE E1
@@ -2289,7 +2327,7 @@ class ForgeCheck(unittest.TestCase):
                 self.assertEqual(self.aceite(texto)[0], 1)
 
     def test_pr_sem_pareceres(self):
-        codigo, saida = self.check("pr", "p1")
+        codigo, saida = self.check("pr", "p1", conferir=False)  # com o pedido gravado, o `uso:` do id sem parecer viria antes (rc 2)
         self.assertEqual(codigo, 1)
         self.assertIn("(R-REVIEW)", saida)
         self.assertIn("(R-QA)", saida)
@@ -3177,8 +3215,18 @@ class ConferirBrief(unittest.TestCase):
     PEDIDO = PASTA / "pedido.md"
 
     def rodar(self, *args, cwd=None):
-        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *map(str, args)],
-                           capture_output=True, text=True, cwd=cwd or RAIZ, env=com_gh_falso())  # o gerar --branch não vai à rede (P5)
+        args = list(map(str, args))
+        if not hasattr(self, "casa"):  # o pedido só vale em docs/pedidos/ de uma raiz guardada (E2): a cópia vai para lá, num HOME por teste
+            self.casa = Path(tempfile.mkdtemp(prefix="forge-brief-home-"))
+            self.addCleanup(shutil.rmtree, self.casa, ignore_errors=True)
+        casa = self.casa
+        if "--pedido" in args and Path(args[args.index("--pedido") + 1]).is_file():
+            guardado = casa / ".forge-contrib" / "docs" / "pedidos" / Path(args[args.index("--pedido") + 1]).name
+            guardado.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(args[args.index("--pedido") + 1], guardado)
+            args[args.index("--pedido") + 1] = str(guardado)
+        r = subprocess.run([sys.executable, str(RAIZ / "bin/forge-check"), "brief", *args], capture_output=True, text=True, cwd=cwd or RAIZ,
+                           env=dict(com_gh_falso(), HOME=str(casa)))  # o gerar --branch não vai à rede (P5)
         return r.returncode, r.stdout
 
     def conferir(self, nome, *extra, pedido=None):
@@ -3529,12 +3577,8 @@ class Cenario(Raiz):
         return {p.relative_to(self.tmp).as_posix(): (p.read_bytes() if p.is_file() else None) for p in sorted(self.tmp.rglob("*"))}
 
 
-def entre_delimitadores(saida):
-    return saida.split(b"<<<BRIEF\n", 1)[1].rsplit(b"\nBRIEF>>>", 1)[0]
-
-
 class MensagemAprovada(Cenario):
-    def test_saida_integral_com_hash_e_bytes(self):
+    def test_saida_so_com_cabecalho_hash_e_bytes(self):
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
         conteudo = (self.tmp / ARQ).read_bytes()
@@ -3545,16 +3589,17 @@ class MensagemAprovada(Cenario):
         self.assertIn("Etapa: E1.1", linhas[1])
         self.assertEqual(linhas[2], f"Arquivo: {(self.tmp / ARQ).resolve()}")  # absoluto: o conferente o lê de qualquer pasta (E9)
         self.assertEqual(linhas[3], f"Brief-sha256: {hashlib.sha256(conteudo).hexdigest()}   Bytes: {len(conteudo)}")
-        self.assertEqual(linhas[4], "<<<BRIEF")
-        self.assertEqual(entre_delimitadores(saida), conteudo)
-        self.assertTrue(saida.endswith(b"\nBRIEF>>>\n"), "nada depois de BRIEF>>>")
+        self.assertEqual(len(linhas), 4, "TEMPO-B1: só o cabeçalho, sem o texto do brief")
+        self.assertNotIn(b"<<<BRIEF", saida)
+        self.assertNotIn(b"BRIEF>>>", saida)
+        self.assertNotIn(b"Recurso A", saida)
 
-    def test_brief_sem_quebra_de_linha_final_sai_igual_byte_a_byte(self):
+    def test_brief_sem_quebra_de_linha_final_leva_o_hash_do_arquivo(self):
         sem_final = self.completo.rstrip("\n")
         self.gravar(ARQ, sem_final)
         rc, saida = self.mensagem()
         self.assertEqual(rc, 0, saida)
-        self.assertEqual(entre_delimitadores(saida), sem_final.encode())
+        self.assertIn(f"Brief-sha256: {hashlib.sha256(sem_final.encode()).hexdigest()}", saida.decode())
 
     def test_o_hash_da_mensagem_e_o_da_linha_arquivo_do_comando(self):
         _, saida = self.brief()
@@ -4080,7 +4125,7 @@ class TextosDoAgenteEDaRegra(unittest.TestCase):
         self.assertIn("forge-check brief mensagem", self.regra)
         self.assertIn("não substitui", self.regra)
         self.assertIn("Brief-sha256:", self.agente)
-        self.assertIn("as duas comparações valem, nenhuma no lugar da outra", self.agente)
+        self.assertIn("Vale o hash do arquivo que você leu", self.agente)  # TEMPO-B1: o texto vem só do arquivo
 
 
 # --- FORGE-CHECK-LOTE (E1 a E11): saída sanitizada, âncora da decisão, recomendação incluída, mensagem, versão, merge, custo ----------
@@ -4096,7 +4141,9 @@ def linhas_forjadas(texto, permitidas=()):
             and not any(l.startswith(p[:-1]) for p in permitidas if p.endswith("*"))]
 
 
-def rodar_fc(*args, raiz, home, cwd=None, env_extra=None):
+def rodar_fc(*args, raiz, home, cwd=None, env_extra=None, conferir=True):
+    if conferir and args[:1] == ("pr",) and "--pr" not in args and len(args) > 1:
+        gravar_conferida(home, raiz, args[1], args[args.index("--ref") + 1] if "--ref" in args else "HEAD")
     env = dict(ambiente_limpo(), HOME=str(home), **(env_extra or {}))
     return subprocess.run([sys.executable, FORGE_CHECK_CC, "--raiz", str(raiz), *args], capture_output=True, text=True, env=env,
                           cwd=cwd, timeout=60)
@@ -4236,7 +4283,9 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
         (self.repo / "docs" / "qa" / f"q{FORJA}.md").write_text("---\ntipo: qa\ncontrato: 1\n---\n", encoding="utf-8")
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "arquivo forjado", cwd=self.repo)
-        (self.tmp / "p1.md").write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "p1.md"  # o pedido só vale em docs/pedidos/ de uma raiz guardada (E2)
+        self.pedido.parent.mkdir(parents=True)
+        self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
 
     def rodar(self, *args):
         return rodar_fc(*args, raiz=self.repo, home=self.tmp / "home")
@@ -4246,7 +4295,7 @@ class SaidaSanitizadaNoGit(unittest.TestCase):
         self.assertEqual(linhas_forjadas(saida, ("resultado: aprovado", "resultado: reprovado", *reais)), [], saida)
 
     def test_entrega_e_delta_nao_forjam_linha(self):  # abuso 17
-        r = self.rodar("entrega", str(self.tmp / "p1.md"), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo")
+        r = self.rodar("entrega", str(self.pedido), "--branch", "melhoria/x", "--base", "develop", "--base-sha", self.base, "--etapa", "codigo")
         self.assertIn("escopo: confira", r.stdout)
         self.assertEqual(sum(1 for l in r.stdout.splitlines() if l.startswith("escopo:")), 3, r.stdout)  # os 3 arquivos, uma linha cada
         self.sem_forja(r, 'escopo: confira "*')
@@ -4338,7 +4387,8 @@ class VoltaComRecomendacao(unittest.TestCase):
         self.c1 = self.commitar({"src/app.txt": "v2\n"}, "entrega")
         (self.repo / ".git" / "info" / "exclude").write_text("docs/briefs/\n", encoding="utf-8")
         git("update-ref", "refs/remotes/origin/develop", self.base, cwd=self.repo)
-        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text(PEDIDO + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
         self.rel_anterior = "docs/briefs/pedido-sintetico-dev-exemplo-1.md"
         (self.repo / "docs" / "briefs").mkdir(parents=True)
@@ -4683,7 +4733,8 @@ class RepoDeSeguranca(unittest.TestCase):
             arq.write_text(texto, encoding="utf-8")
         git("add", "-A", cwd=self.repo)
         git("commit", "-q", "-m", "entrega", cwd=self.repo)
-        self.pedido = self.tmp / "p1.md"
+        self.pedido = self.tmp / "home" / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
         registros = [{"caminho": rel, "sha256": hashlib.sha256(texto.strip().encode()).hexdigest(), "papel": "seguranca"}
                      for rel, texto in (("docs/security/p1.md", self.parecer), ("docs/security/aceites/p1.md", self.aceite))]
@@ -4774,7 +4825,7 @@ class RepoComOrigem(unittest.TestCase):
         remoto_sem_manutencao(self.origem)
         self.semente = self.clone("semente")
         self.commitar(self.semente, {"src/x.txt": "x1\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n", "src/y.txt": "y1\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n",
-                                     "hooks/conformidade.json": "{}\n", "docs/pedidos/p1.md": "# p1\n"}, "base")
+                                     "hooks/conformidade.json": "{}\n"}, "base")  # o pedido mora no HOME (`gravar_conferida`)
         git("push", "-q", "origin", "develop", cwd=self.semente)
         self.repo = self.clone("repo")
         git("switch", "-q", "-c", "melhoria/x", cwd=self.repo)
@@ -4821,8 +4872,10 @@ class RepoComOrigem(unittest.TestCase):
             git("commit", "-q", "--no-edit", cwd=self.repo)
         return r.returncode
 
+    CONFERIR = True  # E7: o pedido ganha a conferida do head (`gravar_conferida`), salvo nos testes da conferência
+
     def pr(self, *extra, ref="melhoria/x"):
-        r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home)
+        r = rodar_fc("pr", "p1", "--ref", ref, *extra, raiz=self.repo, home=self.home, conferir=self.CONFERIR)
         return r.returncode, r.stdout, r.stderr
 
 
@@ -4836,7 +4889,8 @@ class FalhaDoGitNoE4(RepoDeSeguranca):
         real = fc.git
         falho = lambda raiz, *args, **kw: (128, b"") if "--name-only" in args and intervalo in args else real(raiz, *args, **kw)
         for etapa in ("pedido-de-merge-ao-dono", "merge-integracao"):
-            with self.subTest(etapa), mock.patch.object(fc, "git", falho), contextlib.redirect_stdout(io.StringIO()) as saida:
+            with (self.subTest(etapa), mock.patch.object(fc, "git", falho), mock.patch.object(fc, "RAIZES_DE_BRIEF", (self.tmp / "home" / ".forge-contrib",)),
+                  contextlib.redirect_stdout(io.StringIO()) as saida):
                 rc = fc.cmd_entrega(self.repo, str(self.pedido), "melhoria/x", "develop", self.base, etapa, None)
             self.assertEqual(rc, 1, saida.getvalue())
             self.assertIn("escopo: E4 sem o diff da base (o git falhou); nada foi filtrado", saida.getvalue())
@@ -4848,6 +4902,9 @@ class LerDirigidoDoBrief(RepoComOrigem):
     """L09 (P3 e P4): o `## Ler` do brief gerado aponta o trecho do pedido, nunca o pedido inteiro; o integrador lê só o comando e roda em haiku."""
 
     def gerar(self, etapa, destino):
+        head = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()  # E7: o pedido na cópia principal, com a conferida do head
+        (self.repo / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
+        (self.repo / "docs" / "pedidos" / "p1.md").write_text(f"# p1\n\n## Histórico\n- 2026-11-04 09:00: entrega conferida {head}\n", encoding="utf-8")
         r = rodar_fc("brief", "gerar", "--pedido", "p1", "--destino", destino, "--etapa", etapa, "--branch", "melhoria/x", "--base", "develop",
                      raiz=self.repo, home=self.home)
         return r.returncode, r.stdout, r.stderr
@@ -4870,6 +4927,53 @@ class LerDirigidoDoBrief(RepoComOrigem):
         self.assertNotIn("docs/pedidos/p1.md", ler)
         self.assertIn("modelo: haiku", erro)
         self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida)  # o PQ do merge segue no brief (C-09)
+
+
+class PareceresComDocsUx(RepoComOrigem):
+    """E9 (PARECER-UX-LIVRE): `docs/ux/` entra em LIVRES, e só ela (C-1 a C-3); os pareceres seguem válidos só para commit nessa pasta."""
+
+    def ver(self, arquivos, mensagem="muda depois do parecer"):
+        self.commitar(self.repo, arquivos, mensagem)
+        return self.pr("--base", "develop")
+
+    def test_livres_tem_exatamente_estas_entradas(self):  # C-1
+        fc = carregar_forge_check()
+        self.assertEqual(fc.LIVRES, ("docs/reviews/", "docs/qa/", "docs/devops/", "docs/security/", "KANBAN.md", "docs/kanban/", "docs/ux/"))
+        self.assertTrue(fc.livre("docs/ux/a.md", fc.LIVRES))
+
+    def test_commit_so_em_docs_ux_nao_invalida(self):  # C-3
+        rc, saida, _ = self.ver({"docs/ux/a.md": "tela\n"})
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+    def test_nomes_parecidos_invalidam(self):  # C-3
+        for nome in ("docs/ux-x/a.md", "docs/UX/a.md", "docs/uxa.md"):
+            with self.subTest(nome):
+                antes = git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
+                rc, saida, _ = self.ver({nome: "x\n"})
+                git("reset", "-q", "--hard", antes, cwd=self.repo)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn(f"desatualizado: {nome}", saida)
+
+    def test_renome_de_hooks_para_docs_ux_invalida(self):  # C-3: --no-renames lista o nome antigo
+        self.commitar(self.repo, {"hooks/x.py": "x = 1\n"}, "hook")
+        self.pareceres(git("rev-parse", "HEAD", cwd=self.repo).stdout.strip())
+        (self.repo / "docs" / "ux").mkdir(parents=True)
+        git("mv", "hooks/x.py", "docs/ux/x.py", cwd=self.repo)
+        git("commit", "-q", "-m", "renomeia", cwd=self.repo)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: hooks/x.py", saida)
+
+    def test_docs_ux_mais_um_byte_em_bin_invalida(self):  # C-3
+        rc, saida, _ = self.ver({"docs/ux/a.md": "tela\n", "bin/forge-x": "#!/bin/sh\n"})
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("desatualizado: bin/forge-x", saida)
+
+    def test_merge_da_develop_so_com_docs_ux_nao_invalida(self):  # C-3
+        self.develop_anda({"docs/ux/b.md": "da develop\n", "src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
 
 
 class PrAposMergeDaBase(RepoComOrigem):
@@ -4977,7 +5081,8 @@ class PrAposMergeDaBase(RepoComOrigem):
         base_sha = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
         self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
         self.mescla_a_develop()
-        self.pedido = self.tmp / "p1.md"
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
 
         def rodar(etapa):
@@ -4999,7 +5104,8 @@ class BaseShaDoBrief(RepoComOrigem):
 
     def setUp(self):
         super().setUp()
-        self.pedido = self.tmp / "pedido-sintetico.md"
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "pedido-sintetico.md"
+        self.pedido.parent.mkdir(parents=True)
         self.pedido.write_text(self.PEDIDO_TXT, encoding="utf-8")
 
     def gerar(self, branch, base="develop"):
@@ -5156,12 +5262,12 @@ class EntregasParalelas(RepoDeSeguranca):
         ln.mkdir()
         (outro / "p1.md").write_text("x\n", encoding="utf-8")
         (self.tmp / "p2.md").write_text("x\n", encoding="utf-8")
-        (self.tmp / "p1-REV.md").write_text("x\n", encoding="utf-8")
+        (self.pedido.parent / "p1-REV.md").write_text("x\n", encoding="utf-8")
         (ln / "p1.md").symlink_to(self.pedido)
         (ln / "p2.md").symlink_to(self.tmp / "p2.md")
         ok, outro_sha = self.brief("p1-tech-lead-1.md"), git("rev-parse", "HEAD", cwd=self.repo).stdout.strip()
         casos = {"absoluto": (str(self.pedido), {}, 0), "link para o próprio pedido": (str(ln / "p1.md"), {}, 0),
-                 "-REV na pasta do pedido": (str(self.tmp / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
+                 "-REV na pasta do pedido": (str(self.pedido.parent / "p1-REV.md"), {}, 0), "homônimo noutra pasta": (str(outro / "p1.md"), {}, 1),
                  "link para outro pedido": (str(ln / "p2.md"), {}, 1), "-REV noutra pasta": (str(outro / "p1-REV.md"), {}, 1),
                  "~usuario": ("~outro/p1.md", {}, 1), "byte NUL": (f"{self.tmp}/a\x00b/p1.md", {}, 1), "caminho certo, outro Base-sha": (str(self.pedido), {"base_sha": outro_sha}, 1)}
         for nome, (valor, campos, rc_esperado) in casos.items():
@@ -5172,14 +5278,11 @@ class EntregasParalelas(RepoDeSeguranca):
                 self.assertNotIn("Traceback", erro)
 
     def test_pedido_do_brief_com_til_e_relativo_so_valem_na_forma_certa(self):  # A4, A9
-        (self.tmp / "home").mkdir()
-        self.pedido = self.tmp / "home" / "p1.md"
-        self.pedido.write_text("# Pedido p1\n", encoding="utf-8")
         ok = self.brief("p1-tech-lead-1.md")
-        for valor, rc_esperado in (("~/p1.md", 0), (f"~/{self.tmp}/home/p1.md", 0), ("./p1.md", 1), ("../home/p1.md", 1), ("~/outro/p1.md", 1)):
+        for valor, rc_esperado in (("~/.forge-contrib/docs/pedidos/p1.md", 0), (f"~/{self.pedido}", 0), ("./p1.md", 1), ("../pedidos/p1.md", 1), ("~/outro/p1.md", 1)):
             with self.subTest(valor):
                 (self.repo / "docs" / "briefs" / "p1-y-1.md").write_text(self.cabecalho().replace("docs/pedidos/p1.md", valor), encoding="utf-8")
-                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.tmp / "home")
+                rc, saida, _ = self.entrega("review", "--brief", ok, "--brief", "docs/briefs/p1-y-1.md", cwd=self.pedido.parent)
                 self.assertEqual(rc, rc_esperado, saida)
 
     def test_brief_sem_a_linha_pedido_reprova_com_linha_limpa(self):  # A1 (C-4): sem exceção, com veredito
@@ -5242,24 +5345,26 @@ class CaminhoDoPedido(unittest.TestCase):
         return self.mod.caminho_do_pedido(self.repo, pedido)
 
     def test_til_e_relativo_de_outro_diretorio_acham_o_pedido_sem_caminho_duplo(self):
-        self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
+        with mock.patch.object(self.mod, "RAIZES_DE_BRIEF", (self.home / "r",)):
+            self.assertEqual(self.acha("~/r/docs/pedidos/p.md"), self.home / "r" / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("docs/pedidos/p.md"), self.repo / "docs" / "pedidos" / "p.md")
         self.assertEqual(self.acha("p"), self.repo / "docs" / "pedidos" / "p.md")  # o id segue como sempre
-        os.chdir(self.home / "r"); self.assertEqual(self.acha("docs/pedidos/p.md"), Path("docs/pedidos/p.md"))  # existe no cwd e na raiz: o cwd vence (M3)
+        self.assertEqual(self.acha(str(self.repo / "docs" / "pedidos" / "p.md")), self.repo / "docs" / "pedidos" / "p.md")  # absoluto dentro da raiz
 
-    def test_caminho_que_nao_existe_volta_como_foi_dado(self):
+    def test_caminho_dentro_das_raizes_que_nao_existe_volta_resolvido_e_o_de_fora_levanta(self):
+        achado = self.acha("docs/pedidos/nada.md")
+        self.assertEqual(achado, self.repo / "docs" / "pedidos" / "nada.md")
+        self.assertFalse(achado.exists())
         for dado in (str(self.tmp / "nada" / "x.md"), "~/nada/x.md"):
-            with self.subTest(dado):
-                achado = str(self.acha(dado))
-                self.assertNotIn(".md.md", achado)
-                self.assertNotIn("docs/pedidos/docs/pedidos", achado)
+            with self.subTest(dado), self.assertRaises(self.mod.PedidoFora):
+                self.acha(dado)
 
     def test_a_raiz_so_vale_em_docs_pedidos_e_til_de_usuario_nao_expande(self):  # B1 a B4
         (self.repo / "docs" / "pedidos" / "ln.md").symlink_to(self.fora / "x.md")
         with mock.patch("pwd.getpwnam", return_value=mock.Mock(pw_dir=str(self.home))):
-            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md"):
-                with self.subTest(dado):
-                    self.assertEqual(self.acha(dado), Path(dado))
+            for dado in ("docs/pedidos/../../README.md", "docs/pedidos/ln.md", "solto.md", "~outro/r/docs/pedidos/p.md", "docs/pedidos/a\x00b.md"):
+                with self.subTest(dado), self.assertRaises(self.mod.PedidoFora):
+                    self.acha(dado)
 
     def test_relativo_que_so_existe_na_raiz_de_brief_vence_as_raizes_que_nao_o_tem(self):  # A1 do QA
         brief = self.tmp / "brief"
@@ -5598,3 +5703,337 @@ class EsperaDoPushEVerificadores(unittest.TestCase):
     def test_v2_dirigida_e_na_fila(self):
         self.assertIn("a mutação roda só no diff do item e só com os módulos que `bin/forge-testes --listar` aponta", self.texto)
         self.assertIn("1 processo, pela fila; a suíte completa fica no CI do PR (decisão do dono M8, 2026-10-24)", self.texto)
+
+
+class PrMescladoPeloHead(RepoComOrigem):
+    """E10 (CONF-MERGE-APOS-SQUASH, Q13 = A): depois do squash, com a branch apagada, `pr --pr <n>` confere os pareceres no head do PR
+    (headRefOid do gh, sha40 presente no clone), escolhe o parecer pelo headRefName (E11) e nunca usa o commit do squash."""
+
+    def setUp(self):
+        super().setUp()
+        outra = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/outra\ncommit: {c}\nparecer: reprovado\n"
+                 "revisor: forge:tech-lead\ndata: 2026-10-13\n---\n# r\n")  # mais recente, de outra branch do mesmo pedido
+        self.head = self.commitar(self.repo, {"docs/reviews/p1-outra.md": outra.format(c=self.c1)}, "parecer de outra branch")
+        git("switch", "-q", "-c", "sq", "origin/develop", cwd=self.repo)
+        git("merge", "-q", "--squash", "melhoria/x", cwd=self.repo)
+        git("commit", "-q", "-m", "entrega (#7)", cwd=self.repo)
+        git("push", "-q", "origin", "sq:develop", cwd=self.repo)
+        git("switch", "-q", "--detach", "origin/develop", cwd=self.repo)
+        git("branch", "-q", "-D", "melhoria/x", "sq", cwd=self.repo)
+        self.develop_anda({"src/y.txt": "y1 de outro PR\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})  # o que o PR não tocou
+
+    def pr_mesclado(self, *extra, resposta=None, rc_gh=0):
+        corpo = resposta if resposta is not None else json.dumps({"state": "MERGED", "headRefOid": self.head, "headRefName": "melhoria/x"})
+        script = f"printf '%s\\n' '{corpo}'\nexit {rc_gh}\n"
+        gravar_conferida(self.home, self.repo, "p1", self.head)  # E7: a conferência do head do PR
+        r = rodar_fc("pr", "p1", *extra, raiz=self.repo, home=self.home, env_extra={"PATH": com_gh_falso(script=script)["PATH"]}, conferir=False)
+        return r.returncode, r.stdout, r.stderr
+
+    def test_pr_mesclado_confere_no_head_e_pela_branch_dele(self):
+        rc, saida, erro = self.pr_mesclado("--pr", "7", "--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida + erro)
+        self.assertIn(f"head {self.head[:7]}", saida)
+        self.assertIn(f"pareceres conferidos no head {self.head[:7]} (headRefOid de \"melhoria/x\")", erro)
+
+    def test_sem_o_head_do_pr_o_parecer_de_outra_branch_decide(self):  # o que o --pr corrige: a ref sha não tem branch
+        rc, saida, _ = self.pr_mesclado("--ref", self.head, "--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews/p1-outra.md: parecer: o último parecer não é aprovado", saida)
+
+    def test_resposta_do_gh_que_nao_prova_o_head_recusa_sem_conferir(self):
+        casos = {"PR aberto": (json.dumps({"state": "OPEN", "headRefOid": self.head, "headRefName": "melhoria/x"}), 0, "não MERGED"),
+                 "head curto": (json.dumps({"state": "MERGED", "headRefOid": self.head[:7], "headRefName": "melhoria/x"}), 0, "ilegível"),
+                 "head ausente do clone": (json.dumps({"state": "MERGED", "headRefOid": "1" * 40, "headRefName": "melhoria/x"}), 0,
+                                           "git fetch origin pull/7/head"),
+                 "nome com controle": (json.dumps({"state": "MERGED", "headRefOid": self.head, "headRefName": "melhoria/x\u001b"}), 0, "ilegível"),
+                 "estado que não é texto": (json.dumps({"state": None, "headRefOid": self.head, "headRefName": "melhoria/x"}), 0, "ilegível"),
+                 "JSON quebrado": ("{", 0, "ilegível"),
+                 "gh falhou": ("", 1, "gh sem rede")}
+        for nome, (resposta, rc_gh, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.pr_mesclado("--pr", "7", "--base", "develop", resposta=resposta, rc_gh=rc_gh)
+                self.assertEqual(rc, 2, saida + erro)
+                self.assertIn(esperado, saida)
+                self.assertNotIn("veredito", saida)
+
+    def test_numero_invalido_ou_com_ref_recusa(self):
+        for extra in (("--pr", "7x"), ("--pr", "0"), ("--pr", "-1"), ("--pr", "7", "--ref", "HEAD")):
+            with self.subTest(extra):
+                rc, saida, erro = self.pr_mesclado(*extra, "--base", "develop")
+                self.assertEqual(rc, 2, saida + erro)
+                self.assertNotIn("veredito", saida)
+
+
+class TesteEParecerSeparados(RepoComOrigem):
+    """E16 (QA-TESTE-E-PARECER-SEPARADOS, Q10 = A): o parecer commitado junto do teste, apontando para o commit anterior, é recusado
+    com o motivo; teste e parecer em commits separados passam, e o review revalida o delta do teste."""
+    QA = ("---\ntipo: qa\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\nescopo: completo\n"
+          "bugs_criticos: 0\nbugs_altos: 0\nbugs_medios: 0\nbugs_baixos: 0\ndata: 2026-10-13\n---\n# q2\n")
+    REVIEW = ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/x\ncommit: {c}\nparecer: aprovado\n"
+              "revisor: forge:tech-lead\ndata: 2026-10-13\n---\n# r2\n")
+
+    def test_parecer_no_mesmo_commit_do_teste_e_recusado_com_o_motivo(self):
+        junto = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c=self.c1)}, "teste e parecer juntos")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/qa/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer; peça novo parecer; "
+                      f"o parecer foi commitado junto com tests/test_x.py ({junto[:7]}), depois do commit que ele cita: "
+                      "teste e parecer vão em commits separados", saida)
+
+    def test_commit_inexistente_nao_ganha_a_explicacao(self):  # o motivo é outro: o commit citado não existe
+        self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n", "docs/qa/p1.md": self.QA.format(c="1" * 40)}, "teste e parecer juntos")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/qa/p1.md: commit: commit não existe no repositório (R-QA)", saida)
+        self.assertNotIn("commitado junto", saida)
+
+    def test_commits_separados_valem_e_o_review_revalida_o_delta_do_teste(self):
+        teste = self.commitar(self.repo, {"tests/test_x.py": "# teste do QA\n"}, "teste do QA")
+        self.commitar(self.repo, {"docs/qa/p1.md": self.QA.format(c=teste)}, "parecer do QA")
+        rc, saida, _ = self.pr()
+        self.assertEqual(rc, 1, saida)
+        self.assertNotIn("docs/qa/p1.md", saida)
+        self.assertIn("docs/reviews/p1.md: commit: desatualizado: tests/test_x.py mudou depois do parecer", saida)
+        self.assertNotIn("commitado junto", saida)  # o review velho não veio com o teste: o motivo é o de sempre
+        self.commitar(self.repo, {"docs/reviews/p1.md": self.REVIEW.format(c=teste)}, "review revalida o delta do teste")
+        rc, saida, _ = self.pr()
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+
+class ConferenciaPresaAoHead(RepoComOrigem):
+    """E7 (TEMPO-B2, D07 = A): a conferência corre junto com os portões, e o `forge-check pr` só aprova com a linha `entrega conferida
+    <sha40>` do Histórico do pedido que cobre o head (ancestral dele, e depois dela só pareceres e quadro)."""
+
+    CONFERIR = False
+
+    def historico(self, *linhas, arquivo=None):
+        arquivo = arquivo or self.repo / "docs" / "pedidos" / "p1.md"
+        arquivo.parent.mkdir(parents=True, exist_ok=True)
+        arquivo.write_text("# p1\n\n## Histórico\n- 2026-11-04 08:00: aberto\n" + "".join(f"{l}\n" for l in linhas), encoding="utf-8")
+
+    def conferida(self, sha):
+        return f"- 2026-11-04 09:00: entrega conferida {sha} (E1.2)"
+
+    def head_da_branch(self):
+        return git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+
+    def test_conferida_do_head_de_codigo_libera_e_parecer_depois_dela_nao_a_invalida(self):
+        self.historico(self.conferida(self.c1))
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual((rc, saida.split(" · ")[0]), (0, "pr: veredito: aprovado"), saida)
+
+    def test_sem_conferida_que_cubra_o_head_reprova(self):
+        git("switch", "-q", "-c", "melhoria/outra", "origin/develop", cwd=self.repo)
+        outra = self.commitar(self.repo, {"src/y.txt": "y de outra branch\n"}, "outra branch do pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        arvore = git("rev-parse", f"{self.c1}^{{tree}}", cwd=self.repo).stdout.strip()
+        gemeo = git("commit-tree", arvore, "-p", base, "-m", "mesmo conteúdo, outro commit", cwd=self.repo).stdout.strip()
+        dono = ("DECISÃO DO DONO (2026-11-04): \"x\".", f"- 2026-11-04 09:00: base do delta fixada pelo dono {self.c1}")
+        casos = {"sem conferida": (), "conferida de outra branch": (self.conferida(outra),), "conferida da base": (self.conferida(base),),
+                 "conferida de commit fora do head, mesmo conteúdo": (self.conferida(gemeo),), "base do dono não é conferência": dono,
+                 "sha abreviado": (self.conferida(self.c1[:7]),), "conferida fora do Histórico": None}
+        for nome, linhas in casos.items():
+            with self.subTest(nome):
+                if linhas is None:
+                    (self.repo / "docs" / "pedidos").mkdir(parents=True, exist_ok=True)
+                    (self.repo / "docs" / "pedidos" / "p1.md").write_text(f"# p1\n\n## Notas\n{self.conferida(self.c1)}\n\n## Histórico\n- aberto\n",
+                                                                          encoding="utf-8")
+                else:
+                    self.historico(*linhas)
+                for extra in (("--base", "develop"), ()):
+                    rc, saida, _ = self.pr(*extra)
+                    self.assertEqual(rc, 1, saida)
+                    self.assertIn("docs/pedidos/p1.md: conferência: nenhuma linha `- <data> <hora>: entrega conferida <sha40>` do ## Histórico "
+                                  "cobre o head", saida)
+
+    def test_codigo_depois_da_conferida_reprova_mesmo_com_os_pareceres_em_dia(self):
+        self.historico(self.conferida(self.c1))
+        c2 = self.commitar(self.repo, {"src/x.txt": "x1 do pedido, volta\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "volta do autor")
+        self.pareceres(c2)
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn(f"cobre o head {self.head_da_branch()[:7]}", saida)
+        self.historico(self.conferida(self.c1), self.conferida(c2))
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+
+    def test_merge_limpo_da_base_depois_da_conferida_nao_a_invalida(self):
+        self.historico(self.conferida(self.c1))
+        self.develop_anda({"src/y.txt": "y1 de outro\ny2\ny3\ny4\ny5\ny6\ny7\ny8\n"})
+        self.mescla_a_develop()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 0, saida)
+
+    def test_sem_historico_ou_sem_pedido_reprova(self):  # segurança A2, review A3(b): falha fechada
+        (self.repo / "docs" / "pedidos").mkdir(parents=True)
+        (self.repo / "docs" / "pedidos" / "p1.md").write_text("# p1\n", encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/pedidos/p1.md: conferência: o pedido não tem ## Histórico", saida)
+        (self.repo / "docs" / "pedidos" / "p1.md").unlink()
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
+
+    def test_so_a_linha_de_entrega_conferida_libera(self):  # segurança A1: a forma que o Jarvis grava
+        for linha in (f"- 2026-11-04 09:00: E1.2 conferida {self.c1}: não cumpriu", f"- entrega conferida {self.c1}",
+                      f"- 2026-11-04: entrega conferida {self.c1}", f"  - 2026-11-04 09:00: entrega conferida {self.c1}",
+                      f"- 2026-11-04 09:00: NÃO conferida {self.c1}", f"- não: entrega conferida {self.c1}",  # QA L08-1
+                      f"- 2026-11-04 09:00: não entrega conferida {self.c1}"):
+            with self.subTest(linha):
+                self.historico(linha)
+                self.assertEqual(self.pr("--base", "develop")[0], 1)
+        self.historico(self.conferida(self.c1))
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+
+    def test_ref_por_sha_acha_a_branch_como_no_forge_fechar(self):  # review A1: o forge-fechar passa o sha, não o nome
+        contrib = self.home / ".forge-contrib" / "docs"
+        self.historico(arquivo=contrib / "pedidos" / "real.md")
+        (contrib / "briefs").mkdir(parents=True)
+        (contrib / "briefs" / "real-tech-lead-1.md").write_text("Pedido: real\nBranch: melhoria/x   Base: develop\n\n## Objetivo\nx\n", encoding="utf-8")
+        sha = self.head_da_branch()
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("real.md: conferência: nenhuma linha", saida)
+        self.historico(self.conferida(self.c1), arquivo=contrib / "pedidos" / "real.md")
+        self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
+        git("update-ref", "refs/heads/develop", sha, cwd=self.repo)  # a develop local no mesmo sha não é branch de trabalho
+        self.assertEqual(self.pr("--base", "develop", ref=sha)[0], 0)
+        git("branch", "-q", "melhoria/gemea", sha, cwd=self.repo)  # duas branches no mesmo sha: a branch não é achada, falha fechada
+        rc, saida, _ = self.pr("--base", "develop", ref=sha)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
+
+    def test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada(self):  # A9 e A10 do review do L08
+        git("push", "-q", "origin", "melhoria/x:develop", cwd=self.repo)  # a leva já mesclada: a develop é o head da entrega
+        git("fetch", "-q", "origin", cwd=self.repo)
+        for base in ("main", "homolog"):
+            with self.subTest(base):
+                rc, saida, erro = self.pr("--base", base, ref="origin/develop")
+                self.assertEqual(rc, 0, saida)  # sem pedido e sem conferida: a promoção não é portão de entrega
+                self.assertIn(f"pr: promoção: o head é o da integração e a base é {base}", erro)
+        trabalho = self.commitar(self.repo, {"src/x.txt": "x1 do pedido, outra\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "trabalho")
+        self.pareceres(trabalho)
+        casos = {"branch de trabalho com --base main": ("melhoria/x", "main"), "branch de trabalho com --base homolog": ("melhoria/x", "homolog"),
+                 "develop com --base develop": ("origin/develop", "develop")}
+        for nome, (ref, base) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.pr("--base", base, ref=ref)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('pr: conferência: sem o pedido de "p1"', saida)
+                self.assertNotIn("promoção", erro)
+
+    def alheio(self, nome, commit, parecer="aprovado", data="2026-10-20"):  # parecer de outro item do mesmo pedido, trazido pelo merge da base
+        return {f"docs/reviews/{nome}.md": ("---\ntipo: review\ncontrato: 1\npedido: p1\nbranch: melhoria/outra\ncommit: {c}\nparecer: {p}\n"
+                                           "revisor: forge:tech-lead\ndata: {d}\n---\n# r\n").format(c=commit, p=parecer, d=data)}
+
+    def fora_do_repo(self):  # o pedido no HOME: o `git add -A` dos commits do teste não o leva para a branch
+        return self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+
+    def test_so_os_pareceres_da_branch_contam_e_falham_fechado(self):  # pareceres de outra branch do pedido (tempo-b1 na lote-l09)
+        self.historico(self.conferida(self.c1), arquivo=self.fora_do_repo())
+        base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        self.commitar(self.repo, self.alheio("alheio", base, "reprovado"), "parecer alheio, desatualizado e mais recente")
+        self.assertEqual(self.pr("--base", "develop")[0], 0)  # o alheio não reprova a branch
+        git("rm", "-q", "docs/reviews/p1.md", cwd=self.repo)
+        self.commitar(self.repo, self.alheio("alheio", self.c1), "só o alheio, válido")
+        sha = self.head_da_branch()
+        for ref in ("melhoria/x", sha):  # pelo nome e pelo sha, como o forge-fechar chama
+            with self.subTest(ref=ref):
+                rc, saida, _ = self.pr("--base", "develop", ref=ref)
+                self.assertEqual(rc, 1, saida)
+                self.assertIn('docs/reviews: review: sem parecer da branch "melhoria/x" para o pedido `p1` (R-REVIEW)', saida)
+                self.assertNotIn("alheio", saida)
+
+    def test_parecer_da_branch_desatualizado_reprova(self):
+        self.historico(self.conferida(self.c1), arquivo=self.fora_do_repo())
+        self.commitar(self.repo, self.alheio("alheio", self.c1, data="2026-10-01"), "parecer alheio válido")
+        c2 = self.commitar(self.repo, {"src/x.txt": "x1 depois do parecer\nx2\nx3\nx4\nx5\nx6\nx7\nx8\n"}, "código depois do parecer")
+        self.historico(self.conferida(self.c1), self.conferida(c2), arquivo=self.fora_do_repo())
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("docs/reviews/p1.md: commit: desatualizado: src/x.txt mudou depois do parecer", saida)
+        self.assertNotIn("alheio", saida)
+
+    def test_pedido_pelos_briefs_da_branch(self):  # no Forge, o argumento é o slug e o pedido mora em ~/.forge-contrib
+        contrib = self.home / ".forge-contrib" / "docs"
+        self.historico(arquivo=contrib / "pedidos" / "real.md")
+        (contrib / "briefs").mkdir(parents=True)
+        cabecalho = "Pedido: {}\nBranch: melhoria/x   Base: develop\n\n## Objetivo\nx\n"
+        (contrib / "briefs" / "real-tech-lead-1.md").write_text(cabecalho.format("real"), encoding="utf-8")
+        (contrib / "briefs" / "real-REV-qa-engineer-1.md").write_text(cabecalho.format("real-REV"), encoding="utf-8")
+        (contrib / "briefs" / "alheio-tech-lead-1.md").write_text(cabecalho.format("alheio").replace("melhoria/x", "melhoria/y"), encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("real.md: conferência: nenhuma linha", saida)
+        self.historico(self.conferida(self.c1), arquivo=contrib / "pedidos" / "real.md")
+        self.assertEqual(self.pr("--base", "develop")[0], 0)
+        (contrib / "briefs" / "outro-tech-lead-1.md").write_text(cabecalho.format("outro"), encoding="utf-8")
+        rc, saida, _ = self.pr("--base", "develop")
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('pr: conferência: os briefs da branch "melhoria/x" citam mais de um pedido ("outro", "real")', saida)
+
+
+class EntregaAtoGithub(RepoComOrigem):
+    """E19 (ATO-GITHUB-ENTREGA, Q8 = A, FLUXO-12): a entrega só no GitHub, sem branch de trabalho. O tipo vem do brief (`Tipo: ato-github`,
+    `Branch: —`), a prova é o estado no GitHub (PQ pr, merge ou run) e nunca sai "nada a conferir" com rc 0."""
+    PQS = "- PQ-1 (pr): o PR #12 aberto na develop\n- PQ-2 (run): a execução do CI verde no head do PR\n"
+
+    def setUp(self):
+        super().setUp()
+        self.base = git("rev-parse", "origin/develop", cwd=self.repo).stdout.strip()
+        self.pedido = self.home / ".forge-contrib" / "docs" / "pedidos" / "p1.md"
+        self.pedido.parent.mkdir(parents=True)
+        self.pedido.write_text("# Pedido p1\n\n## Escopo\n- E1. x\n\n## Histórico\n- aberto\n", encoding="utf-8")
+
+    def brief(self, tipo="ato-github", branch="—", pedido="p1", base_sha=None, pqs=None):
+        arq = self.repo / "docs" / "briefs" / "p1-devops-engineer-1.md"
+        arq.parent.mkdir(parents=True, exist_ok=True)
+        arq.write_text(f"Agente destino: forge:devops-engineer\nPedido: {pedido}\nTipo: {tipo}\n"
+                       f"Branch: {branch}   Base: develop   Base-sha: {base_sha or self.base}\n\n## Objetivo\nx\n\n"
+                       f"## Pronto quando\n{self.PQS if pqs is None else pqs}", encoding="utf-8")
+        return "docs/briefs/p1-devops-engineer-1.md"
+
+    def entrega(self, *extra, branch="—"):
+        r = rodar_fc("entrega", str(self.pedido), "--branch", branch, "--base", "develop", "--base-sha", self.base, "--etapa", "ato-github",
+                     *extra, raiz=self.repo, home=self.home)
+        return r.returncode, r.stdout, r.stderr
+
+    def test_ato_github_do_brief_lista_as_provas_do_github(self):
+        for sem_branch in ("—", "-"):
+            with self.subTest(sem_branch):
+                rc, saida, erro = self.entrega("--brief", self.brief(branch=sem_branch), branch=sem_branch)
+                self.assertEqual(rc, 0, saida + erro)
+                self.assertEqual(saida.splitlines()[1:], ["intervalo: — (ato-github: sem branch de trabalho; a prova é o estado no GitHub)",
+                                                      "escopo: ato-github: confira PQ-1 (pr) pelo estado no GitHub",
+                                                      "escopo: ato-github: confira PQ-2 (run) pelo estado no GitHub"])
+
+    def test_o_executor_nao_escolhe_o_tipo_nem_vira_nada_a_conferir(self):
+        outro_sha = git("rev-parse", "melhoria/x", cwd=self.repo).stdout.strip()
+        casos = {"branch de verdade": (lambda: ("--brief", self.brief()), "melhoria/x", "escopo: ato-github com --branch"),
+                 "sem --brief": (lambda: (), "—", "escopo: ato-github exige um --brief"),
+                 "brief sem Tipo ato-github": (lambda: ("--brief", self.brief(tipo="codigo")), "—", "não é de ato-github desta entrega"),
+                 "brief com Branch de verdade": (lambda: ("--brief", self.brief(branch="melhoria/x")), "—", "não é de ato-github desta entrega"),
+                 "brief de outro pedido": (lambda: ("--brief", self.brief(pedido="p2")), "—", "não é de ato-github desta entrega"),
+                 "brief de outro Base-sha": (lambda: ("--brief", self.brief(base_sha=outro_sha)), "—", "não é de ato-github desta entrega"),
+                 "brief fora de docs/briefs": (lambda: ("--brief", "src/x.txt"), "—", "ilegível ou fora de docs/briefs/"),
+                 "sem PQ do GitHub": (lambda: ("--brief", self.brief(pqs="- PQ-1 (cmd): `ls` · espera: rc=0\n")), "—",
+                                      "pendente: ato-github sem PQ pr, merge ou run"),
+                 "PQ de commit": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (sha): o commit da branch\n")), "—",
+                                  "escopo: ato-github com prova de commit (PQ-3 (sha))"),
+                 "PQ de commit em maiúscula": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (SHA): o commit da branch\n")), "—",
+                                               "escopo: ato-github com prova de commit (PQ-3 (sha))"),  # QA L08-2
+                 "PQ de push em maiúscula": (lambda: ("--brief", self.brief(pqs=self.PQS + "- PQ-3 (Push, do autor): o envio\n")), "—",
+                                             "escopo: ato-github com prova de commit (PQ-3 (push))"),
+                 "com --desde": (lambda: ("--brief", self.brief(), "--desde", self.c1), "—", "escopo: --desde não vale na etapa ato-github")}
+        for nome, (extra, branch, esperado) in casos.items():
+            with self.subTest(nome):
+                rc, saida, erro = self.entrega(*extra(), branch=branch)
+                self.assertEqual(rc, 1, saida + erro)
+                self.assertIn(esperado, saida)
+                self.assertNotIn("Traceback", erro)
+
+    def test_tipo_do_brief_e_o_da_etapa(self):
+        fc = carregar_forge_check()
+        self.assertEqual(fc.tipo_da_etapa("ato-github"), "ato-github")
+        self.assertEqual(fc.tipo_do_brief("Tipo: ato-github\nBranch: —\n\n## Objetivo\nx\n"), "ato-github")
