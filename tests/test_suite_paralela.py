@@ -100,21 +100,78 @@ class Logica(unittest.TestCase):
         erros = self.s.conferir_completude(esperado, collections.Counter({"a.T.t1": 1, "b.T.t1": 1, "v.Raiz.t": 1}))
         self.assertTrue(any("ausente" in e for e in erros), erros)
 
-    def test_numero_de_processos(self):
-        n = self.s.numero_de_processos
-        self.assertEqual(n({}, 16, 1.0, 6.0, 8.0)[0], 4)
-        self.assertEqual(n({}, 3, 0.1, 6.0, 8.0)[0], 3)
-        self.assertEqual(n({}, 1, 0.1, 6.0, 8.0)[0], 1)
-        self.assertEqual(n({}, None, None, None, None)[0], 1)
-        self.assertEqual(n({}, 16, 13.0, 6.0, 8.0)[0], 2)  # load >= 0,8 x nproc
-        self.assertEqual(n({}, 16, 1.0, 0.9, 8.0)[0], 2)  # memória no piso
-        self.assertEqual(n({}, 16, None, None, None)[0], 4)  # sem medida, não é carga alta
-        self.assertEqual(n({"FORGE_SUITE_PROCS": "3"}, 16, 1.0, 6.0, 8.0), (3, "FORGE_SUITE_PROCS"))
-        self.assertEqual(n({"FORGE_SUITE_PROCS": "16"}, 16, 1.0, 6.0, 8.0), (16, "FORGE_SUITE_PROCS"))  # SUITE-FLUIDA
-        self.assertEqual(n({"FORGE_SUITE_PROCS": "4"}, 2, 1.0, 6.0, 8.0), (4, "FORGE_SUITE_PROCS"))  # o piso é TETO
-        for valor in ("17", "0", "x", "-1", "4.0"):
-            with self.subTest(valor=valor), self.assertRaises(ValueError):
-                n({"FORGE_SUITE_PROCS": valor}, 16, 1.0, 6.0, 8.0)
+    def test_processos_fixos(self):  # SUITE-FLUIDA, C8: de 1 a nproc, falha fechada
+        f = self.s.processos_fixos
+        self.assertIsNone(f({}, 16))  # sem a variável, modo fluido
+        self.assertEqual(f({"FORGE_SUITE_PROCS": "3"}, 16), 3)
+        self.assertEqual(f({"FORGE_SUITE_PROCS": "16"}, 16), 16)
+        self.assertEqual(f({"FORGE_SUITE_PROCS": "1"}, None), 1)  # nproc desconhecido: só 1
+        for valor, nproc in (("3", 2), ("2", None), ("17", 16), ("0", 16), ("x", 16), ("-1", 16), ("4.0", 16),
+                             (" ", 16)):
+            with self.subTest(valor=valor, nproc=nproc), self.assertRaises(ValueError):
+                f({"FORGE_SUITE_PROCS": valor}, nproc)
+
+    def test_nucleos_e_o_do_hook_de_agentes(self):  # SUITE-FLUIDA, C1: um só nproc
+        hooks = str(RAIZ / "hooks")
+        sys.path.insert(0, hooks)
+        self.addCleanup(sys.path.remove, hooks)
+        agentes = carregar(RAIZ / "hooks" / "agentes.py", "agentes_nucleos")
+        with mock.patch.dict(os.environ):
+            os.environ.pop("FORGE_NPROC", None)
+            self.assertEqual(self.s.nucleos(), agentes.nucleos())
+            with mock.patch.object(os, "sched_getaffinity", return_value={0, 2, 5}):
+                self.assertEqual((self.s.nucleos(), agentes.nucleos()), (3, 3))
+
+    def test_resumo_fluido_traz_w_maximo_e_minimo(self):  # SUITE-FLUIDA, C13
+        rel = {"duracoes": {"test_a": 1.0, "test_b": 2.0}}
+        texto = self.s.montar_resumo("OK", [], [["test_a"], ["test_b"]], [rel, rel], [1.0, 2.0], {}, 2, 3.0, (1, 2))
+        self.assertIn("(W de 1 a 2 em paralelo)", texto.splitlines()[0])
+        self.assertIn("W máximo: 2; W mínimo: 1", texto)
+        self.assertNotIn("processos", texto)  # nada dividido pelos processos-módulo
+
+    def fluido(self, nproc, medidas, modulos, voltas=4):
+        """W (processos rodando) a cada volta de `rodar_fluido` com a fila ainda cheia, com o Medidor, o lançamento e o
+        relógio falsos: cada processo termina na `voltas`-ésima leitura; a medida segue `medidas` e fica na última."""
+        filhos, w = [], []
+
+        class Processo:
+            def __init__(self, pid):
+                self.pid, self.lido, self.returncode = pid, 0, None
+
+            def poll(self):
+                self.lido += 1
+                self.returncode = 0 if self.lido >= voltas else None
+                return self.returncode
+
+            def wait(self):
+                return self.returncode
+
+        class Medidor:
+            def __init__(self):
+                self.fila, self.nosso = list(medidas), 0.0
+
+            def alheios(self, grupos):
+                return self.fila.pop(0) if len(self.fila) > 1 else self.fila[0]
+
+        def dormir(_):
+            if len(filhos) < modulos:
+                w.append(sum(p.returncode is None for p in filhos))
+
+        relogio = mock.Mock(monotonic=time.monotonic, sleep=dormir)
+        with mock.patch.multiple(self.s, Medidor=Medidor, medir_carga=lambda: (0.0, 20.0, 30.0), time=relogio,
+                                 lancar_um=lambda parte, i, pasta, lista: lista.append(Processo(i))), \
+                contextlib.redirect_stderr(io.StringIO()):
+            self.s.rodar_fluido([f"test_{i}" for i in range(modulos)], None, filhos, [], 0.0, nproc)
+        self.assertEqual(len(filhos), modulos)  # todo módulo nasce uma vez, mesmo com carga alta
+        return w
+
+    def test_rodar_fluido_sobe_com_folga_e_nao_repoe_com_carga_alta(self):  # SUITE-FLUIDA, C3, C5
+        w = self.fluido(8, [None, 0.0, 0.0, 0.0, 7.0], 14)
+        # sem medida, o piso; com folga, +1 por medida até 0,8 x 8; com carga alta, os 4 que terminam não são repostos
+        self.assertEqual(w[:5], [4, 5, 6, 6, 2], w)
+        for antes, agora in zip(w[4:], w[5:]):  # e daí em diante nada passa de min(2, nproc)
+            self.assertTrue(agora <= antes or agora <= 2, w)
+        self.assertEqual(set(self.fluido(1, [9.0], 5)), {1})  # nproc 1 com carga alta: piso 1, a fila anda em série
 
     def test_quantos_em_paralelo_segue_a_carga_de_fora(self):  # SUITE-FLUIDA
         q = lambda *a: self.s.quantos_em_paralelo(*a)[0]  # noqa: E731
@@ -649,7 +706,7 @@ class T(unittest.TestCase):
         self.assertEqual(self.rodaram(), ["a", "b", "c"])
 
     def test_procs_acima_do_teto_e_recusado(self):
-        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS=str(max(4, os.cpu_count() or 1) + 1))
+        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS=str(carregar().nucleos() + 1))  # nproc + 1 (C8)
         self.assertEqual(codigo, 1)
         self.assertIn("FORGE_SUITE_PROCS", erro)
         self.assertEqual(self.rodaram(), [])

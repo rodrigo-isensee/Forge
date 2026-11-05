@@ -7,11 +7,12 @@ Chamado pelo `.githooks/pre-push` e pelo CI. Só biblioteca padrão; nada de red
 - Divisão por módulo (`tests/test*.py`), por LPT sobre os pesos de `tests/pesos-d4.json` (módulo -> segundos);
   peso ausente vale a mediana. O peso só equilibra: nunca decide o que roda. A mesma árvore dá a mesma divisão.
 - Processos, modo fluido (padrão, SUITE-FLUIDA): cada módulo roda num processo, numa fila do mais pesado ao mais leve.
-  A cada INTERVALO_S o script mede os núcleos ocupados por processos de fora da suíte (`/proc/stat` menos o que os
-  grupos da suíte gastaram) e a memória, e decide quantos processos pode ter: sobe enquanto a suíte cabe dentro de
-  0,8 x nproc com os outros, nunca abaixo de min(4, nproc) com folga nem de min(2, nproc) com carga alta ou memória no
-  piso, e nunca acima de nproc. Descer é não lançar: o processo em andamento termina o seu módulo. Sem leitura de
-  /proc, vale min(4, nproc). A linha `suite-paralela: até N em paralelo (...)` sai a cada mudança.
+  A cada INTERVALO_S o script mede os núcleos ocupados por processos de fora da suíte (a CPU de `/proc/stat` menos o
+  que os grupos da suíte gastaram) e o `MemAvailable`, não o load de 1 min (decisão do dono, 2026-11-04), e decide
+  quantos processos pode ter: sobe enquanto a suíte cabe dentro de 0,8 x nproc com os outros, nunca abaixo de
+  min(4, nproc) com folga nem de min(2, nproc) com carga alta ou memória no piso, e nunca acima de nproc. Descer é
+  não lançar: o processo em andamento termina o seu módulo. Sem leitura de /proc, vale min(4, nproc).
+  A linha `suite-paralela: até N em paralelo (...)` sai a cada mudança.
 - FORGE_SUITE_PROCS fixa N de 1 a nproc e volta à divisão fixa por LPT (N partes); fora disso o script recusa
   (falha fechada).
 - Cada processo roda com `nice`, num grupo de processos próprio e com um TMPDIR próprio (modo 700), apagado ao fim.
@@ -170,33 +171,24 @@ def medir_carga():
     return carga, memoria, total
 
 
-def carga_alta(carga, memoria, total, nproc):
-    """A mesma conta do hook `agentes` (R-TETO); sem medida, nunca é carga alta."""
-    if None in (carga, memoria, total, nproc):
-        return False
-    return carga >= CARGA_MAX * nproc or memoria <= max(PISO_GB, PISO_FRACAO * total)
-
-
 def nucleos():
-    """Os núcleos que este processo pode usar (`sched_getaffinity`, senão `cpu_count`)."""
+    """Os núcleos que este processo pode usar (`sched_getaffinity`, senão `cpu_count`): a regra de
+    `hooks/agentes.py:nucleos()`, sem o `FORGE_NPROC` dos testes do hook (um teste compara as duas)."""
     try:
         return len(os.sched_getaffinity(0)) or 1
     except (AttributeError, OSError):
         return os.cpu_count() or 1
 
 
-def numero_de_processos(environ, nproc, carga, memoria, total):
-    """(N, origem). ValueError se FORGE_SUITE_PROCS vier fora de 1..max(TETO, nproc)."""
+def processos_fixos(environ, nproc):
+    """N de FORGE_SUITE_PROCS, ou None sem a variável (modo fluido). ValueError fora de 1..nproc (falha fechada)."""
     fixo = environ.get("FORGE_SUITE_PROCS", "")
-    if fixo:
-        maximo = max(TETO, nproc or 1)
-        if not fixo.isdigit() or not 1 <= int(fixo) <= maximo:
-            raise ValueError(f"FORGE_SUITE_PROCS deve ser um inteiro de 1 a {maximo} (veio '{fixo}')")
-        return int(fixo), "FORGE_SUITE_PROCS"
-    base = max(1, min(TETO, nproc or 1))
-    if carga_alta(carga, memoria, total, nproc):
-        return min(2, base), f"carga alta (load {carga:.1f} de {nproc} núcleos, {memoria:.1f} GB disponíveis)"
-    return base, f"min({TETO}, nproc={nproc})"
+    if not fixo:
+        return None
+    maximo = nproc or 1
+    if not fixo.isdigit() or not 1 <= int(fixo) <= maximo:
+        raise ValueError(f"FORGE_SUITE_PROCS deve ser um inteiro de 1 a {maximo} (veio '{fixo}')")
+    return int(fixo)
 
 
 def ler_cpu_do_sistema():
@@ -233,7 +225,11 @@ def ler_cpu_dos_grupos(grupos):
 
 class Medidor:
     """Núcleos ocupados por processos de fora da suíte entre duas chamadas (a 1.a devolve None); `nosso` guarda os
-    núcleos que a própria suíte (os grupos `grupos`, com os subprocessos dos testes) usou no mesmo intervalo."""
+    núcleos que a própria suíte (os grupos `grupos`, com os subprocessos dos testes) usou no mesmo intervalo.
+
+    Limite da medida (A7 do review): os ticks de um neto que termina entram de novo no `cutime` do pai, e o processo
+    da suíte que acabou sai de `grupos` com o último intervalo ainda por contar; nos dois casos o `nosso` do intervalo
+    erra para mais ou para menos, e `alheios` oscila por uma medida. Medir por cgroup ou pelos pids vivos fica fora."""
 
     def __init__(self):
         self.cpu, self.nossos, self.nosso = ler_cpu_do_sistema(), {}, 0.0
@@ -464,8 +460,9 @@ def ordem_da_fila(nomes, pesos):
 
 def rodar_fluido(fila, pasta, filhos, partes, inicio, nproc):
     """Lança um processo por módulo da fila, tantos em paralelo quanto `quantos_em_paralelo` deixar a cada medida;
-    `partes` recebe o módulo de cada processo na ordem em que nasce. Devolve o tempo de parede de cada um e o pico."""
-    medidor, pendentes, fim, aviso, pico = Medidor(), list(fila), [], None, 0
+    `partes` recebe o módulo de cada processo na ordem em que nasce. Devolve o tempo de parede de cada um, o W máximo e
+    o W mínimo (contado só enquanto a fila ainda tinha módulo, quando quem limita W é a carga)."""
+    medidor, pendentes, fim, aviso, pico, piso = Medidor(), list(fila), [], None, 0, None
     while pendentes or None in fim:
         for i, p in enumerate(filhos):
             if fim[i] is None and p.poll() is not None:
@@ -483,10 +480,12 @@ def rodar_fluido(fila, pasta, filhos, partes, inicio, nproc):
             lancar_um(partes[-1], len(partes), pasta, filhos)
             rodando += 1
         pico = max(pico, rodando)
+        if pendentes:
+            piso = rodando if piso is None else min(piso, rodando)
         time.sleep(INTERVALO_S if pendentes else 0.2)
     for p in filhos:  # um a um, pelo pid: o código de saída de cada filho conta, não o do último
         p.wait()
-    return fim, pico
+    return fim, pico, pico if piso is None else piso
 
 
 def esperar(filhos, inicio):
@@ -542,12 +541,14 @@ def lista_curta(nomes, limite):
     return ", ".join(nomes[:limite]) + (f" e mais {len(nomes) - limite}" if len(nomes) > limite else "")
 
 
-def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, segundos):
+def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, segundos, w=()):
     """O texto do resumo do passo (Markdown): só nomes de unidade e números, nunca portão. O veredito vem primeiro; a
-    execução reprovada não leva as linhas da medida e não vale para o orçamento (N-CI, C-7, C-9 a C-12)."""
+    execução reprovada não leva as linhas da medida e não vale para o orçamento (N-CI, C-7, C-9 a C-12). No modo
+    fluido, `w` é (W mínimo, W máximo) e substitui a conta por processo, que ali é um módulo (SUITE-FLUIDA, C13)."""
     n = len(partes)
     nomes = {m for parte in partes for m in parte}
-    texto = [f"### Suíte do Forge: {veredito}: {total} testes em {segundos:.1f} s ({n} processos)", ""]
+    em_paralelo = f"W de {w[0]} a {w[1]} em paralelo" if w else f"{n} processos"
+    texto = [f"### Suíte do Forge: {veredito}: {total} testes em {segundos:.1f} s ({em_paralelo})", ""]
     texto += [f"- {linha}" for linha in linhas]
     unidades = {k: float(v) for rel in relatorios if rel and isinstance(rel.get("duracoes"), dict)
                 for k, v in rel["duracoes"].items() if k in nomes and isinstance(v, (int, float)) and v >= 0}
@@ -557,16 +558,21 @@ def montar_resumo(veredito, linhas, partes, relatorios, duracoes, pesos, total, 
     if veredito.startswith("FAILED"):
         texto.append("- execução reprovada: não vale para o orçamento")
         return "\n".join(texto) + "\n"
-    media = sum(duracoes) / n
-    desequilibrio = max(duracoes) - media
     lentas = sorted(unidades.items(), key=lambda par: (-par[1], par[0]))
     texto += ["", f"#### Dez unidades mais lentas (de {len(unidades)})"]
     texto += [f"- {nome}: {seg:.1f} s" for nome, seg in lentas[:LIMITE_LENTAS]]
     soma = sum(unidades.values())
-    texto.append(f"- soma das unidades: {soma:.1f} s; soma ÷ {n} processos: {soma / n:.1f} s")
+    if w:
+        texto.append(f"- soma das unidades: {soma:.1f} s; W máximo: {w[1]}; W mínimo: {w[0]}")
+    else:
+        texto.append(f"- soma das unidades: {soma:.1f} s; soma ÷ {n} processos: {soma / n:.1f} s")
     if lentas:
         texto.append(f"- maior unidade: {lentas[0][0]} ({lentas[0][1]:.1f} s)")
-    texto.append(f"- desequilíbrio: {desequilibrio:.1f} s ({desequilibrio / (media or 1) * 100:.0f}% da média dos processos)")
+    if not w:
+        media = sum(duracoes) / n
+        desequilibrio = max(duracoes) - media
+        texto.append(f"- desequilíbrio: {desequilibrio:.1f} s ({desequilibrio / (media or 1) * 100:.0f}% da média dos "
+                     "processos)")
     sem_peso = sorted(nomes - set(pesos))
     if sem_peso:
         texto.append(f"- sem peso em {PESOS.relative_to(RAIZ)}: {lista_curta(sem_peso, LIMITE_SEM_PESO)}")
@@ -645,10 +651,10 @@ def gravar_pesos(relatorios):
 def orquestrar():
     os.chdir(RAIZ)
     inicio = time.monotonic()
-    carga, memoria, total_gb = medir_carga()
+    carga, memoria, _ = medir_carga()
     nproc = nucleos()
     try:
-        n, origem = numero_de_processos(os.environ, nproc, carga, memoria, total_gb)
+        n = processos_fixos(os.environ, nproc)
     except ValueError as e:
         print(f"suite-paralela: {e}.", file=sys.stderr)
         print("FAILED (configuração)")
@@ -657,7 +663,7 @@ def orquestrar():
     total = sum(esperado.values())
     nomes = modulos()
     pesos = ler_pesos()
-    fluido = not os.environ.get("FORGE_SUITE_PROCS")
+    fluido = n is None
     partes = [[m] for m in nomes] if fluido else repartir(nomes, pesos, min(n, max(1, len(nomes))))
     erros = conferir_particao(nomes, partes)
     if erros or not nomes:
@@ -668,7 +674,7 @@ def orquestrar():
         print(f"suite-paralela: {total} testes em {len(nomes)} módulos, um processo por módulo, fluido (de "
               f"{min(2, nproc)} a {nproc} em paralelo, conforme a carga).", file=sys.stderr, flush=True)
     else:
-        print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos ({origem}).",
+        print(f"suite-paralela: {total} testes em {len(nomes)} módulos, {len(partes)} processos (FORGE_SUITE_PROCS).",
               file=sys.stderr, flush=True)
     antes = estado_da_arvore()
     hash_arvore = hash_da_arvore(RAIZ)
@@ -678,11 +684,11 @@ def orquestrar():
     try:
         if fluido:
             partes = []
-            duracoes, pico = rodar_fluido(ordem_da_fila(nomes, pesos), pasta, filhos, partes, inicio, nproc)
+            duracoes, pico, piso = rodar_fluido(ordem_da_fila(nomes, pesos), pasta, filhos, partes, inicio, nproc)
             erros_fila = conferir_particao(nomes, partes)
         else:
             lancar(partes, pasta, filhos)
-            duracoes, pico, erros_fila = esperar(filhos, inicio), len(partes), []
+            duracoes, pico, piso, erros_fila = esperar(filhos, inicio), len(partes), len(partes), []
         for s, h in anteriores.items():
             signal.signal(s, h)
         relatorios = [ler_relatorio(pasta / f"p{i}.saida.json") for i in range(1, len(filhos) + 1)]
@@ -717,7 +723,8 @@ def orquestrar():
     else:
         veredito, codigo = fechar_verde(relatorios, hash_arvore, pulados), 0
     print(veredito)
-    publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos)
+    w = (piso, pico) if fluido else ()
+    publicar_no_ci(veredito, linhas, partes, relatorios, duracoes, pesos, rodados, segundos, w)
     if codigo:
         registrar_vermelha(relatorios, carga, memoria)
     return codigo
