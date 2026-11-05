@@ -446,6 +446,11 @@
     "docs/regras/R-NEUTRO.md": [
       "nada específico de um projeto entra em agentes, skills, docs ou modelos"
     ],
+    "docs/regras/R-SEM-PARADA.md": [
+      "puxa na hora o próximo trabalho que não depende das frentes paradas",
+      "a máquina no teto de `R-TETO`, ou nada desbloqueado no quadro",
+      "Não afrouxa portão"
+    ],
     "docs/regras/R-WIP.md": [
       "sem folga no teto, a fila espera",
       "respeitando o `R-TETO` inteiro: o teto de agentes, as worktrees \\(uma por instância, com disco livre\\), as tarefas pesadas uma por vez",
@@ -642,6 +647,7 @@
     "docs/regras/R-COPIA.md": {"regra": "R-COPIA", "porque": "sem o texto, agentes e skills são copiados para o projeto e deixam de acompanhar a versão vigente do plugin"},
     "docs/regras/R-CUSTO.md": {"regra": "R-CUSTO", "porque": "sem o texto, um agente poderia ligar serviço ou API paga sem autorização expressa do dono"},
     "docs/regras/R-NEUTRO.md": {"regra": "R-NEUTRO", "porque": "sem o texto, nome, regra de negócio ou stack de um projeto entra na fábrica que serve todos"},
+    "docs/regras/R-SEM-PARADA.md": {"regra": "R-SEM-PARADA", "porque": "sem o texto, o Jarvis volta a esperar envio, CI ou o dono com a máquina livre"},
     "docs/regras/R-WIP.md": {"regra": "R-WIP", "porque": "sem o texto, o agente acumula cartões e os limites de coluna do quadro deixam de valer"},
     "docs/regras/R-DECISAO.md": {"regra": "R-DECISAO", "porque": "sem o texto, o Jarvis volta a empilhar perguntas ao usuário em vez de uma decisão por vez, com opções e recomendação"},
     "docs/regras/R-PROVA.md": {"regra": "R-PROVA", "porque": "sem o texto, o agente afirma pronto sem a prova do brief e o Jarvis não tem como conferir"},
