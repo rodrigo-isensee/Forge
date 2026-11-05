@@ -1,7 +1,7 @@
 ---
 tipo: revisao-seguranca
 contrato: 1
-pedido: versao-033
+pedido: versao-034
 branch: melhoria/testes-sem-claude-ancestral
 commit: 9a08b1c860fc0c24f47467429018020680ba5811
 parecer: aprovado
