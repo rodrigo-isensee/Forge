@@ -35,6 +35,20 @@ class FormasNoBrief(Base):
         rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.2", "--etapa", "review", "--branch", "melhoria/x")
         self.assertNotIn("Formas aceitas pelos hooks", saida)
 
+    def test_brief_gerado_e_preenchido_passa_na_forma_com_a_secao(self):  # A1: a seção não cai no Pronto quando
+        rc, saida = self.gerar("dev-exemplo", "--cobre", "E1.1")
+        self.assertEqual(rc, 0, saida)
+        linhas = [linha for linha in saida.splitlines() if fc.PREENCHER not in linha]
+        linhas[linhas.index("## Ler"):linhas.index("## Ler")] = ["## Objetivo", "Exemplo.", ""]
+        pronto = next(i for i, linha in enumerate(linhas) if linha.startswith("## Pronto quando"))
+        linhas.insert(pronto + 1, "- PQ-1 (cmd): `true` · espera: rc=0")
+        texto = "\n".join(linhas) + "\n"
+        self.assertIn("## Formas aceitas pelos hooks", texto)
+        self.assertIn("git commit", texto)
+        rc, conferido = self.conferir(texto)
+        self.assertIn("forma: ok", conferido)
+        self.assertNotIn("sem PQ que o conferente confira", conferido)
+
 
 class FormasPassamNoHook(unittest.TestCase):
     def setUp(self):

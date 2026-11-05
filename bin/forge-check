@@ -4550,7 +4550,8 @@ SECOES_BRIEF = ("Objetivo", "Ler", "Entregar", "Fora do escopo", "Decisões e re
 TIPOS_PROVA = ("sha", "push", "pr", "run", "cmd", "arquivo", "merge")
 CMD_DO_CONFERENTE = "cmd:conferente"  # o PQ `cmd` que o próprio conferente roda (`verificador: conferente`)
 PROVAS_DO_CONFERENTE = ("sha", "push", "arquivo", "pr", "merge", CMD_DO_CONFERENTE)  # o que o conferente confere sozinho (R-PROVA, C6, M4, D1)
-CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF) + r")\b")
+SECAO_DAS_FORMAS = "Formas aceitas pelos hooks"  # E7: seção própria, que nenhuma checagem lê (não cai no `Pronto quando`)
+CABECALHO_BRIEF = re.compile(r"^\s*(?:#{1,6}\s*|(?:\d+\.\s*)?\*\*\s*)(" + "|".join(SECOES_BRIEF + (SECAO_DAS_FORMAS,)) + r")\b")
 CABECALHO_PEDIDO = re.compile(r"^#{2,6}\s+(.*?)\s*$")
 ITEM = re.compile(r"^\s*(?:[-*]|\d+\.)\s+")
 PQ = re.compile(r"\bPQ-(\d+)\b\s*(?:\(([^)]*)\))?")
@@ -5964,7 +5965,7 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
     if tipo == "codigo" or etapa in ETAPAS_DE_MERGE:
-        saida += ["", "## Formas aceitas pelos hooks (copie, não reescreva)"]
+        saida += ["", f"## {SECAO_DAS_FORMAS} (copie, não reescreva)"]
         saida += [f"- {rotulo}: `{cmd}`" if "\n" not in cmd else f"- {rotulo}:\n```\n{cmd}\n```" for rotulo, cmd in FORMAS_DE_COMMIT]
         saida.append(f"- merge na base: `git merge-base --is-ancestor <mergeCommit> origin/{base}`")
     saida += ["", "## Relatório",
