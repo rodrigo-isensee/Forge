@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -29,11 +30,19 @@ class FormasNoBrief(Base):
         self.assertIn("## Formas aceitas pelos hooks (copie, não reescreva)", saida)
         for _, comando in fc.FORMAS_DE_COMMIT:
             self.assertIn(comando, saida)
-        self.assertIn("git merge-base --is-ancestor <mergeCommit> origin/develop", saida.split("## Formas aceitas")[1])
+        self.assertNotIn("--is-ancestor", saida)  # brief de código não traz o merge (tests/test_volta_por_delta.py)
 
     def test_brief_de_review_nao_traz_a_secao(self):
         rc, saida = self.gerar("revisor-exemplo", "--cobre", "E1.2", "--etapa", "review", "--branch", "melhoria/x")
         self.assertNotIn("Formas aceitas pelos hooks", saida)
+
+    def test_etapa_de_merge_traz_a_linha_do_merge_uma_vez(self):  # A2: o pq_de_merge já a traz
+        with mock.patch.object(fc, "pareceres_da_etapa", return_value=[]), mock.patch.object(fc, "estado_da_branch", return_value=([], [])):
+            saida, rc, _ = fc.montar_brief(self.tmp, str(self.pedido), "forge:revisor-exemplo", "melhoria/x", "develop",
+                                           etapa="merge-integracao", cobre="E1.5")
+        self.assertEqual(rc, 0, saida)
+        self.assertIn("## Formas aceitas pelos hooks", saida)
+        self.assertEqual(saida.count("git merge-base --is-ancestor <mergeCommit> origin/develop"), 1, saida)
 
     def test_brief_gerado_e_preenchido_passa_na_forma_com_a_secao(self):  # A1: a seção não cai no Pronto quando
         rc, saida = self.gerar("dev-exemplo", "--cobre", "E1.1")

@@ -5965,9 +5965,8 @@ def montar_brief(raiz, pedido, destino, branch, base, etapa=None, volta=None, co
     if etapa in ETAPAS_DE_MERGE:
         saida.append(pq_de_merge(base))
     if tipo == "codigo" or etapa in ETAPAS_DE_MERGE:
-        saida += ["", f"## {SECAO_DAS_FORMAS} (copie, não reescreva)"]
+        saida += ["", f"## {SECAO_DAS_FORMAS} (copie, não reescreva)"]  # o merge sai só do `pq_de_merge` (A2)
         saida += [f"- {rotulo}: `{cmd}`" if "\n" not in cmd else f"- {rotulo}:\n```\n{cmd}\n```" for rotulo, cmd in FORMAS_DE_COMMIT]
-        saida.append(f"- merge na base: `git merge-base --is-ancestor <mergeCommit> origin/{base}`")
     saida += ["", "## Relatório",
               "Até 8 linhas, resultado real; depois o bloco `Provas:`, uma linha por `PQ-n` com a saída copiada da ferramenta, ou \"não cumprido\" e o motivo. Última linha: `Melhoria vista:` com o problema e a evidência, ou `nenhuma` (`R-DECISAO`)."]
     return "\n".join(saida) + "\n", 0, []
