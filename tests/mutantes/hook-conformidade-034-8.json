@@ -91,6 +91,16 @@
       "testes": [
         "tests.test_hooks.Hooks.test_marcador_critico_tambem_na_forma_juntada"
       ]
+    },
+    {
+      "id": "M43",
+      "guarda": "A10: o $'…' decodificado acaba no primeiro NUL, como no bash",
+      "arquivo": "hooks/_comum.py",
+      "de": "return ANSI_C.sub(um, texto).split(\"\\0\", 1)[0]",
+      "para": "return ANSI_C.sub(um, texto)",
+      "testes": [
+        "tests.test_hooks.Hooks.test_fixtures_da_trilha_034"
+      ]
     }
   ]
 }

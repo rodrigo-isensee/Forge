@@ -411,7 +411,7 @@ def decodificar_ansi_c(texto):
         if e[0] == "c" and len(e) > 1:
             return chr(ord(e[1]) & 0x1F)
         return ANSI_C_SIMPLES.get(e, "\\" + e)
-    return ANSI_C.sub(um, texto)
+    return ANSI_C.sub(um, texto).split("\0", 1)[0]  # A10: o bash encerra o $'…' no primeiro NUL
 
 
 def com_ansi_c(palavras):
