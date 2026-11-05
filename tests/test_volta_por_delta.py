@@ -831,6 +831,21 @@ class BriefDeVolta(Repositorio):
                 self.assertEqual(rc, 0, saida)
                 self.assertIn("src/app.txt:3", saida)
 
+    def test_desde_da_volta_e_a_conferida_da_propria_branch(self):  # E12 (CONFERIDA-DESDE-POR-BRANCH)
+        git("switch", "-q", "-c", "melhoria/outra", self.base, cwd=self.repo)
+        outra = self.commitar({"src/outra.txt": "o\n"}, "entrega de outra branch do mesmo pedido")
+        git("switch", "-q", "melhoria/x", cwd=self.repo)
+        pedido = self.pedido.read_text(encoding="utf-8")
+        self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n"
+                               f"- 2026-10-19 17:00: entrega conferida {outra}\n", encoding="utf-8")
+        rc, saida = self.gerar()
+        self.assertEqual(rc, 0, saida)  # antes: a última do pedido (de outra branch) era proposta e o gerar recusava
+        self.assertIn(f"--etapa codigo --desde {self.c1}` · espera: rc=0", saida)
+        self.assertNotIn(outra, saida)
+        rc, saida = self.entrega(desde=self.base)  # o Base-sha não vale como Desde com conferida da própria branch (antes: só a última contava)
+        self.assertEqual(rc, 1, saida)
+        self.assertIn("escopo: --desde sem conferência anterior", saida)
+
     def test_conferencia_reprova_anterior_bloco_e_achado(self):
         pedido = self.pedido.read_text(encoding="utf-8")
         self.pedido.write_text(pedido + f"\n## Histórico\n- 2026-10-19 16:00: entrega conferida {self.c1}\n", encoding="utf-8")
@@ -899,7 +914,7 @@ class TextoDosAgentes(unittest.TestCase):
         for trecho in ("Desde: <sha40", "o valor de `Desde:` da mensagem", "diverge do Histórico", "a forma `--opção=-valor`",
                        "peça a ref da branch da entrega ao Jarvis"):
             self.assertIn(trecho, conferente)
-        self.assertIn("`Desde:` (o sha40 da última linha `conferida`", jarvis)
+        self.assertIn("`Desde:` (o sha40 da linha mais recente da própria branch no `## Histórico`", jarvis)  # E12 (CONFERIDA-DESDE-POR-BRANCH)
 
     def test_pareceres_trazem_achados_e_leem_o_delta(self):
         for agente, pasta in (("tech-lead", "reviews"), ("security-engineer", "security"), ("qa-engineer", "qa")):
