@@ -17,7 +17,7 @@
   "entrada": {
     "tool_name": "Bash",
     "tool_input": {
-      "command": "GH_TOKEN=ghp_FAKEFAKEFAKEFAKE00000000000000000000 git push origin main"
+      "command": "GH_TOKEN=ghp_FAKE_FAKE_FAKE_FAKE_FAKE_FAKE_FAKE git push origin main"
     },
     "agent_type": "forge:node-backend",
     "hook_event_name": "PreToolUse",
