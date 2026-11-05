@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ambiente_git import sem_manutencao  # noqa: E402
 from guarda_git import setUpModule, tearDownModule  # noqa: E402,F401
+from apoio_conferida import gravar_conferida  # noqa: E402
 
 RAIZ = Path(__file__).resolve().parent.parent
 FORGE_CHECK = RAIZ.joinpath("bin", "forge-check")
@@ -56,7 +57,9 @@ class Repo(unittest.TestCase):
         if com_review:
             self.commitar({"docs/reviews/p1.md": REVIEW.format(c=head)}, "review")
 
-    def pr(self):
+    def pr(self, conferir=True):
+        if conferir:  # E7: a conferida do head (o teste é da isenção); sem parecer nenhum, o pedido gravado daria o `uso:` (rc 2)
+            gravar_conferida(self.tmp / "home", self.tmp, "p1")
         r = subprocess.run([sys.executable, str(FORGE_CHECK), "--raiz", str(self.tmp), "pr", "p1", "--base", "develop"],
                            capture_output=True, text=True, env=dict(os.environ, HOME=str(self.tmp / "home")), timeout=60)
         return r.returncode, r.stdout, r.stderr
@@ -84,7 +87,7 @@ class PrComIsencao(Repo):
 
     def test_md_comum_sem_review_reprova_pela_r_review(self):
         self.entrega({"docs/x.md": "# x\n"}, com_review=False)
-        rc, saida, _ = self.pr()
+        rc, saida, _ = self.pr(conferir=False)
         self.assertEqual(rc, 1)
         self.assertIn("review: sem parecer para o pedido `p1` (R-REVIEW)", saida)
         self.assertNotIn("qa: sem parecer", saida)
