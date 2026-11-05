@@ -19,7 +19,7 @@ Bloqueio (`R-REVIEW`): `bloqueante` é só defeito provado, requisito ou seguran
 ## Gatilhos
 Quais gatilhos da `R-SEGURANCA` a entrega toca.
 
-Avisos (o pre-push e o `forge-check docs` barram): cite o ID da regra, sem copiar a frase dela; cada achado em até 300 caracteres.
+Avisos (o pre-push e o `forge-check docs` barram): cite o ID da regra, sem copiar a frase dela; cada achado em até 300 caracteres de texto (conta o que vem depois do ` · `; o prefixo `A<n> (...) <arquivo>:<linha>` não conta). Neste repositório do Forge, o parecer não cita nome de linguagem, gerenciador de pacotes nem ferramenta de stack (o teste de neutralidade lê `docs/security/` e `docs/devops/`): diga "a stack" ou "o gerenciador de pacotes".
 
 ## Achados
 
