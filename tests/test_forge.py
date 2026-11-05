@@ -5537,7 +5537,7 @@ class TextoDoConferenteNoLote(unittest.TestCase):
 
     def test_pr_da_etapa_de_merge_le_a_origin_e_a_seguranca_e_etapa(self):  # E4, E5
         self.assertIn("forge-check pr <pedido> --ref <ref> --base origin/<Base>`", self.agente)
-        self.assertIn("| `review`, `seguranca` | Commit do autor existe e está no remoto |", self.agente)
+        self.assertIn("| `review`, `seguranca` | Commit do autor no remoto; à frente dele, só pareceres (linha `commit:` ou `aviso: commit:` do `forge-check brief`", self.agente)
         self.assertIn("Etapa: <codigo|review|seguranca|qa|pr|merge-integracao|pedido-de-merge-ao-dono>", self.agente)
         self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa`", self.agente)
         self.assertIn("nas etapas `codigo`, `review`, `seguranca` e `qa` (todo `PQ-n` cumpriu", self.agente)
