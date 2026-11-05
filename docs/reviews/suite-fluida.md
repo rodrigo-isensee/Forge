@@ -3,10 +3,10 @@ tipo: review
 contrato: 1
 pedido: suite-fluida
 branch: melhoria/suite-fluida
-commit: 24499f721c2c7be8868fef7eb62aa826a9773056
+commit: 389c585e627559e0e9371bfc7cab04659f83b15f
 parecer: reprovado
 revisor: forge:tech-lead
-data: 2026-11-04
+data: 2026-11-05
 ---
 # Review: suite-fluida
 
@@ -60,7 +60,7 @@ A troca proposta em `## E4` do desenho é só texto e não afrouxa: acrescenta "
 ## Achados recorrentes (PA-7)
 Conferi AR-1 a AR-11. O AR-9 (limite antigo no texto) foi conferido pela busca do E3, e nenhum texto ainda cita "até 4 processos". O caso inverso, texto novo que não bate com o código, está no A1 e no A2, e não é a mesma classe. O AR-4 (teste que herda o ambiente do CI) foi conferido: os testes novos do brinquedo passam pelo `roda`/`self.env` de sempre. Nenhum achado deste parecer repete uma classe registrada, então não há linha AR nova.
 
-## Achados
+## Achados da rodada 1
 - A1 (bloqueante) scripts/suite-paralela.py:192 · FORGE_SUITE_PROCS aceita até max(4, nproc), e o teste fixa 4 com nproc=2 (tests/test_suite_paralela.py:114), mas o R-TETO:14, a docstring (linha 15), o fragmento e o C8 dizem 1 a nproc. Alinhe o código ao texto, ou o texto ao código com aval do dono.
 - A2 (bloqueante) docs/regras/R-TETO.md:14 · O item novo diz que a suíte segue a mesma conta do R-TETO, mas ela decide pela CPU de /proc/stat sem a própria suíte, não pelo load de 1 min. Descreva a medida real, ou volte ao load se o dono preferir (ponto para o dono no parecer).
 - A3 (recomendado) scripts/suite-paralela.py:196 · O ramo sem FORGE_SUITE_PROCS de numero_de_processos (linhas 196-199) virou código morto no modo fluido, e os testes das linhas 105-111 testam só esse ramo. Tire o ramo e esses testes, ou use-o como a origem do modo fixo.
@@ -69,5 +69,34 @@ Conferi AR-1 a AR-11. O AR-9 (limite antigo no texto) foi conferido pela busca d
 - A6 (recomendado) scripts/suite-paralela.py:548 · No modo fluido, montar_resumo divide a soma e o desequilíbrio pelos 88 processos-módulo, e a linha de mudança (linha 478) não traz o instante nem os GB (C13). Mostre o W máximo e o mínimo no resumo.
 - A7 (recomendado) scripts/suite-paralela.py:247 · Quando um neto termina, os ticks dele entram de novo no cutime do pai, e o worker que acabou sai dos grupos com o último intervalo: a medida oscila. Registre o limite na docstring ou meça por cgroup ou por pids vivos.
 
-## Parecer
+## Parecer da rodada 1
 Reprovado, pelos achados A1 e A2. Os dois são texto contra código num arquivo de regra e se resolvem numa volta curta. O comportamento central está correto: a fila do mais pesado ao mais leve, um módulo por processo, a completude, os sinais, o piso que garante progresso e o limite em nproc. O módulo de teste está verde. A troca do load de 1 min pela CPU de `/proc/stat` é ponto para o dono (seção acima) e não pede reimplementação. Os achados A3 a A7 são recomendações e não devolvem a entrega. Na revalidação, rodo `forge-check delta --parecer docs/reviews/suite-fluida.md` e leio só o que ele listar.
+
+## Rodada 2
+Revalidação da volta E1.2b (c339ff6, e7dd74a, 389c585), em 389c585. Delta lido por `forge-check delta --parecer docs/reviews/suite-fluida.md` (intervalo 24499f7..25371b8): `bin/forge-testes`, `changelog.d/suite-fluida.md`, `docs/regras/R-TETO.md:13-14`, `scripts/suite-paralela.py` e `tests/test_suite_paralela.py`. Os commits 6cec848, 4b1b9d1 (segurança) e 25371b8 (devops) são pareceres de outros portões e não foram relidos. O resto da branch ficou como já lido na rodada 1.
+
+### Ferramentas
+- `python3 -m unittest tests.test_suite_paralela` na worktree, em 389c585, numa máquina de 12 núcleos: `Ran 52 tests in 35.572s`, `OK`. A árvore ficou limpa.
+- O mesmo módulo com dois núcleos (`taskset -c 0,1 python3 -m unittest tests.test_suite_paralela.Brinquedo`): `Ran 41 tests in 75.192s`, `FAILED (failures=26, errors=3)`. Esse é o A8.
+- Teto M14: 392 linhas de código e teste. São `scripts/suite-paralela.py` 189+48, `tests/test_suite_paralela.py` 132+14 e `bin/forge-testes` 6+3. O 383 do autor deixou de fora o `bin/forge-testes`. A branch não toca `hooks/` nem caminho de `PROTEGIDOS` e carrega um comportamento só: a mudança no mapa de testes acompanha o teste novo. Aceito a exceção se o corpo do PR trouxer `teto: excedido, 392 linhas, <motivo>`.
+
+### Achados da rodada 1
+- A1: fechado. `processos_fixos` aceita só de 1 a nproc (`scripts/suite-paralela.py:188`, `maximo = nproc or 1`), e o teste recusa "3" com nproc=2 e "2" sem nproc (`tests/test_suite_paralela.py:108-109`). O teste do brinquedo passou a usar nproc+1 (`tests/test_suite_paralela.py:709`). Código, docstring (linha 16), R-TETO:14 e fragmento dizem a mesma faixa. A correção abriu o A8.
+- A2: fechado. O R-TETO:14 descreve a medida real: a CPU de `/proc/stat` ocupada por processos de fora da suíte e o `MemAvailable`, não o load de 1 min, com a data e a hora da decisão do dono (20:41). A docstring (`scripts/suite-paralela.py:10-15`) e o fragmento (`changelog.d/suite-fluida.md:2`) dizem o mesmo. O ponto para o dono da rodada 1 ficou resolvido pela decisão de 20:41.
+- A3: fechado. `numero_de_processos` e `carga_alta` saíram, e com eles os testes do ramo morto. O modo fixo vem de `processos_fixos` (`scripts/suite-paralela.py:183`), e `fluido = n is None` (linha 666) tirou a segunda leitura da variável.
+- A4: fechado. A docstring de `nucleos()` (`scripts/suite-paralela.py:175-176`) cita a regra do hook. `test_nucleos_e_o_do_hook_de_agentes` (`tests/test_suite_paralela.py:114`) compara as duas funções sem o `FORGE_NPROC` e com a afinidade simulada. O mapa planeja esse módulo para `hooks/agentes.py` (`bin/forge-testes:103-104`).
+- A5: fechado. `test_rodar_fluido_sobe_com_folga_e_nao_repoe_com_carga_alta` (`tests/test_suite_paralela.py:168`) dirige `rodar_fluido` com o Medidor, o lançamento e o relógio falsos. Ele confere a sequência de W `[4, 5, 6, 6, 2]` com nproc=8: o piso sem medida, +1 por medida até 0,8 x nproc e a carga alta sem reposição. Confere também que nproc=1 anda em série. Com `rodando <= alvo` (linha 477), o primeiro W seria 5, e o teste mata a troca que eu tinha citado.
+- A6: fechado na parte do resumo. Com `w`, `montar_resumo` mostra o W mínimo e o máximo (`scripts/suite-paralela.py:550`) e não divide mais pelos processos-módulo, e o teste da linha 125 confere isso. A linha de mudança (linha 475) segue sem o instante, e só a memória no piso leva os GB. Era recomendação e não reabro.
+- A7: fechado. O limite da medida ficou registrado na docstring de `Medidor` (`scripts/suite-paralela.py:230-232`).
+
+### E4: R-TETO:13
+É só texto. O R-TETO:13 ganhou "de novo antes de cada disparo, sem cache nem janela: o teto sobe e desce com a carga medida", e nenhum limite nem condição saiu. `hooks/agentes.py` não está no diff, e o hook lê `/proc/loadavg` a cada chamada (`hooks/agentes.py:55`), sem cache: o texto descreve o código. Os invariantes de `tests/config.json` não mudam.
+
+### E5: os testes que fixam FORGE_SUITE_PROCS
+O risco relatado pelo autor se confirmou e é bloqueante (A8). O `setUp` do `Brinquedo` fixa `FORGE_SUITE_PROCS="3"` para todos os testes (`tests/test_suite_paralela.py:244`). `orquestrar_no_processo` (linha 276) e `test_processo_com_zero_testes_reprova` (linha 450) fixam "2". Com a faixa nova, uma máquina ou um contêiner de dois núcleos recusa o "3", e 29 dos 41 testes do `Brinquedo` caem (prova acima). Com um núcleo, caem também os de "2". O pre-push roda a suíte na máquina do autor, então o gatilho é real. O CI passa: `ubuntu-24.04` num repositório público tem 4 vCPU. A linha `tests/test_hooks.py:1253` não roda a suíte, só confere o texto do comando no hook `pesado`, e fica fora do achado. A classe é nova (não é a do AR-4, que trata de variável herdada do CI), então não há linha AR.
+
+## Achados
+- A8 (bloqueante) tests/test_suite_paralela.py:244 · O setUp do Brinquedo fixa FORGE_SUITE_PROCS=3, e as linhas 276 e 450 fixam 2. Com a faixa de 1 a nproc, numa máquina de 2 núcleos (taskset -c 0,1) caem 29 dos 41 testes. Derive o valor de nucleos() ou limite-o a min(3, nproc), ajustando as contagens esperadas.
+
+## Parecer
+Reprovado, pelo A8. A1 a A7 estão fechados. O A8 é um efeito da correção do A1: o código está certo, e quem quebra é o teste, que presume pelo menos 3 núcleos. A volta é curta e fica só em `tests/test_suite_paralela.py`. Na próxima rodada, leio só o delta que o `forge-check delta` listar.
