@@ -37,6 +37,15 @@ def carregar(caminho=SCRIPT, nome="suite_paralela"):
     return modulo
 
 
+def procs(maximo):
+    """`maximo` processos, ou os núcleos da máquina se forem menos: a faixa 1..nproc de FORGE_SUITE_PROCS."""
+    return str(min(maximo, carregar().nucleos()))
+
+
+PROCS3 = int(procs(3))  # os processos que o brinquedo usa com FORGE_SUITE_PROCS=procs(3)
+SO_COM_2_NUCLEOS = unittest.skipIf(carregar().nucleos() < 2, "a premissa pede 2 processos e a máquina tem 1 núcleo")
+
+
 # Cada teste de brinquedo anota em $MARCAS (fora da árvore) quem rodou, com o TMPDIR e o nice do processo.
 MARCA = '''import os, pathlib, unittest
 def marca(nome):
@@ -241,7 +250,7 @@ class Brinquedo(unittest.TestCase):
         self.git("init", "-q")
         self.git("add", "-A")
         self.git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-q", "-m", "x")
-        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS="3",
+        self.env = dict(AMBIENTE, MARCAS=str(self.marcas), TMPDIR=str(self.tmpdir), FORGE_SUITE_PROCS=procs(3),
                         XDG_RUNTIME_DIR=str(self.run_dir), HOME=str(base / "home"), FORGE_TRAVA_ESPERA="20")
         self.env.pop("FORGE_SUITE_TRAVA", None)
         self.env.pop("CI", None)
@@ -273,7 +282,7 @@ class Brinquedo(unittest.TestCase):
         antes, modulos_antes = dict(os.environ), set(sys.modules)
         for chave in ("GITHUB_STEP_SUMMARY", "GITHUB_ACTIONS"):
             os.environ.pop(chave, None)
-        os.environ.update(MARCAS=str(self.marcas), FORGE_SUITE_PROCS="2", **ambiente)
+        os.environ.update(MARCAS=str(self.marcas), FORGE_SUITE_PROCS=procs(2), **ambiente)
         try:
             with contextlib.redirect_stdout(saida), contextlib.redirect_stderr(erro):
                 codigo = script.orquestrar()
@@ -297,7 +306,7 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 0, saida + erro)
         self.assertEqual(saida.strip().splitlines()[-1], "OK")
         self.assertIn("Ran 3 tests", saida)
-        self.assertIn("3 processos", saida)
+        self.assertIn(f"{PROCS3} processos", saida)
         self.assertEqual(self.rodaram(), ["a", "b", "c"])
 
     def test_verde_grava_carimbo_e_a_segunda_chamada_reusa_sem_rodar(self):  # K6
@@ -347,14 +356,14 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(codigo, 0, saida + erro)
         linhas = [p.read_text().splitlines() for p in self.marcas.iterdir()]
         tmps = {linha[0] for linha in linhas}
-        self.assertEqual(len(tmps), 3, tmps)
+        self.assertEqual(len(tmps), PROCS3, tmps)
         for tmp in tmps:
             self.assertTrue(tmp.startswith(str(self.tmpdir) + os.sep), tmp)
             self.assertNotIn(f"forge-{os.getuid()}", Path(tmp).name)
             self.assertFalse(Path(tmp).exists(), "o TMPDIR do processo ficou para trás")
         self.assertEqual(list(self.tmpdir.iterdir()), [])
         self.assertTrue(all(int(linha[1]) >= min(19, os.nice(0) + 10) for linha in linhas), linhas)
-        self.assertEqual(len({linha[2] for linha in linhas}), 3, "processos no mesmo grupo")
+        self.assertEqual(len({linha[2] for linha in linhas}), PROCS3, "processos no mesmo grupo")
         self.assertNotIn(str(os.getpgid(0)), {linha[2] for linha in linhas})
 
     def test_modulo_novo_entra_sem_lista(self):  # AB-1
@@ -387,6 +396,7 @@ class Brinquedo(unittest.TestCase):
         for linha in ("unidades mais lentas", "soma das unidades", "maior unidade", "desequilíbrio"):
             self.assertNotIn(linha, resumo)  # C-7: a medida da c2 só existe no resumo verde
 
+    @SO_COM_2_NUCLEOS
     def test_resumo_com_processo_morto_nao_quebra_o_veredito(self):  # AB-1, C-8
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
         codigo, saida, erro, resumo = self.resumo_do_ci()
@@ -443,11 +453,12 @@ class Brinquedo(unittest.TestCase):
         self.assertIn("ausente", erro)
         self.assertTrue(saida.strip().splitlines()[-1].startswith("FAILED"))
 
+    @SO_COM_2_NUCLEOS
     def test_processo_com_zero_testes_reprova(self):  # AB-5
         for nome in ("b", "c"):
             (self.repo / "tests" / f"test_{nome}.py").unlink()
         self.modulo("vazio", "import unittest\n")
-        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS="2")
+        codigo, saida, erro = self.roda(FORGE_SUITE_PROCS=procs(2))
         self.assertEqual(codigo, 1, saida + erro)
         self.assertIn("rodou zero testes", erro)
 
@@ -513,6 +524,7 @@ class Brinquedo(unittest.TestCase):
         self.assertEqual(self.roda(GITHUB_ACTIONS="true")[0], 1)
         self.assertFalse((pasta / "suite-vermelha.jsonl").exists())
 
+    @SO_COM_2_NUCLEOS
     def test_processo_morto_nao_impede_o_registro_dos_testes_que_cairam(self):  # L32: o relatório de quem morreu é None
         pasta = self.pasta_do_registro()
         self.modulo("b", modulo_de_teste("b", "os.kill(os.getpid(), signal.SIGKILL)", "import signal\n"))
@@ -602,7 +614,7 @@ class Brinquedo(unittest.TestCase):
         self.modulo("b", modulo_de_teste("b", "time.sleep(0.6)", "import time\n"))
         codigo, saida, erro, resumo = self.resumo_do_ci()
         self.assertEqual(codigo, 0, saida + erro)
-        self.assertRegex(resumo, r"- soma das unidades: \d+\.\d s; soma ÷ 3 processos: \d+\.\d s")
+        self.assertRegex(resumo, rf"- soma das unidades: \d+\.\d s; soma ÷ {PROCS3} processos: \d+\.\d s")
         self.assertRegex(resumo, r"- maior unidade: test_b \(\d+\.\d s\)")
         self.assertRegex(resumo, r"- desequilíbrio: \d+\.\d s \(\d+% da média dos processos\)")
 
@@ -627,8 +639,9 @@ class Brinquedo(unittest.TestCase):
         codigo, saida, erro = self.roda(GITHUB_ACTIONS="true")
         self.assertEqual(codigo, 0, saida + erro)
         grupos = [linha for linha in saida.splitlines() if linha.startswith("::group::")]
-        self.assertEqual(len(grupos), 3)
-        self.assertEqual(sorted(g.split(" (")[1] for g in grupos), ["test_a)", "test_b)", "test_c)"])
+        self.assertEqual(len(grupos), PROCS3)
+        unidades = [u for g in grupos for u in g.split(" (")[1].rstrip(")").split(", ")]
+        self.assertEqual(sorted(unidades), ["test_a", "test_b", "test_c"])
         self.assertTrue(all(g.startswith("::group::processo ") for g in grupos), grupos)
 
     def test_resumo_so_leva_nomes_e_numeros(self):  # AB-4, C-9
