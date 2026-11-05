@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l08
-commit: 3625656cf0462fe8829ce3aff82bbfa055b352df
+commit: df0a0e98d3d3b65efeea5086787ec328a9745081
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
@@ -142,3 +142,11 @@ Revisado: 3625656, o fix das 4 regressões do pre-push. Delta lido: `git diff 91
 - **A13 (recomendado):** o texto do conferente ainda aponta o `pr` do comando como a fonte do escopo ok. Foi o que o aviso da conferência indicou. O portão continua fechado, porque o `forge-fechar` e o `brief gerar` seguem cobrando a conferência do head. O problema é só o texto, que ficou impreciso.
 
 Testes, numa cópia de 3625656: `python3 -m unittest tests.test_conf_escopo tests.test_estado_da_branch tests.test_ambiente_git` deu rc=0 (36 testes).
+
+## Revalidação df0a0e9
+Delta lido: `git diff c4b582d df0a0e9`, só `tests/mutantes/lote-l08-e7.json` (M29 e M30) e `tests/mutantes/lote-l08-escopo.json` (novo, M60 e M61); o resto fica como "já lido". O `bin/forge-check` não mudou. O `commit:` passa a df0a0e9, o último commit de teste (E16). Veredito: **aprovado**, sem achado novo.
+
+- M29 e M30: o `de` bate com bin/forge-check:668 e :682 (`... + (conferencia_do_head(...) if conferir else [])`); o `para` tira a conferência, e o teste da `ConferenciaPresaAoHead` a mata.
+- M60 (:1396): o `de` é a chamada com `conferir=False` do escopo da merge-integracao; o `para` liga a conferência. M61 (:657): o `de` é a assinatura com `conferir=True`; o `para` troca o padrão. Os dois apontam para o teste novo de `test_conf_escopo`, que cobre as duas metades.
+- Nenhum mutante vivo escondido: `bin/forge-mutante` sobre as duas specs em 8df8e17, rc=0, 17 mortos (M29, M30, M60 e M61 inclusos), nenhum vivo nem equivalente novo.
+- Os commits 8df8e17 e bf883a0 são parecer do QA e spec; não mudam código.
