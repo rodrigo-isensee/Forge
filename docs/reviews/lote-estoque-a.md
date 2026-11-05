@@ -40,11 +40,9 @@ test_textos_034 (6), test_permissao_agentes_md (1), test_invariante_gatilho (1),
 - O teto de 300 do achado é afirmado em dois testes (`tests/test_achado_teto_doc.py` e `tests/test_textos_034.py:43`): duplicação inofensiva, ambos verdes.
 - Nenhuma contradição de texto restante entre os itens; as redações antigas que a textos-034 trazia saíram.
 - Teto por PR (M14): o lote junta itens já aprovados um a um, e o código está só em `bin/forge-fechar` (+11, -4); fora esse arquivo, o resto é texto, teste e parecer.
-- A árvore de trabalho tem 12 mudanças no índice, não commitadas (remoção dos fragmentos de `changelog.d/` dos itens e `changelog.d/lote-estoque-a.md` novo): não fazem parte do commit revisado e não as toquei; o autor da junção as commita antes do envio.
 
 ## Achados
 - A1 (recomendado) tests/test_textos_034.py:43 · o teto de 300 do achado já é afirmado em tests/test_achado_teto_doc.py; deixar um dos dois testes quando houver outra passada nesses arquivos.
-- A2 (recomendado) changelog.d/lote-estoque-a.md:1 · consolidação dos fragmentos está só no índice da worktree; commitar no lote antes do push, em commit próprio, para o PR não sair sem fragmento.
 
 ## Parecer
-Aprovado. A resolução dos quatro conflitos de texto e a do conflito de teste preservam a redação refinada de cada item, sem marcador residual e com os testes dos arquivos tocados verdes. As recomendações A1 e A2 não devolvem.
+Aprovado. A resolução dos quatro conflitos de texto e a do conflito de teste preservam a redação refinada de cada item, sem marcador residual e com os testes dos arquivos tocados verdes. A recomendação A1 não devolve.
