@@ -52,7 +52,7 @@ A busca do brief no head 24499f7 deu uma linha só: `scripts/suite-paralela.py:5
 - `tests/config.json`: intacto. Os invariantes do R-TETO (linhas 407-413) seguem.
 
 ## E4: teto de agentes
-A troca proposta em `## E4` do desenho é só texto e não afrouxa: acrescenta "de novo", "sem cache nem janela" e "o teto sobe e desce com a carga medida", sem tirar limite nem condição, e o invariante de `tests/config.json` não cita a frase. A branch ainda não a tem: o R-TETO:13 está igual à base. O ajuste é a E1.2b, numa outra delegação.
+A troca proposta em `## E4` do desenho é só texto e não afrouxa: acrescenta a leitura renovada a cada disparo e o teto que acompanha a carga medida, sem tirar limite nem condição, e o invariante de `tests/config.json` não cita a frase. A branch ainda não a tem: o R-TETO:13 está igual à base. O ajuste é a E1.2b, numa outra delegação.
 
 ## E5: fragmento de changelog
 `changelog.d/suite-fluida.md` existe, com o tipo `Alterado` (um dos tipos de `bin/forge-changelog`) e um texto que descreve o comportamento e a marca "afrouxa R-TETO". A faixa "de 1 a nproc" do texto precisa acompanhar o desfecho do A1.
@@ -90,7 +90,7 @@ Revalidação da volta E1.2b (c339ff6, e7dd74a, 389c585), em 389c585. Delta lido
 - A7: fechado. O limite da medida ficou registrado na docstring de `Medidor` (`scripts/suite-paralela.py:230-232`).
 
 ### E4: R-TETO:13
-É só texto. O R-TETO:13 ganhou "de novo antes de cada disparo, sem cache nem janela: o teto sobe e desce com a carga medida", e nenhum limite nem condição saiu. `hooks/agentes.py` não está no diff, e o hook lê `/proc/loadavg` a cada chamada (`hooks/agentes.py:55`), sem cache: o texto descreve o código. Os invariantes de `tests/config.json` não mudam.
+É só texto. O R-TETO:13 ganhou a leitura renovada a cada disparo e o teto que acompanha a carga (R-TETO), e nenhum limite nem condição saiu. `hooks/agentes.py` não está no diff, e o hook lê `/proc/loadavg` a cada chamada (`hooks/agentes.py:55`), sem cache: o texto descreve o código. Os invariantes de `tests/config.json` não mudam.
 
 ### E5: os testes que fixam FORGE_SUITE_PROCS
 O risco relatado pelo autor se confirmou e é bloqueante (A8). O `setUp` do `Brinquedo` fixa `FORGE_SUITE_PROCS="3"` para todos os testes (`tests/test_suite_paralela.py:244`). `orquestrar_no_processo` (linha 276) e `test_processo_com_zero_testes_reprova` (linha 450) fixam "2". Com a faixa nova, uma máquina ou um contêiner de dois núcleos recusa o "3", e 29 dos 41 testes do `Brinquedo` caem (prova acima). Com um núcleo, caem também os de "2". O pre-push roda a suíte na máquina do autor, então o gatilho é real. O CI passa: `ubuntu-24.04` num repositório público tem 4 vCPU. A linha `tests/test_hooks.py:1253` não roda a suíte, só confere o texto do comando no hook `pesado`, e fica fora do achado. A classe é nova (não é a do AR-4, que trata de variável herdada do CI), então não há linha AR.
