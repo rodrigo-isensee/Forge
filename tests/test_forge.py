@@ -613,7 +613,7 @@ class RegrasComId(unittest.TestCase):
                 fm = frontmatter(p)
                 self.assertEqual(set(fm), {"id", "titulo", "verificada_por"}, "frontmatter só com id, titulo, verificada_por")
                 self.assertEqual(fm["id"], nome, "id deve ser igual ao nome do arquivo")
-                self.assertRegex(nome, r"^R-[A-Z]+(-[A-Z]+)*$")
+                self.assertRegex(nome, r"^R-[A-Z]+$")
                 self.assertTrue(fm["titulo"], "titulo vazio")
                 self.assertTrue(fm["verificada_por"], "verificada_por vazio")
 
