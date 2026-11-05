@@ -1,0 +1,86 @@
+{
+  "pedido": "lote-l08",
+  "executor": "unittest",
+  "mutantes": [
+    {
+      "id": "M10",
+      "guarda": "só a conferida ancestral do head é da branch",
+      "arquivo": "bin/forge-check",
+      "de": "if o == \"conferida\" and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]",
+      "para": "if o == \"conferida\" and not e_ancestral(raiz, c, base_sha)]",
+      "testes": [
+        "tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_de_branch_anterior_fora_do_head_aceita_o_base_sha"
+      ]
+    },
+    {
+      "id": "M11",
+      "guarda": "a conferida já na base não é da branch",
+      "arquivo": "bin/forge-check",
+      "de": "if o == \"conferida\" and e_ancestral(raiz, c, head) and not e_ancestral(raiz, c, base_sha)]",
+      "para": "if o == \"conferida\" and e_ancestral(raiz, c, head)]",
+      "testes": [
+        "tests.test_conferencia_base_dono.DesdeNoBaseSha.test_conferida_ja_na_base_nao_e_da_branch"
+      ]
+    },
+    {
+      "id": "M12",
+      "guarda": "a base da própria branch vem primeiro",
+      "arquivo": "bin/forge-check",
+      "de": "    valido, origem = desde_valido(raiz, texto, head, base_sha)\n    if valido:\n        return valido, origem",
+      "para": "    valido, origem = desde_valido(raiz, texto, head, base_sha)\n    if False:\n        return valido, origem",
+      "testes": [
+        "tests.test_mensagem_conferente.DesdeNaBranchNova.test_desde_e_a_base_da_propria_branch_mesmo_com_outra_depois"
+      ]
+    },
+    {
+      "id": "M13",
+      "guarda": "sem base da branch, o Base-sha",
+      "arquivo": "bin/forge-check",
+      "de": "    if base_sha_como_desde(raiz, texto, base_sha, head):\n        return base_sha, \"base\"",
+      "para": "    if False:\n        return base_sha, \"base\"",
+      "testes": [
+        "tests.test_mensagem_conferente.DesdeNaBranchNova.test_desde_e_a_base_da_propria_branch_mesmo_com_outra_depois"
+      ]
+    },
+    {
+      "id": "M14",
+      "guarda": "a recusa da volta lê a base da branch",
+      "arquivo": "bin/forge-check",
+      "de": "desde, origem = desde_da_branch(raiz, pedido_txt, ref, base_sha)  # E12",
+      "para": "desde, origem = bases[-1]  # E12",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_desde_da_volta_e_a_conferida_da_propria_branch"
+      ]
+    },
+    {
+      "id": "M15",
+      "guarda": "a PQ da volta traz a base da branch",
+      "arquivo": "bin/forge-check",
+      "de": "--desde {desde_da_branch(raiz, pedido_txt, ref, sha_base)[0] if bases else PREENCHER}",
+      "para": "--desde {bases[-1][0] if bases else PREENCHER}",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_desde_da_volta_e_a_conferida_da_propria_branch"
+      ]
+    },
+    {
+      "id": "M16",
+      "guarda": "a mensagem traz a base da branch",
+      "arquivo": "bin/forge-check",
+      "de": "squash, bases = escolhido[1] == \"base\", [escolhido] if bases else bases",
+      "para": "squash, bases = escolhido[1] == \"base\", bases",
+      "testes": [
+        "tests.test_mensagem_conferente.DesdeNaBranchNova.test_desde_e_a_base_da_propria_branch_mesmo_com_outra_depois"
+      ]
+    },
+    {
+      "id": "M17",
+      "guarda": "conferida da branch recusa o Base-sha",
+      "arquivo": "bin/forge-check",
+      "de": "return not da_branch and e_ancestral(raiz, base_sha, head)",
+      "para": "return e_ancestral(raiz, base_sha, head)",
+      "testes": [
+        "tests.test_volta_por_delta.BriefDeVolta.test_desde_da_volta_e_a_conferida_da_propria_branch"
+      ]
+    }
+  ]
+}
