@@ -3,7 +3,7 @@ tipo: revisao-seguranca
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: 83a28d7537c95c9b30e96e2bf0bb16a7342802a2
+commit: edd8b6b8b8e70d7ea5d1db6129b008530565f2a6
 parecer: aprovado
 revisor: forge:security-engineer
 data: 2026-11-04
@@ -64,6 +64,12 @@ Testes: `python3 -I -m unittest discover -s tests -p test_forge.py -k Conferenci
 
 ## Nota (83a28d7, teste do QA 5ac531f)
 O `5ac531f` só acrescenta `QaPareceresDaBranch` a `tests/test_qa_lote_l08.py`. Ele prova três casos: o parecer da própria branch passa mesmo com um parecer de outra branch desatualizado ou reprovado; sem parecer da branch, reprova mesmo com o alheio aprovado; e só o QA faltando também reprova. Não muda código nem controle, e a revalidação acima vale para este head.
+
+## Nota (edd8b6b, spec de mutantes do L08, 988505e)
+O `988505e` só muda `tests/mutantes/lote-l08-e7b.json`; nos merges vieram também pareceres e bugs em `docs/`. Nada mudou em `bin/forge-check`, `hooks/` nem `agents/`.
+- M36 equivalente: conferi a justificativa. Os dois chamadores de `conferencia_do_head` estão em `pr_da_cli`, que agora resolve a branch pelo sha antes de chamá-la. Por isso o `or branch_do_sha` interno só roda com branch vazia e daria o mesmo None.
+- M56 novo: guarda a busca da branch pelo sha sem `--base`.
+Nenhum controle afrouxa, e a análise acima vale para este head.
 
 ## Riscos aceitos e ferramentas
 Nenhum risco aceito por este parecer. O afrouxamento é o da Q14 = A, decisão do dono, e o rótulo `afrouxa-regra` fica com ele. Testes: `python3 -I -m unittest discover -s tests -p test_volta_por_delta.py` (68 testes, OK). A sonda local de `etapas_novas_da_volta` (seis casos) rodou no scratchpad, fora do repositório. `gitleaks` e `semgrep` não estão no PATH (lacuna; o delta não traz segredo nem dependência).
