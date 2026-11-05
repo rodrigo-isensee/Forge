@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-034
 branch: melhoria/lote-estoque-c
-commit: e17d07ac96a4a48cbfdd8e079bfa8e35f966e9f4
+commit: f11234dffd10cdf566a5a22d43210edf595229ad
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-05
@@ -25,7 +25,8 @@ Nenhum arquivo de código ou teste foi tocado por dois itens; a única sobreposi
 
 ## Commits fora dos merges
 - e17d07a: inclui test_qa_doutor_034 no mapa FORGE_CHECK de bin/forge-testes e sobe a contagem de tests/test_testes_tocados.py de 39 para 40. Correto: o módulo executa o bin/forge-check (importlib em test_qa_doutor_034.py:77) e o teste do mapa conta os módulos; o comentário registra a origem. Dois ajustes de uma linha, no mesmo comportamento da junção.
-- f11234d: junta 7 fragmentos num só (changelog.d/lote-estoque-c.md), agrupado por seção; as 7 entradas dos itens estão presentes. Sobra README.md e o fragmento do ancestral, que já vinham da base.
+- f11234d: junta 7 fragmentos num só (changelog.d/lote-estoque-c.md), agrupado por seção; as 8 entradas dos 7 itens estão presentes. Sobra README.md e o fragmento do ancestral, que já vinham da base.
+- Volta 1 (consolidação, f11234d): os 7 fragmentos removidos (doutor-034, doutor-f8-caminho, forge-testes-aviso-mapa, forge-testes-filtro-k, forge-testes-sem-mapa, hook-parecer-034, lote-fechar2-guardas) somam 8 entradas; comparei os pares seção e entrada do pai de f11234d com changelog.d/lote-estoque-c.md: os 8 iguais, texto byte a byte, sob os mesmos títulos (Corrigido 3, Adicionado 4, Alterado 1). Nada perdido nem mudado; o veredito não muda.
 
 ## Testes dos módulos tocados
 `python3 -m unittest` em test_testes_tocados, test_qa_doutor_034, test_doutor, test_doutor_protecao_gh, test_qa_doutor_f8, test_fechar_base_andou, test_fechar_espera_catraca, test_hooks_parecer_pasta: 256 testes, OK (193 s). A suíte inteira fica com o QA do lote (E2.5).
