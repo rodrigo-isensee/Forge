@@ -580,6 +580,22 @@ class QuatroDefeitosDoScript(Repo):
         rc, saida = self.conferir(self.brief_de())
         self.assertEqual((rc, "aviso: commit:" in saida), (1, False), saida)
 
+    def test_head_com_a_arvore_do_remoto_mais_um_parecer_mas_sem_descender_dele_reprova_pela_ancestralidade(self):  # E2, C-2, review A1
+        """Amend: o remoto tem a entrega e um parecer; o head local refaz o commit do parecer e acrescenta outro. A diferença de árvore
+        são só pareceres e nada é apagado, então só a checagem de ancestralidade (o remoto conferido é ancestral do head) o reprova."""
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        base = self.git("rev-parse", "HEAD")
+        self.com_remoto()
+        self.local({"docs/reviews/p.md": "x\n"}, "parecer")
+        self.git("push", "-q", "origin", "HEAD:melhoria/x")
+        self.git("reset", "-q", "--hard", base)
+        self.local({"docs/reviews/p.md": "x\n", "docs/reviews/q.md": "y\n"}, "parecer refeito")
+        rc, saida = self.conferir(self.brief_de())
+        self.assertEqual(rc, 1, saida)
+        self.assertIn('fora de pareceres: "não descende de origin"', saida)
+        self.assertNotIn("aviso: commit:", saida)
+
     def test_so_o_ref_de_rastreio_sem_remoto_conferido_nao_concede_a_excecao(self):  # E2, C-1, abuso 7
         self.entrega({"src/app.py": "v2\n"})
         self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
