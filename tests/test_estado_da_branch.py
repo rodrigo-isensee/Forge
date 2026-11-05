@@ -106,6 +106,8 @@ class Estado(Repo):
         self.assertIn("estado: PR #7 MERGED head abcdef0", erro)
         self.assertIn("brief gerar: recusado: o PR #7 já foi mesclado", saida)
         self.pareceres(self.c1)
+        pedido = self.repo / "docs" / "pedidos" / "exemplo.md"  # E7: o merge espera a conferência de entrega do head
+        pedido.write_text(PEDIDO + f"\n## Histórico\n- 2026-10-12 09:00: entrega conferida {self.c1}\n", encoding="utf-8")
         rc, saida, erro = self.gerar("--etapa", "merge-integracao", destino="revisor-exemplo", env=com_gh_falso(script=GH_MERGED))
         self.assertEqual(rc, 0, saida + erro)
 

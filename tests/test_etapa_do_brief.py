@@ -343,6 +343,8 @@ class Repo(Base):
         if pareceres:
             self.commitar({f"{self.PASTA[t]}/exemplo.md": self.REVIEW.format(tipo=t, c=head, extra=self.EXTRA[t]) for t in pareceres},
                           "pareceres")
+        with self.pedido.open("a", encoding="utf-8") as f:  # E7 (TEMPO-B2): a conferida do head da entrega, gravada pelo Jarvis depois dos commits
+            f.write(f"\n## Histórico\n- 2026-11-04 09:00: entrega conferida {head}\n")
 
     def gerar(self, etapa, destino="revisor-exemplo", cobre="E1.5"):
         return self.rodar("brief", "gerar", "--pedido", "exemplo", "--destino", f"forge:{destino}", "--etapa", etapa,
