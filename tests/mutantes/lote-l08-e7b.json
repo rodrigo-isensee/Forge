@@ -10,8 +10,9 @@
       "para": "branch = branch or branch_da_ref(raiz, ref)",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_ref_por_sha_acha_a_branch_como_no_forge_fechar",
-        "tests.test_fechar.FecharComOForgeCheckReal.test_com_a_conferida_do_head_fecha"
-      ]
+        "tests.test_fechar_forge_check_real.FecharComOForgeCheckReal.test_com_a_conferida_do_head_fecha"
+      ],
+      "equivalente": "depois do 1d50bea, o pr_da_cli já passa a branch achada pelo sha (branch_do_sha, guardado pelo M55 com --base e pelo M56 sem ele); no conferencia_do_head o `or branch_do_sha` só roda com branch vazia, o que a linha de comando não produz (QA L08-3)"
     },
     {
       "id": "M37",
@@ -51,6 +52,16 @@
       "para": "return bool(head)",
       "testes": [
         "tests.test_forge.ConferenciaPresaAoHead.test_promocao_nao_cobra_a_conferencia_e_branch_de_trabalho_segue_cobrada"
+      ]
+    },
+    {
+      "id": "M56",
+      "guarda": "sem --base, o sha da ref acha a branch dos pareceres (pr_da_cli)",
+      "arquivo": "bin/forge-check",
+      "de": "        branch = branch or branch_da_ref(raiz, ref) or branch_do_sha(raiz, sha_do_commit(raiz, ref or \"HEAD\"))  # o sha do forge-fechar\n        return cmd_pr",
+      "para": "        branch = branch or branch_da_ref(raiz, ref)  # o sha do forge-fechar\n        return cmd_pr",
+      "testes": [
+        "tests.test_forge.ForgeCheck.test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch"
       ]
     }
   ]

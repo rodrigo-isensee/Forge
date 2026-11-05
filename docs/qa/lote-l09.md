@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: d4d1ca79ed7c5436d219f20a41c31520a0afa027
+commit: 0e3067bc87e0dd9c96589cb96e146ebdf76dbf85
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -37,3 +37,6 @@ Código testado: 882a7dd7fa933f473d82fcac65c94517b6fb46fa (patch bc6d081), head 
 - O `commit:` passou a ser a6eee8b, o teste do QA na lote-l09 (o 61e72dd da qa-l09 foi reaplicado por cherry-pick, mesmo conteúdo). Depois vieram o merge do L08 e d4d1ca7 (o teste no mapa do bin/forge-testes), sem mudar código nem teste.
 - `-p test_qa_lote_l09.py`: 3 OK sobre d4d1ca7.
 - O `commit:` aponta para d4d1ca7: a linha do mapa do forge-testes entrou depois do teste; o código de produção não mudou (o teste a6eee8b é ancestral).
+
+## Revalidação (pareceres só da própria branch, 083a959 do L08)
+O código novo veio do L08 por merge; o QA trouxe também o teste do L08 (QaPareceresDaBranch) por merge, e o `commit:` é o head 0e3067b, que o contém. Cenário de ponta a ponta (branch com parecer próprio aprovado e alheio desatualizado passa; sem o próprio reprova) passa nesta branch. `-p test_qa_lote_l08.py` e `-p test_qa_lote_l09.py`: 27 testes OK. Nota: a spec tests/mutantes/lote-l08-e7b.json, herdada do L08, está velha (bug L08-3, no L08); não é defeito do L09.
