@@ -4914,7 +4914,7 @@ def remoto_da_branch(raiz, branch):
 
 
 # E2 BRIEF-HEAD-LOCAL: as pastas de parecer do `so_parecer` do `.githooks/pre-push` (não a `LIVRES`: sem kanban, ux, modelos nem aceites).
-PASTAS_DE_PARECER = ("docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/")
+PASTAS_DO_SO_PARECER = ("docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/")
 PASTAS_RECUSADAS_DE_PARECER = ("docs/security/ameacas/", "docs/security/aceites/")
 ETAPAS_COM_PARECER_A_FRENTE = ("review", "seguranca", "qa")
 MODOS_DE_ARQUIVO = ("100644", "100755")
@@ -4934,7 +4934,7 @@ def so_pareceres_a_frente(raiz, remota, head):
     for meta, nome in zip(campos[::2], campos[1::2]):
         antigo, novo, _, _, status = meta.lstrip(":").split()
         aceito = (status in ("A", "M") and novo in MODOS_DE_ARQUIVO and (status == "A" or antigo in MODOS_DE_ARQUIVO)
-                  and not com_controle(nome) and "/_" not in nome and nome.startswith(PASTAS_DE_PARECER)
+                  and not com_controle(nome) and "/_" not in nome and nome.startswith(PASTAS_DO_SO_PARECER)
                   and not nome.startswith(PASTAS_RECUSADAS_DE_PARECER))
         if not aceito:
             return nome, 0

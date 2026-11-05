@@ -623,7 +623,7 @@ class QuatroDefeitosDoScript(Repo):
         texto = (FORGE_CHECK.parent.parent / ".githooks" / "pre-push").read_text(encoding="utf-8")
         self.assertIn("docs/reviews/*|docs/security/*|docs/qa/*|docs/devops/*) ;;", texto)
         self.assertIn("*/_*|docs/security/ameacas/*|docs/security/aceites/*) return 1 ;;", texto)
-        self.assertEqual(set(fc.PASTAS_DE_PARECER), {"docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/"})
+        self.assertEqual(set(fc.PASTAS_DO_SO_PARECER), {"docs/reviews/", "docs/security/", "docs/qa/", "docs/devops/"})
         self.assertEqual(set(fc.PASTAS_RECUSADAS_DE_PARECER), {"docs/security/ameacas/", "docs/security/aceites/"})
 
     def test_na_etapa_codigo_o_commit_nao_se_confere_e_o_gerar_sem_etapa_escreve_preencher(self):
