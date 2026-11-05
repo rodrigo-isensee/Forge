@@ -3,7 +3,7 @@ tipo: review
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l09
-commit: 0e3067bc87e0dd9c96589cb96e146ebdf76dbf85
+commit: 871d8840c824c1e82bf351fb56410ba6d7aa7563
 parecer: aprovado
 revisor: forge:tech-lead
 data: 2026-11-04
@@ -97,3 +97,12 @@ Testes e mutante, num clone isolado em 083a959:
 - `bin/forge-mutante tests/mutantes/lote-l08-pareceres-da-branch.json`: rc=0, M53, M54 e M55 mortos.
 
 Enquanto esta revalidação rodava, entrou o teste do QA 5ac531f (`tests/test_qa_lote_l08.py` +38 -1, classe `QaPareceresDaBranch`). Li o teste inteiro. Ele cobre três casos: o parecer próprio aprovado com o alheio desatualizado ou reprovado, a falta do parecer próprio com o alheio aprovado e a falta só do QA. Nenhum achado. `python3 -I -m unittest discover -s tests -p test_qa_lote_l08.py` deu rc=0 (24 testes). Ele chegou aqui pelo merge 0e3067b, sem resolução manual (o `--remerge-diff` sai vazio). O `commit:` passa a 0e3067b, o último commit de teste (E16).
+
+## Revalidação (spec de mutantes, 988505e)
+Delta lido: 988505e, só `tests/mutantes/lote-l08-e7b.json` (+13 -2). O `bin/forge-check` não mudou. Chega aqui pelo merge 871d884, sem resolução manual (o `--remerge-diff` sai vazio). Veredito: **aprovado**.
+
+- **M36 equivalente: confere.** O `conferencia_do_head` só é chamado pelo `pr_da_cli` (bin/forge-check:667 e :681). Nos dois caminhos, antes da chamada, o `pr_da_cli` já faz `branch = branch or branch_da_ref(...) or branch_do_sha(...)` com a mesma ref. O `or branch_do_sha` do `conferencia_do_head` (bin/forge-check:757) só roda quando esse resultado é None, e aí repete a mesma busca com as mesmas entradas, que volta None. Tirar o `or branch_do_sha` não muda nada que a linha de comando produza. O motivo escrito na spec está correto. Ficam guardadas as duas buscas reais: com `--base`, pelo M55 (lote-l08-pareceres-da-branch.json); sem `--base`, pelo M56.
+- **M56:** guarda a busca da branch pelo sha no `pr_da_cli` sem `--base` (:666), com `ForgeCheck.test_pr_parecer_da_branch_da_ref_vale_sobre_o_de_outra_branch`.
+- **Recomendação, sem achado no bloco:** o fallback redundante de :757 pode sair do código numa próxima mudança de `bin/forge-check`, e o M36 junto. Código que nenhum mutante consegue matar é candidato a remoção.
+
+`bin/forge-mutante tests/mutantes/lote-l08-e7b.json`, numa worktree limpa em 988505e: rc=0. M36 equivalente; M37, M50, M51, M52 e M56 mortos.
