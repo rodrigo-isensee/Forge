@@ -596,6 +596,20 @@ class QuatroDefeitosDoScript(Repo):
         self.assertIn('fora de pareceres: "não descende de origin"', saida)
         self.assertNotIn("aviso: commit:", saida)
 
+    def test_parecer_so_local_a_frente_do_remoto_continua_sem_parecer_no_pr_pela_ref_do_remoto(self):  # E2, C-7, review A2, segurança A2
+        self.entrega({"src/app.py": "v2\n"})
+        self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
+        self.com_remoto()
+        head = self.git("rev-parse", "HEAD")
+        parecer = self.REVIEW.format(tipo="review", c=head, extra=self.EXTRA["review"]).replace("pedido: exemplo", "pedido: x")
+        self.local({"docs/reviews/x.md": parecer}, "parecer")
+        rc, saida = self.conferir(self.brief_de())
+        self.assertIn("aviso: commit:", saida, "o brief aceita o head local só com parecer")
+        self.assertNotIn("review: sem parecer", self.rodar("pr", "x", "--ref", "melhoria/x")[1], "o parecer é válido na ref local")
+        rc, saida = self.rodar("pr", "x", "--ref", "origin/melhoria/x")
+        self.assertIn("docs/reviews: review: sem parecer", saida)
+        self.assertEqual(rc, 1, saida)
+
     def test_so_o_ref_de_rastreio_sem_remoto_conferido_nao_concede_a_excecao(self):  # E2, C-1, abuso 7
         self.entrega({"src/app.py": "v2\n"})
         self.git("add", "docs/pedidos/exemplo.md"); self.git("commit", "-q", "-m", "historico")
