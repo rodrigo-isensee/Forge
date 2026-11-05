@@ -84,6 +84,9 @@ CONTEUDO = ("test_forge", "test_changelog", "test_sobreposicao_quadro", "test_no
 # O que o Forge publicado traz para um projeto: test_atualizar copia bin/, migrations/, templates/ e
 # .claude-plugin/ para montar versões publicadas e roda o doutor e o `forge` contra elas.
 PUBLICADO = CONTEUDO + ("test_atualizar",)
+HOOKS = ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
+         "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
+         "test_hooks_parecer_pasta", "test_esperar_estado") + VOLTA_UNICA
 MAPA = [
     (r"bin/forge-changelog", ("test_changelog", "test_conferir_release", "test_forge")),
     (r"bin/forge-check", FORGE_CHECK),
@@ -97,11 +100,11 @@ MAPA = [
     (r"bin/forge-testes", ("test_testes_tocados", "test_forge")),
     (r"bin/forge", ("test_doutor", "test_novo_projeto", "test_salvar_desfazer", "test_forge", "test_atualizar")),
     (r"hooks/doutor\.py", ("test_atualizar", "test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor") + VOLTA_UNICA),
+    # hooks/agentes.py: test_suite_paralela confere que o nproc da suíte é o do hook (entrada própria, antes da larga).
+    (r"hooks/agentes\.py", HOOKS + ("test_suite_paralela",)),
     # hooks/agentes.py e hooks/_comum.py: o teto de agentes (R-TETO) e o hash do brief (R-BRIEF) rodam o script nos testes abaixo;
     # hooks/vigia.py: test_textos_dono_f10 lê o texto. O resto de hooks/ é coberto pela regra larga seguinte.
-    (r"hooks/.*", ("test_hooks", "test_catraca", "test_sugerir", "test_forge", "test_doutor", "test_testes_tocados",
-                   "test_agentes_hash_brief", "test_agentes_clone", "test_textos_dono_f10", "test_hook_ansi_c",
-                   "test_hooks_parecer_pasta", "test_esperar_estado") + VOLTA_UNICA),
+    (r"hooks/.*", HOOKS),
     (r"scripts/ci-local", ("test_ci_local", "test_forge", "test_testes_tocados")),
     (r"scripts/conferir-reversao\.py", ("test_conferir_reversao", "test_forge", "test_testes_tocados")),  # aviso: NaoEPortao
     (r"scripts/(jarvis|jarvis-forge|instalar-atalho\.sh)", ("test_doutor", "test_forge")),
