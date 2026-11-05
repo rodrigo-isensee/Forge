@@ -3,7 +3,7 @@ tipo: qa
 contrato: 1
 pedido: versao-033
 branch: melhoria/lote-l10
-commit: f25db720f6c418c78c2b9e0624a893bb9538e337
+commit: 83a28d7537c95c9b30e96e2bf0bb16a7342802a2
 parecer: aprovado
 escopo: completo
 bugs_criticos: 0
@@ -46,3 +46,6 @@ Código testado: effbe5b1b16cedb1c84698afcf4921c053692c48, head 018abcb. O `comm
 - Depois do parecer anterior vieram os merges do L09 e f25db72 (o teste do QA no mapa do bin/forge-testes), sem mudar código nem o teste; o `commit:` segue fd7b144, que é ancestral do head.
 - `-p test_qa_lote_l10.py`: 1 OK sobre f25db72.
 - O `commit:` aponta para f25db72: a linha do mapa do forge-testes entrou depois do teste; o código de produção não mudou (o teste fd7b144 é ancestral).
+
+## Revalidação (pareceres só da própria branch, 083a959 do L08)
+O código novo veio do L08 por merge; o QA trouxe também o teste do L08 (QaPareceresDaBranch) por merge, e o `commit:` é o head 83a28d7, que o contém. Cenário de ponta a ponta (branch com parecer próprio aprovado e alheio desatualizado passa; sem o próprio reprova) passa nesta branch. `-p test_qa_lote_l08.py` e `-p test_qa_lote_l09.py` e `-p test_qa_lote_l10.py`: 28 testes OK. Nota: a spec tests/mutantes/lote-l08-e7b.json, herdada do L08, está velha (bug L08-3, no L08); não é defeito do L10.
