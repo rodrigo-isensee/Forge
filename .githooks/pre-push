@@ -129,9 +129,10 @@ fi
 # mesma fila do push, sem refs e sem anotar prova. É por onde scripts/suite-paralela.py passa quando chamado à mão.
 modo_suite=0
 if [ "$#" -eq 1 ] && [ "$1" = "--suite" ]; then modo_suite=1; exec </dev/null; fi
-n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""
+n_refs=0; n_envios=0; unico_local=""; unico_remoto=""; unico_ref=""; envio_sha=(); envio_ref=()
 while read -r _ local_sha remote_ref remote_sha; do
   n_refs=$((n_refs + 1)); case "$local_sha" in *[!0]*) n_envios=$((n_envios + 1)) ;; esac; unico_local="$local_sha"; unico_remoto="$remote_sha"; unico_ref="$remote_ref"
+  case "$local_sha" in *[!0]*) envio_sha+=("$local_sha"); envio_ref+=("$remote_ref") ;; esac
   # R-VERIFY: reescrever histórico de ref remota existente (não fast-forward) é decisão do usuário.
   # Recusar quando o objeto remoto não existe localmente é intencional: sem ele não há como provar que
   # é fast-forward; um `git fetch` resolve. Apagar ref (local_sha zerado) não passa por esta checagem.
@@ -177,6 +178,36 @@ fi
 unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_PREFIX GIT_OBJECT_DIRECTORY GIT_COMMON_DIR
 # Testes estruturais (rápidos, só biblioteca padrão); o CI repete tudo.
 cd "$(git rev-parse --show-toplevel)" || exit 1
+# PUSH-PARECER-JA-NO-REMOTO (decisão do dono, 2026-11-05): o envio cujo commit o remoto já tem (outro envio do mesmo
+# commit chegou antes, inclusive durante a espera da fila) não leva nada novo e não roda a suíte; o CI do PR repete tudo.
+# Só o remoto que o git passou em $1 (nunca o ambiente), e a ref comparada pelo nome inteiro (o ls-remote casa pela
+# cauda). Falha fechada: pula só se todas as refs do push são branch já no remoto no mesmo sha ou num descendente;
+# tag, remoção, ref nova, erro ou tempo esgotado rodam a suíte. Não anota prova (.verde, .dirigida): só suíte que rodou.
+sha_valido() { [[ "$1" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]]; }
+ja_no_remoto() {
+  local i ref sha achado s r saida achados=""
+  [ "$modo_suite" -eq 0 ] && [ "$n_envios" -gt 0 ] && [ "$n_envios" -eq "$n_refs" ] || return 1
+  [ "${#envio_ref[@]}" -eq "$n_envios" ] || return 1
+  case "${1:-}" in ''|-*) return 1 ;; esac
+  for i in "${!envio_ref[@]}"; do
+    ref="${envio_ref[$i]}"; sha="${envio_sha[$i]}"; achado=""
+    case "$ref" in refs/heads/main|refs/heads/homolog|refs/heads/develop|*[[:cntrl:]]*) return 1 ;; refs/heads/?*) ;; *) return 1 ;; esac
+    sha_valido "$sha" || return 1
+    saida="$(GIT_TERMINAL_PROMPT=0 timeout 20 git ls-remote -- "$1" "$ref" 2>/dev/null)" || return 1
+    while IFS=$'\t' read -r s r; do
+      [ "$r" = "$ref" ] || continue
+      [ -z "$achado" ] || return 1
+      achado="$s"
+    done <<< "$saida"
+    sha_valido "$achado" || return 1
+    if [ "$achado" != "$sha" ]; then
+      git cat-file -e "${achado}^{commit}" 2>/dev/null && git merge-base --is-ancestor "$sha" "$achado" 2>/dev/null || return 1
+    fi
+    achados="${achados:+$achados, }${ref#refs/heads/} em ${achado:0:7}"
+  done
+  echo "pre-push: o remoto já tem o que seria enviado (${achados}); suíte não roda." >&2
+}
+if [ "$modo_suite" -eq 0 ] && ja_no_remoto "${1:-}"; then exit 0; fi
 espera="${FORGE_TRAVA_ESPERA:-1200}"
 case "$espera" in ''|*[!0-9]*) echo "pre-push: FORGE_TRAVA_ESPERA deve ser um número de segundos inteiro (veio '${espera}')." >&2; exit 1 ;; esac
 trava="$(trava_arquivo criar)" || exit 1
